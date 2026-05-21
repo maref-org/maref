@@ -1,0 +1,59 @@
+from __future__ import annotations
+
+from maref.recursive.skill_schema import MarefSkill
+
+
+class SkillTrigger:
+    def __init__(self) -> None:
+        self._cache: dict[int, list[MarefSkill]] = {}
+
+    def evaluate(
+        self,
+        skill: MarefSkill,
+        current_hexagram: int,
+        prev_hexagram: int | None = None,
+    ) -> bool:
+        return skill.matches_hexagram(current_hexagram, prev_hexagram)
+
+    def get_active_skills(
+        self,
+        skills: list[MarefSkill],
+        current_hexagram: int,
+        prev_hexagram: int | None = None,
+    ) -> list[MarefSkill]:
+        cache_key = current_hexagram
+        if cache_key in self._cache:
+            return [s for s in self._cache[cache_key] if skill_transition_ok(s, prev_hexagram)]
+
+        active: list[MarefSkill] = []
+        for skill in skills:
+            if self.evaluate(skill, current_hexagram, prev_hexagram):
+                active.append(skill)
+        self._cache[cache_key] = active
+        return active
+
+    def invalidate_cache(self) -> None:
+        self._cache.clear()
+
+    def match_and_filter(
+        self,
+        skills: list[MarefSkill],
+        current_hexagram: int,
+        prev_hexagram: int | None = None,
+        file_path: str | None = None,
+        entropy: float | None = None,
+    ) -> list[MarefSkill]:
+        active = self.get_active_skills(skills, current_hexagram, prev_hexagram)
+        if file_path is None and entropy is None:
+            return active
+        return [
+            s for s in active
+            if s.matches_context(file_path or "", entropy)
+        ]
+
+
+def skill_transition_ok(skill: MarefSkill, prev_hexagram: int | None) -> bool:
+    tf = skill.hexagram_trigger.transition_from
+    if tf is None or prev_hexagram is None:
+        return True
+    return prev_hexagram in tf

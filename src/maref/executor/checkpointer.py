@@ -1,0 +1,196 @@
+from __future__ import annotations
+
+import dataclasses
+import hashlib
+import json
+import sqlite3
+import threading
+import uuid
+from datetime import datetime, timezone
+
+from maref.executor.queue import TaskQueue
+from maref.executor.types import Task, TaskStatus
+
+
+@dataclasses.dataclass
+class Snapshot:
+    id: str = dataclasses.field(default_factory=lambda: str(uuid.uuid4()))
+    label: str = ""
+    created_at: str = ""
+    task_count: int = 0
+    status_summary: dict[str, int] = dataclasses.field(default_factory=dict)
+    checksum: str = ""
+    data: str = ""
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+class Checkpointer:
+    def __init__(self, task_queue: TaskQueue, db_path: str) -> None:
+        self._queue = task_queue
+        self._db_path = db_path
+        self._lock = threading.Lock()
+        self._conn: sqlite3.Connection | None = None
+        self._connect()
+        self._create_table()
+
+    def _connect(self) -> None:
+        self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA busy_timeout=5000")
+
+    def _create_table(self) -> None:
+        conn = self._conn
+        assert conn is not None
+        with self._lock:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS snapshots (
+                    id TEXT PRIMARY KEY,
+                    label TEXT,
+                    created_at TEXT,
+                    task_count INTEGER,
+                    status_summary TEXT,
+                    checksum TEXT,
+                    data TEXT
+                )
+            """)
+            conn.commit()
+
+    def create_snapshot(self, label: str = "") -> str:
+        tasks = self._queue.list_tasks()
+        data = json.dumps([t.to_dict() for t in tasks], sort_keys=True)
+        checksum = hashlib.sha256(data.encode("utf-8")).hexdigest()
+        snapshot_id = str(uuid.uuid4())
+        now = _now()
+        task_count = len(tasks)
+        status_summary: dict[str, int] = {}
+        for t in tasks:
+            status_summary[t.status.value] = status_summary.get(t.status.value, 0) + 1
+        conn = self._conn
+        assert conn is not None
+        with self._lock:
+            conn.execute(
+                """INSERT INTO snapshots
+                (id, label, created_at, task_count, status_summary, checksum, data)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    snapshot_id,
+                    label,
+                    now,
+                    task_count,
+                    json.dumps(status_summary),
+                    checksum,
+                    data,
+                ),
+            )
+            conn.commit()
+        return snapshot_id
+
+    def restore(self, snapshot_id: str) -> bool:
+        snapshot = self.get_snapshot(snapshot_id)
+        if snapshot is None:
+            return False
+        tasks_data = json.loads(snapshot.data)
+        snapshot_tasks = [Task.from_dict(td) for td in tasks_data]
+        current_tasks = self._queue.list_tasks()
+        running_ids = {
+            t.id for t in current_tasks if t.status == TaskStatus.RUNNING
+        }
+        for t in current_tasks:
+            if t.status != TaskStatus.RUNNING:
+                self._queue.delete(t.id)
+        for task in snapshot_tasks:
+            if task.id not in running_ids:
+                task.status = TaskStatus.PENDING
+                self._queue.enqueue(task)
+        return True
+
+    def list_snapshots(self, limit: int = 100) -> list[Snapshot]:
+        conn = self._conn
+        assert conn is not None
+        with self._lock:
+            rows = conn.execute(
+                "SELECT * FROM snapshots ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            result: list[Snapshot] = []
+            for row in rows:
+                result.append(
+                    Snapshot(
+                        id=row["id"],
+                        label=row["label"],
+                        created_at=row["created_at"],
+                        task_count=row["task_count"],
+                        status_summary=json.loads(row["status_summary"]),
+                        checksum=row["checksum"],
+                        data=row["data"],
+                    )
+                )
+            return result
+
+    def get_snapshot(self, snapshot_id: str) -> Snapshot | None:
+        conn = self._conn
+        assert conn is not None
+        with self._lock:
+            row = conn.execute(
+                "SELECT * FROM snapshots WHERE id = ?", (snapshot_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            return Snapshot(
+                id=row["id"],
+                label=row["label"],
+                created_at=row["created_at"],
+                task_count=row["task_count"],
+                status_summary=json.loads(row["status_summary"]),
+                checksum=row["checksum"],
+                data=row["data"],
+            )
+
+    def delete_snapshot(self, snapshot_id: str) -> bool:
+        conn = self._conn
+        assert conn is not None
+        with self._lock:
+            cur = conn.execute(
+                "DELETE FROM snapshots WHERE id = ?", (snapshot_id,)
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
+    def verify_integrity(self, snapshot_id: str) -> bool:
+        snapshot = self.get_snapshot(snapshot_id)
+        if snapshot is None:
+            return False
+        computed = hashlib.sha256(snapshot.data.encode("utf-8")).hexdigest()
+        return computed == snapshot.checksum
+
+    def prune(self, keep: int = 10) -> int:
+        conn = self._conn
+        assert conn is not None
+        with self._lock:
+            all_rows = conn.execute(
+                "SELECT id FROM snapshots ORDER BY created_at DESC"
+            ).fetchall()
+            if len(all_rows) <= keep:
+                return 0
+            delete_ids = [
+                row["id"] for row in all_rows[keep:]
+            ]
+            if not delete_ids:
+                return 0
+            placeholders = ",".join("?" for _ in delete_ids)
+            cur = conn.execute(
+                f"DELETE FROM snapshots WHERE id IN ({placeholders})",
+                delete_ids,
+            )
+            conn.commit()
+            return cur.rowcount
+
+    def close(self) -> None:
+        with self._lock:
+            if self._conn is not None:
+                self._conn.close()
+                self._conn = None

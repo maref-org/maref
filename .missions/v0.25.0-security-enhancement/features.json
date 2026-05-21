@@ -1,0 +1,190 @@
+{
+  "mission_id": "maref-v0.25.0-security",
+  "version": "0.25.0-rc",
+  "milestones": [
+    {
+      "id": "m0",
+      "name": "架构试点",
+      "description": "Factory Missions 架构与 MAREF 兼容性验证",
+      "weeks": "0",
+      "validation_rounds": 2,
+      "features": [
+        {
+          "id": "s3",
+          "name": "零信任网关增强",
+          "description": "增强 MCPSecurityGate + 委托链哈希验证 + 速率限制 + 审计日志 + 跨域检测",
+          "skills": ["python", "fastapi", "asyncio", "cryptography"],
+          "assertions": ["A3.1", "A3.2", "A3.3", "A3.4", "A3.5"],
+          "estimated_tokens": "2M",
+          "dependencies": ["s1", "s2"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "m1",
+      "name": "信任链基础设施",
+      "description": "构建委托链追踪系统 + 信任边界标记 + 零信任网关",
+      "weeks": "1-2",
+      "validation_rounds": 3,
+      "features": [
+        {
+          "id": "s1",
+          "name": "委托链追踪机制",
+          "description": "DelegationChain 数据结构 + 核心方法 + Orchestration 集成",
+          "skills": ["python", "dataclasses", "uuid7", "cryptography"],
+          "assertions": ["A1"],
+          "estimated_tokens": "2M",
+          "dependencies": [],
+          "test_coverage_threshold": 95,
+          "status": "completed"
+        },
+        {
+          "id": "s2",
+          "name": "信任边界标记",
+          "description": "TrustDomain + 跨域调用检测 + 边界报告",
+          "skills": ["python", "set-theory", "risk-analysis"],
+          "assertions": ["A2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["s1"],
+          "test_coverage_threshold": 95,
+          "status": "completed"
+        },
+        {
+          "id": "s3",
+          "name": "零信任网关",
+          "description": "增强 MCPSecurityGate + 速率限制 + 审计日志",
+          "skills": ["python", "fastapi", "redis", "asyncio"],
+          "assertions": ["A3"],
+          "estimated_tokens": "3M",
+          "dependencies": ["s1", "s2"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "name": "跨Agent威胁防御",
+      "description": "共享状态污染检测 + 消息安全扫描 + 行为监控 + 拜占庭隔离",
+      "weeks": "2-3",
+      "validation_rounds": 3,
+      "features": [
+        {
+          "id": "s5",
+          "name": "共享状态污染检测",
+          "description": "状态监控接口 + 异常模式检测 + 隔离机制",
+          "skills": ["python", "statistics", "anomaly-detection"],
+          "assertions": ["A4"],
+          "estimated_tokens": "3M",
+          "dependencies": ["s2"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        },
+        {
+          "id": "s6",
+          "name": "消息传递安全扫描",
+          "description": "Prompt injection 识别 + 上下文隔离 + 风险评分",
+          "skills": ["python", "nlp", "regex", "security"],
+          "assertions": ["A5"],
+          "estimated_tokens": "2.5M",
+          "dependencies": ["s3"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        },
+        {
+          "id": "s7",
+          "name": "行为监控",
+          "description": "行为基线建模 + 异常检测 + 组合分析",
+          "skills": ["python", "statistics", "anomaly-detection"],
+          "assertions": ["A6"],
+          "estimated_tokens": "3M",
+          "dependencies": ["s5"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        },
+        {
+          "id": "s8",
+          "name": "拜占庭隔离增强",
+          "description": "多维度异常判定 + 隔离机制 + 恢复机制",
+          "skills": ["python", "graph-theory", "consensus"],
+          "assertions": ["A7"],
+          "estimated_tokens": "3M",
+          "dependencies": ["s3"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "name": "协议标准化",
+      "description": "MCP Server + A2A + 安全传输 + 协议桥接 + 生态互操作",
+      "weeks": "3-5",
+      "validation_rounds": 2,
+      "features": [
+        {
+          "id": "p1",
+          "name": "MCP Server实现",
+          "description": "Tools/Resources/Prompts端点 + InProcessTransport + SecurityGate集成",
+          "skills": ["python", "jsonrpc", "asyncio"],
+          "assertions": ["P1.1", "P1.2", "P1.3"],
+          "estimated_tokens": "2M",
+          "dependencies": ["s3"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        },
+        {
+          "id": "p3",
+          "name": "MCP安全加固",
+          "description": "协议级输入验证 + 速率限制 + 审计日志中间件",
+          "skills": ["python", "security", "middleware"],
+          "assertions": ["P3.1", "P3.2", "P3.3"],
+          "estimated_tokens": "1.5M",
+          "dependencies": ["p1"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        },
+        {
+          "id": "p6",
+          "name": "A2A安全传输",
+          "description": "mTLS加密 + 证书管理 + 请求签名 + 对等身份校验",
+          "skills": ["python", "cryptography", "ssl"],
+          "assertions": ["P6.1", "P6.2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["s3"],
+          "test_coverage_threshold": 85,
+          "status": "completed"
+        },
+        {
+          "id": "p7",
+          "name": "MCP↔A2A桥接",
+          "description": "协议转换中间件 + 状态映射 + 合并Agent Card",
+          "skills": ["python", "protocol-design"],
+          "assertions": ["P7.1", "P7.2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["p1", "p6"],
+          "test_coverage_threshold": 90,
+          "status": "completed"
+        },
+        {
+          "id": "p8",
+          "name": "生态互操作验证",
+          "description": "LangChain工具兼容 + AutoGen适配器验证 + 跨框架信任",
+          "skills": ["python", "integration-testing"],
+          "assertions": ["P8.1", "P8.2"],
+          "estimated_tokens": "1M",
+          "dependencies": ["p7"],
+          "test_coverage_threshold": 80,
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "current_milestone": "m3",
+  "completed_milestones": ["m0", "m1", "m2", "m3"],
+  "total_estimated_tokens": "38.5M",
+  "budget_usd": 3500,
+  "risk_level": "medium"
+}

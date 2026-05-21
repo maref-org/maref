@@ -1,0 +1,148 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class InferenceBackend(str, Enum):
+    CPU = "cpu"
+    CUDA = "cuda"
+    MPS = "mps"
+    ONNX = "onnx"
+    TENSORRT = "tensorrt"
+
+
+class MemoryTier(str, Enum):
+    HOT = "hot"
+    WARM = "warm"
+    COLD = "cold"
+
+
+@dataclass
+class GPUPipelineConfig:
+    backend: InferenceBackend = InferenceBackend.CPU
+    device_id: int = 0
+    batch_size: int = 1
+    precision: str = "fp32"
+    warm_up: bool = True
+    max_memory_mb: int = 4096
+
+
+@dataclass
+class MemoryCell:
+    key: str
+    value: Any
+    tier: MemoryTier
+    ttl_seconds: float = 3600.0
+    created_at: float = 0.0
+    access_count: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def is_expired(self) -> bool:
+        import time
+        return self.ttl_seconds > 0 and (time.time() - self.created_at) > self.ttl_seconds
+
+
+class MemoryThreeTemperature:
+    """Three-temperature memory architecture: Hot/Warm/Cold.
+
+    Hot:  Short-term (< 1h), LRU eviction, for real-time context
+    Warm: Session-level, ChromaDB-backed, for task memory
+    Cold: Long-term, KG-persisted, for cross-session knowledge
+    """
+
+    def __init__(self) -> None:
+        self._hot: dict[str, MemoryCell] = {}
+        self._warm: dict[str, MemoryCell] = {}
+        self._cold: dict[str, MemoryCell] = {}
+        self._max_hot = 100
+        self._max_warm = 1000
+
+    def store(self, key: str, value: Any, tier: MemoryTier, ttl: float = 3600.0) -> MemoryCell:
+        import time
+        cell = MemoryCell(key=key, value=value, tier=tier, ttl_seconds=ttl, created_at=time.time())
+        if tier == MemoryTier.HOT:
+            self._hot[key] = cell
+            if len(self._hot) > self._max_hot:
+                self._evict_lru(self._hot)
+        elif tier == MemoryTier.WARM:
+            self._warm[key] = cell
+            if len(self._warm) > self._max_warm:
+                self._evict_lru(self._warm)
+        else:
+            self._cold[key] = cell
+        return cell
+
+    def retrieve(self, key: str) -> MemoryCell | None:
+        for tier_dict in (self._hot, self._warm, self._cold):
+            cell = tier_dict.get(key)
+            if cell is not None:
+                cell.access_count += 1
+                return cell
+        return None
+
+    def retrieve_by_tier(self, key: str, tier: MemoryTier) -> MemoryCell | None:
+        tier_map = {MemoryTier.HOT: self._hot, MemoryTier.WARM: self._warm, MemoryTier.COLD: self._cold}
+        cell = tier_map[tier].get(key)
+        if cell is not None:
+            cell.access_count += 1
+        return cell
+
+    def clear_tier(self, tier: MemoryTier) -> int:
+        tier_map = {MemoryTier.HOT: self._hot, MemoryTier.WARM: self._warm, MemoryTier.COLD: self._cold}
+        count = len(tier_map[tier])
+        tier_map[tier].clear()
+        return count
+
+    def stats(self) -> dict[str, int]:
+        return {"hot": len(self._hot), "warm": len(self._warm), "cold": len(self._cold)}
+
+    @staticmethod
+    def _evict_lru(tier_dict: dict[str, MemoryCell]) -> None:
+        if tier_dict:
+            oldest = min(tier_dict.values(), key=lambda c: c.access_count)
+            del tier_dict[oldest.key]
+
+
+class TrustAntiGaming:
+    """Goodhart detection: detect when Agent scores are being gamed."""
+
+    def __init__(self, window_size: int = 50, gaming_threshold: float = 0.85) -> None:
+        self._behavior_history: list[float] = []
+        self._score_history: list[float] = []
+        self._window_size = window_size
+        self._gaming_threshold = gaming_threshold
+
+    def observe(self, behavior_quality: float, trust_score: float) -> dict[str, Any]:
+        self._behavior_history.append(behavior_quality)
+        self._score_history.append(trust_score)
+        if len(self._behavior_history) > self._window_size:
+            self._behavior_history.pop(0)
+            self._score_history.pop(0)
+
+        corr = self._pearson_correlation(self._behavior_history, self._score_history)
+        gaming_detected = corr is not None and corr > self._gaming_threshold
+
+        return {
+            "samples": len(self._behavior_history),
+            "correlation": round(corr, 4) if corr is not None else None,
+            "gaming_detected": gaming_detected,
+            "threshold": self._gaming_threshold,
+        }
+
+    @staticmethod
+    def _pearson_correlation(x: list[float], y: list[float]) -> float | None:
+        n = len(x)
+        if n < 3:
+            return None
+        import math
+        mx = sum(x) / n
+        my = sum(y) / n
+        num = sum((x[i] - mx) * (y[i] - my) for i in range(n))
+        dx = math.sqrt(sum((v - mx) ** 2 for v in x))
+        dy = math.sqrt(sum((v - my) ** 2 for v in y))
+        if dx == 0 or dy == 0:
+            return 0.0
+        return num / (dx * dy)

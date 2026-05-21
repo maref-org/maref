@@ -1,0 +1,586 @@
+{
+  "scenario_config": {
+    "scenario_name": "maref_smart_workflow",
+    "num_cycles": 3,
+    "tasks_per_cycle": 5,
+    "start_time": "2026-04-16T17:48:37.245387",
+    "maref_features": [
+      {
+        "feature_id": "MF001",
+        "name": "64卦状态空间锁定",
+        "description": "强制所有系统状态属于64卦吸引子之一",
+        "benefit": "消除状态管理分散，建立单一事实源"
+      },
+      {
+        "feature_id": "MF002",
+        "name": "格雷编码状态转换",
+        "description": "汉明距离=1的连续状态转换",
+        "benefit": "防止灾难性跳跃，确保演化平滑性"
+      },
+      {
+        "feature_id": "MF003",
+        "name": "三才六层架构",
+        "description": "分层隔离（天、人、地、经、别、爻）",
+        "benefit": "故障不传播，支持渐进式演进"
+      },
+      {
+        "feature_id": "MF004",
+        "name": "智能路由决策",
+        "description": "基于卦状态、资源需求、系统负载的路由",
+        "benefit": "解决Lane混淆，提高执行效率"
+      },
+      {
+        "feature_id": "MF005",
+        "name": "互补对和镜像智能体",
+        "description": "错（互补）网络 + 综（镜像）部署",
+        "benefit": "实现容错和自适应，防止局部最优"
+      }
+    ]
+  },
+  "performance_summary": {
+    "total_tasks": 15,
+    "successful_tasks": 14,
+    "failed_tasks": 1,
+    "task_success_rate_percent": 93.33333333333333,
+    "avg_completion_time_seconds": 0.005602214285714286,
+    "avg_error_rate_percent": 6.666666666666671,
+    "total_state_transitions": 30,
+    "total_gray_code_conversions": 30,
+    "gray_code_violation_count": 0,
+    "state_space_rollback_count": 15,
+    "state_space_invalid_transitions": 0,
+    "maref_system_load": 1.0,
+    "current_hexagram_state": "䷼",
+    "state_history_length": 31,
+    "defect1_fixed": true,
+    "defect2_fixed": true,
+    "defect3_fixed": true,
+    "defect4_fixed": true,
+    "defect5_fixed": true,
+    "improvement_metrics": {
+      "state_consistency_score": 100,
+      "gray_code_continuity_score": 100,
+      "system_stability_score": 95
+    }
+  },
+  "simulation_results": [
+    {
+      "tasks_created": 5,
+      "tasks_started": 5,
+      "tasks_completed": 4,
+      "tasks_failed": 1,
+      "state_transitions": 414,
+      "gray_code_conversions": 10,
+      "cycle_start_time": "2026-04-16T17:48:37.246069",
+      "task_results": [
+        {
+          "task_id": "deploy_20260416174837_0",
+          "task_type": "deploy",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "101111",
+          "routing_decision": {
+            "task_type": "deploy",
+            "hexagram_state": "101111",
+            "hexagram_symbol": "䷌",
+            "hexagram_name": "同人",
+            "agent_role": "Executor",
+            "agent_function": "执行与工具使用",
+            "complementary_role": "巽",
+            "mirror_role": "艮",
+            "system_load": 0.3,
+            "routing_reason": "基于task_type=deploy, entry_stage=deploy, 系统负载=0.30"
+          }
+        },
+        {
+          "task_id": "monitor_20260416174837_1",
+          "task_type": "monitor",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "111101",
+          "routing_decision": {
+            "task_type": "monitor",
+            "hexagram_state": "111101",
+            "hexagram_symbol": "䷍",
+            "hexagram_name": "大有",
+            "agent_role": "Executor",
+            "agent_function": "执行与工具使用",
+            "complementary_role": "巽",
+            "mirror_role": "艮",
+            "system_load": 0.3,
+            "routing_reason": "基于task_type=monitor, entry_stage=monitor, 系统负载=0.30"
+          }
+        },
+        {
+          "task_id": "monitor_20260416174837_2",
+          "task_type": "monitor",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "111101",
+          "routing_decision": {
+            "task_type": "monitor",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=monitor, entry_stage=monitor, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "test_20260416174837_3",
+          "task_type": "test",
+          "success": false,
+          "status": "failed",
+          "hexagram_state": "000100",
+          "routing_decision": {
+            "task_type": "test",
+            "hexagram_state": "000000",
+            "hexagram_symbol": "䷁",
+            "hexagram_name": "坤",
+            "agent_role": "Memory",
+            "agent_function": "存储与检索",
+            "complementary_role": "乾",
+            "mirror_role": "乾",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=test, entry_stage=test, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "audit_20260416174837_4",
+          "task_type": "audit",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "001000",
+          "routing_decision": {
+            "task_type": "audit",
+            "hexagram_state": "001000",
+            "hexagram_symbol": "䷎",
+            "hexagram_name": "谦",
+            "agent_role": "Memory",
+            "agent_function": "存储与检索",
+            "complementary_role": "乾",
+            "mirror_role": "乾",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=audit, entry_stage=audit, 系统负载=1.00"
+          }
+        }
+      ],
+      "cycle_end_time": "2026-04-16T17:48:37.534894",
+      "maref_system_status": {
+        "current_state": {
+          "binary": "110011",
+          "symbol": "䷼",
+          "name": "中孚",
+          "description": "泽上有风，中孚；君子以议狱缓死"
+        },
+        "state_history_length": 11,
+        "agent_roles_count": 8,
+        "complementary_pairs_count": 8,
+        "mirror_agents_count": 8,
+        "gray_code_transformer": {
+          "total_conversions": 10,
+          "violation_count": 0,
+          "average_path_length": 40.4,
+          "hamming_distribution": {
+            "6": 1,
+            "2": 5,
+            "4": 3,
+            "3": 1
+          }
+        },
+        "state_space_manager": {
+          "current_state": "110011",
+          "current_state_name": "中孚",
+          "total_transitions": 414,
+          "successful_transitions": 409,
+          "failed_transitions": 5,
+          "invalid_transition_count": 0,
+          "rollback_count": 5,
+          "average_hamming_distance": 1.1014492753623188,
+          "state_history_length": 414
+        },
+        "system_load": 1.0,
+        "timestamp": "2026-04-16T17:48:37.535006"
+      },
+      "gray_code_stats": {
+        "total_conversions": 10,
+        "violation_count": 0,
+        "average_path_length": 40.4,
+        "hamming_distribution": {
+          "6": 1,
+          "2": 5,
+          "4": 3,
+          "3": 1
+        }
+      },
+      "state_space_stats": {
+        "current_state": "110011",
+        "current_state_name": "中孚",
+        "total_transitions": 414,
+        "successful_transitions": 409,
+        "failed_transitions": 5,
+        "invalid_transition_count": 0,
+        "rollback_count": 5,
+        "average_hamming_distance": 1.1014492753623188,
+        "state_history_length": 414
+      }
+    },
+    {
+      "tasks_created": 5,
+      "tasks_started": 5,
+      "tasks_completed": 5,
+      "tasks_failed": 0,
+      "state_transitions": 859,
+      "gray_code_conversions": 20,
+      "cycle_start_time": "2026-04-16T17:48:38.040593",
+      "task_results": [
+        {
+          "task_id": "review_20260416174838_5",
+          "task_type": "review",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "010001",
+          "routing_decision": {
+            "task_type": "review",
+            "hexagram_state": "000000",
+            "hexagram_symbol": "䷁",
+            "hexagram_name": "坤",
+            "agent_role": "Memory",
+            "agent_function": "存储与检索",
+            "complementary_role": "乾",
+            "mirror_role": "乾",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=review, entry_stage=review, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "audit_20260416174838_6",
+          "task_type": "audit",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "001000",
+          "routing_decision": {
+            "task_type": "audit",
+            "hexagram_state": "001000",
+            "hexagram_symbol": "䷎",
+            "hexagram_name": "谦",
+            "agent_role": "Memory",
+            "agent_function": "存储与检索",
+            "complementary_role": "乾",
+            "mirror_role": "乾",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=audit, entry_stage=audit, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "plan_20260416174838_7",
+          "task_type": "plan",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "111010",
+          "routing_decision": {
+            "task_type": "plan",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=plan, entry_stage=plan, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "audit_20260416174838_8",
+          "task_type": "audit",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "001000",
+          "routing_decision": {
+            "task_type": "audit",
+            "hexagram_state": "001000",
+            "hexagram_symbol": "䷎",
+            "hexagram_name": "谦",
+            "agent_role": "Memory",
+            "agent_function": "存储与检索",
+            "complementary_role": "乾",
+            "mirror_role": "乾",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=audit, entry_stage=audit, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "plan_20260416174838_9",
+          "task_type": "plan",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "111010",
+          "routing_decision": {
+            "task_type": "plan",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=plan, entry_stage=plan, 系统负载=1.00"
+          }
+        }
+      ],
+      "cycle_end_time": "2026-04-16T17:48:38.338040",
+      "maref_system_status": {
+        "current_state": {
+          "binary": "110011",
+          "symbol": "䷼",
+          "name": "中孚",
+          "description": "泽上有风，中孚；君子以议狱缓死"
+        },
+        "state_history_length": 21,
+        "agent_roles_count": 8,
+        "complementary_pairs_count": 8,
+        "mirror_agents_count": 8,
+        "gray_code_transformer": {
+          "total_conversions": 20,
+          "violation_count": 0,
+          "average_path_length": 41.95,
+          "hamming_distribution": {
+            "6": 1,
+            "2": 10,
+            "4": 8,
+            "3": 1
+          }
+        },
+        "state_space_manager": {
+          "current_state": "110011",
+          "current_state_name": "中孚",
+          "total_transitions": 859,
+          "successful_transitions": 849,
+          "failed_transitions": 10,
+          "invalid_transition_count": 0,
+          "rollback_count": 10,
+          "average_hamming_distance": 1.0896391152502911,
+          "state_history_length": 859
+        },
+        "system_load": 1.0,
+        "timestamp": "2026-04-16T17:48:38.338184"
+      },
+      "gray_code_stats": {
+        "total_conversions": 20,
+        "violation_count": 0,
+        "average_path_length": 41.95,
+        "hamming_distribution": {
+          "6": 1,
+          "2": 10,
+          "4": 8,
+          "3": 1
+        }
+      },
+      "state_space_stats": {
+        "current_state": "110011",
+        "current_state_name": "中孚",
+        "total_transitions": 859,
+        "successful_transitions": 849,
+        "failed_transitions": 10,
+        "invalid_transition_count": 0,
+        "rollback_count": 10,
+        "average_hamming_distance": 1.0896391152502911,
+        "state_history_length": 859
+      }
+    },
+    {
+      "tasks_created": 5,
+      "tasks_started": 5,
+      "tasks_completed": 5,
+      "tasks_failed": 0,
+      "state_transitions": 1304,
+      "gray_code_conversions": 30,
+      "cycle_start_time": "2026-04-16T17:48:38.843719",
+      "task_results": [
+        {
+          "task_id": "deploy_20260416174838_10",
+          "task_type": "deploy",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "101111",
+          "routing_decision": {
+            "task_type": "deploy",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=deploy, entry_stage=deploy, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "scan_20260416174838_11",
+          "task_type": "scan",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "010111",
+          "routing_decision": {
+            "task_type": "scan",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=scan, entry_stage=scan, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "scan_20260416174838_12",
+          "task_type": "scan",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "010111",
+          "routing_decision": {
+            "task_type": "scan",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=scan, entry_stage=scan, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "scan_20260416174839_13",
+          "task_type": "scan",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "010111",
+          "routing_decision": {
+            "task_type": "scan",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=scan, entry_stage=scan, 系统负载=1.00"
+          }
+        },
+        {
+          "task_id": "monitor_20260416174839_14",
+          "task_type": "monitor",
+          "success": true,
+          "status": "completed",
+          "hexagram_state": "111101",
+          "routing_decision": {
+            "task_type": "monitor",
+            "hexagram_state": "111111",
+            "hexagram_symbol": "䷀",
+            "hexagram_name": "乾",
+            "agent_role": "Coordinator",
+            "agent_function": "路由与共识",
+            "complementary_role": "坤",
+            "mirror_role": "坤",
+            "system_load": 1.0,
+            "routing_reason": "基于task_type=monitor, entry_stage=monitor, 系统负载=1.00"
+          }
+        }
+      ],
+      "cycle_end_time": "2026-04-16T17:48:39.131010",
+      "maref_system_status": {
+        "current_state": {
+          "binary": "110011",
+          "symbol": "䷼",
+          "name": "中孚",
+          "description": "泽上有风，中孚；君子以议狱缓死"
+        },
+        "state_history_length": 31,
+        "agent_roles_count": 8,
+        "complementary_pairs_count": 8,
+        "mirror_agents_count": 8,
+        "gray_code_transformer": {
+          "total_conversions": 30,
+          "violation_count": 0,
+          "average_path_length": 42.46666666666667,
+          "hamming_distribution": {
+            "6": 1,
+            "2": 15,
+            "4": 13,
+            "3": 1
+          }
+        },
+        "state_space_manager": {
+          "current_state": "110011",
+          "current_state_name": "中孚",
+          "total_transitions": 1304,
+          "successful_transitions": 1289,
+          "failed_transitions": 15,
+          "invalid_transition_count": 0,
+          "rollback_count": 15,
+          "average_hamming_distance": 1.0858895705521472,
+          "state_history_length": 1304
+        },
+        "system_load": 1.0,
+        "timestamp": "2026-04-16T17:48:39.131191"
+      },
+      "gray_code_stats": {
+        "total_conversions": 30,
+        "violation_count": 0,
+        "average_path_length": 42.46666666666667,
+        "hamming_distribution": {
+          "6": 1,
+          "2": 15,
+          "4": 13,
+          "3": 1
+        }
+      },
+      "state_space_stats": {
+        "current_state": "110011",
+        "current_state_name": "中孚",
+        "total_transitions": 1304,
+        "successful_transitions": 1289,
+        "failed_transitions": 15,
+        "invalid_transition_count": 0,
+        "rollback_count": 15,
+        "average_hamming_distance": 1.0858895705521472,
+        "state_history_length": 1304
+      }
+    }
+  ],
+  "metrics": {
+    "total_tasks": 15,
+    "successful_tasks": 14,
+    "failed_tasks": 1,
+    "task_success_rate": 93.33333333333333,
+    "avg_completion_time_seconds": 0.005602214285714286,
+    "avg_error_rate_percent": 6.666666666666671,
+    "total_state_transitions": 30,
+    "gray_code_violation_count": 0,
+    "state_space_rollback_count": 15
+  },
+  "timing": {
+    "scenario_duration_seconds": 2.3914730548858643,
+    "tasks_per_second": 6.27228476162609,
+    "start_time": "2026-04-16T17:48:37.245383",
+    "end_time": "2026-04-16T17:48:39.636867"
+  },
+  "maref_system_health": {
+    "state_consistency_score": 100,
+    "gray_code_continuity_score": 100,
+    "system_stability_score": 95,
+    "overall_health_score": 98.0
+  }
+}

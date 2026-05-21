@@ -1,0 +1,356 @@
+{
+  "scenario_config": {
+    "scenario_name": "baseline_athena_queue",
+    "num_cycles": 3,
+    "tasks_per_cycle": 5,
+    "start_time": "2026-04-16T17:48:24.789687",
+    "system_defects": [
+      {
+        "defect_id": "DF001",
+        "name": "任务身份规范化失败",
+        "description": "ID以`-`开头，被argparse误识别为flag参数",
+        "severity": "HIGH",
+        "probability": 0.3
+      },
+      {
+        "defect_id": "DF002",
+        "name": "Manifest数据质量缺陷",
+        "description": "24%重复条目，数据不一致",
+        "severity": "MEDIUM",
+        "impact": "资源浪费"
+      },
+      {
+        "defect_id": "DF003",
+        "name": "进程可靠性契约缺失",
+        "description": "先标记running状态，再启动进程",
+        "severity": "HIGH",
+        "impact": "状态不一致，僵尸任务"
+      },
+      {
+        "defect_id": "DF004",
+        "name": "活跃占位检测延迟",
+        "description": "死进程检测延迟5分钟",
+        "severity": "MEDIUM",
+        "impact": "资源浪费"
+      },
+      {
+        "defect_id": "DF005",
+        "name": "Lane混合与路由混淆",
+        "description": "15%执行器选择混淆率",
+        "severity": "MEDIUM",
+        "impact": "执行结果不可预测"
+      }
+    ]
+  },
+  "performance_summary": {
+    "avg_completion_time_seconds": 0.5633225714285715,
+    "avg_error_rate_percent": 153.33333333333334,
+    "avg_resource_waste_seconds": 100.0,
+    "avg_state_inconsistencies": 10.0,
+    "total_tasks": 15,
+    "total_errors": 39,
+    "config": {
+      "argparse_issue_enabled": true,
+      "manifest_duplication_rate": 0.24,
+      "process_reliability_issue": true,
+      "heartbeat_delay_minutes": 5,
+      "lane_confusion_rate": 0.15,
+      "task_failure_rate": 0.1
+    }
+  },
+  "defect_impacts": {
+    "DF001_impact": 0,
+    "DF002_impact": 0,
+    "DF003_impact": 0,
+    "DF004_impact": 0,
+    "DF005_impact": 0
+  },
+  "simulation_results": [
+    {
+      "simulation_id": "baseline_v1",
+      "tasks_created": 5,
+      "tasks_completed": 5,
+      "tasks_failed": 0,
+      "argparse_errors": 1,
+      "manifest_duplicates": 38,
+      "process_reliability_errors": 0,
+      "lane_confusions": 1,
+      "zombie_processes": 0,
+      "zombie_processes_cleaned": 0,
+      "state_inconsistencies": 5,
+      "error_rate_percent": 140.0,
+      "resource_waste_seconds": 0,
+      "inconsistency_details": [
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174824_4431",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "scan_20260416_174825_9762",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "scan_20260416_174825_3415",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-review-20260416-174826-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174827_1652",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        }
+      ],
+      "timestamp": "2026-04-16T17:48:27.592399"
+    },
+    {
+      "simulation_id": "baseline_v1",
+      "tasks_created": 10,
+      "tasks_completed": 10,
+      "tasks_failed": 0,
+      "argparse_errors": 4,
+      "manifest_duplicates": 38,
+      "process_reliability_errors": 0,
+      "lane_confusions": 2,
+      "zombie_processes": 0,
+      "zombie_processes_cleaned": 0,
+      "state_inconsistencies": 10,
+      "error_rate_percent": 160.0,
+      "resource_waste_seconds": 0,
+      "inconsistency_details": [
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174824_4431",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "scan_20260416_174825_9762",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "scan_20260416_174825_3415",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-review-20260416-174826-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174827_1652",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-build-20260416-174828-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-build-20260416-174829-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174830_1275",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "build_20260416_174830_1739",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-build-20260416-174831-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        }
+      ],
+      "timestamp": "2026-04-16T17:48:32.105971"
+    },
+    {
+      "simulation_id": "baseline_v1",
+      "tasks_created": 15,
+      "tasks_completed": 14,
+      "tasks_failed": 0,
+      "argparse_errors": 5,
+      "manifest_duplicates": 38,
+      "process_reliability_errors": 1,
+      "lane_confusions": 3,
+      "zombie_processes": 1,
+      "zombie_processes_cleaned": 0,
+      "state_inconsistencies": 15,
+      "error_rate_percent": 160.0,
+      "resource_waste_seconds": 300,
+      "inconsistency_details": [
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174824_4431",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "scan_20260416_174825_9762",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "scan_20260416_174825_3415",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-review-20260416-174826-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174827_1652",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-build-20260416-174828-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-build-20260416-174829-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174830_1275",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "build_20260416_174830_1739",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-build-20260416-174831-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "scan_20260416_174833_3645",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "-plan-20260416-174833-task",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174834_5193",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174835_7895",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "completed",
+          "process_pid": null
+        },
+        {
+          "type": "process_status_timing",
+          "task_id": "review_20260416_174836_7855",
+          "issue": "状态在进程启动前被更新为running",
+          "status": "running",
+          "process_pid": null
+        }
+      ],
+      "timestamp": "2026-04-16T17:48:36.234383"
+    }
+  ],
+  "metrics": {
+    "total_tasks": 15,
+    "successful_tasks": 0,
+    "failed_tasks": 0,
+    "task_success_rate": 0,
+    "avg_completion_time_seconds": 0.5633225714285715,
+    "avg_error_rate_percent": 153.33333333333334,
+    "avg_state_inconsistencies": 10.0,
+    "total_errors": 39
+  },
+  "timing": {
+    "scenario_duration_seconds": 12.44828486442566,
+    "tasks_per_second": 1.2049852781620187,
+    "start_time": "2026-04-16T17:48:24.789686",
+    "end_time": "2026-04-16T17:48:37.238019"
+  },
+  "system_defects_summary": {
+    "total_defects": 5,
+    "high_severity_defects": 2,
+    "defect_manifestation_rate": 0.0,
+    "overall_health_score": 0
+  }
+}

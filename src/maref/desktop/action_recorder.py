@@ -1,0 +1,239 @@
+from __future__ import annotations
+
+import json
+import os
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class RecordedActionType(str, Enum):
+    MOUSE_CLICK = "mouse_click"
+    MOUSE_DOUBLE_CLICK = "mouse_double_click"
+    MOUSE_RIGHT_CLICK = "mouse_right_click"
+    MOUSE_DRAG = "mouse_drag"
+    MOUSE_SCROLL = "mouse_scroll"
+    KEYBOARD_TYPE = "keyboard_type"
+    KEYBOARD_HOTKEY = "keyboard_hotkey"
+    WAIT = "wait"
+
+
+@dataclass
+class RecordedStep:
+    step_id: str
+    action_type: RecordedActionType
+    timestamp: float
+    x: int = 0
+    y: int = 0
+    text: str = ""
+    keys: list[str] = field(default_factory=list)
+    duration: float = 0.0
+    screenshot_hash: str = ""
+    description: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "step_id": self.step_id,
+            "action_type": self.action_type.value,
+            "timestamp": self.timestamp,
+            "x": self.x,
+            "y": self.y,
+            "text": self.text,
+            "keys": self.keys,
+            "duration": self.duration,
+            "screenshot_hash": self.screenshot_hash,
+            "description": self.description,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RecordedStep:
+        return cls(
+            step_id=data.get("step_id", ""),
+            action_type=RecordedActionType(data.get("action_type", "wait")),
+            timestamp=data.get("timestamp", 0.0),
+            x=data.get("x", 0),
+            y=data.get("y", 0),
+            text=data.get("text", ""),
+            keys=data.get("keys", []),
+            duration=data.get("duration", 0.0),
+            screenshot_hash=data.get("screenshot_hash", ""),
+            description=data.get("description", ""),
+        )
+
+
+@dataclass
+class ActionRecording:
+    recording_id: str
+    name: str
+    description: str = ""
+    application: str = ""
+    steps: list[RecordedStep] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+    screen_width: int = 0
+    screen_height: int = 0
+    tags: list[str] = field(default_factory=list)
+
+    @property
+    def step_count(self) -> int:
+        return len(self.steps)
+
+    @property
+    def total_duration(self) -> float:
+        if not self.steps:
+            return 0.0
+        return self.steps[-1].timestamp - self.steps[0].timestamp
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "recording_id": self.recording_id,
+            "name": self.name,
+            "description": self.description,
+            "application": self.application,
+            "steps": [s.to_dict() for s in self.steps],
+            "created_at": self.created_at,
+            "screen_width": self.screen_width,
+            "screen_height": self.screen_height,
+            "tags": self.tags,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ActionRecording:
+        return cls(
+            recording_id=data.get("recording_id", ""),
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            application=data.get("application", ""),
+            steps=[RecordedStep.from_dict(s) for s in data.get("steps", [])],
+            created_at=data.get("created_at", time.time()),
+            screen_width=data.get("screen_width", 0),
+            screen_height=data.get("screen_height", 0),
+            tags=data.get("tags", []),
+        )
+
+
+class ActionRecorder:
+    """OpenAdapt-style human action recording for desktop agent learning.
+
+    Records human desktop operations as structured step sequences.
+    Recordings can be replayed, verified, or used as training data
+    for the agent's learning system.
+    """
+
+    def __init__(self, storage_dir: str | None = None) -> None:
+        self._storage_dir = storage_dir or os.path.join(
+            os.path.expanduser("~"), ".maref_lite", "recordings",
+        )
+        self._active_recording: ActionRecording | None = None
+        self._recordings: dict[str, ActionRecording] = {}
+        os.makedirs(self._storage_dir, exist_ok=True)
+
+    def start_recording(self, recording_id: str, name: str, application: str = "", description: str = "") -> ActionRecording:
+        self._active_recording = ActionRecording(
+            recording_id=recording_id,
+            name=name,
+            application=application,
+            description=description,
+        )
+        return self._active_recording
+
+    def record_step(
+        self,
+        action_type: RecordedActionType,
+        x: int = 0,
+        y: int = 0,
+        text: str = "",
+        keys: list[str] | None = None,
+        duration: float = 0.0,
+        description: str = "",
+    ) -> RecordedStep | None:
+        if self._active_recording is None:
+            return None
+        step = RecordedStep(
+            step_id=f"{len(self._active_recording.steps):04d}",
+            action_type=action_type,
+            timestamp=time.time() - self._active_recording.created_at,
+            x=x,
+            y=y,
+            text=text,
+            keys=keys or [],
+            duration=duration,
+            description=description,
+        )
+        self._active_recording.steps.append(step)
+        return step
+
+    def stop_recording(self) -> ActionRecording | None:
+        if self._active_recording is None:
+            return None
+        recording = self._active_recording
+        self._recordings[recording.recording_id] = recording
+        self._active_recording = None
+        self._save_recording(recording)
+        return recording
+
+    def save(self) -> bool:
+        if self._active_recording is None:
+            return False
+        return self._save_recording(self._active_recording)
+
+    def load(self, recording_id: str) -> ActionRecording | None:
+        file_path = os.path.join(self._storage_dir, f"{recording_id}.json")
+        if not os.path.exists(file_path):
+            return None
+        try:
+            with open(file_path) as f:
+                data = json.load(f)
+            recording = ActionRecording.from_dict(data)
+            self._recordings[recording_id] = recording
+            return recording
+        except (json.JSONDecodeError, KeyError):
+            return None
+
+    def load_all(self) -> list[ActionRecording]:
+        recordings: list[ActionRecording] = []
+        if not os.path.isdir(self._storage_dir):
+            return recordings
+        for filename in os.listdir(self._storage_dir):
+            if filename.endswith(".json"):
+                recording_id = filename.replace(".json", "")
+                recording = self.load(recording_id)
+                if recording:
+                    recordings.append(recording)
+        return recordings
+
+    def delete(self, recording_id: str) -> bool:
+        file_path = os.path.join(self._storage_dir, f"{recording_id}.json")
+        if os.path.exists(file_path):
+            os.unlink(file_path)
+        self._recordings.pop(recording_id, None)
+        return True
+
+    def list_recordings(self) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        for rid, rec in self._recordings.items():
+            result.append({
+                "recording_id": rid,
+                "name": rec.name,
+                "application": rec.application,
+                "step_count": rec.step_count,
+                "created_at": rec.created_at,
+            })
+        return result
+
+    def get_steps_as_plan(self, recording_id: str) -> list[dict[str, Any]]:
+        recording = self._recordings.get(recording_id)
+        if recording is None:
+            recording = self.load(recording_id)
+        if recording is None:
+            return []
+        return [s.to_dict() for s in recording.steps]
+
+    def _save_recording(self, recording: ActionRecording) -> bool:
+        file_path = os.path.join(self._storage_dir, f"{recording.recording_id}.json")
+        try:
+            with open(file_path, "w") as f:
+                json.dump(recording.to_dict(), f, indent=2)
+            return True
+        except OSError:
+            return False

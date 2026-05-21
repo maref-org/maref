@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from maref.recursive.capability_contracts import CapabilityRegistry
+    from maref.recursive.internal_agents import (
+        InternalAgent,
+        InternalAgentRegistry,
+    )
+    from maref.recursive.task_decomposer import SubTask
+
+
+@dataclass
+class DispatchResult:
+    subtask_id: str
+    assigned_agent_id: str
+    score: float = 0.0
+    contract_score: float = 0.0
+    match_details: list[str] | None = None
+
+
+class AgentDispatcher:
+    def __init__(self, registry: InternalAgentRegistry,
+                 contract_registry: CapabilityRegistry | None = None) -> None:
+        self._registry = registry
+        self._contract_registry = contract_registry
+
+    def dispatch(self, subtask: SubTask) -> InternalAgent | None:
+        best_agent: InternalAgent | None = None
+        best_score: float = -1.0
+        for agent in self._registry.list_all():
+            score, cs, _ = self._capability_match_score(subtask, agent)
+            combined = max(score, cs)
+            if combined > best_score:
+                best_score = combined
+                best_agent = agent
+        return best_agent
+
+    def dispatch_all(self, subtasks: list[SubTask]) -> list[DispatchResult]:
+        results: list[DispatchResult] = []
+        for sub in subtasks:
+            agent = self.dispatch(sub)
+            if agent is not None:
+                score, contract_score, details = self._capability_match_score(sub, agent)
+                results.append(DispatchResult(
+                    subtask_id=sub.task_id,
+                    assigned_agent_id=agent.agent_id,
+                    score=score,
+                    contract_score=contract_score,
+                    match_details=details,
+                ))
+            else:
+                results.append(DispatchResult(
+                    subtask_id=sub.task_id,
+                    assigned_agent_id="",
+                    score=0.0,
+                    contract_score=0.0,
+                ))
+        return results
+
+    def _capability_match_score(self, subtask: SubTask,
+                                  agent: InternalAgent) -> tuple[float, float, list[str]]:
+        string_score = self._string_match_score(subtask, agent)
+        contract_score, details = self._contract_match_score(subtask, agent)
+        return string_score, contract_score, details
+
+    def _string_match_score(self, subtask: SubTask,
+                            agent: InternalAgent) -> float:
+        if not subtask.required_capabilities:
+            return 0.5
+        matches = 0
+        agent_ids = agent.capability_ids()
+        for cap in subtask.required_capabilities:
+            if cap in agent_ids:
+                matches += 1
+        return matches / len(subtask.required_capabilities)
+
+    def _contract_match_score(self, subtask: SubTask,
+                               agent: InternalAgent) -> tuple[float, list[str]]:
+        if self._contract_registry is None:
+            return 0.0, []
+        if not subtask.required_capabilities:
+            return 0.0, []
+        agent_contract_ids = set()
+        for c in agent.contracts:
+            if hasattr(c, "capability_id"):
+                agent_contract_ids.add(c.capability_id)
+        if not agent_contract_ids:
+            return 0.0, []
+        matched: list[str] = []
+        for cap in subtask.required_capabilities:
+            if cap in agent_contract_ids:
+                contract = self._contract_registry.get(cap)
+                if contract is not None:
+                    matched.append(cap)
+        if not matched:
+            return 0.0, matched
+        return len(matched) / len(subtask.required_capabilities), matched

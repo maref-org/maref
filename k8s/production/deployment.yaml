@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maref-desktop-agent
+  namespace: maref
+  labels:
+    app: maref
+    component: desktop-agent
+    version: v0.26.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: maref
+      component: desktop-agent
+  template:
+    metadata:
+      labels:
+        app: maref
+        component: desktop-agent
+        version: v0.26.0
+    spec:
+      containers:
+        - name: agent
+          image: maref/desktop-agent:v0.26.0
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "2000m"
+          env:
+            - name: MAREF_SAFETY_LEVEL
+              value: "production"
+            - name: MAREF_DRY_RUN
+              value: "false"
+            - name: DISPLAY
+              value: ":99"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4318"
+          envFrom:
+            - configMapRef:
+                name: maref-config
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8000
+              name: sidecar
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maref-desktop-agent
+  namespace: maref
+  labels:
+    app: maref
+    component: desktop-agent
+spec:
+  selector:
+    app: maref
+    component: desktop-agent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: sidecar
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP

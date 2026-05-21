@@ -1,0 +1,53 @@
+kdp_id: K-20260511-009
+topic: MAREF Product Readiness
+signal_ids:
+- S-20260511-009
+claim: MAREF's core module achieves 88% test coverage and TLA+ verification, indicating
+  alpha+ quality, but the surrounding openclaw ecosystem has only ~1% test coverage,
+  lacking deployment config and multi-tenancy, resulting in pre-alpha status for the
+  broader infrastructure.
+metric_type: percentage
+value: 88
+source_citation: 'MAREF product readiness assessment: "Test coverage: 88% for MAREF
+  core, but ~1% for surrounding openclaw ecosystem"'
+confidence: 86
+verification_status: dual_blind_pass
+verification_method: protocol_a_dual_blind
+consensus_score: 0.86
+model_a_result: '{"claim": "MAREF product is at alpha+ quality for core components
+  but surrounding infrastructure is pre-alpha level with major gaps in deployment,
+  test coverage, and multi-tenancy support.", "metric_type": "exact_number", "value":
+  "88", "unit": "%", "source_citation": "product_readiness_assessment", "confidence":
+  95, "who": "MAREF development team", "who_else": [], "when": "assessment date unspecified",
+  "where": "project development", "why": "To assess the readiness and stability of
+  the MAREF product for release or further development stages.", "how": "Through a
+  structured assessment covering code quality, test coverage, documentation completeness,
+  deployment infrastructure, and feature support.", "impact_assessment": "The product
+  is not yet ready for production deployment or broad user adoption due to missing
+  critical infrastructure, low test coverage in the ecosystem, and lack of multi-tenancy.",
+  "actionability": "Immediate: Focus on creating Docker/K8s configurations and a basic
+  CI/CD pipeline. 30-day plan: Significantly increase test coverage for the openclaw
+  ecosystem (from ~1%) and begin designing multi-tenant architecture. Falsifiable:
+  Yes, all metrics (code quality score, test coverage percentage, ADR count, deployment
+  artifacts) are testable.", "evidence_quality": "high", "keywords": ["MAREF", "product
+  readiness", "test coverage", "alpha", "deployment", "multi-tenant"]}'
+model_b_result: '{"claim": "MAREF\u2019s core module reaches 88% test coverage and
+  TLA+ verification, but its surrounding openclaw ecosystem test coverage sits at
+  ~1%, blocking beta readiness.", "metric_type": "percentage", "value": "88", "unit":
+  "%", "source_citation": "MAREF product readiness assessment: \"Test coverage: 88%
+  for MAREF core, but ~1% for surrounding openclaw ecosystem\"", "confidence": 78,
+  "who": "MAREF development team / openclaw ecosystem project", "competitors": ["Open-source
+  risk engines (e.g., FINOS Legend", "FIS CodeFuel)", "commercial vendors (e.g., Moody\u2019s
+  RiskAuthority", "SAS Risk Management)"], "when": "assessment dated in provided source",
+  "where": "global / cloud-native financial-risk software market", "why": "Team prioritized
+  formal verification of core algorithms over ecosystem integration tests to meet
+  regulatory correctness requirements first.", "how": "TLA+ model-checking validated
+  core logic; CI gated merges only for core repo; openclaw repos lack automated testing
+  and container packaging.", "impact_90d": "If coverage gap persists, enterprise prospects
+  will delay adoption \u22656 months, pushing revenue and partnership targets into
+  2025.", "strategy_response": "Allocate 2-sprint runway to raise openclaw coverage
+  to 60%+ with contract tests, add Docker & GitHub Actions CI, then re-issue beta
+  tag.", "source_quality": "medium", "is_falsifiable": true, "tags": ["test_coverage",
+  "financial_risk", "alpha_release", "TLA_verification", "openclaw"]}'
+extracted_at: '2026-05-11T22:08:34.760250'
+status: active

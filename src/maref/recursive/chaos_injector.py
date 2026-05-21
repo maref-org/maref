@@ -1,0 +1,45 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+
+
+class ChaosType(Enum):
+    CB_OSCILLATION = "cb_oscillation"
+    HALT_STORM = "halt_storm"
+    AGENT_CRASH = "agent_crash"
+    KG_CORRUPTION = "kg_corruption"
+
+
+@dataclass
+class ChaosEvent:
+    chaos_type: ChaosType
+    target: str = ""
+    params: dict[str, object] = field(default_factory=dict)
+    injected: bool = False
+
+
+class ChaosInjector:
+    def __init__(self) -> None:
+        self._events: list[ChaosEvent] = []
+
+    def inject(self, chaos_type: ChaosType, target: str = "",
+               params: dict[str, object] | None = None) -> ChaosEvent:
+        event = ChaosEvent(
+            chaos_type=chaos_type,
+            target=target,
+            params=params or {},
+            injected=True,
+        )
+        self._events.append(event)
+        return event
+
+    @property
+    def events(self) -> list[ChaosEvent]:
+        return list(self._events)
+
+    def events_of_type(self, chaos_type: ChaosType) -> list[ChaosEvent]:
+        return [e for e in self._events if e.chaos_type == chaos_type]
+
+    def clear(self) -> None:
+        self._events.clear()

@@ -1,0 +1,2324 @@
+{
+  "report": {
+    "feature_name": "AI-Native IP王国：从MVP到基础设施的全栈工程实施方案",
+    "total_cycles": 10,
+    "total_duration_seconds": 0.0,
+    "overall_trend": "converging",
+    "layer_trends": [
+      {
+        "layer_name": "Static Audit",
+        "scores": [
+          55.609756097560975,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0
+        ],
+        "direction": "converging",
+        "slope": 0.0,
+        "current_gap": 0.0,
+        "is_on_track": true
+      },
+      {
+        "layer_name": "Reasoning Metrics",
+        "scores": [
+          86.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0
+        ],
+        "direction": "converging",
+        "slope": 0.0,
+        "current_gap": 0.0,
+        "is_on_track": true
+      },
+      {
+        "layer_name": "Action Metrics",
+        "scores": [
+          80.0,
+          95.0,
+          95.0,
+          95.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0
+        ],
+        "direction": "converging",
+        "slope": 0.0,
+        "current_gap": 0.0,
+        "is_on_track": true
+      },
+      {
+        "layer_name": "E2E Metrics",
+        "scores": [
+          46.666666666666664,
+          78.33333333333333,
+          78.33333333333333,
+          78.33333333333333,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0
+        ],
+        "direction": "converging",
+        "slope": 0.0,
+        "current_gap": 0.0,
+        "is_on_track": true
+      },
+      {
+        "layer_name": "MAS Dimensions",
+        "scores": [
+          44.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0,
+          100.0
+        ],
+        "direction": "converging",
+        "slope": 0.0,
+        "current_gap": 0.0,
+        "is_on_track": true
+      }
+    ],
+    "deploy_ready": true,
+    "deploy_gates": {
+      "overall_score >= 80": true,
+      "all_layers_on_track": true,
+      "no_diverging_trends": true
+    },
+    "recommendations": [
+      "All gates pass. Feature is deploy-ready."
+    ],
+    "avg_score": 100.0,
+    "cycle_scores": [
+      63.7,
+      94.4,
+      94.4,
+      94.4,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+    ],
+    "final_decision": "GO (score=100.0)",
+    "budget_spent": 535.41,
+    "content_stats": {
+      "characters": 3,
+      "scripts": 8,
+      "stages_covered": [
+        "mixed",
+        "mvp",
+        "internalization"
+      ],
+      "reqs_covered": 41
+    }
+  },
+  "doc": {
+    "title": "AI-Native IP王国：从MVP到基础设施的全栈工程实施方案",
+    "raw_path": "/Volumes/1TB-M2/Athena知识库/执行项目/2026/003-open human（碳硅基共生）/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架/待执行/AI-Native IP王国：从MVP到基础设施的全栈工程实施方案.md",
+    "stages": {
+      "mvp": [
+        {
+          "heading": "AI-Native IP王国：从MVP到基础设施的全栈工程实施方案",
+          "level": 1,
+          "content_preview": "> **版本**: v1.0  \n> **日期**: 2026-05-14  \n> **适用**: OpenClaw/Athena/MAREF 技术栈 + Mac mini M4 基础设施  \n> **核心命题**: 不做MCN的人力中介，做AI-Native的内容资产持有方与基础设施输出方。\n\n---",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": [
+            {
+              "heading": "0. 战略总纲",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "0.1 核心判断",
+                  "level": 3,
+                  "content_preview": "传统MCN是死路。其商业模式建立在三个不可调和的结构性矛盾上：\n1. **平台寄生**: 不拥有流量入口，算法说改就改；\n2. **达人依赖**: 核心资产是\"人\"，人有自由意志；\n3. **劳动密集**: 边际成本递减有限，增量不增利。\n\n大厂（字节、快手、OpenAI）在卷内容生成工具，只会加速内容制作白菜化。MCN作为\"人力中介\"必然被碾碎。",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "0.2 AI-Native IP公司的本质",
+                  "level": 3,
+                  "content_preview": "不是\"用AI做MCN\"，而是\"用AI做MCN的掘墓人\"。\n- **资产内核**: 100%自有的数字IP（角色/世界观/风格指纹），非真人、不可出走、人设不塌房。\n- **生产关系**: Agent集群替代人力堆量，边际成本趋近于零。\n- **商业范式**: 从\"平台寄生型中介\"进化为\"跨平台持有型资产方\"，最终成为\"Agent基础设施输出方\"。",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "0.3 迪士尼飞轮的AI重构",
+                  "level": 3,
+                  "content_preview": "迪士尼1957年飞轮的核心是\"电影投入池塘，涟漪扩散到乐园/商品/电视\"。AI-Native版本将\"电影\"替换为\"Agent原生内容引擎\"，将\"重资产乐园\"替换为\"零边际成本的数字体验与商品\"。\n\n| 迪士尼传统 | AI-Native重构 |\n|-----------|--------------|\n| 2-3年一部大片，数亿美元 | Agent集群日产数十条，硬件折旧 |\n| 依赖天才创作者，",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "迪士尼传统=2-3年一部大片，数亿美元 | AI-Native重构=Agent集群日产数十条，硬件折旧"
+                      ],
+                      "section": "0.3 迪士尼飞轮的AI重构"
+                    },
+                    {
+                      "cells": [
+                        "迪士尼传统=依赖天才创作者，不可规模化 | AI-Native重构=数据驱动孵化，风格LoRA固化"
+                      ],
+                      "section": "0.3 迪士尼飞轮的AI重构"
+                    },
+                    {
+                      "cells": [
+                        "迪士尼传统=部门壁垒，院线/流媒体/乐园各自为战 | AI-Native重构=同一角色资产库跨平台自动适配"
+                      ],
+                      "section": "0.3 迪士尼飞轮的AI重构"
+                    },
+                    {
+                      "cells": [
+                        "迪士尼传统=单向输出，用户是消费者 | AI-Native重构=UGC+AI共创，用户是共同创作者"
+                      ],
+                      "section": "0.3 迪士尼飞轮的AI重构"
+                    },
+                    {
+                      "cells": [
+                        "迪士尼传统=主题乐园投资数百亿 | AI-Native重构=虚拟体验+数字商品，零库存零物流"
+                      ],
+                      "section": "0.3 迪士尼飞轮的AI重构"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "1. 阶段一：Wool-MVP（0-4周）",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "1.1 目标与边界",
+                  "level": 3,
+                  "content_preview": "**唯一目标**: 以趋近于零的成本，验证3个核心假设（H1/H2/H3）。  \n**不是目标**: 积累内容库存、建立粉丝矩阵、赚取广告分成。\n\n**合规边界**:\n- ✅ 使用平台官方免费额度（即梦/可灵/豆包等明确允许的获客额度）\n- ✅ 本地二次创作（重剪/配音/合成）形成新作品\n- ✅ GUI自动化模拟真人操作频率\n- ❌ 去除水印后冒充原创\n- ❌ 批量注册虚假账号\n- ❌ 转售平台原",
+                  "milestones": [],
+                  "requirements": [
+                    "使用平台官方免费额度（即梦/可灵/豆包等明确允许的获客额度）",
+                    "本地二次创作（重剪/配音/合成）形成新作品",
+                    "GUI自动化模拟真人操作频率",
+                    "去除水印后冒充原创",
+                    "批量注册虚假账号"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "1.2 2026年5月羊毛地图",
+                  "level": 3,
+                  "content_preview": "| 平台 | 免费额度 | 技术特点 | MVP用途 |\n|------|---------|---------|---------|\n| **即梦AI(字节)** | 新用户800秒+每日260积分；15秒视频≈90积分 | Seedance2.0，World ID角色一致性，自带商业授权 | 角色一致性短剧/漫剧测试 |\n| **豆包App** | 每日10个视频额度(5/10秒) | 灰度测",
+                  "milestones": [],
+                  "requirements": [
+                    "平台: 免费额度 | 技术特点 | MVP用途"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "平台=**即梦AI(字节)** | 免费额度=新用户800秒+每日260积分；15秒视频≈90积分 | 技术特点=Seedance2.0，World ID角色一致性，自带商业授权 | MVP用途=角色一致性短剧/漫剧测试"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**豆包App** | 免费额度=每日10个视频额度(5/10秒) | 技术特点=灰度测试，界面简化 | MVP用途=口播/短视频快速测试"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**小云雀(字节)** | 免费额度=新用户3次+188积分+每日120积分 | 技术特点=轻量化Seedance2.0入口 | MVP用途=轻量测试/备用"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**可灵AI(快手)** | 免费额度=每日签到积分 | 技术特点=角色一致性极强，支持4K60fps | MVP用途=长视频/系列内容测试"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**智谱GLM-4-Flash** | 免费额度=永久免费，30并发 | 技术特点=国产代码/文本第一梯队 | MVP用途=脚本/故事版生成兜底"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**Kimi** | 免费额度=每分钟3次，个人认证送15元 | 技术特点=256K超长上下文 | MVP用途=长剧本/世界观构建"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**DeepSeek** | 免费额度=注册送500万Token(30天) | 技术特点=推理能力强 | MVP用途=剧情逻辑设计"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**硅基流动** | 免费额度=每模型1000 RPM | 技术特点=聚合100+开源模型 | MVP用途=高频调用/并发测试"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    },
+                    {
+                      "cells": [
+                        "平台=**讯飞星火** | 免费额度=各模型20万Tokens | 技术特点=语音合成 | MVP用途=配音/声纹测试"
+                      ],
+                      "section": "1.2 2026年5月羊毛地图"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "1.3 Agent集群配置（MVP版）",
+                  "level": 3,
+                  "content_preview": "```\n┌─────────────────────────────────────────┐\n│         Wool-MVP Agent集群 (4周生命周期)   │\n├─────────────────────────────────────────┤\n│  ① HypothesisAgent                        │\n│     → 每日生成1个测试假设（角色/",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "1.4 本地种子任务（必须并行，不可拖延）",
+                  "level": 3,
+                  "content_preview": "| 种子任务 | 周投入 | 产出物 | 与验证的关系 |\n|---------|--------|--------|-------------|\n| 角色设定文档 | 4-6h | 3-5个角色Markdown（人格/视觉/声线/世界观） | 测试哪个角色市场反馈最好 |\n| 向量库Schema | 2-3h | IP资产目录结构（角色/场景/故事线/粉丝数据） | 即使MVP失败，资产保留 |",
+                  "milestones": [],
+                  "requirements": [
+                    "角色设定文档: 4-6h | 3-5个角色Markdown（人格/视觉/声线/世界观） | 测试哪个角色市场反馈最好"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "种子任务=角色设定文档 | 周投入=4-6h | 产出物=3-5个角色Markdown（人格/视觉/声线/世界观） | 与验证的关系=测试哪个角色市场反馈最好"
+                      ],
+                      "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                    },
+                    {
+                      "cells": [
+                        "种子任务=向量库Schema | 周投入=2-3h | 产出物=IP资产目录结构（角色/场景/故事线/粉丝数据） | 与验证的关系=即使MVP失败，资产保留"
+                      ],
+                      "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                    },
+                    {
+                      "cells": [
+                        "种子任务=ComfyUI基础流 | 周投入=4-6h | 产出物=文生图+IPAdapter工作流 | 与验证的关系=验证成功后直接切换主生产"
+                      ],
+                      "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                    },
+                    {
+                      "cells": [
+                        "种子任务=风格LoRA训练 | 周投入=4-6h | 产出物=基于20-50张参考图的轻量LoRA | 与验证的关系=测试\"本地风格\"差异度"
+                      ],
+                      "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                    },
+                    {
+                      "cells": [
+                        "种子任务=自动剪辑脚本 | 周投入=2-3h | 产出物=FFmpeg模板+剪映API草稿 | 与验证的关系=规模化时复用"
+                      ],
+                      "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "1.5 核心假设与验证阈值",
+                  "level": 3,
+                  "content_preview": "| 假设 | 验证方法 | 通过阈值 | 失败标准 |\n|------|---------|---------|---------|\n| **H1: IP角色吸引力** | 同一角色5-10条不同场景，观察完播率 | 完播率>30%，或互动率>5% | 连续3条完播率<15% |\n| **H2: 风格差异化** | 同提示词不同平台生成，测试用户识别度 | 评论区出现\"风格特别\"类反馈 | 被误认",
+                  "milestones": [],
+                  "requirements": [
+                    "假设: 验证方法 | 通过阈值 | 失败标准",
+                    "**H1: IP角色吸引力**: 同一角色5-10条不同场景，观察完播率 | 完播率>30%，或互动率>5% | 连续3条完播率<15%"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "假设=**H1: IP角色吸引力** | 验证方法=同一角色5-10条不同场景，观察完播率 | 通过阈值=完播率>30%，或互动率>5% | 失败标准=连续3条完播率<15%"
+                      ],
+                      "section": "1.5 核心假设与验证阈值"
+                    },
+                    {
+                      "cells": [
+                        "假设=**H2: 风格差异化** | 验证方法=同提示词不同平台生成，测试用户识别度 | 通过阈值=评论区出现\"风格特别\"类反馈 | 失败标准=被误认为\"普通AI生成\""
+                      ],
+                      "section": "1.5 核心假设与验证阈值"
+                    },
+                    {
+                      "cells": [
+                        "假设=**H3: 变现可行性** | 验证方法=测试数字商品（壁纸/表情包）或私域导流 | 通过阈值=付费转化率>1%，或私域添加率>10% | 失败标准=零付费意愿，零私域添加"
+                      ],
+                      "section": "1.5 核心假设与验证阈值"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "1.6 Go/No-Go决策矩阵",
+                  "level": 3,
+                  "content_preview": "**W4决策日必须执行**:\n- **Go（进入混合期）**: 任一假设验证通过，且有明确可规模化方向。\n- **No-Go（Pivot）**: 全部假设失败，分析数据后生成新假设再循环1次。\n- **Kill（终止）**: 连续2个循环（8周）无假设通过，或额度耗尽且无本地产能。\n\n**纪律**: 即使羊毛额度还有剩余，W4也必须做决策。MVP的敌人不是\"额度不够\"，而是\"验证拖延\"。\n\n---",
+                  "milestones": [],
+                  "requirements": [
+                    "执行**:",
+                    "做决策"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "2. 阶段二：混合期（1-3个月）",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "2.1 核心目标",
+                  "level": 3,
+                  "content_preview": "将验证成功的IP方向，从\"羊毛验证\"升级为\"可规模化的内容资产\"。",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "2.2 70/30资源配比铁律",
+                  "level": 3,
+                  "content_preview": "```\n┌─────────────────────────────────────────┐\n│         混合期资源配比 (70/30)            │\n├─────────────────────────────────────────┤\n│  70% 平台套利层                          │\n│  • 即梦/可灵/豆包 免费+低价额度        ",
+                  "milestones": [],
+                  "requirements": [
+                    "本地生成      │"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "2.3 本地资产库建设（核心工程）",
+                  "level": 3,
+                  "content_preview": "```\n/opt/ai-native-ip/asset-db/\n├── characters/                    # 角色向量资产\n│   ├── {char_id}/\n│   │   ├── profile.md             # 人格设定、声线描述、口头禅\n│   │   ├── visual-embedding/      # CLIP/IPAdapter向量\n",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "2.4 跨平台分发矩阵",
+                  "level": 3,
+                  "content_preview": "| 平台 | 内容形态 | 发布策略 | 数据回流 |\n|------|---------|---------|---------|\n| **视频号** | 短剧/漫剧/口播 | 日更3条，早7晚8 | 完播率、转发率、私域添加 |\n| **小红书** | 图文+短视频 | 日更2条，侧重搜索SEO | 收藏率、评论深度、种草转化 |\n| **抖音** | 短剧/挑战 | 日更3条，投流测试 | ",
+                  "milestones": [],
+                  "requirements": [
+                    "平台: 内容形态 | 发布策略 | 数据回流"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "平台=**视频号** | 内容形态=短剧/漫剧/口播 | 发布策略=日更3条，早7晚8 | 数据回流=完播率、转发率、私域添加"
+                      ],
+                      "section": "2.4 跨平台分发矩阵"
+                    },
+                    {
+                      "cells": [
+                        "平台=**小红书** | 内容形态=图文+短视频 | 发布策略=日更2条，侧重搜索SEO | 数据回流=收藏率、评论深度、种草转化"
+                      ],
+                      "section": "2.4 跨平台分发矩阵"
+                    },
+                    {
+                      "cells": [
+                        "平台=**抖音** | 内容形态=短剧/挑战 | 发布策略=日更3条，投流测试 | 数据回流=粉丝增长、直播间导流"
+                      ],
+                      "section": "2.4 跨平台分发矩阵"
+                    },
+                    {
+                      "cells": [
+                        "平台=**YouTube Shorts** | 内容形态=短剧 | 发布策略=日更1条，英文适配 | 数据回流=海外粉丝画像"
+                      ],
+                      "section": "2.4 跨平台分发矩阵"
+                    },
+                    {
+                      "cells": [
+                        "平台=**TikTok** | 内容形态=短剧 | 发布策略=日更1条，本地化运营 | 数据回流=跨境变现数据"
+                      ],
+                      "section": "2.4 跨平台分发矩阵"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "2.5 变现测试（混合期只测试，不追求规模）",
+                  "level": 3,
+                  "content_preview": "| 变现路径 | 测试方法 | 通过阈值 | 优先级 |\n|---------|---------|---------|--------|\n| **广告分成** | 开通各平台创作者收益 | 千次播放收益>0.5元 | P2 |\n| **数字商品** | 微信表情商店/小红书店铺上架壁纸 | 月销>100单 | P1 |\n| **私域导流** | 评论区引导加企微/公众号 | 添加率>5% | P",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "变现路径=**广告分成** | 测试方法=开通各平台创作者收益 | 通过阈值=千次播放收益>0.5元 | 优先级=P2"
+                      ],
+                      "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                    },
+                    {
+                      "cells": [
+                        "变现路径=**数字商品** | 测试方法=微信表情商店/小红书店铺上架壁纸 | 通过阈值=月销>100单 | 优先级=P1"
+                      ],
+                      "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                    },
+                    {
+                      "cells": [
+                        "变现路径=**私域导流** | 测试方法=评论区引导加企微/公众号 | 通过阈值=添加率>5% | 优先级=P0"
+                      ],
+                      "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                    },
+                    {
+                      "cells": [
+                        "变现路径=**直播测试** | 测试方法=数字人/AI角色直播 | 通过阈值=场均观看>1000 | 优先级=P1"
+                      ],
+                      "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "3. 阶段三：内化期/IP王国（3-12个月）",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "3.1 核心目标",
+                  "level": 3,
+                  "content_preview": "从\"自营IP\"进化为\"IP基础设施输出方\"。",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "3.2 100%本地生产体系",
+                  "level": 3,
+                  "content_preview": "**为什么必须100%本地？**\n- 平台额度终将退潮（滴滴/美团/共享单车历史反复验证）\n- 核心IP的确权需要\"零外部依赖\"的生产链路\n- 风格指纹的不可替代性只能来自本地模型微调\n\n**生产链路**:\n```\n选题中台 (TrendScout Agent)\n    ↓\n编剧中台 (ScriptEngine Agent)\n    ↓\n制作中台 (Producer Agent)\n    ├── ",
+                  "milestones": [],
+                  "requirements": [
+                    "100%本地？**",
+                    "\"零外部依赖\"的生产链路"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "3.3 IP资产运营（迪士尼飞轮的AI实现）",
+                  "level": 3,
+                  "content_preview": "| 飞轮环节 | 迪士尼传统 | AI-Native实现 | Agent角色 |\n|---------|-----------|--------------|----------|\n| **内容引擎** | 电影制片厂 | Agent原生内容中台 | Producer Cluster |\n| **触达用户** | 电视网络 | 跨平台分发矩阵 | Distributor Agent |\n| **沉",
+                  "milestones": [],
+                  "requirements": [
+                    "飞轮环节: 迪士尼传统 | AI-Native实现 | Agent角色"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "飞轮环节=**内容引擎** | 迪士尼传统=电影制片厂 | AI-Native实现=Agent原生内容中台 | Agent角色=Producer Cluster"
+                      ],
+                      "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                    },
+                    {
+                      "cells": [
+                        "飞轮环节=**触达用户** | 迪士尼传统=电视网络 | AI-Native实现=跨平台分发矩阵 | Agent角色=Distributor Agent"
+                      ],
+                      "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                    },
+                    {
+                      "cells": [
+                        "飞轮环节=**沉浸体验** | 迪士尼传统=主题乐园 | AI-Native实现=虚拟空间/AR/互动漫剧 | Agent角色=Experience Agent"
+                      ],
+                      "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                    },
+                    {
+                      "cells": [
+                        "飞轮环节=**情感延伸** | 迪士尼传统=音乐出版 | AI-Native实现=AI配音/声纹/播客 | Agent角色=Audio Agent"
+                      ],
+                      "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                    },
+                    {
+                      "cells": [
+                        "飞轮环节=**变现放大** | 迪士尼传统=消费品授权 | AI-Native实现=数字商品/IP联名/Skill市场 | Agent角色=Monetization Agent"
+                      ],
+                      "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "3.4 MAREF Skill市场（ToB输出）",
+                  "level": 3,
+                  "content_preview": "当自有IP矩阵跑通后，将Agent中台能力封装为可售卖服务：\n\n| 服务层级 | 产品形态 | 客户 | 定价模式 |\n|---------|---------|------|---------|\n| **SaaS层** | IP孵化Agent模板 | 中小创作者/品牌 | 订阅制 ¥299/月 |\n| **服务层** | 全案IP代运营 | 品牌方/传统MCN | 项目制 ¥5-20万 |\n| ",
+                  "milestones": [],
+                  "requirements": [
+                    "服务层级: 产品形态 | 客户 | 定价模式",
+                    "**服务层**: 全案IP代运营 | 品牌方/传统MCN | 项目制 ¥5-20万"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "服务层级=**SaaS层** | 产品形态=IP孵化Agent模板 | 客户=中小创作者/品牌 | 定价模式=订阅制 ¥299/月"
+                      ],
+                      "section": "3.4 MAREF Skill市场（ToB输出）"
+                    },
+                    {
+                      "cells": [
+                        "服务层级=**服务层** | 产品形态=全案IP代运营 | 客户=品牌方/传统MCN | 定价模式=项目制 ¥5-20万"
+                      ],
+                      "section": "3.4 MAREF Skill市场（ToB输出）"
+                    },
+                    {
+                      "cells": [
+                        "服务层级=**基础设施层** | 产品形态=MAREF Skill市场 | 客户=开发者/第三方Agent | 定价模式=交易抽成20%"
+                      ],
+                      "section": "3.4 MAREF Skill市场（ToB输出）"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "3.5 跨媒介延展路线图",
+                  "level": 3,
+                  "content_preview": "```\nPhase 1 (0-6月): 短视频/短剧\n    ↓\nPhase 2 (6-12月): AI漫剧/互动图文/播客\n    ↓\nPhase 3 (12-18月): 虚拟直播/数字人代言/虚拟商品\n    ↓\nPhase 4 (18-24月): 游戏资产/AR体验/实体联名\n```\n\n**每一阶段的延展都复用同一套角色资产库**，实现\"一次创作，多次变现\"。\n\n---",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "4. 全栈技术架构",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "4.1 硬件层",
+                  "level": 3,
+                  "content_preview": "| 设备 | 用途 | 配置 | 成本 |\n|------|------|------|------|\n| **Mac mini M4 24G** | 核心生产基座 | 24GB统一内存，本地LLM+ComfyUI | ¥4,000-5,000 |\n| **外接SSD 2TB** | 素材/模型/资产库存储 | 雷电4接口 | ¥1,500 |\n| **Android测试机** | GUI自动化/",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "设备=**Mac mini M4 24G** | 用途=核心生产基座 | 配置=24GB统一内存，本地LLM+ComfyUI | 成本=¥4,000-5,000"
+                      ],
+                      "section": "4.1 硬件层"
+                    },
+                    {
+                      "cells": [
+                        "设备=**外接SSD 2TB** | 用途=素材/模型/资产库存储 | 配置=雷电4接口 | 成本=¥1,500"
+                      ],
+                      "section": "4.1 硬件层"
+                    },
+                    {
+                      "cells": [
+                        "设备=**Android测试机** | 用途=GUI自动化/APP端薅羊毛 | 配置=中端机型，ADB调试开启 | 成本=¥1,000-2,000"
+                      ],
+                      "section": "4.1 硬件层"
+                    },
+                    {
+                      "cells": [
+                        "设备=**住宅IP代理** | 用途=多账号指纹隔离 | 配置=按量计费 | 成本=¥200-500/月"
+                      ],
+                      "section": "4.1 硬件层"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "4.2 基座层",
+                  "level": 3,
+                  "content_preview": "| 组件 | 项目/技术 | 职责 |\n|------|----------|------|\n| **Agent基座** | OpenClaw | 多Agent编排、任务调度、记忆管理 |\n| **语义层** | Athena Agent | 自然语言理解、意图识别、知识推理 |\n| **网关层** | MAREF (A2A+MCP) | 跨Agent通信、工具调用、安全审计 |\n| **协议层*",
+                  "milestones": [],
+                  "requirements": [
+                    "组件: 项目/技术 | 职责"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "组件=**Agent基座** | 项目/技术=OpenClaw | 职责=多Agent编排、任务调度、记忆管理"
+                      ],
+                      "section": "4.2 基座层"
+                    },
+                    {
+                      "cells": [
+                        "组件=**语义层** | 项目/技术=Athena Agent | 职责=自然语言理解、意图识别、知识推理"
+                      ],
+                      "section": "4.2 基座层"
+                    },
+                    {
+                      "cells": [
+                        "组件=**网关层** | 项目/技术=MAREF (A2A+MCP) | 职责=跨Agent通信、工具调用、安全审计"
+                      ],
+                      "section": "4.2 基座层"
+                    },
+                    {
+                      "cells": [
+                        "组件=**协议层** | 项目/技术=MCP | 职责=外部工具标准化接入"
+                      ],
+                      "section": "4.2 基座层"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "4.3 生产层",
+                  "level": 3,
+                  "content_preview": "| 环节 | 工具链 | 备注 |\n|------|--------|------|\n| **文生图** | ComfyUI + SDXL/FLUX + IPAdapter | 核心角色一致性保障 |\n| **图生视频** | Pixelle-Video / AnimateDiff / CogVideo | 本地替代方案 |\n| **视频编辑** | FFmpeg + 剪映API | 自动化粗剪/",
+                  "milestones": [],
+                  "requirements": [
+                    "环节: 工具链 | 备注"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "环节=**文生图** | 工具链=ComfyUI + SDXL/FLUX + IPAdapter | 备注=核心角色一致性保障"
+                      ],
+                      "section": "4.3 生产层"
+                    },
+                    {
+                      "cells": [
+                        "环节=**图生视频** | 工具链=Pixelle-Video / AnimateDiff / CogVideo | 备注=本地替代方案"
+                      ],
+                      "section": "4.3 生产层"
+                    },
+                    {
+                      "cells": [
+                        "环节=**视频编辑** | 工具链=FFmpeg + 剪映API | 备注=自动化粗剪/精剪"
+                      ],
+                      "section": "4.3 生产层"
+                    },
+                    {
+                      "cells": [
+                        "环节=**语音合成** | 工具链=GPT-SoVITS / FishSpeech | 备注=本地声纹克隆"
+                      ],
+                      "section": "4.3 生产层"
+                    },
+                    {
+                      "cells": [
+                        "环节=**字幕生成** | 工具链=Whisper (本地) | 备注=零API成本"
+                      ],
+                      "section": "4.3 生产层"
+                    },
+                    {
+                      "cells": [
+                        "环节=**音乐生成** | 工具链=Suno API (付费) / Udio (付费) | 备注=仅在混合期使用，内化期转向免版税音乐库"
+                      ],
+                      "section": "4.3 生产层"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "4.4 资产层",
+                  "level": 3,
+                  "content_preview": "| 组件 | 技术 | 用途 |\n|------|------|------|\n| **向量数据库** | Chroma / Milvus (本地) | 角色/视觉/语义向量存储 |\n| **对象存储** | MinIO (本地) | 素材/成品/模型文件 |\n| **版本控制** | DVC + Git | 模型版本、资产版本管理 |\n| **元数据管理** | 自研JSON Schema | ",
+                  "milestones": [],
+                  "requirements": [
+                    "组件: 技术 | 用途"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "组件=**向量数据库** | 技术=Chroma / Milvus (本地) | 用途=角色/视觉/语义向量存储"
+                      ],
+                      "section": "4.4 资产层"
+                    },
+                    {
+                      "cells": [
+                        "组件=**对象存储** | 技术=MinIO (本地) | 用途=素材/成品/模型文件"
+                      ],
+                      "section": "4.4 资产层"
+                    },
+                    {
+                      "cells": [
+                        "组件=**版本控制** | 技术=DVC + Git | 用途=模型版本、资产版本管理"
+                      ],
+                      "section": "4.4 资产层"
+                    },
+                    {
+                      "cells": [
+                        "组件=**元数据管理** | 技术=自研JSON Schema | 用途=素材来源、授权状态、生成参数"
+                      ],
+                      "section": "4.4 资产层"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "4.5 分发层",
+                  "level": 3,
+                  "content_preview": "| 平台 | 接入方式 | 风控策略 |\n|------|---------|---------|\n| **视频号** | 官方API / GUI自动化 | 发布频率拟人化 |\n| **小红书** | 官方API / Playwright | 避免多账号同一IP |\n| **抖音** | 官方API / Appium | 投流与内容分离账号 |\n| **YouTube** | 官方Data API",
+                  "milestones": [],
+                  "requirements": [
+                    "平台: 接入方式 | 风控策略"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "平台=**视频号** | 接入方式=官方API / GUI自动化 | 风控策略=发布频率拟人化"
+                      ],
+                      "section": "4.5 分发层"
+                    },
+                    {
+                      "cells": [
+                        "平台=**小红书** | 接入方式=官方API / Playwright | 风控策略=避免多账号同一IP"
+                      ],
+                      "section": "4.5 分发层"
+                    },
+                    {
+                      "cells": [
+                        "平台=**抖音** | 接入方式=官方API / Appium | 风控策略=投流与内容分离账号"
+                      ],
+                      "section": "4.5 分发层"
+                    },
+                    {
+                      "cells": [
+                        "平台=**YouTube** | 接入方式=官方Data API | 风控策略=合规第一，避免版权争议"
+                      ],
+                      "section": "4.5 分发层"
+                    },
+                    {
+                      "cells": [
+                        "平台=**TikTok** | 接入方式=官方API / GUI自动化 | 风控策略=本地化内容审核"
+                      ],
+                      "section": "4.5 分发层"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "4.6 变现层",
+                  "level": 3,
+                  "content_preview": "| 渠道 | 工具 | 接入阶段 |\n|------|------|---------|\n| **微信表情商店** | 官方创作者平台 | 混合期 |\n| **小红书店铺** | 官方电商API | 混合期 |\n| **私域(企微)** | 自建CRM + Agent客服 | 混合期 |\n| **数字藏品/NFT** | 自建合约(可选) | 内化期 |\n| **IP授权交易** | 自研合同+法",
+                  "milestones": [],
+                  "requirements": [
+                    "渠道: 工具 | 接入阶段"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "渠道=**微信表情商店** | 工具=官方创作者平台 | 接入阶段=混合期"
+                      ],
+                      "section": "4.6 变现层"
+                    },
+                    {
+                      "cells": [
+                        "渠道=**小红书店铺** | 工具=官方电商API | 接入阶段=混合期"
+                      ],
+                      "section": "4.6 变现层"
+                    },
+                    {
+                      "cells": [
+                        "渠道=**私域(企微)** | 工具=自建CRM + Agent客服 | 接入阶段=混合期"
+                      ],
+                      "section": "4.6 变现层"
+                    },
+                    {
+                      "cells": [
+                        "渠道=**数字藏品/NFT** | 工具=自建合约(可选) | 接入阶段=内化期"
+                      ],
+                      "section": "4.6 变现层"
+                    },
+                    {
+                      "cells": [
+                        "渠道=**IP授权交易** | 工具=自研合同+法务Agent | 接入阶段=内化期"
+                      ],
+                      "section": "4.6 变现层"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "5. 踩坑指南（反面教材）",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "5.1 平台依赖坑",
+                  "level": 3,
+                  "content_preview": "**坑位**: \"免费额度永远会有\"  \n**后果**: 平台政策突变（如字节突然收紧即梦额度），产能断崖式下跌，已验证的IP方向无法继续生产。  \n**对策**: 混合期必须建立30%本地产能；内化期100%本地。免费额度是燃料，不是引擎。\n\n**坑位**: \"多账号矩阵可以无限薅\"  \n**后果**: 平台检测账号关联（设备指纹、IP、支付信息），批量封号，前期积累的内容和粉丝归零。  \n**",
+                  "milestones": [],
+                  "requirements": [
+                    "建立30%本地产能；内化期100%本地",
+                    "硬件级隔离（独立浏览器Profile/独立手机/独立IP）；绝不共享支付方式",
+                    "设置\"人类产能上限\"——单账号日更3-5条，操作间隔服从泊松分布"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "5.2 财务/计费坑",
+                  "level": 3,
+                  "content_preview": "**坑位**: \"现金余额就是可提现金额\"（阿里百炼陷阱）  \n**后果**: 可提现金额=现金余额-欠费-未结算-预留金，账面有钱但无法提取，资金被平台无息占用。  \n**对策**: 任何平台充值前，必须人工验证计费公式；优先使用免费额度，订阅制平台设置硬预算上限（如月支出<¥500）。\n\n**坑位**: \"投流一定能带来正ROI\"  \n**后果**: 投流成本吞噬利润，中小MCN陷入\"流量赌博",
+                  "milestones": [],
+                  "requirements": [
+                    "人工验证计费公式；优先使用免费额度，订阅制平台设置硬预算上限（如月支出<¥500）"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "5.3 合规/版权坑",
+                  "level": 3,
+                  "content_preview": "**坑位**: \"去除水印+本地合成=安全\"  \n**后果**: 平台部署L2频域水印+L3深度学习水印（模型指纹），即使肉眼不可见，跨平台内容指纹联盟仍可追溯来源；一旦规模化，触发批量封号+收益冻结。  \n**对策**: 绝不使用水印去除工具；本地合成必须基于\"自有风格LoRA+平台素材重组\"，形成新作品，且保留完整素材溯源链。\n\n**坑位**: \"AI生成内容没有版权\"  \n**后果**: 核",
+                  "milestones": [],
+                  "requirements": [
+                    "使用水印去除工具；本地合成必须基于\"自有风格LoRA+平台素材重组\"，形成新作品，且保留完整素材溯源链",
+                    "是100%原创设计，参考图使用CC0或商用授权素材；声纹克隆使用自有录制或商用授权声音"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "5.4 技术/工程坑",
+                  "level": 3,
+                  "content_preview": "**坑位**: \"一个ComfyUI工作流可以打天下\"  \n**后果**: 内容风格单一，粉丝审美疲劳，算法降权。  \n**对策**: 建立\"工作流版本库\"，每周迭代1-2个变体；同一角色在不同场景使用不同LoRA权重。\n\n**坑位**: \"向量数据库只是存储\"  \n**后果**: 资产库沦为垃圾堆，检索效率低，跨项目复用困难。  \n**对策**: 向量库必须建立严格的元数据Schema（角色ID",
+                  "milestones": [],
+                  "requirements": [
+                    "建立严格的元数据Schema（角色ID、场景标签、情感标签、生成日期、使用次数），定期清理低质量资产",
+                    "设置\"人工审查节点\"（Human-in-the-Loop），特别是发布前和变现前；建立\"内容安全Agent\"进行自动合规初审",
+                    "标注授权协议；优先使用Apache2.0/MIT/商用友好的模型"
+                  ],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "5.5 组织/运营坑",
+                  "level": 3,
+                  "content_preview": "**坑位**: \"IP角色越多越好\"  \n**后果**: 资源分散，每个角色都养不活，粉丝认知混乱。  \n**对策**: MVP期最多测试3个角色；混合期聚焦1个核心IP打透；内化期才考虑IP矩阵扩展。\n\n**坑位**: \"粉丝增长就是一切\"  \n**后果**: 追求泛流量，粉丝画像模糊，变现转化率极低。  \n**对策**: 建立\"精准粉丝\"指标：私域添加率、付费转化率、评论区深度互动率，而非单纯",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "6. 风控自检清单（每日/每周/每月）",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "每日自检（自动化）",
+                  "level": 3,
+                  "content_preview": "- [ ] 各平台额度余量监控（<20%触发预警）\n- [ ] 单账号发布频率检查（>5条/日触发预警）\n- [ ] 内容安全扫描（涉政/色情/暴力关键词）\n- [ ] 粉丝异常增长检测（>50%/日触发刷量预警）",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [
+                    "各平台额度余量监控（<20%触发预警）",
+                    "单账号发布频率检查（>5条/日触发预警）",
+                    "内容安全扫描（涉政/色情/暴力关键词）",
+                    "粉丝异常增长检测（>50%/日触发刷量预警）"
+                  ],
+                  "subsections": []
+                },
+                {
+                  "heading": "每周自检（人工+Agent）",
+                  "level": 3,
+                  "content_preview": "- [ ] 账号健康度检查（限流/降权/违规通知）\n- [ ] 素材溯源链完整性（是否有未标注来源的素材）\n- [ ] 本地资产库备份（异地/云端双备份）\n- [ ] 竞品监控（同赛道新进入者/平台政策变化）",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [
+                    "账号健康度检查（限流/降权/违规通知）",
+                    "素材溯源链完整性（是否有未标注来源的素材）",
+                    "本地资产库备份（异地/云端双备份）",
+                    "竞品监控（同赛道新进入者/平台政策变化）"
+                  ],
+                  "subsections": []
+                },
+                {
+                  "heading": "每月自检（战略层）",
+                  "level": 3,
+                  "content_preview": "- [ ] 财务审计（平台账单 vs 本地记录，排查计费陷阱）\n- [ ] IP资产估值（粉丝数×活跃度×变现率×行业系数）\n- [ ] 技术债务评估（Agent脚本失效率、模型版本落后度）\n- [ ] 合规审计（授权协议更新、平台ToS变更影响）\n\n---",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [
+                    "财务审计（平台账单 vs 本地记录，排查计费陷阱）",
+                    "IP资产估值（粉丝数×活跃度×变现率×行业系数）",
+                    "技术债务评估（Agent脚本失效率、模型版本落后度）",
+                    "合规审计（授权协议更新、平台ToS变更影响）"
+                  ],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "7. 财务模型与成本核算",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "7.1 三阶段成本对比（月产100条精品内容）",
+                  "level": 3,
+                  "content_preview": "| 成本项 | 传统MCN | 纯订阅AI | Wool-MVP | 混合期 | 内化期 |\n|--------|--------|---------|---------|--------|--------|\n| 人力 | ¥19,000 | ¥3,000 | ¥0 | ¥3,000 | ¥5,000 |\n| 内容生成 | ¥5,000 | ¥3,000 | **¥0** | ¥1,000 | ¥",
+                  "milestones": [],
+                  "requirements": [
+                    "成本项: 传统MCN | 纯订阅AI | Wool-MVP | 混合期 | 内化期",
+                    "平台投流: ¥10,000 | ¥10,000 | ¥0 | ¥5,000 | ¥8,000",
+                    "IP代理/工具: - | ¥500 | ¥200 | ¥500 | ¥500",
+                    "**单条成本**: **¥340** | **¥130** | **¥20** | **¥100** | **¥150**",
+                    "**月总成本**: **¥34,000** | **¥17,000** | **¥700** | **¥10,000** | **¥14,800**"
+                  ],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "成本项=人力 | 传统MCN=¥19,000 | 纯订阅AI=¥3,000 | Wool-MVP=¥0 | 混合期=¥3,000 | 内化期=¥5,000"
+                      ],
+                      "section": "7.1 三阶段成本对比（月产100条精品内容）"
+                    },
+                    {
+                      "cells": [
+                        "成本项=内容生成 | 传统MCN=¥5,000 | 纯订阅AI=¥3,000 | Wool-MVP=**¥0** | 混合期=¥1,000 | 内化期=¥500"
+                      ],
+                      "section": "7.1 三阶段成本对比（月产100条精品内容）"
+                    },
+                    {
+                      "cells": [
+                        "成本项=平台投流 | 传统MCN=¥10,000 | 纯订阅AI=¥10,000 | Wool-MVP=¥0 | 混合期=¥5,000 | 内化期=¥8,000"
+                      ],
+                      "section": "7.1 三阶段成本对比（月产100条精品内容）"
+                    },
+                    {
+                      "cells": [
+                        "成本项=硬件折旧 | 传统MCN=- | 纯订阅AI=¥500 | Wool-MVP=¥500 | 混合期=¥500 | 内化期=¥800"
+                      ],
+                      "section": "7.1 三阶段成本对比（月产100条精品内容）"
+                    },
+                    {
+                      "cells": [
+                        "成本项=IP代理/工具 | 传统MCN=- | 纯订阅AI=¥500 | Wool-MVP=¥200 | 混合期=¥500 | 内化期=¥500"
+                      ],
+                      "section": "7.1 三阶段成本对比（月产100条精品内容）"
+                    },
+                    {
+                      "cells": [
+                        "成本项=**单条成本** | 传统MCN=**¥340** | 纯订阅AI=**¥130** | Wool-MVP=**¥20** | 混合期=**¥100** | 内化期=**¥150**"
+                      ],
+                      "section": "7.1 三阶段成本对比（月产100条精品内容）"
+                    },
+                    {
+                      "cells": [
+                        "成本项=**月总成本** | 传统MCN=**¥34,000** | 纯订阅AI=**¥17,000** | Wool-MVP=**¥700** | 混合期=**¥10,000** | 内化期=**¥14,800**"
+                      ],
+                      "section": "7.1 三阶段成本对比（月产100条精品内容）"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "7.2 收益模型（保守估计）",
+                  "level": 3,
+                  "content_preview": "| 阶段 | 月收益来源 | 保守预估 | 乐观预估 |\n|------|-----------|---------|---------|\n| **MVP** | 无 | ¥0 | ¥0 |\n| **混合期** | 广告分成+数字商品 | ¥1,000-3,000 | ¥5,000-10,000 |\n| **内化期(自营)** | 广告+电商+私域 | ¥10,000-30,000 | ¥50,0",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [
+                    {
+                      "cells": [
+                        "阶段=**MVP** | 月收益来源=无 | 保守预估=¥0 | 乐观预估=¥0"
+                      ],
+                      "section": "7.2 收益模型（保守估计）"
+                    },
+                    {
+                      "cells": [
+                        "阶段=**混合期** | 月收益来源=广告分成+数字商品 | 保守预估=¥1,000-3,000 | 乐观预估=¥5,000-10,000"
+                      ],
+                      "section": "7.2 收益模型（保守估计）"
+                    },
+                    {
+                      "cells": [
+                        "阶段=**内化期(自营)** | 月收益来源=广告+电商+私域 | 保守预估=¥10,000-30,000 | 乐观预估=¥50,000-100,000"
+                      ],
+                      "section": "7.2 收益模型（保守估计）"
+                    },
+                    {
+                      "cells": [
+                        "阶段=**内化期(ToB)** | 月收益来源=Skill市场+代运营 | 保守预估=¥5,000-20,000 | 乐观预估=¥30,000-100,000"
+                      ],
+                      "section": "7.2 收益模型（保守估计）"
+                    }
+                  ],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "8. 附录：工具链与资源索引",
+              "level": 2,
+              "content_preview": "",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": [
+                {
+                  "heading": "8.1 开源CLI/GUI自动化",
+                  "level": 3,
+                  "content_preview": "- **Playwright**: 浏览器自动化，支持 stealth 模式\n- **Appium + UIAutomator2**: Android APP自动化\n- **ADB + scrcpy**: 手机投屏与触控模拟\n- **UI-TARS (字节)**: VLM驱动的视觉Agent\n- **PyAutoGUI**: 桌面GUI自动化",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "8.2 本地内容生产",
+                  "level": 3,
+                  "content_preview": "- **ComfyUI**: 节点式AI绘图工作流\n- **IPAdapter**: 角色一致性保持\n- **AnimateDiff / CogVideoX**: 本地视频生成\n- **GPT-SoVITS**: 本地声纹克隆\n- **Whisper**: 本地语音识别与字幕\n- **FFmpeg**: 视频处理瑞士军刀",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "8.3 向量与数据",
+                  "level": 3,
+                  "content_preview": "- **Chroma / Milvus**: 向量数据库\n- **MinIO**: 本地对象存储\n- **DVC**: 数据版本控制",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                },
+                {
+                  "heading": "8.4 平台免费额度入口（2026-05）",
+                  "level": 3,
+                  "content_preview": "- 即梦AI: jimeng.jianying.com\n- 豆包: doubao.com\n- 可灵AI: klingai.com\n- 智谱: bigmodel.cn (GLM-4-Flash)\n- Kimi: kimi.moonshot.cn\n- DeepSeek: platform.deepseek.com\n- 硅基流动: siliconflow.cn\n\n---",
+                  "milestones": [],
+                  "requirements": [],
+                  "table_rows": [],
+                  "checklists": [],
+                  "subsections": []
+                }
+              ]
+            },
+            {
+              "heading": "9. 执行纪律（不可违背）",
+              "level": 2,
+              "content_preview": "1. **MVP不超过4周**: 时间到了必须做Go/No-Go决策，绝不拖延。\n2. **单账号日更上限5条**: 超过此数即触发业务层异常检测，得不偿失。\n3. **核心IP必须本地生成**: 任何用于授权/交易/融资的\"定妆级\"内容，必须来自本地ComfyUI，零平台水印风险。\n4. **素材溯源链100%完整**: 每一帧画面都知道来源（自有/授权/平台免费额度），缺失溯源即视为违规素材。",
+              "milestones": [],
+              "requirements": [
+                "做Go/No-Go决策，绝不拖延",
+                "本地生成**: 任何用于授权/交易/融资的\"定妆级\"内容，必须来自本地ComfyUI，零平台水印风险",
+                "人工审批",
+                "有一个人工审查节点，Agent不可全权决定"
+              ],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            }
+          ]
+        },
+        {
+          "heading": "1. 阶段一：Wool-MVP（0-4周）",
+          "level": 2,
+          "content_preview": "",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": [
+            {
+              "heading": "1.1 目标与边界",
+              "level": 3,
+              "content_preview": "**唯一目标**: 以趋近于零的成本，验证3个核心假设（H1/H2/H3）。  \n**不是目标**: 积累内容库存、建立粉丝矩阵、赚取广告分成。\n\n**合规边界**:\n- ✅ 使用平台官方免费额度（即梦/可灵/豆包等明确允许的获客额度）\n- ✅ 本地二次创作（重剪/配音/合成）形成新作品\n- ✅ GUI自动化模拟真人操作频率\n- ❌ 去除水印后冒充原创\n- ❌ 批量注册虚假账号\n- ❌ 转售平台原",
+              "milestones": [],
+              "requirements": [
+                "使用平台官方免费额度（即梦/可灵/豆包等明确允许的获客额度）",
+                "本地二次创作（重剪/配音/合成）形成新作品",
+                "GUI自动化模拟真人操作频率",
+                "去除水印后冒充原创",
+                "批量注册虚假账号"
+              ],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "1.2 2026年5月羊毛地图",
+              "level": 3,
+              "content_preview": "| 平台 | 免费额度 | 技术特点 | MVP用途 |\n|------|---------|---------|---------|\n| **即梦AI(字节)** | 新用户800秒+每日260积分；15秒视频≈90积分 | Seedance2.0，World ID角色一致性，自带商业授权 | 角色一致性短剧/漫剧测试 |\n| **豆包App** | 每日10个视频额度(5/10秒) | 灰度测",
+              "milestones": [],
+              "requirements": [
+                "平台: 免费额度 | 技术特点 | MVP用途"
+              ],
+              "table_rows": [
+                {
+                  "cells": [
+                    "平台=**即梦AI(字节)** | 免费额度=新用户800秒+每日260积分；15秒视频≈90积分 | 技术特点=Seedance2.0，World ID角色一致性，自带商业授权 | MVP用途=角色一致性短剧/漫剧测试"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**豆包App** | 免费额度=每日10个视频额度(5/10秒) | 技术特点=灰度测试，界面简化 | MVP用途=口播/短视频快速测试"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**小云雀(字节)** | 免费额度=新用户3次+188积分+每日120积分 | 技术特点=轻量化Seedance2.0入口 | MVP用途=轻量测试/备用"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**可灵AI(快手)** | 免费额度=每日签到积分 | 技术特点=角色一致性极强，支持4K60fps | MVP用途=长视频/系列内容测试"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**智谱GLM-4-Flash** | 免费额度=永久免费，30并发 | 技术特点=国产代码/文本第一梯队 | MVP用途=脚本/故事版生成兜底"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**Kimi** | 免费额度=每分钟3次，个人认证送15元 | 技术特点=256K超长上下文 | MVP用途=长剧本/世界观构建"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**DeepSeek** | 免费额度=注册送500万Token(30天) | 技术特点=推理能力强 | MVP用途=剧情逻辑设计"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**硅基流动** | 免费额度=每模型1000 RPM | 技术特点=聚合100+开源模型 | MVP用途=高频调用/并发测试"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                },
+                {
+                  "cells": [
+                    "平台=**讯飞星火** | 免费额度=各模型20万Tokens | 技术特点=语音合成 | MVP用途=配音/声纹测试"
+                  ],
+                  "section": "1.2 2026年5月羊毛地图"
+                }
+              ],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "1.3 Agent集群配置（MVP版）",
+              "level": 3,
+              "content_preview": "```\n┌─────────────────────────────────────────┐\n│         Wool-MVP Agent集群 (4周生命周期)   │\n├─────────────────────────────────────────┤\n│  ① HypothesisAgent                        │\n│     → 每日生成1个测试假设（角色/",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "1.4 本地种子任务（必须并行，不可拖延）",
+              "level": 3,
+              "content_preview": "| 种子任务 | 周投入 | 产出物 | 与验证的关系 |\n|---------|--------|--------|-------------|\n| 角色设定文档 | 4-6h | 3-5个角色Markdown（人格/视觉/声线/世界观） | 测试哪个角色市场反馈最好 |\n| 向量库Schema | 2-3h | IP资产目录结构（角色/场景/故事线/粉丝数据） | 即使MVP失败，资产保留 |",
+              "milestones": [],
+              "requirements": [
+                "角色设定文档: 4-6h | 3-5个角色Markdown（人格/视觉/声线/世界观） | 测试哪个角色市场反馈最好"
+              ],
+              "table_rows": [
+                {
+                  "cells": [
+                    "种子任务=角色设定文档 | 周投入=4-6h | 产出物=3-5个角色Markdown（人格/视觉/声线/世界观） | 与验证的关系=测试哪个角色市场反馈最好"
+                  ],
+                  "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                },
+                {
+                  "cells": [
+                    "种子任务=向量库Schema | 周投入=2-3h | 产出物=IP资产目录结构（角色/场景/故事线/粉丝数据） | 与验证的关系=即使MVP失败，资产保留"
+                  ],
+                  "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                },
+                {
+                  "cells": [
+                    "种子任务=ComfyUI基础流 | 周投入=4-6h | 产出物=文生图+IPAdapter工作流 | 与验证的关系=验证成功后直接切换主生产"
+                  ],
+                  "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                },
+                {
+                  "cells": [
+                    "种子任务=风格LoRA训练 | 周投入=4-6h | 产出物=基于20-50张参考图的轻量LoRA | 与验证的关系=测试\"本地风格\"差异度"
+                  ],
+                  "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                },
+                {
+                  "cells": [
+                    "种子任务=自动剪辑脚本 | 周投入=2-3h | 产出物=FFmpeg模板+剪映API草稿 | 与验证的关系=规模化时复用"
+                  ],
+                  "section": "1.4 本地种子任务（必须并行，不可拖延）"
+                }
+              ],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "1.5 核心假设与验证阈值",
+              "level": 3,
+              "content_preview": "| 假设 | 验证方法 | 通过阈值 | 失败标准 |\n|------|---------|---------|---------|\n| **H1: IP角色吸引力** | 同一角色5-10条不同场景，观察完播率 | 完播率>30%，或互动率>5% | 连续3条完播率<15% |\n| **H2: 风格差异化** | 同提示词不同平台生成，测试用户识别度 | 评论区出现\"风格特别\"类反馈 | 被误认",
+              "milestones": [],
+              "requirements": [
+                "假设: 验证方法 | 通过阈值 | 失败标准",
+                "**H1: IP角色吸引力**: 同一角色5-10条不同场景，观察完播率 | 完播率>30%，或互动率>5% | 连续3条完播率<15%"
+              ],
+              "table_rows": [
+                {
+                  "cells": [
+                    "假设=**H1: IP角色吸引力** | 验证方法=同一角色5-10条不同场景，观察完播率 | 通过阈值=完播率>30%，或互动率>5% | 失败标准=连续3条完播率<15%"
+                  ],
+                  "section": "1.5 核心假设与验证阈值"
+                },
+                {
+                  "cells": [
+                    "假设=**H2: 风格差异化** | 验证方法=同提示词不同平台生成，测试用户识别度 | 通过阈值=评论区出现\"风格特别\"类反馈 | 失败标准=被误认为\"普通AI生成\""
+                  ],
+                  "section": "1.5 核心假设与验证阈值"
+                },
+                {
+                  "cells": [
+                    "假设=**H3: 变现可行性** | 验证方法=测试数字商品（壁纸/表情包）或私域导流 | 通过阈值=付费转化率>1%，或私域添加率>10% | 失败标准=零付费意愿，零私域添加"
+                  ],
+                  "section": "1.5 核心假设与验证阈值"
+                }
+              ],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "1.6 Go/No-Go决策矩阵",
+              "level": 3,
+              "content_preview": "**W4决策日必须执行**:\n- **Go（进入混合期）**: 任一假设验证通过，且有明确可规模化方向。\n- **No-Go（Pivot）**: 全部假设失败，分析数据后生成新假设再循环1次。\n- **Kill（终止）**: 连续2个循环（8周）无假设通过，或额度耗尽且无本地产能。\n\n**纪律**: 即使羊毛额度还有剩余，W4也必须做决策。MVP的敌人不是\"额度不够\"，而是\"验证拖延\"。\n\n---",
+              "milestones": [],
+              "requirements": [
+                "执行**:",
+                "做决策"
+              ],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            }
+          ]
+        },
+        {
+          "heading": "1.2 2026年5月羊毛地图",
+          "level": 3,
+          "content_preview": "| 平台 | 免费额度 | 技术特点 | MVP用途 |\n|------|---------|---------|---------|\n| **即梦AI(字节)** | 新用户800秒+每日260积分；15秒视频≈90积分 | Seedance2.0，World ID角色一致性，自带商业授权 | 角色一致性短剧/漫剧测试 |\n| **豆包App** | 每日10个视频额度(5/10秒) | 灰度测",
+          "milestones": [],
+          "requirements": [
+            "平台: 免费额度 | 技术特点 | MVP用途"
+          ],
+          "table_rows": [
+            {
+              "cells": [
+                "平台=**即梦AI(字节)** | 免费额度=新用户800秒+每日260积分；15秒视频≈90积分 | 技术特点=Seedance2.0，World ID角色一致性，自带商业授权 | MVP用途=角色一致性短剧/漫剧测试"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**豆包App** | 免费额度=每日10个视频额度(5/10秒) | 技术特点=灰度测试，界面简化 | MVP用途=口播/短视频快速测试"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**小云雀(字节)** | 免费额度=新用户3次+188积分+每日120积分 | 技术特点=轻量化Seedance2.0入口 | MVP用途=轻量测试/备用"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**可灵AI(快手)** | 免费额度=每日签到积分 | 技术特点=角色一致性极强，支持4K60fps | MVP用途=长视频/系列内容测试"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**智谱GLM-4-Flash** | 免费额度=永久免费，30并发 | 技术特点=国产代码/文本第一梯队 | MVP用途=脚本/故事版生成兜底"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**Kimi** | 免费额度=每分钟3次，个人认证送15元 | 技术特点=256K超长上下文 | MVP用途=长剧本/世界观构建"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**DeepSeek** | 免费额度=注册送500万Token(30天) | 技术特点=推理能力强 | MVP用途=剧情逻辑设计"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**硅基流动** | 免费额度=每模型1000 RPM | 技术特点=聚合100+开源模型 | MVP用途=高频调用/并发测试"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            },
+            {
+              "cells": [
+                "平台=**讯飞星火** | 免费额度=各模型20万Tokens | 技术特点=语音合成 | MVP用途=配音/声纹测试"
+              ],
+              "section": "1.2 2026年5月羊毛地图"
+            }
+          ],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "1.3 Agent集群配置（MVP版）",
+          "level": 3,
+          "content_preview": "```\n┌─────────────────────────────────────────┐\n│         Wool-MVP Agent集群 (4周生命周期)   │\n├─────────────────────────────────────────┤\n│  ① HypothesisAgent                        │\n│     → 每日生成1个测试假设（角色/",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "1.4 本地种子任务（必须并行，不可拖延）",
+          "level": 3,
+          "content_preview": "| 种子任务 | 周投入 | 产出物 | 与验证的关系 |\n|---------|--------|--------|-------------|\n| 角色设定文档 | 4-6h | 3-5个角色Markdown（人格/视觉/声线/世界观） | 测试哪个角色市场反馈最好 |\n| 向量库Schema | 2-3h | IP资产目录结构（角色/场景/故事线/粉丝数据） | 即使MVP失败，资产保留 |",
+          "milestones": [],
+          "requirements": [
+            "角色设定文档: 4-6h | 3-5个角色Markdown（人格/视觉/声线/世界观） | 测试哪个角色市场反馈最好"
+          ],
+          "table_rows": [
+            {
+              "cells": [
+                "种子任务=角色设定文档 | 周投入=4-6h | 产出物=3-5个角色Markdown（人格/视觉/声线/世界观） | 与验证的关系=测试哪个角色市场反馈最好"
+              ],
+              "section": "1.4 本地种子任务（必须并行，不可拖延）"
+            },
+            {
+              "cells": [
+                "种子任务=向量库Schema | 周投入=2-3h | 产出物=IP资产目录结构（角色/场景/故事线/粉丝数据） | 与验证的关系=即使MVP失败，资产保留"
+              ],
+              "section": "1.4 本地种子任务（必须并行，不可拖延）"
+            },
+            {
+              "cells": [
+                "种子任务=ComfyUI基础流 | 周投入=4-6h | 产出物=文生图+IPAdapter工作流 | 与验证的关系=验证成功后直接切换主生产"
+              ],
+              "section": "1.4 本地种子任务（必须并行，不可拖延）"
+            },
+            {
+              "cells": [
+                "种子任务=风格LoRA训练 | 周投入=4-6h | 产出物=基于20-50张参考图的轻量LoRA | 与验证的关系=测试\"本地风格\"差异度"
+              ],
+              "section": "1.4 本地种子任务（必须并行，不可拖延）"
+            },
+            {
+              "cells": [
+                "种子任务=自动剪辑脚本 | 周投入=2-3h | 产出物=FFmpeg模板+剪映API草稿 | 与验证的关系=规模化时复用"
+              ],
+              "section": "1.4 本地种子任务（必须并行，不可拖延）"
+            }
+          ],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "1.6 Go/No-Go决策矩阵",
+          "level": 3,
+          "content_preview": "**W4决策日必须执行**:\n- **Go（进入混合期）**: 任一假设验证通过，且有明确可规模化方向。\n- **No-Go（Pivot）**: 全部假设失败，分析数据后生成新假设再循环1次。\n- **Kill（终止）**: 连续2个循环（8周）无假设通过，或额度耗尽且无本地产能。\n\n**纪律**: 即使羊毛额度还有剩余，W4也必须做决策。MVP的敌人不是\"额度不够\"，而是\"验证拖延\"。\n\n---",
+          "milestones": [],
+          "requirements": [
+            "执行**:",
+            "做决策"
+          ],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "3.5 跨媒介延展路线图",
+          "level": 3,
+          "content_preview": "```\nPhase 1 (0-6月): 短视频/短剧\n    ↓\nPhase 2 (6-12月): AI漫剧/互动图文/播客\n    ↓\nPhase 3 (12-18月): 虚拟直播/数字人代言/虚拟商品\n    ↓\nPhase 4 (18-24月): 游戏资产/AR体验/实体联名\n```\n\n**每一阶段的延展都复用同一套角色资产库**，实现\"一次创作，多次变现\"。\n\n---",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "5.2 财务/计费坑",
+          "level": 3,
+          "content_preview": "**坑位**: \"现金余额就是可提现金额\"（阿里百炼陷阱）  \n**后果**: 可提现金额=现金余额-欠费-未结算-预留金，账面有钱但无法提取，资金被平台无息占用。  \n**对策**: 任何平台充值前，必须人工验证计费公式；优先使用免费额度，订阅制平台设置硬预算上限（如月支出<¥500）。\n\n**坑位**: \"投流一定能带来正ROI\"  \n**后果**: 投流成本吞噬利润，中小MCN陷入\"流量赌博",
+          "milestones": [],
+          "requirements": [
+            "人工验证计费公式；优先使用免费额度，订阅制平台设置硬预算上限（如月支出<¥500）"
+          ],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "5.5 组织/运营坑",
+          "level": 3,
+          "content_preview": "**坑位**: \"IP角色越多越好\"  \n**后果**: 资源分散，每个角色都养不活，粉丝认知混乱。  \n**对策**: MVP期最多测试3个角色；混合期聚焦1个核心IP打透；内化期才考虑IP矩阵扩展。\n\n**坑位**: \"粉丝增长就是一切\"  \n**后果**: 追求泛流量，粉丝画像模糊，变现转化率极低。  \n**对策**: 建立\"精准粉丝\"指标：私域添加率、付费转化率、评论区深度互动率，而非单纯",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "7.1 三阶段成本对比（月产100条精品内容）",
+          "level": 3,
+          "content_preview": "| 成本项 | 传统MCN | 纯订阅AI | Wool-MVP | 混合期 | 内化期 |\n|--------|--------|---------|---------|--------|--------|\n| 人力 | ¥19,000 | ¥3,000 | ¥0 | ¥3,000 | ¥5,000 |\n| 内容生成 | ¥5,000 | ¥3,000 | **¥0** | ¥1,000 | ¥",
+          "milestones": [],
+          "requirements": [
+            "成本项: 传统MCN | 纯订阅AI | Wool-MVP | 混合期 | 内化期",
+            "平台投流: ¥10,000 | ¥10,000 | ¥0 | ¥5,000 | ¥8,000",
+            "IP代理/工具: - | ¥500 | ¥200 | ¥500 | ¥500",
+            "**单条成本**: **¥340** | **¥130** | **¥20** | **¥100** | **¥150**",
+            "**月总成本**: **¥34,000** | **¥17,000** | **¥700** | **¥10,000** | **¥14,800**"
+          ],
+          "table_rows": [
+            {
+              "cells": [
+                "成本项=人力 | 传统MCN=¥19,000 | 纯订阅AI=¥3,000 | Wool-MVP=¥0 | 混合期=¥3,000 | 内化期=¥5,000"
+              ],
+              "section": "7.1 三阶段成本对比（月产100条精品内容）"
+            },
+            {
+              "cells": [
+                "成本项=内容生成 | 传统MCN=¥5,000 | 纯订阅AI=¥3,000 | Wool-MVP=**¥0** | 混合期=¥1,000 | 内化期=¥500"
+              ],
+              "section": "7.1 三阶段成本对比（月产100条精品内容）"
+            },
+            {
+              "cells": [
+                "成本项=平台投流 | 传统MCN=¥10,000 | 纯订阅AI=¥10,000 | Wool-MVP=¥0 | 混合期=¥5,000 | 内化期=¥8,000"
+              ],
+              "section": "7.1 三阶段成本对比（月产100条精品内容）"
+            },
+            {
+              "cells": [
+                "成本项=硬件折旧 | 传统MCN=- | 纯订阅AI=¥500 | Wool-MVP=¥500 | 混合期=¥500 | 内化期=¥800"
+              ],
+              "section": "7.1 三阶段成本对比（月产100条精品内容）"
+            },
+            {
+              "cells": [
+                "成本项=IP代理/工具 | 传统MCN=- | 纯订阅AI=¥500 | Wool-MVP=¥200 | 混合期=¥500 | 内化期=¥500"
+              ],
+              "section": "7.1 三阶段成本对比（月产100条精品内容）"
+            },
+            {
+              "cells": [
+                "成本项=**单条成本** | 传统MCN=**¥340** | 纯订阅AI=**¥130** | Wool-MVP=**¥20** | 混合期=**¥100** | 内化期=**¥150**"
+              ],
+              "section": "7.1 三阶段成本对比（月产100条精品内容）"
+            },
+            {
+              "cells": [
+                "成本项=**月总成本** | 传统MCN=**¥34,000** | 纯订阅AI=**¥17,000** | Wool-MVP=**¥700** | 混合期=**¥10,000** | 内化期=**¥14,800**"
+              ],
+              "section": "7.1 三阶段成本对比（月产100条精品内容）"
+            }
+          ],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "7.2 收益模型（保守估计）",
+          "level": 3,
+          "content_preview": "| 阶段 | 月收益来源 | 保守预估 | 乐观预估 |\n|------|-----------|---------|---------|\n| **MVP** | 无 | ¥0 | ¥0 |\n| **混合期** | 广告分成+数字商品 | ¥1,000-3,000 | ¥5,000-10,000 |\n| **内化期(自营)** | 广告+电商+私域 | ¥10,000-30,000 | ¥50,0",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [
+            {
+              "cells": [
+                "阶段=**MVP** | 月收益来源=无 | 保守预估=¥0 | 乐观预估=¥0"
+              ],
+              "section": "7.2 收益模型（保守估计）"
+            },
+            {
+              "cells": [
+                "阶段=**混合期** | 月收益来源=广告分成+数字商品 | 保守预估=¥1,000-3,000 | 乐观预估=¥5,000-10,000"
+              ],
+              "section": "7.2 收益模型（保守估计）"
+            },
+            {
+              "cells": [
+                "阶段=**内化期(自营)** | 月收益来源=广告+电商+私域 | 保守预估=¥10,000-30,000 | 乐观预估=¥50,000-100,000"
+              ],
+              "section": "7.2 收益模型（保守估计）"
+            },
+            {
+              "cells": [
+                "阶段=**内化期(ToB)** | 月收益来源=Skill市场+代运营 | 保守预估=¥5,000-20,000 | 乐观预估=¥30,000-100,000"
+              ],
+              "section": "7.2 收益模型（保守估计）"
+            }
+          ],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "9. 执行纪律（不可违背）",
+          "level": 2,
+          "content_preview": "1. **MVP不超过4周**: 时间到了必须做Go/No-Go决策，绝不拖延。\n2. **单账号日更上限5条**: 超过此数即触发业务层异常检测，得不偿失。\n3. **核心IP必须本地生成**: 任何用于授权/交易/融资的\"定妆级\"内容，必须来自本地ComfyUI，零平台水印风险。\n4. **素材溯源链100%完整**: 每一帧画面都知道来源（自有/授权/平台免费额度），缺失溯源即视为违规素材。",
+          "milestones": [],
+          "requirements": [
+            "做Go/No-Go决策，绝不拖延",
+            "本地生成**: 任何用于授权/交易/融资的\"定妆级\"内容，必须来自本地ComfyUI，零平台水印风险",
+            "人工审批",
+            "有一个人工审查节点，Agent不可全权决定"
+          ],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        }
+      ],
+      "mixed": [
+        {
+          "heading": "2. 阶段二：混合期（1-3个月）",
+          "level": 2,
+          "content_preview": "",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": [
+            {
+              "heading": "2.1 核心目标",
+              "level": 3,
+              "content_preview": "将验证成功的IP方向，从\"羊毛验证\"升级为\"可规模化的内容资产\"。",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "2.2 70/30资源配比铁律",
+              "level": 3,
+              "content_preview": "```\n┌─────────────────────────────────────────┐\n│         混合期资源配比 (70/30)            │\n├─────────────────────────────────────────┤\n│  70% 平台套利层                          │\n│  • 即梦/可灵/豆包 免费+低价额度        ",
+              "milestones": [],
+              "requirements": [
+                "本地生成      │"
+              ],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "2.3 本地资产库建设（核心工程）",
+              "level": 3,
+              "content_preview": "```\n/opt/ai-native-ip/asset-db/\n├── characters/                    # 角色向量资产\n│   ├── {char_id}/\n│   │   ├── profile.md             # 人格设定、声线描述、口头禅\n│   │   ├── visual-embedding/      # CLIP/IPAdapter向量\n",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "2.4 跨平台分发矩阵",
+              "level": 3,
+              "content_preview": "| 平台 | 内容形态 | 发布策略 | 数据回流 |\n|------|---------|---------|---------|\n| **视频号** | 短剧/漫剧/口播 | 日更3条，早7晚8 | 完播率、转发率、私域添加 |\n| **小红书** | 图文+短视频 | 日更2条，侧重搜索SEO | 收藏率、评论深度、种草转化 |\n| **抖音** | 短剧/挑战 | 日更3条，投流测试 | ",
+              "milestones": [],
+              "requirements": [
+                "平台: 内容形态 | 发布策略 | 数据回流"
+              ],
+              "table_rows": [
+                {
+                  "cells": [
+                    "平台=**视频号** | 内容形态=短剧/漫剧/口播 | 发布策略=日更3条，早7晚8 | 数据回流=完播率、转发率、私域添加"
+                  ],
+                  "section": "2.4 跨平台分发矩阵"
+                },
+                {
+                  "cells": [
+                    "平台=**小红书** | 内容形态=图文+短视频 | 发布策略=日更2条，侧重搜索SEO | 数据回流=收藏率、评论深度、种草转化"
+                  ],
+                  "section": "2.4 跨平台分发矩阵"
+                },
+                {
+                  "cells": [
+                    "平台=**抖音** | 内容形态=短剧/挑战 | 发布策略=日更3条，投流测试 | 数据回流=粉丝增长、直播间导流"
+                  ],
+                  "section": "2.4 跨平台分发矩阵"
+                },
+                {
+                  "cells": [
+                    "平台=**YouTube Shorts** | 内容形态=短剧 | 发布策略=日更1条，英文适配 | 数据回流=海外粉丝画像"
+                  ],
+                  "section": "2.4 跨平台分发矩阵"
+                },
+                {
+                  "cells": [
+                    "平台=**TikTok** | 内容形态=短剧 | 发布策略=日更1条，本地化运营 | 数据回流=跨境变现数据"
+                  ],
+                  "section": "2.4 跨平台分发矩阵"
+                }
+              ],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "2.5 变现测试（混合期只测试，不追求规模）",
+              "level": 3,
+              "content_preview": "| 变现路径 | 测试方法 | 通过阈值 | 优先级 |\n|---------|---------|---------|--------|\n| **广告分成** | 开通各平台创作者收益 | 千次播放收益>0.5元 | P2 |\n| **数字商品** | 微信表情商店/小红书店铺上架壁纸 | 月销>100单 | P1 |\n| **私域导流** | 评论区引导加企微/公众号 | 添加率>5% | P",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [
+                {
+                  "cells": [
+                    "变现路径=**广告分成** | 测试方法=开通各平台创作者收益 | 通过阈值=千次播放收益>0.5元 | 优先级=P2"
+                  ],
+                  "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                },
+                {
+                  "cells": [
+                    "变现路径=**数字商品** | 测试方法=微信表情商店/小红书店铺上架壁纸 | 通过阈值=月销>100单 | 优先级=P1"
+                  ],
+                  "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                },
+                {
+                  "cells": [
+                    "变现路径=**私域导流** | 测试方法=评论区引导加企微/公众号 | 通过阈值=添加率>5% | 优先级=P0"
+                  ],
+                  "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                },
+                {
+                  "cells": [
+                    "变现路径=**直播测试** | 测试方法=数字人/AI角色直播 | 通过阈值=场均观看>1000 | 优先级=P1"
+                  ],
+                  "section": "2.5 变现测试（混合期只测试，不追求规模）"
+                }
+              ],
+              "checklists": [],
+              "subsections": []
+            }
+          ]
+        },
+        {
+          "heading": "2.2 70/30资源配比铁律",
+          "level": 3,
+          "content_preview": "```\n┌─────────────────────────────────────────┐\n│         混合期资源配比 (70/30)            │\n├─────────────────────────────────────────┤\n│  70% 平台套利层                          │\n│  • 即梦/可灵/豆包 免费+低价额度        ",
+          "milestones": [],
+          "requirements": [
+            "本地生成      │"
+          ],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "2.5 变现测试（混合期只测试，不追求规模）",
+          "level": 3,
+          "content_preview": "| 变现路径 | 测试方法 | 通过阈值 | 优先级 |\n|---------|---------|---------|--------|\n| **广告分成** | 开通各平台创作者收益 | 千次播放收益>0.5元 | P2 |\n| **数字商品** | 微信表情商店/小红书店铺上架壁纸 | 月销>100单 | P1 |\n| **私域导流** | 评论区引导加企微/公众号 | 添加率>5% | P",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [
+            {
+              "cells": [
+                "变现路径=**广告分成** | 测试方法=开通各平台创作者收益 | 通过阈值=千次播放收益>0.5元 | 优先级=P2"
+              ],
+              "section": "2.5 变现测试（混合期只测试，不追求规模）"
+            },
+            {
+              "cells": [
+                "变现路径=**数字商品** | 测试方法=微信表情商店/小红书店铺上架壁纸 | 通过阈值=月销>100单 | 优先级=P1"
+              ],
+              "section": "2.5 变现测试（混合期只测试，不追求规模）"
+            },
+            {
+              "cells": [
+                "变现路径=**私域导流** | 测试方法=评论区引导加企微/公众号 | 通过阈值=添加率>5% | 优先级=P0"
+              ],
+              "section": "2.5 变现测试（混合期只测试，不追求规模）"
+            },
+            {
+              "cells": [
+                "变现路径=**直播测试** | 测试方法=数字人/AI角色直播 | 通过阈值=场均观看>1000 | 优先级=P1"
+              ],
+              "section": "2.5 变现测试（混合期只测试，不追求规模）"
+            }
+          ],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "4.3 生产层",
+          "level": 3,
+          "content_preview": "| 环节 | 工具链 | 备注 |\n|------|--------|------|\n| **文生图** | ComfyUI + SDXL/FLUX + IPAdapter | 核心角色一致性保障 |\n| **图生视频** | Pixelle-Video / AnimateDiff / CogVideo | 本地替代方案 |\n| **视频编辑** | FFmpeg + 剪映API | 自动化粗剪/",
+          "milestones": [],
+          "requirements": [
+            "环节: 工具链 | 备注"
+          ],
+          "table_rows": [
+            {
+              "cells": [
+                "环节=**文生图** | 工具链=ComfyUI + SDXL/FLUX + IPAdapter | 备注=核心角色一致性保障"
+              ],
+              "section": "4.3 生产层"
+            },
+            {
+              "cells": [
+                "环节=**图生视频** | 工具链=Pixelle-Video / AnimateDiff / CogVideo | 备注=本地替代方案"
+              ],
+              "section": "4.3 生产层"
+            },
+            {
+              "cells": [
+                "环节=**视频编辑** | 工具链=FFmpeg + 剪映API | 备注=自动化粗剪/精剪"
+              ],
+              "section": "4.3 生产层"
+            },
+            {
+              "cells": [
+                "环节=**语音合成** | 工具链=GPT-SoVITS / FishSpeech | 备注=本地声纹克隆"
+              ],
+              "section": "4.3 生产层"
+            },
+            {
+              "cells": [
+                "环节=**字幕生成** | 工具链=Whisper (本地) | 备注=零API成本"
+              ],
+              "section": "4.3 生产层"
+            },
+            {
+              "cells": [
+                "环节=**音乐生成** | 工具链=Suno API (付费) / Udio (付费) | 备注=仅在混合期使用，内化期转向免版税音乐库"
+              ],
+              "section": "4.3 生产层"
+            }
+          ],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "4.6 变现层",
+          "level": 3,
+          "content_preview": "| 渠道 | 工具 | 接入阶段 |\n|------|------|---------|\n| **微信表情商店** | 官方创作者平台 | 混合期 |\n| **小红书店铺** | 官方电商API | 混合期 |\n| **私域(企微)** | 自建CRM + Agent客服 | 混合期 |\n| **数字藏品/NFT** | 自建合约(可选) | 内化期 |\n| **IP授权交易** | 自研合同+法",
+          "milestones": [],
+          "requirements": [
+            "渠道: 工具 | 接入阶段"
+          ],
+          "table_rows": [
+            {
+              "cells": [
+                "渠道=**微信表情商店** | 工具=官方创作者平台 | 接入阶段=混合期"
+              ],
+              "section": "4.6 变现层"
+            },
+            {
+              "cells": [
+                "渠道=**小红书店铺** | 工具=官方电商API | 接入阶段=混合期"
+              ],
+              "section": "4.6 变现层"
+            },
+            {
+              "cells": [
+                "渠道=**私域(企微)** | 工具=自建CRM + Agent客服 | 接入阶段=混合期"
+              ],
+              "section": "4.6 变现层"
+            },
+            {
+              "cells": [
+                "渠道=**数字藏品/NFT** | 工具=自建合约(可选) | 接入阶段=内化期"
+              ],
+              "section": "4.6 变现层"
+            },
+            {
+              "cells": [
+                "渠道=**IP授权交易** | 工具=自研合同+法务Agent | 接入阶段=内化期"
+              ],
+              "section": "4.6 变现层"
+            }
+          ],
+          "checklists": [],
+          "subsections": []
+        },
+        {
+          "heading": "5.1 平台依赖坑",
+          "level": 3,
+          "content_preview": "**坑位**: \"免费额度永远会有\"  \n**后果**: 平台政策突变（如字节突然收紧即梦额度），产能断崖式下跌，已验证的IP方向无法继续生产。  \n**对策**: 混合期必须建立30%本地产能；内化期100%本地。免费额度是燃料，不是引擎。\n\n**坑位**: \"多账号矩阵可以无限薅\"  \n**后果**: 平台检测账号关联（设备指纹、IP、支付信息），批量封号，前期积累的内容和粉丝归零。  \n**",
+          "milestones": [],
+          "requirements": [
+            "建立30%本地产能；内化期100%本地",
+            "硬件级隔离（独立浏览器Profile/独立手机/独立IP）；绝不共享支付方式",
+            "设置\"人类产能上限\"——单账号日更3-5条，操作间隔服从泊松分布"
+          ],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": []
+        }
+      ],
+      "internalization": [
+        {
+          "heading": "3. 阶段三：内化期/IP王国（3-12个月）",
+          "level": 2,
+          "content_preview": "",
+          "milestones": [],
+          "requirements": [],
+          "table_rows": [],
+          "checklists": [],
+          "subsections": [
+            {
+              "heading": "3.1 核心目标",
+              "level": 3,
+              "content_preview": "从\"自营IP\"进化为\"IP基础设施输出方\"。",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "3.2 100%本地生产体系",
+              "level": 3,
+              "content_preview": "**为什么必须100%本地？**\n- 平台额度终将退潮（滴滴/美团/共享单车历史反复验证）\n- 核心IP的确权需要\"零外部依赖\"的生产链路\n- 风格指纹的不可替代性只能来自本地模型微调\n\n**生产链路**:\n```\n选题中台 (TrendScout Agent)\n    ↓\n编剧中台 (ScriptEngine Agent)\n    ↓\n制作中台 (Producer Agent)\n    ├── ",
+              "milestones": [],
+              "requirements": [
+                "100%本地？**",
+                "\"零外部依赖\"的生产链路"
+              ],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "3.3 IP资产运营（迪士尼飞轮的AI实现）",
+              "level": 3,
+              "content_preview": "| 飞轮环节 | 迪士尼传统 | AI-Native实现 | Agent角色 |\n|---------|-----------|--------------|----------|\n| **内容引擎** | 电影制片厂 | Agent原生内容中台 | Producer Cluster |\n| **触达用户** | 电视网络 | 跨平台分发矩阵 | Distributor Agent |\n| **沉",
+              "milestones": [],
+              "requirements": [
+                "飞轮环节: 迪士尼传统 | AI-Native实现 | Agent角色"
+              ],
+              "table_rows": [
+                {
+                  "cells": [
+                    "飞轮环节=**内容引擎** | 迪士尼传统=电影制片厂 | AI-Native实现=Agent原生内容中台 | Agent角色=Producer Cluster"
+                  ],
+                  "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                },
+                {
+                  "cells": [
+                    "飞轮环节=**触达用户** | 迪士尼传统=电视网络 | AI-Native实现=跨平台分发矩阵 | Agent角色=Distributor Agent"
+                  ],
+                  "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                },
+                {
+                  "cells": [
+                    "飞轮环节=**沉浸体验** | 迪士尼传统=主题乐园 | AI-Native实现=虚拟空间/AR/互动漫剧 | Agent角色=Experience Agent"
+                  ],
+                  "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                },
+                {
+                  "cells": [
+                    "飞轮环节=**情感延伸** | 迪士尼传统=音乐出版 | AI-Native实现=AI配音/声纹/播客 | Agent角色=Audio Agent"
+                  ],
+                  "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                },
+                {
+                  "cells": [
+                    "飞轮环节=**变现放大** | 迪士尼传统=消费品授权 | AI-Native实现=数字商品/IP联名/Skill市场 | Agent角色=Monetization Agent"
+                  ],
+                  "section": "3.3 IP资产运营（迪士尼飞轮的AI实现）"
+                }
+              ],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "3.4 MAREF Skill市场（ToB输出）",
+              "level": 3,
+              "content_preview": "当自有IP矩阵跑通后，将Agent中台能力封装为可售卖服务：\n\n| 服务层级 | 产品形态 | 客户 | 定价模式 |\n|---------|---------|------|---------|\n| **SaaS层** | IP孵化Agent模板 | 中小创作者/品牌 | 订阅制 ¥299/月 |\n| **服务层** | 全案IP代运营 | 品牌方/传统MCN | 项目制 ¥5-20万 |\n| ",
+              "milestones": [],
+              "requirements": [
+                "服务层级: 产品形态 | 客户 | 定价模式",
+                "**服务层**: 全案IP代运营 | 品牌方/传统MCN | 项目制 ¥5-20万"
+              ],
+              "table_rows": [
+                {
+                  "cells": [
+                    "服务层级=**SaaS层** | 产品形态=IP孵化Agent模板 | 客户=中小创作者/品牌 | 定价模式=订阅制 ¥299/月"
+                  ],
+                  "section": "3.4 MAREF Skill市场（ToB输出）"
+                },
+                {
+                  "cells": [
+                    "服务层级=**服务层** | 产品形态=全案IP代运营 | 客户=品牌方/传统MCN | 定价模式=项目制 ¥5-20万"
+                  ],
+                  "section": "3.4 MAREF Skill市场（ToB输出）"
+                },
+                {
+                  "cells": [
+                    "服务层级=**基础设施层** | 产品形态=MAREF Skill市场 | 客户=开发者/第三方Agent | 定价模式=交易抽成20%"
+                  ],
+                  "section": "3.4 MAREF Skill市场（ToB输出）"
+                }
+              ],
+              "checklists": [],
+              "subsections": []
+            },
+            {
+              "heading": "3.5 跨媒介延展路线图",
+              "level": 3,
+              "content_preview": "```\nPhase 1 (0-6月): 短视频/短剧\n    ↓\nPhase 2 (6-12月): AI漫剧/互动图文/播客\n    ↓\nPhase 3 (12-18月): 虚拟直播/数字人代言/虚拟商品\n    ↓\nPhase 4 (18-24月): 游戏资产/AR体验/实体联名\n```\n\n**每一阶段的延展都复用同一套角色资产库**，实现\"一次创作，多次变现\"。\n\n---",
+              "milestones": [],
+              "requirements": [],
+              "table_rows": [],
+              "checklists": [],
+              "subsections": []
+            }
+          ]
+        }
+      ]
+    },
+    "total_requirements": 41,
+    "total_milestones": 0,
+    "hypotheses": [
+      {
+        "name": "H1",
+        "method": "IP角色吸引力",
+        "pass_threshold": "同一角色5-10条不同场景，观察完播率",
+        "fail_criterion": "完播率>30%，或互动率>5%"
+      },
+      {
+        "name": "H2",
+        "method": "风格差异化",
+        "pass_threshold": "同提示词不同平台生成，测试用户识别度",
+        "fail_criterion": "评论区出现\"风格特别\"类反馈"
+      },
+      {
+        "name": "H3",
+        "method": "变现可行性",
+        "pass_threshold": "测试数字商品（壁纸/表情包）或私域导流",
+        "fail_criterion": "付费转化率>1%，或私域添加率>10%"
+      }
+    ],
+    "compliance_rules": [
+      {
+        "rule_id": "discipline_1",
+        "description": "平台寄生",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "discipline_2",
+        "description": "达人依赖",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "discipline_3",
+        "description": "劳动密集",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "checklist_1",
+        "description": "各平台额度余量监控（<20%触发预警）",
+        "category": "daily",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_2",
+        "description": "单账号发布频率检查（>5条/日触发预警）",
+        "category": "daily",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_3",
+        "description": "内容安全扫描（涉政/色情/暴力关键词）",
+        "category": "daily",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_4",
+        "description": "粉丝异常增长检测（>50%/日触发刷量预警）",
+        "category": "daily",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_1",
+        "description": "账号健康度检查（限流/降权/违规通知）",
+        "category": "weekly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_2",
+        "description": "素材溯源链完整性（是否有未标注来源的素材）",
+        "category": "weekly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_3",
+        "description": "本地资产库备份（异地/云端双备份）",
+        "category": "weekly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_4",
+        "description": "竞品监控（同赛道新进入者/平台政策变化）",
+        "category": "weekly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_1",
+        "description": "财务审计（平台账单 vs 本地记录，排查计费陷阱）",
+        "category": "monthly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_2",
+        "description": "IP资产估值（粉丝数×活跃度×变现率×行业系数）",
+        "category": "monthly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_3",
+        "description": "技术债务评估（Agent脚本失效率、模型版本落后度）",
+        "category": "monthly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "checklist_4",
+        "description": "合规审计（授权协议更新、平台ToS变更影响）",
+        "category": "monthly",
+        "is_automated": true
+      },
+      {
+        "rule_id": "discipline_1",
+        "description": "MVP不超过4周",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "discipline_2",
+        "description": "单账号日更上限5条",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "discipline_3",
+        "description": "核心IP必须本地生成",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "discipline_4",
+        "description": "素材溯源链100%完整",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "discipline_5",
+        "description": "财务硬预算",
+        "category": "discipline",
+        "is_automated": false
+      },
+      {
+        "rule_id": "discipline_6",
+        "description": "Human-in-the-Loop",
+        "category": "discipline",
+        "is_automated": false
+      }
+    ],
+    "cost_models": [
+      {
+        "stage": "人力",
+        "items": {
+          "传统MCN": 19000.0,
+          "纯订阅AI": 3000.0,
+          "Wool-MVP": 0.0,
+          "混合期": 3000.0,
+          "内化期": 5000.0
+        },
+        "total": 30000.0
+      },
+      {
+        "stage": "内容生成",
+        "items": {
+          "传统MCN": 5000.0,
+          "纯订阅AI": 3000.0,
+          "Wool-MVP": 0.0,
+          "混合期": 1000.0,
+          "内化期": 500.0
+        },
+        "total": 9500.0
+      },
+      {
+        "stage": "平台投流",
+        "items": {
+          "传统MCN": 10000.0,
+          "纯订阅AI": 10000.0,
+          "Wool-MVP": 0.0,
+          "混合期": 5000.0,
+          "内化期": 8000.0
+        },
+        "total": 33000.0
+      },
+      {
+        "stage": "硬件折旧",
+        "items": {
+          "传统MCN": 0.0,
+          "纯订阅AI": 500.0,
+          "Wool-MVP": 500.0,
+          "混合期": 500.0,
+          "内化期": 800.0
+        },
+        "total": 2300.0
+      },
+      {
+        "stage": "IP代理/工具",
+        "items": {
+          "传统MCN": 0.0,
+          "纯订阅AI": 500.0,
+          "Wool-MVP": 200.0,
+          "混合期": 500.0,
+          "内化期": 500.0
+        },
+        "total": 1700.0
+      },
+      {
+        "stage": "单条成本",
+        "items": {
+          "传统MCN": 340.0,
+          "纯订阅AI": 130.0,
+          "Wool-MVP": 20.0,
+          "混合期": 100.0,
+          "内化期": 150.0
+        },
+        "total": 740.0
+      },
+      {
+        "stage": "月总成本",
+        "items": {
+          "传统MCN": 34000.0,
+          "纯订阅AI": 17000.0,
+          "Wool-MVP": 700.0,
+          "混合期": 10000.0,
+          "内化期": 14800.0
+        },
+        "total": 76500.0
+      }
+    ],
+    "metadata": {
+      "char_count": 14013,
+      "section_count": 50,
+      "detected_stages": [
+        "mvp",
+        "mixed",
+        "internalization"
+      ],
+      "extracted_requirements": 41,
+      "extracted_milestones": 0,
+      "hypotheses_found": 3,
+      "compliance_rules_found": 21,
+      "cost_models_found": 7
+    }
+  }
+}

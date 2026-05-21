@@ -1,0 +1,17 @@
+signal_id: S-20260511-010
+topic: MAREF Product Readiness
+source_node: technology_moat
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'Technology moat analysis: (1) TLA+ formal verification — 6-12 month lead
+  over any competitor attempting similar. Requires specialized expertise (TLA+ engineers
+  are rare). (2) Gray Code state machine — mathematically unique in agent governance,
+  patented approach to deterministic transitions. (3) Sidecar pattern — creates switching
+  costs for adopters (once MAREF governs your LangGraph agents, migrating away requires
+  replacing the governance layer). (4) 88% test coverage + 5 TLA+ theorems — highest
+  quality bar in agent framework space. (5) Skill ecosystem — 46 registered skills
+  with YAML registry.'
+summary: 'Technology moat analysis: (1) TLA+ formal verification — 6-12 month lead
+  over any competitor attempting similar. Requires specialized expertise (TLA+ engineers
+  are rare). (2) Gray Code state machine —'
+harvested_at: '2026-05-11T21:58:41.312805'
+status: raw

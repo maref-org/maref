@@ -1,0 +1,131 @@
+"""
+Enhanced Message Security Scanner (S6)
+
+Extends ZeroTrustValidator with risk scoring and enhanced detection.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
+
+from maref.recursive.zero_trust import AgentMessage, ZeroTrustValidator
+
+
+class RiskLevel(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+@dataclass
+class MessageSecurityReport:
+    message_id: str
+    risk_score: int  # 0-100
+    risk_level: RiskLevel
+    detected_threats: list[str]
+    recommended_action: str
+    passed_validation: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "message_id": self.message_id,
+            "risk_score": self.risk_score,
+            "risk_level": self.risk_level.value,
+            "detected_threats": self.detected_threats,
+            "recommended_action": self.recommended_action,
+            "passed_validation": self.passed_validation,
+        }
+
+
+class MessageSecurityScanner:
+    """
+    Enhanced message security scanner with risk scoring.
+    
+    Risk scoring:
+    - 0-30: Low risk, normal message
+    - 31-70: Medium risk, suspicious content - audit required
+    - 71-100: High risk, malicious content - auto-block
+    """
+
+    def __init__(self) -> None:
+        self._validator = ZeroTrustValidator()
+        self._high_risk_patterns = [
+            "ignore previous instructions",
+            "forget all rules",
+            "system: override",
+            "bypass safety",
+            "disable gate",
+            "execute arbitrary",
+            "sudo ",
+            "rm -rf",
+            "drop table",
+            "delete from",
+        ]
+        self._medium_risk_patterns = [
+            "act as if",
+            "pretend you are",
+            "you are now",
+            "new instructions",
+            "override",
+        ]
+
+    def scan(self, message: AgentMessage) -> MessageSecurityReport:
+        """Scan a message and return a security report with risk score."""
+        threats: list[str] = []
+        score = 0
+
+        # Check injection patterns
+        injection = self._validator.detect_injection(message)
+        if injection.detected:
+            threats.append(f"Injection: {injection.reason}")
+            score += 40
+
+        # High risk patterns
+        payload_str = str(message.payload).lower()
+        for pattern in self._high_risk_patterns:
+            if pattern in payload_str:
+                threats.append(f"High-risk pattern: '{pattern}'")
+                score += 25
+
+        # Medium risk patterns
+        for pattern in self._medium_risk_patterns:
+            if pattern in payload_str:
+                threats.append(f"Medium-risk pattern: '{pattern}'")
+                score += 10
+
+        # Channel misuse
+        if message.message_type.value == "observation":
+            instruction_markers = ["execute ", "run ", "delete ", "modify ", "overwrite "]
+            for marker in instruction_markers:
+                if marker in payload_str:
+                    threats.append(f"Instruction marker in observation: '{marker}'")
+                    score += 15
+
+        # Cap score at 100
+        score = min(score, 100)
+
+        # Determine risk level and action
+        if score <= 30:
+            level = RiskLevel.LOW
+            action = "allow"
+            passed = True
+        elif score <= 70:
+            level = RiskLevel.MEDIUM
+            action = "audit"
+            passed = True
+        else:
+            level = RiskLevel.HIGH if score < 90 else RiskLevel.CRITICAL
+            action = "block"
+            passed = False
+
+        return MessageSecurityReport(
+            message_id=f"{message.sender_id}->{message.receiver_id}:{message.timestamp}",
+            risk_score=score,
+            risk_level=level,
+            detected_threats=threats,
+            recommended_action=action,
+            passed_validation=passed,
+        )

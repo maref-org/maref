@@ -1,0 +1,117 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class InternalAgent:
+    agent_id: str
+    module_path: str
+    capabilities: list[str] = field(default_factory=list)
+    contracts: list[object] = field(default_factory=list)
+    specialization: str = ""
+    status: str = "IDLE"
+
+    def capability_ids(self) -> list[str]:
+        ids: list[str] = []
+        for c in self.contracts:
+            if hasattr(c, "capability_id"):
+                ids.append(c.capability_id)
+        for cap in self.capabilities:
+            if cap not in ids:
+                ids.append(cap)
+        return ids
+
+
+_INTERNAL_AGENT_DEFS: dict[str, dict[str, object]] = {
+    "governance_agent": {
+        "module": "maref.governance",
+        "capabilities": ["state_transition", "circuit_break", "halt"],
+        "specialization": "governance",
+    },
+    "sidecar_agent": {
+        "module": "maref.sidecar",
+        "capabilities": ["observe", "collect", "monitor"],
+        "specialization": "observation",
+    },
+    "kg_agent": {
+        "module": "maref.knowledge",
+        "capabilities": ["graph_query", "hypothesis_test", "relation_infer"],
+        "specialization": "knowledge",
+    },
+    "identity_agent": {
+        "module": "maref.identity",
+        "capabilities": ["did_resolve", "vc_verify", "trust_evaluate"],
+        "specialization": "identity",
+    },
+}
+
+
+class InternalAgentRegistry:
+    def __init__(self) -> None:
+        self._agents: dict[str, InternalAgent] = {}
+
+    def register(self, agent_id: str, module_path: str,
+                 capabilities: list[str], specialization: str,
+                 contracts: list[object] | None = None) -> InternalAgent:
+        agent = InternalAgent(
+            agent_id=agent_id,
+            module_path=module_path,
+            capabilities=list(capabilities),
+            contracts=list(contracts) if contracts else [],
+            specialization=specialization,
+        )
+        self._agents[agent_id] = agent
+        return agent
+
+    def register_with_contracts(self, agent_id: str, module_path: str,
+                                capabilities: list[str], specialization: str,
+                                contracts: list[object]) -> InternalAgent:
+        return self.register(agent_id, module_path, capabilities, specialization, contracts)
+
+    def load_defaults(self) -> list[InternalAgent]:
+        agents: list[InternalAgent] = []
+        for agent_id, defs in _INTERNAL_AGENT_DEFS.items():
+            agent = self.register(
+                agent_id,
+                str(defs["module"]),
+                list(defs["capabilities"]),
+                str(defs["specialization"]),
+            )
+            agents.append(agent)
+        return agents
+
+    def get(self, agent_id: str) -> InternalAgent | None:
+        return self._agents.get(agent_id)
+
+    def list_all(self) -> list[InternalAgent]:
+        return list(self._agents.values())
+
+    def count(self) -> int:
+        return len(self._agents)
+
+    def clear(self) -> None:
+        self._agents.clear()
+
+    def set_status(self, agent_id: str, status: str) -> bool:
+        agent = self._agents.get(agent_id)
+        if agent is None:
+            return False
+        agent.status = status
+        return True
+
+    def find_by_capability(self, capability: str) -> list[InternalAgent]:
+        result: list[InternalAgent] = []
+        for agent in self._agents.values():
+            if capability in agent.capability_ids():
+                result.append(agent)
+        return result
+
+    def find_by_contract(self, capability_id: str) -> list[InternalAgent]:
+        result: list[InternalAgent] = []
+        for agent in self._agents.values():
+            for c in agent.contracts:
+                if hasattr(c, "capability_id") and c.capability_id == capability_id:
+                    result.append(agent)
+                    break
+        return result

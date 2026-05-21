@@ -1,0 +1,107 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Data & logs
+data/cache/*
+!data/cache/.gitkeep
+data/logs/*
+!data/logs/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+results/experiments/*
+!results/experiments/.gitkeep
+
+# Environment variables
+.env
+.env.local
+*.env
+!*.example.env
+!*.example.*.env
+
+# Credentials and secrets
+*.key
+*.pem
+*.secret
+credentials/
+
+# Generated LaunchAgent plists (machine-specific)
+scripts/*.plist
+!scripts/*.template.plist
+!scripts/*.plist.template
+
+# TLA+
+*.tlc
+*.tla.out
+states/
+
+# Runtime generated files
+policy_versions/*.json
+research_output/*
+!research_output/.gitkeep
+output-test/
+
+# OS / accidental artifacts
+:m*:
+*.swp
+*.swo
+
+# Build artifacts / legacy packages
+sidecar/
+
+# Runtime audit / data files
+*_audit.jsonl
+governance_audit.jsonl
+recursive_governance_audit.jsonl
+knowledge_graph.json
+
+# IDE workspace metadata
+.trae/
+node_modules

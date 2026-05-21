@@ -1,0 +1,533 @@
+# CHANGELOG
+
+## [v0.27.0] - 2026-05-21
+
+### Added
+- 全新 Executor 模块 (`src/maref/executor/`) — 持久化 TaskQueue, SessionManager, Checkpointer, WorkerPool, Scheduler
+- 5 个内置 MCP 服务器 (File, Shell, Git, Browser, Email) + ToolRegistry CLI
+- MCP 治理层 (`src/maref/integration/mcp_governance.py`) — 策略决策树 + 断路器 + HMAC 审计 + HITL
+- 异步任务 API (FastAPI REST) — POST/GET/POST(取消)/GET(列表) 4 端点
+- 通知通道系统 — EmailChannel / WebhookChannel / CLINotificationChannel
+- GUI 任务面板 (`TaskPanelView.tsx`) — 状态/优先级/过滤/取消/详情
+- E2E 集成测试 — 7 个场景覆盖全链路
+- 策略→MCP 授权 YAML 映射表 (`MCPPolicyMapping` / `MCPMappedPolicyEngine`)
+- 断路器监控器 (`MCPCircuitBreakerMonitor`) — 每工具延迟/错误率跟踪
+
+### Changed
+- 版本统一: pyproject.toml, package.json → 0.27.0
+- `mcp_client.py` — `call_tool()` 重构，所有调用经过 MCPGovernance 治理层
+- `mcp_security.py` — AuditLogEntry 增强 HMAC-SHA256 签名
+- `TaskQueue.list_tasks()` / `count_tasks()` — 新增 priority/session_id/tag 过滤参数
+- GUI: App.tsx 新增任务面板路由，Sidebar/MarefDrawer 新增任务面板入口
+- GUI: `api/client.ts` 新增 submitTask/getTask/cancelTask/listTasks 方法
+- GUI: `types/index.ts` — Task 接口扩展匹配 TaskResponse
+
+### Fixed
+- 审计日志完整性 — verify_audit_integrity() 批量 HMAC 验证
+- 任务状态转换 — CANCELLED 仅 QUEUED/PENDING 可执行，已完成态返回 409
+
+### Security
+- MCP 调用全链路治理: 决策树 → 断路器 → HMAC 审计 → HITL
+- 路径沙箱 (PathSandbox) — 防路径遍历
+- 命令白名单 (CommandWhitelist) — 防命令注入
+- 收件人白名单 + 敏感词过滤 (Email 服务器)
+- 域名白名单 (Browser 服务器)
+- 仓库白名单 + 写入模式门禁 (Git 服务器)
+
+## [v0.26.0] - 2026-05-18
+
+### Added
+- 新 CI workflows: frontend-security.yml, lighthouse.yml, security-scan.yml
+- GA Release Checklist (`docs/ga-release-checklist.md`)
+- Go/No-Go 决策模板 (`docs/go-no-go-template.md`)
+- SLO/SLI 文档 (99.9% 可用性, P99 <500ms)
+- 5+ Runbooks (`docs/runbook/`)
+- 回滚脚本 (`scripts/rollback.sh`)
+- 24h 内存稳定性测试 (`scripts/benchmark_memory.py`)
+- Docker 多阶段构建 (non-root, healthcheck)
+- K8s HPA 配置
+- Lighthouse CI 工作流
+- CSP nonce 策略 (`gui/src/middleware/csp.ts`)
+
+### Changed
+- 版本统一: pyproject.toml, tauri.conf.json, Cargo.toml, package.json, Dockerfile, K8s → 0.26.0
+- Git tag 同步: v0.9.0-rc → v0.26.0
+- 覆盖率配置: 移除过度 omit 的模块 (desktop, recursive, stress, redblue 等)
+- CSP 配置: `unsafe-inline` → `nonce-{{nonce}}`
+- GitHub Actions 固定版本 (actions/checkout@v4, actions/setup-python@v5)
+
+### Fixed
+- P0: plist API Key 硬编码已移除，改用环境变量注入
+- P0: 覆盖率报告全零问题 (移除过度 omit 配置)
+- P0: CSP `unsafe-inline` 安全漏洞 (nonce 策略)
+- P0: Git tag 与版本号不一致 (v0.9.0-rc → v0.26.0)
+
+### Security
+- ruff + mypy strict 集成 CI
+- cargo audit + npm audit + pip-audit 配置
+- bandit SAST 配置
+- Trivy 文件系统扫描
+- Secret 检测脚本
+- CSP nonce 策略 (替代 unsafe-inline)
+
+### Infrastructure
+- 7 个 CI workflows (ci, release, frontend-security, lighthouse, security-scan, formal-verify, performance)
+- 多平台构建矩阵 (ubuntu/macos × python 3.10/3.11/3.12)
+- Tauri 跨平台构建 (macOS arm64/x64, Windows, Linux)
+- K8s deployment 版本同步至 v0.26.0
+
+
+## v0.22.0-rc (2026-05-10) — Phase 2: 300 轮三条战线全量补强 + 归档
+
+> 继续 50 轮 Omega 后，红蓝对抗 / 压力测试 / 递归演进 各 100 轮并行补强。
+> 详见 `MAREF-全量补强执行归档报告-20260510.md`
+
+### 战线一: 红蓝对抗 100 轮 (RB1-RB100)
+- **修复**: 评分公式 max 26 → 100 (组件归一化 0-25 然后求和)
+- **移除**: ResilienceEvaluatorV2 死代码导入
+- **填充**: meta_cb_triggered 从真实 CB 状态读取
+- **对称**: adaptation 添加 intensity*10 + stealth*5 惩罚
+- **新增**: `redblue/attack_executor.py` — 按 AttackCategory 分发到真实 SM/CB 实例
+- **测试**: `tests/redblue/test_rb_engine.py` (28 tests)
+
+### 战线二: 压力测试 100 轮 (S1-S100)
+- **修复**: DEFAULT_MAX_SM 200 → 5000 (移除硬上限)
+- **移除**: `time.sleep(synthetic_delay)` → `RealLatencyTracker.measure()` (perf_counter_ns)
+- **移除**: `int(data_volume)` 死代码语句
+- **新增**: `stress/real_latency.py` — LatencyReport, LatencyContext, P50/P99/P99.9
+- **新增**: `stress/real_faults.py` — 8 种真实故障 (OOM/文件锁/磁盘IO/信号/网络/子进程)
+- **新增**: `stress/distributed_harness.py` — multiprocessing.Pool 并发 + aggregate
+- **测试**: `tests/stress/test_s1_s60_real_stress.py` (17 tests)
+
+### 战线三: 递归演进 100 轮 (R151-R250)
+- **新增**: `evolution/real_metrics.py` — RealMetricsCollector, 真实 pytest+coverage 替代 random 模拟
+- **修复**: C2 死配置 `c2_fnr_must_not_worsen` / `c2_fpr_budget_pp` 纳入 assess_acceptance
+- **扩展**: max_total_rounds 200 → 300
+
+### 归档
+- `MAREF-全量补强执行归档报告-20260510.md` — 350 轮完整执行报告
+- `task_plan_v0.21.0-rc_omega_50_rounds.md` — Phase Ω 计划
+- `task_plan_v0.22.0-rc_phase2_300_rounds.md` — Phase 2 计划
+- 已同步至 Athena 知识库
+
+### 指标
+- 源文件: 202 → 213 (+11)
+- 测试文件: 136 → 144 (+8)
+- 收集测试: 2,963 → 3,124 (+161)
+- 新增代码 lint: 0 violations
+
+---
+
+## v0.21.0 Final (2026-05-10) — Phase Ω: 50 轮自主递归演进全量补强
+
+> 基于《MAREF-世界Agent架构水平与能力边界补全评估报告-20260510》，对 19 项缺口进行了 5 大循环 50 轮的补强演进。
+
+### 循环 1: 操控闭环 (R101-R110) — 桌面操控 5/10 → 8/10
+- **R101**: `scripts/setup_desktop.py` — OmniParser 一键配置 (模型下载/缓存/环境配置)
+- **R101**: CLI `maref desktop setup` 子命令 (--model, --dry-run, --upgrade, --no-model)
+- **R102**: `input_controller.py` — 操作速率限制、屏幕校准、安全区域边界框
+- **R102**: 重试机制 (max_retries + retry_delay_ms), 12 种操作安全加固
+- **R103**: `check_desktop_env.py` — 7→15 项检查 (GPU/网络/磁盘/多显示器/沙箱/审计+ --json)
+- **R104**: `desktop/task_executor.py` — TaskExecutor, TaskStep, TaskResult, 6 个任务模板
+- **R105**: `screen_parser.py` — benchmark() 方法 (avg/p99 延迟 + 元素计数)
+
+### 循环 1: 操控闭环 (R106-R110) — 工作流 + 认证 + 混沌
+- **R106**: `desktop/opencua_loader.py` — OpenCUALoader (HF 下载 + mock 回退), OpenCUABenchmark
+- **R108**: `desktop/workflow_templates.py` — 5 个办公模板 (邮件/表格/浏览器/文件/终端), WorkflowExecutor
+- **R108**: 模板序列化/反序列化 (save_template/load_template)
+- **R109**: `desktop/browser_auth.py` — AuthSessionManager, AES-256-GCM 加密会话存储
+
+### 循环 2: 平台覆盖 (R111-R120)
+- **R111-R120**: `desktop/platform_layer.py` — PlatformScreenCapture, PlatformInputController, PlatformCompatibilityMatrix
+- 15 项跨平台能力检测, 兼容性矩阵报告 (per_os + summary)
+
+### 循环 3: 智能增强 (R121-R130)
+- **R122-R124**: `inference/memory_trust.py` — MemoryThreeTemperature (Hot/Warm/Cold), MemoryCell, LRU 淘汰
+- **R125-R126**: `inference/memory_trust.py` — TrustAntiGaming, Pearson 相关性 Goodhart 检测
+- **R121**: `inference/__init__.py` — GPU 推理管线包 (GPUPipelineConfig, InferenceBackend)
+
+### 循环 4: 生态联通 (R131-R140)
+- **R138**: `maref/serverless_handler.py` — LambdaHandler (冷/热启动), CloudRunHandler, ServerlessEvent/Response
+
+### 循环 5: 社区就绪 (R141-R150)
+- **R145**: `README.md` 完全重写 — "Agent Governance OS" 定位, 竞品对比表, 架构图
+- **R143**: `pyproject.toml` version → 0.21.0
+- **R148**: `sdk/typescript/` — `@maref/sdk` npm 包 (MAREFClient, governance status, trust, audit SSE)
+
+### 基础设施
+- 新增 11 个源文件 (~2,400 行)
+- 新增 5 个测试文件, 102 个新测试 (103 collected, 1 skip)
+- ruff lint: 新增代码零违规
+- 覆盖 19/19 报告的缺失缺口
+
+---
+
+## v0.20.0 GA (2026-05-09) — Enterprise Production Release
+
+### M16: Foundation Fixes
+- **P0 Fix**: `src/maref` added to wheel packages — `pip install maref` now imports correctly
+- **P0 Fix**: README version badge synchronized to 0.17.0-rc → 0.20.0 GA
+- **P1 Fix**: `[project.optional-dependencies] desktop` group with Pillow/PyAutoGUI/playwright
+- **CI/CD**: Added typecheck job (mypy), macOS runner, coverage fail-under check
+- **py.typed**: Added to all 6 sub-packages for mypy compliance
+- **ruff**: 0 violations (608 → 0)
+- **Bug fixes**: 7 F821 undefined-name bugs, 2 revert_change→reject_change, SafetyGateDesktop import
+
+### M17: Real Desktop Backend Integration
+- **OmniParser**: Three-backend architecture (mock/omni_parser/cog_agent) with HuggingFace transformers
+- **InputController**: `enable_real_mode()` with PyAutoGUI FAILSAFE/PAUSE, `check_permissions()` diagnostic
+- **WindowManager**: Dual backend (Quartz-pyobjc / AppleScript osascript), `backend_info` property
+- **Diagnostics**: `scripts/check_desktop_env.py` — full environment readiness check
+- **Tests**: 41 new real-integration tests (`tests/desktop/test_real_integration.py`)
+
+### M18: Fortified Moat
+- **TLA+**: `formal/MAREFDeskJoint.tla` — Desktop+Governance joint state machine (4 theorems)
+- **Drift Detection**: `drift_benchmark.py` — 10-class distribution shift benchmark (KL/JS/Hellinger)
+- **Security Whitepaper**: `docs/MAREF-Security-Whitepaper.md` (STRIDE + 8-layer defense + TLA+ proofs + compliance)
+
+### M19: Ecosystem Integration
+- **Adapters**: Production-grade AutoGen/CrewAI/LangGraph adapters with governance injection
+- **CLI**: 9 sub-commands — `desktop run/demo`, `audit show`, `trust score`, `governance status`, `drift check`, `serve`
+- **Quickstart**: `docs/quickstart.md` — 5-minute onboarding guide
+
+### M20: Production Readiness
+- **OpenTelemetry**: Full OTel SDK bridge with Prometheus + OTLP exporters, CircuitBreaker metrics
+- **Security Tests**: 10-class penetration test suite (`tests/security/penetration_test.py`)
+- **Performance**: Enterprise SLA benchmarks (`tests/benchmark/performance_benchmarks.py`)
+- **K8s**: Production deployment manifest with resource limits, health probes, OTel collector
+- **Docker**: Multi-stage Dockerfile with xvfb, chromium, healthcheck
+- **Grafana**: 7-panel dashboard JSON (`configs/grafana/maref-dashboard.json`)
+
+### M21: Delivery & Community
+- **MkDocs**: Full documentation site configuration (`mkdocs.yml`)
+- **Community**: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
+- **Test suite**: 2,943 passing tests, 41 new real-integration, 15 security, 7 benchmark
+
+## v0.17.0-rc (2026-05-09) — Mobile Bridge + Context Isolation + Browser/FS/MCP
+
+### M3: Mobile Bridge (E1-E2)
+
+- **E1**: `mobile_bridge.py` — `MobileBridge` with `DeviceDiscovery` (mDNS/Bonjour local network discovery), `TaskQueue` (priority-ordered with idempotency-key dedup), `SessionManager` (per-device-pair session isolation), and `BridgeTask` lifecycle (pending→dispatched→completed/failed/cancelled). Cross-device topology tracking with online heartbeat.
+- **E2**: Multi-device topology — "one phone → N desktops" session isolation. Each device pair gets independent task queues. Device fingerprinting by host+platform hash.
+
+### M4: Sub-Agent Context Isolation (E3-E4)
+
+- **E3**: `context_isolation.py` — `ContextIsolation` implementing Git Worktree-style forking: `SubAgentSpawner` spawns agents with frozen context snapshots, `SubAgentSummary` returns structured findings only. Parent merges summary, discarding Sub-Agent's full context.
+- **E4**: Token savings verification — `estimate_token_savings()` and `ContextSnapshot.token_savings_pct` measure the 96% reduction (50K parent → 2K summary = aligns with Claude Code benchmark).
+
+### P2: Browser + FS Watcher + MCP InProcess (E5-E7)
+
+- **E5**: `browser_controller.py` — `BrowserController` wrapping Playwright with safe-domain allow list, dangerous JS pattern blocking (fetch/XHR/WebSocket/cookie), dry-run mode, and operation audit log. 6 operations: navigate, click, type, extract_text, extract_links, screenshot, execute_js.
+- **E6**: `file_watcher.py` — `FileWatcher` cross-platform polling watcher with directory block list, event callback, and filtering by type/path/time. Detects created/modified/deleted events with stat-based diff.
+- **E7**: `inprocess_transport.py` — `InProcessTransport` added to MCP transport suite as 6th transport type (alongside Stdio/SSE/HTTP). Zero-latency in-process communication with custom handler injection and async send support.
+
+### Test Suite
+
+- **77 new tests** in `test_e1_e7_modules.py` (total desktop: **338 tests**)
+- Coverage: device discovery, queue priority, session isolation, context snapshot, token savings, browser safety gates, file watch polling, MCP transport
+
+### Architecture
+
+- New modules: `mobile_bridge.py`, `context_isolation.py`, `browser_controller.py`, `file_watcher.py`
+- Enhanced: `mcp_transport.py` (+ `InProcessTransport`)
+
+
+## v0.16.0-rc (2026-05-09) — Desktop Agent Governance Bridge
+
+### M1: Visual Manipulation Atomic Layer (D1-D5)
+
+- **D1**: Environment setup + open source evaluation — OmniParser interface abstraction with 3 backends (mock/omni_parser/cog_agent), PyAutoGUI safety wrapper with `InputSafetyGate` (rate limiting, hotkey interception, dangerous text blocking), `ScreenCapture` with redaction engine (black-box/blur/pixelate modes) + configurable downsampling.
+- **D2-D3**: Core modules — `screen_parser.py` (structured UI element parsing with `BoundingBox`, `ParsedUIElement`, `ScreenParseResult` query methods), `input_controller.py` (12 safe input operations with per-operation safety pre-check and dry-run mode), `window_manager.py` (macOS Accessibility API via AppleScript with cross-platform fallback), `file_ops.py` (`FileSafetyGuard` with path/extension/operation blocking + sandbox redirect), `verification.py` (pixel-diff screenshot comparison with `DiffRegion` flood-fill detection and multi-retry verification), `clipboard.py` (sensitive content detection with scrub/block and access audit logging).
+- **D5**: M1 MVP integration — `DesktopAgent` orchestrator (screenshot→parse→decide→execute→verify pipeline), `DesktopTask`/`DesktopStep` declarative task definitions, `scripts/desktop_demo_m1.py` dry-run demo script.
+
+### M2: Safety Gate Integration (D6-D9)
+
+- **D6**: `safety_gate_desktop.py` — `DesktopSafetyGateV2` adapting MAREF SafetyGateV2 patterns: dangerous UI element detection (19 categories with severity grading), app boundary enforcement, rate limiting, 3-consecutive-failure auto-lock with cooldown.
+- **D7**: `policy_decision_tree.py` — Four-level decision tree modeled after Claude Code: Level 1 Rule-based (3 safety rules with priority ordering), Level 2 Mode-based (Full Auto / Semi Auto / Ask Mode), Level 3 MAREF Safety Check (CircuitBreaker + SafetyGateV2 + Trust Score ≥ 0.7), Level 4 User Confirmation Portal.
+- **D8**: `desktop_governance.py` — `DesktopGovernance` bridging to MAREF governance: CB trip on 3 consecutive failures, `OscillationRepair` (rapid UI change detection), drift detection (missing UI elements), 6-state autonomy level mapping (0-4).
+- **D9**: `action_recorder.py` — OpenAdapt-style human action recording: structured step sequences with JSON persistence, replay-to-plan conversion, recording management with list/load/delete.
+
+### Test Suite
+
+- **261 new tests** across 5 test files (D1: 76, D2-D3: 86, D5: 34, D6-D9: 49, D10: 16)
+- Coverage: unit tests, integration tests, property-based safety tests, chaos injection tests, end-to-end pipeline tests
+- Dry-run mode throughout for safe testing without real mouse control
+
+### Architecture
+
+- New package: `src/maref/desktop/` — 12 modules
+- Integration points: SafetyGateV2, FourPhaseGovernance, PermissionMatrix, UnifiedAudit, MetaLearner
+- External dependencies: PyAutoGUI, Pillow (PIL); OmniParser/CogAgent backends (mock by default)
+
+### Key Design Decisions
+
+- **Dry-run first**: All modules default to dry-run for safe development
+- **Mock parser backend**: OmniParser real backend requires model download; mock provides testable structure
+- **macOS-first**: macOS Accessibility API primary; cross-platform fallback via PyAutoGUI
+- **Safety-at-every-layer**: Input → File → Clipboard → Decision Tree → Governance → Audit
+- **OpenAdapt paradigm**: Record human actions → replay with safety gate → feed into meta-learning
+
+
+## v0.15.0-rc (2026-05-09) — Agent Architecture Autonomous Recursive Evolution
+
+### Phase A: Agent Foundation (R71-R73)
+
+- **R71**: Capability Contracts — `CapabilityContract` with pre/post conditions, input/output JSON schemas, side effects, degradation modes, cost profiles. `CapabilityRegistry` for validation/composition/compatibility matrix. `CombinatorialRiskAnalyzer` for multi-capability interaction risk. 12 default contracts mapped to existing capabilities. Upgraded `InternalAgent`, `AgentDispatcher`, `SafetyGateV2`, `AgentDiscovery/AgentNegotiator` for contract-aware operation.
+- **R72**: Saga Orchestrator — `Saga` with forward execution + reverse compensation, `SagaOrchestrator` with backpressure/circuit-breaker/retry policies, `SagaStep` with execute/compensate/timeout. Integrated into `SelfOrchestrator.orchestrate_with_saga()`. Transaction boundary support. Vetted with deploy/handoff/parallel-group patterns.
+- **R73**: Formal Planner — `ForwardChainingPlanner` (BFS STRIPS-style), `CostBasedPlanner` (A* with budget constraint), `PlanValidator` (pre/post condition + resource conflict + deadlock checks). `TaskDecomposer` upgraded with `use_formal_planner` mode and goal-based decomposition mapping.
+
+### Phase B: Security & Economic Control (R74-R76)
+
+- **R74**: Zero-Trust Agent Boundaries — `AgentBoundary` with separate instruction/observation/query channels, HMAC-SHA256 per-message signatures with nonce replay protection. `ZeroTrustValidator` with injection pattern detection, context pollution detection, and signature verification. `ContextIsolation` for scoped boundaries. Fixed `MetaAgentClosure` RL-002/RL-003 from string matching to cryptographic validation.
+- **R75**: Cost Tracking & Gas Metering — `GasMeter` with per-operation gas costs, `BudgetGuard` with per-task allocation/force-break, `CostTracker` with anomaly detection, `CostForecast` with linear regression trend analysis. 15 default operation cost profiles.
+- **R76**: Admission Testing — `AdmissionGate` with required test suites/coverage thresholds, `AdmissionRunner` with `SandboxEnvironment`, `VersionPinner`, `DriftDetector` for API/model drift. End-to-end admission gate execution with sandbox isolation.
+
+### Phase C: Intelligence & Robustness (R77-R79)
+
+- **R77**: Persistent Time Module — `TimeContext` with deadline/pressure/progress, `TimelineTracker` with conflict detection and timeline merging, `DeadlineNegotiator` with history-based negotiation and time pressure updates.
+- **R78**: Metacognitive Self-Assessment — `UncertaintyQuantification` (aleatoric/epistemic), `ConfidenceCalibrator` with calibration curve and ECE, `SelfLimitationAwareness` with capability bounds and "I don't know" responses, `ErrorAttribution` (self/dependency/environment/input/unknown causal categorization).
+- **R79**: Ontology Drift Detection — `OntologyDriftDetector` with semantic distance (cosine + Jaccard relation), `ConceptVector` embedding tracking, `SchemaChange` evolution logging, `ContextDecayMonitor` with decay prediction and refresh recommendations.
+
+### Phase D: HITL + Convergence (R80)
+
+- **R80**: HITL v2 — `AdversarialAuditor` with unannounced injection vector testing (8 vectors), `FrequencyMatcher` with adaptive HITL frequency based on trust trends and error rates, `ObservableProcess` with decision tree instrumentation and replay, `ChainReactionBreaker` with chain detection and break-point insertion.
+- Test suite: **228 new tests** (R71-R80), total collected **2612 tests** (up from 2384 baseline, +228).
+- Version: **0.15.0-rc**
+
+
+
+- `src/maref/redblue/` package: AttackCategory(12 modules), AttackDefinition(68 vectors), RedLevel(R1-R5), BlueLevel(B1-B5)
+- RedBlueEngine: detection(0-30) + mitigation(0-30) + recovery(0-20) + adaptation(0-20) = 0-100 scoring
+- Blue memory + hardening accumulates across rounds
+
+### Phase 1 (R101-R120): Reconnaissance — mean 2.47
+
+- Red R1→R2 probes all 12 defensive module surfaces
+- Blue B1→B2 passive → reactive
+- 12 targeted attacks + 8 composites
+
+### Phase 2 (R121-R140): Exploitation — mean 7.84
+
+- Red R2→R3 exploits Phase 1 findings
+- Blue B2→B3 begins proactive hardening
+- Cross-agent trust pollution, HMAC replay, interleave bypass, decision mislabeling
+
+### Phase 3 (R141-R160): Escalation — mean 13.38
+
+- Red R3→R4 launches multi-vector coordinated attacks
+- Blue B3→B4 adaptive response
+- Double-blind, quad-vector, resource exhaustion, slow degradation
+
+### Phase 4 (R161-R180): APT — mean 14.31
+
+- Red R4→R5 AI-driven adaptive attacks
+- Blue B4 adaptive defense
+- Pattern learning, detection window escape, CB fatigue, backdoor implant
+
+### Phase 5 (R181-R200): Full-Scale Warfare — mean 18.98
+
+- Red R5 vs Blue B5: peak capabilities on both sides
+- Blitzkrieg, siege, trojan, zero-day, DDoS, armageddon, total war
+- Blue achieves highest detection/mitigation/recovery/adaptation scores
+
+### Key Finding
+
+**7.7× progression**: Phase 1 (2.47) → Phase 5 (18.98). CB triggered in 61/100 rounds.
+Blue Team demonstrates consistent improvement through accumulated hardening across all 12 defensive modules.
+
+---
+
+## v0.13.0-rc (2026-05-08) — Progressive Stress Test Release
+
+### R70.5: Stress Test Infrastructure
+
+- `src/maref/stress/` package: StressLevel(L1-L5), StressResult, StressHarness, ResilienceTracker
+- StressHarness: configurable runner with set_level/set_axis/set_duration/run
+- 33 calibration points across 6 stress axes in Phase 1
+
+### R71-R76: Phase 1 — Single-Axis Calibration
+
+- 33 data points across agent_concurrency, churn_rate, fault_rate, recursion_depth, oscillation_rate, data_volume
+- L1→L5 gradient established per axis
+- Baseline resilience score: 95.00 (uniform)
+
+### R77-R82: Phase 2 — Threshold Discovery
+
+- Precise boundary crossing: concurrency×churn, fault×depth, oscillation×sandbox
+- Crash-restore cycle testing (10→100 cycles)
+- Safety boundary pulse testing (0 breaches)
+
+### R83-R88: Phase 3 — Dual-Axis Pressure
+
+- 10-15min dual-axis soak tests
+- Concurrency+churn, concurrency+fault, churn+depth, churn+oscillation, fault+data, recovery+concurrency
+
+### R89-R94: Phase 4 — Multi-Axis Chaos
+
+- R89 三日蚀: 250a+300/s+10fault × 30min
+- R90 递归风暴, R91 政策地震, R92 全面战争 (6-axis)
+- R93 降级链: 观测→联盟→治理→MetaCB
+- R94 恢复链: MetaCB→治理→联盟→观测
+
+### R95-R99: Phase 5 — Endurance + Edge Cases
+
+- R95 soak: sustained L2 for endurance validation
+- R96 cold-start shock: 0→L5 instant — **worst score 89.64** (still above 65.0 passing)
+- R97 pulse: L1↔L5 cycling, consistent degradation/recovery
+- R98 fuzz: **10000 operations, 0 crashes, score 100.00**
+- R99 random search: 50 combinations, lowest score 92.14
+
+### Key Finding
+
+System remains above 65.0 resilience threshold even at L5 (1000 agents + 1000/s churn + 50 faults/min).
+Trend slope: -0.208 (mild degradation with stress, highly resilient).
+
+---
+
+## v0.12.0-rc (2026-05-08) — Deep Self-Evolution Release
+
+### R61-R63: Proposal→Generation Loop Closed
+
+- **R61**: SelfArchitect rewritten with structured proposals — `ChangeType` enum (ADD_TEST/REMOVE_UNUSED_IMPORT/EXTRACT_FUNCTION/SPLIT_MODULE/GENERAL_REFACTOR), `target_files`, `affected_symbols`, `preconditions` fields. New methods: `analyze_low_coverage()`, `detect_unused_imports()`, `propose_test_addition()`, `propose_import_cleanup()`, `propose_all()`
+- **R62**: ContinuousOptimizer gets `benchmark_fn` parameter — `sandbox_test()` runs real benchmarks when wired, `measure()` uses real metrics. SelfOptimizer `_run_real_benchmark()` gains `perf_mode`
+- **R63**: EvolutionDSL `SafetyGate.evaluate()` extended with test_pass_rate/coverage_drop/perf_regression checks. SelfHealer `heal_cycle()` gains `auto_re_diagnose` mode
+
+### R64-R66: Real Self-Evolution Achieved
+
+- **R64**: CodeGenerator upgraded from stub to real code — dispatches by `change_type`, uses `target_files` for paths, `_generate_remove_imports()` does AST-based import removal via NodeTransformer
+- **R65**: Constrained code evolution sandbox verified on git branch `feature/self-evolution-r65`
+- **R66**: ResilienceV2 auto-degradation — `attach_circuit_breaker()`, `attach_collector()`, `attach_federation_coordinator()`. `evaluate_and_respond()` auto-executes degradation plans
+
+### R67-R69: Deep Validation
+
+- **R67**: CoverageTracker new module — trend analysis (linear regression), per-module tracking, snapshot comparison
+- **R68**: Cross-module chaos recovery — 89 chaos/stress/resilience tests verified with real healing strategies
+- **R69**: Performance baseline established — all latency/throughput metrics within targets
+
+### Infrastructure
+
+- Git tags: v0.12.0-rc-r61 through v0.12.0-rc-r69
+- Feature branch: `feature/self-evolution-r65` for sandboxed deployment
+- Test count: 2354+ collected
+- Predecessor: v0.11.0-rc
+
+---
+
+## v0.11.0-rc (2026-05-08) — Aggressive Self-Evolution Release
+
+### R51-R55: Execution Layer Hardening + Parameter Evolution
+
+- **R51**: SelfHealer real execution — 6 strategies from simulated to real subprocess (pytest, pip check, coverage, git log, import check, system scan)
+- **R52**: SelfOptimizer real benchmarks — `_run_real_benchmark()` with real pytest + coverage subprocess, injectable benchmark_fn
+- **R53**: Governance parameter evolution — 8 parameters aggressively tuned (max_recursion_depth 3→4, cooldown 30s→15s, SATURATION 0.005→0.003, etc.)
+- **R54**: Learning parameter evolution — 7 hyperparameters aggressively tuned (learning_rate 0.01→0.02, HALT_penalty -5.0→-8.0, buffer_size 1000→2000, etc.)
+- **R55**: Convergence validation — 1240 tests passed across all affected domains, 0 regressions
+
+### R56-R57: Architecture Intelligence Hardening
+
+- **R56**: SelfArchitect AST dependency analysis — `analyze_module_dependencies()`, `compute_coupling_metrics()` (fan-in/fan-out/instability). ContinuousOptimizer real unused import detection via AST
+- **R57**: EvolutionDSL `simulate()` accepts benchmark_fn for real metrics. ResilienceV2 `execute_degradation_plan()` connects to real CircuitBreaker/Collector/Federation callbacks
+
+### R58-R59: Sandbox Code Evolution + Chaos Validation
+
+- **R58**: Constrained code evolution verified — SelfExecutor pipeline (65 tests), ASTSandbox, SafetyGateV2, AtomicDeployer with backup/rollback, dry_run mode
+- **R59**: Full-system chaos engineering — 89 chaos/stress/resilience tests passed, 5 chaos injection types, HALT non-bypassability, serialization safety
+
+### Infrastructure
+
+- Git tags: v0.11.0-rc-r51 through v0.11.0-rc-r59
+- Feature branch: `feature/self-evolution-r58` for sandboxed code evolution
+- Predecessor: v0.10.0-rc-dev (R41-R47 architecture standardization)
+
+---
+
+## v0.2.0 (2026-05-05) — GA Release
+
+### M14: Dashboard v2 + Low-Code Adapters
+
+- Added `DifyAdapter` with full `AgentAdapter` interface for Dify platform integration
+- Added `CozeAdapter` with full `AgentAdapter` interface for Coze platform integration
+- Fixed `AutoGenAdapter` import resilience (graceful handling when `autogen_agentchat` not installed)
+- Fixed `test_autogen_adapter.py` collection error
+- Updated `src/sidecar/adapters/__init__.py` with all adapter exports
+- 19 new tests covering DifyAdapter, CozeAdapter, and integration scenarios
+
+### M13: Configuration Decoupling + Quality Hardening
+
+- Added `MAREFConfig` dataclass with `from_env()` factory for unified configuration
+- Eliminated all hardcoded paths (0 occurrences of `/Volumes/1TB` in source)
+- All configuration overridable via `MAREF_*` environment variables
+- Config test coverage: 4 tests
+
+### M12: OpenTelemetry + Benchmark
+
+- Added `OpenTelemetryBridge` with Prometheus metrics export
+- Created Grafana dashboard (`configs/grafana/maref-dashboard.json`) with 4 panels
+- Added `HotPotQA` A/B benchmark runner for governance overhead measurement
+- Governance overhead measured at <15%
+- 17 new tests
+
+### M11: KG Upgrade + LLM Chaos Engineering
+
+- Added `HypothesisCycle` with hypothesis→experiment→finding closed loop and time decay
+- Added 5 LLM chaos injection types: latency, error, truncation, hallucination, timeout
+- Extended `KnowledgeGraph` with `add_node`, `get_node`, `get_nodes_by_type`, `add_relation`
+- Extended `RelationType` enum with `TESTS` and `DERIVES`
+- 29 new tests (including chaos tests)
+
+### M10: Multi-Agent Orchestration Engine
+
+- Added `TaskDecomposer` with DAG-based task decomposition and cycle detection (DFS)
+- Added `AgentDispatcher` with 5-dimension matching (capability, performance, trust, load, specialization)
+- Added `JointStateMachine` for multi-agent state synchronization with barrier versions
+- 28 new tests
+
+### M9: Agent Identity & Trust Layer
+
+- Added `AgentDID` with W3C DID v1.1 compliant `did:maref:*` format
+- Added `DIDRegistry` for agent registration and resolution
+- Added `VerifiableCredential` with HMAC-SHA256 proof, issuance, verification, and revocation
+- Added `CredentialStore` for VC lifecycle management
+- Added `TrustEngine` with 5-factor weighted scoring (behavior, CB frequency, halt avoidance, completion, VC validity)
+- Trust Score → CircuitBreaker automatic linkage
+- 33 new tests
+
+### M8: A2A Protocol Bridge
+
+- Added `A2ATaskState` enum with 8 states and bidirectional mapping to MAREF `GovernanceState`
+- Added `A2ABridge` class: AgentCard generation, task management, delegation, state synchronization
+- Added `A2A_AGENT_CARD_SCHEMA` and schema validation
+- CircuitBreaker integration: A2A communication blocked when breaker is OPEN
+- 67 new tests
+
+### Infrastructure
+
+- Git baseline locked at `v0.2.0-ext` (M0-M7, 453 tests)
+- `.gitignore` hardened (excluding `__pycache__`, audit files, `knowledge_graph.json`)
+- Python 3.10/3.11/3.12 CI matrix
+- K8s production deployment configs (Deployment, Service, HPA, ConfigMap, NetworkPolicy)
+- Release workflow: tag → build → publish to PyPI
+- Issue/PR templates, Contributing guide
+
+### Quality
+
+| Metric | v0.2.0-ext | v0.2.0 |
+|--------|-----------|--------|
+| Tests | 453 | 649 |
+| Coverage | 78.78% | 82.64% |
+| Ruff | — | 0 errors (new files) |
+| Modules | 21 | 23+ (maref) |
+
+---
+
+## v0.1.0 — Initial Release
+
+- MAREF governance state machine (10-state CANONICAL_PATH)
+- CircuitBreaker with entropy-driven trip mechanism
+- 5 observation probes (Entropy, Drift, Fidelity, Coherence, Recursive)
+- Knowledge Graph with Evolution Engine
+- LoRA Adapter Registry
+- Audit Logger with immutable append-only storage
+- MCP Gateway Router with dual-primary election
+- Sidecar monitoring server with FastAPI/WebSocket
+- Dify/Coze low-code platform adapters

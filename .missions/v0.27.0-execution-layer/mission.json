@@ -1,0 +1,14 @@
+{
+  "mission_id": "maref-v0.27.0-execution-layer",
+  "version": "0.27.0",
+  "name": "MAREF Execution Layer Groundwork",
+  "status": "completed",
+  "progress": "100%",
+  "current_milestone": "m4",
+  "milestones": {
+    "m1": {"name": "Phase 1: MCP 治理贯通", "status": "completed"},
+    "m2": {"name": "Phase 2: 内置 MCP 工具", "status": "completed"},
+    "m3": {"name": "Phase 3: Executor 模块", "status": "completed"},
+    "m4": {"name": "Phase 4: API + 集成", "status": "completed"}
+  }
+}

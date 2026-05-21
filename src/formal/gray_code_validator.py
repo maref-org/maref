@@ -1,0 +1,187 @@
+"""
+MAREF-Lite Gray Code State Machine Validator
+
+This module validates the 10-state Gray code state machine properties
+without requiring the full TLA+ toolchain. It serves as a Python-based
+verification helper that can be run in CI/CD pipelines.
+
+Properties verified:
+1. Single-bit transition: Adjacent states differ by exactly one bit
+2. Cycle completeness: All states are reachable from INIT
+3. No self-loops: No state transitions to itself
+4. Terminal absorbing: HALT state has no outgoing transitions
+5. Entropy monotonicity: Entropy peaks at ACT state and decreases afterward
+"""
+
+
+from maref_lite._constants import (
+    ENTROPY_LEVELS,
+    GRAY_CODE,
+    MAX_ENTROPY,
+    STATE_NAMES,
+    compute_valid_transitions,
+    hamming_distance,
+)
+
+
+def validate_single_bit_transitions() -> tuple[bool, list[str]]:
+    """Verify that all adjacent states in the sequence differ by exactly one bit."""
+    errors: list[str] = []
+    # The canonical Gray code sequence: 0->1->2->3->4->5->6->7->8->9
+    sequence = list(range(10))
+    for i in range(len(sequence) - 1):
+        s, t = sequence[i], sequence[i + 1]
+        dist = hamming_distance(GRAY_CODE[s], GRAY_CODE[t])
+        if dist != 1:
+            errors.append(
+                f"Transition {STATE_NAMES[s]}({s}) -> {STATE_NAMES[t]}({t}) "
+                f"has Hamming distance {dist}, expected 1"
+            )
+    return len(errors) == 0, errors
+
+
+def validate_no_self_loops(transitions: dict[int, list[int]]) -> tuple[bool, list[str]]:
+    """Verify no state has a transition to itself."""
+    errors: list[str] = []
+    for s, targets in transitions.items():
+        if s in targets:
+            errors.append(f"State {STATE_NAMES[s]}({s}) has self-loop")
+    return len(errors) == 0, errors
+
+
+def validate_terminal_absorbing(transitions: dict[int, list[int]]) -> tuple[bool, list[str]]:
+    """Verify HALT state (9) has no outgoing transitions."""
+    errors: list[str] = []
+    halt_transitions = transitions[9]
+    if halt_transitions:
+        errors.append(
+            f"HALT state has outgoing transitions to: "
+            f"{[STATE_NAMES[t] for t in halt_transitions]}"
+        )
+    return len(errors) == 0, errors
+
+
+def validate_reachability() -> tuple[bool, list[str]]:
+    """Verify all states are reachable from INIT via valid transitions."""
+    errors: list[str] = []
+    transitions = compute_valid_transitions()
+    visited: set[int] = set()
+    queue = [0]
+
+    while queue:
+        current = queue.pop(0)
+        if current in visited:
+            continue
+        visited.add(current)
+        for next_state in transitions[current]:
+            if next_state not in visited:
+                queue.append(next_state)
+
+    unreachable = set(GRAY_CODE.keys()) - visited
+    if unreachable:
+        errors.append(
+            f"Unreachable states: {[STATE_NAMES[s] for s in sorted(unreachable)]}"
+        )
+    return len(errors) == 0, errors
+
+
+def validate_entropy_profile() -> tuple[bool, list[str]]:
+    """Verify entropy profile follows expected pattern."""
+    errors: list[str] = []
+    # Entropy should peak at ACT (state 5) and decrease afterward
+    expected_profile = [0, 1, 2, 2, 3, 4, 3, 1, 0, 0]
+    for s, expected in enumerate(expected_profile):
+        actual = ENTROPY_LEVELS[s]
+        if actual != expected:
+            errors.append(
+                f"State {STATE_NAMES[s]} entropy {actual} != expected {expected}"
+            )
+
+    # Verify ACT has maximum entropy
+    if ENTROPY_LEVELS[5] != MAX_ENTROPY:
+        errors.append(f"ACT state entropy {ENTROPY_LEVELS[5]} != MAX_ENTROPY {MAX_ENTROPY}")
+
+    return len(errors) == 0, errors
+
+
+def validate_gray_code_completeness() -> tuple[bool, list[str]]:
+    """Verify all 10 Gray codes are unique."""
+    errors: list[str] = []
+    seen: set[tuple[int, ...]] = set()
+    for s, code in GRAY_CODE.items():
+        if code in seen:
+            errors.append(f"Duplicate Gray code {code} for state {STATE_NAMES[s]}")
+        seen.add(code)
+    if len(seen) != 10:
+        errors.append(f"Expected 10 unique Gray codes, got {len(seen)}")
+    return len(errors) == 0, errors
+
+
+def run_all_validations() -> tuple[bool, dict[str, tuple[bool, list[str]]]]:
+    """Run all validation checks and return results."""
+    transitions = compute_valid_transitions()
+
+    checks = {
+        "single_bit_transitions": validate_single_bit_transitions(),
+        "no_self_loops": validate_no_self_loops(transitions),
+        "terminal_absorbing": validate_terminal_absorbing(transitions),
+        "reachability": validate_reachability(),
+        "entropy_profile": validate_entropy_profile(),
+        "gray_code_uniqueness": validate_gray_code_completeness(),
+    }
+
+    all_passed = all(passed for passed, _ in checks.values())
+    return all_passed, checks
+
+
+def print_transition_graph() -> None:
+    """Print the state transition graph."""
+    transitions = compute_valid_transitions()
+    print("\nState Transition Graph (valid single-bit transitions):")
+    print("=" * 60)
+    for s in sorted(transitions):
+        targets = transitions[s]
+        target_str = ", ".join(
+            f"{STATE_NAMES[t]}({t})" for t in targets
+        )
+        print(f"  {STATE_NAMES[s]}({s}) -> [{target_str}]")
+    print()
+
+
+def print_gray_code_table() -> None:
+    """Print the Gray code encoding table."""
+    print("\nGray Code Encoding Table:")
+    print("=" * 60)
+    print(f"{'State':<12} {'ID':<4} {'Gray Code':<12} {'Entropy':<8}")
+    print("-" * 60)
+    for s in sorted(GRAY_CODE):
+        code_str = "".join(str(b) for b in GRAY_CODE[s])
+        print(f"{STATE_NAMES[s]:<12} {s:<4} {code_str:<12} {ENTROPY_LEVELS[s]:<8}")
+    print()
+
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("MAREF-Lite Gray Code State Machine Validation")
+    print("=" * 60)
+
+    print_gray_code_table()
+    print_transition_graph()
+
+    print("Running validation checks...")
+    print("=" * 60)
+
+    all_passed, checks = run_all_validations()
+
+    for check_name, (passed, errors) in checks.items():
+        status = "PASS" if passed else "FAIL"
+        print(f"  [{status}] {check_name}")
+        for error in errors:
+            print(f"         -> {error}")
+
+    print("=" * 60)
+    if all_passed:
+        print("All validations PASSED")
+    else:
+        print("Some validations FAILED")
+    print("=" * 60)

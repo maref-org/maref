@@ -1,0 +1,195 @@
+{
+  "overall_results": {
+    "total_protocols": 5,
+    "passed_protocols": 4,
+    "failed_protocols": 1,
+    "overall_score": 0.5341785714285715,
+    "overall_passed": false,
+    "validation_date": "2026-04-16T17:48:39.639464"
+  },
+  "protocol_results": {
+    "控制熵测试": {
+      "protocol_name": "控制熵测试",
+      "passed": false,
+      "score": 0.0,
+      "results": {
+        "baseline_entropy": 0.21084230031853213,
+        "maref_entropy": 2.689246428509158,
+        "baseline_max_entropy": 1.0,
+        "maref_max_entropy": 2.807354922057604,
+        "baseline_normalized_entropy": 0.21084230031853213,
+        "maref_normalized_entropy": 0.957928905739542,
+        "normalized_entropy_reduction": -0.7470866054210099,
+        "reduction_percentage": -354.33430781790054,
+        "baseline_state_counts": {
+          "completed": 29,
+          "running": 1
+        },
+        "maref_state_counts": {
+          "101111": 2,
+          "111101": 3,
+          "000100": 1,
+          "001000": 3,
+          "010001": 1,
+          "111010": 2,
+          "010111": 3
+        }
+      },
+      "metrics": {},
+      "timestamp": "2026-04-16T17:48:39.639076"
+    },
+    "李雅普诺夫收敛测试": {
+      "protocol_name": "李雅普诺夫收敛测试",
+      "passed": true,
+      "score": 1.0,
+      "results": {
+        "baseline_convergence": {
+          "state_transitions": [],
+          "error_rates": [
+            153.33333333333334
+          ],
+          "success_rates": [
+            0
+          ]
+        },
+        "maref_convergence": {
+          "state_transitions": [],
+          "error_rates": [
+            6.666666666666671
+          ],
+          "success_rates": [
+            93.33333333333333
+          ]
+        },
+        "baseline_convergence_index": 0.0,
+        "maref_convergence_index": 0.9333333333333333,
+        "improvement_factor": Infinity,
+        "convergence_improved": true
+      },
+      "metrics": {},
+      "timestamp": "2026-04-16T17:48:39.639261"
+    },
+    "斯佩纳完备性测试": {
+      "protocol_name": "斯佩纳完备性测试",
+      "passed": true,
+      "score": 0.20089285714285715,
+      "results": {
+        "baseline_total_states": 30,
+        "baseline_unique_states": 2,
+        "maref_total_states": 19,
+        "maref_unique_states": 9,
+        "baseline_completeness": 2,
+        "maref_completeness": 9,
+        "maref_within_64_limit": true,
+        "completeness_ratio": 0.140625
+      },
+      "metrics": {},
+      "timestamp": "2026-04-16T17:48:39.639310"
+    },
+    "格雷编码连续性测试": {
+      "protocol_name": "格雷编码连续性测试",
+      "passed": true,
+      "score": 0.7666666666666667,
+      "results": {
+        "baseline_transitions": 27,
+        "maref_transitions": 12,
+        "baseline_hamming_stats": {
+          "total_transitions": 26,
+          "hamming_distance_1_count": 0,
+          "hamming_distance_1_ratio": 0.0,
+          "avg_hamming_distance": 0,
+          "hamming_distribution": {
+            "0": 26
+          }
+        },
+        "maref_hamming_stats": {
+          "total_transitions": 12,
+          "hamming_distance_1_count": 0,
+          "hamming_distance_1_ratio": 0.0,
+          "avg_hamming_distance": 2.1666666666666665,
+          "hamming_distribution": {
+            "2": 2,
+            "0": 3,
+            "4": 1,
+            "3": 6
+          }
+        },
+        "baseline_continuity": 0.0,
+        "maref_continuity": 0.0,
+        "continuity_improvement": 0.0,
+        "continuity_improved": false
+      },
+      "metrics": {},
+      "timestamp": "2026-04-16T17:48:39.639434"
+    },
+    "互补对容错测试": {
+      "protocol_name": "互补对容错测试",
+      "passed": true,
+      "score": 0.7033333333333334,
+      "results": {
+        "baseline_fault_tolerance": {
+          "error_recovery_rate": -0.5333333333333334,
+          "failure_isolation": 0.09090909090909091,
+          "degradation_capability": 0.5
+        },
+        "maref_fault_tolerance": {
+          "error_recovery_rate": 0.9333333333333333,
+          "failure_isolation": 0.16666666666666666,
+          "degradation_capability": 0.9333333333333332
+        },
+        "baseline_tolerance_index": 0.0,
+        "maref_tolerance_index": 0.7033333333333334,
+        "improvement_factor": Infinity,
+        "tolerance_improved": true
+      },
+      "metrics": {},
+      "timestamp": "2026-04-16T17:48:39.639456"
+    }
+  },
+  "baseline_summary": {
+    "task_count": 15,
+    "success_rate": 0,
+    "error_rate": 153.33333333333334,
+    "avg_completion_time": 0.5633225714285715,
+    "state_inconsistencies": 10.0
+  },
+  "maref_summary": {
+    "task_count": 15,
+    "success_rate": 93.33333333333333,
+    "error_rate": 6.666666666666671,
+    "avg_completion_time": 0.005602214285714286,
+    "state_inconsistencies": 0.0
+  },
+  "comparative_analysis": {
+    "task_count": {
+      "baseline": 15,
+      "maref": 15,
+      "improvement_percent": 0.0,
+      "improved": false
+    },
+    "success_rate": {
+      "baseline": 0,
+      "maref": 93.33333333333333,
+      "improvement_percent": 0.0,
+      "improved": false
+    },
+    "error_rate": {
+      "baseline": 153.33333333333334,
+      "maref": 6.666666666666671,
+      "improvement_percent": -95.65217391304348,
+      "improved": false
+    },
+    "avg_completion_time": {
+      "baseline": 0.5633225714285715,
+      "maref": 0.005602214285714286,
+      "improvement_percent": -99.00550509248951,
+      "improved": true
+    },
+    "state_inconsistencies": {
+      "baseline": 10.0,
+      "maref": 0.0,
+      "improvement_percent": -100.0,
+      "improved": false
+    }
+  }
+}

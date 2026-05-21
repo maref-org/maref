@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+
+@dataclass
+class PERCVConfig:
+    """Configuration for the PERCV-to-MAREF integration layer.
+
+    Controls how PERCV subsystems are bridged into MAREF's governance,
+    knowledge, and evolution layers.
+    """
+
+    project_id: str = "maref-percv-integration"
+    """Globally unique identifier for this PERCV project instance."""
+
+    research_topic: str = ""
+    """The research topic PERCV should investigate."""
+
+    research_goal: str = ""
+    """The goal or objective of the research."""
+
+    budget_cents: int = 50000  # $500 default
+    """API budget in cents (100 cents = 1 USD)."""
+
+    monthly_budget_cny: float = 5000.0
+    """Monthly LLM API budget cap in CNY."""
+
+    max_iterations: int = 10
+    """Maximum number of research iterations."""
+
+    temperature: float = 0.7
+    """Default temperature for LLM sampling."""
+
+    max_tokens: int = 4000
+    """Maximum tokens for LLM responses."""
+
+    percv_package_path: Optional[str] = None
+    """Optional filesystem path to PERCV source (for editable install)."""
+
+    vault_path: Path = Path("vault")
+    """Path to PERCV's git-versioned vault directory."""
+
+    cost_db_path: Path = Path("percv_costs.db")
+    """Path to PERCV cost tracking SQLite database."""
+
+    enable_cost_monitor: bool = True
+    """Whether to feed PERCV cost metrics into MAREF's circuit breaker."""
+
+    enable_hitl_gate: bool = True
+    """Whether research results require human confirmation before KG sync."""
+
+    governance_state_on_failure: str = "STABILIZE"
+    """MAREF governance state to enter on pipeline failure."""
+
+    auto_sync_cards: bool = True
+    """Whether to automatically sync new PERCV cards to MAREF knowledge graph."""
+
+    sync_interval_seconds: int = 300
+    """How often to poll for new cards when auto_sync is enabled."""
+
+    ratchet_budget: int = 20
+    """Maximum iterations per ratchet improvement cycle."""
+
+    verification_default_rounds: int = 2
+    """Default number of adversarial rounds for verification."""
+
+    preferred_models: dict[str, str] = field(default_factory=lambda: {
+        "primary": "sf-deepseek",
+        "long_context": "sf-kimi",
+        "cn_industry": "sf-qwen",
+        "global": "sf-global",
+        "reasoning": "sf-deepseek-r1",
+    })
+    """Model key assignments for MAREF's GatewayRole mapping."""

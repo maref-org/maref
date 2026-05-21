@@ -1,0 +1,15 @@
+signal_id: S-20260511-004
+topic: MAREF Competitive Landscape
+source_node: crewai_competitor
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'CrewAI is the most popular role-based agent framework: 22K GitHub stars,
+  role-playing + task delegation model, AMP (Agent Market Place) Suite for monetization.
+  Strengths: simple API, low learning curve, growing plugin ecosystem. Weaknesses:
+  no state machine governance, no formal verification, memory is short-term only,
+  no multi-agent safety guarantees. Pricing: MIT licensed open-source, Enterprise
+  tier planned.'
+summary: 'CrewAI is the most popular role-based agent framework: 22K GitHub stars,
+  role-playing + task delegation model, AMP (Agent Market Place) Suite for monetization.
+  Strengths: simple API, low learning curv'
+harvested_at: '2026-05-11T21:58:41.303277'
+status: distilled

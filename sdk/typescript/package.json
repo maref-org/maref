@@ -1,0 +1,19 @@
+{
+  "name": "@maref/sdk",
+  "version": "0.1.0",
+  "description": "MAREF Agent Governance OS TypeScript SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "lint": "eslint src/"
+  },
+  "keywords": ["agent", "governance", "MAREF", "multi-agent"],
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "^5.5",
+    "vitest": "^2.0"
+  }
+}

@@ -1,0 +1,271 @@
+from __future__ import annotations
+
+import os
+import shutil
+import time
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import Any
+
+
+class FileOperation(str, Enum):
+    READ = "read"
+    WRITE = "write"
+    DELETE = "delete"
+    MOVE = "move"
+    COPY = "copy"
+    LIST = "list"
+    MKDIR = "mkdir"
+    CHMOD = "chmod"
+    EXEC = "exec"
+
+
+class SafetyVerdict(str, Enum):
+    ALLOW = "allow"
+    BLOCK = "block"
+    SANDBOX = "sandbox"
+
+
+_RESTRICTED_PATHS = {
+    "/etc",
+    "/System",
+    "/Library",
+    "/private/etc",
+    "/var/root",
+    os.path.expanduser("~/.ssh"),
+    os.path.expanduser("~/.gnupg"),
+}
+
+_RESTRICTED_EXTENSIONS = {
+    ".key",
+    ".pem",
+    ".p12",
+    ".pfx",
+    ".keystore",
+    ".jks",
+    ".env",
+    ".secret",
+    ".credentials",
+}
+
+_DANGEROUS_OPERATIONS_ON_ANY_PATH = {
+    FileOperation.CHMOD,
+    FileOperation.EXEC,
+}
+
+
+@dataclass
+class FileOpRequest:
+    operation: FileOperation
+    path: str
+    destination: str = ""
+    content: str = ""
+    permissions: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "operation": self.operation.value,
+            "path": self.path,
+            "destination": self.destination,
+            "content_length": len(self.content),
+            "permissions": self.permissions,
+        }
+
+
+@dataclass
+class FileOpResult:
+    success: bool
+    operation: FileOperation
+    path: str
+    verdict: SafetyVerdict = SafetyVerdict.ALLOW
+    error_message: str = ""
+    duration_ms: float = 0.0
+    output: str = ""
+    sandbox_path: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "success": self.success,
+            "operation": self.operation.value,
+            "path": self.path,
+            "verdict": self.verdict.value,
+            "error_message": self.error_message,
+            "duration_ms": self.duration_ms,
+            "sandbox_path": self.sandbox_path,
+        }
+
+
+class FileSafetyGuard:
+    """Safety guard for file system operations in desktop agent context.
+
+    Enforces:
+    - Path allow/block lists
+    - Operation-level restrictions (chmod/exec always blocked)
+    - Sensitive file extension protection
+    - Sandbox redirect for writes to protected areas
+    """
+
+    def __init__(
+        self,
+        allow_paths: set[str] | None = None,
+        block_paths: set[str] | None = None,
+        sandbox_dir: str | None = None,
+    ) -> None:
+        self.allow_paths = allow_paths or set()
+        self.block_paths = block_paths or _RESTRICTED_PATHS
+        self.sandbox_dir = sandbox_dir or os.path.join(os.path.expanduser("~"), ".maref_lite", "sandbox")
+        self._operation_log: list[FileOpResult] = []
+
+    @property
+    def operation_log(self) -> list[FileOpResult]:
+        return list(self._operation_log)
+
+    def evaluate(self, request: FileOpRequest) -> SafetyVerdict:
+        if request.operation in _DANGEROUS_OPERATIONS_ON_ANY_PATH:
+            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message=f"Dangerous operation blacklisted: {request.operation.value}"))
+            return SafetyVerdict.BLOCK
+
+        resolved = str(Path(request.path).resolve())
+        for blocked in self.block_paths:
+            if resolved == blocked or resolved.startswith(blocked + "/"):
+                if request.operation == FileOperation.WRITE:
+                    self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.SANDBOX, error_message=f"Write to restricted path redirected to sandbox: {blocked}"))
+                    return SafetyVerdict.SANDBOX
+                self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message=f"Path is restricted: {blocked}"))
+                return SafetyVerdict.BLOCK
+
+        file_name = Path(request.path).name.lower()
+        ext = Path(request.path).suffix.lower()
+        if (ext in _RESTRICTED_EXTENSIONS or file_name in _RESTRICTED_EXTENSIONS) and request.operation in (FileOperation.READ, FileOperation.COPY):
+            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message=f"Sensitive file extension blocked: {ext}"))
+            return SafetyVerdict.BLOCK
+
+        if request.operation == FileOperation.DELETE:
+            if resolved.startswith(os.path.expanduser("~/")):
+                self._log(FileOpResult(success=True, operation=request.operation, path=request.path, verdict=SafetyVerdict.ALLOW))
+                return SafetyVerdict.ALLOW
+            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message="Delete outside home directory requires confirmation"))
+            return SafetyVerdict.BLOCK
+
+        return SafetyVerdict.ALLOW
+
+    def _log(self, result: FileOpResult) -> None:
+        self._operation_log.append(result)
+
+
+class FileOperator:
+    """Safe file system operations with pre-execution safety evaluation.
+
+    All file operations go through FileSafetyGuard before execution.
+    Writes to restricted paths are automatically redirected to a sandbox.
+    """
+
+    def __init__(
+        self,
+        safety_guard: FileSafetyGuard | None = None,
+        dry_run: bool = True,
+    ) -> None:
+        self._guard = safety_guard or FileSafetyGuard()
+        self._dry_run = dry_run
+
+    @property
+    def dry_run(self) -> bool:
+        return self._dry_run
+
+    @dry_run.setter
+    def dry_run(self, value: bool) -> None:
+        self._dry_run = value
+
+    def read_file(self, path: str) -> FileOpResult:
+        return self._execute(FileOpRequest(operation=FileOperation.READ, path=path))
+
+    def write_file(self, path: str, content: str) -> FileOpResult:
+        return self._execute(FileOpRequest(operation=FileOperation.WRITE, path=path, content=content))
+
+    def delete_file(self, path: str) -> FileOpResult:
+        return self._execute(FileOpRequest(operation=FileOperation.DELETE, path=path))
+
+    def move_file(self, source: str, destination: str) -> FileOpResult:
+        return self._execute(FileOpRequest(operation=FileOperation.MOVE, path=source, destination=destination))
+
+    def copy_file(self, source: str, destination: str) -> FileOpResult:
+        return self._execute(FileOpRequest(operation=FileOperation.COPY, path=source, destination=destination))
+
+    def list_directory(self, path: str) -> FileOpResult:
+        return self._execute(FileOpRequest(operation=FileOperation.LIST, path=path))
+
+    def make_directory(self, path: str) -> FileOpResult:
+        return self._execute(FileOpRequest(operation=FileOperation.MKDIR, path=path))
+
+    def _execute(self, request: FileOpRequest) -> FileOpResult:
+        verdict = self._guard.evaluate(request)
+        if verdict == SafetyVerdict.BLOCK:
+            return FileOpResult(
+                success=False,
+                operation=request.operation,
+                path=request.path,
+                verdict=verdict,
+                error_message="Blocked by safety guard",
+            )
+
+        start = time.time()
+        actual_path = request.path
+
+        if verdict == SafetyVerdict.SANDBOX:
+            os.makedirs(self._guard.sandbox_dir, exist_ok=True)
+            safe_name = Path(request.path).name
+            actual_path = os.path.join(self._guard.sandbox_dir, f"{int(time.time())}_{safe_name}")
+
+        try:
+            if self._dry_run:
+                output = f"[DRY RUN] {request.operation.value} {request.path}"
+            else:
+                output = self._do_operation(request, actual_path)
+            result = FileOpResult(
+                success=True,
+                operation=request.operation,
+                path=request.path,
+                verdict=verdict,
+                duration_ms=(time.time() - start) * 1000,
+                output=output,
+                sandbox_path=actual_path if verdict == SafetyVerdict.SANDBOX else "",
+            )
+        except Exception as e:
+            result = FileOpResult(
+                success=False,
+                operation=request.operation,
+                path=request.path,
+                verdict=verdict,
+                error_message=str(e),
+                duration_ms=(time.time() - start) * 1000,
+            )
+        self._guard._log(result)
+        return result
+
+    def _do_operation(self, request: FileOpRequest, actual_path: str) -> str:
+        op = request.operation
+        if op == FileOperation.READ:
+            with open(actual_path) as f:
+                return f.read()
+        elif op == FileOperation.WRITE:
+            os.makedirs(os.path.dirname(actual_path) or ".", exist_ok=True)
+            with open(actual_path, "w") as f:
+                f.write(request.content)
+            return f"Written {len(request.content)} bytes to {actual_path}"
+        elif op == FileOperation.DELETE:
+            os.remove(actual_path)
+            return f"Deleted {actual_path}"
+        elif op == FileOperation.MOVE:
+            shutil.move(actual_path, request.destination)
+            return f"Moved {actual_path} → {request.destination}"
+        elif op == FileOperation.COPY:
+            shutil.copy2(actual_path, request.destination)
+            return f"Copied {actual_path} → {request.destination}"
+        elif op == FileOperation.LIST:
+            entries = os.listdir(actual_path)
+            return "\n".join(sorted(entries))
+        elif op == FileOperation.MKDIR:
+            os.makedirs(actual_path, exist_ok=True)
+            return f"Created directory {actual_path}"
+        return ""

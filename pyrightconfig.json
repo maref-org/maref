@@ -1,0 +1,48 @@
+{
+  "include": [
+    "src",
+    "tests",
+    "scripts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/.git",
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/dist",
+    "**/build",
+    "**/*.egg-info",
+    "**/.venv",
+    "**/venv",
+    "gui/node_modules",
+    "gui/dist",
+    "gui/build",
+    ".trae",
+    ".obsidian",
+    "**/.obsidian",
+    "**/.trae"
+  ],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/__pycache__/**",
+    "**/dist/**",
+    "**/build/**",
+    "gui/**"
+  ],
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": false,
+  "verboseOutput": false,
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.10",
+  "pythonPlatform": "Darwin",
+  "executionEnvironments": [
+    {
+      "root": "src"
+    },
+    {
+      "root": "tests"
+    }
+  ]
+}

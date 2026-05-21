@@ -1,0 +1,175 @@
+"""
+Byzantine Isolation Enhancer (S8)
+
+Extends WeightedConsensusEngine with multi-dimensional
+detection and enhanced isolation mechanisms.
+"""
+
+from __future__ import annotations
+
+import time
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any
+
+from maref.cross_validator.consensus_algorithm import (
+    ConsensusResult,
+    ConsensusStatus,
+    ValidatorNode,
+    Vote,
+    VoteValue,
+    WeightedConsensusEngine,
+)
+
+
+@dataclass
+class IsolationDecision:
+    node_id: str
+    is_isolated: bool
+    reason: str
+    confidence: float
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "node_id": self.node_id,
+            "is_isolated": self.is_isolated,
+            "reason": self.reason,
+            "confidence": round(self.confidence, 3),
+        }
+
+
+class ByzantineIsolationEnhancer:
+    """
+    Enhances Byzantine detection with multi-dimensional analysis:
+    - Vote inconsistency history
+    - Weight anomaly (sudden drops/gains)
+    - Temporal pattern analysis (voting at unusual times)
+    """
+
+    def __init__(self, consensus_engine: WeightedConsensusEngine) -> None:
+        self.engine = consensus_engine
+        self._isolated_nodes: set[str] = set()
+        self._vote_history: dict[str, list[Vote]] = defaultdict(list)
+        self._weight_history: dict[str, list[tuple[float, float]]] = defaultdict(list)
+
+    def evaluate_proposal(self, proposal_id: str) -> ConsensusResult:
+        """Evaluate consensus with enhanced byzantine detection."""
+        # First, run standard consensus
+        result = self.engine.evaluate_consensus(proposal_id)
+
+        # Then, run enhanced detection
+        votes = self.engine._votes.get(proposal_id, [])
+        self._update_histories(votes)
+
+        enhanced_detections = self._detect_multidimensional(votes)
+
+        # Merge with standard detections
+        all_byzantine = set(result.byzantine_nodes_detected)
+        for decision in enhanced_detections:
+            if decision.is_isolated:
+                all_byzantine.add(decision.node_id)
+                # Isolate the node
+                self._isolate_node(decision.node_id)
+
+        # Create updated result
+        if all_byzantine and result.status != ConsensusStatus.REACHED:
+            result.status = ConsensusStatus.BYZANTINE_DETECTED
+        result.byzantine_nodes_detected = sorted(all_byzantine)
+
+        return result
+
+    def _update_histories(self, votes: list[Vote]) -> None:
+        for vote in votes:
+            self._vote_history[vote.validator_id].append(vote)
+            validator = self.engine._validators.get(vote.validator_id)
+            if validator:
+                self._weight_history[vote.validator_id].append(
+                    (time.time(), validator.weight)
+                )
+
+    def _detect_multidimensional(self, votes: list[Vote]) -> list[IsolationDecision]:
+        decisions: list[IsolationDecision] = []
+
+        # Get majority vote
+        approve_count = sum(1 for v in votes if v.vote_value == VoteValue.APPROVE)
+        reject_count = sum(1 for v in votes if v.vote_value == VoteValue.REJECT)
+        majority = VoteValue.APPROVE if approve_count >= reject_count else VoteValue.REJECT
+
+        for vote in votes:
+            validator = self.engine._validators.get(vote.validator_id)
+            if not validator:
+                continue
+
+            reasons: list[str] = []
+            confidence = 0.0
+
+            # Dimension 1: Vote inconsistency
+            history = self._vote_history.get(vote.validator_id, [])
+            if len(history) >= 3:
+                inconsistent = sum(
+                    1 for h in history[-5:]
+                    if h.vote_value != majority and h.vote_value != VoteValue.ABSTAIN
+                )
+                if inconsistent >= 3:
+                    reasons.append(f"Vote inconsistency: {inconsistent}/5 against majority")
+                    confidence += 0.4
+
+            # Dimension 2: Weight anomaly
+            weight_hist = self._weight_history.get(vote.validator_id, [])
+            if len(weight_hist) >= 2:
+                recent_weights = [w for _, w in weight_hist[-5:]]
+                if len(recent_weights) >= 2:
+                    avg_weight = sum(recent_weights) / len(recent_weights)
+                    initial = validator.initial_weight
+                    if avg_weight < initial * 0.3:
+                        reasons.append(f"Weight anomaly: {avg_weight:.2f} << {initial}")
+                        confidence += 0.3
+
+            # Dimension 3: Temporal pattern (voting too fast/slow)
+            if len(history) >= 2:
+                intervals = [
+                    history[i].timestamp - history[i - 1].timestamp
+                    for i in range(1, len(history))
+                ]
+                if intervals:
+                    avg_interval = sum(intervals) / len(intervals)
+                    if avg_interval < 1.0:  # Voting more than once per second
+                        reasons.append(f"Temporal anomaly: voting every {avg_interval:.2f}s")
+                        confidence += 0.2
+
+            if confidence >= 0.5:
+                decisions.append(IsolationDecision(
+                    node_id=vote.validator_id,
+                    is_isolated=True,
+                    reason="; ".join(reasons),
+                    confidence=confidence,
+                ))
+
+        return decisions
+
+    def _isolate_node(self, node_id: str) -> None:
+        validator = self.engine._validators.get(node_id)
+        if validator:
+            validator.weight = 0.0
+            validator.is_byzantine = True
+            validator.is_active = False
+        self._isolated_nodes.add(node_id)
+
+    def restore_node(self, node_id: str) -> bool:
+        """Restore an isolated node with cold-start weight."""
+        if node_id not in self._isolated_nodes:
+            return False
+        validator = self.engine._validators.get(node_id)
+        if validator:
+            validator.is_byzantine = False
+            validator.is_active = True
+            validator.weight = validator.initial_weight * 0.1  # Cold start
+            validator.trust_score = 0.1
+        self._isolated_nodes.discard(node_id)
+        return True
+
+    def get_isolated_nodes(self) -> list[str]:
+        return sorted(self._isolated_nodes)
+
+

@@ -1,0 +1,62 @@
+{
+  "maref_governance": {
+    "coverage_pct": 38.1,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_observation": {
+    "coverage_pct": 39.85,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_knowledge": {
+    "coverage_pct": 34.88,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_identity": {
+    "coverage_pct": 47.59,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_learning": {
+    "coverage_pct": 38.69,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_orchestration": {
+    "coverage_pct": 34.89,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_integration": {
+    "coverage_pct": 35.84,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_evolution": {
+    "coverage_pct": 25.9,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_recursive": {
+    "coverage_pct": 39.01,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "drift_guard": {
+    "coverage_pct": 27.96,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "sidecar": {
+    "coverage_pct": 33.01,
+    "threshold": 60.0,
+    "passed": false
+  },
+  "maref_lite": {
+    "coverage_pct": 24.25,
+    "threshold": 60.0,
+    "passed": false
+  }
+}

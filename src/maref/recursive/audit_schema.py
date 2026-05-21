@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import json
+import time
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any
+
+
+class AuditSeverity(str, Enum):
+    INFO = "INFO"
+    WARN = "WARN"
+    ERROR = "ERROR"
+    FATAL = "FATAL"
+
+
+class AuditEventType(str, Enum):
+    STATE_TRANSITION = "state_transition"
+    ROLE_INVOKE = "role_invoke"
+    TOOL_CALL = "tool_call"
+    HOOK_EXEC = "hook_exec"
+    DEGRADATION = "degradation"
+
+
+class AuditDecision(str, Enum):
+    ALLOW = "allow"
+    DENY = "deny"
+    ASK = "ask"
+    DEGRADED = "degraded"
+
+
+@dataclass
+class AuditEntry:
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: float = field(default_factory=time.time)
+    event_type: str = ""
+    severity: str = AuditSeverity.INFO
+    layer: int = 0
+    from_hexagram: int = -1
+    to_hexagram: int = -1
+    entropy_value: float = 0.0
+    agent_did: str = ""
+    agent_role: str = ""
+    trust_score: float = 0.0
+    trigger_type: str = ""
+    decision: str = ""
+    hook_chain_results: list[dict[str, Any]] = field(default_factory=list)
+    duration_ms: int = 0
+    correlation_ids: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp,
+            "event_type": self.event_type,
+            "severity": self.severity,
+            "layer": self.layer,
+            "from_hexagram": self.from_hexagram,
+            "to_hexagram": self.to_hexagram,
+            "entropy_value": self.entropy_value,
+            "agent_did": self.agent_did,
+            "agent_role": self.agent_role,
+            "trust_score": self.trust_score,
+            "trigger_type": self.trigger_type,
+            "decision": self.decision,
+            "hook_chain_results": self.hook_chain_results,
+            "duration_ms": self.duration_ms,
+            "correlation_ids": self.correlation_ids,
+        }
+
+    def to_jsonl(self) -> str:
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+
+
+class AuditWriter:
+    def __init__(self, output_path: str | Path) -> None:
+        self._path = Path(output_path)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+
+    def write(self, entry: AuditEntry) -> None:
+        with open(self._path, "a", encoding="utf-8") as f:
+            f.write(entry.to_jsonl() + "\n")
+
+    def write_batch(self, entries: list[AuditEntry]) -> None:
+        with open(self._path, "a", encoding="utf-8") as f:
+            for entry in entries:
+                f.write(entry.to_jsonl() + "\n")
+
+
+class AuditReader:
+    def __init__(self, file_path: str | Path) -> None:
+        self._path = Path(file_path)
+
+    def query(
+        self,
+        time_range: tuple[float, float] | None = None,
+        severity: str | None = None,
+        event_type: str | None = None,
+        agent_did: str | None = None,
+        limit: int = 1000,
+    ) -> list[AuditEntry]:
+        results: list[AuditEntry] = []
+        if not self._path.exists():
+            return []
+
+        with open(self._path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                ts = data.get("timestamp", 0)
+                if time_range and not (time_range[0] <= ts <= time_range[1]):
+                    continue
+                if severity and data.get("severity") != severity:
+                    continue
+                if event_type and data.get("event_type") != event_type:
+                    continue
+                if agent_did and data.get("agent_did") != agent_did:
+                    continue
+
+                entry = AuditEntry(
+                    event_id=data.get("event_id", ""),
+                    timestamp=ts,
+                    event_type=data.get("event_type", ""),
+                    severity=data.get("severity", ""),
+                    layer=data.get("layer", 0),
+                    from_hexagram=data.get("from_hexagram", -1),
+                    to_hexagram=data.get("to_hexagram", -1),
+                    entropy_value=data.get("entropy_value", 0),
+                    agent_did=data.get("agent_did", ""),
+                    agent_role=data.get("agent_role", ""),
+                    trust_score=data.get("trust_score", 0),
+                    trigger_type=data.get("trigger_type", ""),
+                    decision=data.get("decision", ""),
+                    hook_chain_results=data.get("hook_chain_results", []),
+                    duration_ms=data.get("duration_ms", 0),
+                    correlation_ids=data.get("correlation_ids", {}),
+                )
+                results.append(entry)
+                if len(results) >= limit:
+                    break
+        return results
+
+    def trace_decision_chain(self, event_id: str, max_depth: int = 10) -> list[AuditEntry]:
+        chain: list[AuditEntry] = []
+        if not self._path.exists():
+            return chain
+
+        entries_by_id: dict[str, AuditEntry] = {}
+        with open(self._path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                entries_by_id[data.get("event_id", "")] = AuditEntry(
+                    event_id=data.get("event_id", ""),
+                    timestamp=data.get("timestamp", 0),
+                    event_type=data.get("event_type", ""),
+                    correlation_ids=data.get("correlation_ids", {}),
+                )
+
+        visited: set[str] = set()
+        current_id = event_id
+        for _ in range(max_depth):
+            if current_id not in entries_by_id:
+                break
+            if current_id in visited:
+                break
+            visited.add(current_id)
+            entry = entries_by_id[current_id]
+            chain.append(entry)
+            upstream = entry.correlation_ids.get("upstream_event_id", "")
+            if not upstream:
+                break
+            current_id = upstream
+
+        return chain

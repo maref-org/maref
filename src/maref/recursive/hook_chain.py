@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+import time
+import uuid
+from dataclasses import dataclass, field
+from typing import Any
+
+from maref.recursive.hook_registry import HookRegistry, HookResult, HookVerdict
+
+DEFAULT_HOOK_TIMEOUT_S = 5.0
+
+
+@dataclass
+class HookExecutionStack:
+    entries: list[dict[str, Any]] = field(default_factory=list)
+
+    def record(self, handler_id: str, verdict: str, duration_ms: float, message: str = "") -> None:
+        self.entries.append({
+            "handler_id": handler_id,
+            "verdict": verdict,
+            "duration_ms": duration_ms,
+            "message": message,
+        })
+
+    def to_list(self) -> list[dict[str, Any]]:
+        return list(self.entries)
+
+
+@dataclass
+class ChainResult:
+    passed: bool
+    verdict: HookVerdict
+    execution_stack: HookExecutionStack = field(default_factory=HookExecutionStack)
+    total_duration_ms: float = 0.0
+    chain_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    error: str | None = None
+
+    @property
+    def all_passed(self) -> bool:
+        return all(
+            e["verdict"] in (HookVerdict.PASS, HookVerdict.AUDIT, HookVerdict.NOTIFY)
+            for e in self.execution_stack.entries
+        )
+
+
+class HookChain:
+    def __init__(self, registry: HookRegistry, timeout_s: float = DEFAULT_HOOK_TIMEOUT_S) -> None:
+        self._registry = registry
+        self._timeout_s = timeout_s
+
+    def execute(self, topic: str, event_data: dict[str, Any]) -> ChainResult:
+        start = time.time()
+        stack = HookExecutionStack()
+        chain = self._registry.get_chain(topic)
+
+        for entry in chain:
+            step_start = time.time()
+
+            try:
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(entry.execute, event_data)
+                    try:
+                        result = future.result(timeout=self._timeout_s)
+                    except concurrent.futures.TimeoutError:
+                        result = HookResult(
+                            verdict=HookVerdict.BLOCK,
+                            handler_id=entry.handler_id,
+                            message=f"Timeout after {self._timeout_s}s",
+                        )
+            except Exception as e:
+                result = HookResult(
+                    verdict=HookVerdict.BLOCK,
+                    handler_id=entry.handler_id,
+                    message=str(e),
+                )
+
+            step_duration = (time.time() - step_start) * 1000
+            stack.record(
+                handler_id=entry.handler_id,
+                verdict=result.verdict,
+                duration_ms=step_duration,
+                message=result.message,
+            )
+
+            if result.should_stop_chain:
+                total = (time.time() - start) * 1000
+                return ChainResult(
+                    passed=False,
+                    verdict=result.verdict,
+                    execution_stack=stack,
+                    total_duration_ms=total,
+                )
+
+        total = (time.time() - start) * 1000
+        final_verdict = HookVerdict.PASS
+        return ChainResult(
+            passed=True,
+            verdict=final_verdict,
+            execution_stack=stack,
+            total_duration_ms=total,
+        )

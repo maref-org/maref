@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maref-config
+  namespace: maref
+data:
+  MAREF_HOME_DIR: "/data/maref"
+  MAREF_CB_MAX_DEPTH: "3"
+  MAREF_CB_COOLDOWN: "30.0"
+  MAREF_DUAL_PRIMARY: "4.0"
+  MAREF_FNR_TARGET: "0.15"
+  MAREF_A2A_URL: "http://0.0.0.0:8000"
+  MAREF_A2A_VERSION: "0.2.6"

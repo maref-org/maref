@@ -1,0 +1,374 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+
+
+class MemoryTemperature(str, Enum):
+    HOT = "hot"
+    WARM = "warm"
+    COLD = "cold"
+    FROZEN = "frozen"
+
+
+@dataclass
+class MemoryHealthScore:
+    memory_id: str
+    temperature: MemoryTemperature
+    recency_score: float
+    frequency_score: float
+    relevance_score: float
+    impact_score: float
+    overall_health: float
+    promotion_ready: bool = False
+    demotion_ready: bool = False
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "memory_id": self.memory_id,
+            "temperature": self.temperature.value,
+            "recency": round(self.recency_score, 3),
+            "frequency": round(self.frequency_score, 3),
+            "relevance": round(self.relevance_score, 3),
+            "impact": round(self.impact_score, 3),
+            "overall": round(self.overall_health, 3),
+            "promotion_ready": self.promotion_ready,
+            "demotion_ready": self.demotion_ready,
+        }
+
+
+@dataclass
+class TemperatureTransition:
+    memory_id: str
+    from_temp: MemoryTemperature
+    to_temp: MemoryTemperature
+    reason: str
+    timestamp: float = field(default_factory=time.time)
+
+
+@dataclass
+class TemperatureThresholds:
+    hot_min_health: float = 0.75
+    hot_to_warm_threshold: float = 0.70
+    warm_min_health: float = 0.40
+    warm_to_cold_threshold: float = 0.35
+    cold_min_health: float = 0.10
+    frozen_max_health: float = 0.10
+    promotion_window_hours: float = 1.0
+    demotion_window_hours: float = 4.0
+    max_hot_count: int = 50
+    max_warm_count: int = 200
+    max_cold_count: int = 500
+    alpha: float = 0.30
+    beta: float = 0.40
+    gamma: float = 0.30
+
+
+@dataclass
+class MemoryRecord:
+    memory_id: str
+    content: dict[str, Any] = field(default_factory=dict)
+    temperature: MemoryTemperature = MemoryTemperature.WARM
+    created_at: float = field(default_factory=time.time)
+    last_accessed_at: float = field(default_factory=time.time)
+    access_count: int = 0
+    success_count: int = 0
+    last_health_score: float = 0.5
+    linked_span_ids: list[str] = field(default_factory=list)
+    linked_audit_ids: list[str] = field(default_factory=list)
+
+    @property
+    def success_rate(self) -> float:
+        if self.access_count == 0:
+            return 0.0
+        return self.success_count / self.access_count
+
+    @property
+    def age_hours(self) -> float:
+        return (time.time() - self.created_at) / 3600.0
+
+    @property
+    def idle_hours(self) -> float:
+        return (time.time() - self.last_accessed_at) / 3600.0
+
+
+class MemoryThreeTemperature:
+    def __init__(
+        self,
+        thresholds: TemperatureThresholds | None = None,
+        audit_store: UnifiedAuditStore | None = None,
+    ) -> None:
+        self._thresholds = thresholds or TemperatureThresholds()
+        self._hot: dict[str, MemoryRecord] = {}
+        self._warm: dict[str, MemoryRecord] = {}
+        self._cold: dict[str, MemoryRecord] = {}
+        self._frozen: dict[str, MemoryRecord] = {}
+        self._transitions: list[TemperatureTransition] = []
+        self._audit_store = audit_store or UnifiedAuditStore()
+
+    def store(self, memory_id: str, content: dict[str, Any],
+               initial_temp: MemoryTemperature = MemoryTemperature.WARM) -> MemoryRecord:
+        record = MemoryRecord(
+            memory_id=memory_id,
+            content=dict(content),
+            temperature=initial_temp,
+        )
+        self._place(record)
+        return record
+
+    def access(self, memory_id: str, success: bool = True) -> MemoryRecord | None:
+        record = self._find(memory_id)
+        if record is None:
+            return None
+        record.last_accessed_at = time.time()
+        record.access_count += 1
+        if success:
+            record.success_count += 1
+        return record
+
+    def score_health(self, memory_id: str) -> MemoryHealthScore | None:
+        record = self._find(memory_id)
+        if record is None:
+            return None
+        return self._compute_health(record)
+
+    def rescore_all(self) -> dict[str, MemoryHealthScore]:
+        scores: dict[str, MemoryHealthScore] = {}
+        for record in self._all_records():
+            scores[record.memory_id] = self._compute_health(record)
+        return scores
+
+    def promote(self, memory_id: str) -> TemperatureTransition | None:
+        record = self._find(memory_id)
+        if record is None:
+            return None
+
+        order = [MemoryTemperature.FROZEN, MemoryTemperature.COLD,
+                  MemoryTemperature.WARM, MemoryTemperature.HOT]
+        try:
+            idx = order.index(record.temperature)
+        except ValueError:
+            return None
+        if idx >= len(order) - 1:
+            return None
+
+        new_temp = order[idx + 1]
+        transition = TemperatureTransition(
+            memory_id=memory_id,
+            from_temp=record.temperature,
+            to_temp=new_temp,
+            reason="Health score adequate for promotion",
+        )
+        self._remove(record)
+        record.temperature = new_temp
+        self._place(record)
+        self._transitions.append(transition)
+        self._audit_transition(transition, 41)
+        return transition
+
+    def demote(self, memory_id: str) -> TemperatureTransition | None:
+        record = self._find(memory_id)
+        if record is None:
+            return None
+
+        order = [MemoryTemperature.HOT, MemoryTemperature.WARM,
+                  MemoryTemperature.COLD, MemoryTemperature.FROZEN]
+        try:
+            idx = order.index(record.temperature)
+        except ValueError:
+            return None
+        if idx >= len(order) - 1:
+            return None
+
+        new_temp = order[idx + 1]
+        transition = TemperatureTransition(
+            memory_id=memory_id,
+            from_temp=record.temperature,
+            to_temp=new_temp,
+            reason="Health score fell below threshold",
+        )
+        self._remove(record)
+        record.temperature = new_temp
+        self._place(record)
+        self._transitions.append(transition)
+        self._audit_transition(transition, 41)
+        return transition
+
+    def auto_balance(self) -> list[TemperatureTransition]:
+        transitions: list[TemperatureTransition] = []
+        scores = self.rescore_all()
+
+        for memory_id, score in scores.items():
+            if score.promotion_ready:
+                t = self.promote(memory_id)
+                if t:
+                    transitions.append(t)
+            elif score.demotion_ready:
+                t = self.demote(memory_id)
+                if t:
+                    transitions.append(t)
+
+        self._enforce_capacity()
+        return transitions
+
+    def get_memory(self, memory_id: str) -> MemoryRecord | None:
+        return self._find(memory_id)
+
+    def get_by_temperature(self, temp: MemoryTemperature) -> list[MemoryRecord]:
+        storage = self._storage_for(temp)
+        return list(storage.values())
+
+    def query_by_relevance(self, keywords: list[str], limit: int = 10) -> list[MemoryRecord]:
+        results: list[tuple[float, MemoryRecord]] = []
+        for record in self._all_records():
+            content_str = str(record.content).lower()
+            relevance = sum(1.0 for kw in keywords if kw.lower() in content_str)
+            relevance /= max(len(keywords), 1)
+            results.append((relevance, record))
+
+        results.sort(key=lambda x: -x[0])
+        return [r for _, r in results[:limit]]
+
+    def get_stats(self) -> dict[str, Any]:
+        hot_scores = [self._compute_health(r).overall_health for r in self._hot.values()]
+        warm_scores = [self._compute_health(r).overall_health for r in self._warm.values()]
+        cold_scores = [self._compute_health(r).overall_health for r in self._cold.values()]
+
+        return {
+            "total_memories": self._count_all(),
+            "hot_count": len(self._hot),
+            "warm_count": len(self._warm),
+            "cold_count": len(self._cold),
+            "frozen_count": len(self._frozen),
+            "transitions": len(self._transitions),
+            "avg_hot_health": sum(hot_scores) / max(len(hot_scores), 1),
+            "avg_warm_health": sum(warm_scores) / max(len(warm_scores), 1),
+            "avg_cold_health": sum(cold_scores) / max(len(cold_scores), 1),
+        }
+
+    def _compute_health(self, record: MemoryRecord) -> MemoryHealthScore:
+        idle_h = record.idle_hours
+        access_freq = min(record.access_count / max(idle_h + 1, 1), 10.0) / 10.0
+        recency = 1.0 / (1.0 + idle_h / self._thresholds.demotion_window_hours)
+        frequency = access_freq
+        relevance = record.success_rate
+        impact = 0.5 if record.access_count == 0 else (
+            0.5 + 0.5 * record.success_rate * (min(record.access_count, 20) / 20.0)
+        )
+
+        a, b, g = self._thresholds.alpha, self._thresholds.beta, self._thresholds.gamma
+        overall = a * recency + b * frequency + g * relevance + (1 - a - b - g) * impact
+        overall = max(0.0, min(1.0, overall))
+
+        score = MemoryHealthScore(
+            memory_id=record.memory_id,
+            temperature=record.temperature,
+            recency_score=recency,
+            frequency_score=frequency,
+            relevance_score=relevance,
+            impact_score=impact,
+            overall_health=overall,
+        )
+
+        if record.temperature == MemoryTemperature.COLD and overall >= self._thresholds.warm_min_health or record.temperature == MemoryTemperature.WARM and overall >= self._thresholds.hot_min_health:
+            score.promotion_ready = True
+
+        if record.temperature == MemoryTemperature.HOT and overall < self._thresholds.hot_to_warm_threshold or record.temperature == MemoryTemperature.WARM and overall < self._thresholds.warm_to_cold_threshold:
+            score.demotion_ready = True
+
+        return score
+
+    def _enforce_capacity(self) -> None:
+        overflow = len(self._hot) - self._thresholds.max_hot_count
+        if overflow > 0:
+            ranked = sorted(
+                self._hot.values(),
+                key=lambda r: self._compute_health(r).overall_health,
+            )
+            for record in ranked[:overflow]:
+                self._remove(record)
+                record.temperature = MemoryTemperature.WARM
+                self._place(record)
+
+        overflow = len(self._warm) - self._thresholds.max_warm_count
+        if overflow > 0:
+            ranked = sorted(
+                self._warm.values(),
+                key=lambda r: self._compute_health(r).overall_health,
+            )
+            for record in ranked[:overflow]:
+                self._remove(record)
+                record.temperature = MemoryTemperature.COLD
+                self._place(record)
+
+        overflow = len(self._cold) - self._thresholds.max_cold_count
+        if overflow > 0:
+            ranked = sorted(
+                self._cold.values(),
+                key=lambda r: self._compute_health(r).overall_health,
+            )
+            for record in ranked[:overflow]:
+                self._remove(record)
+                record.temperature = MemoryTemperature.FROZEN
+                self._place(record)
+
+    def _find(self, memory_id: str) -> MemoryRecord | None:
+        for storage in [self._hot, self._warm, self._cold, self._frozen]:
+            if memory_id in storage:
+                return storage[memory_id]
+        return None
+
+    def _place(self, record: MemoryRecord) -> None:
+        self._storage_for(record.temperature)[record.memory_id] = record
+
+    def _remove(self, record: MemoryRecord) -> None:
+        self._storage_for(record.temperature).pop(record.memory_id, None)
+
+    def _storage_for(self, temp: MemoryTemperature) -> dict[str, MemoryRecord]:
+        return {
+            MemoryTemperature.HOT: self._hot,
+            MemoryTemperature.WARM: self._warm,
+            MemoryTemperature.COLD: self._cold,
+            MemoryTemperature.FROZEN: self._frozen,
+        }[temp]
+
+    def _all_records(self) -> list[MemoryRecord]:
+        records: list[MemoryRecord] = []
+        for storage in [self._hot, self._warm, self._cold, self._frozen]:
+            records.extend(storage.values())
+        return records
+
+    def _count_all(self) -> int:
+        return len(self._hot) + len(self._warm) + len(self._cold) + len(self._frozen)
+
+    def _audit_transition(self, transition: TemperatureTransition,
+                           round_num: int) -> None:
+        self._audit_store.append(UnifiedAuditRecord(
+            record_id=make_record_id("m3t", hash(transition.memory_id) % 100000),
+            timestamp=time.time(),
+            layer="evolution",
+            round=round_num,
+            event_type=f"memory_{transition.from_temp.value}_to_{transition.to_temp.value}",
+            source_module="MemoryThreeTemperature",
+            target_module=transition.memory_id,
+            decision=f"{transition.from_temp.value}→{transition.to_temp.value}",
+            justification=transition.reason,
+            outcome="success",
+            context_refs=[transition.memory_id],
+        ))
+
+    @property
+    def thresholds(self) -> TemperatureThresholds:
+        return self._thresholds
+
+    def clear(self) -> None:
+        self._hot.clear()
+        self._warm.clear()
+        self._cold.clear()
+        self._frozen.clear()
+        self._transitions.clear()
