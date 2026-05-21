@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+import secrets
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from maref.identity.did_registry import AgentDID
+
+
+@dataclass
+class VerifiableCredential:
+    id: str
+    issuer: AgentDID
+    subject: AgentDID
+    issued_at: float
+    expires_at: float | None
+    credential_type: str
+    claims: dict[str, Any]
+    proof: dict[str, str] = field(default_factory=dict)
+
+    def to_json_ld(self) -> dict[str, Any]:
+        return {
+            "@context": ["https://www.w3.org/2018/credentials/v1"],
+            "id": self.id,
+            "type": ["VerifiableCredential", self.credential_type],
+            "issuer": self.issuer.did_string,
+            "issuanceDate": self.issued_at,
+            "expirationDate": self.expires_at,
+            "credentialSubject": {
+                "id": self.subject.did_string,
+                **self.claims,
+            },
+            "proof": self.proof,
+        }
+
+    def verify(self, issuer_secret: bytes) -> bool:
+        expected = VerifiableCredential._compute_proof_signature(
+            issuer_secret, self.issuer.did_string, self.subject.did_string,
+            issued_at=self.issued_at, expires_at=self.expires_at or 0.0,
+        )
+        return self.proof.get("signature") == expected
+
+    def is_expired(self) -> bool:
+        if self.expires_at is None:
+            return False
+        return time.time() > self.expires_at
+
+    @classmethod
+    def issue(
+        cls,
+        issuer: AgentDID,
+        subject: AgentDID,
+        credential_type: str,
+        claims: dict[str, Any],
+        ttl_seconds: float | None = 3600,
+        issuer_secret: bytes | None = None,
+    ) -> VerifiableCredential:
+        if issuer_secret is None:
+            issuer_secret = secrets.token_bytes(32)
+        now = time.time()
+        vc_id = f"vc-{secrets.token_hex(8)}"
+        expires = (now + ttl_seconds) if ttl_seconds is not None else None
+        signature = cls._compute_proof_signature(
+            issuer_secret, issuer.did_string, subject.did_string,
+            issued_at=now, expires_at=expires or 0.0,
+        )
+        proof = {"type": "HMAC-SHA256", "signature": signature}
+        return cls(
+            id=vc_id,
+            issuer=issuer,
+            subject=subject,
+            issued_at=now,
+            expires_at=expires,
+            credential_type=credential_type,
+            claims=claims,
+            proof=proof,
+        )
+
+    @staticmethod
+    def _compute_proof_signature(
+        secret: bytes, issuer_str: str, subject_str: str,
+        issued_at: float = 0.0, expires_at: float = 0.0,
+    ) -> str:
+        message = f"{issuer_str}:{subject_str}:{issued_at}:{expires_at}".encode()
+        return hmac.new(secret, message, hashlib.sha256).hexdigest()
+
+
+class CredentialStore:
+    def __init__(self) -> None:
+        self._credentials: dict[str, VerifiableCredential] = {}
+        self._revoked: dict[str, str] = {}
+
+    def store(self, vc: VerifiableCredential) -> None:
+        self._credentials[vc.id] = vc
+
+    def revoke(self, vc_id: str, reason: str = "unspecified") -> None:
+        if vc_id not in self._credentials:
+            raise ValueError(f"Credential {vc_id} not found")
+        self._revoked[vc_id] = reason
+
+    def is_revoked(self, vc_id: str) -> bool:
+        return vc_id in self._revoked
+
+    def get(self, vc_id: str) -> VerifiableCredential | None:
+        return self._credentials.get(vc_id)
+
+    def list_valid(self) -> list[VerifiableCredential]:
+        return [
+            vc
+            for vc in self._credentials.values()
+            if not self.is_revoked(vc.id) and not vc.is_expired()
+        ]
+
+    def count(self) -> int:
+        return len(self._credentials)
+
+    def revoked_count(self) -> int:
+        return len(self._revoked)

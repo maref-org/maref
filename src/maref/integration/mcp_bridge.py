@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+from maref.integration.mcp_client import MCPClient, MCPConnection, MCPToolDef
+from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
+from maref.recursive.skill_schema import MarefSkill, SkillSource
+
+
+class ToolToRole(str, Enum):
+    EXPLORER = "坎"
+    EXECUTOR = "震"
+    CRITIC = "离"
+    MEMORY = "坤"
+
+
+TOOL_ROLE_MAP: dict[str, str] = {
+    "search": ToolToRole.EXPLORER,
+    "query": ToolToRole.EXPLORER,
+    "list": ToolToRole.EXPLORER,
+    "fetch": ToolToRole.EXPLORER,
+    "file_read": ToolToRole.EXECUTOR,
+    "file_write": ToolToRole.EXECUTOR,
+    "file_edit": ToolToRole.EXECUTOR,
+    "execute": ToolToRole.EXECUTOR,
+    "run": ToolToRole.EXECUTOR,
+    "review": ToolToRole.CRITIC,
+    "lint": ToolToRole.CRITIC,
+    "validate": ToolToRole.CRITIC,
+    "diff": ToolToRole.CRITIC,
+    "store": ToolToRole.MEMORY,
+    "retrieve": ToolToRole.MEMORY,
+    "save": ToolToRole.MEMORY,
+    "load": ToolToRole.MEMORY,
+}
+
+
+def map_tool_to_role(tool_name: str) -> str:
+    lowered = tool_name.lower()
+    for key, role in TOOL_ROLE_MAP.items():
+        if key in lowered:
+            return role
+    return ToolToRole.EXPLORER
+
+
+@dataclass
+class BridgeEvent:
+    event_type: str
+    data: dict[str, Any] = field(default_factory=dict)
+
+
+class MCPBridge:
+    def __init__(self, client: MCPClient, security_gate: MCPSecurityGate | None = None) -> None:
+        self._client = client
+        self._security = security_gate or MCPSecurityGate()
+        self._event_handlers: dict[str, list[Any]] = {}
+        self._skill_imports: dict[str, MarefSkill] = {}
+
+    def on(self, event_type: str, handler: Any) -> None:
+        self._event_handlers.setdefault(event_type, []).append(handler)
+
+    def _emit(self, event: BridgeEvent) -> None:
+        for handler in self._event_handlers.get(event.event_type, []):
+            handler(event)
+
+    def discover_tools(self, conn: MCPConnection, trust_level: MCPTrustLevel = MCPTrustLevel.SEMI_TRUSTED) -> list[MCPToolDef]:
+        tools = self._client.list_tools(conn)
+        for tool in tools:
+            verdict = self._security.check(
+                tool.name,
+                trust_level,
+                args={},
+            )
+            role = map_tool_to_role(tool.name)
+            self._emit(BridgeEvent(
+                event_type="maref.mcp.discover",
+                data={
+                    "tool": tool.name,
+                    "description": tool.description,
+                    "mapped_role": role,
+                    "trust_level": trust_level.value,
+                    "verdict": verdict,
+                },
+            ))
+        return tools
+
+    def invoke_tool(
+        self,
+        conn: MCPConnection,
+        tool_name: str,
+        args: dict[str, Any],
+        trust_level: MCPTrustLevel = MCPTrustLevel.SEMI_TRUSTED,
+    ) -> Any:
+        verdict = self._security.check(tool_name, trust_level, args)
+        if verdict == "DENY":
+            return {"error": "Tool blocked by security gate", "tool": tool_name}
+
+        resp = self._client.call_tool(conn, tool_name, args)
+        role = map_tool_to_role(tool_name)
+        self._emit(BridgeEvent(
+            event_type="maref.mcp.invoke",
+            data={
+                "tool": tool_name,
+                "result": resp.result,
+                "error": resp.error,
+                "mapped_role": role,
+                "verdict": verdict,
+            },
+        ))
+        return resp.result
+
+    def import_skill_from_mcp(self, resource_uri: str) -> MarefSkill | None:
+        if resource_uri in self._skill_imports:
+            return self._skill_imports[resource_uri]
+
+        if not resource_uri.startswith("skill://"):
+            return None
+
+        skill_name = resource_uri.replace("skill://", "").replace("/", "-")
+        from maref.recursive.skill_schema import (
+            DegradationChain,
+            HexagramTrigger,
+            MarefSkillMeta,
+        )
+
+        skill = MarefSkill(
+            maref_skill="1.0",
+            meta=MarefSkillMeta(
+                name=skill_name,
+                version="mcp-imported",
+                description=f"MCP-imported skill: {resource_uri}",
+            ),
+            role_affinity={"primary": "Executor"},
+            hexagram_trigger=HexagramTrigger(require=[], exclude=[], transition_from=None),
+            degradation_chain=DegradationChain(primary="default", degraded=[]),
+            behavior={"entrypoint": f"mcp://{resource_uri}"},
+            source=SkillSource.MCP_REMOTE,
+        )
+        self._skill_imports[resource_uri] = skill
+        return skill

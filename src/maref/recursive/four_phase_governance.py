@@ -1,0 +1,383 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Any
+
+from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+
+
+class GovernancePhase(Enum):
+    OLD_YANG = "old_yang"
+    LESSER_YIN = "lesser_yin"
+    LESSER_YANG = "lesser_yang"
+    OLD_YIN = "old_yin"
+
+    @property
+    def label(self) -> str:
+        return {
+            GovernancePhase.OLD_YANG: "\u8001\u9633",
+            GovernancePhase.LESSER_YIN: "\u5c11\u9634",
+            GovernancePhase.LESSER_YANG: "\u5c11\u9633",
+            GovernancePhase.OLD_YIN: "\u8001\u9634",
+        }[self]
+
+    @property
+    def autonomy_level(self) -> int:
+        return {
+            GovernancePhase.OLD_YANG: 4,
+            GovernancePhase.LESSER_YIN: 3,
+            GovernancePhase.LESSER_YANG: 2,
+            GovernancePhase.OLD_YIN: 1,
+        }[self]
+
+
+class PermissionScope(Enum):
+    FULL_AUTONOMY = auto()
+    SELF_EVOLUTION = auto()
+    SELF_HEALING = auto()
+    SELF_OPTIMIZATION = auto()
+    OBSERVATION_ONLY = auto()
+    QUARANTINE = auto()
+
+
+PHASE_PERMISSIONS: dict[GovernancePhase, list[PermissionScope]] = {
+    GovernancePhase.OLD_YANG: [
+        PermissionScope.FULL_AUTONOMY,
+        PermissionScope.SELF_EVOLUTION,
+        PermissionScope.SELF_HEALING,
+        PermissionScope.SELF_OPTIMIZATION,
+        PermissionScope.OBSERVATION_ONLY,
+    ],
+    GovernancePhase.LESSER_YIN: [
+        PermissionScope.SELF_EVOLUTION,
+        PermissionScope.SELF_HEALING,
+        PermissionScope.SELF_OPTIMIZATION,
+        PermissionScope.OBSERVATION_ONLY,
+    ],
+    GovernancePhase.LESSER_YANG: [
+        PermissionScope.SELF_HEALING,
+        PermissionScope.SELF_OPTIMIZATION,
+        PermissionScope.OBSERVATION_ONLY,
+    ],
+    GovernancePhase.OLD_YIN: [
+        PermissionScope.OBSERVATION_ONLY,
+    ],
+}
+
+RED_LINE_PERMISSIONS: dict[GovernancePhase, list[PermissionScope]] = {
+    GovernancePhase.OLD_YANG: [
+        PermissionScope.FULL_AUTONOMY,
+        PermissionScope.SELF_EVOLUTION,
+        PermissionScope.SELF_HEALING,
+        PermissionScope.SELF_OPTIMIZATION,
+        PermissionScope.OBSERVATION_ONLY,
+        PermissionScope.QUARANTINE,
+    ],
+    GovernancePhase.LESSER_YIN: [
+        PermissionScope.SELF_EVOLUTION,
+        PermissionScope.SELF_HEALING,
+        PermissionScope.SELF_OPTIMIZATION,
+        PermissionScope.OBSERVATION_ONLY,
+        PermissionScope.QUARANTINE,
+    ],
+    GovernancePhase.LESSER_YANG: [
+        PermissionScope.SELF_HEALING,
+        PermissionScope.OBSERVATION_ONLY,
+        PermissionScope.QUARANTINE,
+    ],
+    GovernancePhase.OLD_YIN: [
+        PermissionScope.OBSERVATION_ONLY,
+        PermissionScope.QUARANTINE,
+    ],
+}
+
+
+@dataclass
+class GovernanceMetrics:
+    trust_score: float
+    zero_violation_rounds: int
+    total_rounds: int
+    red_line_triggered: bool
+    red_line_violations: list[str] = field(default_factory=list)
+    phase_history: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "trust_score": round(self.trust_score, 4),
+            "zero_violation_rounds": self.zero_violation_rounds,
+            "total_rounds": self.total_rounds,
+            "red_line_triggered": self.red_line_triggered,
+            "red_line_violations": self.red_line_violations.copy(),
+            "phase_history": self.phase_history.copy(),
+        }
+
+
+@dataclass
+class PhaseTransition:
+    from_phase: GovernancePhase
+    to_phase: GovernancePhase
+    reason: str
+    timestamp: float = field(default_factory=time.time)
+    metrics_snapshot: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "from": self.from_phase.value,
+            "to": self.to_phase.value,
+            "reason": self.reason,
+            "timestamp": self.timestamp,
+            "metrics": self.metrics_snapshot,
+        }
+
+
+@dataclass
+class PermissionSet:
+    phase: GovernancePhase
+    allowed_scopes: list[PermissionScope]
+    is_red_line_mode: bool = False
+
+    def has_permission(self, scope: PermissionScope) -> bool:
+        perms = RED_LINE_PERMISSIONS[self.phase] if self.is_red_line_mode else PHASE_PERMISSIONS[self.phase]
+        return scope in perms
+
+    def to_dict(self) -> dict[str, Any]:
+        perms = RED_LINE_PERMISSIONS[self.phase] if self.is_red_line_mode else PHASE_PERMISSIONS[self.phase]
+        return {
+            "phase": self.phase.value,
+            "scopes": [s.name for s in perms],
+            "red_line_mode": self.is_red_line_mode,
+        }
+
+
+class FourPhaseGovernance:
+    TRUST_OLD_YANG_THRESHOLD = 0.9
+    TRUST_LESSER_YIN_THRESHOLD = 0.7
+    ZERO_VIOLATION_ROUNDS_FOR_OLD_YANG = 100
+    OLD_YIN_RED_LINE_TRIGGER_COUNT = 1
+    MAX_PHASE_SWITCH_HISTORY = 50
+    COOLDOWN_ROUNDS_AFTER_RED_LINE = 10
+
+    def __init__(self, agent_id: str, initial_trust: float = 0.75, audit_store: UnifiedAuditStore | None = None):
+        self.agent_id = agent_id
+        self._audit_store = audit_store or UnifiedAuditStore()
+        self._current_phase: GovernancePhase = self._determine_initial_phase(initial_trust)
+        self._trust_score = initial_trust
+        self._zero_violation_rounds: int = 0
+        self._total_rounds: int = 0
+        self._red_line_triggered = False
+        self._red_line_violations: list[str] = []
+        self._phase_history: list[str] = [self._current_phase.value]
+        self._transitions: list[PhaseTransition] = []
+        self._red_line_cooldown_remaining: int = 0
+        import secrets
+        self._authorization_token: str = secrets.token_hex(16)
+
+    def authorize(self) -> str:
+        return self._authorization_token
+
+    def _audit_transition(self, event: str, detail: str = "") -> None:
+        from maref.recursive.unified_audit import UnifiedAuditRecord, make_record_id
+        self._audit_store.append(UnifiedAuditRecord(
+            record_id=make_record_id("phase", hash((self.agent_id, event, detail)) % 100000),
+            timestamp=time.time(), layer="inner", round=0,
+            event_type=f"phase_{event}", source_module="FourPhaseGovernance",
+            target_module=self.agent_id, decision=event,
+            justification=detail, outcome="success" if "rejected" not in event else "failure",
+        ))
+
+    def _determine_initial_phase(self, trust: float) -> GovernancePhase:
+        if trust >= self.TRUST_OLD_YANG_THRESHOLD:
+            return GovernancePhase.OLD_YANG
+        elif trust >= self.TRUST_LESSER_YIN_THRESHOLD:
+            return GovernancePhase.LESSER_YIN
+        elif trust >= 0.3:
+            return GovernancePhase.LESSER_YANG
+        else:
+            return GovernancePhase.OLD_YIN
+
+    @property
+    def current_phase(self) -> GovernancePhase:
+        return self._current_phase
+
+    @property
+    def trust_score(self) -> float:
+        return self._trust_score
+
+    def update_trust(self, new_trust: float, violation_occurred: bool = False,
+                     red_line_hit: bool = False, red_line_detail: str = "") -> PhaseTransition | None:
+        self._total_rounds += 1
+        self._trust_score = max(0.0, min(1.0, new_trust))
+
+        if red_line_hit:
+            self._red_line_triggered = True
+            self._red_line_violations.append(red_line_detail or f"violation_r{self._total_rounds}")
+            self._zero_violation_rounds = 0
+        elif violation_occurred:
+            self._zero_violation_rounds = 0
+        else:
+            self._zero_violation_rounds += 1
+
+        if self._red_line_cooldown_remaining > 0:
+            self._red_line_cooldown_remaining -= 1
+            return None
+
+        previous_phase = self._current_phase
+        new_phase = self._evaluate_phase()
+
+        if new_phase != previous_phase:
+            transition = self._apply_transition(previous_phase, new_phase)
+            return transition
+        return None
+
+    def _evaluate_phase(self) -> GovernancePhase:
+        if self._red_line_triggered and self._red_line_cooldown_remaining == 0:
+            return GovernancePhase.OLD_YIN
+
+        if self._trust_score >= self.TRUST_OLD_YANG_THRESHOLD and self._zero_violation_rounds >= self.ZERO_VIOLATION_ROUNDS_FOR_OLD_YANG:
+            return GovernancePhase.OLD_YANG
+
+        if self._trust_score >= self.TRUST_LESSER_YIN_THRESHOLD:
+            if self._current_phase == GovernancePhase.OLD_YANG and self._zero_violation_rounds < self.ZERO_VIOLATION_ROUNDS_FOR_OLD_YANG:
+                return GovernancePhase.LESSER_YIN
+            return GovernancePhase.LESSER_YIN
+
+        if self._trust_score >= 0.3:
+            return GovernancePhase.LESSER_YANG
+
+        return GovernancePhase.OLD_YIN
+
+    def _apply_transition(self, from_phase: GovernancePhase, to_phase: GovernancePhase) -> PhaseTransition:
+        self._current_phase = to_phase
+        self._phase_history.append(to_phase.value)
+        if len(self._phase_history) > self.MAX_PHASE_SWITCH_HISTORY:
+            self._phase_history = self._phase_history[-self.MAX_PHASE_SWITCH_HISTORY:]
+
+        reason = self._build_transition_reason(from_phase, to_phase)
+
+        if to_phase == GovernancePhase.OLD_YIN:
+            self._red_line_cooldown_remaining = self.COOLDOWN_ROUNDS_AFTER_RED_LINE
+            reason = f"red_line: {self._red_line_violations[-1] if self._red_line_violations else 'triggered'}"
+
+        transition = PhaseTransition(
+            from_phase=from_phase,
+            to_phase=to_phase,
+            reason=reason,
+            metrics_snapshot={
+                "trust": round(self._trust_score, 4),
+                "zero_violation_rounds": self._zero_violation_rounds,
+                "total_rounds": self._total_rounds,
+            },
+        )
+        self._transitions.append(transition)
+
+        record = UnifiedAuditRecord(
+            record_id=make_record_id("gov_transition", self._total_rounds),
+            timestamp=time.time(),
+            layer="governance",
+            round=self._total_rounds,
+            event_type="phase_transition",
+            source_module="FourPhaseGovernance",
+            target_module=self.agent_id,
+            decision=f"{from_phase.value}->{to_phase.value}",
+            justification=reason,
+            outcome="success",
+            context_refs=[self.agent_id],
+        )
+        self._audit_store.append(record)
+
+        return transition
+
+    def _build_transition_reason(self, from_phase: GovernancePhase, to_phase: GovernancePhase) -> str:
+        from_level = from_phase.autonomy_level
+        to_level = to_phase.autonomy_level
+        if to_level > from_level:
+            return f"elevated: trust={self._trust_score:.3f}, zero_violation={self._zero_violation_rounds}"
+        elif to_level < from_level:
+            return f"demoted: trust={self._trust_score:.3f}, zero_violation={self._zero_violation_rounds}"
+        return f"lateral: trust={self._trust_score:.3f}"
+
+    def get_current_permissions(self) -> PermissionSet:
+        return PermissionSet(
+            phase=self._current_phase,
+            allowed_scopes=self._get_active_permission_list(),
+            is_red_line_mode=self._red_line_triggered,
+        )
+
+    def _get_active_permission_list(self) -> list[PermissionScope]:
+        if self._red_line_triggered and self._red_line_cooldown_remaining == 0:
+            return RED_LINE_PERMISSIONS[self._current_phase]
+        return PHASE_PERMISSIONS[self._current_phase]
+
+    def check_permission(self, scope: PermissionScope) -> bool:
+        perms = self.get_current_permissions()
+        return perms.has_permission(scope)
+
+    def get_metrics(self) -> GovernanceMetrics:
+        return GovernanceMetrics(
+            trust_score=self._trust_score,
+            zero_violation_rounds=self._zero_violation_rounds,
+            total_rounds=self._total_rounds,
+            red_line_triggered=self._red_line_triggered,
+            red_line_violations=self._red_line_violations.copy(),
+            phase_history=self._phase_history.copy(),
+        )
+
+    def get_transition_history(self) -> list[PhaseTransition]:
+        return self._transitions.copy()
+
+    def report_violation(self, violation_type: str, is_red_line: bool = False) -> PhaseTransition | None:
+        return self.update_trust(
+            new_trust=self._trust_score - (0.15 if is_red_line else 0.05),
+            violation_occurred=True,
+            red_line_hit=is_red_line,
+            red_line_detail=violation_type,
+        )
+
+    def report_compliance_round(self) -> PhaseTransition | None:
+        trust_delta = 0.01 if self._zero_violation_rounds > 10 else 0.005
+        if self._current_phase == GovernancePhase.OLD_YANG:
+            trust_delta = 0.002
+        new_trust = min(1.0, self._trust_score + trust_delta)
+        return self.update_trust(new_trust=new_trust, violation_occurred=False)
+
+    def _escalate_to_old_yang(self, authorization_token: str = "") -> PhaseTransition | None:
+        if authorization_token != self._authorization_token:
+            self._audit_transition("escalate_rejected", detail="unauthorized escalation attempt")
+            return None
+        self._trust_score = max(self._trust_score, self.TRUST_OLD_YANG_THRESHOLD)
+        self._zero_violation_rounds = max(self._zero_violation_rounds, self.ZERO_VIOLATION_ROUNDS_FOR_OLD_YANG)
+        return self.update_trust(new_trust=self._trust_score, violation_occurred=False)
+
+    def quarantine(self, reason: str = "manual_quarantine") -> PhaseTransition | None:
+        return self.update_trust(
+            new_trust=self._trust_score * 0.5,
+            violation_occurred=True,
+            red_line_hit=True,
+            red_line_detail=reason,
+        )
+
+    def _recover_from_old_yin(self, new_trust: float = 0.5, authorization_token: str = "") -> PhaseTransition | None:
+        if authorization_token != self._authorization_token:
+            self._audit_transition("recover_rejected", detail="unauthorized recovery attempt")
+            return None
+        self._red_line_triggered = False
+        self._red_line_cooldown_remaining = 0
+        self._zero_violation_rounds = 0
+        return self.update_trust(new_trust=new_trust, violation_occurred=False)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "current_phase": self._current_phase.value,
+            "trust_score": round(self._trust_score, 4),
+            "zero_violation_rounds": self._zero_violation_rounds,
+            "total_rounds": self._total_rounds,
+            "red_line_triggered": self._red_line_triggered,
+            "red_line_violations": self._red_line_violations.copy(),
+            "phase_history": self._phase_history.copy(),
+            "transition_count": len(self._transitions),
+            "red_line_cooldown_remaining": self._red_line_cooldown_remaining,
+            "permissions": self.get_current_permissions().to_dict(),
+        }

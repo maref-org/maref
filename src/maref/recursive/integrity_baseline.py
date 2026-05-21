@@ -1,0 +1,122 @@
+from __future__ import annotations
+
+import hashlib
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+@dataclass
+class IntegrityRecord:
+    path: str
+    sha256: str
+    last_verified_at: float = 0.0
+
+
+class IntegrityBaseline:
+    def __init__(self, storage_dir: str | Path | None = None) -> None:
+        self._storage_dir = Path(storage_dir) if storage_dir else Path(".maref/integrity")
+        self._records: dict[str, IntegrityRecord] = {}
+        self._baseline_file = self._storage_dir / "baseline.yaml"
+
+    @property
+    def storage_dir(self) -> Path:
+        return self._storage_dir
+
+    def register(self, paths: list[str]) -> list[IntegrityRecord]:
+        records: list[IntegrityRecord] = []
+        for path_str in paths:
+            p = Path(path_str)
+            if not p.exists():
+                continue
+            records.extend(self._register_glob(p))
+        self._save_baseline()
+        return records
+
+    def _register_glob(self, pattern: Path) -> list[IntegrityRecord]:
+        records: list[IntegrityRecord] = []
+        if pattern.is_file():
+            sha = self._compute_sha256(pattern)
+            record = IntegrityRecord(
+                path=str(pattern),
+                sha256=sha,
+                last_verified_at=time.time(),
+            )
+            self._records[str(pattern)] = record
+            records.append(record)
+        elif pattern.is_dir():
+            for f in sorted(pattern.rglob("*")):
+                if f.is_file() and not f.name.startswith("."):
+                    sha = self._compute_sha256(f)
+                    record = IntegrityRecord(
+                        path=str(f),
+                        sha256=sha,
+                        last_verified_at=time.time(),
+                    )
+                    self._records[str(f)] = record
+                    records.append(record)
+        return records
+
+    def verify(self) -> tuple[bool, list[str]]:
+        failures: list[str] = []
+        for path_str, record in self._records.items():
+            p = Path(path_str)
+            if not p.exists():
+                failures.append(f"MISSING: {path_str}")
+                continue
+            current_sha = self._compute_sha256(p)
+            if current_sha != record.sha256:
+                failures.append(f"MISMATCH: {path_str} (expected {record.sha256[:12]}..., got {current_sha[:12]}...)")
+        return (len(failures) == 0, failures)
+
+    def update(self, path: str) -> tuple[bool, str]:
+        p = Path(path)
+        if not p.exists():
+            return (False, f"File not found: {path}")
+        sha = self._compute_sha256(p)
+        record = IntegrityRecord(
+            path=str(p),
+            sha256=sha,
+            last_verified_at=time.time(),
+        )
+        self._records[str(p)] = record
+        self._save_baseline()
+        return (True, f"Updated baseline for {path}")
+
+    def _compute_sha256(self, file_path: Path) -> str:
+        hasher = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            while chunk := f.read(65536):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def _save_baseline(self) -> None:
+        self._storage_dir.mkdir(parents=True, exist_ok=True)
+        data: dict[str, dict[str, Any]] = {}
+        for path_str, record in self._records.items():
+            data[path_str] = {
+                "sha256": record.sha256,
+                "last_verified_at": record.last_verified_at,
+            }
+        self._baseline_file.write_text(yaml.dump(data, allow_unicode=True), encoding="utf-8")
+
+    def load(self) -> None:
+        if not self._baseline_file.exists():
+            return
+        data = yaml.safe_load(self._baseline_file.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return
+        for path_str, values in data.items():
+            self._records[path_str] = IntegrityRecord(
+                path=path_str,
+                sha256=values.get("sha256", ""),
+                last_verified_at=values.get("last_verified_at", 0.0),
+            )
+
+    def clear(self) -> None:
+        self._records.clear()
+        if self._baseline_file.exists():
+            self._baseline_file.unlink()

@@ -1,0 +1,77 @@
+"""
+MAREF Governance Constants
+
+Gray code encoding, entropy profiles, state names, and transition
+computation for the 10-state governance state machine.
+
+Each state transition changes exactly ONE bit — this prevents race
+conditions and ensures fault-tolerant state decoding.
+"""
+
+from __future__ import annotations
+
+from typing import Final
+
+# --- 10-state Gray Code Encoding (4-bit) ---
+# Sequence: INIT → OBSERVE → ANALYZE → EVALUATE → DECIDE →
+#           ACT → VERIFY → STABILIZE → REPORT → HALT
+
+GRAY_CODE: Final[dict[int, tuple[int, int, int, int]]] = {
+    0: (0, 0, 0, 0),
+    1: (0, 0, 0, 1),
+    2: (0, 0, 1, 1),
+    3: (0, 0, 1, 0),
+    4: (0, 1, 1, 0),
+    5: (0, 1, 1, 1),
+    6: (0, 1, 0, 1),
+    7: (0, 1, 0, 0),
+    8: (1, 1, 0, 0),
+    9: (1, 1, 0, 1),
+}
+
+STATE_NAMES: Final[dict[int, str]] = {
+    0: "INIT",
+    1: "OBSERVE",
+    2: "ANALYZE",
+    3: "EVALUATE",
+    4: "DECIDE",
+    5: "ACT",
+    6: "VERIFY",
+    7: "STABILIZE",
+    8: "REPORT",
+    9: "HALT",
+}
+
+ENTROPY_LEVELS: Final[dict[int, int]] = {
+    0: 0,
+    1: 1,
+    2: 2,
+    3: 2,
+    4: 3,
+    5: 4,
+    6: 3,
+    7: 1,
+    8: 0,
+    9: 0,
+}
+
+MAX_ENTROPY: Final[int] = 4
+
+
+def hamming_distance(a: tuple[int, ...], b: tuple[int, ...]) -> int:
+    """Calculate Hamming distance between two bit tuples."""
+    return sum(x != y for x, y in zip(a, b, strict=False))
+
+
+def compute_valid_transitions() -> dict[int, list[int]]:
+    """Compute all valid single-bit transitions between states.
+
+    HALT state (9) is an absorbing terminal state with no outgoing edges.
+    """
+    transitions: dict[int, list[int]] = {s: [] for s in GRAY_CODE}
+    for s in GRAY_CODE:
+        for t in GRAY_CODE:
+            if s != t and hamming_distance(GRAY_CODE[s], GRAY_CODE[t]) == 1:
+                transitions[s].append(t)
+    transitions[9] = []
+    return transitions

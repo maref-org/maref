@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  MAREF AutoResearch LaunchAgent for macOS (TEMPLATE)
+
+  This plist runs the autoresearch engine daily at 07:00.
+
+  IMPORTANT: The wrapper script MUST be on the internal drive
+  because macOS prevents launchd from executing scripts on external volumes.
+
+  DO NOT use this file directly. Run `bash scripts/setup_env.sh` to generate
+  a properly configured plist for your machine.
+
+  Installation (automated):
+    bash scripts/setup_env.sh
+
+  Manual Installation:
+    1. Replace {{SCRIPTS_DIR}} with your actual scripts directory path
+    2. Replace {{HOME_DIR}} with your actual home directory path
+    3. Copy to ~/Library/LaunchAgents/
+    4. launchctl load ~/Library/LaunchAgents/com.maref.autoresearch.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.maref.autoresearch.plist
+    rm ~/Library/LaunchAgents/com.maref.autoresearch.plist
+
+  Logs:
+    stdout: /tmp/com.maref.autoresearch.stdout.log
+    stderr: /tmp/com.maref.autoresearch.stderr.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.maref.autoresearch</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>{{SCRIPTS_DIR}}/maref_wrapper.sh</string>
+    </array>
+
+    <!-- Run daily at 07:00 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Environment variables (NO API KEYS - loaded from ~/.maref.env) -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>MAREF_ENV_LOADED</key>
+        <string>1</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Working directory on internal drive (launchd requirement) -->
+    <key>WorkingDirectory</key>
+    <string>{{HOME_DIR}}</string>
+
+    <!-- Logging to /tmp to avoid directory creation issues -->
+    <key>StandardOutPath</key>
+    <string>/tmp/com.maref.autoresearch.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/com.maref.autoresearch.stderr.log</string>
+
+    <!-- Do NOT run at load to avoid immediate failure loops -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- Restart on failure (but not on success) -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+</dict>
+</plist>

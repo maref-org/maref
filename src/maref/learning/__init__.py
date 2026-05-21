@@ -1,0 +1,24 @@
+"""MAREF Learning — meta-learning optimization, replay buffer, A/B comparison."""
+
+from maref.learning.ab_test import (
+    ABDecision,
+    ABResult,
+    ABWinner,
+    MetricSnapshot,
+    StrategyComparator,
+)
+from maref.learning.replay import DecisionOutcome, ExperienceStore
+from maref.learning.scheduler import LearningRateScheduler, SchedulerConfig, SchedulerState
+
+__all__ = [
+    "DecisionOutcome",
+    "ExperienceStore",
+    "LearningRateScheduler",
+    "SchedulerConfig",
+    "SchedulerState",
+    "StrategyComparator",
+    "ABResult",
+    "ABDecision",
+    "ABWinner",
+    "MetricSnapshot",
+]

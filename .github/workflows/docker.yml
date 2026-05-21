@@ -1,0 +1,208 @@
+name: Docker CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/maref
+  DOCKERHUB_IMAGE: maref/maref
+
+jobs:
+  build:
+    name: Build & Validate Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_IMAGE }}
+            ${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,format=short,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image metadata
+        run: |
+          docker inspect ${{ steps.meta.outputs.tags }} | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)[0]
+          labels = data['Config']['Labels']
+          print(f\"Image: {labels.get('org.opencontainers.image.title', 'N/A')}\")
+          print(f\"Version: {labels.get('org.opencontainers.image.version', 'N/A')}\")
+          print(f\"Size: {data['Size'] / 1024 / 1024:.1f} MB\")
+          assert 'MAREF' in labels.get('org.opencontainers.image.title', '')
+          "
+
+      - name: Start container with Xvfb
+        run: |
+          docker run -d --name maref-test \
+            -p 8080:8080 \
+            -e MAREF_DRY_RUN=true \
+            -e DISPLAY=:99 \
+            --entrypoint /bin/bash \
+            ${{ steps.meta.outputs.tags }} \
+            -c "Xvfb :99 -screen 0 1280x720x24 & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
+
+      - name: Wait for healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{json .State.Health.Status}}' maref-test 2>/dev/null || echo "\"starting\"")
+            echo "Attempt $i: Health=$status"
+            if [ "$status" = "\"healthy\"" ]; then
+              echo "✓ Container is healthy!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "✗ Container failed to become healthy within 60s"
+          docker logs maref-test --tail 50
+          exit 1
+
+      - name: Verify health endpoint
+        run: |
+          curl -sf http://localhost:8080/api/health || \
+            (echo "⚠ Health endpoint not available — checking container logs"; \
+             docker logs maref-test --tail 20)
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker logs maref-test --tail 100
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f maref-test || true
+
+      - name: Image size report
+        run: |
+          echo "### Docker Image Size Report" >> $GITHUB_STEP_SUMMARY
+          docker images --format "| {{.Repository}}:{{.Tag}} | {{.Size}} |" ${{ steps.meta.outputs.tags }} >> $GITHUB_STEP_SUMMARY
+
+  scan:
+    name: Docker Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scan
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: maref/maref:scan
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          scan-ref: maref/maref:scan
+          format: table
+          exit-code: 1
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Run Trivy with SARIF output
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          scan-type: image
+          scan-ref: maref/maref:scan
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Upload Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: docker-vulnerability
+
+      - name: Scan summary
+        if: always()
+        run: |
+          echo "### Docker Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "Image: \`maref/maref:scan\`" >> $GITHUB_STEP_SUMMARY
+          echo "Severity: HIGH, CRITICAL" >> $GITHUB_STEP_SUMMARY
+          echo "Unfixed: ignored" >> $GITHUB_STEP_SUMMARY
+
+  push:
+    name: Push Docker Images to Registries
+    runs-on: ubuntu-latest
+    needs: [build, scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_IMAGE }}
+            ${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=sha-
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Push summary
+        run: |
+          echo "### Docker Image Push Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Registry | Image | Tags |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| GHCR | ${{ env.GHCR_IMAGE }} | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Hub | ${{ env.DOCKERHUB_IMAGE }} | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY

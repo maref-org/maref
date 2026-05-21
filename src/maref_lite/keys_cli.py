@@ -1,0 +1,130 @@
+import click
+from typing import Any
+
+from maref.security.keyring_store import KeyringStore
+
+
+@click.group("keys")
+def keys_cli():
+    """Manage MAREF API keys and credentials."""
+    pass
+
+
+@keys_cli.command()
+@click.option("--key", "-k", "key_name", required=True, help="Key name (e.g. DASHSCOPE_API_KEY)")
+@click.option("--value", "-v", required=False, help="Key value (will prompt if not provided)")
+@click.option("--stdin", "use_stdin", is_flag=True, help="Read value from stdin")
+def set(key_name: str, value: str | None, use_stdin: bool):
+    """Store a credential in OS keychain."""
+    import sys
+
+    store = KeyringStore()
+
+    if use_stdin:
+        value = sys.stdin.read().strip()
+    elif not value:
+        value = click.prompt(f"Enter value for {key_name}", hide_input=True)
+
+    if store.set(key_name, value):
+        click.echo(f"✓ Stored {key_name} in keychain")
+    else:
+        click.echo(f"✗ Failed to store {key_name}", err=True)
+        if not store.available:
+            click.echo("  Hint: Install keyring: pip install keyring", err=True)
+
+
+@keys_cli.command()
+@click.option("--key", "-k", "key_name", required=True, help="Key name to retrieve")
+@click.option("--show", "-s", is_flag=True, help="Show the actual value (default: masked)")
+def get(key_name: str, show: bool):
+    """Retrieve a credential from keychain or environment."""
+    store = KeyringStore()
+    value = store.get(key_name)
+
+    if value:
+        if show:
+            click.echo(value)
+        else:
+            masked = value[:4] + "*" * (len(value) - 4) if len(value) > 4 else "****"
+            click.echo(masked)
+    else:
+        click.echo(f"✗ Key {key_name} not found", err=True)
+
+
+@keys_cli.command()
+@click.option("--key", "-k", "key_name", required=True, help="Key name to delete")
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation")
+def delete(key_name: str, yes: bool):
+    """Delete a credential from OS keychain."""
+    if not yes:
+        if not click.confirm(f"Delete {key_name} from keychain?"):
+            click.echo("Aborted.")
+            return
+
+    store = KeyringStore()
+    if store.delete(key_name):
+        click.echo(f"✓ Deleted {key_name} from keychain")
+    else:
+        click.echo(f"✗ Failed to delete {key_name}", err=True)
+
+
+@keys_cli.command("list")
+def list_keys():
+    """List all known key names and their status."""
+    store = KeyringStore()
+    diag = store.diagnose()
+
+    click.echo("MAREF Keychain Status")
+    click.echo("=" * 40)
+    click.echo(f"  System:         {diag['system']}")
+    click.echo(f"  Service:        {diag['service']}")
+    click.echo(f"  Keyring:        {'Available' if diag['keyring_available'] else 'Not available'}")
+    if diag.get("keyring_backend"):
+        click.echo(f"  Backend:        {diag['keyring_backend']}")
+    click.echo()
+
+    click.echo("Known Keys:")
+    click.echo("-" * 40)
+    for key_name in store.list_keys():
+        env_set = key_name in diag.get("env_vars", [])
+        stored = key_name in diag.get("stored_keys", [])
+        status = []
+        if env_set:
+            status.append("env")
+        if stored:
+            status.append("keychain")
+        status_str = ", ".join(status) if status else "not set"
+        click.echo(f"  {key_name:30s} [{status_str}]")
+
+
+@keys_cli.command()
+def diagnose():
+    """Run diagnostic checks on keychain configuration."""
+    store = KeyringStore()
+    diag = store.diagnose()
+
+    click.echo("MAREF Keychain Diagnostic")
+    click.echo("=" * 40)
+
+    issues = []
+
+    if not diag["keyring_available"]:
+        issues.append("WARNING: keyring library not installed")
+        issues.append("  Install with: pip install keyring")
+
+    if not diag.get("stored_keys"):
+        issues.append("WARNING: No keys stored in keychain")
+        issues.append("  Use 'maref-lite keys set --key DASHSCOPE_API_KEY' to store keys")
+
+    if issues:
+        click.echo("\nIssues Found:")
+        for issue in issues:
+            click.echo(f"  {issue}")
+    else:
+        click.echo("\n✓ All checks passed")
+
+    click.echo()
+    click.echo("Details:")
+    for k, v in diag.items():
+        if k != "env_vars":
+            click.echo(f"  {k}: {v}")

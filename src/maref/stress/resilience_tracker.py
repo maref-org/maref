@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+import statistics
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class ResilienceRecord:
+    round_id: str
+    timestamp: float
+    resilience_score: float
+    data: dict[str, Any] = field(default_factory=dict)
+
+
+class ResilienceTracker:
+    def __init__(self, max_history: int = 100) -> None:
+        self._records: list[ResilienceRecord] = []
+        self._max_history = max_history
+
+    def record_round(self, round_id: str, score: float, data: dict[str, Any] | None = None) -> ResilienceRecord:
+        record = ResilienceRecord(
+            round_id=round_id,
+            timestamp=time.time(),
+            resilience_score=score,
+            data=data or {},
+        )
+        self._records.append(record)
+        if len(self._records) > self._max_history:
+            self._records = self._records[-self._max_history:]
+        return record
+
+    def trend(self, window: int = 5) -> dict[str, float]:
+        if len(self._records) < 2:
+            return {"slope": 0.0, "mean": 0.0, "min": 0.0, "max": 0.0}
+        recent = [r.resilience_score for r in self._records[-window:]]
+        n = len(recent)
+        x_mean = (n - 1) / 2.0
+        y_mean = statistics.mean(recent)
+        num = sum((i - x_mean) * (recent[i] - y_mean) for i in range(n))
+        den = sum((i - x_mean) ** 2 for i in range(n))
+        slope = num / den if den > 0 else 0.0
+        return {
+            "slope": round(slope, 4),
+            "mean": round(y_mean, 2),
+            "min": round(min(recent), 2),
+            "max": round(max(recent), 2),
+        }
+
+    def worst(self) -> ResilienceRecord | None:
+        if not self._records:
+            return None
+        return min(self._records, key=lambda r: r.resilience_score)
+
+    def best(self) -> ResilienceRecord | None:
+        if not self._records:
+            return None
+        return max(self._records, key=lambda r: r.resilience_score)
+
+    def compare(self, round_a: str, round_b: str) -> dict[str, Any]:
+        a = next((r for r in self._records if r.round_id == round_a), None)
+        b = next((r for r in self._records if r.round_id == round_b), None)
+        if a is None or b is None:
+            return {"error": "round not found"}
+        return {
+            "round_a": round_a,
+            "score_a": a.resilience_score,
+            "round_b": round_b,
+            "score_b": b.resilience_score,
+            "delta": round(b.resilience_score - a.resilience_score, 2),
+        }
+
+    @property
+    def records(self) -> list[ResilienceRecord]:
+        return list(self._records)
+
+    @property
+    def count(self) -> int:
+        return len(self._records)

@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+from typing import Any
+
+from maref.integration.mcp_server import MCPServer
+from maref.integration.mcp_transport import InProcessTransport
+
+TOOL_REGISTRY: dict[str, dict[str, Any]] = {}
+
+
+def _register_builtin_tools() -> None:
+    from maref.tools.browser_server import create_browser_server
+    from maref.tools.email_server import create_email_server
+    from maref.tools.file_server import create_file_server
+    from maref.tools.git_server import create_git_server
+    from maref.tools.shell_server import create_shell_server
+
+    TOOL_REGISTRY["file"] = {
+        "name": "file",
+        "description": "File system operations with path sandbox",
+        "factory": create_file_server,
+        "version": "0.27.0",
+        "default_config": {"max_read_size": 10485760},
+        "tools": ["read_file", "write_file", "list_directory", "delete_file", "copy_file", "move_file", "get_file_info"],
+        "security_controls": ["PathSandbox", "FileSizeLimit"],
+    }
+    TOOL_REGISTRY["shell"] = {
+        "name": "shell",
+        "description": "Shell command execution with command whitelist and timeout",
+        "factory": create_shell_server,
+        "version": "0.27.0",
+        "default_config": {},
+        "tools": ["run_command", "get_shell_help"],
+        "security_controls": ["CommandWhitelist", "Timeout", "OutputLimit", "MetacharacterBlock"],
+    }
+    TOOL_REGISTRY["git"] = {
+        "name": "git",
+        "description": "Git repository operations with repo whitelist and write mode gate",
+        "factory": create_git_server,
+        "version": "0.27.0",
+        "default_config": {"repo_whitelist": [], "write_mode": False},
+        "tools": ["git_status", "git_log", "git_diff", "git_branch", "git_commit", "git_push"],
+        "security_controls": ["RepoWhitelist", "WriteModeGate"],
+    }
+    TOOL_REGISTRY["browser"] = {
+        "name": "browser",
+        "description": "Web page fetching and link extraction with domain whitelist",
+        "factory": create_browser_server,
+        "version": "0.27.0",
+        "default_config": {"domain_whitelist": None, "max_content_size": 5242880},
+        "tools": ["browser_open", "browser_screenshot", "browser_get_html", "browser_get_links"],
+        "security_controls": ["DomainWhitelist", "URLValidation", "ContentSizeLimit"],
+    }
+    TOOL_REGISTRY["email"] = {
+        "name": "email",
+        "description": "Email sending and listing with recipient whitelist and sensitive word filter",
+        "factory": create_email_server,
+        "version": "0.27.0",
+        "default_config": {"write_mode": False},
+        "tools": ["email_send", "email_list", "email_read", "email_search"],
+        "security_controls": ["RecipientWhitelist", "SensitiveWordFilter", "WriteModeGate"],
+    }
+
+
+_register_builtin_tools()
+
+
+def get_tool_info(name: str) -> dict[str, Any] | None:
+    info = TOOL_REGISTRY.get(name)
+    if info is None:
+        return None
+    return {k: v for k, v in info.items() if k != "factory"}
+
+
+def list_tools() -> list[dict[str, Any]]:
+    return [
+        {k: v for k, v in info.items() if k != "factory"}
+        for info in TOOL_REGISTRY.values()
+    ]
+
+
+class ToolRegistry:
+    def __init__(self) -> None:
+        self._instances: dict[str, MCPServer] = {}
+        self._configs: dict[str, dict[str, Any]] = {}
+
+    def discover(self) -> list[dict[str, Any]]:
+        return list_tools()
+
+    def install(self, name: str, config: dict[str, Any] | None = None) -> MCPServer:
+        entry = TOOL_REGISTRY.get(name)
+        if entry is None:
+            raise ValueError(f"Unknown tool: {name}. Available: {list(TOOL_REGISTRY.keys())}")
+        merged_config = dict(entry["default_config"])
+        if config:
+            merged_config.update(config)
+        factory_kwargs = dict(merged_config.items())
+        server = entry["factory"](**factory_kwargs)
+        self._instances[name] = server
+        self._configs[name] = merged_config
+        return server
+
+    def get_server(self, name: str) -> MCPServer | None:
+        return self._instances.get(name)
+
+    def list_installed(self) -> list[dict[str, Any]]:
+        return [
+            {"name": name, "tools": info["tools"], "config": self._configs.get(name, {})}
+            for name, info in TOOL_REGISTRY.items()
+            if name in self._instances
+        ]
+
+    def info(self, name: str) -> dict[str, Any] | None:
+        return get_tool_info(name)
+
+    def policy(self, name: str) -> dict[str, Any]:
+        info = TOOL_REGISTRY.get(name)
+        if info is None:
+            raise ValueError(f"Unknown tool: {name}")
+        return {
+            "name": name,
+            "tools": info["tools"],
+            "security_controls": info["security_controls"],
+            "default_governance_rules": [
+                {"tool": tool, "recommended_rule": "mcp-rule-002" if tool in (
+                    "read_file", "list_directory", "get_file_info",
+                    "git_status", "git_log", "git_diff", "git_branch",
+                    "browser_open", "browser_screenshot", "browser_get_html", "browser_get_links",
+                    "email_list", "email_read", "email_search", "get_shell_help",
+                ) else "mcp-rule-005" if tool in (
+                    "write_file", "delete_file", "copy_file", "move_file",
+                    "git_commit", "git_push",
+                    "email_send",
+                ) else "mcp-rule-003"}
+                for tool in info["tools"]
+            ],
+        }
+
+    def get_transport(self, name: str) -> InProcessTransport | None:
+        server = self._instances.get(name)
+        if server is None:
+            return None
+        return server.get_inprocess_transport()

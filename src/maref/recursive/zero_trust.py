@@ -1,0 +1,262 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+import os
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class MessageType(str, Enum):
+    INSTRUCTION = "instruction"
+    OBSERVATION = "observation"
+    QUERY = "query"
+    RESPONSE = "response"
+    HANDSHAKE = "handshake"
+
+
+@dataclass
+class AgentMessage:
+    sender_id: str
+    receiver_id: str
+    message_type: MessageType
+    payload: dict[str, Any] = field(default_factory=dict)
+    signature: str = ""
+    nonce: str = ""
+    timestamp: float = field(default_factory=time.time)
+    context_scope: str = ""
+    ttl_seconds: float = 60.0
+
+    def is_expired(self) -> bool:
+        return (time.time() - self.timestamp) > self.ttl_seconds
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "sender_id": self.sender_id,
+            "receiver_id": self.receiver_id,
+            "message_type": self.message_type.value,
+            "payload": self.payload,
+            "signature": self.signature,
+            "nonce": self.nonce,
+            "timestamp": self.timestamp,
+            "context_scope": self.context_scope,
+            "ttl_seconds": self.ttl_seconds,
+        }
+
+
+@dataclass
+class AgentBoundaryConfig:
+    require_signatures: bool = True
+    max_ttl_seconds: float = 300.0
+    reject_expired: bool = True
+    max_payload_size: int = 1048576
+    allowed_senders: list[str] | None = None
+
+
+class AgentBoundary:
+    def __init__(self, config: AgentBoundaryConfig | None = None) -> None:
+        self._config = config or AgentBoundaryConfig()
+        self._instruction_channel: list[AgentMessage] = []
+        self._observation_channel: list[AgentMessage] = []
+        self._query_channel: list[AgentMessage] = []
+        self._shared_secret: str = hashlib.sha256(os.urandom(32)).hexdigest()
+
+    def send(self, message: AgentMessage) -> bool:
+        message.timestamp = time.time()
+        if self._config.require_signatures:
+            message.nonce = hashlib.sha256(os.urandom(16)).hexdigest()[:16]
+            message.signature = self._sign_message(message)
+        channel = self._channel_for(message.message_type)
+        channel.append(message)
+        return True
+
+    def receive(self, channel: MessageType | None = None) -> AgentMessage | None:
+        if channel is not None:
+            ch = self._channel_for(channel)
+            return ch.pop(0) if ch else None
+        return None
+
+    def receive_all(self, channel: MessageType | None = None) -> list[AgentMessage]:
+        if channel is not None:
+            ch = self._channel_for(channel)
+            msgs = list(ch)
+            ch.clear()
+            return msgs
+        return []
+
+    def _channel_for(self, msg_type: MessageType) -> list[AgentMessage]:
+        if msg_type == MessageType.INSTRUCTION:
+            return self._instruction_channel
+        elif msg_type == MessageType.QUERY:
+            return self._query_channel
+        else:
+            return self._observation_channel
+
+    def _sign_message(self, message: AgentMessage) -> str:
+        payload = f"{message.sender_id}|{message.receiver_id}|{message.message_type.value}|{message.nonce}|{message.timestamp:.6f}|{hash(str(message.payload))}"
+        return hmac.new(
+            self._shared_secret.encode(),
+            payload.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+    def verify_signature(self, message: AgentMessage) -> bool:
+        expected = self._sign_message(message)
+        return hmac.compare_digest(expected, message.signature)
+
+
+class ZeroTrustValidator:
+    def __init__(self, max_age_seconds: float = 60.0,
+                 max_replay_window: float = 30.0) -> None:
+        self._max_age_seconds = max_age_seconds
+        self._max_replay_window = max_replay_window
+        self._seen_nonces: dict[str, float] = {}
+        self._injection_patterns: list[str] = [
+            "ignore previous instructions",
+            "forget all rules",
+            "you are now",
+            "system: override",
+            "bypass safety",
+            "disable gate",
+            "execute arbitrary",
+            "sudo ",
+            "act as if",
+            "pretend you are",
+        ]
+
+    def validate_message(self, message: AgentMessage,
+                          boundary: AgentBoundary | None = None) -> ValidationResult:
+        errors: list[str] = []
+
+        if time.time() - message.timestamp > self._max_age_seconds:
+            errors.append("Message too old")
+
+        if message.is_expired():
+            errors.append("Message TTL expired")
+
+        if message.nonce in self._seen_nonces:
+            if time.time() - self._seen_nonces[message.nonce] < self._max_replay_window:
+                errors.append(f"Replay detected for nonce {message.nonce[:8]}")
+        self._seen_nonces[message.nonce] = time.time()
+
+        self._clean_old_nonces()
+
+        if boundary is not None and not boundary.verify_signature(message):
+            errors.append("Signature verification failed")
+
+        injection_check = self.detect_injection(message)
+        if injection_check.detected:
+            errors.append(f"Injection detected: {injection_check.reason}")
+
+        return ValidationResult(
+            valid=len(errors) == 0,
+            errors=errors,
+            sender=message.sender_id,
+        )
+
+    def detect_injection(self, message: AgentMessage) -> InjectionResult:
+        payload_str = str(message.payload).lower()
+        for pattern in self._injection_patterns:
+            if pattern.lower() in payload_str:
+                return InjectionResult(
+                    detected=True,
+                    reason=f"Pattern match: '{pattern}'",
+                    pattern=pattern,
+                )
+
+        instruction_markers = ["execute ", "run ", "delete ", "modify ", "overwrite "]
+        if message.message_type == MessageType.OBSERVATION:
+            for marker in instruction_markers:
+                if marker in payload_str:
+                    return InjectionResult(
+                        detected=True,
+                        reason=f"Instruction marker '{marker}' found in observation channel",
+                        pattern=marker,
+                    )
+
+        return InjectionResult(detected=False, reason="", pattern="")
+
+    def detect_context_pollution(self, messages: list[AgentMessage]) -> list[str]:
+        pollution: list[str] = []
+        for i, msg in enumerate(messages):
+            for other in messages[i + 1:]:
+                if msg.context_scope and other.context_scope:
+                    if msg.context_scope != other.context_scope:
+                        shared_keys = set(msg.payload.keys()) & set(other.payload.keys())
+                        if shared_keys:
+                            pollution.append(
+                                f"Context pollution: scopes {msg.context_scope} and "
+                                f"{other.context_scope} share payload keys: {shared_keys}"
+                            )
+        return pollution
+
+    def _clean_old_nonces(self) -> None:
+        now = time.time()
+        expired = [n for n, t in self._seen_nonces.items()
+                   if now - t > self._max_replay_window * 2]
+        for n in expired:
+            del self._seen_nonces[n]
+
+
+@dataclass
+class ValidationResult:
+    valid: bool
+    errors: list[str] = field(default_factory=list)
+    sender: str = ""
+
+
+@dataclass
+class InjectionResult:
+    detected: bool
+    reason: str
+    pattern: str
+
+
+@dataclass
+class ContextBoundary:
+    agent_id: str
+    scope: str
+    data: dict[str, Any] = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+
+
+class ContextIsolation:
+    def __init__(self) -> None:
+        self._boundaries: dict[str, ContextBoundary] = {}
+
+    def isolate(self, agent_id: str, context: dict[str, Any],
+                scope: str = "") -> ContextBoundary:
+        boundary = ContextBoundary(
+            agent_id=agent_id,
+            scope=scope or f"isolated_{agent_id}_{int(time.time())}",
+            data=dict(context),
+        )
+        self._boundaries[boundary.scope] = boundary
+        return boundary
+
+    def get(self, scope: str) -> ContextBoundary | None:
+        return self._boundaries.get(scope)
+
+    def merge(self, scopes: list[str],
+              new_scope: str = "") -> ContextBoundary | None:
+        boundaries = [self._boundaries[s] for s in scopes if s in self._boundaries]
+        if not boundaries:
+            return None
+        merged_data: dict[str, Any] = {}
+        for b in boundaries:
+            merged_data.update(b.data)
+        new_boundary = ContextBoundary(
+            agent_id="merged",
+            scope=new_scope or f"merged_{int(time.time())}",
+            data=merged_data,
+        )
+        self._boundaries[new_boundary.scope] = new_boundary
+        return new_boundary
+
+    def clear(self, scope: str) -> None:
+        self._boundaries.pop(scope, None)
+
+    def active_scopes(self) -> list[str]:
+        return list(self._boundaries.keys())

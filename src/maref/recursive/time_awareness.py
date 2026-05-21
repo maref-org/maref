@@ -1,0 +1,178 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class TimeContext:
+    task_id: str = ""
+    deadline: float | None = None
+    estimated_duration: float = 0.0
+    started_at: float = field(default_factory=time.time)
+    current_progress: float = 0.0
+    remaining_budget: float | None = None
+
+    def is_expired(self) -> bool:
+        if self.deadline is None:
+            return False
+        return time.time() > self.deadline
+
+    def time_pressure(self) -> float:
+        if self.deadline is None or self.estimated_duration <= 0:
+            return 0.0
+        remaining = self.deadline - time.time()
+        if remaining <= 0:
+            return 1.0
+        pressure = 1.0 - (remaining / self.estimated_duration)
+        return max(0.0, min(1.0, pressure))
+
+    def remaining_seconds(self) -> float:
+        if self.deadline is None:
+            return float("inf")
+        return max(0.0, self.deadline - time.time())
+
+    def should_escalate(self, pressure_threshold: float = 0.7) -> bool:
+        return self.time_pressure() >= pressure_threshold
+
+    def progress_at_deadline(self) -> float:
+        if self.estimated_duration <= 0 or self.deadline is None:
+            return 1.0
+        time.time() - self.started_at
+        expected_at_deadline = (self.deadline - self.started_at) / self.estimated_duration
+        return min(1.0, max(0.0, expected_at_deadline))
+
+
+@dataclass
+class ConflictPair:
+    task_a: str
+    task_b: str
+    conflict_type: str
+    overlap_seconds: float
+
+
+class TimelineTracker:
+    def __init__(self) -> None:
+        self._timelines: dict[str, TimeContext] = {}
+
+    def register(self, task_id: str, context: TimeContext) -> None:
+        context.task_id = task_id
+        self._timelines[task_id] = context
+
+    def get(self, task_id: str) -> TimeContext | None:
+        return self._timelines.get(task_id)
+
+    def concurrent_timelines(self, agent_id: str) -> list[TimeContext]:
+        now = time.time()
+        active: list[TimeContext] = []
+        for ctx in self._timelines.values():
+            if ctx.started_at <= now and not ctx.is_expired():
+                active.append(ctx)
+        return active
+
+    def detect_conflict(self) -> list[ConflictPair]:
+        conflicts: list[ConflictPair] = []
+        task_ids = list(self._timelines.keys())
+        for i, tid_a in enumerate(task_ids):
+            ctx_a = self._timelines[tid_a]
+            for tid_b in task_ids[i + 1:]:
+                ctx_b = self._timelines[tid_b]
+                a_start = ctx_a.started_at
+                a_end = ctx_a.deadline or (a_start + ctx_a.estimated_duration)
+                b_start = ctx_b.started_at
+                b_end = ctx_b.deadline or (b_start + ctx_b.estimated_duration)
+                if a_start < b_end and b_start < a_end:
+                    overlap = min(a_end, b_end) - max(a_start, b_start)
+                    if overlap > 0:
+                        conflicts.append(ConflictPair(
+                            task_a=tid_a, task_b=tid_b,
+                            conflict_type="temporal_overlap",
+                            overlap_seconds=overlap,
+                        ))
+        return conflicts
+
+    def merge_timelines(self, task_ids: list[str]) -> TimeContext | None:
+        contexts = [self._timelines[tid] for tid in task_ids if tid in self._timelines]
+        if not contexts:
+            return None
+        merged_id = "_".join(sorted(task_ids))
+        earliest_start = min(c.started_at for c in contexts)
+        latest_deadline = max(
+            (c.deadline or (c.started_at + c.estimated_duration)) for c in contexts
+        )
+        total_duration = sum(c.estimated_duration for c in contexts)
+        return TimeContext(
+            task_id=f"merged_{merged_id}",
+            deadline=latest_deadline,
+            estimated_duration=total_duration,
+            started_at=earliest_start,
+        )
+
+    def active_count(self) -> int:
+        return len(self.concurrent_timelines(""))
+
+    def remove(self, task_id: str) -> None:
+        self._timelines.pop(task_id, None)
+
+
+class DeadlineNegotiator:
+    def __init__(self, history_window: int = 20) -> None:
+        self._history: dict[str, list[float]] = {}
+        self._history_window = history_window
+
+    def negotiate_deadline(self, task: str, proposed: float,
+                           constraints: dict[str, Any] | None = None) -> float:
+        constraints = constraints or {}
+        min_deadline = constraints.get("min_deadline", 0)
+        max_deadline = constraints.get("max_deadline", float("inf"))
+        agent_load = constraints.get("agent_load", 0.5)
+
+        histories = self._history.get(task, [])
+        avg_duration: float = sum(histories) / len(histories) if histories else 30.0
+
+        base_deadline = time.time() + avg_duration * (1.0 + agent_load)
+        adjusted = max(proposed, base_deadline)
+        adjusted = max(adjusted, min_deadline)
+        adjusted = min(adjusted, max_deadline)
+
+        return adjusted
+
+    def propose_extension(self, task: str,
+                          current_deadline: float,
+                          reason: str = "") -> float | None:
+        histories = self._history.get(task, [])
+        if not histories:
+            return None
+        avg_duration = sum(histories) / len(histories)
+        required = current_deadline + avg_duration * 0.5
+        if required > current_deadline:
+            return required
+        return None
+
+    def generate_time_update(self, context: TimeContext) -> str:
+        pressure = context.time_pressure()
+        remaining = context.remaining_seconds()
+        progress = context.current_progress
+
+        if pressure >= 0.8:
+            return f"CRITICAL: {remaining:.0f}s remaining, {progress * 100:.0f}% complete. Escalation recommended."
+        elif pressure >= 0.5:
+            return f"WARNING: {remaining:.0f}s remaining, {progress * 100:.0f}% complete. Consider escalation."
+        elif pressure >= 0.2:
+            return f"NOTICE: {remaining:.0f}s remaining, {progress * 100:.0f}% complete."
+        else:
+            return f"OK: {remaining:.0f}s remaining, {progress * 100:.0f}% complete."
+
+    def record_duration(self, task: str, duration: float) -> None:
+        if task not in self._history:
+            self._history[task] = []
+        self._history[task].append(duration)
+        if len(self._history[task]) > self._history_window:
+            self._history[task] = self._history[task][-self._history_window:]
+
+    def average_duration(self, task: str) -> float | None:
+        histories = self._history.get(task)
+        if not histories:
+            return None
+        return sum(histories) / len(histories)

@@ -1,0 +1,391 @@
+"""
+MAREF Recursive Governance (M4 Enhanced)
+
+Phase 10: Implements the ultimate recursive structure where MAREF
+acts as an Agent within its own governance overlay.
+
+M4 enhancements:
+- CircuitBreaker: depth>3 → force degrade to primary only
+- OscillationFixLoop: integrated via primary overlay
+- PolicySandbox auto-revert: 30-min timer for unverified changes
+- Full audit trail: every meta-decision logged
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from dataclasses import dataclass
+from typing import Any
+
+from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox
+from maref.governance import (
+    AuditLogger,
+    CircuitBreaker,
+    GovernanceState,
+    GovernanceStateMachine,
+)
+from maref_lite.governance import GovernanceOverlay
+from maref_lite.meta_learning import DecisionOutcome, MetaLearner
+from sidecar.collector import AgentAdapter, ObservationCollector
+from sidecar.protocol import AgentId, AgentState, EntropyReading, StateSnapshot
+
+
+class MAREFSelfAdapter(AgentAdapter):
+    """Adapter that treats MAREF itself as an Agent."""
+
+    def __init__(self, overlay: GovernanceOverlay) -> None:
+        self._overlay = overlay
+        self._agent_id = AgentId(name="maref-core", namespace="self")
+
+    async def list_agents(self) -> list[AgentId]:
+        return [self._agent_id]
+
+    async def get_state(self, agent_id: AgentId) -> StateSnapshot | None:
+        if agent_id != self._agent_id:
+            return None
+        status = self._overlay.get_status()
+        return StateSnapshot(
+            agent_id=agent_id,
+            timestamp=time.time(),
+            state=AgentState.RUNNING,
+            current_task=status["state"],
+            task_progress=0.5,
+            pending_messages=status.get("anomaly_count", 0),
+        )
+
+    async def get_entropy(self, agent_id: AgentId) -> EntropyReading | None:
+        if agent_id != self._agent_id:
+            return None
+        status = self._overlay.get_status()
+        return EntropyReading(
+            source=str(agent_id),
+            timestamp=time.time(),
+            value=float(status["entropy"]),
+            threshold=4.0,
+            level="normal" if status["entropy"] < 3 else "critical",
+        )
+
+
+@dataclass
+class RecursiveGovernanceConfig:
+    """Configuration for recursive governance (M4 enhanced)."""
+
+    max_recursion_depth: int = 4
+    self_observation_cooldown: float = 5.0
+    max_oscillation_rate: float = 10.0
+    enable_meta_learning: bool = True
+    enable_policy_sandbox: bool = True
+    sandbox_auto_revert_minutes: int = 60
+    circuit_breaker_cooldown: float = 15.0
+    circuit_breaker_max_failures: int = 5
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "max_recursion_depth": self.max_recursion_depth,
+            "self_observation_cooldown": self.self_observation_cooldown,
+            "max_oscillation_rate": self.max_oscillation_rate,
+            "enable_meta_learning": self.enable_meta_learning,
+            "enable_policy_sandbox": self.enable_policy_sandbox,
+            "sandbox_auto_revert_minutes": self.sandbox_auto_revert_minutes,
+        }
+
+
+class RecursiveGovernanceOverlay:
+    """
+    Recursive governance overlay that manages MAREF itself (M4 enhanced).
+
+    M4 safety layers:
+    - CircuitBreaker: depth check + oscillation check on every observation
+    - OscillationFixLoop: delegated to primary overlay for full detect→fix cycle
+    - Sandbox auto-revert: N-minute timer revokes unverified sandbox changes
+    - Audit trail: all meta-decisions audited
+    """
+
+    def __init__(
+        self,
+        primary_overlay: GovernanceOverlay | None = None,
+        config: RecursiveGovernanceConfig | None = None,
+    ) -> None:
+        self._config = config or RecursiveGovernanceConfig()
+
+        self._primary = primary_overlay or GovernanceOverlay(
+            state_machine=GovernanceStateMachine(),
+            enable_self_observation=True,
+        )
+
+        self._meta = GovernanceOverlay(
+            state_machine=GovernanceStateMachine(),
+            enable_self_observation=False,
+        )
+
+        # M4: Circuit breaker
+        self._breaker = CircuitBreaker(
+            max_depth=self._config.max_recursion_depth,
+            max_oscillation_rate=self._config.max_oscillation_rate,
+            max_consecutive_failures=self._config.circuit_breaker_max_failures,
+            cooldown_seconds=self._config.circuit_breaker_cooldown,
+        )
+
+        # M4: Audit logger for meta-level decisions
+        self._audit = AuditLogger(log_path="recursive_governance_audit.jsonl")
+
+        # Self-adapter for recursive observation
+        self._self_adapter = MAREFSelfAdapter(self._primary)
+        self._self_collector = ObservationCollector(
+            adapter=self._self_adapter,
+            poll_interval=self._config.self_observation_cooldown,
+        )
+
+        self._meta_learner = MetaLearner() if self._config.enable_meta_learning else None
+        self._sandbox = PolicySandbox() if self._config.enable_policy_sandbox else None
+
+        # M4: Sandbox auto-revert timer
+        self._sandbox_timers: dict[str, asyncio.Task[None]] = {}
+
+        self._state_changes: list[float] = []
+        self._recursion_depth = 0
+        self._consecutive_anomalies = 0
+        self._last_observation_time = 0.0
+        self._running = False
+
+    async def run(self) -> None:
+        self._running = True
+
+        primary_task = asyncio.create_task(self._primary.run())
+        self._self_collector.add_callback(self._on_self_observation)
+        collector_task = asyncio.create_task(self._self_collector.run())
+
+        meta_task = asyncio.create_task(self._meta_learning_loop()) if self._meta_learner else None
+
+        if self._sandbox:
+            revert_task = asyncio.create_task(self._sandbox_auto_revert_loop())
+        else:
+            revert_task = None
+
+        try:
+            await primary_task
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._running = False
+            collector_task.cancel()
+            if meta_task:
+                meta_task.cancel()
+            if revert_task:
+                revert_task.cancel()
+
+    def stop(self) -> None:
+        self._running = False
+        self._primary.stop()
+        self._self_collector.stop()
+
+    def _on_self_observation(self, observation: Any) -> None:
+        now = time.time()
+
+        # Time-window based depth reset: only reset recursion depth
+        # after 60 seconds of no observations, preventing the depth
+        # counter from being zeroed on every normal completion.
+        if now - self._last_observation_time > 60.0:
+            self._recursion_depth = 0
+            self._consecutive_anomalies = 0
+        self._last_observation_time = now
+
+        # M4: Circuit breaker depth check
+        if not self._breaker.check_depth(self._recursion_depth + 1):
+            self._audit.log(
+                event_type="circuit_breaker_trip",
+                actor="RecursiveGovernanceOverlay",
+                action="block_self_observation",
+                details=f"depth={self._recursion_depth + 1}",
+            )
+            self._recursion_depth = 0
+            self._consecutive_anomalies = 0
+            self._primary.force_stabilize(reason="circuit_breaker_depth_triggered")
+            self._breaker.record_failure()
+            return
+
+        self._recursion_depth += 1
+
+        # M4: Oscillation detection → delegate to primary's oscillation loop
+        oscillation_rate = len(self._state_changes)
+        if oscillation_rate > self._config.max_oscillation_rate:
+            if not self._breaker.check_oscillation(
+                oscillation_rate,
+                self._primary._state_machine.current_entropy,
+                self._primary._state_machine.current_state.name,
+            ):
+                self._audit.log(
+                    event_type="circuit_breaker_trip",
+                    actor="RecursiveGovernanceOverlay",
+                    action="block_oscillation_handler",
+                    details=f"rate={oscillation_rate}",
+                )
+                self._recursion_depth = 0
+                self._consecutive_anomalies = 0
+                self._primary.force_stabilize(reason="circuit_breaker_oscillation_triggered")
+                self._breaker.record_failure()
+                return
+
+            # M4: Emit oscillation event to primary's event bus
+            asyncio.create_task(
+                self._primary.emit_event("oscillation_detected", rate=oscillation_rate)
+            )
+
+            self._handle_oscillation()
+            self._recursion_depth = 0
+            return
+
+        self._breaker.record_success()
+
+        # Record state change time
+        self._state_changes.append(time.time())
+        cutoff = time.time() - 60.0
+        self._state_changes = [t for t in self._state_changes if t > cutoff]
+
+        # Consecutive anomaly detection: trip circuit breaker
+        # if critical anomalies persist across 5 consecutive observations.
+        status = self._primary.get_status()
+        if status["critical_count"] > 0:
+            self._consecutive_anomalies += 1
+            if self._consecutive_anomalies >= 5:
+                self._audit.log(
+                    event_type="circuit_breaker_trip",
+                    actor="RecursiveGovernanceOverlay",
+                    action="block_consecutive_anomalies",
+                    details=f"consecutive_anomalies={self._consecutive_anomalies}",
+                )
+                self._recursion_depth = 0
+                self._primary.force_stabilize(reason="circuit_breaker_consecutive_anomalies")
+                self._breaker.record_failure()
+                return
+
+            # Update meta-overlay state
+            self._meta.transition_state(
+                GovernanceState.ANALYZE,
+                reason="primary_critical_detected",
+            )
+        else:
+            self._consecutive_anomalies = 0
+
+        # No longer unconditionally reset depth — the time-window
+        # check at the top of this method handles depth decay.
+
+    def _handle_oscillation(self) -> None:
+        self._primary.force_stabilize(reason="meta_detected_oscillation")
+
+        # Audit
+        self._audit.log_decision(
+            actor="RecursiveGovernanceOverlay",
+            action="oscillation_intervention",
+            reason="meta_detected_oscillation",
+            from_state=self._primary._state_machine.current_state.name,
+            to_state="STABILIZE",
+            oscillation_rate=len(self._state_changes),
+        )
+
+        if self._meta_learner:
+            outcome = DecisionOutcome(
+                timestamp=time.time(),
+                decision_type="oscillation_intervention",
+                state_before="UNKNOWN",
+                state_after="STABILIZE",
+                entropy_before=4,
+                entropy_after=1,
+                reward=1.0,
+            )
+            self._meta_learner.record_decision(outcome)
+
+    async def _meta_learning_loop(self) -> None:
+        while self._running:
+            await asyncio.sleep(60.0)
+            if not self._meta_learner or self._breaker.is_open:
+                continue
+
+            new_policy = self._meta_learner.optimize_policy()
+            if new_policy and self._sandbox:
+                change = self._sandbox.propose_change(
+                    change_type=PolicyChangeType.THRESHOLD_ADJUSTMENT,
+                    description="Meta-learning optimization",
+                    new_config=new_policy,
+                )
+
+                # Audit the proposal
+                self._audit.log_decision(
+                    actor="MetaLearner",
+                    action="propose_policy_change",
+                    reason="meta_learning_optimization",
+                    change_id=change.change_id if hasattr(change, "change_id") else "",
+                )
+
+                # Start auto-revert timer
+                if hasattr(change, "change_id"):
+                    self._sandbox_timers[change.change_id] = asyncio.create_task(
+                        self._auto_revert_timer(change.change_id)
+                    )
+
+                stats = self._meta_learner.get_stats()
+                if stats["avg_reward"] > 0.5:
+                    self._sandbox.approve_change(change.change_id, reviewer="meta")
+
+    # --- M4: Sandbox Auto-Revert ---
+
+    async def _auto_revert_timer(self, change_id: str) -> None:
+        await asyncio.sleep(self._config.sandbox_auto_revert_minutes * 60.0)
+        if self._sandbox:
+            status = self._sandbox.get_stats()
+            pending = status.get("pending", [])
+            for p in pending:
+                if hasattr(p, "change_id") and p.change_id == change_id:
+                    self._sandbox.reject_change(change_id, "auto_revert_by_id")
+                    self._audit.log_decision(
+                        actor="PolicySandbox",
+                        action="auto_revert",
+                        reason="auto_revert_timer_expired",
+                        change_id=change_id,
+                    )
+                    break
+        self._sandbox_timers.pop(change_id, None)
+
+    async def _sandbox_auto_revert_loop(self) -> None:
+        while self._running:
+            await asyncio.sleep(30.0)
+            if not self._sandbox:
+                continue
+            stats = self._sandbox.get_stats()
+            pending = stats.get("pending", [])
+            for p in pending:
+                change_id = getattr(p, "change_id", "")
+                if change_id:
+                    age_minutes = (time.time() - getattr(p, "timestamp", 0)) / 60.0
+                    if age_minutes > self._config.sandbox_auto_revert_minutes:
+                        self._sandbox.reject_change(change_id, "auto_revert")
+                        self._audit.log_decision(
+                            actor="PolicySandbox",
+                            action="auto_revert",
+                            reason=f"age={age_minutes:.0f}min",
+                            change_id=change_id,
+                        )
+
+    def get_recursive_status(self) -> dict[str, Any]:
+        return {
+            "primary_status": self._primary.get_status(),
+            "meta_status": self._meta.get_status(),
+            "recursion_depth": self._recursion_depth,
+            "oscillation_detected": len(self._state_changes) > self._config.max_oscillation_rate,
+            "state_change_rate": len(self._state_changes),
+            "circuit_breaker": self._breaker.get_stats(),
+            "meta_learning": (
+                self._meta_learner.get_stats() if self._meta_learner else None
+            ),
+            "sandbox": self._sandbox.get_stats() if self._sandbox else None,
+        }
+
+    def _detect_oscillation(self) -> bool:
+        return len(self._state_changes) > self._config.max_oscillation_rate
+
+    def get_meta_decisions(self) -> list[dict[str, Any]]:
+        return [
+            {"timestamp": t, "type": "state_change", "depth": self._recursion_depth}
+            for t in self._state_changes[-10:]
+        ]

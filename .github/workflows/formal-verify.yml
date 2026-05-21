@@ -1,0 +1,53 @@
+name: Formal Verification
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "src/maref/governance/**"
+      - "src/maref/formal/**"
+      - "tests/formal/**"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "src/maref/governance/**"
+      - "src/maref/formal/**"
+      - "tests/formal/**"
+
+concurrency:
+  group: formal-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  formal-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install maref
+        run: pip install -e .
+
+      - name: Run 6 Gray code formal checks
+        run: |
+          python -m pytest tests/formal/test_validator.py::TestGrayCodeValidator -v \
+            --tb=short \
+            --junitxml=formal-results.xml
+
+      - name: Run snapshot/restore tests
+        run: |
+          python -m pytest tests/formal/test_validator.py::TestSnapshotRestore -v \
+            --tb=short
+
+      - name: Run BFS path-finding tests
+        run: |
+          python -m pytest tests/formal/test_validator.py::TestBFSPathFinding -v \
+            --tb=short
+
+      - name: Run fixture validation tests
+        run: |
+          python -m pytest tests/formal/test_validator.py::TestStateMachineFixtures -v \
+            --tb=short

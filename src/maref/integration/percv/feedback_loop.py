@@ -1,0 +1,194 @@
+"""Evaluation-to-PERCV feedback loop.
+
+Translates MAS-TS-001 evaluation results into PERCV research directions,
+closing the loop from "what failed in evaluation" to "what to research next."
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class FeedbackPriority(str, Enum):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+_LAYER_NAMES: dict[int, str] = {
+    1: "Static Audit",
+    2: "Reasoning Metrics",
+    3: "Action Metrics",
+    4: "E2E Metrics",
+    5: "MAS Dimensions",
+}
+
+_PRIORITY_THRESHOLDS: list[tuple[float, FeedbackPriority]] = [
+    (50.0, FeedbackPriority.CRITICAL),
+    (70.0, FeedbackPriority.HIGH),
+    (90.0, FeedbackPriority.MEDIUM),
+    (100.0, FeedbackPriority.LOW),
+]
+
+
+def _score_to_priority(score: float) -> FeedbackPriority:
+    for thresh, priority in _PRIORITY_THRESHOLDS:
+        if score < thresh:
+            return priority
+    return FeedbackPriority.LOW
+
+
+def _score_gap(score: float, target: float = 80.0) -> float:
+    return max(0.0, target - score)
+
+
+@dataclass
+class ResearchDirection:
+    topic: str
+    priority: FeedbackPriority
+    source: str
+    score_gap: float
+    rationale: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "topic": self.topic,
+            "priority": self.priority.value,
+            "source": self.source,
+            "score_gap": self.score_gap,
+            "rationale": self.rationale,
+        }
+
+
+class EvalToResearchFeedback:
+    def __init__(
+        self,
+        eval_observer: Any | None = None,
+        quality_gate: Any | None = None,
+    ):
+        self.eval_observer = eval_observer
+        self.quality_gate = quality_gate
+        self.directions: list[ResearchDirection] = []
+
+    def generate_from_report(self, report: Any) -> list[ResearchDirection]:
+        directions: list[ResearchDirection] = []
+        layers = getattr(report, "layers", [])
+
+        for layer in layers:
+            layer_num = getattr(layer, "layer_number", 0)
+            score = getattr(layer, "score", 100.0)
+            layer_name = _LAYER_NAMES.get(layer_num, f"Layer {layer_num}")
+
+            gap = _score_gap(score)
+            priority = FeedbackPriority.LOW if gap <= 0 else _score_to_priority(score)
+
+            topic = f"Improve {layer_name} (score={score:.0f}, gap={gap:.0f})"
+            direction = ResearchDirection(
+                topic=topic,
+                priority=priority,
+                source=f"eval_layer{layer_num}:{layer_name}",
+                score_gap=gap,
+                rationale=f"Layer {layer_num} ({layer_name}) scored {score:.0f}/100",
+            )
+            directions.append(direction)
+
+        self.directions.extend(directions)
+        return directions
+
+    def generate_from_quality_gate(self, qg_result: Any) -> list[ResearchDirection]:
+        verdict = getattr(qg_result, "verdict", None)
+        verdict_str = verdict.value if verdict else "unknown"
+        score = getattr(qg_result, "score", 0.0)
+        cycle_id = getattr(qg_result, "cycle_id", "unknown")
+
+        if verdict_str == "rejected":
+            gap = _score_gap(score)
+            direction = ResearchDirection(
+                topic=f"Improve evolution cycle {cycle_id} performance",
+                priority=FeedbackPriority.CRITICAL,
+                source=f"quality_gate_{cycle_id}",
+                score_gap=gap,
+                rationale=f"Evolution {cycle_id} REJECTED with score {score:.0f}",
+            )
+            self.directions.append(direction)
+            return [direction]
+
+        if verdict_str == "conditional":
+            gap = _score_gap(score)
+            direction = ResearchDirection(
+                topic=f"Strengthen evolution cycle {cycle_id} candidate",
+                priority=FeedbackPriority.HIGH,
+                source=f"quality_gate_{cycle_id}",
+                score_gap=gap,
+                rationale=f"Evolution {cycle_id} CONDITIONAL with score {score:.0f}",
+            )
+            self.directions.append(direction)
+            return [direction]
+
+        return []
+
+    def generate_from_history(self, agent_id: str) -> list[ResearchDirection]:
+        directions: list[ResearchDirection] = []
+        if not self.eval_observer:
+            return directions
+
+        history = self.eval_observer.get_eval_history(agent_id=agent_id)
+        if len(history) < 2:
+            return directions
+
+        scores = [h.get("mas_score", 0.0) for h in history if h.get("mas_score") is not None]
+        if len(scores) < 2:
+            return directions
+
+        recent = scores[-1]
+        trend = recent - scores[-2]
+
+        if trend < -10:
+            direction = ResearchDirection(
+                topic=f"Reverse MAS score decline for {agent_id}",
+                priority=FeedbackPriority.CRITICAL,
+                source="eval_history_trend",
+                score_gap=_score_gap(recent),
+                rationale=f"MAS score dropped {abs(trend):.0f} pts to {recent:.0f}",
+            )
+            directions.append(direction)
+
+        if recent < 60:
+            direction = ResearchDirection(
+                topic=f"Improve low MAS score ({recent:.0f}) for {agent_id}",
+                priority=FeedbackPriority.HIGH,
+                source="eval_history_level",
+                score_gap=_score_gap(recent),
+                rationale=f"MAS score {recent:.0f} is below 60 threshold",
+            )
+            directions.append(direction)
+
+        self.directions.extend(directions)
+        return directions
+
+    def get_all_directions(self) -> list[ResearchDirection]:
+        return list(self.directions)
+
+    def clear_directions(self) -> None:
+        self.directions.clear()
+
+    def summary(self) -> dict[str, Any]:
+        by_priority: dict[str, int] = {}
+        for d in self.directions:
+            p = d.priority.value
+            by_priority[p] = by_priority.get(p, 0) + 1
+        return {
+            "total": len(self.directions),
+            "by_priority": by_priority,
+            "highlights": [
+                d.to_dict() for d in self.directions
+                if d.priority in (FeedbackPriority.CRITICAL, FeedbackPriority.HIGH)
+            ],
+        }

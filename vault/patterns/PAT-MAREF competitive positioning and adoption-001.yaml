@@ -1,0 +1,44 @@
+pattern_id: PAT-MAREF competitive positioning and adoption-001
+pattern_name: Emerging Market Positioning Fallacy
+topic: MAREF competitive positioning and adoption
+first_observed: '2026-05-11T22:13:51.915207'
+validated: true
+hit_rate: 0/2 (0%)
+confidence_decay: 每季度衰减15%
+trigger_conditions:
+- Forecasting competitive outcomes in nascent markets with undefined boundaries
+- Quantitative market-share predictions without standardized metrics
+- Competing against established alternatives with network effects
+forecast_conclusions:
+- Relative adoption trajectory (niche/moderate/major) rather than precise market-share
+  percentages
+- Strategic foothold potential conditional on ecosystem development speed
+- Competitive viability hinges on timing alignment between differentiation strengths
+  and prioritized enterprise needs
+signal_weights:
+  enterprise_priority_signals: 0.2962962962962963
+  technical_differentiation_signals: 0.25925925925925924
+  ecosystem_growth_signals: 0.14814814814814814
+  competitive_response_signals: 0.2222222222222222
+  quantitative_market_metrics: 0.07407407407407407
+applicable_domains:
+- Emerging technology markets
+- High-assurance enterprise solutions
+- Competitive displacement forecasting
+inapplicable_domains:
+- Mature markets with stable metrics
+- Consumer adoption patterns
+- Regulated monopolistic environments
+linked_patterns: []
+source_forecast_ids:
+- F-20260511-001
+calibration_log:
+- date: '2026-05-11T22:16:25.652272'
+  event: initial creation
+  forecast_result: partial
+- date: '2026-05-11T22:16:25.654790'
+  event: weight calibration
+  forecast_id: F-20260511-001
+  forecast_result: partial
+  adjustment: -0.15
+created_at: '2026-05-11T22:16:25.652293'

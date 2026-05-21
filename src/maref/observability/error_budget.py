@@ -1,0 +1,164 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+from maref.observability.red_metrics import REDMetricsCollector
+
+
+class BurnRateLevel(Enum):
+    CRITICAL = "P0"
+    WARNING = "P1"
+    INFO = "P2"
+    OK = "OK"
+
+
+@dataclass
+class ErrorBudget:
+    budget_total: float
+    budget_consumed: float
+    budget_remaining: float
+    budget_remaining_pct: float
+
+    @classmethod
+    def create(cls, total: float, consumed: float = 0.0) -> ErrorBudget:
+        remaining = total - consumed
+        remaining_pct = (remaining / total * 100) if total > 0 else 0.0
+        return cls(
+            budget_total=total,
+            budget_consumed=consumed,
+            budget_remaining=remaining,
+            budget_remaining_pct=round(remaining_pct, 2),
+        )
+
+
+@dataclass
+class BurnRateAlert:
+    level: BurnRateLevel
+    burn_rate: float
+    threshold: float
+    window_seconds: int
+    triggered: bool
+    slo_name: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "level": self.level.value,
+            "burn_rate": round(self.burn_rate, 2),
+            "threshold": self.threshold,
+            "window_seconds": self.window_seconds,
+            "triggered": self.triggered,
+            "slo_name": self.slo_name,
+        }
+
+
+BURN_RATE_CONFIG: list[tuple[BurnRateLevel, float, int, int]] = [
+    (BurnRateLevel.CRITICAL, 14.4, 3600, 300),
+    (BurnRateLevel.WARNING, 6.0, 21600, 1800),
+    (BurnRateLevel.INFO, 2.0, 259200, 21600),
+]
+
+
+class ErrorBudgetCalculator:
+    def __init__(
+        self,
+        collector: REDMetricsCollector,
+        slo_target: float = 0.995,
+        period_seconds: int = 2592000,
+        total_period_requests: int = 1_000_000,
+    ) -> None:
+        self._collector = collector
+        self._slo_target = slo_target
+        self._period_seconds = period_seconds
+        self._total_period_requests = total_period_requests
+        self._budget_total: float = round((1.0 - slo_target) * total_period_requests, 4)
+        self._start_time: float = time.time()
+
+    @property
+    def slo_target(self) -> float:
+        return self._slo_target
+
+    @property
+    def period_seconds(self) -> int:
+        return self._period_seconds
+
+    @property
+    def budget_total(self) -> float:
+        return self._budget_total
+
+    def calculate_budget(self, window_seconds: int = 3600) -> ErrorBudget:
+        error_rate = self._collector.get_error_rate(window_seconds)
+        recent_requests = self._collector.get_rate(window_seconds) * window_seconds
+        consumed = error_rate * recent_requests if recent_requests > 0 else 0.0
+        return ErrorBudget.create(total=self._budget_total, consumed=consumed)
+
+    def calculate_burn_rate(self, window_seconds: int = 3600) -> float:
+        error_rate = self._collector.get_error_rate(window_seconds)
+        recent_requests = self._collector.get_rate(window_seconds) * window_seconds
+        consumed = error_rate * recent_requests if recent_requests > 0 else 0.0
+        if self._budget_total <= 0 or window_seconds <= 0:
+            return 0.0
+        period_fraction = window_seconds / self._period_seconds
+        expected_consumption = self._budget_total * period_fraction
+        if expected_consumption <= 0:
+            return 0.0
+        return consumed / expected_consumption
+
+    def check_alerts(self) -> list[BurnRateAlert]:
+        alerts: list[BurnRateAlert] = []
+        for level, threshold, slow_window, fast_window in BURN_RATE_CONFIG:
+            slow_burn_rate = self.calculate_burn_rate(slow_window)
+            fast_burn_rate = self.calculate_burn_rate(fast_window)
+            if level == BurnRateLevel.CRITICAL:
+                triggered = slow_burn_rate >= threshold or fast_burn_rate >= threshold
+            else:
+                triggered = slow_burn_rate >= threshold and fast_burn_rate >= threshold
+            burn_rate = max(slow_burn_rate, fast_burn_rate)
+            alerts.append(
+                BurnRateAlert(
+                    level=level,
+                    burn_rate=burn_rate,
+                    threshold=threshold,
+                    window_seconds=slow_window,
+                    triggered=triggered,
+                    slo_name=f"availability_{self._slo_target}",
+                )
+            )
+        return alerts
+
+    def is_budget_exhausted(self, window_seconds: int = 3600) -> bool:
+        budget = self.calculate_budget(window_seconds)
+        return budget.budget_remaining <= 0
+
+    def time_to_exhaustion(self, window_seconds: int = 3600) -> float:
+        burn_rate = self.calculate_burn_rate(window_seconds)
+        if burn_rate <= 0:
+            return float("inf")
+        budget = self.calculate_budget(window_seconds)
+        if budget.budget_remaining <= 0:
+            return 0.0
+        remaining_period = self._period_seconds * (budget.budget_remaining / self._budget_total)
+        return remaining_period / burn_rate
+
+    def generate_report(self, window_seconds: int = 3600) -> dict[str, Any]:
+        budget = self.calculate_budget(window_seconds)
+        burn_rate = self.calculate_burn_rate(window_seconds)
+        alerts = self.check_alerts()
+        return {
+            "slo_target": self._slo_target,
+            "period_seconds": self._period_seconds,
+            "total_period_requests": self._total_period_requests,
+            "budget": {
+                "total": round(budget.budget_total, 2),
+                "consumed": round(budget.budget_consumed, 2),
+                "remaining": round(budget.budget_remaining, 2),
+                "remaining_pct": budget.budget_remaining_pct,
+            },
+            "burn_rate": round(burn_rate, 4),
+            "alerts": [a.to_dict() for a in alerts],
+            "budget_exhausted": budget.budget_remaining <= 0,
+            "time_to_exhaustion_seconds": round(self.time_to_exhaustion(window_seconds), 2),
+            "uptime_seconds": round(time.time() - self._start_time, 1),
+        }

@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from maref.recursive.role_registry import PluginRole
+
+BAGUA_ARCHETYPE_TABLE: dict[str, dict[str, Any]] = {
+    "乾": {"name": "全自主 Agent", "description": "Highest trust, unlimited scope", "max_entropy": 10.0},
+    "坤": {"name": "被动执行者", "description": "Only executes explicit commands", "max_entropy": 1.0},
+    "震": {"name": "危机响应者", "description": "Emergency fix, rapid response", "max_entropy": 7.0},
+    "巽": {"name": "渗透学习者", "description": "Observe and learn, shadow mode", "max_entropy": 3.0},
+    "坎": {"name": "风险导航者", "description": "Risk assessment, path planning", "max_entropy": 5.0},
+    "离": {"name": "人机对话者", "description": "Translate, explain, summarize", "max_entropy": 4.0},
+    "艮": {"name": "防守稳定者", "description": "Security check, audit", "max_entropy": 2.0},
+    "兑": {"name": "连接互通者", "description": "Protocol bridging, data exchange", "max_entropy": 6.0},
+}
+
+DEAD_ZONE_HEXAGRAMS: set[int] = {0, 63}
+
+
+@dataclass
+class HexagramWorkflow:
+    hexagram: int
+    role_name: str
+    tools: list[str] = field(default_factory=list)
+    constraints: dict[str, Any] = field(default_factory=dict)
+    hooks: list[str] = field(default_factory=list)
+    max_entropy: float = 5.0
+
+
+@dataclass
+class CompositionError:
+    reason: str
+
+
+class RoleComposer:
+    @staticmethod
+    def compose(
+        core_role: PluginRole,
+        plugin_roles: list[PluginRole],
+    ) -> HexagramWorkflow | CompositionError:
+        core_trigram_idx = _trigram_to_index(core_role.capability.trigram)
+        combined_hexagram = core_trigram_idx
+
+        for plugin in plugin_roles:
+            plugin_idx = _trigram_to_index(plugin.capability.trigram)
+            combined_hexagram = (combined_hexagram << 3) | plugin_idx
+
+        combined_hexagram = combined_hexagram % 64
+
+        if combined_hexagram in DEAD_ZONE_HEXAGRAMS:
+            combined_hexagram = (combined_hexagram + 1) % 64
+            if combined_hexagram in DEAD_ZONE_HEXAGRAMS:
+                combined_hexagram = (combined_hexagram + 1) % 64
+
+        all_tools: list[str] = list(core_role.capability.allowed_tools)
+        all_denied: set[str] = set(core_role.capability.denied_tools)
+        for plugin in plugin_roles:
+            all_tools.extend(plugin.capability.allowed_tools)
+            all_denied.update(plugin.capability.denied_tools)
+
+        effective_tools = [t for t in all_tools if t not in all_denied]
+
+        plugin_entropy = sum(p.capability.max_entropy for p in plugin_roles)
+        core_entropy = core_role.capability.max_entropy
+        if plugin_entropy > core_entropy * 0.5:
+            return CompositionError(
+                reason=f"Plugin entropy {plugin_entropy} exceeds core×0.5 = {core_entropy * 0.5}"
+            )
+
+        state_transitions = 2 + len(plugin_roles) * 2
+        if state_transitions > len(core_role.capability.allowed_tools) * 2:
+            return CompositionError(
+                reason=f"State transitions {state_transitions} exceed core×2 = {len(core_role.capability.allowed_tools) * 2}"
+            )
+
+        role_name = core_role.identity.name
+        if plugin_roles:
+            role_name += "/" + "/".join(p.identity.name for p in plugin_roles)
+
+        return HexagramWorkflow(
+            hexagram=combined_hexagram,
+            role_name=role_name,
+            tools=effective_tools,
+            constraints={
+                "core_trigram": core_role.capability.trigram,
+                "plugin_trigrams": [p.capability.trigram for p in plugin_roles],
+                "max_entropy": min(core_entropy, plugin_entropy + core_entropy),
+                "dead_zone_avoided": combined_hexagram not in DEAD_ZONE_HEXAGRAMS,
+            },
+            hooks=[],
+            max_entropy=min(core_entropy, plugin_entropy + core_entropy),
+        )
+
+    @staticmethod
+    def validate(workflow: HexagramWorkflow) -> list[str]:
+        issues: list[str] = []
+
+        if workflow.hexagram in DEAD_ZONE_HEXAGRAMS:
+            issues.append(f"Hexagram {workflow.hexagram} is in dead zone")
+
+        if workflow.max_entropy < 0:
+            issues.append("max_entropy cannot be negative")
+
+        if not workflow.role_name:
+            issues.append("role_name is empty")
+
+        return issues
+
+    @staticmethod
+    def get_archetype(trigram: str) -> dict[str, Any] | None:
+        return BAGUA_ARCHETYPE_TABLE.get(trigram)
+
+
+def _trigram_to_index(trigram: str) -> int:
+    trigram_map = {
+        "乾": 7, "兑": 6, "离": 5, "震": 4,
+        "巽": 3, "坎": 2, "艮": 1, "坤": 0,
+    }
+    return trigram_map.get(trigram, 0)
