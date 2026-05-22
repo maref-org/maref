@@ -135,3 +135,22 @@ export interface TokenUsageData {
   total: number;
   cost?: number;
 }
+
+export interface HITLEvent {
+  event_id: string;
+  tier: string;
+  severity: string;
+  description: string;
+  action: string;
+  timestamp: number;
+  auto_approve_seconds: number;
+  status: "pending" | "approved" | "rejected" | "auto_approved" | "expired";
+}
+
+export interface HITLStats {
+  total_events: number;
+  pending_count: number;
+  by_tier: Record<string, number>;
+  by_status: Record<string, number>;
+  tier_map: Record<string, string>;
+}

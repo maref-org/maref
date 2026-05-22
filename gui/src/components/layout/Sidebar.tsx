@@ -18,6 +18,7 @@ import {
   Zap,
   ListTodo,
   Wrench,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
@@ -36,6 +37,7 @@ export type MarefSection =
   | "formal"
   | "skills"
   | "automation"
+  | "hitl"
   | "tasks"
   | "tools"
   | "settings";
@@ -60,14 +62,15 @@ const MAREF_NAV_ITEMS: {
   { id: "home", icon: Home, label: "首页仪表盘", shortcut: "⌃1" },
   { id: "desktop", icon: Monitor, label: "桌面 Agent", shortcut: "⌃2" },
   { id: "governance", icon: Shield, label: "治理看板", shortcut: "⌃3" },
-  { id: "audit", icon: FileText, label: "审计日志", shortcut: "⌃4" },
-  { id: "drift", icon: BarChart3, label: "漂移检测", shortcut: "⌃5" },
-  { id: "anomaly", icon: AlertTriangle, label: "异常监控", shortcut: "⌃6" },
-  { id: "trust", icon: TrendingUp, label: "信任评分", shortcut: "⌃7" },
-  { id: "formal", icon: GitBranch, label: "形式验证", shortcut: "⌃8" },
-  { id: "tasks", icon: ListTodo, label: "任务面板", shortcut: "⌃9" },
-  { id: "tools", icon: Wrench, label: "工具管理", shortcut: "⌃0" },
-  { id: "settings", icon: Settings, label: "设置", shortcut: "⌃," },
+  { id: "hitl", icon: UserCheck, label: "HITL 审核", shortcut: "⌃4" },
+  { id: "audit", icon: FileText, label: "审计日志", shortcut: "⌃5" },
+  { id: "drift", icon: BarChart3, label: "漂移检测", shortcut: "⌃6" },
+  { id: "anomaly", icon: AlertTriangle, label: "异常监控", shortcut: "⌃7" },
+  { id: "trust", icon: TrendingUp, label: "信任评分", shortcut: "⌃8" },
+  { id: "formal", icon: GitBranch, label: "形式验证", shortcut: "⌃9" },
+  { id: "tasks", icon: ListTodo, label: "任务面板", shortcut: "⌃0" },
+  { id: "tools", icon: Wrench, label: "工具管理", shortcut: "⌃," },
+  { id: "settings", icon: Settings, label: "设置", shortcut: "⌃." },
 ];
 
 export function Sidebar({ activeSection, onSectionChange }: Props) {
