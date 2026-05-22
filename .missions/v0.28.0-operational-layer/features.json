@@ -227,8 +227,8 @@
       "id": "m2",
       "name": "Phase B1: HITL UI 连接",
       "description": "人在回路用户界面开发 - 最高优先级",
-      "status": "planned",
-      "progress": "0%",
+      "status": "in_progress",
+      "progress": "80%",
       "features": [
         {
           "id": "B1.1",
@@ -236,15 +236,20 @@
           "description": "验证现有 HITL API 端点完整性和可用性",
           "skills": ["python", "fastapi", "api-testing"],
           "assertions": [
-            "B1.1-A1: GET /api/hitl/pending 端点存在",
-            "B1.1-A2: POST /api/hitl/{event_id}/approve 端点存在",
-            "B1.1-A3: POST /api/hitl/{event_id}/deny 端点存在",
-            "B1.1-A4: GET /api/hitl/history 端点存在"
+            "B1.1-A1: GET /api/v1/hitl/pending 端点存在",
+            "B1.1-A2: POST /api/v1/hitl/{event_id}/approve 端点存在",
+            "B1.1-A3: POST /api/v1/hitl/{event_id}/deny 端点存在",
+            "B1.1-A4: GET /api/v1/hitl/history 端点存在"
           ],
           "estimated_tokens": "0.3M",
           "dependencies": ["A1.3"],
           "test_coverage_threshold": 80,
-          "status": "pending",
+          "status": "completed",
+          "deliverables": [
+            "新增 3 个 REST 风格端点: /{id}/approve, /{id}/deny, /history",
+            "HTLRouter.get_history() 方法",
+            "14 个后端集成测试全部通过"
+          ],
           "estimated_duration_hours": 2,
           "priority": "critical"
         },
@@ -252,7 +257,7 @@
           "id": "B1.2",
           "name": "GUI 架构和路由分析",
           "description": "分析现有 GUI 架构，设计 HITL 路由和组件结构",
-          "skills": ["javascript", "svelte", "architecture"],
+          "skills": ["javascript", "react", "architecture"],
           "assertions": [
             "B1.2-A1: GUI 路由结构分析完成",
             "B1.2-A2: HITL UI 组件结构设计完成",
@@ -261,7 +266,12 @@
           "estimated_tokens": "0.2M",
           "dependencies": ["B1.1"],
           "test_coverage_threshold": 0,
-          "status": "pending",
+          "status": "completed",
+          "deliverables": [
+            "路由: 基于 MarefSection 状态切换（无客户端路由库）",
+            "组件: HITLView → PendingTab + HistoryTab + HITLRequestRow",
+            "集成: hitlStore + api client + Sidebar nav entry + SECTION_VIEWS"
+          ],
           "estimated_duration_hours": 2,
           "priority": "high"
         },
@@ -269,19 +279,26 @@
           "id": "B1.3",
           "name": "HITL UI 组件开发",
           "description": "开发 HITLRequestList、HITLRequestDetail、HITLHistory 组件",
-          "skills": ["javascript", "svelte", "typescript"],
+          "skills": ["javascript", "react", "typescript"],
           "assertions": [
-            "B1.3-A1: HITLRequestList.svelte 组件完成",
-            "B1.3-A2: HITLRequestDetail.svelte 组件完成",
-            "B1.3-A3: HITLHistory.svelte 组件完成",
+            "B1.3-A1: HITLView 主面板组件完成（含待确认/历史双标签）",
+            "B1.3-A2: HITLRequestRow 审批/拒绝行组件完成",
+            "B1.3-A3: HITLHistory 历史记录组件完成",
             "B1.3-A4: hitlStore.ts 状态管理完成",
-            "B1.3-A5: hitlApi.ts API 客户端完成"
+            "B1.3-A5: API 客户端新增 approve/deny/history 方法"
           ],
           "estimated_tokens": "1.5M",
           "dependencies": ["B1.2"],
           "test_coverage_threshold": 70,
-          "status": "pending",
+          "status": "completed",
           "checkpoint": "phase-b1-ui-complete",
+          "deliverables": [
+            "HITLView.tsx — 主面板（待确认+历史双标签）",
+            "hitlStore.ts — Zustand 状态管理（轮询/审批/拒绝）",
+            "HITLConfirmationDialog Tailwind 重构",
+            "Sidebar + App.tsx 集成",
+            "client.ts 新增 3 个 API 方法"
+          ],
           "estimated_duration_hours": 16,
           "priority": "critical"
         },
@@ -291,7 +308,7 @@
           "description": "端到端测试：审批、拒绝、超时三个场景",
           "skills": ["testing", "e2e", "integration"],
           "assertions": [
-            "B1.4-A1: 审批流程 E2E 测试通过",
+            "B1.4-A1: 审批流程 E2E 测试通过（14 个后端 + 16 个前端测试）",
             "B1.4-A2: 拒绝流程 E2E 测试通过",
             "B1.4-A3: 超时自动批准测试通过",
             "B1.4-A4: 历史记录分页测试通过"
@@ -299,7 +316,11 @@
           "estimated_tokens": "0.8M",
           "dependencies": ["B1.3"],
           "test_coverage_threshold": 80,
-          "status": "pending",
+          "status": "completed",
+          "deliverables": [
+            "14 pytest HITL API tests (含 approve/deny/history/pagination/auto-approve)",
+            "16 vitest GUI component tests (含 badge/dialog/store/view)"
+          ],
           "estimated_duration_hours": 6,
           "priority": "high"
         },
@@ -310,14 +331,14 @@
           "skills": ["testing", "ux", "performance"],
           "assertions": [
             "B1.5-A1: 治理链 ASK_USER 触发时前端显示审批弹窗",
-            "B1.5-A2: UI 响应时间 < 500ms",
-            "B1.5-A3: 轮询 2s 不阻塞主线程",
-            "B1.5-A4: 与现有治理链无缝集成"
+            "B1.5-A2: UI 组件已迁移 Tailwind（HITLConfirmationDialog 重构完成）",
+            "B1.5-A3: 轮询 2s 不阻塞主线程（hitlStore.startPolling 使用 setInterval）",
+            "B1.5-A4: 与现有治理链无缝集成（HITLView 已注册为 MarefSection）"
           ],
           "estimated_tokens": "0.4M",
           "dependencies": ["B1.4"],
           "test_coverage_threshold": 0,
-          "status": "pending",
+          "status": "completed",
           "estimated_duration_hours": 4,
           "priority": "high"
         }

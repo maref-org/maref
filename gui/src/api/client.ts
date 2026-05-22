@@ -1,4 +1,4 @@
-import type { Session, Message, ModelProvider, Skill, Task, FileNode } from "@/types";
+import type { Session, Message, ModelProvider, Skill, Task, FileNode, HITLEvent } from "@/types";
 
 const REAL_BACKEND = "http://localhost:8000";
 const BASE_URL = "/api";
@@ -214,4 +214,16 @@ export const api = {
 
   hitlStats: () =>
     request<{ stats: Record<string, unknown> }>("/v1/hitl/stats"),
+
+  hitlApprove: (eventId: string) =>
+    request<{ event_id: string; status: string; approved: boolean }>(
+      `/v1/hitl/${eventId}/approve`, { method: "POST" }),
+
+  hitlDeny: (eventId: string) =>
+    request<{ event_id: string; status: string; cancelled: boolean; reason: string }>(
+      `/v1/hitl/${eventId}/deny`, { method: "POST" }),
+
+  hitlHistory: (limit = 50, offset = 0) =>
+    request<{ events: HITLEvent[]; count: number }>(
+      `/v1/hitl/history?limit=${limit}&offset=${offset}`),
 };

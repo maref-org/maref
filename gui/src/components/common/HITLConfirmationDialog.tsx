@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { cn } from "@/lib/utils";
 
 interface HITLActionConfirmationProps {
   eventId: string;
@@ -10,11 +11,11 @@ interface HITLActionConfirmationProps {
   onPause: () => void;
 }
 
-const TIER_LABELS: Record<string, { label: string; color: string; severity: "low" | "medium" | "high" | "critical" }> = {
-  "p0_response": { label: "需确认", color: "#ef4444", severity: "critical" },
-  "p1_escalate": { label: "需注意", color: "#f59e0b", severity: "medium" },
-  "p2_log": { label: "仅记录", color: "#6b7280", severity: "low" },
-  "p3_observe": { label: "观察中", color: "#3b82f6", severity: "low" },
+const TIER_CONFIG: Record<string, { label: string; className: string }> = {
+  p0_response: { label: "需确认", className: "bg-red-500 text-white" },
+  p1_escalate: { label: "需注意", className: "bg-amber-500 text-white" },
+  p2_log: { label: "仅记录", className: "bg-gray-500 text-white" },
+  p3_observe: { label: "观察中", className: "bg-blue-500 text-white" },
 };
 
 export function HITLConfirmationDialog({
@@ -55,60 +56,34 @@ export function HITLConfirmationDialog({
     }
   }, [onPause]);
 
-  const tierInfo = TIER_LABELS[tier] ?? TIER_LABELS["p2_log"];
+  const tierCfg = TIER_CONFIG[tier] ?? TIER_CONFIG.p2_log;
 
   return (
     <div
-      style={{
-        border: `1px solid ${tierInfo.color}40`,
-        borderRadius: 8,
-        padding: "12px 16px",
-        margin: "8px 0",
-        backgroundColor: `${tierInfo.color}08`,
-        fontFamily: "system-ui, -apple-system, sans-serif",
-      }}
+      className="rounded-lg border border-maref-border bg-maref-surface p-4 my-2"
       role="alertdialog"
       aria-label="Agent 操作确认"
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "2px 8px",
-            borderRadius: 4,
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#fff",
-            backgroundColor: tierInfo.color,
-          }}
-        >
-          {tierInfo.label}
+      <div className="flex items-center gap-2 mb-2">
+        <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold", tierCfg.className)}>
+          {tierCfg.label}
         </span>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "#1f2937" }}>
-          {action}
-        </span>
+        <span className="text-sm font-semibold text-maref-text">{action}</span>
       </div>
 
-      <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+      <p className="text-sm text-maref-text-muted mb-3 leading-relaxed">
         {description}
       </p>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         <button
           onClick={handleConfirm}
           disabled={processing !== null}
-          style={{
-            padding: "6px 16px",
-            fontSize: 13,
-            fontWeight: 500,
-            border: "none",
-            borderRadius: 6,
-            cursor: processing === "confirm" ? "wait" : "pointer",
-            backgroundColor: "#059669",
-            color: "#fff",
-            opacity: processing === "confirm" ? 0.7 : 1,
-          }}
+          className={cn(
+            "px-4 py-1.5 text-xs font-medium rounded-md transition-colors",
+            "bg-emerald-600 text-white hover:bg-emerald-700",
+            "disabled:opacity-50 disabled:cursor-wait",
+          )}
         >
           {processing === "confirm" ? "确认中..." : "确认继续"}
         </button>
@@ -116,17 +91,11 @@ export function HITLConfirmationDialog({
         <button
           onClick={handleCancel}
           disabled={processing !== null}
-          style={{
-            padding: "6px 16px",
-            fontSize: 13,
-            fontWeight: 500,
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            cursor: processing === "cancel" ? "wait" : "pointer",
-            backgroundColor: "#fff",
-            color: "#374151",
-            opacity: processing === "cancel" ? 0.7 : 1,
-          }}
+          className={cn(
+            "px-4 py-1.5 text-xs font-medium rounded-md transition-colors",
+            "border border-maref-border text-maref-text hover:bg-maref-surface-alt",
+            "disabled:opacity-50 disabled:cursor-wait",
+          )}
         >
           {processing === "cancel" ? "取消中..." : "取消执行"}
         </button>
@@ -134,17 +103,11 @@ export function HITLConfirmationDialog({
         <button
           onClick={handlePause}
           disabled={processing !== null}
-          style={{
-            padding: "6px 16px",
-            fontSize: 13,
-            fontWeight: 500,
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            cursor: processing === "pause" ? "wait" : "pointer",
-            backgroundColor: "#fff",
-            color: "#374151",
-            opacity: processing === "pause" ? 0.7 : 1,
-          }}
+          className={cn(
+            "px-4 py-1.5 text-xs font-medium rounded-md transition-colors",
+            "border border-maref-border text-maref-text hover:bg-maref-surface-alt",
+            "disabled:opacity-50 disabled:cursor-wait",
+          )}
         >
           {processing === "pause" ? "暂停中..." : "暂停全部"}
         </button>
@@ -153,33 +116,19 @@ export function HITLConfirmationDialog({
   );
 }
 
-export function HITLStatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, string> = {
-    pending: "#f59e0b",
-    approved: "#059669",
-    rejected: "#ef4444",
-    auto_approved: "#3b82f6",
-    expired: "#6b7280",
-  };
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  pending: { label: "等待确认", className: "bg-amber-500 text-white" },
+  approved: { label: "已确认", className: "bg-emerald-600 text-white" },
+  rejected: { label: "已取消", className: "bg-red-500 text-white" },
+  auto_approved: { label: "自动确认", className: "bg-blue-500 text-white" },
+  expired: { label: "已过期", className: "bg-gray-500 text-white" },
+};
 
+export function HITLStatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.expired;
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: 12,
-        fontWeight: 500,
-        color: "#fff",
-        backgroundColor: colorMap[status] ?? "#6b7280",
-      }}
-    >
-      {status === "pending" && "等待确认"}
-      {status === "approved" && "已确认"}
-      {status === "rejected" && "已取消"}
-      {status === "auto_approved" && "自动确认"}
-      {status === "expired" && "已过期"}
+    <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-xs font-medium", cfg.className)}>
+      {cfg.label}
     </span>
   );
 }

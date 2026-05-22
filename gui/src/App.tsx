@@ -16,6 +16,7 @@ import { WelcomeFlow } from "@/components/onboarding/WelcomeFlow";
 import { SkillsPanel } from "@/components/views/SkillsPanel";
 import { AutomationView } from "@/components/views/AutomationView";
 import TaskPanelView from "@/components/views/TaskPanelView";
+import { HITLView } from "@/components/views/HITLView";
 import {
   DesktopAgentView,
   AuditLogView,
@@ -39,6 +40,7 @@ const SECTION_VIEWS: Record<MarefSection, React.ComponentType> = {
   home: HomeDashboard,
   desktop: DesktopAgentView,
   governance: GovernanceView,
+  hitl: HITLView,
   audit: AuditLogView,
   drift: DriftDetectionView,
   anomaly: AnomalyMonitorView,

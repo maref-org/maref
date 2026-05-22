@@ -7,10 +7,9 @@ from maref.integration.hitl.
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from maref.integration.hitl import HITLRouter, HITLStatus, HITLTier
@@ -58,7 +57,7 @@ class ActionConfirmationResponse(BaseModel):
 async def request_approval(req: ActionApprovalRequest):
     """Request human approval for an Agent action.
 
-    Creates a HITL event and returns its status. 
+    Creates a HITL event and returns its status.
     If tier is p0_response, execution must wait for human confirmation.
     If tier is p1_escalate, auto-approves after 30s timeout.
     """
@@ -206,3 +205,49 @@ async def get_hitl_stats():
     """Get HITL routing statistics."""
     router_inst = get_hitl_router()
     return HITLStatsResponse(stats=router_inst.get_stats())
+
+
+@router.post("/{event_id}/approve", response_model=ConfirmResponse)
+async def approve_event(event_id: str, reviewer: str = "human"):
+    """Approve a pending HITL event by event_id (REST-style path)."""
+    router_inst = get_hitl_router()
+    status = router_inst.approve(event_id, reviewer=reviewer)
+    return ConfirmResponse(
+        event_id=event_id,
+        status=status.value,
+        approved=status == HITLStatus.APPROVED,
+    )
+
+
+@router.post("/{event_id}/deny", response_model=CancelResponse)
+async def deny_event(event_id: str, reason: str = "Denied by human"):
+    """Deny/reject a pending HITL event by event_id (REST-style path)."""
+    router_inst = get_hitl_router()
+    status = router_inst.reject(event_id, reason=reason)
+    return CancelResponse(
+        event_id=event_id,
+        status=status.value,
+        cancelled=status == HITLStatus.REJECTED,
+        reason=reason,
+    )
+
+
+@router.get("/history", response_model=PendingEventsResponse)
+async def get_history(limit: int = 50, offset: int = 0):
+    """Get completed HITL events (approved, rejected, auto-approved)."""
+    router_inst = get_hitl_router()
+    events = router_inst.get_history(limit=limit, offset=offset)
+    items = [
+        PendingEvent(
+            event_id=e.event_id,
+            tier=e.tier.value,
+            severity=e.severity,
+            description=e.description,
+            action=e.metadata.get("action", "unknown"),
+            timestamp=e.timestamp,
+            auto_approve_seconds=e.auto_approve_seconds,
+            status=e.status.value,
+        )
+        for e in events
+    ]
+    return PendingEventsResponse(events=items, count=len(items))
