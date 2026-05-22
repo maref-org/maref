@@ -8,11 +8,28 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum, auto
-from typing import Any, Optional
+from enum import Enum
+from typing import Any
 
+from maref.compliance.compliance_monitor import (
+    AlertSeverity,
+    ComplianceAlert,
+    ComplianceMonitor,
+    ComplianceSnapshot,
+    MonitoringRule,
+    MonitorState,
+    create_compliance_monitor,
+)
+from maref.compliance.report_generator import (
+    ComplianceReport,
+    ReportFormat,
+    ReportGenerator,
+    ReportSection,
+    ReportType,
+    create_report_generator,
+)
 from maref.governance.audit import AuditLogger
 
 
@@ -48,29 +65,26 @@ class Jurisdiction(Enum):
 @dataclass
 class Regulation:
     """法规定义"""
-    
+
     id: str                      # 法规ID，如 "gdpr-art5"
     name: str                    # 法规名称，如 "GDPR Article 5: Data Minimization"
     jurisdiction: Jurisdiction   # 适用司法管辖区
     regulation_type: RegulationType  # 法规类型
     description: str             # 法规描述
     requirements: list[str]      # 具体要求列表
-    penalty: Optional[str] = None  # 违规处罚说明
-    effective_date: Optional[datetime] = None  # 生效日期
-    sunset_date: Optional[datetime] = None     # 过期日期
-    
+    penalty: str | None = None  # 违规处罚说明
+    effective_date: datetime | None = None  # 生效日期
+    sunset_date: datetime | None = None     # 过期日期
+
     def is_active(self) -> bool:
         """检查法规是否活跃（在有效期内）"""
         current = datetime.now()
-        
+
         if self.effective_date and current < self.effective_date:
             return False
-        
-        if self.sunset_date and current > self.sunset_date:
-            return False
-        
-        return True
-    
+
+        return not (self.sunset_date and current > self.sunset_date)
+
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
@@ -90,13 +104,13 @@ class Regulation:
 @dataclass
 class ComplianceRequirement:
     """合规要求"""
-    
+
     regulation_id: str        # 对应的法规ID
     requirement_text: str     # 要求文本
     implementation_guide: str  # 实施指南
     priority: int = 1        # 优先级 (1-5, 1最高)
     automated: bool = False  # 是否可自动化检查
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "regulation_id": self.regulation_id,
@@ -110,14 +124,14 @@ class ComplianceRequirement:
 @dataclass
 class ComplianceCheckResult:
     """合规检查结果"""
-    
+
     requirement_id: str          # 要求ID
     status: ComplianceStatus    # 检查状态
     evidence: list[str]         # 合规证据列表
     violations: list[str]       # 违规描述列表
     checked_at: datetime        # 检查时间
-    next_check_due: Optional[datetime] = None  # 下次检查时间
-    
+    next_check_due: datetime | None = None  # 下次检查时间
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "requirement_id": self.requirement_id,
@@ -131,18 +145,18 @@ class ComplianceCheckResult:
 
 class ComplianceRegistry:
     """合规注册表 - 多法规管理核心"""
-    
-    def __init__(self, audit_logger: Optional[AuditLogger] = None):
+
+    def __init__(self, audit_logger: AuditLogger | None = None):
         self.audit_logger = audit_logger or AuditLogger()
         self.regulations: dict[str, Regulation] = {}
         self.requirements: dict[str, ComplianceRequirement] = {}
         self.check_results: dict[str, ComplianceCheckResult] = {}  # key: requirement_id
         self.jurisdiction_rules: dict[Jurisdiction, dict[str, Any]] = {}
-        
+
         # 初始化内置法规
         self._initialize_builtin_regulations()
         self._initialize_jurisdiction_rules()
-    
+
     def _initialize_builtin_regulations(self) -> None:
         """初始化内置法规"""
         # GDPR示例法规
@@ -181,7 +195,7 @@ class ComplianceRegistry:
                 effective_date=datetime(2018, 5, 25)
             )
         ]
-        
+
         # EU AI Act示例
         ai_act_articles = [
             Regulation(
@@ -203,7 +217,7 @@ class ComplianceRegistry:
                 penalty="Up to €30 million or 6% of global annual turnover"
             )
         ]
-        
+
         # 中国网络安全法示例
         csl_articles = [
             Regulation(
@@ -221,11 +235,11 @@ class ComplianceRegistry:
                 penalty="Confiscation of illegal gains, fines up to 1M RMB"
             )
         ]
-        
+
         # 注册所有法规
         for regulation in gdpr_articles + ai_act_articles + csl_articles:
             self.register_regulation(regulation)
-    
+
     def _initialize_jurisdiction_rules(self) -> None:
         """初始化司法管辖区规则"""
         self.jurisdiction_rules = {
@@ -266,11 +280,11 @@ class ComplianceRegistry:
                 "requires_consent_manager": True
             }
         }
-    
+
     def register_regulation(self, regulation: Regulation) -> None:
         """注册法规"""
         self.regulations[regulation.id] = regulation
-        
+
         # 审计日志
         self.audit_logger.log(
             event_type="compliance_regulation_registered",
@@ -283,11 +297,11 @@ class ComplianceRegistry:
                 "type": regulation.regulation_type.value
             }
         )
-    
+
     def add_requirement(self, requirement: ComplianceRequirement) -> None:
         """添加合规要求"""
         self.requirements[requirement.regulation_id] = requirement
-        
+
         self.audit_logger.log(
             event_type="compliance_requirement_added",
             actor="ComplianceRegistry",
@@ -299,20 +313,20 @@ class ComplianceRegistry:
                 "automated": requirement.automated
             }
         )
-    
+
     def check_compliance(self, requirement_id: str, evidence: list[str] = None) -> ComplianceCheckResult:
         """检查特定要求的合规性"""
         requirement = self.requirements.get(requirement_id)
         if not requirement:
             raise ValueError(f"Requirement not found: {requirement_id}")
-        
+
         regulation = self.regulations.get(requirement.regulation_id)
         if not regulation:
             raise ValueError(f"Regulation not found: {requirement.regulation_id}")
-        
+
         checked_at = datetime.now()
         evidence = evidence or []
-        
+
         # 简化的合规检查逻辑
         # 在实际实现中，这里会调用具体的检查器
         if evidence and len(evidence) > 0:
@@ -321,7 +335,7 @@ class ComplianceRegistry:
         else:
             status = ComplianceStatus.NON_COMPLIANT
             violations = ["No evidence provided for compliance verification"]
-        
+
         # 计算下次检查时间（基于优先级）
         if requirement.priority == 1:
             next_check = checked_at + timedelta(days=7)   # 高优先级：每周检查
@@ -329,7 +343,7 @@ class ComplianceRegistry:
             next_check = checked_at + timedelta(days=30)  # 中优先级：每月检查
         else:
             next_check = checked_at + timedelta(days=90)  # 低优先级：每季度检查
-        
+
         result = ComplianceCheckResult(
             requirement_id=requirement_id,
             status=status,
@@ -338,9 +352,9 @@ class ComplianceRegistry:
             checked_at=checked_at,
             next_check_due=next_check
         )
-        
+
         self.check_results[requirement_id] = result
-        
+
         # 审计日志
         self.audit_logger.log(
             event_type="compliance_check_completed",
@@ -354,28 +368,28 @@ class ComplianceRegistry:
                 "violation_count": len(violations)
             }
         )
-        
+
         return result
-    
+
     def get_jurisdiction_compliance_status(self, jurisdiction: Jurisdiction) -> dict[str, Any]:
         """获取特定司法管辖区的合规状态"""
         jurisdiction_regulations = [
             reg for reg in self.regulations.values()
             if reg.jurisdiction == jurisdiction and reg.is_active()
         ]
-        
+
         jurisdiction_requirements = [
             req for req in self.requirements.values()
             if req.regulation_id in [reg.id for reg in jurisdiction_regulations]
         ]
-        
+
         # 获取最新的检查结果
         check_results = []
         for req in jurisdiction_requirements:
             result = self.check_results.get(req.regulation_id)
             if result:
                 check_results.append(result)
-        
+
         # 统计合规状态
         status_counts = {
             ComplianceStatus.COMPLIANT.value: 0,
@@ -384,17 +398,17 @@ class ComplianceRegistry:
             ComplianceStatus.UNKNOWN.value: 0,
             ComplianceStatus.EXEMPT.value: 0
         }
-        
+
         for result in check_results:
             status_counts[result.status.value] += 1
-        
+
         total_checks = len(check_results)
         if total_checks > 0:
-            compliance_rate = (status_counts[ComplianceStatus.COMPLIANT.value] + 
+            compliance_rate = (status_counts[ComplianceStatus.COMPLIANT.value] +
                               status_counts[ComplianceStatus.EXEMPT.value]) / total_checks * 100
         else:
             compliance_rate = 0.0
-        
+
         return {
             "jurisdiction": jurisdiction.value,
             "active_regulations": len(jurisdiction_regulations),
@@ -405,48 +419,48 @@ class ComplianceRegistry:
             "jurisdiction_rules": self.jurisdiction_rules.get(jurisdiction, {}),
             "next_check_due": self._get_next_check_due(check_results)
         }
-    
-    def _get_next_check_due(self, check_results: list[ComplianceCheckResult]) -> Optional[str]:
+
+    def _get_next_check_due(self, check_results: list[ComplianceCheckResult]) -> str | None:
         """获取下次检查到期时间"""
         if not check_results:
             return None
-        
+
         # 找到最早的到期时间
         due_dates = [r.next_check_due for r in check_results if r.next_check_due]
         if not due_dates:
             return None
-        
+
         earliest = min(due_dates)
         return earliest.isoformat()
-    
+
     def generate_compliance_report(
-        self, 
-        jurisdictions: Optional[list[Jurisdiction]] = None
+        self,
+        jurisdictions: list[Jurisdiction] | None = None
     ) -> dict[str, Any]:
         """生成合规报告"""
         if not jurisdictions:
             jurisdictions = [j for j in Jurisdiction if j != Jurisdiction.GLOBAL and j != Jurisdiction.CROSS_BORDER]
-        
+
         report_data = {
             "generated_at": datetime.now().isoformat(),
             "jurisdictions": {},
             "summary": {},
             "recommendations": []
         }
-        
+
         total_active_regulations = 0
         total_compliance_rate = 0.0
         jurisdiction_count = 0
-        
+
         for jurisdiction in jurisdictions:
             jurisdiction_status = self.get_jurisdiction_compliance_status(jurisdiction)
             report_data["jurisdictions"][jurisdiction.value] = jurisdiction_status
-            
+
             # 累加统计数据
             total_active_regulations += jurisdiction_status["active_regulations"]
             total_compliance_rate += jurisdiction_status.get("compliance_rate", 0.0)
             jurisdiction_count += 1
-            
+
             # 生成建议
             if jurisdiction_status["compliance_rate"] < 80.0:
                 report_data["recommendations"].append({
@@ -455,44 +469,44 @@ class ComplianceRegistry:
                     "action": f"Improve compliance rate for {jurisdiction.value} jurisdiction",
                     "details": f"Current compliance rate: {jurisdiction_status['compliance_rate']}%"
                 })
-        
+
         # 计算总体统计
         if jurisdiction_count > 0:
             avg_compliance_rate = total_compliance_rate / jurisdiction_count
         else:
             avg_compliance_rate = 0.0
-        
+
         report_data["summary"] = {
             "total_jurisdictions": jurisdiction_count,
             "total_active_regulations": total_active_regulations,
             "average_compliance_rate": round(avg_compliance_rate, 2),
             "generation_time": datetime.now().isoformat()
         }
-        
+
         return report_data
-    
+
     def get_regulations_by_type(self, regulation_type: RegulationType) -> list[Regulation]:
         """按类型获取法规"""
         return [
             reg for reg in self.regulations.values()
             if reg.regulation_type == regulation_type and reg.is_active()
         ]
-    
+
     def get_upcoming_checks(self, days_ahead: int = 30) -> list[ComplianceCheckResult]:
         """获取即将到期的检查"""
         upcoming = []
         today = datetime.now()
-        
+
         for result in self.check_results.values():
             if result.next_check_due:
                 days_until = (result.next_check_due - today).days
                 if 0 <= days_until <= days_ahead:
                     upcoming.append(result)
-        
+
         # 按到期时间排序
         upcoming.sort(key=lambda x: x.next_check_due or datetime.max)
         return upcoming
-    
+
     def export_registry(self, filepath: str) -> None:
         """导出注册表数据"""
         export_data = {
@@ -504,10 +518,10 @@ class ComplianceRegistry:
                 jur.value: rules for jur, rules in self.jurisdiction_rules.items()
             }
         }
-        
+
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
-        
+
         self.audit_logger.log(
             event_type="compliance_registry_exported",
             actor="ComplianceRegistry",
@@ -515,18 +529,18 @@ class ComplianceRegistry:
             details=f"Exported registry to {filepath}",
             metadata={"filepath": filepath, "record_count": len(export_data["regulations"])}
         )
-    
+
     def load_registry(self, filepath: str) -> None:
         """加载注册表数据"""
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, encoding='utf-8') as f:
                 import_data = json.load(f)
-            
+
             # 清空当前数据
             self.regulations.clear()
             self.requirements.clear()
             self.check_results.clear()
-            
+
             # 加载法规
             for reg_data in import_data.get("regulations", []):
                 regulation = Regulation(
@@ -541,7 +555,7 @@ class ComplianceRegistry:
                     sunset_date=datetime.fromisoformat(reg_data["sunset_date"]) if reg_data.get("sunset_date") else None
                 )
                 self.regulations[regulation.id] = regulation
-            
+
             # 加载要求
             for req_data in import_data.get("requirements", []):
                 requirement = ComplianceRequirement(
@@ -552,7 +566,7 @@ class ComplianceRegistry:
                     automated=req_data.get("automated", False)
                 )
                 self.requirements[requirement.regulation_id] = requirement
-            
+
             # 加载检查结果
             for res_data in import_data.get("check_results", []):
                 result = ComplianceCheckResult(
@@ -564,7 +578,7 @@ class ComplianceRegistry:
                     next_check_due=datetime.fromisoformat(res_data["next_check_due"]) if res_data.get("next_check_due") else None
                 )
                 self.check_results[result.requirement_id] = result
-            
+
             self.audit_logger.log(
                 event_type="compliance_registry_loaded",
                 actor="ComplianceRegistry",
@@ -572,7 +586,7 @@ class ComplianceRegistry:
                 details=f"Loaded registry from {filepath}",
                 metadata={"filepath": filepath, "record_count": len(import_data.get("regulations", []))}
             )
-            
+
         except Exception as e:
             self.audit_logger.log(
                 event_type="compliance_registry_load_failed",
@@ -587,13 +601,13 @@ class ComplianceRegistry:
 
 class ComplianceEngine:
     """合规引擎 - 提供高级合规操作"""
-    
+
     def __init__(self, registry: ComplianceRegistry):
         self.registry = registry
         self.compliance_cache: dict[str, dict[str, Any]] = {}
-    
+
     def assess_system_compliance(
-        self, 
+        self,
         system_info: dict[str, Any],
         target_jurisdictions: list[Jurisdiction]
     ) -> dict[str, Any]:
@@ -607,14 +621,14 @@ class ComplianceEngine:
             "risk_level": "unknown",
             "recommended_actions": []
         }
-        
+
         total_score = 0.0
         jurisdiction_count = len(target_jurisdictions)
-        
+
         for jurisdiction in target_jurisdictions:
             jurisdiction_status = self.registry.get_jurisdiction_compliance_status(jurisdiction)
             compliance_rate = jurisdiction_status.get("compliance_rate", 0.0)
-            
+
             # 风险评估
             if compliance_rate >= 90:
                 risk_level = "low"
@@ -622,16 +636,16 @@ class ComplianceEngine:
                 risk_level = "medium"
             else:
                 risk_level = "high"
-            
+
             jurisdiction_assessment = {
                 **jurisdiction_status,
                 "risk_level": risk_level,
                 "assessment_complete": compliance_rate > 0
             }
-            
+
             assessment["jurisdiction_assessments"][jurisdiction.value] = jurisdiction_assessment
             total_score += compliance_rate
-            
+
             # 为高风险管辖区添加建议
             if risk_level == "high":
                 assessment["recommended_actions"].append({
@@ -640,15 +654,12 @@ class ComplianceEngine:
                     "action": f"Review and improve compliance for {jurisdiction.value} jurisdiction",
                     "details": f"Current compliance rate: {compliance_rate}%"
                 })
-        
+
         # 计算总体分数
-        if jurisdiction_count > 0:
-            overall_score = total_score / jurisdiction_count
-        else:
-            overall_score = 0.0
-        
+        overall_score = total_score / jurisdiction_count if jurisdiction_count > 0 else 0.0
+
         assessment["overall_compliance_score"] = round(overall_score, 2)
-        
+
         # 总体风险等级
         if overall_score >= 90:
             assessment["risk_level"] = "low"
@@ -656,13 +667,13 @@ class ComplianceEngine:
             assessment["risk_level"] = "medium"
         else:
             assessment["risk_level"] = "high"
-        
+
         # 缓存评估结果
         cache_key = f"{system_info.get('system_id', 'unknown')}-{int(time.time())}"
         self.compliance_cache[cache_key] = assessment
-        
+
         return assessment
-    
+
     def validate_data_processing(
         self,
         processing_purpose: str,
@@ -672,19 +683,19 @@ class ComplianceEngine:
     ) -> dict[str, Any]:
         """验证数据处理活动的合规性"""
         validation_id = f"dp-validation-{int(time.time())}"
-        
+
         # 检查数据转移合规性
         data_transfer_compliance = self._check_data_transfer_compliance(
             sender_jurisdiction=data_subjects_location,
             receiver_jurisdiction=processor_location
         )
-        
+
         # 检查目的限制
         purpose_valid = self._validate_processing_purpose(processing_purpose)
-        
+
         # 数据最小化检查
         data_minimization = self._check_data_minimization(data_categories, processing_purpose)
-        
+
         # 生成验证结果
         validation_result = {
             "validation_id": validation_id,
@@ -706,20 +717,20 @@ class ComplianceEngine:
                 ]
             }
         }
-        
+
         return validation_result
-    
+
     def _check_data_transfer_compliance(
-        self, 
-        sender_jurisdiction: Jurisdiction, 
+        self,
+        sender_jurisdiction: Jurisdiction,
         receiver_jurisdiction: Jurisdiction
     ) -> dict[str, Any]:
         """检查数据转移合规性"""
         sender_rules = self.registry.jurisdiction_rules.get(sender_jurisdiction, {})
         allowed_destinations = sender_rules.get("data_transfers_allowed_to", [])
-        
+
         is_same_jurisdiction = sender_jurisdiction == receiver_jurisdiction
-        
+
         if is_same_jurisdiction:
             return {
                 "allowed": True,
@@ -727,7 +738,7 @@ class ComplianceEngine:
                 "restrictions": [],
                 "issues": []
             }
-        
+
         # 检查是否在允许的目的地列表中
         receiver_name = receiver_jurisdiction.value.upper()
         if receiver_name in [dest.upper() for dest in allowed_destinations]:
@@ -737,23 +748,23 @@ class ComplianceEngine:
                 "restrictions": [],
                 "issues": []
             }
-        
+
         # 需要额外措施
         required_measures = []
         issues = []
-        
+
         if sender_jurisdiction == Jurisdiction.EU and receiver_jurisdiction == Jurisdiction.US:
             required_measures.append("Implement EU-US Data Privacy Framework safeguards")
             required_measures.append("Conduct transfer impact assessment")
-        
+
         elif sender_jurisdiction == Jurisdiction.CN:
             required_measures.append("Conduct security assessment")
             required_measures.append("Obtain approval from Chinese authorities")
             issues.append("Cross-border data transfer from China requires special approval")
-        
+
         elif sender_jurisdiction == Jurisdiction.RU:
             issues.append("Data transfer out of Russia is generally prohibited")
-        
+
         return {
             "allowed": len(issues) == 0,
             "reason": "Data transfer requires additional measures",
@@ -762,36 +773,36 @@ class ComplianceEngine:
             "sender_jurisdiction": sender_jurisdiction.value,
             "receiver_jurisdiction": receiver_jurisdiction.value
         }
-    
+
     def _validate_processing_purpose(self, purpose: str) -> bool:
         """验证处理目的的合法性"""
         valid_purposes = [
             "consent", "contract", "legal_obligation", "vital_interests",
             "public_task", "legitimate_interests", "research", "archiving"
         ]
-        
+
         # 简化的检查：目的描述中是否包含合法目的关键词
         purpose_lower = purpose.lower()
         return any(valid in purpose_lower for valid in valid_purposes)
-    
+
     def _check_data_minimization(
-        self, 
-        data_categories: list[str], 
+        self,
+        data_categories: list[str],
         processing_purpose: str
     ) -> dict[str, Any]:
         """检查数据最小化原则"""
         sensitive_categories = [
-            "biometric", "genetic", "health", "racial", "political", 
+            "biometric", "genetic", "health", "racial", "political",
             "religious", "sexual", "criminal", "financial", "location"
         ]
-        
+
         used_categories = set(data_categories)
         sensitive_used = [cat for cat in used_categories if cat in sensitive_categories]
-        
+
         issues = []
         if sensitive_used:
             issues.append(f"Sensitive data categories used: {', '.join(sensitive_used)}")
-        
+
         # 检查是否符合目的
         purpose_specific_categories = {
             "research": ["demographic", "behavioral", "preferences"],
@@ -799,27 +810,27 @@ class ComplianceEngine:
             "analytics": ["usage", "performance", "behavioral"],
             "security": ["login", "access", "audit"]
         }
-        
+
         appropriate_categories = []
         for purpose_key, categories in purpose_specific_categories.items():
             if purpose_key in processing_purpose.lower():
                 appropriate_categories.extend(categories)
-        
+
         # 检查是否有不适当的数据类别
         inappropriate = used_categories - set(appropriate_categories)
         if inappropriate and inappropriate != used_categories:
             issues.append(f"Potential data minimization issue: {', '.join(inappropriate)} may not be necessary for purpose '{processing_purpose}'")
-        
+
         return {
             "valid": len(issues) == 0,
             "sensitive_categories_used": sensitive_used,
             "appropriate_categories": list(set(appropriate_categories)),
             "issues": issues
         }
-    
+
     def generate_compliance_certificate(
-        self, 
-        entity_name: str, 
+        self,
+        entity_name: str,
         jurisdictions: list[Jurisdiction],
         assessment_id: str
     ) -> dict[str, Any]:
@@ -830,9 +841,9 @@ class ComplianceEngine:
                 {"entity_name": entity_name},
                 jurisdictions
             )
-        
+
         overall_score = assessment.get("overall_compliance_score", 0.0)
-        
+
         if overall_score >= 90:
             compliance_level = "Excellent"
             certificate_class = "A"
@@ -845,7 +856,7 @@ class ComplianceEngine:
         else:
             compliance_level = "Needs Improvement"
             certificate_class = "D"
-        
+
         certificate = {
             "certificate_id": f"compliance-cert-{int(time.time())}",
             "issued_at": datetime.now().isoformat(),
@@ -863,7 +874,7 @@ class ComplianceEngine:
             "issuing_authority": "MAREF Compliance Engine",
             "certificate_notes": "This certificate is based on automated assessment and should be verified by legal professionals."
         }
-        
+
         return certificate
 
 
@@ -872,27 +883,9 @@ def create_compliance_system() -> tuple[ComplianceRegistry, ComplianceEngine]:
     audit_logger = AuditLogger()
     registry = ComplianceRegistry(audit_logger)
     engine = ComplianceEngine(registry)
-    
+
     return registry, engine
 
-
-from maref.compliance.report_generator import (
-    ComplianceReport,
-    ReportFormat,
-    ReportGenerator,
-    ReportSection,
-    ReportType,
-    create_report_generator,
-)
-from maref.compliance.compliance_monitor import (
-    AlertSeverity,
-    ComplianceAlert,
-    ComplianceMonitor,
-    ComplianceSnapshot,
-    MonitorState,
-    MonitoringRule,
-    create_compliance_monitor,
-)
 
 # 导出主要类
 __all__ = [
