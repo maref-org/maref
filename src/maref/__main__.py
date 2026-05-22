@@ -16,8 +16,8 @@ import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
-from maref.integration.mcp_server import MCPServer
 from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
+from maref.integration.mcp_server import MCPServer
 from maref.integration.mcp_transport import JSONRPCRequest, JSONRPCResponse
 from sidecar.exfiltration_probe import DataExfiltrationProbe
 from sidecar.mcp_bridge import (
@@ -60,15 +60,16 @@ def create_server(port: int = 8941) -> MCPServer:
         mime = res.get("mimeType", "application/json")
 
         def make_resource_handler(
-            uri: str = uri,
-            bridge: SidecarMCPBridge = bridge,
+            resource_uri: str = uri,
+            mime_type: str = mime,
+            sidecar_bridge: SidecarMCPBridge = bridge,
         ) -> Any:
             def handler(_uri: str) -> dict[str, Any]:
                 return {
-                    "uri": uri,
-                    "mimeType": mime,
+                    "uri": resource_uri,
+                    "mimeType": mime_type,
                     "text": json.dumps({
-                        "resource": uri,
+                        "resource": resource_uri,
                         "available": True,
                         "note": "Resource available via tool calls",
                     }),

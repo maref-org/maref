@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
-from typing import Any
-import uuid
-import secrets
 import hashlib
+import secrets
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 
 @dataclass
@@ -52,7 +51,7 @@ class ATPHandshakeRequest:
     nonce: str = field(default_factory=lambda: secrets.token_hex(16))
     signature: bytes | None = None
 
-    def sign(self, key_pair: "ATPKeyPair") -> None:
+    def sign(self, key_pair: ATPKeyPair) -> None:
         """Sign the handshake request with the private key."""
         message = f"{self.agent_did}:{self.session_id}:{self.timestamp}:{self.nonce}".encode()
         self.signature = hashlib.sha256(key_pair.private_key + message).digest()
@@ -128,7 +127,7 @@ class ATPVerificationResult:
 
 class ATPAdapter:
     """Adapter for Lyrie.ai Agent Trust Protocol (ATP).
-    
+
     Provides:
     - Identity registration
     - Challenge-response verification
@@ -159,7 +158,7 @@ class ATPAdapter:
                 "public_key": public_key,
                 "metadata": metadata or {},
             })
-            
+
             if response.get("status") == "registered":
                 identity = ATPIdentity(
                     agent_id=agent_id,
@@ -170,7 +169,7 @@ class ATPAdapter:
                 self._identity_cache[agent_id] = identity
                 return True
             return False
-        except Exception as e:
+        except Exception:
             if self.config.enable_local_fallback:
                 return self.register_identity(agent_id, public_key, metadata)
             raise
@@ -195,7 +194,7 @@ class ATPAdapter:
 
         try:
             response = self._make_request("GET", f"/identities/{agent_id}/verify")
-            
+
             if response.get("status") == "verified":
                 result = ATPVerificationResult(
                     is_valid=True,
@@ -209,7 +208,7 @@ class ATPAdapter:
                     agent_id=agent_id,
                     reason=response.get("reason", "unknown"),
                 )
-            
+
             self._verification_cache[agent_id] = result
             return result
         except Exception as e:
@@ -336,7 +335,7 @@ class ATPAdapter:
         data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Make HTTP request to ATP service.
-        
+
         This is a placeholder that would use httpx/requests in production.
         For now, it raises to trigger fallback behavior.
         """
