@@ -11,7 +11,7 @@ from typing import Any
 
 current_trace_id: ContextVar[str | None] = ContextVar("current_trace_id", default=None)
 current_span_id: ContextVar[str | None] = ContextVar("current_span_id", default=None)
-trace_context: ContextVar[dict[str, Any]] = ContextVar("trace_context", default={})
+trace_context: ContextVar[dict[str, Any]] = ContextVar("trace_context", default=None)  # type: ignore[arg-type]
 
 
 def get_current_trace_id() -> str | None:
@@ -37,14 +37,14 @@ def set_trace_context(trace_id: str | None = None, span_id: str | None = None, *
     if span_id is not None:
         current_span_id.set(span_id)
 
-    ctx = trace_context.get().copy()
+    ctx = (trace_context.get() or {}).copy()
     ctx.update(kwargs)
     trace_context.set(ctx)
 
 
 def get_trace_context() -> dict[str, Any]:
     """Get the current trace context as a dictionary."""
-    ctx = trace_context.get().copy()
+    ctx = (trace_context.get() or {}).copy()
     tid = get_current_trace_id()
     sid = get_current_span_id()
     if tid:

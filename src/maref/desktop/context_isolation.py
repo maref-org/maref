@@ -152,7 +152,7 @@ class SubAgentSpawner:
         context: dict[str, Any],
         keys_to_explore: list[str],
     ) -> str:
-        isolation_id = f"subagent-{parent_id}-{hashlib.md5(task_description.encode()).hexdigest()[:8]}"
+        isolation_id = f"subagent-{parent_id}-{hashlib.md5(task_description.encode(), usedforsecurity=False).hexdigest()[:8]}"
         self._isolation.snapshot(isolation_id, {"agent_id": parent_id, "task": task_description, **context})
         self._isolation.isolate(isolation_id, keys_to_explore)
         self._spawned[isolation_id] = {
