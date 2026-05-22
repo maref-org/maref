@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class FeatureFlag(Enum):
@@ -24,20 +24,20 @@ class FeatureFlagConfig:
     flag: FeatureFlag
     enabled: bool = False
     rollout_percentage: int = 0
-    whitelist: List[str] = field(default_factory=list)
+    whitelist: list[str] = field(default_factory=list)
 
 
 class InMemoryFeatureFlagStore:
     def __init__(self) -> None:
-        self._flags: Dict[str, FeatureFlagConfig] = {}
+        self._flags: dict[str, FeatureFlagConfig] = {}
 
-    def get(self, flag_name: str) -> Optional[FeatureFlagConfig]:
+    def get(self, flag_name: str) -> FeatureFlagConfig | None:
         return self._flags.get(flag_name)
 
     def set(self, flag_name: str, config: FeatureFlagConfig) -> None:
         self._flags[flag_name] = config
 
-    def all(self) -> Dict[str, FeatureFlagConfig]:
+    def all(self) -> dict[str, FeatureFlagConfig]:
         return dict(self._flags)
 
     def clear(self) -> None:
@@ -45,7 +45,7 @@ class InMemoryFeatureFlagStore:
 
 
 class FeatureFlagManager:
-    _instance: Optional[FeatureFlagManager] = None
+    _instance: FeatureFlagManager | None = None
     CONFIG_FILE: str = ""
 
     def __new__(cls) -> FeatureFlagManager:
@@ -65,7 +65,7 @@ class FeatureFlagManager:
         for flag in FeatureFlag:
             self._store.set(flag.value, FeatureFlagConfig(flag=flag))
 
-    def is_enabled(self, flag: FeatureFlag, user_id: Optional[str] = None) -> bool:
+    def is_enabled(self, flag: FeatureFlag, user_id: str | None = None) -> bool:
         config = self._store.get(flag.value)
         if config is None:
             return False
@@ -109,8 +109,8 @@ class FeatureFlagManager:
         if config is not None and user_id in config.whitelist:
             config.whitelist.remove(user_id)
 
-    def get_all_flags(self) -> Dict[str, Dict[str, Any]]:
-        result: Dict[str, Dict[str, Any]] = {}
+    def get_all_flags(self) -> dict[str, dict[str, Any]]:
+        result: dict[str, dict[str, Any]] = {}
         for name, config in self._store.all().items():
             result[name] = {
                 "enabled": config.enabled,
@@ -119,14 +119,14 @@ class FeatureFlagManager:
             }
         return result
 
-    def get_config(self, flag: FeatureFlag) -> Optional[FeatureFlagConfig]:
+    def get_config(self, flag: FeatureFlag) -> FeatureFlagConfig | None:
         return self._store.get(flag.value)
 
-    def save(self, path: Optional[str] = None) -> None:
+    def save(self, path: str | None = None) -> None:
         file_path = path or self.CONFIG_FILE
         if not file_path:
             return
-        data: Dict[str, Dict[str, Any]] = {}
+        data: dict[str, dict[str, Any]] = {}
         for name, config in self._store.all().items():
             data[name] = {
                 "enabled": config.enabled,
@@ -135,7 +135,7 @@ class FeatureFlagManager:
             }
         Path(file_path).write_text(json.dumps(data, indent=2))
 
-    def load(self, path: Optional[str] = None) -> None:
+    def load(self, path: str | None = None) -> None:
         file_path = path or self.CONFIG_FILE
         if not file_path:
             return
@@ -162,4 +162,4 @@ class FeatureFlagManager:
 
     @staticmethod
     def _hash_user(user_id: str) -> int:
-        return int(hashlib.md5(user_id.encode()).hexdigest(), 16) % 100
+        return int(hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest(), 16) % 100

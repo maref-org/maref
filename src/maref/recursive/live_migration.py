@@ -22,12 +22,12 @@ class MigrationStep:
     duration_ms: float = 0.0
 
     def execute(self) -> None:
+        import shlex
         start = time.time()
         try:
             if self.command:
                 result = subprocess.run(
-                    self.command,
-                    shell=True,
+                    shlex.split(self.command),
                     capture_output=True,
                     text=True,
                     timeout=120,

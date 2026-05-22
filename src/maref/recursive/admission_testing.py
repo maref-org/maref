@@ -89,11 +89,11 @@ class SandboxEnvironment:
                 stderr="Sandbox not active",
                 return_code=-1,
             )
+        import shlex
         import subprocess
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                shlex.split(command),
                 capture_output=True,
                 text=True,
                 timeout=self._config.timeout_seconds,
