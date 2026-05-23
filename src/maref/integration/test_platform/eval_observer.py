@@ -11,16 +11,16 @@ MAREF's governance state machine, enabling:
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.types import GovernanceState
 from maref.integration.test_platform.schema import (
     EvalStatus,
     EvaluationReport,
-    TestMode,
 )
 
 

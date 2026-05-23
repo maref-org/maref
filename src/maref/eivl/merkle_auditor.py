@@ -15,23 +15,23 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
 class MerkleNode:
     """Merkle Tree 节点"""
-    
+
     hash: str
-    left: Optional[MerkleNode] = None
-    right: Optional[MerkleNode] = None
-    data: Optional[str] = None  # 叶子节点存储原始数据哈希
+    left: MerkleNode | None = None
+    right: MerkleNode | None = None
+    data: str | None = None  # 叶子节点存储原始数据哈希
     index: int = 0  # 叶子节点索引
-    
+
     def is_leaf(self) -> bool:
         return self.left is None and self.right is None
-    
+
     def to_dict(self) -> dict[str, Any]:
         result = {
             "hash": self.hash,
@@ -49,17 +49,17 @@ class MerkleNode:
 @dataclass
 class AuditEvidence:
     """审计证据"""
-    
+
     evidence_id: str
     timestamp: float
     evidence_type: str  # "trust_evaluation", "access_control", "delegation", "compliance"
     source_agent: str
-    target_agent: Optional[str]
+    target_agent: str | None
     action: str
     result: dict[str, Any]
     previous_hash: str  # 前一个证据的哈希
     nonce: int  # 防止重放攻击
-    
+
     def compute_hash(self) -> str:
         """计算证据的哈希值"""
         data = {
@@ -81,24 +81,24 @@ class AuditEvidence:
 @dataclass
 class MerkleProof:
     """Merkle 证明 - 用于验证某个证据是否包含在树中"""
-    
+
     target_hash: str
     proof_path: list[tuple[str, str]]  # (sibling_hash, direction) direction: "left" or "right"
     root_hash: str
     tree_size: int
-    
+
     def verify(self) -> bool:
         """验证证明是否有效"""
         current_hash = self.target_hash
-        
+
         for sibling_hash, direction in self.proof_path:
             if direction == "left":
                 current_hash = MerkleAuditor._hash_pair(sibling_hash, current_hash)
             else:
                 current_hash = MerkleAuditor._hash_pair(current_hash, sibling_hash)
-        
+
         return current_hash == self.root_hash
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "target_hash": self.target_hash,
@@ -111,175 +111,169 @@ class MerkleProof:
 class MerkleAuditor:
     """
     Merkle 审计器
-    
+
     管理基于 Merkle Tree 的审计证据链，提供不可篡改的日志验证。
     """
-    
+
     def __init__(self):
         self._leaves: list[MerkleNode] = []
-        self._root: Optional[MerkleNode] = None
+        self._root: MerkleNode | None = None
         self._evidence_map: dict[str, AuditEvidence] = {}  # evidence_id -> evidence
         self._hash_to_evidence: dict[str, str] = {}  # hash -> evidence_id
         self._tree_version = 0
         self._last_rebuild = 0
-        
+
     @staticmethod
     def _hash_pair(left: str, right: str) -> str:
         """对两个哈希值进行配对哈希"""
         combined = left + right
         return hashlib.sha256(combined.encode()).hexdigest()
-    
+
     @staticmethod
     def _hash_data(data: str) -> str:
         """对数据进行哈希"""
         return hashlib.sha256(data.encode()).hexdigest()
-    
+
     def add_evidence(self, evidence: AuditEvidence) -> str:
         """
         添加审计证据到 Merkle Tree
-        
+
         Args:
             evidence: 审计证据
-            
+
         Returns:
             str: 证据的哈希值
         """
         evidence_hash = evidence.compute_hash()
-        
+
         # 创建叶子节点
         leaf = MerkleNode(
             hash=evidence_hash,
             data=evidence_hash,
             index=len(self._leaves)
         )
-        
+
         self._leaves.append(leaf)
         self._evidence_map[evidence.evidence_id] = evidence
         self._hash_to_evidence[evidence_hash] = evidence.evidence_id
-        
+
         # 增量更新树
         self._rebuild_tree()
-        
+
         return evidence_hash
-    
+
     def add_evidence_batch(self, evidences: list[AuditEvidence]) -> list[str]:
         """
         批量添加审计证据
-        
+
         Args:
             evidences: 审计证据列表
-            
+
         Returns:
             list[str]: 证据哈希列表
         """
         hashes = []
         for evidence in evidences:
             evidence_hash = evidence.compute_hash()
-            
+
             leaf = MerkleNode(
                 hash=evidence_hash,
                 data=evidence_hash,
                 index=len(self._leaves)
             )
-            
+
             self._leaves.append(leaf)
             self._evidence_map[evidence.evidence_id] = evidence
             self._hash_to_evidence[evidence_hash] = evidence.evidence_id
             hashes.append(evidence_hash)
-        
+
         self._rebuild_tree()
         return hashes
-    
+
     def _rebuild_tree(self) -> None:
         """重建 Merkle Tree"""
         if not self._leaves:
             self._root = None
             return
-        
+
         # 使用迭代方式构建树
         current_level = self._leaves.copy()
-        
+
         while len(current_level) > 1:
             next_level: list[MerkleNode] = []
-            
+
             for i in range(0, len(current_level), 2):
                 left = current_level[i]
-                
+
                 # 如果节点数量为奇数，最后一个节点复制自己
-                if i + 1 < len(current_level):
-                    right = current_level[i + 1]
-                else:
-                    right = current_level[i]  # 复制最后一个节点
-                
+                right = current_level[i + 1] if i + 1 < len(current_level) else current_level[i]
+
                 parent = MerkleNode(
                     hash=self._hash_pair(left.hash, right.hash),
                     left=left,
                     right=right
                 )
                 next_level.append(parent)
-            
+
             current_level = next_level
-        
+
         self._root = current_level[0]
         self._tree_version += 1
         self._last_rebuild = time.time()
-    
-    def get_root_hash(self) -> Optional[str]:
+
+    def get_root_hash(self) -> str | None:
         """获取 Merkle Root 哈希"""
         return self._root.hash if self._root else None
-    
-    def get_evidence(self, evidence_id: str) -> Optional[AuditEvidence]:
+
+    def get_evidence(self, evidence_id: str) -> AuditEvidence | None:
         """根据 ID 获取证据"""
         return self._evidence_map.get(evidence_id)
-    
-    def get_evidence_by_hash(self, evidence_hash: str) -> Optional[AuditEvidence]:
+
+    def get_evidence_by_hash(self, evidence_hash: str) -> AuditEvidence | None:
         """根据哈希获取证据"""
         evidence_id = self._hash_to_evidence.get(evidence_hash)
         if evidence_id:
             return self._evidence_map.get(evidence_id)
         return None
-    
-    def generate_proof(self, evidence_hash: str) -> Optional[MerkleProof]:
+
+    def generate_proof(self, evidence_hash: str) -> MerkleProof | None:
         """
         为指定证据生成 Merkle 证明
-        
+
         Args:
             evidence_hash: 证据哈希
-            
+
         Returns:
             MerkleProof: 证明对象，如果证据不存在则返回 None
         """
         if evidence_hash not in self._hash_to_evidence:
             return None
-        
+
         if not self._root:
             return None
-        
+
         # 找到证据对应的叶子节点索引
         leaf_index = None
         for i, leaf in enumerate(self._leaves):
             if leaf.hash == evidence_hash:
                 leaf_index = i
                 break
-        
+
         if leaf_index is None:
             return None
-        
+
         # 构建证明路径
         proof_path: list[tuple[str, str]] = []
         current_index = leaf_index
         current_level = self._leaves.copy()
-        
+
         while len(current_level) > 1:
             next_level: list[MerkleNode] = []
-            
+
             for i in range(0, len(current_level), 2):
                 left = current_level[i]
-                if i + 1 < len(current_level):
-                    right = current_level[i + 1]
-                else:
-                    right = current_level[i]
-                
+                right = current_level[i + 1] if i + 1 < len(current_level) else current_level[i]
+
                 # 检查当前索引是否在这个父节点的子节点中
                 if current_index == i:
                     # 当前节点在左边，兄弟在右边
@@ -289,30 +283,30 @@ class MerkleAuditor:
                     # 当前节点在右边（或复制的最后一个）
                     proof_path.append((left.hash, "left"))
                     current_index = len(next_level)
-                
+
                 parent = MerkleNode(
                     hash=self._hash_pair(left.hash, right.hash),
                     left=left,
                     right=right
                 )
                 next_level.append(parent)
-            
+
             current_level = next_level
-        
+
         return MerkleProof(
             target_hash=evidence_hash,
             proof_path=proof_path,
             root_hash=self._root.hash,
             tree_size=len(self._leaves)
         )
-    
+
     def verify_evidence_integrity(self, evidence_id: str) -> dict[str, Any]:
         """
         验证证据的完整性
-        
+
         Args:
             evidence_id: 证据 ID
-            
+
         Returns:
             验证结果字典
         """
@@ -323,13 +317,13 @@ class MerkleAuditor:
                 "reason": "Evidence not found",
                 "evidence_id": evidence_id,
             }
-        
+
         # 重新计算哈希
         computed_hash = evidence.compute_hash()
-        
+
         # 生成 Merkle 证明
         proof = self.generate_proof(computed_hash)
-        
+
         if not proof:
             return {
                 "valid": False,
@@ -337,10 +331,10 @@ class MerkleAuditor:
                 "evidence_id": evidence_id,
                 "computed_hash": computed_hash,
             }
-        
+
         # 验证证明
         proof_valid = proof.verify()
-        
+
         return {
             "valid": proof_valid,
             "evidence_id": evidence_id,
@@ -349,7 +343,7 @@ class MerkleAuditor:
             "tree_size": proof.tree_size,
             "proof_path_length": len(proof.proof_path),
         }
-    
+
     def get_tree_info(self) -> dict[str, Any]:
         """获取树的信息"""
         return {
@@ -359,7 +353,7 @@ class MerkleAuditor:
             "last_rebuild": self._last_rebuild,
             "evidence_count": len(self._evidence_map),
         }
-    
+
     def export_tree(self) -> dict[str, Any]:
         """导出完整的树结构（用于备份或传输）"""
         return {
@@ -378,16 +372,16 @@ class MerkleAuditor:
                 "leaf_count": len(self._leaves),
             }
         }
-    
+
     def compare_trees(self, other: MerkleAuditor) -> dict[str, Any]:
         """
         比较两个 Merkle Tree
-        
+
         用于分布式审计节点之间的一致性检查。
         """
         self_root = self.get_root_hash()
         other_root = other.get_root_hash()
-        
+
         if self_root == other_root:
             return {
                 "consistent": True,
@@ -395,14 +389,14 @@ class MerkleAuditor:
                 "self_leaves": len(self._leaves),
                 "other_leaves": len(other._leaves),
             }
-        
+
         # 查找不同的证据
         self_hashes = {leaf.hash for leaf in self._leaves}
         other_hashes = {leaf.hash for leaf in other._leaves}
-        
+
         only_in_self = self_hashes - other_hashes
         only_in_other = other_hashes - self_hashes
-        
+
         return {
             "consistent": False,
             "root_match": False,
@@ -421,14 +415,14 @@ class MerkleAuditor:
 class AuditChainIntegrator:
     """
     审计链集成器
-    
+
     将 Merkle 审计链与现有的 UnifiedAuditStore 集成。
     """
-    
-    def __init__(self, merkle_auditor: Optional[MerkleAuditor] = None):
+
+    def __init__(self, merkle_auditor: MerkleAuditor | None = None):
         self.merkle = merkle_auditor or MerkleAuditor()
         self._previous_hash = "0" * 64  # 创世哈希
-        
+
     def record_trust_evaluation(
         self,
         agent_id: str,
@@ -451,18 +445,18 @@ class AuditChainIntegrator:
             previous_hash=self._previous_hash,
             nonce=0,
         )
-        
+
         evidence_hash = self.merkle.add_evidence(evidence)
         self._previous_hash = evidence_hash
         return evidence_hash
-    
+
     def record_access_control(
         self,
         agent_id: str,
         action: str,
         resource: str,
         allowed: bool,
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> str:
         """记录访问控制决策到审计链"""
         evidence = AuditEvidence(
@@ -480,17 +474,17 @@ class AuditChainIntegrator:
             previous_hash=self._previous_hash,
             nonce=0,
         )
-        
+
         evidence_hash = self.merkle.add_evidence(evidence)
         self._previous_hash = evidence_hash
         return evidence_hash
-    
+
     def record_delegation(
         self,
         delegator_id: str,
         delegatee_id: str,
         capabilities: list[str],
-        chain_id: Optional[str] = None
+        chain_id: str | None = None
     ) -> str:
         """记录委托行为到审计链"""
         evidence = AuditEvidence(
@@ -507,11 +501,11 @@ class AuditChainIntegrator:
             previous_hash=self._previous_hash,
             nonce=0,
         )
-        
+
         evidence_hash = self.merkle.add_evidence(evidence)
         self._previous_hash = evidence_hash
         return evidence_hash
-    
+
     def get_audit_summary(self) -> dict[str, Any]:
         """获取审计摘要"""
         return {

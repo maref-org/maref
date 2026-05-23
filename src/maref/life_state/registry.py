@@ -6,8 +6,9 @@ C32: Enables life state entities to register, unregister, and be discovered.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from maref.life_state.metadata import LifeStateCapability, LifeStateMetadata, LifeStateType
 

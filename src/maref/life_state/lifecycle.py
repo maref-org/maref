@@ -6,9 +6,10 @@ C38: Automatic state transitions with lifecycle hooks and EvolutionDSL integrati
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from maref.life_state.health import HealthMonitor, HealthStatus, SelfHealer
 from maref.life_state.metadata import LifeStateMetadata

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,8 @@ class CardBridge:
     def __init__(
         self,
         vault_path: str | Path = Path("vault"),
-        knowledge_graph: Optional[Any] = None,
-        hitl_router: Optional[Any] = None,
+        knowledge_graph: Any | None = None,
+        hitl_router: Any | None = None,
     ):
         self._vault_path = Path(vault_path)
         self._kg = knowledge_graph
@@ -65,7 +65,7 @@ class CardBridge:
                 logger.warning("Failed to load card %s: %s", path.name, exc)
         return cards
 
-    def _card_to_kg_node(self, card: Any) -> Optional[dict[str, Any]]:
+    def _card_to_kg_node(self, card: Any) -> dict[str, Any] | None:
         """Convert a PERCV card to a MAREF knowledge graph node dict."""
         card_id = getattr(card, "signal_id", None) or getattr(card, "kdp_id", None) or getattr(card, "forecast_id", None) or getattr(card, "pattern_id", "")
         card_type_prefix = card_id.split("-")[0] if "-" in card_id else "UNKNOWN"
@@ -140,7 +140,7 @@ class CardBridge:
         try:
             from percv.schemas import ForecastCard, KDPCard, PatternCard, SignalCard
         except ImportError:
-            raise RuntimeError("PERCV package required for CardBridge")
+            raise RuntimeError("PERCV package required for CardBridge") from None
 
         total = 0
         card_type_pairs: list[tuple[str, Any]] = [

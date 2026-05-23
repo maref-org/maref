@@ -15,7 +15,6 @@ from typing import Any
 from maref.cross_validator.consensus_algorithm import (
     ConsensusResult,
     ConsensusStatus,
-    ValidatorNode,
     Vote,
     VoteValue,
     WeightedConsensusEngine,

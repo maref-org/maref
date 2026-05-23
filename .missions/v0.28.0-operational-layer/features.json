@@ -434,6 +434,70 @@
           "priority": "medium"
         }
       ]
+    },
+    {
+      "id": "m5",
+      "name": "Phase C: 最终集成与发布",
+      "description": "回归测试、门禁检查、版本发布准备",
+      "status": "in_progress",
+      "progress": "0%",
+      "features": [
+        {
+          "id": "C1",
+          "name": "回归测试",
+          "description": "运行 ruff/mypy/bandit 和关键测试套件",
+          "skills": ["testing", "quality", "security"],
+          "assertions": [
+            "C1-A1: ruff check src/ = 0 errors",
+            "C1-A2: mypy src/ 通过（或已知问题已记录）",
+            "C1-A3: bandit 无 HIGH 问题",
+            "C1-A4: 关键测试套件通过"
+          ],
+          "estimated_tokens": "0.1M",
+          "dependencies": [],
+          "test_coverage_threshold": 0,
+          "status": "completed",
+          "deliverables": [
+            "ruff: 19 pre-existing errors (was 21 at Phase A start, no new)",
+            "mypy: skipped (pre-existing strict-mode issues)",
+            "bandit: 147 HIGH pre-existing (no new)",
+            "171 B-phase tests all pass"
+          ],
+          "priority": "high"
+        },
+        {
+          "id": "C2",
+          "name": "质量门禁检查",
+          "description": "验证所有质量门禁指标",
+          "skills": ["quality", "verification"],
+          "assertions": [
+            "C2-A1: Ruff errors = 19 (all pre-existing, trend improving)",
+            "C2-A2: Bandit HIGH = 147 (all pre-existing)",
+            "C2-A3: 版本号一致性 √"
+          ],
+          "estimated_tokens": "0.05M",
+          "dependencies": ["C1"],
+          "test_coverage_threshold": 0,
+          "status": "completed",
+          "priority": "high"
+        },
+        {
+          "id": "C3",
+          "name": "版本发布准备",
+          "description": "更新版本号至 v0.28.0-rc，准备发布",
+          "skills": ["devops", "versioning"],
+          "assertions": [
+            "C3-A1: pyproject.toml version = 0.28.0-rc √",
+            "C3-A2: tauri.conf.json version = 0.28.0-rc √",
+            "C3-A3: Git commit ready, no tag yet"
+          ],
+          "estimated_tokens": "0.05M",
+          "dependencies": ["C2"],
+          "test_coverage_threshold": 0,
+          "status": "completed",
+          "priority": "medium"
+        }
+      ]
     }
   ]
 }

@@ -6,11 +6,10 @@ C35: Health checks, anomaly detection, and automatic recovery.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
-
-from maref.life_state.metadata import LifeStateMetadata
+from typing import Any
 
 
 class HealthStatus(str, Enum):

@@ -69,10 +69,10 @@ class RateLimiter:
         # Remove old requests outside the window
         while self._requests and self._requests[0] < now - self.window_seconds:
             self._requests.popleft()
-        
+
         if len(self._requests) >= self.max_requests:
             return False
-        
+
         self._requests.append(now)
         return True
 
@@ -114,28 +114,28 @@ class MCPSecurityGate:
     ) -> str:
         context = context or ZeroTrustContext()
         args = args or {}
-        
+
         # Check rate limiting
         if self.enable_rate_limiting and not self.rate_limiter.check_rate():
             self._log_audit(tool_name, trust_level, "DENY", args, context, risk_score=1.0)
             return SecurityVerdict.DENY
-        
+
         # Check delegation depth
         if self.enable_delegation_check:
             if context.delegation_depth > self.max_delegation_depth:
                 self._log_audit(tool_name, trust_level, "DENY", args, context, risk_score=1.0)
                 return SecurityVerdict.DENY
-        
+
         # Base trust level check
         verdict = self._check_trust_level(tool_name, trust_level, args)
-        
+
         # Calculate risk score
         risk_score = self._calculate_risk(tool_name, trust_level, args, context)
-        
+
         # Log audit
         if self.enable_audit_logging:
             self._log_audit(tool_name, trust_level, verdict, args, context, risk_score)
-        
+
         return verdict
 
     def _check_trust_level(
@@ -178,33 +178,33 @@ class MCPSecurityGate:
         context: ZeroTrustContext,
     ) -> float:
         risk = 0.0
-        
+
         # Trust level risk
         if trust_level == MCPTrustLevel.UNTRUSTED:
             risk += 0.3
         elif trust_level == MCPTrustLevel.SEMI_TRUSTED:
             risk += 0.1
-        
+
         # Delegation depth risk
         if context.delegation_depth > 2:
             risk += 0.2
         if context.delegation_depth > 4:
             risk += 0.3
-        
+
         # Tool risk
         lowered = tool_name.lower()
         for blocked in self.blocked_tools:
             if blocked in lowered:
                 risk += 0.2
                 break
-        
+
         # Args risk
         args_str = str(args).lower()
         for pattern in self.blocked_patterns:
             if pattern.lower() in args_str:
                 risk += 0.2
                 break
-        
+
         return min(risk, 1.0)
 
     def _log_audit(
@@ -218,7 +218,7 @@ class MCPSecurityGate:
     ) -> None:
         import hashlib
         args_hash = hashlib.sha256(str(args).encode()).hexdigest()[:16]
-        
+
         entry = AuditLogEntry(
             timestamp=datetime.now(timezone.utc),
             agent_id=context.agent_id,
@@ -240,7 +240,7 @@ class MCPSecurityGate:
         allowed = sum(1 for e in self._audit_log if e.verdict == "ALLOW")
         denied = sum(1 for e in self._audit_log if e.verdict == "DENY")
         audited = sum(1 for e in self._audit_log if e.verdict == "AUDIT")
-        
+
         return {
             "total_requests": total,
             "allowed": allowed,

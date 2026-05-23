@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +23,23 @@ class CostMonitor:
 
     def __init__(
         self,
-        config: Optional[Any] = None,
-        gateway_adapter: Optional[Any] = None,
-        circuit_breaker: Optional[Any] = None,
-        governance_manager: Optional[Any] = None,
-        state_machine: Optional[Any] = None,  # deprecated, use governance_manager
+        config: Any | None = None,
+        gateway_adapter: Any | None = None,
+        circuit_breaker: Any | None = None,
+        governance_manager: Any | None = None,
+        state_machine: Any | None = None,  # deprecated, use governance_manager
         warning_pct: float = 80.0,
         critical_pct: float = 95.0,
     ):
         self._config = config
         self._gateway = gateway_adapter
-        
+
         # Use config values if provided
         if config and hasattr(config, "monthly_budget_cny"):
             self._monthly_budget = config.monthly_budget_cny
         else:
             self._monthly_budget = 5000.0
-            
+
         self._cb = circuit_breaker
         # Use governance_manager if provided, fallback to state_machine for backwards compatibility
         self._governance_manager = governance_manager or state_machine

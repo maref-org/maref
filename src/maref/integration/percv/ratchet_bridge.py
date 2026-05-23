@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,9 @@ class RatchetBridge:
 
     def __init__(
         self,
-        meta_learner: Optional[Any] = None,
+        meta_learner: Any | None = None,
         vault_path: str | Path = Path("vault"),
-        program_path: Optional[str | Path] = None,
+        program_path: str | Path | None = None,
     ):
         self._meta_learner = meta_learner
         self._vault_path = Path(vault_path)
@@ -137,7 +137,7 @@ class RatchetBridge:
 
         iterations: list[dict[str, Any]] = []
         best_score = 0.0
-        best_iteration: Optional[int] = None
+        best_iteration: int | None = None
 
         for i in range(effective_budget):
             result = self._run_single_ratchet_iteration(target_file)

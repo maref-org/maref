@@ -178,10 +178,10 @@ class HIPAAComplianceEngine:
         """
         found_identifiers: list[str] = []
 
-        for field in data_fields:
+        for data_field in data_fields:
             for identifier in self.HIPAA_IDENTIFIERS:
-                if identifier in field.lower():
-                    found_identifiers.append(f"{field} -> {identifier}")
+                if identifier in data_field.lower():
+                    found_identifiers.append(f"{data_field} -> {identifier}")
 
         return {
             "contains_phi": len(found_identifiers) > 0,

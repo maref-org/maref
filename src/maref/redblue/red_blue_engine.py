@@ -8,7 +8,6 @@ from typing import Any
 
 from maref.governance import CircuitBreaker, GovernanceStateMachine
 from maref.redblue.attack_vector import (
-    AttackCategory,
     AttackDefinition,
     BlueLevel,
     RedLevel,

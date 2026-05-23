@@ -126,7 +126,7 @@ class GatewayRouter:
                             "fallback": GatewayRoute.FALLBACK,
                         }
                         route = route_map.get(route_info.get("route"), GatewayRoute.STANDARD)
-                        
+
                         decision = RoutingDecision(
                             route=route,
                             entropy=entropy,
@@ -140,7 +140,7 @@ class GatewayRouter:
             except Exception:
                 # Fall back to standard routing if PERCV fails
                 pass
-        
+
         if self._circuit_open:
             decision = RoutingDecision(
                 route=GatewayRoute.FALLBACK,

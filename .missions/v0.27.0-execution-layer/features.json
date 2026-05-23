@@ -255,4 +255,6 @@
   "current_milestone": "m4",
   "completed_milestones": ["m1", "m2", "m3", "m4"],
   "total_estimated_tokens": "23.3M",
-  "budget_usd": 2330
+  "budget_usd": 2330,
+  "risk_level": "medium"
+}

@@ -167,9 +167,7 @@ class PolicySandbox:
             for change_id, change in sorted(
                 self._changes.items(), key=lambda x: x[1].proposed_at, reverse=True
             ):
-                if change.status in active_statuses:
-                    changes_to_keep.append(change_id)
-                elif len(changes_to_keep) < self._max_memory_changes:
+                if change.status in active_statuses or len(changes_to_keep) < self._max_memory_changes:
                     changes_to_keep.append(change_id)
                 else:
                     break

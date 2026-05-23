@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 
 class MessageType(str, Enum):
@@ -81,7 +82,7 @@ class MessageBus:
                 except Exception:
                     pass
         else:
-            for state_id, handlers in self._handlers.items():
+            for _state_id, handlers in self._handlers.items():
                 for handler in handlers:
                     try:
                         handler(message)

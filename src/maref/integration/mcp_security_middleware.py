@@ -14,10 +14,11 @@ from __future__ import annotations
 import threading
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
-from maref.integration.mcp_transport import JSONRPCRequest, JSONRPCResponse
+from maref.integration.mcp_transport import JSONRPCRequest
 
 
 @dataclass

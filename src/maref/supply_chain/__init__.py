@@ -5,22 +5,21 @@
 """
 
 from maref.supply_chain.sbom_generator import (
-    SBOMGenerator,
     SBOM,
     Component,
     ComponentType,
     LicenseType,
+    SBOMGenerator,
     Vulnerability,
-    VulnerabilitySeverity
+    VulnerabilitySeverity,
 )
-
 from maref.supply_chain.vulnerability_scanner import (
-    VulnerabilityScanner,
     ScanResult,
     ScanStatus,
-    VulnerabilitySource,
+    VulnerabilityDatabase,
     VulnerabilityMatch,
-    VulnerabilityDatabase
+    VulnerabilityScanner,
+    VulnerabilitySource,
 )
 
 __all__ = [
@@ -28,11 +27,11 @@ __all__ = [
     "SBOMGenerator",
     "SBOM",
     "Component",
-    "ComponentType", 
+    "ComponentType",
     "LicenseType",
     "Vulnerability",
     "VulnerabilitySeverity",
-    
+
     # 漏洞扫描器
     "VulnerabilityScanner",
     "ScanResult",

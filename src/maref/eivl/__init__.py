@@ -4,20 +4,6 @@ EIVL (External Immutable Verification Layer) 模块
 提供基于 WASM 的隔离执行环境和 Merkle 审计链。
 """
 
-from maref.eivl.wasm_sandbox import (
-    EIVLVerifier,
-    ExecutionResult,
-    ExecutionStatus,
-    ResourceLimits,
-    SandboxCapabilities,
-    SandboxError,
-    MemoryLimitExceeded,
-    ExecutionTimeout,
-    CapabilityViolation,
-    WasmSandboxExecutor,
-    create_eivl_verifier,
-    create_wasm_sandbox,
-)
 from maref.eivl.merkle_auditor import (
     AuditChainIntegrator,
     AuditEvidence,
@@ -26,6 +12,20 @@ from maref.eivl.merkle_auditor import (
     MerkleProof,
     create_audit_chain_integrator,
     create_merkle_auditor,
+)
+from maref.eivl.wasm_sandbox import (
+    CapabilityViolation,
+    EIVLVerifier,
+    ExecutionResult,
+    ExecutionStatus,
+    ExecutionTimeout,
+    MemoryLimitExceeded,
+    ResourceLimits,
+    SandboxCapabilities,
+    SandboxError,
+    WasmSandboxExecutor,
+    create_eivl_verifier,
+    create_wasm_sandbox,
 )
 
 __all__ = [

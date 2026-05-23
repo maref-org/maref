@@ -1,5 +1,5 @@
+
 import click
-from typing import Any
 
 from maref.security.keyring_store import KeyringStore
 

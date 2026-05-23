@@ -6,9 +6,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from maref.stress.real_latency import LatencyReport
 from maref.stress.stress_harness import StressHarness
-from maref.stress.stress_level import STRESS_PRESETS, StressLevel
+from maref.stress.stress_level import StressLevel
 from maref.stress.stress_result import StressResult
 
 

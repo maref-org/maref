@@ -13,9 +13,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from maref.integration.a2a_types import A2A_AGENT_CARD_SCHEMA
 from maref.recursive.signed_agent_cards import SignedAgentCard
-
 
 # MAS-TS-001 Agent Card JSON Schema (subset)
 MAS_TS001_AGENT_CARD_SCHEMA: dict[str, Any] = {

@@ -43,7 +43,7 @@ class MessageSecurityReport:
 class MessageSecurityScanner:
     """
     Enhanced message security scanner with risk scoring.
-    
+
     Risk scoring:
     - 0-30: Low risk, normal message
     - 31-70: Medium risk, suspicious content - audit required

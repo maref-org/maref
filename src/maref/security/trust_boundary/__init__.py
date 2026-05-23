@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
-import uuid
 
 if TYPE_CHECKING:
     from maref.governance.audit import AuditLogger
@@ -104,8 +104,8 @@ class BoundaryReport:
 class TrustBoundaryManager:
     def __init__(
         self,
-        audit_logger: "AuditLogger | None" = None,
-        circuit_breaker: "CircuitBreaker | None" = None,
+        audit_logger: AuditLogger | None = None,
+        circuit_breaker: CircuitBreaker | None = None,
     ) -> None:
         self._domains: dict[str, TrustDomain] = {}
         self._agent_domain_map: dict[str, str] = {}

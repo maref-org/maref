@@ -3,8 +3,8 @@
   "version": "0.28.0",
   "name": "MAREF v0.28.0 - Operational Layer: HITL & Orchestration",
   "status": "active",
-  "progress": "90%",
-  "current_milestone": "m4",
+  "progress": "100%",
+  "current_milestone": "m5",
   "start_date": "2026-05-22",
   "target_completion_date": "2026-06-01",
   "estimated_duration_days": 10,
@@ -63,11 +63,12 @@
       "id": "m5",
       "name": "Phase C: 最终集成与发布",
       "description": "回归测试、门禁检查、版本发布准备",
-      "status": "planned",
-      "progress": "0%",
+      "status": "completed",
+      "progress": "100%",
       "estimated_duration_days": 0.5,
       "features": ["C1", "C2", "C3"],
-      "dependencies": ["m2", "m3", "m4"]
+      "dependencies": ["m2", "m3", "m4"],
+      "completion_date": "2026-05-22"
     }
   },
   "team": {

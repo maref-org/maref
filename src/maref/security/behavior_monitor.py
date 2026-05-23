@@ -57,7 +57,7 @@ class BehaviorAnomaly:
 class BehaviorMonitor:
     """
     Monitors agent behavior for anomalies and emergent patterns.
-    
+
     Features:
     - Per-agent behavior baseline learning
     - Statistical anomaly detection (3-sigma rule)
@@ -181,10 +181,10 @@ class BehaviorMonitor:
             all_anomalies.extend(self.detect_anomalies(agent_id))
 
         # If 2+ agents have high/critical anomalies simultaneously, escalate
-        high_anomaly_agents = set(
+        high_anomaly_agents = {
             a.agent_id for a in all_anomalies
             if a.severity in ("high", "critical")
-        )
+        }
 
         emergent: list[BehaviorAnomaly] = []
         if len(high_anomaly_agents) >= 2:

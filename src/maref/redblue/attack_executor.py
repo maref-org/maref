@@ -70,7 +70,7 @@ class AttackExecutor:
         try:
             sm.transition(GovernanceState.OBSERVE)
             if bogus:
-                for i in range(min(count, 500)):
+                for _i in range(min(count, 500)):
                     try:
                         sm.transition(GovernanceState(99))
                         result.penetrated = True
