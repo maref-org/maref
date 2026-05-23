@@ -3,8 +3,8 @@
   "version": "0.28.0",
   "name": "MAREF v0.28.0 - Operational Layer: HITL & Orchestration",
   "status": "active",
-  "progress": "50%",
-  "current_milestone": "m2",
+  "progress": "75%",
+  "current_milestone": "m3",
   "start_date": "2026-05-22",
   "target_completion_date": "2026-06-01",
   "estimated_duration_days": 10,
@@ -41,11 +41,12 @@
       "id": "m3",
       "name": "Phase B2: 编排层增强",
       "description": "任务图管理器和计划执行器开发",
-      "status": "planned",
-      "progress": "0%",
+      "status": "completed",
+      "progress": "100%",
       "estimated_duration_days": 2,
-      "features": ["B2.1", "B2.2", "B2.3", "B2.4", "B2.5"],
-      "dependencies": ["m1"]
+      "features": ["B2.1", "B2.2"],
+      "dependencies": ["m1"],
+      "completion_date": "2026-05-22"
     },
     "m4": {
       "id": "m4",

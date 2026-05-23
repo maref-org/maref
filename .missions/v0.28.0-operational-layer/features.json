@@ -348,8 +348,8 @@
       "id": "m3",
       "name": "Phase B2: 编排层增强",
       "description": "任务图管理器和计划执行器开发",
-      "status": "planned",
-      "progress": "0%",
+      "status": "completed",
+      "progress": "100%",
       "features": [
         {
           "id": "B2.1",
@@ -357,15 +357,20 @@
           "description": "开发 task_graph.py 支持 DAG 拓扑排序和循环检测",
           "skills": ["python", "algorithms", "graph-theory"],
           "assertions": [
-            "B2.1-A1: TaskGraph 类支持 DAG 构建",
+            "B2.1-A1: TaskGraph 类支持 DAG 构建（add_node/add_edge/remove_node）",
             "B2.1-A2: topological_order() 方法实现",
-            "B2.1-A3: detect_cycles() 循环依赖检测",
-            "B2.1-A4: 测试覆盖率 ≥80%"
+            "B2.1-A3: detect_cycles() 循环依赖检测（返回所有循环路径）",
+            "B2.1-A4: 测试覆盖率 ≥80%（20 tests, 100% pass）"
           ],
           "estimated_tokens": "0.8M",
           "dependencies": ["A1.3"],
           "test_coverage_threshold": 80,
-          "status": "pending",
+          "status": "completed",
+          "deliverables": [
+            "task_graph.py: TaskGraph + TaskNode + TaskStatus",
+            "序列化: to_dict/from_dict/to_json/to_mermaid",
+            "20 个测试覆盖 DAG/cycle/serialization/ready-nodes"
+          ],
           "estimated_duration_hours": 6,
           "priority": "high"
         },
@@ -376,14 +381,21 @@
           "skills": ["python", "orchestration", "governance"],
           "assertions": [
             "B2.2-A1: PlanExecutor 类接收 Plan 分步执行",
-            "B2.2-A2: 每步注入治理检查 (MCPGovernance.check)",
-            "B2.2-A3: 失败处理（重试/跳过/回滚）",
-            "B2.2-A4: 测试覆盖率 ≥85%"
+            "B2.2-A2: 每步注入治理检查（governance_check callback）",
+            "B2.2-A3: 失败处理（重试/跳过/回滚/fail）",
+            "B2.2-A4: 测试覆盖率 ≥85%（15 tests, 100% pass）"
           ],
           "estimated_tokens": "1.0M",
           "dependencies": ["B2.1"],
           "test_coverage_threshold": 85,
-          "status": "pending",
+          "status": "completed",
+          "deliverables": [
+            "plan_executor.py: Plan/PlanStep/PlanExecutor/PlanExecutionReport",
+            "Governance check per step via callback",
+            "失败策略: retry / skip / rollback / fail",
+            "循环检测 + 依赖失败级联跳过",
+            "15 个测试覆盖所有执行路径"
+          ],
           "estimated_duration_hours": 8,
           "priority": "high"
         }
