@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class VerificationResult:
     primary_result: str = ""
     secondary_result: str = ""
     details: dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class VerificationBridge:
@@ -39,9 +39,9 @@ class VerificationBridge:
 
     def __init__(
         self,
-        gateway_adapter: Optional[Any] = None,
-        trust_graph: Optional[Any] = None,
-        redblue_engine: Optional[Any] = None,
+        gateway_adapter: Any | None = None,
+        trust_graph: Any | None = None,
+        redblue_engine: Any | None = None,
     ):
         self._gateway = gateway_adapter
         self._trust_graph = trust_graph

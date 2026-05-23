@@ -14,13 +14,12 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ThreatSeverity(Enum):
@@ -60,7 +59,7 @@ class ThreatSource(Enum):
 @dataclass
 class ThreatIndicator:
     """威胁指标"""
-    
+
     indicator_id: str
     indicator_type: IOCType
     value: str
@@ -74,7 +73,7 @@ class ThreatIndicator:
     related_cves: list[str] = field(default_factory=list)
     mitre_techniques: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "indicator_id": self.indicator_id,
@@ -89,7 +88,7 @@ class ThreatIndicator:
             "related_cves": self.related_cves,
             "mitre_techniques": self.mitre_techniques,
         }
-    
+
     def compute_hash(self) -> str:
         data = f"{self.indicator_type.value}:{self.value}:{self.source.value}"
         return hashlib.sha256(data.encode()).hexdigest()
@@ -98,13 +97,13 @@ class ThreatIndicator:
 @dataclass
 class VulnerabilityReport:
     """漏洞报告"""
-    
+
     report_id: str
-    cve_id: Optional[str]
+    cve_id: str | None
     title: str
     description: str
     severity: ThreatSeverity
-    cvss_score: Optional[float]
+    cvss_score: float | None
     affected_components: list[str]
     fixed_versions: list[str]
     published_at: datetime
@@ -112,7 +111,7 @@ class VulnerabilityReport:
     references: list[str] = field(default_factory=list)
     exploit_available: bool = False
     patch_available: bool = False
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "report_id": self.report_id,
@@ -134,7 +133,7 @@ class VulnerabilityReport:
 @dataclass
 class ThreatAlert:
     """威胁告警"""
-    
+
     alert_id: str
     alert_type: str  # "vulnerability", "ioc_match", "anomaly"
     severity: ThreatSeverity
@@ -144,9 +143,9 @@ class ThreatAlert:
     affected_assets: list[str]
     recommended_actions: list[str]
     is_active: bool = True
-    resolved_at: Optional[datetime] = None
-    assigned_to: Optional[str] = None
-    
+    resolved_at: datetime | None = None
+    assigned_to: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "alert_id": self.alert_id,
@@ -166,10 +165,10 @@ class ThreatAlert:
 class ThreatIntelligenceEngine:
     """
     威胁情报引擎
-    
+
     管理和处理多源威胁情报数据，提供实时IOC匹配和威胁分析。
     """
-    
+
     def __init__(self):
         self._indicators: dict[str, ThreatIndicator] = {}
         self._vulnerabilities: dict[str, VulnerabilityReport] = {}
@@ -178,13 +177,13 @@ class ThreatIntelligenceEngine:
         self._alert_history: list[ThreatAlert] = []
         self._threat_cache: dict[str, Any] = {}
         self._last_update: dict[ThreatSource, datetime] = {}
-        
+
         self._initialize_builtin_indicators()
-    
+
     def _initialize_builtin_indicators(self) -> None:
         """初始化内置威胁指标"""
         now = datetime.now()
-        
+
         builtin = [
             ThreatIndicator(
                 indicator_id="ioc-builtin-001",
@@ -215,25 +214,25 @@ class ThreatIntelligenceEngine:
                 mitre_techniques=["T1190"],
             ),
         ]
-        
+
         for indicator in builtin:
             self.add_indicator(indicator)
-    
+
     def add_indicator(self, indicator: ThreatIndicator) -> str:
         """添加威胁指标"""
         self._indicators[indicator.indicator_id] = indicator
-        
-        index_key = indicator.compute_hash()
+
+        indicator.compute_hash()
         self._ioc_index[indicator.indicator_type][indicator.value] = indicator.indicator_id
-        
+
         self._last_update[indicator.source] = datetime.now()
-        
+
         return indicator.indicator_id
-    
+
     def add_vulnerability(self, vuln: VulnerabilityReport) -> str:
         """添加漏洞报告"""
         self._vulnerabilities[vuln.report_id] = vuln
-        
+
         # 也为CVE创建指标
         if vuln.cve_id:
             indicator = ThreatIndicator(
@@ -249,35 +248,35 @@ class ThreatIntelligenceEngine:
                 related_cves=[vuln.cve_id],
             )
             self.add_indicator(indicator)
-        
+
         return vuln.report_id
-    
-    def search_ioc(self, ioc_type: IOCType, value: str) -> Optional[ThreatIndicator]:
+
+    def search_ioc(self, ioc_type: IOCType, value: str) -> ThreatIndicator | None:
         """搜索IOC"""
         indicator_id = self._ioc_index.get(ioc_type, {}).get(value)
         if indicator_id:
             return self._indicators.get(indicator_id)
         return None
-    
+
     def match_against_indicators(self, target_value: str) -> list[ThreatIndicator]:
         """
         将目标值与所有指标匹配
-        
+
         Args:
             target_value: 要匹配的值（IP、哈希、域名等）
-            
+
         Returns:
             匹配到的威胁指标列表
         """
         matches: list[ThreatIndicator] = []
-        
-        for ioc_type, value_index in self._ioc_index.items():
+
+        for _ioc_type, value_index in self._ioc_index.items():
             if target_value in value_index:
                 indicator_id = value_index[target_value]
                 indicator = self._indicators.get(indicator_id)
                 if indicator:
                     matches.append(indicator)
-        
+
         # 按严重程度排序
         severity_order = {
             ThreatSeverity.CRITICAL: 0,
@@ -286,25 +285,25 @@ class ThreatIntelligenceEngine:
             ThreatSeverity.LOW: 3,
         }
         matches.sort(key=lambda x: severity_order.get(x.severity, 4))
-        
+
         return matches
-    
+
     def scan_components(self, components: list[dict[str, str]]) -> dict[str, Any]:
         """
         扫描组件以检测已知漏洞
-        
+
         Args:
             components: 组件列表 [{"name": "...", "version": "..."}, ...]
-            
+
         Returns:
             扫描结果字典
         """
         vulnerabilities_found: list[dict[str, Any]] = []
-        
+
         for component in components:
             name = component.get("name", "")
             version = component.get("version", "")
-            
+
             # 在已知漏洞中搜索匹配
             for vuln in self._vulnerabilities.values():
                 for affected in vuln.affected_components:
@@ -314,7 +313,7 @@ class ThreatIntelligenceEngine:
                             "version": version,
                             "vulnerability": vuln.to_dict(),
                         })
-        
+
         risk_level = ThreatSeverity.NONE
         if vulnerabilities_found:
             severities = [v["vulnerability"]["severity"] for v in vulnerabilities_found]
@@ -326,7 +325,7 @@ class ThreatIntelligenceEngine:
                 risk_level = ThreatSeverity.MEDIUM
             else:
                 risk_level = ThreatSeverity.LOW
-        
+
         return {
             "scanned_at": datetime.now().isoformat(),
             "components_scanned": len(components),
@@ -334,7 +333,7 @@ class ThreatIntelligenceEngine:
             "risk_level": risk_level.value,
             "findings": vulnerabilities_found,
         }
-    
+
     def create_alert(
         self,
         alert_type: str,
@@ -355,11 +354,11 @@ class ThreatIntelligenceEngine:
             affected_assets=affected_assets,
             recommended_actions=recommended_actions,
         )
-        
+
         self._alerts.append(alert)
         self._alert_history.append(alert)
         return alert
-    
+
     def resolve_alert(self, alert_id: str) -> bool:
         """解决告警"""
         for alert in self._alerts:
@@ -368,11 +367,11 @@ class ThreatIntelligenceEngine:
                 alert.resolved_at = datetime.now()
                 return True
         return False
-    
-    def get_active_alerts(self, min_severity: Optional[ThreatSeverity] = None) -> list[ThreatAlert]:
+
+    def get_active_alerts(self, min_severity: ThreatSeverity | None = None) -> list[ThreatAlert]:
         """获取活跃告警"""
         active = [a for a in self._alerts if a.is_active]
-        
+
         if min_severity:
             severity_levels = {
                 ThreatSeverity.CRITICAL: 4,
@@ -383,19 +382,19 @@ class ThreatIntelligenceEngine:
             }
             min_level = severity_levels[min_severity]
             active = [a for a in active if severity_levels.get(a.severity, 0) >= min_level]
-        
+
         return sorted(active, key=lambda a: a.detected_at, reverse=True)
-    
+
     def get_threat_summary(self) -> dict[str, Any]:
         """获取威胁态势摘要"""
         active_alerts = self.get_active_alerts()
-        
+
         severity_counts = {
             "critical": 0, "high": 0, "medium": 0, "low": 0
         }
         for alert in active_alerts:
             severity_counts[alert.severity.value] += 1
-        
+
         return {
             "generated_at": datetime.now().isoformat(),
             "total_indicators": len(self._indicators),
@@ -410,28 +409,28 @@ class ThreatIntelligenceEngine:
                 for source, dt in self._last_update.items()
             },
         }
-    
-    def export_indicators(self, source: Optional[ThreatSource] = None) -> list[dict[str, Any]]:
+
+    def export_indicators(self, source: ThreatSource | None = None) -> list[dict[str, Any]]:
         """导出威胁指标"""
         indicators = self._indicators.values()
         if source:
             indicators = [i for i in indicators if i.source == source]
         return [i.to_dict() for i in indicators]
-    
+
     def assess_threat_for_asset(self, asset_id: str, asset_info: dict[str, Any]) -> dict[str, Any]:
         """
         评估特定资产的威胁风险
-        
+
         Args:
             asset_id: 资产ID
             asset_info: 资产信息
-            
+
         Returns:
             风险评估结果
         """
         # 查找匹配的IOC
         matched_iocs: list[dict[str, Any]] = []
-        
+
         # 检查资产的各种属性
         for key, value in asset_info.items():
             if isinstance(value, str):
@@ -441,7 +440,7 @@ class ThreatIntelligenceEngine:
                         "matched_field": key,
                         "indicator": m.to_dict(),
                     })
-        
+
         # 计算风险评分
         risk_score = 0.0
         if matched_iocs:
@@ -454,7 +453,7 @@ class ThreatIntelligenceEngine:
             for match in matched_iocs:
                 sev = match["indicator"]["severity"]
                 risk_score = max(risk_score, severity_scores.get(sev, 0.0))
-        
+
         risk_level = "low"
         if risk_score >= 9:
             risk_level = "critical"
@@ -462,7 +461,7 @@ class ThreatIntelligenceEngine:
             risk_level = "high"
         elif risk_score >= 4:
             risk_level = "medium"
-        
+
         return {
             "asset_id": asset_id,
             "assessment_time": datetime.now().isoformat(),

@@ -24,8 +24,6 @@ from typing import Any
 
 from maref.desktop.desktop_governance import (
     DesktopGovernance,
-    DesktopGovernanceState,
-    GovernanceEvent,
 )
 from maref.desktop.input_controller import (
     InputController,
@@ -35,6 +33,8 @@ from maref.desktop.input_controller import (
 )
 from maref.desktop.policy_decision_tree import (
     DecisionResult as TreeDecisionResult,
+)
+from maref.desktop.policy_decision_tree import (
     DecisionVerdict,
     OperationMode,
     PolicyDecisionTree,
@@ -42,9 +42,7 @@ from maref.desktop.policy_decision_tree import (
 from maref.desktop.screen_capture import DownsampleMethod, ScreenCapture, ScreenshotResult
 from maref.desktop.screen_parser import OmniParserInterface, ScreenParseResult
 from maref.desktop.verification import ScreenshotVerifier
-
-from maref.observability.trace_context import set_trace_context, get_current_trace_id
-from maref.observability.otel_middleware import _SpanContextManager, _OTEL_AVAILABLE
+from maref.observability.otel_middleware import _SpanContextManager
 
 try:
     from PIL import Image

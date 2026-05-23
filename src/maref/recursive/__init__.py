@@ -152,14 +152,6 @@ from maref.recursive.evolution_dsl import (
     SafetyGate,
     SimulationResult,
 )
-from maref.recursive.rule_freeze_zone import (
-    FreezeBlockedError,
-    FreezeZoneCheckResult,
-    ParetoComparison,
-    RuleFreezeZone,
-    compare_pareto,
-    is_frozen,
-)
 from maref.recursive.experience_pool import (
     ContextManager,
     ExperienceEntry,
@@ -282,6 +274,14 @@ from maref.recursive.resilience_v2 import (
     DegradationScenario,
     ResilienceEvaluatorV2,
     ResilienceScore,
+)
+from maref.recursive.rule_freeze_zone import (
+    FreezeBlockedError,
+    FreezeZoneCheckResult,
+    ParetoComparison,
+    RuleFreezeZone,
+    compare_pareto,
+    is_frozen,
 )
 from maref.recursive.runtime_kg import (
     RuntimeCallRecord,

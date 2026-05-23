@@ -11,11 +11,11 @@ Phase 3 认证准备:
 from __future__ import annotations
 
 import hashlib
-import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -25,12 +25,12 @@ class ControlEvidence:
     control_name: str
     evidence_type: str  # "policy", "procedure", "log", "screenshot", "config"
     description: str
-    file_path: Optional[str] = None
+    file_path: str | None = None
     hash: str = ""
     collected_at: datetime = field(default_factory=datetime.now)
-    reviewed_by: Optional[str] = None
+    reviewed_by: str | None = None
     status: str = "pending"  # pending, reviewed, accepted, rejected
-    
+
     def compute_hash(self) -> str:
         """计算证据哈希"""
         data = f"{self.control_id}:{self.control_name}:{self.collected_at.isoformat()}"
@@ -45,11 +45,11 @@ class AuditFinding:
     severity: str  # critical, high, medium, low, informational
     description: str
     recommendation: str
-    remediation_plan: Optional[str] = None
-    due_date: Optional[datetime] = None
+    remediation_plan: str | None = None
+    due_date: datetime | None = None
     status: str = "open"  # open, in_progress, remediated, closed
-    assigned_to: Optional[str] = None
-    
+    assigned_to: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "finding_id": self.finding_id,
@@ -64,10 +64,10 @@ class AuditFinding:
 class ISO27001Preparation:
     """
     ISO 27001 认证准备
-    
+
     生成 ISO 27001:2022 Annex A 控制要求的合规材料。
     """
-    
+
     # ISO 27001:2022 Annex A 控制域 (简化版)
     CONTROL_DOMAINS = {
         "A.5": {
@@ -143,36 +143,36 @@ class ISO27001Preparation:
             ]
         },
     }
-    
+
     def __init__(self):
         self._evidence: dict[str, list[ControlEvidence]] = {}
         self._findings: list[AuditFinding] = []
         self._compliance_status: dict[str, str] = {}
-        
+
         self._initialize_controls()
-    
+
     def _initialize_controls(self) -> None:
         """初始化控制状态"""
-        for domain, data in self.CONTROL_DOMAINS.items():
+        for _domain, data in self.CONTROL_DOMAINS.items():
             for control in data["controls"]:
                 control_id = control.split(" ")[0]
                 self._compliance_status[control_id] = "not_assessed"
-    
+
     def add_evidence(self, evidence: ControlEvidence) -> str:
         """添加控制证据"""
         if evidence.control_id not in self._evidence:
             self._evidence[evidence.control_id] = []
-        
+
         evidence.hash = evidence.compute_hash()
         self._evidence[evidence.control_id].append(evidence)
         self._compliance_status[evidence.control_id] = "evidence_collected"
-        
+
         return evidence.hash
-    
+
     def assess_control(self, control_id: str, status: str, notes: str = "") -> dict[str, Any]:
         """评估控制合规状态"""
         self._compliance_status[control_id] = status
-        
+
         return {
             "control_id": control_id,
             "status": status,
@@ -180,33 +180,33 @@ class ISO27001Preparation:
             "evidence_count": len(self._evidence.get(control_id, [])),
             "assessed_at": datetime.now().isoformat(),
         }
-    
+
     def generate_statement_of_applicability(self) -> dict[str, Any]:
         """
         生成适用性声明 (Statement of Applicability)
-        
+
         ISO 27001 核心文档，说明哪些控制适用、不适用及理由。
         """
         applicable = []
         not_applicable = []
-        
-        for domain, data in self.CONTROL_DOMAINS.items():
+
+        for _domain, data in self.CONTROL_DOMAINS.items():
             for control in data["controls"]:
                 control_id = control.split(" ")[0]
                 status = self._compliance_status.get(control_id, "not_assessed")
-                
+
                 entry = {
                     "control_id": control_id,
                     "control_name": control,
                     "status": status,
                     "justification": self._get_justification(control_id),
                 }
-                
+
                 if status in ("compliant", "partially_compliant", "evidence_collected"):
                     applicable.append(entry)
                 else:
                     not_applicable.append(entry)
-        
+
         return {
             "generated_at": datetime.now().isoformat(),
             "version": "1.0",
@@ -216,7 +216,7 @@ class ISO27001Preparation:
             "applicable_controls": applicable,
             "not_applicable_controls": not_applicable,
         }
-    
+
     def _get_justification(self, control_id: str) -> str:
         """获取控制适用性理由"""
         justifications = {
@@ -234,7 +234,7 @@ class ISO27001Preparation:
             "A.8.28": "Required - Code review and AST analysis enforced",
         }
         return justifications.get(control_id, "Standard control applicable to MAREF")
-    
+
     def get_readiness_assessment(self) -> dict[str, Any]:
         """获取认证就绪评估"""
         total = len(self._compliance_status)
@@ -242,9 +242,9 @@ class ISO27001Preparation:
         partially = sum(1 for s in self._compliance_status.values() if s == "partially_compliant")
         evidence = sum(1 for s in self._compliance_status.values() if s == "evidence_collected")
         not_assessed = sum(1 for s in self._compliance_status.values() if s == "not_assessed")
-        
+
         readiness = (compliant + partially * 0.5 + evidence * 0.3) / total if total > 0 else 0.0
-        
+
         return {
             "assessed_at": datetime.now().isoformat(),
             "total_controls": total,
@@ -261,10 +261,10 @@ class ISO27001Preparation:
 class SOC2Preparation:
     """
     SOC 2 Type II 审计准备
-    
+
     基于 Trust Services Criteria 的审计文档生成。
     """
-    
+
     TRUST_SERVICES_CRITERIA = {
         "CC6.1": {
             "category": "Security",
@@ -332,15 +332,15 @@ class SOC2Preparation:
             "type": "Additional",
         },
     }
-    
+
     def __init__(self):
         self._control_tests: dict[str, list[dict[str, Any]]] = {}
         self._observation_period_days = 90  # SOC 2 Type II 要求 3-12 个月观察期
-        
+
     def generate_control_matrix(self) -> dict[str, Any]:
         """生成控制矩阵"""
         matrix = []
-        
+
         for control_id, info in self.TRUST_SERVICES_CRITERIA.items():
             matrix.append({
                 "control_id": control_id,
@@ -350,14 +350,14 @@ class SOC2Preparation:
                 "implementation_status": "implemented" if control_id.startswith(("CC6", "CC7")) else "partial",
                 "test_frequency": "continuous" if info["category"] == "Security" else "quarterly",
             })
-        
+
         return {
             "generated_at": datetime.now().isoformat(),
             "observation_period_days": self._observation_period_days,
             "controls": matrix,
             "total_controls": len(matrix),
         }
-    
+
     def generate_audit_scope(self) -> dict[str, Any]:
         """生成审计范围"""
         return {
@@ -378,15 +378,15 @@ class SOC2Preparation:
 class SelfBootstrapVerifier:
     """
     自举验证器
-    
+
     使用 MAREF 验证自身的安全模块，建立信任闭环。
     核心理念: 系统能够验证自己生成的代码通过自身的安全检查。
     """
-    
+
     def __init__(self):
         self._verification_history: list[dict[str, Any]] = []
         self._trust_closure_achieved = False
-        
+
     def verify_own_module(
         self,
         module_name: str,
@@ -395,20 +395,20 @@ class SelfBootstrapVerifier:
     ) -> dict[str, Any]:
         """
         验证自身模块
-        
+
         Args:
             module_name: 模块名
             module_source: 模块源代码
             security_checks: 安全检查函数列表
-            
+
         Returns:
             验证结果
         """
         source_hash = hashlib.sha256(module_source.encode()).hexdigest()
-        
+
         results = []
         all_passed = True
-        
+
         for check in security_checks:
             try:
                 result = check(module_source)
@@ -418,7 +418,7 @@ class SelfBootstrapVerifier:
             except Exception as e:
                 results.append({"check": check.__name__, "passed": False, "error": str(e)})
                 all_passed = False
-        
+
         verification_record = {
             "timestamp": time.time(),
             "module_name": module_name,
@@ -428,10 +428,10 @@ class SelfBootstrapVerifier:
             "all_passed": all_passed,
             "results": results,
         }
-        
+
         self._verification_history.append(verification_record)
         return verification_record
-    
+
     def check_syntax_safety(self, source_code: str) -> dict[str, Any]:
         """检查语法安全性"""
         dangerous_patterns = [
@@ -441,19 +441,19 @@ class SelfBootstrapVerifier:
             "os.system",
             "subprocess.call",
         ]
-        
+
         found = []
         for pattern in dangerous_patterns:
             if pattern in source_code:
                 found.append(pattern)
-        
+
         return {
             "check": "syntax_safety",
             "passed": len(found) == 0,
             "dangerous_patterns_found": found,
             "severity": "critical" if found else "none",
         }
-    
+
     def check_import_integrity(self, source_code: str) -> dict[str, Any]:
         """检查导入完整性"""
         # 检查是否有未声明的外部依赖
@@ -461,7 +461,7 @@ class SelfBootstrapVerifier:
         for line in source_code.split("\n"):
             if line.startswith("import ") or line.startswith("from "):
                 imports.append(line.strip())
-        
+
         # 验证所有导入都在白名单中
         allowed_prefixes = (
             "maref.",
@@ -475,20 +475,20 @@ class SelfBootstrapVerifier:
             "asyncio",
             "collections",
         )
-        
+
         violations = []
         for imp in imports:
             if not any(imp.startswith(prefix) or prefix in imp for prefix in allowed_prefixes):
                 if "typing" not in imp and "dataclasses" not in imp:
                     violations.append(imp)
-        
+
         return {
             "check": "import_integrity",
             "passed": len(violations) == 0,
             "imports_found": len(imports),
             "violations": violations,
         }
-    
+
     def check_no_hardcoded_secrets(self, source_code: str) -> dict[str, Any]:
         """检查无硬编码密钥"""
         secret_patterns = [
@@ -498,22 +498,22 @@ class SelfBootstrapVerifier:
             "token = ",
             "private_key = ",
         ]
-        
+
         found = []
         for pattern in secret_patterns:
             if pattern in source_code.lower():
                 found.append(pattern)
-        
+
         return {
             "check": "no_hardcoded_secrets",
             "passed": len(found) == 0,
             "suspicious_patterns": found,
         }
-    
+
     def verify_trust_closure(self) -> dict[str, Any]:
         """
         验证信任闭环
-        
+
         检查系统是否能够验证其所有安全模块。
         """
         if not self._verification_history:
@@ -521,12 +521,12 @@ class SelfBootstrapVerifier:
                 "closure_achieved": False,
                 "reason": "No self-verification history",
             }
-        
+
         all_passed = all(v["all_passed"] for v in self._verification_history)
         modules_verified = len(self._verification_history)
-        
+
         self._trust_closure_achieved = all_passed and modules_verified >= 3
-        
+
         return {
             "closure_achieved": self._trust_closure_achieved,
             "modules_verified": modules_verified,
@@ -544,11 +544,11 @@ class SelfBootstrapVerifier:
                 "Trust is bootstrapped from verified components" if self._trust_closure_achieved else "Trust chain incomplete",
             ],
         }
-    
+
     def generate_bootstrap_report(self) -> dict[str, Any]:
         """生成自举验证报告"""
         closure = self.verify_trust_closure()
-        
+
         return {
             "report_type": "self_bootstrap_verification",
             "generated_at": datetime.now().isoformat(),

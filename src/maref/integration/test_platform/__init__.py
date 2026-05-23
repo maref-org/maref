@@ -14,47 +14,47 @@ Components:
 """
 
 from maref.integration.test_platform.card_adapter import (
-    MASAgentCard,
-    AgentCardAdapter,
     MAS_TS001_AGENT_CARD_SCHEMA,
+    AgentCardAdapter,
+    MASAgentCard,
 )
 from maref.integration.test_platform.eval_observer import (
-    Phase,
-    ObserverAlert,
     MASEvalObserver,
+    ObserverAlert,
+    Phase,
+)
+from maref.integration.test_platform.quality_gate import (
+    EvolutionQualityGate,
+    EvolutionVerdict,
+    QualityGateConfig,
+    QualityGateResult,
 )
 from maref.integration.test_platform.schema import (
     EvalStatus,
-    FindingSeverity,
-    TestMode,
-    Finding,
-    LayerReport,
     EvaluationReport,
+    Finding,
+    FindingSeverity,
+    LayerReport,
+    TestMode,
     build_findings_summary,
 )
 from maref.integration.test_platform.score_mapper import (
+    LayerScoreAggregator,
     PermissionLevel,
     PermissionSet,
     ScoreToPhaseMapper,
-    LayerScoreAggregator,
 )
 from maref.integration.test_platform.state_trigger import (
-    TriggerAction,
-    StateTransitionDecision,
     FastScreenTrigger,
     FullRunTrigger,
     LayerSpecificTrigger,
+    StateTransitionDecision,
+    TriggerAction,
     UnifiedTrigger,
 )
 from maref.integration.test_platform.tla_verifier import (
     TheoremResult,
     TLATheoremVerifier,
-)
-from maref.integration.test_platform.quality_gate import (
-    EvolutionVerdict,
-    QualityGateResult,
-    QualityGateConfig,
-    EvolutionQualityGate,
 )
 
 __all__ = [

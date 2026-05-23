@@ -12,7 +12,7 @@ from maref.cross_validator.consensus_algorithm import (
 )
 
 if TYPE_CHECKING:
-    from maref.recursive.evolution_dsl import EvolutionDSL, EvolutionRule
+    from maref.recursive.evolution_dsl import EvolutionDSL
     from maref.recursive.rule_freeze_zone import RuleFreezeZone
     from maref.recursive.unified_audit import UnifiedAuditRecord
 

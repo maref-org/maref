@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -37,7 +36,7 @@ class PERCVConfig:
     max_tokens: int = 4000
     """Maximum tokens for LLM responses."""
 
-    percv_package_path: Optional[str] = None
+    percv_package_path: str | None = None
     """Optional filesystem path to PERCV source (for editable install)."""
 
     vault_path: Path = Path("vault")

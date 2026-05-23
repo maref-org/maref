@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from maref.governance.types import GovernanceState
 
@@ -36,7 +35,7 @@ class GatewayResponse:
     provider: str
     input_tokens: int = 0
     output_tokens: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -85,14 +84,14 @@ class PERCVGatewayAdapter:
 
     def __init__(
         self,
-        config: Optional[Any] = None,
+        config: Any | None = None,
         router: Any = None,
         cost_tracker: Any = None,
         monthly_budget_cny: float = 5000.0,
-        model_mapping: Optional[dict[str, str]] = None,
+        model_mapping: dict[str, str] | None = None,
     ):
         self._config = config
-        
+
         # Use config values if provided
         if config and hasattr(config, "preferred_models"):
             self._model_mapping = config.preferred_models
@@ -105,7 +104,7 @@ class PERCVGatewayAdapter:
                 GatewayRole.GLOBAL.value: "sf-global",
                 GatewayRole.REASONING.value: "sf-deepseek-r1",
             }
-        
+
         if config and hasattr(config, "monthly_budget_cny"):
             self._monthly_budget = config.monthly_budget_cny
         else:
@@ -129,7 +128,7 @@ class PERCVGatewayAdapter:
             raise RuntimeError(
                 "PERCV package is required for GatewayAdapter. "
                 "Install with: pip install percv  or  uv add percv"
-            )
+            ) from None
 
     def chat(
         self,
@@ -137,7 +136,7 @@ class PERCVGatewayAdapter:
         role: GatewayRole = GatewayRole.PRIMARY,
         temperature: float = 0.7,
         timeout_ms: int = 60000,
-        governance_state: Optional[GovernanceState] = None,
+        governance_state: GovernanceState | None = None,
     ) -> GatewayResponse:
         """Route a chat completion through PERCV's gateway.
 
@@ -331,7 +330,7 @@ class PERCVGatewayAdapter:
 
     async def get_status(self) -> dict[str, Any]:
         """Get the operational status of the gateway adapter.
-        
+
         Returns:
             Dictionary with status information.
         """
@@ -361,7 +360,7 @@ class PERCVGatewayAdapter:
 
     async def get_providers(self) -> dict[str, Any]:
         """Get available LLM providers.
-        
+
         Returns:
             Dictionary with provider information.
         """

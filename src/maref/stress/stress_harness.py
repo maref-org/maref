@@ -47,7 +47,7 @@ class StressHarness:
         fault_rate = self._axes.get("fault_rate", 1.0)
         recursion_depth = int(self._axes.get("recursion_depth", 1))
         oscillation_rate = self._axes.get("oscillation_rate", 5.0)
-        data_volume = int(self._axes.get("data_volume", 1_000))
+        int(self._axes.get("data_volume", 1_000))
 
         actual_count = min(agent_count, DEFAULT_MAX_SM)
         state_machines: list[GovernanceStateMachine] = [
@@ -59,7 +59,6 @@ class StressHarness:
         )
         latency_tracker = RealLatencyTracker()
 
-        latencies: list[float] = []
         oscillation_events = 0
         oscillation_resolved = 0
         revert_count = 0

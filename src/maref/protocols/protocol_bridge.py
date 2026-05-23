@@ -18,7 +18,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ProtocolType(str, Enum):
@@ -36,12 +36,12 @@ class BridgeDirection(str, Enum):
 @dataclass
 class MCPMessage:
     """MCP 消息结构"""
-    
+
     message_id: str
     method: str  # "tools/call", "resources/read", "prompts/get"
     params: dict[str, Any]
     jsonrpc: str = "2.0"
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "jsonrpc": self.jsonrpc,
@@ -49,7 +49,7 @@ class MCPMessage:
             "method": self.method,
             "params": self.params,
         }
-    
+
     def compute_hash(self) -> str:
         """计算消息哈希"""
         return hashlib.sha256(
@@ -60,11 +60,11 @@ class MCPMessage:
 @dataclass
 class MCPResponse:
     """MCP 响应结构"""
-    
+
     message_id: str
-    result: Optional[dict[str, Any]] = None
-    error: Optional[dict[str, Any]] = None
-    
+    result: dict[str, Any] | None = None
+    error: dict[str, Any] | None = None
+
     def to_dict(self) -> dict[str, Any]:
         result = {
             "jsonrpc": "2.0",
@@ -75,7 +75,7 @@ class MCPResponse:
         if self.error is not None:
             result["error"] = self.error
         return result
-    
+
     @property
     def is_error(self) -> bool:
         return self.error is not None
@@ -84,23 +84,23 @@ class MCPResponse:
 @dataclass
 class A2ATask:
     """A2A 任务结构"""
-    
+
     task_id: str
     agent_id: str
     action: str
     input_data: dict[str, Any]
     status: str = "pending"  # pending, in_progress, completed, failed
-    output_data: Optional[dict[str, Any]] = None
+    output_data: dict[str, Any] | None = None
     created_at: float = 0.0
     updated_at: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     def __post_init__(self):
         if self.created_at == 0.0:
             self.created_at = time.time()
         if self.updated_at == 0.0:
             self.updated_at = self.created_at
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
@@ -118,18 +118,18 @@ class A2ATask:
 @dataclass
 class A2AMessage:
     """A2A 消息结构"""
-    
+
     message_id: str
     from_agent: str
     to_agent: str
     message_type: str  # task_request, task_response, status_update
     payload: dict[str, Any]
     timestamp: float = 0.0
-    
+
     def __post_init__(self):
         if self.timestamp == 0.0:
             self.timestamp = time.time()
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "message_id": self.message_id,
@@ -144,24 +144,24 @@ class A2AMessage:
 @dataclass
 class ProtocolBridgeMetrics:
     """桥接器指标"""
-    
+
     total_converted: int = 0
     errors: int = 0
     mcp_to_a2a_count: int = 0
     a2a_to_mcp_count: int = 0
     average_latency_ms: float = 0.0
-    
+
     def record_conversion(self, direction: BridgeDirection, latency_ms: float, success: bool) -> None:
         """记录转换事件"""
         self.total_converted += 1
         if not success:
             self.errors += 1
-        
+
         if direction == BridgeDirection.MCP_TO_A2A:
             self.mcp_to_a2a_count += 1
         else:
             self.a2a_to_mcp_count += 1
-        
+
         # 更新平均延迟
         self.average_latency_ms = (
             (self.average_latency_ms * (self.total_converted - 1) + latency_ms)
@@ -172,10 +172,10 @@ class ProtocolBridgeMetrics:
 class ProtocolBridge:
     """
     协议桥接器
-    
+
     实现 MCP 和 A2A 协议之间的双向转换。
     """
-    
+
     # 方法映射表
     MCP_TO_A2A_METHOD_MAP = {
         "tools/call": "execute_task",
@@ -184,32 +184,32 @@ class ProtocolBridge:
         "tools/list": "list_capabilities",
         "resources/list": "list_artifacts",
     }
-    
+
     A2A_TO_MCP_METHOD_MAP = {v: k for k, v in MCP_TO_A2A_METHOD_MAP.items()}
-    
+
     def __init__(self):
         self.metrics = ProtocolBridgeMetrics()
         self._session_store: dict[str, dict[str, Any]] = {}
         self._task_to_message_map: dict[str, str] = {}  # task_id -> message_id
-        
+
     def convert_mcp_to_a2a(self, mcp_message: MCPMessage, target_agent: str) -> A2ATask:
         """
         将 MCP 消息转换为 A2A 任务
-        
+
         Args:
             mcp_message: MCP 消息
             target_agent: 目标 Agent ID
-            
+
         Returns:
             A2ATask: 转换后的 A2A 任务
         """
         start_time = time.perf_counter()
-        
+
         # 方法映射
         a2a_action = self.MCP_TO_A2A_METHOD_MAP.get(
             mcp_message.method, "execute_task"
         )
-        
+
         # 构建任务输入
         input_data = {
             "original_method": mcp_message.method,
@@ -217,7 +217,7 @@ class ProtocolBridge:
             "source_protocol": "mcp",
             "message_hash": mcp_message.compute_hash(),
         }
-        
+
         task = A2ATask(
             task_id=f"task-{mcp_message.message_id}",
             agent_id=target_agent,
@@ -229,32 +229,32 @@ class ProtocolBridge:
                 "bridge_version": "1.0",
             }
         )
-        
+
         # 记录映射关系
         self._task_to_message_map[task.task_id] = mcp_message.message_id
-        
+
         latency_ms = (time.perf_counter() - start_time) * 1000
         self.metrics.record_conversion(BridgeDirection.MCP_TO_A2A, latency_ms, True)
-        
+
         return task
-    
+
     def convert_a2a_to_mcp(self, a2a_task: A2ATask) -> MCPResponse:
         """
         将 A2A 任务结果转换为 MCP 响应
-        
+
         Args:
             a2a_task: A2A 任务
-            
+
         Returns:
             MCPResponse: MCP 响应
         """
         start_time = time.perf_counter()
-        
+
         # 查找原始消息 ID
         message_id = self._task_to_message_map.get(
             a2a_task.task_id, a2a_task.task_id
         )
-        
+
         # 根据任务状态构建响应
         if a2a_task.status == "completed":
             result = {
@@ -286,19 +286,19 @@ class ProtocolBridge:
                 "task_id": a2a_task.task_id,
             }
             response = MCPResponse(message_id=message_id, result=result)
-        
+
         latency_ms = (time.perf_counter() - start_time) * 1000
         self.metrics.record_conversion(BridgeDirection.A2A_TO_MCP, latency_ms, True)
-        
+
         return response
-    
+
     def convert_a2a_message_to_mcp(self, a2a_message: A2AMessage) -> MCPMessage:
         """
         将 A2A 消息转换为 MCP 消息
-        
+
         Args:
             a2a_message: A2A 消息
-            
+
         Returns:
             MCPMessage: MCP 消息
         """
@@ -308,19 +308,19 @@ class ProtocolBridge:
             method = "resources/read"
         elif a2a_message.message_type == "send_message":
             method = "prompts/get"
-        
+
         params = {
             "agent_id": a2a_message.from_agent,
             "payload": a2a_message.payload,
             "original_type": a2a_message.message_type,
         }
-        
+
         return MCPMessage(
             message_id=a2a_message.message_id,
             method=method,
             params=params,
         )
-    
+
     def create_mcp_tool_request(self, tool_name: str, arguments: dict[str, Any]) -> MCPMessage:
         """创建 MCP 工具调用请求"""
         return MCPMessage(
@@ -331,7 +331,7 @@ class ProtocolBridge:
                 "arguments": arguments,
             }
         )
-    
+
     def create_a2a_task_request(
         self,
         agent_id: str,
@@ -345,11 +345,11 @@ class ProtocolBridge:
             action=action,
             input_data=input_data,
         )
-    
+
     def map_error(self, source_protocol: ProtocolType, error: dict[str, Any]) -> dict[str, Any]:
         """
         错误码映射
-        
+
         将源协议的错误码转换为目标协议的错误码。
         """
         if source_protocol == ProtocolType.MCP:
@@ -364,7 +364,7 @@ class ProtocolBridge:
                 -32000: {"type": "task_execution_failed", "status": "failed"},
             }
             return error_map.get(mcp_code, {"type": "unknown_error", "status": "failed"})
-        
+
         else:
             # A2A 错误 -> MCP 错误
             a2a_type = error.get("type", "unknown")
@@ -375,7 +375,7 @@ class ProtocolBridge:
                 "timeout": {"code": -32001, "message": "Task execution timeout"},
             }
             return error_map.get(a2a_type, {"code": -32603, "message": "Internal error"})
-    
+
     def get_metrics(self) -> dict[str, Any]:
         """获取桥接器指标"""
         return {
@@ -386,7 +386,7 @@ class ProtocolBridge:
             "average_latency_ms": round(self.metrics.average_latency_ms, 3),
             "error_rate": round(self.metrics.errors / self.metrics.total_converted, 3) if self.metrics.total_converted > 0 else 0.0,
         }
-    
+
     def generate_bridge_session(self, initiator: str, target: str) -> str:
         """生成桥接会话"""
         session_id = f"bridge-{uuid.uuid4().hex[:8]}"
@@ -402,34 +402,34 @@ class ProtocolBridge:
 class SecureProtocolBridge(ProtocolBridge):
     """
     安全增强的协议桥接器
-    
+
     在基础桥接器之上添加:
     - ATP 身份验证
     - 防重放攻击
     - 消息签名验证
     """
-    
+
     def __init__(self):
         super().__init__()
         self._nonce_store: set[str] = set()
         self._max_nonce_age = 300  # 5分钟
-        
+
     def verify_and_convert_mcp_to_a2a(
         self,
         mcp_message: MCPMessage,
         target_agent: str,
         agent_did: str,
         signature: str
-    ) -> Optional[A2ATask]:
+    ) -> A2ATask | None:
         """
         验证身份后转换 MCP 到 A2A
-        
+
         Args:
             mcp_message: MCP 消息
             target_agent: 目标 Agent
             agent_did: Agent DID
             signature: 消息签名
-            
+
         Returns:
             如果验证通过返回 A2ATask，否则返回 None
         """
@@ -437,21 +437,21 @@ class SecureProtocolBridge(ProtocolBridge):
         expected_sig = hashlib.sha256(
             f"{agent_did}:{mcp_message.message_id}".encode()
         ).hexdigest()
-        
+
         if signature != expected_sig:
             self.metrics.record_conversion(
                 BridgeDirection.MCP_TO_A2A, 0.0, False
             )
             return None
-        
+
         # 检查重放
         if mcp_message.message_id in self._nonce_store:
             return None
-        
+
         self._nonce_store.add(mcp_message.message_id)
-        
+
         return self.convert_mcp_to_a2a(mcp_message, target_agent)
-    
+
     def add_replay_protection(self, message: dict[str, Any]) -> dict[str, Any]:
         """添加防重放保护"""
         message["nonce"] = hashlib.sha256(

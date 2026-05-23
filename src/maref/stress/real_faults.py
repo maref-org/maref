@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 import os
-import signal
 import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Any
-
 
 FAULT_TYPES = [
     "test_failure", "dependency_conflict", "coverage_drop",
@@ -92,12 +90,11 @@ class RealFaultInjector:
                                     triggered=False, recovered=False)
         try:
             import fcntl
-            lock_file = tempfile.NamedTemporaryFile(delete=False)
-            self._temp_files.append(lock_file.name)
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            injection.triggered = True
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-            lock_file.close()
+            with tempfile.NamedTemporaryFile(delete=False) as lock_file:
+                self._temp_files.append(lock_file.name)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                injection.triggered = True
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
             injection.recovered = True
         except ImportError:
             injection.error = "fcntl not available on this platform"
@@ -111,12 +108,11 @@ class RealFaultInjector:
         injection = FaultInjection(fault_type="disk_io_sat", target_process=str(os.getpid()),
                                     triggered=False, recovered=False)
         try:
-            tmp = tempfile.NamedTemporaryFile(delete=False)
-            self._temp_files.append(tmp.name)
-            tmp.write(b"x" * 10 * 1024 * 1024)
-            tmp.flush()
-            injection.triggered = True
-            tmp.close()
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                self._temp_files.append(tmp.name)
+                tmp.write(b"x" * 10 * 1024 * 1024)
+                tmp.flush()
+                injection.triggered = True
             os.unlink(tmp.name)
             injection.recovered = True
         except OSError as e:
@@ -151,7 +147,7 @@ class RealFaultInjector:
                 s.connect(("8.8.8.8", 53))
                 s.close()
                 injection.metadata["network"] = "connected"
-            except (socket.timeout, OSError):
+            except (TimeoutError, OSError):
                 injection.triggered = True
                 injection.metadata["network"] = "partitioned"
                 injection.error = "Network appears partitioned"

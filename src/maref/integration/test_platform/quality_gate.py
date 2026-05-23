@@ -16,15 +16,13 @@ best candidate is used as fallback.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from maref.evolution.metrics import AcceptanceCriteria, EvolutionMetrics
 from maref.integration.test_platform.schema import (
     EvalStatus,
     EvaluationReport,
-    FindingSeverity,
     LayerReport,
     TestMode,
 )

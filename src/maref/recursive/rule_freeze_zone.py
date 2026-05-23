@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any
 
 FROZEN_TARGETS: dict[str, frozenset[str]] = {
     "rl_table": frozenset({

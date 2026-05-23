@@ -16,8 +16,9 @@ import os
 import random
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -120,10 +121,7 @@ class ChaosEngine:
             params=params,
         )
 
-        if self._simulate:
-            event = self._simulate_inject(schedule)
-        else:
-            event = self._real_inject(schedule)
+        event = self._simulate_inject(schedule) if self._simulate else self._real_inject(schedule)
 
         self._events.append(event)
         self._schedules.append(schedule)
@@ -326,10 +324,10 @@ class ChaosEngine:
         import tempfile
 
         space_mb = params.get("space_mb", 10)
-        tmp = tempfile.NamedTemporaryFile(delete=False)
-        tmp.write(b"x" * space_mb * 1024 * 1024)
-        tmp.close()
-        os.unlink(tmp.name)
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"x" * space_mb * 1024 * 1024)
+            tmp_name = tmp.name
+        os.unlink(tmp_name)
         return f"Wrote and cleaned {space_mb}MB temp file to disk"
 
     @staticmethod
@@ -360,10 +358,7 @@ class ChaosEngine:
     def _execute_scheduled(self, schedule: FaultSchedule) -> None:
         SafetyGate.block_if_production()
 
-        if self._simulate:
-            event = self._simulate_inject(schedule)
-        else:
-            event = self._real_inject(schedule)
+        event = self._simulate_inject(schedule) if self._simulate else self._real_inject(schedule)
 
         self._events.append(event)
 

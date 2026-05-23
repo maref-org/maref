@@ -35,6 +35,7 @@ from rich.table import Table
 
 from maref.production.ip_cli import ip_app
 from maref_lite.governance import GovernanceOverlay
+from maref_lite.obs_cli import obs_app
 from maref_lite.percv_cli import percv_app
 from maref_lite.state_machine import (
     ENTROPY_LEVELS,
@@ -84,6 +85,7 @@ app.add_typer(drift_app, name="drift")
 governance_app = typer.Typer(help="Governance commands", no_args_is_help=True)
 app.add_typer(governance_app, name="governance")
 
+app.add_typer(obs_app, name="obs")
 app.add_typer(percv_app, name="percv")
 app.add_typer(ip_app, name="ip")
 
@@ -514,6 +516,7 @@ def drift_check(
 def serve(
     port: int = typer.Option(8000, "--port", "-p", help="HTTP server port"),
     gui: bool = typer.Option(False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"),
+    telemetry: bool = typer.Option(False, "--telemetry/--no-telemetry", help="Enable maref-obs telemetry bridge"),
 ) -> None:
     """Start MAREF Sidecar HTTP server."""
     if gui:
@@ -537,11 +540,18 @@ def serve(
         console.print(f"  [green]Stream:[/green]     http://localhost:{port}/api/sessions/{{id}}/stream")
         console.print(f"  [green]Terminal:[/green]   ws://localhost:{port}/api/sessions/{{id}}/terminal")
 
+    if telemetry:
+        console.print("  [green]Telemetry:[/green]  /api/obs/status")
+
     try:
         import uvicorn
 
+        from maref.obs import MarefObsClient
+        from sidecar.obs_bridge import ObsBridge
         from sidecar.server import create_app
-        uvicorn.run(create_app(), host="0.0.0.0", port=port, log_level="info")
+
+        obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
+        uvicorn.run(create_app(obs_bridge=obs_bridge), host="0.0.0.0", port=port, log_level="info")
     except ImportError:
         console.print(f"[dim]Sidecar server mock — http://0.0.0.0:{port}[/dim]")
 

@@ -17,7 +17,7 @@ import hashlib
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ConsensusStatus(str, Enum):
@@ -39,7 +39,7 @@ class VoteValue(str, Enum):
 @dataclass
 class ValidatorNode:
     """验证者节点"""
-    
+
     node_id: str
     weight: float = 1.0  # 当前权重
     initial_weight: float = 1.0  # 初始权重
@@ -47,11 +47,11 @@ class ValidatorNode:
     reputation_history: list[dict[str, Any]] = field(default_factory=list)
     is_byzantine: bool = False  # 是否被标记为拜占庭节点
     is_active: bool = True
-    
+
     def update_weight(self, new_weight: float) -> None:
         """更新权重"""
         self.weight = max(0.0, min(new_weight, 10.0))  # 限制权重范围
-    
+
     def penalize(self, factor: float = 0.5) -> None:
         """惩罚节点（降低权重）"""
         self.weight *= factor
@@ -62,7 +62,7 @@ class ValidatorNode:
             "factor": factor,
             "weight_after": self.weight,
         })
-    
+
     def reward(self, factor: float = 1.1) -> None:
         """奖励节点（提升权重）"""
         self.weight = min(self.weight * factor, self.initial_weight * 2)
@@ -73,7 +73,7 @@ class ValidatorNode:
             "factor": factor,
             "weight_after": self.weight,
         })
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "node_id": self.node_id,
@@ -87,14 +87,14 @@ class ValidatorNode:
 @dataclass
 class Vote:
     """投票"""
-    
+
     validator_id: str
     vote_value: VoteValue
     proposal_id: str
     timestamp: float
-    justification: Optional[str] = None
-    signature: Optional[str] = None  # 简化的签名
-    
+    justification: str | None = None
+    signature: str | None = None  # 简化的签名
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "validator_id": self.validator_id,
@@ -108,19 +108,19 @@ class Vote:
 @dataclass
 class Proposal:
     """提案"""
-    
+
     proposal_id: str
     content: dict[str, Any]
     proposer_id: str
     timestamp: float
     quorum_threshold: float = 0.67  # 默认 2/3 多数
     byzantine_threshold: float = 0.33  # 拜占庭节点容忍阈值
-    
+
     def compute_hash(self) -> str:
         """计算提案哈希"""
         data = f"{self.proposal_id}:{self.proposer_id}:{self.timestamp}"
         return hashlib.sha256(data.encode()).hexdigest()
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "proposal_id": self.proposal_id,
@@ -134,10 +134,10 @@ class Proposal:
 @dataclass
 class ConsensusResult:
     """共识结果"""
-    
+
     status: ConsensusStatus
     proposal_id: str
-    winning_vote: Optional[VoteValue]
+    winning_vote: VoteValue | None
     approve_weight: float
     reject_weight: float
     abstain_weight: float
@@ -146,7 +146,7 @@ class ConsensusResult:
     byzantine_nodes_detected: list[str] = field(default_factory=list)
     confidence: float = 0.0  # 置信度
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "status": self.status.value,
@@ -165,16 +165,16 @@ class ConsensusResult:
 class WeightedConsensusEngine:
     """
     加权共识引擎
-    
+
     实现动态权重的拜占庭容错共识算法。
     """
-    
+
     def __init__(self):
         self._validators: dict[str, ValidatorNode] = {}
         self._votes: dict[str, list[Vote]] = {}  # proposal_id -> votes
         self._proposals: dict[str, Proposal] = {}
         self._consensus_history: list[ConsensusResult] = []
-        
+
     def register_validator(
         self,
         node_id: str,
@@ -183,12 +183,12 @@ class WeightedConsensusEngine:
     ) -> ValidatorNode:
         """
         注册验证者节点
-        
+
         Args:
             node_id: 节点唯一标识
             initial_weight: 初始权重
             trust_score: 初始信任分数
-            
+
         Returns:
             ValidatorNode: 创建的验证者节点
         """
@@ -200,14 +200,14 @@ class WeightedConsensusEngine:
         )
         self._validators[node_id] = validator
         return validator
-    
+
     def unregister_validator(self, node_id: str) -> bool:
         """注销验证者节点"""
         if node_id in self._validators:
             del self._validators[node_id]
             return True
         return False
-    
+
     def create_proposal(
         self,
         proposal_id: str,
@@ -217,13 +217,13 @@ class WeightedConsensusEngine:
     ) -> Proposal:
         """
         创建提案
-        
+
         Args:
             proposal_id: 提案唯一标识
             content: 提案内容
             proposer_id: 提案者 ID
             quorum_threshold: 共识阈值
-            
+
         Returns:
             Proposal: 创建的提案
         """
@@ -237,40 +237,40 @@ class WeightedConsensusEngine:
         self._proposals[proposal_id] = proposal
         self._votes[proposal_id] = []
         return proposal
-    
+
     def cast_vote(
         self,
         proposal_id: str,
         validator_id: str,
         vote_value: VoteValue,
-        justification: Optional[str] = None
-    ) -> Optional[Vote]:
+        justification: str | None = None
+    ) -> Vote | None:
         """
         投票
-        
+
         Args:
             proposal_id: 提案 ID
             validator_id: 验证者 ID
             vote_value: 投票值
             justification: 投票理由
-            
+
         Returns:
             Vote: 投票记录，如果失败返回 None
         """
         # 检查提案是否存在
         if proposal_id not in self._proposals:
             return None
-        
+
         # 检查验证者是否存在且活跃
         validator = self._validators.get(validator_id)
         if not validator or not validator.is_active:
             return None
-        
+
         # 检查验证者是否已投票
         existing_votes = self._votes.get(proposal_id, [])
         if any(v.validator_id == validator_id for v in existing_votes):
             return None  # 已投票，不允许重复投票
-        
+
         vote = Vote(
             validator_id=validator_id,
             vote_value=vote_value,
@@ -278,17 +278,17 @@ class WeightedConsensusEngine:
             timestamp=time.time(),
             justification=justification,
         )
-        
+
         self._votes[proposal_id].append(vote)
         return vote
-    
+
     def evaluate_consensus(self, proposal_id: str) -> ConsensusResult:
         """
         评估共识状态
-        
+
         Args:
             proposal_id: 提案 ID
-            
+
         Returns:
             ConsensusResult: 共识结果
         """
@@ -305,45 +305,45 @@ class WeightedConsensusEngine:
                 participation_rate=0.0,
                 confidence=0.0,
             )
-        
+
         votes = self._votes.get(proposal_id, [])
-        
+
         # 计算总权重
         total_weight = sum(v.weight for v in self._validators.values() if v.is_active)
-        
+
         # 统计投票权重
         approve_weight = 0.0
         reject_weight = 0.0
         abstain_weight = 0.0
-        
+
         voted_validators: set[str] = set()
-        
+
         for vote in votes:
             validator = self._validators.get(vote.validator_id)
             if not validator or not validator.is_active:
                 continue
-            
+
             voted_validators.add(vote.validator_id)
-            
+
             if vote.vote_value == VoteValue.APPROVE:
                 approve_weight += validator.weight
             elif vote.vote_value == VoteValue.REJECT:
                 reject_weight += validator.weight
             elif vote.vote_value == VoteValue.ABSTAIN:
                 abstain_weight += validator.weight
-        
+
         participation_rate = sum(
             self._validators[v].weight for v in voted_validators
         ) / total_weight if total_weight > 0 else 0.0
-        
+
         # 检测拜占庭行为
         byzantine_nodes = self._detect_byzantine_behavior(proposal_id, votes)
-        
+
         # 判断共识是否达成
         winning_vote = None
         status = ConsensusStatus.PENDING
         confidence = 0.0
-        
+
         if participation_rate >= proposal.quorum_threshold:
             # 达到法定人数
             if approve_weight >= total_weight * proposal.quorum_threshold:
@@ -357,12 +357,12 @@ class WeightedConsensusEngine:
             else:
                 status = ConsensusStatus.INCONCLUSIVE
                 confidence = max(approve_weight, reject_weight) / total_weight
-        
+
         # 如果检测到拜占庭节点，标记状态
         if byzantine_nodes:
             if status != ConsensusStatus.REACHED:
                 status = ConsensusStatus.BYZANTINE_DETECTED
-        
+
         result = ConsensusResult(
             status=status,
             proposal_id=proposal_id,
@@ -375,30 +375,30 @@ class WeightedConsensusEngine:
             byzantine_nodes_detected=byzantine_nodes,
             confidence=confidence,
         )
-        
+
         self._consensus_history.append(result)
         return result
-    
+
     def _detect_byzantine_behavior(self, proposal_id: str, votes: list[Vote]) -> list[str]:
         """
         检测拜占庭行为
-        
+
         简单策略：如果某个节点频繁与其他节点投票不一致，可能为拜占庭节点。
         """
         byzantine_nodes: list[str] = []
-        
+
         # 获取多数投票意见
         approve_count = sum(1 for v in votes if v.vote_value == VoteValue.APPROVE)
         reject_count = sum(1 for v in votes if v.vote_value == VoteValue.REJECT)
-        
+
         majority_vote = VoteValue.APPROVE if approve_count > reject_count else VoteValue.REJECT
-        
+
         # 检查每个验证者的历史行为
         for vote in votes:
             validator = self._validators.get(vote.validator_id)
             if not validator:
                 continue
-            
+
             # 如果当前投票与多数派严重不一致
             if vote.vote_value != majority_vote and vote.vote_value != VoteValue.ABSTAIN:
                 # 检查历史记录
@@ -406,53 +406,53 @@ class WeightedConsensusEngine:
                     1 for h in validator.reputation_history[-10:]
                     if h.get("action") == "penalize"
                 )
-                
+
                 if inconsistent_count >= 3:
                     byzantine_nodes.append(vote.validator_id)
                     validator.is_byzantine = True
-        
+
         return byzantine_nodes
-    
+
     def update_weights_after_consensus(self, proposal_id: str) -> None:
         """
         共识达成后更新权重
-        
+
         对支持多数共识的节点奖励，对反对的节点惩罚。
         """
         result = self.evaluate_consensus(proposal_id)
-        
+
         if result.status not in (ConsensusStatus.REACHED, ConsensusStatus.INCONCLUSIVE):
             return
-        
+
         votes = self._votes.get(proposal_id, [])
         winning_vote = result.winning_vote
-        
+
         if not winning_vote:
             return
-        
+
         for vote in votes:
             validator = self._validators.get(vote.validator_id)
             if not validator:
                 continue
-            
+
             if vote.vote_value == winning_vote:
                 validator.reward(factor=1.05)
             elif vote.vote_value != VoteValue.ABSTAIN:
                 validator.penalize(factor=0.95)
-    
-    def get_validator_stats(self, node_id: str) -> Optional[dict[str, Any]]:
+
+    def get_validator_stats(self, node_id: str) -> dict[str, Any] | None:
         """获取验证者统计信息"""
         validator = self._validators.get(node_id)
         if not validator:
             return None
-        
+
         # 计算参与率
         total_proposals = len(self._proposals)
         participated = sum(
             1 for votes in self._votes.values()
             if any(v.validator_id == node_id for v in votes)
         )
-        
+
         return {
             "node_id": node_id,
             "current_weight": round(validator.weight, 3),
@@ -463,15 +463,15 @@ class WeightedConsensusEngine:
             "participation_rate": round(participated / total_proposals, 3) if total_proposals > 0 else 0.0,
             "reputation_events": len(validator.reputation_history),
         }
-    
+
     def get_network_stats(self) -> dict[str, Any]:
         """获取网络统计信息"""
         active_validators = [v for v in self._validators.values() if v.is_active]
         byzantine_count = sum(1 for v in self._validators.values() if v.is_byzantine)
-        
+
         total_weight = sum(v.weight for v in active_validators)
         avg_trust = sum(v.trust_score for v in active_validators) / len(active_validators) if active_validators else 0.0
-        
+
         return {
             "total_validators": len(self._validators),
             "active_validators": len(active_validators),
@@ -486,31 +486,31 @@ class WeightedConsensusEngine:
 class CrossValidator:
     """
     交叉验证器
-    
+
     整合语义等价性检测和加权共识，实现多 Agent 输出的交叉验证。
     """
-    
+
     def __init__(self):
         self.consensus = WeightedConsensusEngine()
         from maref.cross_validator.ast_normalizer import SemanticEquivalenceChecker
         self.equivalence = SemanticEquivalenceChecker()
-        
+
     def validate_agent_outputs(
         self,
         proposal_id: str,
         outputs: dict[str, str],  # agent_id -> output
-        reference_output: Optional[str] = None,
+        reference_output: str | None = None,
         similarity_threshold: float = 0.8,
     ) -> dict[str, Any]:
         """
         验证多个 Agent 的输出
-        
+
         Args:
             proposal_id: 提案 ID
             outputs: Agent 输出字典
             reference_output: 参考输出（如果有）
             similarity_threshold: 相似度阈值
-            
+
         Returns:
             验证结果
         """
@@ -520,28 +520,24 @@ class CrossValidator:
             content={"agent_count": len(outputs), "has_reference": reference_output is not None},
             proposer_id="cross_validator",
         )
-        
+
         # 如果没有参考输出，进行两两比较
-        if reference_output:
-            comparison_base = reference_output
-        else:
-            # 选择第一个输出作为临时参考
-            comparison_base = next(iter(outputs.values()))
-        
+        comparison_base = reference_output or next(iter(outputs.values()))
+
         # 对每个 Agent 的输出进行验证
         approvals = []
         rejections = []
-        
+
         for agent_id, output in outputs.items():
             # 检查是否已注册为验证者，如果没有则自动注册
             if agent_id not in self.consensus._validators:
                 self.consensus.register_validator(agent_id)
-            
+
             # 语义等价性检查
             equiv_result = self.equivalence.check_equivalence(
                 comparison_base, output, threshold=similarity_threshold
             )
-            
+
             if equiv_result["equivalent"]:
                 approvals.append(agent_id)
                 self.consensus.cast_vote(
@@ -558,10 +554,10 @@ class CrossValidator:
                     vote_value=VoteValue.REJECT,
                     justification=f"Semantic similarity: {equiv_result['similarity']}"
                 )
-        
+
         # 评估共识
         consensus_result = self.consensus.evaluate_consensus(proposal_id)
-        
+
         return {
             "proposal_id": proposal_id,
             "consensus": consensus_result.to_dict(),

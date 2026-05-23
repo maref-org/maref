@@ -46,7 +46,7 @@ class RealLatencyTracker:
         self._samples: dict[str, list[int]] = {}
         self._start_time = time.time()
 
-    def measure(self, operation: str) -> "LatencyContext":
+    def measure(self, operation: str) -> LatencyContext:
         return LatencyContext(self, operation)
 
     def record(self, operation: str, duration_ns: int) -> None:
@@ -82,7 +82,7 @@ class LatencyContext:
         self._tracker = tracker
         self._operation = operation
 
-    def __enter__(self) -> "LatencyContext":
+    def __enter__(self) -> LatencyContext:
         self._start_ns = time.perf_counter_ns()
         return self
 

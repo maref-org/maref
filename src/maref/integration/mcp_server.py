@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from maref.integration.mcp_transport import (
     InProcessTransport,
     JSONRPCRequest,
     JSONRPCResponse,
-    MCP_JSONRPC_VERSION,
 )
 
 
@@ -46,7 +45,7 @@ class MCPServer:
         self,
         name: str = "maref-mcp-server",
         version: str = "0.25.0",
-        security_gate: "Any | None" = None,
+        security_gate: Any | None = None,
     ) -> None:
         self.name = name
         self.version = version
@@ -101,7 +100,7 @@ class MCPServer:
     def handle_request(
         self,
         request: JSONRPCRequest,
-        trust_level: "Any | None" = None,
+        trust_level: Any | None = None,
     ) -> JSONRPCResponse:
         method = request.method
         params = request.params or {}
@@ -127,7 +126,7 @@ class MCPServer:
             )
 
     def _handle_initialize(self, req_id: int | str, params: dict[str, Any]) -> JSONRPCResponse:
-        client_info = params.get("clientInfo", {})
+        params.get("clientInfo", {})
         protocol_version = params.get("protocolVersion", "2024-11-05")
         return JSONRPCResponse(
             result={

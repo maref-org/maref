@@ -13,23 +13,20 @@ Theorems verified:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from maref.integration.test_platform import (
     AgentCardAdapter,
     EvalStatus,
     EvaluationReport,
-    Finding,
     FindingSeverity,
-    LayerReport,
     MASAgentCard,
     Phase,
     ScoreToPhaseMapper,
 )
 from maref.integration.test_platform.state_trigger import (
     FullRunTrigger,
-    TriggerAction,
     UnifiedTrigger,
 )
 
@@ -47,7 +44,7 @@ class TheoremResult:
 class TLATheoremVerifier:
     """
     Runtime verifier for TLA+ theorems defined in MAREF_TestIntegration.tla.
-    
+
     These verify that the Python implementation matches the formal specification.
     """
 
@@ -60,11 +57,11 @@ class TLATheoremVerifier:
     def verify_cross_border_consistency(cls, card: MASAgentCard) -> TheoremResult:
         """
         Verify Theorem 1: Cross-Border Consistency.
-        
+
         Formal: \\A card : data_residency != model_backend_location => cross_border = TRUE
         """
         is_valid, message = AgentCardAdapter.validate_cross_border_consistency(card)
-        
+
         return TheoremResult(
             theorem_name="CrossBorderConsistency",
             passed=is_valid,
@@ -86,11 +83,11 @@ class TLATheoremVerifier:
     def verify_prompt_rot_detection(cls, card: MASAgentCard) -> TheoremResult:
         """
         Verify Theorem 2: Prompt Rot Detection Completeness.
-        
+
         Formal: \\A skill \\in capabilities : business_rule_version = Nil => Alert
         """
         is_valid, message = AgentCardAdapter.validate_prompt_rot_detectability(card)
-        
+
         return TheoremResult(
             theorem_name="PromptRotDetectionCompleteness",
             passed=is_valid,
@@ -107,19 +104,19 @@ class TLATheoremVerifier:
     def verify_score_phase_monotonicity(cls) -> TheoremResult:
         """
         Verify Theorem 3: Score-Phase Monotonicity.
-        
+
         Formal: score1 >= score2 => permissions(score1) >= permissions(score2)
         """
         test_scores = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
         phases = [ScoreToPhaseMapper.map_score(s) for s in test_scores]
-        
+
         phase_order = {
             Phase.OLD_YANG: 4,
             Phase.LESSER_YANG: 3,
             Phase.LESSER_YIN: 2,
             Phase.OLD_YIN: 1,
         }
-        
+
         # Check monotonicity: as score increases, phase order should not decrease
         violations = []
         for i in range(1, len(test_scores)):
@@ -130,7 +127,7 @@ class TLATheoremVerifier:
                     "score_curr": test_scores[i],
                     "phase_curr": phases[i].value,
                 })
-        
+
         passed = len(violations) == 0
         return TheoremResult(
             theorem_name="ScorePhaseMonotonicity",
@@ -148,28 +145,28 @@ class TLATheoremVerifier:
     def verify_compliance_quarantine_safety(cls, report: EvaluationReport) -> TheoremResult:
         """
         Verify Theorem 4: Compliance Quarantine Safety.
-        
+
         Formal: HasCriticalFinding(agent) => GovernanceState(agent) = HALT
         """
         layer1 = next((l for l in report.layers if l.layer_number == 1), None)
         has_critical = layer1 is not None and any(
             f.severity == FindingSeverity.CRITICAL for f in (layer1.findings if layer1 else [])
         )
-        
+
         if not has_critical:
             return TheoremResult(
                 theorem_name="ComplianceQuarantineSafety",
                 passed=True,
                 details="No CRITICAL findings — theorem not triggered",
             )
-        
+
         # Use UnifiedTrigger which has priority: Layer 1 critical → HALT
         from maref.governance.state_machine import GovernanceStateMachine
         from maref.governance.types import GovernanceState
-        
+
         fsm = GovernanceStateMachine()
         UnifiedTrigger.apply(report, fsm)
-        
+
         passed = fsm.current_state == GovernanceState.HALT
         return TheoremResult(
             theorem_name="ComplianceQuarantineSafety",
@@ -187,25 +184,25 @@ class TLATheoremVerifier:
     def verify_eval_to_governance(cls, report: EvaluationReport) -> TheoremResult:
         """
         Verify Theorem 5: Evaluation-to-Governance Liveness.
-        
+
         Formal: EvalScore < 60 ~> GovernanceState = HALT
         """
         from maref.governance.state_machine import GovernanceStateMachine
         from maref.governance.types import GovernanceState
-        
+
         fsm = GovernanceStateMachine()
-        
+
         if report.overall_status == EvalStatus.FAIL or report.overall_score < 60:
             # Should trigger HALT
             if report.overall_status == EvalStatus.FAIL:
-                from maref.integration.test_platform import FastScreenTrigger, TestMode
+                from maref.integration.test_platform import FastScreenTrigger
                 if report.test_mode.value == "fast_screen":
                     FastScreenTrigger.apply(report, fsm)
                 else:
                     FullRunTrigger.apply(report, fsm)
             else:
                 FullRunTrigger.apply(report, fsm)
-            
+
             passed = fsm.current_state == GovernanceState.HALT
             return TheoremResult(
                 theorem_name="EvalToGovernanceLiveness",
@@ -213,7 +210,7 @@ class TLATheoremVerifier:
                 details=f"Eval score {report.overall_score} → state {fsm.current_state.name}",
                 counterexample={"expected": "HALT", "actual": fsm.current_state.name} if not passed else None,
             )
-        
+
         return TheoremResult(
             theorem_name="EvalToGovernanceLiveness",
             passed=True,
@@ -241,7 +238,7 @@ class TLATheoremVerifier:
         total = len(results)
         passed = sum(1 for r in results.values() if r.passed)
         failed = total - passed
-        
+
         return {
             "total_theorems": total,
             "passed": passed,

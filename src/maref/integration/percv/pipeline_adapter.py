@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
 
 from maref.governance.types import GovernanceState
 
@@ -34,8 +35,8 @@ class PipelineStepResult:
 
     step_name: str
     success: bool
-    data: Optional[Any] = None
-    error: Optional[str] = None
+    data: Any | None = None
+    error: str | None = None
     duration_ms: float = 0.0
     directive: PipelineDirective = PipelineDirective.CONTINUE
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -57,11 +58,11 @@ class PERCVPipelineAdapter:
 
     def __init__(
         self,
-        config: Optional[Any] = None,
-        gateway_adapter: Optional[Any] = None,
-        governance_state_machine: Optional[Any] = None,
-        circuit_breaker: Optional[Any] = None,
-        hitl_router: Optional[Any] = None,
+        config: Any | None = None,
+        gateway_adapter: Any | None = None,
+        governance_state_machine: Any | None = None,
+        circuit_breaker: Any | None = None,
+        hitl_router: Any | None = None,
         error_policy: str = "degrade",
     ):
         self._config = config
@@ -86,13 +87,13 @@ class PERCVPipelineAdapter:
             raise RuntimeError(
                 "PERCV package is required for PipelineAdapter. "
                 "Install with: pip install percv"
-            )
+            ) from None
 
     def _determine_directive(
         self,
         step_name: str,
         success: bool,
-        error: Optional[str],
+        error: str | None,
     ) -> PipelineDirective:
         """Map step outcome + governance state to a directive."""
         if success:
@@ -119,8 +120,8 @@ class PERCVPipelineAdapter:
     def run_research_cycle(
         self,
         topic: str,
-        config: Optional[dict[str, Any]] = None,
-        harvester_fn: Optional[Callable[[], list[Any]]] = None,
+        config: dict[str, Any] | None = None,
+        harvester_fn: Callable[[], list[Any]] | None = None,
     ) -> dict[str, PipelineStepResult]:
         """Run a full PERCV research cycle under MAREF governance oversight.
 
@@ -198,7 +199,7 @@ class PERCVPipelineAdapter:
 
         return results
 
-    def _run_scout(self, topic: str, harvester_fn: Optional[Callable] = None) -> list[Any]:
+    def _run_scout(self, topic: str, harvester_fn: Callable | None = None) -> list[Any]:
         """Run signal harvesting. Falls back to config-based ScoutAgent."""
         if harvester_fn:
             return harvester_fn()
