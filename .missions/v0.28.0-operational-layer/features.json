@@ -405,24 +405,31 @@
       "id": "m4",
       "name": "Phase B3: 工具标准化",
       "description": "工具元数据 schema 和治理集成",
-      "status": "planned",
-      "progress": "0%",
+      "status": "completed",
+      "progress": "100%",
       "features": [
         {
           "id": "B3.1",
           "name": "工具元数据 Schema 开发",
           "description": "开发 tool_schema.py 定义标准化工具元数据",
-          "skills": ["python", "dataclasses", "pydantic"],
+          "skills": ["python", "dataclasses", "dataclasses"],
           "assertions": [
-            "B3.1-A1: ToolDefinition dataclass 定义完整",
+            "B3.1-A1: ToolDefinition dataclass 定义完整（含 ToolParameter）",
             "B3.1-A2: ToolRiskLevel 和 ToolCategory 枚举",
-            "B3.1-A3: 序列化/反序列化方法",
-            "B3.1-A4: 测试覆盖率 100%"
+            "B3.1-A3: 序列化/反序列化方法（to_dict/from_dict/to_json/from_json）",
+            "B3.1-A4: 测试覆盖率 100%（24 tests, all passing）"
           ],
           "estimated_tokens": "0.5M",
           "dependencies": ["A1.3"],
           "test_coverage_threshold": 100,
-          "status": "pending",
+          "status": "completed",
+          "deliverables": [
+            "tool_schema.py: ToolDefinition + ToolParameter + enums",
+            "5 个内置工具工厂函数（file/shell/git/browser/email）",
+            "is_read_only() / get_recommended_rule() 方法",
+            "JSON round-trip serialization",
+            "24 个测试 100% 覆盖"
+          ],
           "estimated_duration_hours": 4,
           "priority": "medium"
         }

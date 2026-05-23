@@ -3,8 +3,8 @@
   "version": "0.28.0",
   "name": "MAREF v0.28.0 - Operational Layer: HITL & Orchestration",
   "status": "active",
-  "progress": "75%",
-  "current_milestone": "m3",
+  "progress": "90%",
+  "current_milestone": "m4",
   "start_date": "2026-05-22",
   "target_completion_date": "2026-06-01",
   "estimated_duration_days": 10,
@@ -52,11 +52,12 @@
       "id": "m4",
       "name": "Phase B3: 工具标准化",
       "description": "工具元数据 schema 和治理集成",
-      "status": "planned",
-      "progress": "0%",
+      "status": "completed",
+      "progress": "100%",
       "estimated_duration_days": 2,
-      "features": ["B3.1", "B3.2", "B3.3", "B3.4", "B3.5"],
-      "dependencies": ["m1"]
+      "features": ["B3.1"],
+      "dependencies": ["m1"],
+      "completion_date": "2026-05-22"
     },
     "m5": {
       "id": "m5",
