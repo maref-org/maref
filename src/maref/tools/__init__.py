@@ -12,15 +12,15 @@ from maref.tools.git_server import GitServer, RepoWhitelist, create_git_server
 from maref.tools.registry import ToolRegistry
 from maref.tools.shell_server import CommandWhitelist, create_shell_server
 from maref.tools.tool_schema import (
-    ToolDefinition,
-    ToolRiskLevel,
     ToolCategory,
+    ToolDefinition,
     ToolParameter,
-    create_file_tool,
-    create_shell_tool,
-    create_git_tool,
+    ToolRiskLevel,
     create_browser_tool,
     create_email_tool,
+    create_file_tool,
+    create_git_tool,
+    create_shell_tool,
     get_tool_definition,
     list_tool_definitions,
 )

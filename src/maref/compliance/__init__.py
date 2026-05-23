@@ -38,7 +38,7 @@ def __getattr__(name: str) -> Any:
         "ReportType",
         "create_report_generator",
     ):
-        from maref.compliance.report_generator import (
+        from maref.compliance.report_generator import (  # noqa: F401
             ComplianceReport,
             ReportFormat,
             ReportGenerator,
@@ -56,13 +56,13 @@ def __getattr__(name: str) -> Any:
         "MonitoringRule",
         "create_compliance_monitor",
     ):
-        from maref.compliance.compliance_monitor import (
+        from maref.compliance.compliance_monitor import (  # noqa: F401
             AlertSeverity,
             ComplianceAlert,
             ComplianceMonitor,
             ComplianceSnapshot,
-            MonitorState,
             MonitoringRule,
+            MonitorState,
             create_compliance_monitor,
         )
         return locals()[name]
