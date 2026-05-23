@@ -1,0 +1,257 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable
+
+from maref.orchestration.task_graph import TaskGraph, TaskNode, TaskStatus
+
+
+class PlanStatus(Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    ROLLED_BACK = "rolled_back"
+    PARTIALLY_COMPLETED = "partially_completed"
+
+
+class StepResult(Enum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    SKIPPED = "skipped"
+    ROLLED_BACK = "rolled_back"
+    BLOCKED = "blocked"
+
+
+@dataclass
+class PlanStep:
+    task_id: str
+    action: str
+    params: dict[str, Any] = field(default_factory=dict)
+    description: str = ""
+    depends_on: list[str] = field(default_factory=list)
+    max_retries: int = 0
+    retry_delay_seconds: float = 1.0
+    timeout_seconds: float = 0.0
+    on_failure: str = "rollback"
+
+
+@dataclass
+class Plan:
+    plan_id: str
+    steps: list[PlanStep] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def step_count(self) -> int:
+        return len(self.steps)
+
+    def to_graph(self) -> TaskGraph:
+        g = TaskGraph()
+        for step in self.steps:
+            node = TaskNode(
+                task_id=step.task_id,
+                description=step.description or step.action,
+                depends_on=list(step.depends_on),
+            )
+            g.add_node(node)
+        return g
+
+
+@dataclass
+class StepExecutionRecord:
+    task_id: str
+    action: str
+    result: StepResult = StepResult.SUCCESS
+    duration_ms: float = 0.0
+    error: str | None = None
+    retries: int = 0
+    governance_verdict: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "action": self.action,
+            "result": self.result.value,
+            "duration_ms": self.duration_ms,
+            "error": self.error,
+            "retries": self.retries,
+            "governance_verdict": self.governance_verdict,
+        }
+
+
+@dataclass
+class PlanExecutionReport:
+    plan_id: str
+    status: PlanStatus
+    steps: list[StepExecutionRecord] = field(default_factory=list)
+    total_duration_ms: float = 0.0
+    error: str | None = None
+
+    @property
+    def success_count(self) -> int:
+        return sum(1 for s in self.steps if s.result == StepResult.SUCCESS)
+
+    @property
+    def failure_count(self) -> int:
+        return sum(1 for s in self.steps if s.result == StepResult.FAILURE)
+
+    @property
+    def all_succeeded(self) -> bool:
+        return len(self.steps) > 0 and self.failure_count == 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "plan_id": self.plan_id,
+            "status": self.status.value,
+            "steps": [s.to_dict() for s in self.steps],
+            "total_duration_ms": self.total_duration_ms,
+            "error": self.error,
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+        }
+
+
+GovernanceCheck = Callable[[str, dict[str, Any]], tuple[bool, str | None]]
+ActionHandler = Callable[[str, dict[str, Any]], Any]
+
+
+class PlanExecutor:
+    def __init__(
+        self,
+        governance_check: GovernanceCheck | None = None,
+        action_handlers: dict[str, ActionHandler] | None = None,
+    ):
+        self._governance_check = governance_check
+        self._handlers: dict[str, ActionHandler] = {}
+        if action_handlers:
+            self._handlers.update(action_handlers)
+
+    def register_handler(self, action: str, handler: ActionHandler) -> None:
+        self._handlers[action] = handler
+
+    def register_handlers(self, handlers: dict[str, ActionHandler]) -> None:
+        self._handlers.update(handlers)
+
+    def execute(self, plan: Plan) -> PlanExecutionReport:
+        start = time.time()
+        graph = plan.to_graph()
+
+        if graph.has_cycle():
+            return PlanExecutionReport(
+                plan_id=plan.plan_id,
+                status=PlanStatus.FAILED,
+                error=f"Plan contains cycles: {graph.detect_cycles()}",
+            )
+
+        records: list[StepExecutionRecord] = []
+        steps_by_id = {s.task_id: s for s in plan.steps}
+        exec_order = graph.topological_order()
+        failed_steps: set[str] = set()
+        rollback_requested = False
+        fail_requested = False
+
+        for task_id in exec_order:
+            step = steps_by_id.get(task_id)
+            if not step:
+                records.append(StepExecutionRecord(
+                    task_id=task_id, action="unknown",
+                    result=StepResult.SKIPPED, error="Step not found in plan",
+                ))
+                continue
+
+            if any(dep in failed_steps for dep in step.depends_on):
+                records.append(StepExecutionRecord(
+                    task_id=task_id, action=step.action,
+                    result=StepResult.SKIPPED,
+                    error=f"Dependency failed: {[d for d in step.depends_on if d in failed_steps]}",
+                ))
+                graph.set_node_status(task_id, TaskStatus.SKIPPED)
+                failed_steps.add(task_id)
+                continue
+
+            record = self._execute_step(step, records)
+            records.append(record)
+
+            if record.result == StepResult.SUCCESS:
+                graph.set_node_status(task_id, TaskStatus.COMPLETED)
+            elif record.result == StepResult.SKIPPED:
+                graph.set_node_status(task_id, TaskStatus.SKIPPED)
+                failed_steps.add(task_id)
+            else:
+                graph.set_node_status(task_id, TaskStatus.FAILED)
+                failed_steps.add(task_id)
+                if step.on_failure == "rollback":
+                    rollback_requested = True
+                elif step.on_failure == "fail":
+                    fail_requested = True
+
+        if rollback_requested:
+            plan_status = PlanStatus.ROLLED_BACK
+        elif fail_requested:
+            plan_status = PlanStatus.FAILED
+        elif len(failed_steps) > 0:
+            plan_status = PlanStatus.PARTIALLY_COMPLETED
+        else:
+            plan_status = PlanStatus.COMPLETED
+
+        total = (time.time() - start) * 1000
+        return PlanExecutionReport(
+            plan_id=plan.plan_id,
+            status=plan_status,
+            steps=records,
+            total_duration_ms=total,
+        )
+
+    def _execute_step(self, step: PlanStep, history: list[StepExecutionRecord]) -> StepExecutionRecord:
+        step_start = time.time()
+        handler = self._handlers.get(step.action)
+
+        governance_verdict: str | None = None
+        if self._governance_check:
+            allowed, reason = self._governance_check(step.action, step.params)
+            if not allowed:
+                governance_verdict = f"denied:{reason}"
+                return StepExecutionRecord(
+                    task_id=step.task_id, action=step.action,
+                    result=StepResult.BLOCKED, duration_ms=(time.time() - step_start) * 1000,
+                    error=f"Governance denied: {reason}",
+                    governance_verdict=governance_verdict,
+                )
+            governance_verdict = "allowed"
+
+        if not handler:
+            governance_verdict = governance_verdict or "allowed"
+            return StepExecutionRecord(
+                task_id=step.task_id, action=step.action,
+                result=StepResult.SKIPPED, duration_ms=(time.time() - step_start) * 1000,
+                error=f"No handler registered for '{step.action}'",
+                governance_verdict=governance_verdict,
+            )
+
+        for attempt in range(step.max_retries + 1):
+            try:
+                handler(step.action, step.params)
+                return StepExecutionRecord(
+                    task_id=step.task_id, action=step.action,
+                    result=StepResult.SUCCESS, duration_ms=(time.time() - step_start) * 1000,
+                    retries=attempt, governance_verdict=governance_verdict,
+                )
+            except Exception as e:
+                if attempt < step.max_retries:
+                    time.sleep(step.retry_delay_seconds)
+                else:
+                    return StepExecutionRecord(
+                        task_id=step.task_id, action=step.action,
+                        result=StepResult.FAILURE, duration_ms=(time.time() - step_start) * 1000,
+                        error=str(e), retries=attempt,
+                        governance_verdict=governance_verdict,
+                    )
+
+        return StepExecutionRecord(
+            task_id=step.task_id, action=step.action,
+            result=StepResult.FAILURE, duration_ms=(time.time() - step_start) * 1000,
+            error="Unexpected execution path",
+        )
