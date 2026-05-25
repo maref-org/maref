@@ -161,16 +161,16 @@ class ContinuousOptimizer:
 
         gain = sandbox_result.get("simulated_gain", 0.0)
         passed = sandbox_result.get("passed", True)
-        measured: dict[str, float] = {}
+        simulated: dict[str, float] = {}
         for key, value in cycle.baseline_metrics.items():
             if isinstance(value, (int, float)):
                 if passed:
-                    measured[key] = value * (1.0 + gain)
+                    simulated[key] = value * (1.0 + gain)
                 else:
-                    measured[key] = value
-        measured["gain_pct"] = gain
-        measured["sandbox_passed"] = float(passed)
-        return measured
+                    simulated[key] = value
+        simulated["gain_pct"] = gain
+        simulated["sandbox_passed"] = float(passed)
+        return simulated
 
     def adopt(self, cycle: OptimizationCycle, measured: dict[str, float]) -> bool:
         gain = measured.get("gain_pct", 0.0)

@@ -72,8 +72,15 @@ export function WelcomeFlow({ onComplete }: Props) {
   }, [addSession, handleComplete]);
 
   useEffect(() => {
-    handleCheckHealth();
-  }, [handleCheckHealth]);
+    let mounted = true;
+    const run = async () => {
+      setCheckingHealth(true);
+      await detectBackend();
+      if (mounted) setCheckingHealth(false);
+    };
+    run();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-maref-bg">

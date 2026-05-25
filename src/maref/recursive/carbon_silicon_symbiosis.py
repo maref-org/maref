@@ -315,21 +315,17 @@ class CarbonSiliconSymbiosis:
         instance = self.start_workflow(agent_id, domain, title, description)
 
         if instance.task.allocation != TaskAllocation.AGENT_ONLY:
-            instance = self.human_confirm(instance.task.task_id, human_confirms)
-            if instance and instance.status == "rejected":
+            instance = self.human_confirm(instance.task.task_id, human_confirms) or instance
+            if instance.status == "rejected":
                 return instance
 
-        instance = self.agent_execute(instance.task.task_id, agent_id)
-        if not instance:
-            return self._workflows.get(self._get_last_task_id(), instance)
+        instance = self.agent_execute(instance.task.task_id, agent_id) or instance
 
-        instance = self.agent_self_review(instance.task.task_id, agent_id, self_review_passes)
-        if not instance:
-            return self._workflows.get(self._get_last_task_id(), instance)
+        instance = self.agent_self_review(instance.task.task_id, agent_id, self_review_passes) or instance
 
-        instance = self.human_spot_check(instance.task.task_id, spot_check_passes)
+        instance = self.human_spot_check(instance.task.task_id, spot_check_passes) or instance
 
-        return instance if instance else self._workflows.get(self._get_last_task_id(), instance)
+        return instance
 
     def _get_last_task_id(self) -> str:
         return list(self._workflows.keys())[-1] if self._workflows else ""

@@ -89,7 +89,7 @@ class AttackExecutor:
                                         success=True, penetrated=False)
         try:
             for _ in range(min(attack.params.get("count", 10), 100)):
-                cb.record_failure(attack.name)
+                cb.record_failure()
             stats = cb.get_stats()
             result.penetrated = stats.get("state", "CLOSED") == "OPEN"
             if result.penetrated:
@@ -110,7 +110,7 @@ class AttackExecutor:
                 result.detected_by.append("force_halt")
             if attack.intensity > 0.7:
                 for _ in range(min(int(attack.intensity * 10), 50)):
-                    cb.record_failure(attack.name)
+                    cb.record_failure()
                 result.penetrated = cb.get_stats().get("state") == "OPEN"
         except Exception as e:
             result.errors.append(str(e))
@@ -124,7 +124,7 @@ class AttackExecutor:
             sm.force_halt("multi_vector_halt")
             result.detected_by.append("halt")
             for _ in range(min(int(attack.intensity * 20), 100)):
-                cb.record_failure(attack.name)
+                cb.record_failure()
             if cb.get_stats().get("state") == "OPEN":
                 result.penetrated = True
                 result.detected_by.append("cb_open")

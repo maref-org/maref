@@ -1,6 +1,6 @@
 {
   "mission_id": "maref-v0.25.0-security",
-  "version": "0.25.0-rc",
+  "version": "0.28.0-rc",
   "milestones": [
     {
       "id": "m0",
@@ -180,11 +180,148 @@
           "status": "completed"
         }
       ]
+    },
+    {
+      "id": "m4",
+      "name": "分布式信任协调",
+      "description": "多节点信任共识 + 联邦决策市场 + 跨系统信任传递",
+      "weeks": "5-7",
+      "validation_rounds": 3,
+      "features": [
+        {
+          "id": "d1",
+          "name": "联邦信任共识",
+          "description": "多框架信任基准评估 + 三阶段共识协议 + 故障框架隔离",
+          "skills": ["python", "distributed-systems", "consensus"],
+          "assertions": ["D1.1", "D1.2", "D1.3"],
+          "estimated_tokens": "3M",
+          "dependencies": ["s8", "p7"],
+          "test_coverage_threshold": 85,
+          "status": "completed"
+        },
+        {
+          "id": "d2",
+          "name": "决策市场机制",
+          "description": "信任点质押投票 + 预测市场共识 + 少数派保护",
+          "skills": ["python", "game-theory", "mechanism-design"],
+          "assertions": ["D2.1", "D2.2"],
+          "estimated_tokens": "2.5M",
+          "dependencies": ["d1"],
+          "test_coverage_threshold": 85,
+          "status": "completed"
+        },
+        {
+          "id": "d3",
+          "name": "跨系统信任传递",
+          "description": "信任边界跨域验证 + 委托链跨系统追踪 + 信任分数联邦计算",
+          "skills": ["python", "cryptography", "federation"],
+          "assertions": ["D3.1", "D3.2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["d1", "s2"],
+          "test_coverage_threshold": 80,
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "m5",
+      "name": "合规与审计",
+      "description": "多法域合规框架 + 自动化审计报告 + 合规状态监控 + 数据主权管理",
+      "weeks": "7-9",
+      "validation_rounds": 2,
+      "features": [
+        {
+          "id": "c1",
+          "name": "多法域合规注册表",
+          "description": "EU/US/China/Russia/India 五大法域法规管理 + 合规需求追踪 + 检查结果记录",
+          "skills": ["python", "dataclasses", "compliance"],
+          "assertions": ["C1.1", "C1.2", "C1.3"],
+          "estimated_tokens": "2M",
+          "dependencies": ["p3"],
+          "test_coverage_threshold": 85,
+          "status": "completed"
+        },
+        {
+          "id": "c2",
+          "name": "合规报告生成器",
+          "description": "多格式报告生成 (JSON/Markdown/HTML) + SOC2/ISO27001 审计就绪 + 风险评估",
+          "skills": ["python", "reporting", "markdown"],
+          "assertions": ["C2.1", "C2.2"],
+          "estimated_tokens": "1.5M",
+          "dependencies": ["c1"],
+          "test_coverage_threshold": 80,
+          "status": "completed"
+        },
+        {
+          "id": "c3",
+          "name": "合规状态监控器",
+          "description": "实时监控合规状态 + 自动检测调度 + 告警通知 + 补救建议",
+          "skills": ["python", "asyncio", "monitoring"],
+          "assertions": ["C3.1", "C3.2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["c1", "s7"],
+          "test_coverage_threshold": 85,
+          "status": "completed"
+        },
+        {
+          "id": "c4",
+          "name": "数据主权管理",
+          "description": "地理围栏 + 跨境数据流动控制 + 数据分类保护策略",
+          "skills": ["python", "geolocation", "data-governance"],
+          "assertions": ["C4.1", "C4.2"],
+          "estimated_tokens": "1.5M",
+          "dependencies": ["c1"],
+          "test_coverage_threshold": 80,
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "m6",
+      "name": "集成验证与发布",
+      "description": "端到端集成测试 + 安全渗透验证 + 性能基准 + 发布候选",
+      "weeks": "9-10",
+      "validation_rounds": 4,
+      "features": [
+        {
+          "id": "v1",
+          "name": "端到端集成测试",
+          "description": "全链路集成测试 + 混沌工程注入 + 故障恢复验证",
+          "skills": ["python", "integration-testing", "chaos-engineering"],
+          "assertions": ["V1.1", "V1.2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["d3", "c3"],
+          "test_coverage_threshold": 80,
+          "status": "completed"
+        },
+        {
+          "id": "v2",
+          "name": "安全渗透验证",
+          "description": "自动化渗透测试 + 红队对抗 + 漏洞扫描",
+          "skills": ["python", "security", "penetration-testing"],
+          "assertions": ["V2.1", "V2.2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["v1"],
+          "test_coverage_threshold": 75,
+          "status": "completed"
+        },
+        {
+          "id": "v3",
+          "name": "桌面客户端集成",
+          "description": "Electron + React GUI + Sidecar 集成 + 人类在环确认",
+          "skills": ["typescript", "react", "electron"],
+          "assertions": ["V3.1", "V3.2"],
+          "estimated_tokens": "2M",
+          "dependencies": ["p8"],
+          "test_coverage_threshold": 70,
+          "status": "completed"
+        }
+      ]
     }
   ],
-  "current_milestone": "m3",
-  "completed_milestones": ["m0", "m1", "m2", "m3"],
-  "total_estimated_tokens": "38.5M",
+  "current_milestone": "m6",
+  "completed_milestones": ["m0", "m1", "m2", "m3", "m4", "m5", "m6"],
+  "total_estimated_tokens": "54M",
   "budget_usd": 3500,
   "risk_level": "medium"
 }

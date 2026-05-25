@@ -98,7 +98,7 @@ export default function App() {
   const { clearMessages } = useChatStore();
   const { addTab: addTerminalTab, tabs: terminalTabs } = useTerminalStore();
 
-  const { data: _sessions } = useSessions();
+  useSessions();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");

@@ -5,8 +5,8 @@ from __future__ import annotations
 from maref.life_state.federation import FederationRole, LifeStateFederation
 from maref.life_state.health import HealthStatus
 from maref.life_state.lifecycle import LifeCycleManager, LifecyclePhase
-from maref.life_state.metadata import LifeStateCapability, LifeStateMetadata, LifeStateType
 from maref.life_state.messaging import MessageBus, MessageType
+from maref.life_state.metadata import LifeStateCapability, LifeStateMetadata, LifeStateType
 from maref.life_state.registry import LifeStateRegistry
 from maref.life_state.resources import ResourceMonitor, ResourceQuota, ResourceType, ResourceUsage
 from maref.life_state.sandbox import LifeStateSandbox, Permission

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from maref.integration.mcp_server import MCPServer
+from maref.governance.audit import AuditLogger
+from maref.governance.state_machine import GovernanceStateMachine
 from maref.integration.a2a_bridge import A2ABridge
 from maref.integration.a2a_types import A2ATaskState
-from maref.governance.state_machine import GovernanceStateMachine
-from maref.governance.audit import AuditLogger
+from maref.integration.mcp_server import MCPServer
 from maref.integration.protocol_bridge import MCPToA2ABridge
 
 

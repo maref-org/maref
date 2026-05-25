@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import pytest
-
-from maref.security.trust_graph import TrustGraph, TrustEdge, TrustPropagation
-from maref.security.weighted_consensus import WeightedConsensusEngine, ConsensusVote
 from maref.security.trust_api import TrustAPI
+from maref.security.trust_graph import TrustGraph, TrustPropagation
 from maref.security.trust_visualization import TrustVisualizer
+from maref.security.weighted_consensus import ConsensusVote, WeightedConsensusEngine
 
 
 class TestTrustGraphBasics:

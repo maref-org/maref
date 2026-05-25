@@ -34,10 +34,10 @@ class MAREFConfig:
             log_dir=Path(p) if (p := os.environ.get("MAREF_LOG_DIR", "")) else None,
             data_dir=Path(p) if (p := os.environ.get("MAREF_DATA_DIR", "")) else None,
             audit_path=(
-                Path(p) if (p := os.environ.get("MAREF_AUDIT_PATH")) else None
+                Path(p) if (p := os.environ.get("MAREF_AUDIT_PATH")) else None  # type: ignore[assignment]
             ),
             kg_storage_path=(
-                Path(p) if (p := os.environ.get("MAREF_KG_PATH")) else None
+                Path(p) if (p := os.environ.get("MAREF_KG_PATH")) else None  # type: ignore[assignment]
             ),
             max_depth=int(os.environ.get("MAREF_MAX_DEPTH", "5")),
             max_trips=int(os.environ.get("MAREF_MAX_TRIPS", "10")),

@@ -8,6 +8,8 @@ import pytest
 
 from maref.integration.percv.pipeline_adapter import (
     PERCVPipelineAdapter as PipelineAdapter,
+)
+from maref.integration.percv.pipeline_adapter import (
     PipelineDirective,
     PipelineStepResult,
 )
@@ -43,9 +45,8 @@ class TestPipelineAdapter:
         with patch(
             "maref.integration.percv.pipeline_adapter.PERCVPipelineAdapter._create_pipeline",
             side_effect=RuntimeError("PERCV package is required"),
-        ):
-            with pytest.raises(RuntimeError, match="PERCV package is required"):
-                adapter.run_research_cycle("test topic")
+        ), pytest.raises(RuntimeError, match="PERCV package is required"):
+            adapter.run_research_cycle("test topic")
 
     def test_run_research_cycle_mock(self) -> None:
         adapter = PipelineAdapter()

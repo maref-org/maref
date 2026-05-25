@@ -109,7 +109,7 @@ function HITLRequestRow({
 }
 
 function PendingTab() {
-  const { pendingEvents, approveEvent, denyEvent, fetchPending } = useHITLStore();
+  const { pendingEvents, approveEvent, denyEvent } = useHITLStore();
 
   const handleApprove = async (id: string) => {
     await approveEvent(id);

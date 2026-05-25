@@ -34,6 +34,7 @@ usage() {
 }
 
 # Parse arguments
+VERSION=""
 MODE="auto"
 VERIFY=false
 CANARY=""
@@ -218,7 +219,13 @@ rollback_local() {
     git checkout "$VERSION"
 
     log "INFO" "Reinstalling dependencies..."
-    pip install -e ".[dev]" 2>&1 | tail -5 | tee -a "$LOGFILE"
+    if command -v uv &> /dev/null; then
+        uv pip install -e ".[dev]" 2>&1 | tail -5 | tee -a "$LOGFILE"
+    elif command -v pip &> /dev/null; then
+        pip install -e ".[dev]" 2>&1 | tail -5 | tee -a "$LOGFILE"
+    else
+        log "WARN" "Neither uv nor pip found. Skipping dependency reinstall."
+    fi
 
     log "INFO" "Rollback to $VERSION completed locally"
 }

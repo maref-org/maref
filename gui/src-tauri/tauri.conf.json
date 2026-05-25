@@ -40,6 +40,14 @@
       "minimumSystemVersion": "12.0",
       "hardenedRuntime": true,
       "entitlements": "entitlements.plist"
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
     }
   },
   "plugins": {

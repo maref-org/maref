@@ -2,30 +2,22 @@
 合规报告与监控测试
 """
 
-import pytest
 from datetime import datetime
 
+import pytest
+
 from maref.compliance import (
-    ComplianceRegistry,
     Jurisdiction,
     create_compliance_system,
 )
-from maref.compliance.report_generator import (
-    ReportGenerator,
-    ReportFormat,
-    ReportType,
-    create_report_generator,
-)
 from maref.compliance.compliance_monitor import (
     ComplianceMonitor,
-    AlertSeverity,
-    MonitorState,
     create_compliance_monitor,
 )
 from maref.compliance.hipaa import (
+    BreachRiskLevel,
     HIPAAComplianceEngine,
     PHICategory,
-    BreachRiskLevel,
     create_hipaa_engine,
 )
 from maref.compliance.pci_dss import (
@@ -33,6 +25,12 @@ from maref.compliance.pci_dss import (
     PCIRequirement,
     SAQType,
     create_pci_engine,
+)
+from maref.compliance.report_generator import (
+    ReportFormat,
+    ReportGenerator,
+    ReportType,
+    create_report_generator,
 )
 
 
@@ -62,7 +60,7 @@ class TestReportGenerator:
         assert len(report.sections) > 0
 
     def test_generate_regulatory_submission(self, generator: ReportGenerator) -> None:
-        report = generator.generate_regulatory_submission("gdpr-art5")
+        report = generator.generate_regulatory_submission("gdpr")
         assert report.report_type == ReportType.REGULATORY_SUBMISSION
 
     def test_generate_regulatory_submission_not_found(self, generator: ReportGenerator) -> None:

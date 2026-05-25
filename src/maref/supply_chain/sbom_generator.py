@@ -115,7 +115,7 @@ class SBOM:
 
         # 构建metadata
         metadata = {
-            "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "tools": [
                 {
                     "vendor": "MAREF",
@@ -132,7 +132,7 @@ class SBOM:
         # 构建组件列表
         components_list = []
         for component in self.components:
-            component_dict = {
+            component_dict: dict[str, Any] = {
                 "bom-ref": component.bom_ref,
                 "type": component.component_type.value,
                 "name": component.name,
@@ -150,7 +150,7 @@ class SBOM:
 
             if component.licenses:
                 component_dict["licenses"] = [
-                    {"license": {"id": license.value}} for license in component.licenses
+                    {"license": {"id": lic.value}} for lic in component.licenses
                 ]
 
             if component.copyright:
@@ -182,7 +182,7 @@ class SBOM:
         # 构建漏洞列表
         vulnerabilities_list = []
         for vuln in self.vulnerabilities:
-            vuln_dict = {
+            vuln_dict: dict[str, Any] = {
                 "id": vuln.id,
                 "source": {"name": vuln.source_name},
                 "ratings": []
@@ -192,7 +192,7 @@ class SBOM:
                 vuln_dict["description"] = vuln.description
 
             # 评分
-            rating = {
+            rating: dict[str, Any] = {
                 "source": {"name": vuln.source_name},
                 "severity": vuln.severity.value.lower()
             }
@@ -215,7 +215,7 @@ class SBOM:
                         "versions": [{"range": ver} for ver in vuln.affected_versions]
                     }
                     for component in self.components
-                    if any(vuln.id in ref.get("id", "") for ref in component.external_references)
+                    if component.external_references and any(vuln.id in ref.get("id", "") for ref in component.external_references)
                 ]
 
             if vuln.references:
@@ -248,7 +248,7 @@ class SBOM:
             "bomFormat": self.bom_format,
             "specVersion": self.spec_version,
             "version": self.version,
-            "serialNumber": self.serial_number or f"urn:uuid:{hashlib.md5(str(datetime.datetime.now(datetime.UTC)).encode(), usedforsecurity=False).hexdigest()}",
+            "serialNumber": self.serial_number or f"urn:uuid:{hashlib.md5(str(datetime.datetime.now(datetime.timezone.utc)).encode(), usedforsecurity=False).hexdigest()}",
             "metadata": metadata,
             "components": components_list,
         }
@@ -372,32 +372,32 @@ class SBOMGenerator:
         self.audit_logger = audit_logger or AuditLogger()
         self.supported_package_managers = ["pip", "poetry", "pipenv", "conda"]
 
-    def generate_from_project(self, project_path: str) -> SBOM:
+    def generate_from_project(self, project_path: str | Path) -> SBOM:
         """
         从项目路径生成SBOM
 
         自动检测项目类型，扫描依赖并生成SBOM。
         """
-        project_path = Path(project_path).resolve()
+        resolved_path = Path(project_path).resolve()
 
-        if not project_path.exists():
-            raise FileNotFoundError(f"Project path not found: {project_path}")
+        if not resolved_path.exists():
+            raise FileNotFoundError(f"Project path not found: {resolved_path}")
 
         # 检测项目类型
-        project_type = self._detect_project_type(project_path)
+        project_type = self._detect_project_type(resolved_path)
 
         # 扫描依赖
-        components = self._scan_dependencies(project_path, project_type)
+        components = self._scan_dependencies(resolved_path, project_type)
 
         # 创建SBOM
         sbom = SBOM(
             metadata={
                 "component": {
-                    "bom-ref": f"project-{project_path.name}",
+                    "bom-ref": f"project-{resolved_path.name}",
                     "type": "application",
-                    "name": project_path.name,
-                    "version": self._get_project_version(project_path),
-                    "purl": f"pkg:pypi/{project_path.name}"
+                    "name": resolved_path.name,
+                    "version": self._get_project_version(resolved_path),
+                    "purl": f"pkg:pypi/{resolved_path.name}"
                 }
             }
         )
@@ -597,7 +597,7 @@ class SBOMGenerator:
             try:
                 import tomllib
             except ImportError:
-                import tomli as tomllib
+                import tomli as tomllib  # type: ignore[import-not-found]
             with open(project_path / "pyproject.toml", 'rb') as f:
                 data = tomllib.load(f)
 
@@ -879,7 +879,7 @@ class SBOMGenerator:
             try:
                 import tomllib as tomli
             except ImportError:
-                import tomli  # type: ignore[no-redef]
+                import tomli
             with open(filepath, 'rb') as f:
                 data = tomli.load(f)
 

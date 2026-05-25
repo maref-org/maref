@@ -210,6 +210,7 @@ run_all_scenarios() {
     echo ""
 
     local results=()
+    local idx=0
 
     for entry in "${SCENARIOS[@]}"; do
         IFS=':' read -r id ftype desc <<< "$entry"
@@ -346,7 +347,7 @@ generate_report() {
     echo -e "  Failed: ${RED}$failed${NC}"
     if [[ $total -gt 0 ]]; then
         local rate
-        rate=$(echo "scale=1; $passed * 100 / $total" | bc)
+        rate=$(awk "BEGIN {printf \"%.1f\", $passed * 100 / $total}")
         echo -e "  Pass rate: ${rate}%"
     fi
 }

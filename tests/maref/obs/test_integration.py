@@ -12,7 +12,7 @@ import json
 import tempfile
 import threading
 from collections.abc import Generator
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest

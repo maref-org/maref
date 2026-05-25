@@ -158,7 +158,7 @@ class ReportGenerator:
             jurisdiction=jurisdiction,
         )
 
-        metrics = {
+        metrics: dict[str, Any] = {
             "total_jurisdictions": len(jurisdictions),
             "jurisdiction_details": {},
             "overall_compliance_rate": 0.0,

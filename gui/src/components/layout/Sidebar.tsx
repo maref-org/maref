@@ -21,6 +21,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRef } from "react";
 import { useUIStore } from "@/stores/uiStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useTasks } from "@/hooks/useSession";
@@ -79,9 +80,13 @@ export function Sidebar({ activeSection, onSectionChange }: Props) {
     useSessionStore();
   const { data: tasksData } = useTasks();
 
+  const idRef = useRef<string>("");
+
   const handleNewAgent = () => {
+    // eslint-disable-next-line react-hooks/purity
+    idRef.current = `sess-${Date.now()}`;
     addSession({
-      id: `sess-${Date.now()}`,
+      id: idRef.current,
       title: "新 Agent",
       mode: "agent",
       provider: "bailian",

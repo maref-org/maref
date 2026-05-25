@@ -112,7 +112,7 @@ class RedBlueEngine:
     def _inject_real_cb_signal(self, result: RedBlueResult, attack: AttackDefinition) -> None:
         if attack.intensity > 0.7 and result.detection_score < 15:
             try:
-                self._real_cb.record_failure("redblue_attack")
+                self._real_cb.record_failure()
                 stats = self._real_cb.get_stats()
                 result.meta_cb_triggered = stats.get("state", "CLOSED") == "OPEN"
             except Exception:

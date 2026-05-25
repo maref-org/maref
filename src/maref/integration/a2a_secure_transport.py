@@ -19,10 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
+from cryptography import x509  # type: ignore[import-not-found]
+from cryptography.hazmat.primitives import hashes, serialization  # type: ignore[import-not-found]
+from cryptography.hazmat.primitives.asymmetric import rsa  # type: ignore[import-not-found]
+from cryptography.x509.oid import NameOID  # type: ignore[import-not-found]
 
 
 def create_self_signed_cert(agent_id: str) -> tuple[str, str]:
@@ -117,6 +117,7 @@ class A2ASecureTransport:
     verify_ssl: bool = True
     allowed_peers: list[str] | None = None
     agent_id: str = "maref-agent"
+    cert_manager: CertificateManager | None = None
 
     def __post_init__(self) -> None:
         if self.cert_path and self.key_path:
@@ -125,8 +126,6 @@ class A2ASecureTransport:
                 key_path=self.key_path,
                 ca_path=self.ca_path,
             )
-        else:
-            self.cert_manager = None
 
         # 强制 HTTPS（除非显式关闭验证）
         if not self.base_url.startswith("https://") and self.verify_ssl:

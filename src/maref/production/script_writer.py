@@ -4,7 +4,7 @@ from typing import Any
 
 from maref.production.asset_scaffolder import AssetScaffolder
 
-_EPISODE_TEMPLATES: dict[str, list[dict[str, str]]] = {
+_EPISODE_TEMPLATES: dict[str, list[dict[str, Any]]] = {
     "cyberpunk-neko": [
         {
             "title": "The Awakening",
@@ -171,8 +171,8 @@ class ScriptWriter:
         story_id = f"{char_id}-s{episode_number:02d}"
         story_dir = self.scaffolder.create_storyline(story_id)
 
-        scenes = ep_data["scenes"]
-        template_vars = {
+        scenes: list[dict[str, Any]] = ep_data["scenes"]
+        template_vars: dict[str, str] = {
             "episode_title": f"Episode {episode_number}: {ep_data['title']}",
             "series_name": f"The Chronicles of {char_meta.get('name', char_id)}",
             "episode_number": str(episode_number),

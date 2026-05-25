@@ -13,13 +13,19 @@ from maref.governance.types import GovernanceState
 
 _OTEL_AVAILABLE = False
 try:
-    from opentelemetry import metrics, trace  # noqa: F401
-    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry import metrics, trace  # type: ignore[import-not-found]  # noqa: F401
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import (  # type: ignore[import-not-found]
+        OTLPMetricExporter,
+    )
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore[import-not-found]
+        OTLPSpanExporter,
+    )
+    from opentelemetry.sdk.metrics import MeterProvider  # type: ignore[import-not-found]
+    from opentelemetry.sdk.metrics.export import (  # type: ignore[import-not-found]
+        PeriodicExportingMetricReader,
+    )
+    from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found]
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore[import-not-found]
 
     _OTEL_AVAILABLE = True
 except ImportError:

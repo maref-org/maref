@@ -237,10 +237,10 @@ class PolicyDecisionTree:
 
         # Level 1: Rule-based evaluation
         for rule in sorted(self._rules, key=lambda r: r.priority, reverse=True):
-            result = rule.evaluate(context)
-            if result is not None:
-                self._decision_log.append(result)
-                return result
+            rule_result = rule.evaluate(context)
+            if rule_result is not None:
+                self._decision_log.append(rule_result)
+                return rule_result
 
         # Level 2 continued: Mode-based for FULL_AUTO
         if self.mode == OperationMode.FULL_AUTO:

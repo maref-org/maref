@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from maref.integration.feature_dev.doc_ingestor import (
     FeatureDocument,
@@ -127,7 +127,7 @@ class ContentProducer:
                         scripts.append(self._build_script(cid, cid.replace("-", "_"), current_eps + 1))
 
             if low_layer == "MAS Dimensions" and len(chars) >= 2:
-                has_crossover = any("crossover" in s.get("title", "").lower() for s in scripts)
+                has_crossover = any("crossover" in cast(dict[str, Any], s).get("title", "").lower() for s in scripts)
                 if not has_crossover:
                     scripts.append(self._build_crossover_script(chars[0]["char_id"], chars[1]["char_id"]))
 
@@ -226,7 +226,7 @@ class ContentProducer:
             {"title": "Scene 3 — Resolution", "duration": 10,
              "narration": f"{seed['name']} makes a choice that changes everything."},
         ]
-        duration = sum(s["duration"] for s in scenes)
+        duration = sum(cast(dict[str, Any], s)["duration"] for s in scenes)
 
         md = (
             f"# {title}\n\n"

@@ -64,8 +64,9 @@ class RealMetricsCollector:
         try:
             from maref.observation.probes import EntropyProbe
             probe = EntropyProbe(primary_threshold=3.0, shadow_threshold=1.5)
-            reading = probe.read()
-            fpr = min(reading.false_positive_rate, 1.0)
+            readings = probe.read()
+            if readings:
+                fpr = min(readings[0].value, 1.0)
         except Exception:
             pass
 

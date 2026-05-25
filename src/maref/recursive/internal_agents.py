@@ -75,7 +75,7 @@ class InternalAgentRegistry:
             agent = self.register(
                 agent_id,
                 str(defs["module"]),
-                list(defs["capabilities"]),
+                list(defs["capabilities"]),  # type: ignore[call-overload]
                 str(defs["specialization"]),
             )
             agents.append(agent)

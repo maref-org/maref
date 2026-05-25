@@ -15,6 +15,14 @@ class TaskStatus(Enum):
     BLOCKED = "blocked"
 
 
+class NodeType(Enum):
+    """Execution primitive type for each node."""
+    SEQUENCE = "sequence"      # default: single task
+    FORK = "fork"              # splits into parallel branches
+    JOIN = "join"              # waits for all branches to complete
+    DYNAMIC_ROUTE = "dynamic_route"  # runtime conditional routing
+
+
 @dataclass
 class TaskNode:
     task_id: str
@@ -22,6 +30,13 @@ class TaskNode:
     status: TaskStatus = TaskStatus.PENDING
     metadata: dict[str, Any] = field(default_factory=dict)
     depends_on: list[str] = field(default_factory=list)
+    node_type: NodeType = NodeType.SEQUENCE
+    # FORK: list of branch entry task_ids
+    fork_branches: list[str] = field(default_factory=list)
+    # JOIN: list of task_ids to wait for
+    join_targets: list[str] = field(default_factory=list)
+    # DYNAMIC_ROUTE: callable name or rule id for runtime routing
+    route_rule: str = ""
 
 
 class TaskGraph:
@@ -59,6 +74,80 @@ class TaskGraph:
     def node_ids(self) -> list[str]:
         return list(self._nodes.keys())
 
+    # ------------------------------------------------------------------ #
+    # Fork / Join helpers
+    # ------------------------------------------------------------------ #
+    def add_fork(self, fork_id: str, branch_ids: list[str], description: str = "") -> None:
+        """Add a FORK node that fans out to *branch_ids*.
+
+        Each branch entry node should already exist in the graph; they will
+        automatically depend on the fork node.
+        """
+        fork_node = TaskNode(
+            task_id=fork_id,
+            description=description or f"fork:{fork_id}",
+            node_type=NodeType.FORK,
+            fork_branches=list(branch_ids),
+        )
+        self.add_node(fork_node)
+        for bid in branch_ids:
+            if bid in self._nodes:
+                if fork_id not in self._nodes[bid].depends_on:
+                    self._nodes[bid].depends_on.append(fork_id)
+                    self._edges[bid].append(fork_id)
+            else:
+                raise ValueError(f"Branch node '{bid}' not found in graph")
+
+    def add_join(self, join_id: str, wait_for: list[str], description: str = "") -> None:
+        """Add a JOIN node that waits for all *wait_for* tasks.
+
+        The join node will automatically depend on every target.
+        """
+        join_node = TaskNode(
+            task_id=join_id,
+            description=description or f"join:{join_id}",
+            node_type=NodeType.JOIN,
+            join_targets=list(wait_for),
+            depends_on=list(wait_for),
+        )
+        self.add_node(join_node)
+        for wid in wait_for:
+            if wid not in self._nodes:
+                raise ValueError(f"Join target '{wid}' not found in graph")
+
+    def add_dynamic_route(
+        self,
+        route_id: str,
+        candidates: list[str],
+        route_rule: str,
+        description: str = "",
+    ) -> None:
+        """Add a DYNAMIC_ROUTE node that selects one of *candidates* at runtime."""
+        route_node = TaskNode(
+            task_id=route_id,
+            description=description or f"route:{route_id}",
+            node_type=NodeType.DYNAMIC_ROUTE,
+            route_rule=route_rule,
+        )
+        self.add_node(route_node)
+        # Candidates are stored in metadata so the executor can resolve them
+        route_node.metadata["dynamic_candidates"] = list(candidates)
+
+    def get_fork_branches(self, fork_id: str) -> list[str]:
+        node = self._nodes.get(fork_id)
+        if node and node.node_type == NodeType.FORK:
+            return list(node.fork_branches)
+        return []
+
+    def get_join_targets(self, join_id: str) -> list[str]:
+        node = self._nodes.get(join_id)
+        if node and node.node_type == NodeType.JOIN:
+            return list(node.join_targets)
+        return []
+
+    # ------------------------------------------------------------------ #
+    # Cycle & ordering
+    # ------------------------------------------------------------------ #
     def detect_cycles(self) -> list[list[str]]:
         visited: set[str] = set()
         rec_stack: set[str] = set()
@@ -111,6 +200,9 @@ class TaskGraph:
     def get_dependencies(self, task_id: str) -> list[str]:
         return list(self._edges.get(task_id, []))
 
+    # ------------------------------------------------------------------ #
+    # Serialization
+    # ------------------------------------------------------------------ #
     def to_dict(self) -> dict[str, Any]:
         def _convert(obj: Any) -> Any:
             if isinstance(obj, dict):
@@ -132,8 +224,10 @@ class TaskGraph:
         g = cls()
         for n_data in data.get("nodes", []):
             status_val = n_data.pop("status", "pending")
+            node_type_val = n_data.pop("node_type", "sequence")
             node = TaskNode(**n_data)
             node.status = TaskStatus(status_val)
+            node.node_type = NodeType(node_type_val)
             g.add_node(node)
         for from_id, deps in data.get("edges", {}).items():
             for to_id in deps:
@@ -153,14 +247,43 @@ class TaskGraph:
                 lines.append(f"    {dep} --> {nid};")
         return "\n".join(lines)
 
+    # ------------------------------------------------------------------ #
+    # Execution helpers
+    # ------------------------------------------------------------------ #
     def get_ready_nodes(self) -> list[str]:
         return [
             nid for nid, node in self._nodes.items()
             if node.status == TaskStatus.PENDING
             and all(
-                self._nodes[dep].status == TaskStatus.COMPLETED
+                self._nodes[dep].status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
                 for dep in self._edges.get(nid, [])
                 if dep in self._nodes
+            )
+        ]
+
+    def get_ready_forks(self) -> list[str]:
+        """Return FORK nodes whose branches are all ready to run."""
+        return [
+            nid for nid, node in self._nodes.items()
+            if node.node_type == NodeType.FORK
+            and node.status == TaskStatus.PENDING
+            and all(
+                self._nodes[dep].status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
+                for dep in self._edges.get(nid, [])
+                if dep in self._nodes
+            )
+        ]
+
+    def get_ready_joins(self) -> list[str]:
+        """Return JOIN nodes whose join_targets are all completed/failed/skipped."""
+        return [
+            nid for nid, node in self._nodes.items()
+            if node.node_type == NodeType.JOIN
+            and node.status == TaskStatus.PENDING
+            and all(
+                self._nodes[tid].status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.SKIPPED)
+                for tid in node.join_targets
+                if tid in self._nodes
             )
         ]
 

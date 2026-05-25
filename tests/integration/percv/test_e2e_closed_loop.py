@@ -7,19 +7,23 @@ dependencies are mocked.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from maref.integration.percv import (
     CardBridge,
     CostMonitor,
-    PERCVGatewayAdapter as GatewayAdapter,
     GatewayRole,
     PERCVConfig,
-    PERCVPipelineAdapter as PipelineAdapter,
     PipelineDirective,
     VerificationBridge,
+)
+from maref.integration.percv import (
+    PERCVGatewayAdapter as GatewayAdapter,
+)
+from maref.integration.percv import (
+    PERCVPipelineAdapter as PipelineAdapter,
 )
 
 
@@ -114,8 +118,8 @@ class TestClosedLoop:
         assert adapter._determine_directive("step4", False, "error") == PipelineDirective.HALT
 
     def test_gateway_maref_router_integration(self, mock_gateway: MagicMock) -> None:
-        from maref.integration.gateway import GatewayRouter
         from maref.governance.types import GovernanceState
+        from maref.integration.gateway import GatewayRouter
 
         router = GatewayRouter(percv_adapter=mock_gateway)
         decision = router.compute_route(
@@ -127,14 +131,14 @@ class TestClosedLoop:
 
     def test_all_adapters_importable(self) -> None:
         from maref.integration.percv import (
-            PERCVConfig,
-            PERCVGatewayAdapter,
-            GatewayResponse,
-            GatewayRole,
-            PERCVPipelineAdapter,
-            PipelineDirective,
             CardBridge,
             CostMonitor,
+            GatewayResponse,
+            GatewayRole,
+            PERCVConfig,
+            PERCVGatewayAdapter,
+            PERCVPipelineAdapter,
+            PipelineDirective,
             RatchetBridge,
             VerificationBridge,
         )

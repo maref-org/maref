@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import time
-
 import pytest
 
-from maref.orchestration.task_graph import TaskGraph, TaskNode
+from maref.integration.hitl import HITLRouter
 from maref.orchestration.plan_executor import (
     Plan,
     PlanExecutor,
-    PlanStep,
     PlanStatus,
+    PlanStep,
     StepResult,
 )
-from maref.integration.hitl import HITLRouter, HITLTier
+from maref.orchestration.task_graph import TaskGraph
 
 
 @pytest.fixture
@@ -111,7 +109,7 @@ class TestHITLAndPlanExecutor:
         assert router.is_blocking(ev_critical.tier)
 
     def test_tool_definition_usable_with_hitl_metadata(self) -> None:
-        from maref.tools.tool_schema import create_file_tool, ToolRiskLevel
+        from maref.tools.tool_schema import ToolRiskLevel, create_file_tool
 
         file_tool = create_file_tool()
         router = HITLRouter()

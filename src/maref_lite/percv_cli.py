@@ -111,7 +111,8 @@ def auto_cycle(
         console.rule(f"[bold]Cycle {i+1}/{iterations}[/bold]")
 
         r1 = orch.run_research_cycle(topic=f"{topic} (iter {i+1})")
-        console.print(f"  [green]research[/green]  → {r1.phase.value}  [{r1.result.get('topic','')}]")
+        result_dict = r1.result if r1.result is not None else {}
+        console.print(f"  [green]research[/green]  → {r1.phase.value}  [{result_dict.get('topic','')}]")
 
         r2 = orch.run_evaluate_cycle(agent_id="default-agent", report=report_with_layers)
         console.print(f"  [blue]evaluate[/blue]   → {r2.phase.value}  [state:{sm.current_state.name}]")

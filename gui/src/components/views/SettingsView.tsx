@@ -25,7 +25,9 @@ export function SettingsView() {
   const commitFontSize = (size: number) => {
     try {
       localStorage.setItem("maref_font_size", String(size));
-    } catch {}
+    } catch {
+      // ignore storage errors
+    }
     document.documentElement.style.fontSize = `${size}px`;
   };
 
@@ -105,7 +107,7 @@ export function SettingsView() {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                try { localStorage.setItem("maref_language", "zh"); } catch {}
+                try { localStorage.setItem("maref_language", "zh"); } catch { /* ignore */ }
               }}
               className={cn(
                 "rounded-lg border-2 px-4 py-2 text-sm transition-colors",
@@ -116,7 +118,7 @@ export function SettingsView() {
             </button>
             <button
               onClick={() => {
-                try { localStorage.setItem("maref_language", "en"); } catch {}
+                try { localStorage.setItem("maref_language", "en"); } catch { /* ignore */ }
               }}
               className={cn(
                 "rounded-lg border-2 px-4 py-2 text-sm transition-colors",

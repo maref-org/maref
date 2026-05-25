@@ -5,10 +5,9 @@ import pytest
 from maref.integration.mcp_security import (
     MCPSecurityGate,
     MCPTrustLevel,
+    RateLimiter,
     SecurityVerdict,
     ZeroTrustContext,
-    RateLimiter,
-    AuditLogEntry,
 )
 
 
@@ -83,7 +82,7 @@ class TestAuditLogging:
         gate = MCPSecurityGate(enable_audit_logging=True)
         context = ZeroTrustContext(agent_id="agent-001")
         gate.check("safe_tool", MCPTrustLevel.UNTRUSTED, {"input": "hello"}, context=context)
-        
+
         log = gate.get_audit_log()
         assert len(log) == 1
         assert log[0].agent_id == "agent-001"
@@ -99,7 +98,7 @@ class TestAuditLogging:
         gate.check("tool1", MCPTrustLevel.TRUSTED)
         gate.check("bash", MCPTrustLevel.UNTRUSTED)
         gate.check("tool3", MCPTrustLevel.SEMI_TRUSTED)
-        
+
         summary = gate.get_audit_summary()
         assert summary["total_requests"] == 3
         assert summary["allowed"] == 1
@@ -109,7 +108,7 @@ class TestAuditLogging:
     def test_export_json(self):
         gate = MCPSecurityGate()
         gate.check("tool", MCPTrustLevel.TRUSTED)
-        
+
         json_output = gate.export_audit_log("json")
         assert "timestamp" in json_output
         assert "tool" in json_output
@@ -117,7 +116,7 @@ class TestAuditLogging:
     def test_export_syslog(self):
         gate = MCPSecurityGate()
         gate.check("tool", MCPTrustLevel.TRUSTED)
-        
+
         syslog_output = gate.export_audit_log("syslog")
         assert "MAREF-SECURITY" in syslog_output
         assert "agent=" in syslog_output
@@ -129,7 +128,7 @@ class TestRiskCalculation:
         context = ZeroTrustContext(delegation_depth=5)
         result = gate.check("bash", MCPTrustLevel.UNTRUSTED, {"cmd": "rm file"}, context=context)
         assert result == SecurityVerdict.DENY
-        
+
         log = gate.get_audit_log()
         assert log[0].risk_score > 0.7
 
@@ -137,7 +136,7 @@ class TestRiskCalculation:
         gate = MCPSecurityGate()
         context = ZeroTrustContext(delegation_depth=0)
         gate.check("safe_tool", MCPTrustLevel.TRUSTED, context=context)
-        
+
         log = gate.get_audit_log()
         assert log[0].risk_score < 0.3
 

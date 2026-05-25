@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from maref.monitoring.safety_dashboard import (
-    SafetyDashboard,
-    DashboardWidget,
-    TrustScoreWidget,
-    ThreatDetectionWidget,
     ComplianceStatusWidget,
+    SafetyDashboard,
+    ThreatDetectionWidget,
+    TrustScoreWidget,
 )
 
 

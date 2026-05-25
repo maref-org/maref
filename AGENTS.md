@@ -1,8 +1,8 @@
-# Agent Operating Manual: MAREF v0.25.0-rc
+# Agent Operating Manual: MAREF v0.28.0-rc
 
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
-- **版本**: v0.25.0-rc
+- **版本**: v0.28.0-rc
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
 - **架构**: 六层治理架构（天极→人极→地极→经卦→别卦→爻变）
@@ -20,7 +20,7 @@ maref-experiments/
 │   ├── drift_guard/    # Distribution shift detection
 │   └── formal/         # TLA+ formal specifications
 ├── gui/                # Electron + React GUI
-├── tests/              # Test suites (174 files, 3779 tests)
+├── tests/              # Test suites (540 files, 5991 tests)
 ├── .missions/          # Factory Missions workspace
 ├── vault/              # Knowledge vault (signals, kdps, patterns)
 ├── scripts/            # Build and automation scripts

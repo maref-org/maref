@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
-from maref.life_state.health import HealthStatus
 from maref.life_state.lifecycle import LifeCycleManager, LifecyclePhase
 from maref.life_state.metadata import LifeStateMetadata
 from maref.life_state.state_machine import LifeState

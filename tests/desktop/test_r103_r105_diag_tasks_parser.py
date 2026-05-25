@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-
-from maref.desktop.input_controller import InputController, OperationResult
 from maref.desktop.screen_parser import OmniParserInterface
 
 
@@ -83,7 +80,7 @@ class TestTaskExecutor:
         assert executor._max_retries == 3
 
     def test_task_executor_executes_steps(self) -> None:
-        from maref.desktop.task_executor import TaskExecutor, TaskStep, TaskStatus
+        from maref.desktop.task_executor import TaskExecutor, TaskStatus, TaskStep
         executor = TaskExecutor()
         steps = [
             TaskStep(description="step 1", action_type="hotkey", action_value="enter"),
@@ -111,7 +108,7 @@ class TestTaskExecutor:
         assert steps == []
 
     def test_task_result_properties(self) -> None:
-        from maref.desktop.task_executor import TaskResult, TaskStepResult, TaskStatus
+        from maref.desktop.task_executor import TaskResult, TaskStatus, TaskStepResult
         result = TaskResult(task_id="t1", description="test")
         result.status = TaskStatus.SUCCESS
         assert result.total_elapsed_ms == 0.0

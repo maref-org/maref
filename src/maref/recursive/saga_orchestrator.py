@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.recursive.blast_radius import BlastRadiusController, CompensationStrategy
+
 
 class SagaState(str, Enum):
     PENDING = "pending"
@@ -120,10 +122,15 @@ class BackpressureConfig:
 
 
 class SagaOrchestrator:
-    def __init__(self, backpressure: BackpressureConfig | None = None) -> None:
+    def __init__(
+        self,
+        backpressure: BackpressureConfig | None = None,
+        blast_radius: BlastRadiusController | None = None,
+    ) -> None:
         self._active_sagas: dict[str, Saga] = {}
         self._history: list[SagaResult] = []
         self._backpressure = backpressure or BackpressureConfig()
+        self._blast_radius = blast_radius
         self._active_step_count: int = 0
         self._on_throttle: Callable[[str], None] | None = None
 
@@ -180,7 +187,9 @@ class SagaOrchestrator:
                     result.steps_executed = len(completed_steps)
 
                     saga.state = SagaState.COMPENSATING
-                    compensated = self._compensate_steps(saga, completed_steps, context)
+                    compensated = self._compensate_steps(
+                        saga, completed_steps, context, failed_step_id=step.step_id
+                    )
                     result.steps_compensated = compensated
                     result.state = SagaState.FAILED
                     result.completed_at = time.time()
@@ -295,12 +304,30 @@ class SagaOrchestrator:
                 rec.completed_at = time.time()
                 return rec
 
-    def _compensate_steps(self, saga: Saga,
-                          completed_steps: list[SagaExecutionRecord],
-                          context: dict[str, Any]) -> int:
-        compensated = 0
+    def _compensate_steps(
+        self,
+        saga: Saga,
+        completed_steps: list[SagaExecutionRecord],
+        context: dict[str, Any],
+        failed_step_id: str = "",
+    ) -> int:
         step_map = {s.step_id: s for s in saga.steps}
+        completed_ids = [rec.step_id for rec in completed_steps]
+
+        # Blast-radius control: decide which steps to compensate
+        if self._blast_radius is not None:
+            decision = self._blast_radius.decide(
+                failed_step_id=failed_step_id,
+                completed_step_ids=completed_ids,
+            )
+            ids_to_compensate = set(decision.steps_to_compensate)
+        else:
+            ids_to_compensate = set(completed_ids)
+
+        compensated = 0
         for rec in reversed(completed_steps):
+            if rec.step_id not in ids_to_compensate:
+                continue
             step = step_map.get(rec.step_id)
             if step is None or step.compensate_fn is None:
                 continue

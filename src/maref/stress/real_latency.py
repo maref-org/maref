@@ -74,7 +74,8 @@ class RealLatencyTracker:
         )
 
     def all_reports(self) -> dict[str, LatencyReport]:
-        return {op: self.report(op) for op in self._samples if self.report(op)}
+        reports = {op: self.report(op) for op in self._samples}
+        return {op: r for op, r in reports.items() if r is not None}
 
 
 class LatencyContext:

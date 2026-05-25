@@ -42,12 +42,13 @@ class TestJointStateMachine:
     def test_barrier_advance(self, jsm: JointStateMachine) -> None:
         did = AgentDID.generate()
         jsm.register_agent(did)
-        v1 = jsm.barrier_version
+        v1 = jsm.barrier_clock
         v2 = jsm.advance_barrier()
-        assert v2 > v1
+        assert v1.happens_before(v2)
         slot = jsm.get_slot(did)
         assert slot is not None
-        assert slot.barrier_version == v2
+        # After advance_barrier, slot.vector_clock merges v2, so it dominates v2
+        assert slot.vector_clock.dominates(v2)
 
     def test_force_halt(self, jsm: JointStateMachine) -> None:
         did = AgentDID.generate()

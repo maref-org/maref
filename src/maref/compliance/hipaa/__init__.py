@@ -121,7 +121,7 @@ class HIPAAComplianceEngine:
     def __init__(self):
         self._phi_elements: dict[str, PHIDataElement] = {}
         self._baas: dict[str, BusinessAssociateAgreement] = {}
-        self._breaches: dict[str, BreachAssessment] = []
+        self._breaches: list[BreachAssessment] = []
         self._initialize_default_elements()
 
     def _initialize_default_elements(self) -> None:
@@ -354,7 +354,7 @@ class HIPAAComplianceEngine:
             media_notification_required=media_required,
         )
 
-        self._breaches.append(assessment)  # type: ignore
+        self._breaches.append(assessment)
         return assessment
 
     def generate_hipaa_compliance_report(self) -> dict[str, Any]:

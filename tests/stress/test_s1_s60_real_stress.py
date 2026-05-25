@@ -2,17 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from maref.governance import GovernanceStateMachine
 from maref.stress.distributed_harness import DistributedStressHarness, WorkerResult
 from maref.stress.real_faults import FAULT_TYPES, FaultInjection, RealFaultInjector
 from maref.stress.real_latency import (
-    LatencyContext,
     LatencyReport,
     LatencySample,
     RealLatencyTracker,
 )
 from maref.stress.stress_harness import DEFAULT_MAX_SM, StressHarness
-from maref.stress.stress_level import STRESS_PRESETS, StressLevel
+from maref.stress.stress_level import StressLevel
 
 
 class TestRealLatencyTracker:

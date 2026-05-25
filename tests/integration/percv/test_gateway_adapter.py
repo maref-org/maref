@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from maref.integration.percv.gateway_adapter import (
-    PERCVGatewayAdapter as GatewayAdapter,
     GatewayResponse,
     GatewayRole,
+)
+from maref.integration.percv.gateway_adapter import (
+    PERCVGatewayAdapter as GatewayAdapter,
 )
 
 

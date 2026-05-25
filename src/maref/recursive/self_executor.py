@@ -120,7 +120,7 @@ import pytest
 
         for target_path in target_paths:
             if proposal_type == "refactor_module":
-                gen = self._generate_refactor(proposal, target_path)
+                gen: GeneratedCode | None = self._generate_refactor(proposal, target_path)
             elif proposal_type == "add_tests":
                 gen = self._generate_tests(proposal, target_path)
             elif proposal_type == "remove_unused_imports":
@@ -132,7 +132,7 @@ import pytest
                             f"# Rationale: {proposal.rationale}\n",
                     target_module=proposal.proposed_arch if hasattr(proposal, 'proposed_arch') else str(target_path),
                 )
-            if gen:
+            if gen is not None:
                 generated.append(gen)
 
         return generated

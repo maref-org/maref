@@ -70,7 +70,7 @@ const SECURITY_CONTROL_DESCRIPTIONS: Record<string, string> = {
   SensitiveWordFilter: "过滤敏感词内容",
 };
 
-function ToolDetailRow({ tool, expanded }: { tool: ToolInfo; expanded: boolean }) {
+function ToolDetailRow({ tool }: { tool: ToolInfo; expanded?: boolean }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2 text-xs">

@@ -7,11 +7,8 @@ or filesystem side effects.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from maref.integration.percv.orchestrator import (
@@ -19,7 +16,6 @@ from maref.integration.percv.orchestrator import (
     OrchestratorCycle,
     OrchestratorCycleResult,
 )
-from maref.integration.test_platform.schema import EvalStatus
 from maref_lite.cli import app
 
 runner = CliRunner()

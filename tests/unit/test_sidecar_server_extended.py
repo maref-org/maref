@@ -6,8 +6,6 @@ and streaming endpoints not tested in test_sidecar_server.py.
 
 from __future__ import annotations
 
-import json
-
 import pytest
 from fastapi.testclient import TestClient
 

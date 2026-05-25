@@ -1,6 +1,5 @@
 """Tests for Phase D3: Safety Gate -> Decision Tree connection and HITL interrupt flow."""
 
-import pytest
 
 from maref.desktop.controller import DesktopController
 from maref.desktop.policy_decision_tree import (

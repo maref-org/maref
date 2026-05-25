@@ -114,7 +114,7 @@ class SelfObserver:
                 line = line.strip()
                 if line and line.endswith(".py"):
                     file_counts[line] += 1
-            git_stats["hot_files"] = sorted(file_counts, key=file_counts.get, reverse=True)[:5]
+            git_stats["hot_files"] = sorted(file_counts, key=lambda x: file_counts[x], reverse=True)[:5]
 
         return git_stats
 
@@ -124,7 +124,7 @@ class SelfObserver:
             sm = GovernanceStateMachine()
             return {
                 "current_state": str(sm.current_state),
-                "entropy": sm.get_entropy(),
+                "entropy": sm.get_entropy_trend(),
                 "transition_count": sm.transition_count,
             }
         except Exception:

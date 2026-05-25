@@ -232,7 +232,7 @@ class HistoryDatabase:
         conn.commit()
         eid = cursor.lastrowid
         conn.close()
-        return eid
+        return eid if eid is not None else 0
 
     def save_result(self, execution_id: int, result: ExecutionResult) -> None:
         conn = sqlite3.connect(str(self._path))
@@ -430,7 +430,7 @@ class DesktopController:
             DesktopOperationType.SCREENSHOT: lambda: OperationResult(
                 success=self.capture().width > 0,
                 action_type="screenshot",
-                details=f"Captured {self._last_screenshot.width}x{self._last_screenshot.height}",
+                details=f"Captured {self._last_screenshot.width}x{self._last_screenshot.height}" if self._last_screenshot else "No screenshot",
             ),
             DesktopOperationType.PARSE: lambda: OperationResult(
                 success=bool(self.parse()),
@@ -590,7 +590,7 @@ class DesktopController:
 
         tree_result = self._policy_tree.evaluate(
             operation=op.op_type.value,
-            app_name=app_name,
+            app_name=app_name or "",
             element_text=element_text,
             input_text=input_text,
             safe_apps=self._safe_apps,

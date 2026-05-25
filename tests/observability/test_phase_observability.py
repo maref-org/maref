@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import time
-
 import pytest
 
+from maref.observability.red_metrics import REDMetricsCollector, RequestMetric
 from maref.observability.trace_context import (
     clear_trace_context,
     get_current_trace_id,
@@ -13,7 +12,6 @@ from maref.observability.trace_context import (
     inject_trace_context,
     set_trace_context,
 )
-from maref.observability.red_metrics import REDMetricsCollector, RequestMetric
 
 
 class TestTraceContext:

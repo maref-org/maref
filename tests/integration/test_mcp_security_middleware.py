@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import pytest
-
 from maref.integration.mcp_security_middleware import (
-    MCPSecurityMiddleware,
-    MCPProtocolValidator,
     MCPAuditMiddleware,
+    MCPProtocolValidator,
     MCPRateLimitMiddleware,
+    MCPSecurityMiddleware,
 )
-from maref.integration.mcp_transport import JSONRPCRequest, JSONRPCResponse
+from maref.integration.mcp_transport import JSONRPCRequest
 
 
 class TestMCPProtocolValidator:
@@ -89,7 +87,7 @@ class TestMCPRateLimitMiddleware:
     def test_rate_limit_allows_under_limit(self):
         middleware = MCPRateLimitMiddleware(max_calls=3, window_seconds=60)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         for i in range(3):
             result = middleware.process(req, agent_id="agent-1")
             assert result.is_allowed is True
@@ -97,21 +95,21 @@ class TestMCPRateLimitMiddleware:
     def test_rate_limit_blocks_over_limit(self):
         middleware = MCPRateLimitMiddleware(max_calls=2, window_seconds=60)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         middleware.process(req, agent_id="agent-1")  # 第1次
         middleware.process(req, agent_id="agent-1")  # 第2次
         result = middleware.process(req, agent_id="agent-1")  # 第3次 — 应被阻止
-        
+
         assert result.is_allowed is False
         assert "rate" in result.reason.lower()
 
     def test_rate_limit_per_agent_isolation(self):
         middleware = MCPRateLimitMiddleware(max_calls=2, window_seconds=60)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         middleware.process(req, agent_id="agent-1")
         middleware.process(req, agent_id="agent-1")
-        
+
         # agent-2 不受 agent-1 的限制影响
         result = middleware.process(req, agent_id="agent-2")
         assert result.is_allowed is True
@@ -120,17 +118,17 @@ class TestMCPRateLimitMiddleware:
         import time
         middleware = MCPRateLimitMiddleware(max_calls=1, window_seconds=0)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         middleware.process(req, agent_id="agent-1")  # 第1次
         time.sleep(0.01)  # 窗口过期
-        
+
         result = middleware.process(req, agent_id="agent-1")  # 应允许
         assert result.is_allowed is True
 
     def test_rate_limit_without_agent_id_uses_default(self):
         middleware = MCPRateLimitMiddleware(max_calls=1, window_seconds=60)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         middleware.process(req)  # 无 agent_id，使用 default
         result = middleware.process(req)  # 第2次应被阻止
         assert result.is_allowed is False
@@ -143,9 +141,9 @@ class TestMCPAuditMiddleware:
         logs = []
         middleware = MCPAuditMiddleware(log_sink=logs.append)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         middleware.process(req, agent_id="agent-1", verdict="ALLOW")
-        
+
         assert len(logs) == 1
         assert logs[0]["method"] == "tools/list"
         assert logs[0]["agent_id"] == "agent-1"
@@ -156,9 +154,9 @@ class TestMCPAuditMiddleware:
         middleware = MCPAuditMiddleware(log_sink=logs.append)
         req = JSONRPCRequest(method="tools/call", id=1)
         req.params = {"name": "bash", "arguments": {"command": "ls"}}
-        
+
         middleware.process(req, agent_id="agent-1", verdict="DENY")
-        
+
         assert len(logs) == 1
         assert logs[0]["tool_name"] == "bash"
         assert logs[0]["verdict"] == "DENY"
@@ -168,17 +166,17 @@ class TestMCPAuditMiddleware:
         logs = []
         middleware = MCPAuditMiddleware(log_sink=logs.append)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         before = time.time()
         middleware.process(req, agent_id="agent-1", verdict="ALLOW")
         after = time.time()
-        
+
         assert before <= logs[0]["timestamp"] <= after
 
     def test_audit_without_log_sink_does_not_crash(self):
         middleware = MCPAuditMiddleware(log_sink=None)
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         # 不应抛出异常
         middleware.process(req, agent_id="agent-1", verdict="ALLOW")
 
@@ -192,7 +190,7 @@ class TestMCPSecurityMiddleware:
             rate_limit_window=60,
         )
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         result = middleware.process(req, agent_id="agent-1")
         assert result.is_allowed is True
         assert result.verdict == "ALLOW"
@@ -200,7 +198,7 @@ class TestMCPSecurityMiddleware:
     def test_middleware_chain_blocks_invalid_request(self):
         middleware = MCPSecurityMiddleware()
         req = JSONRPCRequest(method="", id=1)  # 无效方法
-        
+
         result = middleware.process(req, agent_id="agent-1")
         assert result.is_allowed is False
         assert result.verdict == "DENY"
@@ -211,10 +209,10 @@ class TestMCPSecurityMiddleware:
             rate_limit_window=60,
         )
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         middleware.process(req, agent_id="agent-1")
         result = middleware.process(req, agent_id="agent-1")
-        
+
         assert result.is_allowed is False
         assert "rate" in result.reason.lower()
 
@@ -225,9 +223,9 @@ class TestMCPSecurityMiddleware:
             audit_log_sink=logs.append,
         )
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         middleware.process(req, agent_id="agent-1")
-        
+
         assert len(logs) == 1
         assert logs[0]["method"] == "tools/list"
 
@@ -240,15 +238,15 @@ class TestMCPSecurityMiddleware:
             audit_log_sink=logs.append,
         )
         req = JSONRPCRequest(method="tools/list", id=1)
-        
+
         # 第1次：通过
         result1 = middleware.process(req, agent_id="agent-1")
         assert result1.is_allowed is True
-        
+
         # 第2次：被速率限制阻止
         result2 = middleware.process(req, agent_id="agent-1")
         assert result2.is_allowed is False
-        
+
         # 验证审计日志记录了2次（包括被拒绝的）
         assert len(logs) == 2
         assert logs[1]["verdict"] == "DENY"
@@ -257,7 +255,7 @@ class TestMCPSecurityMiddleware:
         middleware = MCPSecurityMiddleware()
         req = JSONRPCRequest(method="tools/call", id=1)
         req.params = {"arguments": {}}
-        
+
         result = middleware.process(req, agent_id="agent-1")
         assert result.is_allowed is False
         assert "name" in result.reason.lower()

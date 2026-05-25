@@ -123,6 +123,10 @@ class AgentProfileV2:
     reputation_chain: list[str] = field(default_factory=list)
     behavioral_consistency: float = 0.7
     framework_baseline: float = 0.5
+    # Real-time load fields (Phase 2.2)
+    current_tasks: int = 0
+    max_tasks: int = 10
+    queue_depth: int = 0
 
 
 class TrustEngineV2:
@@ -166,6 +170,13 @@ class TrustEngineV2:
         overall = self._weighted_sum(factors)
         decay = self._compute_temporal_decay(profile)
         overall *= decay
+
+        # Apply load factor as multiplicative penalty (weight=0 means it was
+        # not included in weighted_sum; apply it here explicitly)
+        load_factor = next(
+            (f.value for f in factors if f.name == "load_factor"), 1.0
+        )
+        overall *= load_factor
 
         goodhart = self._detect_goodhart(factors, profile)
 
@@ -263,6 +274,7 @@ class TrustEngineV2:
         reputation = self._compute_reputation(profile)
         stability = self._compute_stability(profile)
         cooperation = self._compute_cooperation(profile)
+        load_factor = self._compute_load_factor(profile)
 
         factors = [
             TrustFactor("task_completion", completion, weights["task_completion"]),
@@ -274,6 +286,7 @@ class TrustEngineV2:
             TrustFactor("peer_reputation", reputation, weights["peer_reputation"]),
             TrustFactor("temporal_stability", stability, weights["temporal_stability"]),
             TrustFactor("cooperation_score", cooperation, weights["cooperation_score"]),
+            TrustFactor("load_factor", load_factor, 0.0),  # applied as multiplicative penalty
         ]
 
         for f in factors:
@@ -341,6 +354,24 @@ class TrustEngineV2:
     def _compute_cooperation(profile: AgentProfileV2) -> float:
         chain_len = len(profile.reputation_chain)
         return min(1.0, chain_len / 10.0)
+
+    @staticmethod
+    def _compute_load_factor(profile: AgentProfileV2) -> float:
+        """Compute load-based trust penalty.
+
+        High load (current_tasks / max_tasks >= 0.9) reduces trust
+        because overloaded agents are more likely to fail or timeout.
+        """
+        if profile.max_tasks <= 0:
+            return 1.0
+        ratio = profile.current_tasks / profile.max_tasks
+        if ratio >= 0.9:
+            return 0.5  # heavily penalized
+        if ratio >= 0.7:
+            return 0.75
+        if ratio >= 0.5:
+            return 0.9
+        return 1.0
 
     def _detect_goodhart(self, factors: list[TrustFactor],
                           profile: AgentProfileV2) -> GoodhartDetection:

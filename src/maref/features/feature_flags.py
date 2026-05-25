@@ -47,6 +47,8 @@ class InMemoryFeatureFlagStore:
 class FeatureFlagManager:
     _instance: FeatureFlagManager | None = None
     CONFIG_FILE: str = ""
+    _store: InMemoryFeatureFlagStore
+    _initialized: bool
 
     def __new__(cls) -> FeatureFlagManager:
         if cls._instance is None:
@@ -56,7 +58,7 @@ class FeatureFlagManager:
         return cls._instance
 
     def __init__(self) -> None:
-        if self._initialized:
+        if getattr(self, "_initialized", False):
             return
         self._initialized = True
         self._init_defaults()

@@ -1,0 +1,62 @@
+name: Release Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  gate-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Ruff lint
+        run: ruff check src/maref src/maref_lite
+      - name: No hardcoded paths
+        run: |
+          if grep -rn "/Volumes/" src/ --include="*.py"; then
+            echo "::error::Found hardcoded /Volumes/ paths"
+            exit 1
+          fi
+      - name: No nested .git
+        run: |
+          found=$(find . -name ".git" -not -path "./.git" -type d)
+          if [ -n "$found" ]; then
+            echo "::error::Found nested .git directories"
+            exit 1
+          fi
+
+  gate-test:
+    needs: gate-quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Core tests
+        run: pytest tests/governance/ tests/formal/ -v --tb=short -x
+      - name: Coverage gate
+        run: pytest tests/ --cov=src/maref --cov-fail-under=70
+
+  gate-security:
+    needs: gate-quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Bandit SAST
+        run: bandit -r src/ -c pyproject.toml
+      - name: pip-audit
+        run: pip-audit

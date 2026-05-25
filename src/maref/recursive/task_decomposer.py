@@ -90,8 +90,8 @@ class TaskDecomposer:
             sub = SubTask(
                 task_id=task_id,
                 description=str(tpl["desc"]),
-                required_capabilities=list(tpl["capabilities"]),
-                dependencies=list(tpl.get("deps", [])),
+                required_capabilities=list(tpl["capabilities"]),  # type: ignore[call-overload]
+                dependencies=list(tpl.get("deps", [])),  # type: ignore[call-overload]
             )
             nodes[task_id] = sub
             for dep in sub.dependencies:

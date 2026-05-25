@@ -11,7 +11,10 @@ _COG_AGENT_AVAILABLE = False
 _transformers_available = False
 
 try:
-    from transformers import AutoModelForCausalLM, AutoProcessor  # noqa: F401
+    from transformers import (  # type: ignore[import-not-found] # noqa: F401
+        AutoModelForCausalLM,
+        AutoProcessor,
+    )
 
     _transformers_available = True
 except ImportError:
@@ -356,7 +359,7 @@ class OmniParserInterface:
             self._model.device if hasattr(self._model, "device") else "cpu"
         )
 
-        import torch
+        import torch  # type: ignore[import-not-found]
 
         with torch.no_grad():
             generated_ids = self._model.generate(**inputs, max_new_tokens=1024)

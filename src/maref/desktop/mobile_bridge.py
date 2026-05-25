@@ -215,7 +215,7 @@ class DeviceDiscovery:
 
     def start_mdns_advertisement(self) -> bool:
         try:
-            from zeroconf import ServiceInfo, Zeroconf
+            from zeroconf import ServiceInfo, Zeroconf  # type: ignore[import-not-found]
 
             self._zeroconf = Zeroconf()
             service_type = "_maref._tcp.local."
@@ -245,6 +245,7 @@ class DeviceDiscovery:
 
     def start_mdns_discovery(self, timeout: float = 5.0) -> list[DeviceInfo]:
         discovered: list[DeviceInfo] = []
+        _discovered_map = self._discovered
         try:
             from zeroconf import ServiceBrowser, Zeroconf
 
@@ -267,7 +268,7 @@ class DeviceDiscovery:
                         )
                         if device.device_id not in {d.device_id for d in discovered}:
                             discovered.append(device)
-                            self._discovered[device.device_id] = device
+                            _discovered_map[device.device_id] = device
 
             ServiceBrowser(zc, "_maref._tcp.local.", MAREFListener())
             time.sleep(timeout)
@@ -521,7 +522,10 @@ class MobileBridge:
             def _accept_loop():
                 while getattr(self, "_heartbeat_active", False):
                     try:
-                        conn, addr = self._tcp_server.accept()
+                        server = self._tcp_server
+                        if server is None:
+                            break
+                        conn, addr = server.accept()
                         self._log_event("tcp_connection", {"addr": str(addr)})
                         conn.close()
                     except TimeoutError:
@@ -552,9 +556,10 @@ class MobileBridge:
     def disable_real_mode(self) -> None:
         self._heartbeat_active = False
         self.discovery.stop_mdns_advertisement()
-        if getattr(self, "_tcp_server", None):
+        tcp_server = getattr(self, "_tcp_server", None)
+        if tcp_server is not None:
             try:
-                self._tcp_server.close()
+                tcp_server.close()
             except OSError:
                 pass
             self._tcp_server = None

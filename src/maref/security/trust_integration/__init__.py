@@ -319,15 +319,14 @@ class TrustIntegrationAPI:
                         agent_id=node_data["agent_id"],
                         parent_id=node_data.get("parent_id"),
                         timestamp=node_data.get("timestamp", time.time()),
-                        action=node_data.get("action", "delegate"),
                         capability=node_data.get("capability", "EXECUTE"),
                         metadata=node_data.get("metadata", {})
                     )
                     nodes.append(node)
 
                 delegation_chain = DelegationChain(
-                    chain_id=chain_data.get("chain_id"),
-                    root_agent_id=chain_data.get("root_agent_id"),
+                    chain_id=chain_data.get("chain_id") or "",
+                    root_agent_id=chain_data.get("root_agent_id") or "",
                     max_depth=chain_data.get("max_depth", 5)
                 )
                 delegation_chain.nodes = nodes

@@ -47,7 +47,6 @@ class OpenCUALoader:
                 "OpenCUA/OpenCUA",
                 repo_type="dataset",
                 cache_dir=str(self._cache),
-                resume_download=True,
             )
             self._use_mock = False
             return True

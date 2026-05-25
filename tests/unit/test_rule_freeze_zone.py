@@ -1,15 +1,12 @@
+from maref.recursive.evolution_dsl import EvolutionDSL, EvolutionRule
 from maref.recursive.rule_freeze_zone import (
     FROZEN_TARGETS,
-    ALL_FROZEN,
     FreezeBlockedError,
-    FreezeZoneCheckResult,
-    ParetoComparison,
     RuleFreezeZone,
     compare_pareto,
-    is_frozen,
     get_frozen_category,
+    is_frozen,
 )
-from maref.recursive.evolution_dsl import EvolutionDSL, EvolutionRule
 
 
 class TestFrozenTargets:

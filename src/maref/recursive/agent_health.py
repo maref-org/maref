@@ -1,0 +1,133 @@
+"""Agent health and load tracking for real-time dispatch decisions.
+
+Provides AgentHealthMonitor which tracks per-agent load metrics and
+exposes them to the dispatcher so that `current_load` and `trust_score`
+are no longer hard-coded constants.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class AgentLoadSnapshot:
+    """Point-in-time load metrics for a single agent."""
+
+    agent_id: str
+    current_tasks: int = 0
+    max_tasks: int = 10
+    queue_depth: int = 0
+    cpu_percent: float = 0.0
+    memory_percent: float = 0.0
+    timestamp: float = field(default_factory=time.time)
+
+    @property
+    def load_ratio(self) -> float:
+        """Normalized load in [0, 1]."""
+        if self.max_tasks <= 0:
+            return 1.0
+        return min(1.0, self.current_tasks / self.max_tasks)
+
+    @property
+    def is_overloaded(self) -> bool:
+        return self.load_ratio >= 0.9 or self.queue_depth >= self.max_tasks
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "current_tasks": self.current_tasks,
+            "max_tasks": self.max_tasks,
+            "queue_depth": self.queue_depth,
+            "cpu_percent": round(self.cpu_percent, 2),
+            "memory_percent": round(self.memory_percent, 2),
+            "load_ratio": round(self.load_ratio, 3),
+            "is_overloaded": self.is_overloaded,
+            "timestamp": self.timestamp,
+        }
+
+
+class AgentHealthMonitor:
+    """Maintains a live view of agent load and health.
+
+    In a production deployment this would be backed by a metrics collector
+    (Prometheus, StatsD, etc.).  The fallback values keep the system running
+    when no external telemetry is available.
+    """
+
+    def __init__(self) -> None:
+        self._snapshots: dict[str, AgentLoadSnapshot] = {}
+        self._default_max_tasks = 10
+
+    # ------------------------------------------------------------------ #
+    # Registration / update
+    # ------------------------------------------------------------------ #
+    def register(self, agent_id: str, max_tasks: int = 10) -> None:
+        self._snapshots[agent_id] = AgentLoadSnapshot(
+            agent_id=agent_id,
+            max_tasks=max_tasks,
+        )
+
+    def update(
+        self,
+        agent_id: str,
+        current_tasks: int | None = None,
+        queue_depth: int | None = None,
+        cpu_percent: float | None = None,
+        memory_percent: float | None = None,
+    ) -> None:
+        snap = self._snapshots.get(agent_id)
+        if snap is None:
+            snap = AgentLoadSnapshot(agent_id=agent_id)
+            self._snapshots[agent_id] = snap
+
+        if current_tasks is not None:
+            snap.current_tasks = current_tasks
+        if queue_depth is not None:
+            snap.queue_depth = queue_depth
+        if cpu_percent is not None:
+            snap.cpu_percent = cpu_percent
+        if memory_percent is not None:
+            snap.memory_percent = memory_percent
+        snap.timestamp = time.time()
+
+    def increment_tasks(self, agent_id: str) -> None:
+        snap = self._snapshots.get(agent_id)
+        if snap is None:
+            self.register(agent_id)
+            snap = self._snapshots[agent_id]
+        snap.current_tasks += 1
+        snap.timestamp = time.time()
+
+    def decrement_tasks(self, agent_id: str) -> None:
+        snap = self._snapshots.get(agent_id)
+        if snap is not None:
+            snap.current_tasks = max(0, snap.current_tasks - 1)
+            snap.timestamp = time.time()
+
+    # ------------------------------------------------------------------ #
+    # Queries
+    # ------------------------------------------------------------------ #
+    def get_snapshot(self, agent_id: str) -> AgentLoadSnapshot | None:
+        return self._snapshots.get(agent_id)
+
+    def get_load_ratio(self, agent_id: str) -> float:
+        snap = self._snapshots.get(agent_id)
+        if snap is None:
+            return 0.5  # neutral when unknown
+        return snap.load_ratio
+
+    def list_overloaded(self) -> list[str]:
+        return [
+            sid for sid, snap in self._snapshots.items()
+            if snap.is_overloaded
+        ]
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "agent_count": len(self._snapshots),
+            "overloaded": self.list_overloaded(),
+            "agents": {sid: snap.to_dict() for sid, snap in self._snapshots.items()},
+        }

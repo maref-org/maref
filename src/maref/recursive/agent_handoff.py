@@ -6,6 +6,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.consensus.nack_protocol import (
+    NackBuilder,
+    NackCode,
+    NackHandler,
+    NackMessage,
+)
 from maref.recursive.safety_gate_v2 import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
 
@@ -22,6 +28,7 @@ class HandoffStatus(str, Enum):
     REQUESTED = "requested"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
+    NACK = "nack"                # structured refusal with machine-readable code
     TIMED_OUT = "timed_out"
     COMPLETED = "completed"
     ROLLED_BACK = "rolled_back"
@@ -59,9 +66,10 @@ class HandoffResult:
     transferred_at: float = field(default_factory=time.time)
     refusal_reason: str = ""
     request_id: str = ""
+    nack: NackMessage | None = None   # populated when status == NACK
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "handoff_id": self.handoff_id,
             "request_id": self.request_id,
             "from_agent": self.from_agent,
@@ -71,6 +79,9 @@ class HandoffResult:
             "transferred_at": self.transferred_at,
             "refusal_reason": self.refusal_reason,
         }
+        if self.nack is not None:
+            d["nack"] = self.nack.to_dict()
+        return d
 
 
 @dataclass
@@ -90,9 +101,11 @@ class AgentHandoffProtocol:
         self,
         safety_gate: SafetyGateV2 | None = None,
         audit_store: UnifiedAuditStore | None = None,
+        nack_handler: NackHandler | None = None,
     ) -> None:
         self._safety_gate = safety_gate or SafetyGateV2()
         self._audit_store = audit_store or UnifiedAuditStore()
+        self._nack_handler = nack_handler or NackHandler()
         self._active_handoffs: dict[str, HandoffResult] = {}
         self._handoff_history: list[HandoffAuditEntry] = []
         self._agent_trust: dict[str, dict[str, float]] = {}
@@ -105,61 +118,73 @@ class AgentHandoffProtocol:
     def get_trust(self, from_agent: str, to_agent: str) -> float:
         return self._agent_trust.get(from_agent, {}).get(to_agent, 0.0)
 
+    # ------------------------------------------------------------------ #
+    # Structured refusal helpers
+    # ------------------------------------------------------------------ #
+    def _nack(
+        self,
+        request: HandoffRequest,
+        code: NackCode,
+        reason: str,
+        retry_after: float | None = None,
+        alternatives: list[str] | None = None,
+    ) -> HandoffResult:
+        nack = (
+            NackBuilder()
+            .request(request.request_id)
+            .agents(request.from_agent, request.to_agent)
+            .because(code, reason)
+            .retry_after(retry_after or 0.0)
+            .alternatives(alternatives or [])
+            .context(dict(request.task_context))
+            .build()
+        )
+        result = HandoffResult(
+            accepted=False,
+            from_agent=request.from_agent,
+            to_agent=request.to_agent,
+            handoff_id=f"handoff_{request.request_id}",
+            status=HandoffStatus.NACK,
+            refusal_reason=reason,
+            request_id=request.request_id,
+            nack=nack,
+        )
+        self._record_handoff(request, result)
+        return result
+
     def request_handoff(self, request: HandoffRequest) -> HandoffResult:
         trust = self.get_trust(request.from_agent, request.to_agent)
         if trust < self.TRUST_THRESHOLD_FOR_HANDOFF:
-            result = HandoffResult(
-                accepted=False,
-                from_agent=request.from_agent,
-                to_agent=request.to_agent,
-                handoff_id=f"handoff_{request.request_id}",
-                status=HandoffStatus.REJECTED,
-                refusal_reason=f"Trust ({trust:.2f}) below threshold ({self.TRUST_THRESHOLD_FOR_HANDOFF})",
-                request_id=request.request_id,
+            return self._nack(
+                request,
+                NackCode.TRUST_TOO_LOW,
+                f"Trust ({trust:.2f}) below threshold ({self.TRUST_THRESHOLD_FOR_HANDOFF})",
+                alternatives=self._suggest_alternatives(request),
             )
-            self._record_handoff(request, result)
-            return result
 
         if request.reason == HandoffReason.ESCALATION and trust < 0.5:
-            result = HandoffResult(
-                accepted=False,
-                from_agent=request.from_agent,
-                to_agent=request.to_agent,
-                handoff_id=f"handoff_{request.request_id}",
-                status=HandoffStatus.REJECTED,
-                refusal_reason=f"Escalation requires trust >= 0.5, got {trust:.2f}",
-                request_id=request.request_id,
+            return self._nack(
+                request,
+                NackCode.TRUST_TOO_LOW,
+                f"Escalation requires trust >= 0.5, got {trust:.2f}",
             )
-            self._record_handoff(request, result)
-            return result
 
         current_handoffs = self._agent_handoff_counts.get(request.from_agent, 0)
         if current_handoffs >= self.MAX_CONCURRENT_HANDOFFS_PER_AGENT:
-            result = HandoffResult(
-                accepted=False,
-                from_agent=request.from_agent,
-                to_agent=request.to_agent,
-                handoff_id=f"handoff_{request.request_id}",
-                status=HandoffStatus.REJECTED,
-                refusal_reason=f"Max concurrent handoffs ({self.MAX_CONCURRENT_HANDOFFS_PER_AGENT}) reached",
-                request_id=request.request_id,
+            return self._nack(
+                request,
+                NackCode.OVERLOADED,
+                f"Max concurrent handoffs ({self.MAX_CONCURRENT_HANDOFFS_PER_AGENT}) reached",
+                retry_after=5.0,
             )
-            self._record_handoff(request, result)
-            return result
 
         threat = self._safety_gate.detect_core_removal(f"handoff_{request.to_agent}")
         if threat.threat_detected:
-            result = HandoffResult(
-                accepted=False,
-                from_agent=request.from_agent,
-                to_agent=request.to_agent,
-                handoff_id=f"handoff_{request.request_id}",
-                status=HandoffStatus.REJECTED,
-                refusal_reason=f"Safety gate blocked: {threat.reason}",
-                request_id=request.request_id,
+            return self._nack(
+                request,
+                NackCode.SAFETY_GATE_BLOCKED,
+                f"Safety gate blocked: {threat.reason}",
             )
-            self._record_handoff(request, result)
-            return result
 
         handoff_id = f"handoff_{request.request_id}_{int(time.time())}"
         result = HandoffResult(
@@ -237,6 +262,10 @@ class AgentHandoffProtocol:
 
     def stats(self) -> dict[str, Any]:
         accepted = sum(1 for e in self._handoff_history if e.result.accepted)
+        nack_count = sum(
+            1 for e in self._handoff_history
+            if e.result.status == HandoffStatus.NACK
+        )
         completed = sum(
             1 for e in self._handoff_history
             if e.result.status == HandoffStatus.COMPLETED
@@ -249,11 +278,20 @@ class AgentHandoffProtocol:
         return {
             "total_handoffs": total,
             "accepted": accepted,
-            "rejected": total - accepted,
+            "nack": nack_count,
+            "rejected": total - accepted - nack_count,
             "completed": completed,
             "rolled_back": rolled_back,
             "active": len(self._active_handoffs),
         }
+
+    def _suggest_alternatives(self, request: HandoffRequest) -> list[str]:
+        """Return agents with trust above threshold for the same from_agent."""
+        trust_map = self._agent_trust.get(request.from_agent, {})
+        return [
+            aid for aid, score in trust_map.items()
+            if aid != request.to_agent and score >= self.TRUST_THRESHOLD_FOR_HANDOFF
+        ]
 
     def _record_handoff(self, request: HandoffRequest, result: HandoffResult) -> None:
         entry = HandoffAuditEntry(
@@ -262,6 +300,14 @@ class AgentHandoffProtocol:
             result=result,
         )
         self._handoff_history.append(entry)
+        justification_parts = [
+            f"Reason={request.reason.value}",
+            f"accepted={result.accepted}",
+            f"status={result.status.value}",
+        ]
+        if result.nack is not None:
+            justification_parts.append(f"nack_code={result.nack.code.value}")
+            justification_parts.append(f"recoverability={result.nack.recoverability.value}")
         self._audit_store.append(UnifiedAuditRecord(
             record_id=make_record_id("hoff", hash(result.handoff_id) % 100000),
             timestamp=time.time(),
@@ -271,11 +317,7 @@ class AgentHandoffProtocol:
             source_module="AgentHandoffProtocol",
             target_module=result.to_agent,
             decision=f"handoff_{request.from_agent}_to_{request.to_agent}",
-            justification=(
-                f"Reason={request.reason.value}, "
-                f"accepted={result.accepted}, "
-                f"status={result.status.value}"
-            ),
+            justification=", ".join(justification_parts),
             outcome="success" if result.accepted else "failure",
             context_refs=[result.handoff_id, request.from_agent, request.to_agent],
         ))

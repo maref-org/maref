@@ -66,7 +66,7 @@ class ValidationResult:
 
 @dataclass
 class DelegationChain:
-    chain_id: str = field(default_factory=lambda: str(uuid.uuid7()))
+    chain_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     root_agent_id: str = ""
     depth: int = 0
     max_depth: int = 5

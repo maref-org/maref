@@ -172,7 +172,7 @@ class ThreatIntelligenceEngine:
     def __init__(self):
         self._indicators: dict[str, ThreatIndicator] = {}
         self._vulnerabilities: dict[str, VulnerabilityReport] = {}
-        self._alerts: dict[str, ThreatAlert] = []
+        self._alerts: list[ThreatAlert] = []
         self._ioc_index: dict[IOCType, dict[str, str]] = defaultdict(dict)  # type -> value -> indicator_id
         self._alert_history: list[ThreatAlert] = []
         self._threat_cache: dict[str, Any] = {}
@@ -412,7 +412,7 @@ class ThreatIntelligenceEngine:
 
     def export_indicators(self, source: ThreatSource | None = None) -> list[dict[str, Any]]:
         """导出威胁指标"""
-        indicators = self._indicators.values()
+        indicators: list[ThreatIndicator] = list(self._indicators.values())
         if source:
             indicators = [i for i in indicators if i.source == source]
         return [i.to_dict() for i in indicators]

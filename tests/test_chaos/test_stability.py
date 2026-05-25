@@ -8,9 +8,9 @@ import pytest
 from maref.stress.stability_test import (
     ITERATIONS_FOR_24H,
     LEAK_THRESHOLD_PCT,
+    IterationSnapshot,
     StabilityReport,
     StabilityTestRunner,
-    IterationSnapshot,
 )
 
 

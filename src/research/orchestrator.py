@@ -69,7 +69,7 @@ class ExperimentOrchestrator:
         else:
             # Weighted random selection
             r = random.uniform(0, total_score)
-            cumulative = 0
+            cumulative = 0.0
             selected = list(scores.keys())[0]
             for name, score in scores.items():
                 cumulative += score
@@ -100,7 +100,7 @@ class ExperimentOrchestrator:
 
         # Recency bonus (decay over time)
         time_since_last = time.time() - meta.last_run
-        if time_since_last > 3600:  # Not run in last hour
+        if time_since_last > 3600.0:  # Not run in last hour
             score += 0.5
 
         # Phase bonus (higher phases slightly preferred)

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.28.0-rc"
+version = "0.30.0-GA"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -31,7 +31,6 @@ dependencies = [
     "rich>=13.0",
     "pyyaml>=6.0",
     "httpx>=0.27",
-    "percv",
 ]
 
 [project.optional-dependencies]
@@ -54,6 +53,7 @@ a2a = [
 identity = [
     "cryptography>=42.0",
     "jwcrypto>=1.5",
+    "gmssl>=3.2.2",
 ]
 orchestration = [
     "networkx>=3.0",
@@ -79,11 +79,8 @@ desktop = [
     "PyAutoGUI>=0.9.54",
     "playwright>=1.45",
 ]
-percv = [
-    "percv>=0.6",
-]
 all = [
-    "maref[ml,sidecar,dev,desktop,percv]",
+    "maref[ml,sidecar,dev,desktop]",
 ]
 
 [project.scripts]
@@ -152,6 +149,7 @@ module = [
     "autogen_agentchat.base",
     "autogen_agentchat.messages",
     "autogen_agentchat.teams",
+    "percv.schemas",
 ]
 ignore_missing_imports = true
 
@@ -197,4 +195,4 @@ exclude_lines = [
 directory = "htmlcov"
 
 [tool.uv.sources]
-percv = { path = "../autoresearch/percv", editable = true }
+# percv 已改为 PyPI 依赖，见 [project.optional-dependencies]

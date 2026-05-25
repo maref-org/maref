@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 
 from maref.security.trust_boundary import (
+    BoundaryEventType,
+    BoundaryReport,
     TrustBoundaryManager,
     TrustDomain,
     TrustPolicy,
-    BoundaryEventType,
-    BoundaryReport,
 )
 
 

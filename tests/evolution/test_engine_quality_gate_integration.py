@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from maref.evolution.engine import RecursiveEvolutionEngine, EvolutionConfig
+from maref.evolution.engine import EvolutionConfig, RecursiveEvolutionEngine
 from maref.integration.test_platform.quality_gate import (
     EvolutionQualityGate,
-    QualityGateConfig,
 )
 
 

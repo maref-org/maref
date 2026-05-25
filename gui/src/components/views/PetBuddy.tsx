@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Shuffle, Sparkles, Heart, Grid3X3, Check, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -8,12 +8,10 @@ import {
 } from "@/lib/pet-bus";
 
 export function PetBuddy() {
-  const [pet, setPet] = useState<PetState | null>(null);
-  const [collection, setCollection] = useState<PetState[]>([]);
+  const [pet, setPet] = useState<PetState | null>(() => loadPet());
+  const [collection, setCollection] = useState<PetState[]>(() => loadPets());
   const [rolling, setRolling] = useState(false);
   const [view, setView] = useState<"current" | "gallery">("current");
-
-  useEffect(() => { setPet(loadPet()); setCollection(loadPets()); }, []);
 
   const summon = useCallback(() => {
     setRolling(true);

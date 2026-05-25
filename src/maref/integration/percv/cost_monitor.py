@@ -52,6 +52,8 @@ class CostMonitor:
 
         Returns a status dict with alert level and current metrics.
         """
+        if self._gateway is None:
+            return {"alert": "error", "error": "gateway adapter not configured"}
         try:
             budget_status = self._gateway.get_budget_status()
         except Exception as exc:

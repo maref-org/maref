@@ -21,8 +21,12 @@ _global_red_collector = REDMetricsCollector()
 
 _OTEL_AVAILABLE = False
 try:
-    from opentelemetry import trace
-    from opentelemetry.trace import SpanKind, StatusCode, format_trace_id
+    from opentelemetry import trace  # type: ignore[import-not-found]
+    from opentelemetry.trace import (  # type: ignore[import-not-found]
+        SpanKind,
+        StatusCode,
+        format_trace_id,
+    )
 
     _tracer = trace.get_tracer("maref.fastapi", "0.26.0")
     _OTEL_AVAILABLE = True
@@ -150,7 +154,7 @@ class _SpanContextManager:
                     **self._attributes,
                 },
             )
-            trace_id = format_trace_id(self._span.get_span_context().trace_id)
+            trace_id = format_trace_id(self._span.get_span_context().trace_id)  # type: ignore[attr-defined]
             current_trace_id.set(trace_id)
             set_trace_context(trace_id)
         return self
@@ -186,9 +190,13 @@ def create_maref_tracer(
 
     endpoint = otlp_endpoint or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
     if endpoint:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore[import-not-found]
+            OTLPSpanExporter,
+        )
+        from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found]
+        from opentelemetry.sdk.trace.export import (  # type: ignore[import-not-found]
+            BatchSpanProcessor,
+        )
         from opentelemetry.trace import set_tracer_provider
 
         provider = TracerProvider(
@@ -204,7 +212,7 @@ def create_maref_tracer(
 def _create_resource(service_name: str) -> Any:
     """Create OTel resource with service metadata."""
     try:
-        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.resources import Resource  # type: ignore[import-not-found]
         return Resource.create({
             "service.name": service_name,
             "service.version": "0.26.0",

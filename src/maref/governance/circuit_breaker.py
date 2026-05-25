@@ -65,6 +65,7 @@ class CircuitBreaker:
         self._failure_count = 0
         self._last_trip_time = 0.0
         self._trips: list[BreakerTrip] = []
+        self._max_trips = 100
 
     @property
     def state(self) -> BreakerState:
@@ -124,6 +125,9 @@ class CircuitBreaker:
                 action_taken="force_degrade_to_primary",
             )
         )
+        # Trim old trips to prevent unbounded memory growth
+        if len(self._trips) > self._max_trips:
+            self._trips = self._trips[-self._max_trips:]
 
     def _should_try_half_open(self) -> bool:
         import random

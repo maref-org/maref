@@ -24,6 +24,7 @@ export function BrowserView() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [backendMode, setBackendMode] = useState<"checking" | "real" | "mock">("checking");
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const connectCalledRef = useRef(false);
 
   const pushHistory = useCallback((target: string) => {
     setHistory((prev) => {
@@ -101,6 +102,8 @@ export function BrowserView() {
   }, []);
 
   useEffect(() => {
+    if (connectCalledRef.current) return;
+    connectCalledRef.current = true;
     connectToBrowser();
   }, [connectToBrowser]);
 

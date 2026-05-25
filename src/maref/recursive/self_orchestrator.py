@@ -106,7 +106,7 @@ class SelfOrchestrator:
 
         result = OrchestrationResult(
             task_description=task_description,
-            dag=TaskDAG(),
+            dag=TaskDAG(root_task=task_description),
         )
 
         def decompose_step(ctx: dict) -> StepResult:
@@ -163,9 +163,10 @@ class SelfOrchestrator:
         saga.add_step(dispatch_step, rollback_dispatch, description="Dispatch subtasks")
         saga.add_step(execute_step, description="Execute subtasks")
 
-        saga_result = self._saga_orchestrator.execute(saga)
+        saga_result = self._saga_orchestrator.execute(saga)  # type: ignore[attr-defined]
         result.saga_result = saga_result
-        if hasattr(saga_result, "is_success") and not saga_result.is_success:
+        is_success = getattr(saga_result, "is_success", True)
+        if not is_success:
             result.timed_out = True
         return result
 

@@ -78,7 +78,7 @@ def _task_to_response(task: Task) -> TaskResponse:
 def create_task_router(task_queue: TaskQueue) -> APIRouter:
     router = APIRouter()
 
-    @router.post("/api/v1/tasks", status_code=http_status.HTTP_201_CREATED)  # type: ignore[untyped-decorator]
+    @router.post("/api/v1/tasks", status_code=http_status.HTTP_201_CREATED)
     def create_task(task_data: TaskCreate, request: Request) -> dict[str, str]:
         task = Task(
             name=task_data.name,
@@ -99,7 +99,7 @@ def create_task_router(task_queue: TaskQueue) -> APIRouter:
             "created_at": task.created_at,
         }
 
-    @router.get("/api/v1/tasks/{task_id}")  # type: ignore[untyped-decorator]
+    @router.get("/api/v1/tasks/{task_id}")
     def get_task(task_id: str) -> TaskResponse:
         task = task_queue.get(task_id)
         if task is None:
@@ -109,7 +109,7 @@ def create_task_router(task_queue: TaskQueue) -> APIRouter:
             )
         return _task_to_response(task)
 
-    @router.post("/api/v1/tasks/{task_id}/cancel")  # type: ignore[untyped-decorator]
+    @router.post("/api/v1/tasks/{task_id}/cancel")
     def cancel_task(task_id: str) -> CancelResponse:
         task = task_queue.get(task_id)
         if task is None:
@@ -140,7 +140,7 @@ def create_task_router(task_queue: TaskQueue) -> APIRouter:
         task_queue.update_status(task_id, TaskStatus.CANCELLED)
         return CancelResponse(task_id=task_id, status="cancelled")
 
-    @router.get("/api/v1/tasks")  # type: ignore[untyped-decorator]
+    @router.get("/api/v1/tasks")
     def list_tasks(
         status: str | None = None,
         priority: int | None = None,

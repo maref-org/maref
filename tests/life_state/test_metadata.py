@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
 from maref.life_state.metadata import (
     LifeStateCapability,
     LifeStateMetadata,

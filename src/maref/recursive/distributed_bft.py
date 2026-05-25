@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -60,6 +62,7 @@ class Vote:
     round_number: int
     timestamp: float = field(default_factory=time.time)
     is_byzantine: bool = False
+    hmac_signature: str = ""  # Phase 3.1: HMAC-SHA256 signature
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,7 +70,21 @@ class Vote:
             "value": self.value,
             "round": self.round_number,
             "is_byzantine": self.is_byzantine,
+            "hmac_signature": self.hmac_signature,
         }
+
+    def sign(self, secret_key: bytes) -> None:
+        """Generate HMAC-SHA256 over (node_id + round + value)."""
+        payload = f"{self.node_id}:{self.round_number}:{self.value}".encode()
+        self.hmac_signature = hmac.new(secret_key, payload, hashlib.sha256).hexdigest()
+
+    def verify(self, secret_key: bytes) -> bool:
+        """Verify the HMAC signature."""
+        if not self.hmac_signature:
+            return False
+        payload = f"{self.node_id}:{self.round_number}:{self.value}".encode()
+        expected = hmac.new(secret_key, payload, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(self.hmac_signature, expected)
 
 
 @dataclass
@@ -97,7 +114,7 @@ class ConsensusRound:
 
 
 class DistributedBFT:
-    def __init__(self, total_nodes: int = 7):
+    def __init__(self, total_nodes: int = 7, secret_key: bytes | None = None):
         self._f = (total_nodes - 1) // 3
         self._quorum = 2 * self._f + 1
         self._nodes: dict[str, BFTNode] = {}
@@ -105,6 +122,9 @@ class DistributedBFT:
         self._round_counter: int = 0
         self._consensus_history: list[ConsensusRound] = []
         self._byzantine_tolerance_violations: int = 0
+        # Phase 3.1: HMAC-SHA256 key for vote signing
+        self._secret_key = secret_key or b"maref-bft-dev-key"
+        self._audit_log: list[dict[str, Any]] = []
 
     @property
     def f(self) -> int:
@@ -198,6 +218,10 @@ class DistributedBFT:
             round_number=self._round_counter,
             is_byzantine=is_byzantine,
         )
+        # Phase 3.1: sign every honest vote
+        if not is_byzantine:
+            vote.sign(self._secret_key)
+
         r.votes.append(vote)
         node.total_rounds += 1
         if is_byzantine:
@@ -224,7 +248,18 @@ class DistributedBFT:
             r.result = ConsensusResult.FAILED
             return r.result
 
-        honest_votes = [v for v in r.votes if not v.is_byzantine]
+        # Phase 3.1: verify HMAC signatures before counting
+        honest_votes: list[Vote] = []
+        for v in r.votes:
+            if v.is_byzantine:
+                continue
+            if v.verify(self._secret_key):
+                honest_votes.append(v)
+            else:
+                # Tampered vote treated as byzantine
+                v.is_byzantine = True
+                r.byzantine_count += 1
+
         if not honest_votes:
             r.result = ConsensusResult.FAILED
             return r.result
@@ -241,6 +276,14 @@ class DistributedBFT:
             r.decided_value = max_value
             r.completed_at = time.time()
             self._consensus_history.append(r)
+            # Audit log entry with signature proof
+            self._audit_log.append({
+                "round_id": r.round_id,
+                "decided_value": max_value,
+                "honest_vote_count": len(honest_votes),
+                "timestamp": time.time(),
+                "signature_verified": True,
+            })
         else:
             r.result = ConsensusResult.FAILED
 
@@ -252,10 +295,9 @@ class DistributedBFT:
 
         for node_id, node in self._nodes.items():
             if node.status != NodeStatus.OFFLINE:
-                if node.status == NodeStatus.BYZANTINE:
-                    self.cast_vote(ri, node_id, "byzantine_false_value")
-                else:
-                    self.cast_vote(ri, node_id, value)
+                # cast_vote internally handles byzantine spoofing;
+                # always pass the honest value and let cast_vote decide.
+                self.cast_vote(ri, node_id, value)
 
         self.reach_consensus(ri)
         return r
@@ -301,4 +343,26 @@ class DistributedBFT:
             "nodes": [n.to_dict() for n in self._nodes.values()],
             "round_count": len(self._rounds),
             "consensus_reached": len(self._consensus_history),
+            "audit_log_size": len(self._audit_log),
+        }
+
+    def verify_all_signatures(self, round_index: int) -> dict[str, Any]:
+        """Return signature verification summary for a round."""
+        if round_index >= len(self._rounds):
+            return {"error": "round not found"}
+        r = self._rounds[round_index]
+        verified = 0
+        failed = 0
+        for v in r.votes:
+            if v.is_byzantine:
+                continue
+            if v.verify(self._secret_key):
+                verified += 1
+            else:
+                failed += 1
+        return {
+            "round_id": r.round_id,
+            "verified": verified,
+            "failed": failed,
+            "byzantine": r.byzantine_count,
         }

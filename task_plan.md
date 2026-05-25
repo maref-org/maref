@@ -1,387 +1,305 @@
-# MAREF v0.27.0 迭代实施方案 — "Execution Layer: Groundwork"
+# MAREF 全栈击穿补强工程计划
 
-> 基于《MAREF执行层战略规划-20260520.md》P0优先级执行
-> 生成日期: 2026-05-20
-> 基线版本: v0.26.0 (GA)
-> 目标版本: v0.27.0
-> 版本口号: "Let MAREF do things" — 让 MAREF 从"治理 OS"进化到"能动手的治理 OS"
-
----
-
-## 战略定位
-
-```
-当前画像 (v0.26.0):
-    治理深度    动手能力    生态绑定
-MAREF  10/10       3/10       1/10
-
-目标画像 (v0.27.0):
-    治理深度    动手能力    生态绑定
-MAREF  10/10       6/10       4/10
-```
-
-**核心差异化**: 所有执行操作经过 MAREF 治理层 — Spark 做不到这一点。
+> **目标**：将MAREF从"框架原型"推进到"生产就绪"阶段
+> **总工期**：12周（P0: 6周 + P1: 4周 + P2: 2周）
+> **击穿顺序**：致命缺口（人机协同/记忆/技能市场）→ 支撑层补强 → 全栈混沌测试
+> **文档基准**：[MAREF_全栈击穿补强方案与避坑指南.md](../Athena知识库/执行项目/2026/003-open human/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架/06-待执行/MAREF_全栈击穿补强方案与避坑指南.md)
 
 ---
 
-## 一、现状基线 (v0.26.0 GA)
+## Phase 0: 基线建立（第1周）
 
-### 已就绪的骨架
+**目标**：建立当前代码库基线，完成缺口分析，搭建开发环境
 
-| 模块 | 状态 | 说明 |
-|------|------|------|
-| `mcp_client.py` | 🟢 骨架完备 | MCPClient, MCPConnection, MCPServerConfig, 状态机 |
-| `mcp_transport.py` | 🟢 骨架完备 | StdioTransport, SSETransport, InProcessTransport |
-| `mcp_server.py` | 🟢 骨架完备 | MCPServer, MCPTool, MCPResource, MCPPrompt 注册 |
-| `mcp_security.py` | 🟢 骨架完备 | MCPTrustLevel, SecurityVerdict, AuditLogEntry, RateLimiter |
-| `mcp_security_middleware.py` | 🟢 存在 | 安全中间件层 |
-| `skill_executor.py` | 🟢 存在 | SkillExecutor + DegradationChain |
-| `skill_schema.py` | 🟢 存在 | MarefSkill YAML schema |
-| `skill_loader.py` | 🟢 存在 | YAML → MarefSkill 加载器 |
-| `skill_trigger.py` | 🟢 存在 | Cron/Event 触发器 |
-| `task_executor.py` (desktop) | 🟢 存在 | 桌面 TaskExecutor |
-| `hitl.py` / `hitl_api.py` | 🟢 存在 | 人在回路 API |
-| 治理层 (circuit_breaker, audit, state_machine) | 🟢 成熟 | 核心差异化能力 |
+### 任务清单
+- [x] 运行完整测试套件，记录当前覆盖率基线
+- [x] 梳理各层现有模块的接口契约
+- [ ] 确定Redis/PostgreSQL/向量DB的部署方案
+- [ ] 创建各Phase的feature分支
 
-### 核心缺口
-
-| 缺口 | 严重程度 | 说明 |
-|------|---------|------|
-| MCP Client 未连接治理层 | P0 | 工具调用不经策略决策树 |
-| 无内置 MCP 工具服务器 | P0 | 只有骨架，没有实际可用的工具 |
-| 无统一 Executor 模块 | P0 | 执行能力分散在 desktop/recursive 各子模块 |
-| 无异步任务队列 | P0 | 无持久化 TaskQueue，任务丢失 |
-| 无 24/7 会话管理 | P1 | 无 SessionManager/Checkpointer |
-| 无策略→MCP 授权映射 | P1 | 决策树未连接到工具调用 |
-| 无 Skills 运行时 | P2 | Skill 定义存在但无运行时调度 |
-| 工具调用无可观测性 | P2 | MCP 调用无 Trace/Otel 集成 |
+### 验收标准
+- `pytest tests/ -v --cov` 成功运行，基线覆盖率记录到本文件
+- 各层接口文档更新到 `docs/interfaces/`
 
 ---
 
-## 二、v0.27.0 核心目标
+## Phase 1: 人机协同层（P0-1，第1-3周）
 
-### 目标 1: MCP 治理贯通 (P0)
-**定义**: 所有 MCP 工具调用经过 MAREF 治理层 (策略决策树 + 断路器 + 审计日志)
+**目标**：实现L1阈值制动 + L2模式切换
+**模块路径**：`src/maref/human/`
 
-```
-当前:  MCP Client → 直接调用工具
-目标:  MCP Client → 策略决策树 → 断路器 → 审计日志 → 工具调用
-                                    ↓
-                              HITL (高危操作)
-```
+### 1.1 Human Decision API
+- [ ] 定义标准接口：`POST /api/v1/human/decision`
+- [ ] 支持同步阻塞和异步回调两种模式
+- [ ] 超时默认策略实现（高urgency自动降级，低urgency挂起）
 
-**验收**:
-- [ ] 每个 MCP 工具调用记录审计日志 (HMAC 签名)
-- [ ] 高危工具触发断路器/HITL 中断
-- [ ] 策略决策树可配置: 允许/拒绝/询问用户
-- [ ] 审计日志可通过治理看板查询
+### 1.2 Collaboration Rule Engine
+- [ ] DSL设计与解析器：`WHEN <条件> THEN <action> ELSE <escalation>`
+- [ ] 运行时热更新支持
+- [ ] 规则示例：`WHEN cost > $500 OR data_classification == 'PII' THEN HITL ELSE HOTL`
 
-### 目标 2: 5 内置 MCP 服务器 (P0)
-**定义**: 仓库内维护 5 个可直接使用的内置 MCP 服务器
+### 1.3 Interrupt Protocol
+- [ ] 信号类型定义：PAUSE / ABORT / OVERRIDE
+- [ ] 1心跳周期内传播到所有相关Agent
+- [ ] 全局序列号机制，防止网络延迟导致制动失灵
 
-| 工具 | 功能 | 治理需求 |
+### 验收标准
+| 等级 | 条件 | 测试方法 |
 |------|------|---------|
-| `tools/file` | 文件读写 | 路径沙箱白名单 |
-| `tools/shell` | 命令执行 | 命令白名单 + 超时熔断 |
-| `tools/git` | Git 操作 | 仓库白名单 |
-| `tools/browser` | 网页操作 | 域名白名单 + 只读/读写模式 |
-| `tools/email` | 邮件发送/读取 | 收件人白名单 + 敏感词过滤 |
+| L1 | 预设规则自动触发人类确认 | 配置"转账>1000元需确认"，Agent执行到该节点自动暂停 |
+| L2 | HITL/HOTL/HATL三种模式动态切换 | 白天HOTL，夜间自动切HATL，次日看日报 |
+| L3 | 意图纠偏（后续迭代） | Agent检测到指令矛盾时主动提出异议 |
 
-**验收**:
-- [ ] 5 个工具全部可通过 `maref tools install <name>` 安装
-- [ ] 每个工具有独立的策略配置
-- [ ] 每个工具有单元测试覆盖 (≥ 80%)
-- [ ] 集成测试验证治理层拦截
-
-### 目标 3: Executor 模块 (新) (P0)
-**定义**: `maref/executor/` 新模块 — 统一的任务执行引擎
-
-**组件**:
-```
-maref/executor/
-├── __init__.py
-├── queue.py          # TaskQueue — 持久化异步任务队列
-├── session.py        # SessionManager — 24/7 会话管理
-├── checkpointer.py   # Checkpointer — 状态快照 + 恢复
-├── worker.py         # WorkerPool — 任务执行工作池
-├── types.py          # Task, TaskStatus, TaskResult 类型
-└── scheduler.py      # Scheduler — Cron + Event 调度
-```
-
-**验收**:
-- [ ] TaskQueue: 提交 → 排队 → 执行 → 完成/失败, 重启不丢失
-- [ ] SessionManager: SSE/WebSocket 心跳, 会话保持
-- [ ] Checkpointer: 快照创建/恢复, 故障后任务恢复
-- [ ] WorkerPool: 并发执行, 超时熔断
-- [ ] Scheduler: Cron 表达式 + 事件触发
-
-### 目标 4: 异步任务 API (P1)
-**定义**: RESTful API 用于任务提交、查询、管理
-
-**端点**:
-```
-POST /api/v1/tasks           # 提交任务
-GET  /api/v1/tasks/{id}      # 查询任务状态
-POST /api/v1/tasks/{id}/cancel  # 取消任务
-GET  /api/v1/tasks           # 任务列表 + 过滤
-```
-
-**通知通道**:
-```
-任务完成/失败 → 通知通道抽象: Email / Webhook / CLI
-```
-
-**验收**:
-- [ ] 4 个端点完整实现
-- [ ] 任务状态机: Pending → Running → Completed/Failed/Cancelled
-- [ ] 通知通道可插拔
-- [ ] OpenAPI schema 自动生成
+### 避坑检查项
+- [ ] 批量确认功能（"今天所有<100元的操作一键批准"）
+- [ ] 智能聚合（相似任务合并为一个决策请求）
+- [ ] HATL模式下输出"自主决策日志"供事后审计
+- [ ] 模式切换本身是HATL级别操作，不需要人类确认"是否允许切换"
 
 ---
 
-## 三、实施阶段
+## Phase 2: 记忆层（P0-2，第2-4周）
 
-### Phase 1: MCP 治理贯通 (Week 1)
+**目标**：实现L1工作记忆持久化 + L2情节记忆共享
+**模块路径**：`src/maref/memory/`
 
-| 任务 | 描述 | 产出 | 预估 Token |
-|------|------|------|-----------|
-| E1.1 | MCP Client → 策略决策树集成 | `mcp_client.py` 改造, 每次工具调用前过决策树 | 1M |
-| E1.2 | 断路器集成到 MCP 调用 | MCP 调用触发熔断逻辑, 超时/错误率检测 | 0.8M |
-| E1.3 | 审计日志 HMAC 签名贯通 | 每个 MCP 调用生成审计条目, HMAC-SHA256 签名 | 0.8M |
-| E1.4 | HITL 中断流程集成 | 高危 MCP 调用触发 HITL, 用户确认后放行 | 1M |
-| E1.5 | 策略决策树 → MCP 授权映射表 | 可配置的 YAML 映射: 工具 → 策略规则 | 0.6M |
+### 2.1 三层记忆存储架构
+- [ ] **工作记忆（Hot）**：Redis，Runtime State，TTL分钟级，Pub/Sub实时同步
+- [ ] **情节记忆（Warm）**：PostgreSQL/时序DB，历史任务记录，SQL查询
+- [ ] **语义记忆（Cold）**：向量DB+图DB混合，知识本体、Schema定义，语义检索
 
-**Phase 1 总计**: ~4.2M Token
+### 2.2 Memory RAG
+- [ ] Agent行动前自动向记忆层查询历史经验
+- [ ] 检索结果注入Agent System Prompt作为先验知识
+- [ ] 支持查询："上次类似情况怎么处理？"、"用户偏好还在吗？"
 
-### Phase 2: 内置 MCP 服务器 (Week 2)
+### 2.3 记忆衰减与归档
+- [ ] 工作记忆：任务结束自动清理
+- [ ] 情节记忆：按业务规则归档（金融永久保留，闲聊30天衰减）
+- [ ] 衰减=压缩：100条详细日志→1条摘要
 
-| 任务 | 描述 | 产出 | 预估 Token |
-|------|------|------|-----------|
-| E2.1 | File MCP Server | 路径沙箱, 白名单, 读写操作 | 1.2M |
-| E2.2 | Shell MCP Server | 命令白名单, 超时熔断, 输出限制 | 1.2M |
-| E2.3 | Git MCP Server | 仓库白名单, 只读/读写模式 | 1M |
-| E2.4 | Browser MCP Server | 域名白名单, headless 模式 | 1.5M |
-| E2.5 | Email MCP Server | SMTP/IMAP, 收件人白名单, 敏感词过滤 | 1.2M |
-| E2.6 | `maref tools` CLI | discover/install/policy 子命令 | 0.8M |
+### 验收标准
+| 等级 | 条件 | 测试方法 |
+|------|------|---------|
+| L1 | Agent崩溃重启后从断点继续 | Kill进程，重启后恢复到last_checkpoint |
+| L2 | Agent A能查询Agent B的历史表现 | 委托前检索B过去10次同类任务的延迟和成功率 |
+| L3 | 语义记忆本体化（后续迭代） | 跨Agent共享知识有统一URI和版本管理 |
 
-**Phase 2 总计**: ~6.9M Token
-
-### Phase 3: Executor 模块 (Week 3)
-
-| 任务 | 描述 | 产出 | 预估 Token |
-|------|------|------|-----------|
-| E3.1 | TaskQueue 持久化 | SQLite 后端, 优先级队列, 死信队列 | 1.5M |
-| E3.2 | SessionManager | SSE 心跳, 会话恢复, 超时管理 | 1.2M |
-| E3.3 | Checkpointer | 状态快照, 故障恢复, 版本管理 | 1.5M |
-| E3.4 | WorkerPool | 并发执行, 超时熔断, 优雅关闭 | 1M |
-| E3.5 | Scheduler | Cron 解析, 事件注册, 触发器 | 1M |
-
-**Phase 3 总计**: ~6.2M Token
-
-### Phase 4: 异步任务 API + 集成 (Week 4)
-
-| 任务 | 描述 | 产出 | 预估 Token |
-|------|------|------|-----------|
-| E4.1 | 任务 API 端点 | 4 REST 端点 + OpenAPI schema | 1.2M |
-| E4.2 | 通知通道 | Email/Webhook/CLI 通知 | 1M |
-| E4.3 | GUI 任务面板 | 任务列表/状态/操作 UI 组件 | 1.5M |
-| E4.4 | 端到端集成测试 | 全链路: API → Executor → MCP → 治理 | 1.5M |
-| E4.5 | 文档 + 示例 | 快速开始, Skills 示例, 配置指南 | 0.8M |
-
-**Phase 4 总计**: ~6M Token
+### 避坑检查项
+- [ ] 记忆带**置信度标签**和**来源标注**
+- [ ] 记忆层是中心化服务，不允许Agent私有记忆
+- [ ] 分层衰减：热(7天全量)→温(7-90天摘要)→冷(>90天归档)
+- [ ] 记忆带**用户隔离标签**，跨用户共享只能是匿名化摘要
 
 ---
 
-## 四、验证标准
+## Phase 3: 技能市场层（P0-3，第3-6周）
 
-### 4.1 测试指标
-| 指标 | 当前 (v0.26.0) | 目标 (v0.27.0) |
-|------|---------------|---------------|
-| 测试总数 | ~4,919 | ≥ 5,200 |
-| 通过率 | ~4,910 | ≥ 99.5% |
-| 覆盖率 | 76.51% | ≥ 78% |
-| 新增测试 | - | ≥ 200 |
-| executor 模块覆盖 | N/A | ≥ 85% |
-| tools 模块覆盖 | N/A | ≥ 80% |
+**目标**：实现L1注册发现 + L2版本协商
+**模块路径**：`src/maref/marketplace/`
 
-### 4.2 功能门禁
-- [ ] E2E: `maref tools install file` → `maref task submit "read /tmp/test.txt"` → 返回结果
-- [ ] E2E: 危险 shell 命令触发 HITL 中断
-- [ ] E2E: 进程崩溃后 `maref task resume` 恢复执行
-- [ ] 零新 ruff 违规
-- [ ] mypy strict 通过
+### 3.1 Skill Registry
+- [ ] `manifest.json`标准：名称、描述、输入/输出Schema、依赖、作者、许可证
+- [ ] `test_cases/`：自动化测试用例，注册时自动跑通才能上架
+- [ ] `sandbox_config/`：沙箱环境、资源限制
+- [ ] 静态安全扫描：检查网络请求、文件系统访问、环境变量读取
 
-### 4.3 安全门禁
-- [ ] 所有 MCP 调用可审计追溯
-- [ ] 未经治理层授权的工具调用被拒绝
-- [ ] 路径遍历攻击被路径沙箱拦截
-- [ ] 命令注入攻击被命令白名单拦截
+### 3.2 语义匹配引擎
+- [ ] 任务嵌入向量匹配Skill描述向量
+- [ ] 排序公式：相关性 × 信誉分 × 成本
+- [ ] 示例："把销售数据做成好看的PPT"→匹配"数据可视化Skill"+"幻灯片生成Skill"
+
+### 3.3 版本协商协议
+- [ ] Agent调用前交换Schema版本
+- [ ] v2向后兼容→直接调用；不兼容→返回VERSION_MISMATCH
+- [ ] 强制向后兼容期：v2发布后v1继续服务90天
+- [ ] 编排层自动检测不兼容调用，触发批量升级
+
+### 3.4 信誉与激励（L3基础）
+- [ ] 调用反馈评分：`{ success, latency, output_quality, notes }`
+- [ ] 信誉分 = 加权平均（近期权重高）- 安全违规扣分
+
+### 验收标准
+| 等级 | 条件 | 测试方法 |
+|------|------|---------|
+| L1 | 根据任务自动检索匹配Skill | "分析CSV并生成图表"→返回数据清洗+可视化Skill |
+| L2 | Skill v1/v2并存，自动选择兼容版本 | v2改Schema后旧Agent自动降级调用v1 |
+| L3 | 信誉经济系统（后续迭代） | 高成功率Skill排前面，按调用次数计费 |
+
+### 避坑检查项
+- [ ] 技能聚合：相似Skill合并为"官方推荐版"
+- [ ] 版本协商强制90天向后兼容期
+- [ ] 注册前三关：静态扫描+沙箱测试+人工审核
+- [ ] 依赖图维护，下架前通知下游并给迁移窗口期
+- [ ] 检测异常调用模式（同一Agent高频调用同一Skill），自动冻结
 
 ---
 
-## 五、架构变更
+## Phase 4: 交互层补强（P1-1，第7-8周）
 
-### 新增目录结构
+**目标**：L1通道统一 + L2上下文连续
+**模块路径**：`src/maref/interface/`
+
+### 4.1 Intent Gateway
+- [ ] 所有外部输入归一化为标准`IntentEvent`结构
+- [ ] 字段：`{ source, user_id, raw_input, timestamp, session_context }`
+- [ ] 网关不负责语义理解，只负责格式统一和身份注入
+
+### 4.2 Session Manager
+- [ ] 外部维护`SessionState`对象，不依赖单个Agent上下文窗口
+- [ ] 支持会话分叉："回到上一步"从历史快照恢复
+- [ ] 持久化到Redis/PostgreSQL，TTL按业务配置
+
+### 4.3 Collective Dashboard
+- [ ] 消费编排层Trace Graph，WebSocket实时推送
+- [ ] 节点颜色：绿(运行中)/黄(等待)/红(故障)/灰(完成)
+- [ ] 边标注：数据类型、延迟、状态版本号
+
+### 验收标准
+| 等级 | 条件 | 测试方法 |
+|------|------|---------|
+| L1 | 四种输入归一化为同一Intent对象 | 同一句"查下数据"，无论从微信/网页/API传入，解析一致 |
+| L2 | 跨会话/跨设备/跨Agent上下文正确召回 | 手机端说"继续刚才的分析"，桌面端接上3小时前对话 |
+| L3 | 实时拓扑图，延迟<2秒（后续迭代） | 点击任一节点查看Agent内部状态 |
+
+---
+
+## Phase 5: 安全层补强（P1-2，第8-9周）
+
+**目标**：L1进程隔离 + L2权限最小化
+**模块路径**：`src/maref/security/`
+
+### 5.1 容器化沙箱
+- [ ] 每个Agent一个轻量容器（gVisor/Firecracker），启动<500ms
+- [ ] 容器内无网络出口（或走强制代理），所有外部请求经安全网关审计
+- [ ] 容器内无持久存储，写入映射到临时卷，任务结束自动清理
+
+### 5.2 Capability-based权限
+- [ ] 能力令牌：`cap://database/sales/read`，`cap://filesystem/tmp/write`
+- [ ] 令牌带签名和过期时间，最小粒度
+- [ ] 按需申请、用完即焚
+
+### 5.3 数据脱敏网关
+- [ ] PII自动替换为Token（手机号→`[PHONE_TOKEN_1]`）
+- [ ] 敏感字段根据Agent的Capability决定是否可见
+- [ ] 输出到外部前反向网关检查未脱敏敏感信息
+
+### 5.4 Skill供应链验证
+- [ ] 签名清单：manifest签名 + 每个文件的哈希
+- [ ] 验证：签名来自可信CA、文件哈希匹配、依赖项无已知CVE
+- [ ] 验证失败：拒绝加载，通知治理层，触发熔断
+
+---
+
+## Phase 6: 观测层补强（P1-3，第9-10周）
+
+**目标**：L1分布式追踪 + L2交互拓扑可视化
+**模块路径**：`src/maref/observability/`
+
+### 6.1 OpenTelemetry扩展
+- [ ] Agent Span：Agent ID、LLM模型版本、工具调用列表、状态变更摘要
+- [ ] Consensus Span：向量时钟、冲突检测、协商轮数
+- [ ] Human Span：人类介入时间点、决策内容、响应延迟
+- [ ] Trace Context通过HTTP Header和消息元数据传播
+
+### 6.2 交互拓扑热力图
+- [ ] D3.js/Sigma.js可视化，WebSocket秒级推送
+- [ ] 节点：颜色(健康)、大小(负载)、脉冲(活跃任务数)
+- [ ] 边：粗细(数据量)、颜色(延迟)、虚线(异步调用)
+- [ ] 支持时间回放
+
+### 6.3 异常检测与成本追踪
+- [ ] GNN异常检测：基于拓扑图学习正常模式，偏离基线时告警
+- [ ] 成本标签：LLM Token消耗、外部API调用费、存储读写费
+- [ ] 预算熔断：单个任务成本超阈值自动中断
+
+---
+
+## Phase 7: 基础设施层补强（P1-4，第10-11周）
+
+**目标**：L1弹性伸缩 + L2冷热启动优化
+**模块路径**：`src/maref/infrastructure/`
+
+### 7.1 Serverless Agent运行时
+- [ ] Agent以函数形态被编排层按需调用
+- [ ] 热池机制：调用后实例保持30秒可复用
+- [ ] 超过30秒无任务，实例销毁释放资源
+
+### 7.2 状态快照与恢复
+- [ ] 实例销毁前Runtime State序列化到对象存储（S3/MinIO）
+- [ ] 新实例从快照恢复，用户感知不到重启
+- [ ] 快照加密存储，增量+全量混合（每小时全量，期间增量）
+
+### 7.3 Token预算控制
+- [ ] 任务/用户/组织三级Token预算配额
+- [ ] 预算耗尽：任务级降级模型、用户级暂停非紧急任务、组织级触发审计
+- [ ] 硬限制非告警，超预算直接拒绝启动
+
+### 7.4 本地/云端混合调度
+- [ ] 调度因素：数据敏感度、模型能力需求、成本、延迟
+- [ ] 实时成本矩阵，每秒更新各路由选项预估成本
+- [ ] **安全规则不可覆盖**：PII数据永远优先路由本地
+
+---
+
+## Phase 8: 全栈混沌测试与验收（P2，第11-12周）
+
+### 8.1 混沌测试场景
+- [ ] Kill Agent验证编排层自愈和记忆层断点恢复
+- [ ] 注入网络分区验证联邦一致性
+- [ ] 模拟权限越界验证治理层熔断
+- [ ] 压测100并发验证弹性伸缩（2→20实例）
+
+### 8.2 生产就绪清单验收
+| 层级 | L1必做 | L2推荐 | L3战略 | 状态 |
+|------|--------|--------|--------|------|
+| 交互层 | Intent网关 + 会话管理 | 跨设备上下文同步 | 群体状态实时看板 | ⬜ |
+| 人机协同 | 阈值制动规则 | HITL/HOTL/HATL动态切换 | 意图纠偏 | ⬜ |
+| 治理层 | RBAC + 审计日志 | 合规自动检查 | 治理即代码 | ⬜ |
+| 编排层 | 因果一致性 + NACK | 联邦编排 + Saga | 动态重编排 | ⬜ |
+| 记忆层 | 工作记忆持久化 | 情节记忆共享 | 语义记忆本体化 | ⬜ |
+| 执行层 | 工具Schema校验 | 代码可回滚 | 执行链全追踪 | ⬜ |
+| 技能市场 | Skill注册中心 | 语义匹配 + 版本协商 | 信誉经济系统 | ⬜ |
+| 安全隔离 | 容器沙箱 | Capability权限 | 供应链签名验证 | ⬜ |
+| 观测层 | 分布式追踪 | 拓扑可视化 | 成本洞察 + 异常检测 | ⬜ |
+| 基础设施 | 弹性伸缩 | 冷热启动优化 | 本地/云端混合调度 | ⬜ |
+
+---
+
+## 依赖关系图
+
 ```
-src/maref/
-├── executor/              # [新] 执行层
-│   ├── __init__.py
-│   ├── queue.py
-│   ├── session.py
-│   ├── checkpointer.py
-│   ├── worker.py
-│   ├── types.py
-│   └── scheduler.py
-├── tools/                 # [新] 内置 MCP 工具
-│   ├── __init__.py
-│   ├── file_server.py
-│   ├── shell_server.py
-│   ├── git_server.py
-│   ├── browser_server.py
-│   ├── email_server.py
-│   └── registry.py       # 工具注册表 + CLI
-└── integration/
-    ├── mcp_client.py       # [改] 集成治理层
-    ├── mcp_security.py     # [改] 增强审计 + 策略
-    └── mcp_security_middleware.py # [改] 集成断路器
-
-tests/
-├── executor/              # [新] Executor 测试
-└── tools/                 # [新] 工具测试
-
-gui/src/components/
-├── tasks/                 # [新] 任务面板
-└── tools/                 # [新] 工具管理
-```
-
-### 修改的核心文件
-| 文件 | 变更类型 | 说明 |
-|------|---------|------|
-| `src/maref/integration/mcp_client.py` | 重构 | 工具调用前过治理层 |
-| `src/maref/integration/mcp_security.py` | 增强 | 集成断路器 + 策略决策树 |
-| `src/maref/integration/__init__.py` | 修改 | 导出新模块 |
-| `src/maref/integration/mcp_bridge.py` | 修改 | 支持 SessionManager |
-| `gui/src/App.tsx` | 修改 | 新增任务/工具路由 |
-| `gui/src/api/client.ts` | 修改 | 新增任务 API 调用 |
-| `pyproject.toml` | 修改 | 新增依赖, 更新覆盖配置 |
-
----
-
-## 六、依赖与风险
-
-### 依赖
-| 依赖项 | 用途 | 替代方案 |
-|--------|------|---------|
-| `pyautogui` | 桌面操作 (Browser 工具) | `pyobjc` 直接调用 |
-| `selenium`/`playwright` | 浏览器自动化 | `requests` + HTML 解析 |
-| `aiohttp` | 异步 HTTP (MCP SSE) | `httpx` |
-| `apscheduler` | Cron 调度 | 内置 `sched` |
-| `smtplib`/`imaplib` | 邮件 (标准库) | 无替代需求 |
-
-### 风险与缓解
-| 风险 | 概率 | 影响 | 缓解 |
-|------|------|------|------|
-| MCP 治理层增加延迟 | 中 | 中 | 决策树缓存, 审计异步写入 |
-| 浏览器工具维护成本高 | 高 | 中 | 优先 Playwright, fallback requests |
-| 邮件工具需要 SMTP 凭证 | 中 | 中 | 仅配置模式, 不硬编码 |
-| 任务队列 SQLite 并发限制 | 低 | 中 | WAL 模式, 可选 PostgreSQL 后端 |
-| Shell 工具安全风险 | 中 | 高 | 严格命令白名单 + HITL |
-
----
-
-## 七、Token 预算
-
-| Phase | 任务数 | Token 预估 | USD 预估 |
-|-------|--------|-----------|---------|
-| Phase 1: MCP 治理贯通 | 5 | 4.2M | $420 |
-| Phase 2: 内置 MCP 工具 | 6 | 6.9M | $690 |
-| Phase 3: Executor 模块 | 5 | 6.2M | $620 |
-| Phase 4: API + 集成 | 5 | 6.0M | $600 |
-| **合计** | **21** | **23.3M** | **$2,330** |
-| 含 40% 缓冲 |  | **32.6M** | **$3,262** |
-
----
-
-## 八、里程碑
-
-| 里程碑 | 截止 | 交付物 | 门禁 |
-|--------|------|--------|------|
-| M1: MCP 治理贯通 | Day 7 | 治理层集成 MCP 客户端 | E2E 工具调用可审计 |
-| M2: 工具就绪 | Day 14 | 5 内置 MCP 服务器 + CLI | tools 模块 ≥ 80% 覆盖 |
-| M3: Executor 就绪 | Day 21 | executor 模块完整 | 200+ 测试通过 |
-| M4: 版本发布 | Day 28 | v0.27.0 Release | 全部门禁通过 |
-
----
-
-## 九、Factory Missions 组织
-
-```
-.missions/v0.27.0-execution-layer/
-├── mission.json
-├── features.json
-├── validation-contract.md
-├── features/
-│   ├── E1_mcp_governance/
-│   │   ├── E1.1_policy_integration.md
-│   │   ├── E1.2_circuit_breaker.md
-│   │   ├── E1.3_audit_hmac.md
-│   │   ├── E1.4_hitl_flow.md
-│   │   └── E1.5_policy_mapping.md
-│   ├── E2_builtin_tools/
-│   │   ├── E2.1_file_server.md
-│   │   ├── E2.2_shell_server.md
-│   │   ├── E2.3_git_server.md
-│   │   ├── E2.4_browser_server.md
-│   │   ├── E2.5_email_server.md
-│   │   └── E2.6_cli_tools.md
-│   ├── E3_executor/
-│   │   ├── E3.1_task_queue.md
-│   │   ├── E3.2_session_manager.md
-│   │   ├── E3.3_checkpointer.md
-│   │   ├── E3.4_worker_pool.md
-│   │   └── E3.5_scheduler.md
-│   └── E4_api_integration/
-│       ├── E4.1_task_api.md
-│       ├── E4.2_notifications.md
-│       ├── E4.3_gui_tasks.md
-│       ├── E4.4_e2e_tests.md
-│       └── E4.5_documentation.md
-└── knowledge/
+Phase 0 (基线建立)
+    │
+    ├──→ Phase 1 (人机协同) ──┐
+    │                          │
+    ├──→ Phase 2 (记忆层) ─────┼──→ Phase 4 (交互层) ──→ Phase 6 (观测层) ──┐
+    │                          │         │                                  │
+    └──→ Phase 3 (技能市场) ───┘         └──────────────────────────────────┤
+                                                                             │
+Phase 5 (安全层) ────────────────────────────────────────────────────────────┤
+                                                                             │
+Phase 7 (基础设施) ──────────────────────────────────────────────────────────┘
+                                                                             │
+                                                                        Phase 8 (混沌测试)
 ```
 
 ---
 
-## 十、执行纪律
+## 风险登记册
 
-### Handoff Discipline
-每个 Feature 完成后:
-1. `pytest tests/ -v --cov` — 覆盖率 ≥ 80% (新模块 ≥ 85%)
-2. `ruff check src/maref/executor/ src/maref/tools/` — 零违规
-3. `mypy src/maref/executor/ src/maref/tools/` — strict 通过
-4. Git commit: `feat(executor|tools): description`
-5. 更新 `features.json`
-6. 在 `knowledge/` 留下实现笔记
-
-### 安全规则 (不可违反)
-1. 所有 MCP 工具调用必须经过治理层
-2. Shell 工具必须命令白名单 + 超时熔断
-3. 文件工具必须路径沙箱白名单
-4. 审计日志必须 HMAC-SHA256 签名
-5. HITL 中断不可绕过
-6. 凭证/密钥仅环境变量注入
+| 风险 | 概率 | 影响 | 缓解措施 |
+|------|------|------|---------|
+| Redis/PostgreSQL部署延迟 | 中 | 高 | 先用SQLite+内存缓存做本地开发，后期迁移 |
+| 容器沙箱启动时间>500ms | 中 | 高 | 备选Firecracker，评估gVisor性能 |
+| 向量DB选型困难 | 低 | 中 | 先以PostgreSQL pgvector扩展起步 |
+| 规则引擎DSL复杂度失控 | 中 | 中 | 采用成熟方案如OPA，不自研解析器 |
+| 多层级并行开发接口冲突 | 高 | 高 | 每周接口评审会，Schema变更走PR |
 
 ---
 
-## 版本时间线
+## 变更日志
 
-| 阶段 | 日期 | 交付 |
-|------|------|------|
-| Phase 1: MCP 治理贯通 | 2026-05-21 → 2026-05-27 | M1 |
-| Phase 2: 内置 MCP 工具 | 2026-05-28 → 2026-06-03 | M2 |
-| Phase 3: Executor 模块 | 2026-06-04 → 2026-06-10 | M3 |
-| Phase 4: API + 集成 | 2026-06-11 → 2026-06-17 | M4 (Release) |
-
-**总工期**: 4 周 (2026-05-21 → 2026-06-17)
-**总 Token**: 32.6M (含缓冲)
-**总成本**: ~$3,262
-**目标评分**: Pre-GA 7.5/10 → GA-Ready 8.5/10
+| 日期 | 版本 | 变更内容 | 作者 |
+|------|------|---------|------|
+| 2026-05-24 | v1.0 | 初始版本，基于全栈击穿方案拆解 | MAREF Architect |

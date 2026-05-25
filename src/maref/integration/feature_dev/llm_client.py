@@ -53,17 +53,18 @@ class LlmClient:
         temperature: float = 0.7,
         max_tokens: int = 2000,
     ) -> str | None:
-        if not self._available:
+        if not self._available or self._provider is None:
             return None
         import httpx
 
-        model = self._provider["models"].get(model_key, self._provider["models"]["default"])
+        provider = self._provider
+        model = provider["models"].get(model_key, provider["models"]["default"])
         t0 = time.perf_counter()
         try:
             resp = httpx.post(
-                f"{self._provider['base_url']}/chat/completions",
+                f"{provider['base_url']}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {self._provider['api_key']()}",
+                    "Authorization": f"Bearer {provider['api_key']()}",
                     "Content-Type": "application/json",
                 },
                 json={

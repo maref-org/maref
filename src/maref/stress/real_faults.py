@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -161,7 +162,7 @@ class RealFaultInjector:
                                     triggered=False, recovered=False)
         try:
             proc = subprocess.run(
-                [os.sys.executable, "-c", "import sys; sys.exit(1)"],
+                [sys.executable, "-c", "import sys; sys.exit(1)"],
                 capture_output=True, timeout=5,
             )
             injection.triggered = proc.returncode != 0

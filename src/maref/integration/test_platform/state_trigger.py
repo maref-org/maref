@@ -78,7 +78,7 @@ class FastScreenTrigger:
 
         if report.overall_status == EvalStatus.FAIL:
             target = GovernanceState.HALT
-            allowed = fsm.can_transition(target) or True  # force_halt always possible
+            allowed = True  # force_halt always possible
             return StateTransitionDecision(
                 action=TriggerAction.QUARANTINE,
                 target_state=target,
@@ -180,12 +180,11 @@ class FullRunTrigger:
             )
 
         target = GovernanceState.HALT
-        allowed = True  # force_halt
         return StateTransitionDecision(
             action=TriggerAction.QUARANTINE,
             target_state=target,
             reason=f"Full-Run REJECTED (score={score:.0f}, critical={critical})",
-            allowed=allowed,
+            allowed=True,
         )
 
     @classmethod
