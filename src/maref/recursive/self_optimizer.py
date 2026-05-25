@@ -153,7 +153,7 @@ class SelfOptimizer:
 
         after = self._benchmark_fn() if apply_fn is not None else dict(before)
 
-        hypothesis.experiment_result = {"before": before, "after": after}
+        hypothesis.experiment_result = {"before": before, "after": after}  # type: ignore[dict-item]
 
         if before.get("coverage_pct", 0) > 0:
             gain = (after.get("coverage_pct", 0) - before.get("coverage_pct", 0)) / before.get("coverage_pct", 1)

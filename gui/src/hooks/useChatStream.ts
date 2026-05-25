@@ -40,7 +40,7 @@ export function useChatStream() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let currentMsgId = `msg-${Date.now()}`;
+        const currentMsgId = `msg-${Date.now()}`;
         let fullContent = "";
 
         while (true) {

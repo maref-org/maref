@@ -120,7 +120,7 @@ class KnowledgeGraph:
     # --- IO ---
 
     def _load(self) -> None:
-        if self._storage.exists():
+        if self._storage is not None and self._storage.exists():
             try:
                 with open(self._storage) as f:
                     data = json.load(f)

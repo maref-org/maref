@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-import hashlib
-
-from maref.security.trust_chain import DelegationChain, ChainNode, DelegationCapability
-from maref.eivl.merkle_auditor import MerkleAuditor, AuditEvidence
-from maref.cross_validator.consensus_algorithm import WeightedConsensusEngine as CVConsensus, ConsensusStatus
-from maref.security.weighted_consensus import WeightedConsensusEngine, ConsensusVote
-from maref.integration.mcp_server import MCPServer
-from maref.integration.mcp_client import MCPClient, MCPServerConfig
+from maref.cross_validator.consensus_algorithm import WeightedConsensusEngine as CVConsensus
+from maref.eivl.merkle_auditor import AuditEvidence, MerkleAuditor
+from maref.governance.audit import AuditLogger
+from maref.governance.state_machine import GovernanceStateMachine
 from maref.integration.a2a_bridge import A2ABridge
 from maref.integration.a2a_types import A2ATaskState
+from maref.integration.mcp_server import MCPServer
 from maref.integration.protocol_bridge import MCPToA2ABridge
-from maref.governance.state_machine import GovernanceStateMachine
-from maref.governance.audit import AuditLogger
+from maref.security.trust_chain import DelegationCapability, DelegationChain
+from maref.security.weighted_consensus import ConsensusVote, WeightedConsensusEngine
 
 
 class TestEIVLTrustChainIntegration:
@@ -177,7 +174,7 @@ class TestMCPProtocolCompatibility:
 
     def test_security_gate_integration(self):
         """安全门与工具调用集成"""
-        from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel, SecurityVerdict
+        from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
 
         gate = MCPSecurityGate()
         server = MCPServer(name="secure-server", security_gate=gate)
@@ -236,9 +233,9 @@ class TestSelfVerification:
 
     def test_security_module_chain_integrity(self):
         """安全模块链完整性验证"""
-        from maref.security.trust_chain import DelegationChain, DelegationCapability
-        from maref.security.trust_boundary import TrustBoundaryManager, TrustDomain
         from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
+        from maref.security.trust_boundary import TrustBoundaryManager
+        from maref.security.trust_chain import DelegationCapability, DelegationChain
 
         chain = DelegationChain.create("root")
         chain.add_delegation("root", "child", DelegationCapability.READ)
@@ -259,8 +256,8 @@ class TestSelfVerification:
 
     def test_threat_detection_to_dashboard_pipeline(self):
         """威胁检测到仪表板的全流程"""
-        from maref.security.state_monitor import SharedStateMonitor
         from maref.monitoring.safety_dashboard import ThreatDetectionWidget
+        from maref.security.state_monitor import SharedStateMonitor
 
         monitor = SharedStateMonitor()
         widget = ThreatDetectionWidget()

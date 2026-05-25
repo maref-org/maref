@@ -13,7 +13,9 @@ export function LanguageSwitch({ className }: { className?: string }) {
     i18n.changeLanguage(code);
     try {
       localStorage.setItem("maref_lang", code);
-    } catch {}
+    } catch {
+      // ignore storage errors
+    }
   };
 
   return (

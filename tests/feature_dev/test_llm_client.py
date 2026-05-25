@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from maref.integration.feature_dev.llm_client import LlmClient, _first_key
 

@@ -83,6 +83,7 @@ export function useSSEConnection(sessionId: string | null) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const retriesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const connectRef = useRef<(() => void) | null>(null);
   const { appendToStream, startStreaming, addMessage } = useChatStore();
 
   const connect = useCallback(() => {
@@ -134,7 +135,7 @@ export function useSSEConnection(sessionId: string | null) {
       retriesRef.current = 0;
     });
 
-    es.addEventListener("error", (_e: Event) => {
+    es.addEventListener("error", () => {
       if (es.readyState === EventSource.CLOSED) {
         retriesRef.current = 0;
         return;
@@ -148,12 +149,16 @@ export function useSSEConnection(sessionId: string | null) {
       const backoff = Math.min(1000 * 2 ** retriesRef.current, 30000);
       retriesRef.current += 1;
       timerRef.current = setTimeout(() => {
-        connect();
+        connectRef.current?.();
       }, backoff);
     };
 
     retriesRef.current = 0;
-  }, [sessionId, appendToStream, startStreaming, addMessage]);
+  }, [sessionId, appendToStream, addMessage]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     if (getBackendMode() !== "real" || !sessionId) return;

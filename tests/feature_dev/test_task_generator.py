@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import pytest
-
 from maref.integration.feature_dev.doc_ingestor import (
     DeployStage,
-    DocumentSection,
     FeatureDocument,
 )
 from maref.integration.feature_dev.task_generator import TaskGenerator

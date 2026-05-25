@@ -11,23 +11,16 @@ Covers:
 
 import json
 import tempfile
-import uuid
 from pathlib import Path
 
-import pytest
-
-from maref.evolution.metrics import EvolutionMetrics
 from maref.recursive.convergence_dashboard import ConvergenceDashboard, ConvergenceSnapshot
-from maref.recursive.evolution_dsl import EvolutionDSL, EvolutionRule, SafetyGate, GateResult
+from maref.recursive.evolution_dsl import EvolutionDSL, EvolutionRule, SafetyGate
 from maref.recursive.meta_agent_closure import (
-    ConstitutionalRedLine,
-    EvolutionDecision,
     EvolutionDecisionType,
     MetaAgentClosure,
 )
 from maref.recursive.meta_governance import MetaBreakerState, MetaCircuitBreaker
-from maref.recursive.tla_replay import TLAInvariantCheck, TLAReplayValidator, TLAValidationReport
-
+from maref.recursive.tla_replay import TLAReplayValidator, TLAValidationReport
 
 # ──────────────────────────────────────────────────────
 # Helpers
@@ -783,7 +776,7 @@ class TestEvolutionDSLSafetyGateConstraints:
         assert result.risk_assessment == "LOW"
 
     def test_dsl_apply_chain_with_safety_gate(self):
-        from maref.recursive.evolution_dsl import SafetyGate, EvolutionRule
+        from maref.recursive.evolution_dsl import EvolutionRule, SafetyGate
 
         bad_rule = EvolutionRule(
             rule_id="test_core_removal",

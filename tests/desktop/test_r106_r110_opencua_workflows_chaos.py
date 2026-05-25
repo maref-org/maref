@@ -1,24 +1,18 @@
 from __future__ import annotations
 
-import pytest
-
+from maref.desktop.browser_auth import (
+    AuthSessionManager,
+    AuthState,
+)
 from maref.desktop.opencua_loader import (
     OpenCUABenchmark,
-    OpenCUABenchResult,
     OpenCUALoader,
     OpenCUATrajectory,
 )
 from maref.desktop.workflow_templates import (
     WORKFLOW_TEMPLATES,
-    WorkflowCategory,
     WorkflowExecutor,
     WorkflowStep,
-    WorkflowTemplate,
-)
-from maref.desktop.browser_auth import (
-    AUTH_STATE_DIR,
-    AuthSessionManager,
-    AuthState,
 )
 
 
@@ -174,7 +168,7 @@ class TestBrowserAuth:
 
 class TestDesktopChaos:
     def test_chaos_agent_recovery(self) -> None:
-        from maref.desktop.task_executor import TaskExecutor, TaskStep, TaskStatus
+        from maref.desktop.task_executor import TaskExecutor, TaskStatus, TaskStep
         executor = TaskExecutor(max_retries=3)
         steps = [
             TaskStep(description="step 1", action_type="click", action_value="100,200"),
@@ -184,8 +178,8 @@ class TestDesktopChaos:
         assert result.status == TaskStatus.SUCCESS
 
     def test_chaos_agent_failure_recovery(self) -> None:
-        from maref.desktop.task_executor import TaskExecutor, TaskStep, TaskStatus
-        import time
+
+        from maref.desktop.task_executor import TaskExecutor, TaskStatus, TaskStep
         executor = TaskExecutor(max_retries=2)
 
         class FailingAgent:

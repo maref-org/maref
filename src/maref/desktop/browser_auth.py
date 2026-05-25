@@ -108,7 +108,9 @@ class AuthSessionManager:
         key_bytes = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
         nonce = os.urandom(16)[:12]
         try:
-            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            from cryptography.hazmat.primitives.ciphers.aead import (  # type: ignore[import-not-found]
+                AESGCM,
+            )
             aesgcm = AESGCM(key_bytes)
             encrypted = aesgcm.encrypt(nonce or os.urandom(12), data.encode(), None)
             return (nonce + encrypted).hex()

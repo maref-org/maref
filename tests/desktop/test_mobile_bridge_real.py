@@ -13,7 +13,6 @@ import pytest
 
 from maref.desktop.mobile_bridge import (
     BridgeTask,
-    ConnectionMethod,
     DeviceDiscovery,
     DeviceInfo,
     DevicePlatform,

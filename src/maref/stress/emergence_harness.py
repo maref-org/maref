@@ -1,0 +1,156 @@
+"""EmergenceTestHarness: deliberately design scenarios where individually
+valid agent behaviours combine into system-level contradictions.
+
+Provides:
+- Temporal perturbation (run same task N times with random ordering)
+- Byzantine output tampering simulation
+- Shared-state conflict detection
+"""
+
+from __future__ import annotations
+
+import random
+import time
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+
+@dataclass
+class PerturbationResult:
+    run_id: int
+    execution_order: list[str]
+    final_state: dict[str, Any]
+    success: bool
+    duration_ms: float
+
+
+@dataclass
+class EmergenceReport:
+    scenario_name: str
+    run_count: int
+    consistent_runs: int
+    inconsistent_runs: int
+    p99_latency_ms: float
+    results: list[PerturbationResult] = field(default_factory=list)
+
+    @property
+    def consistency_rate(self) -> float:
+        if self.run_count == 0:
+            return 0.0
+        return self.consistent_runs / self.run_count
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "scenario": self.scenario_name,
+            "runs": self.run_count,
+            "consistent": self.consistent_runs,
+            "inconsistent": self.inconsistent_runs,
+            "consistency_rate": round(self.consistency_rate, 3),
+            "p99_latency_ms": round(self.p99_latency_ms, 1),
+        }
+
+
+class EmergenceTestHarness:
+    """Run controlled emergence experiments."""
+
+    def __init__(self, seed: int | None = None) -> None:
+        self._rng = random.Random(seed)
+
+    # ------------------------------------------------------------------ #
+    # Temporal perturbation
+    # ------------------------------------------------------------------ #
+    def temporal_perturbation(
+        self,
+        scenario_name: str,
+        agents: list[str],
+        run_fn: Callable[[list[str]], dict[str, Any]],
+        runs: int = 100,
+        state_comparator: Callable[[dict[str, Any], dict[str, Any]], bool] | None = None,
+    ) -> EmergenceReport:
+        """Execute *run_fn* with random agent orderings *runs* times.
+
+        Returns an EmergenceReport showing how often the final state is
+        identical (or passes the custom comparator).
+        """
+        results: list[PerturbationResult] = []
+        baseline_state: dict[str, Any] | None = None
+        consistent = 0
+        latencies: list[float] = []
+
+        comparator = state_comparator or self._default_comparator
+
+        for i in range(runs):
+            order = list(agents)
+            self._rng.shuffle(order)
+
+            t0 = time.perf_counter()
+            state = run_fn(order)
+            t1 = time.perf_counter()
+            latency_ms = (t1 - t0) * 1000
+            latencies.append(latency_ms)
+
+            success = True
+            if baseline_state is None:
+                baseline_state = state
+            elif not comparator(baseline_state, state):
+                success = False
+
+            if success:
+                consistent += 1
+
+            results.append(PerturbationResult(
+                run_id=i,
+                execution_order=order,
+                final_state=state,
+                success=success,
+                duration_ms=latency_ms,
+            ))
+
+        latencies.sort()
+        p99 = latencies[int(len(latencies) * 0.99)] if latencies else 0.0
+
+        return EmergenceReport(
+            scenario_name=scenario_name,
+            run_count=runs,
+            consistent_runs=consistent,
+            inconsistent_runs=runs - consistent,
+            p99_latency_ms=p99,
+            results=results,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Shared-state conflict detection
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def detect_shared_state_conflict(
+        agent_outputs: dict[str, dict[str, Any]],
+        shared_keys: list[str],
+    ) -> list[dict[str, Any]]:
+        """Detect when two agents modify the same shared key differently.
+
+        Returns a list of conflict records:
+            [{"key": "config.timeout", "agents": ["A", "B"], "values": [30, 60]}]
+        """
+        conflicts: list[dict[str, Any]] = []
+        for key in shared_keys:
+            values_seen: dict[str, Any] = {}
+            for agent_id, output in agent_outputs.items():
+                if key in output:
+                    val = output[key]
+                    # Store first agent that produced this value
+                    if val not in values_seen:
+                        values_seen[val] = agent_id
+            if len(values_seen) > 1:
+                conflicts.append({
+                    "key": key,
+                    "agents": list(values_seen.values()),
+                    "values": list(values_seen.keys()),
+                })
+        return conflicts
+
+    # ------------------------------------------------------------------ #
+    # Internal
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _default_comparator(a: dict[str, Any], b: dict[str, Any]) -> bool:
+        return a == b

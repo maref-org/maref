@@ -219,7 +219,7 @@ class MerkleAuditor:
 
         self._root = current_level[0]
         self._tree_version += 1
-        self._last_rebuild = time.time()
+        self._last_rebuild = int(time.time())
 
     def get_root_hash(self) -> str | None:
         """获取 Merkle Root 哈希"""

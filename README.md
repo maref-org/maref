@@ -4,10 +4,10 @@
 
 [![CI](https://github.com/maref-team/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-team/maref/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.26.0-blue)](https://github.com/maref-team/maref/releases)
+[![Version](https://img.shields.io/badge/version-0.30.0--GA-blue)](https://github.com/maref-team/maref/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-4200+-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]()
+[![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]()
 
 > **全球唯一以"Agent 治理"为核心产品定位的框架。** 在治理深度上碾压所有竞品（10/10 vs 0-3），将 Agent 治理作为独立的价值主张而非安全 feature。
 
@@ -104,8 +104,8 @@ print(overlay.get_status())
 
 | 类型 | 数量 | 状态 |
 |------|------|------|
-| 全量 | 4,200+ | ✅ |
-| 覆盖率 | 88% | ✅ |
+| 全量 | 4,300+ | ✅ |
+| 覆盖率 | 82% | ✅ |
 
 ```bash
 pytest tests/ -v --cov
@@ -117,6 +117,7 @@ pytest tests/chaos/ -v       # 混沌工程
 
 - [x] v0.1.0-v0.20.0: 工程基础设施 + 形式化验证 + Sidecar + 漂移 + 混沌 + A2A + Identity + 编排 + Desktop Agent → GA
 - [x] Phase Ω (R101-R150): 50 轮自主递归演进全量补强 → v0.21.0 Final
+- [x] v0.30.0-GA: 人机协同层 + 记忆层 + 技能市场层 + 国密 SM2/SM3/SM4-GCM + 技术白皮书
 - [ ] v1.0: 递归进化全栈 + Agent 信用评级 + 四象治理模型
 - [ ] v2.0: 元 Agent 闭包 + 碳硅共生 + 八卦治理
 

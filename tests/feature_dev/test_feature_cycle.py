@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from maref.integration.feature_dev.feature_cycle import (
+    _LAYER_NAMES,
     CycleSnapshot,
     FeatureDevelopmentCycle,
-    _LAYER_NAMES,
 )
 from maref.integration.test_platform.schema import EvalStatus
 

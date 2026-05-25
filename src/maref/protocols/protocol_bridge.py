@@ -66,15 +66,15 @@ class MCPResponse:
     error: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        result = {
+        data: dict[str, Any] = {
             "jsonrpc": "2.0",
             "id": self.message_id,
         }
         if self.result is not None:
-            result["result"] = self.result
+            data["result"] = self.result
         if self.error is not None:
-            result["error"] = self.error
-        return result
+            data["error"] = self.error
+        return data
 
     @property
     def is_error(self) -> bool:
@@ -355,26 +355,31 @@ class ProtocolBridge:
         if source_protocol == ProtocolType.MCP:
             # MCP 错误 -> A2A 错误
             mcp_code = error.get("code", 0)
-            error_map = {
+            error_map: dict[int, dict[str, str]] = {
                 -32700: {"type": "parse_error", "status": "failed"},
                 -32600: {"type": "invalid_request", "status": "failed"},
                 -32601: {"type": "method_not_found", "status": "failed"},
                 -32602: {"type": "invalid_params", "status": "failed"},
                 -32603: {"type": "internal_error", "status": "failed"},
                 -32000: {"type": "task_execution_failed", "status": "failed"},
+                -32001: {"type": "timeout", "status": "failed"},
             }
             return error_map.get(mcp_code, {"type": "unknown_error", "status": "failed"})
 
         else:
             # A2A 错误 -> MCP 错误
             a2a_type = error.get("type", "unknown")
-            error_map = {
+            a2a_error_map: dict[str, dict[str, Any]] = {
                 "task_execution_failed": {"code": -32000, "message": "Task execution failed"},
                 "agent_not_found": {"code": -32601, "message": "Agent not found"},
                 "invalid_params": {"code": -32602, "message": "Invalid parameters"},
                 "timeout": {"code": -32001, "message": "Task execution timeout"},
+                "parse_error": {"code": -32700, "message": "Parse error"},
+                "invalid_request": {"code": -32600, "message": "Invalid request"},
+                "method_not_found": {"code": -32601, "message": "Method not found"},
+                "internal_error": {"code": -32603, "message": "Internal error"},
             }
-            return error_map.get(a2a_type, {"code": -32603, "message": "Internal error"})
+            return a2a_error_map.get(a2a_type, {"code": -32603, "message": "Internal error"})
 
     def get_metrics(self) -> dict[str, Any]:
         """获取桥接器指标"""

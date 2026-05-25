@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+
 import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, patch
 
 from maref.security.agent_identity import (
     ATPAdapter,
-    ATPIdentity,
-    ATPVerificationResult,
     ATPChallenge,
     ATPConfig,
+    ATPIdentity,
 )
 
 
@@ -63,7 +63,6 @@ class TestATPChallenge:
         assert challenge.expires_at > challenge.timestamp
 
     def test_challenge_expiration(self):
-        from datetime import timedelta
         challenge = ATPChallenge.create("agent-001", ttl_seconds=1)
         assert not challenge.is_expired()
         # Note: In real tests, we'd mock time
@@ -82,10 +81,10 @@ class TestATPAdapter:
             "agent_id": "agent-001",
             "certificate": "cert-12345",
         }
-        
+
         adapter = ATPAdapter(ATPConfig())
         result = adapter.register_identity("agent-001", "-----BEGIN PUBLIC KEY-----\nMIIB...")
-        
+
         assert result is True
         mock_request.assert_called_once()
 
@@ -97,10 +96,10 @@ class TestATPAdapter:
             "trust_score": 0.92,
             "capabilities": ["read", "write"],
         }
-        
+
         adapter = ATPAdapter(ATPConfig())
         result = adapter.verify_identity("agent-001")
-        
+
         assert result.is_valid is True
         assert result.agent_id == "agent-001"
         assert result.trust_score == 0.92
@@ -112,10 +111,10 @@ class TestATPAdapter:
             "agent_id": "agent-001",
             "reason": "certificate_expired",
         }
-        
+
         adapter = ATPAdapter(ATPConfig())
         result = adapter.verify_identity("agent-001")
-        
+
         assert result.is_valid is False
         assert result.reason == "certificate_expired"
 
@@ -126,10 +125,10 @@ class TestATPAdapter:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "expires_at": datetime.now(timezone.utc).isoformat(),
         }
-        
+
         adapter = ATPAdapter(ATPConfig())
         challenge = adapter.create_challenge("agent-001")
-        
+
         assert challenge.agent_id == "agent-001"
         assert challenge.nonce == "abc123"
 
@@ -140,13 +139,13 @@ class TestATPAdapter:
             "agent_id": "agent-001",
             "trust_score": 0.95,
         }
-        
+
         adapter = ATPAdapter(ATPConfig())
         challenge = ATPChallenge.create("agent-001")
         response = {"signature": "sig-123", "nonce": challenge.nonce}
-        
+
         result = adapter.verify_challenge_response("agent-001", challenge, response)
-        
+
         assert result.is_valid is True
         assert result.trust_score == 0.95
 
@@ -154,12 +153,12 @@ class TestATPAdapter:
         """Test that adapter works in local/offline mode"""
         config = ATPConfig(endpoint="", enable_local_fallback=True)
         adapter = ATPAdapter(config)
-        
+
         # Should not raise even without network
         result = adapter.verify_identity("agent-001")
         assert result.is_valid is False  # Local mode returns unverified
         assert result.reason == "local_mode"
-        
+
         # Should not raise even without network
         result = adapter.verify_identity("agent-001")
         assert result.is_valid is False  # Local mode returns unverified
@@ -171,12 +170,12 @@ class TestATPIntegration:
         """Test register -> challenge -> verify flow"""
         config = ATPConfig(endpoint="https://test.example.com", enable_local_fallback=True)
         adapter = ATPAdapter(config)
-        
+
         # Step 1: Register
         with patch.object(adapter, '_make_request') as mock_req:
             mock_req.return_value = {"status": "registered", "agent_id": "agent-001"}
             assert adapter.register_identity("agent-001", "pubkey-123") is True
-        
+
         # Step 2: Create challenge
         now = datetime.now(timezone.utc)
         with patch.object(adapter, '_make_request') as mock_req:
@@ -187,7 +186,7 @@ class TestATPIntegration:
             }
             challenge = adapter.create_challenge("agent-001")
             assert challenge.nonce == "challenge-123"
-        
+
         # Step 3: Verify
         with patch.object(adapter, '_make_request') as mock_req:
             mock_req.return_value = {

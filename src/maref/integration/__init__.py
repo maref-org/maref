@@ -69,39 +69,39 @@ try:
 except ImportError:
     __PERCV_AVAILABLE__ = False
     # Create placeholder classes
-    class PERCVConfig:
+    class PERCVConfig:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class PERCVGatewayAdapter:
+    class PERCVGatewayAdapter:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class PERCVPipelineAdapter:
+    class PERCVPipelineAdapter:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class PERCVRatchetBridge:
+    class PERCVRatchetBridge:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class PERCVVerificationBridge:
+    class PERCVVerificationBridge:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class PERCVResearchOrchestrator:
+    class PERCVResearchOrchestrator:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class OrchestratorCycle:
+    class OrchestratorCycle:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class OrchestratorCycleResult:
+    class OrchestratorCycleResult:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
-    class CyclePhase:
+    class CyclePhase:  # type: ignore[no-redef]
         """Placeholder when PERCV is not available."""
         pass
 
@@ -123,37 +123,37 @@ try:
     __TEST_PLATFORM_AVAILABLE__ = True
 except ImportError:
     __TEST_PLATFORM_AVAILABLE__ = False
-    class EvaluationReport:
+    class EvaluationReport:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class MASEvalObserver:
+    class MASEvalObserver:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class AgentCardAdapter:
+    class AgentCardAdapter:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class MASAgentCard:
+    class MASAgentCard:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class ScoreToPhaseMapper:
+    class ScoreToPhaseMapper:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class PermissionSet:
+    class PermissionSet:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class FastScreenTrigger:
+    class FastScreenTrigger:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class FullRunTrigger:
+    class FullRunTrigger:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class UnifiedTrigger:
+    class UnifiedTrigger:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class Phase:
+    class Phase:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
-    class TriggerAction:
+    class TriggerAction:  # type: ignore[no-redef]
         """Placeholder when Test Platform is not available."""
         pass
 

@@ -36,8 +36,8 @@ class TrustScoreWidget(DashboardWidget):
             return {"widget_type": "trust_score", "agents": [], "avg_trust": 0.0}
         agents = [{"agent_id": aid, "trust_score": s} for aid, s in self._scores.items()]
         avg = sum(self._scores.values()) / len(self._scores)
-        highest = max(agents, key=lambda a: a["trust_score"])
-        lowest = min(agents, key=lambda a: a["trust_score"])
+        highest = max(agents, key=lambda a: float(a.get("trust_score", 0.0)))  # type: ignore[arg-type]
+        lowest = min(agents, key=lambda a: float(a.get("trust_score", 0.0)))  # type: ignore[arg-type]
         return {
             "widget_type": "trust_score",
             "agents": agents,

@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from maref.integration.percv.orchestrator import (
-    PERCVResearchOrchestrator,
-    OrchestratorCycle,
     CyclePhase,
+    OrchestratorCycle,
     OrchestratorStatus,
+    PERCVResearchOrchestrator,
 )
 
 

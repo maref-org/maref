@@ -4,13 +4,12 @@ import { cn } from "@/lib/utils";
 import { type PetState, loadPet, onPetChange, RARITY_COLORS_CLASS, STAT_LABELS } from "@/lib/pet-bus";
 
 export function PetIndicator() {
-  const [pet, setPet] = useState<PetState | null>(null);
+  const [pet, setPet] = useState<PetState | null>(() => loadPet());
   const [open, setOpen] = useState(false);
   const [animClass, setAnimClass] = useState("");
 
   useEffect(() => {
-    setPet(loadPet());
-    return onPetChange((p) => setPet(p));
+    return onPetChange((next) => setPet(next));
   }, []);
 
   useEffect(() => {
@@ -27,6 +26,7 @@ export function PetIndicator() {
       i++;
     }, 3000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pet?.acquiredAt]);
 
   if (!pet) return null;

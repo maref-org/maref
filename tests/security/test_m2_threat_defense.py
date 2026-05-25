@@ -6,23 +6,21 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
-from maref.security.state_monitor import (
-    PollutionSeverity,
-    SharedStateMonitor,
-)
-from maref.security.message_security import (
-    MessageSecurityScanner,
-    RiskLevel,
-)
+from maref.recursive.zero_trust import AgentMessage, MessageType
 from maref.security.behavior_monitor import (
     BehaviorMonitor,
 )
 from maref.security.byzantine_enhancer import (
     ByzantineIsolationEnhancer,
 )
-from maref.recursive.zero_trust import AgentMessage, MessageType
+from maref.security.message_security import (
+    MessageSecurityScanner,
+    RiskLevel,
+)
+from maref.security.state_monitor import (
+    PollutionSeverity,
+    SharedStateMonitor,
+)
 
 
 class TestS5SharedStatePollution:
@@ -181,7 +179,10 @@ class TestS8ByzantineEnhancer:
 
     def test_enhanced_detection_isolates_byzantine(self):
         from maref.cross_validator.consensus_algorithm import (
-            ConsensusStatus, WeightedConsensusEngine, Vote, VoteValue,
+            ConsensusStatus,
+            Vote,
+            VoteValue,
+            WeightedConsensusEngine,
         )
 
         engine = WeightedConsensusEngine()
@@ -198,7 +199,7 @@ class TestS8ByzantineEnhancer:
 
         # Byzantine validator rejects consistently
         for i in range(3):
-            vote = Vote(f"v3", VoteValue.REJECT, "p1", time.time())
+            vote = Vote("v3", VoteValue.REJECT, "p1", time.time())
             engine._votes["p1"].append(vote)
             enhancer._update_histories([vote])
 

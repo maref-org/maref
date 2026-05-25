@@ -79,10 +79,11 @@ class ChaosInjector:
         metrics_before = {"response_time_ms": 200.0, "timeout_count": 0.0}
 
         # Inject latency into LLM calls
-        if self._llm:
+        llm = self._llm
+        if llm is not None:
             try:
                 await self._with_latency(
-                    lambda: self._llm.chat_completion(
+                    lambda: llm.chat_completion(
                         messages=[{"role": "user", "content": "test"}],
                         max_tokens=10,
                     ),

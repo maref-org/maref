@@ -8,7 +8,7 @@ from typing import Any
 
 _PYOBJC_AVAILABLE = False
 try:
-    import Quartz  # noqa: F401
+    import Quartz  # type: ignore[import-not-found] # noqa: F401
 
     _PYOBJC_AVAILABLE = True
 except ImportError:

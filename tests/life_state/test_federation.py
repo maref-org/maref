@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from maref.life_state.federation import (
     FederationRole,
-    FederationTask,
     LifeStateFederation,
 )
-from maref.life_state.metadata import LifeStateCapability, LifeStateMetadata, LifeStateType
+from maref.life_state.metadata import LifeStateCapability, LifeStateMetadata
 
 
 class TestLifeStateFederation:

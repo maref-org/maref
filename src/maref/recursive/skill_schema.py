@@ -77,7 +77,7 @@ class MarefSkill:
     parameter_injection: ParameterInjection | None = None
     hooks: list[SkillHookRef] = field(default_factory=list)
     context_activation: ContextActivation | None = None
-    degradation_chain: DegradationChain = field(default_factory=DegradationChain)
+    degradation_chain: DegradationChain = field(default_factory=lambda: DegradationChain(primary=""))
     behavior: dict[str, Any] = field(default_factory=dict)
     skill_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     source: SkillSource = SkillSource.BUILTIN

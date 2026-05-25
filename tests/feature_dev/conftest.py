@@ -11,7 +11,6 @@ from maref.integration.feature_dev.doc_ingestor import (
     DocumentSection,
     FeatureDocument,
     Hypothesis,
-    TableRow,
 )
 from maref.integration.feature_dev.feature_cycle import CycleSnapshot
 from maref.integration.test_platform.schema import EvalStatus

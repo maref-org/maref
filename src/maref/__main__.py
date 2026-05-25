@@ -87,7 +87,7 @@ def create_server(port: int = 8941) -> MCPServer:
 
 
 class MCPHTTPHandler(BaseHTTPRequestHandler):
-    server: MCPServer  # type: ignore[override]
+    server: MCPServer  # type: ignore[assignment]
 
     def do_POST(self) -> None:
         content_length = int(self.headers.get("Content-Length", 0))

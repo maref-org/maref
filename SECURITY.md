@@ -16,9 +16,9 @@ you request anonymity).
 
 | Version | Supported          |
 |---------|-------------------|
-| 0.20.x  | ✅ Active support |
-| 0.17.x  | ✅ Security fixes |
-| < 0.17  | ❌ End of life    |
+| 0.30.x  | ✅ Active support |
+| 0.20.x  | ✅ Security fixes |
+| < 0.20  | ❌ End of life    |
 
 ## Security Architecture
 
@@ -33,6 +33,40 @@ Key security features:
 - **AuditLogger**: Append-only, HMAC-signed audit trail
 - **TLA+ Formal Verification**: Mathematically proven safety properties
 - **DID/VC Identity**: Cryptographic agent identity and trust scoring
+
+## Cryptographic Compliance & Export Control
+
+### Chinese National Cryptographic Standards (国密算法)
+
+MAREF includes implementations of Chinese national cryptographic standards
+for compliance with **GB/T 32918** and participation in the **AIP (AI Agent
+Protocol) Pioneer Program**.
+
+| Algorithm | Standard | Implementation | File |
+|-----------|----------|----------------|------|
+| SM2 | GB/T 32918.2-2016 | Elliptic curve public key cryptography | `src/maref/crypto/sm2.py` |
+| SM3 | GB/T 32918.1-2016 | Cryptographic hash function (256-bit) | `src/maref/crypto/sm3.py` |
+| SM4-GCM | GB/T 32907-2016 | Block cipher with authenticated encryption | `src/maref/crypto/sm4_gcm.py` |
+
+### Export Control Notice
+
+**WARNING**: The SM2/SM3/SM4-GCM implementations in this repository are
+subject to **Chinese cryptographic export control regulations** (密码出口管制).
+
+- **Within China**: Free to use, modify, and distribute under Apache-2.0
+- **Outside China**: Users are responsible for ensuring compliance with
+  local cryptographic import/export laws. MAREF provides these algorithms
+  for interoperability and standards compliance only.
+- **Dual-use**: These algorithms are classified as dual-use technology
+  under Wassenaar Arrangement Category 5 Part 2. Users in jurisdictions
+  with export control restrictions must obtain appropriate licenses before
+  redistribution.
+
+### Disclaimer
+
+MAREF is an open-source reference implementation. The inclusion of SM2/SM3/SM4
+**does not constitute** an official endorsement by Chinese regulatory bodies.
+Users must conduct their own compliance assessment for production deployments.
 
 ## Security Best Practices
 

@@ -93,6 +93,8 @@ class TimeoutController:
         timeout_override: float | None = None,
     ) -> tuple[Any, TimeoutResult]:
         timeout_limit = timeout_override or getattr(self._config, f"{operation}_timeout", 5.0)
+        if timeout_limit is None:
+            timeout_limit = 5.0
         start = time.time()
         try:
             result = fn()

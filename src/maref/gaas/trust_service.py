@@ -1,0 +1,70 @@
+"""GaaS TrustScore Service — multi-tenant trust graph interface.
+
+Wraps the existing TrustAPI with tenant isolation.
+Each tenant gets an independent TrustGraph instance.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from maref.security.trust_api import TrustAPI
+from maref.security.trust_graph import TrustGraph
+
+
+class TrustScoreService:
+    """Tenant-isolated trust score service.
+
+    Maintains a separate TrustGraph per tenant for data isolation.
+    """
+
+    def __init__(self) -> None:
+        self._graphs: dict[str, TrustGraph] = {}
+        self._apis: dict[str, TrustAPI] = {}
+
+    def _get_or_create(self, tenant_id: str) -> TrustAPI:
+        if tenant_id not in self._apis:
+            graph = TrustGraph()
+            self._graphs[tenant_id] = graph
+            self._apis[tenant_id] = TrustAPI(graph)
+        return self._apis[tenant_id]
+
+    def get_score(self, tenant_id: str, agent_id: str) -> float | None:
+        """Get trust score for an agent in a tenant."""
+        api = self._get_or_create(tenant_id)
+        return api.trust_score(agent_id)
+
+    def set_score(
+        self,
+        tenant_id: str,
+        agent_id: str,
+        score: float,
+        reason: str = "",
+    ) -> None:
+        """Set trust score for an agent."""
+        api = self._get_or_create(tenant_id)
+        api.set_trust(agent_id, score, reason)
+
+    def get_report(self, tenant_id: str, agent_id: str) -> dict[str, Any]:
+        """Get full trust report for an agent."""
+        api = self._get_or_create(tenant_id)
+        return api.get_trust_report(agent_id)
+
+    def list_agents(self, tenant_id: str) -> list[str]:
+        """List all agents in a tenant."""
+        api = self._get_or_create(tenant_id)
+        return api.list_agents()
+
+    def get_history(self, tenant_id: str, agent_id: str) -> list[dict[str, Any]]:
+        """Get trust score history for an agent."""
+        api = self._get_or_create(tenant_id)
+        return api.get_trust_history(agent_id)
+
+    def decay_scores(self, tenant_id: str, decay_factor: float = 0.99) -> None:
+        """Apply time-based decay to all scores in a tenant."""
+        api = self._get_or_create(tenant_id)
+        for agent_id in api.list_agents():
+            current = api.trust_score(agent_id)
+            if current is not None:
+                new_score = current * decay_factor
+                api.set_trust(agent_id, new_score, reason="time_decay")

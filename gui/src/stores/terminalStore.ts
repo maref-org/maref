@@ -39,7 +39,8 @@ export const useTerminalStore = create<TerminalState>((set) => ({
 
   removeTab: (id) =>
     set((state) => {
-      const { [id]: _, ...rest } = state.output;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [id]: _removed, ...rest } = state.output;
       const tabs = state.tabs.filter((t) => t.id !== id);
       return {
         tabs,

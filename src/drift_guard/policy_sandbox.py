@@ -186,7 +186,7 @@ class PolicySandbox:
         return PolicyVersion(
             version_id=data["version_id"],
             timestamp=data["timestamp"],
-            config=PipelineConfig.from_dict(data["config"]),
+            config=PipelineConfig(**data["config"]),
             change_type=PolicyChangeType[data["change_type"]],
             description=data["description"],
             parent_version=data.get("parent_version"),

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from maref.integration.mcp_transport import JSONRPCRequest
 from maref.integration.mcp_server import MCPServer
+from maref.integration.mcp_transport import JSONRPCRequest
 
 
 class TestMCPServerBasics:

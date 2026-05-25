@@ -94,10 +94,10 @@ class EvolutionMetrics:
         result: dict[str, bool] = {}
 
         if cycle == "c1":
-            result["fnr_below_max"] = (
+            result["fnr_below_max"] = bool(
                 self.fnr_series and all(f < criteria.c1_fnr_max for f in self.fnr_series)
             )
-            result["fpr_below_max"] = (
+            result["fpr_below_max"] = bool(
                 self.fpr_series and all(f < criteria.c1_fpr_max for f in self.fpr_series)
             )
             result["no_breaker_trip"] = len(self.circuit_breaker_events) <= 1
@@ -113,7 +113,7 @@ class EvolutionMetrics:
                 self.learning_rate_series
             ) and self.learning_rate_series[-1] <= criteria.c2_lr_convergence_target
             if criteria.c2_fnr_must_not_worsen:
-                c1_fnr_mean = self._fnr_baseline_mean() if hasattr(self, "_fnr_baseline") else 0.15
+                c1_fnr_mean = getattr(self, "_fnr_baseline_mean", 0.15) if hasattr(self, "_fnr_baseline") else 0.15
                 recent_fnr = self.fnr_series[-20:] if len(self.fnr_series) >= 20 else self.fnr_series
                 c2_fnr_mean = statistics.mean(recent_fnr) if recent_fnr else 0
                 result["fnr_not_worsened"] = c2_fnr_mean <= c1_fnr_mean + 0.02

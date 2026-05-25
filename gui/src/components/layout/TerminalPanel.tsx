@@ -43,7 +43,9 @@ function loadSettings(): TerminalSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch {
+    // ignore parse errors
+  }
   return {
     fontSize: 13,
     fontFamily: "JetBrains Mono",
@@ -56,7 +58,9 @@ function loadSettings(): TerminalSettings {
 function saveSettings(settings: TerminalSettings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {}
+  } catch {
+    // ignore storage errors
+  }
 }
 
 export function TerminalPanel() {
@@ -68,7 +72,7 @@ export function TerminalPanel() {
     useTerminalStore();
   const { toggleTerminal } = useUIStore();
   const { activeSessionId } = useSessionStore();
-  const connectedRef = useRef(false);
+  const [connected, setConnected] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<TerminalSettings>(loadSettings);
@@ -140,7 +144,7 @@ export function TerminalPanel() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        connectedRef.current = true;
+        setConnected(true);
         term.clear();
         term.write("\x1b[?25h");
         if (term.rows && term.cols) {
@@ -158,13 +162,13 @@ export function TerminalPanel() {
       };
 
       ws.onclose = () => {
-        connectedRef.current = false;
+        setConnected(false);
         term.write("\r\n\x1b[33m[ 连接断开 — 5秒后重连 ]\x1b[0m\r\n");
         setTimeout(connectWS, 5000);
       };
 
       ws.onerror = () => {
-        connectedRef.current = false;
+        setConnected(false);
       };
     }
 
@@ -181,7 +185,7 @@ export function TerminalPanel() {
       wsRef.current?.close();
       term.dispose();
     };
-  }, [activeSessionId]);
+  }, [activeSessionId, applySettings, settings.cursorBlink, settings.cursorStyle, settings.fontFamily, settings.fontSize, settings.theme]);
 
   const handleNewTerminal = () => {
     const id = `term-${Date.now()}`;
@@ -217,7 +221,7 @@ export function TerminalPanel() {
         </div>
         <div className="flex items-center gap-0.5 px-1 relative">
           <span className="text-maref-text-muted">
-            {connectedRef.current ? (
+            {connected ? (
               <Wifi className="h-3.5 w-3.5 text-maref-success" />
             ) : (
               <WifiOff className="h-3.5 w-3.5 text-maref-danger" />

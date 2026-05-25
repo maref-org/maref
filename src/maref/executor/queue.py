@@ -13,6 +13,24 @@ class TaskQueueError(RuntimeError):
     pass
 
 
+_ALLOWED_UPDATE_FIELDS = {
+    "name",
+    "description",
+    "priority",
+    "status",
+    "payload",
+    "metadata",
+    "tags",
+    "session_id",
+    "error_message",
+    "retry_count",
+    "max_retries",
+    "timeout_seconds",
+    "started_at",
+    "completed_at",
+}
+
+
 class TaskQueue:
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
@@ -200,14 +218,16 @@ class TaskQueue:
                 fields.append("completed_at = ?")
                 values.append(now)
         for key, val in updates.items():
+            if key not in _ALLOWED_UPDATE_FIELDS:
+                raise ValueError(f"Invalid update field: {key}")
             if key in ("payload", "metadata", "tags"):
                 val = json.dumps(val)
-            fields.append(f"{key} = ?")
+            fields.append(f"{key} = ?")  # nosec: field from _ALLOWED_UPDATE_FIELDS whitelist
             values.append(val)
         values.append(task_id)
         with self._lock:
             cur = self._conn.execute(
-                f"UPDATE tasks SET {', '.join(fields)} WHERE id = ?",
+                "UPDATE tasks SET " + ", ".join(fields) + " WHERE id = ?",  # nosec: fields built from whitelist above
                 values,
             )
             self._conn.commit()

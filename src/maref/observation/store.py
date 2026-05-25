@@ -11,6 +11,7 @@ import json
 import sqlite3
 import time
 from pathlib import Path
+from typing import Any
 
 from maref.observation.probes import ProbeReading
 
@@ -71,7 +72,7 @@ class ObservationStore:
             ),
         )
         self._conn.commit()
-        return cursor.lastrowid
+        return cursor.lastrowid or 0
 
     def insert_batch(self, readings: list[ProbeReading]) -> int:
         rows = [
@@ -116,7 +117,7 @@ class ObservationStore:
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         query = (
-            f"SELECT * FROM probe_readings {where} "
+            "SELECT * FROM probe_readings " + where + " "  # nosec: where is hardcoded conditional clause above
             "ORDER BY timestamp DESC LIMIT ?"
         )
         params.append(limit)
@@ -124,26 +125,26 @@ class ObservationStore:
         rows = self._conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
 
-    def get_counts(self, since: float | None = None) -> dict[str, int]:
+    def get_counts(self, since: float | None = None) -> dict[str, Any]:
         params: list[object] = []
         where = "WHERE timestamp >= ?" if since else ""
         if since is not None:
             params = [since]
 
         severity_rows = self._conn.execute(
-            f"SELECT severity, COUNT(*) as cnt FROM probe_readings {where} "
+            "SELECT severity, COUNT(*) as cnt FROM probe_readings " + where + " "  # nosec: where is hardcoded conditional clause above
             "GROUP BY severity",
             params,
         ).fetchall()
 
         probe_rows = self._conn.execute(
-            f"SELECT probe_name, COUNT(*) as cnt FROM probe_readings {where} "
+            "SELECT probe_name, COUNT(*) as cnt FROM probe_readings " + where + " "  # nosec: where is hardcoded conditional clause above
             "GROUP BY probe_name",
             params,
         ).fetchall()
 
         total_row = self._conn.execute(
-            f"SELECT COUNT(*) as cnt FROM probe_readings {where}",
+            "SELECT COUNT(*) as cnt FROM probe_readings " + where,  # nosec: where is hardcoded conditional clause above
             params,
         ).fetchone()
 

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import pytest
-
-from maref.governance import CircuitBreaker, GovernanceState, GovernanceStateMachine
-from maref.redblue.attack_executor import AttackExecutionResult, AttackExecutor
+from maref.governance import CircuitBreaker, GovernanceStateMachine
+from maref.redblue.attack_executor import AttackExecutor
 from maref.redblue.attack_vector import (
     PHASE1_ATTACKS,
     PHASE2_ATTACKS,
@@ -16,7 +14,6 @@ from maref.redblue.attack_vector import (
     RedLevel,
 )
 from maref.redblue.red_blue_engine import RedBlueEngine, RedBlueResult
-
 
 # ── Scoring Formula Tests (RB1) ──────────────────────────────────
 

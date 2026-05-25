@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from maref.orchestration.task_graph import TaskGraph, TaskNode, TaskStatus
+from maref.orchestration.task_graph import (
+    NodeType,
+    TaskGraph,
+    TaskNode,
+    TaskStatus,
+)
 
 
 class PlanStatus(Enum):
@@ -37,6 +42,11 @@ class PlanStep:
     retry_delay_seconds: float = 1.0
     timeout_seconds: float = 0.0
     on_failure: str = "rollback"
+    # Fork/Join/DynamicRoute metadata
+    node_type: NodeType = NodeType.SEQUENCE
+    fork_branches: list[str] = field(default_factory=list)
+    join_targets: list[str] = field(default_factory=list)
+    route_rule: str = ""
 
 
 @dataclass
@@ -56,6 +66,10 @@ class Plan:
                 task_id=step.task_id,
                 description=step.description or step.action,
                 depends_on=list(step.depends_on),
+                node_type=step.node_type,
+                fork_branches=list(step.fork_branches),
+                join_targets=list(step.join_targets),
+                route_rule=step.route_rule,
             )
             g.add_node(node)
         return g
@@ -117,6 +131,7 @@ class PlanExecutionReport:
 
 GovernanceCheck = Callable[[str, dict[str, Any]], tuple[bool, str | None]]
 ActionHandler = Callable[[str, dict[str, Any]], Any]
+RouteResolver = Callable[[str, dict[str, Any], list[str]], str]
 
 
 class PlanExecutor:
@@ -124,11 +139,15 @@ class PlanExecutor:
         self,
         governance_check: GovernanceCheck | None = None,
         action_handlers: dict[str, ActionHandler] | None = None,
+        route_resolvers: dict[str, RouteResolver] | None = None,
     ):
         self._governance_check = governance_check
         self._handlers: dict[str, ActionHandler] = {}
         if action_handlers:
             self._handlers.update(action_handlers)
+        self._route_resolvers: dict[str, RouteResolver] = {}
+        if route_resolvers:
+            self._route_resolvers.update(route_resolvers)
 
     def register_handler(self, action: str, handler: ActionHandler) -> None:
         self._handlers[action] = handler
@@ -136,6 +155,12 @@ class PlanExecutor:
     def register_handlers(self, handlers: dict[str, ActionHandler]) -> None:
         self._handlers.update(handlers)
 
+    def register_route_resolver(self, rule: str, resolver: RouteResolver) -> None:
+        self._route_resolvers[rule] = resolver
+
+    # ------------------------------------------------------------------ #
+    # Public execution entry
+    # ------------------------------------------------------------------ #
     def execute(self, plan: Plan) -> PlanExecutionReport:
         start = time.time()
         graph = plan.to_graph()
@@ -149,45 +174,68 @@ class PlanExecutor:
 
         records: list[StepExecutionRecord] = []
         steps_by_id = {s.task_id: s for s in plan.steps}
-        exec_order = graph.topological_order()
         failed_steps: set[str] = set()
         rollback_requested = False
         fail_requested = False
 
-        for task_id in exec_order:
-            step = steps_by_id.get(task_id)
-            if not step:
-                records.append(StepExecutionRecord(
-                    task_id=task_id, action="unknown",
-                    result=StepResult.SKIPPED, error="Step not found in plan",
-                ))
-                continue
+        # Use wave-based execution instead of strict topological order
+        # so FORK branches can run as soon as ready.
+        pending = set(graph.node_ids)
+        while pending:
+            ready = self._ready_tasks(graph, pending, failed_steps)
+            if not ready:
+                # Deadlock or unscheduled remainder
+                break
 
-            if any(dep in failed_steps for dep in step.depends_on):
-                records.append(StepExecutionRecord(
-                    task_id=task_id, action=step.action,
-                    result=StepResult.SKIPPED,
-                    error=f"Dependency failed: {[d for d in step.depends_on if d in failed_steps]}",
-                ))
-                graph.set_node_status(task_id, TaskStatus.SKIPPED)
-                failed_steps.add(task_id)
-                continue
+            for task_id in ready:
+                pending.discard(task_id)
+                node = graph.get_node(task_id)
 
-            record = self._execute_step(step, records)
-            records.append(record)
+                # FORK: inject branch nodes into pending if not yet present
+                if node and node.node_type == NodeType.FORK:
+                    for branch_id in node.fork_branches:
+                        if branch_id not in graph.node_ids:
+                            # Auto-create stub node if missing
+                            stub = TaskNode(
+                                task_id=branch_id,
+                                description=f"auto_branch:{branch_id}",
+                                depends_on=[task_id],
+                            )
+                            graph.add_node(stub)
+                            pending.add(branch_id)
+                        elif branch_id not in (graph.node_ids - pending):
+                            # Already completed or failed — skip
+                            pass
+                        else:
+                            pending.add(branch_id)
 
-            if record.result == StepResult.SUCCESS:
-                graph.set_node_status(task_id, TaskStatus.COMPLETED)
-            elif record.result == StepResult.SKIPPED:
-                graph.set_node_status(task_id, TaskStatus.SKIPPED)
-                failed_steps.add(task_id)
-            else:
-                graph.set_node_status(task_id, TaskStatus.FAILED)
-                failed_steps.add(task_id)
-                if step.on_failure == "rollback":
-                    rollback_requested = True
-                elif step.on_failure == "fail":
-                    fail_requested = True
+                step = steps_by_id.get(task_id)
+                if not step:
+                    records.append(StepExecutionRecord(
+                        task_id=task_id, action="unknown",
+                        result=StepResult.SKIPPED, error="Step not found in plan",
+                    ))
+                    graph.set_node_status(task_id, TaskStatus.SKIPPED)
+                    failed_steps.add(task_id)
+                    continue
+
+                record = self._execute_step(step, records)
+                records.append(record)
+
+                if record.result == StepResult.SUCCESS:
+                    graph.set_node_status(task_id, TaskStatus.COMPLETED)
+                elif record.result == StepResult.SKIPPED:
+                    graph.set_node_status(task_id, TaskStatus.SKIPPED)
+                    failed_steps.add(task_id)
+                else:
+                    graph.set_node_status(task_id, TaskStatus.FAILED)
+                    failed_steps.add(task_id)
+                    if step.on_failure == "rollback":
+                        rollback_requested = True
+                        pending.clear()
+                    elif step.on_failure == "fail":
+                        fail_requested = True
+                        pending.clear()
 
         if rollback_requested:
             plan_status = PlanStatus.ROLLED_BACK
@@ -206,8 +254,70 @@ class PlanExecutor:
             total_duration_ms=total,
         )
 
+    # ------------------------------------------------------------------ #
+    # Ready-set computation with Fork/Join/DynamicRoute awareness
+    # ------------------------------------------------------------------ #
+    def _ready_tasks(
+        self,
+        graph: TaskGraph,
+        pending: set[str],
+        failed_steps: set[str],
+    ) -> list[str]:
+        ready: list[str] = []
+        for task_id in pending:
+            node = graph.get_node(task_id)
+            if node is None:
+                continue
+
+            deps_ok = all(
+                graph.get_node(dep).status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
+                for dep in graph.get_dependencies(task_id)
+                if graph.get_node(dep) is not None
+            )
+            if not deps_ok:
+                continue
+
+            if node.node_type == NodeType.SEQUENCE:
+                ready.append(task_id)
+            elif node.node_type == NodeType.FORK:
+                # Fork is ready when its own deps are satisfied
+                ready.append(task_id)
+            elif node.node_type == NodeType.JOIN:
+                # Join is ready when ALL join_targets are terminal
+                targets_terminal = all(
+                    graph.get_node(tid).status in (
+                        TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.SKIPPED,
+                    )
+                    for tid in node.join_targets
+                    if graph.get_node(tid) is not None
+                )
+                if targets_terminal:
+                    ready.append(task_id)
+            elif node.node_type == NodeType.DYNAMIC_ROUTE:
+                # Dynamic route is ready like a normal step
+                ready.append(task_id)
+        return ready
+
     def _execute_step(self, step: PlanStep, history: list[StepExecutionRecord]) -> StepExecutionRecord:
         step_start = time.time()
+
+        # ------------------------------------------------------------------ #
+        # Dynamic Route resolution (happens before governance / handler)
+        # ------------------------------------------------------------------ #
+        if step.node_type == NodeType.DYNAMIC_ROUTE and step.route_rule:
+            resolver = self._route_resolvers.get(step.route_rule)
+            if resolver:
+                candidates = step.params.get("dynamic_candidates", [])
+                chosen = resolver(step.task_id, step.params, candidates)
+                step.params["_dynamic_chosen"] = chosen
+            else:
+                return StepExecutionRecord(
+                    task_id=step.task_id, action=step.action,
+                    result=StepResult.FAILURE,
+                    duration_ms=(time.time() - step_start) * 1000,
+                    error=f"No route resolver for rule '{step.route_rule}'",
+                )
+
         handler = self._handlers.get(step.action)
 
         governance_verdict: str | None = None

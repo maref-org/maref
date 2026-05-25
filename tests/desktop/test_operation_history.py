@@ -1,11 +1,8 @@
 """Tests for DesktopController operation history persistence and recovery."""
 
-import json
 import sqlite3
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from maref.desktop.controller import (
     DesktopController,
@@ -130,7 +127,9 @@ class TestOperationHistoryPersistence:
 
 class TestDesktopSafetyGateMemoryLimit:
     def test_operation_history_bounded(self) -> None:
-        from maref.desktop.safety_gate_desktop import DesktopSafetyGateV2, DesktopThreatAssessment, DesktopThreatSeverity, DesktopThreatCategory
+        from maref.desktop.safety_gate_desktop import (
+            DesktopSafetyGateV2,
+        )
 
         gate = DesktopSafetyGateV2(max_operation_history=10)
         for i in range(25):

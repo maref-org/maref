@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-
 from maref.life_state.health import (
+    HealAction,
+    HealResult,
     HealthCheck,
     HealthMonitor,
     HealthStatus,
-    HealAction,
-    HealResult,
     SelfHealer,
 )
 

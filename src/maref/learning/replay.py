@@ -132,7 +132,7 @@ class ExperienceStore:
         self._conn.commit()
         row_id = cursor.lastrowid
         self._trim()
-        return row_id
+        return row_id if row_id is not None else 0
 
     def insert_batch(self, outcomes: list[DecisionOutcome]) -> int:
         d_list = [o.to_dict() for o in outcomes]

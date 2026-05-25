@@ -203,9 +203,12 @@ class GovernanceStateMachine:
         """Create a pickle-safe snapshot of the current state machine."""
         return StateMachineSnapshot(
             current_state=self._state,
+            current_entropy=self.current_entropy,
             entropy_history=list(self._entropy_history),
             history_length=len(self._history),
             transition_count=self._transition_count,
+            valid_next_states=list(self.valid_next_states),
+            is_terminal=self.is_terminal(),
             history_entries=[
                 {"from_state": t.from_state.name, "to_state": t.to_state.name, "reason": t.reason}
                 for t in self._history[-200:]

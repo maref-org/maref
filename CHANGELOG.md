@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [v0.30.0-GA] - 2026-05-25
+
+### Added
+- **人机协同层** (`src/maref/human/`) — DecisionAPI + RuleEngine + InterruptProtocol，支持 HITL/HOTL/HATL 三种模式
+- **记忆层** (`src/maref/memory/`) — 三层记忆架构（Working Hot / Episodic Warm / Semantic Cold）+ 用户隔离 + 检查点恢复 + 衰减归档
+- **技能市场层** (`src/maref/marketplace/`) — Registry + SemanticMatcher + VersionNegotiator + ReputationTracker
+- **国密 SM4-GCM** (`src/maref/crypto/sm4_gcm.py`) — 纯 Python AEAD 认证加密，满足 AIA 协议要求
+- **国密性能基准测试** (`src/maref/crypto/benchmark.py`) — SM2/SM3/SM4 全算法吞吐量测试
+- **技术白皮书** (`docs/MAREF-Technical-Whitepaper-arXiv.md`) — 面向 arXiv 投稿的完整学术白皮书
+
+### Fixed
+- SM2 密钥生成：修复私钥长度错误（`random_hex(32)` → `random_hex(64)`）
+- gmssl `lstrip("04")` bug：公钥前缀被概率性过度截断，导致签名失败
+- PlanExecutor rollback：失败时清空 pending 停止后续执行
+
+### Security
+- 八层纵深防御架构完整可用
+- 国密 SM2/SM3/SM4-GCM 全算法通过单元测试（29 passed）
+- TLA+ 五不变量全部验证通过
+
+---
+
 ## [v0.27.0] - 2026-05-21
 
 ### Added

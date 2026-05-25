@@ -80,10 +80,8 @@ export function FileTreeItem({
     }
   };
 
-  const IconComponent = isDirectory
-    ? expanded
-      ? FolderOpen
-      : Folder
+  const iconNode = isDirectory
+    ? (expanded ? <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 text-maref-info" /> : <Folder className="h-3.5 w-3.5 flex-shrink-0 text-maref-info" />)
     : getFileIcon(node.extension);
 
   return (
@@ -108,12 +106,7 @@ export function FileTreeItem({
             )}
           </span>
         )}
-        <IconComponent
-          className={cn(
-            "h-3.5 w-3.5 flex-shrink-0",
-            isDirectory ? "text-maref-info" : "text-maref-text-muted"
-          )}
-        />
+        {iconNode}
         <span className="truncate">{node.name}</span>
       </button>
 

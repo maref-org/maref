@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-import json
-import os
 import sqlite3
 import sys
 import time
 from pathlib import Path
 
 import pytest
-
-from maref.obs.aggregator import ObsAggregator
 
 # telemetry-server/ dir has a hyphen, so add it to sys.path manually
 _ts_path = Path(__file__).resolve().parent.parent.parent.parent / "telemetry-server"

@@ -308,23 +308,23 @@ class CorrelationEngine:
                 entry.experience_refs.append(experience_id)
 
         if audit_id:
-            entry = self._audit_corr.setdefault(
+            audit_entry = self._audit_corr.setdefault(
                 audit_id, AuditCorrelationEntry(audit_id=audit_id, round_num=round_num or 0)
             )
-            if span_id and span_id not in entry.span_refs:
-                entry.span_refs.append(span_id)
-            if experience_id and experience_id not in entry.experience_refs:
-                entry.experience_refs.append(experience_id)
+            if span_id and span_id not in audit_entry.span_refs:
+                audit_entry.span_refs.append(span_id)
+            if experience_id and experience_id not in audit_entry.experience_refs:
+                audit_entry.experience_refs.append(experience_id)
 
         if experience_id:
-            entry = self._experience_corr.setdefault(
+            exp_entry = self._experience_corr.setdefault(
                 experience_id,
                 ExperienceCorrelationEntry(experience_id=experience_id, round_num=round_num or 0),
             )
-            if span_id and span_id not in entry.span_refs:
-                entry.span_refs.append(span_id)
-            if audit_id and audit_id not in entry.audit_refs:
-                entry.audit_refs.append(audit_id)
+            if span_id and span_id not in exp_entry.span_refs:
+                exp_entry.span_refs.append(span_id)
+            if audit_id and audit_id not in exp_entry.audit_refs:
+                exp_entry.audit_refs.append(audit_id)
 
     def _get_adjacent_links(self, entity_id: str, entity_type: str) -> list[CorrelationLink]:
         index = {

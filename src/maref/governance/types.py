@@ -41,18 +41,24 @@ class StateMachineSnapshot:
     """Pickle-safe snapshot of state machine internal state."""
 
     current_state: GovernanceState
+    current_entropy: int
     entropy_history: list[int]
     history_length: int
     transition_count: int
+    valid_next_states: list[GovernanceState] = field(default_factory=list)
+    is_terminal: bool = False
     history_entries: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "current_state": self.current_state.name,
             "current_state_id": self.current_state.value,
+            "current_entropy": self.current_entropy,
             "entropy_history": self.entropy_history,
             "history_length": self.history_length,
             "transition_count": self.transition_count,
+            "valid_next_states": [s.name for s in self.valid_next_states],
+            "is_terminal": self.is_terminal,
             "history_entries": self.history_entries,
         }
 
@@ -62,7 +68,10 @@ class StateMachineSnapshot:
         entropy = data.get("entropy_history", [])
         return cls(
             current_state=GovernanceState(state_id),
+            current_entropy=data.get("current_entropy", 0),
             entropy_history=entropy,
             history_length=data.get("history_length", 0),
             transition_count=data.get("transition_count", 0),
+            valid_next_states=[],
+            is_terminal=data.get("is_terminal", False),
         )

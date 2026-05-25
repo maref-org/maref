@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 
-from maref.features.feature_flags import FeatureFlag, FeatureFlagConfig, FeatureFlagManager, InMemoryFeatureFlagStore
+from maref.features.feature_flags import (
+    FeatureFlag,
+    FeatureFlagConfig,
+    FeatureFlagManager,
+    InMemoryFeatureFlagStore,
+)
 
 
 class TestFeatureFlagManager:

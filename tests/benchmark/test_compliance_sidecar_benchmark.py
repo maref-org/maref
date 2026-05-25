@@ -10,15 +10,12 @@ Run: pytest tests/benchmark/test_compliance_sidecar_benchmark.py -v -m benchmark
 
 from __future__ import annotations
 
-import gc
 import os
 import time
 
 import pytest
 
-from maref.governance.state_machine import GovernanceStateMachine
-from maref.governance.types import GovernanceState
-from sidecar.compliance.decision_tree import DecisionLevel, DecisionTree, PolicyContext
+from sidecar.compliance.decision_tree import DecisionTree, PolicyContext
 from sidecar.compliance.unified import UnifiedSidecar
 
 pytestmark = [pytest.mark.benchmark, pytest.mark.slow]
@@ -51,7 +48,7 @@ class TestDecisionTreeLatency:
         p99 = latencies[int(len(latencies) * 0.99)]
         p100 = latencies[-1]
 
-        print(f"\n  Decision tree latency (best case):")
+        print("\n  Decision tree latency (best case):")
         print(f"    P50:  {p50:.4f}ms")
         print(f"    P99:  {p99:.4f}ms")
         print(f"    Max:  {p100:.4f}ms")
@@ -85,7 +82,7 @@ class TestDecisionTreeLatency:
         p99 = latencies[int(len(latencies) * 0.99)]
         p100 = latencies[-1]
 
-        print(f"\n  Decision tree latency (worst case, 6 rules checked):")
+        print("\n  Decision tree latency (worst case, 6 rules checked):")
         print(f"    P50:  {p50:.4f}ms")
         print(f"    P99:  {p99:.4f}ms")
         print(f"    Max:  {p100:.4f}ms")
@@ -129,7 +126,7 @@ class TestDecisionTreeLatency:
         p99 = latencies[int(len(latencies) * 0.99)]
         total = sum(latencies)
 
-        print(f"\n  100 agents, 100 checks:")
+        print("\n  100 agents, 100 checks:")
         print(f"    Total: {total:.2f}ms")
         print(f"    Avg:   {total/100:.4f}ms")
         print(f"    P99:   {p99:.4f}ms")
@@ -156,7 +153,7 @@ class TestUnifiedSidecarLatency:
         p50 = latencies[len(latencies) // 2]
         p99 = latencies[int(len(latencies) * 0.99)]
 
-        print(f"\n  Sidecar check_action (ALLOW):")
+        print("\n  Sidecar check_action (ALLOW):")
         print(f"    P50:  {p50:.3f}ms")
         print(f"    P99:  {p99:.3f}ms")
 
@@ -175,7 +172,7 @@ class TestUnifiedSidecarLatency:
         latencies.sort()
         p99 = latencies[int(len(latencies) * 0.99)]
 
-        print(f"\n  Sidecar check_action (BLOCK):")
+        print("\n  Sidecar check_action (BLOCK):")
         print(f"    P99:  {p99:.3f}ms")
 
         assert p99 < SIDECAR_CHECK_TARGET_MS, (
@@ -196,7 +193,7 @@ class TestUnifiedSidecarLatency:
         p99 = latencies[int(len(latencies) * 0.99)]
         throughput = len(latencies) / (sum(latencies) / 1000)
 
-        print(f"\n  50 sidecar instances, 100 checks:")
+        print("\n  50 sidecar instances, 100 checks:")
         print(f"    P99:        {p99:.3f}ms")
         print(f"    Throughput: {throughput:.0f} checks/sec")
         print(f"    Total:      {sum(latencies):.1f}ms")
@@ -221,7 +218,7 @@ class TestMemoryUsage:
             sc.check_action("read", "tool_execution")
         rss_after = self.get_rss_mb()
         delta = rss_after - rss_before
-        print(f"\n  Memory (1 instance, 1000 checks):")
+        print("\n  Memory (1 instance, 1000 checks):")
         print(f"    RSS before: {rss_before:.1f}MB")
         print(f"    RSS after:  {rss_after:.1f}MB")
         print(f"    Delta:      {delta:.1f}MB")
@@ -240,7 +237,7 @@ class TestMemoryUsage:
         rss_after = self.get_rss_mb()
         delta = rss_after - rss_before
         per_instance = delta / 100
-        print(f"\n  Memory (100 instances, 100 checks):")
+        print("\n  Memory (100 instances, 100 checks):")
         print(f"    RSS before:     {rss_before:.1f}MB")
         print(f"    RSS after:      {rss_after:.1f}MB")
         print(f"    Delta:          {delta:.1f}MB")
@@ -256,7 +253,7 @@ class TestMemoryUsage:
         for i in range(10000):
             sc.check_action(f"action-{i}", "tool_execution")
         sizes_after = sys.getsizeof(sc._audit_log)
-        print(f"\n  Audit log (10000 entries):")
+        print("\n  Audit log (10000 entries):")
         print(f"    Object size: {sizes_after / 1024:.1f}KB")
         assert sizes_after < 1024 * 1024, (
             f"Audit log {sizes_after} bytes exceeds 1MB for 10000 entries"

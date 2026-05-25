@@ -8,7 +8,15 @@ from enum import Enum
 try:
     from PIL import Image
 except ImportError:
-    Image = None
+    Image = None  # type: ignore[assignment]
+
+
+def _pixel_value(img: Image.Image, x: int, y: int) -> int:
+    """Safely extract a single int pixel value from a grayscale PIL image."""
+    px = img.getpixel((x, y))
+    if isinstance(px, tuple):
+        return int(px[0])
+    return int(px) if px is not None else 0
 
 
 class VerificationMethod(str, Enum):
@@ -113,9 +121,7 @@ class ScreenshotVerifier:
 
         for y in range(before.height):
             for x in range(before.width):
-                b_px = before_gray.getpixel((x, y))
-                a_px = after_gray.getpixel((x, y))
-                delta = abs(b_px - a_px)
+                delta = abs(_pixel_value(before_gray, x, y) - _pixel_value(after_gray, x, y))
                 if delta > self.pixel_diff_threshold:
                     diff_pixels += 1
                     intensity = min(255, delta * 2)
@@ -168,7 +174,7 @@ class ScreenshotVerifier:
             for x in range(before.width):
                 if (x, y) in visited:
                     continue
-                delta = abs(before.getpixel((x, y)) - after.getpixel((x, y)))
+                delta = abs(_pixel_value(before, x, y) - _pixel_value(after, x, y))
                 if delta > self.pixel_diff_threshold:
                     region = self._flood_fill_region(before, after, x, y, visited)
                     if region.width * region.height >= self.min_diff_area:
@@ -196,7 +202,7 @@ class ScreenshotVerifier:
                 continue
             if x < 0 or x >= w or y < 0 or y >= h:
                 continue
-            delta = abs(before.getpixel((x, y)) - after.getpixel((x, y)))
+            delta = abs(_pixel_value(before, x, y) - _pixel_value(after, x, y))
             if delta <= self.pixel_diff_threshold:
                 continue
             visited.add((x, y))
@@ -219,7 +225,7 @@ class ScreenshotVerifier:
         for y in range(region.y, region.y + region.height):
             for x in range(region.x, region.x + region.width):
                 if x < before.width and y < before.height:
-                    delta = abs(before.getpixel((x, y)) - after.getpixel((x, y)))
+                    delta = abs(_pixel_value(before, x, y) - _pixel_value(after, x, y))
                     if delta > self.pixel_diff_threshold:
                         count += 1
         return count

@@ -120,7 +120,7 @@ class TestAgentHandoffProtocolRequest:
         req = HandoffRequest(from_agent="agent_a", to_agent="agent_b")
         result = protocol.request_handoff(req)
         assert result.accepted is False
-        assert result.status == HandoffStatus.REJECTED
+        assert result.status == HandoffStatus.NACK
         assert "Trust" in result.refusal_reason
 
     def test_request_handoff_no_trust_set(self) -> None:

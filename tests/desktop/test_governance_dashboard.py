@@ -1,12 +1,9 @@
 """Tests for Phase D4: Governance Dashboard - DesktopGovernance integration and API endpoints."""
 
-import pytest
 
 from maref.desktop.controller import DesktopController
 from maref.desktop.desktop_governance import (
-    DesktopGovernance,
     DesktopGovernanceState,
-    GovernanceAction,
 )
 
 

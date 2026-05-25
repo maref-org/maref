@@ -37,7 +37,7 @@ class RoutingDecision:
     entropy: int
     state: str
     confidence: float
-    factors: dict[str, float] = field(default_factory=dict)
+    factors: dict[str, Any] = field(default_factory=dict)
     explanation: str = ""
 
     def to_dict(self) -> dict[str, Any]:

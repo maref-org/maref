@@ -92,7 +92,7 @@ class AgentCardSigner:
             json.dumps(card_data, sort_keys=True).encode()
         ).hexdigest()
 
-        card.card_hash = card_hash
+        object.__setattr__(card, "card_hash", card_hash)
 
         signature_value = hashlib.sha256(
             (card_hash + private_key_pem).encode()

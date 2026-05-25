@@ -9,6 +9,13 @@ from maref.governance.percv_hooks import (
     handle_percv_event,
 )
 from maref.governance.state_machine import GovernanceStateMachine
+from maref.governance.threat_bridge import ThreatGovernanceBridge, ThreatGovernanceMapping
+from maref.governance.trust_bridge import (
+    GovernanceBridge,
+    GovernanceQuery,
+    RecursiveEvent,
+    RecursiveEventType,
+)
 from maref.governance.types import GovernanceState, StateMachineSnapshot, StateTransition
 
 __all__ = [
@@ -27,4 +34,10 @@ __all__ = [
     "PERCVEventType",
     "PERCVGovernanceHook",
     "handle_percv_event",
+    "GovernanceBridge",
+    "GovernanceQuery",
+    "RecursiveEvent",
+    "RecursiveEventType",
+    "ThreatGovernanceBridge",
+    "ThreatGovernanceMapping",
 ]

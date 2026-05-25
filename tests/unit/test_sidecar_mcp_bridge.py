@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass
-
 import pytest
 
 from sidecar.mcp_bridge import (
+    SIDECAR_MCP_TOOLS,
     MCPResourceURI,
     MCPToolDefinition,
     SidecarMCPBridge,
-    SIDECAR_MCP_TOOLS,
-    SIDECAR_MCP_RESOURCES,
 )
 from sidecar.protocol import (
     AgentId,

@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import platform
 
-import pytest
-
 from maref.desktop.platform_layer import (
     PlatformCompatibilityMatrix,
     PlatformInputController,
     PlatformScreenCapture,
-    PlatformType,
 )
 from maref.inference.memory_trust import (
     MemoryCell,
@@ -22,7 +19,6 @@ from maref.serverless_handler import (
     ServerlessEvent,
     ServerlessResponse,
 )
-
 
 # ── Cycle 2: Platform Coverage ────────────────────────────────────
 

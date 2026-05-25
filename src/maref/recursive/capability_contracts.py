@@ -105,7 +105,7 @@ class CapabilityContract:
 
     @staticmethod
     def _check_type(value: Any, expected: str) -> bool:
-        type_map: dict[str, type] = {
+        type_map: dict[str, type | tuple[type, ...]] = {
             "string": str, "integer": int, "number": (int, float),
             "boolean": bool, "array": list, "object": dict,
         }

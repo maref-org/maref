@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import patch
-
-import pytest
 
 from maref.integration.feature_dev.content_producer import ContentProducer
 from maref.integration.feature_dev.doc_ingestor import FeatureDocument

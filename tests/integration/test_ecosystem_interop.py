@@ -99,9 +99,9 @@ class TestLangChainInterop:
 
     def test_langchain_agent_card_metadata(self):
         """验证 Agent Card 包含 LangChain 兼容的元数据。"""
-        from maref.integration.a2a_bridge import A2ABridge
         from maref.governance.audit import AuditLogger
         from maref.governance.state_machine import GovernanceStateMachine
+        from maref.integration.a2a_bridge import A2ABridge
 
         audit = AuditLogger()
         sm = GovernanceStateMachine()
@@ -180,7 +180,6 @@ class TestAutoGenInterop:
     def test_maref_autogen_state_observation_mock(self):
         """验证 MAREF 可观察 AutoGen 风格 agent 状态（mock）。"""
         from sidecar.collector import MockAgentAdapter
-        from sidecar.protocol import AgentId
 
         adapter = MockAgentAdapter(num_agents=2)
 

@@ -173,24 +173,24 @@ class CrossSystemAdapter:
         defaults = ENV_DEFAULTS[env]
         adjustments = PROFILE_ADJUSTMENTS[profile]
 
-        adapted = {}
+        adapted: dict[str, float] = {}
         for key, default_val in defaults.items():
             multiplier = adjustments.get(key, 1.0)
             if isinstance(default_val, int):
-                adapted[key] = max(1, int(default_val * multiplier))
+                adapted[key] = float(max(1, int(default_val * multiplier)))
             elif isinstance(default_val, float):
-                adapted[key] = default_val * multiplier
+                adapted[key] = float(default_val * multiplier)
             else:
-                adapted[key] = default_val
+                adapted[key] = float(default_val)
 
         return AdaptationConfig(
             observation_frequency_hz=adapted["observation_frequency_hz"],
-            instrumentation_depth=adapted["instrumentation_depth"],
-            consensus_nodes=adapted["consensus_nodes"],
-            max_concurrent_tasks=adapted["max_concurrent_tasks"],
+            instrumentation_depth=int(adapted["instrumentation_depth"]),
+            consensus_nodes=int(adapted["consensus_nodes"]),
+            max_concurrent_tasks=int(adapted["max_concurrent_tasks"]),
             sidecar_heartbeat_interval=adapted["sidecar_heartbeat_interval"],
-            log_retention_days=adapted["log_retention_days"],
-            memory_limit_mb=adapted["memory_limit_mb"],
+            log_retention_days=int(adapted["log_retention_days"]),
+            memory_limit_mb=int(adapted["memory_limit_mb"]),
             cpu_threshold=adapted["cpu_threshold"],
             env_type=env,
             profile=profile,

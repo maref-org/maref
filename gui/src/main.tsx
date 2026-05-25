@@ -12,7 +12,9 @@ import App from "./App";
     if (saved) {
       document.documentElement.style.fontSize = `${saved}px`;
     }
-  } catch {}
+  } catch {
+    // ignore storage errors
+  }
 })();
 
 // 注入 CSP nonce

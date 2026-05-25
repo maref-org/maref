@@ -65,9 +65,11 @@ class CardBridge:
                 logger.warning("Failed to load card %s: %s", path.name, exc)
         return cards
 
-    def _card_to_kg_node(self, card: Any) -> dict[str, Any] | None:
+    def _card_to_kg_node(self, card: Any) -> Any:
         """Convert a PERCV card to a MAREF knowledge graph node dict."""
         card_id = getattr(card, "signal_id", None) or getattr(card, "kdp_id", None) or getattr(card, "forecast_id", None) or getattr(card, "pattern_id", "")
+        if not isinstance(card_id, str):
+            card_id = str(card_id)
         card_type_prefix = card_id.split("-")[0] if "-" in card_id else "UNKNOWN"
         kg_type = CARD_TO_KG_TYPE.get(card_type_prefix, "research_artifact")
 
@@ -160,10 +162,12 @@ class CardBridge:
                 if self._hitl_router:
                     from maref.integration.hitl import HITLEvent, HITLTier
                     event = HITLEvent(
-                        source="percv",
-                        event_type="card_sync",
-                        payload={"card_id": card_id, "card_type": subdir},
-                        tier=HITLTier.REVIEW,
+                        event_id=f"percv-{card_id}",
+                        tier=HITLTier.P3_OBSERVE,
+                        severity="info",
+                        anomaly_type="card_sync",
+                        description=f"Sync PERCV card {card_id} ({subdir})",
+                        metadata={"card_id": card_id, "card_type": subdir},
                     )
                     self._hitl_router.submit(event)
 

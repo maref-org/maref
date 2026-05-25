@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import pytest
 from maref.compliance.five_eyes import (
-    FiveEyesStandard,
     FiveEyesControl,
     FiveEyesMapper,
+    FiveEyesStandard,
 )
 
 
@@ -176,6 +175,7 @@ class TestEnhancedAuditLogging:
 
     def test_export_within_timeframe(self):
         import time
+
         from maref.governance.audit import AuditLogger
         logger = AuditLogger()
 

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
@@ -12,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
-from maref.obs import MarefObsClient, ObsPipeline, ObsEventType, TelemetryLevel
+from maref.obs import MarefObsClient, ObsPipeline, TelemetryLevel
 
 
 @pytest.fixture

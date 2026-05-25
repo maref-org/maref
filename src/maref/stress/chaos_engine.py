@@ -29,6 +29,8 @@ class FaultType(enum.Enum):
     DISK = "disk"
     MEMORY = "memory"
     CPU = "cpu"
+    BYZANTINE = "byzantine"           # Phase 3.2: malicious agent output tampering
+    EMERGENT_CONFLICT = "emergent_conflict"  # Phase 3.2: contradictory combined state
 
 
 @dataclass
@@ -236,6 +238,13 @@ class ChaosEngine:
             load_pct = params.get("load_pct", 80)
             duration = params.get("duration_s", 10.0)
             detail = f"Simulated CPU load: {load_pct}% for {duration}s"
+        elif schedule.fault_type == FaultType.BYZANTINE:
+            agent_id = params.get("agent_id", "unknown")
+            tamper_rate = params.get("tamper_rate", 0.3)
+            detail = f"Simulated byzantine agent: {agent_id} tamper_rate={tamper_rate}"
+        elif schedule.fault_type == FaultType.EMERGENT_CONFLICT:
+            conflict_type = params.get("conflict_type", "shared_state")
+            detail = f"Simulated emergent conflict: {conflict_type}"
         else:
             detail = f"Unknown fault type: {schedule.fault_type}"
 

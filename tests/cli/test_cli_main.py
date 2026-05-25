@@ -7,8 +7,6 @@ Mocks all external dependencies to avoid heavy imports and side effects.
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -20,7 +18,6 @@ runner = CliRunner()
 
 # Import the app lazily so we can patch before commands run
 from maref_lite.cli import app
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 
