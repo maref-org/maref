@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicehash/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "MAREF Agent",
-  "version": "0.28.0-rc",
+  "version": "0.30.0-GA",
   "identifier": "com.maref.agent",
   "build": {
     "frontendDist": "../dist",

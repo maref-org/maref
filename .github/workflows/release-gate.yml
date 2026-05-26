@@ -6,6 +6,30 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
+  gate-rust-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Audit Rust dependencies
+        working-directory: ./gui/src-tauri
+        run: cargo audit
+
+  gate-integration-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Integration test coverage
+        run: pytest tests/integration/ --cov=src/maref --cov-report=term-missing
+
   gate-quality:
     runs-on: ubuntu-latest
     steps:
@@ -44,7 +68,7 @@ jobs:
       - name: Core tests
         run: pytest tests/governance/ tests/formal/ -v --tb=short -x
       - name: Coverage gate
-        run: pytest tests/ --cov=src/maref --cov-fail-under=70
+        run: pytest tests/ --cov=src/maref --cov-fail-under=80
 
   gate-security:
     needs: gate-quality
