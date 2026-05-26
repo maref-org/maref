@@ -1,7 +1,7 @@
 {
   "name": "gui",
   "private": true,
-  "version": "0.28.0-rc",
+  "version": "0.30.0-GA",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -93,7 +93,9 @@
       "entitlements": "electron/entitlements.mac.plist",
       "entitlementsInherit": "electron/entitlements.mac.plist",
       "hardenedRuntime": true,
-      "notarize": false,
+      "notarize": {
+        "teamId": "${APPLE_TEAM_ID}"
+      },
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
     },
     "win": {

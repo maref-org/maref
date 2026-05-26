@@ -41,3 +41,30 @@ jobs:
           python-version: "3.11"
       - name: pip-audit
         run: pip-audit
+
+  dast-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies and start server
+        run: |
+          pip install -e ".[dev]"
+          maref serve --host 0.0.0.0 --port 8080 &
+          sleep 5
+          curl -sf http://localhost:8080/api/health || exit 1
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14
+        with:
+          target: "http://localhost:8080"
+          cmd_options: "-a -j"
+      - name: Upload ZAP reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-reports
+          path: |
+            zap-report.*
+            zap.out
