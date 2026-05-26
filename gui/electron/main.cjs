@@ -1,6 +1,7 @@
 const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const { autoUpdater } = require('electron-updater');
 
 app.commandLine.appendSwitch('disable-gpu-sandbox');
 app.commandLine.appendSwitch('no-sandbox');
@@ -96,7 +97,20 @@ ipcMain.handle('shell:openExternal', async (event, url) => {
   await shell.openExternal(url);
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.on('update-available', (info) => {
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Available',
+        message: `Version ${info.version} is available and will be installed on quit.`,
+      });
+    });
+    autoUpdater.on('error', (err) => console.error('[auto-updater]', err.message));
+  }
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 app.on('before-quit', () => { stopSidecar(); });
