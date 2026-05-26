@@ -1,7 +1,20 @@
-const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, dialog, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const { autoUpdater } = require('electron-updater');
+const windowStateKeeper = require('electron-window-state');
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 app.commandLine.appendSwitch('disable-gpu-sandbox');
 app.commandLine.appendSwitch('no-sandbox');
@@ -11,9 +24,16 @@ let sidecarProcess = null;
 let ptyProcess = null;
 
 function createWindow() {
+  const mainWindowState = windowStateKeeper({
+    defaultWidth: 1400,
+    defaultHeight: 900,
+  });
+
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    x: mainWindowState.x,
+    y: mainWindowState.y,
+    width: mainWindowState.width,
+    height: mainWindowState.height,
     minWidth: 900,
     minHeight: 600,
     title: 'MAREF Agent',
@@ -24,6 +44,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
     },
   });
+
+  mainWindowState.manage(mainWindow);
 
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
   if (isDev) {
@@ -98,6 +120,19 @@ ipcMain.handle('shell:openExternal', async (event, url) => {
 });
 
 app.whenReady().then(() => {
+  if (app.isPackaged) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:*;",
+          ],
+        },
+      });
+    });
+  }
+
   createWindow();
   if (app.isPackaged) {
     autoUpdater.checkForUpdatesAndNotify();
