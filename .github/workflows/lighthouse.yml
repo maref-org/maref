@@ -46,6 +46,10 @@ jobs:
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 
+      - name: Check bundle size
+        working-directory: ./gui
+        run: npx bundlesize
+
       - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         if: always()

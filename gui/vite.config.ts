@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   build: {
+    sourcemap: process.env.NODE_ENV === "development",
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),

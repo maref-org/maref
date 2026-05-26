@@ -94,6 +94,18 @@ jobs:
         if: always()
         run: docker rm -f maref-test || true
 
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+          format: cyclonedx
+          output-file: sbom.cdx.json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json
+
       - name: Image size report
         run: |
           echo "### Docker Image Size Report" >> $GITHUB_STEP_SUMMARY
