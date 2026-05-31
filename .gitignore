@@ -105,3 +105,4 @@ knowledge_graph.json
 # IDE workspace metadata
 .trae/
 node_modules
+.worktrees/
