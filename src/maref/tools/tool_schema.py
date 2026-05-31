@@ -19,6 +19,7 @@ class ToolCategory(Enum):
     GIT = "git"
     BROWSER = "browser"
     EMAIL = "email"
+    SEARCH = "search"
     NETWORK = "network"
     AI = "ai"
     DATABASE = "database"
@@ -175,12 +176,36 @@ def create_email_tool() -> ToolDefinition:
     )
 
 
+def create_web_search_tool() -> ToolDefinition:
+    return ToolDefinition(
+        name="web_search",
+        description="Web search and news search with query sanitization and domain blacklist",
+        category=ToolCategory.SEARCH,
+        risk_level=ToolRiskLevel.LOW,
+        version="0.28.0",
+        tools=["web_search", "web_search_news"],
+        tool_parameters={
+            "web_search": [
+                ToolParameter(name="query", type="string", description="Search query", required=True),
+                ToolParameter(name="max_results", type="integer", description="Maximum number of results", required=False, default=10),
+            ],
+            "web_search_news": [
+                ToolParameter(name="query", type="string", description="News search query", required=True),
+                ToolParameter(name="max_results", type="integer", description="Maximum number of results", required=False, default=10),
+            ],
+        },
+        security_controls=["QuerySanitizer", "ResultLimit", "DomainBlacklist"],
+        default_config={"max_results": 10},
+    )
+
+
 BUILTIN_TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
     "file": create_file_tool(),
     "shell": create_shell_tool(),
     "git": create_git_tool(),
     "browser": create_browser_tool(),
     "email": create_email_tool(),
+    "web_search": create_web_search_tool(),
 }
 
 

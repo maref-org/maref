@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from maref.executor.checkpointer import Checkpointer, Snapshot
+from maref.executor.persistent_store import PersistentSessionStore
 from maref.executor.queue import TaskQueue, TaskQueueError
 from maref.executor.scheduler import CronExpression, CronJob, Scheduler
 from maref.executor.session import Session, SessionManager
@@ -11,6 +12,7 @@ __all__ = [
     "Checkpointer",
     "CronExpression",
     "CronJob",
+    "PersistentSessionStore",
     "Scheduler",
     "Session",
     "SessionManager",

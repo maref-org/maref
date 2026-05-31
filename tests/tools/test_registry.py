@@ -25,7 +25,7 @@ class TestToolRegistryDiscover:
 
     def test_list_tools_function(self):
         tools = list_tools()
-        assert len(tools) == 5
+        assert len(tools) == 6
         assert "factory" not in tools[0]
 
 

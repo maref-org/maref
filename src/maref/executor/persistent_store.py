@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import json
+import sqlite3
+import threading
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from maref.executor.session import Session
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+class PersistentSessionStore:
+    def __init__(self, db_path: Path) -> None:
+        self.db_path = db_path
+        self._lock = threading.Lock()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = self._connect()
+        self._create_tables()
+
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
+
+    def _create_tables(self) -> None:
+        with self._lock:
+            self._conn.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    created_at TEXT NOT NULL,
+                    last_heartbeat TEXT NOT NULL,
+                    closed_at TEXT,
+                    ttl REAL NOT NULL DEFAULT 3600.0,
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    task_ids_json TEXT NOT NULL DEFAULT '[]'
+                )
+            """)
+            self._conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sessions_status
+                ON sessions(status)
+            """)
+            self._conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sessions_last_heartbeat
+                ON sessions(last_heartbeat)
+            """)
+            self._conn.commit()
+
+    def save_session(self, session: Session) -> bool:
+        with self._lock:
+            try:
+                self._conn.execute(
+                    """
+                    INSERT OR REPLACE INTO sessions
+                    (id, status, created_at, last_heartbeat, closed_at, ttl, metadata_json, task_ids_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        session.id,
+                        session.status,
+                        session.created_at,
+                        session.last_heartbeat,
+                        session.closed_at,
+                        session.ttl,
+                        json.dumps(session.metadata, ensure_ascii=False),
+                        json.dumps(session.task_ids, ensure_ascii=False),
+                    ),
+                )
+                self._conn.commit()
+                return True
+            except Exception:
+                return False
+
+    def load_session(self, session_id: str) -> Session | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return Session(
+            id=row["id"],
+            status=row["status"],
+            created_at=row["created_at"],
+            last_heartbeat=row["last_heartbeat"],
+            closed_at=row["closed_at"],
+            ttl=row["ttl"],
+            metadata=json.loads(row["metadata_json"]),
+            task_ids=json.loads(row["task_ids_json"]),
+        )
+
+    def load_all_sessions(self, status: str | None = None) -> list[Session]:
+        with self._lock:
+            if status is not None:
+                rows = self._conn.execute(
+                    "SELECT * FROM sessions WHERE status = ? ORDER BY created_at DESC",
+                    (status,),
+                ).fetchall()
+            else:
+                rows = self._conn.execute(
+                    "SELECT * FROM sessions ORDER BY created_at DESC"
+                ).fetchall()
+        sessions: list[Session] = []
+        for row in rows:
+            sessions.append(Session(
+                id=row["id"],
+                status=row["status"],
+                created_at=row["created_at"],
+                last_heartbeat=row["last_heartbeat"],
+                closed_at=row["closed_at"],
+                ttl=row["ttl"],
+                metadata=json.loads(row["metadata_json"]),
+                task_ids=json.loads(row["task_ids_json"]),
+            ))
+        return sessions
+
+    def delete_session(self, session_id: str) -> bool:
+        with self._lock:
+            cursor = self._conn.execute(
+                "DELETE FROM sessions WHERE id = ?",
+                (session_id,),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+
+    def update_session_status(self, session_id: str, status: str) -> bool:
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE sessions SET status = ? WHERE id = ?",
+                (status, session_id),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+
+    def update_heartbeat(self, session_id: str) -> bool:
+        now = _now()
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE sessions SET last_heartbeat = ? WHERE id = ?",
+                (now, session_id),
+            )
+            self._conn.commit()
+            return cursor.rowcount > 0
+
+    def count_by_status(self) -> dict[str, int]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT status, COUNT(*) as cnt FROM sessions GROUP BY status"
+            ).fetchall()
+        return {row["status"]: row["cnt"] for row in rows}
+
+    def cleanup_expired(self) -> int:
+        now = _now()
+        now_dt = datetime.fromisoformat(now)
+        with self._lock:
+            rows = self._conn.execute("SELECT id, last_heartbeat, ttl FROM sessions").fetchall()
+            expired_ids: list[str] = []
+            for row in rows:
+                hb_dt = datetime.fromisoformat(row["last_heartbeat"])
+                elapsed = (now_dt - hb_dt).total_seconds()
+                if elapsed > row["ttl"]:
+                    expired_ids.append(row["id"])
+            if expired_ids:
+                placeholders = ",".join("?" * len(expired_ids))
+                self._conn.execute(
+                    f"UPDATE sessions SET status = 'expired' WHERE id IN ({placeholders})",
+                    expired_ids,
+                )
+                self._conn.commit()
+            return len(expired_ids)
+
+    def close(self) -> None:
+        with self._lock:
+            self._conn.close()
+
+    def __enter__(self) -> PersistentSessionStore:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.close()

@@ -13,6 +13,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from maref.agent_card_config import (
+    get_default_card_config,
+)
 from maref.recursive.signed_agent_cards import SignedAgentCard
 
 # MAS-TS-001 Agent Card JSON Schema (subset)
@@ -213,6 +216,24 @@ class AgentCardAdapter:
         }
         results["overall_pass"] = all(r[0] for r in results.values() if isinstance(r, tuple))
         return results
+
+    @staticmethod
+    def from_agent_card_config() -> MASAgentCard:
+        """Create an MASAgentCard from the centralized Agent Card configuration."""
+        config = get_default_card_config()
+        return MASAgentCard(
+            agent_id=config.agent_id,
+            agent_name=config.agent_name,
+            version=config.version,
+            description=config.description,
+            capabilities=config.mas_capabilities,
+            endpoints=config.endpoints,
+            data_residency=config.data_residency,
+            model_backend_location=config.model_backend_location,
+            cross_border=config.cross_border,
+            trust_score=config.trust_score,
+            compliance_labels=config.compliance_labels,
+        )
 
 
 __all__ = [
