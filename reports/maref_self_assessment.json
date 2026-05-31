@@ -1,0 +1,284 @@
+{
+  "report_id": "maref-self-1780198814",
+  "agent_id": "maref-v0.30.0-GA",
+  "agent_name": "MAREF",
+  "test_mode": "full_run",
+  "overall_status": "PASS",
+  "overall_score": 100.0,
+  "layers": [
+    {
+      "layer_number": 1,
+      "layer_name": "Static Audit",
+      "score": 100.0,
+      "max_score": 100.0,
+      "normalized_score": 1.0,
+      "findings": [
+        {
+          "finding_id": "L1-INFO",
+          "layer": 1,
+          "severity": "INFO",
+          "title": "Agent Card Schema Compliance: maref-v0.30.0-GA v0.30.0-GA",
+          "description": "data_residency=CN, backend=CN, cross_border=False, capabilities=6",
+          "rule_id": "MAS-TS-001-L1-SCHEMA",
+          "remediation": "",
+          "metadata": {}
+        }
+      ],
+      "metrics": {
+        "data_residency": "CN",
+        "model_backend_location": "CN",
+        "cross_border": false,
+        "cross_border_consistent": true,
+        "prompt_rot_detectable": true,
+        "endpoint_consistent": true,
+        "compliance_labels": [
+          "data_residency_CN",
+          "mas_ts_001",
+          "mcp_governance",
+          "zero_trust"
+        ]
+      },
+      "duration_seconds": 0.0
+    },
+    {
+      "layer_number": 2,
+      "layer_name": "Reasoning Metrics",
+      "score": 100.0,
+      "max_score": 100.0,
+      "normalized_score": 1.0,
+      "findings": [
+        {
+          "finding_id": "L2-OK",
+          "layer": 2,
+          "severity": "INFO",
+          "title": "Context Window Meets Standard",
+          "description": "Context window: 65536 (>= 65536)",
+          "rule_id": "MAS-TS-001-L2-001",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L2-002",
+          "layer": 2,
+          "severity": "INFO",
+          "title": "Model Backend Configuration",
+          "description": "Backend: dashscope, Endpoint: https://dashscope.aliyuncs.com/api/v1, Context: 65536",
+          "rule_id": "MAS-TS-001-L2-002",
+          "remediation": "",
+          "metadata": {}
+        }
+      ],
+      "metrics": {
+        "context_window": 65536,
+        "backend": "dashscope",
+        "endpoint": "https://dashscope.aliyuncs.com/api/v1"
+      },
+      "duration_seconds": 0.0
+    },
+    {
+      "layer_number": 3,
+      "layer_name": "Action Metrics",
+      "score": 100.0,
+      "max_score": 100.0,
+      "normalized_score": 1.0,
+      "findings": [
+        {
+          "finding_id": "L3-TOOL-web_search",
+          "layer": 3,
+          "severity": "INFO",
+          "title": "Core Tool: web_search v0.28.0",
+          "description": "Security controls: ['QuerySanitizer', 'ResultLimit', 'DomainBlacklist']",
+          "rule_id": "MAS-TS-001-L3-TOOL",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L3-TOOL-shell",
+          "layer": 3,
+          "severity": "INFO",
+          "title": "Core Tool: shell v0.27.0",
+          "description": "Security controls: ['CommandWhitelist', 'Timeout', 'OutputLimit', 'MetacharacterBlock']",
+          "rule_id": "MAS-TS-001-L3-TOOL",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L3-TOOL-email",
+          "layer": 3,
+          "severity": "INFO",
+          "title": "Core Tool: email v0.27.0",
+          "description": "Security controls: ['RecipientWhitelist', 'SensitiveWordFilter', 'WriteModeGate']",
+          "rule_id": "MAS-TS-001-L3-TOOL",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L3-TOOL-browser",
+          "layer": 3,
+          "severity": "INFO",
+          "title": "Core Tool: browser v0.27.0",
+          "description": "Security controls: ['DomainWhitelist', 'URLValidation', 'ContentSizeLimit']",
+          "rule_id": "MAS-TS-001-L3-TOOL",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L3-TOOL-git",
+          "layer": 3,
+          "severity": "INFO",
+          "title": "Core Tool: git v0.27.0",
+          "description": "Security controls: ['RepoWhitelist', 'WriteModeGate']",
+          "rule_id": "MAS-TS-001-L3-TOOL",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L3-TOOL-file",
+          "layer": 3,
+          "severity": "INFO",
+          "title": "Core Tool: file v0.27.0",
+          "description": "Security controls: ['PathSandbox', 'FileSizeLimit']",
+          "rule_id": "MAS-TS-001-L3-TOOL",
+          "remediation": "",
+          "metadata": {}
+        }
+      ],
+      "metrics": {
+        "core_tool_coverage": 100.0,
+        "present_tools": [
+          "browser",
+          "email",
+          "file",
+          "git",
+          "shell",
+          "web_search"
+        ],
+        "missing_tools": [],
+        "total_tools": 6
+      },
+      "duration_seconds": 0.0
+    },
+    {
+      "layer_number": 4,
+      "layer_name": "E2E Metrics",
+      "score": 100.0,
+      "max_score": 100.0,
+      "normalized_score": 1.0,
+      "findings": [
+        {
+          "finding_id": "L4-E2E-web_research",
+          "layer": 4,
+          "severity": "INFO",
+          "title": "E2E Scenario: web_research",
+          "description": "E2E test file exists at /Volumes/1TB-M2/public/maref/tests/e2e/test_web_research.py",
+          "rule_id": "MAS-TS-001-L4-E2E",
+          "remediation": "",
+          "metadata": {}
+        }
+      ],
+      "metrics": {
+        "e2e_completion_rate": 100.0,
+        "completed_scenarios": 1,
+        "total_scenarios": 1
+      },
+      "duration_seconds": 0.0
+    },
+    {
+      "layer_number": 5,
+      "layer_name": "MAS Dimensions",
+      "score": 100.0,
+      "max_score": 100.0,
+      "normalized_score": 1.0,
+      "findings": [
+        {
+          "finding_id": "L5-agent_spawn",
+          "layer": 5,
+          "severity": "INFO",
+          "title": "MAS Dimension: agent_spawn",
+          "description": "Capability declared and implemented",
+          "rule_id": "MAS-TS-001-L5-MAS",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L5-session_isolation",
+          "layer": 5,
+          "severity": "INFO",
+          "title": "MAS Dimension: session_isolation",
+          "description": "Capability declared and implemented",
+          "rule_id": "MAS-TS-001-L5-MAS",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L5-coordination",
+          "layer": 5,
+          "severity": "INFO",
+          "title": "MAS Dimension: coordination",
+          "description": "Capability declared and implemented",
+          "rule_id": "MAS-TS-001-L5-MAS",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L5-state_persistence",
+          "layer": 5,
+          "severity": "INFO",
+          "title": "MAS Dimension: state_persistence",
+          "description": "Capability declared and implemented",
+          "rule_id": "MAS-TS-001-L5-MAS",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L5-scheduling",
+          "layer": 5,
+          "severity": "INFO",
+          "title": "MAS Dimension: scheduling",
+          "description": "Capability declared and implemented",
+          "rule_id": "MAS-TS-001-L5-MAS",
+          "remediation": "",
+          "metadata": {}
+        },
+        {
+          "finding_id": "L5-remote_control",
+          "layer": 5,
+          "severity": "INFO",
+          "title": "MAS Dimension: remote_control",
+          "description": "Capability declared and implemented",
+          "rule_id": "MAS-TS-001-L5-MAS",
+          "remediation": "",
+          "metadata": {}
+        }
+      ],
+      "metrics": {
+        "dimensions_covered": 6,
+        "total_dimensions": 6,
+        "dimension_details": {
+          "agent_spawn": true,
+          "session_isolation": true,
+          "coordination": true,
+          "state_persistence": true,
+          "scheduling": true,
+          "remote_control": true
+        }
+      },
+      "duration_seconds": 0.0
+    }
+  ],
+  "findings_summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 16
+  },
+  "duration_seconds": 0.0,
+  "evaluated_at": "2026-05-31T03:40:14Z",
+  "metadata": {
+    "data_residency": "CN",
+    "model_backend": "CN",
+    "cross_border": false,
+    "context_window": 65536
+  }
+}

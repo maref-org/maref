@@ -83,6 +83,18 @@ TOOL_REGISTRY_META: dict[str, dict[str, Any]] = {
 
 MAS_CAPABILITIES = [
     {
+        "skill_id": "skill_agent_spawn",
+        "name": "agent_spawn",
+        "description": "Sub-agent spawning with recursive evolution support",
+        "business_rule_version": "1.0.0",
+    },
+    {
+        "skill_id": "skill_coordination",
+        "name": "coordination",
+        "description": "Multi-agent coordination via Gray Code state machine",
+        "business_rule_version": "1.0.0",
+    },
+    {
         "skill_id": "skill_session_isolation",
         "name": "session_isolation",
         "description": "Isolated execution sessions with sandboxed environments",
