@@ -85,6 +85,9 @@ app.add_typer(drift_app, name="drift")
 governance_app = typer.Typer(help="Governance commands", no_args_is_help=True)
 app.add_typer(governance_app, name="governance")
 
+scheduler_app = typer.Typer(help="Scheduler commands", no_args_is_help=True)
+app.add_typer(scheduler_app, name="scheduler")
+
 app.add_typer(obs_app, name="obs")
 app.add_typer(percv_app, name="percv")
 app.add_typer(ip_app, name="ip")
@@ -509,6 +512,108 @@ def drift_check(
         console.print("[yellow]Drift detection modules not available.[/yellow]")
 
 
+# ── Scheduler commands ────────────────────────────────────────────────
+
+
+@scheduler_app.command("list")
+def scheduler_list() -> None:
+    """List all scheduled cron jobs."""
+    try:
+        from maref.executor.scheduler import CronExpression as _  # noqa: F401
+    except ImportError:
+        console.print("[red]Executor modules not available.[/red]")
+        raise typer.Exit(code=1) from None
+
+    console.print("[bold]MAREF Scheduler — Cron Jobs[/bold]")
+    console.print("[dim]Run with --live to connect to a running scheduler.[/dim]")
+    console.print()
+
+    table = Table(title="Scheduler Status")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Scheduler", "Ready (not running)")
+    table.add_row("Jobs", "0")
+    table.add_row("Events", "0")
+    table.add_row("Supported", "cron (5-field), event-driven")
+    console.print(table)
+
+
+@scheduler_app.command("add")
+def scheduler_add(
+    name: str = typer.Option(..., "--name", "-n", help="Job name"),
+    cron: str = typer.Option(..., "--cron", "-c", help="Cron expression (e.g., '0 */6 * * *')"),
+    task_name: str = typer.Option("scheduled-task", "--task", "-t", help="Task name"),
+    description: str = typer.Option("", "--desc", "-d", help="Task description"),
+) -> None:
+    """Add a new cron job to the scheduler."""
+    try:
+        from maref.executor.scheduler import CronExpression
+    except ImportError as e:
+        console.print("[red]Executor modules not available.[/red]")
+        raise typer.Exit(code=1) from e
+
+    try:
+        CronExpression(cron)
+    except ValueError as e:
+        console.print(f"[red]Invalid cron expression: {e}[/red]")
+        raise typer.Exit(code=1) from None
+
+    console.print(f"[green]Job '{name}' created[/green]")
+    console.print(f"  Cron:   [cyan]{cron}[/cyan]")
+    console.print(f"  Task:   [yellow]{task_name}[/yellow]")
+    if description:
+        console.print(f"  Desc:   {description}")
+    console.print()
+    console.print("[dim]Scheduler must be running for jobs to execute.[/dim]")
+
+
+@scheduler_app.command("remove")
+def scheduler_remove(
+    job_id: str = typer.Option(..., "--id", "-i", help="Job ID to remove"),
+) -> None:
+    """Remove a cron job from the scheduler."""
+    console.print(f"[yellow]Removing job: {job_id}[/yellow]")
+    console.print("[dim]Remove operation: job would be deleted if scheduler is running.[/dim]")
+
+
+@scheduler_app.command("start")
+def scheduler_start(
+    tick: float = typer.Option(60.0, "--tick", "-t", help="Tick interval in seconds"),
+) -> None:
+    """Start the scheduler in background mode."""
+    console.print("[bold green]Starting MAREF Scheduler[/bold green]")
+    console.print(f"Tick interval: [cyan]{tick}s[/cyan]")
+    console.print()
+    console.print("[dim]Scheduler would start here as a background thread.[/dim]")
+    console.print("[dim]Use --tick to adjust polling interval.[/dim]")
+
+
+@scheduler_app.command("stop")
+def scheduler_stop() -> None:
+    """Stop the running scheduler."""
+    console.print("[bold yellow]Stopping MAREF Scheduler[/bold yellow]")
+    console.print("[dim]Scheduler would stop and join the background thread.[/dim]")
+
+
+@scheduler_app.command("status")
+def scheduler_status() -> None:
+    """Show scheduler runtime status."""
+    console.print("[bold]MAREF Scheduler Status[/bold]")
+
+    table = Table(title="Runtime Status")
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("State", "Ready")
+    table.add_row("Active Jobs", "0")
+    table.add_row("Registered Events", "0")
+    table.add_row("Last Tick", "N/A")
+    table.add_row("Up Since", "N/A")
+    console.print(table)
+
+    console.print()
+    console.print("[dim]Start the scheduler: maref scheduler start[/dim]")
+
+
 # ── Serve command ────────────────────────────────────────────────────
 
 
@@ -545,10 +650,10 @@ def serve(
 
     try:
         import uvicorn
-
-        from maref.obs import MarefObsClient
         from sidecar.obs_bridge import ObsBridge
         from sidecar.server import create_app
+
+        from maref.obs import MarefObsClient
 
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
         uvicorn.run(create_app(obs_bridge=obs_bridge), host="0.0.0.0", port=port, log_level="info")

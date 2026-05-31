@@ -4,9 +4,12 @@ import copy
 import threading
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from maref.executor.queue import TaskQueue
+
+if TYPE_CHECKING:
+    from maref.executor.persistent_store import PersistentSessionStore
 
 
 class Session:
@@ -20,6 +23,7 @@ class Session:
         ttl: float = 3600.0,
         metadata: dict[str, Any] | None = None,
         task_ids: list[str] | None = None,
+        sandbox_id: str = "",
     ) -> None:
         now = _now()
         self.id = id
@@ -30,6 +34,7 @@ class Session:
         self.ttl = ttl
         self.metadata = metadata or {}
         self.task_ids = task_ids or []
+        self.sandbox_id = sandbox_id
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -41,6 +46,7 @@ class Session:
             "ttl": self.ttl,
             "metadata": self.metadata,
             "task_ids": self.task_ids,
+            "sandbox_id": self.sandbox_id,
         }
 
     @classmethod
@@ -54,15 +60,22 @@ class Session:
             ttl=data.get("ttl", 3600.0),
             metadata=data.get("metadata", {}),
             task_ids=data.get("task_ids", []),
+            sandbox_id=data.get("sandbox_id", ""),
         )
 
 
 class SessionManager:
-    def __init__(self, task_queue: TaskQueue, heartbeat_interval: float = 30.0) -> None:
+    def __init__(
+        self,
+        task_queue: TaskQueue,
+        heartbeat_interval: float = 30.0,
+        persistent_store: PersistentSessionStore | None = None,
+    ) -> None:
         self._queue = task_queue
         self._heartbeat_interval = heartbeat_interval
         self._sessions: dict[str, Session] = {}
         self._lock = threading.Lock()
+        self._persistent_store = persistent_store
 
     def create_session(
         self,
@@ -147,6 +160,54 @@ class SessionManager:
             for s in self._sessions.values():
                 counts[s.status] = counts.get(s.status, 0) + 1
             return counts
+
+    def save_to_store(self, session_id: str) -> bool:
+        if self._persistent_store is None:
+            return False
+        with self._lock:
+            session = self._sessions.get(session_id)
+            if session is None:
+                return False
+            return self._persistent_store.save_session(session)
+
+    def save_all_to_store(self) -> int:
+        if self._persistent_store is None:
+            return 0
+        count = 0
+        with self._lock:
+            for session in self._sessions.values():
+                if self._persistent_store.save_session(session):
+                    count += 1
+        return count
+
+    def load_from_store(self, session_id: str) -> Session | None:
+        if self._persistent_store is None:
+            return None
+        session = self._persistent_store.load_session(session_id)
+        if session is None:
+            return None
+        with self._lock:
+            self._sessions[session.id] = session
+        return copy.deepcopy(session)
+
+    def load_all_from_store(self) -> int:
+        if self._persistent_store is None:
+            return 0
+        sessions = self._persistent_store.load_all_sessions()
+        count = 0
+        with self._lock:
+            for session in sessions:
+                if session.id not in self._sessions:
+                    self._sessions[session.id] = session
+                    count += 1
+        return count
+
+    def sync_to_store(self) -> dict[str, int]:
+        saved = self.save_all_to_store()
+        loaded = 0
+        if self._persistent_store is not None:
+            loaded = self.load_all_from_store()
+        return {"saved": saved, "loaded": loaded}
 
 
 def _now() -> str:

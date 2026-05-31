@@ -165,6 +165,12 @@ from maref.integration.memory_bridge import (
     MemoryPriority,
     MemoryStage,
 )
+from maref.integration.remote_bridge import (
+    BridgeState,
+    RemoteBridge,
+    RemoteCommand,
+    RemoteCommandResult,
+)
 from maref.integration.symphony import SymphonyAdapter, SymphonyMessage, SymphonyMessageType
 
 __all__ = [
@@ -240,4 +246,9 @@ __all__ = [
     "UnifiedTrigger",
     "Phase",
     "TriggerAction",
+    # Remote Bridge
+    "BridgeState",
+    "RemoteBridge",
+    "RemoteCommand",
+    "RemoteCommandResult",
 ]

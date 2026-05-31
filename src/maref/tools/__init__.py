@@ -21,8 +21,15 @@ from maref.tools.tool_schema import (
     create_file_tool,
     create_git_tool,
     create_shell_tool,
+    create_web_search_tool,
     get_tool_definition,
     list_tool_definitions,
+)
+from maref.tools.web_search_server import (
+    DomainBlacklist,
+    QuerySanitizer,
+    ResultLimit,
+    create_web_search_server,
 )
 
 __all__ = [
@@ -40,6 +47,10 @@ __all__ = [
     "SensitiveWordFilter",
     "MockEmailBackend",
     "create_email_server",
+    "QuerySanitizer",
+    "ResultLimit",
+    "DomainBlacklist",
+    "create_web_search_server",
     "ToolRegistry",
     "ToolDefinition",
     "ToolRiskLevel",
@@ -50,6 +61,7 @@ __all__ = [
     "create_git_tool",
     "create_browser_tool",
     "create_email_tool",
+    "create_web_search_tool",
     "get_tool_definition",
     "list_tool_definitions",
 ]

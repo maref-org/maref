@@ -14,6 +14,7 @@ def _register_builtin_tools() -> None:
     from maref.tools.file_server import create_file_server
     from maref.tools.git_server import create_git_server
     from maref.tools.shell_server import create_shell_server
+    from maref.tools.web_search_server import create_web_search_server
 
     TOOL_REGISTRY["file"] = {
         "name": "file",
@@ -59,6 +60,15 @@ def _register_builtin_tools() -> None:
         "default_config": {"write_mode": False},
         "tools": ["email_send", "email_list", "email_read", "email_search"],
         "security_controls": ["RecipientWhitelist", "SensitiveWordFilter", "WriteModeGate"],
+    }
+    TOOL_REGISTRY["web_search"] = {
+        "name": "web_search",
+        "description": "Web search and news search with query sanitization and domain blacklist",
+        "factory": create_web_search_server,
+        "version": "0.28.0",
+        "default_config": {"max_results": 10},
+        "tools": ["web_search", "web_search_news"],
+        "security_controls": ["QuerySanitizer", "ResultLimit", "DomainBlacklist"],
     }
 
 
@@ -126,6 +136,7 @@ class ToolRegistry:
                     "read_file", "list_directory", "get_file_info",
                     "git_status", "git_log", "git_diff", "git_branch",
                     "browser_open", "browser_screenshot", "browser_get_html", "browser_get_links",
+                    "web_search", "web_search_news",
                     "email_list", "email_read", "email_search", "get_shell_help",
                 ) else "mcp-rule-005" if tool in (
                     "write_file", "delete_file", "copy_file", "move_file",
