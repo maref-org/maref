@@ -106,3 +106,49 @@ knowledge_graph.json
 .trae/
 node_modules
 .worktrees/
+
+# Runtime generated large files
+coverage.json
+htmlcov/
+coverage_html/
+bandit_report.json
+coverge_per_module_report.json
+governance_audit*.jsonl
+governance_observations.db
+*.db
+
+# Debug / development utilities
+debug_bus.py
+debug_test.py
+_test_desktop_debug*.py
+
+# Telemetry server data
+telemetry-server/data/
+
+# OpenCode config
+.opencode/
+
+# Policy versions (runtime generated)
+policy_versions/
+
+# Mission workspaces (internal)
+.missions/
+
+# Old virtual environments
+.venv2/
+.venv3/
+
+# Cache
+cache/
+
+# Reports (Chinese-language internal)
+reports/
+
+# Raw research output
+research_output/
+
+# Rust/Tauri build artifacts (large binary files >50 MB)
+gui/src-tauri/target/
+
+# Audit logs (large JSONL files >100 MB)
+governance_audit_*.jsonl

@@ -15,7 +15,7 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/maref-team/maref.git
+git clone https://github.com/maref-org/maref.git
 cd maref
 ```
 
@@ -188,7 +188,7 @@ python -m src.sidecar.server
 
 1. 应用会自动检测到更新失败并保留旧版本
 2. 用户在设置中可以触发"检查更新"查看可用版本
-3. 手动降级：从 [GitHub Releases](https://github.com/maref-team/maref/releases) 下载旧版本安装包
+3. 手动降级：从 [GitHub Releases](https://github.com/maref-org/maref/releases) 下载旧版本安装包
 
 ## 监控与告警
 
