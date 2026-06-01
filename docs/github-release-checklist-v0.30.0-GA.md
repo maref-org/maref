@@ -51,7 +51,7 @@
 - [ ] 创建 Git tag：`git tag v0.30.0-GA`
 - [ ] 创建 GitHub Release，附 CHANGELOG
 - [ ] 上传 PyPI：`python -m build && twine upload dist/*`
-- [ ] Docker 镜像构建并推送：`docker build -t maref-team/maref:v0.30.0-GA .`
+- [ ] Docker 镜像构建并推送：`docker build -t maref-org/maref:v0.30.0-GA .`
 - [ ] 验证安装：`pip install maref==0.30.0-GA`
 
 ## 6. 社区启动

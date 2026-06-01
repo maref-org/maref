@@ -1,5 +1,8 @@
 # Agent Operating Manual: MAREF v0.28.0-rc
 
+> **上位法**: 本文件受 [Athena 系统宪法 v1.4](/Volumes/1TB-M2/openclaw/OPC工作区/2-战略/战略+宪法/03-Athena系统宪法-v1.4.md) 约束。冲突时以宪法为准。
+> **同步方向**: A → B 单向（宪法第二条）。本仓库是 Track B 发布源，由 openclaw/public/ 经叙事转化后同步。
+
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
 - **版本**: v0.28.0-rc
@@ -129,3 +132,15 @@ kubectl apply -f k8s/production/
 - Sidecar health: `GET /api/health`
 - MCP endpoint: `POST /api/mcp`
 - MCP well-known: `GET /api/mcp/.well-known`
+
+## Open Source Execution Norm
+> **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](file:///Volumes/1TB-M2/Athena知识库/执行项目/2026/003-open%20human（碳硅基共生）/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架/04-MAREF%20开源模式/开源执行文档/01-开源执行规范-v1.0.md) 约束。
+> **宪法对齐**: Athena 系统宪法 v1.4 第十条（外部 Code Agent 治理）· 第十一条（跨仓库治理）
+> **同步方向**: A → B 单向（宪法第二条）。本仓库是 Track B 发布源。
+
+- 当前阶段: S0（详见 `11-MAREF-开源代办清单-实时更新.md`）
+- 执行规范: `04-MAREF 开源模式/开源执行文档/01-开源执行规范-v1.0.md`
+- 执行计划: `04-MAREF 开源模式/开源执行文档/05-四流并行执行计划-v1.0.md`
+- 执行日志: `04-MAREF 开源模式/开源执行文档/执行日志/`
+- 执行 skill: `.openclaw/maref/skills/` 或 `04-MAREF 开源模式/开源执行文档/SKILL.md`
+- 首次实战: 每步操作需记录日志，完成后封装 Skill
