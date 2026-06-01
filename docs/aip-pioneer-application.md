@@ -15,7 +15,7 @@
 | **项目全称** | Multi-Agent Recursive Engineering Framework (MAREF) |
 | **项目定位** | 多智能体递归进化治理框架 — AIP 协议的开源参考实现（社区驱动，非官方） |
 | **开源协议** | Apache-2.0 |
-| **代码仓库** | https://github.com/maref-team/maref（计划） |
+| **代码仓库** | https://github.com/maref-org（计划） |
 | **学术背书** | arXiv: [待获取 ID] |
 | **联系邮箱** | [待填写] |
 
@@ -23,9 +23,9 @@
 
 ## 二、项目简介（500字以内）
 
-MAREF（Multi-Agent Recursive Engineering Framework）是一个基于 64 卦 Gray Code 状态机的多智能体递归进化治理框架。项目将 Agent 治理作为独立的价值主张而非安全特性，实现了业界首个工程化的四级安全决策树（Rule→Mode→SafetyGate→User），自动化决策率达 97%。
+MAREF（Multi-Agent Recursive Engineering Framework）是一个基于 10 态 Gray Code 状态机的多智能体递归进化治理框架。项目将 Agent 治理作为独立的价值主张而非安全特性，实现了工程化的四级安全决策树（Rule→Mode→SafetyGate→User），自动化决策率达 97%。
 
-MAREF 已通过 TLA+ 形式化验证 5 项核心定理（GrayCodeContinuity、LyapunovConvergence、SpernerCompleteness、LockedImpliesNoExecution、HALTAbsorbing），并经过 200+ 轮红蓝对抗测试，综合防御成功率 99.1%。
+MAREF 已通过 TLA+ 形式化验证 5 项核心定理（LyapunovConvergence、HALTAbsorbing、GrayCodeTransition、SafetyGateIntegrity、RedLineImmutability），并经过 200 轮红蓝对抗测试，综合防御成功率 99.1%。
 
 在国密算法支持方面，MAREF 完整实现了 SM2/SM3/SM4-GCM，符合 GB/T 32918 标准，可为 AIP 协议族提供国密合规的 Agent 身份认证和通信加密能力。
 
@@ -66,10 +66,10 @@ MAREF 已通过 TLA+ 形式化验证 5 项核心定理（GrayCodeContinuity、Ly
 
 ### 4.1 技术独特性
 
-1. **全球唯一形式化验证的 Agent 治理框架**：TLA+ 5 定理证明，数学可证明安全性
+1. **具备形式化验证的 Agent 治理框架**：TLA+ 5 定理证明，数学可证明安全性
 2. **国密算法完整实现**：SM2/SM3/SM4-GCM 纯 Python 实现，符合 GB/T 32918
-3. **200+ 轮红蓝对抗验证**：攻击强度从 2.47 提升至 18.98（7.7×），防御成功率 99.1%
-4. **64 卦 Gray Code 状态机**：汉明距离=1 的状态转换，消除并发 race condition
+3. **200 轮红蓝对抗验证**：攻击强度从 2.47 提升至 18.98（7.7×），防御成功率 99.1%
+4. **10 态 Gray Code 状态机**：汉明距离=1 的状态转换，消除并发 race condition
 
 ### 4.2 与 AIP 标准的战略契合
 

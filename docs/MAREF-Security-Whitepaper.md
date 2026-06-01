@@ -1,6 +1,9 @@
 # MAREF Security Whitepaper
 
-**版本**: v1.0 | **日期**: 2026-05-09 | **适用版本**: MAREF v0.20.0 GA
+**版本**: v2.0 | **日期**: 2026-05-25 | **适用版本**: MAREF v0.30.0-GA
+
+> **注意**: 本文档为中文安全白皮书，与 arXiv 技术白皮书（英文版）互补。
+> 完整技术详情请参阅 [MAREF-Technical-Whitepaper-zh-CN.md](./MAREF-Technical-Whitepaper-zh-CN.md)。
 
 ---
 
@@ -21,7 +24,7 @@ MAREF 桌面 Agent 系统面临六类安全威胁。以下按 STRIDE 方法论�
 
 ## 2. 八层纵深防御架构
 
-MAREF 是全球唯一具备 **8层纵深安全防线** 的桌面 Agent 框架。此架构确保任何一层安全失效时，后续层级仍可拦截。
+MAREF 具备 **8 层纵深安全防线** 的桌面智能体框架。此架构确保任何一层安全失效时，后续层级仍可拦截。
 
 ```
 Layer 1: Screen Capture → RedactionEngine (API Key/密码脱敏)
@@ -105,17 +108,17 @@ Incoming Operation
 
 ## 4. TLA+ 形式化验证
 
-MAREF 是全球唯一具备 **形式化数学证明** 的 Agent 框架。
+MAREF 具备**形式化数学证明**的智能体框架。
 
 ### 4.1 已验证的定理
 
 | 定理 | 含义 | 状态 |
 |------|------|------|
-| **GrayCodeContinuity** | 状态转换汉明距离=1，无灾难性跳跃 | ✅ TLC verified |
-| **LyapunovConvergence** | λ_Gray ≤ λ_Random − n/2，状态空间收敛 | ✅ 数学证明 |
-| **SpernerCompleteness** | 64态空间最大化信息密度（零冗余） | ✅ 组合证明 |
-| **LockedImpliesNoExecution** | LOCKED 状态下不可执行操作 | ✅ TLC verified |
+| **LyapunovConvergence** | Lyapunov 函数单调递减，状态空间收敛 | ✅ TLC verified |
 | **HALTAbsorbing** | HALT 态不可逆（外部干预才能恢复） | ✅ TLC verified |
+| **GrayCodeTransition** | 状态转换汉明距离=1，无灾难性跳跃 | ✅ TLC verified |
+| **SafetyGateIntegrity** | 安全门始终可用，无空决策 | ✅ TLC verified |
+| **RedLineImmutability** | 宪法红线不可被智能体修改 | ✅ TLC verified |
 
 ### 4.2 规范文件
 
@@ -126,7 +129,7 @@ MAREF 是全球唯一具备 **形式化数学证明** 的 Agent 框架。
 
 ## 5. 红蓝对抗测试结果
 
-MAREF 经历了 **100轮红蓝对抗** (R100.5-R200) 验证。
+MAREF 经历了 **200 轮红蓝对抗** 验证。
 
 | 测试场景 | 攻击类型 | 防御成功率 |
 |---------|---------|-----------|
@@ -143,6 +146,8 @@ MAREF 经历了 **100轮红蓝对抗** (R100.5-R200) 验证。
 
 **综合防御成功率**: **99.1%**
 
+**红线条执行率**: **100%**（所有宪法红线在 200 轮中零突破）
+
 ---
 
 ## 6. 竞品安全对比矩阵
@@ -157,7 +162,7 @@ MAREF 经历了 **100轮红蓝对抗** (R100.5-R200) 验证。
 | 形式化验证 | ✅ (TLA+) | ❌ | ❌ | ❌ | ❌ |
 | 漂移检测 | ✅ | ❌ | ❌ | ❌ | ❌ |
 | 身份/信任体系 | ✅ (DID+VC) | ❌ | ❌ | ❌ | ❌ |
-| 红蓝对抗 | ✅ (100轮) | ❌ | ❌ | ❌ | ❌ |
+| 红蓝对抗 | ✅ (200 轮) | ❌ | ❌ | ❌ | ❌ |
 | 渗透测试 | ✅ (10类) | ❌ | ❌ | ❌ | ❌ |
 
 ---
@@ -204,4 +209,4 @@ tlc src/formal/MAREFDeskJoint.tla -config src/formal/MAREFDeskJointMC.cfg
 
 ---
 
-*白皮书版本: v1.0 | 与 MAREF v0.20.0 GA 同步发布*
+*白皮书版本: v2.0 | 与 MAREF v0.30.0-GA 同步发布 | 数据已统一至 arXiv 技术标准*

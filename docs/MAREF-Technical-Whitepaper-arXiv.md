@@ -11,7 +11,7 @@
 
 ## Abstract
 
-We present MAREF (Multi-Agent Recursive Engineering Framework), the first open-source agent governance operating system that treats governance as a first-class product rather than a security feature. MAREF introduces a formally verifiable 10-state Gray Code governance state machine, a four-tier safety decision tree with 97% automation rate, and a recursive self-evolution engine proven to converge under Lyapunov stability conditions. We validate empirical convergence over 200+ rounds, verify five constitutional red lines via TLA+ model checking, and demonstrate production-grade performance including Chinese cryptographic standards (SM2/SM3/SM4-GCM). MAREF bridges the gap between academic formal methods and industrial multi-agent deployment, providing an 8-layer defense-in-depth architecture for desktop agent manipulation, cross-framework orchestration, and human-in-the-loop collaboration.
+We present MAREF (Multi-Agent Recursive Engineering Framework), an open-source agent governance operating system that treats governance as a first-class product rather than a security feature. MAREF introduces a formally verifiable 10-state Gray Code governance state machine, a four-tier safety decision tree with 97% automation rate, and a recursive self-evolution engine proven to converge under Lyapunov stability conditions. We validate empirical convergence over 200+ rounds, verify five constitutional red lines via TLA+ model checking, and demonstrate production-grade performance including Chinese cryptographic standards (SM2/SM3/SM4-GCM). MAREF bridges the gap between academic formal methods and industrial multi-agent deployment, providing an 8-layer defense-in-depth architecture for desktop agent manipulation, cross-framework orchestration, and human-in-the-loop collaboration.
 
 **Keywords**: multi-agent systems, agent governance, formal verification, recursive self-evolution, Gray code state machine, Lyapunov stability, TLA+, Chinese cryptography
 
@@ -85,20 +85,20 @@ Traditional agent state machines use arbitrary state transitions, which create r
 
 ### 3.2 State Encoding
 
-The 10 states are encoded in 6 bits (allowing room for future expansion):
+The 10 states are encoded in 4 bits:
 
 | State | Binary | Entropy | Description |
 |-------|--------|---------|-------------|
-| INIT | 000000 | 0 | System initialization |
-| OBSERVE | 000001 | 1 | Monitoring agent behavior |
-| ANALYZE | 000011 | 2 | Pattern analysis and threat detection |
-| PLAN | 000010 | 3 | Strategy formulation |
-| ACT | 000110 | 4 | Action execution (highest entropy) |
-| VERIFY | 000111 | 3 | Post-action verification |
-| STABILIZE | 000101 | 2 | System stabilization |
-| DEGRADED | 000100 | 1 | Graceful degradation |
-| LOCKED | 001100 | 0 | Emergency lock (terminal) |
-| HALT | 001000 | 0 | Complete shutdown (absorbing) |
+| INIT | 0000 | 0 | System initialization |
+| OBSERVE | 0001 | 1 | Monitoring agent behavior |
+| ANALYZE | 0011 | 2 | Pattern analysis and threat detection |
+| EVALUATE | 0010 | 2 | Policy evaluation |
+| DECIDE | 0110 | 3 | Governance decision |
+| ACT | 0111 | 4 | Action execution (highest entropy) |
+| VERIFY | 0101 | 3 | Post-action verification |
+| STABILIZE | 0100 | 1 | System stabilization |
+| REPORT | 1100 | 0 | Status reporting |
+| HALT | 1101 | 0 | Complete shutdown (absorbing) |
 
 **Theorem (Gray Code Transition Safety)**: For any two valid states $s_t$ and $s_{t+1}$, $hamming\_distance(s_t, s_{t+1}) = 1$.
 
@@ -140,7 +140,7 @@ Layer 8: ActionRecorder → Immutable operation audit (OpenAdapt paradigm)
 
 ### 4.2 Four-Tier Decision Tree
 
-The `PolicyDecisionTree` is the industry's first engineered agent governance decision layer:
+The `PolicyDecisionTree` is an engineered agent governance decision layer:
 
 ```
 Incoming Operation
@@ -405,13 +405,39 @@ Over 200 rounds of 5-stage red-blue adversarial testing, attack intensity increa
 
 ### 10.1 Agent Frameworks
 
-**AutoGen** (Microsoft) provides conversational agent patterns but lacks formal governance. **CrewAI** focuses on role-based task delegation without safety verification. **LangGraph** offers stateful agent graphs but no built-in circuit breakers. MAREF is the first to integrate formal verification, recursive evolution, and defense-in-depth safety as core architectural primitives.
+**AutoGen** (Microsoft) provides conversational agent patterns but lacks formal governance. **CrewAI** focuses on role-based task delegation without safety verification. **LangGraph** offers stateful agent graphs but no built-in circuit breakers. MAREF integrates formal verification, recursive evolution, and defense-in-depth safety as core architectural primitives.
 
-### 10.2 Safety and Governance
+### 10.2 Security Capability Comparison
+
+| Security Capability | MAREF | Claude Code | OpenAI Agent | LangGraph | CrewAI |
+|---------------------|-------|-------------|--------------|-----------|--------|
+| Pre-operation safety gate | Yes | Yes | No | No | No |
+| Screenshot redaction | Yes | No | No | No | No |
+| Multi-tier decision tree | Yes (4-tier) | Yes (2-tier) | No | No | No |
+| Circuit breaker | Yes | No | No | No | No |
+| Immutable audit log | Yes | Yes | No | No | No |
+| Formal verification | Yes (TLA+) | No | No | No | No |
+| Drift detection | Yes | No | No | No | No |
+| Identity/trust system | Yes (DID+VC) | No | No | No | No |
+| Red-blue adversarial testing | Yes (200 rounds) | No | No | No | No |
+| Penetration testing | Yes (10 categories) | No | No | No | No |
+
+### 10.3 Regulatory Compliance Mapping
+
+| Standard/Regulation | Requirement | MAREF Implementation |
+|---------------------|-------------|----------------------|
+| **ISO 27001 A.12.4** | Logging and monitoring | `AuditLogger` JSONL + HMAC signature |
+| **SOC 2 Type II** | Change management control | `CircuitBreaker` + `PolicyDecisionTree` |
+| **GDPR Art. 25** | Data minimization | `RedactionEngine` screenshot redaction |
+| **GDPR Art. 32** | Secure processing | 8-layer defense in depth |
+| **NIST SP 800-53** | Access control | `DID/VC` + `TrustEngine` 5-factor scoring |
+| **OWASP LLM Top 10** | LLM application security | Prompt injection defense + output validation |
+
+### 10.4 Safety and Governance
 
 **Constitutional AI** (Anthropic) uses RLHF to align models with principles but operates at the model level, not the system level. **Guardrails AI** provides input/output validation but no state machine governance. MAREF's four-tier decision tree and Gray Code FSM operate at the system level, independent of the underlying LLM.
 
-### 10.3 Formal Methods
+### 10.5 Formal Methods
 
 **TLA+** has been used to verify distributed systems (Amazon AWS) and consensus protocols (Raft). MAREF extends this to agent governance, proving convergence and safety invariants for recursive self-modifying systems.
 
@@ -507,11 +533,11 @@ Gy = 0xBC3736A2_F4F6779C_59BDCEE3_6B692153_D0A9877C_C62A4740_02DF32E5_2139F0A0
 
 ## Appendix C: Repository and License
 
-- **Repository**: https://github.com/maref-team/maref
+- **Repository**: https://github.com/maref-org
 - **License**: Apache-2.0
 - **Version**: v0.30.0-GA
 - **Python**: 3.10+
-- **Documentation**: https://docs.maref.dev
+- **Documentation**: https://maref.cc
 
 ## Appendix D: Legal Disclaimer
 

@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -40,7 +41,15 @@ from maref.integration.mcp_security import (
     ZeroTrustContext,
 )
 
-HMAC_SECRET_KEY = b"maref-mcp-governance-v0.27.0"
+HMAC_SECRET_KEY = os.environb.get(
+    b"MAREF_HMAC_SECRET_KEY",
+    b"maref-mcp-governance-v0.27.0",
+)
+"""HMAC secret key for audit log signing.
+
+In production, always set MAREF_HMAC_SECRET_KEY environment variable.
+The default value is for development/testing only and MUST NOT be used in production.
+"""
 
 
 @dataclass

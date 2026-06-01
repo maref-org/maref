@@ -7,7 +7,7 @@
 ## 1. Installation
 
 ```bash
-git clone https://github.com/maref-team/maref.git
+git clone https://github.com/maref-org/maref.git
 cd maref
 python3 -m venv .venv
 source .venv/bin/activate
@@ -199,7 +199,7 @@ Checks: dependencies → macOS permissions → window manager → input controll
 - Read the [Security Whitepaper](docs/MAREF-Security-Whitepaper.md)
 - Run `pytest tests/ -v` for the full test suite
 - Explore `src/formal/MAREFDeskJoint.tla` for TLA+ verification
-- Join the community at [github.com/maref-team/maref](https://github.com/maref-team/maref)
+- Join the community at [github.com/maref-org](https://github.com/maref-org)
 
 ---
 
