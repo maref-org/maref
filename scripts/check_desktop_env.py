@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 
 def _check_import(name: str, package: str) -> dict[str, Any]:
     try:
@@ -74,7 +76,6 @@ def check_gpu() -> dict[str, Any]:
 
 
 def check_network() -> dict[str, Any]:
-    import urllib.request
     targets = {
         "huggingface": "https://huggingface.co",
         "pypi": "https://pypi.org",
@@ -82,8 +83,8 @@ def check_network() -> dict[str, Any]:
     result = {}
     for name, url in targets.items():
         try:
-            urllib.request.urlopen(url, timeout=5)
-            result[name] = True
+            response = httpx.get(url, timeout=5, follow_redirects=True)
+            result[name] = response.is_success
         except Exception:
             result[name] = False
     return result

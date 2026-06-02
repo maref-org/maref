@@ -3,10 +3,11 @@ from __future__ import annotations
 import base64
 import ipaddress
 import re
-import urllib.request
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urlparse
+
+import httpx
 
 from maref.integration.mcp_server import MCPServer
 
@@ -99,19 +100,18 @@ def _extract_title(html: str) -> str:
 
 
 def _fetch_url(url: str, max_size: int = DEFAULT_MAX_CONTENT_SIZE) -> tuple[bytes, dict[str, Any]]:
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        content = resp.read(max_size + 1)
-        if len(content) > max_size:
-            raise ValueError(f"Content exceeds maximum size of {max_size} bytes")
-        info = dict(resp.headers)
-        return content, info
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+    with httpx.Client(timeout=30, follow_redirects=True, headers=headers) as client, client.stream("GET", url) as resp:
+        resp.raise_for_status()
+        content = b""
+        for chunk in resp.iter_bytes():
+            content += chunk
+            if len(content) > max_size:
+                raise ValueError(f"Content exceeds maximum size of {max_size} bytes")
+        return content, dict(resp.headers)
 
 
 def _decode_content(content: bytes, headers: dict[str, Any]) -> str:

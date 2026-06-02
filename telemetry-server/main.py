@@ -19,9 +19,15 @@ app = FastAPI(
     description="Privacy-first telemetry aggregation for the MAREF governance layer.",
 )
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.environ.get("MAREF_TELEMETRY_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )

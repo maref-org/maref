@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import re
 import urllib.parse
-import urllib.request
 from html.parser import HTMLParser
 from typing import Any
+
+import httpx
 
 from maref.integration.mcp_server import MCPServer
 
@@ -177,13 +178,15 @@ def _execute_search(
         params["t"] = "news"
 
     url = f"{SEARCH_URL}?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": USER_AGENT, "Accept": "text/html"},
-    )
     try:
-        with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
-            html = resp.read().decode("utf-8", errors="replace")
+        response = httpx.get(
+            url,
+            headers={"User-Agent": USER_AGENT, "Accept": "text/html"},
+            timeout=DEFAULT_TIMEOUT,
+            follow_redirects=True,
+        )
+        response.raise_for_status()
+        html = response.text
     except Exception:
         return []
 

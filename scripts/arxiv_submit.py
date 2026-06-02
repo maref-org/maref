@@ -30,6 +30,9 @@ import tempfile
 import textwrap
 import urllib.parse
 
+import httpx
+from defusedxml import ElementTree as ET
+
 # ── Constants ──
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARXIV_DIR = os.path.join(PROJECT_ROOT, "docs", "arxiv-submission")
@@ -389,8 +392,6 @@ def run_pipeline(check_only: bool = False, url_only: bool = False) -> int:
 def find_endorsers(max_papers: int = 20) -> list[dict]:
     """Query arXiv API for recent cs.MA papers and extract potential endorser info."""
     import re
-    import urllib.request
-    import xml.etree.ElementTree as ET
 
     url = (
         f"https://export.arxiv.org/api/query?"
@@ -399,9 +400,10 @@ def find_endorsers(max_papers: int = 20) -> list[dict]:
     )
     print(f"  fetching recent cs.MA papers from arXiv API...")
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "MAREF/1.0"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            xml_data = resp.read().decode("utf-8")
+        with httpx.Client(timeout=30, headers={"User-Agent": "MAREF/1.0"}) as client:
+            response = client.get(url)
+            response.raise_for_status()
+            xml_data = response.text
     except Exception as e:
         print(f"  {_red(f'API error: {e}')}")
         return []
