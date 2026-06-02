@@ -3,7 +3,7 @@
 
 # LLM integration
 aiohttp>=3.9.0
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2
 
 # Agent framework adapters (P0.2)
 pyautogen>=0.10.0
