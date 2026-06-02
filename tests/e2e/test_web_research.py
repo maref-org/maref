@@ -83,10 +83,10 @@ class TestWebSearchServer:
         assert "web_search" in server._tools
         assert "web_search_news" in server._tools
 
-    @patch("maref.tools.web_search_server.urllib.request.urlopen")
-    def test_web_search_e2e(self, mock_urlopen: MagicMock) -> None:
+    @patch("maref.tools.web_search_server.httpx.get")
+    def test_web_search_e2e(self, mock_get: MagicMock) -> None:
         mock_response = MagicMock()
-        mock_response.read.return_value = b"""
+        mock_response.text = """
         <html>
         <body>
         <table>
@@ -98,15 +98,16 @@ class TestWebSearchServer:
         </body>
         </html>
         """
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
 
         results = _execute_search("test query", max_results=5)
         assert isinstance(results, list)
 
-    @patch("maref.tools.web_search_server.urllib.request.urlopen")
-    def test_web_search_news_e2e(self, mock_urlopen: MagicMock) -> None:
+    @patch("maref.tools.web_search_server.httpx.get")
+    def test_web_search_news_e2e(self, mock_get: MagicMock) -> None:
         mock_response = MagicMock()
-        mock_response.read.return_value = b"""
+        mock_response.text = """
         <html>
         <body>
         <table>
@@ -118,23 +119,24 @@ class TestWebSearchServer:
         </body>
         </html>
         """
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
 
         results = _execute_search("news query", max_results=5, search_type="news")
         assert isinstance(results, list)
 
-    @patch("maref.tools.web_search_server.urllib.request.urlopen")
-    def test_web_search_empty_query(self, mock_urlopen: MagicMock) -> None:
+    @patch("maref.tools.web_search_server.httpx.get")
+    def test_web_search_empty_query(self, mock_get: MagicMock) -> None:
         results = _execute_search("   ", max_results=5)
         assert results == []
-        mock_urlopen.assert_not_called()
+        mock_get.assert_not_called()
 
 
 class TestWebResearchE2E:
-    @patch("maref.tools.web_search_server.urllib.request.urlopen")
-    def test_full_research_flow(self, mock_urlopen: MagicMock) -> None:
+    @patch("maref.tools.web_search_server.httpx.get")
+    def test_full_research_flow(self, mock_get: MagicMock) -> None:
         mock_response = MagicMock()
-        mock_response.read.return_value = b"""
+        mock_response.text = """
         <html>
         <body>
         <table>
@@ -150,7 +152,8 @@ class TestWebResearchE2E:
         </body>
         </html>
         """
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
 
         server = create_web_search_server(max_results=5)
 

@@ -43,6 +43,14 @@ spec:
           envFrom:
             - configMapRef:
                 name: maref-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8080
               name: http

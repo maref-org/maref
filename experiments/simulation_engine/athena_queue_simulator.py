@@ -174,7 +174,7 @@ class AthenaQueueSimulator:
                     "timeout_seconds": random.randint(300, 1800),
                 },
                 "created_at": datetime.now().isoformat(),
-                "hash": hashlib.md5(task_id.encode()).hexdigest()[:8],
+                "hash": hashlib.sha256(task_id.encode()).hexdigest()[:8],
             }
             base_entries.append(entry)
 
