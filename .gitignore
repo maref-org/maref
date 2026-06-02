@@ -121,6 +121,8 @@ governance_observations.db
 debug_bus.py
 debug_test.py
 _test_desktop_debug*.py
+cli_percv_demo.py
+integration_demo.py
 
 # Telemetry server data
 telemetry-server/data/
