@@ -17,7 +17,7 @@ echo "============================================"
 echo ""
 
 echo "M1: 版本一致性"
-V=$(python3 -c "import tomllib; print(tomllib.load('pyproject.toml','rb')['project']['version'])")
+V=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
 echo "  版本: $V"
 check "pyproject.toml version valid (PEP440)" pass
 
