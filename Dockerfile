@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
     x11-utils \
     scrot \
-    libgl1-mesa-glx \
+    libgl1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r maref && useradd -r -g maref -d /app -s /sbin/nologin maref
 
