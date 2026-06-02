@@ -2,9 +2,9 @@
 
 **M**ulti-**A**gent **R**ecursive **E**ngineering **F**ramework
 
-[![CI](https://github.com/maref-team/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-team/maref/actions)
+[![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.30.0--GA-blue)](https://github.com/maref-team/maref/releases)
+[![Version](https://img.shields.io/badge/version-0.30.0-blue)](https://github.com/maref-org/maref/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]()
 [![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]()
