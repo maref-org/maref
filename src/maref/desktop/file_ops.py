@@ -54,6 +54,8 @@ _DANGEROUS_OPERATIONS_ON_ANY_PATH = {
     FileOperation.EXEC,
 }
 
+_MAX_WRITE_BYTES = 1024 * 1024
+
 
 @dataclass
 class FileOpRequest:
@@ -140,6 +142,17 @@ class FileSafetyGuard:
         if (ext in _RESTRICTED_EXTENSIONS or file_name in _RESTRICTED_EXTENSIONS) and request.operation in (FileOperation.READ, FileOperation.COPY):
             self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message=f"Sensitive file extension blocked: {ext}"))
             return SafetyVerdict.BLOCK
+
+        if request.operation == FileOperation.WRITE and len(request.content.encode("utf-8")) > _MAX_WRITE_BYTES:
+            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message="Write content exceeds maximum allowed size"))
+            return SafetyVerdict.BLOCK
+
+        if request.destination and request.operation in (FileOperation.MOVE, FileOperation.COPY):
+            destination = str(Path(request.destination).resolve())
+            for blocked in self.block_paths:
+                if destination == blocked or destination.startswith(blocked + "/"):
+                    self._log(FileOpResult(success=False, operation=request.operation, path=request.destination, verdict=SafetyVerdict.BLOCK, error_message=f"Destination path is restricted: {blocked}"))
+                    return SafetyVerdict.BLOCK
 
         if request.operation == FileOperation.DELETE:
             if resolved.startswith(os.path.expanduser("~/")):

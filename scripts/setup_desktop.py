@@ -24,6 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 MODEL_CACHE_DIR = Path.home() / ".cache" / "maref" / "models"
 PLAYWRIGHT_BROWSERS = Path.home() / ".cache" / "ms-playwright"
 OMNI_PARSER_MODEL = "microsoft/OmniParser-v2.0"
@@ -79,9 +81,8 @@ def _check_gpu() -> dict[str, Any]:
 
 def _check_huggingface_reachable() -> bool:
     try:
-        import urllib.request
-        urllib.request.urlopen("https://huggingface.co", timeout=5)
-        return True
+        response = httpx.get("https://huggingface.co", timeout=5, follow_redirects=True)
+        return response.is_success
     except Exception:
         return False
 

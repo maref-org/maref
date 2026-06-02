@@ -67,7 +67,7 @@ class KeyringStore:
         if self._keyring_available:
             try:
                 keyring.set_password(self._service, key, value)
-                logger.info("Stored credential for %s in keychain", key)
+                logger.info("Stored credential in keychain")
                 return True
             except Exception as e:
                 logger.error("Keyring set failed for %s: %s", key, e)
@@ -78,7 +78,7 @@ class KeyringStore:
         if self._keyring_available:
             try:
                 keyring.delete_password(self._service, key)
-                logger.info("Deleted credential for %s from keychain", key)
+                logger.info("Deleted credential from keychain")
                 return True
             except Exception as e:
                 logger.debug("Keyring delete failed for %s: %s", key, e)
