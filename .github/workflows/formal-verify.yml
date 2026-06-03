@@ -3,12 +3,10 @@ name: Formal Verification
 on:
   push:
     paths:
-      - 'src/formal/**'
-      - 'src/maref/governance/**'
+      - 'experiments/formal/**'
   pull_request:
     paths:
-      - 'src/formal/**'
-      - 'src/maref/governance/**'
+      - 'experiments/formal/**'
   workflow_dispatch:
 
 jobs:
@@ -16,12 +14,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup TLA+
+
+      - name: Setup TLA+ Tools
         run: |
-          wget -q https://github.com/tlaplus/tlaplus/releases/download/v1.4.5/tla2tools.jar -O /tmp/tla2tools.jar
-      - name: Verify Gray Code FSM
+          mkdir -p ~/tla2tools
+          curl -sL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar \
+            -o ~/tla2tools/tla2tools.jar
+
+      - name: Validate MarefLiteModel
         run: |
-          java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MarefLite.tla -config src/formal/MarefLiteMC.cfg
-      - name: Verify Consensus
+          java -cp ~/tla2tools/tla2tools.jar \
+            tlc2.TLC \
+            experiments/formal/MarefLiteModel.tla \
+            -config experiments/formal/MarefLiteMC.cfg \
+            -deadlock \
+            -workers auto \
+            -coverage 1 \
+            | tee experiments/formal/MarefLite_result.txt
+          grep -q "Model checking completed" experiments/formal/MarefLite_result.txt && \
+            echo "✅ MarefLite FSM verified"
+
+      - name: Validate Consensus Protocol
         run: |
-          java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MAREF_Consensus.tla -config src/formal/MAREF_ConsensusMC.cfg
+          java -cp ~/tla2tools/tla2tools.jar \
+            tlc2.TLC \
+            experiments/formal/MAREF_Consensus.tla \
+            -config experiments/formal/MAREF_ConsensusMC.cfg \
+            -deadlock \
+            -workers auto \
+            -coverage 1 \
+            | tee experiments/formal/Consensus_result.txt
+          grep -q "Model checking completed" experiments/formal/Consensus_result.txt && \
+            echo "✅ Consensus protocol verified"
+
+      - name: Upload verification results
+        uses: actions/upload-artifact@v4
+        with:
+          name: tla-verification-results
+          path: experiments/formal/*_result.txt

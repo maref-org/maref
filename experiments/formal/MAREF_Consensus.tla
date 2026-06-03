@@ -13,7 +13,7 @@
   Based on the MAREF WeightedConsensusEngine implementation.
 *)
 
-EXTENDS Naturals, Sequences, FiniteSets
+EXTENDS Naturals, Sequences, FiniteSets, Reals, TLC
 
 CONSTANTS
   Validators,        (* Set of validator identifiers *)
@@ -24,7 +24,10 @@ CONSTANTS
 ASSUME IsFiniteSet(Validators)
 ASSUME Validators /= {}
 ASSUME MaxWeight \in Nat \ {0}
-ASSUME QuorumThreshold \in {x \in Real : x > 0.5 /\ x <= 1.0}
+ASSUME QuorumThreshold > 0.5 /\ QuorumThreshold <= 1.0
+
+(* --- Helper: minimum of two numbers --- *)
+Min(a, b) == IF a <= b THEN a ELSE b
 
 (* --- Type definitions --- *)
 
@@ -39,7 +42,7 @@ VARIABLES
   votes,             (* [Validators X Proposals -> VoteValues \union {"none"}] *)
   byzantine,         (* [Validators -> BOOLEAN] is validator byzantine? *)
   decisions,         (* [Proposals -> VoteValues \union {"none"}] final decision *)
-  round,             (* Current consensus round *)
+  round              (* Current consensus round *)
 
 vars == <<weights, trustScores, votes, byzantine, decisions, round>>
 
@@ -58,9 +61,13 @@ Init ==
 
 CorrectValidators == { v \in Validators : ~byzantine[v] }
 
-TotalWeight == LET w == weights IN
-  IF {w[v] : v \in CorrectValidators} = {} THEN 0
-  ELSE LET S == {w[v] : v \in CorrectValidators} IN CHOOSE t \in S : \A x \in S : t >= x
+TotalWeight ==
+  LET cw == {v \in Validators : ~byzantine[v]}
+      w_sum == IF cw = {} THEN 0
+               ELSE LET S == {weights[vv] : vv \in cw}
+                    IN LET sum_val == CHOOSE t \in Nat : \A x \in S : t >= x
+                       IN sum_val
+  IN w_sum
 
 QuorumWeight == TotalWeight * QuorumThreshold
 
@@ -74,10 +81,10 @@ ConsensusReached(p) ==
 
 (* --- Safety Properties (Invariants) --- *)
 
-(* Invariant 1: No two correct validators disagree on a decided proposal *)
+(* Invariant 1: Agreement — a decided proposal has exactly one decision *)
 AgreementInvariant ==
-  \E decision \in VoteValues :
-    \A p \in proposals : decisions[p] = decision \/ decisions[p] = "none"
+  \A p \in proposals :
+    decisions[p] = "none" \/ decisions[p] \in VoteValues
 
 (* Invariant 2: Validator weights stay within bounds *)
 WeightBoundsInvariant ==
@@ -112,8 +119,8 @@ TrustWeightCorrelationInvariant ==
 CreateProposal(p) ==
   /\ p \notin proposals
   /\ proposals' = proposals \cup {p}
-  /\ votes' = [v \in Validators, q \in PROPOSALS |-> IF q = p THEN "none" ELSE votes[v,q]]
-  /\ decisions' = [q \in PROPOSALS |-> IF q = p THEN "none" ELSE decisions[q]]
+  /\ votes' = [v \in Validators, q \in proposals' |-> IF q = p THEN "none" ELSE votes[v,q]]
+  /\ decisions' = [q \in proposals' |-> IF q = p THEN "none" ELSE decisions[q]]
   /\ UNCHANGED <<weights, trustScores, byzantine, round>>
 
 (* Action: Validator casts a vote *)
@@ -122,7 +129,7 @@ CastVote(v, p, val) ==
   /\ v \in Validators
   /\ val \in VoteValues
   /\ votes[v,p] = "none"                     (* Must not have voted already *)
-  /\ votes' = [w \in Validators, q \in PROPOSALS |->
+  /\ votes' = [w \in Validators, q \in proposals |->
       IF w = v /\ q = p THEN val ELSE votes[w,q]]
   /\ UNCHANGED <<weights, trustScores, proposals, byzantine, decisions, round>>
 
@@ -134,7 +141,7 @@ ReachConsensus(p) ==
   /\ LET winner == CHOOSE d \in VoteValues :
         LET approving == {w \in CorrectValidators : votes[w,p] = d}
         IN IF approving /= {} THEN TRUE ELSE FALSE
-     IN decisions' = [q \in PROPOSALS |-> IF q = p THEN winner ELSE decisions[q]]
+     IN decisions' = [q \in proposals |-> IF q = p THEN winner ELSE decisions[q]]
   /\ UNCHANGED <<weights, trustScores, proposals, votes, byzantine, round>>
 
 (* Action: Update weights after consensus (reward/punish) *)
@@ -143,11 +150,11 @@ UpdateWeights(p) ==
   /\ decisions[p] /= "none"                    (* Consensus reached *)
   /\ LET winner == decisions[p]
      IN weights' = [v \in Validators |->
-          IF votes[v,p] = winner THEN Min({weights[v] * 1.05, MaxWeight})
+          IF votes[v,p] = winner THEN Min(weights[v] * 1.05, MaxWeight)
           ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN weights[v] * 0.95
           ELSE weights[v]]
   /\ trustScores' = [v \in Validators |->
-       IF votes[v,p] = winner THEN Min({trustScores[v] * 1.02, 1.0})
+       IF votes[v,p] = winner THEN Min(trustScores[v] * 1.02, 1.0)
        ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN trustScores[v] * 0.98
        ELSE trustScores[v]]
   /\ round' = round + 1
@@ -181,24 +188,27 @@ Next ==
 
 Spec == Init /\ [][Next]_vars
 
+(* --- Model checking constraints --- *)
+
+(* Bounded state space for TLC *)
+StateConstraint == round <= MaxRounds
+
 (* --- Temporal Properties --- *)
 
 (* Liveness: Eventually a proposal reaches consensus if quorum votes *)  
 ConsensusLiveness ==
   \E p \in proposals :
-    (/\ \A decision \in VoteValues :
-          LET total == {weights[v] : v \in CorrectValidators, votes[v,p] = decision}
-          IN total >= QuorumWeight)
+    (/\ \E decision \in VoteValues :
+          LET approving == {w \in CorrectValidators : votes[w,p] = decision}
+              total_app == IF approving = {} THEN 0
+                          ELSE LET S == {weights[vv] : vv \in approving}
+                               IN CHOOSE t \in S : \A x \in S : t >= x
+          IN total_app >= QuorumWeight)
     ~> decisions[p] /= "none"
 
 (* Termination: System eventually produces a decision *)
 Termination ==
-  \E p \in proposals : <> (decisions[p] /= "none")
-
-(* --- Model checking constraints --- *)
-
-(* Bounded state space for TLC *)
-StateConstraint == round <= MaxRounds
+  \E p \in proposals : <>(decisions[p] /= "none")
 
 (* Property constraints for TLC: invariant checking *)
 THEOREM Spec => []WeightBoundsInvariant

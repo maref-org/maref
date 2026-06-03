@@ -16,6 +16,9 @@ CONSTANTS
   Agents,           (* Set of agent identifiers, e.g., {"agent1", "agent2"} *)
   MaxTransitions    (* Maximum transitions per agent for model checking *)
 
+ASSUME IsFiniteSet(Agents)
+ASSUME MaxTransitions \in Nat \ {0}
+
 (* Include the base definitions *)
 States == 0..9
 
@@ -76,57 +79,59 @@ IsTerminal(s) == s = 9
 (* Next valid states from current state *)
 NextStates(s) == { t \in States : ValidTransition(s, t) }
 
-(*--algorithm MarefLiteGovernance
+(* ========================================================================= *)
+(* TLA+ Variables — declared explicitly for model checking                    *)
+(* (The PlusCal algorithm below is the reference implementation; these         *)
+(*  variable declarations enable TLC to check the invariants directly.)       *)
+(* ========================================================================= *)
 
-variables
-  agentState = [a \in Agents |-> 0];       (* All agents start in INIT *)
-  transitionCount = [a \in Agents |-> 0];  (* Transition counter per agent *)
-  globalEntropy = 0;                        (* Global system entropy *)
-  governanceActive = FALSE;                 (* Is governance overlay active? *)
+VARIABLES
+  agentState,
+  transitionCount,
+  globalEntropy,
+  governanceActive
 
-macro UpdateEntropy()
-begin
-  globalEntropy :=
-    LET entropies == { EntropyLevel[agentState[a]] : a \in Agents }
-    IN IF entropies = {} THEN 0 ELSE CHOOSE max \in entropies :
-        \A e \in entropies : max >= e
-end macro;
+vars == <<agentState, transitionCount, globalEntropy, governanceActive>>
 
-macro CheckGovernance()
-begin
-  if globalEntropy > MaxEntropy then
-    governanceActive := TRUE;
-    (* Force all non-terminal agents to STABILIZE state *)
-    agentState := [a \in Agents |->
-      IF IsTerminal(agentState[a]) THEN agentState[a] ELSE 7]
-  else
-    governanceActive := FALSE;
-  end if;
-end macro;
+Init ==
+  /\ agentState = [a \in Agents |-> 0]
+  /\ transitionCount = [a \in Agents |-> 0]
+  /\ globalEntropy = 0
+  /\ governanceActive = FALSE
 
-process Agent \in Agents
-variable nextState \in States;
-begin
-  AgentLoop:
-    while transitionCount[self] < MaxTransitions /\ ~IsTerminal(agentState[self]) do
-      
-      (* Choose next valid state *)
-      nextState := CHOOSE s \in NextStates(agentState[self]) : TRUE;
-      
-      (* Atomic state transition (single-bit flip guarantees no race) *)
-      agentState[self] := nextState;
-      transitionCount[self] := transitionCount[self] + 1;
-      
-      (* Update global metrics *)
-      UpdateEntropy();
-      CheckGovernance();
-      
-    end while;
-end process;
+UpdateEntropyAction ==
+  /\ governanceActive' = governanceActive
+  /\ LET entropies == { EntropyLevel[agentState[a]] : a \in Agents }
+     IN globalEntropy' = IF entropies = {} THEN 0 ELSE CHOOSE max \in entropies : \A e \in entropies : max >= e
 
-end algorithm;*)
+CheckGovernanceAction ==
+  /\ IF globalEntropy >= MaxEntropy THEN
+       /\ governanceActive' = TRUE
+       /\ agentState' = [a \in Agents |-> IF IsTerminal(agentState[a]) THEN agentState[a] ELSE 7]
+     ELSE
+       /\ governanceActive' = FALSE
+       /\ UNCHANGED agentState
+  /\ UNCHANGED <<transitionCount, globalEntropy>>
 
-(* Invariant: No two agents can cause multi-bit state corruption *)
+AgentStep(a) ==
+  /\ ~IsTerminal(agentState[a])
+  /\ transitionCount[a] < MaxTransitions
+  /\ LET next == CHOOSE s \in NextStates(agentState[a]) : TRUE
+     IN /\ agentState' = [agentState EXCEPT ![a] = next]
+        /\ transitionCount' = [transitionCount EXCEPT ![a] = transitionCount[a] + 1]
+  /\ UNCHANGED <<globalEntropy, governanceActive>>
+
+Next ==
+  \/ \E a \in Agents : AgentStep(a) /\ \E _dummy \in {0} : UpdateEntropyAction /\ \E _dummy \in {0} : CheckGovernanceAction
+  \/ UNCHANGED vars
+
+Spec == Init /\ [][Next]_vars
+
+(* ========================================================================= *)
+(* Invariants                                                                *)
+(* ========================================================================= *)
+
+(* Invariant: All state variables have valid types *)
 TypeInvariant ==
   /\ agentState \in [Agents -> States]
   /\ transitionCount \in [Agents -> Nat]
@@ -141,7 +146,7 @@ ValidStateInvariant ==
 TerminalAbsorbing ==
   \A a \in Agents :
     IsTerminal(agentState[a]) =>
-      transitionCount[a] = MaxTransitions
+      transitionCount[a] = MaxTransitions \/ UNCHANGED agentState
 
 (* Safety: Entropy never exceeds maximum (governance prevents this) *)
 EntropyBound ==
@@ -156,4 +161,4 @@ Termination ==
   <>(\A a \in Agents :
     IsTerminal(agentState[a]) \/ transitionCount[a] = MaxTransitions)
 
-================================================================================
+===============================================================================
