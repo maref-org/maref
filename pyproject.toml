@@ -178,6 +178,17 @@ module = [
     "opentelemetry.sdk.metrics.export",
     "opentelemetry.sdk.resources",
     "PIL.Image",
+    "click",
+    "tomllib",
+    "tomli",
+    "uvicorn",
+    "sidecar.collector",
+    "sidecar.monitor",
+    "sidecar.protocol",
+    "sidecar.exfiltration_probe",
+    "sidecar.mcp_bridge",
+    "sidecar.obs_bridge",
+    "sidecar.server",
 ]
 ignore_missing_imports = true
 
