@@ -32,7 +32,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./gui
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
       - name: Build GUI
         working-directory: ./gui

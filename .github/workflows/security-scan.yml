@@ -19,8 +19,6 @@ jobs:
         uses: trufflesecurity/trufflehog@v3.90.8
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
           extra_args: --only-verified
 
   semgrep-scan:
@@ -56,7 +54,7 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies and start server
         run: |
-          pip install -e ".[dev]"
+          pip install -e ".[dev,sidecar]"
           maref serve --host 0.0.0.0 --port 8080 &
           sleep 5
           curl -sf http://localhost:8080/api/health || exit 1

@@ -18,7 +18,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup TLA+
         run: |
-          wget -q https://github.com/tlaplus/tlaplus/releases/download/v1.4.5/tla2tools.jar -O /tmp/tla2tools.jar
+          wget -q --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 3 https://github.com/tlaplus/tlaplus/releases/download/v1.4.5/tla2tools.jar -O /tmp/tla2tools.jar || \
+          curl -fsSL -o /tmp/tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.4.5/tla2tools.jar
       - name: Verify Gray Code FSM
         run: |
           java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MarefLite.tla -config src/formal/MarefLiteMC.cfg

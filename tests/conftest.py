@@ -78,6 +78,10 @@ def _create_mock_module(name: str) -> ModuleType:
     """Create a mock module where any attribute access returns a MagicMock."""
 
     class _MockModule(ModuleType):
+        # __path__ is required for Python to treat this as a package
+        # so that submodule imports (e.g. from fastapi.testclient import ...) work
+        __path__: list[str] = []
+
         def __getattr__(self, item: str) -> MagicMock:
             return MagicMock()
 
