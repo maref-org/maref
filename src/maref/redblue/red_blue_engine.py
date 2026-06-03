@@ -1,4 +1,5 @@
 """Red Team / Blue Team engine for MAREF security exercises."""
+
 from __future__ import annotations
 
 import random
@@ -59,20 +60,29 @@ class RedBlueEngine:
         self._blue_memory: dict[str, float] = {}
         self._blue_hardening: dict[str, float] = {}
         self._real_sm = GovernanceStateMachine()
-        self._real_cb = CircuitBreaker(max_depth=3, max_consecutive_failures=3, cooldown_seconds=30.0)
+        self._real_cb = CircuitBreaker(
+            max_depth=3, max_consecutive_failures=3, cooldown_seconds=30.0
+        )
 
     def run_round(
-        self, round_id: str, phase: int, attack: AttackDefinition,
-        red_level: RedLevel, blue_level: BlueLevel,
+        self,
+        round_id: str,
+        phase: int,
+        attack: AttackDefinition,
+        red_level: RedLevel,
+        blue_level: BlueLevel,
     ) -> RedBlueResult:
         start = time.time()
 
         result = RedBlueResult(
-            round_id=round_id, phase=phase,
-            red_level=f"R{red_level.numeric}", blue_level=f"B{blue_level.numeric}",
+            round_id=round_id,
+            phase=phase,
+            red_level=f"R{red_level.numeric}",
+            blue_level=f"B{blue_level.numeric}",
             attack_category=attack.category.value[0],
             attack_name=attack.name,
-            attack_intensity=attack.intensity, attack_stealth=attack.stealth,
+            attack_intensity=attack.intensity,
+            attack_stealth=attack.stealth,
         )
 
         detection, detect_time, errors = self._simulate_detection(attack, blue_level)
@@ -101,8 +111,10 @@ class RedBlueEngine:
         result.total_score = round(norm_d + norm_m + norm_r + norm_a, 1)
         result.metadata["elapsed_s"] = round(time.time() - start, 3)
         result.metadata["raw_scores"] = {
-            "detection": detection, "mitigation": mitigation,
-            "recovery": recovery, "adaptation": adaptation,
+            "detection": detection,
+            "mitigation": mitigation,
+            "recovery": recovery,
+            "adaptation": adaptation,
         }
 
         self._results.append(result)
@@ -119,7 +131,9 @@ class RedBlueEngine:
                 pass
 
     def _simulate_detection(
-        self, attack: AttackDefinition, blue: BlueLevel,
+        self,
+        attack: AttackDefinition,
+        blue: BlueLevel,
     ) -> tuple[float, float, list[str]]:
         base = 0.0
         errors: list[str] = []
@@ -154,7 +168,10 @@ class RedBlueEngine:
         return score, detect_time, errors
 
     def _simulate_mitigation(
-        self, attack: AttackDefinition, blue: BlueLevel, detection: float,
+        self,
+        attack: AttackDefinition,
+        blue: BlueLevel,
+        detection: float,
     ) -> float:
         base = 0.0
 
@@ -178,7 +195,9 @@ class RedBlueEngine:
         return max(0, min(30, base - intensity_penalty))
 
     def _simulate_recovery(
-        self, attack: AttackDefinition, blue: BlueLevel,
+        self,
+        attack: AttackDefinition,
+        blue: BlueLevel,
     ) -> tuple[float, float]:
         base = 0.0
 
@@ -203,7 +222,10 @@ class RedBlueEngine:
         return score, recovery_time
 
     def _simulate_adaptation(
-        self, attack: AttackDefinition, blue: BlueLevel, detection: float,
+        self,
+        attack: AttackDefinition,
+        blue: BlueLevel,
+        detection: float,
     ) -> float:
         base = 0.0
 
@@ -256,7 +278,7 @@ class RedBlueEngine:
             "min_score": min(scores),
             "max_score": max(scores),
             "passed_rounds": sum(1 for r in self._results if r.passed),
-            "phase_averages": {p: round(sum(v)/len(v), 2) for p, v in phases.items()},
+            "phase_averages": {p: round(sum(v) / len(v), 2) for p, v in phases.items()},
             "cb_triggers": sum(1 for r in self._results if r.cb_triggered),
             "meta_cb_triggers": sum(1 for r in self._results if r.meta_cb_triggered),
         }

@@ -127,7 +127,9 @@ class RemoteBridge:
         self._state = BridgeState.DISCONNECTED
         self._connected_endpoint = ""
 
-    def send_command(self, command: str, params: dict[str, Any] | None = None) -> RemoteCommandResult:
+    def send_command(
+        self, command: str, params: dict[str, Any] | None = None
+    ) -> RemoteCommandResult:
         if not self.is_connected or self._transport is None:
             return RemoteCommandResult(
                 success=False,

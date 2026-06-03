@@ -71,11 +71,13 @@ class TrustAPI:
     def _record_history(self, agent_id: str, score: float, reason: str) -> None:
         if agent_id not in self._history:
             self._history[agent_id] = []
-        self._history[agent_id].append({
-            "timestamp": time.time(),
-            "score": score,
-            "reason": reason,
-        })
+        self._history[agent_id].append(
+            {
+                "timestamp": time.time(),
+                "score": score,
+                "reason": reason,
+            }
+        )
 
     @staticmethod
     def _calculate_tier(score: float) -> str:

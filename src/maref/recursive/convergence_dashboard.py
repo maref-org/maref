@@ -122,14 +122,16 @@ class ConvergenceDashboard:
         pareto_points: list[dict[str, Any]] = []
         for cycle_id, snaps in by_cycle.items():
             last = snaps[-1]
-            pareto_points.append({
-                "cycle_id": cycle_id,
-                "fnr": last.fnr,
-                "fpr": last.fpr,
-                "kl_drift": last.kl_drift,
-                "perf_score": last.perf_score,
-                "round": last.round_num,
-            })
+            pareto_points.append(
+                {
+                    "cycle_id": cycle_id,
+                    "fnr": last.fnr,
+                    "fpr": last.fpr,
+                    "kl_drift": last.kl_drift,
+                    "perf_score": last.perf_score,
+                    "round": last.round_num,
+                }
+            )
 
         pareto_front: list[dict[str, Any]] = []
         for i, p1 in enumerate(pareto_points):
@@ -162,11 +164,17 @@ class ConvergenceDashboard:
         pareto = self.compute_pareto_front()
 
         if format == "json":
-            return json.dumps({
-                "curves": {k: {mk: mv[-10:] for k, v in curves.items() for mk, mv in v.items()} for k, v in curves.items()},
-                "saturation": saturation,
-                "pareto_front": pareto,
-            }, indent=2)
+            return json.dumps(
+                {
+                    "curves": {
+                        k: {mk: mv[-10:] for k, v in curves.items() for mk, mv in v.items()}
+                        for k, v in curves.items()
+                    },
+                    "saturation": saturation,
+                    "pareto_front": pareto,
+                },
+                indent=2,
+            )
 
         lines = [
             "# MAREF Convergence Report",
@@ -185,7 +193,9 @@ class ConvergenceDashboard:
             kl_last = data["kl_drift"][-1] if data["kl_drift"] else float("nan")
             perf_last = data["perf_score"][-1] if data["perf_score"] else float("nan")
 
-            lines.append(f"- Rounds: {min(rounds) if rounds else 0} → {max(rounds) if rounds else 0} ({len(rounds)} total)")
+            lines.append(
+                f"- Rounds: {min(rounds) if rounds else 0} → {max(rounds) if rounds else 0} ({len(rounds)} total)"
+            )
             lines.append(f"- Final FNR: {fnr_last:.4f}")
             lines.append(f"- Final FPR: {fpr_last:.4f}")
             lines.append(f"- Final KL-drift: {kl_last:.4f}")
@@ -219,7 +229,13 @@ class ConvergenceDashboard:
 
         for cycle_id, data in curves.items():
             lines.append(f"\n  ── {cycle_id} ──")
-            for metric_name, color_char in [("fnr", "F"), ("fpr", "P"), ("kl_drift", "K"), ("perf_score", "S"), ("gain_pct", "G")]:
+            for metric_name, color_char in [
+                ("fnr", "F"),
+                ("fpr", "P"),
+                ("kl_drift", "K"),
+                ("perf_score", "S"),
+                ("gain_pct", "G"),
+            ]:
                 values = data.get(metric_name, [])
                 if len(values) < 2:
                     continue
@@ -228,7 +244,11 @@ class ConvergenceDashboard:
                 max_val = max(values)
                 val_range = max_val - min_val if max_val != min_val else 1.0
                 last_val = values[-1]
-                trend = "↗" if len(values) >= 2 and values[-1] > values[-2] else ("↘" if len(values) >= 2 and values[-1] < values[-2] else "→")
+                trend = (
+                    "↗"
+                    if len(values) >= 2 and values[-1] > values[-2]
+                    else ("↘" if len(values) >= 2 and values[-1] < values[-2] else "→")
+                )
 
                 bar_width = 40
                 normalized = (last_val - min_val) / val_range
@@ -240,7 +260,9 @@ class ConvergenceDashboard:
                 lines.append(bar)
 
         lines.append("\n" + "=" * 68)
-        lines.append(f"  Total snapshots: {len(self._snapshots)}  |  Saturated: {self.detect_saturation()['overall_saturated']}")
+        lines.append(
+            f"  Total snapshots: {len(self._snapshots)}  |  Saturated: {self.detect_saturation()['overall_saturated']}"
+        )
         lines.append("=" * 68)
 
         return "\n".join(lines)

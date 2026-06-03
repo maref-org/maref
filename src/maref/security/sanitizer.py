@@ -12,24 +12,32 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import dataclass, field
-from typing import Any
-
 
 # PII patterns (conservative — flag and replace, never silently pass)
 PII_PATTERNS: dict[str, re.Pattern] = {
     "phone_cn": re.compile(r"1[3-9]\d{9}"),
     "phone_us": re.compile(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"),
-    "id_card_cn": re.compile(r"\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b"),
+    "id_card_cn": re.compile(
+        r"\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b"
+    ),
     "email": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
     "credit_card": re.compile(r"\b(?:\d[ -]*?){13,16}\b"),
     "ip_address": re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"),
 }
 
 SQL_INJECTION_KEYWORDS: list[str] = [
-    "'--", "';", "1=1", "1=2",
-    "DROP TABLE", "DROP DATABASE", "DELETE FROM",
-    "INSERT INTO", "xp_cmdshell", "UNION SELECT",
-    "OR '1'='1", "OR 1=1",
+    "'--",
+    "';",
+    "1=1",
+    "1=2",
+    "DROP TABLE",
+    "DROP DATABASE",
+    "DELETE FROM",
+    "INSERT INTO",
+    "xp_cmdshell",
+    "UNION SELECT",
+    "OR '1'='1",
+    "OR 1=1",
 ]
 
 

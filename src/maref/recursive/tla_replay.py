@@ -213,7 +213,9 @@ class TLAReplayValidator:
                     invariant_name=name,
                     passed=True,
                     description=desc,
-                    details=["HALT state has no outgoing transitions (by state machine definition)"],
+                    details=[
+                        "HALT state has no outgoing transitions (by state machine definition)"
+                    ],
                 )
             elif name == "GrayCodeTransition":
                 check = TLAInvariantCheck(

@@ -108,8 +108,7 @@ class AgentBoundary:
 
 
 class ZeroTrustValidator:
-    def __init__(self, max_age_seconds: float = 60.0,
-                 max_replay_window: float = 30.0) -> None:
+    def __init__(self, max_age_seconds: float = 60.0, max_replay_window: float = 30.0) -> None:
         self._max_age_seconds = max_age_seconds
         self._max_replay_window = max_replay_window
         self._seen_nonces: dict[str, float] = {}
@@ -126,8 +125,9 @@ class ZeroTrustValidator:
             "pretend you are",
         ]
 
-    def validate_message(self, message: AgentMessage,
-                          boundary: AgentBoundary | None = None) -> ValidationResult:
+    def validate_message(
+        self, message: AgentMessage, boundary: AgentBoundary | None = None
+    ) -> ValidationResult:
         errors: list[str] = []
 
         if time.time() - message.timestamp > self._max_age_seconds:
@@ -181,7 +181,7 @@ class ZeroTrustValidator:
     def detect_context_pollution(self, messages: list[AgentMessage]) -> list[str]:
         pollution: list[str] = []
         for i, msg in enumerate(messages):
-            for other in messages[i + 1:]:
+            for other in messages[i + 1 :]:
                 if msg.context_scope and other.context_scope:
                     if msg.context_scope != other.context_scope:
                         shared_keys = set(msg.payload.keys()) & set(other.payload.keys())
@@ -194,8 +194,7 @@ class ZeroTrustValidator:
 
     def _clean_old_nonces(self) -> None:
         now = time.time()
-        expired = [n for n, t in self._seen_nonces.items()
-                   if now - t > self._max_replay_window * 2]
+        expired = [n for n, t in self._seen_nonces.items() if now - t > self._max_replay_window * 2]
         for n in expired:
             del self._seen_nonces[n]
 
@@ -226,8 +225,7 @@ class ContextIsolation:
     def __init__(self) -> None:
         self._boundaries: dict[str, ContextBoundary] = {}
 
-    def isolate(self, agent_id: str, context: dict[str, Any],
-                scope: str = "") -> ContextBoundary:
+    def isolate(self, agent_id: str, context: dict[str, Any], scope: str = "") -> ContextBoundary:
         boundary = ContextBoundary(
             agent_id=agent_id,
             scope=scope or f"isolated_{agent_id}_{int(time.time())}",
@@ -239,8 +237,7 @@ class ContextIsolation:
     def get(self, scope: str) -> ContextBoundary | None:
         return self._boundaries.get(scope)
 
-    def merge(self, scopes: list[str],
-              new_scope: str = "") -> ContextBoundary | None:
+    def merge(self, scopes: list[str], new_scope: str = "") -> ContextBoundary | None:
         boundaries = [self._boundaries[s] for s in scopes if s in self._boundaries]
         if not boundaries:
             return None

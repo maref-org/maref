@@ -2,15 +2,15 @@
 
 基于 gmssl 的纯 Python 实现，提供与 hashlib 风格一致的 API。
 """
+
 from __future__ import annotations
 
-import hmac
 from typing import TYPE_CHECKING
 
 from gmssl import sm3 as _sm3
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 def sm3_hash(data: bytes) -> str:

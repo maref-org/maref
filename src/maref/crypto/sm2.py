@@ -2,16 +2,17 @@
 
 基于 gmssl 的纯 Python 实现，提供与 cryptography 库风格一致的 API。
 """
+
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from gmssl import sm2 as _sm2, func
+from gmssl import func
+from gmssl import sm2 as _sm2
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 @dataclass(frozen=True)
@@ -27,7 +28,7 @@ class SM2KeyPair:
     public_key: str
 
     @classmethod
-    def generate(cls) -> "SM2KeyPair":
+    def generate(cls) -> SM2KeyPair:
         """生成新的 SM2 密钥对.
 
         使用 gmssl 的 func.random_hex 生成私钥，通过底层椭圆曲线
@@ -52,7 +53,7 @@ def _derive_public_key(private_key: str) -> str:
     # SM2 曲线参数 (国密标准 GM/T 0003.1-2012)
     p = 0xFFFFFFFE_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_00000000_FFFFFFFF_FFFFFFFF
     a = 0xFFFFFFFE_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_00000000_FFFFFFFF_FFFFFFFC
-    b = 0x28E9FA9E_9D9F5E34_4D5A9E4B_CF6509A7_F39789F5_15AB8F92_DDBCBD41_4D940E93
+    _b = 0x28E9FA9E_9D9F5E34_4D5A9E4B_CF6509A7_F39789F5_15AB8F92_DDBCBD41_4D940E93  # noqa: F841
     n = 0xFFFFFFFE_FFFFFFFF_FFFFFFFF_FFFFFFFF_7203DF6B_21C6052B_53BBF409_39D54123
     gx = 0x32C4AE2C_1F198119_5F990446_6A39C994_8FE30BBF_F2660BE1_715A4589_334C74C7
     gy = 0xBC3736A2_F4F6779C_59BDCEE3_6B692153_D0A9877C_C62A4740_02DF32E5_2139F0A0
@@ -151,9 +152,7 @@ def sm2_sign(
     Returns:
         hex 格式的签名值
     """
-    crypt = _sm2.CryptSM2(
-        public_key=_strip_sm2_prefix(public_key), private_key=private_key
-    )
+    crypt = _sm2.CryptSM2(public_key=_strip_sm2_prefix(public_key), private_key=private_key)
     if use_sm3:
         return crypt.sign_with_sm3(data)
     random_hex = func.random_hex(crypt.para_len)
@@ -178,9 +177,7 @@ def sm2_verify(
     Returns:
         验证是否通过
     """
-    crypt = _sm2.CryptSM2(
-        public_key=_strip_sm2_prefix(public_key), private_key=""
-    )
+    crypt = _sm2.CryptSM2(public_key=_strip_sm2_prefix(public_key), private_key="")
     if use_sm3:
         return crypt.verify_with_sm3(signature, data)
     return crypt.verify(signature, data)

@@ -3,16 +3,17 @@
 提供认证加密 (AEAD) 能力，满足 AIA 协议对机密性和完整性的双重要求。
 基于纯 Python 实现 SM4-GCM，不依赖额外库。
 """
+
 from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .sm4 import sm4_encrypt_cbc, sm4_decrypt_cbc
+from .sm4 import sm4_encrypt_cbc
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,7 @@ def _ghash(h: bytes, aad: bytes, ciphertext: bytes) -> bytes:
 
     在 GF(2^128) 上进行多项式求值。
     """
+
     # 将 16 字节块视为 GF(2^128) 元素
     def _to_int(block: bytes) -> int:
         return int.from_bytes(block, "big")
@@ -68,12 +70,12 @@ def _ghash(h: bytes, aad: bytes, ciphertext: bytes) -> bytes:
     # 处理 AAD
     aad_padded = aad + b"\x00" * ((16 - len(aad) % 16) % 16)
     for i in range(0, len(aad_padded), 16):
-        y = _gf_mul(y ^ _to_int(aad_padded[i:i + 16]), h_val)
+        y = _gf_mul(y ^ _to_int(aad_padded[i : i + 16]), h_val)
 
     # 处理密文
     ct_padded = ciphertext + b"\x00" * ((16 - len(ciphertext) % 16) % 16)
     for i in range(0, len(ct_padded), 16):
-        y = _gf_mul(y ^ _to_int(ct_padded[i:i + 16]), h_val)
+        y = _gf_mul(y ^ _to_int(ct_padded[i : i + 16]), h_val)
 
     # 长度块
     len_block = struct.pack(">QQ", len(aad) * 8, len(ciphertext) * 8)
@@ -116,13 +118,13 @@ def sm4_encrypt_gcm(
         # 计数器块 = nonce || counter
         ctr_block = nonce + struct.pack(">I", counter + (i // 16) + 1)
         keystream = _sm4_ecb_encrypt_block(key, ctr_block)
-        block = plaintext[i:i + 16]
-        ciphertext.extend(bytes(b ^ k for b, k in zip(block, keystream)))
+        block = plaintext[i : i + 16]
+        ciphertext.extend(bytes(b ^ k for b, k in zip(block, keystream, strict=False)))
 
     # 计算认证标签
     s = _ghash(h, aad, bytes(ciphertext))
     j0_enc = _sm4_ecb_encrypt_block(key, j0)
-    tag = bytes(a ^ b for a, b in zip(s, j0_enc))
+    tag = bytes(a ^ b for a, b in zip(s, j0_enc, strict=False))
 
     return SM4GCMResult(
         ciphertext=bytes(ciphertext),
@@ -165,7 +167,7 @@ def sm4_decrypt_gcm(
     s = _ghash(h, aad, ciphertext)
     j0 = nonce + b"\x00\x00\x00\x01"
     j0_enc = _sm4_ecb_encrypt_block(key, j0)
-    computed_tag = bytes(a ^ b for a, b in zip(s, j0_enc))[:16]
+    computed_tag = bytes(a ^ b for a, b in zip(s, j0_enc, strict=False))[:16]
 
     if not _constant_time_compare(computed_tag, tag):
         raise ValueError("Authentication tag verification failed")
@@ -176,8 +178,8 @@ def sm4_decrypt_gcm(
     for i in range(0, len(ciphertext), 16):
         ctr_block = nonce + struct.pack(">I", counter + (i // 16) + 1)
         keystream = _sm4_ecb_encrypt_block(key, ctr_block)
-        block = ciphertext[i:i + 16]
-        plaintext.extend(bytes(b ^ k for b, k in zip(block, keystream)))
+        block = ciphertext[i : i + 16]
+        plaintext.extend(bytes(b ^ k for b, k in zip(block, keystream, strict=False)))
 
     return bytes(plaintext)
 
@@ -187,6 +189,6 @@ def _constant_time_compare(a: bytes, b: bytes) -> bool:
     if len(a) != len(b):
         return False
     result = 0
-    for x, y in zip(a, b):
+    for x, y in zip(a, b, strict=False):
         result |= x ^ y
     return result == 0

@@ -134,7 +134,9 @@ class SelfHealingExecutor:
         return self._circuit_open
 
     def execute_step(
-        self, step: DesktopStep, parse_result: ScreenParseResult | None = None,
+        self,
+        step: DesktopStep,
+        parse_result: ScreenParseResult | None = None,
     ) -> OperationResult:
         if self._circuit_open:
             return OperationResult(
@@ -316,7 +318,10 @@ class DesktopAgent:
         return result
 
     def find_element(
-        self, parse_result: ScreenParseResult, text: str | None = None, element_id: str | None = None,
+        self,
+        parse_result: ScreenParseResult,
+        text: str | None = None,
+        element_id: str | None = None,
     ) -> ParsedUIElement | None:
         if element_id:
             return parse_result.find_element_by_id(element_id)
@@ -327,19 +332,28 @@ class DesktopAgent:
                 return usable[0] if usable else matches[0]
         return None
 
-    def execute_step(self, step: DesktopStep, parse_result: ScreenParseResult | None = None) -> OperationResult:
+    def execute_step(
+        self, step: DesktopStep, parse_result: ScreenParseResult | None = None
+    ) -> OperationResult:
         self._state = DesktopAgentState.DECIDING
 
         target_x, target_y = 0, 0
         if step.target_position:
             target_x, target_y = step.target_position
         elif (step.target_element_id or step.target_text) and parse_result:
-            element = self.find_element(parse_result, text=step.target_text, element_id=step.target_element_id)
+            element = self.find_element(
+                parse_result, text=step.target_text, element_id=step.target_element_id
+            )
             if element:
                 target_x, target_y = element.bbox.center
-            elif step.operation not in (DesktopOperation.WAIT, DesktopOperation.HOTKEY, DesktopOperation.TYPE):
+            elif step.operation not in (
+                DesktopOperation.WAIT,
+                DesktopOperation.HOTKEY,
+                DesktopOperation.TYPE,
+            ):
                 return OperationResult(
-                    success=False, action_type=step.operation.value,
+                    success=False,
+                    action_type=step.operation.value,
                     details=f"Target element not found: {step.target_text or step.target_element_id}",
                 )
 
@@ -363,12 +377,18 @@ class DesktopAgent:
                 x1, y1, x2, y2 = step.target_position
                 result = self.input.drag(x1, y1, x2, y2)
             else:
-                result = OperationResult(success=False, action_type="drag", details="Invalid drag coordinates")
+                result = OperationResult(
+                    success=False, action_type="drag", details="Invalid drag coordinates"
+                )
         elif operation == DesktopOperation.WAIT:
             time.sleep(step.wait_seconds)
-            result = OperationResult(success=True, action_type="wait", details=f"Waited {step.wait_seconds}s")
+            result = OperationResult(
+                success=True, action_type="wait", details=f"Waited {step.wait_seconds}s"
+            )
         else:
-            result = OperationResult(success=False, action_type=step.operation.value, details="Unknown operation")
+            result = OperationResult(
+                success=False, action_type=step.operation.value, details="Unknown operation"
+            )
 
         if self._recording_active:
             self._record_step(step, result, target_x, target_y)
@@ -475,7 +495,9 @@ class DesktopAgent:
         return env
 
     def execute_task_real(
-        self, task: DesktopTask, permission_callback: Any = None,
+        self,
+        task: DesktopTask,
+        permission_callback: Any = None,
     ) -> DesktopTaskResult:
         if not self.enable_real():
             raise PermissionError(
@@ -486,9 +508,7 @@ class DesktopAgent:
         env = self.check_environment()
         perms = env.get("permissions", {})
         if not perms.get("pyautogui", False):
-            raise PermissionError(
-                "PyAutoGUI not available. Install with: pip install PyAutoGUI."
-            )
+            raise PermissionError("PyAutoGUI not available. Install with: pip install PyAutoGUI.")
         if permission_callback is not None:
             permission_callback(perms)
         before = self.capture_screen()

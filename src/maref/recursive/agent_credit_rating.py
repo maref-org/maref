@@ -179,7 +179,9 @@ class AgentCreditRatingSystem:
         self.agent_id = agent_id
         self._registered_at = registered_at or time.time()
         self._current_rating = CreditRating.B
-        self._dimension_history: dict[RatingDimension, list[float]] = {d: [] for d in RatingDimension}
+        self._dimension_history: dict[RatingDimension, list[float]] = {
+            d: [] for d in RatingDimension
+        }
         self._rating_history: list[RatingHistoryEntry] = []
         self._last_rating_change_at: float = 0.0
         self._consecutive_upgrades: int = 0
@@ -187,12 +189,14 @@ class AgentCreditRatingSystem:
         self._total_rating_changes: int = 0
         self._last_update: float = self._registered_at
 
-        self._rating_history.append(RatingHistoryEntry(
-            rating=self._current_rating,
-            score=0.5,
-            dimensions={d.value: 0.5 for d in RatingDimension},
-            reason="initial_rating",
-        ))
+        self._rating_history.append(
+            RatingHistoryEntry(
+                rating=self._current_rating,
+                score=0.5,
+                dimensions={d.value: 0.5 for d in RatingDimension},
+                reason="initial_rating",
+            )
+        )
 
     @property
     def current_rating(self) -> CreditRating:
@@ -223,7 +227,11 @@ class AgentCreditRatingSystem:
         if len(history) < 5:
             return "stable"
         recent_avg = sum(history[-5:]) / 5
-        prior_avg = sum(history[-10:-5]) / 5 if len(history) >= 10 else sum(history[:-5]) / max(1, len(history) - 5)
+        prior_avg = (
+            sum(history[-10:-5]) / 5
+            if len(history) >= 10
+            else sum(history[:-5]) / max(1, len(history) - 5)
+        )
         if recent_avg > prior_avg + 0.05:
             return "improving"
         elif recent_avg < prior_avg - 0.05:
@@ -301,13 +309,15 @@ class AgentCreditRatingSystem:
         overall = self.calculate_overall_score()
         dimensions = []
         for dim in RatingDimension:
-            dimensions.append(DimensionScore(
-                dimension=dim,
-                raw_score=self.get_dimension_score(dim),
-                weight=DIMENSION_WEIGHTS[dim],
-                normalized=self.get_dimension_score(dim) * DIMENSION_WEIGHTS[dim],
-                trend=self.get_dimension_trend(dim),
-            ))
+            dimensions.append(
+                DimensionScore(
+                    dimension=dim,
+                    raw_score=self.get_dimension_score(dim),
+                    weight=DIMENSION_WEIGHTS[dim],
+                    normalized=self.get_dimension_score(dim) * DIMENSION_WEIGHTS[dim],
+                    trend=self.get_dimension_trend(dim),
+                )
+            )
 
         return AgentCreditReport(
             agent_id=self.agent_id,

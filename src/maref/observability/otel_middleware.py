@@ -46,9 +46,7 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
     - Trace ID injected into response headers for frontend correlation
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if not _OTEL_AVAILABLE:
             return await call_next(request)
 
@@ -138,9 +136,7 @@ class DesktopOperationSpanMixin:
 class _SpanContextManager:
     """Helper to create OTel spans for desktop operations."""
 
-    def __init__(
-        self, operation_name: str, attributes: dict[str, Any] | None = None
-    ) -> None:
+    def __init__(self, operation_name: str, attributes: dict[str, Any] | None = None) -> None:
         self._operation_name = operation_name
         self._attributes = attributes or {}
         self._span = None
@@ -199,9 +195,7 @@ def create_maref_tracer(
         )
         from opentelemetry.trace import set_tracer_provider
 
-        provider = TracerProvider(
-            resource=_create_resource(service_name)
-        )
+        provider = TracerProvider(resource=_create_resource(service_name))
         exporter = OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces")
         provider.add_span_processor(BatchSpanProcessor(exporter))
         set_tracer_provider(provider)
@@ -213,10 +207,13 @@ def _create_resource(service_name: str) -> Any:
     """Create OTel resource with service metadata."""
     try:
         from opentelemetry.sdk.resources import Resource  # type: ignore[import-not-found]
-        return Resource.create({
-            "service.name": service_name,
-            "service.version": "0.26.0",
-            "telemetry.sdk.name": "maref",
-        })
+
+        return Resource.create(
+            {
+                "service.name": service_name,
+                "service.version": "0.26.0",
+                "telemetry.sdk.name": "maref",
+            }
+        )
     except Exception:
         return None

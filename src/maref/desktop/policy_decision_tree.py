@@ -72,8 +72,14 @@ class AlwaysAllowKnownSafeApp(SafetyRule):
             priority=10,
         )
         self.safe_apps = safe_apps or {
-            "Finder", "Safari", "Google Chrome", "Firefox",
-            "Notes", "Calendar", "TextEdit", "Preview",
+            "Finder",
+            "Safari",
+            "Google Chrome",
+            "Firefox",
+            "Notes",
+            "Calendar",
+            "TextEdit",
+            "Preview",
         }
 
     def evaluate(self, context: dict[str, Any]) -> DecisionResult | None:
@@ -83,10 +89,30 @@ class AlwaysAllowKnownSafeApp(SafetyRule):
         input_text = context.get("input_text", "").lower()
         trust_score = context.get("trust_score", 1.0)
 
-        dangerous_words = {"delete", "remove", "format", "erase", "uninstall", "reset",
-                          "shut down", "sign out", "log out", "grant", "install",
-                          "rm ", "sudo ", "chmod", "drop table", "shutdown", "reboot",
-                          "pay", "buy", "purchase", "send", "share"}
+        dangerous_words = {
+            "delete",
+            "remove",
+            "format",
+            "erase",
+            "uninstall",
+            "reset",
+            "shut down",
+            "sign out",
+            "log out",
+            "grant",
+            "install",
+            "rm ",
+            "sudo ",
+            "chmod",
+            "drop table",
+            "shutdown",
+            "reboot",
+            "pay",
+            "buy",
+            "purchase",
+            "send",
+            "share",
+        }
         for word in dangerous_words:
             if word in element_text or word in input_text:
                 return None
@@ -107,9 +133,12 @@ class BlockDangerousSystemApps(SafetyRule):
     """Level 1: Always block operations in system-level apps."""
 
     BLOCKED_APPS = {
-        "System Settings", "System Preferences",
-        "Security & Privacy", "Keychain Access",
-        "Activity Monitor", "Terminal",
+        "System Settings",
+        "System Preferences",
+        "Security & Privacy",
+        "Keychain Access",
+        "Activity Monitor",
+        "Terminal",
     }
 
     def __init__(self) -> None:
@@ -134,8 +163,14 @@ class BlockDangerousCommands(SafetyRule):
     """Level 1: Block known-dangerous text input patterns."""
 
     BLOCKED_PATTERNS = [
-        "rm -rf", "sudo ", "chmod 777", "DROP TABLE",
-        "DELETE FROM", "shutdown", "reboot", "mkfs.",
+        "rm -rf",
+        "sudo ",
+        "chmod 777",
+        "DROP TABLE",
+        "DELETE FROM",
+        "shutdown",
+        "reboot",
+        "mkfs.",
     ]
 
     def __init__(self) -> None:
@@ -267,7 +302,9 @@ class PolicyDecisionTree:
 
         # Level 3: MAREF Safety Check (CircuitBreaker + SafetyGateV2 + Trust)
         threat = self._safety_gate.should_block_operation(
-            element_text, app_name, safe_apps_set,
+            element_text,
+            app_name,
+            safe_apps_set,
         )
         if threat.blocked:
             result = DecisionResult(

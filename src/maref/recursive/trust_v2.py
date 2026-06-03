@@ -56,7 +56,9 @@ class FederatedTrustModel:
         self._agents: dict[str, NormalizedTrustScore] = {}
         self._scores: dict[str, float] = {}
 
-    def register_agent(self, agent_id: str, framework: str, benchmark: TrustBenchmark) -> NormalizedTrustScore:
+    def register_agent(
+        self, agent_id: str, framework: str, benchmark: TrustBenchmark
+    ) -> NormalizedTrustScore:
         score = self._compute_trust(benchmark)
         trust = NormalizedTrustScore(
             agent_id=agent_id,
@@ -99,11 +101,13 @@ class FederatedConsensus:
     def propose(self, task: str, agents: list[str]) -> list[ConsensusProposal]:
         proposals: list[ConsensusProposal] = []
         for agent_id in agents:
-            proposals.append(ConsensusProposal(
-                agent_id=agent_id,
-                solution=f"{agent_id}_solution_for_{task[:20]}",
-                confidence_score=0.7,
-            ))
+            proposals.append(
+                ConsensusProposal(
+                    agent_id=agent_id,
+                    solution=f"{agent_id}_solution_for_{task[:20]}",
+                    confidence_score=0.7,
+                )
+            )
         return proposals
 
     def vote(self, proposals: list[ConsensusProposal]) -> dict[str, int]:
@@ -112,18 +116,24 @@ class FederatedConsensus:
             votes[p.solution] = votes.get(p.solution, 0) + 1
         return votes
 
-    def commit(self, votes: dict[str, int], proposals: list[ConsensusProposal], round_num: int) -> ConsensusResult:
+    def commit(
+        self, votes: dict[str, int], proposals: list[ConsensusProposal], round_num: int
+    ) -> ConsensusResult:
         total_agents = len(proposals)
         majority_threshold = total_agents * 2 // 3
 
         if total_agents == 0:
-            return ConsensusResult(converged=False, rounds=round_num, majority_solution=None, votes=proposals)
+            return ConsensusResult(
+                converged=False, rounds=round_num, majority_solution=None, votes=proposals
+            )
 
         best_solution = max(votes, key=lambda k: votes[k])
         best_count = votes[best_solution]
 
         if best_count >= majority_threshold:
-            result = ConsensusResult(converged=True, rounds=round_num, majority_solution=best_solution, votes=proposals)
+            result = ConsensusResult(
+                converged=True, rounds=round_num, majority_solution=best_solution, votes=proposals
+            )
             self._history.append(result)
             return result
 
@@ -138,7 +148,9 @@ class FederatedConsensus:
             self._history.append(result)
             return result
 
-        return ConsensusResult(converged=False, rounds=round_num, majority_solution=None, votes=proposals)
+        return ConsensusResult(
+            converged=False, rounds=round_num, majority_solution=None, votes=proposals
+        )
 
     def execute_consensus(self, task: str, agents: list[str]) -> ConsensusResult:
         for r in range(1, self._max_rounds + 1):
@@ -147,7 +159,9 @@ class FederatedConsensus:
             result = self.commit(votes, proposals, r)
             if result.converged or r == self._max_rounds:
                 return result
-        return ConsensusResult(converged=False, rounds=self._max_rounds, majority_solution=None, votes=[])
+        return ConsensusResult(
+            converged=False, rounds=self._max_rounds, majority_solution=None, votes=[]
+        )
 
     @property
     def history(self) -> list[ConsensusResult]:

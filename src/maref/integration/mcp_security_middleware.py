@@ -24,6 +24,7 @@ from maref.integration.mcp_transport import JSONRPCRequest
 @dataclass
 class ValidationResult:
     """验证结果"""
+
     is_valid: bool
     errors: list[str] = field(default_factory=list)
 
@@ -31,6 +32,7 @@ class ValidationResult:
 @dataclass
 class MiddlewareResult:
     """中间件处理结果"""
+
     is_allowed: bool
     verdict: str = "ALLOW"
     reason: str = ""
@@ -202,9 +204,7 @@ class MCPSecurityMiddleware:
         # 2. 速率限制
         rate_result = self.rate_limiter.process(request, agent_id)
         if not rate_result.is_allowed:
-            self.audit.process(
-                request, agent_id, verdict="DENY", reason=rate_result.reason
-            )
+            self.audit.process(request, agent_id, verdict="DENY", reason=rate_result.reason)
             return rate_result
 
         # 3. 通过 — 记录审计

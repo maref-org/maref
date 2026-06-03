@@ -64,8 +64,7 @@ class TrustScoreV2:
             "decay": round(self.temporal_decay_factor, 3),
             "factors": [f.to_dict() for f in self.factors],
             "goodhart": self.goodhart.to_dict() if self.goodhart else {},
-            "ci": (round(self.confidence_interval[0], 2),
-                    round(self.confidence_interval[1], 2)),
+            "ci": (round(self.confidence_interval[0], 2), round(self.confidence_interval[1], 2)),
         }
 
     def _compute_tier(self) -> str:
@@ -151,8 +150,9 @@ class TrustEngineV2:
         self._scores: dict[str, TrustScoreV2] = {}
         self._audit_store = audit_store or UnifiedAuditStore()
 
-    def register_agent(self, agent_id: str, framework: str = "",
-                        compliance_violations: int = 0) -> AgentProfileV2:
+    def register_agent(
+        self, agent_id: str, framework: str = "", compliance_violations: int = 0
+    ) -> AgentProfileV2:
         profile = AgentProfileV2(
             agent_id=agent_id,
             framework=framework,
@@ -173,9 +173,7 @@ class TrustEngineV2:
 
         # Apply load factor as multiplicative penalty (weight=0 means it was
         # not included in weighted_sum; apply it here explicitly)
-        load_factor = next(
-            (f.value for f in factors if f.name == "load_factor"), 1.0
-        )
+        load_factor = next((f.value for f in factors if f.name == "load_factor"), 1.0)
         overall *= load_factor
 
         goodhart = self._detect_goodhart(factors, profile)
@@ -214,8 +212,7 @@ class TrustEngineV2:
         )
         if tier == "ALL":
             return sorted_scores
-        return [s for s in sorted_scores if s.trust_tier.startswith(tier)
-                or s.trust_tier == tier]
+        return [s for s in sorted_scores if s.trust_tier.startswith(tier) or s.trust_tier == tier]
 
     def get_statistics(self) -> dict[str, Any]:
         scores = list(self._scores.values())
@@ -230,10 +227,7 @@ class TrustEngineV2:
             "highest_trust": round(max(trusts), 1),
             "lowest_trust": round(min(trusts), 1),
             "tier_distribution": {t: tiers.count(t) for t in sorted(set(tiers))},
-            "goodhart_flagged": sum(
-                1 for s in scores
-                if s.goodhart and s.goodhart.is_detected
-            ),
+            "goodhart_flagged": sum(1 for s in scores if s.goodhart and s.goodhart.is_detected),
         }
 
     def update_compliance(self, agent_id: str, violations_delta: int) -> None:
@@ -247,18 +241,25 @@ class TrustEngineV2:
         if profile:
             profile.peer_ratings[rater_id] = min(1.0, max(0.0, rating))
 
-    def record_task(self, agent_id: str, task_id: str,
-                     success: bool, quality: float = 0.5,
-                     latency_ms: float = 500.0) -> None:
+    def record_task(
+        self,
+        agent_id: str,
+        task_id: str,
+        success: bool,
+        quality: float = 0.5,
+        latency_ms: float = 500.0,
+    ) -> None:
         profile = self._profiles.get(agent_id)
         if profile:
-            profile.task_history.append({
-                "task_id": task_id,
-                "success": success,
-                "quality": quality,
-                "latency_ms": latency_ms,
-                "timestamp": time.time(),
-            })
+            profile.task_history.append(
+                {
+                    "task_id": task_id,
+                    "success": success,
+                    "quality": quality,
+                    "latency_ms": latency_ms,
+                    "timestamp": time.time(),
+                }
+            )
             profile.last_active_at = time.time()
 
     def _compute_all_factors(self, profile: AgentProfileV2) -> list[TrustFactor]:
@@ -296,9 +297,7 @@ class TrustEngineV2:
 
     @staticmethod
     def _weighted_sum(factors: list[TrustFactor]) -> float:
-        return sum(
-            f.value * f.weight for f in factors
-        ) * 100.0
+        return sum(f.value * f.weight for f in factors) * 100.0
 
     @staticmethod
     def _compute_completion(tasks: list[dict[str, Any]]) -> float:
@@ -373,8 +372,9 @@ class TrustEngineV2:
             return 0.9
         return 1.0
 
-    def _detect_goodhart(self, factors: list[TrustFactor],
-                          profile: AgentProfileV2) -> GoodhartDetection:
+    def _detect_goodhart(
+        self, factors: list[TrustFactor], profile: AgentProfileV2
+    ) -> GoodhartDetection:
         susp_names: list[str] = []
         max_gap = 0.0
         for f in factors:

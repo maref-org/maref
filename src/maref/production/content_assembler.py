@@ -23,13 +23,19 @@ class ContentAssembler:
 
         profile = char_dir / "profile"
         scripts_dir = self.base / "storylines"
-        all_scripts = list(scripts_dir.glob(f"{char_id}-s*/episodes/episode-*.md")) if scripts_dir.exists() else []
+        all_scripts = (
+            list(scripts_dir.glob(f"{char_id}-s*/episodes/episode-*.md"))
+            if scripts_dir.exists()
+            else []
+        )
 
         manifest: dict[str, Any] = {
             "char_id": char_id,
             "assembled_at": datetime.now().isoformat(),
             "assets": {
-                "profile": str(profile / "profile.md") if (profile / "profile.md").exists() else None,
+                "profile": str(profile / "profile.md")
+                if (profile / "profile.md").exists()
+                else None,
                 "meta": str(profile / "meta.json") if (profile / "meta.json").exists() else None,
                 "scripts": [str(s) for s in all_scripts],
                 "reference_images": self._list_dir(char_dir / "reference-images"),
@@ -43,7 +49,9 @@ class ContentAssembler:
         export_dir.mkdir(parents=True, exist_ok=True)
 
         manifest_path = export_dir / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
         if (profile / "profile.md").exists():
             shutil.copy2(profile / "profile.md", export_dir / "profile.md")

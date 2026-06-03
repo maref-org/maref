@@ -122,13 +122,17 @@ class ActionRecorder:
 
     def __init__(self, storage_dir: str | None = None) -> None:
         self._storage_dir = storage_dir or os.path.join(
-            os.path.expanduser("~"), ".maref_lite", "recordings",
+            os.path.expanduser("~"),
+            ".maref_lite",
+            "recordings",
         )
         self._active_recording: ActionRecording | None = None
         self._recordings: dict[str, ActionRecording] = {}
         os.makedirs(self._storage_dir, exist_ok=True)
 
-    def start_recording(self, recording_id: str, name: str, application: str = "", description: str = "") -> ActionRecording:
+    def start_recording(
+        self, recording_id: str, name: str, application: str = "", description: str = ""
+    ) -> ActionRecording:
         self._active_recording = ActionRecording(
             recording_id=recording_id,
             name=name,
@@ -212,13 +216,15 @@ class ActionRecorder:
     def list_recordings(self) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
         for rid, rec in self._recordings.items():
-            result.append({
-                "recording_id": rid,
-                "name": rec.name,
-                "application": rec.application,
-                "step_count": rec.step_count,
-                "created_at": rec.created_at,
-            })
+            result.append(
+                {
+                    "recording_id": rid,
+                    "name": rec.name,
+                    "application": rec.application,
+                    "step_count": rec.step_count,
+                    "created_at": rec.created_at,
+                }
+            )
         return result
 
     def get_steps_as_plan(self, recording_id: str) -> list[dict[str, Any]]:

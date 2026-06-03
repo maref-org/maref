@@ -169,24 +169,28 @@ class MemoryBridge:
         insights: list[KnowledgeInsight] = []
 
         if stats.get("orphan_ratio", 1.0) > 0.5:
-            insights.append(KnowledgeInsight(
-                insight_id=f"insi-{time.time():.0f}-01",
-                insight_type="orphan_warning",
-                summary="More than 50% of knowledge graph nodes are orphaned",
-                evidence_strength=0.85,
-                actions=["extract_relations", "reconnect_nodes"],
-            ))
+            insights.append(
+                KnowledgeInsight(
+                    insight_id=f"insi-{time.time():.0f}-01",
+                    insight_type="orphan_warning",
+                    summary="More than 50% of knowledge graph nodes are orphaned",
+                    evidence_strength=0.85,
+                    actions=["extract_relations", "reconnect_nodes"],
+                )
+            )
 
         for hypo in stats.get("active_hypotheses", []):
             conf = hypo.get("confidence", 0)
             if conf >= min_confidence:
-                insights.append(KnowledgeInsight(
-                    insight_id=f"insi-{time.time():.0f}-{hypo.get('id','?')}",
-                    insight_type="hypothesis",
-                    summary=hypo.get("description", ""),
-                    evidence_strength=conf,
-                    actions=["push_to_autodream"] if conf > 0.7 else [],
-                ))
+                insights.append(
+                    KnowledgeInsight(
+                        insight_id=f"insi-{time.time():.0f}-{hypo.get('id', '?')}",
+                        insight_type="hypothesis",
+                        summary=hypo.get("description", ""),
+                        evidence_strength=conf,
+                        actions=["push_to_autodream"] if conf > 0.7 else [],
+                    )
+                )
 
         return insights
 
@@ -208,25 +212,17 @@ class MemoryBridge:
         return results
 
     def get_autodream_queue(self) -> list[MemoryEntry]:
-        return [
-            e for e in self._entries
-            if e.stage == MemoryStage.ORIENT
-        ]
+        return [e for e in self._entries if e.stage == MemoryStage.ORIENT]
 
     def get_karpathy_entries(self) -> list[dict[str, Any]]:
         return [
-            e.to_karpathy_wiki_entry()
-            for e in self._entries
-            if e.stage == MemoryStage.CONSOLIDATE
+            e.to_karpathy_wiki_entry() for e in self._entries if e.stage == MemoryStage.CONSOLIDATE
         ]
 
     def export_all(self) -> dict[str, Any]:
         return {
             "bridge_id": self._bridge_id,
-            "autodream_queue": [
-                e.to_autodream_payload()
-                for e in self.get_autodream_queue()
-            ],
+            "autodream_queue": [e.to_autodream_payload() for e in self.get_autodream_queue()],
             "karpathy_entries": self.get_karpathy_entries(),
             "insights": [i.to_dict() for i in self._insights],
             "total_entries": len(self._entries),
@@ -244,10 +240,7 @@ class MemoryBridge:
             "autodream_queue_size": autodream_count,
             "karpathy_entry_count": karpathy_count,
             "by_priority": {
-                p.value: sum(1 for e in self._entries if e.priority == p)
-                for p in MemoryPriority
+                p.value: sum(1 for e in self._entries if e.priority == p) for p in MemoryPriority
             },
-            "high_confidence_count": sum(
-                1 for e in self._entries if e.confidence >= 0.7
-            ),
+            "high_confidence_count": sum(1 for e in self._entries if e.confidence >= 0.7),
         }

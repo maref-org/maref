@@ -160,8 +160,12 @@ class MigrationEvent:
 
 
 class CrossSystemAdapter:
-    def __init__(self, agent_id: str, initial_env: EnvironmentType = EnvironmentType.STANDALONE,
-                 profile: AdaptationProfile = AdaptationProfile.BALANCED):
+    def __init__(
+        self,
+        agent_id: str,
+        initial_env: EnvironmentType = EnvironmentType.STANDALONE,
+        profile: AdaptationProfile = AdaptationProfile.BALANCED,
+    ):
         self.agent_id = agent_id
         self._current_env = initial_env
         self._current_profile = profile
@@ -212,9 +216,14 @@ class CrossSystemAdapter:
         else:
             return EnvironmentType.DISTRIBUTED
 
-    def take_snapshot(self, env_type: EnvironmentType | None = None,
-                      node_count: int = 1, memory_mb: float = 512,
-                      cpu_cores: int = 2, latency_ms: float = 1.0) -> EnvironmentSnapshot:
+    def take_snapshot(
+        self,
+        env_type: EnvironmentType | None = None,
+        node_count: int = 1,
+        memory_mb: float = 512,
+        cpu_cores: int = 2,
+        latency_ms: float = 1.0,
+    ) -> EnvironmentSnapshot:
         snapshot = EnvironmentSnapshot(
             env_type=env_type or self._current_env,
             node_count=node_count,
@@ -226,8 +235,9 @@ class CrossSystemAdapter:
         self._env_snapshots.append(snapshot)
         return snapshot
 
-    def adapt_to_environment(self, new_env: EnvironmentType,
-                             profile: AdaptationProfile | None = None) -> MigrationEvent | None:
+    def adapt_to_environment(
+        self, new_env: EnvironmentType, profile: AdaptationProfile | None = None
+    ) -> MigrationEvent | None:
         if new_env == self._current_env and profile is None:
             return None
 
@@ -260,15 +270,26 @@ class CrossSystemAdapter:
         self._migration_history.append(event)
         return event
 
-    def migrate(self, from_env: EnvironmentType, to_env: EnvironmentType,
-                profile: AdaptationProfile | None = None) -> MigrationEvent | None:
+    def migrate(
+        self,
+        from_env: EnvironmentType,
+        to_env: EnvironmentType,
+        profile: AdaptationProfile | None = None,
+    ) -> MigrationEvent | None:
         self._current_env = from_env
         return self.adapt_to_environment(to_env, profile)
 
     def auto_adapt(self) -> AdaptationConfig:
-        snapshot = self._env_snapshots[-1] if self._env_snapshots else EnvironmentSnapshot(
-            env_type=self._current_env, node_count=1, available_memory_mb=512,
-            cpu_cores=2, network_latency_ms=1.0,
+        snapshot = (
+            self._env_snapshots[-1]
+            if self._env_snapshots
+            else EnvironmentSnapshot(
+                env_type=self._current_env,
+                node_count=1,
+                available_memory_mb=512,
+                cpu_cores=2,
+                network_latency_ms=1.0,
+            )
         )
         detected = self.detect_environment(snapshot)
         self.adapt_to_environment(detected)

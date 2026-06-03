@@ -302,8 +302,7 @@ class WindowManager:
         windows: list[WindowInfo] = []
         try:
             window_list = Quartz.CGWindowListCopyWindowInfo(
-                Quartz.kCGWindowListOptionOnScreenOnly
-                | Quartz.kCGWindowListExcludeDesktopElements,
+                Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
                 Quartz.kCGNullWindowID,
             )
         except Exception:

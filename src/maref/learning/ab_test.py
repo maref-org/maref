@@ -204,5 +204,7 @@ class StrategyComparator:
         return {
             "sample_count_a": len(self._history_a),
             "sample_count_b": len(self._history_b),
-            "last_result": self.compare().to_dict() if self._history_a and self._history_b else None,
+            "last_result": self.compare().to_dict()
+            if self._history_a and self._history_b
+            else None,
         }

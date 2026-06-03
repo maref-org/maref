@@ -59,25 +59,27 @@ BREAKER_FAIL_CONSECUTIVE_LIMIT = 3
 
 @dataclass
 class EvolutionConfig:
-    cycles: dict[str, CycleSpec] = field(default_factory=lambda: {
-        "c1": CycleSpec(
-            name="Baseline Calibration",
-            rounds=50,
-            description="Collect baseline metrics, no policy changes",
-        ),
-        "c2": CycleSpec(
-            name="Policy Optimization",
-            rounds=100,
-            description="MetaLearner proposes policy improvements every 5 rounds",
-            meta_learning_enabled=True,
-            meta_learning_interval=5,
-        ),
-        "c3": CycleSpec(
-            name="Convergence Validation",
-            rounds=50,
-            description="Verify FNR/FPR convergence, zero oscillation, clean HALT",
-        ),
-    })
+    cycles: dict[str, CycleSpec] = field(
+        default_factory=lambda: {
+            "c1": CycleSpec(
+                name="Baseline Calibration",
+                rounds=50,
+                description="Collect baseline metrics, no policy changes",
+            ),
+            "c2": CycleSpec(
+                name="Policy Optimization",
+                rounds=100,
+                description="MetaLearner proposes policy improvements every 5 rounds",
+                meta_learning_enabled=True,
+                meta_learning_interval=5,
+            ),
+            "c3": CycleSpec(
+                name="Convergence Validation",
+                rounds=50,
+                description="Verify FNR/FPR convergence, zero oscillation, clean HALT",
+            ),
+        }
+    )
     max_total_rounds: int = 300
     acceptance_criteria: AcceptanceCriteria = field(default_factory=AcceptanceCriteria)
     output_dir: str = "./evolution_results/"
@@ -88,13 +90,16 @@ class EvolutionConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "cycles": {k: {
-                "name": v.name,
-                "rounds": v.rounds,
-                "description": v.description,
-                "meta_learning_enabled": v.meta_learning_enabled,
-                "meta_learning_interval": v.meta_learning_interval,
-            } for k, v in self.cycles.items()},
+            "cycles": {
+                k: {
+                    "name": v.name,
+                    "rounds": v.rounds,
+                    "description": v.description,
+                    "meta_learning_enabled": v.meta_learning_enabled,
+                    "meta_learning_interval": v.meta_learning_interval,
+                }
+                for k, v in self.cycles.items()
+            },
             "max_total_rounds": self.max_total_rounds,
             "acceptance_criteria": self.acceptance_criteria.to_dict(),
             "output_dir": self.output_dir,
@@ -199,9 +204,11 @@ class RecursiveEvolutionEngine:
                 cycle_spec = self._config.cycles[cycle_id]
 
             cycle_metrics = EvolutionMetrics()
-            round_start_offset = self._config.resume_from_round if (
-                self._config.resume_from_cycle and cycle_id == self._config.resume_from_cycle
-            ) else 0
+            round_start_offset = (
+                self._config.resume_from_round
+                if (self._config.resume_from_cycle and cycle_id == self._config.resume_from_cycle)
+                else 0
+            )
 
             total_rounds = 1 if self._config.dry_run else cycle_spec.rounds
 
@@ -214,9 +221,7 @@ class RecursiveEvolutionEngine:
                     break
 
                 try:
-                    round_snapshot = await self._run_one_round(
-                        cycle_id, round_num, cycle_spec
-                    )
+                    round_snapshot = await self._run_one_round(cycle_id, round_num, cycle_spec)
                     self._collect_round_metrics(cycle_metrics, round_snapshot)
 
                     stop = self._check_stop_conditions(cycle_metrics, cycle_id)
@@ -230,9 +235,7 @@ class RecursiveEvolutionEngine:
 
                 self._total_rounds += 1
 
-            acceptance = cycle_metrics.assess_acceptance(
-                self._config.acceptance_criteria, cycle_id
-            )
+            acceptance = cycle_metrics.assess_acceptance(self._config.acceptance_criteria, cycle_id)
 
             actual_rounds = self._total_rounds
             cycle_result = CycleResult(
@@ -308,7 +311,11 @@ class RecursiveEvolutionEngine:
 
         fnr, fpr = self._simulate_detector_metrics(round_num)
 
-        if cycle_spec.meta_learning_enabled and round_num > 0 and round_num % cycle_spec.meta_learning_interval == 0:
+        if (
+            cycle_spec.meta_learning_enabled
+            and round_num > 0
+            and round_num % cycle_spec.meta_learning_interval == 0
+        ):
             self._run_meta_learning_step(round_num, fnr)
 
         return {
@@ -369,9 +376,7 @@ class RecursiveEvolutionEngine:
         metrics.entropy_series.append(snapshot["final_entropy"])
         metrics.transition_count_series.append(snapshot["transition_count"])
         metrics.halt_reasons.append(snapshot["halt_reason"])
-        metrics.policy_weights_series.append(
-            dict(self._meta_learner._state.policy_weights)
-        )
+        metrics.policy_weights_series.append(dict(self._meta_learner._state.policy_weights))
         metrics.learning_rate_series.append(self._meta_learner._state.learning_rate)
 
     def _check_stop_conditions(

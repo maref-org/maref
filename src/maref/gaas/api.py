@@ -95,6 +95,7 @@ async def require_api_key(
 # Governance
 # ------------------------------------------------------------------
 
+
 @router.post("/govern", response_model=GovernResponse)
 async def govern(
     req: GovernRequest,
@@ -109,6 +110,7 @@ async def govern(
 # ------------------------------------------------------------------
 # HITL
 # ------------------------------------------------------------------
+
 
 @router.post("/hitl/request", response_model=HITLResponse)
 async def hitl_request(
@@ -187,6 +189,7 @@ async def hitl_pending(
 # Trust Score
 # ------------------------------------------------------------------
 
+
 @router.get("/trust/score")
 async def trust_score(
     agent_id: str,
@@ -209,6 +212,7 @@ async def trust_score(
 # ------------------------------------------------------------------
 # Audit Log
 # ------------------------------------------------------------------
+
 
 @router.post("/audit/query", response_model=AuditQueryResponse)
 async def audit_query(
@@ -247,6 +251,7 @@ async def audit_query(
 # Circuit Breaker
 # ------------------------------------------------------------------
 
+
 @router.get("/cb/status")
 async def cb_status(
     agent_id: str,
@@ -256,6 +261,7 @@ async def cb_status(
     """Get circuit breaker status for an action."""
     status_dict = get_cb_pool().get_status(tenant_id, agent_id, action)
     from maref.gaas.models import CircuitBreakerState
+
     return CBStatusResponse(
         tenant_id=tenant_id,
         agent_id=agent_id,
@@ -269,6 +275,7 @@ async def cb_status(
 # ------------------------------------------------------------------
 # Health
 # ------------------------------------------------------------------
+
 
 @router.get("/health")
 async def health() -> dict[str, str]:

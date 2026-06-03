@@ -54,9 +54,7 @@ class PERCVGovernanceHook:
     ):
         self.state_machine = state_machine
         self.circuit_breaker = circuit_breaker
-        self._handlers: dict[PERCVEventType, list[Callable]] = {
-            e: [] for e in PERCVEventType
-        }
+        self._handlers: dict[PERCVEventType, list[Callable]] = {e: [] for e in PERCVEventType}
         self._event_count = 0
         self._event_history: list[dict[str, Any]] = []
 
@@ -129,12 +127,15 @@ class PERCVGovernanceHook:
         result: dict[str, Any],
     ) -> None:
         import time
-        self._event_history.append({
-            "event_type": event_type.value,
-            "payload": payload,
-            "result": result,
-            "timestamp": time.time(),
-        })
+
+        self._event_history.append(
+            {
+                "event_type": event_type.value,
+                "payload": payload,
+                "result": result,
+                "timestamp": time.time(),
+            }
+        )
 
     def get_event_history(self) -> list[dict[str, Any]]:
         return list(self._event_history)

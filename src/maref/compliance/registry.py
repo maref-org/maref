@@ -15,6 +15,7 @@ from typing import Any
 
 class ComplianceStatus(Enum):
     """合规状态"""
+
     COMPLIANT = "compliant"
     NON_COMPLIANT = "non_compliant"
     PARTIAL = "partial"
@@ -25,6 +26,7 @@ class ComplianceStatus(Enum):
 
 class RegulationType(Enum):
     """法规类型"""
+
     DATA_PROTECTION = "data_protection"
     CYBERSECURITY = "cybersecurity"
     AI_GOVERNANCE = "ai_governance"
@@ -37,6 +39,7 @@ class RegulationType(Enum):
 
 class Jurisdiction(Enum):
     """法域"""
+
     EU = "eu"
     US = "us"
     CHINA = "china"
@@ -259,14 +262,8 @@ class ComplianceRegistry:
             合规状态字典
         """
         if jurisdiction:
-            reqs = [
-                r for r in self.requirements.values()
-                if r.jurisdiction == jurisdiction
-            ]
-            regs = [
-                r for r in self.regulations.values()
-                if r.jurisdiction == jurisdiction
-            ]
+            reqs = [r for r in self.requirements.values() if r.jurisdiction == jurisdiction]
+            regs = [r for r in self.regulations.values() if r.jurisdiction == jurisdiction]
         else:
             reqs = list(self.requirements.values())
             regs = list(self.regulations.values())
@@ -281,9 +278,7 @@ class ComplianceRegistry:
                 "status": ComplianceStatus.PENDING_REVIEW.value,
             }
 
-        compliant_count = sum(
-            1 for r in reqs if r.status == ComplianceStatus.COMPLIANT
-        )
+        compliant_count = sum(1 for r in reqs if r.status == ComplianceStatus.COMPLIANT)
         total = len(reqs)
         rate = (compliant_count / total * 100) if total > 0 else 0.0
 
@@ -297,8 +292,10 @@ class ComplianceRegistry:
                 1 for r in reqs if r.status == ComplianceStatus.NON_COMPLIANT
             ),
             "status": (
-                ComplianceStatus.COMPLIANT.value if rate >= 95
-                else ComplianceStatus.PARTIAL.value if rate >= 50
+                ComplianceStatus.COMPLIANT.value
+                if rate >= 95
+                else ComplianceStatus.PARTIAL.value
+                if rate >= 50
                 else ComplianceStatus.NON_COMPLIANT.value
             ),
         }
@@ -318,8 +315,7 @@ class ComplianceRegistry:
         """
         if jurisdictions is None:
             jurisdictions = [
-                j for j in Jurisdiction
-                if j not in (Jurisdiction.GLOBAL, Jurisdiction.CROSS_BORDER)
+                j for j in Jurisdiction if j not in (Jurisdiction.GLOBAL, Jurisdiction.CROSS_BORDER)
             ]
 
         jurisdiction_reports = {}
@@ -338,19 +334,23 @@ class ComplianceRegistry:
             status = jurisdiction_reports.get(jur.value, {})
             rate = status.get("compliance_rate", 0.0)
             if rate < 50:
-                recommendations.append({
-                    "action": f"Urgent compliance improvement needed in {jur.value.upper()}",
-                    "details": f"Current rate: {rate:.1f}%. Immediate action required.",
-                    "priority": "critical",
-                    "jurisdiction": jur.value,
-                })
+                recommendations.append(
+                    {
+                        "action": f"Urgent compliance improvement needed in {jur.value.upper()}",
+                        "details": f"Current rate: {rate:.1f}%. Immediate action required.",
+                        "priority": "critical",
+                        "jurisdiction": jur.value,
+                    }
+                )
             elif rate < 95:
-                recommendations.append({
-                    "action": f"Continue compliance enhancement in {jur.value.upper()}",
-                    "details": f"Current rate: {rate:.1f}%. Address remaining gaps.",
-                    "priority": "medium",
-                    "jurisdiction": jur.value,
-                })
+                recommendations.append(
+                    {
+                        "action": f"Continue compliance enhancement in {jur.value.upper()}",
+                        "details": f"Current rate: {rate:.1f}%. Address remaining gaps.",
+                        "priority": "medium",
+                        "jurisdiction": jur.value,
+                    }
+                )
 
         return {
             "overall_compliance_rate": overall_rate,
@@ -411,11 +411,15 @@ class ComplianceEngine:
             status=status,
             checked_at=datetime.now(),
             checked_by=evaluator,
-            findings=[f"Evidence provided: {len(evidence)} items" if evidence else "No evidence provided"],
+            findings=[
+                f"Evidence provided: {len(evidence)} items" if evidence else "No evidence provided"
+            ],
             recommendations=[
                 "Ensure all required evidence is documented",
                 "Schedule periodic review",
-            ] if status != ComplianceStatus.COMPLIANT else [],
+            ]
+            if status != ComplianceStatus.COMPLIANT
+            else [],
             score=score,
         )
 
@@ -438,7 +442,8 @@ class ComplianceEngine:
             检查结果列表
         """
         requirements = [
-            r for r in self.registry.requirements.values()
+            r
+            for r in self.registry.requirements.values()
             if jurisdiction is None or r.jurisdiction == jurisdiction
         ]
 

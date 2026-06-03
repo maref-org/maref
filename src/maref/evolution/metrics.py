@@ -106,22 +106,34 @@ class EvolutionMetrics:
             )
 
         elif cycle == "c2":
-            result["weights_stable"] = bool(
-                self.policy_weights_series
-            ) and self._weights_std() < criteria.c2_weight_std_max
-            result["lr_converged"] = bool(
-                self.learning_rate_series
-            ) and self.learning_rate_series[-1] <= criteria.c2_lr_convergence_target
+            result["weights_stable"] = (
+                bool(self.policy_weights_series)
+                and self._weights_std() < criteria.c2_weight_std_max
+            )
+            result["lr_converged"] = (
+                bool(self.learning_rate_series)
+                and self.learning_rate_series[-1] <= criteria.c2_lr_convergence_target
+            )
             if criteria.c2_fnr_must_not_worsen:
-                c1_fnr_mean = getattr(self, "_fnr_baseline_mean", 0.15) if hasattr(self, "_fnr_baseline") else 0.15
-                recent_fnr = self.fnr_series[-20:] if len(self.fnr_series) >= 20 else self.fnr_series
+                c1_fnr_mean = (
+                    getattr(self, "_fnr_baseline_mean", 0.15)
+                    if hasattr(self, "_fnr_baseline")
+                    else 0.15
+                )
+                recent_fnr = (
+                    self.fnr_series[-20:] if len(self.fnr_series) >= 20 else self.fnr_series
+                )
                 c2_fnr_mean = statistics.mean(recent_fnr) if recent_fnr else 0
                 result["fnr_not_worsened"] = c2_fnr_mean <= c1_fnr_mean + 0.02
             if criteria.c2_fpr_budget_pp > 0:
                 c1_fpr_mean = getattr(self, "_fpr_baseline", 0.10)
-                recent_fpr = self.fpr_series[-20:] if len(self.fpr_series) >= 20 else self.fpr_series
+                recent_fpr = (
+                    self.fpr_series[-20:] if len(self.fpr_series) >= 20 else self.fpr_series
+                )
                 c2_fpr_mean = statistics.mean(recent_fpr) if recent_fpr else 0
-                result["fpr_within_budget"] = abs(c2_fpr_mean - c1_fpr_mean) <= criteria.c2_fpr_budget_pp
+                result["fpr_within_budget"] = (
+                    abs(c2_fpr_mean - c1_fpr_mean) <= criteria.c2_fpr_budget_pp
+                )
 
         elif cycle == "c3":
             convergence = self.compute_convergence(window=20)
@@ -133,8 +145,7 @@ class EvolutionMetrics:
             )
             result["no_oscillation"] = len(self.oscillation_events) <= criteria.c3_oscillation_max
             anomalous_halts = sum(
-                1 for r in self.halt_reasons
-                if "force_halt" in r and "normal" not in r
+                1 for r in self.halt_reasons if "force_halt" in r and "normal" not in r
             )
             result["no_anomalous_halt"] = anomalous_halts <= criteria.c3_halt_anomaly_max
 

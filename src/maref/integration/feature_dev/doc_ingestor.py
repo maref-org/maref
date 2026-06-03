@@ -150,10 +150,7 @@ class FeatureDocument:
         return {
             "title": self.title,
             "raw_path": self.raw_path,
-            "stages": {
-                k.value: [s.to_dict() for s in v]
-                for k, v in self.stages.items()
-            },
+            "stages": {k.value: [s.to_dict() for s in v] for k, v in self.stages.items()},
             "total_requirements": self.total_requirements,
             "total_milestones": self.total_milestones,
             "hypotheses": [h.to_dict() for h in self.hypotheses],
@@ -204,7 +201,7 @@ def _parse_tables(text: str, section_heading: str) -> list[TableRow]:
                     break
             if separator_idx > 0:
                 header_cells = [c.strip() for c in table_lines[0].split("|") if c.strip()]
-                data_lines = table_lines[separator_idx + 1:]
+                data_lines = table_lines[separator_idx + 1 :]
                 for dl in data_lines:
                     cells = [c.strip() for c in dl.split("|") if c.strip()]
                     if len(cells) >= 2:
@@ -231,9 +228,24 @@ def _extract_requirements(text: str) -> list[str]:
             cells = [c.strip() for c in line.split("|") if c.strip()]
             if len(cells) >= 3:
                 first = cells[0].lower()
-                if any(kw in first for kw in
-                       ["用途", "技术", "工具", "成本", "配置", "产能", "角色",
-                        "平台", "组件", "环节", "渠道", "服务", "假设"]):
+                if any(
+                    kw in first
+                    for kw in [
+                        "用途",
+                        "技术",
+                        "工具",
+                        "成本",
+                        "配置",
+                        "产能",
+                        "角色",
+                        "平台",
+                        "组件",
+                        "环节",
+                        "渠道",
+                        "服务",
+                        "假设",
+                    ]
+                ):
                     rest = " | ".join(cells[1:])
                     reqs.append(f"{cells[0]}: {rest}")
     return reqs
@@ -252,21 +264,26 @@ def _extract_hypotheses(text: str) -> list[Hypothesis]:
         r"\|\s*\*\*(H\d+)\*\*\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|",
         text,
     ):
-        hypos.append(Hypothesis(
-            name=m.group(1),
-            method=m.group(2).strip(),
-            pass_threshold=m.group(3).strip(),
-            fail_criterion=m.group(4).strip(),
-        ))
+        hypos.append(
+            Hypothesis(
+                name=m.group(1),
+                method=m.group(2).strip(),
+                pass_threshold=m.group(3).strip(),
+                fail_criterion=m.group(4).strip(),
+            )
+        )
     return hypos
 
 
 def _extract_compliance_rules(text: str) -> list[ComplianceRule]:
     rules: list[ComplianceRule] = []
     category_map: dict[str, str] = {
-        "每日自检": "daily", "每日": "daily",
-        "每周自检": "weekly", "每周": "weekly",
-        "每月自检": "monthly", "每月": "monthly",
+        "每日自检": "daily",
+        "每日": "daily",
+        "每周自检": "weekly",
+        "每周": "weekly",
+        "每月自检": "monthly",
+        "每月": "monthly",
     }
     current_cat = "discipline"
     for line in text.split("\n"):
@@ -277,20 +294,24 @@ def _extract_compliance_rules(text: str) -> list[ComplianceRule]:
         if m:
             desc = m.group(1)
             if desc not in [r.description for r in rules]:
-                rules.append(ComplianceRule(
-                    rule_id=f"discipline_{len(rules) + 1}",
-                    description=desc,
-                    category="discipline",
-                ))
+                rules.append(
+                    ComplianceRule(
+                        rule_id=f"discipline_{len(rules) + 1}",
+                        description=desc,
+                        category="discipline",
+                    )
+                )
     for m in re.finditer(r"-\s*\[\s*[ x]\s*\]\s*(.+)", text):
         desc = m.group(1).strip()
         if desc not in [r.description for r in rules]:
-            rules.append(ComplianceRule(
-                rule_id=f"checklist_{len(rules) + 1}",
-                description=desc,
-                category=current_cat,
-                is_automated=True,
-            ))
+            rules.append(
+                ComplianceRule(
+                    rule_id=f"checklist_{len(rules) + 1}",
+                    description=desc,
+                    category=current_cat,
+                    is_automated=True,
+                )
+            )
     return rules
 
 
@@ -311,7 +332,13 @@ def _extract_cost_models(text: str) -> list[CostModel]:
                         model = CostModel(stage=first)
                         for ci in range(1, min(len(cells), col_count)):
                             col_name = header_cells[ci] if ci < len(header_cells) else f"col_{ci}"
-                            val_str = cells[ci].replace("¥", "").replace(",", "").replace("**", "").replace("-", "0")
+                            val_str = (
+                                cells[ci]
+                                .replace("¥", "")
+                                .replace(",", "")
+                                .replace("**", "")
+                                .replace("-", "0")
+                            )
                             try:
                                 val = float(val_str)
                             except ValueError:
@@ -388,12 +415,14 @@ def _extract_hypotheses_from_text(text: str) -> list[Hypothesis]:
         r"\|\s*\*\*(H[123]):\s*(.+?)\*\*\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|",
         text,
     ):
-        hypos.append(Hypothesis(
-            name=m.group(1),
-            method=m.group(2).strip(),
-            pass_threshold=m.group(3).strip(),
-            fail_criterion=m.group(4).strip(),
-        ))
+        hypos.append(
+            Hypothesis(
+                name=m.group(1),
+                method=m.group(2).strip(),
+                pass_threshold=m.group(3).strip(),
+                fail_criterion=m.group(4).strip(),
+            )
+        )
     return hypos
 
 
@@ -437,6 +466,7 @@ class MarkdownDocIngestor:
                 doc.compliance_rules.extend(_extract_compliance_rules(combined))
                 doc.cost_models.extend(_extract_cost_models(sec.content))
                 _extract_nested(sec.subsections)
+
         _extract_nested(sections)
 
         all_req_count = doc.total_requirements

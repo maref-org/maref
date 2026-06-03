@@ -238,9 +238,15 @@ class InputController:
 
         Returns dict with screen_width, screen_height, scale_factor, and is_retina.
         """
-        info: dict[str, Any] = {"screen_width": 0, "screen_height": 0, "scale_factor": 1.0, "is_retina": False}
+        info: dict[str, Any] = {
+            "screen_width": 0,
+            "screen_height": 0,
+            "scale_factor": 1.0,
+            "is_retina": False,
+        }
         try:
             import pyautogui
+
             w, h = pyautogui.size()
             info["screen_width"] = w
             info["screen_height"] = h
@@ -252,7 +258,9 @@ class InputController:
             try:
                 result = subprocess.run(
                     ["system_profiler", "SPDisplaysDataType"],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if "Retina" in result.stdout:
                     info["is_retina"] = True
@@ -363,7 +371,9 @@ class InputController:
         return self._execute_mouse(event)
 
     def drag(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> OperationResult:
-        event = MouseEvent(action=MouseAction.DRAG, x=x1, y=y1, dx=x2 - x1, dy=y2 - y1, duration=duration)
+        event = MouseEvent(
+            action=MouseAction.DRAG, x=x1, y=y1, dx=x2 - x1, dy=y2 - y1, duration=duration
+        )
         return self._execute_mouse(event)
 
     def move_to(self, x: int, y: int) -> OperationResult:

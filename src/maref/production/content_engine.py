@@ -46,8 +46,9 @@ class ContentEngine:
         self.assembler = ContentAssembler()
         self.validator = HypothesisValidator()
 
-    def run_full_pipeline(self, theme_id: str, char_id: str | None = None,
-                          episode_count: int = 2) -> ProductionResult:
+    def run_full_pipeline(
+        self, theme_id: str, char_id: str | None = None, episode_count: int = 2
+    ) -> ProductionResult:
         t0 = time.perf_counter()
         steps: list[str] = []
 

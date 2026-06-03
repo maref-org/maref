@@ -157,9 +157,7 @@ class GovernanceStateMachine:
     def _bfs_to(self, target: GovernanceState, reason: str) -> bool:
         """Find and execute shortest path to target via BFS."""
         visited: set[GovernanceState] = {self._state}
-        queue: list[tuple[GovernanceState, list[GovernanceState]]] = [
-            (self._state, [])
-        ]
+        queue: list[tuple[GovernanceState, list[GovernanceState]]] = [(self._state, [])]
         while queue:
             current, path = queue.pop(0)
             for neighbor in _VALID_TRANSITIONS[current]:

@@ -170,13 +170,18 @@ class MetaAgentClosure:
         self._human_constitution_maker = "human_constitution_maker"
         self._proof_generation_count: int = 0
 
-    def check_red_line_modification(self, requesting_agent: str, red_line_id: str) -> tuple[bool, str]:
+    def check_red_line_modification(
+        self, requesting_agent: str, red_line_id: str
+    ) -> tuple[bool, str]:
         rl = self._red_lines.get(red_line_id)
         if not rl:
             return False, f"Red line {red_line_id} not found"
 
         if requesting_agent != self._human_constitution_maker:
-            return False, f"Agent {requesting_agent} cannot modify red line {red_line_id} - constitution prohibits self-modification"
+            return (
+                False,
+                f"Agent {requesting_agent} cannot modify red line {red_line_id} - constitution prohibits self-modification",
+            )
 
         return True, "Modification allowed - human constitution maker"
 
@@ -213,7 +218,10 @@ class MetaAgentClosure:
                 violated.append("RL-004")
 
         if decision.decision_type == EvolutionDecisionType.POLICY_UPDATE:
-            if any(w in decision.description.lower() for w in ("trust_weight", "trust score weight", "weight unilaterally")):
+            if any(
+                w in decision.description.lower()
+                for w in ("trust_weight", "trust score weight", "weight unilaterally")
+            ):
                 decision.red_line_violation = True
                 violated.append("RL-005")
 
@@ -230,8 +238,9 @@ class MetaAgentClosure:
 
         return decision
 
-    def submit_decision(self, agent_id: str, decision_type: EvolutionDecisionType,
-                        description: str) -> EvolutionDecision:
+    def submit_decision(
+        self, agent_id: str, decision_type: EvolutionDecisionType, description: str
+    ) -> EvolutionDecision:
         decision = EvolutionDecision(
             decision_id=str(uuid.uuid4())[:8],
             agent_id=agent_id,
@@ -241,8 +250,13 @@ class MetaAgentClosure:
         )
         return self.review_evolution_decision(decision)
 
-    def submit_decision_with_reviewers(self, agent_id: str, decision_type: EvolutionDecisionType,
-                                       description: str, reviewers: list[str]) -> EvolutionDecision:
+    def submit_decision_with_reviewers(
+        self,
+        agent_id: str,
+        decision_type: EvolutionDecisionType,
+        description: str,
+        reviewers: list[str],
+    ) -> EvolutionDecision:
         decision = EvolutionDecision(
             decision_id=str(uuid.uuid4())[:8],
             agent_id=agent_id,

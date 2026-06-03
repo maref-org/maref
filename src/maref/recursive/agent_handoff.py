@@ -28,7 +28,7 @@ class HandoffStatus(str, Enum):
     REQUESTED = "requested"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
-    NACK = "nack"                # structured refusal with machine-readable code
+    NACK = "nack"  # structured refusal with machine-readable code
     TIMED_OUT = "timed_out"
     COMPLETED = "completed"
     ROLLED_BACK = "rolled_back"
@@ -66,7 +66,7 @@ class HandoffResult:
     transferred_at: float = field(default_factory=time.time)
     refusal_reason: str = ""
     request_id: str = ""
-    nack: NackMessage | None = None   # populated when status == NACK
+    nack: NackMessage | None = None  # populated when status == NACK
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -200,7 +200,9 @@ class AgentHandoffProtocol:
         self._record_handoff(request, result)
         return result
 
-    def complete_handoff(self, handoff_id: str, output: dict[str, Any] | None = None) -> HandoffResult | None:
+    def complete_handoff(
+        self, handoff_id: str, output: dict[str, Any] | None = None
+    ) -> HandoffResult | None:
         result = self._active_handoffs.get(handoff_id)
         if result is None:
             return None
@@ -209,19 +211,21 @@ class AgentHandoffProtocol:
         self._agent_handoff_counts[result.from_agent] = max(
             0, self._agent_handoff_counts.get(result.from_agent, 1) - 1
         )
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("hoff_c", hash(handoff_id) % 100000),
-            timestamp=time.time(),
-            layer="orchestration",
-            round=43,
-            event_type="handoff_completed",
-            source_module="AgentHandoffProtocol",
-            target_module=result.to_agent,
-            decision=f"complete_{handoff_id}",
-            justification=f"Handoff {handoff_id} completed",
-            outcome="success",
-            context_refs=[handoff_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("hoff_c", hash(handoff_id) % 100000),
+                timestamp=time.time(),
+                layer="orchestration",
+                round=43,
+                event_type="handoff_completed",
+                source_module="AgentHandoffProtocol",
+                target_module=result.to_agent,
+                decision=f"complete_{handoff_id}",
+                justification=f"Handoff {handoff_id} completed",
+                outcome="success",
+                context_refs=[handoff_id],
+            )
+        )
         return result
 
     def rollback_handoff(self, handoff_id: str) -> HandoffResult | None:
@@ -232,24 +236,29 @@ class AgentHandoffProtocol:
         self._agent_handoff_counts[result.from_agent] = max(
             0, self._agent_handoff_counts.get(result.from_agent, 1) - 1
         )
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("hoff_r", hash(handoff_id) % 100000),
-            timestamp=time.time(),
-            layer="orchestration",
-            round=43,
-            event_type="handoff_rolled_back",
-            source_module="AgentHandoffProtocol",
-            target_module=result.to_agent,
-            decision=f"rollback_{handoff_id}",
-            justification=f"Handoff {handoff_id} rolled back",
-            outcome="success",
-            context_refs=[handoff_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("hoff_r", hash(handoff_id) % 100000),
+                timestamp=time.time(),
+                layer="orchestration",
+                round=43,
+                event_type="handoff_rolled_back",
+                source_module="AgentHandoffProtocol",
+                target_module=result.to_agent,
+                decision=f"rollback_{handoff_id}",
+                justification=f"Handoff {handoff_id} rolled back",
+                outcome="success",
+                context_refs=[handoff_id],
+            )
+        )
         return result
 
     def get_active_handoffs(self) -> list[HandoffResult]:
-        return [r for r in self._active_handoffs.values()
-                if r.status in {HandoffStatus.ACCEPTED, HandoffStatus.REQUESTED}]
+        return [
+            r
+            for r in self._active_handoffs.values()
+            if r.status in {HandoffStatus.ACCEPTED, HandoffStatus.REQUESTED}
+        ]
 
     def get_handoff(self, handoff_id: str) -> HandoffResult | None:
         return self._active_handoffs.get(handoff_id)
@@ -262,17 +271,12 @@ class AgentHandoffProtocol:
 
     def stats(self) -> dict[str, Any]:
         accepted = sum(1 for e in self._handoff_history if e.result.accepted)
-        nack_count = sum(
-            1 for e in self._handoff_history
-            if e.result.status == HandoffStatus.NACK
-        )
+        nack_count = sum(1 for e in self._handoff_history if e.result.status == HandoffStatus.NACK)
         completed = sum(
-            1 for e in self._handoff_history
-            if e.result.status == HandoffStatus.COMPLETED
+            1 for e in self._handoff_history if e.result.status == HandoffStatus.COMPLETED
         )
         rolled_back = sum(
-            1 for e in self._handoff_history
-            if e.result.status == HandoffStatus.ROLLED_BACK
+            1 for e in self._handoff_history if e.result.status == HandoffStatus.ROLLED_BACK
         )
         total = len(self._handoff_history)
         return {
@@ -289,7 +293,8 @@ class AgentHandoffProtocol:
         """Return agents with trust above threshold for the same from_agent."""
         trust_map = self._agent_trust.get(request.from_agent, {})
         return [
-            aid for aid, score in trust_map.items()
+            aid
+            for aid, score in trust_map.items()
             if aid != request.to_agent and score >= self.TRUST_THRESHOLD_FOR_HANDOFF
         ]
 
@@ -308,19 +313,21 @@ class AgentHandoffProtocol:
         if result.nack is not None:
             justification_parts.append(f"nack_code={result.nack.code.value}")
             justification_parts.append(f"recoverability={result.nack.recoverability.value}")
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("hoff", hash(result.handoff_id) % 100000),
-            timestamp=time.time(),
-            layer="orchestration",
-            round=43,
-            event_type=f"handoff_{result.status.value}",
-            source_module="AgentHandoffProtocol",
-            target_module=result.to_agent,
-            decision=f"handoff_{request.from_agent}_to_{request.to_agent}",
-            justification=", ".join(justification_parts),
-            outcome="success" if result.accepted else "failure",
-            context_refs=[result.handoff_id, request.from_agent, request.to_agent],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("hoff", hash(result.handoff_id) % 100000),
+                timestamp=time.time(),
+                layer="orchestration",
+                round=43,
+                event_type=f"handoff_{result.status.value}",
+                source_module="AgentHandoffProtocol",
+                target_module=result.to_agent,
+                decision=f"handoff_{request.from_agent}_to_{request.to_agent}",
+                justification=", ".join(justification_parts),
+                outcome="success" if result.accepted else "failure",
+                context_refs=[result.handoff_id, request.from_agent, request.to_agent],
+            )
+        )
 
     def clear(self) -> None:
         self._active_handoffs.clear()

@@ -104,7 +104,10 @@ def _fetch_url(url: str, max_size: int = DEFAULT_MAX_CONTENT_SIZE) -> tuple[byte
         "User-Agent": USER_AGENT,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
-    with httpx.Client(timeout=30, follow_redirects=True, headers=headers) as client, client.stream("GET", url) as resp:
+    with (
+        httpx.Client(timeout=30, follow_redirects=True, headers=headers) as client,
+        client.stream("GET", url) as resp,
+    ):
         resp.raise_for_status()
         content = b""
         for chunk in resp.iter_bytes():

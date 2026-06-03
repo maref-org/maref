@@ -16,15 +16,16 @@ import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
-from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
-from maref.integration.mcp_server import MCPServer
-from maref.integration.mcp_transport import JSONRPCRequest, JSONRPCResponse
 from sidecar.exfiltration_probe import DataExfiltrationProbe
 from sidecar.mcp_bridge import (
     SIDECAR_MCP_RESOURCES,
     SIDECAR_MCP_TOOLS,
     SidecarMCPBridge,
 )
+
+from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
+from maref.integration.mcp_server import MCPServer
+from maref.integration.mcp_transport import JSONRPCRequest, JSONRPCResponse
 
 logger = logging.getLogger("maref-governance-mcp")
 
@@ -46,6 +47,7 @@ def create_server(port: int = 8941) -> MCPServer:
         def make_handler(name: str = tool_name) -> Any:
             def handler(args: dict[str, Any]) -> dict[str, Any]:
                 return bridge.handle_tool_call(name, args)
+
             return handler
 
         server.register_tool(
@@ -68,12 +70,15 @@ def create_server(port: int = 8941) -> MCPServer:
                 return {
                     "uri": resource_uri,
                     "mimeType": mime_type,
-                    "text": json.dumps({
-                        "resource": resource_uri,
-                        "available": True,
-                        "note": "Resource available via tool calls",
-                    }),
+                    "text": json.dumps(
+                        {
+                            "resource": resource_uri,
+                            "available": True,
+                            "note": "Resource available via tool calls",
+                        }
+                    ),
                 }
+
             return handler
 
         server.register_resource(
@@ -102,11 +107,13 @@ class MCPHTTPHandler(BaseHTTPRequestHandler):
                 id=data.get("id", 0),
             )
         except (json.JSONDecodeError, KeyError) as e:
-            self._send_json({
-                "jsonrpc": "2.0",
-                "error": {"code": -32700, "message": f"Parse error: {e}"},
-                "id": None,
-            })
+            self._send_json(
+                {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32700, "message": f"Parse error: {e}"},
+                    "id": None,
+                }
+            )
             return
 
         response = self.server.handle_request(request, trust_level=MCPTrustLevel.TRUSTED)
@@ -132,11 +139,13 @@ class MCPHTTPHandler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send_json({"status": "ok", "server": "maref-governance-mcp", "version": "0.27.0"})
         elif self.path == "/":
-            self._send_json({
-                "server": "maref-governance-mcp",
-                "tools": len(SIDECAR_MCP_TOOLS),
-                "resources": len(SIDECAR_MCP_RESOURCES),
-            })
+            self._send_json(
+                {
+                    "server": "maref-governance-mcp",
+                    "tools": len(SIDECAR_MCP_TOOLS),
+                    "resources": len(SIDECAR_MCP_RESOURCES),
+                }
+            )
         else:
             self.send_response(404)
             self.end_headers()
@@ -149,7 +158,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="MAREF Governance MCP Server")
     parser.add_argument("--standalone", action="store_true", help="Run as standalone server")
     parser.add_argument("--port", type=int, default=8941, help="Server port (default: 8941)")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
+    parser.add_argument(
+        "--host", type=str, default="127.0.0.1", help="Bind address (default: 127.0.0.1)"
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     args = parser.parse_args()
 

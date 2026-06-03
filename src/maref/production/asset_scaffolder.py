@@ -55,7 +55,13 @@ class AssetScaffolder:
 
     def create_character(self, char_id: str) -> Path:
         char_dir = self.base / "characters" / char_id
-        subdirs = ["profile", "visual-embedding", "lora-weights", "reference-images", "voice-samples"]
+        subdirs = [
+            "profile",
+            "visual-embedding",
+            "lora-weights",
+            "reference-images",
+            "voice-samples",
+        ]
         for sub in subdirs:
             (char_dir / sub).mkdir(parents=True, exist_ok=True)
         return char_dir
@@ -77,7 +83,11 @@ class AssetScaffolder:
         story_dir = self.base / "storylines"
         if story_dir.exists():
             stories = [p.name for p in story_dir.iterdir() if p.is_dir()]
-        exports = list((self.base / "exports" / "videos").glob("*")) if (self.base / "exports" / "videos").exists() else []
+        exports = (
+            list((self.base / "exports" / "videos").glob("*"))
+            if (self.base / "exports" / "videos").exists()
+            else []
+        )
         return {
             "exists": True,
             "base": str(self.base),

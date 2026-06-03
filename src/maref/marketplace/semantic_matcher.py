@@ -17,10 +17,10 @@ class MatchScore:
     """Score for a skill-task match."""
 
     skill_id: str
-    relevance: float      # 0.0-1.0, semantic similarity
-    reputation: float     # 0.0-1.0, historical success rate
-    cost: float           # normalized cost (lower is better)
-    composite: float      # relevance * reputation / (1 + cost)
+    relevance: float  # 0.0-1.0, semantic similarity
+    reputation: float  # 0.0-1.0, historical success rate
+    cost: float  # normalized cost (lower is better)
+    composite: float  # relevance * reputation / (1 + cost)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,13 +67,15 @@ class SemanticMatcher:
             cost = costs.get(skill.skill_id, 0.0)
             composite = relevance * reputation / (1.0 + cost)
 
-            scores.append(MatchScore(
-                skill_id=skill.skill_id,
-                relevance=relevance,
-                reputation=reputation,
-                cost=cost,
-                composite=composite,
-            ))
+            scores.append(
+                MatchScore(
+                    skill_id=skill.skill_id,
+                    relevance=relevance,
+                    reputation=reputation,
+                    cost=cost,
+                    composite=composite,
+                )
+            )
 
         scores.sort(key=lambda s: -s.composite)
         return scores
@@ -91,7 +93,4 @@ class SemanticMatcher:
         """
         # Simple decomposition: split by "and", "then", ","
         subtasks = [s.strip() for s in task_description.replace(",", " and ").split(" and ")]
-        return [
-            self.match(st, skills, reputation_map, cost_map)
-            for st in subtasks if st
-        ]
+        return [self.match(st, skills, reputation_map, cost_map) for st in subtasks if st]

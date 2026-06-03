@@ -123,10 +123,14 @@ class ExperienceStore:
                 entropy_before, entropy_after, reward, context)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                d["timestamp"], d["decision_type"],
-                d["state_before"], d["state_after"],
-                d["entropy_before"], d["entropy_after"],
-                d["reward"], d["context"],
+                d["timestamp"],
+                d["decision_type"],
+                d["state_before"],
+                d["state_after"],
+                d["entropy_before"],
+                d["entropy_after"],
+                d["reward"],
+                d["context"],
             ),
         )
         self._conn.commit()
@@ -142,10 +146,16 @@ class ExperienceStore:
                 entropy_before, entropy_after, reward, context)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             [
-                (d["timestamp"], d["decision_type"],
-                 d["state_before"], d["state_after"],
-                 d["entropy_before"], d["entropy_after"],
-                 d["reward"], d["context"])
+                (
+                    d["timestamp"],
+                    d["decision_type"],
+                    d["state_before"],
+                    d["state_after"],
+                    d["entropy_before"],
+                    d["entropy_after"],
+                    d["reward"],
+                    d["context"],
+                )
                 for d in d_list
             ],
         )
@@ -184,9 +194,7 @@ class ExperienceStore:
 
         return [DecisionOutcome.from_row(tuple(r)) for r in rows]
 
-    def _stratified_sample(
-        self, batch_size: int, recency_weight: float
-    ) -> list[sqlite3.Row]:
+    def _stratified_sample(self, batch_size: int, recency_weight: float) -> list[sqlite3.Row]:
         positive_count = self._conn.execute(
             "SELECT COUNT(*) FROM experience WHERE reward > 0"
         ).fetchone()[0]
@@ -206,16 +214,14 @@ class ExperienceStore:
 
         if positive_count > 0:
             p_rows = self._conn.execute(
-                "SELECT * FROM experience WHERE reward > 0 "
-                "ORDER BY RANDOM() LIMIT ?",
+                "SELECT * FROM experience WHERE reward > 0 ORDER BY RANDOM() LIMIT ?",
                 (min(pos_sample, positive_count),),
             ).fetchall()
             rows.extend(p_rows)
 
         if negative_count > 0:
             n_rows = self._conn.execute(
-                "SELECT * FROM experience WHERE reward <= 0 "
-                "ORDER BY RANDOM() LIMIT ?",
+                "SELECT * FROM experience WHERE reward <= 0 ORDER BY RANDOM() LIMIT ?",
                 (min(neg_sample, negative_count),),
             ).fetchall()
             rows.extend(n_rows)
@@ -223,8 +229,7 @@ class ExperienceStore:
         if recency_weight > 0 and total > batch_size:
             recent_cutoff = time.time() - 86400
             recent = self._conn.execute(
-                "SELECT * FROM experience WHERE timestamp > ? "
-                "ORDER BY RANDOM() LIMIT ?",
+                "SELECT * FROM experience WHERE timestamp > ? ORDER BY RANDOM() LIMIT ?",
                 (recent_cutoff, max(1, int(batch_size * recency_weight))),
             ).fetchall()
             for r in recent:
@@ -241,15 +246,11 @@ class ExperienceStore:
         return [DecisionOutcome.from_row(tuple(r)) for r in rows]
 
     def get_all(self) -> list[DecisionOutcome]:
-        rows = self._conn.execute(
-            "SELECT * FROM experience ORDER BY timestamp ASC"
-        ).fetchall()
+        rows = self._conn.execute("SELECT * FROM experience ORDER BY timestamp ASC").fetchall()
         return [DecisionOutcome.from_row(tuple(r)) for r in rows]
 
     def count(self) -> int:
-        return self._conn.execute(
-            "SELECT COUNT(*) FROM experience"
-        ).fetchone()[0]
+        return self._conn.execute("SELECT COUNT(*) FROM experience").fetchone()[0]
 
     def avg_reward(self, last_n: int = 0) -> float:
         if last_n > 0:
@@ -259,20 +260,14 @@ class ExperienceStore:
                 (last_n,),
             ).fetchone()
         else:
-            row = self._conn.execute(
-                "SELECT AVG(reward) FROM experience"
-            ).fetchone()
+            row = self._conn.execute("SELECT AVG(reward) FROM experience").fetchone()
         return float(row[0]) if row[0] is not None else 0.0
 
     def get_stats(self) -> dict[str, Any]:
         total = self.count()
         avg = self.avg_reward()
-        pos = self._conn.execute(
-            "SELECT COUNT(*) FROM experience WHERE reward > 0"
-        ).fetchone()[0]
-        neg = self._conn.execute(
-            "SELECT COUNT(*) FROM experience WHERE reward < 0"
-        ).fetchone()[0]
+        pos = self._conn.execute("SELECT COUNT(*) FROM experience WHERE reward > 0").fetchone()[0]
+        neg = self._conn.execute("SELECT COUNT(*) FROM experience WHERE reward < 0").fetchone()[0]
         zero = total - pos - neg
 
         row = self._conn.execute(

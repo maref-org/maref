@@ -82,9 +82,12 @@ class OntologyDriftDetector:
         self._snapshots: list[OntologySnapshot] = []
         self._history_window = history_window
 
-    def take_snapshot(self, concepts: dict[str, list[float]],
-                      relations: dict[tuple[str, str], dict[str, Any]] | None = None,
-                      schema_version: str = "1.0.0") -> OntologySnapshot:
+    def take_snapshot(
+        self,
+        concepts: dict[str, list[float]],
+        relations: dict[tuple[str, str], dict[str, Any]] | None = None,
+        schema_version: str = "1.0.0",
+    ) -> OntologySnapshot:
         concept_vectors: dict[str, ConceptVector] = {}
         for cid, emb in concepts.items():
             concept_vectors[cid] = ConceptVector(
@@ -95,7 +98,8 @@ class OntologyDriftDetector:
         if relations:
             for (src, tgt), rdata in relations.items():
                 rel_strengths[(src, tgt)] = RelationStrength(
-                    source=src, target=tgt,
+                    source=src,
+                    target=tgt,
                     relation_type=rdata.get("type", "unknown"),
                     strength=rdata.get("strength", 1.0),
                 )
@@ -108,11 +112,10 @@ class OntologyDriftDetector:
         )
         self._snapshots.append(snapshot)
         if len(self._snapshots) > self._history_window:
-            self._snapshots = self._snapshots[-self._history_window:]
+            self._snapshots = self._snapshots[-self._history_window :]
         return snapshot
 
-    def semantic_distance(self, snap_a: OntologySnapshot,
-                          snap_b: OntologySnapshot) -> float:
+    def semantic_distance(self, snap_a: OntologySnapshot, snap_b: OntologySnapshot) -> float:
         common_concepts = set(snap_a.concepts.keys()) & set(snap_b.concepts.keys())
         if not common_concepts:
             return 1.0
@@ -145,8 +148,7 @@ class OntologyDriftDetector:
 
         return (concept_dist + rel_dist) / 2.0
 
-    def detect_concept_drift(self, concept_id: str,
-                             window: int = 10) -> DriftReport:
+    def detect_concept_drift(self, concept_id: str, window: int = 10) -> DriftReport:
         if len(self._snapshots) < 2:
             return DriftReport(
                 component=concept_id,
@@ -156,7 +158,7 @@ class OntologyDriftDetector:
                 severity="INFO",
             )
 
-        recent = self._snapshots[-min(window, len(self._snapshots)):]
+        recent = self._snapshots[-min(window, len(self._snapshots)) :]
         vectors: list[list[float]] = []
         for snap in recent:
             cv = snap.concepts.get(concept_id)
@@ -218,33 +220,39 @@ class OntologyDriftDetector:
             prev = self._snapshots[i - 1]
             curr = self._snapshots[i]
             if prev.schema_version != curr.schema_version:
-                changes.append(SchemaChange(
-                    change_type="schema_update",
-                    component="ontology",
-                    before=prev.schema_version,
-                    after=curr.schema_version,
-                    timestamp=curr.timestamp,
-                ))
+                changes.append(
+                    SchemaChange(
+                        change_type="schema_update",
+                        component="ontology",
+                        before=prev.schema_version,
+                        after=curr.schema_version,
+                        timestamp=curr.timestamp,
+                    )
+                )
             prev_ids = set(prev.concepts.keys())
             curr_ids = set(curr.concepts.keys())
             added = curr_ids - prev_ids
             removed = prev_ids - curr_ids
             for cid in added:
-                changes.append(SchemaChange(
-                    change_type="concept_added",
-                    component=cid,
-                    before="",
-                    after=cid,
-                    timestamp=curr.timestamp,
-                ))
+                changes.append(
+                    SchemaChange(
+                        change_type="concept_added",
+                        component=cid,
+                        before="",
+                        after=cid,
+                        timestamp=curr.timestamp,
+                    )
+                )
             for cid in removed:
-                changes.append(SchemaChange(
-                    change_type="concept_removed",
-                    component=cid,
-                    before=cid,
-                    after="",
-                    timestamp=curr.timestamp,
-                ))
+                changes.append(
+                    SchemaChange(
+                        change_type="concept_removed",
+                        component=cid,
+                        before=cid,
+                        after="",
+                        timestamp=curr.timestamp,
+                    )
+                )
         return changes
 
     def snapshot_count(self) -> int:
@@ -288,26 +296,32 @@ class ContextDecayMonitor:
             current = self.decay(layer_id)
             predicted = self.predict_decay(layer_id, 1)
             if current < 0.3:
-                suggestions.append(ContextRefreshSuggestion(
-                    context_layer=layer_id,
-                    decay_score=current,
-                    suggested_action="IMMEDIATE refresh required",
-                    urgency="HIGH",
-                ))
+                suggestions.append(
+                    ContextRefreshSuggestion(
+                        context_layer=layer_id,
+                        decay_score=current,
+                        suggested_action="IMMEDIATE refresh required",
+                        urgency="HIGH",
+                    )
+                )
             elif current < 0.6:
-                suggestions.append(ContextRefreshSuggestion(
-                    context_layer=layer_id,
-                    decay_score=current,
-                    suggested_action="Schedule refresh soon",
-                    urgency="MEDIUM",
-                ))
+                suggestions.append(
+                    ContextRefreshSuggestion(
+                        context_layer=layer_id,
+                        decay_score=current,
+                        suggested_action="Schedule refresh soon",
+                        urgency="MEDIUM",
+                    )
+                )
             elif predicted < 0.3:
-                suggestions.append(ContextRefreshSuggestion(
-                    context_layer=layer_id,
-                    decay_score=current,
-                    suggested_action="Preemptive refresh recommended",
-                    urgency="LOW",
-                ))
+                suggestions.append(
+                    ContextRefreshSuggestion(
+                        context_layer=layer_id,
+                        decay_score=current,
+                        suggested_action="Preemptive refresh recommended",
+                        urgency="LOW",
+                    )
+                )
         return suggestions
 
     def refresh(self, layer_id: str) -> None:

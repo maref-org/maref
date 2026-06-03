@@ -111,8 +111,12 @@ class MemoryThreeTemperature:
         self._transitions: list[TemperatureTransition] = []
         self._audit_store = audit_store or UnifiedAuditStore()
 
-    def store(self, memory_id: str, content: dict[str, Any],
-               initial_temp: MemoryTemperature = MemoryTemperature.WARM) -> MemoryRecord:
+    def store(
+        self,
+        memory_id: str,
+        content: dict[str, Any],
+        initial_temp: MemoryTemperature = MemoryTemperature.WARM,
+    ) -> MemoryRecord:
         record = MemoryRecord(
             memory_id=memory_id,
             content=dict(content),
@@ -148,8 +152,12 @@ class MemoryThreeTemperature:
         if record is None:
             return None
 
-        order = [MemoryTemperature.FROZEN, MemoryTemperature.COLD,
-                  MemoryTemperature.WARM, MemoryTemperature.HOT]
+        order = [
+            MemoryTemperature.FROZEN,
+            MemoryTemperature.COLD,
+            MemoryTemperature.WARM,
+            MemoryTemperature.HOT,
+        ]
         try:
             idx = order.index(record.temperature)
         except ValueError:
@@ -176,8 +184,12 @@ class MemoryThreeTemperature:
         if record is None:
             return None
 
-        order = [MemoryTemperature.HOT, MemoryTemperature.WARM,
-                  MemoryTemperature.COLD, MemoryTemperature.FROZEN]
+        order = [
+            MemoryTemperature.HOT,
+            MemoryTemperature.WARM,
+            MemoryTemperature.COLD,
+            MemoryTemperature.FROZEN,
+        ]
         try:
             idx = order.index(record.temperature)
         except ValueError:
@@ -257,8 +269,10 @@ class MemoryThreeTemperature:
         recency = 1.0 / (1.0 + idle_h / self._thresholds.demotion_window_hours)
         frequency = access_freq
         relevance = record.success_rate
-        impact = 0.5 if record.access_count == 0 else (
-            0.5 + 0.5 * record.success_rate * (min(record.access_count, 20) / 20.0)
+        impact = (
+            0.5
+            if record.access_count == 0
+            else (0.5 + 0.5 * record.success_rate * (min(record.access_count, 20) / 20.0))
         )
 
         a, b, g = self._thresholds.alpha, self._thresholds.beta, self._thresholds.gamma
@@ -275,10 +289,20 @@ class MemoryThreeTemperature:
             overall_health=overall,
         )
 
-        if record.temperature == MemoryTemperature.COLD and overall >= self._thresholds.warm_min_health or record.temperature == MemoryTemperature.WARM and overall >= self._thresholds.hot_min_health:
+        if (
+            record.temperature == MemoryTemperature.COLD
+            and overall >= self._thresholds.warm_min_health
+            or record.temperature == MemoryTemperature.WARM
+            and overall >= self._thresholds.hot_min_health
+        ):
             score.promotion_ready = True
 
-        if record.temperature == MemoryTemperature.HOT and overall < self._thresholds.hot_to_warm_threshold or record.temperature == MemoryTemperature.WARM and overall < self._thresholds.warm_to_cold_threshold:
+        if (
+            record.temperature == MemoryTemperature.HOT
+            and overall < self._thresholds.hot_to_warm_threshold
+            or record.temperature == MemoryTemperature.WARM
+            and overall < self._thresholds.warm_to_cold_threshold
+        ):
             score.demotion_ready = True
 
         return score
@@ -346,21 +370,22 @@ class MemoryThreeTemperature:
     def _count_all(self) -> int:
         return len(self._hot) + len(self._warm) + len(self._cold) + len(self._frozen)
 
-    def _audit_transition(self, transition: TemperatureTransition,
-                           round_num: int) -> None:
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("m3t", hash(transition.memory_id) % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=round_num,
-            event_type=f"memory_{transition.from_temp.value}_to_{transition.to_temp.value}",
-            source_module="MemoryThreeTemperature",
-            target_module=transition.memory_id,
-            decision=f"{transition.from_temp.value}→{transition.to_temp.value}",
-            justification=transition.reason,
-            outcome="success",
-            context_refs=[transition.memory_id],
-        ))
+    def _audit_transition(self, transition: TemperatureTransition, round_num: int) -> None:
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("m3t", hash(transition.memory_id) % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=round_num,
+                event_type=f"memory_{transition.from_temp.value}_to_{transition.to_temp.value}",
+                source_module="MemoryThreeTemperature",
+                target_module=transition.memory_id,
+                decision=f"{transition.from_temp.value}→{transition.to_temp.value}",
+                justification=transition.reason,
+                outcome="success",
+                context_refs=[transition.memory_id],
+            )
+        )
 
     @property
     def thresholds(self) -> TemperatureThresholds:

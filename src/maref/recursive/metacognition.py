@@ -59,8 +59,9 @@ class ConfidenceCalibrator:
         curve = self.calibration_curve()
         if not curve:
             return 0.0
-        total_error = sum(abs(conf - acc) * len(self._bins.get(i, []))
-                          for i, (conf, acc) in enumerate(curve))
+        total_error = sum(
+            abs(conf - acc) * len(self._bins.get(i, [])) for i, (conf, acc) in enumerate(curve)
+        )
         total_count = len(self._predictions)
         return total_error / total_count if total_count > 0 else 0.0
 
@@ -91,35 +92,35 @@ class SelfLimitationAwareness:
     def known_capabilities(self) -> list[CapabilityBound]:
         return list(self._capability_bounds.values())
 
-    def is_within_capability(self, task_complexity: float,
-                             capability_id: str) -> bool:
+    def is_within_capability(self, task_complexity: float, capability_id: str) -> bool:
         bound = self._capability_bounds.get(capability_id)
         if bound is None:
             return False
         return bound.min_input_complexity <= task_complexity <= bound.max_input_complexity
 
-    def confidence_in_capability(self, capability_id: str,
-                                 task_complexity: float) -> float:
+    def confidence_in_capability(self, capability_id: str, task_complexity: float) -> float:
         bound = self._capability_bounds.get(capability_id)
         if bound is None:
             return 0.0
         if not self.is_within_capability(task_complexity, capability_id):
             return 0.0
-        margin = abs(task_complexity - (bound.min_input_complexity + bound.max_input_complexity) / 2)
+        margin = abs(
+            task_complexity - (bound.min_input_complexity + bound.max_input_complexity) / 2
+        )
         range_half = (bound.max_input_complexity - bound.min_input_complexity) / 2
         if range_half <= 0:
             return bound.success_rate
         center_confidence = 1.0 - (margin / range_half)
         return bound.success_rate * max(0.0, center_confidence)
 
-    def unknown_response(self, question: str,
-                         reason: LimitationReason = LimitationReason.OUT_OF_DOMAIN) -> str:
+    def unknown_response(
+        self, question: str, reason: LimitationReason = LimitationReason.OUT_OF_DOMAIN
+    ) -> str:
         response = f"I cannot answer this question. Reason: {reason.value}."
         self._unknown_responses.append(response)
         return response
 
-    def suggest_escalation(self,
-                           reason: LimitationReason) -> EscalationProposal:
+    def suggest_escalation(self, reason: LimitationReason) -> EscalationProposal:
         return EscalationProposal(
             reason=reason,
             suggestion=f"Task exceeds capability bounds: {reason.value}",
@@ -141,17 +142,26 @@ class ErrorAttribution:
     def __init__(self) -> None:
         self._attributions: list[AttributionResult] = []
 
-    def attribute(self, error_message: str,
-                  context: dict[str, Any]) -> AttributionResult:
+    def attribute(self, error_message: str, context: dict[str, Any]) -> AttributionResult:
         error_lower = error_message.lower()
 
-        if any(kw in error_lower for kw in ["missing", "not found", "import error", "modulenotfound"]):
+        if any(
+            kw in error_lower for kw in ["missing", "not found", "import error", "modulenotfound"]
+        ):
             attribution = "dependency_error"
-        elif any(kw in error_lower for kw in ["timeout", "timed out", "connection refused", "network"]) or any(kw in error_lower for kw in ["permission denied", "access denied", "forbidden"]):
+        elif any(
+            kw in error_lower for kw in ["timeout", "timed out", "connection refused", "network"]
+        ) or any(kw in error_lower for kw in ["permission denied", "access denied", "forbidden"]):
             attribution = "environment_error"
-        elif any(kw in error_lower for kw in ["invalid input", "bad request", "validation error", "type error"]):
+        elif any(
+            kw in error_lower
+            for kw in ["invalid input", "bad request", "validation error", "type error"]
+        ):
             attribution = "input_error"
-        elif any(kw in error_lower for kw in ["assertion", "logic error", "incorrect", "unexpected result"]):
+        elif any(
+            kw in error_lower
+            for kw in ["assertion", "logic error", "incorrect", "unexpected result"]
+        ):
             attribution = "self_error"
         else:
             attribution = "unknown"

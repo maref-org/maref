@@ -52,6 +52,7 @@ class PlatformScreenCapture:
             return DisplayServer.QUARTZ.value
         if self._system == "Linux":
             import os
+
             if os.environ.get("WAYLAND_DISPLAY"):
                 return DisplayServer.WAYLAND.value
             if os.environ.get("DISPLAY"):
@@ -64,6 +65,7 @@ class PlatformScreenCapture:
         info = ScreenInfo()
         try:
             import pyautogui
+
             w, h = pyautogui.size()
             info.width = w
             info.height = h
@@ -73,6 +75,7 @@ class PlatformScreenCapture:
 
     def capture(self, path: str = "") -> str:
         import time
+
         filename = path or f"{self._screenshots_dir}/shot_{int(time.time())}.png"
         return filename
 
@@ -80,7 +83,16 @@ class PlatformScreenCapture:
 class PlatformInputController:
     """Platform-specific input controller factory."""
 
-    SUPPORTED_OPS = {"click", "double_click", "right_click", "drag", "type", "hotkey", "press", "scroll"}
+    SUPPORTED_OPS = {
+        "click",
+        "double_click",
+        "right_click",
+        "drag",
+        "type",
+        "hotkey",
+        "press",
+        "scroll",
+    }
 
     def __init__(self) -> None:
         self._system = platform.system()
@@ -90,7 +102,11 @@ class PlatformInputController:
         return operation in self.SUPPORTED_OPS
 
     def get_platform_driver(self) -> str:
-        drivers = {"Darwin": "Quartz+pyautogui", "Linux": "X11/Wayland+pyautogui", "Windows": "win32api+pyautogui"}
+        drivers = {
+            "Darwin": "Quartz+pyautogui",
+            "Linux": "X11/Wayland+pyautogui",
+            "Windows": "win32api+pyautogui",
+        }
         return drivers.get(self._system, "unknown")
 
     def list_supported_operations(self) -> list[str]:
@@ -101,10 +117,21 @@ class PlatformCompatibilityMatrix:
     """Generate platform compatibility reports."""
 
     CAPABILITIES = [
-        "screen_capture", "input_click", "input_type", "input_hotkey",
-        "input_drag", "input_scroll", "window_list", "window_focus",
-        "window_bounds", "clipboard_read", "clipboard_write", "file_ops",
-        "browser_control", "screen_parser_mock", "screen_parser_real",
+        "screen_capture",
+        "input_click",
+        "input_type",
+        "input_hotkey",
+        "input_drag",
+        "input_scroll",
+        "window_list",
+        "window_focus",
+        "window_bounds",
+        "clipboard_read",
+        "clipboard_write",
+        "file_ops",
+        "browser_control",
+        "screen_parser_mock",
+        "screen_parser_real",
     ]
 
     def __init__(self) -> None:

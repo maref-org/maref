@@ -27,9 +27,27 @@ class Tenant:
     def __post_init__(self) -> None:
         if not self.quota:
             self.quota = {
-                "max_agents": 1 if self.tier == "free" else 10 if self.tier == "pro" else 100 if self.tier == "business" else -1,
-                "max_checks_per_month": 1000 if self.tier == "free" else 100_000 if self.tier == "pro" else 1_000_000 if self.tier == "business" else -1,
-                "audit_retention_days": 7 if self.tier == "free" else 90 if self.tier == "pro" else 365 if self.tier == "business" else 2555,
+                "max_agents": 1
+                if self.tier == "free"
+                else 10
+                if self.tier == "pro"
+                else 100
+                if self.tier == "business"
+                else -1,
+                "max_checks_per_month": 1000
+                if self.tier == "free"
+                else 100_000
+                if self.tier == "pro"
+                else 1_000_000
+                if self.tier == "business"
+                else -1,
+                "audit_retention_days": 7
+                if self.tier == "free"
+                else 90
+                if self.tier == "pro"
+                else 365
+                if self.tier == "business"
+                else 2555,
                 "hitl_enabled": self.tier != "free",
                 "federation_enabled": self.tier == "enterprise",
             }

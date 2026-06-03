@@ -17,6 +17,7 @@ from typing import Any
 @dataclass
 class RequestMetric:
     """Single request metric record."""
+
     path: str
     method: str
     status_code: int
@@ -67,11 +68,11 @@ class REDMetricsCollector:
         with self._lock:
             self._metrics.append(metric)
             if len(self._metrics) > self.MAX_SAMPLES:
-                self._metrics = self._metrics[-self.MAX_SAMPLES:]
+                self._metrics = self._metrics[-self.MAX_SAMPLES :]
 
             self._path_metrics[path].append(duration_ms)
             if len(self._path_metrics[path]) > self.MAX_SAMPLES:
-                self._path_metrics[path] = self._path_metrics[path][-self.MAX_SAMPLES:]
+                self._path_metrics[path] = self._path_metrics[path][-self.MAX_SAMPLES :]
 
             self._request_counts[path] += 1
             self._total_requests += 1
@@ -151,10 +152,7 @@ class REDMetricsCollector:
                 continue
 
             path_requests = self._request_counts.get(path, 0)
-            path_errors = sum(
-                1 for m in self._metrics
-                if m.path == path and m.is_error
-            )
+            path_errors = sum(1 for m in self._metrics if m.path == path and m.is_error)
 
             result[path] = {
                 "request_count": path_requests,

@@ -1,4 +1,5 @@
 """Real system-level fault injection for stress tests."""
+
 from __future__ import annotations
 
 import os
@@ -9,8 +10,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 FAULT_TYPES = [
-    "test_failure", "dependency_conflict", "coverage_drop",
-    "performance_regression", "import_error", "unknown",
+    "test_failure",
+    "dependency_conflict",
+    "coverage_drop",
+    "performance_regression",
+    "import_error",
+    "unknown",
 ]
 
 
@@ -44,8 +49,10 @@ class RealFaultInjector:
     def inject(self, fault_type: str, max_duration_s: float = 5.0) -> FaultInjection:
         start = time.time()
         injection = FaultInjection(
-            fault_type=fault_type, target_process=str(os.getpid()),
-            triggered=False, recovered=False,
+            fault_type=fault_type,
+            target_process=str(os.getpid()),
+            triggered=False,
+            recovered=False,
         )
 
         try:
@@ -73,8 +80,12 @@ class RealFaultInjector:
         return injection
 
     def _oom_trigger(self) -> FaultInjection:
-        injection = FaultInjection(fault_type="oom_trigger", target_process=str(os.getpid()),
-                                    triggered=False, recovered=False)
+        injection = FaultInjection(
+            fault_type="oom_trigger",
+            target_process=str(os.getpid()),
+            triggered=False,
+            recovered=False,
+        )
         try:
             data = [bytearray(50 * 1024 * 1024) for _ in range(3)]
             injection.triggered = True
@@ -87,10 +98,16 @@ class RealFaultInjector:
 
     def _file_lock_contention(self) -> FaultInjection:
         import tempfile
-        injection = FaultInjection(fault_type="file_lock", target_process=str(os.getpid()),
-                                    triggered=False, recovered=False)
+
+        injection = FaultInjection(
+            fault_type="file_lock",
+            target_process=str(os.getpid()),
+            triggered=False,
+            recovered=False,
+        )
         try:
             import fcntl
+
             with tempfile.NamedTemporaryFile(delete=False) as lock_file:
                 self._temp_files.append(lock_file.name)
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -106,8 +123,13 @@ class RealFaultInjector:
 
     def _disk_io_saturation(self) -> FaultInjection:
         import tempfile
-        injection = FaultInjection(fault_type="disk_io_sat", target_process=str(os.getpid()),
-                                    triggered=False, recovered=False)
+
+        injection = FaultInjection(
+            fault_type="disk_io_sat",
+            target_process=str(os.getpid()),
+            triggered=False,
+            recovered=False,
+        )
         try:
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 self._temp_files.append(tmp.name)
@@ -121,8 +143,12 @@ class RealFaultInjector:
         return injection
 
     def _signal_injection(self) -> FaultInjection:
-        injection = FaultInjection(fault_type="signal_inject", target_process=str(os.getpid()),
-                                    triggered=False, recovered=False)
+        injection = FaultInjection(
+            fault_type="signal_inject",
+            target_process=str(os.getpid()),
+            triggered=False,
+            recovered=False,
+        )
         try:
             injection.metadata["signal"] = "SIGSTOP+SIGCONT simulated"
             injection.triggered = True
@@ -132,16 +158,25 @@ class RealFaultInjector:
         return injection
 
     def _pid_terminate(self) -> FaultInjection:
-        injection = FaultInjection(fault_type="pid_terminate", target_process=str(os.getpid()),
-                                    triggered=True, recovered=True)
+        injection = FaultInjection(
+            fault_type="pid_terminate",
+            target_process=str(os.getpid()),
+            triggered=True,
+            recovered=True,
+        )
         injection.metadata["note"] = "pid_terminate simulated — cannot kill self"
         return injection
 
     def _network_partition(self) -> FaultInjection:
-        injection = FaultInjection(fault_type="network_partition", target_process=str(os.getpid()),
-                                    triggered=False, recovered=False)
+        injection = FaultInjection(
+            fault_type="network_partition",
+            target_process=str(os.getpid()),
+            triggered=False,
+            recovered=False,
+        )
         try:
             import socket
+
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(0.5)
             try:
@@ -158,12 +193,17 @@ class RealFaultInjector:
         return injection
 
     def _subprocess_crash(self) -> FaultInjection:
-        injection = FaultInjection(fault_type="subprocess_crash", target_process=str(os.getpid()),
-                                    triggered=False, recovered=False)
+        injection = FaultInjection(
+            fault_type="subprocess_crash",
+            target_process=str(os.getpid()),
+            triggered=False,
+            recovered=False,
+        )
         try:
             proc = subprocess.run(
                 [sys.executable, "-c", "import sys; sys.exit(1)"],
-                capture_output=True, timeout=5,
+                capture_output=True,
+                timeout=5,
             )
             injection.triggered = proc.returncode != 0
             injection.metadata["exit_code"] = proc.returncode

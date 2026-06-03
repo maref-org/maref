@@ -46,6 +46,7 @@ def __getattr__(name: str) -> Any:
             ReportType,
             create_report_generator,
         )
+
         return locals()[name]
     if name in (
         "ComplianceMonitor",
@@ -65,6 +66,7 @@ def __getattr__(name: str) -> Any:
             MonitorState,
             create_compliance_monitor,
         )
+
         return locals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

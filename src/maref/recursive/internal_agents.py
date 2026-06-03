@@ -51,9 +51,14 @@ class InternalAgentRegistry:
     def __init__(self) -> None:
         self._agents: dict[str, InternalAgent] = {}
 
-    def register(self, agent_id: str, module_path: str,
-                 capabilities: list[str], specialization: str,
-                 contracts: list[object] | None = None) -> InternalAgent:
+    def register(
+        self,
+        agent_id: str,
+        module_path: str,
+        capabilities: list[str],
+        specialization: str,
+        contracts: list[object] | None = None,
+    ) -> InternalAgent:
         agent = InternalAgent(
             agent_id=agent_id,
             module_path=module_path,
@@ -64,9 +69,14 @@ class InternalAgentRegistry:
         self._agents[agent_id] = agent
         return agent
 
-    def register_with_contracts(self, agent_id: str, module_path: str,
-                                capabilities: list[str], specialization: str,
-                                contracts: list[object]) -> InternalAgent:
+    def register_with_contracts(
+        self,
+        agent_id: str,
+        module_path: str,
+        capabilities: list[str],
+        specialization: str,
+        contracts: list[object],
+    ) -> InternalAgent:
         return self.register(agent_id, module_path, capabilities, specialization, contracts)
 
     def load_defaults(self) -> list[InternalAgent]:

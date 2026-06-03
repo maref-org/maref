@@ -52,6 +52,7 @@ except ImportError:
 
 class DesktopOperationType(str, Enum):
     """Supported desktop operation types."""
+
     CLICK = "click"
     DOUBLE_CLICK = "double_click"
     RIGHT_CLICK = "right_click"
@@ -67,6 +68,7 @@ class DesktopOperationType(str, Enum):
 @dataclass
 class DesktopOperation:
     """A single desktop operation with parameters."""
+
     op_type: DesktopOperationType
     params: dict[str, Any] = field(default_factory=dict)
     description: str = ""
@@ -82,6 +84,7 @@ class DesktopOperation:
 @dataclass
 class ExecutionStep:
     """Result of executing a single desktop operation."""
+
     step_index: int
     operation: DesktopOperation
     success: bool
@@ -109,13 +112,24 @@ class ExecutionStep:
 @dataclass
 class ExecutionPlan:
     """A sequence of desktop operations to execute."""
+
     plan_id: str
     description: str = ""
     steps: list[DesktopOperation] = field(default_factory=list)
-    safe_apps: set[str] = field(default_factory=lambda: {
-        "Finder", "Safari", "终端", "Visual Studio Code", "Xcode",
-        "Google Chrome", "Firefox", "Mail", "Notes", "Calendar",
-    })
+    safe_apps: set[str] = field(
+        default_factory=lambda: {
+            "Finder",
+            "Safari",
+            "终端",
+            "Visual Studio Code",
+            "Xcode",
+            "Google Chrome",
+            "Firefox",
+            "Mail",
+            "Notes",
+            "Calendar",
+        }
+    )
 
     def add_step(self, op: DesktopOperation) -> None:
         self.steps.append(op)
@@ -132,6 +146,7 @@ class ExecutionPlan:
 @dataclass
 class ExecutionResult:
     """Full result of executing an execution plan."""
+
     plan_id: str
     success: bool
     steps: list[ExecutionStep] = field(default_factory=list)
@@ -153,6 +168,7 @@ class ExecutionResult:
 @dataclass
 class PersistedExecution:
     """A persisted execution plan in the database."""
+
     id: int
     plan_id: str
     description: str
@@ -181,6 +197,7 @@ class HistoryDatabase:
     def __init__(self, db_path: str | Path | None = None) -> None:
         if db_path is None:
             import tempfile
+
             self._path = Path(tempfile.gettempdir()) / "maref_desktop_history.db"
         else:
             self._path = Path(db_path) if not isinstance(db_path, Path) else db_path
@@ -310,7 +327,9 @@ class DesktopController:
         self._input = InputController(
             dry_run=dry_run,
         )
-        self._capture = ScreenCapture(downsample_method=DownsampleMethod.BILINEAR, downsample_factor=0.5)
+        self._capture = ScreenCapture(
+            downsample_method=DownsampleMethod.BILINEAR, downsample_factor=0.5
+        )
         self._parser = OmniParserInterface(backend=parser_backend)
         self._parser.initialize()
         self._verifier = ScreenshotVerifier(diff_threshold=diff_threshold)
@@ -318,8 +337,14 @@ class DesktopController:
         self._governance = DesktopGovernance()
         self._policy_tree = PolicyDecisionTree(mode=operation_mode)
         self._safe_apps = safe_apps or {
-            "Finder", "Safari", "Google Chrome", "Firefox",
-            "Notes", "Calendar", "TextEdit", "Preview",
+            "Finder",
+            "Safari",
+            "Google Chrome",
+            "Firefox",
+            "Notes",
+            "Calendar",
+            "TextEdit",
+            "Preview",
         }
         self._dry_run = dry_run
         self._last_screenshot: ScreenshotResult | None = None
@@ -358,6 +383,7 @@ class DesktopController:
         with _SpanContextManager("parse", attributes={"screenshot_path": screenshot_path}):
             if not screenshot_path and self._last_screenshot and self._last_screenshot.image:
                 import tempfile
+
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
                     self._last_screenshot.save(f.name)
                     screenshot_path = f.name
@@ -403,6 +429,7 @@ class DesktopController:
     def wait(self, seconds: float = 1.0) -> OperationResult:
         """等待"""
         import time as _time
+
         start = _time.time()
         _time.sleep(seconds)
         return OperationResult(
@@ -415,32 +442,48 @@ class DesktopController:
     def execute_operation(self, op: DesktopOperation) -> OperationResult:
         """执行单个操作"""
         op_map = {
-            DesktopOperationType.CLICK: lambda: self.click(op.params.get("x", 0), op.params.get("y", 0)),
-            DesktopOperationType.DOUBLE_CLICK: lambda: self.double_click(op.params.get("x", 0), op.params.get("y", 0)),
-            DesktopOperationType.RIGHT_CLICK: lambda: self.right_click(op.params.get("x", 0), op.params.get("y", 0)),
+            DesktopOperationType.CLICK: lambda: self.click(
+                op.params.get("x", 0), op.params.get("y", 0)
+            ),
+            DesktopOperationType.DOUBLE_CLICK: lambda: self.double_click(
+                op.params.get("x", 0), op.params.get("y", 0)
+            ),
+            DesktopOperationType.RIGHT_CLICK: lambda: self.right_click(
+                op.params.get("x", 0), op.params.get("y", 0)
+            ),
             DesktopOperationType.TYPE: lambda: self.type_text(op.params.get("text", "")),
             DesktopOperationType.HOTKEY: lambda: self.hotkey(*op.params.get("keys", [])),
             DesktopOperationType.SCROLL: lambda: self.scroll(op.params.get("clicks", 1)),
             DesktopOperationType.DRAG: lambda: self.drag(
-                op.params.get("x1", 0), op.params.get("y1", 0),
-                op.params.get("x2", 0), op.params.get("y2", 0),
+                op.params.get("x1", 0),
+                op.params.get("y1", 0),
+                op.params.get("x2", 0),
+                op.params.get("y2", 0),
                 op.params.get("duration", 0.5),
             ),
             DesktopOperationType.WAIT: lambda: self.wait(op.params.get("seconds", 1.0)),
             DesktopOperationType.SCREENSHOT: lambda: OperationResult(
                 success=self.capture().width > 0,
                 action_type="screenshot",
-                details=f"Captured {self._last_screenshot.width}x{self._last_screenshot.height}" if self._last_screenshot else "No screenshot",
+                details=f"Captured {self._last_screenshot.width}x{self._last_screenshot.height}"
+                if self._last_screenshot
+                else "No screenshot",
             ),
             DesktopOperationType.PARSE: lambda: OperationResult(
                 success=bool(self.parse()),
                 action_type="parse",
-                details=f"Parsed {len(self._last_parse_result.elements)} elements" if self._last_parse_result else "No elements",
+                details=f"Parsed {len(self._last_parse_result.elements)} elements"
+                if self._last_parse_result
+                else "No elements",
             ),
         }
         fn = op_map.get(op.op_type)
         if fn is None:
-            return OperationResult(success=False, action_type=op.op_type.value, error_message=f"Unknown operation: {op.op_type}")
+            return OperationResult(
+                success=False,
+                action_type=op.op_type.value,
+                error_message=f"Unknown operation: {op.op_type}",
+            )
         return fn()
 
     def execute_plan(self, plan: ExecutionPlan) -> ExecutionResult:
@@ -453,10 +496,13 @@ class DesktopController:
         4. 验证差异
         5. 记录结果
         """
-        with _SpanContextManager("execute_plan", attributes={
-            "plan_id": plan.plan_id,
-            "step_count": len(plan.steps),
-        }):
+        with _SpanContextManager(
+            "execute_plan",
+            attributes={
+                "plan_id": plan.plan_id,
+                "step_count": len(plan.steps),
+            },
+        ):
             return self._execute_plan_inner(plan)
 
     def _execute_plan_inner(self, plan: ExecutionPlan) -> ExecutionResult:
@@ -513,7 +559,10 @@ class DesktopController:
             # 截图 after + 验证
             verification_passed = True
             verification_diff = 0.0
-            if before_img is not None and op.op_type not in (DesktopOperationType.WAIT, DesktopOperationType.PARSE):
+            if before_img is not None and op.op_type not in (
+                DesktopOperationType.WAIT,
+                DesktopOperationType.PARSE,
+            ):
                 time.sleep(0.3)
                 after_capture = self._capture.capture_fullscreen()
                 after_img = after_capture.image
@@ -546,7 +595,9 @@ class DesktopController:
             intervention = self._governance.check_and_intervene()
             if intervention is not None:
                 result.success = False
-                result.error_summary = f"Governance intervention: {intervention.value} at step {idx}"
+                result.error_summary = (
+                    f"Governance intervention: {intervention.value} at step {idx}"
+                )
                 break
 
             if not exec_result.success:

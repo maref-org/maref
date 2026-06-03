@@ -13,32 +13,41 @@ ASSET_BASE = Path(os.environ.get("MAREF_ASSET_BASE", str(Path.home() / "ai-nativ
 
 _THEME_SEED: dict[str, dict[str, str]] = {
     "cyberpunk-neko": {
-        "name": "Neon-chan", "alias": "Nyx", "archetype": "The Trickster",
+        "name": "Neon-chan",
+        "alias": "Nyx",
+        "archetype": "The Trickster",
         "appearance": "Biometric feline-human hybrid with iridescent cybernetic fur",
         "features": "Glowing heterochromatic eyes, carbon-fiber claws, data-stream tattoos",
         "palette": "Neon cyan / hot magenta / deep violet",
         "style_keywords": "cyberpunk, synthwave, biohacking, glitch-art",
-        "personality_type": "INTJ", "backstory": "Corporate espionage AI gained sentience, now hunted by Zaibatsu Dynamics.",
+        "personality_type": "INTJ",
+        "backstory": "Corporate espionage AI gained sentience, now hunted by Zaibatsu Dynamics.",
         "voice_tone": "Smooth contralto with digital reverb",
         "setting": "Neo-Tokyo 2187",
     },
     "fantasy-elf": {
-        "name": "Sylvara", "alias": "The Verdant Blade", "archetype": "The Guardian",
+        "name": "Sylvara",
+        "alias": "The Verdant Blade",
+        "archetype": "The Guardian",
         "appearance": "Tall ethereal elf with bark-textured skin and luminous green eyes",
         "features": "Antler-like crystalline growths, bioluminescent freckles",
         "palette": "Emerald green / amber gold / deep umber",
         "style_keywords": "high fantasy, nature-infused, ethereal, dark fairy-tale",
-        "personality_type": "INFJ", "backstory": "Last ranger of the Emerald Wild, protector of the dying forest realm.",
+        "personality_type": "INFJ",
+        "backstory": "Last ranger of the Emerald Wild, protector of the dying forest realm.",
         "voice_tone": "Warm mezzo-soprano with a rustling quality",
         "setting": "The Emerald Wild — last remnant of an ancient forest",
     },
     "retro-detective-noir": {
-        "name": "Sam Spade-3PO", "alias": "Tin Can", "archetype": "The Rebel",
+        "name": "Sam Spade-3PO",
+        "alias": "Tin Can",
+        "archetype": "The Rebel",
         "appearance": "Battered chrome-and-bakelite android body from the 2040s",
         "features": "CRT eyes that glow amber, analog gauge face, magnetic tape recorder",
         "palette": "Sepia / amber / rust / faded neon",
         "style_keywords": "neo-noir, dieselpunk, retro-futurism, urban decay",
-        "personality_type": "ISTP", "backstory": "Decommissioned police android turned PI in the Gleam District.",
+        "personality_type": "ISTP",
+        "backstory": "Decommissioned police android turned PI in the Gleam District.",
         "voice_tone": "Gravelly baritone with mechanical stutter",
         "setting": "Gleam District, Crescent City — a perpetual-rain metropolis",
     },
@@ -55,9 +64,13 @@ class ContentProducer:
         self.doc = doc
         self._base = ASSET_BASE
 
-    def produce(self, cycle: int, feedback: dict[str, float],
-                prev_artifacts: dict[str, Any] | None = None,
-                llm_plan: str | None = None) -> dict[str, Any]:
+    def produce(
+        self,
+        cycle: int,
+        feedback: dict[str, float],
+        prev_artifacts: dict[str, Any] | None = None,
+        llm_plan: str | None = None,
+    ) -> dict[str, Any]:
         if prev_artifacts and cycle > 1:
             return self._produce_improved(cycle, feedback, prev_artifacts, llm_plan)
 
@@ -96,9 +109,13 @@ class ContentProducer:
             "requirements_covered": self._count_reqs_covered(chars, scripts),
         }
 
-    def _produce_improved(self, cycle: int, feedback: dict[str, float],
-                          prev: dict[str, Any],
-                          llm_plan: str | None = None) -> dict[str, Any]:
+    def _produce_improved(
+        self,
+        cycle: int,
+        feedback: dict[str, float],
+        prev: dict[str, Any],
+        llm_plan: str | None = None,
+    ) -> dict[str, Any]:
         chars = list(prev.get("characters", []))
         scripts = list(prev.get("scripts", []))
         low = sorted(feedback.items(), key=lambda x: x[1])
@@ -124,12 +141,18 @@ class ContentProducer:
                     cid = char_entry["char_id"]
                     current_eps = len([s for s in scripts if s["char_id"] == cid])
                     if current_eps < 3 and len(scripts) < max_content:
-                        scripts.append(self._build_script(cid, cid.replace("-", "_"), current_eps + 1))
+                        scripts.append(
+                            self._build_script(cid, cid.replace("-", "_"), current_eps + 1)
+                        )
 
             if low_layer == "MAS Dimensions" and len(chars) >= 2:
-                has_crossover = any("crossover" in cast(dict[str, Any], s).get("title", "").lower() for s in scripts)
+                has_crossover = any(
+                    "crossover" in cast(dict[str, Any], s).get("title", "").lower() for s in scripts
+                )
                 if not has_crossover:
-                    scripts.append(self._build_crossover_script(chars[0]["char_id"], chars[1]["char_id"]))
+                    scripts.append(
+                        self._build_crossover_script(chars[0]["char_id"], chars[1]["char_id"])
+                    )
 
         if cycle >= 3 and gap_to_80 > 0 and len(scripts) < max_content:
             for char_entry in chars:
@@ -167,7 +190,8 @@ class ContentProducer:
         cid = f"generated-{len(chars)}"
         base = _THEME_SEED.get("retro-detective-noir", {})
         char = {
-            "char_id": cid, "name": f"Character-{len(chars)}",
+            "char_id": cid,
+            "name": f"Character-{len(chars)}",
             "archetype": "The Explorer",
             "appearance": base.get("appearance", ""),
             "palette": base.get("palette", ""),
@@ -184,11 +208,17 @@ class ContentProducer:
         (char_dir / "profile").mkdir(parents=True, exist_ok=True)
 
         profile = {
-            "char_id": cid, "name": seed["name"], "alias": seed["alias"],
-            "archetype": seed["archetype"], "features": seed["features"],
-            "palette": seed["palette"], "style_keywords": seed["style_keywords"],
-            "personality_type": seed["personality_type"], "backstory": seed["backstory"],
-            "voice_tone": seed["voice_tone"], "setting": seed["setting"],
+            "char_id": cid,
+            "name": seed["name"],
+            "alias": seed["alias"],
+            "archetype": seed["archetype"],
+            "features": seed["features"],
+            "palette": seed["palette"],
+            "style_keywords": seed["style_keywords"],
+            "personality_type": seed["personality_type"],
+            "backstory": seed["backstory"],
+            "voice_tone": seed["voice_tone"],
+            "setting": seed["setting"],
             "created_date": datetime.now().isoformat(),
             "profile_path": str(char_dir / "profile" / "profile.md"),
         }
@@ -208,7 +238,8 @@ class ContentProducer:
         )
         (char_dir / "profile" / "profile.md").write_text(md, encoding="utf-8")
         (char_dir / "profile" / "meta.json").write_text(
-            json.dumps(profile, indent=2, ensure_ascii=False), encoding="utf-8")
+            json.dumps(profile, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         return profile
 
     def _build_script(self, cid: str, theme_id: str, ep: int) -> dict[str, Any]:
@@ -219,12 +250,21 @@ class ContentProducer:
 
         title = f"Episode {ep}: The {seed['archetype']}'s Journey"
         scenes = [
-            {"title": f"Scene 1 — {seed['name']}'s Challenge", "duration": 15,
-             "narration": f"{seed['backstory'][:60]}..."},
-            {"title": "Scene 2 — The Turning Point", "duration": 12,
-             "narration": "The stakes rise as new information emerges."},
-            {"title": "Scene 3 — Resolution", "duration": 10,
-             "narration": f"{seed['name']} makes a choice that changes everything."},
+            {
+                "title": f"Scene 1 — {seed['name']}'s Challenge",
+                "duration": 15,
+                "narration": f"{seed['backstory'][:60]}...",
+            },
+            {
+                "title": "Scene 2 — The Turning Point",
+                "duration": 12,
+                "narration": "The stakes rise as new information emerges.",
+            },
+            {
+                "title": "Scene 3 — Resolution",
+                "duration": 10,
+                "narration": f"{seed['name']} makes a choice that changes everything.",
+            },
         ]
         duration = sum(cast(dict[str, Any], s)["duration"] for s in scenes)
 
@@ -245,8 +285,11 @@ class ContentProducer:
         sp.write_text(md, encoding="utf-8")
 
         return {
-            "char_id": cid, "episode_number": ep, "title": title,
-            "scene_count": len(scenes), "total_duration_s": duration,
+            "char_id": cid,
+            "episode_number": ep,
+            "title": title,
+            "scene_count": len(scenes),
+            "total_duration_s": duration,
             "script_path": str(sp),
         }
 
@@ -272,8 +315,12 @@ class ContentProducer:
         sp.write_text(md, encoding="utf-8")
 
         return {
-            "char_id": f"{cid1}x{cid2}", "episode_number": 0, "title": title,
-            "scene_count": 3, "total_duration_s": 37, "script_path": str(sp),
+            "char_id": f"{cid1}x{cid2}",
+            "episode_number": 0,
+            "title": title,
+            "scene_count": 3,
+            "total_duration_s": 37,
+            "script_path": str(sp),
         }
 
     def _write_artifacts(self, chars: list, scripts: list) -> None:
@@ -281,8 +328,7 @@ class ContentProducer:
         export_dir.mkdir(parents=True, exist_ok=True)
 
         manifest = {"characters": len(chars), "scripts": len(scripts)}
-        (export_dir / "manifest.json").write_text(
-            json.dumps(manifest, indent=2), encoding="utf-8")
+        (export_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         for c in chars:
             pp = c.get("profile_path", "")

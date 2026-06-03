@@ -22,7 +22,15 @@ def _register_builtin_tools() -> None:
         "factory": create_file_server,
         "version": "0.27.0",
         "default_config": {"max_read_size": 10485760},
-        "tools": ["read_file", "write_file", "list_directory", "delete_file", "copy_file", "move_file", "get_file_info"],
+        "tools": [
+            "read_file",
+            "write_file",
+            "list_directory",
+            "delete_file",
+            "copy_file",
+            "move_file",
+            "get_file_info",
+        ],
         "security_controls": ["PathSandbox", "FileSizeLimit"],
     }
     TOOL_REGISTRY["shell"] = {
@@ -83,10 +91,7 @@ def get_tool_info(name: str) -> dict[str, Any] | None:
 
 
 def list_tools() -> list[dict[str, Any]]:
-    return [
-        {k: v for k, v in info.items() if k != "factory"}
-        for info in TOOL_REGISTRY.values()
-    ]
+    return [{k: v for k, v in info.items() if k != "factory"} for info in TOOL_REGISTRY.values()]
 
 
 class ToolRegistry:
@@ -132,17 +137,42 @@ class ToolRegistry:
             "tools": info["tools"],
             "security_controls": info["security_controls"],
             "default_governance_rules": [
-                {"tool": tool, "recommended_rule": "mcp-rule-002" if tool in (
-                    "read_file", "list_directory", "get_file_info",
-                    "git_status", "git_log", "git_diff", "git_branch",
-                    "browser_open", "browser_screenshot", "browser_get_html", "browser_get_links",
-                    "web_search", "web_search_news",
-                    "email_list", "email_read", "email_search", "get_shell_help",
-                ) else "mcp-rule-005" if tool in (
-                    "write_file", "delete_file", "copy_file", "move_file",
-                    "git_commit", "git_push",
-                    "email_send",
-                ) else "mcp-rule-003"}
+                {
+                    "tool": tool,
+                    "recommended_rule": "mcp-rule-002"
+                    if tool
+                    in (
+                        "read_file",
+                        "list_directory",
+                        "get_file_info",
+                        "git_status",
+                        "git_log",
+                        "git_diff",
+                        "git_branch",
+                        "browser_open",
+                        "browser_screenshot",
+                        "browser_get_html",
+                        "browser_get_links",
+                        "web_search",
+                        "web_search_news",
+                        "email_list",
+                        "email_read",
+                        "email_search",
+                        "get_shell_help",
+                    )
+                    else "mcp-rule-005"
+                    if tool
+                    in (
+                        "write_file",
+                        "delete_file",
+                        "copy_file",
+                        "move_file",
+                        "git_commit",
+                        "git_push",
+                        "email_send",
+                    )
+                    else "mcp-rule-003",
+                }
                 for tool in info["tools"]
             ],
         }

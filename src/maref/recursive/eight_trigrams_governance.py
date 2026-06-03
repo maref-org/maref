@@ -136,12 +136,32 @@ TRIGRAM_CONFIG: dict[TrigramsGovernance, dict[str, Any]] = {
 
 TRIGRAM_TRANSITIONS: dict[TrigramsGovernance, list[TrigramsGovernance]] = {
     TrigramsGovernance.QIAN: [TrigramsGovernance.DUI, TrigramsGovernance.GEN],
-    TrigramsGovernance.DUI: [TrigramsGovernance.QIAN, TrigramsGovernance.LI, TrigramsGovernance.GEN],
-    TrigramsGovernance.LI: [TrigramsGovernance.DUI, TrigramsGovernance.ZHEN, TrigramsGovernance.XUN],
-    TrigramsGovernance.ZHEN: [TrigramsGovernance.LI, TrigramsGovernance.KAN, TrigramsGovernance.KUN],
+    TrigramsGovernance.DUI: [
+        TrigramsGovernance.QIAN,
+        TrigramsGovernance.LI,
+        TrigramsGovernance.GEN,
+    ],
+    TrigramsGovernance.LI: [
+        TrigramsGovernance.DUI,
+        TrigramsGovernance.ZHEN,
+        TrigramsGovernance.XUN,
+    ],
+    TrigramsGovernance.ZHEN: [
+        TrigramsGovernance.LI,
+        TrigramsGovernance.KAN,
+        TrigramsGovernance.KUN,
+    ],
     TrigramsGovernance.XUN: [TrigramsGovernance.LI, TrigramsGovernance.KAN, TrigramsGovernance.GEN],
-    TrigramsGovernance.KAN: [TrigramsGovernance.ZHEN, TrigramsGovernance.XUN, TrigramsGovernance.KUN],
-    TrigramsGovernance.GEN: [TrigramsGovernance.QIAN, TrigramsGovernance.DUI, TrigramsGovernance.XUN],
+    TrigramsGovernance.KAN: [
+        TrigramsGovernance.ZHEN,
+        TrigramsGovernance.XUN,
+        TrigramsGovernance.KUN,
+    ],
+    TrigramsGovernance.GEN: [
+        TrigramsGovernance.QIAN,
+        TrigramsGovernance.DUI,
+        TrigramsGovernance.XUN,
+    ],
     TrigramsGovernance.KUN: [TrigramsGovernance.ZHEN, TrigramsGovernance.KAN],
 }
 
@@ -220,13 +240,15 @@ class EightTrigramsGovernance:
                 best_threshold = threshold
         return best
 
-    def can_transition(self, from_trigram: TrigramsGovernance,
-                       to_trigram: TrigramsGovernance) -> bool:
+    def can_transition(
+        self, from_trigram: TrigramsGovernance, to_trigram: TrigramsGovernance
+    ) -> bool:
         allowed = TRIGRAM_TRANSITIONS.get(from_trigram, [])
         return to_trigram in allowed
 
-    def transition(self, new_trigram: TrigramsGovernance,
-                   reason: str = "") -> TrigramTransition | None:
+    def transition(
+        self, new_trigram: TrigramsGovernance, reason: str = ""
+    ) -> TrigramTransition | None:
         if new_trigram == self._current_trigram:
             return None
 
@@ -250,8 +272,9 @@ class EightTrigramsGovernance:
         target = self.get_trigram_for_trust(self._state.trust_score)
         return self.transition(target, f"auto: trust={self._state.trust_score:.3f}")
 
-    def update_trust_and_adapt(self, new_trust: float,
-                               violation: bool = False) -> TrigramTransition | None:
+    def update_trust_and_adapt(
+        self, new_trust: float, violation: bool = False
+    ) -> TrigramTransition | None:
         if violation:
             self._state.violations += 1
             new_trust = max(0.0, new_trust - 0.1)
@@ -300,8 +323,7 @@ class EightTrigramsGovernance:
             "transition_count": len(self._transition_history),
             "mode_cycles": self._mode_cycle_count,
             "applicable_transitions": [
-                {"trigram": t.value, "label": t.label}
-                for t in self.get_applicable_transitions()
+                {"trigram": t.value, "label": t.label} for t in self.get_applicable_transitions()
             ],
             "recent_transitions": [t.to_dict() for t in self._transition_history[-5:]],
         }

@@ -70,7 +70,13 @@ class SelfObserver:
             timeout=30,
         )
         output = result.stdout + result.stderr
-        stats: dict[str, int] = {"total": 0, "passed": 0, "failed": 0, "errors": 0, "coverage_pct": 0}
+        stats: dict[str, int] = {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "errors": 0,
+            "coverage_pct": 0,
+        }
 
         collected_match = re.search(r"(\d+)\s+tests?\s+collected", output)
         if collected_match:
@@ -89,7 +95,9 @@ class SelfObserver:
             timeout=10,
         )
         if tags_result.returncode == 0:
-            git_stats["tags"] = [t.strip() for t in tags_result.stdout.strip().split("\n") if t.strip()]
+            git_stats["tags"] = [
+                t.strip() for t in tags_result.stdout.strip().split("\n") if t.strip()
+            ]
 
         commit_count_result = subprocess.run(
             ["git", "rev-list", "--count", "--since=30.days", "HEAD"],
@@ -114,13 +122,16 @@ class SelfObserver:
                 line = line.strip()
                 if line and line.endswith(".py"):
                     file_counts[line] += 1
-            git_stats["hot_files"] = sorted(file_counts, key=lambda x: file_counts[x], reverse=True)[:5]
+            git_stats["hot_files"] = sorted(
+                file_counts, key=lambda x: file_counts[x], reverse=True
+            )[:5]
 
         return git_stats
 
     def _build_state_machine_status(self) -> dict[str, Any]:
         try:
             from maref.governance.state_machine import GovernanceStateMachine
+
             sm = GovernanceStateMachine()
             return {
                 "current_state": str(sm.current_state),

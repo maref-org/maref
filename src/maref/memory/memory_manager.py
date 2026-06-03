@@ -12,29 +12,30 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 
 class ConfidenceLabel(Enum):
     """Confidence level for memory reliability."""
 
-    CERTAIN = "certain"      # Verified by human or multiple sources
-    HIGH = "high"            # Strong evidence
-    MEDIUM = "medium"        # Single source, plausible
-    LOW = "low"              # Weak evidence, speculative
+    CERTAIN = "certain"  # Verified by human or multiple sources
+    HIGH = "high"  # Strong evidence
+    MEDIUM = "medium"  # Single source, plausible
+    LOW = "low"  # Weak evidence, speculative
     UNCERTAIN = "uncertain"  # Unverified, use with caution
 
 
 class SourceAnnotation(Enum):
     """Source type for memory provenance."""
 
-    HUMAN = "human"              # Direct human input
-    AGENT_INFERENCE = "agent"    # Agent-generated
-    EXTERNAL_API = "api"         # External system
+    HUMAN = "human"  # Direct human input
+    AGENT_INFERENCE = "agent"  # Agent-generated
+    EXTERNAL_API = "api"  # External system
     OBSERVATION = "observation"  # System observation
-    DERIVED = "derived"          # Derived/computed
+    DERIVED = "derived"  # Derived/computed
 
 
 class UserIsolationTag:
@@ -50,9 +51,7 @@ class UserIsolationTag:
     def matches(self, other: UserIsolationTag) -> bool:
         if self.is_shared() or other.is_shared():
             return True
-        if self.user_id and other.user_id and self.user_id != other.user_id:
-            return False
-        return True
+        return not (self.user_id and other.user_id and self.user_id != other.user_id)
 
     def __repr__(self) -> str:
         return f"UserIsolationTag(user={self.user_id!r}, session={self.session_id!r})"
@@ -68,11 +67,11 @@ class MemoryRecord:
     source: SourceAnnotation = SourceAnnotation.AGENT_INFERENCE
     user_tag: UserIsolationTag = field(default_factory=UserIsolationTag)
     created_at: float = field(default_factory=time.time)
-    expires_at: float = 0.0          # 0 = no expiration
+    expires_at: float = 0.0  # 0 = no expiration
     access_count: int = 0
     last_accessed_at: float = field(default_factory=time.time)
     linked_task_ids: list[str] = field(default_factory=list)
-    summary: str = ""                # For compressed/archive form
+    summary: str = ""  # For compressed/archive form
 
     def is_expired(self) -> bool:
         if self.expires_at == 0:
@@ -183,11 +182,7 @@ class WorkingMemoryStore:
 
     def checkpoint(self) -> dict[str, Any]:
         """Serialize all non-expired records for recovery."""
-        return {
-            mid: r.to_dict()
-            for mid, r in self._store.items()
-            if not r.is_expired()
-        }
+        return {mid: r.to_dict() for mid, r in self._store.items() if not r.is_expired()}
 
     def restore(self, data: dict[str, Any]) -> None:
         """Restore from checkpoint."""
@@ -197,9 +192,7 @@ class WorkingMemoryStore:
                 content=d.get("content", {}),
                 confidence=ConfidenceLabel(d.get("confidence", "medium")),
                 source=SourceAnnotation(d.get("source", "agent")),
-                user_tag=UserIsolationTag(
-                    d.get("user_id", ""), d.get("session_id", "")
-                ),
+                user_tag=UserIsolationTag(d.get("user_id", ""), d.get("session_id", "")),
                 created_at=d.get("created_at", time.time()),
                 expires_at=d.get("expires_at", 0),
                 access_count=d.get("access_count", 0),
@@ -265,9 +258,9 @@ class EpisodicMemoryStore:
         """Get historical episodes for a specific agent."""
         tag = user_tag or UserIsolationTag()
         results = [
-            r for r in self._records
-            if r.user_tag.matches(tag)
-            and r.content.get("agent_id") == agent_id
+            r
+            for r in self._records
+            if r.user_tag.matches(tag) and r.content.get("agent_id") == agent_id
         ]
         results.sort(key=lambda r: r.created_at, reverse=True)
         return results[:limit]
@@ -284,9 +277,9 @@ class EpisodicMemoryStore:
         """
         tag = user_tag or UserIsolationTag()
         episodes = [
-            r for r in self._records
-            if r.user_tag.matches(tag)
-            and r.content.get("task_type") == task_type
+            r
+            for r in self._records
+            if r.user_tag.matches(tag) and r.content.get("task_type") == task_type
         ]
         episodes.sort(key=lambda r: r.created_at, reverse=True)
         episodes = episodes[:limit]
@@ -295,12 +288,8 @@ class EpisodicMemoryStore:
         if total == 0:
             return {"task_type": task_type, "count": 0, "summary": "No episodes found"}
 
-        success_count = sum(
-            1 for e in episodes if e.content.get("outcome") == "success"
-        )
-        avg_duration = sum(
-            e.content.get("duration_ms", 0) for e in episodes
-        ) / max(total, 1)
+        success_count = sum(1 for e in episodes if e.content.get("outcome") == "success")
+        avg_duration = sum(e.content.get("duration_ms", 0) for e in episodes) / max(total, 1)
 
         return {
             "task_type": task_type,
@@ -372,10 +361,7 @@ class SemanticMemoryStore:
 
     def get_ontology(self, concept: str) -> list[MemoryRecord]:
         """Retrieve knowledge about a specific concept."""
-        return [
-            r for r in self._records.values()
-            if r.content.get("concept") == concept
-        ]
+        return [r for r in self._records.values() if r.content.get("concept") == concept]
 
     def __len__(self) -> int:
         return len(self._records)

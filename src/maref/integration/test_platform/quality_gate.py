@@ -29,9 +29,9 @@ from maref.integration.test_platform.schema import (
 
 
 class EvolutionVerdict(str, Enum):
-    APPROVED = "approved"           # Full promotion to next cycle
-    CONDITIONAL = "conditional"     # Partial approval, needs human review
-    REJECTED = "rejected"           # Blocked, fallback to previous candidate
+    APPROVED = "approved"  # Full promotion to next cycle
+    CONDITIONAL = "conditional"  # Partial approval, needs human review
+    REJECTED = "rejected"  # Blocked, fallback to previous candidate
 
 
 @dataclass
@@ -191,8 +191,7 @@ class EvolutionQualityGate:
             fnr_std = convergence_metrics.get("fnr_std", 0.0)
             fpr_std = convergence_metrics.get("fpr_std", 0.0)
             converged = (
-                fnr_std <= self._config.c3_fnr_std_max
-                and fpr_std <= self._config.c3_fpr_std_max
+                fnr_std <= self._config.c3_fnr_std_max and fpr_std <= self._config.c3_fpr_std_max
             )
 
         if (

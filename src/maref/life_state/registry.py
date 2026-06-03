@@ -49,9 +49,7 @@ class LifeStateRegistry:
 
     def register(self, metadata: LifeStateMetadata) -> None:
         if metadata.state_id in self._entities:
-            raise DuplicateRegistrationError(
-                f"State {metadata.state_id} already registered"
-            )
+            raise DuplicateRegistrationError(f"State {metadata.state_id} already registered")
         self._entities[metadata.state_id] = metadata
         event = RegistryEvent(
             event_type="registered",
@@ -92,10 +90,7 @@ class LifeStateRegistry:
         return [m for m in self._entities.values() if m.has_capability(capability)]
 
     def find_by_label(self, key: str, value: str) -> list[LifeStateMetadata]:
-        return [
-            m for m in self._entities.values()
-            if m.labels.get(key) == value
-        ]
+        return [m for m in self._entities.values() if m.labels.get(key) == value]
 
     def find_healthy(self, threshold: float = 80.0) -> list[LifeStateMetadata]:
         return [m for m in self._entities.values() if m.health_score >= threshold]

@@ -47,9 +47,7 @@ class OpenTelemetryBridge:
     and exports both Prometheus text format and OTLP to collectors.
     """
 
-    def __init__(
-        self, state_machine: GovernanceStateMachine, audit_logger: AuditLogger
-    ) -> None:
+    def __init__(self, state_machine: GovernanceStateMachine, audit_logger: AuditLogger) -> None:
         self._sm = state_machine
         self._audit = audit_logger
         self._metrics: list[MAREFFMetric] = []
@@ -78,7 +76,9 @@ class OpenTelemetryBridge:
             otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
             if otlp_endpoint:
                 metric_exporter = OTLPMetricExporter(endpoint=f"{otlp_endpoint}/v1/metrics")
-                metric_reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=15_000)
+                metric_reader = PeriodicExportingMetricReader(
+                    metric_exporter, export_interval_millis=15_000
+                )
                 mp = MeterProvider(metric_readers=[metric_reader])
                 metrics.set_meter_provider(mp)
 
@@ -230,9 +230,7 @@ class OpenTelemetryBridge:
     def verify_all_transitions_have_spans(self) -> bool:
         with self._lock:
             audit_entries = self._audit.read_all()
-            transition_entries = [
-                e for e in audit_entries if e.event_type == "state_transition"
-            ]
+            transition_entries = [e for e in audit_entries if e.event_type == "state_transition"]
             return len(transition_entries) <= self._span_counter
 
     @property

@@ -12,8 +12,13 @@ class JointStateMachine:
     _handoff_pairs: dict[str, str] = field(default_factory=dict)
 
     VALID_STATES = {
-        "IDLE", "RUNNING", "DONE", "ERROR", "PAUSED",
-        "HANDOFF_SOURCE", "HANDOFF_TARGET",
+        "IDLE",
+        "RUNNING",
+        "DONE",
+        "ERROR",
+        "PAUSED",
+        "HANDOFF_SOURCE",
+        "HANDOFF_TARGET",
     }
 
     def register_agent(self, agent_id: str) -> None:
@@ -36,12 +41,14 @@ class JointStateMachine:
 
     def arbitrate(self, agent_a: str, agent_b: str, issue: str) -> str:
         resolution = f"arbitration: {issue} resolved between {agent_a} and {agent_b}"
-        self.conflict_log.append({
-            "agent_a": agent_a,
-            "agent_b": agent_b,
-            "issue": issue,
-            "resolution": "arbitrated",
-        })
+        self.conflict_log.append(
+            {
+                "agent_a": agent_a,
+                "agent_b": agent_b,
+                "issue": issue,
+                "resolution": "arbitrated",
+            }
+        )
         return resolution
 
     def reset(self) -> None:
@@ -56,8 +63,9 @@ class JointStateMachine:
     def agent_states(self) -> dict[str, str]:
         return dict(self.agents)
 
-    def initiate_handoff(self, source_agent: str, target_agent: str,
-                          timeout_seconds: float = 30.0) -> bool:
+    def initiate_handoff(
+        self, source_agent: str, target_agent: str, timeout_seconds: float = 30.0
+    ) -> bool:
         if source_agent not in self.agents or target_agent not in self.agents:
             return False
         if self._handoff_pairs.get(source_agent) is not None:

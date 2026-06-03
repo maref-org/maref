@@ -121,6 +121,7 @@ class ForwardChainingPlanner:
             )
 
         from collections import deque
+
         visited: set[frozenset[Predicate]] = {initial}
         queue: deque[tuple[frozenset[Predicate], list[Action], float]] = deque()
         queue.append((initial, [], 0.0))
@@ -162,8 +163,9 @@ class ForwardChainingPlanner:
 
 
 class CostBasedPlanner:
-    def __init__(self, max_cost: float = float("inf"),
-                 max_depth: int = 50, max_nodes: int = 100000) -> None:
+    def __init__(
+        self, max_cost: float = float("inf"), max_depth: int = 50, max_nodes: int = 100000
+    ) -> None:
         self._max_cost = max_cost
         self._max_depth = max_depth
         self._max_nodes = max_nodes
@@ -248,8 +250,7 @@ class PlanValidator:
             action_names_seen = {a.name for a in plan.actions[:i]}
             for pre in action.preconditions:
                 matching_del_by_prev = any(
-                    pre in a.del_effects and a.name in action_names_seen
-                    for a in plan.actions[:i]
+                    pre in a.del_effects and a.name in action_names_seen for a in plan.actions[:i]
                 )
                 if matching_del_by_prev:
                     resource_conflicts.append(
@@ -261,7 +262,9 @@ class PlanValidator:
 
         for goal_pred in domain.goal_state:
             if not goal_pred.evaluate(state):
-                errors.append(f"Goal predicate '{goal_pred.to_string()}' not satisfied in final state")
+                errors.append(
+                    f"Goal predicate '{goal_pred.to_string()}' not satisfied in final state"
+                )
                 postcond_log.append(f"FAIL: goal {goal_pred.to_string()} not achieved")
             else:
                 postcond_log.append(f"OK: goal {goal_pred.to_string()} achieved")
@@ -386,9 +389,23 @@ def build_agent_task_domain() -> PlanningDomain:
 
     return PlanningDomain(
         name="agent_task_domain",
-        predicates=[idle, performance_observed, bottleneck_analyzed, fix_proposed, trust_verified,
-                     probes_run, risk_assessed, action_decided, dids_audited, trust_cross_checked,
-                     observing, diagnosed, risk_evaluated, action_executed, verified],
+        predicates=[
+            idle,
+            performance_observed,
+            bottleneck_analyzed,
+            fix_proposed,
+            trust_verified,
+            probes_run,
+            risk_assessed,
+            action_decided,
+            dids_audited,
+            trust_cross_checked,
+            observing,
+            diagnosed,
+            risk_evaluated,
+            action_executed,
+            verified,
+        ],
         actions=actions,
         initial_state=frozenset([idle]),
     )

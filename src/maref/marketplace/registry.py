@@ -16,13 +16,13 @@ from typing import Any
 
 
 class SkillStatus(Enum):
-    PENDING = "pending"          # Submitted, awaiting review
+    PENDING = "pending"  # Submitted, awaiting review
     STATIC_SCAN = "static_scan"  # Passed static security scan
     SANDBOX_TEST = "sandbox_test"  # Passed sandbox execution
-    APPROVED = "approved"        # Approved for use
-    REJECTED = "rejected"        # Failed review
-    DEPRECATED = "deprecated"    # Scheduled for removal
-    FROZEN = "frozen"            # Temporarily suspended
+    APPROVED = "approved"  # Approved for use
+    REJECTED = "rejected"  # Failed review
+    DEPRECATED = "deprecated"  # Scheduled for removal
+    FROZEN = "frozen"  # Temporarily suspended
 
 
 @dataclass
@@ -37,7 +37,7 @@ class SkillManifest:
     dependencies: list[str] = field(default_factory=list)  # ["skill://name@version"]
     author: str = ""
     license: str = "Apache-2.0"
-    entrypoint: str = ""         # Module path or function name
+    entrypoint: str = ""  # Module path or function name
     sandbox_config: dict[str, Any] = field(default_factory=dict)
     test_cases: list[dict[str, Any]] = field(default_factory=list)
     skill_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
@@ -74,11 +74,7 @@ class SkillValidationResult:
 
     @property
     def all_passed(self) -> bool:
-        return (
-            self.static_scan_passed
-            and self.sandbox_test_passed
-            and self.manual_review_passed
-        )
+        return self.static_scan_passed and self.sandbox_test_passed and self.manual_review_passed
 
 
 class SkillRegistry:
@@ -131,8 +127,7 @@ class SkillRegistry:
 
     def list_approved(self) -> list[SkillManifest]:
         return [
-            s for sid, s in self._skills.items()
-            if self._status.get(sid) == SkillStatus.APPROVED
+            s for sid, s in self._skills.items() if self._status.get(sid) == SkillStatus.APPROVED
         ]
 
     # ------------------------------------------------------------------ #

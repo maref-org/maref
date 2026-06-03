@@ -86,10 +86,7 @@ class VectorClock:
     # ------------------------------------------------------------------ #
     def dominates(self, other: VectorClock) -> bool:
         """Return True iff *self* >= *other* in every dimension."""
-        for aid, ts in other.clocks.items():
-            if self.clocks.get(aid, 0) < ts:
-                return False
-        return True
+        return all(self.clocks.get(aid, 0) >= ts for aid, ts in other.clocks.items())
 
     # ------------------------------------------------------------------ #
     # Serialization
@@ -105,9 +102,9 @@ class VectorClock:
 class CausalRelation:
     """Enumeration of causal comparison results."""
 
-    BEFORE = "before"          # self -> other
-    AFTER = "after"            # other -> self
-    EQUAL = "equal"            # identical
+    BEFORE = "before"  # self -> other
+    AFTER = "after"  # other -> self
+    EQUAL = "equal"  # identical
     CONCURRENT = "concurrent"  # incomparable
 
 

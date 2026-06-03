@@ -24,8 +24,11 @@ from maref.integration.test_platform.schema import (
 logger = logging.getLogger(__name__)
 
 _LAYER_NAMES: dict[int, str] = {
-    1: "Static Audit", 2: "Reasoning Metrics", 3: "Action Metrics",
-    4: "E2E Metrics", 5: "MAS Dimensions",
+    1: "Static Audit",
+    2: "Reasoning Metrics",
+    3: "Action Metrics",
+    4: "E2E Metrics",
+    5: "MAS Dimensions",
 }
 
 GO_THRESHOLD = 75.0
@@ -51,9 +54,12 @@ class CycleSnapshot:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "cycle_number": self.cycle_number, "topic": self.topic,
-            "layer_scores": self.layer_scores, "overall_score": self.overall_score,
-            "overall_status": self.overall_status.value, "verdict": self.verdict,
+            "cycle_number": self.cycle_number,
+            "topic": self.topic,
+            "layer_scores": self.layer_scores,
+            "overall_score": self.overall_score,
+            "overall_status": self.overall_status.value,
+            "verdict": self.verdict,
             "feedback_injected": self.feedback_injected,
             "duration_seconds": self.duration_seconds,
             "characters": len(self.artifacts.get("characters", [])),
@@ -84,7 +90,9 @@ class FeatureDevelopmentCycle:
         self._eval_obs = MASEvalObserver(governance_fsm=self._sm)
         self._qg = EvolutionQualityGate()
         self._orch = PERCVResearchOrchestrator(
-            state_machine=self._sm, eval_observer=self._eval_obs, quality_gate=self._qg,
+            state_machine=self._sm,
+            eval_observer=self._eval_obs,
+            quality_gate=self._qg,
         )
         self._producer = ContentProducer(doc)
         self._scorer = ContentScorer(doc)
@@ -118,7 +126,11 @@ class FeatureDevelopmentCycle:
             llm_tag = " [LLM]" if snap.llm_used else ""
             logger.info(
                 "Cycle %d/%d%s: score=%.1f verdict=%s chars=%d scripts=%d",
-                i + 1, self.iterations, llm_tag, snap.overall_score, snap.verdict,
+                i + 1,
+                self.iterations,
+                llm_tag,
+                snap.overall_score,
+                snap.verdict,
                 len(snap.artifacts.get("characters", [])),
                 len(snap.artifacts.get("scripts", [])),
             )
@@ -138,11 +150,13 @@ class FeatureDevelopmentCycle:
             "Analyze the feature document requirements and previous evaluation feedback. "
             "Produce a concrete improvement plan for the next content production cycle."
         )
-        llm_plan = self._llm.generate(system=sys_prompt, prompt=
-            f"Feature doc: {self.doc.title}. Requirements: {self.doc.metadata.get('extracted_requirements', 0)}."
+        llm_plan = self._llm.generate(
+            system=sys_prompt,
+            prompt=f"Feature doc: {self.doc.title}. Requirements: {self.doc.metadata.get('extracted_requirements', 0)}."
             f"Previous feedback: {self._llm_feedback_history[-1:] if self._llm_feedback_history else 'none'}."
             f"Cycle {cycle_number}/{self.iterations}. "
-            "Output a specific, actionable plan (3-5 bullet points) for improving content quality this cycle.")
+            "Output a specific, actionable plan (3-5 bullet points) for improving content quality this cycle.",
+        )
         if llm_plan:
             llm_used = True
             history.append({"step": "llm_research", "plan": llm_plan[:200]})
@@ -150,16 +164,21 @@ class FeatureDevelopmentCycle:
         # --- Step 2: Produce ---
         scores = self._last_scores()
         artifacts = self._producer.produce(
-            cycle=cycle_number, feedback=scores,
-            prev_artifacts=self._prev_artifacts, llm_plan=llm_plan,
+            cycle=cycle_number,
+            feedback=scores,
+            prev_artifacts=self._prev_artifacts,
+            llm_plan=llm_plan,
         )
         self._prev_artifacts = artifacts
-        history.append({
-            "step": "produce", "phase": "completed",
-            "characters": len(artifacts["characters"]),
-            "scripts": len(artifacts["scripts"]),
-            "stages": list(artifacts["stages_covered"]),
-        })
+        history.append(
+            {
+                "step": "produce",
+                "phase": "completed",
+                "characters": len(artifacts["characters"]),
+                "scripts": len(artifacts["scripts"]),
+                "stages": list(artifacts["stages_covered"]),
+            }
+        )
 
         # --- Step 3: Evaluate (structural + LLM qualitative) ---
         structural = self._scorer.score(artifacts)
@@ -180,15 +199,26 @@ class FeatureDevelopmentCycle:
         status = self._decide_status(overall_score)
 
         report = EvaluationReport(
-            report_id=f"feature-cycle-{cycle_number}", agent_id="feature-agent",
-            test_mode=TestMode.FULL_RUN, overall_status=status,
+            report_id=f"feature-cycle-{cycle_number}",
+            agent_id="feature-agent",
+            test_mode=TestMode.FULL_RUN,
+            overall_status=status,
             overall_score=overall_score,
-            layers=[LayerReport(layer_number=num, layer_name=name, score=round(score, 1))
-                    for num, (name, score) in enumerate(sorted(combined.items()), 1)],
+            layers=[
+                LayerReport(layer_number=num, layer_name=name, score=round(score, 1))
+                for num, (name, score) in enumerate(sorted(combined.items()), 1)
+            ],
         )
         r2 = self._orch.run_evaluate_cycle(agent_id="feature-agent", report=report)
-        history.append({"step": "evaluate", "phase": r2.phase.value, "score": overall_score,
-                        "structural": structural, "qualitative": qual_scores})
+        history.append(
+            {
+                "step": "evaluate",
+                "phase": r2.phase.value,
+                "score": overall_score,
+                "structural": structural,
+                "qualitative": qual_scores,
+            }
+        )
 
         # --- Step 4: Evolve ---
         r3 = self._orch.run_evolve_cycle(candidate_id="feature-agent", score=overall_score)
@@ -214,12 +244,18 @@ class FeatureDevelopmentCycle:
         elapsed = time.perf_counter() - t0
 
         return CycleSnapshot(
-            cycle_number=cycle_number, topic=topic,
-            layer_scores=combined, overall_score=overall_score,
-            overall_status=status, verdict=verdict,
-            feedback_injected=feedback_text, duration_seconds=elapsed,
-            artifacts=artifacts, go_nogo_decision=go_nogo,
-            budget_used=round(cycle_cost, 2), history_entries=history,
+            cycle_number=cycle_number,
+            topic=topic,
+            layer_scores=combined,
+            overall_score=overall_score,
+            overall_status=status,
+            verdict=verdict,
+            feedback_injected=feedback_text,
+            duration_seconds=elapsed,
+            artifacts=artifacts,
+            go_nogo_decision=go_nogo,
+            budget_used=round(cycle_cost, 2),
+            history_entries=history,
             llm_used=llm_used,
         )
 
@@ -227,10 +263,14 @@ class FeatureDevelopmentCycle:
         sys = "You are a content quality evaluator. Score produced content (0-100) on 5 dimensions."
         chars = artifacts.get("characters", [])
         scripts = artifacts.get("scripts", [])
-        char_str = "\n".join(f"- {c.get('name','?')} ({c.get('archetype','?')}): backstory={c.get('backstory','')[:80]}"
-                              for c in chars[:3])
-        script_str = "\n".join(f"- {s.get('title','?')} ({s.get('total_duration_s',0)}s, {s.get('scene_count',0)} scenes)"
-                                for s in scripts[:5])
+        char_str = "\n".join(
+            f"- {c.get('name', '?')} ({c.get('archetype', '?')}): backstory={c.get('backstory', '')[:80]}"
+            for c in chars[:3]
+        )
+        script_str = "\n".join(
+            f"- {s.get('title', '?')} ({s.get('total_duration_s', 0)}s, {s.get('scene_count', 0)} scenes)"
+            for s in scripts[:5]
+        )
         prompt = (
             f"Content to evaluate:\nCharacters:\n{char_str}\n\nScripts:\n{script_str}\n\n"
             "Score each dimension 0-100:\n"
@@ -239,10 +279,19 @@ class FeatureDevelopmentCycle:
             "- Action Metrics: content volume, scene variety\n"
             "- E2E Metrics: story arc completeness, production readiness\n"
             "- MAS Dimensions: character diversity, inter-character dynamics\n"
-            "Output JSON: {\"Static Audit\": N, \"Reasoning Metrics\": N, ...}"
+            'Output JSON: {"Static Audit": N, "Reasoning Metrics": N, ...}'
         )
         result = self._llm.generate_json(system=sys, prompt=prompt)
-        if result and all(k in result for k in ("Static Audit", "Reasoning Metrics", "Action Metrics", "E2E Metrics", "MAS Dimensions")):
+        if result and all(
+            k in result
+            for k in (
+                "Static Audit",
+                "Reasoning Metrics",
+                "Action Metrics",
+                "E2E Metrics",
+                "MAS Dimensions",
+            )
+        ):
             return {k: min(100.0, max(0.0, float(v))) for k, v in result.items()}
         return {}
 
@@ -293,8 +342,9 @@ class FeatureDevelopmentCycle:
             return f"KILL (score={score:.1f} at cycle {cycle})"
         return f"CONTINUE (score={score:.1f})"
 
-    def _compile_structural_feedback(self, scores: dict[str, float],
-                                     artifacts: dict[str, Any]) -> str:
+    def _compile_structural_feedback(
+        self, scores: dict[str, float], artifacts: dict[str, Any]
+    ) -> str:
         chars = len(artifacts.get("characters", []))
         scripts = len(artifacts.get("scripts", []))
         parts = []
@@ -303,9 +353,13 @@ class FeatureDevelopmentCycle:
             if gap <= 5:
                 continue
             if name == "Static Audit":
-                parts.append(f"Static Audit={score:.0f}: need more characters ({chars}) or scripts ({scripts})")
+                parts.append(
+                    f"Static Audit={score:.0f}: need more characters ({chars}) or scripts ({scripts})"
+                )
             elif name == "MAS Dimensions":
-                parts.append(f"MAS={score:.0f}: add more characters with distinct archetypes and crossover episodes")
+                parts.append(
+                    f"MAS={score:.0f}: add more characters with distinct archetypes and crossover episodes"
+                )
             else:
                 parts.append(f"{name}={score:.0f}: improve coverage")
         return "; ".join(parts[:3]) if parts else "All layers at target."

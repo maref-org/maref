@@ -31,7 +31,9 @@ class BenchmarkResult:
     gain_pct: float = 0.0
 
 
-def _run_real_benchmark(timeout: int = 180, test_path: str | None = None, perf_mode: bool = False) -> dict[str, float]:
+def _run_real_benchmark(
+    timeout: int = 180, test_path: str | None = None, perf_mode: bool = False
+) -> dict[str, float]:
     result: dict[str, float] = {
         "test_count": 0.0,
         "coverage_pct": 0.0,
@@ -48,7 +50,9 @@ def _run_real_benchmark(timeout: int = 180, test_path: str | None = None, perf_m
     try:
         proc = subprocess.run(
             pytest_args,
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         result["execution_time_ms"] = (time.time() - start) * 1000.0
         result["exit_code"] = float(proc.returncode)
@@ -67,7 +71,9 @@ def _run_real_benchmark(timeout: int = 180, test_path: str | None = None, perf_m
                         with contextlib.suppress(ValueError):
                             result["tests_failed"] = float(parts[i - 1])
                         with contextlib.suppress(ValueError):
-                            result["test_count"] = result.get("test_count", 0.0) + float(parts[i - 1])
+                            result["test_count"] = result.get("test_count", 0.0) + float(
+                                parts[i - 1]
+                            )
     except subprocess.TimeoutExpired:
         result["execution_time_ms"] = float(timeout * 1000)
         result["exit_code"] = 124.0
@@ -78,7 +84,9 @@ def _run_real_benchmark(timeout: int = 180, test_path: str | None = None, perf_m
     try:
         cov_proc = subprocess.run(
             [sys.executable, "-m", "coverage", "report", "-m"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         for line in cov_proc.stdout.split("\n"):
             if "TOTAL" in line:
@@ -117,25 +125,31 @@ class SelfOptimizer:
 
         for _i, (mod, deps) in enumerate(modules_with_many_deps):
             if len(deps) > 3:
-                hypotheses.append(OptimizationHypothesis(
-                    hypothesis_id=str(uuid.uuid4())[:8],
-                    description=f"reduce dependencies for {mod} (currently {len(deps)})",
-                    target_module=mod,
-                ))
+                hypotheses.append(
+                    OptimizationHypothesis(
+                        hypothesis_id=str(uuid.uuid4())[:8],
+                        description=f"reduce dependencies for {mod} (currently {len(deps)})",
+                        target_module=mod,
+                    )
+                )
 
         if snapshot.source_file_count > 30:
-            hypotheses.append(OptimizationHypothesis(
-                hypothesis_id=str(uuid.uuid4())[:8],
-                description=f"module split: currently {snapshot.source_file_count} source files",
-                target_module="src/",
-            ))
+            hypotheses.append(
+                OptimizationHypothesis(
+                    hypothesis_id=str(uuid.uuid4())[:8],
+                    description=f"module split: currently {snapshot.source_file_count} source files",
+                    target_module="src/",
+                )
+            )
 
         if not hypotheses:
-            hypotheses.append(OptimizationHypothesis(
-                hypothesis_id=str(uuid.uuid4())[:8],
-                description="code health is good, recommend regular maintenance",
-                target_module="all",
-            ))
+            hypotheses.append(
+                OptimizationHypothesis(
+                    hypothesis_id=str(uuid.uuid4())[:8],
+                    description="code health is good, recommend regular maintenance",
+                    target_module="all",
+                )
+            )
 
         self._hypotheses = hypotheses
         return hypotheses
@@ -156,9 +170,13 @@ class SelfOptimizer:
         hypothesis.experiment_result = {"before": before, "after": after}  # type: ignore[dict-item]
 
         if before.get("coverage_pct", 0) > 0:
-            gain = (after.get("coverage_pct", 0) - before.get("coverage_pct", 0)) / before.get("coverage_pct", 1)
+            gain = (after.get("coverage_pct", 0) - before.get("coverage_pct", 0)) / before.get(
+                "coverage_pct", 1
+            )
         elif before.get("execution_time_ms", 0) > 0 and after.get("execution_time_ms", 0) > 0:
-            gain = (before.get("execution_time_ms", 0) - after.get("execution_time_ms", 0)) / before.get("execution_time_ms", 1)
+            gain = (
+                before.get("execution_time_ms", 0) - after.get("execution_time_ms", 0)
+            ) / before.get("execution_time_ms", 1)
         else:
             gain = 0.0
 
@@ -168,10 +186,14 @@ class SelfOptimizer:
     def adopt_if_gain(self, hypothesis: OptimizationHypothesis) -> bool:
         if hypothesis.gain_pct >= self._adopt_threshold and not hypothesis.reverted:
             hypothesis.adopted = True
-            hypothesis.conclusion = f"adopted: gain {hypothesis.gain_pct:.1%} >= threshold {self._adopt_threshold:.0%}"
+            hypothesis.conclusion = (
+                f"adopted: gain {hypothesis.gain_pct:.1%} >= threshold {self._adopt_threshold:.0%}"
+            )
             self._adopted.append(hypothesis)
             return True
-        hypothesis.conclusion = f"rejected: gain {hypothesis.gain_pct:.1%} < threshold {self._adopt_threshold:.0%}"
+        hypothesis.conclusion = (
+            f"rejected: gain {hypothesis.gain_pct:.1%} < threshold {self._adopt_threshold:.0%}"
+        )
         return False
 
     def revert_if_regression(self, hypothesis: OptimizationHypothesis) -> bool:

@@ -120,13 +120,15 @@ class ContextManager:
 
     def start_session(self, session_id: str, **metadata: Any) -> None:
         self._active = session_id
-        self._sessions.append({
-            "session_id": session_id,
-            "started_at": time.time(),
-            "metadata": metadata,
-            "context_stack": [],
-            "decision_count": 0,
-        })
+        self._sessions.append(
+            {
+                "session_id": session_id,
+                "started_at": time.time(),
+                "metadata": metadata,
+                "context_stack": [],
+                "decision_count": 0,
+            }
+        )
 
     def push_context(self, key: str, value: Any) -> None:
         if self._active is None:

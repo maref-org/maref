@@ -70,8 +70,12 @@ class AgentDiscovery:
         self._peers: dict[str, PeerAgent] = {}
         self._broadcast_history: list[DiscoveryMessage] = []
 
-    def discover(self, source_id: str, capabilities: list[str],
-                 contracts: list[CapabilityContractRef] | None = None) -> DiscoveryMessage:
+    def discover(
+        self,
+        source_id: str,
+        capabilities: list[str],
+        contracts: list[CapabilityContractRef] | None = None,
+    ) -> DiscoveryMessage:
         msg = DiscoveryMessage(
             source_id=source_id,
             source_capabilities=capabilities,
@@ -80,8 +84,7 @@ class AgentDiscovery:
         self._broadcast_history.append(msg)
         return msg
 
-    def register_peer(self, peer_id: str, capabilities: list[str],
-                       trust: float = 0.5) -> PeerAgent:
+    def register_peer(self, peer_id: str, capabilities: list[str], trust: float = 0.5) -> PeerAgent:
         peer = PeerAgent(
             agent_id=peer_id,
             capabilities=list(capabilities),
@@ -91,8 +94,7 @@ class AgentDiscovery:
         return peer
 
     def find_peers_with_capability(self, capability: str) -> list[PeerAgent]:
-        return [p for p in self._peers.values()
-                if p.active and capability in p.capabilities]
+        return [p for p in self._peers.values() if p.active and capability in p.capabilities]
 
     def list_active_peers(self) -> list[PeerAgent]:
         return [p for p in self._peers.values() if p.active]
@@ -118,10 +120,15 @@ class AgentNegotiator:
         self._results: dict[str, NegotiationResult] = {}
         self._audit_store = audit_store or UnifiedAuditStore()
 
-    def propose(self, source_id: str, target_id: str,
-                 proposal_type: str, terms: dict[str, Any],
-                 trust_level: float = 0.5,
-                 contracts: list[CapabilityContractRef] | None = None) -> NegotiationProposal:
+    def propose(
+        self,
+        source_id: str,
+        target_id: str,
+        proposal_type: str,
+        terms: dict[str, Any],
+        trust_level: float = 0.5,
+        contracts: list[CapabilityContractRef] | None = None,
+    ) -> NegotiationProposal:
         proposal = NegotiationProposal(
             source_id=source_id,
             target_id=target_id,
@@ -133,16 +140,19 @@ class AgentNegotiator:
         self._proposals.append(proposal)
         return proposal
 
-    def evaluate(self, proposal: NegotiationProposal,
-                  counterparty_trust: float) -> NegotiationResult:
+    def evaluate(
+        self, proposal: NegotiationProposal, counterparty_trust: float
+    ) -> NegotiationResult:
         if counterparty_trust < self.MIN_TRUST_FOR_NEGOTIATION:
             return NegotiationResult(
                 accepted=False,
                 refusal_reason=f"Trust ({counterparty_trust:.2f}) below minimum",
             )
 
-        if proposal.counterparty_min_trust > 0 and \
-                counterparty_trust < proposal.counterparty_min_trust:
+        if (
+            proposal.counterparty_min_trust > 0
+            and counterparty_trust < proposal.counterparty_min_trust
+        ):
             return NegotiationResult(
                 accepted=False,
                 refusal_reason=f"Trust does not meet counterparty minimum {proposal.counterparty_min_trust}",
@@ -156,19 +166,21 @@ class AgentNegotiator:
         )
         self._results[agreement_id] = result
 
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("negot", hash(agreement_id) % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=44,
-            event_type="negotiation_accepted",
-            source_module="AgentNegotiator",
-            target_module=proposal.target_id,
-            decision=f"accept_{proposal.proposal_type}",
-            justification=f"Agreement {agreement_id}, trust={counterparty_trust:.2f}",
-            outcome="success",
-            context_refs=[agreement_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("negot", hash(agreement_id) % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=44,
+                event_type="negotiation_accepted",
+                source_module="AgentNegotiator",
+                target_module=proposal.target_id,
+                decision=f"accept_{proposal.proposal_type}",
+                justification=f"Agreement {agreement_id}, trust={counterparty_trust:.2f}",
+                outcome="success",
+                context_refs=[agreement_id],
+            )
+        )
 
         return result
 
@@ -194,32 +206,34 @@ class TrustEstablishment:
         self._trust_entries: dict[str, dict[str, float]] = {}
         self._audit_store = audit_store or UnifiedAuditStore()
 
-    def establish_trust(self, source_id: str, target_id: str,
-                         initial_trust: float) -> float:
+    def establish_trust(self, source_id: str, target_id: str, initial_trust: float) -> float:
         self._trust_entries.setdefault(source_id, {})[target_id] = initial_trust
         return initial_trust
 
-    def update_trust(self, source_id: str, target_id: str, delta: float,
-                      successful_interaction: bool = True) -> float:
+    def update_trust(
+        self, source_id: str, target_id: str, delta: float, successful_interaction: bool = True
+    ) -> float:
         entries = self._trust_entries.setdefault(source_id, {})
         current = entries.get(target_id, 0.3)
         new_value = current + delta if successful_interaction else max(0.0, current - abs(delta))
         new_value = max(0.0, min(1.0, new_value))
         entries[target_id] = new_value
 
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("trust_build", hash((source_id, target_id)) % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=44,
-            event_type="trust_establishment",
-            source_module="TrustEstablishment",
-            target_module=target_id,
-            decision=f"trust_{current:.2f}_to_{new_value:.2f}",
-            justification=f"Delta={delta:.2f}, success={successful_interaction}",
-            outcome="success",
-            context_refs=[source_id, target_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("trust_build", hash((source_id, target_id)) % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=44,
+                event_type="trust_establishment",
+                source_module="TrustEstablishment",
+                target_module=target_id,
+                decision=f"trust_{current:.2f}_to_{new_value:.2f}",
+                justification=f"Delta={delta:.2f}, success={successful_interaction}",
+                outcome="success",
+                context_refs=[source_id, target_id],
+            )
+        )
         return new_value
 
     def get_trust(self, source_id: str, target_id: str) -> float:

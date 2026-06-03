@@ -22,6 +22,7 @@ from maref.governance.audit import AuditLogger
 
 class ComponentType(Enum):
     """组件类型 (CycloneDX标准)"""
+
     APPLICATION = "application"
     FRAMEWORK = "framework"
     LIBRARY = "library"
@@ -34,6 +35,7 @@ class ComponentType(Enum):
 
 class VulnerabilitySeverity(Enum):
     """漏洞严重性等级"""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -44,6 +46,7 @@ class VulnerabilitySeverity(Enum):
 
 class LicenseType(Enum):
     """许可证类型"""
+
     APACHE_2_0 = "Apache-2.0"
     MIT = "MIT"
     GPL_2_0 = "GPL-2.0"
@@ -60,6 +63,7 @@ class LicenseType(Enum):
 @dataclass
 class Component:
     """SBOM组件"""
+
     name: str
     version: str
     component_type: ComponentType
@@ -83,6 +87,7 @@ class Component:
 @dataclass
 class Vulnerability:
     """漏洞信息"""
+
     id: str  # CVE-ID或漏洞ID
     source_name: str  # 来源: CVE, OSS, Snyk等
     description: str | None = None
@@ -100,6 +105,7 @@ class Vulnerability:
 @dataclass
 class SBOM:
     """软件物料清单"""
+
     bom_format: str = "CycloneDX"
     spec_version: str = "1.4"
     version: int = 1
@@ -116,13 +122,7 @@ class SBOM:
         # 构建metadata
         metadata = {
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "tools": [
-                {
-                    "vendor": "MAREF",
-                    "name": "SBOM Generator",
-                    "version": "0.25.0"
-                }
-            ]
+            "tools": [{"vendor": "MAREF", "name": "SBOM Generator", "version": "0.25.0"}],
         }
 
         # 如果有自定义metadata，合并
@@ -137,7 +137,7 @@ class SBOM:
                 "type": component.component_type.value,
                 "name": component.name,
                 "version": component.version,
-                "purl": component.purl
+                "purl": component.purl,
             }
 
             # 可选字段
@@ -164,10 +164,7 @@ class SBOM:
 
             if component.hashes:
                 component_dict["hashes"] = [
-                    {
-                        "alg": algorithm,
-                        "content": hash_value
-                    }
+                    {"alg": algorithm, "content": hash_value}
                     for algorithm, hash_value in component.hashes.items()
                 ]
 
@@ -185,7 +182,7 @@ class SBOM:
             vuln_dict: dict[str, Any] = {
                 "id": vuln.id,
                 "source": {"name": vuln.source_name},
-                "ratings": []
+                "ratings": [],
             }
 
             if vuln.description:
@@ -194,7 +191,7 @@ class SBOM:
             # 评分
             rating: dict[str, Any] = {
                 "source": {"name": vuln.source_name},
-                "severity": vuln.severity.value.lower()
+                "severity": vuln.severity.value.lower(),
             }
 
             if vuln.cvss_score is not None:
@@ -212,10 +209,11 @@ class SBOM:
                 vuln_dict["affects"] = [
                     {
                         "ref": f"pkg:{component.purl.split('/')[-1]}/{component.name}@{component.version}",
-                        "versions": [{"range": ver} for ver in vuln.affected_versions]
+                        "versions": [{"range": ver} for ver in vuln.affected_versions],
                     }
                     for component in self.components
-                    if component.external_references and any(vuln.id in ref.get("id", "") for ref in component.external_references)
+                    if component.external_references
+                    and any(vuln.id in ref.get("id", "") for ref in component.external_references)
                 ]
 
             if vuln.references:
@@ -238,17 +236,17 @@ class SBOM:
         if not dependencies_list:
             for component in self.components:
                 if component.dependencies:
-                    dependencies_list.append({
-                        "ref": component.bom_ref,
-                        "dependsOn": component.dependencies
-                    })
+                    dependencies_list.append(
+                        {"ref": component.bom_ref, "dependsOn": component.dependencies}
+                    )
 
         # 构建最终SBOM字典
         sbom_dict = {
             "bomFormat": self.bom_format,
             "specVersion": self.spec_version,
             "version": self.version,
-            "serialNumber": self.serial_number or f"urn:uuid:{hashlib.md5(str(datetime.datetime.now(datetime.timezone.utc)).encode(), usedforsecurity=False).hexdigest()}",
+            "serialNumber": self.serial_number
+            or f"urn:uuid:{hashlib.md5(str(datetime.datetime.now(datetime.timezone.utc)).encode(), usedforsecurity=False).hexdigest()}",
             "metadata": metadata,
             "components": components_list,
         }
@@ -270,7 +268,7 @@ class SBOM:
 
     def save_to_file(self, filepath: str) -> None:
         """保存到文件"""
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write(self.to_json())
 
     @classmethod
@@ -285,7 +283,7 @@ class SBOM:
             spec_version=data.get("specVersion", "1.4"),
             version=data.get("version", 1),
             serial_number=data.get("serialNumber"),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
         # 解析组件
@@ -311,7 +309,7 @@ class SBOM:
                 dependencies=[
                     dep.split("/")[-1] if "/" in dep else dep
                     for dep in comp_data.get("dependsOn", [])
-                ]
+                ],
             )
 
             # 解析许可证
@@ -344,13 +342,15 @@ class SBOM:
                 id=vuln_data["id"],
                 source_name=vuln_data.get("source", {}).get("name", "unknown"),
                 description=vuln_data.get("description"),
-                severity=VulnerabilitySeverity(vuln_data.get("ratings", [{}])[0].get("severity", "UNKNOWN").upper()),
+                severity=VulnerabilitySeverity(
+                    vuln_data.get("ratings", [{}])[0].get("severity", "UNKNOWN").upper()
+                ),
                 cvss_score=cvss_score,
                 cvss_vector=cvss_vector,
                 cwe_ids=vuln_data.get("cwes", []),
                 references=vuln_data.get("references", []),
                 published_date=vuln_data.get("published"),
-                last_updated_date=vuln_data.get("updated")
+                last_updated_date=vuln_data.get("updated"),
             )
 
             sbom.vulnerabilities.append(vulnerability)
@@ -397,7 +397,7 @@ class SBOMGenerator:
                     "type": "application",
                     "name": resolved_path.name,
                     "version": self._get_project_version(resolved_path),
-                    "purl": f"pkg:pypi/{resolved_path.name}"
+                    "purl": f"pkg:pypi/{resolved_path.name}",
                 }
             }
         )
@@ -417,8 +417,8 @@ class SBOMGenerator:
                 "project_path": str(project_path),
                 "project_type": project_type,
                 "num_components": len(components),
-                "sbom_serial": sbom.serial_number
-            }
+                "sbom_serial": sbom.serial_number,
+            },
         )
 
         return sbom
@@ -439,7 +439,9 @@ class SBOMGenerator:
         if (project_path / "Pipfile").exists():
             return "pipenv"
 
-        if (project_path / "environment.yml").exists() or (project_path / "environment.yaml").exists():
+        if (project_path / "environment.yml").exists() or (
+            project_path / "environment.yaml"
+        ).exists():
             return "conda"
 
         if (project_path / "requirements.txt").exists():
@@ -472,7 +474,7 @@ class SBOMGenerator:
                 cwd=project_path,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode == 0:
@@ -491,7 +493,7 @@ class SBOMGenerator:
                 cwd=project_path,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode == 0:
@@ -510,7 +512,7 @@ class SBOMGenerator:
                 cwd=project_path,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode == 0:
@@ -530,7 +532,7 @@ class SBOMGenerator:
                 cwd=project_path,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode == 0:
@@ -560,13 +562,13 @@ class SBOMGenerator:
         components = []
         seen_packages = set()
 
-        for line in output.split('\n'):
+        for line in output.split("\n"):
             line = line.strip()
-            if not line or line.startswith('Warning:'):
+            if not line or line.startswith("Warning:"):
                 continue
 
             # Poetry输出格式: package version description
-            match = re.match(r'^([a-zA-Z0-9_.-]+)\s+([^\s]+)(?:\s+(.*))?$', line)
+            match = re.match(r"^([a-zA-Z0-9_.-]+)\s+([^\s]+)(?:\s+(.*))?$", line)
             if match:
                 name = match.group(1)
                 version = match.group(2)
@@ -582,7 +584,7 @@ class SBOMGenerator:
                     component_type=ComponentType.LIBRARY,
                     purl=f"pkg:pypi/{name}@{version}",
                     bom_ref=f"pkg:pypi/{name}@{version}",
-                    description=match.group(3) if match.group(3) else None
+                    description=match.group(3) if match.group(3) else None,
                 )
 
                 components.append(component)
@@ -598,7 +600,7 @@ class SBOMGenerator:
                 import tomllib
             except ImportError:
                 import tomli as tomllib  # type: ignore[import-not-found]
-            with open(project_path / "pyproject.toml", 'rb') as f:
+            with open(project_path / "pyproject.toml", "rb") as f:
                 data = tomllib.load(f)
 
             # 获取依赖
@@ -624,7 +626,7 @@ class SBOMGenerator:
                     version=version,
                     component_type=ComponentType.LIBRARY,
                     purl=f"pkg:pypi/{name}@{version}",
-                    bom_ref=f"pkg:pypi/{name}@{version}"
+                    bom_ref=f"pkg:pypi/{name}@{version}",
                 )
 
                 components.append(component)
@@ -652,7 +654,7 @@ class SBOMGenerator:
                         component_type=ComponentType.LIBRARY,
                         purl=f"pkg:pypi/{name}@{version}",
                         bom_ref=f"pkg:pypi/{name}@{version}",
-                        dependencies=[dep["package_name"] for dep in dependencies]
+                        dependencies=[dep["package_name"] for dep in dependencies],
                     )
 
                     components.append(component)
@@ -671,7 +673,7 @@ class SBOMGenerator:
                 import tomllib
             except ImportError:
                 import tomli as tomllib
-            with open(project_path / "Pipfile", 'rb') as f:
+            with open(project_path / "Pipfile", "rb") as f:
                 data = tomllib.load(f)
 
             # 获取依赖
@@ -689,7 +691,7 @@ class SBOMGenerator:
                     version=version,
                     component_type=ComponentType.LIBRARY,
                     purl=f"pkg:pypi/{name}@{version}",
-                    bom_ref=f"pkg:pypi/{name}@{version}"
+                    bom_ref=f"pkg:pypi/{name}@{version}",
                 )
 
                 components.append(component)
@@ -708,7 +710,9 @@ class SBOMGenerator:
             for item in data:
                 name = item.get("name")
                 version = item.get("version")
-                channel = item.get("channel", "").split("/")[-1] if "channel" in item else "conda-forge"
+                channel = (
+                    item.get("channel", "").split("/")[-1] if "channel" in item else "conda-forge"
+                )
 
                 if name and version:
                     component = Component(
@@ -716,7 +720,7 @@ class SBOMGenerator:
                         version=version,
                         component_type=ComponentType.LIBRARY,
                         purl=f"pkg:conda/{channel}/{name}@{version}",
-                        bom_ref=f"pkg:conda/{channel}/{name}@{version}"
+                        bom_ref=f"pkg:conda/{channel}/{name}@{version}",
                     )
 
                     components.append(component)
@@ -743,6 +747,7 @@ class SBOMGenerator:
 
         try:
             import yaml
+
             with open(env_file) as f:
                 data = yaml.safe_load(f)
 
@@ -761,7 +766,7 @@ class SBOMGenerator:
                         version=version.strip(),
                         component_type=ComponentType.LIBRARY,
                         purl=f"pkg:conda/{name.strip()}@{version.strip()}",
-                        bom_ref=f"pkg:conda/{name.strip()}@{version.strip()}"
+                        bom_ref=f"pkg:conda/{name.strip()}@{version.strip()}",
                     )
 
                     components.append(component)
@@ -775,29 +780,29 @@ class SBOMGenerator:
         """解析pip freeze输出"""
         components = []
 
-        for line in output.split('\n'):
+        for line in output.split("\n"):
             line = line.strip()
-            if not line or line.startswith('#') or line.startswith('-e') or line.startswith('git+'):
+            if not line or line.startswith("#") or line.startswith("-e") or line.startswith("git+"):
                 continue
 
             # 格式: package==version
-            if '==' in line:
-                name, version = line.split('==', 1)
-            elif '@' in line:
+            if "==" in line:
+                name, version = line.split("==", 1)
+            elif "@" in line:
                 # 格式: package@url
                 continue
             else:
                 continue
 
             # 清理版本号
-            version = version.split(';')[0].strip()
+            version = version.split(";")[0].strip()
 
             component = Component(
                 name=name.strip(),
                 version=version,
                 component_type=ComponentType.LIBRARY,
                 purl=f"pkg:pypi/{name.strip()}@{version}",
-                bom_ref=f"pkg:pypi/{name.strip()}@{version}"
+                bom_ref=f"pkg:pypi/{name.strip()}@{version}",
             )
 
             components.append(component)
@@ -810,32 +815,32 @@ class SBOMGenerator:
 
         for line in lines:
             line = line.strip()
-            if not line or line.startswith('#') or line.startswith('-e') or line.startswith('git+'):
+            if not line or line.startswith("#") or line.startswith("-e") or line.startswith("git+"):
                 continue
 
             # 格式: package==version
             # 也可能有: package>=version, package~=version等
-            if '==' in line:
-                parts = line.split('==')
+            if "==" in line:
+                parts = line.split("==")
                 name = parts[0].strip()
-                version = parts[1].split(';')[0].strip() if len(parts) > 1 else "*"
-            elif '>=' in line:
-                parts = line.split('>=')
+                version = parts[1].split(";")[0].strip() if len(parts) > 1 else "*"
+            elif ">=" in line:
+                parts = line.split(">=")
                 name = parts[0].strip()
-                version = parts[1].split(';')[0].strip() + "+" if len(parts) > 1 else "*"
-            elif '<=' in line:
-                parts = line.split('<=')
+                version = parts[1].split(";")[0].strip() + "+" if len(parts) > 1 else "*"
+            elif "<=" in line:
+                parts = line.split("<=")
                 name = parts[0].strip()
-                version = parts[1].split(';')[0].strip() + "-" if len(parts) > 1 else "*"
-            elif '~=' in line:
-                parts = line.split('~=')
+                version = parts[1].split(";")[0].strip() + "-" if len(parts) > 1 else "*"
+            elif "~=" in line:
+                parts = line.split("~=")
                 name = parts[0].strip()
-                version = parts[1].split(';')[0].strip() + "~" if len(parts) > 1 else "*"
-            elif '@' in line:
+                version = parts[1].split(";")[0].strip() + "~" if len(parts) > 1 else "*"
+            elif "@" in line:
                 # 格式: package@url
                 continue
             else:
-                name = line.split(';')[0].strip()
+                name = line.split(";")[0].strip()
                 version = "*"
 
             component = Component(
@@ -843,7 +848,7 @@ class SBOMGenerator:
                 version=version,
                 component_type=ComponentType.LIBRARY,
                 purl=f"pkg:pypi/{name}@{version}",
-                bom_ref=f"pkg:pypi/{name}@{version}"
+                bom_ref=f"pkg:pypi/{name}@{version}",
             )
 
             components.append(component)
@@ -858,7 +863,7 @@ class SBOMGenerator:
             ("setup.cfg", self._get_version_from_setup_cfg),
             ("__init__.py", self._get_version_from_init_py),
             ("VERSION", self._get_version_from_version_file),
-            ("version.txt", self._get_version_from_version_file)
+            ("version.txt", self._get_version_from_version_file),
         ]
 
         for filename, extractor in version_files:
@@ -880,7 +885,7 @@ class SBOMGenerator:
                 import tomllib as tomli
             except ImportError:
                 import tomli
-            with open(filepath, 'rb') as f:
+            with open(filepath, "rb") as f:
                 data = tomli.load(f)
 
             if "project" in data and "version" in data["project"]:
@@ -918,14 +923,14 @@ class SBOMGenerator:
                 content = f.read()
 
             # 匹配 [metadata] 下的 version
-            lines = content.split('\n')
+            lines = content.split("\n")
             in_metadata = False
             for line in lines:
                 line = line.strip()
-                if line.startswith('['):
-                    in_metadata = line == '[metadata]'
-                elif in_metadata and line.startswith('version'):
-                    parts = line.split('=', 1)
+                if line.startswith("["):
+                    in_metadata = line == "[metadata]"
+                elif in_metadata and line.startswith("version"):
+                    parts = line.split("=", 1)
                     if len(parts) > 1:
                         return parts[1].strip()
 
@@ -975,7 +980,7 @@ class SBOMGenerator:
             "added_components": [],
             "removed_components": [],
             "version_changes": [],
-            "vulnerability_changes": []
+            "vulnerability_changes": [],
         }
 
         # 创建组件映射
@@ -985,32 +990,30 @@ class SBOMGenerator:
         # 找出新增的组件
         for purl, component in sbom2_components.items():
             if purl not in sbom1_components:
-                result["added_components"].append({
-                    "purl": purl,
-                    "name": component.name,
-                    "version": component.version
-                })
+                result["added_components"].append(
+                    {"purl": purl, "name": component.name, "version": component.version}
+                )
 
         # 找出删除的组件
         for purl, component in sbom1_components.items():
             if purl not in sbom2_components:
-                result["removed_components"].append({
-                    "purl": purl,
-                    "name": component.name,
-                    "version": component.version
-                })
+                result["removed_components"].append(
+                    {"purl": purl, "name": component.name, "version": component.version}
+                )
 
         # 找出版本变更
         for purl, comp1 in sbom1_components.items():
             if purl in sbom2_components:
                 comp2 = sbom2_components[purl]
                 if comp1.version != comp2.version:
-                    result["version_changes"].append({
-                        "purl": purl,
-                        "name": comp1.name,
-                        "old_version": comp1.version,
-                        "new_version": comp2.version
-                    })
+                    result["version_changes"].append(
+                        {
+                            "purl": purl,
+                            "name": comp1.name,
+                            "old_version": comp1.version,
+                            "new_version": comp2.version,
+                        }
+                    )
 
         # 比较漏洞
         sbom1_vulns = {vuln.id: vuln for vuln in sbom1.vulnerabilities}
@@ -1019,19 +1022,15 @@ class SBOMGenerator:
         # 新增漏洞
         for vuln_id, vuln in sbom2_vulns.items():
             if vuln_id not in sbom1_vulns:
-                result["vulnerability_changes"].append({
-                    "type": "added",
-                    "id": vuln_id,
-                    "severity": vuln.severity.value
-                })
+                result["vulnerability_changes"].append(
+                    {"type": "added", "id": vuln_id, "severity": vuln.severity.value}
+                )
 
         # 修复的漏洞
         for vuln_id, vuln in sbom1_vulns.items():
             if vuln_id not in sbom2_vulns:
-                result["vulnerability_changes"].append({
-                    "type": "removed",
-                    "id": vuln_id,
-                    "severity": vuln.severity.value
-                })
+                result["vulnerability_changes"].append(
+                    {"type": "removed", "id": vuln_id, "severity": vuln.severity.value}
+                )
 
         return result

@@ -76,7 +76,7 @@ class TimelineTracker:
         task_ids = list(self._timelines.keys())
         for i, tid_a in enumerate(task_ids):
             ctx_a = self._timelines[tid_a]
-            for tid_b in task_ids[i + 1:]:
+            for tid_b in task_ids[i + 1 :]:
                 ctx_b = self._timelines[tid_b]
                 a_start = ctx_a.started_at
                 a_end = ctx_a.deadline or (a_start + ctx_a.estimated_duration)
@@ -85,11 +85,14 @@ class TimelineTracker:
                 if a_start < b_end and b_start < a_end:
                     overlap = min(a_end, b_end) - max(a_start, b_start)
                     if overlap > 0:
-                        conflicts.append(ConflictPair(
-                            task_a=tid_a, task_b=tid_b,
-                            conflict_type="temporal_overlap",
-                            overlap_seconds=overlap,
-                        ))
+                        conflicts.append(
+                            ConflictPair(
+                                task_a=tid_a,
+                                task_b=tid_b,
+                                conflict_type="temporal_overlap",
+                                overlap_seconds=overlap,
+                            )
+                        )
         return conflicts
 
     def merge_timelines(self, task_ids: list[str]) -> TimeContext | None:
@@ -121,8 +124,9 @@ class DeadlineNegotiator:
         self._history: dict[str, list[float]] = {}
         self._history_window = history_window
 
-    def negotiate_deadline(self, task: str, proposed: float,
-                           constraints: dict[str, Any] | None = None) -> float:
+    def negotiate_deadline(
+        self, task: str, proposed: float, constraints: dict[str, Any] | None = None
+    ) -> float:
         constraints = constraints or {}
         min_deadline = constraints.get("min_deadline", 0)
         max_deadline = constraints.get("max_deadline", float("inf"))
@@ -138,9 +142,9 @@ class DeadlineNegotiator:
 
         return adjusted
 
-    def propose_extension(self, task: str,
-                          current_deadline: float,
-                          reason: str = "") -> float | None:
+    def propose_extension(
+        self, task: str, current_deadline: float, reason: str = ""
+    ) -> float | None:
         histories = self._history.get(task, [])
         if not histories:
             return None
@@ -169,7 +173,7 @@ class DeadlineNegotiator:
             self._history[task] = []
         self._history[task].append(duration)
         if len(self._history[task]) > self._history_window:
-            self._history[task] = self._history[task][-self._history_window:]
+            self._history[task] = self._history[task][-self._history_window :]
 
     def average_duration(self, task: str) -> float | None:
         histories = self._history.get(task)

@@ -125,17 +125,12 @@ def create_task_router(task_queue: TaskQueue) -> APIRouter:
         ):
             raise HTTPException(
                 status_code=http_status.HTTP_409_CONFLICT,
-                detail=(
-                    f"Task {task_id} is already in status {task.status.value}"
-                ),
+                detail=(f"Task {task_id} is already in status {task.status.value}"),
             )
         if task.status not in (TaskStatus.QUEUED, TaskStatus.PENDING):
             raise HTTPException(
                 status_code=http_status.HTTP_409_CONFLICT,
-                detail=(
-                    f"Task {task_id} cannot be cancelled in status"
-                    f" {task.status.value}"
-                ),
+                detail=(f"Task {task_id} cannot be cancelled in status {task.status.value}"),
             )
         task_queue.update_status(task_id, TaskStatus.CANCELLED)
         return CancelResponse(task_id=task_id, status="cancelled")
@@ -152,9 +147,7 @@ def create_task_router(task_queue: TaskQueue) -> APIRouter:
         if limit > 1000:
             limit = 1000
         status_enum = TaskStatus(status) if status is not None else None
-        priority_enum = (
-            TaskPriority(priority) if priority is not None else None
-        )
+        priority_enum = TaskPriority(priority) if priority is not None else None
         tasks = task_queue.list_tasks(
             status=status_enum,
             priority=priority_enum,

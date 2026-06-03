@@ -18,7 +18,7 @@ class FieldMapping:
 
     source_field: str
     target_field: str
-    transform: str = "identity"   # e.g. "identity", "uppercase", "concat"
+    transform: str = "identity"  # e.g. "identity", "uppercase", "concat"
     required: bool = True
 
     def to_dict(self) -> dict[str, Any]:
@@ -207,12 +207,14 @@ class SchemaAligner:
         reverse: list[FieldMapping] = []
         for fm in forward:
             inv_transform = self._inverse_transform(fm.transform)
-            reverse.append(FieldMapping(
-                source_field=fm.target_field,
-                target_field=fm.source_field,
-                transform=inv_transform,
-                required=fm.required,
-            ))
+            reverse.append(
+                FieldMapping(
+                    source_field=fm.target_field,
+                    target_field=fm.source_field,
+                    transform=inv_transform,
+                    required=fm.required,
+                )
+            )
 
         # Temporarily inject reverse mapping and call align
         self._mappings[(target_schema, source_schema)] = reverse

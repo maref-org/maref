@@ -9,8 +9,7 @@ import httpx
 
 class NotificationChannel(ABC):
     @abstractmethod
-    def send(self, title: str, message: str, level: str = "info") -> bool:
-        ...
+    def send(self, title: str, message: str, level: str = "info") -> bool: ...
 
 
 class EmailChannel(NotificationChannel):

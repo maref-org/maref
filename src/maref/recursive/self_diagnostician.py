@@ -71,7 +71,9 @@ class SelfDiagnostician:
         )
 
         tags = len(snapshot.git_stats.get("tags", []))
-        probe_results["oscillation"] = self._oscillation_probe.read(oscillation_count=float(tags) / 10.0)
+        probe_results["oscillation"] = self._oscillation_probe.read(
+            oscillation_count=float(tags) / 10.0
+        )
 
         risk_matrix = self._build_risk_matrix(probe_results)
 
@@ -84,7 +86,9 @@ class SelfDiagnostician:
             overall_risk=self._overall_risk(risk_matrix),
         )
 
-    def _build_risk_matrix(self, probe_results: dict[str, list[ProbeReading]]) -> dict[str, RiskLevel]:
+    def _build_risk_matrix(
+        self, probe_results: dict[str, list[ProbeReading]]
+    ) -> dict[str, RiskLevel]:
         matrix: dict[str, RiskLevel] = {}
         for probe_name, readings in probe_results.items():
             if not readings:

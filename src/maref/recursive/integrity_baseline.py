@@ -69,7 +69,9 @@ class IntegrityBaseline:
                 continue
             current_sha = self._compute_sha256(p)
             if current_sha != record.sha256:
-                failures.append(f"MISMATCH: {path_str} (expected {record.sha256[:12]}..., got {current_sha[:12]}...)")
+                failures.append(
+                    f"MISMATCH: {path_str} (expected {record.sha256[:12]}..., got {current_sha[:12]}...)"
+                )
         return (len(failures) == 0, failures)
 
     def update(self, path: str) -> tuple[bool, str]:

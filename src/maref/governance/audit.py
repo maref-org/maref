@@ -109,7 +109,12 @@ class AuditLogger:
         )
     """
 
-    def __init__(self, log_path: Path | str | None = None, hmac_key: bytes | str | None = None, max_file_size_mb: int = 50) -> None:
+    def __init__(
+        self,
+        log_path: Path | str | None = None,
+        hmac_key: bytes | str | None = None,
+        max_file_size_mb: int = 50,
+    ) -> None:
         if log_path is None:
             self._path: Path | None = None
             self._memory_entries: list[AuditEntry] = []
@@ -117,11 +122,13 @@ class AuditLogger:
             self._path = Path(log_path) if not isinstance(log_path, Path) else log_path
             self._memory_entries = []
         self._counter: int = 0
-        self._write_lock: Any = __import__('threading').Lock()
+        self._write_lock: Any = __import__("threading").Lock()
         self._max_file_size = max_file_size_mb * 1024 * 1024
         self._hmac_key: bytes | None = (
-            hmac_key.encode("utf-8") if isinstance(hmac_key, str) else hmac_key
-        ) if hmac_key else None
+            (hmac_key.encode("utf-8") if isinstance(hmac_key, str) else hmac_key)
+            if hmac_key
+            else None
+        )
 
     def _sign_entry(self, entry: AuditEntry) -> str:
         if self._hmac_key is None:
@@ -153,15 +160,17 @@ class AuditLogger:
         for entry in entries:
             if not entry.hmac_signature:
                 continue
-            expected = self._sign_entry(AuditEntry(
-                id=entry.id,
-                timestamp=entry.timestamp,
-                event_type=entry.event_type,
-                actor=entry.actor,
-                action=entry.action,
-                details=entry.details,
-                metadata=entry.metadata,
-            ))
+            expected = self._sign_entry(
+                AuditEntry(
+                    id=entry.id,
+                    timestamp=entry.timestamp,
+                    event_type=entry.event_type,
+                    actor=entry.actor,
+                    action=entry.action,
+                    details=entry.details,
+                    metadata=entry.metadata,
+                )
+            )
             if hmac.compare_digest(expected, entry.hmac_signature):
                 valid += 1
             else:
@@ -251,18 +260,16 @@ class AuditLogger:
         """Rotate audit log: rename current file, start a new one."""
         assert self._path is not None
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        rotated = self._path.with_name(
-            f"{self._path.stem}_{timestamp}{self._path.suffix}"
-        )
+        rotated = self._path.with_name(f"{self._path.stem}_{timestamp}{self._path.suffix}")
         self._path.rename(rotated)
 
     def read_all(self, max_entries: int | None = 1000) -> list[AuditEntry]:
         if max_entries is None:
-            logging.warning(
-                "read_all without limit — may cause OOM on large audit logs"
-            )
+            logging.warning("read_all without limit — may cause OOM on large audit logs")
         if self._path is None:
-            return list(self._memory_entries[-max_entries:] if max_entries else self._memory_entries)
+            return list(
+                self._memory_entries[-max_entries:] if max_entries else self._memory_entries
+            )
         if not self._path.exists():
             return []
         entries: list[AuditEntry] = []
@@ -359,7 +366,7 @@ class AuditLogger:
             timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(entry.timestamp))
             lines.append(
                 f"<{priority}>1 {timestamp} maref MAREF - - "
-                f"[audit@32473 event=\"{entry.event_type}\" actor=\"{entry.actor}\" action=\"{entry.action}\"] "
+                f'[audit@32473 event="{entry.event_type}" actor="{entry.actor}" action="{entry.action}"] '
                 f"{entry.details}"
             )
         return "\n".join(lines)

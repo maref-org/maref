@@ -10,6 +10,7 @@ from typing import Any
 @dataclass
 class ATPConfig:
     """Configuration for ATP (Agent Trust Protocol) adapter."""
+
     endpoint: str = "https://api.lyrie.ai/atp/v1"
     api_key: str | None = None
     timeout_seconds: int = 30
@@ -21,6 +22,7 @@ class ATPConfig:
 @dataclass
 class ATPIdentity:
     """Represents an Agent's identity in the ATP system."""
+
     agent_id: str
     public_key: str
     registered_at: datetime
@@ -33,7 +35,9 @@ class ATPIdentity:
     def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
-            "public_key": self.public_key[:50] + "..." if len(self.public_key) > 50 else self.public_key,
+            "public_key": self.public_key[:50] + "..."
+            if len(self.public_key) > 50
+            else self.public_key,
             "registered_at": self.registered_at.isoformat(),
             "is_verified": self.is_verified,
             "trust_score": self.trust_score,
@@ -44,6 +48,7 @@ class ATPIdentity:
 @dataclass
 class ATPHandshakeRequest:
     """Request for ATP handshake/authentication."""
+
     agent_did: str
     session_id: str
     timestamp: int
@@ -59,12 +64,14 @@ class ATPHandshakeRequest:
     def is_fresh(self, max_age_seconds: int = 60) -> bool:
         """Check if the request is within the valid time window."""
         import time
+
         return abs(time.time() - self.timestamp) <= max_age_seconds
 
 
 @dataclass
 class ATPKeyPair:
     """ATP key pair for agent identity."""
+
     public_key: bytes
     private_key: bytes
     algorithm: str = "hmac-sha256"
@@ -74,6 +81,7 @@ class ATPKeyPair:
 @dataclass
 class ATPChallenge:
     """Challenge-response mechanism for identity verification."""
+
     agent_id: str
     nonce: str
     timestamp: datetime
@@ -107,6 +115,7 @@ class ATPChallenge:
 @dataclass
 class ATPVerificationResult:
     """Result of an identity verification attempt."""
+
     is_valid: bool
     agent_id: str
     trust_score: float = 0.0
@@ -140,7 +149,9 @@ class ATPAdapter:
         self._identity_cache: dict[str, ATPIdentity] = {}
         self._verification_cache: dict[str, ATPVerificationResult] = {}
 
-    def register_identity(self, agent_id: str, public_key: str, metadata: dict[str, Any] | None = None) -> bool:
+    def register_identity(
+        self, agent_id: str, public_key: str, metadata: dict[str, Any] | None = None
+    ) -> bool:
         """Register a new agent identity with the ATP service."""
         if not self.config.endpoint:
             # Local fallback mode
@@ -153,11 +164,15 @@ class ATPAdapter:
             return True
 
         try:
-            response = self._make_request("POST", "/identities/register", {
-                "agent_id": agent_id,
-                "public_key": public_key,
-                "metadata": metadata or {},
-            })
+            response = self._make_request(
+                "POST",
+                "/identities/register",
+                {
+                    "agent_id": agent_id,
+                    "public_key": public_key,
+                    "metadata": metadata or {},
+                },
+            )
 
             if response.get("status") == "registered":
                 identity = ATPIdentity(
@@ -179,7 +194,9 @@ class ATPAdapter:
         # Check cache first
         if agent_id in self._verification_cache:
             cached = self._verification_cache[agent_id]
-            if (datetime.now(timezone.utc) - cached.verified_at).seconds < self.config.cache_duration_seconds:
+            if (
+                datetime.now(timezone.utc) - cached.verified_at
+            ).seconds < self.config.cache_duration_seconds:
                 return cached
 
         if not self.config.endpoint:

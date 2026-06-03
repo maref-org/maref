@@ -5,16 +5,17 @@
 - 与 AES-256/RSA-2048/SHA-256 的对比基准
 - 容量规划参考
 """
+
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .sm2 import SM2KeyPair, sm2_encrypt, sm2_decrypt, sm2_sign, sm2_verify
+from .sm2 import SM2KeyPair, sm2_decrypt, sm2_encrypt, sm2_sign, sm2_verify
 from .sm3 import sm3_hash, sm3_hmac
-from .sm4 import sm4_encrypt_cbc, sm4_decrypt_cbc
-from .sm4_gcm import sm4_encrypt_gcm, sm4_decrypt_gcm
+from .sm4 import sm4_decrypt_cbc, sm4_encrypt_cbc
+from .sm4_gcm import sm4_decrypt_gcm, sm4_encrypt_gcm
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -50,7 +51,9 @@ def _benchmark(
     elapsed = time.perf_counter() - start
 
     ops_per_sec = iterations / elapsed if elapsed > 0 else float("inf")
-    throughput = (data_bytes * iterations / elapsed / 1_048_576) if elapsed > 0 and data_bytes > 0 else None
+    throughput = (
+        (data_bytes * iterations / elapsed / 1_048_576) if elapsed > 0 and data_bytes > 0 else None
+    )
 
     return BenchmarkResult(
         algorithm=name,
@@ -90,35 +93,71 @@ def run_all_benchmarks(
 
     # SM3
     results.append(_benchmark("SM3", "hash", lambda: sm3_hash(data), iterations, data_size_bytes))
-    results.append(_benchmark("SM3-HMAC", "hmac", lambda: sm3_hmac(sm4_key, data), iterations, data_size_bytes))
+    results.append(
+        _benchmark("SM3-HMAC", "hmac", lambda: sm3_hmac(sm4_key, data), iterations, data_size_bytes)
+    )
 
     # SM4-CBC
     def _sm4_cbc_roundtrip() -> bytes:
         ct = sm4_encrypt_cbc(sm4_key, sm4_iv, data)
         return sm4_decrypt_cbc(sm4_key, sm4_iv, ct)
 
-    results.append(_benchmark("SM4-CBC", "encrypt+decrypt", _sm4_cbc_roundtrip, iterations, data_size_bytes))
+    results.append(
+        _benchmark("SM4-CBC", "encrypt+decrypt", _sm4_cbc_roundtrip, iterations, data_size_bytes)
+    )
 
     # SM4-GCM
     def _sm4_gcm_roundtrip() -> bytes:
         enc = sm4_encrypt_gcm(sm4_key, sm4_nonce, data)
         return sm4_decrypt_gcm(sm4_key, sm4_nonce, enc.ciphertext, enc.tag)
 
-    results.append(_benchmark("SM4-GCM", "encrypt+decrypt", _sm4_gcm_roundtrip, iterations, data_size_bytes))
+    results.append(
+        _benchmark("SM4-GCM", "encrypt+decrypt", _sm4_gcm_roundtrip, iterations, data_size_bytes)
+    )
 
     # SM2 加密（仅适用于小数据，因为 SM2 单次加密有长度限制）
     sm2_plaintext = b"x" * 32  # SM2 适合加密会话密钥
-    results.append(_benchmark("SM2", "encrypt", lambda: sm2_encrypt(keypair.public_key, sm2_plaintext), iterations))
+    results.append(
+        _benchmark(
+            "SM2", "encrypt", lambda: sm2_encrypt(keypair.public_key, sm2_plaintext), iterations
+        )
+    )
     sm2_ciphertext = sm2_encrypt(keypair.public_key, sm2_plaintext)
-    results.append(_benchmark("SM2", "decrypt", lambda: sm2_decrypt(keypair.private_key, sm2_ciphertext), iterations))
+    results.append(
+        _benchmark(
+            "SM2", "decrypt", lambda: sm2_decrypt(keypair.private_key, sm2_ciphertext), iterations
+        )
+    )
 
     # SM2 签名
-    results.append(_benchmark("SM2", "sign", lambda: sm2_sign(keypair.private_key, data, public_key=keypair.public_key, use_sm3=True), iterations, data_size_bytes))
+    results.append(
+        _benchmark(
+            "SM2",
+            "sign",
+            lambda: sm2_sign(
+                keypair.private_key, data, public_key=keypair.public_key, use_sm3=True
+            ),
+            iterations,
+            data_size_bytes,
+        )
+    )
     sig = sm2_sign(keypair.private_key, data, public_key=keypair.public_key, use_sm3=True)
-    results.append(_benchmark("SM2", "verify", lambda: sm2_verify(keypair.public_key, data, sig, use_sm3=True), iterations, data_size_bytes))
+    results.append(
+        _benchmark(
+            "SM2",
+            "verify",
+            lambda: sm2_verify(keypair.public_key, data, sig, use_sm3=True),
+            iterations,
+            data_size_bytes,
+        )
+    )
 
     # SM2 密钥生成
-    results.append(_benchmark("SM2", "keypair_generate", lambda: SM2KeyPair.generate(), max(10, iterations // 10)))
+    results.append(
+        _benchmark(
+            "SM2", "keypair_generate", lambda: SM2KeyPair.generate(), max(10, iterations // 10)
+        )
+    )
 
     return results
 

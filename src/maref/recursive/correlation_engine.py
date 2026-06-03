@@ -122,34 +122,43 @@ class CorrelationEngine:
         self._audit_corr: dict[str, AuditCorrelationEntry] = {}
         self._experience_corr: dict[str, ExperienceCorrelationEntry] = {}
 
-    def link_span_to_audit(self, span_id: str, audit_id: str,
-                            round_num: int = 0, **attrs: Any) -> CorrelationLink:
-        link = self._get_or_create_link(span_id=span_id, audit_id=audit_id,
-                                         round_num=round_num, **attrs)
+    def link_span_to_audit(
+        self, span_id: str, audit_id: str, round_num: int = 0, **attrs: Any
+    ) -> CorrelationLink:
+        link = self._get_or_create_link(
+            span_id=span_id, audit_id=audit_id, round_num=round_num, **attrs
+        )
         self._index_link(link)
         self._update_correlation_entries(span_id=span_id, audit_id=audit_id, round_num=round_num)
         return link
 
-    def link_span_to_experience(self, span_id: str, experience_id: str,
-                                 round_num: int = 0, **attrs: Any) -> CorrelationLink:
-        link = self._get_or_create_link(span_id=span_id, experience_id=experience_id,
-                                         round_num=round_num, **attrs)
+    def link_span_to_experience(
+        self, span_id: str, experience_id: str, round_num: int = 0, **attrs: Any
+    ) -> CorrelationLink:
+        link = self._get_or_create_link(
+            span_id=span_id, experience_id=experience_id, round_num=round_num, **attrs
+        )
         self._index_link(link)
-        self._update_correlation_entries(span_id=span_id, experience_id=experience_id,
-                                          round_num=round_num)
+        self._update_correlation_entries(
+            span_id=span_id, experience_id=experience_id, round_num=round_num
+        )
         return link
 
-    def link_audit_to_experience(self, audit_id: str, experience_id: str,
-                                  round_num: int = 0, **attrs: Any) -> CorrelationLink:
-        link = self._get_or_create_link(audit_id=audit_id, experience_id=experience_id,
-                                         round_num=round_num, **attrs)
+    def link_audit_to_experience(
+        self, audit_id: str, experience_id: str, round_num: int = 0, **attrs: Any
+    ) -> CorrelationLink:
+        link = self._get_or_create_link(
+            audit_id=audit_id, experience_id=experience_id, round_num=round_num, **attrs
+        )
         self._index_link(link)
-        self._update_correlation_entries(audit_id=audit_id, experience_id=experience_id,
-                                          round_num=round_num)
+        self._update_correlation_entries(
+            audit_id=audit_id, experience_id=experience_id, round_num=round_num
+        )
         return link
 
-    def link_all(self, span_id: str, audit_id: str, experience_id: str,
-                  round_num: int = 0, **attrs: Any) -> CorrelationLink:
+    def link_all(
+        self, span_id: str, audit_id: str, experience_id: str, round_num: int = 0, **attrs: Any
+    ) -> CorrelationLink:
         link_id = f"link_{span_id}_{int(time.time() * 1000)}"
         link = CorrelationLink(
             link_id=link_id,
@@ -163,7 +172,9 @@ class CorrelationEngine:
         self._links[link_id] = link
         self._index_link(link)
         self._update_correlation_entries(
-            span_id=span_id, audit_id=audit_id, experience_id=experience_id,
+            span_id=span_id,
+            audit_id=audit_id,
+            experience_id=experience_id,
             round_num=round_num,
         )
         return link
@@ -209,30 +220,32 @@ class CorrelationEngine:
                         queue.append(entity)
 
         result.complete = (
-            len(result.span_ids) > 0 and
-            len(result.audit_ids) > 0 and
-            len(result.experience_ids) > 0 and
-            result.hop_count <= self.MAX_HOPS
+            len(result.span_ids) > 0
+            and len(result.audit_ids) > 0
+            and len(result.experience_ids) > 0
+            and result.hop_count <= self.MAX_HOPS
         )
 
         self._audit_store.append(result.to_audit_record())
         return result
 
     def query_by_span(self, span_id: str) -> list[CorrelationLink]:
-        return [self._links[lid] for lid in self._span_index.get(span_id, [])
-                if lid in self._links]
+        return [self._links[lid] for lid in self._span_index.get(span_id, []) if lid in self._links]
 
     def query_by_audit(self, audit_id: str) -> list[CorrelationLink]:
-        return [self._links[lid] for lid in self._audit_index.get(audit_id, [])
-                if lid in self._links]
+        return [
+            self._links[lid] for lid in self._audit_index.get(audit_id, []) if lid in self._links
+        ]
 
     def query_by_experience(self, experience_id: str) -> list[CorrelationLink]:
-        return [self._links[lid] for lid in self._experience_index.get(experience_id, [])
-                if lid in self._links]
+        return [
+            self._links[lid]
+            for lid in self._experience_index.get(experience_id, [])
+            if lid in self._links
+        ]
 
     def query_by_round(self, round_num: int) -> list[CorrelationLink]:
-        return [self._links[lid] for lid in self._by_round.get(round_num, [])
-                if lid in self._links]
+        return [self._links[lid] for lid in self._by_round.get(round_num, []) if lid in self._links]
 
     def get_completeness_report(self) -> dict[str, Any]:
         total = len(self._links)
@@ -248,16 +261,13 @@ class CorrelationEngine:
             "fully_linked": fully,
             "fully_linked_pct": round(fully / total * 100, 1),
             "orphan_spans": sum(
-                1 for e in self._span_corr.values()
-                if not e.audit_refs and not e.experience_refs
+                1 for e in self._span_corr.values() if not e.audit_refs and not e.experience_refs
             ),
             "orphan_audits": sum(
-                1 for e in self._audit_corr.values()
-                if not e.span_refs and not e.experience_refs
+                1 for e in self._audit_corr.values() if not e.span_refs and not e.experience_refs
             ),
             "orphan_experiences": sum(
-                1 for e in self._experience_corr.values()
-                if not e.span_refs and not e.audit_refs
+                1 for e in self._experience_corr.values() if not e.span_refs and not e.audit_refs
             ),
         }
 
@@ -267,7 +277,11 @@ class CorrelationEngine:
         exp_id = kwargs.get("experience_id") or ""
 
         for link in self._links.values():
-            if link.span_id == span_id and link.audit_id == audit_id and link.experience_id == exp_id:
+            if (
+                link.span_id == span_id
+                and link.audit_id == audit_id
+                and link.experience_id == exp_id
+            ):
                 return link
 
         link = CorrelationLink(
@@ -277,8 +291,11 @@ class CorrelationEngine:
             experience_id=exp_id or None,
             round_num=kwargs.get("round_num", 0),
             timestamp=time.time(),
-            attributes={k: v for k, v in kwargs.items()
-                         if k not in ("span_id", "audit_id", "experience_id", "round_num")},
+            attributes={
+                k: v
+                for k, v in kwargs.items()
+                if k not in ("span_id", "audit_id", "experience_id", "round_num")
+            },
         )
         self._links[link.link_id] = link
         return link

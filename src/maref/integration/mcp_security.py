@@ -218,6 +218,7 @@ class MCPSecurityGate:
         risk_score: float,
     ) -> None:
         import hashlib
+
         args_hash = hashlib.sha256(str(args).encode()).hexdigest()[:16]
 
         entry = AuditLogEntry(
@@ -253,18 +254,25 @@ class MCPSecurityGate:
 
     def export_audit_log(self, format: str = "json") -> str:
         import json
+
         if format == "json":
-            return json.dumps([{
-                "timestamp": e.timestamp.isoformat(),
-                "agent_id": e.agent_id,
-                "tool_name": e.tool_name,
-                "trust_level": e.trust_level,
-                "verdict": e.verdict,
-                "args_hash": e.args_hash,
-                "chain_id": e.chain_id,
-                "delegation_depth": e.delegation_depth,
-                "risk_score": e.risk_score,
-            } for e in self._audit_log], indent=2)
+            return json.dumps(
+                [
+                    {
+                        "timestamp": e.timestamp.isoformat(),
+                        "agent_id": e.agent_id,
+                        "tool_name": e.tool_name,
+                        "trust_level": e.trust_level,
+                        "verdict": e.verdict,
+                        "args_hash": e.args_hash,
+                        "chain_id": e.chain_id,
+                        "delegation_depth": e.delegation_depth,
+                        "risk_score": e.risk_score,
+                    }
+                    for e in self._audit_log
+                ],
+                indent=2,
+            )
         elif format == "syslog":
             lines = []
             for e in self._audit_log:
@@ -296,17 +304,20 @@ def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes = DEFAULT_HMAC_SECR
     The signature covers all immutable fields of the entry, providing
     tamper-evident audit logging. Store alongside the entry for verification.
     """
-    payload = json.dumps({
-        "timestamp": entry.timestamp.isoformat(),
-        "agent_id": entry.agent_id,
-        "tool_name": entry.tool_name,
-        "trust_level": entry.trust_level,
-        "verdict": entry.verdict,
-        "args_hash": entry.args_hash,
-        "chain_id": entry.chain_id,
-        "delegation_depth": entry.delegation_depth,
-        "risk_score": entry.risk_score,
-    }, sort_keys=True)
+    payload = json.dumps(
+        {
+            "timestamp": entry.timestamp.isoformat(),
+            "agent_id": entry.agent_id,
+            "tool_name": entry.tool_name,
+            "trust_level": entry.trust_level,
+            "verdict": entry.verdict,
+            "args_hash": entry.args_hash,
+            "chain_id": entry.chain_id,
+            "delegation_depth": entry.delegation_depth,
+            "risk_score": entry.risk_score,
+        },
+        sort_keys=True,
+    )
     return hmac.new(secret_key, payload.encode(), hashlib.sha256).hexdigest()
 
 

@@ -94,7 +94,12 @@ class CircuitBreaker:
             return False
 
         if rate > self._max_oscillation:
-            self._trip(f"oscillation_rate:{rate:.1f}>{self._max_oscillation}", 0, current_entropy, current_state)
+            self._trip(
+                f"oscillation_rate:{rate:.1f}>{self._max_oscillation}",
+                0,
+                current_entropy,
+                current_state,
+            )
             return False
 
         return True
@@ -127,10 +132,11 @@ class CircuitBreaker:
         )
         # Trim old trips to prevent unbounded memory growth
         if len(self._trips) > self._max_trips:
-            self._trips = self._trips[-self._max_trips:]
+            self._trips = self._trips[-self._max_trips :]
 
     def _should_try_half_open(self) -> bool:
         import random
+
         jitter = random.uniform(0, self._cooldown * 0.2)
         return (time.time() - self._last_trip_time) > (self._cooldown + jitter)
 

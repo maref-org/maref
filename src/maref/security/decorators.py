@@ -41,9 +41,7 @@ def security_critical(func: F) -> F:
             logger.debug("SECURITY_EXIT: %s", func.__qualname__)
             return result
         except Exception as exc:
-            logger.warning(
-                "SECURITY_EXCEPTION in %s: %s", func.__qualname__, exc
-            )
+            logger.warning("SECURITY_EXCEPTION in %s: %s", func.__qualname__, exc)
             raise
 
     # Attach marker attribute for static analysis / policy enforcement

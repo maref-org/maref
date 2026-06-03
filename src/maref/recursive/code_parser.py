@@ -41,11 +41,13 @@ class CodeParser:
                 if module_name.startswith("__"):
                     continue
 
-                hierarchy.modules.append(CodeNode(
-                    name=module_name,
-                    node_type="module",
-                    file_path=rel_path,
-                ))
+                hierarchy.modules.append(
+                    CodeNode(
+                        name=module_name,
+                        node_type="module",
+                        file_path=rel_path,
+                    )
+                )
 
                 try:
                     with open(full_path, encoding="utf-8") as f:
@@ -57,24 +59,29 @@ class CodeParser:
 
         return hierarchy
 
-    def _extract_from_ast(self, tree: ast.Module, module_name: str,
-                           hierarchy: ModuleHierarchy) -> None:
+    def _extract_from_ast(
+        self, tree: ast.Module, module_name: str, hierarchy: ModuleHierarchy
+    ) -> None:
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
-                hierarchy.classes.append(CodeNode(
-                    name=f"{module_name}.{node.name}",
-                    node_type="class",
-                    parent=module_name,
-                ))
+                hierarchy.classes.append(
+                    CodeNode(
+                        name=f"{module_name}.{node.name}",
+                        node_type="class",
+                        parent=module_name,
+                    )
+                )
             elif isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
                 parent = module_name
-                hierarchy.functions.append(CodeNode(
-                    name=f"{module_name}.{node.name}",
-                    node_type="function",
-                    parent=parent,
-                ))
+                hierarchy.functions.append(
+                    CodeNode(
+                        name=f"{module_name}.{node.name}",
+                        node_type="function",
+                        parent=parent,
+                    )
+                )
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     hierarchy.imports.append((module_name, alias.name))
             elif isinstance(node, ast.ImportFrom) and node.module:
-                    hierarchy.imports.append((module_name, node.module))
+                hierarchy.imports.append((module_name, node.module))

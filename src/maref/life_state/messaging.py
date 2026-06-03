@@ -94,7 +94,9 @@ class MessageBus:
             except Exception:
                 pass
 
-    def broadcast(self, sender_id: str, msg_type: MessageType, payload: dict[str, Any]) -> LifeStateMessage:
+    def broadcast(
+        self, sender_id: str, msg_type: MessageType, payload: dict[str, Any]
+    ) -> LifeStateMessage:
         msg = LifeStateMessage(
             msg_type=msg_type,
             sender_id=sender_id,
@@ -104,7 +106,9 @@ class MessageBus:
         self.send(msg)
         return msg
 
-    def request(self, sender_id: str, recipient_id: str, payload: dict[str, Any]) -> LifeStateMessage:
+    def request(
+        self, sender_id: str, recipient_id: str, payload: dict[str, Any]
+    ) -> LifeStateMessage:
         msg = LifeStateMessage(
             msg_type=MessageType.REQUEST,
             sender_id=sender_id,
@@ -133,7 +137,8 @@ class MessageBus:
         if state_id is None:
             return list(self._messages)
         return [
-            m for m in self._messages
+            m
+            for m in self._messages
             if m.recipient_id == state_id or m.sender_id == state_id or m.recipient_id == ""
         ]
 

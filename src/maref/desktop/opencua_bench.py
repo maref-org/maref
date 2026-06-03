@@ -185,7 +185,10 @@ class OpenCUABenchmark:
 
     def __init__(self, dataset_path: str | None = None) -> None:
         self._dataset_path = dataset_path or os.path.join(
-            os.path.expanduser("~"), ".maref_lite", "datasets", "opencua",
+            os.path.expanduser("~"),
+            ".maref_lite",
+            "datasets",
+            "opencua",
         )
         self._samples: list[OpenCUASample] = []
         self._loaded = False
@@ -199,7 +202,10 @@ class OpenCUABenchmark:
         Returns the suggested dataset path.
         """
         directory = target_dir or os.path.join(
-            os.path.expanduser("~"), ".maref_lite", "datasets", "opencua",
+            os.path.expanduser("~"),
+            ".maref_lite",
+            "datasets",
+            "opencua",
         )
         os.makedirs(directory, exist_ok=True)
 
@@ -314,9 +320,7 @@ Option 3 — HuggingFace CLI:
                 predicted = self._mock_predict(sample)
             elapsed = (time.time() - t0) * 1000
 
-            step_correct, step_total = self._compute_step_match(
-                predicted, sample.expected_actions
-            )
+            step_correct, step_total = self._compute_step_match(predicted, sample.expected_actions)
             action_match = step_correct == step_total and step_total > 0
 
             results.append(
@@ -335,7 +339,11 @@ Option 3 — HuggingFace CLI:
         step_acc = sum(r.action_accuracy for r in results) / max(total, 1)
         avg_latency = sum(r.latency_ms for r in results) / max(total, 1)
         sorted_lat = sorted(r.latency_ms for r in results)
-        p99_latency = sorted_lat[int(len(sorted_lat) * 0.99)] if len(sorted_lat) > 1 else (sorted_lat[0] if sorted_lat else 0)
+        p99_latency = (
+            sorted_lat[int(len(sorted_lat) * 0.99)]
+            if len(sorted_lat) > 1
+            else (sorted_lat[0] if sorted_lat else 0)
+        )
 
         return OpenCUABenchmarkResult(
             total_samples=total,
@@ -348,7 +356,9 @@ Option 3 — HuggingFace CLI:
 
     @staticmethod
     def _mock_predict(sample: OpenCUASample) -> list[dict[str, Any]]:
-        return [{"action": s["action"], "value": s.get("value", "")} for s in sample.expected_actions]
+        return [
+            {"action": s["action"], "value": s.get("value", "")} for s in sample.expected_actions
+        ]
 
     @staticmethod
     def _compute_step_match(
@@ -367,11 +377,13 @@ Option 3 — HuggingFace CLI:
         return step_correct, step_total
 
     def run_with_agent(
-        self, agent: DesktopAgent, num_samples: int = 10,
+        self,
+        agent: DesktopAgent,
+        num_samples: int = 10,
     ) -> OpenCUABenchmarkResult:
         if not self._loaded:
             self.load_dataset()
-        subset = self._samples[:min(num_samples, len(self._samples))]
+        subset = self._samples[: min(num_samples, len(self._samples))]
         results: list[OpenCUAResult] = []
 
         for sample in subset:
@@ -432,7 +444,11 @@ Option 3 — HuggingFace CLI:
         step_acc = sum(r.action_accuracy for r in results) / max(total, 1)
         avg_latency = sum(r.latency_ms for r in results) / max(total, 1)
         sorted_lat = sorted(r.latency_ms for r in results)
-        p99_latency = sorted_lat[int(len(sorted_lat) * 0.99)] if len(sorted_lat) > 1 else (sorted_lat[0] if sorted_lat else 0)
+        p99_latency = (
+            sorted_lat[int(len(sorted_lat) * 0.99)]
+            if len(sorted_lat) > 1
+            else (sorted_lat[0] if sorted_lat else 0)
+        )
 
         return OpenCUABenchmarkResult(
             total_samples=total,
@@ -446,7 +462,7 @@ Option 3 — HuggingFace CLI:
     def run_quick(self, num_samples: int = 100) -> OpenCUABenchmarkResult:
         if not self._loaded:
             self.load_dataset()
-        subset = self._samples[:min(num_samples, len(self._samples))]
+        subset = self._samples[: min(num_samples, len(self._samples))]
         return self.evaluate(subset)
 
     def run_full(self) -> OpenCUABenchmarkResult:

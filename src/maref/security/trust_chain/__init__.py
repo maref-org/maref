@@ -76,7 +76,9 @@ class DelegationChain:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def create(cls, root_agent_id: str, max_depth: int = 5, policy_version: str = "1.0") -> DelegationChain:
+    def create(
+        cls, root_agent_id: str, max_depth: int = 5, policy_version: str = "1.0"
+    ) -> DelegationChain:
         root_node = ChainNode(
             agent_id=root_agent_id,
             capability=DelegationCapability.ADMIN,
@@ -166,6 +168,7 @@ class DelegationChain:
 
     def get_chain_hash(self) -> str:
         import hashlib
+
         content = "".join(n.agent_id + n.capability.value for n in self.nodes)
         return hashlib.sha256(content.encode()).hexdigest()
 

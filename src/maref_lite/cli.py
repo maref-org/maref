@@ -57,10 +57,13 @@ console = Console()
 @app.callback(invoke_without_command=True)
 def _version(
     ctx: typer.Context,
-    version: bool = typer.Option(False, "--version", "-V", help="Show version and exit", is_eager=True),
+    version: bool = typer.Option(
+        False, "--version", "-V", help="Show version and exit", is_eager=True
+    ),
 ) -> None:
     if version:
         from maref_lite import __version__
+
         console.print(f"MAREF v{__version__}")
         raise typer.Exit()
     if ctx.invoked_subcommand is None:
@@ -133,9 +136,15 @@ def observe(
     console.print(f"Polling every {poll_interval}s for {max_count} observations...")
 
     states = [
-        GovernanceState.OBSERVE, GovernanceState.ANALYZE, GovernanceState.EVALUATE,
-        GovernanceState.DECIDE, GovernanceState.ACT, GovernanceState.VERIFY,
-        GovernanceState.STABILIZE, GovernanceState.REPORT, GovernanceState.HALT,
+        GovernanceState.OBSERVE,
+        GovernanceState.ANALYZE,
+        GovernanceState.EVALUATE,
+        GovernanceState.DECIDE,
+        GovernanceState.ACT,
+        GovernanceState.VERIFY,
+        GovernanceState.STABILIZE,
+        GovernanceState.REPORT,
+        GovernanceState.HALT,
     ]
 
     count = 0
@@ -223,20 +232,26 @@ def desktop_run(
 
     if task:
         dtask = DesktopTask(
-            task_id="cli-task", description=task,
+            task_id="cli-task",
+            description=task,
             safe_apps=["Finder", "Safari", "TextEdit", "Google Chrome"],
             steps=[
-                DesktopStep(operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5),
+                DesktopStep(
+                    operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5
+                ),
                 DesktopStep(operation=DesktopOperation.TYPE, value=task, wait_seconds=0.5),
                 DesktopStep(operation=DesktopOperation.HOTKEY, value="enter", wait_seconds=1.0),
             ],
         )
     else:
         dtask = DesktopTask(
-            task_id="cli-demo", description="MAREF Demo",
+            task_id="cli-demo",
+            description="MAREF Demo",
             safe_apps=["Finder"],
             steps=[
-                DesktopStep(operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5),
+                DesktopStep(
+                    operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5
+                ),
                 DesktopStep(operation=DesktopOperation.TYPE, value="Finder", wait_seconds=0.5),
                 DesktopStep(operation=DesktopOperation.HOTKEY, value="enter", wait_seconds=1.0),
             ],
@@ -255,7 +270,9 @@ def desktop_run(
 @desktop_app.command("setup")
 def desktop_setup(
     dry_run: bool = typer.Option(False, "--dry-run", help="Check environment without downloading"),
-    model: str = typer.Option("omni_parser", "--model", "-m", help="Model backend: omni_parser, cog_agent, both, none"),
+    model: str = typer.Option(
+        "omni_parser", "--model", "-m", help="Model backend: omni_parser, cog_agent, both, none"
+    ),
     no_model: bool = typer.Option(False, "--no-model", help="Skip model download"),
     upgrade: bool = typer.Option(False, "--upgrade", "-U", help="Upgrade existing dependencies"),
 ) -> None:
@@ -288,12 +305,14 @@ def desktop_demo() -> None:
         console.print("[red]Desktop agent modules not available.[/red]")
         raise typer.Exit(code=1) from e
 
-    console.print(Panel.fit(
-        "[bold cyan]MAREF Desktop Agent Demo[/bold cyan]\n\n"
-        "Runs in [yellow]dry-run[/yellow] mode — no real mouse/keyboard events.\n"
-        "Live: maref desktop run --live --task \"open Finder\"",
-        title="Desktop Agent",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]MAREF Desktop Agent Demo[/bold cyan]\n\n"
+            "Runs in [yellow]dry-run[/yellow] mode — no real mouse/keyboard events.\n"
+            'Live: maref desktop run --live --task "open Finder"',
+            title="Desktop Agent",
+        )
+    )
 
     agent = DesktopAgent(dry_run=True)
     console.print("[bold]1. Capturing screen...[/bold]")
@@ -314,7 +333,9 @@ def desktop_demo() -> None:
 def desktop_benchmark(
     samples: int = typer.Option(10, "--samples", "-n", help="Number of benchmark samples to run"),
     output: str = typer.Option("", "--output", "-o", help="Export results as JSON file"),
-    download: bool = typer.Option(False, "--download", "-d", help="Show dataset download instructions"),
+    download: bool = typer.Option(
+        False, "--download", "-d", help="Show dataset download instructions"
+    ),
 ) -> None:
     """Run OpenCUA benchmark on the desktop agent."""
     try:
@@ -358,7 +379,8 @@ def desktop_benchmark(
     for r in result.per_sample_results:
         match_icon = "[green]YES[/green]" if r.action_match else "[red]NO[/red]"
         per_sample_table.add_row(
-            r.sample_id, match_icon,
+            r.sample_id,
+            match_icon,
             f"{r.step_correct}/{r.step_total}",
             f"{r.latency_ms:.1f}ms",
         )
@@ -411,9 +433,13 @@ def audit_show(
     for entry in entries:
         ts = entry.get("timestamp", 0)
         time_str = time.strftime("%H:%M:%S", time.localtime(ts))
-        table.add_row(time_str, entry.get("event_type", "")[:20],
-                      entry.get("actor", "")[:15], entry.get("action", "")[:30],
-                      entry.get("details", "")[:60])
+        table.add_row(
+            time_str,
+            entry.get("event_type", "")[:20],
+            entry.get("actor", "")[:15],
+            entry.get("action", "")[:30],
+            entry.get("details", "")[:60],
+        )
 
     console.print(table)
     if not entries:
@@ -504,8 +530,12 @@ def drift_check(
         table.add_column("Detected", style="green")
 
         for cls_name, metrics in summary["per_class"].items():
-            table.add_row(cls_name, f"{metrics['kl']:.4f}", f"{metrics['js']:.4f}",
-                          "[green]YES[/]" if metrics["detected"] else "[red]NO[/]")
+            table.add_row(
+                cls_name,
+                f"{metrics['kl']:.4f}",
+                f"{metrics['js']:.4f}",
+                "[green]YES[/]" if metrics["detected"] else "[red]NO[/]",
+            )
         console.print(table)
 
     except ImportError:
@@ -620,8 +650,12 @@ def scheduler_status() -> None:
 @app.command()
 def serve(
     port: int = typer.Option(8000, "--port", "-p", help="HTTP server port"),
-    gui: bool = typer.Option(False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"),
-    telemetry: bool = typer.Option(False, "--telemetry/--no-telemetry", help="Enable maref-obs telemetry bridge"),
+    gui: bool = typer.Option(
+        False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"
+    ),
+    telemetry: bool = typer.Option(
+        False, "--telemetry/--no-telemetry", help="Enable maref-obs telemetry bridge"
+    ),
 ) -> None:
     """Start MAREF Sidecar HTTP server."""
     if gui:
@@ -642,8 +676,12 @@ def serve(
 
     if gui:
         console.print(f"  [green]Sessions:[/green]   http://localhost:{port}/api/sessions")
-        console.print(f"  [green]Stream:[/green]     http://localhost:{port}/api/sessions/{{id}}/stream")
-        console.print(f"  [green]Terminal:[/green]   ws://localhost:{port}/api/sessions/{{id}}/terminal")
+        console.print(
+            f"  [green]Stream:[/green]     http://localhost:{port}/api/sessions/{{id}}/stream"
+        )
+        console.print(
+            f"  [green]Terminal:[/green]   ws://localhost:{port}/api/sessions/{{id}}/terminal"
+        )
 
     if telemetry:
         console.print("  [green]Telemetry:[/green]  /api/obs/status")

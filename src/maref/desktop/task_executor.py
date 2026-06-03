@@ -145,34 +145,48 @@ class TaskExecutor:
     def from_template(template_name: str) -> list[TaskStep]:
         templates = {
             "open_finder": [
-                TaskStep(description="Open Spotlight", action_type="hotkey", action_value="command+space"),
+                TaskStep(
+                    description="Open Spotlight", action_type="hotkey", action_value="command+space"
+                ),
                 TaskStep(description="Type Finder", action_type="type", action_value="Finder"),
                 TaskStep(description="Open Finder", action_type="hotkey", action_value="enter"),
             ],
             "open_browser": [
-                TaskStep(description="Open Spotlight", action_type="hotkey", action_value="command+space"),
-                TaskStep(description="Type browser name", action_type="type", action_value="Safari"),
+                TaskStep(
+                    description="Open Spotlight", action_type="hotkey", action_value="command+space"
+                ),
+                TaskStep(
+                    description="Type browser name", action_type="type", action_value="Safari"
+                ),
                 TaskStep(description="Launch browser", action_type="hotkey", action_value="enter"),
             ],
             "compose_email": [
-                TaskStep(description="Open Mail", action_type="hotkey", action_value="command+space"),
+                TaskStep(
+                    description="Open Mail", action_type="hotkey", action_value="command+space"
+                ),
                 TaskStep(description="Type Mail", action_type="type", action_value="Mail"),
                 TaskStep(description="Launch Mail", action_type="hotkey", action_value="enter"),
                 TaskStep(description="New message", action_type="hotkey", action_value="command+n"),
             ],
             "edit_spreadsheet": [
-                TaskStep(description="Open Spotlight", action_type="hotkey", action_value="command+space"),
+                TaskStep(
+                    description="Open Spotlight", action_type="hotkey", action_value="command+space"
+                ),
                 TaskStep(description="Type Numbers", action_type="type", action_value="Numbers"),
                 TaskStep(description="Launch Numbers", action_type="hotkey", action_value="enter"),
             ],
             "file_organize": [
-                TaskStep(description="Open Finder", action_type="hotkey", action_value="command+space"),
+                TaskStep(
+                    description="Open Finder", action_type="hotkey", action_value="command+space"
+                ),
                 TaskStep(description="Type Finder", action_type="type", action_value="Finder"),
                 TaskStep(description="Launch Finder", action_type="hotkey", action_value="enter"),
                 TaskStep(description="New window", action_type="hotkey", action_value="command+n"),
             ],
             "terminal_command": [
-                TaskStep(description="Open Terminal", action_type="hotkey", action_value="command+space"),
+                TaskStep(
+                    description="Open Terminal", action_type="hotkey", action_value="command+space"
+                ),
                 TaskStep(description="Type Terminal", action_type="type", action_value="Terminal"),
                 TaskStep(description="Launch Terminal", action_type="hotkey", action_value="enter"),
             ],

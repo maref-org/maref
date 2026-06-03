@@ -232,7 +232,9 @@ class DecisionMarket:
         )
         self._participants[participant_id] = participant
         self._engine.register_validator(participant_id, initial_weight=max(1.0, initial_stake))
-        self._audit_log("participant_registered", "", participant_id, {"initial_stake": initial_stake})
+        self._audit_log(
+            "participant_registered", "", participant_id, {"initial_stake": initial_stake}
+        )
         return participant
 
     def deposit_stake(self, participant_id: str, amount: float) -> float:
@@ -243,7 +245,12 @@ class DecisionMarket:
         validator = self._engine._validators.get(participant_id)
         if validator:
             validator.update_weight(participant.stake_balance + 1.0)
-        self._audit_log("stake_deposited", "", participant_id, {"amount": amount, "balance": participant.stake_balance})
+        self._audit_log(
+            "stake_deposited",
+            "",
+            participant_id,
+            {"amount": amount, "balance": participant.stake_balance},
+        )
         return participant.stake_balance
 
     def propose(
@@ -414,9 +421,7 @@ class DecisionMarket:
             elif vote.vote_value == VoteValue.ABSTAIN:
                 abstain_stake += vote.stake_amount
 
-        active_total_stake = sum(
-            p.total_staked for p in self._participants.values() if p.is_active
-        )
+        active_total_stake = sum(p.total_staked for p in self._participants.values() if p.is_active)
         participation_rate = total_stake / active_total_stake if active_total_stake > 0 else 0.0
 
         consensus_reached = engine_result.status == ConsensusStatus.REACHED
@@ -458,7 +463,9 @@ class DecisionMarket:
             {
                 "target": proposal.target,
                 "consensus_reached": consensus_reached,
-                "winning_vote": engine_result.winning_vote.value if engine_result.winning_vote else None,
+                "winning_vote": engine_result.winning_vote.value
+                if engine_result.winning_vote
+                else None,
                 "confidence": engine_result.confidence,
                 "status": engine_result.status.value,
             },
@@ -543,7 +550,9 @@ class DecisionMarket:
         return {
             "total_proposals": total_proposals,
             "consensus_reached": consensus_reached,
-            "consensus_rate": round(consensus_reached / total_proposals, 4) if total_proposals > 0 else 0.0,
+            "consensus_rate": round(consensus_reached / total_proposals, 4)
+            if total_proposals > 0
+            else 0.0,
             "total_participants": total_participants,
             "active_participants": active_participants,
             "total_staked": round(total_staked, 4),
@@ -555,9 +564,7 @@ class DecisionMarket:
             "stats": self.stats(),
             "participants": [p.to_dict() for p in self._participants.values()],
             "proposals": [p.to_dict() for p in self._proposals.values()],
-            "consensus_results": [
-                r.to_dict() for r in self._consensus_results.values()
-            ],
+            "consensus_results": [r.to_dict() for r in self._consensus_results.values()],
         }
 
     def _audit_log(

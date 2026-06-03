@@ -23,6 +23,7 @@ class MigrationStep:
 
     def execute(self) -> None:
         import shlex
+
         start = time.time()
         try:
             if self.command:
@@ -130,27 +131,35 @@ class LiveMigration:
             compatibility_level=level,
         )
 
-        plan.steps.append(MigrationStep(
-            step_id="backup_current",
-            description=f"Backup current state at {source_version}",
-        ))
+        plan.steps.append(
+            MigrationStep(
+                step_id="backup_current",
+                description=f"Backup current state at {source_version}",
+            )
+        )
 
         if level in ("minor_change", "breaking_change"):
-            plan.steps.append(MigrationStep(
-                step_id="update_config",
-                description="Update configuration files",
-            ))
+            plan.steps.append(
+                MigrationStep(
+                    step_id="update_config",
+                    description="Update configuration files",
+                )
+            )
 
-        plan.steps.append(MigrationStep(
-            step_id="verify_tests",
-            description="Run test suite verification",
-            command=f"{sys.executable} -m pytest -x -q --tb=short 2>&1 | tail -20",
-        ))
+        plan.steps.append(
+            MigrationStep(
+                step_id="verify_tests",
+                description="Run test suite verification",
+                command=f"{sys.executable} -m pytest -x -q --tb=short 2>&1 | tail -20",
+            )
+        )
 
-        plan.steps.append(MigrationStep(
-            step_id="update_version_file",
-            description=f"Update version marker to {target_version}",
-        ))
+        plan.steps.append(
+            MigrationStep(
+                step_id="update_version_file",
+                description=f"Update version marker to {target_version}",
+            )
+        )
 
         self._migrations.append(plan)
         return plan
@@ -185,13 +194,17 @@ class LiveMigration:
 
         marker_path = os.path.join(backup_dir, "rollback_info.json")
         import json
+
         with open(marker_path, "w") as f:
-            json.dump({
-                "plan_id": plan.plan_id,
-                "source": plan.source_version,
-                "target": plan.target_version,
-                "timestamp": time.time(),
-            }, f)
+            json.dump(
+                {
+                    "plan_id": plan.plan_id,
+                    "source": plan.source_version,
+                    "target": plan.target_version,
+                    "timestamp": time.time(),
+                },
+                f,
+            )
 
         self._rollback_points[plan.plan_id] = backup_dir
 
@@ -200,26 +213,27 @@ class LiveMigration:
         if not rollback_point:
             return False
 
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("rollback", hash(plan.plan_id) % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=37,
-            event_type="migration_rollback",
-            source_module="LiveMigration",
-            target_module=f"{plan.source_version}->{plan.target_version}",
-            decision="rollback",
-            justification="Migration failed, rolling back",
-            outcome="success",
-            context_refs=[plan.plan_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("rollback", hash(plan.plan_id) % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=37,
+                event_type="migration_rollback",
+                source_module="LiveMigration",
+                target_module=f"{plan.source_version}->{plan.target_version}",
+                decision="rollback",
+                justification="Migration failed, rolling back",
+                outcome="success",
+                context_refs=[plan.plan_id],
+            )
+        )
         return True
 
     def verify_migration(self, plan: MigrationPlan) -> dict[str, Any]:
         all_ok = all(s.status == "success" for s in plan.steps)
         failed_steps = [
-            {"step_id": s.step_id, "error": s.error}
-            for s in plan.steps if s.status == "failed"
+            {"step_id": s.step_id, "error": s.error} for s in plan.steps if s.status == "failed"
         ]
         return {
             "plan_id": plan.plan_id,

@@ -55,19 +55,23 @@ class HealingRecord:
         records: list[UnifiedAuditRecord] = []
         for _i, action in enumerate(self.actions):
             outcome = "success" if action.success else "failure"
-            records.append(UnifiedAuditRecord(
-                record_id=make_record_id("heal", hash((action.problem_type, action.iteration)) % 100000),
-                timestamp=time.time(),
-                layer="inner",
-                round=round_num,
-                event_type="healing",
-                source_module="SelfHealer",
-                target_module=action.problem_type,
-                decision=action.strategy,
-                justification=f"exit_code={action.exit_code} detail={action.detail}",
-                outcome=outcome,
-                context_refs=[],
-            ))
+            records.append(
+                UnifiedAuditRecord(
+                    record_id=make_record_id(
+                        "heal", hash((action.problem_type, action.iteration)) % 100000
+                    ),
+                    timestamp=time.time(),
+                    layer="inner",
+                    round=round_num,
+                    event_type="healing",
+                    source_module="SelfHealer",
+                    target_module=action.problem_type,
+                    decision=action.strategy,
+                    justification=f"exit_code={action.exit_code} detail={action.detail}",
+                    outcome=outcome,
+                    context_refs=[],
+                )
+            )
         return records
 
 
@@ -112,7 +116,9 @@ class SelfHealer:
             if strategy == "rerun_tests_with_verbose":
                 result = subprocess.run(
                     [sys.executable, "-m", "pytest", "-v", "--tb=short"],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
                 )
                 exit_code = result.returncode
                 stdout = result.stdout[-2000:]
@@ -122,7 +128,9 @@ class SelfHealer:
             elif strategy == "pin_to_compatible_version":
                 result = subprocess.run(
                     [sys.executable, "-m", "pip", "check"],
-                    capture_output=True, text=True, timeout=30,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
                 )
                 exit_code = result.returncode
                 stdout = result.stdout[-2000:]
@@ -135,7 +143,9 @@ class SelfHealer:
             elif strategy == "identify_untested_paths_generate_stubs":
                 result = subprocess.run(
                     [sys.executable, "-m", "coverage", "run", "-m", "pytest", "-q"],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
                 )
                 exit_code = result.returncode
                 stdout = result.stdout[-2000:]
@@ -148,7 +158,9 @@ class SelfHealer:
             elif strategy == "bisect_commits_identify_cause":
                 result = subprocess.run(
                     ["git", "log", "--oneline", "-10"],
-                    capture_output=True, text=True, timeout=15,
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
                 )
                 exit_code = result.returncode
                 stdout = result.stdout[:2000]
@@ -165,7 +177,9 @@ class SelfHealer:
                         with contextlib.suppress(Exception):
                             subprocess.run(
                                 [sys.executable, "-m", "pip", "install", mod_name],
-                                capture_output=True, text=True, timeout=60,
+                                capture_output=True,
+                                text=True,
+                                timeout=60,
                             )
                 if missing:
                     exit_code = 0
@@ -179,7 +193,9 @@ class SelfHealer:
                 try:
                     r = subprocess.run(
                         [sys.executable, "-c", "import maref; print('maref OK')"],
-                        capture_output=True, text=True, timeout=30,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
                     )
                     checks.append(("maref_import", r.returncode, r.stdout.strip()))
                 except Exception as e:
@@ -187,7 +203,9 @@ class SelfHealer:
                 try:
                     r = subprocess.run(
                         [sys.executable, "-c", "import maref_lite; print('maref_lite OK')"],
-                        capture_output=True, text=True, timeout=30,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
                     )
                     checks.append(("maref_lite_import", r.returncode, r.stdout.strip()))
                 except Exception as e:
@@ -241,10 +259,17 @@ class SelfHealer:
     ) -> HealingRecord:
         from maref.recursive.self_diagnostician import RiskLevel
 
-        if auto_re_diagnose and re_diagnose is None and _observer is not None and _diagnostician is not None:
+        if (
+            auto_re_diagnose
+            and re_diagnose is None
+            and _observer is not None
+            and _diagnostician is not None
+        ):
+
             def _auto_re_diag() -> DiagnosisReport:
                 snapshot = _observer.observe()
                 return _diagnostician.diagnose(snapshot)
+
             re_diagnose = _auto_re_diag
 
         healing = HealingRecord()

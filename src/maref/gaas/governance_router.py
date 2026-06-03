@@ -184,7 +184,9 @@ class GovernanceRouter:
         else:
             new_score = current
 
-        self._trust.set_score(req.tenant_id, req.agent_id, new_score, reason=f"govern:{verdict.value}")
+        self._trust.set_score(
+            req.tenant_id, req.agent_id, new_score, reason=f"govern:{verdict.value}"
+        )
 
     def get_stats(self, tenant_id: str) -> dict[str, Any]:
         return {

@@ -29,21 +29,34 @@ def generate_cycle_report(
             fnr = cycle.metrics.fnr_series[i] if i < len(cycle.metrics.fnr_series) else ""
             fpr = cycle.metrics.fpr_series[i] if i < len(cycle.metrics.fpr_series) else ""
             ent = cycle.metrics.entropy_series[i] if i < len(cycle.metrics.entropy_series) else ""
-            tc = cycle.metrics.transition_count_series[i] if i < len(cycle.metrics.transition_count_series) else ""
-            lr = cycle.metrics.learning_rate_series[i] if i < len(cycle.metrics.learning_rate_series) else ""
+            tc = (
+                cycle.metrics.transition_count_series[i]
+                if i < len(cycle.metrics.transition_count_series)
+                else ""
+            )
+            lr = (
+                cycle.metrics.learning_rate_series[i]
+                if i < len(cycle.metrics.learning_rate_series)
+                else ""
+            )
             f.write(f"{i + 1},{fnr},{fpr},{ent},{tc},{lr}\n")
 
     summary_path = output_dir / "summary.json"
     with open(summary_path, "w") as f:
-        json.dump({
-            "cycle_id": cycle.cycle_id,
-            "name": cycle.name,
-            "rounds_completed": cycle.rounds_completed,
-            "rounds_total": cycle.rounds_total,
-            "passed": cycle.passed,
-            "acceptance": cycle.acceptance,
-            "metrics_snapshot": cycle.metrics.to_dict(),
-        }, f, indent=2, default=str)
+        json.dump(
+            {
+                "cycle_id": cycle.cycle_id,
+                "name": cycle.name,
+                "rounds_completed": cycle.rounds_completed,
+                "rounds_total": cycle.rounds_total,
+                "passed": cycle.passed,
+                "acceptance": cycle.acceptance,
+                "metrics_snapshot": cycle.metrics.to_dict(),
+            },
+            f,
+            indent=2,
+            default=str,
+        )
 
     return summary_path
 
@@ -78,9 +91,13 @@ def generate_final_report(
             for k, v in cycle.acceptance.items():
                 lines.append(f"  - {k}: {'✅' if v else '❌'}")
         if cycle.metrics.fnr_series:
-            lines.append(f"- FNR range: {min(cycle.metrics.fnr_series):.4f} — {max(cycle.metrics.fnr_series):.4f}")
+            lines.append(
+                f"- FNR range: {min(cycle.metrics.fnr_series):.4f} — {max(cycle.metrics.fnr_series):.4f}"
+            )
         if cycle.metrics.fpr_series:
-            lines.append(f"- FPR range: {min(cycle.metrics.fpr_series):.4f} — {max(cycle.metrics.fpr_series):.4f}")
+            lines.append(
+                f"- FPR range: {min(cycle.metrics.fpr_series):.4f} — {max(cycle.metrics.fpr_series):.4f}"
+            )
         lines.append("")
 
     lines += [

@@ -37,9 +37,7 @@ class DatabaseManager:
     def connection(self):
         """Yield a thread-local SQLite connection."""
         if not hasattr(self._local, "conn") or self._local.conn is None:
-            self._local.conn = sqlite3.connect(
-                self._db_path, check_same_thread=False
-            )
+            self._local.conn = sqlite3.connect(self._db_path, check_same_thread=False)
             self._local.conn.row_factory = sqlite3.Row
         try:
             yield self._local.conn
@@ -115,9 +113,7 @@ class DatabaseManager:
         self._ensure_migrations_table()
         if not self.table_exists("schema_migrations"):
             return 0
-        row = self.fetchone(
-            "SELECT MAX(version) as max_version FROM schema_migrations"
-        )
+        row = self.fetchone("SELECT MAX(version) as max_version FROM schema_migrations")
         return row["max_version"] or 0
 
     def migrate(

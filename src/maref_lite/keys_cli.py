@@ -1,4 +1,3 @@
-
 import click
 
 from maref.security.keyring_store import KeyringStore
