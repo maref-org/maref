@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from types import ModuleType
+from unittest.mock import MagicMock
 
 # Mock missing optional dependencies that tests may import
 _MISSING_MODULES = [
@@ -57,10 +58,13 @@ _MISSING_MODULES = [
 
 
 def _create_mock_module(name: str) -> ModuleType:
-    """Create a mock module with MagicMock attributes."""
-    mod = ModuleType(name)
-    mod.__mock__ = True  # type: ignore[attr-defined]
-    return mod
+    """Create a mock module where any attribute access returns a MagicMock."""
+
+    class _MockModule(ModuleType):
+        def __getattr__(self, item: str) -> MagicMock:
+            return MagicMock()
+
+    return _MockModule(name)
 
 
 for _mod_name in _MISSING_MODULES:
