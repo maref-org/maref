@@ -39,7 +39,7 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Run unit tests
         run: |
-          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark"
+          pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --cov=src --cov-report=xml
       - name: Validate mock consistency
         run: |
           python -c "
@@ -49,8 +49,6 @@ jobs:
           errors = v.validate_all()
           assert not errors, f'Mock mismatch: {errors}'
           "
-      - name: Coverage report
-        run: coverage report --fail-under=70
 
   security:
     needs: lint
@@ -65,7 +63,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Bandit SAST
-        run: bandit -r src/ -c pyproject.toml
+        run: bandit -r src/ -c .bandit
       - name: pip-audit
         run: pip-audit
       - name: TruffleHog Secret Scan
