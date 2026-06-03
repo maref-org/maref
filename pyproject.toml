@@ -74,6 +74,7 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "bandit>=1.7",
+    "pip-audit>=2.0",
     "pre-commit>=3.7",
     "nox>=2024.0",
 ]
@@ -200,7 +201,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-report=json"
-norecursedirs = ["tests/benchmark", "tests/chaos", "tests/cli", "tests/desktop", "tests/executor"]
+norecursedirs = ["tests/benchmark", "tests/chaos", "tests/cli", "tests/desktop", "tests/executor", "tests/integration"]
 asyncio_mode = "auto"
 markers = [
     "unit: Unit tests",
