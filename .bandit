@@ -1,3 +1,9 @@
-[bandit]
-exclude_dirs = tests,docs,vault
-skips = B105,B108,B110
+bandit:
+  exclude_dirs:
+    - tests
+    - docs
+    - vault
+  skips:
+    - B105
+    - B108
+    - B110
