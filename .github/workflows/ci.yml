@@ -63,7 +63,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Bandit SAST
-        run: bandit -r src/ -c .bandit
+        run: bandit -r src/
       - name: pip-audit
         run: pip-audit
       - name: TruffleHog Secret Scan

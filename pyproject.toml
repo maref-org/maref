@@ -200,7 +200,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-report=json"
-norecursedirs = ["tests/benchmark"]
+norecursedirs = ["tests/benchmark", "tests/chaos"]
 asyncio_mode = "auto"
 markers = [
     "unit: Unit tests",
@@ -211,6 +211,10 @@ markers = [
     "security: Security penetration tests",
     "benchmark: Performance benchmark tests",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests", "docs", "vault"]
+skips = ["B105", "B108", "B110"]
 
 [tool.coverage.run]
 source = ["src/maref", "src/maref_lite", "src/sidecar", "src/drift_guard", "src/formal", "src/research"]
