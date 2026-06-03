@@ -70,8 +70,6 @@ jobs:
         uses: trufflesecurity/trufflehog@v3.90.8
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
           extra_args: --only-verified
 
   crypto-test:

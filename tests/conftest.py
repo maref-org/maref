@@ -24,6 +24,7 @@ _MISSING_MODULES = [
     "numpy",
     "fastapi",
     "fastapi.responses",
+    "fastapi.testclient",
     "cryptography",
     "cryptography.hazmat.primitives",
     "cryptography.hazmat.primitives.asymmetric",
@@ -83,6 +84,14 @@ def _create_mock_module(name: str) -> ModuleType:
     return _MockModule(name)
 
 
+def pytest_configure(config):
+    """Register mocks before test collection so imports in test modules succeed."""
+    for _mod_name in _MISSING_MODULES:
+        if _mod_name not in sys.modules:
+            sys.modules[_mod_name] = _create_mock_module(_mod_name)
+
+
+# Also register immediately for local test runs
 for _mod_name in _MISSING_MODULES:
     if _mod_name not in sys.modules:
         sys.modules[_mod_name] = _create_mock_module(_mod_name)
