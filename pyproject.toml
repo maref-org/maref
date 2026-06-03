@@ -201,7 +201,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-report=json"
-norecursedirs = ["tests/benchmark", "tests/chaos", "tests/cli", "tests/desktop", "tests/executor", "tests/integration"]
+norecursedirs = ["tests/benchmark", "tests/chaos"]
 asyncio_mode = "auto"
 markers = [
     "unit: Unit tests",
