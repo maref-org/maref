@@ -4,14 +4,21 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImage
+
+Image: Any | None = None
 try:
-    from PIL import Image
+    from PIL import Image as _PILImage  # noqa: N813
+
+    Image = _PILImage
 except ImportError:
-    Image = None  # type: ignore[assignment]
+    pass
 
 
-def _pixel_value(img: Image.Image, x: int, y: int) -> int:
+def _pixel_value(img: PILImage, x: int, y: int) -> int:
     """Safely extract a single int pixel value from a grayscale PIL image."""
     px = img.getpixel((x, y))
     if isinstance(px, tuple):
@@ -61,9 +68,9 @@ class VerificationResult:
     passed: bool
     method: VerificationMethod
     details: str = ""
-    before_image: Image.Image | None = None
-    after_image: Image.Image | None = None
-    diff_image: Image.Image | None = None
+    before_image: PILImage | None = None
+    after_image: PILImage | None = None
+    diff_image: PILImage | None = None
     diff_percentage: float = 0.0
     diff_regions: list[DiffRegion] | None = None
     retry_count: int = 0
@@ -102,8 +109,8 @@ class ScreenshotVerifier:
 
     def compare(
         self,
-        before: Image.Image,
-        after: Image.Image,
+        before: PILImage,
+        after: PILImage,
         expected_change_regions: list[DiffRegion] | None = None,
     ) -> VerificationResult:
         start = time.time()
@@ -121,7 +128,7 @@ class ScreenshotVerifier:
 
         diff_pixels = 0
         total_pixels = before_gray.width * before_gray.height
-        diff_img = Image.new("RGB", before.size, color=(0, 0, 0))
+        diff_img = Image.new("RGB", before.size, color=(0, 0, 0))  # type: ignore[union-attr]
 
         for y in range(before.height):
             for x in range(before.width):
@@ -150,9 +157,9 @@ class ScreenshotVerifier:
 
     def verify_with_retry(
         self,
-        capture_before: Callable[[], Image.Image],
+        capture_before: Callable[[], PILImage],
         execute_action: Callable[[], bool],
-        capture_after: Callable[[], Image.Image],
+        capture_after: Callable[[], PILImage],
         max_retries: int = 3,
         retry_delay: float = 0.5,
     ) -> VerificationResult:
@@ -168,7 +175,7 @@ class ScreenshotVerifier:
             before = after
         return result
 
-    def _find_diff_regions(self, before: Image.Image, after: Image.Image) -> list[DiffRegion]:
+    def _find_diff_regions(self, before: PILImage, after: PILImage) -> list[DiffRegion]:
         if before.size != after.size:
             return []
         regions: list[DiffRegion] = []
@@ -194,8 +201,8 @@ class ScreenshotVerifier:
 
     def _flood_fill_region(
         self,
-        before: Image.Image,
-        after: Image.Image,
+        before: PILImage,
+        after: PILImage,
         start_x: int,
         start_y: int,
         visited: set,
@@ -230,9 +237,7 @@ class ScreenshotVerifier:
             severity=DiffSeverity.MINOR,
         )
 
-    def _count_diff_in_region(
-        self, before: Image.Image, after: Image.Image, region: DiffRegion
-    ) -> int:
+    def _count_diff_in_region(self, before: PILImage, after: PILImage, region: DiffRegion) -> int:
         count = 0
         for y in range(region.y, region.y + region.height):
             for x in range(region.x, region.x + region.width):
@@ -288,8 +293,8 @@ class OperationVerifier:
 
     def verify_element_appeared(
         self,
-        before_image: Image.Image,
-        after_image: Image.Image,
+        before_image: PILImage,
+        after_image: PILImage,
         expected_region: DiffRegion | None = None,
     ) -> VerificationResult:
         result = self._screenshot_verifier.compare(before_image, after_image)
@@ -304,8 +309,8 @@ class OperationVerifier:
 
     def verify_element_disappeared(
         self,
-        before_image: Image.Image,
-        after_image: Image.Image,
+        before_image: PILImage,
+        after_image: PILImage,
         target_region: DiffRegion,
     ) -> VerificationResult:
         result = self._screenshot_verifier.compare(before_image, after_image)
@@ -321,8 +326,8 @@ class OperationVerifier:
 
     def verify_no_unexpected_changes(
         self,
-        before_image: Image.Image,
-        after_image: Image.Image,
+        before_image: PILImage,
+        after_image: PILImage,
         expected_ignore_regions: list[DiffRegion] | None = None,
     ) -> VerificationResult:
         result = self._screenshot_verifier.compare(before_image, after_image)

@@ -66,12 +66,12 @@ class VectorClock:
                 eq += 1
 
         if gt == 0 and lt > 0:
-            return CausalRelation.BEFORE
+            return CausalRelation.BEFORE  # type: ignore[return-value]
         if lt == 0 and gt > 0:
-            return CausalRelation.AFTER
+            return CausalRelation.AFTER  # type: ignore[return-value]
         if lt == 0 and gt == 0:
-            return CausalRelation.EQUAL
-        return CausalRelation.CONCURRENT
+            return CausalRelation.EQUAL  # type: ignore[return-value]
+        return CausalRelation.CONCURRENT  # type: ignore[return-value]
 
     def happens_before(self, other: VectorClock) -> bool:
         """Return True iff *self* strictly happens-before *other*."""

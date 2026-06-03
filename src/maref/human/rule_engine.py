@@ -42,7 +42,7 @@ class RuleCondition:
     value: Any
 
     # Operator mapping
-    _OPS: dict[str, Callable[[Any, Any], bool]] = field(
+    _OPS: dict[str, Callable[[Any, Any], bool]] = field(  # type: ignore[operator]
         default_factory=lambda: {
             ">": operator.gt,
             ">=": operator.ge,

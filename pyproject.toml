@@ -151,6 +151,13 @@ module = [
     "autogen_agentchat.messages",
     "autogen_agentchat.teams",
     "percv.schemas",
+    "percv.pipeline",
+    "percv.agents.scout",
+    "percv.gateway.router",
+    "gmssl",
+    "huggingface_hub",
+    "starlette.middleware.base",
+    "starlette.requests",
 ]
 ignore_missing_imports = true
 

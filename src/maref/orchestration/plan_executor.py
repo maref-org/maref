@@ -203,7 +203,7 @@ class PlanExecutor:
                             )
                             graph.add_node(stub)
                             pending.add(branch_id)
-                        elif branch_id not in (graph.node_ids - pending):
+                        elif branch_id not in (set(graph.node_ids) - pending):
                             # Already completed or failed — skip
                             pass
                         else:
@@ -274,9 +274,10 @@ class PlanExecutor:
                 continue
 
             deps_ok = all(
-                graph.get_node(dep).status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
+                dep_node is not None
+                and dep_node.status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
                 for dep in graph.get_dependencies(task_id)
-                if graph.get_node(dep) is not None
+                for dep_node in [graph.get_node(dep)]
             )
             if not deps_ok:
                 continue
@@ -289,14 +290,15 @@ class PlanExecutor:
             elif node.node_type == NodeType.JOIN:
                 # Join is ready when ALL join_targets are terminal
                 targets_terminal = all(
-                    graph.get_node(tid).status
+                    t_node is not None
+                    and t_node.status
                     in (
                         TaskStatus.COMPLETED,
                         TaskStatus.FAILED,
                         TaskStatus.SKIPPED,
                     )
                     for tid in node.join_targets
-                    if graph.get_node(tid) is not None
+                    for t_node in [graph.get_node(tid)]
                 )
                 if targets_terminal:
                     ready.append(task_id)

@@ -21,8 +21,8 @@ _global_red_collector = REDMetricsCollector()
 
 _OTEL_AVAILABLE = False
 try:
-    from opentelemetry import trace  # type: ignore[import-not-found]
-    from opentelemetry.trace import (  # type: ignore[import-not-found]
+    from opentelemetry import trace
+    from opentelemetry.trace import (
         SpanKind,
         StatusCode,
         format_trace_id,
@@ -139,7 +139,7 @@ class _SpanContextManager:
     def __init__(self, operation_name: str, attributes: dict[str, Any] | None = None) -> None:
         self._operation_name = operation_name
         self._attributes = attributes or {}
-        self._span = None
+        self._span: Any = None
 
     def __enter__(self) -> _SpanContextManager:
         if _OTEL_AVAILABLE:
@@ -150,7 +150,7 @@ class _SpanContextManager:
                     **self._attributes,
                 },
             )
-            trace_id = format_trace_id(self._span.get_span_context().trace_id)  # type: ignore[attr-defined]
+            trace_id = format_trace_id(self._span.get_span_context().trace_id)
             current_trace_id.set(trace_id)
             set_trace_context(trace_id)
         return self
@@ -186,11 +186,11 @@ def create_maref_tracer(
 
     endpoint = otlp_endpoint or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
     if endpoint:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore[import-not-found]
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter,
         )
-        from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found]
-        from opentelemetry.sdk.trace.export import (  # type: ignore[import-not-found]
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
             BatchSpanProcessor,
         )
         from opentelemetry.trace import set_tracer_provider
@@ -206,7 +206,7 @@ def create_maref_tracer(
 def _create_resource(service_name: str) -> Any:
     """Create OTel resource with service metadata."""
     try:
-        from opentelemetry.sdk.resources import Resource  # type: ignore[import-not-found]
+        from opentelemetry.sdk.resources import Resource
 
         return Resource.create(
             {

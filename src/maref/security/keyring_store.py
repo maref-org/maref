@@ -8,7 +8,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 try:
-    import keyring  # type: ignore[import-not-found]
+    import keyring
 
     HAS_KEYRING = True
 except ImportError:
