@@ -28,3 +28,13 @@ class SM3Hasher:
 
     def hexdigest(self) -> str:
         return self._state.hexdigest()
+
+
+def sm3_hash(data: bytes) -> bytes:
+    h = SM3Hasher()
+    h.update(data)
+    return h.digest()
+
+
+def sm3_hmac(key: bytes, data: bytes) -> bytes:
+    return hashlib.sha256(key + data).digest()

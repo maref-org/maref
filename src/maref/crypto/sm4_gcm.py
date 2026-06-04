@@ -29,3 +29,11 @@ class SM4GCMEncryptor:
 
     def decrypt(self, ciphertext: bytes, nonce: bytes, aad: bytes | None = None) -> bytes:
         return self._cipher.decrypt(nonce, ciphertext, aad or b"")
+
+
+def sm4_encrypt_gcm(key: bytes, plaintext: bytes, aad: bytes | None = None) -> tuple[bytes, bytes]:
+    return SM4GCMEncryptor(key).encrypt(plaintext, aad)
+
+
+def sm4_decrypt_gcm(key: bytes, ciphertext: bytes, nonce: bytes, aad: bytes | None = None) -> bytes:
+    return SM4GCMEncryptor(key).decrypt(ciphertext, nonce, aad)
