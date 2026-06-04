@@ -1,0 +1,57 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-06-04T23:00:00+08:00",
+  "core_agents": {
+    "maref-core": {
+      "agent_id": "maref-core",
+      "name": "MAREF Governance Service",
+      "capabilities": ["governance", "security", "exfiltration_check", "audit", "routing"],
+      "status": "active",
+      "endpoint": "http://127.0.0.1:8941",
+      "trust_level": "TRUSTED",
+      "last_heartbeat": 1717488000.0,
+      "health_state": "healthy"
+    },
+    "percv-core": {
+      "agent_id": "percv-core",
+      "name": "Percv Perception Service",
+      "capabilities": ["perception", "vision", "audio", "text_analysis"],
+      "status": "active",
+      "endpoint": "http://127.0.0.1:8951",
+      "trust_level": "TRUSTED",
+      "last_heartbeat": 1717488000.0,
+      "health_state": "healthy"
+    },
+    "content_producer": {
+      "agent_id": "content_producer",
+      "name": "Content Producer Agent",
+      "capabilities": ["content_generation", "editing", "translation", "summarization"],
+      "status": "active",
+      "endpoint": "http://127.0.0.1:8001",
+      "trust_level": "SEMI_TRUSTED",
+      "last_heartbeat": 1717488000.0,
+      "health_state": "healthy"
+    },
+    "github_governance": {
+      "agent_id": "github_governance",
+      "name": "GitHub Governance Agent",
+      "capabilities": ["github", "governance", "issue_classification", "pr_review", "release_notes"],
+      "status": "active",
+      "trust_level": "SEMI_TRUSTED",
+      "last_heartbeat": 1717488000.0,
+      "health_state": "healthy"
+    },
+    "desktop-automation": {
+      "agent_id": "desktop-automation",
+      "name": "Desktop Automation Agent (mac-use-mcp + screenhand)",
+      "capabilities": ["desktop_control", "mouse_automation", "keyboard_automation", "screenshot", "ui_inspection", "window_management", "clipboard", "browser_automation"],
+      "status": "active",
+      "trust_level": "TRUSTED",
+      "last_heartbeat": 1717488000.0,
+      "health_state": "healthy",
+      "mcp_servers": ["mcp_MacUse", "mcp_ScreenHand"],
+      "macos_permissions": ["Accessibility", "Screen Recording"],
+      "notes": "Dual-engine desktop automation: mac-use-mcp (zero-dependency) + ScreenHand (111 tools, ~50ms Accessibility API)"
+    }
+  }
+}

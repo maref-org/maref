@@ -1,0 +1,111 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-06-04T23:00:00+08:00",
+  "external_agents": {
+    "claude-code": {
+      "agent_id": "claude-code",
+      "name": "Claude Code (Anthropic)",
+      "type": "external_cli",
+      "trust_level": "SEMI_TRUSTED",
+      "trust_score": 0.65,
+      "capabilities": ["code_generation", "code_review", "debugging", "refactoring", "test_generation", "desktop_automation"],
+      "allowed_mcp_servers": ["mcp_GitHub", "mcp_context7", "mcp_Sequential_Thinking", "mcp_Memory", "mcp_Filesystem", "mcp_MacUse", "mcp_ScreenHand", "mcp_Playwright"],
+      "default_permissions": {
+        "read": true,
+        "write": "requires_hitl",
+        "delete": "requires_hitl",
+        "execute": "denied"
+      },
+      "rate_limit": {
+        "requests_per_minute": 30,
+        "max_context_window_tokens": 200000
+      },
+      "restrictions": {
+        "max_files_per_operation": 20,
+        "max_response_size_bytes": 524288,
+        "blocked_operations": ["system_admin", "network_access", "credential_management"]
+      },
+      "integration_method": "stdIO_mcp",
+      "status": "ready"
+    },
+    "trae": {
+      "agent_id": "trae",
+      "name": "Trae IDE (ByteDance)",
+      "type": "external_ide",
+      "trust_level": "SEMI_TRUSTED",
+      "trust_score": 0.70,
+      "capabilities": ["code_generation", "code_review", "debugging", "project_scaffolding", "mcp_hosting", "desktop_automation"],
+      "allowed_mcp_servers": ["mcp_GitHub", "mcp_context7", "mcp_Sequential_Thinking", "mcp_Memory", "mcp_Filesystem", "mcp_Excel", "mcp_MacUse", "mcp_ScreenHand", "mcp_Playwright"],
+      "default_permissions": {
+        "read": true,
+        "write": "requires_hitl",
+        "delete": "requires_hitl",
+        "execute": "requires_hitl"
+      },
+      "rate_limit": {
+        "requests_per_minute": 60,
+        "max_context_window_tokens": 128000
+      },
+      "restrictions": {
+        "max_files_per_operation": 50,
+        "max_response_size_bytes": 1048576,
+        "blocked_operations": ["system_admin", "credential_management"]
+      },
+      "integration_method": "ide_extension",
+      "status": "ready",
+      "notes": "Current host IDE - has native MCP server management. MacUse and ScreenHand require HITL for all write/execute operations."
+    },
+    "cursor": {
+      "agent_id": "cursor",
+      "name": "Cursor IDE (Anysphere)",
+      "type": "external_ide",
+      "trust_level": "SEMI_TRUSTED",
+      "trust_score": 0.68,
+      "capabilities": ["code_generation", "code_review", "debugging", "multi_file_editing", "desktop_automation"],
+      "allowed_mcp_servers": ["mcp_GitHub", "mcp_context7", "mcp_Filesystem", "mcp_MacUse", "mcp_ScreenHand", "mcp_Playwright"],
+      "default_permissions": {
+        "read": true,
+        "write": "requires_hitl",
+        "delete": "requires_hitl",
+        "execute": "requires_hitl"
+      },
+      "rate_limit": {
+        "requests_per_minute": 50,
+        "max_context_window_tokens": 128000
+      },
+      "restrictions": {
+        "max_files_per_operation": 30,
+        "max_response_size_bytes": 786432,
+        "blocked_operations": ["system_admin", "credential_management"]
+      },
+      "integration_method": "ide_extension",
+      "status": "ready"
+    },
+    "opencode": {
+      "agent_id": "opencode",
+      "name": "OpenCode",
+      "type": "external_cli",
+      "trust_level": "UNTRUSTED",
+      "trust_score": 0.40,
+      "capabilities": ["code_generation", "code_review", "debugging"],
+      "allowed_mcp_servers": ["mcp_context7"],
+      "default_permissions": {
+        "read": true,
+        "write": "denied",
+        "delete": "denied",
+        "execute": "denied"
+      },
+      "rate_limit": {
+        "requests_per_minute": 15,
+        "max_context_window_tokens": 32000
+      },
+      "restrictions": {
+        "max_files_per_operation": 5,
+        "max_response_size_bytes": 262144,
+        "blocked_operations": ["system_admin", "network_access", "credential_management", "desktop_automation", "file_write"]
+      },
+      "integration_method": "stdIO_mcp",
+      "status": "ready"
+    }
+  }
+}

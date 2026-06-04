@@ -1,0 +1,164 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-06-04T23:00:00+08:00",
+  "trust_level_mapping": {
+    "TRUSTED": {
+      "description": "Core agents vetted by the team",
+      "max_risk_score": 1.0,
+      "requires_hitl": false
+    },
+    "SEMI_TRUSTED": {
+      "description": "External agents with proven track record",
+      "max_risk_score": 0.7,
+      "requires_hitl": true
+    },
+    "UNTRUSTED": {
+      "description": "Unvetted or sandbox agents",
+      "max_risk_score": 0.3,
+      "requires_hitl": true
+    }
+  },
+  "mcp_server_permissions": {
+    "mcp_GitHub": {
+      "allowed_trust_levels": ["TRUSTED", "SEMI_TRUSTED"],
+      "read_tools": ["get_file_contents", "search_code", "search_repositories", "search_issues", "search_users", "list_commits", "list_issues", "get_issue", "get_pull_request", "list_pull_requests", "get_pull_request_files", "get_pull_request_status", "get_pull_request_comments", "get_pull_request_reviews"],
+      "write_tools": ["create_or_update_file", "create_issue", "update_issue", "add_issue_comment", "create_pull_request", "create_pull_request_review", "merge_pull_request", "update_pull_request_branch"],
+      "dangerous_tools": ["merge_pull_request", "create_or_update_file", "delete_file"],
+      "hitl_for_write": true,
+      "status": "installed"
+    },
+    "mcp_context7": {
+      "allowed_trust_levels": ["TRUSTED", "SEMI_TRUSTED", "UNTRUSTED"],
+      "read_tools": ["resolve-library-id", "query-docs"],
+      "write_tools": [],
+      "dangerous_tools": [],
+      "hitl_for_write": false,
+      "status": "installed"
+    },
+    "mcp_Sequential_Thinking": {
+      "allowed_trust_levels": ["TRUSTED", "SEMI_TRUSTED", "UNTRUSTED"],
+      "read_tools": ["sequentialthinking"],
+      "write_tools": [],
+      "dangerous_tools": [],
+      "hitl_for_write": false,
+      "status": "installed"
+    },
+    "mcp_Memory": {
+      "allowed_trust_levels": ["TRUSTED", "SEMI_TRUSTED"],
+      "read_tools": ["read_graph", "search_nodes", "open_nodes"],
+      "write_tools": ["create_entities", "create_relations", "add_observations", "delete_entities", "delete_observations", "delete_relations"],
+      "dangerous_tools": ["delete_entities", "delete_observations", "delete_relations"],
+      "hitl_for_write": true,
+      "status": "installed"
+    },
+    "mcp_apple_shortcuts": {
+      "allowed_trust_levels": ["TRUSTED"],
+      "read_tools": ["list_shortcuts"],
+      "write_tools": ["run_shortcut"],
+      "execute_tools": ["run_shortcut"],
+      "dangerous_tools": ["run_shortcut"],
+      "hitl_for_write": true,
+      "hitl_for_execute": true,
+      "status": "installed"
+    },
+    "mcp_Excel": {
+      "allowed_trust_levels": ["TRUSTED", "SEMI_TRUSTED"],
+      "read_tools": ["excel_read_sheet", "excel_describe_sheets", "excel_copy_sheet"],
+      "write_tools": ["excel_write_to_sheet", "excel_create_table", "excel_format_range"],
+      "dangerous_tools": ["excel_write_to_sheet", "excel_format_range"],
+      "hitl_for_write": true,
+      "status": "installed"
+    },
+    "mcp_Playwright": {
+      "allowed_trust_levels": ["TRUSTED"],
+      "read_tools": ["browser_navigate", "browser_snapshot", "browser_screen_capture", "browser_pdf_save"],
+      "write_tools": ["browser_click", "browser_fill", "browser_select", "browser_check", "browser_press", "browser_drag", "browser_hover", "browser_clear", "browser_close"],
+      "execute_tools": ["browser_evaluate", "browser_network_requests", "browser_console_messages", "browser_resize", "browser_pdf_save", "browser_install"],
+      "dangerous_tools": ["browser_evaluate", "browser_click", "browser_press"],
+      "hitl_for_write": true,
+      "hitl_for_execute": true,
+      "status": "installed"
+    },
+    "mcp_Filesystem": {
+      "allowed_trust_levels": ["TRUSTED", "SEMI_TRUSTED"],
+      "read_tools": ["read_file", "list_directory", "get_file_info"],
+      "write_tools": ["write_file", "create_directory", "delete_file", "delete_directory", "rename_file", "move_file"],
+      "execute_tools": [],
+      "dangerous_tools": ["delete_file", "delete_directory"],
+      "hitl_for_write": true,
+      "status": "installed"
+    },
+    "mcp_Database": {
+      "allowed_trust_levels": ["TRUSTED"],
+      "read_tools": ["query", "describe_table", "list_tables"],
+      "write_tools": ["insert", "update", "delete"],
+      "dangerous_tools": ["delete", "update"],
+      "hitl_for_write": true,
+      "status": "installed"
+    },
+    "mcp_MacUse": {
+      "description": "Zero-native-dependency macOS desktop automation (antbotlab/mac-use-mcp)",
+      "allowed_trust_levels": ["TRUSTED"],
+      "read_tools": ["screenshot", "check_permissions", "list_apps", "list_windows",
+                     "get_app_info", "get_ui_elements", "get_clipboard", "get_mouse_position",
+                     "get_screen_info", "wait"],
+      "write_tools": ["click", "double_click", "right_click", "move_mouse", "type_text",
+                      "press_key", "drag_mouse", "scroll", "set_clipboard",
+                      "open_application", "focus_window", "click_menu"],
+      "execute_tools": ["press_key"],
+      "dangerous_tools": ["type_text", "press_key", "click", "double_click",
+                          "open_application", "set_clipboard"],
+      "hitl_for_write": true,
+      "hitl_for_execute": true,
+      "macos_permissions_required": ["Accessibility", "Screen Recording"],
+      "status": "installed"
+    },
+    "mcp_ScreenHand": {
+      "description": "High-performance macOS/Windows desktop + browser automation via Accessibility API (~50ms, manushi4/screenhand)",
+      "allowed_trust_levels": ["TRUSTED"],
+      "read_tools": ["get_ui_tree", "get_ui_elements", "screenshot", "get_mouse_position",
+                     "get_app_info", "list_apps", "list_windows", "get_clipboard",
+                     "get_screen_info", "wait", "get_focused_window", "get_window_list",
+                     "browser_get_dom", "browser_get_url", "browser_get_title",
+                     "browser_network_monitor"],
+      "write_tools": ["click", "click_at", "double_click", "right_click", "move_mouse",
+                      "type_text", "press_key", "drag_mouse", "scroll", "set_clipboard",
+                      "open_application", "focus_window", "click_menu",
+                      "browser_navigate", "browser_click", "browser_fill", "browser_press",
+                      "browser_run_js", "browser_select", "browser_check", "browser_drag",
+                      "browser_hover", "browser_clear", "browser_close"],
+      "execute_tools": ["press_key", "browser_run_js", "browser_evaluate"],
+      "dangerous_tools": ["type_text", "press_key", "click", "double_click",
+                          "open_application", "set_clipboard", "browser_run_js",
+                          "browser_evaluate", "click_at"],
+      "hitl_for_write": true,
+      "hitl_for_execute": true,
+      "macos_permissions_required": ["Accessibility"],
+      "status": "installed"
+    }
+  },
+  "trust_boundary_rules": {
+    "cross_domain_restricted": true,
+    "allowed_cross_domain_pairs": [
+      {"from": "TRUSTED", "to": "SEMI_TRUSTED"},
+      {"from": "SEMI_TRUSTED", "to": "UNTRUSTED"}
+    ],
+    "denied_cross_domain_pairs": [
+      {"from": "UNTRUSTED", "to": "TRUSTED"},
+      {"from": "UNTRUSTED", "to": "SEMI_TRUSTED"}
+    ]
+  },
+  "hitl_configuration": {
+    "enabled": true,
+    "timeout_seconds": 300,
+    "auto_approve_on_timeout": false,
+    "risk_score_threshold_for_hitl": 0.5
+  },
+  "audit_logging": {
+    "enabled": true,
+    "hmac_signing": true,
+    "retention_days": 90,
+    "max_file_size_mb": 50,
+    "log_directory": ".openclaw/logs/audit"
+  }
+}
