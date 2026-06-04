@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  tla-verify:
+  tla-verify-mareflite:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,12 +22,7 @@ jobs:
             -o ~/tla2tools/tla2tools.jar
 
       - name: Validate MarefLiteModel
-        id: maref-lite
-        continue-on-error: true
         run: |
-          echo "=== SANY Parse ==="
-          java -cp ~/tla2tools/tla2tools.jar tla2sany.SANY experiments/formal/MarefLiteModel.tla || true
-          echo "=== TLC Model Check ==="
           java -cp ~/tla2tools/tla2tools.jar \
             tlc2.TLC \
             experiments/formal/MarefLiteModel.tla \
@@ -39,13 +34,27 @@ jobs:
           grep -q "Model checking completed" experiments/formal/MarefLite_result.txt && \
             echo "✅ MarefLite FSM verified"
 
-      - name: Validate Consensus Protocol
-        id: consensus
-        continue-on-error: true
+      - name: Upload MarefLite results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mareflite-results
+          path: experiments/formal/MarefLite_result.txt
+
+  tla-verify-consensus:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup TLA+ Tools
         run: |
-          echo "=== SANY Parse ==="
-          java -cp ~/tla2tools/tla2tools.jar tla2sany.SANY experiments/formal/MAREF_Consensus.tla || true
-          echo "=== TLC Model Check ==="
+          mkdir -p ~/tla2tools
+          curl -sL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar \
+            -o ~/tla2tools/tla2tools.jar
+
+      - name: Validate Consensus Protocol
+        run: |
           java -cp ~/tla2tools/tla2tools.jar \
             tlc2.TLC \
             experiments/formal/MAREF_Consensus.tla \
@@ -57,9 +66,9 @@ jobs:
           grep -q "Model checking completed" experiments/formal/Consensus_result.txt && \
             echo "✅ Consensus protocol verified"
 
-      - name: Upload verification results
+      - name: Upload Consensus results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tla-verification-results
-          path: experiments/formal/*_result.txt
+          name: consensus-results
+          path: experiments/formal/Consensus_result.txt
