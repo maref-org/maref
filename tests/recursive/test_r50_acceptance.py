@@ -17,7 +17,7 @@ from maref.recursive.memory_three_temperature import (
     MemoryThreeTemperature,
 )
 from maref.recursive.stigmergy_swarm import StigmergySwarm
-from maref.recursive.trust_engine_v2 import TrustEngineV2
+from maref.recursive.trust_engine import TrustEngineV2
 from maref.recursive.unified_audit import UnifiedAuditStore
 
 

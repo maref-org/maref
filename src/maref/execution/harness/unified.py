@@ -185,10 +185,6 @@ class UnifiedHarness(BaseHarness):
             if self._audit_logger:
                 self._audit_logger.log_fail("governance_abort")
             raise
-        except HarnessAbortedError:
-            if self._audit_logger:
-                self._audit_logger.log_fail("governance_abort")
-            raise
         except Exception as e:
             errors.append(str(e))
             if self._audit_logger:

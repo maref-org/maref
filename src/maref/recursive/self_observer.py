@@ -9,6 +9,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import structlog
+
+logger = structlog.get_logger()
+
 from maref.observation.probes import (
     EntropyProbe,
     ProbeReading,
@@ -57,7 +61,7 @@ class SelfObserver:
                         module_graph[rel].append(node.module.split(".")[0])
                 self._source_file_count += 1
             except (OSError, SyntaxError, UnicodeDecodeError):
-                pass
+                logger.debug("File parse skipped", exc_info=True)
 
         return module_graph
 

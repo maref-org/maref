@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from maref.security.decorators import security_critical
+
 from .sm2 import sm2_sign, sm2_verify
 from .sm3 import sm3_hash
 
@@ -44,6 +46,7 @@ class AIAHandshakeContext:
     handshake_messages: bytes  # 所有握手消息的串联
 
 
+@security_critical
 def verify_cai_certificate(
     cai: AgentIdentityCertificate,
     casp_public_key: str,

@@ -162,7 +162,7 @@ class SelfHealer:
                     spec = importlib.util.find_spec(mod_name)
                     if spec is None:
                         missing.append(mod_name)
-                        with contextlib.suppress(Exception):
+                        with contextlib.suppress(subprocess.CalledProcessError, FileNotFoundError):
                             subprocess.run(
                                 [sys.executable, "-m", "pip", "install", mod_name],
                                 capture_output=True, text=True, timeout=60,

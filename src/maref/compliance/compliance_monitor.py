@@ -21,7 +21,10 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
+import structlog
 from maref.compliance import ComplianceRegistry, ComplianceStatus, Jurisdiction
+
+logger = structlog.get_logger()
 
 
 class MonitorState(Enum):
@@ -292,7 +295,7 @@ class ComplianceMonitor:
                         try:
                             callback(alert)
                         except Exception:
-                            pass
+                            logger.error("Alert callback failed", exc_info=True)
 
         return new_alerts
 

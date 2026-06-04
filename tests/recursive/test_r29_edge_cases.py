@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from maref.recursive.joint_state_machine import JointStateMachine
-from maref.recursive.safety_gate_v2 import SafetyGateV2
+from maref.recursive.safety_gate import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore
 
 
@@ -74,7 +74,7 @@ class TestSafetyGateV2EdgeCases:
         assert result.threat_detected is False
 
     def test_detect_gradual_weakening_mixed_direction(self) -> None:
-        from maref.recursive.safety_gate_v2 import ChangeRecord
+        from maref.recursive.safety_gate import ChangeRecord
         gate = SafetyGateV2()
         gate._change_history["target_x"] = [
             ChangeRecord(timestamp=1.0, target="target_x", direction="decrease", value=0.9),

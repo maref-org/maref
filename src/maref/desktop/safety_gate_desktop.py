@@ -90,7 +90,7 @@ class DesktopSafetyGateV2:
     - Consecutive failure detection → auto-lock
     - Clipboard sanitization requirements
 
-    Bridges to MAREF recursive/safety_gate_v2.py for core component
+    Bridges to MAREF recursive/safety_gate.py for core component
     protection (circuit_breaker, state_machine, audit_logger).
     """
 

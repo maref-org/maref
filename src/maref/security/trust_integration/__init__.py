@@ -1,7 +1,7 @@
 """
 信任系统集成模块
 
-连接 trust_engine_v2 与 trust_chain，建立统一信任管理系统。
+连接 trust_engine 与 trust_chain，建立统一信任管理系统。
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from maref.recursive.trust_engine_v2 import (
+from maref.recursive.trust_engine import (
     TrustEngineV2,
     TrustFactor,
     TrustScoreV2,
@@ -158,7 +158,7 @@ class ChainRiskAnalyzer:
 
 
 class IntegratedTrustEngine:
-    """集成的信任引擎 - 连接trust_engine_v2与委托链"""
+    """集成的信任引擎 - 连接trust_engine与委托链"""
 
     def __init__(
         self,

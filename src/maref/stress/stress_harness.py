@@ -4,7 +4,7 @@ import random
 import time
 
 from maref.governance import CircuitBreaker, GovernanceStateMachine
-from maref.recursive.resilience_v2 import ResilienceEvaluatorV2
+from maref.recursive.resilience import ResilienceEvaluatorV2
 from maref.stress.real_latency import RealLatencyTracker
 from maref.stress.stress_level import STRESS_PRESETS, StressLevel
 from maref.stress.stress_result import StressResult

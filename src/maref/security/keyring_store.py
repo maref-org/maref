@@ -5,6 +5,8 @@ import os
 import platform
 from typing import Any
 
+from maref.security.decorators import security_critical
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -45,6 +47,7 @@ class KeyringStore:
     def available(self) -> bool:
         return self._keyring_available
 
+    @security_critical
     def get(self, key: str, default: str | None = None) -> str | None:
         """Retrieve credential with priority: env > keyring > default."""
         env_val = os.environ.get(key)
@@ -59,6 +62,7 @@ class KeyringStore:
                 logger.debug("Keyring get failed for %s: %s", key, e)
         return default
 
+    @security_critical
     def set(self, key: str, value: str) -> bool:
         """Store credential in OS keychain."""
         if not value:
@@ -73,6 +77,7 @@ class KeyringStore:
                 logger.error("Keyring set failed for %s: %s", key, e)
         return False
 
+    @security_critical
     def delete(self, key: str) -> bool:
         """Delete credential from OS keychain."""
         if self._keyring_available:

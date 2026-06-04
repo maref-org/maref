@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from maref.recursive.trust_engine_v2 import TrustEngineV2, TrustScoreV2
+from maref.recursive.trust_engine import TrustEngineV2, TrustScoreV2
 from maref.recursive.unified_audit import UnifiedAuditStore
 from maref.security.trust_chain import ChainNode, DelegationChain
 from maref.security.trust_integration import (
@@ -319,7 +319,7 @@ class TestIntegratedTrustEngine:
 
     def test_recalculate_trust_logic(self, integrated_engine: IntegratedTrustEngine) -> None:
         """测试信任重计算逻辑"""
-        from maref.recursive.trust_engine_v2 import TrustFactor
+        from maref.recursive.trust_engine import TrustFactor
 
         # 模拟几个信任因素
         factors = [

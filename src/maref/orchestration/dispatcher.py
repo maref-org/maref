@@ -5,7 +5,7 @@ from typing import Any
 
 from maref.identity.did_registry import AgentDID
 from maref.orchestration.decomposer import SubTask
-from maref.recursive.trust_engine_v2 import TrustEngineV2
+from maref.recursive.trust_engine import TrustEngineV2
 from maref.recursive.agent_health import AgentHealthMonitor
 
 

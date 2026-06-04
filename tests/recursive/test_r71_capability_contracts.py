@@ -446,7 +446,7 @@ class TestDiscoveryWithContracts:
 
 class TestSafetyGateContractValidation:
     def test_validate_contract_passes(self) -> None:
-        from maref.recursive.safety_gate_v2 import SafetyGateV2
+        from maref.recursive.safety_gate import SafetyGateV2
 
         gate = SafetyGateV2()
         registry = CapabilityRegistry()
@@ -461,7 +461,7 @@ class TestSafetyGateContractValidation:
         assert not result.threat_detected
 
     def test_validate_contract_violation(self) -> None:
-        from maref.recursive.safety_gate_v2 import SafetyGateV2
+        from maref.recursive.safety_gate import SafetyGateV2
 
         gate = SafetyGateV2()
         registry = CapabilityRegistry()
@@ -477,7 +477,7 @@ class TestSafetyGateContractValidation:
         assert "contract_violation" in result.threat_type
 
     def test_validate_contract_set_unregistered(self) -> None:
-        from maref.recursive.safety_gate_v2 import SafetyGateV2
+        from maref.recursive.safety_gate import SafetyGateV2
 
         gate = SafetyGateV2()
         registry = CapabilityRegistry()
@@ -486,7 +486,7 @@ class TestSafetyGateContractValidation:
         assert "unregistered" in result.threat_type.lower()
 
     def test_validate_contract_set_ok(self) -> None:
-        from maref.recursive.safety_gate_v2 import SafetyGateV2
+        from maref.recursive.safety_gate import SafetyGateV2
 
         gate = SafetyGateV2()
         registry = CapabilityRegistry()

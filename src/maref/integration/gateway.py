@@ -20,7 +20,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+import structlog
 from maref.governance.types import GovernanceState
+
+logger = structlog.get_logger()
 
 
 class GatewayRoute(Enum):
@@ -138,8 +141,7 @@ class GatewayRouter:
                         self._decision_history.append(decision)
                         return decision
             except Exception:
-                # Fall back to standard routing if PERCV fails
-                pass
+                logger.warning("PERCV adapter route failed", exc_info=True)
 
         if self._circuit_open:
             decision = RoutingDecision(

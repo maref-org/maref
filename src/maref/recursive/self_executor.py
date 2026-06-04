@@ -11,7 +11,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from maref.recursive.safety_gate_v2 import SafetyGateV2
+from maref.recursive.safety_gate import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
 
 

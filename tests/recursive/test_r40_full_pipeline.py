@@ -54,7 +54,7 @@ class TestR40FullProcessRegression:
         )
 
         step4_budget = ArchitectureComplexityBudget(audit_store=audit)
-        step4_budget.register_edge("self_executor", "safety_gate_v2", "import")
+        step4_budget.register_edge("self_executor", "safety_gate", "import")
         step4_budget.register_edge("self_executor", "unified_audit", "import")
         step4_budget.register_edge("correlation_engine", "unified_audit", "import")
         report = step4_budget.get_global_report()
@@ -122,7 +122,7 @@ class TestR40FullProcessRegression:
         modules = [
             "self_executor", "correlation_engine", "continuous_optimizer",
             "signed_agent_cards", "live_migration", "self_architect",
-            "safety_gate_v2", "unified_audit", "self_diagnostician",
+            "safety_gate", "unified_audit", "self_diagnostician",
             "self_healer",
         ]
 

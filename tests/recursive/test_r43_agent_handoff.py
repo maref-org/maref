@@ -7,7 +7,7 @@ from maref.recursive.agent_handoff import (
     HandoffResult,
     HandoffStatus,
 )
-from maref.recursive.safety_gate_v2 import SafetyGateV2
+from maref.recursive.safety_gate import SafetyGateV2
 
 
 class TestHandoffRequest:

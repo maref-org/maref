@@ -18,7 +18,7 @@ from maref.recursive.orchestration_perf import (
     ConcurrentOrchestrator,
     OrchestrationCache,
 )
-from maref.recursive.safety_gate_v2 import SafetyGateV2
+from maref.recursive.safety_gate import SafetyGateV2
 from maref.recursive.self_orchestrator import SelfOrchestrator
 
 

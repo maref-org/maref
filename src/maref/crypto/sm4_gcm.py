@@ -9,6 +9,8 @@ import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from maref.security.decorators import security_critical
+
 from .sm4 import sm4_encrypt_cbc, sm4_decrypt_cbc
 
 if TYPE_CHECKING:
@@ -82,6 +84,7 @@ def _ghash(h: bytes, aad: bytes, ciphertext: bytes) -> bytes:
     return _to_bytes(y)
 
 
+@security_critical
 def sm4_encrypt_gcm(
     key: bytes,
     nonce: bytes,
@@ -131,6 +134,7 @@ def sm4_encrypt_gcm(
     )
 
 
+@security_critical
 def sm4_decrypt_gcm(
     key: bytes,
     nonce: bytes,

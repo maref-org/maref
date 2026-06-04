@@ -20,6 +20,9 @@ spec:
         component: desktop-agent
         version: v0.28.0-rc
     spec:
+      volumes:
+        - name: tmp
+          emptyDir: {}
       containers:
         - name: agent
           image: maref/desktop-agent:v0.28.0-rc
@@ -45,12 +48,15 @@ spec:
                 name: maref-config
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
             capabilities:
               drop:
                 - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           ports:
             - containerPort: 8080
               name: http

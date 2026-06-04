@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from maref.recursive.resilience_v2 import (
+from maref.recursive.resilience import (
     DegradationPlan,
     ResilienceEvaluatorV2,
     ResilienceScore,
@@ -11,8 +11,8 @@ from maref.recursive.runtime_kg import (
     RuntimeInstrumentor,
     RuntimeKGEnricher,
 )
-from maref.recursive.safety_gate_v2 import ChangeRecord, SafetyGateV2
-from maref.recursive.trust_v2 import (
+from maref.recursive.safety_gate import ChangeRecord, SafetyGateV2
+from maref.recursive.trust import (
     ConsensusResult,
     FederatedConsensus,
     FederatedTrustModel,

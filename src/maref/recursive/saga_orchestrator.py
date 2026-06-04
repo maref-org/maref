@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+import structlog
+
+logger = structlog.get_logger()
+
 from maref.recursive.blast_radius import BlastRadiusController, CompensationStrategy
 
 
@@ -337,6 +341,7 @@ class SagaOrchestrator:
                 rec.status = StepStatus.COMPENSATED
                 compensated += 1
             except Exception:
+                logger.warning("Saga compensate step failed", exc_info=True)
                 rec.status = StepStatus.COMPENSATED
                 compensated += 1
         return compensated

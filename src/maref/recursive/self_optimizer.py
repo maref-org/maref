@@ -8,6 +8,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import structlog
+
+logger = structlog.get_logger()
+
 if TYPE_CHECKING:
     from maref.recursive.self_observer import SystemSnapshot
 
@@ -88,7 +92,7 @@ def _run_real_benchmark(timeout: int = 180, test_path: str | None = None, perf_m
                         with contextlib.suppress(ValueError):
                             result["coverage_pct"] = float(part.replace("%", ""))
     except Exception:
-        pass
+        logger.debug("Coverage report read failed", exc_info=True)
 
     return result
 
@@ -148,7 +152,7 @@ class SelfOptimizer:
         before = self._benchmark_fn()
 
         if apply_fn is not None:
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(ValueError, TypeError):
                 apply_fn()
 
         after = self._benchmark_fn() if apply_fn is not None else dict(before)

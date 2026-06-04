@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from maref.recursive.complexity_budget import ArchitectureComplexityBudget
-from maref.recursive.safety_gate_v2 import SafetyGateV2
+from maref.recursive.safety_gate import SafetyGateV2
 from maref.recursive.task_decomposer import SubTask, TaskDAG, TaskDecomposer
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
 
