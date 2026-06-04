@@ -1,7 +1,3 @@
-"""MAREF — Multi-Agent Reliable Execution Framework."""
-
-__version__ = "0.30.0-GA"
-
 from maref.execution.adapters import APIModelAdapter, LocalModelAdapter, ModelAdapter
 from maref.execution.harness import (
     AgentInfo,
@@ -34,40 +30,7 @@ from maref.execution.harness import (
     format_harness_result,
 )
 
-from maref.agent_card_config import (
-    AGENT_DESCRIPTION,
-    AGENT_ID,
-    AGENT_NAME,
-    AGENT_VERSION,
-    CAPABILITIES,
-    COMPLIANCE_LABELS,
-    CROSS_BORDER,
-    DATA_RESIDENCY,
-    ENDPOINTS,
-    MAS_CAPABILITIES,
-    MODEL_BACKEND_LOCATION,
-    MODEL_CONFIG,
-    TOOL_REGISTRY_META,
-    AgentCardConfig,
-    get_default_card_config,
-)
-from maref.governance.constants import (
-    ENTROPY_LEVELS,
-    GRAY_CODE,
-    MAX_ENTROPY,
-    STATE_NAMES,
-    compute_valid_transitions,
-    hamming_distance,
-)
-from maref.governance.state_machine import GovernanceStateMachine
-from maref.governance.types import (
-    GovernanceState,
-    StateMachineSnapshot,
-    StateTransition,
-)
-
 __all__ = [
-    # Execution Harness
     "AgentInfo",
     "AllowlistPermissionHook",
     "APIModelAdapter",
@@ -99,31 +62,4 @@ __all__ = [
     "ToolSpec",
     "UnifiedHarness",
     "format_harness_result",
-    # Agent Card
-    "AgentCardConfig",
-    "AGENT_DESCRIPTION",
-    "AGENT_ID",
-    "AGENT_NAME",
-    "AGENT_VERSION",
-    "CAPABILITIES",
-    "COMPLIANCE_LABELS",
-    "CROSS_BORDER",
-    "DATA_RESIDENCY",
-    "ENDPOINTS",
-    "MAS_CAPABILITIES",
-    "MODEL_BACKEND_LOCATION",
-    "MODEL_CONFIG",
-    "TOOL_REGISTRY_META",
-    "get_default_card_config",
-    # Governance
-    "GovernanceState",
-    "GovernanceStateMachine",
-    "StateTransition",
-    "StateMachineSnapshot",
-    "ENTROPY_LEVELS",
-    "GRAY_CODE",
-    "MAX_ENTROPY",
-    "STATE_NAMES",
-    "hamming_distance",
-    "compute_valid_transitions",
 ]

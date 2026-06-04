@@ -17,6 +17,11 @@ Usage:
     maref governance status                # Governance overlay status
     maref drift check                      # Check for distribution drift
     maref serve --port 8000                # Start Sidecar HTTP server
+    maref harness list                     # List available harness types
+    maref harness stress --level L3        # Run stress test harness
+    maref harness emergence --runs 10      # Run emergence test harness
+    maref harness run --level L1           # Run UnifiedHarness with full lifecycle + governance
+    maref harness run --halt-test          # Verify HALT governance blocking
 """
 
 from __future__ import annotations
@@ -91,6 +96,9 @@ app.add_typer(scheduler_app, name="scheduler")
 app.add_typer(obs_app, name="obs")
 app.add_typer(percv_app, name="percv")
 app.add_typer(ip_app, name="ip")
+
+harness_app = typer.Typer(help="Harness Engineering commands", no_args_is_help=True)
+app.add_typer(harness_app, name="harness")
 
 
 # ── Core commands ────────────────────────────────────────────────────
@@ -612,6 +620,225 @@ def scheduler_status() -> None:
 
     console.print()
     console.print("[dim]Start the scheduler: maref scheduler start[/dim]")
+
+
+# ── Harness Engineering commands ───────────────────────────────────────
+
+
+_HARNESS_TYPES: dict[str, str] = {
+    "stress": "StressHarness — 压力测试 (L1-L5)",
+    "distributed": "DistributedStressHarness — 多进程并发压力测试",
+    "emergence": "EmergenceTestHarness — 涌现冲突检测",
+    "unified": "UnifiedHarness — 完整生命周期 + 治理集成",
+}
+
+
+@harness_app.command("list")
+def harness_list() -> None:
+    """List available harness types."""
+    table = Table(title="MAREF Harness Types")
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="green")
+    for name, desc in _HARNESS_TYPES.items():
+        table.add_row(name, desc)
+    console.print(table)
+
+
+@harness_app.command("stress")
+def harness_stress(
+    level: str = typer.Option("L1", "--level", "-l", help="Stress level: L1-L5"),
+    duration: float = typer.Option(1.0, "--duration", "-d", help="Duration in minutes"),
+    rounds: int = typer.Option(1, "--rounds", "-r", help="Number of rounds"),
+    workers: int = typer.Option(1, "--workers", "-w", help="Parallel workers (1 = single process)"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Run a stress test harness."""
+    from maref.execution.harness.adapters import DistributedHarnessAdapter, StressHarnessAdapter
+    from maref.execution.harness.types import HarnessConfig
+
+    if workers > 1:
+        adapter = DistributedHarnessAdapter()
+        adapter.configure(HarnessConfig(
+            harness_type="distributed", level=level, duration_minutes=duration,
+            extra={"workers": workers, "rounds": rounds},
+        ))
+    else:
+        adapter = StressHarnessAdapter()
+        adapter.configure(HarnessConfig(
+            harness_type="stress", level=level, duration_minutes=duration,
+        ))
+
+    console.print(f"[bold]MAREF Stress Harness[/bold] — level [cyan]{level}[/cyan], {duration}min")
+    if workers > 1:
+        console.print(f"  Workers: [yellow]{workers}[/yellow], Rounds/worker: [yellow]{rounds}[/yellow]")
+
+    with console.status("[bold green]Running...[/bold green]"):
+        result = adapter.run()
+
+    if json_output:
+        console.print_json(data=result.to_dict())
+        return
+
+    if result.passed:
+        console.print(f"[green]PASS[/green] ({result.duration_s:.1f}s)")
+    else:
+        console.print(f"[red]FAIL[/red] ({result.duration_s:.1f}s)")
+
+    if result.metrics:
+        table = Table(title="Metrics")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+        for k, v in result.metrics.items():
+            if isinstance(v, float):
+                table.add_row(k, f"{v:.3f}")
+            else:
+                table.add_row(k, str(v))
+        console.print(table)
+
+    if result.errors:
+        console.print("[red]Errors:[/red]")
+        for e in result.errors[:5]:
+            console.print(f"  • {e}")
+
+
+@harness_app.command("emergence")
+def harness_emergence(
+    scenario: str = typer.Option("temporal_perturbation", "--scenario", "-s", help="Scenario name"),
+    runs: int = typer.Option(10, "--runs", "-n", help="Number of perturbation runs"),
+    agents: str = typer.Option("agent_a,agent_b,agent_c", "--agents", "-a", help="Comma-separated agent list"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Run an emergence test harness."""
+    from maref.execution.harness.adapters import EmergenceHarnessAdapter
+    from maref.execution.harness.types import HarnessConfig
+
+    agent_list = [a.strip() for a in agents.split(",") if a.strip()]
+    adapter = EmergenceHarnessAdapter()
+    adapter.configure(HarnessConfig(
+        harness_type="emergence",
+        extra={"scenario": scenario, "runs": runs, "agents": agent_list},
+    ))
+
+    console.print(f"[bold]MAREF Emergence Harness[/bold] — scenario [cyan]{scenario}[/cyan], {runs} runs")
+
+    with console.status("[bold green]Running...[/bold green]"):
+        result = adapter.run()
+
+    if json_output:
+        console.print_json(data=result.to_dict())
+        return
+
+    if result.metrics:
+        table = Table(title="Emergence Results")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+        table.add_row("Scenario", result.metrics.get("scenario", ""))
+        table.add_row("Consistency Rate", f"{result.metrics.get('consistency_rate', 0):.1%}")
+        table.add_row("Consistent Runs", str(result.metrics.get("consistent_runs", 0)))
+        table.add_row("Inconsistent Runs", str(result.metrics.get("inconsistent_runs", 0)))
+        table.add_row("P99 Latency", f"{result.metrics.get('p99_latency_ms', 0):.1f}ms")
+        console.print(table)
+
+    if result.errors:
+        console.print("[yellow]Warnings/Errors:[/yellow]")
+        for e in result.errors[:5]:
+            console.print(f"  • {e}")
+
+
+@harness_app.command("run")
+def harness_run(
+    config: str = typer.Option("{}", "--config", "-c", help="JSON config string"),
+    level: str = typer.Option("L1", "--level", "-l", help="Stress level: L1-L5"),
+    halt_test: bool = typer.Option(False, "--halt-test", help="Verify HALT governance blocking"),
+    audit: bool = typer.Option(False, "--audit", "-a", help="Show audit event chain after run"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Run UnifiedHarness with full lifecycle and governance integration."""
+    from maref.execution.harness.audit_integration import HarnessAuditLogger
+    from maref.execution.harness.display import format_harness_result
+    from maref.execution.harness.governance_bridge import GovernanceBridge
+    from maref.execution.harness.hooks import HarnessHookRegistry
+    from maref.execution.harness.types import HarnessConfig
+    from maref.execution.harness.unified import UnifiedHarness
+
+    console.print("[bold]MAREF UnifiedHarness — 完整生命周期[/bold]")
+
+    gov_bridge = GovernanceBridge()
+    hook_registry = HarnessHookRegistry()
+    audit_logger = HarnessAuditLogger() if audit else None
+
+    if halt_test:
+        gov_bridge.state_machine.force_halt(reason="cli_halt_test")
+        console.print("  Governance state: [red]HALT[/red] (absorbing)")
+
+    harness = UnifiedHarness(
+        governance_bridge=gov_bridge,
+        hook_registry=hook_registry,
+        audit_logger=audit_logger,
+    )
+
+    json_config = json.loads(config) if config.strip() else {}
+    harness_config = HarnessConfig(
+        harness_type="unified",
+        level=level,
+        extra=json_config,
+    )
+
+    # Preflight
+    with console.status("[bold green]Preflight..."):
+        try:
+            warnings = harness.preflight()
+        except Exception as e:
+            console.print(f"  [red]Preflight blocked: {e}[/red]")
+            raise typer.Exit(code=1) from None
+
+    if warnings:
+        console.print("  [yellow]Warnings:[/yellow]")
+        for w in warnings:
+            console.print(f"    • {w}")
+    else:
+        console.print("  [green]Preflight OK[/green]")
+
+    # Run
+    harness.configure(harness_config)
+    try:
+        with console.status("[bold green]Running lifecycle..."):
+            result = harness.run(round_id="cli_run")
+    except Exception as e:
+        console.print(f"  [red]Execution blocked: {e}[/red]")
+        raise typer.Exit(code=1) from None
+
+    if json_output:
+        output = result.to_dict()
+        output["lifecycle_history"] = [s.value for s in harness.transition_history]
+        output["governance_state"] = gov_bridge.state_name
+        output["halt_triggered"] = gov_bridge.halt_triggered
+        if audit_logger:
+            output["audit_chain"] = audit_logger.get_event_chain()
+        console.print_json(data=output)
+        return
+
+    format_harness_result(
+        result=result,
+        lifecycle_history=[s.value for s in harness.transition_history],
+        lifecycle_terminal=harness.is_terminal,
+        governance_state=gov_bridge.state_name,
+        circuit_breaker_state=gov_bridge.circuit_breaker.state.value,
+        halt_triggered=gov_bridge.halt_triggered,
+        check_count=len(gov_bridge.check_history),
+        console=console,
+    )
+
+    if audit_logger:
+        console.print("\n[bold]Audit Event Chain:[/bold]")
+        from rich.table import Table
+        audit_table = Table(title=f"Harness Audit ({audit_logger.count()} events)")
+        audit_table.add_column("Event", style="cyan")
+        audit_table.add_column("Action", style="green")
+        audit_table.add_column("Details", style="white")
+        for entry in audit_logger.get_events():
+            audit_table.add_row(entry.event_type, entry.action, entry.details[:60])
+        console.print(audit_table)
 
 
 # ── Serve command ────────────────────────────────────────────────────
