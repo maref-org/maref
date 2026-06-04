@@ -169,9 +169,7 @@ TrustWeightCorrelationInvariant ==
 CreateProposal(p) ==
   /\ p \notin proposals
   /\ proposals' = proposals \cup {p}
-  /\ votes' = [v \in Validators, q \in proposals' |-> IF q = p THEN "none" ELSE votes[v,q]]
-  /\ decisions' = [q \in proposals' |-> IF q = p THEN "none" ELSE decisions[q]]
-  /\ UNCHANGED <<weights, trustScores, byzantine, round>>
+  /\ UNCHANGED <<weights, trustScores, votes, byzantine, decisions, round>>
 
 (* Action: Validator casts a vote *)
 CastVote(v, p, val) ==
@@ -179,7 +177,7 @@ CastVote(v, p, val) ==
   /\ v \in Validators
   /\ val \in VoteValues
   /\ votes[v,p] = "none"                     (* Must not have voted already *)
-  /\ votes' = [w \in Validators, q \in proposals |->
+  /\ votes' = [w \in Validators, q \in ProposalIDs |->
       IF w = v /\ q = p THEN val ELSE votes[w,q]]
   /\ UNCHANGED <<weights, trustScores, proposals, byzantine, decisions, round>>
 
@@ -190,7 +188,7 @@ ReachConsensus(p) ==
   /\ ConsensusReached(p)
   /\ LET winner == CHOOSE d \in VoteValues :
         SumVotingWeight(p, d) * 100 >= QuorumWeight
-     IN decisions' = [q \in proposals |-> IF q = p THEN winner ELSE decisions[q]]
+     IN decisions' = [q \in ProposalIDs |-> IF q = p THEN winner ELSE decisions[q]]
   /\ UNCHANGED <<weights, trustScores, proposals, votes, byzantine, round>>
 
 (* Action: Update weights after consensus (reward/punish) *)
