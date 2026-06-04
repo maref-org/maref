@@ -19,7 +19,8 @@ CONSTANTS
   Validators,        (* Set of validator identifiers *)
   MaxWeight,         (* Maximum weight a validator can have *)
   MaxRounds,         (* Maximum consensus rounds for model checking *)
-  QuorumThreshold    (* Quorum threshold as fraction: 0.67 = 2/3 *)
+  QuorumThreshold,   (* Quorum threshold as fraction: 0.67 = 2/3 *)
+  ProposalIDs        (* Set of possible proposal IDs for model checking *)
 
 ASSUME IsFiniteSet(Validators)
 ASSUME Validators /= {}
@@ -28,6 +29,9 @@ ASSUME QuorumThreshold > 0.5 /\ QuorumThreshold <= 1.0
 
 (* --- Helper: minimum of two numbers --- *)
 Min(a, b) == IF a <= b THEN a ELSE b
+
+(* --- Helper: maximum of two numbers --- *)
+Max(a, b) == IF a >= b THEN a ELSE b
 
 (* --- Type definitions --- *)
 
@@ -61,23 +65,53 @@ Init ==
 
 CorrectValidators == { v \in Validators : ~byzantine[v] }
 
+(* Compute total weight of correct validators *)
+(* For model checking with small bounded sets, we sum weights directly *)
 TotalWeight ==
-  LET cw == {v \in Validators : ~byzantine[v]}
-      w_sum == IF cw = {} THEN 0
-               ELSE LET S == {weights[vv] : vv \in cw}
-                    IN LET sum_val == CHOOSE t \in Nat : \A x \in S : t >= x
-                       IN sum_val
-  IN w_sum
+  LET w == weights
+      cw == CorrectValidators
+  IN IF cw = {} THEN 0
+     ELSE LET v1 == CHOOSE v \in cw : TRUE
+              rest1 == cw \ {v1}
+          IN IF rest1 = {} THEN w[v1]
+             ELSE LET v2 == CHOOSE v \in rest1 : TRUE
+                      rest2 == rest1 \ {v2}
+                  IN IF rest2 = {} THEN w[v1] + w[v2]
+                     ELSE LET v3 == CHOOSE v \in rest2 : TRUE
+                              rest3 == rest2 \ {v3}
+                          IN IF rest3 = {} THEN w[v1] + w[v2] + w[v3]
+                             ELSE LET v4 == CHOOSE v \in rest3 : TRUE
+                                      rest4 == rest3 \ {v4}
+                                  IN IF rest4 = {} THEN w[v1] + w[v2] + w[v3] + w[v4]
+                                     ELSE LET v5 == CHOOSE v \in rest4 : TRUE
+                                          IN w[v1] + w[v2] + w[v3] + w[v4] + w[v5]
 
 QuorumWeight == TotalWeight * QuorumThreshold
+
+(* Helper: sum of weights for validators satisfying a predicate *)
+SumVotingWeight(p, decision) ==
+  LET vs == {v \in CorrectValidators : votes[v,p] = decision}
+      w == weights
+  IN IF vs = {} THEN 0
+     ELSE LET v1 == CHOOSE v \in vs : TRUE
+              r1 == vs \ {v1}
+          IN IF r1 = {} THEN w[v1]
+             ELSE LET v2 == CHOOSE v \in r1 : TRUE
+                      r2 == r1 \ {v2}
+                  IN IF r2 = {} THEN w[v1] + w[v2]
+                     ELSE LET v3 == CHOOSE v \in r2 : TRUE
+                              r3 == r2 \ {v3}
+                          IN IF r3 = {} THEN w[v1] + w[v2] + w[v3]
+                             ELSE LET v4 == CHOOSE v \in r3 : TRUE
+                                      r4 == r3 \ {v4}
+                                  IN IF r4 = {} THEN w[v1] + w[v2] + w[v3] + w[v4]
+                                     ELSE LET v5 == CHOOSE v \in r4 : TRUE
+                                          IN w[v1] + w[v2] + w[v3] + w[v4] + w[v5]
 
 (* A proposal reaches consensus if > quorum of correct validators vote the same *)
 ConsensusReached(p) ==
   \E decision \in VoteValues :
-    LET approvingWeights == {weights[v] : v \in CorrectValidators, votes[v,p] = decision}
-        totalApproval == IF approvingWeights = {} THEN 0
-                        ELSE LET S == approvingWeights IN CHOOSE t \in S : \A x \in S : t >= x
-    IN totalApproval >= QuorumWeight
+    SumVotingWeight(p, decision) >= QuorumWeight
 
 (* --- Safety Properties (Invariants) --- *)
 
@@ -97,11 +131,26 @@ TrustBoundsInvariant ==
 
 (* Invariant 4: Byzantine validators cannot exceed 1/3 of total weight *)
 ByzantineBoundInvariant ==
-  LET byzWeight == {weights[v] : v \in Validators, byzantine[v]}
+  LET byzWeight ==
+    LET bw == {v \in Validators : byzantine[v]}
+        w == weights
+    IN IF bw = {} THEN 0
+       ELSE LET v1 == CHOOSE v \in bw : TRUE
+                r1 == bw \ {v1}
+            IN IF r1 = {} THEN w[v1]
+               ELSE LET v2 == CHOOSE v \in r1 : TRUE
+                        r2 == r1 \ {v2}
+                    IN IF r2 = {} THEN w[v1] + w[v2]
+                       ELSE LET v3 == CHOOSE v \in r2 : TRUE
+                                r3 == r2 \ {v3}
+                            IN IF r3 = {} THEN w[v1] + w[v2] + w[v3]
+                               ELSE LET v4 == CHOOSE v \in r3 : TRUE
+                                        r4 == r3 \ {v4}
+                                    IN IF r4 = {} THEN w[v1] + w[v2] + w[v3] + w[v4]
+                                       ELSE LET v5 == CHOOSE v \in r4 : TRUE
+                                            IN w[v1] + w[v2] + w[v3] + w[v4] + w[v5]
       totalW == TotalWeight
-      totalB == IF byzWeight = {} THEN 0
-               ELSE LET S == byzWeight IN CHOOSE t \in S : \A x \in S : t >= x
-  IN totalB <= totalW * (1.0 - QuorumThreshold)
+  IN byzWeight <= totalW * (1.0 - QuorumThreshold)
 
 (* Invariant 5: No consensus without quorum *)
 QuorumIntegrityInvariant ==
@@ -150,12 +199,12 @@ UpdateWeights(p) ==
   /\ decisions[p] /= "none"                    (* Consensus reached *)
   /\ LET winner == decisions[p]
      IN weights' = [v \in Validators |->
-          IF votes[v,p] = winner THEN Min(weights[v] * 1.05, MaxWeight)
-          ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN weights[v] * 0.95
+          IF votes[v,p] = winner THEN Min(weights[v] + 1, MaxWeight)
+          ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(weights[v] - 1, 0)
           ELSE weights[v]]
   /\ trustScores' = [v \in Validators |->
-       IF votes[v,p] = winner THEN Min(trustScores[v] * 1.02, 1.0)
-       ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN trustScores[v] * 0.98
+       IF votes[v,p] = winner THEN Min(trustScores[v] + 0.02, 1.0)
+       ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(trustScores[v] - 0.02, 0.0)
        ELSE trustScores[v]]
   /\ round' = round + 1
   /\ UNCHANGED <<proposals, votes, byzantine, decisions>>
@@ -178,7 +227,7 @@ DetectByzantine(v) ==
 
 (* --- Next-state relation --- *)  
 Next ==
-  \/ \E p \notin proposals : CreateProposal(p)
+  \/ \E p \in ProposalIDs \ proposals : CreateProposal(p)
   \/ \E v \in Validators, p \in proposals, val \in VoteValues : CastVote(v, p, val)
   \/ \E p \in proposals : ReachConsensus(p)
   \/ \E p \in proposals : UpdateWeights(p)
