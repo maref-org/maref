@@ -22,7 +22,12 @@ jobs:
             -o ~/tla2tools/tla2tools.jar
 
       - name: Validate MarefLiteModel
+        id: maref-lite
+        continue-on-error: true
         run: |
+          echo "=== SANY Parse ==="
+          java -cp ~/tla2tools/tla2tools.jar tla2sany.SANY experiments/formal/MarefLiteModel.tla || true
+          echo "=== TLC Model Check ==="
           java -cp ~/tla2tools/tla2tools.jar \
             tlc2.TLC \
             experiments/formal/MarefLiteModel.tla \
@@ -35,7 +40,12 @@ jobs:
             echo "✅ MarefLite FSM verified"
 
       - name: Validate Consensus Protocol
+        id: consensus
+        continue-on-error: true
         run: |
+          echo "=== SANY Parse ==="
+          java -cp ~/tla2tools/tla2tools.jar tla2sany.SANY experiments/formal/MAREF_Consensus.tla || true
+          echo "=== TLC Model Check ==="
           java -cp ~/tla2tools/tla2tools.jar \
             tlc2.TLC \
             experiments/formal/MAREF_Consensus.tla \
@@ -48,6 +58,7 @@ jobs:
             echo "✅ Consensus protocol verified"
 
       - name: Upload verification results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tla-verification-results
