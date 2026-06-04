@@ -109,19 +109,25 @@ export default function App() {
     detectBackend();
   }, []);
 
-  const handleNewSession = useCallback(() => {
-    addSession({
-      id: `sess-${Date.now()}`,
-      title: "新 Agent",
-      mode: "agent",
-      provider: "bailian",
-      model: "deepseek-v4-pro",
-      contextPercent: 0,
-      status: "idle",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-  }, [addSession]);
+  const [creatingSession, setCreatingSession] = useState(false);
+
+  const handleNewSession = useCallback(async () => {
+    if (creatingSession) return;
+    setCreatingSession(true);
+    try {
+      const session = await api.createSession({
+        title: "新 Agent",
+        mode: "agent",
+        provider: "bailian",
+        model: "deepseek-v4-pro",
+      });
+      addSession(session);
+    } catch {
+      showToast("创建会话失败");
+    } finally {
+      setCreatingSession(false);
+    }
+  }, [addSession, showToast, creatingSession]);
 
   const handleCloseSession = useCallback(() => {
     if (activeSessionId) {

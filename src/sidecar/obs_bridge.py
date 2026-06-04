@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+from typing import Any
+
+try:
+    from maref.obs import MarefObsClient
+except ImportError:
+
+    class MarefObsClient:  # type: ignore[no-redef]
+        @staticmethod
+        def get_default() -> MarefObsClient:
+            return MarefObsClient()
+
+
+class ObsBridge:
+    """Bridge between Sidecar FastAPI and the observation layer."""
+
+    def __init__(self, client: MarefObsClient | None = None) -> None:
+        self._client = client
+
+    def get_client(self) -> MarefObsClient | None:
+        return self._client

@@ -14,7 +14,8 @@
     "electron:build:mac": "pnpm electron:build --mac",
     "electron:build:win": "pnpm electron:build --win",
     "electron:build:linux": "pnpm electron:build --linux",
-    "generate:types": "openapi-typescript openapi-schema.json -o src/types/api.d.ts"
+    "generate:types": "bash gui/scripts/generate-types.sh",
+    "generate:types:check": "bash gui/scripts/check-type-drift.sh"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
