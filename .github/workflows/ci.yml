@@ -66,6 +66,21 @@ jobs:
           pip install trufflehog
           trufflehog filesystem . --config .trufflehog.yaml --since 2026-01-01
 
+  frontend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable pnpm && pnpm install
+      - run: pnpm vitest run --coverage
+        env:
+          CI: true
+
   crypto-test:
     needs: test
     runs-on: ubuntu-latest
