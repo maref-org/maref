@@ -1,0 +1,93 @@
+name: GitHub Email Listener
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # 每 30 分钟
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "运行模式"
+        required: false
+        default: "poll"
+        type: choice
+        options:
+          - poll
+          - stats
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  email-listener:
+    runs-on: ubuntu-latest
+    if: github.repository == 'frankiehot-tech/Athena' || github.repository == 'maref-org/maref'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+            sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+            && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+            && echo "deb [arch=$(dpkg --print-architecture) \
+            signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
+            https://cli.github.com/packages stable main" | \
+            sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+            && sudo apt update && sudo apt install gh -y
+
+      - name: Run Email Listener
+        env:
+          GITHUB_EMAIL_PROVIDER: ${{ secrets.GITHUB_EMAIL_PROVIDER }}
+          GITHUB_EMAIL_USERNAME: ${{ secrets.GITHUB_EMAIL_USERNAME }}
+          GITHUB_EMAIL_PASSWORD: ${{ secrets.GITHUB_EMAIL_PASSWORD }}
+          GITHUB_EMAIL_POLL_INTERVAL: "60"
+          GITHUB_EMAIL_AUTO_MERGE_DEPENDABOT: "false"
+          GITHUB_EMAIL_DRY_RUN: "false"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+        run: |
+          mkdir -p logs
+          
+          # 执行单次轮询
+          python scripts/github-email-agent.py \
+            --once \
+            --verbose \
+            --log-file logs/email-agent-$(date +%Y%m%d-%H%M%S).log
+
+      - name: Upload Action Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: email-agent-actions-${{ github.run_number }}
+          path: logs/email-agent-actions.json
+          retention-days: 30
+
+      - name: Report Summary
+        if: always()
+        run: |
+          if [ -f "logs/email-agent-actions.json" ]; then
+            echo "=== 邮件监听执行报告 ==="
+            python -c "
+          import json
+          with open('logs/email-agent-actions.json') as f:
+              data = json.load(f)
+          print(f\"生成时间: {data.get('generated_at', 'N/A')}\")
+          print(f\"Dry Run: {data.get('dry_run', False)}\")
+          actions = data.get('actions', [])
+          print(f\"操作总数: {len(actions)}\")
+          success = sum(1 for a in actions if a.get('success'))
+          failed = sum(1 for a in actions if not a.get('success'))
+          pending = sum(1 for a in actions if a.get('requires_followup'))
+          print(f\"成功: {success} | 失败: {failed} | 待处理: {pending}\")
+          for a in actions:
+              status = '✓' if a['success'] else '✗'
+              print(f\"  {status} {a['description']}\")
+          "
+          fi

@@ -313,10 +313,73 @@ updates:
 
 ---
 
-## 10. 版本历史
+## 11. 邮件监听规范
+
+### 11.1 支持的邮箱
+
+| 邮箱 | 提供商 | IMAP 服务器 | 用途 |
+|------|--------|------------|------|
+| `frankiehot@hotmail.com` | Hotmail/Outlook | outlook.office365.com:993 | 主要监听 |
+| `athenabot@qq.com` | QQ 邮箱 | imap.qq.com:993 | 备用监听 |
+| `87909004@qq.com` | QQ 邮箱 | imap.qq.com:993 | arXiv + GitHub |
+
+### 11.2 安全要求
+
+- **必须使用 App Password/授权码**，禁止使用登录密码
+- 密码存储位置：环境变量 或 macOS Keychain，禁止硬编码
+- 邮箱配置见 `.env.example`，实际配置保存在 `.env`（已在 .gitignore 中）
+
+### 11.3 邮件监听流程
+
+```
+GitHub 通知邮件 → IMAP 轮询 → 邮件解析 → 意图识别 → 自动/审批响应 → 执行仓库操作
+```
+
+### 11.4 自动操作白名单
+
+| 操作类型 | 条件 | 审批要求 |
+|---------|------|---------|
+| 查看 PR/Issue 信息 | 任何通知 | 无需审批 |
+| 合并 Dependabot PR | `AUTO_MERGE_DEPENDABOT=true` | 无需审批 |
+| 重启失败 Workflow | `AUTO_RESTART_WORKFLOWS=true` | 无需审批 |
+| 关闭过期 Issue | `AUTO_CLOSE_STALE_DAYS>0` | 无需审批 |
+| 合并非 Dependabot PR | 任何情况 | 需要审批 |
+| 推送代码 | 任何情况 | 需要审批 |
+| 删除分支/Tag | 任何情况 | 禁止自动执行 |
+
+### 11.5 相关文件
+
+| 文件 | 用途 |
+|------|------|
+| `src/maref/tools/github_email_listener.py` | IMAP 监听器 |
+| `src/maref/tools/github_email_parser.py` | 邮件解析器 |
+| `src/maref/tools/github_email_responder.py` | 自动响应器 |
+| `scripts/github-email-agent.py` | 主入口脚本 |
+| `.github/workflows/github-email-listener.yml` | CI/CD 工作流 |
+
+### 11.6 配置示例
+
+```bash
+# 启动持续监听
+python scripts/github-email-agent.py
+
+# 单次轮询（测试用）
+python scripts/github-email-agent.py --once
+
+# Dry run 模式
+python scripts/github-email-agent.py --dry-run --verbose
+
+# 查看统计
+python scripts/github-email-agent.py --stats
+```
+
+---
+
+## 12. 版本历史
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | 1.0.0 | 2026-06-04 | 初始版本 |
 | 1.1.0 | 2026-06-04 | 添加仓库分类、更新 Action 白名单 |
 | 1.2.0 | 2026-06-05 | 添加仓库画像审计章节 |
+| 1.3.0 | 2026-06-05 | 添加邮件监听规范 |
