@@ -79,7 +79,10 @@ class VectorStore:
         query_ng = _ngrams(query)
         scored: list[tuple[VectorRecord, float]] = []
         for record in self._records.values():
-            score = _cosine_similarity(query_ng, record.embedding)
+            emb = record.embedding
+            if emb is None:
+                continue
+            score = _cosine_similarity(query_ng, emb)
             if score >= threshold:
                 scored.append((record, score))
         scored.sort(key=lambda x: -x[1])

@@ -10,7 +10,7 @@ from maref.security.decorators import security_critical
 logger = logging.getLogger(__name__)
 
 try:
-    import keyring  # type: ignore[import-not-found]
+    import keyring
     HAS_KEYRING = True
 except ImportError:
     HAS_KEYRING = False

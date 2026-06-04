@@ -79,9 +79,9 @@ def verify_cai_certificate(
         # 但通常 CAI 签名是对整个 CAI 结构的签名，不是对 hash 的签名
         # 这里采用更直接的方式：验证 signature 是否由 casp_public_key 签发
         verified = sm2_verify(
-            casp_public_key,
+            casp_public_key.encode(),
             cai_plaintext,
-            cai.signature,
+            cai.signature.encode(),
             use_sm3=True,
         )
         return verified
@@ -115,9 +115,9 @@ def verify_certificate_verify(
     # SM2 验证签名
     # 签名数据应为 handshake_messages（或 hash）
     return sm2_verify(
-        public_key,
+        public_key.encode(),
         handshake_messages,
-        signature,
+        signature.encode(),
         use_sm3=True,
     )
 
@@ -137,12 +137,13 @@ def generate_certificate_verify(
     Returns:
         hex 格式的签名值
     """
-    return sm2_sign(
-        private_key,
+    sig = sm2_sign(
+        private_key.encode(),
         handshake_messages,
-        public_key=public_key,
+        public_key=public_key.encode(),
         use_sm3=True,
     )
+    return sig.hex()
 
 
 def check_agent_identity(

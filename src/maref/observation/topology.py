@@ -152,8 +152,8 @@ class TopologyTracker:
             cutoff = time.time() - self._window * 2
             stale_edges = [k for k, e in self._edges.items() if e.last_seen < cutoff]
             stale_nodes = [k for k, n in self._nodes.items() if n.last_active < cutoff]
-            for k in stale_edges:
-                del self._edges[k]
-            for k in stale_nodes:
-                del self._nodes[k]
+            for edge_key in stale_edges:
+                del self._edges[edge_key]
+            for node_key in stale_nodes:
+                del self._nodes[node_key]
             return len(stale_edges) + len(stale_nodes)

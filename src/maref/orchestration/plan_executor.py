@@ -203,7 +203,7 @@ class PlanExecutor:
                             )
                             graph.add_node(stub)
                             pending.add(branch_id)
-                        elif branch_id not in (graph.node_ids - pending):
+                        elif branch_id not in (set(graph.node_ids) - pending):
                             # Already completed or failed — skip
                             pass
                         else:
@@ -269,10 +269,14 @@ class PlanExecutor:
             if node is None:
                 continue
 
+            dep_nodes: list[TaskNode] = []
+            for dep in graph.get_dependencies(task_id):
+                dep_node = graph.get_node(dep)
+                if dep_node is not None:
+                    dep_nodes.append(dep_node)
             deps_ok = all(
-                graph.get_node(dep).status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
-                for dep in graph.get_dependencies(task_id)
-                if graph.get_node(dep) is not None
+                n.status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
+                for n in dep_nodes
             )
             if not deps_ok:
                 continue
@@ -284,12 +288,16 @@ class PlanExecutor:
                 ready.append(task_id)
             elif node.node_type == NodeType.JOIN:
                 # Join is ready when ALL join_targets are terminal
+                target_nodes: list[TaskNode] = []
+                for tid in node.join_targets:
+                    target_node = graph.get_node(tid)
+                    if target_node is not None:
+                        target_nodes.append(target_node)
                 targets_terminal = all(
-                    graph.get_node(tid).status in (
+                    n.status in (
                         TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.SKIPPED,
                     )
-                    for tid in node.join_targets
-                    if graph.get_node(tid) is not None
+                    for n in target_nodes
                 )
                 if targets_terminal:
                     ready.append(task_id)

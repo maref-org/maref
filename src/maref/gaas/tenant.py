@@ -73,6 +73,9 @@ class TenantManager:
             return self._tenants.get(tenant_id)
         return None
 
+    def get_by_id(self, tenant_id: str) -> Tenant | None:
+        return self._tenants.get(tenant_id)
+
     def check_quota(self, tenant_id: str, resource: str, current_usage: int) -> bool:
         tenant = self._tenants.get(tenant_id)
         if not tenant:
