@@ -1,0 +1,233 @@
+name: Repository Audit
+
+on:
+  schedule:
+    - cron: "0 4 * * 1" # 每周一 UTC 4:00
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "审计范围"
+        required: false
+        default: "full"
+        type: choice
+        options:
+          - full
+          - contributors
+          - community
+          - security
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  contributors-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit Contributors
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          OWNER="${REPO%/*}"
+          REPO_NAME="${REPO#*/}"
+
+          echo "=== 贡献者分布分析 ==="
+          # 获取贡献者列表
+          CONTRIBUTORS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/contributors?per_page=100")
+
+          CONTRIB_COUNT=$(echo "$CONTRIBUTORS" | jq 'length')
+          echo "贡献者数量: $CONTRIB_COUNT"
+
+          # 检查单一贡献者风险
+          TOP_CONTRIB=$(echo "$CONTRIBUTORS" | jq -r '.[0].login')
+          TOP_CONTRIB_COMMITS=$(echo "$CONTRIBUTORS" | jq '.[0].contributions')
+          echo "最高贡献者: $TOP_CONTRIB ($TOP_CONTRIB_COMMITS commits)"
+
+          if [ "$CONTRIB_COUNT" -eq 1 ]; then
+            echo "::warning::单一贡献者风险：仓库仅有 1 名贡献者，存在总线因素 (bus factor) 风险"
+          fi
+
+          # 贡献集中度
+          TOTAL_COMMITS=$(echo "$CONTRIBUTORS" | jq '[.[].contributions] | add')
+          echo "总提交数: $TOTAL_COMMITS"
+
+          if [ "$CONTRIB_COUNT" -gt 0 ] && [ "$TOTAL_COMMITS" -gt 0 ]; then
+            TOP_RATIO=$(echo "scale=2; $TOP_CONTRIB_COMMITS * 100 / $TOTAL_COMMITS" | bc)
+            echo "Top 1 贡献者占比: ${TOP_RATIO}%"
+            
+            if [ "$(echo "$TOP_RATIO > 80" | bc)" -eq 1 ]; then
+              echo "::warning::贡献集中度风险：Top 1 贡献者占比超过 80%"
+            fi
+          fi
+
+      - name: Audit Organization Members
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OWNER="${{ github.repository_owner }}"
+
+          echo "=== 组织透明度检查 ==="
+          # 检查组织公开成员
+          MEMBERS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/orgs/$OWNER/public_members?per_page=100")
+
+          MEMBER_COUNT=$(echo "$MEMBERS" | jq 'length')
+          echo "组织公开成员: $MEMBER_COUNT"
+
+          if [ "$MEMBER_COUNT" -eq 0 ]; then
+            echo "::warning::组织透明度风险：组织无公开成员"
+          fi
+
+  community-health-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Community Metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+
+          echo "=== 社区健康度指标 ==="
+          # 获取仓库元数据
+          REPO_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO")
+
+          STARS=$(echo "$REPO_INFO" | jq '.stargazers_count')
+          FORKS=$(echo "$REPO_INFO" | jq '.forks_count')
+          WATCHERS=$(echo "$REPO_INFO" | jq '.subscribers_count')
+          OPEN_ISSUES=$(echo "$REPO_INFO" | jq '.open_issues_count')
+          CREATED_AT=$(echo "$REPO_INFO" | jq -r '.created_at')
+          UPDATED_AT=$(echo "$REPO_INFO" | jq -r '.updated_at')
+
+          echo "Stars: $STARS"
+          echo "Forks: $FORKS"
+          echo "Watchers: $WATCHERS"
+          echo "Open Issues: $OPEN_ISSUES"
+          echo "Created: $CREATED_AT"
+          echo "Last Updated: $UPDATED_AT"
+
+          # 检查社区参与度
+          if [ "$STARS" -eq 0 ] && [ "$FORKS" -eq 0 ]; then
+            echo "::warning::社区参与度极低：0 Stars, 0 Forks"
+          fi
+
+          # 检查文档完整性
+          echo "=== 文档完整性检查 ==="
+          for FILE in README.md LICENSE CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md; do
+            if [ -f "$FILE" ]; then
+              echo "✓ $FILE 存在"
+            else
+              echo "::warning::$FILE 缺失"
+            fi
+          done
+
+      - name: Naming Consistency Check
+        run: |
+          echo "=== 命名一致性检查 ==="
+
+          # 检查 README 中的项目名称
+          if [ -f "README.md" ]; then
+            README_TITLE=$(head -1 README.md | sed 's/^# *//')
+            echo "README 标题: $README_TITLE"
+          fi
+
+          # 检查 package.json / pyproject.toml
+          if [ -f "pyproject.toml" ]; then
+            PY_NAME=$(grep '^name = ' pyproject.toml | head -1 | sed 's/name = "//;s/"//')
+            echo "pyproject.toml name: $PY_NAME"
+          fi
+
+          if [ -f "package.json" ]; then
+            PKG_NAME=$(jq -r '.name' package.json)
+            echo "package.json name: $PKG_NAME"
+          fi
+
+  security-posture-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Security Configuration Check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+
+          echo "=== 安全配置检查 ==="
+          # 检查分支保护
+          BRANCH_PROTECTION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/branches/main/protection")
+
+          if echo "$BRANCH_PROTECTION" | jq -e '.required_status_checks' > /dev/null 2>&1; then
+            echo "✓ main 分支已启用保护"
+            REQUIRED_CHECKS=$(echo "$BRANCH_PROTECTION" | jq -r '.required_status_checks.contexts[]')
+            echo "必需检查: $REQUIRED_CHECKS"
+          else
+            echo "::error::main 分支未启用保护"
+          fi
+
+          # 检查 CODEOWNERS
+          if [ -f ".github/CODEOWNERS" ]; then
+            echo "✓ CODEOWNERS 文件存在"
+            OWNER_COUNT=$(grep -v '^#' .github/CODEOWNERS | grep -v '^$' | wc -l)
+            echo "所有者规则数: $OWNER_COUNT"
+          else
+            echo "::error::CODEOWNERS 文件缺失"
+          fi
+
+          # 检查依赖机器人
+          if [ -f ".github/dependabot.yml" ]; then
+            echo "✓ Dependabot 已配置"
+          else
+            echo "::warning::Dependabot 未配置"
+          fi
+
+      - name: Action Version Lock Check
+        run: |
+          echo "=== Action 版本锁定检查 ==="
+
+          # 检查所有 workflow 中的 Action 版本
+          UNLOCKED=0
+          for
+ WORKFLOW in .github/workflows/*.yml; do
+            # 检查是否使用动态标签 (@main, @master, @latest)
+            DYNAMIC=$(grep -E 'uses:.*@(main|master|latest|stable)' "$WORKFLOW" || true)
+            if [ -n "$DYNAMIC" ]; then
+              echo "::error::$WORKFLOW 使用动态标签:"
+              echo "$DYNAMIC"
+              UNLOCKED=$((UNLOCKED + 1))
+            fi
+          done
+          
+          if [ "$UNLOCKED" -eq 0 ]; then
+            echo "✓ 所有 Action 已锁定到具体版本"
+          else
+            echo "::error::$UNLOCKED 个 workflow 使用动态标签，存在供应链风险"
+          fi
+
+  generate-report:
+    runs-on: ubuntu-latest
+    needs: [contributors-audit, community-health-audit, security-posture-audit]
+    if: always()
+    steps:
+      - name: Generate Audit Report
+        run: |
+          echo "=== 仓库审计报告 ==="
+          echo "生成时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "仓库: ${{ github.repository }}"
+          echo ""
+          echo "审计维度:"
+          echo "- 贡献者分布和集中度"
+          echo "- 组织透明度"
+          echo "- 社区健康度"
+          echo "- 文档完整性"
+          echo "- 安全配置"
+          echo "- Action 版本锁定"
+          echo ""
+          echo "详细日志见上方各 Job 输出"

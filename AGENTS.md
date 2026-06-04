@@ -339,6 +339,29 @@ openclaw/
 - 跨域调用必须通过 TrustBoundaryManager 授权 → `security/trust_boundary/`
 - Electron: hardenedRuntime=true, asar=true, entitlements only JIT+network+files
 
+## GitHub Agent 审计
+> **上位法**: 本章节受 [AGENT_GITHUB_RULES.md v1.2.0](AGENT_GITHUB_RULES.md) 约束。
+
+### 审计工作流
+- **CI/CD 审计**: `.github/workflows/repo-audit.yml`（每周一 UTC 4:00 自动执行）
+- **本地审计**: `./scripts/repo-audit.sh [full|contributors|community|security]`
+
+### 审计维度
+| 维度 | 检查内容 | 风险阈值 |
+|------|---------|---------|
+| 贡献者分布 | 贡献者数量、集中度 | < 2 人或 Top 1 > 80% |
+| 组织透明度 | 公开成员数 | 0 人 |
+| 社区健康度 | Stars/Forks | 0/0 |
+| 文档完整性 | README/LICENSE/SECURITY.md 等 | 缺失 > 2 |
+| 安全配置 | CODEOWNERS/分支保护/Dependabot | 未配置 |
+| Action 版本 | 是否锁定到具体版本/SHA | 使用动态标签 |
+
+### 合规要求
+- 所有 workflow 必须声明 `permissions` 字段
+- 第三方 Action 必须使用白名单中的版本
+- PR 必须通过 CODEOWNERS 审批
+- 禁止 Agent 执行 L4+ 权限操作（删除、强制推送等）
+
 ## Testing Commands
 ```bash
 # Python unit tests
