@@ -153,10 +153,10 @@ ByzantineBoundInvariant ==
       totalW == TotalWeight
   IN byzWeight * 100 <= totalW * (100 - QuorumThreshold)
 
-(* Invariant 5: No consensus without quorum *)
+(* Invariant 5: If a decision is recorded, consensus was reached *)
 QuorumIntegrityInvariant ==
   \A p \in proposals :
-    ConsensusReached(p) => \E decision \in VoteValues : decisions[p] = decision
+    decisions[p] /= "none" => ConsensusReached(p)
 
 (* Invariant 6: Trust score reflects weight ratio *)
 TrustWeightCorrelationInvariant ==
@@ -189,8 +189,7 @@ ReachConsensus(p) ==
   /\ decisions[p] = "none"
   /\ ConsensusReached(p)
   /\ LET winner == CHOOSE d \in VoteValues :
-        LET approving == {w \in CorrectValidators : votes[w,p] = d}
-        IN IF approving /= {} THEN TRUE ELSE FALSE
+        SumVotingWeight(p, d) * 100 >= QuorumWeight
      IN decisions' = [q \in proposals |-> IF q = p THEN winner ELSE decisions[q]]
   /\ UNCHANGED <<weights, trustScores, proposals, votes, byzantine, round>>
 

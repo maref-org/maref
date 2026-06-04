@@ -99,11 +99,11 @@ Init ==
   /\ globalEntropy = 0
   /\ governanceActive = FALSE
 
-AgentStep(a) ==
+AgentStep(a, next) ==
   /\ ~IsTerminal(agentState[a])
   /\ transitionCount[a] < MaxTransitions
-  /\ LET next == CHOOSE s \in NextStates(agentState[a]) : TRUE
-         newState == [agentState EXCEPT ![a] = next]
+  /\ next \in NextStates(agentState[a])
+  /\ LET newState == [agentState EXCEPT ![a] = next]
          newCount == [transitionCount EXCEPT ![a] = transitionCount[a] + 1]
          e_set == { EntropyLevel[newState[ag]] : ag \in Agents }
          newEntropy == 
@@ -121,7 +121,7 @@ AgentStep(a) ==
         /\ governanceActive' = overThreshold
 
 Next ==
-  \/ \E a \in Agents : AgentStep(a)
+  \/ \E a \in Agents : \E s \in NextStates(agentState[a]) : AgentStep(a, s)
   \/ UNCHANGED vars
 
 Spec == Init /\ [][Next]_vars
