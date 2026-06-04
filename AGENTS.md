@@ -362,6 +362,19 @@ openclaw/
 - PR 必须通过 CODEOWNERS 审批
 - 禁止 Agent 执行 L4+ 权限操作（删除、强制推送等）
 
+### 邮件自动维护能力
+Agent 通过监听 `frankiehot@hotmail.com` 等邮箱的 GitHub 通知邮件，可自动执行以下仓库维护：
+
+| 邮件类型 | 自动操作 | 条件 |
+|---------|---------|------|
+| Workflow 失败 | 获取失败详情 + 分析原因 + 自动重启 | `AUTO_RESTART_WORKFLOWS=true` |
+| Dependabot PR | 自动合并 | `AUTO_MERGE_DEPENDABOT=true` |
+| 安全告警 | 查询告警列表 + 通知转发 | 始终执行 |
+| PR 审查请求 | 获取 PR 详情待审 | 始终执行 |
+| Issue 分配 | 获取 Issue 详情待处理 | 始终执行 |
+
+**通知转发渠道**: Webhook / Slack / Email（可配置）
+
 ## Testing Commands
 ```bash
 # Python unit tests
