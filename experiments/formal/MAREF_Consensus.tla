@@ -56,9 +56,9 @@ Init ==
   /\ weights = [v \in Validators |-> 1]        (* All validators start with equal weight *)
   /\ trustScores = [v \in Validators |-> 100]  (* Full trust initially (100%) *)
   /\ proposals = {}                             (* No proposals initially *)
-  /\ votes = [v \in Validators, p \in {} |-> "none"]
+  /\ votes = [v \in Validators, p \in ProposalIDs |-> "none"]
   /\ byzantine = [v \in Validators |-> FALSE]  (* No byzantine validators initially *)
-  /\ decisions = [p \in {} |-> "none"]
+  /\ decisions = [p \in ProposalIDs |-> "none"]
   /\ round = 0
 
 (* --- Helpers --- *)
