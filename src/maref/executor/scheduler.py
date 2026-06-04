@@ -146,6 +146,8 @@ class Scheduler:
         self._lock = threading.Lock()
         self._running = False
         self._thread: threading.Thread | None = None
+        self.halted: bool = False
+        self.faulty_agents: set[str] = set()
 
     def add_cron_job(self, name: str, cron_expr: str, task_template: Task) -> str:
         CronExpression(cron_expr)
