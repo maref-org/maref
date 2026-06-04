@@ -113,6 +113,7 @@ htmlcov/
 coverage_html/
 bandit_report.json
 coverge_per_module_report.json
+coverage_per_module_report.json
 governance_audit*.jsonl
 governance_observations.db
 *.db
