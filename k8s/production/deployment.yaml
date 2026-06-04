@@ -6,7 +6,7 @@ metadata:
   labels:
     app: maref
     component: desktop-agent
-    version: v0.28.0-rc
+    version: v0.30.0-GA
 spec:
   replicas: 3
   selector:
@@ -18,11 +18,11 @@ spec:
       labels:
         app: maref
         component: desktop-agent
-        version: v0.28.0-rc
+        version: v0.30.0-GA
     spec:
       containers:
         - name: agent
-          image: maref/desktop-agent:v0.28.0-rc
+          image: maref/desktop-agent:v0.30.0-GA
           imagePullPolicy: IfNotPresent
           resources:
             requests:

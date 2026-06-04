@@ -5,10 +5,13 @@ Supports JWT + API Key dual-mode auth with tenant-scoped resource access.
 
 from __future__ import annotations
 
+import hashlib
 import secrets
 import time
 from dataclasses import dataclass, field
 from typing import Any
+
+from maref.security.decorators import security_critical
 
 
 @dataclass
@@ -45,6 +48,10 @@ class TenantManager:
         self._tenants: dict[str, Tenant] = {}
         self._api_key_to_tenant: dict[str, str] = {}
 
+    def _hash_api_key(self, api_key: str) -> str:
+        return hashlib.sha256(api_key.encode()).hexdigest()
+
+    @security_critical
     def register(self, tenant: Tenant, api_key: str | None = None) -> str:
         """Register a tenant. Returns API key if not provided."""
         if tenant.tenant_id in self._tenants:
@@ -54,15 +61,14 @@ class TenantManager:
 
         if api_key is None:
             api_key = f"mk_{secrets.token_urlsafe(32)}"
-        self._api_key_to_tenant[api_key] = tenant.tenant_id
-        tenant.api_key_hash = api_key  # Store plaintext for MVP; hash in production
+        tenant.api_key_hash = self._hash_api_key(api_key)
+        self._api_key_to_tenant[tenant.api_key_hash] = tenant.tenant_id
         return api_key
 
-    def get_by_id(self, tenant_id: str) -> Tenant | None:
-        return self._tenants.get(tenant_id)
-
+    @security_critical
     def get_by_api_key(self, api_key: str) -> Tenant | None:
-        tenant_id = self._api_key_to_tenant.get(api_key)
+        key_hash = self._hash_api_key(api_key)
+        tenant_id = self._api_key_to_tenant.get(key_hash)
         if tenant_id:
             return self._tenants.get(tenant_id)
         return None

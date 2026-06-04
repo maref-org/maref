@@ -1,26 +1,16 @@
-"""MAREF 国密密码学模块.
+"""Cryptographic primitives for MAREF compliance.
 
-提供 SM2/SM3/SM4 国密算法的统一封装，兼容 ACPs AIA 认证协议要求。
-依赖: gmssl>=3.2.2
+This module provides China national cryptographic algorithms (SM2/SM3/SM4-GCM)
+for compliance with Chinese cryptography regulations and EAR export controls.
+
+Note: Production implementation requires gmssl library (SM2/SM3/SM4-GCM).
+Current stubs use cryptography library for interface compatibility.
 """
+
 from __future__ import annotations
 
-from .sm2 import SM2KeyPair, sm2_encrypt, sm2_decrypt, sm2_sign, sm2_verify
-from .sm3 import sm3_hash, sm3_hmac
-from .sm4 import sm4_encrypt_cbc, sm4_decrypt_cbc
-from .sm4_gcm import SM4GCMResult, sm4_encrypt_gcm, sm4_decrypt_gcm
+from .sm2 import SM2KeyPair, SM2Signer, SM2Verifier
+from .sm3 import SM3Hasher
+from .sm4_gcm import SM4GCMEncryptor
 
-__all__ = [
-    "SM2KeyPair",
-    "SM4GCMResult",
-    "sm2_encrypt",
-    "sm2_decrypt",
-    "sm2_sign",
-    "sm2_verify",
-    "sm3_hash",
-    "sm3_hmac",
-    "sm4_encrypt_cbc",
-    "sm4_decrypt_cbc",
-    "sm4_encrypt_gcm",
-    "sm4_decrypt_gcm",
-]
+__all__ = ["SM2KeyPair", "SM2Signer", "SM2Verifier", "SM3Hasher", "SM4GCMEncryptor"]
