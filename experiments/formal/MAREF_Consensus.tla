@@ -13,19 +13,19 @@
   Based on the MAREF WeightedConsensusEngine implementation.
 *)
 
-EXTENDS Naturals, Sequences, FiniteSets, Reals, TLC
+EXTENDS Naturals, Sequences, FiniteSets, TLC
 
 CONSTANTS
   Validators,        (* Set of validator identifiers *)
   MaxWeight,         (* Maximum weight a validator can have *)
   MaxRounds,         (* Maximum consensus rounds for model checking *)
-  QuorumThreshold,   (* Quorum threshold as fraction: 0.67 = 2/3 *)
+  QuorumThreshold,   (* Quorum threshold as integer percentage: 67 = 67% *)
   ProposalIDs        (* Set of possible proposal IDs for model checking *)
 
 ASSUME IsFiniteSet(Validators)
 ASSUME Validators /= {}
 ASSUME MaxWeight \in Nat \ {0}
-ASSUME QuorumThreshold > 0.5 /\ QuorumThreshold <= 1.0
+ASSUME QuorumThreshold > 50 /\ QuorumThreshold <= 100
 
 (* --- Helper: minimum of two numbers --- *)
 Min(a, b) == IF a <= b THEN a ELSE b
@@ -41,7 +41,7 @@ VoteValues == {"approve", "reject", "abstain"}
 
 VARIABLES
   weights,           (* [Validators -> Weight] current weight *)
-  trustScores,       (* [Validators -> Real] trust score 0.0-1.0 *)
+  trustScores,       (* [Validators -> Int] trust score 0-100 *)
   proposals,         (* Set of active proposal IDs *)
   votes,             (* [Validators X Proposals -> VoteValues \union {"none"}] *)
   byzantine,         (* [Validators -> BOOLEAN] is validator byzantine? *)
@@ -54,7 +54,7 @@ vars == <<weights, trustScores, votes, byzantine, decisions, round>>
 
 Init ==
   /\ weights = [v \in Validators |-> 1]        (* All validators start with equal weight *)
-  /\ trustScores = [v \in Validators |-> 1.0]  (* Full trust initially *)
+  /\ trustScores = [v \in Validators |-> 100]  (* Full trust initially (100%) *)
   /\ proposals = {}                             (* No proposals initially *)
   /\ votes = [v \in Validators, p \in {} |-> "none"]
   /\ byzantine = [v \in Validators |-> FALSE]  (* No byzantine validators initially *)
@@ -86,7 +86,7 @@ TotalWeight ==
                                      ELSE LET v5 == CHOOSE v \in rest4 : TRUE
                                           IN w[v1] + w[v2] + w[v3] + w[v4] + w[v5]
 
-QuorumWeight == TotalWeight * QuorumThreshold
+QuorumWeight == TotalWeight * QuorumThreshold  (* numerator for percentage *)
 
 (* Helper: sum of weights for validators satisfying a predicate *)
 SumVotingWeight(p, decision) ==
@@ -108,10 +108,11 @@ SumVotingWeight(p, decision) ==
                                      ELSE LET v5 == CHOOSE v \in r4 : TRUE
                                           IN w[v1] + w[v2] + w[v3] + w[v4] + w[v5]
 
-(* A proposal reaches consensus if > quorum of correct validators vote the same *)
+(* A proposal reaches consensus if > quorum percentage of correct validators vote the same *)
+(* Uses scaled integer comparison: SumVotingWeight * 100 >= TotalWeight * QuorumThreshold *)
 ConsensusReached(p) ==
   \E decision \in VoteValues :
-    SumVotingWeight(p, decision) >= QuorumWeight
+    SumVotingWeight(p, decision) * 100 >= QuorumWeight
 
 (* --- Safety Properties (Invariants) --- *)
 
@@ -127,7 +128,7 @@ WeightBoundsInvariant ==
 
 (* Invariant 3: Trust scores stay in range *)
 TrustBoundsInvariant ==
-  \A v \in Validators : trustScores[v] >= 0.0 /\ trustScores[v] <= 1.0
+  \A v \in Validators : trustScores[v] >= 0 /\ trustScores[v] <= 100
 
 (* Invariant 4: Byzantine validators cannot exceed 1/3 of total weight *)
 ByzantineBoundInvariant ==
@@ -150,7 +151,7 @@ ByzantineBoundInvariant ==
                                        ELSE LET v5 == CHOOSE v \in r4 : TRUE
                                             IN w[v1] + w[v2] + w[v3] + w[v4] + w[v5]
       totalW == TotalWeight
-  IN byzWeight <= totalW * (1.0 - QuorumThreshold)
+  IN byzWeight * 100 <= totalW * (100 - QuorumThreshold)
 
 (* Invariant 5: No consensus without quorum *)
 QuorumIntegrityInvariant ==
@@ -160,7 +161,7 @@ QuorumIntegrityInvariant ==
 (* Invariant 6: Trust score reflects weight ratio *)
 TrustWeightCorrelationInvariant ==
   \A v \in Validators :
-    weights[v] <= (MaxWeight * trustScores[v])
+    weights[v] * 100 <= (MaxWeight * trustScores[v])
 
 (* --- Actions --- *)
 
@@ -203,8 +204,8 @@ UpdateWeights(p) ==
           ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(weights[v] - 1, 0)
           ELSE weights[v]]
   /\ trustScores' = [v \in Validators |->
-       IF votes[v,p] = winner THEN Min(trustScores[v] + 0.02, 1.0)
-       ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(trustScores[v] - 0.02, 0.0)
+       IF votes[v,p] = winner THEN Min(trustScores[v] + 2, 100)
+       ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(trustScores[v] - 2, 0)
        ELSE trustScores[v]]
   /\ round' = round + 1
   /\ UNCHANGED <<proposals, votes, byzantine, decisions>>

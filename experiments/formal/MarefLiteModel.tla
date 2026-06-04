@@ -10,7 +10,7 @@
   - Deadlock freedom and liveness properties
 *)
 
-EXTENDS Naturals, Sequences, FiniteSets, TLC
+EXTENDS Naturals, Sequences, FiniteSets
 
 CONSTANTS
   Agents,           (* Set of agent identifiers, e.g., {"agent1", "agent2"} *)
@@ -105,8 +105,13 @@ AgentStep(a) ==
   /\ LET next == CHOOSE s \in NextStates(agentState[a]) : TRUE
          newState == [agentState EXCEPT ![a] = next]
          newCount == [transitionCount EXCEPT ![a] = transitionCount[a] + 1]
-         entropies == { EntropyLevel[newState[ag]] : ag \in Agents }
-         newEntropy == IF entropies = {} THEN 0 ELSE CHOOSE max \in entropies : \A e \in entropies : max >= e
+         e_set == { EntropyLevel[newState[ag]] : ag \in Agents }
+         newEntropy == 
+           IF e_set = {} THEN 0
+           ELSE LET e1 == CHOOSE x \in e_set : TRUE
+                IN IF e_set \ {e1} = {} THEN e1
+                   ELSE LET e2 == CHOOSE x \in e_set \ {e1} : TRUE
+                        IN IF e1 >= e2 THEN e1 ELSE e2
          overThreshold == newEntropy >= MaxEntropy
      IN /\ agentState' = IF overThreshold
                         THEN [ag \in Agents |-> IF IsTerminal(newState[ag]) THEN newState[ag] ELSE 7]
