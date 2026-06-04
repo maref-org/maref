@@ -137,6 +137,15 @@ def main() -> None:
     auto_merge_dependabot = os.getenv(
         "GITHUB_EMAIL_AUTO_MERGE_DEPENDABOT", "false"
     ).lower() == "true"
+    auto_restart_workflows = os.getenv(
+        "GITHUB_EMAIL_AUTO_RESTART_WORKFLOWS", "false"
+    ).lower() == "true"
+    auto_analyze_failure = os.getenv(
+        "GITHUB_EMAIL_AUTO_ANALYZE_FAILURE", "true"
+    ).lower() == "true"
+    notify_on_failure = os.getenv(
+        "GITHUB_EMAIL_NOTIFY_ON_FAILURE", "true"
+    ).lower() == "true"
 
     # 创建监听器
     listener = create_github_email_listener(
@@ -154,6 +163,19 @@ def main() -> None:
         github_token=os.getenv("GITHUB_TOKEN"),
         dry_run=dry_run,
         auto_merge_dependabot=auto_merge_dependabot,
+        auto_restart_failed_workflows=auto_restart_workflows,
+        auto_analyze_failure=auto_analyze_failure,
+        notify_on_failure=notify_on_failure,
+        notify_webhook_url=os.getenv("NOTIFY_WEBHOOK_URL"),
+        slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL"),
+        email_smtp_server=os.getenv("NOTIFY_EMAIL_SMTP"),
+        email_sender=os.getenv("NOTIFY_EMAIL_SENDER"),
+        email_password=os.getenv("NOTIFY_EMAIL_PASSWORD"),
+        email_receivers=[
+            r.strip()
+            for r in os.getenv("NOTIFY_EMAIL_RECEIVERS", "").split(",")
+            if r.strip()
+        ],
     )
 
     # 注册处理回调

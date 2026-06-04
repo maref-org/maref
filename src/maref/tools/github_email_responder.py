@@ -7,7 +7,8 @@ GitHub 邮件自动响应机制
 - 添加标签
 - 关闭过期 Issue
 - 重启失败 Workflow
-- 发送通知
+- 失败原因分析
+- 失败通知转发
 
 安全规范：
 - 所有自动操作记录审计日志
@@ -19,7 +20,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
+import urllib.request
+import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -74,10 +78,22 @@ class ResponderConfig:
     auto_close_stale_days: int = 0
     auto_restart_failed_workflows: bool = False
     auto_label_security_issues: bool = True
+    auto_analyze_failure: bool = True
     require_approval_for_public_repos: bool = True
     allowed_repos: list[str] = field(default_factory=list)  # 白名单
     blocked_actions: list[str] = field(default_factory=list)  # 禁止的操作
     comment_templates: dict[str, str] = field(default_factory=dict)
+    
+    # 通知转发配置
+    notify_webhook_url: str = ""  # Webhook URL for forwarding failures
+    notify_on_failure: bool = True  # Whether to forward failure notifications
+    notify_channels: list[str] = field(default_factory=list)  # ["webhook", "email", "slack"]
+    slack_webhook_url: str = ""
+    email_smtp_server: str = ""
+    email_smtp_port: int = 587
+    email_sender: str = ""
+    email_password: str = ""
+    email_receivers: list[str] = field(default_factory=list)
 
 
 class GitHubEmailResponder:
@@ -420,47 +436,266 @@ class GitHubEmailResponder:
         )
 
     def _handle_workflow_failure(self, action: ParsedAction) -> ActionResult:
-        """处理 Workflow 失败"""
+        """处理 Workflow 失败（包含自动重启、失败分析、通知转发）"""
+        repo = f"{action.repo_owner}/{action.repo}"
+        
         # 获取最近的失败运行
         success, output = self._run_gh_command([
             "run", "list",
-            "--repo", f"{action.repo_owner}/{action.repo}",
+            "--repo", repo,
             "--status", "failure",
             "--limit", "1",
-            "--json", "name,status,conclusion,createdAt,headBranch",
+            "--json", "name,status,conclusion,createdAt,headBranch,databaseId",
         ])
 
-        if success:
-            result = ActionResult(
-                success=True,
+        if not success:
+            return ActionResult(
+                success=False,
                 action_type=action.action_type,
-                description=f"已获取 Workflow 失败信息",
-                output=output,
+                description=f"获取 Workflow 失败信息失败",
+                error=output,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                requires_followup=True,
             )
 
-            # 如果配置允许自动重启
-            if self._config.auto_restart_failed_workflows:
-                restart_success, restart_output = self._run_gh_command([
-                    "run", "rerun",
-                    "--repo", f"{action.repo_owner}/{action.repo}",
-                    "last",
-                    "--failed",
-                ])
-                if restart_success:
-                    result.description += "，已自动重启"
-                    result.output += f"\n重启结果: {restart_output}"
+        # 解析 run ID
+        run_id = None
+        try:
+            runs = json.loads(output) if output else []
+            if runs:
+                run_id = runs[0].get("databaseId")
+        except (json.JSONDecodeError, IndexError, KeyError):
+            pass
 
-            return result
+        # ===== 1. 自动重启 =====
+        restart_result = None
+        if self._config.auto_restart_failed_workflows and run_id:
+            restart_success, restart_output = self._run_gh_command([
+                "run", "rerun", str(run_id),
+                "--repo", repo,
+                "--failed",
+            ])
+            restart_result = {
+                "success": restart_success,
+                "output": restart_output,
+            }
+
+        # ===== 2. 失败原因分析 =====
+        analysis_result = None
+        if self._config.auto_analyze_failure:
+            analysis_result = self._analyze_workflow_failure(repo, run_id)
+
+        # ===== 3. 通知转发 =====
+        notification_result = None
+        if self._config.notify_on_failure:
+            notification_result = self._forward_failure_notification(
+                repo=repo,
+                action=action,
+                run_id=run_id,
+                restart_result=restart_result,
+                analysis_result=analysis_result,
+            )
+
+        # 构建综合结果
+        description_parts = [f"Workflow 失败: {action.metadata.get('workflow_name', 'unknown')}"]
+        if restart_result:
+            if restart_result["success"]:
+                description_parts.append("已自动重启")
+            else:
+                description_parts.append("重启失败")
+        if analysis_result:
+            description_parts.append(f"失败原因: {analysis_result.get('summary', '未知')}")
+        if notification_result:
+            description_parts.append(f"通知已转发到 {', '.join(notification_result.get('channels', []))}")
 
         return ActionResult(
-            success=False,
+            success=True,
             action_type=action.action_type,
-            description=f"获取 Workflow 失败信息失败",
-            error=output,
+            description="; ".join(description_parts),
+            output=json.dumps({
+                "run_id": run_id,
+                "restart": restart_result,
+                "analysis": analysis_result,
+                "notification": notification_result,
+            }, indent=2, ensure_ascii=False),
             timestamp=datetime.now(timezone.utc).isoformat(),
+            requires_followup=True,
         )
+
+    def _analyze_workflow_failure(
+        self,
+        repo: str,
+        run_id: int | None = None,
+    ) -> dict[str, Any]:
+        """分析 Workflow 失败原因"""
+        if not run_id:
+            return {"summary": "无法获取 run ID，跳过分析"}
+
+        # 获取失败 job 列表
+        success, jobs_output = self._run_gh_command([
+            "api",
+            f"/repos/{repo}/actions/runs/{run_id}/jobs",
+            "--method", "GET",
+        ])
+
+        if not success:
+            return {"summary": "获取 job 列表失败", "error": jobs_output}
+
+        failed_jobs = []
+        try:
+            jobs_data = json.loads(jobs_output)
+            for job in jobs_data.get("jobs", []):
+                if job.get("conclusion") == "failure":
+                    job_info = {
+                        "name": job.get("name", "unknown"),
+                        "status": job.get("status"),
+                        "conclusion": job.get("conclusion"),
+                        "steps": [],
+                    }
+                    
+                    # 获取失败步骤
+                    for step in job.get("steps", []):
+                        if step.get("conclusion") == "failure":
+                            job_info["steps"].append({
+                                "name": step.get("name", "unknown"),
+                                "status": step.get("status"),
+                                "conclusion": step.get("conclusion"),
+                            })
+                    
+                    failed_jobs.append(job_info)
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+        # 提取失败原因摘要
+        if failed_jobs:
+            job_names = [j["name"] for j in failed_jobs]
+            summary = f"{len(failed_jobs)} 个 job 失败: {', '.join(job_names)}"
+            
+            # 常见失败模式识别
+            for job in failed_jobs:
+                for step in job.get("steps", []):
+                    step_name = step.get("name", "").lower()
+                    if "test" in step_name:
+                        summary += "; 测试失败"
+                    elif "lint" in step_name or "quality" in step_name:
+                        summary += "; 代码质量检查失败"
+                    elif "coverage" in step_name:
+                        summary += "; 覆盖率不达标"
+                    elif "audit" in step_name:
+                        summary += "; 安全审计失败"
+        else:
+            summary = "未知失败原因"
+
+        return {
+            "summary": summary,
+            "failed_jobs": failed_jobs,
+            "run_url": f"https://github.com/{repo}/actions/runs/{run_id}",
+        }
+
+    def _forward_failure_notification(
+        self,
+        repo: str,
+        action: ParsedAction,
+        run_id: int | None = None,
+        restart_result: dict | None = None,
+        analysis_result: dict | None = None,
+    ) -> dict[str, Any]:
+        """转发失败通知到多个渠道"""
+        channels_used = []
+        
+        workflow_name = action.metadata.get("workflow_name", "unknown")
+        summary_parts = [
+            f"🔴 Workflow 失败: {workflow_name}",
+            f"仓库: {repo}",
+        ]
+        if run_id:
+            summary_parts.append(f"Run: https://github.com/{repo}/actions/runs/{run_id}")
+        if analysis_result:
+            summary_parts.append(f"原因: {analysis_result.get('summary', '未知')}")
+        if restart_result:
+            if restart_result.get("success"):
+                summary_parts.append("状态: 已自动重启")
+            else:
+                summary_parts.append("状态: 重启失败，需人工介入")
+        
+        message = "\n".join(summary_parts)
+
+        # 发送到 Webhook
+        if self._config.notify_webhook_url:
+            try:
+                payload = json.dumps({
+                    "content": message,
+                    "repo": repo,
+                    "workflow": workflow_name,
+                    "run_id": run_id,
+                }).encode()
+                req = urllib.request.Request(
+                    self._config.notify_webhook_url,
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    if resp.status in (200, 204):
+                        channels_used.append("webhook")
+            except Exception as e:
+                logger.warning(f"Webhook 通知失败: {e}")
+
+        # 发送到 Slack
+        if self._config.slack_webhook_url:
+            try:
+                payload = json.dumps({
+                    "text": message,
+                }).encode()
+                req = urllib.request.Request(
+                    self._config.slack_webhook_url,
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    if resp.status in (200, 204):
+                        channels_used.append("slack")
+            except Exception as e:
+                logger.warning(f"Slack 通知失败: {e}")
+
+        # 发送邮件通知
+        if self._config.email_smtp_server and self._config.email_receivers:
+            try:
+                import smtplib
+                from email.mime.text import MIMEText
+                
+                msg = MIMEText(message, "plain", "utf-8")
+                msg["Subject"] = f"[{repo}] Workflow 失败: {workflow_name}"
+                msg["From"] = self._config.email_sender
+                msg["To"] = ", ".join(self._config.email_receivers)
+                
+                if self._config.email_smtp_port == 465:
+                    server = smtplib.SMTP_SSL(
+                        self._config.email_smtp_server,
+                        self._config.email_smtp_port,
+                    )
+                else:
+                    server = smtplib.SMTP(
+                        self._config.email_smtp_server,
+                        self._config.email_smtp_port,
+                    )
+                    server.starttls()
+                
+                server.login(self._config.email_sender, self._config.email_password)
+                server.sendmail(
+                    self._config.email_sender,
+                    self._config.email_receivers,
+                    msg.as_string(),
+                )
+                server.quit()
+                channels_used.append("email")
+            except Exception as e:
+                logger.warning(f"邮件通知失败: {e}")
+
+        return {
+            "success": len(channels_used) > 0,
+            "channels": channels_used,
+        }
 
     def _handle_security_alert(self, action: ParsedAction) -> ActionResult:
         """处理安全告警"""
@@ -565,12 +800,34 @@ def create_github_email_responder(
     github_token: str | None = None,
     dry_run: bool = False,
     auto_merge_dependabot: bool = False,
+    auto_restart_failed_workflows: bool = False,
+    auto_analyze_failure: bool = True,
+    notify_on_failure: bool = True,
     allowed_repos: list[str] | None = None,
+    notify_webhook_url: str | None = None,
+    slack_webhook_url: str | None = None,
+    email_smtp_server: str | None = None,
+    email_sender: str | None = None,
+    email_password: str | None = None,
+    email_receivers: list[str] | None = None,
 ) -> GitHubEmailResponder:
     """创建 GitHub 邮件响应器"""
     config = ResponderConfig(
         auto_merge_dependabot=auto_merge_dependabot,
+        auto_restart_failed_workflows=auto_restart_failed_workflows,
+        auto_analyze_failure=auto_analyze_failure,
+        notify_on_failure=notify_on_failure,
         allowed_repos=allowed_repos or [],
+        notify_webhook_url=notify_webhook_url or os.getenv("NOTIFY_WEBHOOK_URL", ""),
+        slack_webhook_url=slack_webhook_url or os.getenv("SLACK_WEBHOOK_URL", ""),
+        email_smtp_server=email_smtp_server or os.getenv("NOTIFY_EMAIL_SMTP", ""),
+        email_sender=email_sender or os.getenv("NOTIFY_EMAIL_SENDER", ""),
+        email_password=email_password or os.getenv("NOTIFY_EMAIL_PASSWORD", ""),
+        email_receivers=email_receivers or [
+            r.strip()
+            for r in os.getenv("NOTIFY_EMAIL_RECEIVERS", "").split(",")
+            if r.strip()
+        ],
     )
 
     return GitHubEmailResponder(

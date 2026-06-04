@@ -50,6 +50,8 @@ class ParsedEmail:
     repo: str
     repo_owner: str
     actor: str
+    commit_sha: str = ""
+    commit_url: str = ""
     actions: list[ParsedAction] = field(default_factory=list)
     summary: str = ""
 
@@ -104,6 +106,9 @@ class GitHubEmailParser:
         # 提取操作者
         actor = self._extract_actor(subject)
 
+        # 提取 commit SHA 和 URL
+        commit_sha, commit_url = self._extract_commit_info(subject, body_preview, action_url)
+
         # 生成操作建议
         actions = self._generate_actions(
             subject, body_preview, notification_type, repo, repo_owner, actor
@@ -125,6 +130,8 @@ class GitHubEmailParser:
             repo=repo,
             repo_owner=repo_owner,
             actor=actor,
+            commit_sha=commit_sha,
+            commit_url=commit_url,
             actions=actions,
             summary=summary,
         )
@@ -206,6 +213,37 @@ class GitHubEmailParser:
             return match.group(1).lstrip("@")
 
         return ""
+
+    def _extract_commit_info(
+        self,
+        subject: str,
+        body_preview: str,
+        action_url: str,
+    ) -> tuple[str, str]:
+        """提取 commit SHA 和 URL"""
+        _ = body_preview  # 预留参数
+        sha = ""
+        url = ""
+
+        # 格式: (58228e4) 或 58228e4
+        match = re.search(r"\(([0-9a-f]{7,40})\)", subject)
+        if match:
+            sha = match.group(1)
+        else:
+            match = re.search(r"\b([0-9a-f]{7,40})\b", subject)
+            if match:
+                sha = match.group(1)
+
+        # 如果 action_url 包含 github.com，从中提取完整 URL
+        if "github.com" in action_url:
+            url = action_url
+        elif sha:
+            # 从主题提取仓库信息后构建 URL
+            repo, repo_owner = self._extract_repo(subject)
+            if repo and repo_owner:
+                url = f"https://github.com/{repo_owner}/{repo}/commit/{sha}"
+
+        return sha, url
 
     def _generate_actions(
         self,
@@ -351,6 +389,7 @@ class GitHubEmailParser:
 
     def _extract_number(self, subject: str, number_type: str) -> int | None:
         """提取 PR/Issue 编号"""
+        _ = number_type  # 预留参数，未来可用于区分 PR 和 Issue 编号格式
         match = re.search(r"#(\d+)", subject)
         if match:
             return int(match.group(1))
