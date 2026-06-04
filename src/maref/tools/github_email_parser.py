@@ -166,7 +166,12 @@ class GitHubEmailParser:
             else:
                 return "issue_notification"
 
-        if "workflow" in s and ("fail" in s or "failed" in s):
+        # Workflow 失败（多种格式）
+        # 格式 1: "workflow failed: ..."
+        # 格式 2: "workflow run failed: ..."
+        # 格式 3: "pr run failed: ..." (Release Gate 等 PR 触发的 workflow)
+        # 格式 4: "... run failed"
+        if ("workflow" in s or "pr run" in s) and ("fail" in s or "failed" in s):
             return "workflow_failure"
 
         if "security" in s or "vulnerability" in s:
