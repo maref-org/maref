@@ -650,10 +650,10 @@ def serve(
 
     try:
         import uvicorn
-        from sidecar.obs_bridge import ObsBridge
-        from sidecar.server import create_app
 
         from maref.obs import MarefObsClient
+        from sidecar.obs_bridge import ObsBridge
+        from sidecar.server import create_app
 
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
         uvicorn.run(create_app(obs_bridge=obs_bridge), host="0.0.0.0", port=port, log_level="info")

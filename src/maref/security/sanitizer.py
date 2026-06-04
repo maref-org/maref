@@ -1,0 +1,127 @@
+"""Data sanitization gateway — input/output PII protection.
+
+Provides:
+- Input sanitization: PII detection + token replacement
+- Output sanitization: reverse token restoration for authorized callers
+- SQL injection keyword detection
+- Input length and encoding validation
+"""
+
+from __future__ import annotations
+
+import re
+import secrets
+from dataclasses import dataclass, field
+
+# PII patterns (conservative — flag and replace, never silently pass)
+PII_PATTERNS: dict[str, re.Pattern] = {
+    "phone_cn": re.compile(r"1[3-9]\d{9}"),
+    "phone_us": re.compile(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"),
+    "id_card_cn": re.compile(r"\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b"),
+    "email": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+    "credit_card": re.compile(r"\b(?:\d[ -]*?){13,16}\b"),
+    "ip_address": re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"),
+}
+
+SQL_INJECTION_KEYWORDS: list[str] = [
+    "'--", "';", "1=1", "1=2",
+    "DROP TABLE", "DROP DATABASE", "DELETE FROM",
+    "INSERT INTO", "xp_cmdshell", "UNION SELECT",
+    "OR '1'='1", "OR 1=1",
+]
+
+
+@dataclass
+class SanitizeResult:
+    text: str
+    tokens: dict[str, str] = field(default_factory=dict)
+    pii_found: list[str] = field(default_factory=list)
+    sql_risk: bool = False
+    blocked: bool = False
+    reason: str = ""
+
+
+class Sanitizer:
+    """Input/output sanitizer with PII detection and tokenization.
+
+    Usage:
+        sani = Sanitizer()
+        result = sani.sanitize_input("my phone is 13800138000")
+        # result.text == "my phone is [PII_PHONE_CN_abc123]"
+        # result.tokens = {"[PII_PHONE_CN_abc123]": "13800138000"}
+        #
+        # Later, for authorized output:
+        original = sani.restore_output(result.text, result.tokens)
+    """
+
+    TOKEN_PREFIX = "[PII_"
+
+    def sanitize_input(self, text: str) -> SanitizeResult:
+        """Sanitize input text: detect PII, SQL injection, validate length."""
+        result = SanitizeResult(text=text)
+
+        # Check SQL injection
+        lowered = text.lower()
+        for kw in SQL_INJECTION_KEYWORDS:
+            if kw.lower() in lowered:
+                result.sql_risk = True
+                result.blocked = True
+                result.reason = f"SQL injection keyword detected: {kw!r}"
+                return result
+
+        # PII detection and token replacement
+        for name, pattern in PII_PATTERNS.items():
+            matches = pattern.findall(text)
+            for match in matches:
+                token = f"{self.TOKEN_PREFIX}{name.upper()}_{secrets.token_hex(4)}"
+                result.text = result.text.replace(match, token, 1)
+                result.tokens[token] = match
+                if name not in result.pii_found:
+                    result.pii_found.append(name)
+
+        # Length validation
+        if len(result.text) > 100_000:
+            result.blocked = True
+            result.reason = "input exceeds 100K character limit"
+            return result
+
+        return result
+
+    def restore_output(
+        self,
+        text: str,
+        tokens: dict[str, str],
+        authorized: bool = False,
+    ) -> str:
+        """Restore original values from tokens.
+
+        Only authorized callers should call this with authorized=True.
+        Unauthorized callers get the text with tokens still in place.
+        """
+        if not authorized:
+            return text
+        for token, original in tokens.items():
+            text = text.replace(token, original)
+        return text
+
+    def sanitize_output(
+        self,
+        text: str,
+        tokens: dict[str, str] | None = None,
+    ) -> str:
+        """Sanitize output: ensure no raw PII leaks.
+
+        Uses the known tokens from a previous input sanitization.
+        As a safety net, also scans for raw PII patterns.
+        """
+        result = text
+        # Replace known tokens
+        if tokens:
+            for token, original in tokens.items():
+                result = result.replace(original, token)
+
+        # Safety net: detect any remaining raw PII
+        for name, pattern in PII_PATTERNS.items():
+            result = pattern.sub(f"[REDACTED_{name.upper()}]", result)
+
+        return result

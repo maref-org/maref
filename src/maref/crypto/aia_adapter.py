@@ -14,7 +14,7 @@ from .sm2 import sm2_sign, sm2_verify
 from .sm3 import sm3_hash
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 @dataclass(frozen=True)

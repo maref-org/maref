@@ -27,13 +27,14 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from sidecar.collector import MockAgentAdapter, ObservationCollector
+from sidecar.monitor import CompositeMonitor
+
 from drift_guard.adaptive_threshold import AdaptiveThresholdConfig, AdaptiveThresholdManager
 from maref_lite.governance import GovernanceOverlay
 from maref_lite.state_machine import ENTROPY_LEVELS, GovernanceState, GovernanceStateMachine
 from research.dashscope_client import DashScopeClient
 from research.finding_models import StructuredFinding
-from sidecar.collector import MockAgentAdapter, ObservationCollector
-from sidecar.monitor import CompositeMonitor
 
 
 @dataclass

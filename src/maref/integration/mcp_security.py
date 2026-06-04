@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -278,7 +279,15 @@ class MCPSecurityGate:
             raise ValueError(f"Unsupported format: {format}")
 
 
-DEFAULT_HMAC_SECRET_KEY = b"maref-mcp-governance-v0.27.0"
+DEFAULT_HMAC_SECRET_KEY = os.environb.get(
+    b"MAREF_HMAC_SECRET_KEY",
+    b"maref-mcp-governance-v0.27.0",
+)
+"""Default HMAC secret key for audit log signing.
+
+In production, always set MAREF_HMAC_SECRET_KEY environment variable.
+The default value is for development/testing only and MUST NOT be used in production.
+"""
 
 
 def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes = DEFAULT_HMAC_SECRET_KEY) -> str:
