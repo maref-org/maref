@@ -23,7 +23,9 @@ import App from "./App";
 injectNonce();
 
 // 启动真实用户性能监控
-initWebVitals((metrics) => {
+import { setVitalReportHandler } from "./lib/web-vitals";
+
+setVitalReportHandler((metrics) => {
   console.log("[Web Vitals]", metrics);
   fetch("/api/vitals", {
     method: "POST",
@@ -31,6 +33,7 @@ initWebVitals((metrics) => {
     body: JSON.stringify(metrics),
   }).catch(() => {});
 });
+initWebVitals();
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -29,7 +29,7 @@ import { useUIStore } from "@/stores/uiStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useTerminalStore } from "@/stores/terminalStore";
-import { useSessions } from "@/hooks/useSession";
+import { useSessions, useCreateSession } from "@/hooks/useSession";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { createShortcuts } from "@/stores/shortcutDefs";
 import { detectBackend, api, getBackendMode, checkBackendHealth } from "@/api/client";
@@ -109,25 +109,16 @@ export default function App() {
     detectBackend();
   }, []);
 
-  const [creatingSession, setCreatingSession] = useState(false);
+  const createSession = useCreateSession();
 
-  const handleNewSession = useCallback(async () => {
-    if (creatingSession) return;
-    setCreatingSession(true);
-    try {
-      const session = await api.createSession({
-        title: "新 Agent",
-        mode: "agent",
-        provider: "bailian",
-        model: "deepseek-v4-pro",
-      });
-      addSession(session);
-    } catch {
-      showToast("创建会话失败");
-    } finally {
-      setCreatingSession(false);
-    }
-  }, [addSession, showToast, creatingSession]);
+  const handleNewSession = useCallback(() => {
+    createSession.mutate({
+      title: "新 Agent",
+      mode: "agent",
+      provider: "bailian",
+      model: "deepseek-v4-pro",
+    });
+  }, [createSession]);
 
   const handleCloseSession = useCallback(() => {
     if (activeSessionId) {

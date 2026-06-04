@@ -1,0 +1,11 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MAREF Sidecar API",
+    "version": "0.30.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {}
+  }
+}
