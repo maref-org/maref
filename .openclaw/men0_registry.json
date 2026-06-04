@@ -52,6 +52,18 @@
       "mcp_servers": ["mcp_MacUse", "mcp_ScreenHand"],
       "macos_permissions": ["Accessibility", "Screen Recording"],
       "notes": "Dual-engine desktop automation: mac-use-mcp (zero-dependency) + ScreenHand (111 tools, ~50ms Accessibility API)"
+    },
+    "browser-automation": {
+      "agent_id": "browser-automation",
+      "name": "Playwright Browser Automation Skill",
+      "capabilities": ["browser_navigation", "browser_interaction", "browser_snapshot", "screenshot", "responsive_testing", "form_automation", "link_verification", "network_monitoring"],
+      "status": "active",
+      "trust_level": "TRUSTED",
+      "last_heartbeat": 1717488000.0,
+      "health_state": "healthy",
+      "mcp_servers": ["mcp_Playwright"],
+      "skill_path": ".claude/skills/playwright-browser-automation/SKILL.md",
+      "notes": "AI-driven browser automation via Playwright MCP accessibility tree (93% token savings vs screenshot-based approaches)"
     }
   }
 }
