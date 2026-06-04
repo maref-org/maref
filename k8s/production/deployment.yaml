@@ -20,6 +20,7 @@ spec:
         component: desktop-agent
         version: v0.30.0-GA
     spec:
+      serviceAccountName: maref-desktop-agent
       containers:
         - name: agent
           image: maref/desktop-agent:v0.30.0-GA
