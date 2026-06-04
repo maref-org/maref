@@ -127,9 +127,14 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 show_error_codes = true
 disable_error_code = ["no-untyped-def", "var-annotated", "import-untyped", "no-any-return"]
-exclude = ["tests/"]
+exclude = []
 mypy_path = "src"
 explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["tests\\..*"]
+disable_error_code = ["no-untyped-def", "var-annotated", "import-untyped", "no-untyped-call"]
+warn_return_any = false
 
 [[tool.mypy.overrides]]
 module = [
@@ -183,7 +188,7 @@ branch = true
 
 [tool.coverage.report]
 precision = 2
-fail_under = 70
+fail_under = 80
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",
