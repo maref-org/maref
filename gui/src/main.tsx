@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { injectNonce } from "./middleware/csp";
-import { initWebVitals } from "./lib/web-vitals";
+import { initWebVitals, setVitalReportHandler } from "./lib/web-vitals";
 import "./lib/i18n";
 import "./index.css";
 import App from "./App";
@@ -23,8 +23,6 @@ import App from "./App";
 injectNonce();
 
 // 启动真实用户性能监控
-import { setVitalReportHandler } from "./lib/web-vitals";
-
 setVitalReportHandler((metrics) => {
   console.log("[Web Vitals]", metrics);
   fetch("/api/vitals", {
