@@ -125,7 +125,7 @@ class WorkflowInstance:
 
 class CarbonSiliconSymbiosis:
     OLD_YANG_TRUST_THRESHOLD = 0.9
-    HUMAN_SPOT_CHECK_RATE = 0.2
+    HUMAN_SPOT_CHECK_RATE = 0.05
 
     def __init__(self, human_id: str = "human_operator"):
         self._human_id = human_id
