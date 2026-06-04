@@ -99,30 +99,24 @@ Init ==
   /\ globalEntropy = 0
   /\ governanceActive = FALSE
 
-UpdateEntropyAction ==
-  /\ governanceActive' = governanceActive
-  /\ LET entropies == { EntropyLevel[agentState[a]] : a \in Agents }
-     IN globalEntropy' = IF entropies = {} THEN 0 ELSE CHOOSE max \in entropies : \A e \in entropies : max >= e
-
-CheckGovernanceAction ==
-  /\ IF globalEntropy >= MaxEntropy THEN
-       /\ governanceActive' = TRUE
-       /\ agentState' = [a \in Agents |-> IF IsTerminal(agentState[a]) THEN agentState[a] ELSE 7]
-     ELSE
-       /\ governanceActive' = FALSE
-       /\ UNCHANGED agentState
-  /\ UNCHANGED <<transitionCount, globalEntropy>>
-
 AgentStep(a) ==
   /\ ~IsTerminal(agentState[a])
   /\ transitionCount[a] < MaxTransitions
   /\ LET next == CHOOSE s \in NextStates(agentState[a]) : TRUE
-     IN /\ agentState' = [agentState EXCEPT ![a] = next]
-        /\ transitionCount' = [transitionCount EXCEPT ![a] = transitionCount[a] + 1]
-  /\ UNCHANGED <<globalEntropy, governanceActive>>
+         newState == [agentState EXCEPT ![a] = next]
+         newCount == [transitionCount EXCEPT ![a] = transitionCount[a] + 1]
+         entropies == { EntropyLevel[newState[ag]] : ag \in Agents }
+         newEntropy == IF entropies = {} THEN 0 ELSE CHOOSE max \in entropies : \A e \in entropies : max >= e
+         overThreshold == newEntropy >= MaxEntropy
+     IN /\ agentState' = IF overThreshold
+                        THEN [ag \in Agents |-> IF IsTerminal(newState[ag]) THEN newState[ag] ELSE 7]
+                        ELSE newState
+        /\ transitionCount' = newCount
+        /\ globalEntropy' = newEntropy
+        /\ governanceActive' = overThreshold
 
 Next ==
-  \/ \E a \in Agents : AgentStep(a) /\ \E _dummy \in {0} : UpdateEntropyAction /\ \E _dummy \in {0} : CheckGovernanceAction
+  \/ \E a \in Agents : AgentStep(a)
   \/ UNCHANGED vars
 
 Spec == Init /\ [][Next]_vars
@@ -145,8 +139,7 @@ ValidStateInvariant ==
 (* Invariant: Terminal state (HALT) is absorbing *)
 TerminalAbsorbing ==
   \A a \in Agents :
-    IsTerminal(agentState[a]) =>
-      transitionCount[a] = MaxTransitions \/ UNCHANGED agentState
+    IsTerminal(agentState[a]) => transitionCount[a] <= MaxTransitions
 
 (* Safety: Entropy never exceeds maximum (governance prevents this) *)
 EntropyBound ==
