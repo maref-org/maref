@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import random
 import sys
 import time
@@ -26,6 +27,8 @@ from typing import Any
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+logger = logging.getLogger(__name__)
 
 from sidecar.collector import MockAgentAdapter, ObservationCollector
 from sidecar.monitor import CompositeMonitor
@@ -148,7 +151,8 @@ class MAREFAutoResearch:
                         llm_decisions.append(f"step_{step}: fallback_random")
                     else:
                         llm_decisions.append(f"step_{step}: {chosen_name}")
-                except Exception:
+                except Exception as e:
+                    logger.warning("LLM decision fallback: %s", e)
                     next_state = random.choice(valid_next)
                     llm_decisions.append(f"step_{step}: error_fallback")
             else:
@@ -183,8 +187,8 @@ class MAREFAutoResearch:
                     max_tokens=50,
                 )
                 findings.append(f"LLM洞察: {analysis.content.strip()}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM analysis failed: %s", e)
 
         return ExperimentResult(
             experiment_id=exp_id,
@@ -240,8 +244,8 @@ class MAREFAutoResearch:
                     max_tokens=60,
                 )
                 findings.append(f"LLM验证: {response.content.strip()}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM Gray Code validation failed: %s", e)
 
         return ExperimentResult(
             experiment_id=exp_id,
@@ -286,8 +290,8 @@ class MAREFAutoResearch:
                     max_tokens=60,
                 )
                 findings.append(f"LLM反思: {response.content.strip()}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM reflection failed: %s", e)
 
         return ExperimentResult(
             experiment_id=exp_id,
@@ -333,8 +337,8 @@ class MAREFAutoResearch:
                         "actual_drift": bools[i].lower() == "true",
                         "confidence": float(confs[i]),
                     })
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM scenario generation failed: %s", e)
 
         # Fallback to structured random if LLM failed
         if not scenarios:
@@ -376,8 +380,8 @@ class MAREFAutoResearch:
                     max_tokens=30,
                 )
                 findings.append(f"LLM评估: {response.content.strip()}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM threshold evaluation failed: %s", e)
 
         return ExperimentResult(
             experiment_id=exp_id,
@@ -436,8 +440,8 @@ class MAREFAutoResearch:
                     max_tokens=50,
                 )
                 findings.append(f"LLM涌现分析: {response.content.strip()}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM emergence analysis failed: %s", e)
 
         return ExperimentResult(
             experiment_id=exp_id,
