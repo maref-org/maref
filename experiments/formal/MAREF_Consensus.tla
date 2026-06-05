@@ -196,14 +196,14 @@ UpdateWeights(p) ==
   /\ p \in proposals
   /\ decisions[p] /= "none"                    (* Consensus reached *)
   /\ LET winner == decisions[p]
-     IN weights' = [v \in Validators |->
-          IF votes[v,p] = winner THEN Min(weights[v] + 1, MaxWeight)
-          ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(weights[v] - 1, 0)
-          ELSE weights[v]]
-  /\ trustScores' = [v \in Validators |->
-       IF votes[v,p] = winner THEN Min(trustScores[v] + 2, 100)
-       ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(trustScores[v] - 2, 0)
-       ELSE trustScores[v]]
+     IN /\ weights' = [v \in Validators |->
+              IF votes[v,p] = winner THEN Min(weights[v] + 1, MaxWeight)
+              ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(weights[v] - 1, 0)
+              ELSE weights[v]]
+        /\ trustScores' = [v \in Validators |->
+              IF votes[v,p] = winner THEN Min(trustScores[v] + 2, 100)
+              ELSE IF votes[v,p] /= "none" /\ votes[v,p] /= "abstain" THEN Max(trustScores[v] - 2, 0)
+              ELSE trustScores[v]]
   /\ round' = round + 1
   /\ UNCHANGED <<proposals, votes, byzantine, decisions>>
 
@@ -256,10 +256,5 @@ ConsensusLiveness ==
 (* Termination: System eventually produces a decision *)
 Termination ==
   \E p \in proposals : <>(decisions[p] /= "none")
-
-(* Property constraints for TLC: invariant checking *)
-THEOREM Spec => []WeightBoundsInvariant
-THEOREM Spec => []TrustBoundsInvariant
-THEOREM Spec => []ByzantineBoundInvariant
 
 ===============================================================================
