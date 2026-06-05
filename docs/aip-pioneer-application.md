@@ -12,7 +12,7 @@
 | 项目 | 内容 |
 |------|------|
 | **申请主体** | MAREF 开源社区 / [OPC 公司名称，注册后填写] |
-| **项目全称** | Multi-Agent Recursive Engineering Framework (MAREF) |
+| **项目全称** | Multi-Agent Recursive Evolution Framework (MAREF) |
 | **项目定位** | 多智能体递归进化治理框架 — AIP 协议的开源参考实现（社区驱动，非官方） |
 | **开源协议** | Apache-2.0 |
 | **代码仓库** | https://github.com/maref-org（计划） |
@@ -23,7 +23,7 @@
 
 ## 二、项目简介（500字以内）
 
-MAREF（Multi-Agent Recursive Engineering Framework）是一个基于 10 态 Gray Code 状态机的多智能体递归进化治理框架。项目将 Agent 治理作为独立的价值主张而非安全特性，实现了工程化的四级安全决策树（Rule→Mode→SafetyGate→User），自动化决策率达 97%。
+MAREF（Multi-Agent Recursive Evolution Framework）是一个基于 10 态 Gray Code 状态机的多智能体递归进化治理框架。项目将 Agent 治理作为独立的价值主张而非安全特性，实现了工程化的四级安全决策树（Rule→Mode→SafetyGate→User），自动化决策率达 97%。
 
 MAREF 已通过 TLA+ 形式化验证 5 项核心定理（LyapunovConvergence、HALTAbsorbing、GrayCodeTransition、SafetyGateIntegrity、RedLineImmutability），并经过 200 轮红蓝对抗测试，综合防御成功率 99.1%。
 

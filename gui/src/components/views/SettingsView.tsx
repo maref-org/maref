@@ -166,7 +166,7 @@ export function SettingsView() {
           </div>
           <div className="text-xs text-maref-text-muted space-y-0.5">
             <p>MAREF v0.23.0-rc</p>
-            <p>Multi-Agent Recursive Engineering Framework</p>
+            <p>Multi-Agent Recursive Evolution Framework</p>
             <p>Apache 2.0 License</p>
           </div>
         </section>

@@ -157,7 +157,7 @@ MAREF 第42类: [ ] 无冲突  [ ] 有近似商标（记录：__________）
 收到受理通知书后，可在 MAREF 项目中使用 **™** 标识：
 
 ```
-MAREF™ — Multi-Agent Recursive Engineering Framework
+MAREF™ — Multi-Agent Recursive Evolution Framework
 ```
 
 ### 4.2 文档更新

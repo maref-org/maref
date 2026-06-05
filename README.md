@@ -1,6 +1,6 @@
 # MAREF — Agent Governance OS
 
-**M**ulti-**A**gent **R**ecursive **E**ngineering **F**ramework
+**M**ulti-**A**gent **R**ecursive **E**volution **F**ramework
 
 [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)

@@ -1,7 +1,7 @@
 """
 MAREF CLI Entry Point
 
-Command-line interface for the Multi-Agent Recursive Engineering Framework.
+Command-line interface for the Multi-Agent Recursive Evolution Framework.
 Provides status, observe, analyze, desktop, audit, trust, drift, and serve commands.
 
 Usage:
@@ -53,7 +53,7 @@ from maref_lite.state_machine import (
 
 app = typer.Typer(
     name="maref",
-    help="MAREF - Multi-Agent Recursive Engineering Framework CLI",
+    help="MAREF - Multi-Agent Recursive Evolution Framework CLI",
     no_args_is_help=True,
 )
 console = Console()

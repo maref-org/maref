@@ -1,6 +1,6 @@
 # Contributing to MAREF
 
-Thank you for contributing to the Multi-Agent Recursive Engineering Framework.
+Thank you for contributing to the Multi-Agent Recursive Evolution Framework.
 
 ## Development Setup
 

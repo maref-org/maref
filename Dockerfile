@@ -27,7 +27,7 @@ RUN playwright install chromium --with-deps 2>/dev/null || true
 FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="MAREF Desktop Agent"
-LABEL org.opencontainers.image.description="Multi-Agent Recursive Engineering Framework — Desktop Agent"
+LABEL org.opencontainers.image.description="Multi-Agent Recursive Evolution Framework — Desktop Agent"
 LABEL org.opencontainers.image.version="0.26.0"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "maref"
 version = "0.30.0"
-description = "Multi-Agent Recursive Engineering Framework"
+description = "Multi-Agent Recursive Evolution Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"

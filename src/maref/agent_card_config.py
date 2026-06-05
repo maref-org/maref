@@ -7,7 +7,7 @@ AGENT_ID = "maref-v0.30.0-GA"
 AGENT_NAME = "MAREF"
 AGENT_VERSION = "0.30.0-GA"
 AGENT_DESCRIPTION = (
-    "Multi-Agent Recursive Engineering Framework — "
+    "Multi-Agent Recursive Evolution Framework — "
     "six-layer governance architecture with tool orchestration, "
     "session management, and self-healing execution"
 )
