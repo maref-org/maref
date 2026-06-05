@@ -138,6 +138,8 @@ policy_versions/
 # Old virtual environments
 .venv2/
 .venv3/
+.venv4/
+.venv5/
 
 # Cache
 cache/
