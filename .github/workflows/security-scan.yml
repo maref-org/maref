@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: "0 3 * * *"  # 每天 UTC 3:00
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   secrets-scan:
     runs-on: ubuntu-latest

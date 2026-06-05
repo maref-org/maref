@@ -14,6 +14,9 @@ on:
       - '.github/workflows/lighthouse.yml'
       - 'lighthouserc.json'
 
+permissions:
+  contents: read
+
 jobs:
   lighthouse:
     runs-on: ubuntu-latest

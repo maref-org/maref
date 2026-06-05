@@ -5,13 +5,17 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   gate-rust-audit:
     runs-on: ubuntu-latest
+    if: github.repository == 'frankiehot-tech/Athena' || github.repository == 'maref-org/maref'
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
       - name: Install cargo-audit

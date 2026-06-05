@@ -9,6 +9,23 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "mypy"
+          - "bandit"
+          - "coverage*"
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "pytest*"
+          - "ruff"
+          - "mypy"
+          - "bandit"
+          - "coverage*"
 
   - package-ecosystem: "npm"
     directory: "/gui"
@@ -19,6 +36,23 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "typescript"
+          - "@lhci/*"
+      production-dependencies:
+        patterns:
+          - "react*"
+          - "electron*"
+          - "tauri*"
+        exclude-patterns:
+          - "@types/*"
+          - "eslint*"
+          - "typescript"
+          - "@lhci/*"
 
   - package-ecosystem: "cargo"
     directory: "/gui/src-tauri"
@@ -29,6 +63,16 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "cargo-audit"
+      production-dependencies:
+        patterns:
+          - "tauri*"
+          - "serde*"
+        exclude-patterns:
+          - "cargo-audit"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -38,3 +82,7 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"

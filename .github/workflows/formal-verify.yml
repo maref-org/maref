@@ -9,6 +9,9 @@ on:
       - 'experiments/formal/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tla-verify-mareflite:
     runs-on: ubuntu-latest

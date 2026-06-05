@@ -3,7 +3,7 @@
 > **Repository**: `frankiehot-tech/Athena`（私有）· `maref-org/maref`（公开）  
 > **Purpose**: AI Agent 自动化操作 GitHub 的安全规范  
 > **Last Updated**: 2026-06-05  
-> **Version**: 1.2.0
+> **Version**: 1.3.0
 
 ---
 
@@ -149,7 +149,7 @@ fi
 - docker/build-push-action@v6
 - docker/login-action@v3
 - pnpm/action-setup@v3
-- dtolnay/rust-action@f7ccc83f
+- dtolnay/rust-toolchain@stable
 ```
 
 ### 4.5 禁止使用的 Action
@@ -383,3 +383,4 @@ python scripts/github-email-agent.py --stats
 | 1.1.0 | 2026-06-04 | 添加仓库分类、更新 Action 白名单 |
 | 1.2.0 | 2026-06-05 | 添加仓库画像审计章节 |
 | 1.3.0 | 2026-06-05 | 添加邮件监听规范 |
+| 1.4.0 | 2026-06-05 | 补全 CODEOWNERS、permissions、dependabot groups |

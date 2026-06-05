@@ -1,0 +1,37 @@
+# CODEOWNERS - GitHub Agent 自动化操作规范
+# 参考: AGENT_GITHUB_RULES.md §8.2
+# 冲突时以 AGENT_GITHUB_RULES.md 为准
+
+# 默认所有者（所有未匹配的 PR 自动分配）
+* @frankiehot
+
+# Python 源码
+/src/maref/ @frankiehot
+/src/maref_lite/ @frankiehot
+/src/sidecar/ @frankiehot
+/src/drift_guard/ @frankiehot
+
+# GUI (Electron + React)
+/gui/ @frankiehot
+
+# CI/CD 工作流
+/.github/workflows/ @frankiehot
+
+# 依赖管理
+/dependabot.yml @frankiehot
+/pyproject.toml @frankiehot
+
+# 形式化验证
+/experiments/formal/ @frankiehot
+
+# 安全与合规
+/SECURITY.md @frankiehot
+/src/maref/security/ @frankiehot
+/src/maref/compliance/ @frankiehot
+
+# 自动化脚本
+/scripts/ @frankiehot
+
+# Agent 规范
+/AGENT_GITHUB_RULES.md @frankiehot
+/AGENTS.md @frankiehot

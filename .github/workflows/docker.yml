@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/maref
   DOCKERHUB_IMAGE: maref/maref
@@ -130,7 +134,7 @@ jobs:
           tags: maref/maref:scan
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           scan-ref: maref/maref:scan
@@ -140,7 +144,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Run Trivy with SARIF output
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         if: always()
         with:
           scan-type: image

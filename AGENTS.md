@@ -340,7 +340,7 @@ openclaw/
 - Electron: hardenedRuntime=true, asar=true, entitlements only JIT+network+files
 
 ## GitHub Agent 审计
-> **上位法**: 本章节受 [AGENT_GITHUB_RULES.md v1.2.0](AGENT_GITHUB_RULES.md) 约束。
+> **上位法**: 本章节受 [AGENT_GITHUB_RULES.md v1.4.0](AGENT_GITHUB_RULES.md) 约束。
 
 ### 审计工作流
 - **CI/CD 审计**: `.github/workflows/repo-audit.yml`（每周一 UTC 4:00 自动执行）
