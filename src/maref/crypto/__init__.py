@@ -9,8 +9,15 @@ Current stubs use cryptography library for interface compatibility.
 
 from __future__ import annotations
 
-from .sm2 import SM2KeyPair, SM2Signer, SM2Verifier
-from .sm3 import SM3Hasher
-from .sm4_gcm import SM4GCMEncryptor
+from .sm2 import SM2KeyPair, SM2Signer, SM2Verifier, sm2_decrypt, sm2_encrypt, sm2_sign, sm2_verify
+from .sm3 import SM3Hasher, sm3_hash, sm3_hmac
+from .sm4 import sm4_decrypt_cbc, sm4_encrypt_cbc
+from .sm4_gcm import SM4GCMEncryptor, sm4_decrypt_gcm, sm4_encrypt_gcm
 
-__all__ = ["SM2KeyPair", "SM2Signer", "SM2Verifier", "SM3Hasher", "SM4GCMEncryptor"]
+__all__ = [
+    "SM2KeyPair", "SM2Signer", "SM2Verifier", "SM3Hasher", "SM4GCMEncryptor",
+    "sm2_decrypt", "sm2_encrypt", "sm2_sign", "sm2_verify",
+    "sm3_hash", "sm3_hmac",
+    "sm4_decrypt_cbc", "sm4_encrypt_cbc",
+    "sm4_decrypt_gcm", "sm4_encrypt_gcm",
+]
