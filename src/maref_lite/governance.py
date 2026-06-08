@@ -353,7 +353,12 @@ class GovernanceOverlay:
 
     # --- Status & Control ---
 
-    def get_decisions(self) -> list[GovernanceDecision]:
+    def get_decisions(self, caller_id: str = "anonymous") -> list[GovernanceDecision]:
+        self._audit.log_decision(
+            event_type="access",
+            actor=caller_id,
+            action="get_decisions",
+        )
         return list(self._decisions)
 
     def get_status(self) -> dict[str, Any]:
@@ -367,7 +372,12 @@ class GovernanceOverlay:
             "is_terminal": self._state_machine.is_terminal(),
         }
 
-    def get_audit_log(self) -> list[dict[str, Any]]:
+    def get_audit_log(self, caller_id: str = "anonymous") -> list[dict[str, Any]]:
+        self._audit.log_decision(
+            event_type="access",
+            actor=caller_id,
+            action="get_audit_log",
+        )
         return [e.to_dict() for e in self._audit.read_all()[-20:]]
 
     async def run(self) -> None:
@@ -384,10 +394,22 @@ class GovernanceOverlay:
     def stop(self) -> None:
         self._running = False
 
-    def transition_state(self, target: GovernanceState, reason: str = "") -> bool:
+    def transition_state(self, target: GovernanceState, reason: str = "", caller_id: str = "anonymous") -> bool:
+        self._audit.log_decision(
+            event_type="state_transition",
+            actor=caller_id,
+            action="transition_state",
+            details=f"{self._state_machine.current_state.name}→{target.name}:{reason}" if reason else f"{self._state_machine.current_state.name}→{target.name}",
+        )
         return self._state_machine.transition(target, reason)
 
-    def force_stabilize(self, reason: str = "") -> bool:
+    def force_stabilize(self, reason: str = "", caller_id: str = "anonymous") -> bool:
+        self._audit.log_decision(
+            event_type="state_transition",
+            actor=caller_id,
+            action="force_stabilize",
+            details=reason,
+        )
         return self._state_machine.force_stabilize(reason)
 
     async def _governance_cycle(self) -> None:
