@@ -9,6 +9,11 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    allow:
+      - dependency-type: "all"
+    # Auto-approve patch and minor updates
+    reviewers:
+      - "frankiehot-tech"
 
   - package-ecosystem: "npm"
     directory: "/gui"
@@ -19,6 +24,10 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "frankiehot-tech"
 
   - package-ecosystem: "cargo"
     directory: "/gui/src-tauri"
@@ -29,6 +38,10 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "frankiehot-tech"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -38,3 +51,7 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "frankiehot-tech"
