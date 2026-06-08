@@ -1,0 +1,20 @@
+{
+  // OpenCode — MAREF 治理框架约束
+  // 上位法: GOVERNANCE.md
+  // 冲突时以治理框架为准
+
+  "governance_ref": "GOVERNANCE.md",
+
+  "security_redlines": {
+    "title": "安全红线 — 仓库远程隔离",
+    "rules": [
+      "git remote -v 必须仅显示 maref-org/maref",
+      "禁止添加非授权 remote",
+      "禁止 git push 到非授权远程",
+      "禁止 gh CLI 推送到非授权 remote",
+      "禁止绕过 pre-push hook"
+    ]
+  },
+
+  "governance_supremacy": true
+}

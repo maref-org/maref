@@ -1,0 +1,62 @@
+name: Check Exfiltration
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-exfil:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for absolute paths
+        run: |
+          FOUND=$(grep -rn '/Volumes/\|/Users/[A-Za-z]/\|file:///' \
+            --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" \
+            --include="*.json" --include="*.jsonc" \
+            src/ tests/ docs/ scripts/ 2>/dev/null || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::Found hardcoded /Volumes/ or file:/// paths:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "✅ No absolute paths found"
+      - name: Check for organizational name leaks
+        run: |
+          FOUND=$(grep -rn 'openclaw\|frankiehot-tech' \
+            --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" \
+            src/ tests/ docs/ scripts/ 2>/dev/null \
+            | grep -v 'CHANGELOG.md' | grep -v 'test_config.py' || true)
+          if [ -n "$FOUND" ]; then
+            echo "::warning::Found potential organizational name references:"
+            echo "$FOUND"
+          fi
+          echo "✅ Organizational name check complete"
+      - name: Check for API keys
+        run: |
+          FOUND=$(grep -rn 'sk-[A-Za-z0-9]\{20,\}' \
+            --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" \
+            --include="*.json" --include="*.jsonc" --include="*.env" \
+            src/ tests/ docs/ scripts/ 2>/dev/null || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::Found potential API key leaks:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "✅ No API key leaks found"
+      - name: Check for proprietary files
+        run: |
+          FOUND=$(find . -maxdepth 3 \
+            -name "SOUL.md" -o -name "IDENTITY.md" -o -name "HEARTBEAT.md" \
+            -name "TOOLS.md" -o -name "USER.md" \
+            -path "*/.openclaw/*" 2>/dev/null || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::Found proprietary files:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "✅ No proprietary files found"
