@@ -58,5 +58,5 @@ model_b_result: '{"claim": "MAREF uses an AGPL-3.0 open-source core with a sidec
   enterprise contract with published case study", "source_quality": "medium", "is_falsifiable":
   true, "tags": ["open-source", "AGPL-3.0", "AI-governance", "sidecar-pattern", "enterprise-SLA",
   "certification", "HashiCorp-comparison"]}'
-extracted_at: '2026-05-11T22:06:38.419240'
+extracted_at: '2026-05-11'
 status: active

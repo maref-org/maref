@@ -5,6 +5,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from maref.security.decorators import security_critical
+
 
 @dataclass
 class UnifiedAuditRecord:
@@ -60,6 +62,7 @@ class UnifiedAuditStore:
         self._by_event_type: dict[str, list[int]] = defaultdict(list)
         self._by_round: dict[int, list[int]] = defaultdict(list)
 
+    @security_critical
     def append(self, record: UnifiedAuditRecord) -> None:
         idx = len(self._records)
         self._records.append(record)

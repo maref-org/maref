@@ -12,5 +12,5 @@ raw_text: 'Key MAREF capability boundaries: (1) CAN govern any agent framework v
 summary: 'Key MAREF capability boundaries: (1) CAN govern any agent framework via
   Sidecar — proven with LangGraph, CrewAI, AutoGen adapters. (2) CAN provide formal
   safety guarantees via TLA+ (5 theorems verifie'
-harvested_at: '2026-05-11T21:58:41.315620'
+harvested_at: '2026-05-11'
 status: raw

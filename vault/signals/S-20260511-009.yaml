@@ -11,5 +11,5 @@ raw_text: 'MAREF product readiness assessment: (1) Code quality: 0.771/10 compos
 summary: 'MAREF product readiness assessment: (1) Code quality: 0.771/10 composite,
   contracts subsystem 0.825 best. (2) Test coverage: 88% for MAREF core, but ~1% for
   surrounding MAREF ecosystem ecosystem. (3) Documen'
-harvested_at: '2026-05-11T21:58:41.311309'
+harvested_at: '2026-05-11'
 status: distilled

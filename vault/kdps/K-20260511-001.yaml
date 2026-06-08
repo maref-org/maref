@@ -46,5 +46,5 @@ model_b_result: '{"claim": "MAREF\u2019s v2 governance machine has passed 5 TLA+
   proofs, and prototype Sidecar integration on one existing agent to validate 88 %
   coverage claim", "source_quality": "medium", "is_falsifiable": true, "tags": ["multi-agent
   governance", "formal verification", "gray code", "TLA+", "sidecar pattern"]}'
-extracted_at: '2026-05-11T21:59:49.395403'
+extracted_at: '2026-05-11'
 status: active

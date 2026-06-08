@@ -49,5 +49,5 @@ model_b_result: '{"claim": "MAREF\u2019s core module reaches 88% test coverage a
   to 60%+ with contract tests, add Docker & GitHub Actions CI, then re-issue beta
   tag.", "source_quality": "medium", "is_falsifiable": true, "tags": ["test_coverage",
   "financial_risk", "alpha_release", "TLA_verification", "ecosystem"]}'
-extracted_at: '2026-05-11T22:08:34.760250'
+extracted_at: '2026-05-11'
 status: active

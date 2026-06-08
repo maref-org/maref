@@ -56,6 +56,8 @@ data/logs/*
 !data/logs/.gitkeep
 data/raw/*
 !data/raw/.gitkeep
+data/audit/*
+!data/audit/.gitkeep
 results/experiments/*
 !results/experiments/.gitkeep
 
@@ -70,6 +72,7 @@ results/experiments/*
 *.key
 *.pem
 *.secret
+.gaas_api_key
 credentials/
 
 # Generated LaunchAgent plists (machine-specific)
@@ -102,6 +105,9 @@ governance_audit.jsonl
 recursive_governance_audit.jsonl
 knowledge_graph.json
 
+# SBOM (dependency graph leak)
+sbom.spdx.json
+
 # IDE workspace metadata
 .trae/
 node_modules
@@ -112,7 +118,6 @@ coverage.json
 htmlcov/
 coverage_html/
 bandit_report.json
-coverge_per_module_report.json
 coverage_per_module_report.json
 governance_audit*.jsonl
 governance_observations.db
@@ -155,3 +160,23 @@ gui/src-tauri/target/
 
 # Audit logs (large JSONL files >100 MB)
 governance_audit_*.jsonl
+
+# Runtime artifacts (G5 compliance)
+*.log
+
+# Athena openclaw proprietary paths — 宪法第四-A条
+.openclaw/
+SOUL.md
+IDENTITY.md
+HEARTBEAT.md
+TOOLS.md
+USER.md
+findings.md
+progress.md
+task_plan.md
+anthropic-reinforcement-plan.md
+harness-plan/
+Pixelle-Video/
+agent_system/
+internal/
+backups/

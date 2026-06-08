@@ -1,8 +1,9 @@
 {
   // OpenCode — MAREF 治理框架约束
-  // 上位法: GOVERNANCE.md
-  // 冲突时以治理框架为准
+  // 上位法: Athena 系统宪法 v1.5 → GOVERNANCE.md
+  // 冲突时以宪法优先，其次以治理框架为准
 
+  "constitution_ref": "/Volumes/1TB-M2/public/CONSTITUTION.md",
   "governance_ref": "GOVERNANCE.md",
 
   "security_redlines": {
@@ -16,5 +17,27 @@
     ]
   },
 
-  "governance_supremacy": true
+  "governance_supremacy": true,
+  // Article 4-A 安全红线
+  "security_redlines_extra": [
+    "remote必须仅显示授权remote",
+    "禁止绕过pre-push hook (--no-verify)",
+    "禁止提交Athena专有文件",
+    "禁止gh CLI推送到非授权远程",
+    "CD pipeline (cd.yml)必须禁用",
+    "Agent启动时须验证remote为授权remote"
+  ],
+  // Article 30 工作区切换
+  "workspace_switch_rules": {
+    "openclaw": "执行完整预检",
+    "external_workspace": "适用Art.32 + Art.9，不适用remote检查",
+    "subagent_transfer": "任务指令须含第三十条 + 第四-A条"
+  },
+  // Article 31-A 文档来源层级
+  "document_source_hierarchy": {
+    "L0": "Athena知识库（权威源）",
+    "L1": "public/maref/docs/（代码配套）",
+    "L2": "GitHub公开仓库（仅对外确认）",
+    "priority": "L0 > L1 > L2"
+  }
 }

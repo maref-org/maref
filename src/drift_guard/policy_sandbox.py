@@ -16,7 +16,11 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import hashlib
+import hmac
 import json
+import logging
+import os as _os
 import time
 import uuid
 from collections.abc import Callable
@@ -26,6 +30,8 @@ from pathlib import Path
 from typing import Any
 
 from drift_guard.types import PipelineConfig
+
+logger = logging.getLogger(__name__)
 
 
 class PolicyChangeType(Enum):
@@ -147,6 +153,10 @@ class PolicySandbox:
         # Callbacks for policy change events
         self._callbacks: list[Callable[[PolicyChange], None]] = []
 
+        # HMAC-SHA256 key for policy version integrity
+        _hmac_key = _os.environ.get("POLICY_SANDBOX_HMAC_KEY")
+        self._hmac_key = _hmac_key or hashlib.sha256(uuid.uuid4().bytes).hexdigest()
+
     def _evict_old_entries(self) -> None:
         """Remove old versions/changes from memory, keep them on disk."""
         if len(self._versions) > self._max_memory_versions:
@@ -177,12 +187,23 @@ class PolicySandbox:
                     del self._changes[change_id]
 
     def _load_version_from_disk(self, version_id: str) -> PolicyVersion | None:
-        """Load a version from disk if not in memory."""
+        """Load a version from disk if not in memory, verifying HMAC signature."""
         filepath = self._storage / f"version_{version_id}.json"
         if not filepath.exists():
             return None
-        with open(filepath) as f:
-            data = json.load(f)
+        data = json.loads(filepath.read_text(encoding="utf-8"))
+
+        # Verify HMAC-SHA256 integrity
+        stored_hmac = data.pop("_hmac", "")
+        if stored_hmac:
+            serialized = json.dumps(data, sort_keys=True, default=str)
+            expected = hmac.new(
+                self._hmac_key.encode(), serialized.encode(), hashlib.sha256
+            ).hexdigest()
+            if not hmac.compare_digest(stored_hmac, expected):
+                logger.error("HMAC mismatch for version %s — possible tampering", version_id)
+                return None
+
         return PolicyVersion(
             version_id=data["version_id"],
             timestamp=data["timestamp"],
@@ -443,13 +464,29 @@ class PolicySandbox:
         }
 
     def _save_version(self, version: PolicyVersion) -> None:
-        """Persist a version to disk."""
+        """Persist a version to disk with HMAC-SHA256 integrity check."""
+        data = version.to_dict()
+        serialized = json.dumps(data, sort_keys=True, default=str)
+        signature = hmac.new(
+            self._hmac_key.encode(), serialized.encode(), hashlib.sha256
+        ).hexdigest()
+        data["_hmac"] = signature
+
         filepath = self._storage / f"version_{version.version_id}.json"
-        with open(filepath, "w") as f:
-            json.dump(version.to_dict(), f, indent=2, default=str)
+        tmppath = filepath.with_suffix(".tmp")
+        tmppath.write_text(json.dumps(data, sort_keys=True, indent=2, default=str), encoding="utf-8")
+        _os.replace(str(tmppath), str(filepath))
 
     def _save_change(self, change: PolicyChange) -> None:
-        """Persist a change to disk."""
+        """Persist a change to disk with HMAC-SHA256 integrity check."""
+        data = change.to_dict()
+        serialized = json.dumps(data, sort_keys=True, default=str)
+        signature = hmac.new(
+            self._hmac_key.encode(), serialized.encode(), hashlib.sha256
+        ).hexdigest()
+        data["_hmac"] = signature
+
         filepath = self._storage / f"change_{change.change_id}.json"
-        with open(filepath, "w") as f:
-            json.dump(change.to_dict(), f, indent=2, default=str)
+        tmppath = filepath.with_suffix(".tmp")
+        tmppath.write_text(json.dumps(data, sort_keys=True, indent=2, default=str), encoding="utf-8")
+        _os.replace(str(tmppath), str(filepath))

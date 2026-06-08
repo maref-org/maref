@@ -14,6 +14,7 @@ M4 enhancements:
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -148,6 +149,7 @@ class RecursiveGovernanceOverlay:
         self._recursion_depth = 0
         self._consecutive_anomalies = 0
         self._last_observation_time = 0.0
+        self._observation_lock = threading.Lock()
         self._running = False
 
     async def run(self) -> None:
@@ -182,95 +184,96 @@ class RecursiveGovernanceOverlay:
         self._self_collector.stop()
 
     def _on_self_observation(self, observation: Any) -> None:
-        now = time.time()
+        with self._observation_lock:
+            now = time.time()
 
-        # Time-window based depth reset: only reset recursion depth
-        # after 60 seconds of no observations, preventing the depth
-        # counter from being zeroed on every normal completion.
-        if now - self._last_observation_time > 60.0:
-            self._recursion_depth = 0
-            self._consecutive_anomalies = 0
-        self._last_observation_time = now
+            # Time-window based depth reset: only reset recursion depth
+            # after 60 seconds of no observations, preventing the depth
+            # counter from being zeroed on every normal completion.
+            if now - self._last_observation_time > 60.0:
+                self._recursion_depth = 0
+                self._consecutive_anomalies = 0
+            self._last_observation_time = now
 
-        # M4: Circuit breaker depth check
-        if not self._breaker.check_depth(self._recursion_depth + 1):
-            self._audit.log(
-                event_type="circuit_breaker_trip",
-                actor="RecursiveGovernanceOverlay",
-                action="block_self_observation",
-                details=f"depth={self._recursion_depth + 1}",
-            )
-            self._recursion_depth = 0
-            self._consecutive_anomalies = 0
-            self._primary.force_stabilize(reason="circuit_breaker_depth_triggered")
-            self._breaker.record_failure()
-            return
-
-        self._recursion_depth += 1
-
-        # M4: Oscillation detection → delegate to primary's oscillation loop
-        oscillation_rate = len(self._state_changes)
-        if oscillation_rate > self._config.max_oscillation_rate:
-            if not self._breaker.check_oscillation(
-                oscillation_rate,
-                self._primary._state_machine.current_entropy,
-                self._primary._state_machine.current_state.name,
-            ):
+            # M4: Circuit breaker depth check
+            if not self._breaker.check_depth(self._recursion_depth + 1):
                 self._audit.log(
                     event_type="circuit_breaker_trip",
                     actor="RecursiveGovernanceOverlay",
-                    action="block_oscillation_handler",
-                    details=f"rate={oscillation_rate}",
+                    action="block_self_observation",
+                    details=f"depth={self._recursion_depth + 1}",
                 )
                 self._recursion_depth = 0
                 self._consecutive_anomalies = 0
-                self._primary.force_stabilize(reason="circuit_breaker_oscillation_triggered")
+                self._primary.force_stabilize(reason="circuit_breaker_depth_triggered")
                 self._breaker.record_failure()
                 return
 
-            # M4: Emit oscillation event to primary's event bus
-            asyncio.create_task(
-                self._primary.emit_event("oscillation_detected", rate=oscillation_rate)
-            )
+            self._recursion_depth += 1
 
-            self._handle_oscillation()
-            self._recursion_depth = 0
-            return
+            # M4: Oscillation detection → delegate to primary's oscillation loop
+            oscillation_rate = len(self._state_changes)
+            if oscillation_rate > self._config.max_oscillation_rate:
+                if not self._breaker.check_oscillation(
+                    oscillation_rate,
+                    self._primary._state_machine.current_entropy,
+                    self._primary._state_machine.current_state.name,
+                ):
+                    self._audit.log(
+                        event_type="circuit_breaker_trip",
+                        actor="RecursiveGovernanceOverlay",
+                        action="block_oscillation_handler",
+                        details=f"rate={oscillation_rate}",
+                    )
+                    self._recursion_depth = 0
+                    self._consecutive_anomalies = 0
+                    self._primary.force_stabilize(reason="circuit_breaker_oscillation_triggered")
+                    self._breaker.record_failure()
+                    return
 
-        self._breaker.record_success()
-
-        # Record state change time
-        self._state_changes.append(time.time())
-        cutoff = time.time() - 60.0
-        self._state_changes = [t for t in self._state_changes if t > cutoff]
-
-        # Consecutive anomaly detection: trip circuit breaker
-        # if critical anomalies persist across 5 consecutive observations.
-        status = self._primary.get_status()
-        if status["critical_count"] > 0:
-            self._consecutive_anomalies += 1
-            if self._consecutive_anomalies >= 5:
-                self._audit.log(
-                    event_type="circuit_breaker_trip",
-                    actor="RecursiveGovernanceOverlay",
-                    action="block_consecutive_anomalies",
-                    details=f"consecutive_anomalies={self._consecutive_anomalies}",
+                # M4: Emit oscillation event to primary's event bus
+                asyncio.create_task(
+                    self._primary.emit_event("oscillation_detected", rate=oscillation_rate)
                 )
+
+                self._handle_oscillation()
                 self._recursion_depth = 0
-                self._primary.force_stabilize(reason="circuit_breaker_consecutive_anomalies")
-                self._breaker.record_failure()
                 return
 
-            # Update meta-overlay state
-            self._meta.transition_state(
-                GovernanceState.ANALYZE,
-                reason="primary_critical_detected",
-            )
-        else:
-            self._consecutive_anomalies = 0
+            self._breaker.record_success()
 
-        # No longer unconditionally reset depth — the time-window
-        # check at the top of this method handles depth decay.
+            # Record state change time
+            self._state_changes.append(time.time())
+            cutoff = time.time() - 60.0
+            self._state_changes = [t for t in self._state_changes if t > cutoff]
+
+            # Consecutive anomaly detection: trip circuit breaker
+            # if critical anomalies persist across 5 consecutive observations.
+            status = self._primary.get_status()
+            if status["critical_count"] > 0:
+                self._consecutive_anomalies += 1
+                if self._consecutive_anomalies >= 5:
+                    self._audit.log(
+                        event_type="circuit_breaker_trip",
+                        actor="RecursiveGovernanceOverlay",
+                        action="block_consecutive_anomalies",
+                        details=f"consecutive_anomalies={self._consecutive_anomalies}",
+                    )
+                    self._recursion_depth = 0
+                    self._primary.force_stabilize(reason="circuit_breaker_consecutive_anomalies")
+                    self._breaker.record_failure()
+                    return
+
+                # Update meta-overlay state
+                self._meta.transition_state(
+                    GovernanceState.ANALYZE,
+                    reason="primary_critical_detected",
+                )
+            else:
+                self._consecutive_anomalies = 0
+
+            # No longer unconditionally reset depth — the time-window
+            # check at the top of this method handles depth decay.
 
     def _handle_oscillation(self) -> None:
         self._primary.force_stabilize(reason="meta_detected_oscillation")
@@ -326,6 +329,40 @@ class RecursiveGovernanceOverlay:
                     )
 
                 stats = self._meta_learner.get_stats()
+
+                # Article 2 (人极): Gate high-risk changes for human approval
+                if change.change_type in (
+                    PolicyChangeType.STATE_MACHINE_RULE,
+                    PolicyChangeType.ACTION_POLICY,
+                ):
+                    self._audit.log_decision(
+                        actor="MetaLearner",
+                        action="propose_policy_change_human_gate",
+                        reason=f"change_type={change.change_type.name} requires human approval",
+                        change_id=change.change_id,
+                    )
+                    # Leave in PENDING state — human must approve via sandbox.approve_change()
+                    continue
+
+                # THRESHOLD_ADJUSTMENT: require A/B test before roll-out
+                if change.change_type == PolicyChangeType.THRESHOLD_ADJUSTMENT:
+                    from drift_guard.ab_testing import ABTestFramework
+                    ab = ABTestFramework(sandbox=self._sandbox)
+                    test_result = ab.run_test(
+                        control_config=self._sandbox.get_active_config(),
+                        treatment_config=change.proposed_config,
+                        test_duration_minutes=10,
+                    )
+                    if not test_result or not test_result.winner:
+                        self._audit.log_decision(
+                            actor="MetaLearner",
+                            action="ab_test_failed",
+                            reason=f"AB test inconclusive for {change.change_id}",
+                            change_id=change.change_id,
+                        )
+                        continue
+
+                # MONITOR_CONFIG and other low-risk: auto-approve if reward sufficient
                 if stats["avg_reward"] > 0.5:
                     self._sandbox.approve_change(change.change_id, reviewer="meta")
 

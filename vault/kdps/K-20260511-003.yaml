@@ -49,5 +49,5 @@ model_b_result: '{"claim": "LangGraph (LangChain) is the market leader with 307K
   publish security white-paper within 30 days to seed doubt in regulated prospects",
   "source_quality": "medium", "is_falsifiable": true, "tags": ["orchestration", "daily_downloads",
   "pricing", "governance_risk"]}'
-extracted_at: '2026-05-11T22:01:48.876697'
+extracted_at: '2026-05-11'
 status: active

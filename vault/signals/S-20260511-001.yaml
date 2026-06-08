@@ -11,5 +11,5 @@ raw_text: MAREF is a 64-hexagram state machine system for multi-agent governance
 summary: MAREF is a 64-hexagram state machine system for multi-agent governance, built
   on I Ching. It uses Gray Code state transitions (Hamming distance=1) to ensure deterministic
   agent state changes. The syst
-harvested_at: '2026-05-11T21:58:41.297530'
+harvested_at: '2026-05-11'
 status: distilled

@@ -43,5 +43,5 @@ model_b_result: '{"claim": "Microsoft AutoGen 0.4 introduces a Coordinator-Worke
   conversation-based approach", "source_quality": "medium", "is_falsifiable": true,
   "tags": ["multi-agent", "orchestration", "enterprise", "microsoft", "competition",
   "governance"]}'
-extracted_at: '2026-05-11T22:03:55.478660'
+extracted_at: '2026-05-11'
 status: active

@@ -11,5 +11,5 @@ raw_text: 'MAREF open-source business model: AGPL-3.0 licensed core governance e
 summary: 'MAREF open-source business model: AGPL-3.0 licensed core governance engine
   (free, copyleft). Sidecar adapter pattern allows MAREF to plug into LangGraph/CrewAI/AutoGen
   without modifying them, creating'
-harvested_at: '2026-05-11T21:58:41.307652'
+harvested_at: '2026-05-11'
 status: distilled

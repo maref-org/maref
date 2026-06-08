@@ -102,6 +102,21 @@ class MCPServer:
         request: JSONRPCRequest,
         trust_level: Any | None = None,
     ) -> JSONRPCResponse:
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Article 15-A: trace_id is required — reject if missing
+        if not request.trace_id:
+            return JSONRPCResponse(
+                error={"code": -32000, "message": "Missing required envelope field: trace_id"},
+                id=request.id,
+            )
+        # Article 15-A: timestamp and source_agent are recommended
+        if not request.timestamp:
+            logger.warning("Missing recommended envelope field: timestamp")
+        if not request.source_agent:
+            logger.warning("Missing recommended envelope field: source_agent")
+
         method = request.method
         params = request.params or {}
 
@@ -142,7 +157,10 @@ class MCPServer:
             {
                 "name": tool.name,
                 "description": tool.description,
-                "inputSchema": tool.input_schema,
+                "inputSchema": {
+                    "api_version": "1.0.0",
+                    **tool.input_schema,
+                },
             }
             for tool in self._tools.values()
         ]

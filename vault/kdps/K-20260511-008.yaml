@@ -52,5 +52,5 @@ model_b_result: '{"claim": "MAREF is the only one among eleven major multi-agent
   MAREF as optional safety tier inside existing orchestrators to neutralize exclusivity",
   "source_quality": "medium", "is_falsifiable": true, "tags": ["multi-agent", "formal-verification",
   "safety", "framework", "competitive-analysis"]}'
-extracted_at: '2026-05-11T22:07:40.179858'
+extracted_at: '2026-05-11'
 status: active

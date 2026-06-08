@@ -70,5 +70,5 @@ test_results:
   failed: 0
   skipped: 1
   regressions: 0
-extracted_at: '2026-05-18T12:00:00'
+extracted_at: '2026-05-18'
 status: resolved

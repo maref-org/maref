@@ -54,5 +54,5 @@ model_b_result: '{"claim": "MAREF is the only desktop agent offering a formal go
   in controlled enterprise environment within 30 days to validate claim", "source_quality":
   "medium", "is_falsifiable": true, "tags": ["desktop_agent", "governance", "multi_agent_systems",
   "differentiation"]}'
-extracted_at: '2026-05-11T22:05:07.807409'
+extracted_at: '2026-05-11'
 status: active

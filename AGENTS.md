@@ -1,7 +1,8 @@
 # Agent Operating Manual: MAREF v0.30.0-GA
 
-> **上位法**: 本文件受 [MAREF 治理框架](GOVERNANCE.md) 约束。冲突时以治理框架为准。
-> **泄密预防**: 本仓库不得包含 T3/T2 级内容（路径/Key/IP/时间戳/依赖图）。
+> **上位法**: 本文件受 [Athena 系统宪法 v1.5](/Volumes/1TB-M2/public/CONSTITUTION.md) 和 [MAREF 治理框架](GOVERNANCE.md) 共同约束。冲突时以宪法优先，其次以治理框架为准。
+> **同步方向**: A → B 单向（Athena 开发源 → GitHub 发布源）。本仓库为 Athena 内部开发副本（Track B），所有变更必须在 Athena 开发源完成后再同步。
+> **泄密预防**: 本仓库不得包含 T3/T2 级内容（路径/Key/IP/时间戳/依赖图）。发布前必须经过叙事转化引擎（宪法第九条）处理。反向检查：禁止将内部开发信息（路径/时间戳/组织名）写入公共文档。
 > **项目状态源**: `STATE.yaml`（本仓库根目录）— 外围 Code Agent 的唯一事实源，启动时先读取 version 字段判断是否过时。
 
 ## Project Overview
