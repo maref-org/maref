@@ -51,9 +51,7 @@ class UserIsolationTag:
     def matches(self, other: UserIsolationTag) -> bool:
         if self.is_shared() or other.is_shared():
             return True
-        if self.user_id and other.user_id and self.user_id != other.user_id:
-            return False
-        return True
+        return not (self.user_id and other.user_id and self.user_id != other.user_id)
 
     def __repr__(self) -> str:
         return f"UserIsolationTag(user={self.user_id!r}, session={self.session_id!r})"

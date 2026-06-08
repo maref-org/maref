@@ -30,14 +30,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 logger = logging.getLogger(__name__)
 
-from sidecar.collector import MockAgentAdapter, ObservationCollector
-from sidecar.monitor import CompositeMonitor
+from sidecar.collector import MockAgentAdapter, ObservationCollector  # noqa: E402
+from sidecar.monitor import CompositeMonitor  # noqa: E402
 
-from drift_guard.adaptive_threshold import AdaptiveThresholdConfig, AdaptiveThresholdManager
-from maref_lite.governance import GovernanceOverlay
-from maref_lite.state_machine import ENTROPY_LEVELS, GovernanceState, GovernanceStateMachine
-from research.dashscope_client import DashScopeClient
-from research.finding_models import StructuredFinding
+from drift_guard.adaptive_threshold import (  # noqa: E402
+    AdaptiveThresholdConfig,
+    AdaptiveThresholdManager,
+)
+from maref_lite.governance import GovernanceOverlay  # noqa: E402
+from maref_lite.state_machine import (  # noqa: E402
+    ENTROPY_LEVELS,
+    GovernanceState,
+    GovernanceStateMachine,
+)
+from research.dashscope_client import DashScopeClient  # noqa: E402
+from research.finding_models import StructuredFinding  # noqa: E402
 
 
 @dataclass

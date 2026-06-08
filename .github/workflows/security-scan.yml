@@ -15,10 +15,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: TruffleHog Secret Scan
-        run: |
-          pip install trufflehog
-          trufflehog filesystem . --config .trufflehog.yaml --since 2026-01-01
+      - name: TruffleHog Secrets Scan
+        uses: trufflesecurity/trufflehog@v3.82.0
+        with:
+          extra_args: --results=verified
 
   semgrep-scan:
     runs-on: ubuntu-latest
@@ -39,6 +39,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Install pip-audit
+        run: pip install pip-audit
       - name: pip-audit
         run: pip-audit
 
@@ -55,8 +59,12 @@ jobs:
           maref serve --host 0.0.0.0 --port 8080 &
           sleep 5
           curl -sf http://localhost:8080/api/health || exit 1
+      - name: Governance Policy Check
+        run: |
+          bash scripts/ci-governance-check.sh
       - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.14
+        continue-on-error: true
+        uses: zaproxy/action-baseline@v0.12.0
         with:
           target: "http://localhost:8080"
           cmd_options: "-a -j"

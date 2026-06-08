@@ -25,13 +25,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 logger = logging.getLogger(__name__)
 
-from maref_lite.meta_learning import DecisionOutcome, MetaLearner
-from maref_lite.recursive_governance import (
+from maref_lite.meta_learning import DecisionOutcome, MetaLearner  # noqa: E402
+from maref_lite.recursive_governance import (  # noqa: E402
     RecursiveGovernanceConfig,
     RecursiveGovernanceOverlay,
 )
-from maref_lite.state_machine import GovernanceState
-from research.dashscope_client import DashScopeClient
+from maref_lite.state_machine import GovernanceState  # noqa: E402
+from research.dashscope_client import DashScopeClient  # noqa: E402
 
 
 @dataclass

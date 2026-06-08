@@ -5,7 +5,7 @@ Thank you for contributing to the Multi-Agent Recursive Engineering Framework.
 ## Development Setup
 
 ```bash
-git clone https://github.com/maref-team/maref.git
+git clone https://github.com/maref-org/maref.git
 cd maref
 python3 -m venv .venv
 source .venv/bin/activate

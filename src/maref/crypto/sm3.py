@@ -1,40 +1,51 @@
-"""SM3 (GB/T 32907) cryptographic hash function stub.
+"""SM3 哈希算法封装.
 
-SM3 is the China national standard for cryptographic hashing,
-producing 256-bit digests. This stub implements the same
-interface using hashlib.sha256 as a placeholder.
+基于 gmssl 的纯 Python 实现，提供与 hashlib 风格一致的 API。
 """
-
 from __future__ import annotations
 
-import hashlib
+import hmac
+from typing import TYPE_CHECKING
+
+from gmssl import sm3 as _sm3
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
-class SM3Hasher:
-    """SM3 hash function placeholder.
+def sm3_hash(data: bytes) -> str:
+    """SM3 哈希计算.
 
-    Uses SHA-256 as a stand-in. Replace with gmssl SM3 for
-    actual SM3 compliance.
+    Args:
+        data: 待哈希数据
+
+    Returns:
+        64 字符 hex 字符串（256 位）
     """
-
-    def __init__(self) -> None:
-        self._state = hashlib.sha256()
-
-    def update(self, data: bytes) -> None:
-        self._state.update(data)
-
-    def digest(self) -> bytes:
-        return self._state.digest()
-
-    def hexdigest(self) -> str:
-        return self._state.hexdigest()
+    return _sm3.sm3_hash(list(data))
 
 
-def sm3_hash(data: bytes) -> bytes:
-    h = SM3Hasher()
-    h.update(data)
-    return h.digest()
+def sm3_hmac(key: bytes, data: bytes) -> str:
+    """SM3-HMAC 消息认证码.
 
+    Args:
+        key: HMAC 密钥
+        data: 待认证数据
 
-def sm3_hmac(key: bytes, data: bytes) -> bytes:
-    return hashlib.sha256(key + data).digest()
+    Returns:
+        64 字符 hex 字符串
+    """
+    # gmssl 未直接提供 HMAC-SM3，使用标准 hmac + sm3_hash 组合
+    # 按照 HMAC 标准实现
+    block_size = 64  # SM3 块大小为 512 位 = 64 字节
+    if len(key) > block_size:
+        key = bytes.fromhex(sm3_hash(key))
+    if len(key) < block_size:
+        key = key + b"\x00" * (block_size - len(key))
+
+    ipad = bytes([b ^ 0x36 for b in key])
+    opad = bytes([b ^ 0x5C for b in key])
+
+    inner = sm3_hash(ipad + data)
+    outer = sm3_hash(opad + bytes.fromhex(inner))
+    return outer

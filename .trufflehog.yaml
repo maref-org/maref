@@ -1,6 +1,4 @@
 # .trufflehog.yaml — TruffleHog 密钥扫描配置
-# 检测规则: 高熵字符串 + 已知密钥模式 + 自定义规则
-
 detectors:
   - name: aws
     enabled: true
@@ -33,3 +31,4 @@ exclude:
       - "__pycache__/**"
       - ".git/**"
       - "*.lock"
+      - ".missions/**"

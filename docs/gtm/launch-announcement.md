@@ -14,5 +14,5 @@ MAREF: 首个多 Agent 系统治理操作系统正式开源
 pip install maref
 ```
 ## 资源
-- GitHub: https://github.com/openclaw/maref
+- GitHub: https://github.com/maref-org/maref
 - 文档: https://maref.dev

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from gmssl import sm4 as _sm4
 
 if TYPE_CHECKING:
-    pass
+    from collections.abc import Callable
 
 
 def sm4_encrypt_cbc(key: bytes, iv: bytes, plaintext: bytes) -> bytes:

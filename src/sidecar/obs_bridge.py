@@ -3,6 +3,8 @@ from __future__ import annotations
 try:
     from maref.obs import MarefObsClient
 except ImportError:
+    import logging as _logging
+    _logging.getLogger(__name__).warning("maref.obs not available, using stub")
 
     class MarefObsClient:  # type: ignore[no-redef]
         @staticmethod

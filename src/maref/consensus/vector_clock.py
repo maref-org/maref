@@ -87,10 +87,7 @@ class VectorClock:
     # ------------------------------------------------------------------ #
     def dominates(self, other: VectorClock) -> bool:
         """Return True iff *self* >= *other* in every dimension."""
-        for aid, ts in other.clocks.items():
-            if self.clocks.get(aid, 0) < ts:
-                return False
-        return True
+        return all(self.clocks.get(aid, 0) >= ts for aid, ts in other.clocks.items())
 
     # ------------------------------------------------------------------ #
     # Serialization

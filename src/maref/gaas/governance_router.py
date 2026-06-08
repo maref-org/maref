@@ -131,7 +131,7 @@ class GovernanceRouter:
     ) -> tuple[Verdict, HITLTier, str]:
         """Evaluate governance policy. Returns (verdict, hitl_tier, reason)."""
         # P0: Block dangerous actions
-        dangerous_actions = {"file.delete", "shell.exec", "system.shutdown", "registry.modify"}
+        dangerous_actions = {"file.delete", "shell.exec", "system.shutdown", "registry.modify", "git.push"}
         if req.action in dangerous_actions:
             if req.context.trust_score < 70:
                 return Verdict.ASK_USER, HITLTier.P0, "Dangerous action requires approval"
@@ -144,6 +144,10 @@ class GovernanceRouter:
         # P2: Low trust score
         if req.context.trust_score < 30:
             return Verdict.DENY, HITLTier.P2, "Trust score too low"
+
+        # P3: Git commit — observe-only by default
+        if req.action == "git.commit":
+            return Verdict.ALLOW, HITLTier.P3, "Default allow for commit"
 
         # P3: Default observe
         return Verdict.ALLOW, HITLTier.P3, "Default allow"

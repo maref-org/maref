@@ -7,6 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from maref.observability.security_headers_middleware import SecurityHeadersMiddleware
 
+# ── Optional routers ────────────────────────────────────────────────────
+try:
+    from sidecar.gaas_router import router as gaas_router
+except Exception:
+    gaas_router = None
+
 
 def create_app(obs_bridge: Any = None) -> FastAPI:
     app = FastAPI(
@@ -25,6 +31,9 @@ def create_app(obs_bridge: Any = None) -> FastAPI:
     )
 
     app.add_middleware(SecurityHeadersMiddleware)
+
+    if gaas_router is not None:
+        app.include_router(gaas_router)
 
     @app.get("/health")
     async def health():

@@ -10,11 +10,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from maref.security.decorators import security_critical
+
 from .sm2 import sm2_sign, sm2_verify
 from .sm3 import sm3_hash
 
 if TYPE_CHECKING:
-    pass
+    from collections.abc import Callable
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,7 @@ class AIAHandshakeContext:
     handshake_messages: bytes  # 所有握手消息的串联
 
 
+@security_critical
 def verify_cai_certificate(
     cai: AgentIdentityCertificate,
     casp_public_key: str,
@@ -79,9 +82,9 @@ def verify_cai_certificate(
         # 但通常 CAI 签名是对整个 CAI 结构的签名，不是对 hash 的签名
         # 这里采用更直接的方式：验证 signature 是否由 casp_public_key 签发
         verified = sm2_verify(
-            casp_public_key.encode(),
+            casp_public_key,
             cai_plaintext,
-            cai.signature.encode(),
+            cai.signature,
             use_sm3=True,
         )
         return verified
@@ -115,9 +118,9 @@ def verify_certificate_verify(
     # SM2 验证签名
     # 签名数据应为 handshake_messages（或 hash）
     return sm2_verify(
-        public_key.encode(),
+        public_key,
         handshake_messages,
-        signature.encode(),
+        signature,
         use_sm3=True,
     )
 
@@ -137,13 +140,12 @@ def generate_certificate_verify(
     Returns:
         hex 格式的签名值
     """
-    sig = sm2_sign(
-        private_key.encode(),
+    return sm2_sign(
+        private_key,
         handshake_messages,
-        public_key=public_key.encode(),
+        public_key=public_key,
         use_sm3=True,
     )
-    return sig.hex()
 
 
 def check_agent_identity(

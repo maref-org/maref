@@ -1,0 +1,22 @@
+services:
+  harness:
+    build:
+      context: ../..
+      dockerfile: src/maref/execution/Dockerfile.harness
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - harness_data:/app/data
+      - harness_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/harness/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  harness_data:
+  harness_logs:

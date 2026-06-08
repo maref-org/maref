@@ -106,13 +106,13 @@ maref serve --port 8000 --gui &
 #### 5. 设置定期清理 cron job
 ```bash
 # 每天凌晨 3 点清理 Python 缓存
-0 3 * * * find /Volumes/1TB-M2/maref-experiments -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+0 3 * * * find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
 ```
 
 #### 6. 监控内存压力
 ```bash
 # 添加到 ~/.zshrc
-alias memstat='python3 /Volumes/1TB-M2/maref-experiments/scripts/memory_monitor.py --once'
+alias memstat='python3 ./scripts/memory_monitor.py --once'
 ```
 
 ### 🟢 长期优化
@@ -123,7 +123,7 @@ alias memstat='python3 /Volumes/1TB-M2/maref-experiments/scripts/memory_monitor.
 
 #### 8. 配置 Git GC
 ```bash
-cd /Volumes/1TB-M2/maref-experiments
+cd .
 git gc --aggressive --prune=now
 ```
 **预期效果**: 减少 1.8GB .git 目录大小

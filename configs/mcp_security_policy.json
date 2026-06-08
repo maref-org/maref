@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "description": "MAREF open-source MCP security policy",
+  "agents": {
+    "claude-code": {
+      "trust_level": "SEMI_TRUSTED",
+      "allowed_mcp_servers": ["mcp_Filesystem", "mcp_GitHub", "mcp_Shell"],
+      "blocked_operations": []
+    },
+    "opencode": {
+      "trust_level": "SEMI_TRUSTED",
+      "allowed_mcp_servers": ["mcp_Filesystem", "mcp_GitHub"],
+      "blocked_operations": []
+    },
+    "trae": {
+      "trust_level": "UNTRUSTED",
+      "allowed_mcp_servers": ["mcp_Filesystem"],
+      "blocked_operations": ["shell.exec", "bash"]
+    }
+  },
+  "mcp_servers": {
+    "mcp_Filesystem": {
+      "dangerous_tools": ["format", "mkfs", "dd"]
+    },
+    "mcp_GitHub": {
+      "dangerous_tools": ["delete_repository", "remove_member"]
+    },
+    "mcp_Shell": {
+      "dangerous_tools": ["sudo", "su", "chmod_recursive"]
+    }
+  }
+}

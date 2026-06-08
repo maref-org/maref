@@ -1,0 +1,230 @@
+{
+  "total_tests": 7,
+  "passed_tests": 4,
+  "pass_rate": 0.5714285714285714,
+  "total_duration_ms": 436.2367079593241,
+  "results": [
+    {
+      "test_name": "cascading_failures",
+      "scenario": "5_faults_simultaneous",
+      "success": false,
+      "metrics": {
+        "success_rate": 0.16,
+        "avg_duration_ms": 0.0,
+        "p99_duration_ms": 0.0,
+        "fault_count": 5
+      },
+      "details": "Success rate under 5 simultaneous faults: 16.0%",
+      "warnings": [
+        "Success rate 16.0% < 20% threshold"
+      ],
+      "duration_ms": 156.49237507022917
+    },
+    {
+      "test_name": "extreme_stress_coefficient",
+      "scenario": "stress_2.0_to_3.0",
+      "success": false,
+      "metrics": {
+        "stress_2.0": {
+          "success_rate": 0.005,
+          "avg_duration_ms": 0.0
+        },
+        "stress_2.5": {
+          "success_rate": 0.0,
+          "avg_duration_ms": 0.0005
+        },
+        "stress_3.0": {
+          "success_rate": 0.0,
+          "avg_duration_ms": 0.0
+        }
+      },
+      "details": "Minimum success rate at stress 3.0: 0.0%",
+      "warnings": [
+        "System failure at extreme stress - needs investigation"
+      ],
+      "duration_ms": 1.4870839659124613
+    },
+    {
+      "test_name": "concurrent_attacks",
+      "scenario": "5_threads_simultaneous",
+      "success": true,
+      "metrics": {
+        "faults_injected": 5,
+        "total_faults": 5,
+        "success_rate": 0.26,
+        "fault_details": [
+          {
+            "type": "byzantine",
+            "success": true,
+            "detail": "Simulated byzantine agent: concurrent_1 tamper_rate=0.6"
+          },
+          {
+            "type": "memory",
+            "success": true,
+            "detail": "Simulated memory pressure: 800MB allocated"
+          },
+          {
+            "type": "emergent_conflict",
+            "success": true,
+            "detail": "Simulated emergent conflict: version_mismatch"
+          },
+          {
+            "type": "cpu",
+            "success": true,
+            "detail": "Simulated CPU load: 90% for 3s"
+          },
+          {
+            "type": "network",
+            "success": true,
+            "detail": "Simulated network latency: +2000ms, drop_rate=0.3"
+          }
+        ]
+      },
+      "details": "Injected 5/5 faults concurrently, success rate: 26.0%",
+      "warnings": [],
+      "duration_ms": 49.950791988521814
+    },
+    {
+      "test_name": "endurance_test",
+      "scenario": "1000_continuous_runs",
+      "success": true,
+      "metrics": {
+        "total_runs": 1000,
+        "success_rate": 0.598,
+        "success_rate_std": 0.04391911757866829,
+        "duration_growth": 0.0,
+        "first_100_avg_ms": 0.0,
+        "last_100_avg_ms": 0.0,
+        "total_duration_s": 0.003744916059076786
+      },
+      "details": "1000 runs completed, success rate: 59.8%, std: 0.044",
+      "warnings": [],
+      "duration_ms": 3.744916059076786
+    },
+    {
+      "test_name": "adaptive_adversary",
+      "scenario": "intelligent_escalation",
+      "success": true,
+      "metrics": {
+        "initial_stress": 0.5,
+        "final_stress": 0.1,
+        "stress_variance": 0.0,
+        "history": [
+          {
+            "round": 0,
+            "stress_factor": 0.5,
+            "success_rate": 0.36
+          },
+          {
+            "round": 1,
+            "stress_factor": 0.4,
+            "success_rate": 0.4
+          },
+          {
+            "round": 2,
+            "stress_factor": 0.30000000000000004,
+            "success_rate": 0.43
+          },
+          {
+            "round": 3,
+            "stress_factor": 0.20000000000000004,
+            "success_rate": 0.5
+          },
+          {
+            "round": 4,
+            "stress_factor": 0.20000000000000004,
+            "success_rate": 0.45
+          },
+          {
+            "round": 5,
+            "stress_factor": 0.10000000000000003,
+            "success_rate": 0.61
+          },
+          {
+            "round": 6,
+            "stress_factor": 0.10000000000000003,
+            "success_rate": 0.55
+          },
+          {
+            "round": 7,
+            "stress_factor": 0.10000000000000003,
+            "success_rate": 0.63
+          },
+          {
+            "round": 8,
+            "stress_factor": 0.10000000000000003,
+            "success_rate": 0.61
+          },
+          {
+            "round": 9,
+            "stress_factor": 0.10000000000000003,
+            "success_rate": 0.49
+          }
+        ]
+      },
+      "details": "Adaptive test completed, final stress: 0.1, variance: 0.000",
+      "warnings": [],
+      "duration_ms": 3.4487079828977585
+    },
+    {
+      "test_name": "resource_exhaustion",
+      "scenario": "memory_cpu_disk_process",
+      "success": false,
+      "metrics": {
+        "success_rate": 0.02,
+        "avg_duration_ms": 0.0,
+        "fault_count": 4
+      },
+      "details": "Success rate under resource exhaustion: 2.0%",
+      "warnings": [
+        "System crashed or failed completely under resource exhaustion"
+      ],
+      "duration_ms": 106.18591599632055
+    },
+    {
+      "test_name": "network_partition",
+      "scenario": "latency_escalation",
+      "success": true,
+      "metrics": {
+        "scenarios": [
+          {
+            "scenario": {
+              "latency_ms": 100,
+              "drop_rate": 0.0
+            },
+            "success_rate": 0.34,
+            "avg_duration_ms": 0.0
+          },
+          {
+            "scenario": {
+              "latency_ms": 1000,
+              "drop_rate": 0.1
+            },
+            "success_rate": 0.34,
+            "avg_duration_ms": 0.0
+          },
+          {
+            "scenario": {
+              "latency_ms": 3000,
+              "drop_rate": 0.2
+            },
+            "success_rate": 0.34,
+            "avg_duration_ms": 0.0
+          },
+          {
+            "scenario": {
+              "latency_ms": 5000,
+              "drop_rate": 0.3
+            },
+            "success_rate": 0.34,
+            "avg_duration_ms": 0.0
+          }
+        ],
+        "min_success_rate": 0.34
+      },
+      "details": "Minimum success rate under network partition: 34.0%",
+      "warnings": [],
+      "duration_ms": 113.96274995058775
+    }
+  ]
+}

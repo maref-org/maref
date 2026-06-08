@@ -1,0 +1,248 @@
+"""CodeServiceHarness: simulate a code service factory with multi-agent collaboration.
+
+Simulates the pipeline:
+  code_generator → test_agent → review_agent → merge_agent
+
+Each agent has configurable quality levels. The harness runs N iterations
+and produces metrics consumable by CodeServiceSQI.
+
+Purpose: validate deterministic delivery variance convergence when
+multiple agents collaborate on code generation tasks.
+"""
+
+from __future__ import annotations
+
+import random
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from maref.stress.code_service_sqi import CodeQualityMetrics
+
+
+@dataclass
+class AgentConfig:
+    """Configuration for a single agent in the code service pipeline."""
+    name: str
+    quality_rate: float = 0.8       # Base success probability (0.0-1.0)
+    speed_ms_mean: float = 500.0    # Average execution time
+    speed_ms_std: float = 100.0     # Standard deviation
+    error_types: list[str] = field(default_factory=list)
+
+
+@dataclass
+class PipelineRun:
+    """Result of a single pipeline execution."""
+    run_id: int
+    success: bool
+    duration_ms: float
+    code_generated: bool
+    tests_passed: bool
+    review_passed: bool
+    merged: bool
+    test_coverage_pct: float
+    lint_issues: int
+    build_errors: int
+    regression_failures: int
+    agent_results: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+
+@dataclass
+class CodeServiceReport:
+    """Aggregate report from CodeServiceHarness."""
+    total_runs: int
+    successful_runs: int
+    failed_runs: int
+    success_rate: float
+    avg_duration_ms: float
+    p99_duration_ms: float
+    avg_test_coverage: float
+    avg_lint_issues: float
+    avg_build_errors: float
+    avg_regression_failures: float
+    runs: list[PipelineRun] = field(default_factory=list)
+
+    def to_code_quality_metrics(self) -> CodeQualityMetrics:
+        """Convert to CodeQualityMetrics for SQI consumption."""
+        return CodeQualityMetrics(
+            test_coverage_pct=self.avg_test_coverage,
+            lint_pass_rate=1.0 - min(1.0, self.avg_lint_issues / 100.0),
+            build_success_rate=1.0 - min(1.0, self.avg_build_errors / 100.0),
+            doc_completeness=self.success_rate,
+            regression_free_rate=1.0 - min(1.0, self.avg_regression_failures / 100.0),
+        )
+
+
+class CodeServiceHarness:
+    """Simulate a code service factory pipeline."""
+
+    DEFAULT_AGENTS = [
+        AgentConfig(name="code_generator", quality_rate=0.85, speed_ms_mean=800, speed_ms_std=200,
+                     error_types=["syntax_error", "missing_import", "logic_bug"]),
+        AgentConfig(name="test_agent", quality_rate=0.90, speed_ms_mean=400, speed_ms_std=100,
+                     error_types=["test_flaky", "coverage_gap", "mock_error"]),
+        AgentConfig(name="review_agent", quality_rate=0.80, speed_ms_mean=600, speed_ms_std=150,
+                     error_types=["style_violation", "security_risk", "performance_issue"]),
+        AgentConfig(name="merge_agent", quality_rate=0.95, speed_ms_mean=200, speed_ms_std=50,
+                     error_types=["merge_conflict", "integration_fail"]),
+    ]
+
+    def __init__(self, agents: list[AgentConfig] | None = None, seed: int | None = None) -> None:
+        self._agents = agents or list(self.DEFAULT_AGENTS)
+        self._rng = random.Random(seed)
+        self._run_history: list[PipelineRun] = []
+
+    def run(
+        self,
+        num_runs: int = 100,
+        stress_factor: float = 0.0,
+        round_id: str = "",
+    ) -> CodeServiceReport:
+        """Execute the code service pipeline multiple times.
+
+        Args:
+            num_runs: Number of pipeline executions
+            stress_factor: 0.0=normal, 1.0=maximum stress (degrades all agent quality)
+            round_id: Identifier for this evaluation round
+
+        Returns:
+            CodeServiceReport with aggregated metrics
+        """
+        runs: list[PipelineRun] = []
+
+        for i in range(num_runs):
+            pipeline_run = self._execute_pipeline(i, stress_factor)
+            runs.append(pipeline_run)
+
+        self._run_history.extend(runs)
+
+        durations = [r.duration_ms for r in runs]
+        durations.sort()
+        p99 = durations[int(len(durations) * 0.99)] if durations else 0.0
+        successful = sum(1 for r in runs if r.success)
+
+        return CodeServiceReport(
+            total_runs=num_runs,
+            successful_runs=successful,
+            failed_runs=num_runs - successful,
+            success_rate=successful / max(num_runs, 1),
+            avg_duration_ms=sum(durations) / max(len(durations), 1),
+            p99_duration_ms=p99,
+            avg_test_coverage=sum(r.test_coverage_pct for r in runs) / max(num_runs, 1),
+            avg_lint_issues=sum(r.lint_issues for r in runs) / max(num_runs, 1),
+            avg_build_errors=sum(r.build_errors for r in runs) / max(num_runs, 1),
+            avg_regression_failures=sum(r.regression_failures for r in runs) / max(num_runs, 1),
+            runs=runs,
+        )
+
+    def _execute_pipeline(self, run_id: int, stress_factor: float) -> PipelineRun:
+        """Execute a single pipeline run through all agents."""
+        t0 = time.perf_counter()
+        agent_results: dict[str, dict[str, Any]] = {}
+        code_generated = False
+        tests_passed = False
+        review_passed = False
+        merged = False
+        test_coverage_pct = 0.0
+        lint_issues = 0
+        build_errors = 0
+        regression_failures = 0
+
+        # Role names by position in the agents list
+        role_names = ["code_generator", "test_agent", "review_agent", "merge_agent"]
+
+        for idx, agent in enumerate(self._agents):
+            agent_role = role_names[idx] if idx < len(role_names) else agent.name
+            # Apply stress: degrade quality by up to 30% at max stress
+            effective_quality = max(0.1, agent.quality_rate - stress_factor * 0.3)
+
+            # Simulate agent execution time with normal distribution
+            exec_time = max(10, self._rng.gauss(agent.speed_ms_mean, agent.speed_ms_std))
+
+            # Determine if agent succeeds
+            success = self._rng.random() < effective_quality
+
+            agent_results[agent.name] = {
+                "success": success,
+                "duration_ms": round(exec_time, 1),
+                "quality_rate": round(effective_quality, 2),
+            }
+
+            if not success:
+                # Agent failed - pick a random error type
+                if agent.error_types:
+                    error = self._rng.choice(agent.error_types)
+                    agent_results[agent.name]["error"] = error
+
+                # Propagate failure based on agent role
+                if agent_role == "code_generator":
+                    build_errors = self._rng.randint(1, 5)
+                    break
+                elif agent_role == "test_agent":
+                    tests_passed = False
+                    test_coverage_pct = self._rng.uniform(0.0, 0.4)
+                    break
+                elif agent_role == "review_agent":
+                    lint_issues = self._rng.randint(1, 10)
+                    break
+                elif agent_role == "merge_agent":
+                    merged = False
+                    regression_failures = self._rng.randint(0, 2)
+                    break
+            else:
+                # Agent succeeded
+                if agent_role == "code_generator":
+                    code_generated = True
+                    test_coverage_pct = self._rng.uniform(0.6, 0.95)
+                elif agent_role == "test_agent":
+                    tests_passed = True
+                    # Good tests improve coverage
+                    test_coverage_pct = min(0.99, test_coverage_pct + self._rng.uniform(0.05, 0.15))
+                elif agent_role == "review_agent":
+                    review_passed = True
+                    lint_issues = self._rng.randint(0, 2)
+                elif agent_role == "merge_agent":
+                    merged = True
+                    regression_failures = 0 if self._rng.random() < 0.9 else 1
+
+        t1 = time.perf_counter()
+        duration_ms = (t1 - t0) * 1000
+
+        success = code_generated and tests_passed and review_passed and merged
+
+        return PipelineRun(
+            run_id=run_id,
+            success=success,
+            duration_ms=round(duration_ms, 1),
+            code_generated=code_generated,
+            tests_passed=tests_passed,
+            review_passed=review_passed,
+            merged=merged,
+            test_coverage_pct=round(test_coverage_pct * 100, 1),
+            lint_issues=lint_issues,
+            build_errors=build_errors,
+            regression_failures=regression_failures,
+            agent_results=agent_results,
+        )
+
+    def get_variance_metrics(self, num_runs: int = 100) -> dict[str, float]:
+        """Get variance metrics across multiple runs for convergence analysis."""
+        report = self.run(num_runs=num_runs)
+
+        success_rates = []
+        coverage_values = []
+
+        # Run 10 batches to measure variance
+        for _ in range(10):
+            batch = self.run(num_runs=20)
+            success_rates.append(batch.success_rate)
+            coverage_values.append(batch.avg_test_coverage)
+
+        import statistics
+        return {
+            "success_rate_mean": statistics.mean(success_rates),
+            "success_rate_std": statistics.stdev(success_rates) if len(success_rates) > 1 else 0.0,
+            "coverage_mean": statistics.mean(coverage_values),
+            "coverage_std": statistics.stdev(coverage_values) if len(coverage_values) > 1 else 0.0,
+            "total_runs": num_runs * 10,
+        }

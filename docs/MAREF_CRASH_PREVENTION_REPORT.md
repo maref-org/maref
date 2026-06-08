@@ -10,7 +10,7 @@ author: Agent
 
 ## 一、问题概述
 
-**触发事件**：Mac 电脑频繁崩溃，专项排查确认 MAREF 工作区（`/Volumes/1TB-M2/maref-experiments`）是核心触发因素。
+**触发事件**：Mac 电脑频繁崩溃，专项排查确认 MAREF 工作区（`maref-experiments`）是核心触发因素。
 
 **崩溃根因**：内存耗尽 + I/O 风暴导致系统看门狗超时触发自动重启
 
@@ -138,13 +138,13 @@ author: Agent
 
 3. **安装定期内存监控**：
    ```bash
-   cp /Volumes/1TB-M2/maref-experiments/scripts/com.maref.memory-monitor.plist ~/Library/LaunchAgents/
+   cp maref-experiments/scripts/com.maref.memory-monitor.plist ~/Library/LaunchAgents/
    launchctl load ~/Library/LaunchAgents/com.maref.memory-monitor.plist
    ```
 
 4. **首次执行 Git GC**：
    ```bash
-   cd /Volumes/1TB-M2/maref-experiments
+   cd maref-experiments
    bash scripts/git_gc_optimize.sh
    ```
 

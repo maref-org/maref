@@ -22,10 +22,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 logger = logging.getLogger(__name__)
 
-from drift_guard.ab_testing import ABTestFramework
-from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox
-from drift_guard.types import PipelineConfig
-from research.dashscope_client import DashScopeClient
+from drift_guard.ab_testing import ABTestFramework  # noqa: E402
+from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox  # noqa: E402
+from drift_guard.types import PipelineConfig  # noqa: E402
+from research.dashscope_client import DashScopeClient  # noqa: E402
 
 
 @dataclass

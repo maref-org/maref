@@ -17,7 +17,7 @@
 ## 泄密预防
 
 本仓库**不得包含**以下内容（发布前应运行 `check-exfiltration` 扫描）：
-- 文件路径（`/Volumes/`、`openclaw/`、`internal/` 等）
+- 文件路径（如内部绝对路径、组织名+路径）
 - API Key、Token、凭证
 - IP 地址、内网拓扑
 - 精确时间戳（发布日期除外）

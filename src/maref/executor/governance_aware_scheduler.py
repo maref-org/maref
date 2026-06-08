@@ -13,6 +13,7 @@ Wraps a standard Scheduler with additional governance safeguards:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from maref.executor.scheduler import Scheduler
@@ -132,6 +133,3 @@ class GovernanceAwareScheduler:
     def _underlying(self) -> Scheduler:
         """Direct access to the wrapped Scheduler instance."""
         return self._scheduler
-
-
-from collections.abc import Callable
