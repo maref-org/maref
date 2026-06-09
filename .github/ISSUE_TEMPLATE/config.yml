@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/maref-org/maref/wiki
+    about: Check the Wiki for guides and documentation
+  - name: Discussions
+    url: https://github.com/maref-org/maref/discussions
+    about: Ask questions and share ideas

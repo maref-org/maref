@@ -1,0 +1,29 @@
+# CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @frankiehot-tech
+
+# Python / backend
+*.py @frankiehot-tech
+src/ @frankiehot-tech
+
+# Frontend / GUI
+gui/ @frankiehot-tech
+gui/**/*.ts @frankiehot-tech
+gui/**/*.tsx @frankiehot-tech
+
+# Rust / Tauri
+gui/src-tauri/ @frankiehot-tech
+
+# CI/CD
+.github/workflows/ @frankiehot-tech
+.github/dependabot.yml @frankiehot-tech
+
+# Documentation
+docs/ @frankiehot-tech
+*.md @frankiehot-tech
+
+# Security
+security/ @frankiehot-tech
+DEPENDENCIES @frankiehot-tech
