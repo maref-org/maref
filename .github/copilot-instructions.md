@@ -13,4 +13,4 @@ the Athena System Constitution v1.5.
 7. This is Track B — sync direction is A→B only
 
 ## Reference
-- Constitution: /Volumes/1TB-M2/public/CONSTITUTION.md
+- Constitution: ../../CONSTITUTION.md

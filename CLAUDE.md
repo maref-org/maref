@@ -1,6 +1,6 @@
 # MAREF — Agent 自治理规范
 
-> **上位法**: 本文件受 [Athena 系统宪法 v1.5](/Volumes/1TB-M2/public/CONSTITUTION.md) 和 [MAREF 治理框架](GOVERNANCE.md) 共同约束。冲突时以宪法优先，其次以治理框架为准。
+> **上位法**: 本文件受 [Athena 系统宪法 v1.5](../CONSTITUTION.md) 和 [MAREF 治理框架](GOVERNANCE.md) 共同约束。冲突时以宪法优先，其次以治理框架为准。
 > **项目状态**: 见 `STATE.yaml`
 > **同步方向**: A → B 单向（Athena 开发源 → GitHub 发布源）
 

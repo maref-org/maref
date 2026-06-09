@@ -3,7 +3,7 @@
   // 上位法: Athena 系统宪法 v1.5 → GOVERNANCE.md
   // 冲突时以宪法优先，其次以治理框架为准
 
-  "constitution_ref": "/Volumes/1TB-M2/public/CONSTITUTION.md",
+  "constitution_ref": "../CONSTITUTION.md",
   "governance_ref": "GOVERNANCE.md",
 
   "security_redlines": {

@@ -1,7 +1,7 @@
 # Constitution Rules for Trae AI — MAREF
 
 ## 上位法
-本文件受 [Athena 系统宪法 v1.5](/Volumes/1TB-M2/public/CONSTITUTION.md) 约束。冲突时以宪法优先。
+本文件受 [Athena 系统宪法 v1.5](../../../CONSTITUTION.md) 约束。冲突时以宪法优先。
 
 ## 安全红线（Article 4-A，完整 6 条）
 1. `git remote -v` 必须仅显示授权 remote
