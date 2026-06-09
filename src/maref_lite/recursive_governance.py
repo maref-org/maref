@@ -14,7 +14,6 @@ M4 enhancements:
 from __future__ import annotations
 
 import asyncio
-import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -149,14 +148,16 @@ class RecursiveGovernanceOverlay:
         self._recursion_depth = 0
         self._consecutive_anomalies = 0
         self._last_observation_time = 0.0
-        self._observation_lock = threading.Lock()
+        self._observation_lock = asyncio.Lock()
         self._running = False
 
     async def run(self) -> None:
         self._running = True
 
         primary_task = asyncio.create_task(self._primary.run())
-        self._self_collector.add_callback(self._on_self_observation)
+        self._self_collector.add_callback(
+            lambda obs: asyncio.ensure_future(self._on_self_observation(obs))
+        )
         collector_task = asyncio.create_task(self._self_collector.run())
 
         meta_task = asyncio.create_task(self._meta_learning_loop()) if self._meta_learner else None
@@ -183,8 +184,8 @@ class RecursiveGovernanceOverlay:
         self._primary.stop()
         self._self_collector.stop()
 
-    def _on_self_observation(self, observation: Any) -> None:
-        with self._observation_lock:
+    async def _on_self_observation(self, observation: Any) -> None:
+        async with self._observation_lock:
             now = time.time()
 
             # Time-window based depth reset: only reset recursion depth

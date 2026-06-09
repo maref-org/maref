@@ -1,7 +1,7 @@
-kdp_id: K-20260511-005
+kdp_id: K-005
 topic: MAREF Competitive Landscape
 signal_ids:
-- S-20260511-005
+- S-005
 claim: Microsoft AutoGen 0.4 introduces a Coordinator-Worker pattern and multi-agent
   conversation framework with code generation and execution sandbox capabilities.
 metric_type: qualitative

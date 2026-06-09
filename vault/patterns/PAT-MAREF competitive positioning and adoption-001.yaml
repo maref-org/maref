@@ -31,14 +31,14 @@ inapplicable_domains:
 - Regulated monopolistic environments
 linked_patterns: []
 source_forecast_ids:
-- F-20260511-001
+- F-001
 calibration_log:
 - date: '2026-05-11T22:16:25.652272'
   event: initial creation
   forecast_result: partial
 - date: '2026-05-11T22:16:25.654790'
   event: weight calibration
-  forecast_id: F-20260511-001
+  forecast_id: F-001
   forecast_result: partial
   adjustment: -0.15
 created_at: '2026-05-11T22:16:25.652293'

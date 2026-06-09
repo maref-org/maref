@@ -18,7 +18,7 @@ jobs:
           FOUND=$(grep -rn '/Volumes/\|/Users/[A-Za-z]/\|file:///' \
             --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" \
             --include="*.json" --include="*.jsonc" \
-            src/ tests/ docs/ scripts/ 2>/dev/null || true)
+            src/ tests/ docs/ scripts/ AGENTS.md CLAUDE.md .cursorrules opencode.jsonc 2>/dev/null || true)
           if [ -n "$FOUND" ]; then
             echo "::error::Found hardcoded /Volumes/ or file:/// paths:"
             echo "$FOUND"
@@ -29,7 +29,7 @@ jobs:
         run: |
           FOUND=$(grep -rn 'openclaw\|frankiehot-tech' \
             --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" \
-            src/ tests/ docs/ scripts/ 2>/dev/null \
+            src/ tests/ docs/ scripts/ AGENTS.md CLAUDE.md .cursorrules opencode.jsonc 2>/dev/null \
             | grep -v 'CHANGELOG.md' | grep -v 'test_config.py' || true)
           if [ -n "$FOUND" ]; then
             echo "::warning::Found potential organizational name references:"

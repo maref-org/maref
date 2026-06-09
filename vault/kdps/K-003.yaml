@@ -1,7 +1,7 @@
-kdp_id: K-20260511-003
+kdp_id: K-003
 topic: MAREF Competitive Landscape
 signal_ids:
-- S-20260511-003
+- S-003
 claim: LangGraph (LangChain) is the market leader in the DAG orchestration space with
   307,000 daily downloads, offering StateGraph for orchestration, Checkpointer for
   persistent state, built-in streaming and human-in-the-loop capabilities, and monetizing

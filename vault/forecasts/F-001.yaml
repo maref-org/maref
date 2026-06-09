@@ -1,4 +1,4 @@
-forecast_id: F-20260511-001
+forecast_id: F-001
 topic: MAREF competitive positioning and adoption
 horizon: 2025-Q3
 confidence: 60
@@ -8,17 +8,17 @@ assumptions:
   text: Formally verified governance is a critical unmet need in enterprise multi-agent
     adoption that outweighs LangGraph's community and ecosystem advantages.
   confidence: 82
-  source: K-20260511-002, K-20260511-008
+  source: K-002, K-008
 - id: HA2
   text: The sidecar integration pattern effectively solves adoption friction without
     requiring framework migration.
   confidence: 75
-  source: K-20260511-001, K-20260511-007
+  source: K-001, K-007
 - id: HA3
   text: Enterprise customers will prioritize governance and safety over ease-of-use
     and community support in production deployments.
   confidence: 70
-  source: K-20260511-006
+  source: K-006
 drivers:
 - Growing enterprise demand for verifiable AI safety and governance in production
   systems
@@ -61,15 +61,15 @@ deviation_tolerance: []
 red_team_findings: []
 causal_audit_score: 55
 linked_kdps:
-- K-20260511-001
-- K-20260511-002
-- K-20260511-003
-- K-20260511-004
-- K-20260511-005
-- K-20260511-006
-- K-20260511-007
-- K-20260511-008
-- K-20260511-009
+- K-001
+- K-002
+- K-003
+- K-004
+- K-005
+- K-006
+- K-007
+- K-008
+- K-009
 linked_patterns: []
 created_at: '2026-05-11T22:13:51.915207'
 validated_at: '2026-05-11T22:14:24.545278'

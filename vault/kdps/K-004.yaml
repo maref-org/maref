@@ -1,7 +1,7 @@
-kdp_id: K-20260511-004
+kdp_id: K-004
 topic: MAREF Competitive Landscape
 signal_ids:
-- S-20260511-004
+- S-004
 claim: CrewAI is the most popular role-based multi-agent framework, evidenced by 22,000
   GitHub stars and supported by its role-playing + task delegation model and AMP (Agent
   Market Place) Suite for monetization.

@@ -118,8 +118,8 @@ kubectl apply -f k8s/production/
 ## Knowledge Vault
 - **路径**: `vault/`
 - **格式**: YAML with frontmatter
-- **Signals**: 12 market/technology signals (S-20260511-001 ~ 012)
-- **KDPs**: 9 key decision points (K-20260511-001 ~ 009)
+- **Signals**: 12 market/technology signals (S-001 ~ 012)
+- **KDPs**: 9 key decision points (K-001 ~ 009)
 - **Patterns**: 1 competitive positioning pattern
 
 ## Mission Workspace

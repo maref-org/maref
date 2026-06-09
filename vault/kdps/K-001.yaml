@@ -1,7 +1,7 @@
-kdp_id: K-20260511-001
+kdp_id: K-001
 topic: MAREF Product Readiness
 signal_ids:
-- S-20260511-001
+- S-001
 claim: MAREF is a 64-hexagram state machine system for multi-agent governance built
   on I Ching, using Gray Code state transitions (Hamming distance=1), featuring a
   16-state Gray-code governance machine (v2), TLA+ formal verification with 5 proven

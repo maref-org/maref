@@ -1,7 +1,7 @@
-kdp_id: K-20260511-009
+kdp_id: K-009
 topic: MAREF Product Readiness
 signal_ids:
-- S-20260511-009
+- S-009
 claim: MAREF's core module achieves 88% test coverage and TLA+ verification, indicating
   alpha+ quality, but the surrounding ecosystem has only ~1% test coverage,
   lacking deployment config and multi-tenancy, resulting in pre-alpha status for the

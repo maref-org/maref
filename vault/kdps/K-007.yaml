@@ -1,7 +1,7 @@
-kdp_id: K-20260511-007
+kdp_id: K-007
 topic: MAREF Business Model
 signal_ids:
-- S-20260511-007
+- S-007
 claim: MAREF uses an AGPL-3.0 licensed open-source core governance engine with a sidecar
   adapter pattern to integrate with LangGraph, CrewAI, and AutoGen without modification,
   enabling monetization through enterprise governance contracts, managed MAREF cloud

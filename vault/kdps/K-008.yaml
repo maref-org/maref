@@ -1,7 +1,7 @@
-kdp_id: K-20260511-008
+kdp_id: K-008
 topic: MAREF Competitive Landscape
 signal_ids:
-- S-20260511-008
+- S-008
 claim: MAREF is the only one among eleven major multi-agent frameworks with TLA+ formal
   verification, Gray Code state machine governance, and Sidecar non-invasive governance
   pattern

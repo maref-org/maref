@@ -1,7 +1,7 @@
-kdp_id: K-20260511-002
+kdp_id: K-002
 topic: MAREF Competitive Landscape
 signal_ids:
-- S-20260511-002
+- S-002
 claim: MAREF achieved the highest governance score (10/10) in competitive benchmarking
   among multi-agent frameworks, outperforming LangGraph (2/10), CrewAI (1/10), and
   Anthropic CCU (4/10), and is positioned as a 'Governance OS for Multi-Agent Systems'

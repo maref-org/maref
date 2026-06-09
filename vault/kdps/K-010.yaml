@@ -1,7 +1,7 @@
-kdp_id: K-20260518-001
+kdp_id: K-010
 topic: MAREF Memory Crash Root Cause Fix — Four Architecture Defects
 signal_ids:
-- S-20260511-001
+- S-001
 claim: >
   MAREF's memory crash (24GB OOM during Trae CN optimization) was caused by four
   superimposed architecture defects, not by Trae CN or resource constraints:

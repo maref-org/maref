@@ -1,13 +1,13 @@
 ---
-kdp_id: "K-20260518-003"
+kdp_id: "K-012"
 title: "Q3 DecisionMarket（联邦共识基线）"
 status: "approved"
 decision_date: "2026-05-18"
 author: "MAREF Core Team"
 reviewers: []
 related_kdps:
-  - "K-20260518-001"
-  - "K-20260518-002"
+  - "K-010"
+  - "K-011"
 
 ## 1. 决策背景
 
