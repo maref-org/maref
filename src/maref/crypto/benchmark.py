@@ -11,10 +11,10 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .sm2 import SM2KeyPair, sm2_encrypt, sm2_decrypt, sm2_sign, sm2_verify
+from .sm2 import SM2KeyPair, sm2_decrypt, sm2_encrypt, sm2_sign, sm2_verify
 from .sm3 import sm3_hash, sm3_hmac
-from .sm4 import sm4_encrypt_cbc, sm4_decrypt_cbc
-from .sm4_gcm import sm4_encrypt_gcm, sm4_decrypt_gcm
+from .sm4 import sm4_decrypt_cbc, sm4_encrypt_cbc
+from .sm4_gcm import sm4_decrypt_gcm, sm4_encrypt_gcm
 
 if TYPE_CHECKING:
     from collections.abc import Callable
