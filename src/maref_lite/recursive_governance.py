@@ -129,7 +129,9 @@ class RecursiveGovernanceOverlay:
         )
 
         # M4: Audit logger for meta-level decisions
-        self._audit = AuditLogger(log_path="recursive_governance_audit.jsonl")
+        self._audit = AuditLogger(
+            log_path=os.getenv("MAREF_AUDIT_LOG", "recursive_governance_audit.jsonl")
+        )
 
         # Self-adapter for recursive observation
         self._self_adapter = MAREFSelfAdapter(self._primary)

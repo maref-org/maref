@@ -36,6 +36,18 @@ jobs:
             echo "$FOUND"
           fi
           echo "✅ Organizational name check complete"
+      - name: Check for phone numbers
+        run: |
+          FOUND=$(grep -rn '1[3-9][0-9]\{9\}' \
+            --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" \
+            --include="*.json" --include="*.jsonc" --include="*.env" \
+            src/ tests/ docs/ scripts/ AGENTS.md CLAUDE.md .cursorrules opencode.jsonc 2>/dev/null || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::Found phone number leaks:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "✅ No phone number leaks found"
       - name: Check for API keys
         run: |
           FOUND=$(grep -rn 'sk-[A-Za-z0-9]\{20,\}' \

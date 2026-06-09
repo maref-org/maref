@@ -104,7 +104,7 @@ class TestURLValidation:
 
     def test_reject_ip_based_url(self) -> None:
         with pytest.raises(ValueError, match="IP-based URLs"):
-            _validate_url("http://192.168.1.1/path")
+            _validate_url("http://198.51.100.1/path")
 
     def test_reject_localhost(self) -> None:
         with pytest.raises(ValueError, match="Localhost URLs"):
@@ -116,7 +116,7 @@ class TestURLValidation:
 
     def test_reject_private_ip(self) -> None:
         with pytest.raises(ValueError, match="IP-based URLs"):
-            _validate_url("http://10.0.0.1/path")
+            _validate_url("http://192.0.2.1/path")
 
     def test_reject_loopback_ipv6(self) -> None:
         with pytest.raises(ValueError, match="IP-based URLs"):
@@ -136,9 +136,9 @@ class TestURLValidation:
         assert result == "http://127.0.0.1:8080/path"
 
     def test_allow_private_ip_when_whitelisted(self) -> None:
-        wl = DomainWhitelist(["10.0.0.1"])
-        result = _validate_url("http://10.0.0.1/path", wl)
-        assert result == "http://10.0.0.1/path"
+        wl = DomainWhitelist(["192.0.2.1"])
+        result = _validate_url("http://192.0.2.1/path", wl)
+        assert result == "http://192.0.2.1/path"
 
     def test_allow_localhost_when_whitelisted(self) -> None:
         wl = DomainWhitelist(["localhost"])

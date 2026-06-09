@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
+import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -89,7 +91,7 @@ class GovernanceOverlay:
         enable_self_observation: bool = True,
         observation_db_path: str = "governance_observations.db",
         detector_config: DualThresholdConfig | None = None,
-        audit_log_path: str = "governance_audit.jsonl",
+        audit_log_path: str | None = None,
         oscillation_cooldown: float = 30.0,
         max_decisions: int = 1000,
         max_self_observations: int = 500,
@@ -111,7 +113,8 @@ class GovernanceOverlay:
         self._store = ObservationStore(db_path=observation_db_path)
 
         # M4: Audit logger
-        self._audit = AuditLogger(log_path=audit_log_path)
+        resolved_path = audit_log_path or os.getenv("MAREF_AUDIT_LOG", "governance_audit.jsonl")
+        self._audit = AuditLogger(log_path=resolved_path)
 
         # M4: Oscillation fix loop
         self._oscillation_loop = OscillationFixLoop(
@@ -394,7 +397,22 @@ class GovernanceOverlay:
     def stop(self) -> None:
         self._running = False
 
-    def transition_state(self, target: GovernanceState, reason: str = "", caller_id: str = "anonymous") -> bool:
+    def _validate_token(self, caller_token: str) -> bool:
+        secret = os.getenv("GOVERNANCE_AUTH_SECRET")
+        if not secret:
+            return True
+        expected = hmac.new(secret.encode(), b"governance", "sha256").hexdigest()
+        return hmac.compare_digest(caller_token, expected)
+
+    def transition_state(self, target: GovernanceState, reason: str = "", caller_id: str = "anonymous", caller_token: str = "") -> bool:
+        if not self._validate_token(caller_token):
+            self._audit.log_decision(
+                event_type="auth_failure",
+                actor=caller_id,
+                action="transition_state",
+                details="invalid caller_token",
+            )
+            return False
         self._audit.log_decision(
             event_type="state_transition",
             actor=caller_id,
@@ -403,7 +421,7 @@ class GovernanceOverlay:
         )
         return self._state_machine.transition(target, reason)
 
-    def force_stabilize(self, reason: str = "", caller_id: str = "anonymous") -> bool:
+    def force_stabilize(self, reason: str = "", caller_id: str = "anonymous", caller_token: str = "") -> bool:
         self._audit.log_decision(
             event_type="state_transition",
             actor=caller_id,

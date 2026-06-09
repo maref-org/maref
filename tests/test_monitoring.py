@@ -35,7 +35,7 @@ class TestThreatIntelligence:
         indicator = ThreatIndicator(
             indicator_id="test-ioc",
             indicator_type=IOCType.IP_ADDRESS,
-            value="192.168.1.100",
+            value="198.51.100.1",
             source=ThreatSource.INTERNAL,
             severity=ThreatSeverity.HIGH,
             description="Test malicious IP",
@@ -45,7 +45,7 @@ class TestThreatIntelligence:
         )
         engine.add_indicator(indicator)
 
-        found = engine.search_ioc(IOCType.IP_ADDRESS, "192.168.1.100")
+        found = engine.search_ioc(IOCType.IP_ADDRESS, "198.51.100.1")
         assert found is not None
         assert found.severity == ThreatSeverity.HIGH
 
@@ -53,7 +53,7 @@ class TestThreatIntelligence:
         engine = create_threat_intelligence()
         now = datetime.now()
 
-        for ip in ["10.0.0.1", "10.0.0.2"]:
+        for ip in ["192.0.2.1", "192.0.2.2"]:
             engine.add_indicator(ThreatIndicator(
                 indicator_id=f"ioc-{ip}",
                 indicator_type=IOCType.IP_ADDRESS,
@@ -66,7 +66,7 @@ class TestThreatIntelligence:
                 last_seen=now,
             ))
 
-        matches = engine.match_against_indicators("10.0.0.1")
+        matches = engine.match_against_indicators("192.0.2.1")
         assert len(matches) == 1
 
     def test_scan_components(self) -> None:

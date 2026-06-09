@@ -47,7 +47,7 @@ class TestDeviceInfo:
             name="Frankie's Z Flip3",
             device_type=DeviceType.MOBILE,
             platform=DevicePlatform.ANDROID,
-            host="192.168.1.100",
+            host="198.51.100.1",
             port=9090,
             capabilities=["adb", "screenshot", "task_dispatch"],
         )

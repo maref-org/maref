@@ -629,7 +629,7 @@ def serve(
         console.print("[bold green]MAREF Sidecar Server (GUI Mode)[/bold green]")
     else:
         console.print("[bold green]MAREF Sidecar Server[/bold green]")
-    console.print(f"Starting on http://0.0.0.0:{port}")
+    console.print(f"Starting on http://127.0.0.1:{port}")
 
     try:
         import uvicorn
@@ -659,7 +659,7 @@ def serve(
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
         uvicorn.run(create_app(obs_bridge=obs_bridge), host="127.0.0.1", port=port, log_level="info")
     except ImportError:
-        console.print(f"[dim]Sidecar server mock — http://0.0.0.0:{port}[/dim]")
+        console.print(f"[dim]Sidecar server mock — http://127.0.0.1:{port}[/dim]")
 
 
 # ── Entry point ──────────────────────────────────────────────────────
