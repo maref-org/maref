@@ -364,7 +364,13 @@ class RecursiveGovernanceOverlay:
 
                 # MONITOR_CONFIG and other low-risk: auto-approve if reward sufficient
                 if stats["avg_reward"] > 0.5:
-                    self._sandbox.approve_change(change.change_id, reviewer="meta")
+                    if not self._sandbox.approve_change(change.change_id, reviewer="meta_learner"):
+                        self._audit.log_decision(
+                            actor="MetaLearner",
+                            action="approve_change_failed",
+                            reason=f"auto-approve failed for {change.change_id}",
+                            change_id=change.change_id,
+                        )
 
     # --- M4: Sandbox Auto-Revert ---
 

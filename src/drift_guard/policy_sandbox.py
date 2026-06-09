@@ -339,14 +339,14 @@ class PolicySandbox:
         return True
 
     def approve_change(
-        self, change_id: str, reviewer: str = "auto"
+        self, change_id: str, reviewer: str
     ) -> bool:
         """
         Approve and activate a policy change.
 
         Args:
             change_id: ID of the change to approve
-            reviewer: Who approved the change
+            reviewer: Who approved the change (required, no default)
 
         Returns:
             True if change was approved and activated

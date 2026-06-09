@@ -227,7 +227,7 @@ class HTTPTransport(MCPTransport):
             import httpx
             r = httpx.post(
                 self._endpoint_url,
-                json={"jsonrpc": request.jsonrpc, "method": request.method, "params": request.params, "id": request.id},
+                json={"jsonrpc": request.jsonrpc, "method": request.method, "params": request.params, "id": request.id, "trace_id": request.trace_id, "timestamp": request.timestamp, "source_agent": request.source_agent},
                 timeout=10.0,
             )
             data = r.json()
