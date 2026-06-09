@@ -49,8 +49,8 @@ class VerifiableCredential:
             return False
         return time.time() > self.expires_at
 
-    @security_critical
     @classmethod
+    @security_critical
     def issue(
         cls,
         issuer: AgentDID,

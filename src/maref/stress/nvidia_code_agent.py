@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 try:
-    from openai import OpenAI, APIError, RateLimitError
+    from openai import APIError, OpenAI, RateLimitError
     _OPENAI_AVAILABLE = True
 except ImportError:
     _OPENAI_AVAILABLE = False
@@ -50,7 +50,7 @@ class CodeGenerationResult:
         if not self.success:
             return CodeQualityMetrics()
 
-        lines = self.code.strip().split("\n") if self.code else []
+        self.code.strip().split("\n") if self.code else []
 
         # Heuristic quality estimation from code structure
         test_coverage = 75.0 if self.has_tests else 15.0

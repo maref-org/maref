@@ -8,15 +8,13 @@ import tempfile
 import threading
 import time
 from collections.abc import Callable
-from typing import Any
 
 import pytest
 
-from maref.executor.types import Task, TaskPriority, TaskStatus
+from maref.executor.types import Task
 from maref.executor.worker import WorkerPool
 from maref.executor.workflow.engine import (
     CircularDependencyError,
-    GovernanceBlockedError,
     WorkflowEngine,
     WorkflowError,
     _topological_groups,
@@ -32,7 +30,6 @@ from maref.executor.workflow.types import (
     WorkflowStatus,
     WorkflowStep,
 )
-
 
 # ── Fake GovernanceBridge ────────────────────────────────────────────
 

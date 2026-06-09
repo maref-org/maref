@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING
 
 from maref.security.decorators import security_critical
 
-from .sm4 import sm4_encrypt_cbc, sm4_decrypt_cbc
+from .sm4 import sm4_encrypt_cbc
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 @dataclass(frozen=True)
@@ -120,12 +120,12 @@ def sm4_encrypt_gcm(
         ctr_block = nonce + struct.pack(">I", counter + (i // 16) + 1)
         keystream = _sm4_ecb_encrypt_block(key, ctr_block)
         block = plaintext[i:i + 16]
-        ciphertext.extend(bytes(b ^ k for b, k in zip(block, keystream)))
+        ciphertext.extend(bytes(b ^ k for b, k in zip(block, keystream, strict=False)))
 
     # 计算认证标签
     s = _ghash(h, aad, bytes(ciphertext))
     j0_enc = _sm4_ecb_encrypt_block(key, j0)
-    tag = bytes(a ^ b for a, b in zip(s, j0_enc))
+    tag = bytes(a ^ b for a, b in zip(s, j0_enc, strict=False))
 
     return SM4GCMResult(
         ciphertext=bytes(ciphertext),
@@ -169,7 +169,7 @@ def sm4_decrypt_gcm(
     s = _ghash(h, aad, ciphertext)
     j0 = nonce + b"\x00\x00\x00\x01"
     j0_enc = _sm4_ecb_encrypt_block(key, j0)
-    computed_tag = bytes(a ^ b for a, b in zip(s, j0_enc))[:16]
+    computed_tag = bytes(a ^ b for a, b in zip(s, j0_enc, strict=False))[:16]
 
     if not _constant_time_compare(computed_tag, tag):
         raise ValueError("Authentication tag verification failed")
@@ -181,7 +181,7 @@ def sm4_decrypt_gcm(
         ctr_block = nonce + struct.pack(">I", counter + (i // 16) + 1)
         keystream = _sm4_ecb_encrypt_block(key, ctr_block)
         block = ciphertext[i:i + 16]
-        plaintext.extend(bytes(b ^ k for b, k in zip(block, keystream)))
+        plaintext.extend(bytes(b ^ k for b, k in zip(block, keystream, strict=False)))
 
     return bytes(plaintext)
 
@@ -191,6 +191,6 @@ def _constant_time_compare(a: bytes, b: bytes) -> bool:
     if len(a) != len(b):
         return False
     result = 0
-    for x, y in zip(a, b):
+    for x, y in zip(a, b, strict=False):
         result |= x ^ y
     return result == 0

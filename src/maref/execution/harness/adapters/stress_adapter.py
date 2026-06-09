@@ -24,10 +24,7 @@ class StressHarnessAdapter(BaseHarness):
                 self._harness.set_axis(k, float(v))
 
     def run(self, round_id: str = "") -> HarnessResult:
-        if self._config is None:
-            config = HarnessConfig()
-        else:
-            config = self._config
+        config = HarnessConfig() if self._config is None else self._config
         rid = round_id or config.round_id or f"stress-{int(time.time())}"
         start = time.time()
         try:

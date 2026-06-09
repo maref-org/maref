@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 
 _TOKEN_RATIO = 4.0  # 平均每 token 约 4 字符

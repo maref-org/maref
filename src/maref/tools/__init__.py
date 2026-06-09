@@ -25,13 +25,9 @@ from maref.tools.tool_schema import (
     get_tool_definition,
     list_tool_definitions,
 )
-from maref.tools.web_search_server import (
-    DomainBlacklist,
-    QuerySanitizer,
-    ResultLimit,
-    create_web_search_server,
-)
 from maref.tools.unified_registry import (
+    ROLE_CAPABILITY_ALLOWLIST,
+    ROLE_RISK_CEILING,
     AgentRole,
     CapabilityType,
     ExecutionMode,
@@ -44,13 +40,17 @@ from maref.tools.unified_registry import (
     PermissionVerdict,
     RegisteredCapability,
     RiskLevelCeiling,
-    ROLE_CAPABILITY_ALLOWLIST,
-    ROLE_RISK_CEILING,
     RoleCapabilityFilter,
     ToolCallContext,
     ToolCallRecord,
     TrustLevelOverride,
     UnifiedToolRegistry,
+)
+from maref.tools.web_search_server import (
+    DomainBlacklist,
+    QuerySanitizer,
+    ResultLimit,
+    create_web_search_server,
 )
 
 __all__ = [

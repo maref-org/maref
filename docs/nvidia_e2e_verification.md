@@ -14,7 +14,7 @@
 - ❌ 推理API返回403（Authorization failed）
 
 ### 原因分析
-API key `NVIDIA_API_KEY` 只有**读取模型列表**权限，没有**推理（chat.completions）**权限。
+API key（从环境变量 `NVIDIA_API_KEY` 读取）只有**读取模型列表**权限，没有**推理（chat.completions）**权限。
 
 可能原因：
 1. API key过期（过期时间01/29/2126显示很长，但可能被撤销）

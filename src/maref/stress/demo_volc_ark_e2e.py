@@ -14,20 +14,20 @@ Addresses:
 from __future__ import annotations
 
 import json
+import os
 import sys
-import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from maref.stress.code_service_harness import CodeServiceHarness, AgentConfig
-from maref.stress.code_service_sqi import CodeServiceSQI, CodeQualityMetrics, WEIGHT_PROFILES
-from maref.stress.volc_ark_code_agent import VolcArkCodeAgent
+from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
+from maref.stress.code_service_sqi import WEIGHT_PROFILES, CodeQualityMetrics, CodeServiceSQI
 from maref.stress.sqi_convergence import SQIConvergenceTracker
-
+from maref.stress.volc_ark_code_agent import VolcArkCodeAgent
 
 # ─── Volcengine Ark Configuration ────────────────────────────────────────
-VOLC_ARK_API_KEY = "VOLC_ARK_API_KEY"
+# 密钥从环境变量读取，使用 macOS Keychain 管理: maref-volc-ark-api-key
+VOLC_ARK_API_KEY = os.environ.get("VOLC_ARK_API_KEY", "")
 VOLC_ARK_MODEL = "doubao-seed-code-preview-latest"
 VOLC_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding"
 
@@ -109,7 +109,7 @@ def demo_q1_real_code_generation() -> dict:
         total_duration = sum(r["duration_ms"] for r in results)
         total_tokens = sum(r["total_tokens"] for r in results)
 
-        print(f"\n--- Q1 Summary ---")
+        print("\n--- Q1 Summary ---")
         print(f"  Success rate: {success_count}/{len(results)} ({success_count/len(results)*100:.0f}%)")
         print(f"  Total duration: {total_duration/1000:.1f}s")
         print(f"  Total tokens: {total_tokens}")
@@ -151,7 +151,7 @@ def demo_q2_dynamic_sqi_weights() -> dict:
     )
 
     profile_results = {}
-    for profile_name in WEIGHT_PROFILES.keys():
+    for profile_name in WEIGHT_PROFILES:
         sqi = CodeServiceSQI(weight_profile=profile_name)
         report = sqi.compute(
             code_metrics=sample_metrics,
@@ -231,7 +231,7 @@ def demo_q3_aggressive_convergence() -> dict:
     reached_75 = any(r["sqi"] >= 75.0 for r in round_data)
     rounds_to_75 = next((r["round"] for r in round_data if r["sqi"] >= 75.0), None)
 
-    print(f"\n  --- Q3 Summary ---")
+    print("\n  --- Q3 Summary ---")
     print(f"  Final SQI: {final_sqi:.1f}")
     print(f"  Reached 75.0: {'YES' if reached_75 else 'NO'}")
     if rounds_to_75 is not None:

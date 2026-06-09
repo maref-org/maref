@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import Any
-
-import pytest
 
 from maref.executor.queue import TaskQueue
 from maref.executor.types import Task
@@ -21,7 +18,6 @@ from maref.executor.workflow.patterns.tournament import (
     TournamentConfig,
     TournamentPattern,
 )
-
 
 # ── Helpers ─────────────────────────────────────────────────────────
 

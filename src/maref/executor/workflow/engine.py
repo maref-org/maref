@@ -5,10 +5,9 @@ import os
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
 from typing import Any
 
-from maref.executor.types import Task, TaskPriority, TaskStatus
+from maref.executor.types import Task, TaskPriority
 from maref.executor.worker import WorkerPool
 from maref.executor.workflow.types import (
     StepResult,
@@ -17,7 +16,6 @@ from maref.executor.workflow.types import (
     WorkflowResult,
     WorkflowScript,
     WorkflowStatus,
-    _new_id,
     _now,
 )
 
@@ -45,7 +43,7 @@ def _topological_sort(steps: list, depends_on_attr: str = "depends_on") -> list:
     如果 A depends_on B, 则 B 在 A 之前执行。
     无依赖的步骤保持原始顺序。
     """
-    names = [s.name for s in steps]
+    [s.name for s in steps]
     step_map = {s.name: s for s in steps}
 
     in_degree: dict[str, int] = {s.name: 0 for s in steps}
@@ -91,8 +89,8 @@ def _topological_groups(steps: list) -> list[list]:
     sorted_steps = _topological_sort(steps)
 
     # 构建依赖索引
-    step_map = {s.name: s for s in sorted_steps}
-    name_to_idx = {s.name: i for i, s in enumerate(sorted_steps)}
+    {s.name: s for s in sorted_steps}
+    {s.name: i for i, s in enumerate(sorted_steps)}
 
     # 每步的最早执行层
     layer: dict[str, int] = {}

@@ -24,8 +24,6 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from drift_guard.metrics import DriftMetricsCollector, compute_drift_metrics
 from drift_guard.types import (
     DriftAction,
@@ -36,6 +34,8 @@ from drift_guard.types import (
     ModelSignature,
     PipelineConfig,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class HumanArbitrationGate:

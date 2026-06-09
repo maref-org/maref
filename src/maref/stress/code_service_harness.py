@@ -227,7 +227,7 @@ class CodeServiceHarness:
 
     def get_variance_metrics(self, num_runs: int = 100) -> dict[str, float]:
         """Get variance metrics across multiple runs for convergence analysis."""
-        report = self.run(num_runs=num_runs)
+        self.run(num_runs=num_runs)
 
         success_rates = []
         coverage_values = []

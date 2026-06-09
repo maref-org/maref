@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from maref.gaas.api import router as gaas_router
 from maref.gaas.api import get_tenant_manager
+from maref.gaas.api import router as gaas_router
 from maref.gaas.tenant import Tenant
 from maref.security.keyring_store import KeyringStore
 

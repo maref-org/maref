@@ -1,5 +1,5 @@
 """Quick Q3 convergence test - code only mode."""
-from maref.stress.code_service_harness import CodeServiceHarness, AgentConfig
+from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 from maref.stress.code_service_sqi import CodeServiceSQI
 from maref.stress.sqi_convergence import SQIConvergenceTracker
 

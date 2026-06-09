@@ -6,16 +6,13 @@ No dependencies on openclaw proprietary files or paths.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from maref.integration.mcp_security import (
-    AuditLogEntry,
     MCPSecurityGate,
     MCPTrustLevel,
     SecurityVerdict,

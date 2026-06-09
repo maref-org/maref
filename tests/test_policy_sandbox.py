@@ -77,7 +77,7 @@ class TestPolicySandbox:
             new_config=new_config,
         )
         sandbox.start_a_b_test(change.change_id)
-        sandbox.approve_change(change.change_id)
+        sandbox.approve_change(change.change_id, reviewer="test")
 
         assert sandbox.get_active_config().kl_warning == 0.99
 
@@ -115,7 +115,7 @@ class TestPolicySandbox:
                 new_config=new_config,
             )
             sandbox.start_a_b_test(change.change_id)
-            sandbox.approve_change(change.change_id)
+            sandbox.approve_change(change.change_id, reviewer="test")
 
         # Rollback all changes
         for _ in range(5):
@@ -140,7 +140,7 @@ class TestPolicySandbox:
                 new_config=new_config,
             )
             sandbox.start_a_b_test(change.change_id)
-            sandbox.approve_change(change.change_id)
+            sandbox.approve_change(change.change_id, reviewer="test")
 
         history = sandbox.get_version_history()
         assert len(history) == 4  # baseline + 3 changes

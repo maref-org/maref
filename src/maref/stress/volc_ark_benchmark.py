@@ -13,6 +13,7 @@ Metrics collected:
 from __future__ import annotations
 
 import json
+import os
 import statistics
 import sys
 import time
@@ -23,7 +24,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from maref.stress.volc_ark_code_agent import VolcArkCodeAgent
 
 # ─── Volcengine Ark Configuration ────────────────────────────────────────
-VOLC_ARK_API_KEY = "VOLC_ARK_API_KEY"
+# 密钥从环境变量读取，使用 macOS Keychain 管理: maref-volc-ark-api-key
+VOLC_ARK_API_KEY = os.environ.get("VOLC_ARK_API_KEY", "")
 VOLC_ARK_MODEL = "doubao-seed-code-preview-latest"
 VOLC_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding"
 
@@ -242,13 +244,13 @@ def run_benchmark() -> dict:
     print("BENCHMARK SUMMARY")
     print("=" * 70)
 
-    print(f"\n  Overall:")
+    print("\n  Overall:")
     print(f"    Success rate:      {success_count}/{total_count} ({success_count/total_count*100:.0f}%)")
     print(f"    Total duration:    {total_duration/1000:.0f}s ({total_duration/1000/60:.1f} min)")
     print(f"    Total tokens:      {sum(r['total_tokens'] for r in success_results):,}")
 
     if durations:
-        print(f"\n  Duration:")
+        print("\n  Duration:")
         print(f"    Mean:              {statistics.mean(durations)/1000:.1f}s")
         print(f"    Median (P50):      {percentile(durations, 50)/1000:.1f}s")
         print(f"    P95:               {percentile(durations, 95)/1000:.1f}s")
@@ -258,23 +260,23 @@ def run_benchmark() -> dict:
         print(f"    Max:               {max(durations)/1000:.1f}s")
 
     if tokens:
-        print(f"\n  Token Usage:")
+        print("\n  Token Usage:")
         print(f"    Mean:              {statistics.mean(tokens):,.0f}")
         print(f"    Median (P50):      {percentile(tokens, 50):,.0f}")
         print(f"    P95:               {percentile(tokens, 95):,.0f}")
         print(f"    Total:             {sum(tokens):,}")
 
     if code_lengths:
-        print(f"\n  Code Length:")
+        print("\n  Code Length:")
         print(f"    Mean:              {statistics.mean(code_lengths):,.0f} chars")
         print(f"    Median (P50):      {percentile(code_lengths, 50):,.0f} chars")
 
-    print(f"\n  Quality Metrics:")
+    print("\n  Quality Metrics:")
     print(f"    Tests included:    {has_tests_count}/{success_count} ({has_tests_count/success_count*100:.0f}%)")
     print(f"    Docstrings:        {has_docs_count}/{success_count} ({has_docs_count/success_count*100:.0f}%)")
     print(f"    Type hints:        {has_types_count}/{success_count} ({has_types_count/success_count*100:.0f}%)")
 
-    print(f"\n  By Category:")
+    print("\n  By Category:")
     for cat, stats in sorted(category_stats.items()):
         print(f"    {cat:<15} {stats['success']}/{stats['total']} success, "
               f"{stats['avg_duration_ms']/1000:.1f}s avg, "

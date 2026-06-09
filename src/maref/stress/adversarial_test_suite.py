@@ -13,7 +13,7 @@ Combines VolcArkCodeAgent with ChaosEngine and CodeServiceHarness.
 from __future__ import annotations
 
 import json
-import random
+import os
 import statistics
 import sys
 import time
@@ -23,11 +23,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from maref.stress.chaos_engine import ChaosEngine, FaultType, SafetyGate
-from maref.stress.code_service_harness import CodeServiceHarness, AgentConfig, CodeServiceReport
+from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 from maref.stress.volc_ark_code_agent import VolcArkCodeAgent
 
 # ─── Volcengine Ark Configuration ────────────────────────────────────────
-VOLC_ARK_API_KEY = "VOLC_ARK_API_KEY"
+# 密钥从环境变量读取，使用 macOS Keychain 管理: maref-volc-ark-api-key
+VOLC_ARK_API_KEY = os.environ.get("VOLC_ARK_API_KEY", "")
 VOLC_ARK_MODEL = "doubao-seed-code-preview-latest"
 VOLC_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding"
 
@@ -61,7 +62,7 @@ def test_byzantine_agent() -> list[AdversarialResult]:
     - Tamper with generated code output
     - Inject malicious patterns (eval, exec, hardcoded secrets)
     - Modify test assertions to always pass
-    
+
     Improvements from previous run:
     - Lowered byzantine agent quality (0.9→0.6) for more visible attacks
     - Enhanced review agent with security-focused detection (0.85→0.92)
@@ -300,7 +301,7 @@ def test_safety_gate() -> list[AdversarialResult]:
             metadata={"environment": "development"},
         ))
     except RuntimeError as e:
-        print(f"    Fault blocked: ✗ (unexpected)")
+        print("    Fault blocked: ✗ (unexpected)")
         results.append(AdversarialResult(
             test_type="safety_gate",
             scenario="non_production",
@@ -461,13 +462,13 @@ def run_full_adversarial_suite() -> dict:
     print("ADVERSARIAL TEST SUMMARY")
     print("=" * 70)
 
-    print(f"\n  Overall:")
+    print("\n  Overall:")
     print(f"    Tests passed:      {passed_tests}/{total_tests} ({passed_tests/total_tests*100:.0f}%)")
     print(f"    Total duration:    {total_duration/1000:.0f}s ({total_duration/1000/60:.1f} min)")
     print(f"    Avg detection:     {avg_detection:.1%}" if avg_detection > 0 else "")
     print(f"    Avg recovery:      {avg_recovery:.0f}ms" if avg_recovery > 0 else "")
 
-    print(f"\n  By Test Type:")
+    print("\n  By Test Type:")
     for test_type in ["byzantine_agent", "emergent_conflict", "chaos_injection", "safety_gate", "adversarial_prompt"]:
         type_results = [r for r in all_results if r.test_type == test_type]
         if type_results:

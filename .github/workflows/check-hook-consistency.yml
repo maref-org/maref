@@ -1,0 +1,52 @@
+name: Hook Consistency Check
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday 06:00 UTC
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  check-hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check pre-push hook version
+        run: |
+          VERSION=$(grep -oP '宪法 v\K[0-9.]+' .git/hooks/pre-push 2>/dev/null | head -1 || echo "")
+          if [ -z "$VERSION" ]; then
+            echo "::warning::pre-push hook: no constitution version reference found"
+          else
+            echo "✅ pre-push hook: v$VERSION"
+          fi
+      - name: Check pre-commit hook version
+        run: |
+          VERSION=$(grep -oP '宪法 v\K[0-9.]+' .git/hooks/pre-commit 2>/dev/null | head -1 || echo "")
+          if [ -z "$VERSION" ]; then
+            echo "pre-commit hook: no constitution version reference (may be auto-generated)"
+          else
+            echo "✅ pre-commit hook: v$VERSION"
+          fi
+      - name: Check config files reference constitution
+        run: |
+          CONST_VERSION=$(grep -oP '\*\*版本\*\*: v\K[0-9.]+' ../CONSTITUTION.md 2>/dev/null | head -1 || echo "")
+          if [ -z "$CONST_VERSION" ]; then
+            echo "::warning::Could not determine constitution version"
+            exit 0
+          fi
+          echo "Constitution: v$CONST_VERSION"
+          ERROR=0
+          for f in AGENTS.md CLAUDE.md .cursorrules opencode.jsonc .github/copilot-instructions.md; do
+            if [ -f "$f" ] && grep -q '宪法 v' "$f" 2>/dev/null; then
+              if ! grep -q "宪法 v$CONST_VERSION" "$f" 2>/dev/null; then
+                echo "::error::$f references different constitution version"
+                ERROR=1
+              fi
+            fi
+          done
+          if [ $ERROR -eq 0 ]; then
+            echo "✅ All config files match constitution v$CONST_VERSION"
+          else
+            exit 1
+          fi

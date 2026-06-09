@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from maref.executor.workflow.types import WorkflowScript, WorkflowStep, _new_id
+from maref.executor.workflow.types import WorkflowScript, WorkflowStep
 
 # 类型: 只要实现了 .complete(prompt) -> str 即可
 ModelAdapterLike = Any

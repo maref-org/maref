@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
-from maref.tools.tool_schema import ToolCategory, ToolDefinition, ToolRiskLevel
+from maref.tools.tool_schema import ToolDefinition, ToolRiskLevel
 
 if TYPE_CHECKING:
     from maref.governance.audit import AuditLogger

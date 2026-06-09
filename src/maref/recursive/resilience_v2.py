@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -101,11 +102,13 @@ class ResilienceEvaluatorV2:
 
         for factor, weight in self._FACTORS.items():
             value = factor_values.get(factor, 0.0)
+            if not math.isfinite(value):
+                value = 0.0
             threshold = self._THRESHOLDS.get(factor, 1.0)
             if factor in self._INVERSE_METRICS:
                 norm = min(threshold / max(value, 1e-6), 1.0)
             else:
-                norm = min(value / threshold, 1.0) if threshold > 0 else 1.0
+                norm = min(max(value, 0.0) / threshold, 1.0) if threshold > 0 else 1.0
             normalized[factor] = norm
             total += norm * weight * 100.0
 

@@ -206,7 +206,7 @@ class Phase9AutoResearch:
                 description=f"Change {i}",
                 new_config=new_config,
             )
-            sandbox.approve_change(change.change_id)
+            sandbox.approve_change(change.change_id, reviewer="autoresearch_phase9")
 
         # Rollback all
         for _ in range(num_changes):

@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 try:
-    import anthropic
     from anthropic import Anthropic, APIError, RateLimitError
     _ANTHROPIC_AVAILABLE = True
 except ImportError:

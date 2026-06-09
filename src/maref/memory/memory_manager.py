@@ -380,6 +380,18 @@ class SemanticMemoryStore:
         return len(self._records)
 
 
+    def query_similar(self, text: str, limit: int = 5) -> list[MemoryRecord]:
+        keywords = text.lower().split()
+        scored: list[tuple[float, MemoryRecord]] = []
+        for record in self._records.values():
+            content_str = str(record.content).lower()
+            score = sum(1.0 for kw in keywords if kw in content_str)
+            if score > 0:
+                scored.append((score / len(keywords), record))
+        scored.sort(key=lambda x: -x[0])
+        return [r for _, r in scored[:limit]]
+
+
 # --------------------------------------------------------------------------- #
 # Unified Manager
 # --------------------------------------------------------------------------- #
@@ -400,10 +412,11 @@ class MemoryManager:
         facts = mm.semantic.query(MemoryQuery(keywords=["pricing", "model"]))
     """
 
-    def __init__(self) -> None:
+    def __init__(self, enable_gate: bool = False) -> None:
         self.working = WorkingMemoryStore()
         self.episodic = EpisodicMemoryStore()
         self.semantic = SemanticMemoryStore()
+        self._enable_gate = enable_gate
 
     def create_record(
         self,
@@ -421,6 +434,23 @@ class MemoryManager:
             user_tag=user_tag or UserIsolationTag(),
             linked_task_ids=task_ids or [],
         )
+
+    def write_with_gate(self, record: MemoryRecord) -> MemoryRecord:
+        if self._enable_gate:
+            if not record.content:
+                raise ValueError("consolidation gate rejected: empty content")
+            if record.confidence == ConfidenceLabel.CERTAIN:
+                for existing in list(self.semantic._records.values()):
+                    if existing.confidence == ConfidenceLabel.CERTAIN:
+                        shared_keys = set(record.content.keys()) & set(existing.content.keys())
+                        for k in shared_keys:
+                            if record.content[k] != existing.content[k]:
+                                raise ValueError(f"consolidation gate rejected: conflict for key '{k}'")
+                self.semantic.store(record)
+            self.working.put(record)
+        else:
+            self.working.put(record)
+        return record
 
     def query_all_tiers(
         self,

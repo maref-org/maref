@@ -15,10 +15,10 @@ Supports dynamic weight profiles for different industry scenarios.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from maref.stress.sqi import SQIDimension, ServiceQualityIndex, SQIReport
+from maref.stress.sqi import ServiceQualityIndex, SQIDimension, SQIReport
 
 
 @dataclass

@@ -23,7 +23,7 @@ class LocalModelAdapter(ModelAdapter):
             self._tokenizer = transformers.AutoTokenizer.from_pretrained(self._model_name)
             self._model = transformers.AutoModelForCausalLM.from_pretrained(self._model_name)
         except ImportError:
-            raise RuntimeError("transformers not installed")
+            raise RuntimeError("transformers not installed") from None
 
     def complete(self, prompt: str, **kwargs: Any) -> str:
         self._lazy_init()

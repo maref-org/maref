@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """发送MAREF项目申报咨询邮件 - 使用SMTP直接发送"""
 
+import os
 import smtplib
 import ssl
 from email.mime.text import MIMEText
 from email.header import Header
 from email.utils import formataddr
 
-# SMTP配置
-SMTP_SERVER = "smtp.qq.com"
-SMTP_PORT = 465
-SMTP_USERNAME = "athneabot@qq.com"
-SMTP_PASSWORD = "SMTP_PASSWORD"
-EMAIL_FROM = "athneabot@qq.com"
+# SMTP配置 — 密钥从环境变量读取
+# 设置: export SMTP_PASSWORD=$(security find-generic-password -a "maref-smtp-password" -w)
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.qq.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "athneabot@qq.com")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+EMAIL_FROM = os.environ.get("EMAIL_FROM", "athneabot@qq.com")
 
 
 def send_email(to_addr: str, subject: str, body: str) -> bool:

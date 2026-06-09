@@ -21,12 +21,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from maref.stress.volc_ark_benchmark import run_benchmark
 from maref.stress.adversarial_test_suite import run_full_adversarial_suite
-from maref.stress.demo_volc_ark_e2e import demo_q1_real_code_generation, demo_q2_dynamic_sqi_weights, demo_q3_aggressive_convergence
-from maref.stress.code_service_harness import CodeServiceHarness, AgentConfig
-from maref.stress.code_service_sqi import CodeServiceSQI, CodeQualityMetrics
+from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
+from maref.stress.code_service_sqi import CodeServiceSQI
+from maref.stress.demo_volc_ark_e2e import (
+    demo_q1_real_code_generation,
+    demo_q2_dynamic_sqi_weights,
+    demo_q3_aggressive_convergence,
+)
 from maref.stress.sqi_convergence import SQIConvergenceTracker
+from maref.stress.volc_ark_benchmark import run_benchmark
 
 
 @dataclass
@@ -60,18 +64,18 @@ def run_pressure_test(num_runs: int = 100) -> PhaseResult:
     print(f"\nRunning {num_runs} continuous pipeline executions...\n")
 
     t_start = time.perf_counter()
-    
+
     # 每20次运行记录一次批次结果
     batch_results = []
     for batch_idx in range(5):
         batch_start = time.perf_counter()
         report = harness.run(num_runs=20, round_id=f"pressure-batch-{batch_idx}")
         batch_duration = (time.perf_counter() - batch_start) * 1000
-        
+
         metrics = report.to_code_quality_metrics()
         sqi_report = sqi.compute(code_metrics=metrics, round_id=f"pressure-{batch_idx}")
         tracker.record_round(f"pressure-{batch_idx}", sqi_report)
-        
+
         batch_results.append({
             "batch": batch_idx,
             "success_rate": report.success_rate,
@@ -80,7 +84,7 @@ def run_pressure_test(num_runs: int = 100) -> PhaseResult:
             "sqi_score": sqi_report.overall_score,
             "batch_duration_ms": batch_duration,
         })
-        
+
         print(f"  Batch {batch_idx}: success={report.success_rate:.1%}, "
               f"coverage={report.avg_test_coverage:.1f}%, "
               f"SQI={sqi_report.overall_score:.1f}, "
@@ -92,11 +96,11 @@ def run_pressure_test(num_runs: int = 100) -> PhaseResult:
     # 汇总统计
     success_rates = [b["success_rate"] for b in batch_results]
     sqi_scores = [b["sqi_score"] for b in batch_results]
-    durations = [b["batch_duration_ms"] for b in batch_results]
+    [b["batch_duration_ms"] for b in batch_results]
 
     convergence_state = tracker.check_convergence()
 
-    print(f"\n  Pressure Test Summary:")
+    print("\n  Pressure Test Summary:")
     print(f"    Total runs:          {num_runs}")
     print(f"    Total duration:      {total_duration/1000:.1f}s")
     print(f"    Avg success rate:    {statistics.mean(success_rates):.1%}")
@@ -125,7 +129,7 @@ def run_full_chain_test() -> dict:
     print("\n" + "#" * 70)
     print("# MAREF Full Chain Test - 全量长任务链测试")
     print("#" * 70)
-    
+
     t_chain_start = time.perf_counter()
     phase_results: list[PhaseResult] = []
 
@@ -135,7 +139,7 @@ def run_full_chain_test() -> dict:
     print("\n" + "#" * 70)
     print("# PHASE 1: Baseline Benchmark (20 code generation tasks)")
     print("#" * 70)
-    
+
     t_phase = time.perf_counter()
     try:
         benchmark_results = run_benchmark()
@@ -167,10 +171,10 @@ def run_full_chain_test() -> dict:
     print("\n" + "#" * 70)
     print("# PHASE 2: End-to-End Verification (Q1/Q2/Q3)")
     print("#" * 70)
-    
+
     t_phase = time.perf_counter()
     e2e_results = {}
-    
+
     # Q1: 真实代码生成
     try:
         print("\n  --- Q1: Real Code Generation ---")
@@ -216,7 +220,7 @@ def run_full_chain_test() -> dict:
     print("\n" + "#" * 70)
     print("# PHASE 3: Chaos + Red-Blue Adversarial Testing")
     print("#" * 70)
-    
+
     t_phase = time.perf_counter()
     try:
         adversarial_results = run_full_adversarial_suite()
@@ -247,7 +251,7 @@ def run_full_chain_test() -> dict:
     print("\n" + "#" * 70)
     print("# PHASE 4: SQI Convergence Tracking (15 rounds)")
     print("#" * 70)
-    
+
     t_phase = time.perf_counter()
     try:
         sqi = CodeServiceSQI()
@@ -259,23 +263,23 @@ def run_full_chain_test() -> dict:
 
         for round_idx in range(15):
             base_quality = min(0.98, 0.75 + round_idx * 0.05)
-            
+
             agents = [
                 AgentConfig(name="gen", quality_rate=base_quality),
                 AgentConfig(name="test", quality_rate=min(0.99, base_quality + 0.03)),
                 AgentConfig(name="review", quality_rate=min(0.97, base_quality - 0.02)),
                 AgentConfig(name="merge", quality_rate=min(0.99, base_quality + 0.05)),
             ]
-            
+
             harness = CodeServiceHarness(agents=agents, seed=42 + round_idx)
             report = harness.run(num_runs=100, round_id=f"convergence-{round_idx}")
-            
+
             metrics = report.to_code_quality_metrics()
             sqi_report = sqi.compute(code_metrics=metrics, round_id=f"convergence-{round_idx}")
             record = tracker.record_round(f"convergence-{round_idx}", sqi_report)
-            
+
             state = tracker.check_convergence()
-            
+
             round_records.append({
                 "round": round_idx,
                 "sqi": sqi_report.overall_score,
@@ -284,10 +288,10 @@ def run_full_chain_test() -> dict:
                 "coverage": report.avg_test_coverage,
                 "trend": state.trend,
             })
-            
+
             print(f"  {round_idx:<6} {sqi_report.overall_score:<6.1f} {record.delta:+6.1f}  "
                   f"{report.success_rate:<7.1%} {report.avg_test_coverage:<8.1f}% {state.trend}")
-            
+
             if state.is_converged:
                 print(f"\n  CONVERGED at round {round_idx}!")
                 break
@@ -346,13 +350,13 @@ def run_full_chain_test() -> dict:
 
     total_phases = len(phase_results)
     passed_phases = sum(1 for p in phase_results if p.success)
-    
-    print(f"\n  Test Chain Summary:")
+
+    print("\n  Test Chain Summary:")
     print(f"    Total phases:      {total_phases}")
     print(f"    Passed phases:     {passed_phases}/{total_phases} ({passed_phases/total_phases*100:.0f}%)")
     print(f"    Total duration:    {total_chain_duration/1000:.0f}s ({total_chain_duration/1000/60:.1f} min)")
 
-    print(f"\n  Phase Details:")
+    print("\n  Phase Details:")
     for phase in phase_results:
         status = "PASS" if phase.success else "FAIL"
         print(f"    [{status}] {phase.phase_name:<25} "
@@ -366,23 +370,23 @@ def run_full_chain_test() -> dict:
     convergence_phase = next((p for p in phase_results if p.phase_name == "sqi_convergence"), None)
     pressure_phase = next((p for p in phase_results if p.phase_name == "pressure_test"), None)
 
-    print(f"\n  Key Metrics:")
+    print("\n  Key Metrics:")
     if benchmark_phase and benchmark_phase.metrics:
         print(f"    Benchmark success rate:   {benchmark_phase.metrics.get('success_rate', 0):.0%}")
         print(f"    Benchmark avg duration:   {benchmark_phase.metrics.get('avg_duration_ms', 0)/1000:.1f}s")
-    
+
     if e2e_phase and e2e_phase.metrics:
         print(f"    Q1 code gen success:      {e2e_phase.metrics.get('q1_success_rate', 0):.0%}")
         print(f"    Q3 final SQI:             {e2e_phase.metrics.get('q3_final_sqi', 0):.1f}")
-    
+
     if adversarial_phase and adversarial_phase.metrics:
         print(f"    Adversarial pass rate:    {adversarial_phase.metrics.get('pass_rate', 0):.0%}")
         print(f"    Avg detection rate:       {adversarial_phase.metrics.get('avg_detection_rate', 0):.0%}")
-    
+
     if convergence_phase and convergence_phase.metrics:
         print(f"    Convergence final SQI:    {convergence_phase.metrics.get('final_sqi', 0):.1f}")
         print(f"    Converged:                {convergence_phase.metrics.get('converged', False)}")
-    
+
     if pressure_phase and pressure_phase.metrics:
         print(f"    Pressure avg success:     {pressure_phase.metrics.get('avg_success_rate', 0):.0%}")
         print(f"    Pressure SQI std dev:     {pressure_phase.metrics.get('sqi_std_dev', 0):.2f}")
@@ -423,16 +427,16 @@ if __name__ == "__main__":
     print("Starting MAREF Full Chain Test...")
     print("This will run all test phases sequentially.")
     print("Expected duration: ~10-15 minutes (depends on API response time)")
-    
+
     report = run_full_chain_test()
-    
+
     # 保存结果
     output_path = Path(__file__).parent.parent.parent / "tests" / "stress" / "full_chain_results.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(output_path, "w") as f:
         json.dump(report, f, indent=2, default=str)
-    
+
     print(f"\n{'='*70}")
     print(f"Results saved to: {output_path}")
     print(f"{'='*70}")

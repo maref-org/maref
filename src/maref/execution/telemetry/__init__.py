@@ -1,4 +1,8 @@
-from maref.execution.telemetry.collector import HarnessTelemetryCollector, TelemetryEvent, TelemetryReport
+from maref.execution.telemetry.collector import (
+    HarnessTelemetryCollector,
+    TelemetryEvent,
+    TelemetryReport,
+)
 from maref.execution.telemetry.evolution_feed import EvolutionDataFeed
 
 __all__ = [

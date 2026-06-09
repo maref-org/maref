@@ -43,7 +43,7 @@ class AuditRecord:
         }, ensure_ascii=False)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AuditRecord":
+    def from_dict(cls, data: dict[str, Any]) -> AuditRecord:
         return cls(
             timestamp=data["timestamp"],
             agent_id=data["agent_id"],

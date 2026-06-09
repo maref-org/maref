@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-import time
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -102,7 +101,7 @@ async def get_status(run_id: str) -> StatusResponse:
     if run_id not in _harness_configs:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
 
-    harness = _harness_instances.get(run_id)
+    _harness_instances.get(run_id)
     is_terminal = False
     lifecycle_state = "unknown"
 

@@ -26,8 +26,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from maref.stress.chaos_engine import ChaosEngine, FaultType, SafetyGate
-from maref.stress.code_service_harness import CodeServiceHarness, AgentConfig, CodeServiceReport
+from maref.stress.chaos_engine import ChaosEngine, FaultType
+from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 
 
 @dataclass
@@ -593,11 +593,11 @@ def run_extreme_stress_suite() -> dict:
     print("EXTREME STRESS TEST SUMMARY")
     print("=" * 70)
 
-    print(f"\n  Overall:")
+    print("\n  Overall:")
     print(f"    Tests passed:      {passed_tests}/{total_tests} ({pass_rate:.0%})")
     print(f"    Total duration:    {total_duration/1000:.0f}s ({total_duration/1000/60:.1f} min)")
 
-    print(f"\n  By Test:")
+    print("\n  By Test:")
     for r in tester.results:
         status = "PASS" if r.success else "FAIL"
         print(f"    {r.test_name:<30} {status} ({r.duration_ms/1000:.1f}s)")

@@ -17,12 +17,10 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from maref.stress.chaos_engine import ChaosEngine, FaultType, SafetyGate
-from maref.stress.code_service_harness import CodeServiceHarness, AgentConfig, CodeServiceReport
+from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 
 
 @dataclass
@@ -277,7 +275,7 @@ def run_optimization_suite() -> dict:
 
     # Optimization 1: Cascading Fault Isolation
     print("\n[1/3] Cascading Fault Isolation (Circuit Breaker)...")
-    print(f"  Baseline: 16.0% success (5 simultaneous faults)")
+    print("  Baseline: 16.0% success (5 simultaneous faults)")
     result1 = tester.test_cascading_fault_isolation()
     tester.results.append(result1)
     print(f"  Optimized: {result1.optimized_success:.1%} success")
@@ -286,7 +284,7 @@ def run_optimization_suite() -> dict:
 
     # Optimization 2: Crash Recovery
     print("\n[2/3] Crash Recovery (Exponential Backoff)...")
-    print(f"  Baseline: 0.0% success (stress 3.0)")
+    print("  Baseline: 0.0% success (stress 3.0)")
     result2 = tester.test_crash_recovery()
     tester.results.append(result2)
     print(f"  Final after 5 rounds: {result2.optimized_success:.1%} success")
@@ -295,7 +293,7 @@ def run_optimization_suite() -> dict:
 
     # Optimization 3: Resource Graceful Degradation
     print("\n[3/3] Resource Graceful Degradation...")
-    print(f"  Baseline: 2.0% success (resource exhaustion)")
+    print("  Baseline: 2.0% success (resource exhaustion)")
     result3 = tester.test_resource_graceful_degradation()
     tester.results.append(result3)
     print(f"  Optimized: {result3.optimized_success:.1%} success")
@@ -316,12 +314,12 @@ def run_optimization_suite() -> dict:
     print("OPTIMIZATION TEST SUMMARY")
     print("=" * 70)
 
-    print(f"\n  Overall:")
+    print("\n  Overall:")
     print(f"    Optimizations passed: {passed_optimizations}/{total_optimizations} ({pass_rate:.0%})")
     print(f"    Average improvement:  +{avg_improvement:.1%}")
     print(f"    Total duration:       {total_duration/1000:.0f}s")
 
-    print(f"\n  By Optimization:")
+    print("\n  By Optimization:")
     for r in tester.results:
         status = "PASS" if r.success else "FAIL"
         print(f"    {r.optimization_name:<35} {status}")

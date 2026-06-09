@@ -6,7 +6,7 @@ from typing import Any
 
 from maref.execution.harness.base import BaseHarness
 from maref.execution.harness.exceptions import HarnessAbortedError, HarnessExecutionError
-from maref.execution.harness.lifecycle import HarnessLifecycleState, _VALID_TRANSITIONS
+from maref.execution.harness.lifecycle import _VALID_TRANSITIONS, HarnessLifecycleState
 from maref.execution.harness.types import HarnessConfig, HarnessResult, HarnessStatus
 
 
@@ -114,7 +114,7 @@ class UnifiedHarness(BaseHarness):
     def _load_context(self) -> None:
         if self._context_loader is None:
             return
-        for key in self._context_loader.keys():
+        for key in self._context_loader:
             try:
                 self._context[key] = self._context_loader.load(key)
             except Exception as e:

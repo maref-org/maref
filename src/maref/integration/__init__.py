@@ -158,9 +158,13 @@ except ImportError:
         pass
 
 from maref.integration.audit_logger import AuditLogger, AuditRecord, get_audit_logger
-from maref.integration.mcp_security_gate import MCPSecurityGateV2, get_security_gate
-from maref.integration.mcp_runtime_integration import SecureMCPExecutor, MCPExecutionResult, create_secure_executor
 from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
+from maref.integration.mcp_runtime_integration import (
+    MCPExecutionResult,
+    SecureMCPExecutor,
+    create_secure_executor,
+)
+from maref.integration.mcp_security_gate import MCPSecurityGateV2, get_security_gate
 from maref.integration.memory_bridge import (
     KnowledgeInsight,
     MemoryBridge,

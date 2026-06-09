@@ -135,7 +135,7 @@ def demo_baseline_vs_governed() -> dict:
     results["convergence_proof"]["governed_variance"] = round(governed_variance, 6)
     results["convergence_proof"]["variance_reduction_pct"] = round(variance_reduction, 1)
 
-    print(f"\n  Variance Comparison:")
+    print("\n  Variance Comparison:")
     print(f"    Baseline variance: {baseline_variance:.6f}")
     print(f"    Governed variance: {governed_variance:.6f}")
     print(f"    Variance reduction: {variance_reduction:.1f}%")

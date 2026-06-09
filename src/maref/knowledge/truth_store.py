@@ -6,8 +6,6 @@ Each TruthPage is stored as one JSON file under ~/.maref/truth_pages/.
 from __future__ import annotations
 
 import json
-import os
-import time
 from pathlib import Path
 from typing import Any
 

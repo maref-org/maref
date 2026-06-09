@@ -118,7 +118,7 @@ class DatabaseManager:
         row = self.fetchone(
             "SELECT MAX(version) as max_version FROM schema_migrations"
         )
-        return row["max_version"] if row is not None else 0
+        return row["max_version"] if row is not None and row["max_version"] is not None else 0
 
     def migrate(
         self,

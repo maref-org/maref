@@ -34,7 +34,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from maref.integration.hitl import HITLRouter, HITLStatus, HITLTier
+from maref.integration.hitl import HITLRouter, HITLTier
 
 logger = logging.getLogger(__name__)
 

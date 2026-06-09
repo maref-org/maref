@@ -12,21 +12,21 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import sys
-import time
 from pathlib import Path
 
 # Add project root to path for direct execution
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from maref.stress.code_service_harness import CodeServiceHarness
-from maref.stress.code_service_sqi import CodeServiceSQI, WEIGHT_PROFILES
+from maref.stress.code_service_sqi import WEIGHT_PROFILES, CodeServiceSQI
 from maref.stress.nvidia_code_agent import NvidiaCodeAgent
 from maref.stress.sqi_convergence import SQIConvergenceTracker
 
-
 # ─── NVIDIA API Configuration ────────────────────────────────────────────
-NVIDIA_API_KEY = "NVIDIA_API_KEY"
+# 密钥从环境变量读取，使用 macOS Keychain 管理: maref-nvidia-api-key
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 NVIDIA_MODEL = "meta/llama-3.1-8b-instruct"
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
@@ -110,7 +110,7 @@ def demo_q1_real_code_generation() -> dict:
         total_duration = sum(r["duration_ms"] for r in results)
         total_tokens = sum(r["total_tokens"] for r in results)
 
-        print(f"\n--- Q1 Summary ---")
+        print("\n--- Q1 Summary ---")
         print(f"  Success rate: {success_count}/{len(results)} ({success_count/len(results)*100:.0f}%)")
         print(f"  Total duration: {total_duration/1000:.1f}s")
         print(f"  Total tokens: {total_tokens}")
@@ -155,7 +155,7 @@ def demo_q2_dynamic_sqi_weights() -> dict:
 
     # Test each weight profile
     profile_results = {}
-    for profile_name in WEIGHT_PROFILES.keys():
+    for profile_name in WEIGHT_PROFILES:
         sqi = CodeServiceSQI(weight_profile=profile_name)
         report = sqi.compute(
             code_metrics=sample_metrics,
@@ -190,7 +190,7 @@ def demo_q3_aggressive_convergence() -> dict:
     print("Q3: Aggressive Convergence Strategy (target: SQI 75.0)")
     print("=" * 70)
 
-    harness = CodeServiceHarness(seed=42)
+    CodeServiceHarness(seed=42)
     sqi = CodeServiceSQI()
     tracker = SQIConvergenceTracker()
 
@@ -198,7 +198,6 @@ def demo_q3_aggressive_convergence() -> dict:
     # - Higher base quality (0.75 instead of 0.65)
     # - Faster improvement rate (0.05 per round instead of 0.03)
     # - Quality ceiling at 0.98
-    results = []
     round_data = []
 
     print("\n  Round | SQI   | Δ     | Success | Coverage | Strategy")
@@ -256,7 +255,7 @@ def demo_q3_aggressive_convergence() -> dict:
     reached_75 = any(r["sqi"] >= 75.0 for r in round_data)
     rounds_to_75 = next((r["round"] for r in round_data if r["sqi"] >= 75.0), None)
 
-    print(f"\n  --- Q3 Summary ---")
+    print("\n  --- Q3 Summary ---")
     print(f"  Final SQI: {final_sqi:.1f}")
     print(f"  Reached 75.0: {'✓ Yes' if reached_75 else '✗ No'}")
     if rounds_to_75 is not None:

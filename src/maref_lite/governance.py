@@ -26,7 +26,6 @@ from drift_guard.types import DriftSeverity, ModelSignature
 
 if TYPE_CHECKING:
     from drift_guard.pipeline import DriftDetectionPipeline
-from sidecar.collector import ObservationCollector
 from sidecar.monitor import AnomalyEvent, CompositeMonitor
 
 from maref.governance import (
@@ -45,6 +44,7 @@ from maref.observation.probes import (
 )
 from maref.observation.registry import ProbeRegistry
 from maref.observation.store import ObservationStore
+from sidecar.collector import ObservationCollector
 
 
 @dataclass
@@ -422,6 +422,14 @@ class GovernanceOverlay:
         return self._state_machine.transition(target, reason)
 
     def force_stabilize(self, reason: str = "", caller_id: str = "anonymous", caller_token: str = "") -> bool:
+        if not self._validate_token(caller_token):
+            self._audit.log_decision(
+                event_type="auth_failure",
+                actor=caller_id,
+                action="force_stabilize",
+                details="invalid caller_token",
+            )
+            return False
         self._audit.log_decision(
             event_type="state_transition",
             actor=caller_id,
