@@ -147,7 +147,7 @@ class Phase9AutoResearch:
 
         # Auto-approve if F1 > 0.85
         if metrics["f1"] > 0.85:
-            sandbox.approve_change(change.change_id, reviewer="auto")
+            sandbox.approve_change(change.change_id, reviewer="autoresearch_phase9")
             findings = [f"已批准: F1={metrics['f1']:.3f}"]
         else:
             sandbox.reject_change(change.change_id, "F1 too low")

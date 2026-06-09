@@ -68,6 +68,10 @@ results/experiments/*
 !*.example.env
 !*.example.*.env
 
+# arXiv monitor state (persistent seen messages tracking)
+.arxiv_monitor_state
+.arxiv_monitor.pid
+
 # Credentials and secrets
 *.key
 *.pem
