@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from maref.recursive.blast_radius import BlastRadiusController, CompensationStrategy
+from maref.recursive.blast_radius import BlastRadiusController
 
 
 class SagaState(str, Enum):
