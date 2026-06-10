@@ -12,8 +12,6 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import dataclass, field
-from typing import Any
-
 
 # PII patterns (conservative — flag and replace, never silently pass)
 PII_PATTERNS: dict[str, re.Pattern] = {
