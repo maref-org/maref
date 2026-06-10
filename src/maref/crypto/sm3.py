@@ -4,13 +4,12 @@
 """
 from __future__ import annotations
 
-import hmac
 from typing import TYPE_CHECKING
 
 from gmssl import sm3 as _sm3
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 def sm3_hash(data: bytes) -> str:
