@@ -14,17 +14,17 @@ from maref.marketplace.registry import (
     SkillRegistry,
     SkillValidationResult,
 )
+from maref.marketplace.reputation import (
+    ReputationRecord,
+    ReputationTracker,
+)
 from maref.marketplace.semantic_matcher import (
     MatchScore,
     SemanticMatcher,
 )
 from maref.marketplace.version_negotiator import (
-    VersionNegotiator,
     VersionNegotiationResult,
-)
-from maref.marketplace.reputation import (
-    ReputationRecord,
-    ReputationTracker,
+    VersionNegotiator,
 )
 
 __all__ = [

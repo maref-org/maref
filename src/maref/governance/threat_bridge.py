@@ -8,11 +8,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 from maref.governance.state_machine import GovernanceStateMachine
-from maref.governance.types import GovernanceState
 from maref.monitoring.threat_intelligence import (
     ThreatAlert,
     ThreatSeverity,
@@ -47,7 +47,7 @@ class ThreatGovernanceBridge:
     def __init__(
         self,
         state_machine: GovernanceStateMachine,
-        mapping: Optional[ThreatGovernanceMapping] = None,
+        mapping: ThreatGovernanceMapping | None = None,
     ) -> None:
         self._sm = state_machine
         self._mapping = mapping or ThreatGovernanceMapping()
