@@ -14,7 +14,7 @@ from .sm2 import sm2_sign, sm2_verify
 from .sm3 import sm3_hash
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 @dataclass(frozen=True)
@@ -70,7 +70,7 @@ def verify_cai_certificate(
     ).encode()
 
     # SM3 哈希明文
-    hash1 = sm3_hash(cai_plaintext)
+    sm3_hash(cai_plaintext)
 
     # SM2 验证签名（签名内容应为 Hash1 的 hex）
     # 注意：实际协议中签名的是 SM3 哈希值，这里假设 signature 是对 hash1 的签名
@@ -110,7 +110,7 @@ def verify_certificate_verify(
         验证是否通过
     """
     # 计算握手消息的 SM3 哈希
-    message_hash = sm3_hash(handshake_messages)
+    sm3_hash(handshake_messages)
 
     # SM2 验证签名
     # 签名数据应为 handshake_messages（或 hash）

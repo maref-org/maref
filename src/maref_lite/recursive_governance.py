@@ -18,6 +18,9 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from sidecar.collector import AgentAdapter, ObservationCollector
+from sidecar.protocol import AgentId, AgentState, EntropyReading, StateSnapshot
+
 from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox
 from maref.governance import (
     AuditLogger,
@@ -27,8 +30,6 @@ from maref.governance import (
 )
 from maref_lite.governance import GovernanceOverlay
 from maref_lite.meta_learning import DecisionOutcome, MetaLearner
-from sidecar.collector import AgentAdapter, ObservationCollector
-from sidecar.protocol import AgentId, AgentState, EntropyReading, StateSnapshot
 
 
 class MAREFSelfAdapter(AgentAdapter):
