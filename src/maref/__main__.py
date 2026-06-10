@@ -16,15 +16,16 @@ import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
-from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
-from maref.integration.mcp_server import MCPServer
-from maref.integration.mcp_transport import JSONRPCRequest, JSONRPCResponse
 from sidecar.exfiltration_probe import DataExfiltrationProbe
 from sidecar.mcp_bridge import (
     SIDECAR_MCP_RESOURCES,
     SIDECAR_MCP_TOOLS,
     SidecarMCPBridge,
 )
+
+from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
+from maref.integration.mcp_server import MCPServer
+from maref.integration.mcp_transport import JSONRPCRequest, JSONRPCResponse
 
 logger = logging.getLogger("maref-governance-mcp")
 

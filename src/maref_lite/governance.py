@@ -24,6 +24,9 @@ from drift_guard.types import DriftSeverity, ModelSignature
 
 if TYPE_CHECKING:
     from drift_guard.pipeline import DriftDetectionPipeline
+from sidecar.collector import ObservationCollector
+from sidecar.monitor import AnomalyEvent, CompositeMonitor
+
 from maref.governance import (
     AuditLogger,
     GovernanceState,
@@ -40,8 +43,6 @@ from maref.observation.probes import (
 )
 from maref.observation.registry import ProbeRegistry
 from maref.observation.store import ObservationStore
-from sidecar.collector import ObservationCollector
-from sidecar.monitor import AnomalyEvent, CompositeMonitor
 
 
 @dataclass
