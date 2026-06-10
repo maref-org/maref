@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.types import GovernanceState, StateTransition
@@ -176,7 +176,7 @@ class GovernanceBridge:
         return len(self._event_history)
 
     def get_recent_events(
-        self, event_type: Optional[RecursiveEventType] = None, limit: int = 10
+        self, event_type: RecursiveEventType | None = None, limit: int = 10
     ) -> list[RecursiveEvent]:
         """获取最近的事件记录。"""
         events = self._event_history
