@@ -1,0 +1,15 @@
+signal_id: S-007
+topic: MAREF Business Model
+source_node: open_source_business_model
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'MAREF open-source business model: AGPL-3.0 licensed core governance engine
+  (free, copyleft). Sidecar adapter pattern allows MAREF to plug into LangGraph/CrewAI/AutoGen
+  without modifying them, creating an ecosystem moat. Potential revenue: enterprise
+  governance contracts (SLA, certification, TLA+ security audits), managed MAREF cloud
+  (governance-as-a-service), agent safety certification program. Comparable to: HashiCorp''s
+  open-core model (Terraform free, Terraform Cloud paid).'
+summary: 'MAREF open-source business model: AGPL-3.0 licensed core governance engine
+  (free, copyleft). Sidecar adapter pattern allows MAREF to plug into LangGraph/CrewAI/AutoGen
+  without modifying them, creating'
+harvested_at: '2026-05-11'
+status: distilled

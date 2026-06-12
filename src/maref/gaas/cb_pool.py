@@ -58,10 +58,17 @@ class CircuitBreakerPool:
         agent_id: str,
         action: str,
         depth: int = 0,
+        override_max_depth: int | None = None,
     ) -> tuple[bool, CBState]:
-        """Check if action is allowed. Returns (allowed, cb_state)."""
+        """Check if action is allowed. Returns (allowed, cb_state).
+
+        When override_max_depth is provided, the circuit breaker's max depth
+        is temporarily overridden (e.g. for active execution sessions).
+        """
         key = self._key(tenant_id, agent_id, action)
         cb = self._get_or_create(key)
+        if override_max_depth is not None:
+            cb._max_depth = override_max_depth
         allowed = cb.check_depth(depth)
         state = self._map_state(cb.state)
         self._stats[key]["call_count"] += 1

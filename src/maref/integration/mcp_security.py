@@ -112,6 +112,7 @@ class MCPSecurityGate:
         trust_level: MCPTrustLevel,
         args: dict[str, Any] | None = None,
         context: ZeroTrustContext | None = None,
+        relaxed: bool = False,
     ) -> str:
         context = context or ZeroTrustContext()
         args = args or {}
@@ -128,7 +129,7 @@ class MCPSecurityGate:
                 return SecurityVerdict.DENY
 
         # Base trust level check
-        verdict = self._check_trust_level(tool_name, trust_level, args)
+        verdict = self._check_trust_level(tool_name, trust_level, args, relaxed=relaxed)
 
         # Calculate risk score
         risk_score = self._calculate_risk(tool_name, trust_level, args, context)
@@ -144,6 +145,7 @@ class MCPSecurityGate:
         tool_name: str,
         trust_level: MCPTrustLevel,
         args: dict[str, Any],
+        relaxed: bool = False,
     ) -> str:
         if trust_level == MCPTrustLevel.TRUSTED:
             return SecurityVerdict.ALLOW
@@ -166,6 +168,15 @@ class MCPSecurityGate:
         if trust_level == MCPTrustLevel.SEMI_TRUSTED:
             for blocked in self.blocked_tools:
                 if blocked in tool_name.lower():
+                    if relaxed:
+                        # Within an execution session, shell/exec tools are
+                        # AUDIT'd (recorded) rather than DENY'd, enabling
+                        # autonomous task loops (e.g. run tests after edit).
+                        # But P0 dangerous args still get DENY.
+                        for pattern in self.blocked_patterns:
+                            if pattern.lower() in args_str:
+                                return SecurityVerdict.DENY
+                        return SecurityVerdict.AUDIT
                     return SecurityVerdict.DENY
             return SecurityVerdict.AUDIT
 

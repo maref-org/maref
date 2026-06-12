@@ -145,3 +145,54 @@ class TestSnapshot:
         snapshot = sm.snapshot()
         assert GovernanceState.OBSERVE in snapshot.valid_next_states
         assert GovernanceState.HALT not in snapshot.valid_next_states
+
+
+class TestEdgeCases:
+    def test_get_history(self) -> None:
+        sm = GovernanceStateMachine()
+        sm.transition(GovernanceState.OBSERVE, "first")
+        sm.transition(GovernanceState.ANALYZE, "second")
+        history = sm.get_history()
+        assert len(history) == 2
+        assert history[0].reason == "first"
+        assert history[1].reason == "second"
+
+    def test_get_history_empty(self) -> None:
+        sm = GovernanceStateMachine()
+        assert sm.get_history() == []
+
+    def test_force_halt_from_already_halt(self) -> None:
+        sm = GovernanceStateMachine()
+        sm.transition(GovernanceState.OBSERVE, "start")
+        sm.transition(GovernanceState.VERIFY, "verify")
+        sm.transition(GovernanceState.HALT, "halt")
+        result = sm.force_halt("another_halt")
+        assert result is False
+        assert sm.current_state == GovernanceState.HALT
+
+    def test_force_halt_via_report_intermediate(self) -> None:
+        sm = GovernanceStateMachine()
+        sm.transition(GovernanceState.OBSERVE, "start")
+        sm.transition(GovernanceState.ANALYZE, "analyze")
+        sm.transition(GovernanceState.EVALUATE, "evaluate")
+        sm.transition(GovernanceState.DECIDE, "decide")
+        sm.transition(GovernanceState.ACT, "act")
+        sm.transition(GovernanceState.VERIFY, "verify")
+        # From STABILIZE: REPORT is valid, then HALT via REPORT
+        sm.transition(GovernanceState.STABILIZE, "stabilize")
+        result = sm.force_halt("halt_after_stabilize")
+        assert result is True
+        assert sm.current_state == GovernanceState.HALT
+
+    def test_get_valid_next_states(self) -> None:
+        sm = GovernanceStateMachine()
+        states = sm.get_valid_next_states()
+        assert isinstance(states, list)
+        assert GovernanceState.OBSERVE in states
+
+    def test_get_valid_next_states_after_transition(self) -> None:
+        sm = GovernanceStateMachine()
+        sm.transition(GovernanceState.OBSERVE, "start")
+        states = sm.get_valid_next_states()
+        assert GovernanceState.ANALYZE in states
+        assert isinstance(states, list)

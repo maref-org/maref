@@ -345,8 +345,8 @@ class TestPCICompliance:
     def test_validate_network_segmentation(self) -> None:
         engine = PCIComplianceEngine()
         result = engine.validate_segment_network(
-            cde_ips=["10.0.1.1", "10.0.1.2"],
-            non_cde_ips=["192.168.1.1", "192.168.1.2"],
+            cde_ips=["192.0.2.1", "192.0.2.2"],
+            non_cde_ips=["198.51.100.1", "198.51.100.2"],
         )
         assert result["segmented"]
         assert result["compliant"]
@@ -354,8 +354,8 @@ class TestPCICompliance:
     def test_validate_network_no_segmentation(self) -> None:
         engine = PCIComplianceEngine()
         result = engine.validate_segment_network(
-            cde_ips=["10.0.0.1", "192.168.1.1"],
-            non_cde_ips=["192.168.1.1", "192.168.1.2"],
+            cde_ips=["192.0.2.1", "198.51.100.1"],
+            non_cde_ips=["198.51.100.1", "198.51.100.2"],
         )
         assert not result["segmented"]
         assert not result["compliant"]

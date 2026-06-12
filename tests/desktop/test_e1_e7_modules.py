@@ -47,7 +47,7 @@ class TestDeviceInfo:
             name="Frankie's Z Flip3",
             device_type=DeviceType.MOBILE,
             platform=DevicePlatform.ANDROID,
-            host="192.168.1.100",
+            host="198.51.100.1",
             port=9090,
             capabilities=["adb", "screenshot", "task_dispatch"],
         )
@@ -68,8 +68,8 @@ class TestDeviceInfo:
         assert device.host == "127.0.0.1"
 
     def test_fingerprint(self):
-        d1 = DeviceInfo(device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="1.2.3.4", port=80)
-        d2 = DeviceInfo(device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="1.2.3.4", port=80)
+        d1 = DeviceInfo(device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="198.51.100.1", port=80)
+        d2 = DeviceInfo(device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="198.51.100.1", port=80)
         assert d1.fingerprint == d2.fingerprint
 
     def test_default_values(self):

@@ -169,13 +169,14 @@ class TestBuiltinTools:
 
     def test_list_tool_definitions(self):
         tools = list_tool_definitions()
-        assert len(tools) == 5
+        assert len(tools) == 6
         names = [t.name for t in tools]
         assert "file" in names
         assert "shell" in names
         assert "git" in names
         assert "browser" in names
         assert "email" in names
+        assert "web_search" in names
 
     def test_all_tools_have_correct_category(self):
         for t in list_tool_definitions():

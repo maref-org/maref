@@ -83,6 +83,7 @@ export function useSSEConnection(sessionId: string | null) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const retriesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const connectRef = useRef<(() => void) | null>(null);
   const { appendToStream, startStreaming, addMessage } = useChatStore();
 
@@ -165,8 +166,18 @@ export function useSSEConnection(sessionId: string | null) {
     startStreaming(sessionId);
     connect();
 
+    const hb = setInterval(() => {
+      if (eventSourceRef.current?.readyState === EventSource.CONNECTING) {
+        console.warn("SSE heartbeat: connection lost, reconnecting...");
+        eventSourceRef.current.close();
+        connectRef.current?.();
+      }
+    }, 30000);
+    heartbeatRef.current = hb;
+
     return () => {
       clearTimeout(timerRef.current);
+      clearInterval(heartbeatRef.current);
       eventSourceRef.current?.close();
     };
   }, [sessionId, connect, startStreaming]);

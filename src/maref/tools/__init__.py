@@ -25,6 +25,27 @@ from maref.tools.tool_schema import (
     get_tool_definition,
     list_tool_definitions,
 )
+from maref.tools.unified_registry import (
+    ROLE_CAPABILITY_ALLOWLIST,
+    ROLE_RISK_CEILING,
+    AgentRole,
+    CapabilityType,
+    ExecutionMode,
+    FunctionCapabilityAdapter,
+    HarnessCapabilityAdapter,
+    HitlGate,
+    MCPCapabilityAdapter,
+    PermissionMiddleware,
+    PermissionRequest,
+    PermissionVerdict,
+    RegisteredCapability,
+    RiskLevelCeiling,
+    RoleCapabilityFilter,
+    ToolCallContext,
+    ToolCallRecord,
+    TrustLevelOverride,
+    UnifiedToolRegistry,
+)
 from maref.tools.web_search_server import (
     DomainBlacklist,
     QuerySanitizer,
@@ -33,6 +54,7 @@ from maref.tools.web_search_server import (
 )
 
 __all__ = [
+    # Existing exports
     "PathSandbox",
     "PathSandboxError",
     "create_file_server",
@@ -64,4 +86,24 @@ __all__ = [
     "create_web_search_tool",
     "get_tool_definition",
     "list_tool_definitions",
+    # Unified registry exports
+    "CapabilityType",
+    "ExecutionMode",
+    "ToolCallContext",
+    "ToolCallRecord",
+    "PermissionVerdict",
+    "PermissionRequest",
+    "PermissionMiddleware",
+    "AgentRole",
+    "ROLE_CAPABILITY_ALLOWLIST",
+    "ROLE_RISK_CEILING",
+    "RoleCapabilityFilter",
+    "RiskLevelCeiling",
+    "HitlGate",
+    "TrustLevelOverride",
+    "MCPCapabilityAdapter",
+    "HarnessCapabilityAdapter",
+    "FunctionCapabilityAdapter",
+    "RegisteredCapability",
+    "UnifiedToolRegistry",
 ]

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import random
 import statistics
 import sys
@@ -22,13 +23,15 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from maref_lite.meta_learning import DecisionOutcome, MetaLearner
-from maref_lite.recursive_governance import (
+logger = logging.getLogger(__name__)
+
+from maref_lite.meta_learning import DecisionOutcome, MetaLearner  # noqa: E402
+from maref_lite.recursive_governance import (  # noqa: E402
     RecursiveGovernanceConfig,
     RecursiveGovernanceOverlay,
 )
-from maref_lite.state_machine import GovernanceState
-from research.dashscope_client import DashScopeClient
+from maref_lite.state_machine import GovernanceState  # noqa: E402
+from research.dashscope_client import DashScopeClient  # noqa: E402
 
 
 @dataclass
@@ -98,7 +101,8 @@ class Phase10AutoResearch:
                             "entropy_after": 1,
                             "reward": 0.2 + episode * 0.03,
                         }
-                except Exception:
+                except Exception as e:
+                    logger.warning("LLM decision generation failed: %s", e)
                     decision = {
                         "state_before": "OBSERVE",
                         "state_after": "STABILIZE",
@@ -174,7 +178,8 @@ class Phase10AutoResearch:
                         )
                         reward = float(response.content.strip())
                         reward = max(-50.0, min(50.0, reward))
-                    except Exception:
+                    except Exception as e:
+                        logger.warning("LLM extreme reward failed: %s", e)
                         reward = random.choice([-50.0, 50.0])
                 else:
                     reward = random.choice([-50.0, 50.0])
@@ -252,7 +257,8 @@ class Phase10AutoResearch:
                     max_tokens=50,
                 )
                 llm_eval = response.content.strip()
-            except Exception:
+            except Exception as e:
+                logger.warning("LLM recursive safety eval failed: %s", e)
                 llm_eval = "N/A"
         else:
             llm_eval = "N/A"
@@ -307,7 +313,8 @@ class Phase10AutoResearch:
                     max_tokens=30,
                 )
                 llm_eval = response.content.strip()
-            except Exception:
+            except Exception as e:
+                logger.warning("LLM reward shaping eval failed: %s", e)
                 llm_eval = "N/A"
         else:
             llm_eval = "N/A"

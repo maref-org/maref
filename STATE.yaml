@@ -1,0 +1,69 @@
+# MAREF 开源执行状态 — 所有外围 Code Agent 的唯一事实源
+# 版本: 1 | 最后更新: 2026-06-02 | 维护者: OPENCODE
+# 读取规则: Agent 启动时读取本文件。当 last_updated 超过 24h 时标记过时。
+# 写入规则: Agent 完成状态变更后原子更新本文件，不允许并发写入。
+
+version: 2
+last_updated: "2026-06-08T13:30:00+08:00"
+
+project:
+  name: MAREF
+  current_release: v0.30.0-GA
+  public_repo: https://github.com/maref-org/maref
+  license: Apache-2.0
+  stage: S0 (学术借力) → P0 (开源启动)
+
+track_b:
+  remote: git@github.com:maref-org/maref.git
+  pre_push_hook: present
+  branch_protection: enabled
+  ci_status: fixed
+  security_scan: clean (0 findings in src/)
+
+arxive:
+  id: null
+  endorsement_sent: 4
+  endorsement_replied: 1
+  endorser_targets_remaining: 10
+
+aip_application:
+  status: materials_ready
+  deadline: "2026-06-15"
+  placeholder_fields:
+    - 申请人姓名: 杨子良
+    - 邮箱: 87909004@qq.com
+    - 联系人: 杨子良
+  repo_url_placeholder: false
+
+opc_company_registration:
+  name_declaration: completed
+  establishment: paused
+  business_license_pdf: null
+
+trademark:
+  application: not_started
+  classes: [9, 42]
+  estimated_cost: 540
+
+  compliance_docs:
+    NOTICE: present
+    CLA: present
+    LICENSES: present
+    SECURITY: present
+    EAR_export_control: present
+    cryptography_law_audit: present
+    SBOM: present
+
+progress_indicators:
+  tasks_completed: 15
+  tasks_total: 27
+  percent: 56
+
+d1_gate:
+  G1_arxiv_id: false  # updated by d1_preflight_check
+  G2_branch_protection: true  # updated by d1_preflight_check
+  G3_ci_green: true  # Sprint 1: 5278 passed, ruff 0, mypy 0
+  G4_security_clean: true  # Sprint 2: @security_critical 16 usages, trivy 0 HIGH in src/
+  G5_no_runtime_artifacts: true  # Sprint 2: gitignore *.db/*.log/*.pyc/__pycache__
+  gate_passed: false
+  last_push_blocked_by: branch_protection

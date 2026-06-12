@@ -1,0 +1,53 @@
+kdp_id: K-003
+topic: MAREF Competitive Landscape
+signal_ids:
+- S-003
+claim: LangGraph (LangChain) is the market leader in the DAG orchestration space with
+  307,000 daily downloads, offering StateGraph for orchestration, Checkpointer for
+  persistent state, built-in streaming and human-in-the-loop capabilities, and monetizing
+  via LangSmith observability from $39/month; it has the largest community and production
+  deployments at scale but lacks formal verification and relies on implicit governance.
+metric_type: exact_number
+value: '307000'
+source_citation: langgraph_competitor - MAREF Competitive Landscape
+confidence: 78
+verification_status: dual_blind_pass
+verification_method: protocol_a_dual_blind
+consensus_score: 0.86
+model_a_result: '{"claim": "LangGraph (LangChain) is the market leader in the DAG
+  orchestration space, with 307,000 daily downloads, offering StateGraph for orchestration,
+  Checkpointer for persistent state, and built-in streaming and human-in-the-loop
+  capabilities.", "metric_type": "exact_number", "value": "307000", "unit": "downloads/day",
+  "source_citation": "langgraph_competitor", "confidence": 85, "who": "LangGraph (LangChain)",
+  "who_else": ["competitors in DAG orchestration and LLM tooling market"], "when":
+  "current market state (no specific date given)", "where": "global developer/AI tooling
+  market", "why": "To assert dominance and outline capabilities in the competitive
+  landscape for graph-based LLM orchestration frameworks.", "how": "Through the StateGraph
+  DAG orchestration system, a Checkpointer for state persistence, and built-in support
+  for streaming and human-in-the-loop workflows.", "impact_assessment": "Establishes
+  LangGraph as the dominant, scalable choice for production LLM application development,
+  but its lack of formal verification may limit adoption in high-assurance environments.",
+  "actionability": "Immediate: Document how LangGraph''s strengths (scale, community,
+  LangSmith) apply to use cases. 30-Day: Develop a competitive analysis matrix; for
+  high-safety use cases, evaluate or prototype complementary verification tools. The
+  claim is falsifiable and testable by verifying download metrics and feature comparisons.",
+  "evidence_quality": "medium", "keywords": ["LangGraph", "LangChain", "DAG orchestration",
+  "market leader", "downloads"]}'
+model_b_result: '{"claim": "LangGraph (LangChain) is the market leader with 307K daily
+  downloads and free open-source pricing, LangSmith from $39/month", "metric_type":
+  "exact_number", "value": "307000", "unit": "daily downloads", "source_citation":
+  "langgraph_competitor - MAREF Competitive Landscape", "confidence": 70, "who": "LangGraph
+  / LangChain", "competitors": ["MAREF", "Haystack", "LlamaIndex"], "when": "present
+  (signal received 2024-06-XX)", "where": "global open-source Python/Rust ecosystem",
+  "why": "to sustain dominance in orchestration layer for LLM applications with largest
+  community and proven scale deployments", "how": "StateGraph DAG orchestration, Checkpointer
+  for persistent state, built-in streaming and human-in-the-loop; monetizes via LangSmith
+  observability SaaS", "impact_90d": "LangGraph will likely cross 350K daily downloads,
+  widening download gap versus MAREF by \u226520%; enterprise deals will hinge on
+  LangSmith upsell and implicit governance weakness", "strategy_response": "launch
+  benchmark comparing MAREF''s TLA+ safety proofs against LangGraph''s implicit governance,
+  publish security white-paper within 30 days to seed doubt in regulated prospects",
+  "source_quality": "medium", "is_falsifiable": true, "tags": ["orchestration", "daily_downloads",
+  "pricing", "governance_risk"]}'
+extracted_at: '2026-05-11'
+status: active

@@ -1,0 +1,51 @@
+name: Check Narrative Transform
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docs/**'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'scripts/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'scripts/**'
+
+jobs:
+  check-narrative:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check AGENTS.md for internal path references
+        run: |
+          if grep -q '/Volumes/\|/Users/[A-Za-z]/' AGENTS.md 2>/dev/null; then
+            echo "::error::AGENTS.md contains internal path references"
+            exit 1
+          fi
+          echo "✅ AGENTS.md is clean"
+      - name: Check docs/ for narrative quality
+        run: |
+          ISSUES=0
+          for f in docs/*.md; do
+            if grep -q '/Volumes/\|file:///' "$f" 2>/dev/null; then
+              echo "::warning::$f contains absolute path references"
+              ISSUES=$((ISSUES+1))
+            fi
+          done
+          echo "Checked $(ls docs/*.md 2>/dev/null | wc -l) docs, $ISSUES issues"
+      - name: Check for T3 content in public docs
+        run: |
+          T3_PATTERNS='(openclaw[^-]|frankiehot-tech|Athena知识库/OPC工作区|SOUL\.md|IDENTITY\.md)'
+          FOUND=$(grep -rn "$T3_PATTERNS" docs/ AGENTS.md CLAUDE.md 2>/dev/null \
+            | grep -v 'CHANGELOG.md' || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::Found potential T3 content (internal org references):"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "✅ No T3 content found in public docs"

@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { injectNonce } from "./middleware/csp";
+import { initWebVitals, setVitalReportHandler } from "./lib/web-vitals";
+import "./lib/i18n";
 import "./index.css";
 import App from "./App";
 
@@ -19,6 +21,17 @@ import App from "./App";
 
 // 注入 CSP nonce
 injectNonce();
+
+// 启动真实用户性能监控
+setVitalReportHandler((metrics) => {
+  console.log("[Web Vitals]", metrics);
+  fetch("/api/vitals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(metrics),
+  }).catch(() => {});
+});
+initWebVitals();
 
 const queryClient = new QueryClient({
   defaultOptions: {

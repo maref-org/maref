@@ -1,0 +1,13 @@
+name: Rollback Verification
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  verify-rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test rollback script
+        run: bash scripts/rollback.sh --verify

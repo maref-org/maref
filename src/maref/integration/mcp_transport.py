@@ -25,12 +25,27 @@ class JSONRPCRequest:
     method: str = ""
     params: dict[str, Any] | None = None
     id: int | str = 0
+    # Article 15-A: MCP 消息信封
+    trace_id: str = ""       # UUID v4, 必填
+    timestamp: str = ""      # ISO-8601, 必填
+    source_agent: str = ""   # agent_name@agent_type, 必填
+
+    def __post_init__(self) -> None:
+        if not self.trace_id:
+            import uuid
+            self.trace_id = str(uuid.uuid4())
+        if not self.timestamp:
+            from datetime import datetime, timezone
+            self.timestamp = datetime.now(timezone.utc).isoformat()
 
     def to_json(self) -> str:
         payload: dict[str, Any] = {
             "jsonrpc": self.jsonrpc,
             "method": self.method,
             "id": self.id,
+            "trace_id": self.trace_id,
+            "timestamp": self.timestamp,
+            "source_agent": self.source_agent,
         }
         if self.params is not None:
             payload["params"] = self.params
@@ -212,7 +227,7 @@ class HTTPTransport(MCPTransport):
             import httpx
             r = httpx.post(
                 self._endpoint_url,
-                json={"jsonrpc": request.jsonrpc, "method": request.method, "params": request.params, "id": request.id},
+                json={"jsonrpc": request.jsonrpc, "method": request.method, "params": request.params, "id": request.id, "trace_id": request.trace_id, "timestamp": request.timestamp, "source_agent": request.source_agent},
                 timeout=10.0,
             )
             data = r.json()

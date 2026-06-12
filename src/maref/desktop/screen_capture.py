@@ -302,10 +302,10 @@ class ScreenCapture:
                     x, y, w, h = region
                     subprocess.run(
                         ["screencapture", "-R", f"{x},{y},{w},{h}", path],
-                        check=True, capture_output=True,
+                        check=True, capture_output=True, timeout=30,
                     )
                 else:
-                    subprocess.run(["screencapture", "-x", path], check=True, capture_output=True)
+                    subprocess.run(["screencapture", "-x", path], check=True, capture_output=True, timeout=30)
                 img = Image.open(path)
                 return img
             finally:

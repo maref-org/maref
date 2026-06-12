@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import logging
 import re
 import urllib.parse
+import urllib.request
 from html.parser import HTMLParser
 from typing import Any
-
-import httpx
 
 from maref.integration.mcp_server import MCPServer
 
@@ -19,6 +19,8 @@ DEFAULT_MAX_RESULTS = 10
 DEFAULT_TIMEOUT = 15
 SEARCH_URL = "https://lite.duckduckgo.com/lite"
 NEWS_SEARCH_URL = "https://lite.duckduckgo.com/lite"
+
+logger = logging.getLogger(__name__)
 
 _DISALLOWED_DOMAINS: set[str] = set()
 
@@ -60,7 +62,8 @@ class DomainBlacklist:
             for blocked in self._domains:
                 if hostname.lower().endswith("." + blocked):
                     return True
-        except Exception:
+        except Exception as e:
+            logger.warning("URL parse error in blacklist check: %s", e)
             return True
         return False
 
@@ -137,8 +140,8 @@ def _parse_search_results(html: str, max_results: int = DEFAULT_MAX_RESULTS) -> 
     parser = _DuckDuckGoResultParser()
     try:
         parser.feed(html)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("HTML parse error in search results: %s", e)
     return parser.results[:max_results]
 
 
@@ -178,16 +181,15 @@ def _execute_search(
         params["t"] = "news"
 
     url = f"{SEARCH_URL}?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": USER_AGENT, "Accept": "text/html"},
+    )
     try:
-        response = httpx.get(
-            url,
-            headers={"User-Agent": USER_AGENT, "Accept": "text/html"},
-            timeout=DEFAULT_TIMEOUT,
-            follow_redirects=True,
-        )
-        response.raise_for_status()
-        html = response.text
-    except Exception:
+        with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:  # nosec - B310 blacklist
+            html = resp.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        logger.warning("Search request failed: %s", e)
         return []
 
     results = _parse_search_results(html, max_results)

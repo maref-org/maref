@@ -1,11 +1,13 @@
-# Agent Operating Manual: MAREF v0.28.0-rc
+# Agent Operating Manual: MAREF v0.30.0-GA
 
-> **上位法**: 本文件受 [Athena 系统宪法 v1.4](/Volumes/1TB-M2/openclaw/OPC工作区/2-战略/战略+宪法/03-Athena系统宪法-v1.4.md) 约束。冲突时以宪法为准。
-> **同步方向**: A → B 单向（宪法第二条）。本仓库是 Track B 发布源，由 openclaw/public/ 经叙事转化后同步。
+> **上位法**: 本文件受 [Athena 系统宪法 v1.5](../CONSTITUTION.md) 和 [MAREF 治理框架](GOVERNANCE.md) 共同约束。冲突时以宪法优先，其次以治理框架为准。
+> **同步方向**: A → B 单向（Athena 开发源 → GitHub 发布源）。本仓库为 Athena 内部开发副本（Track B），所有变更必须在 Athena 开发源完成后再同步。
+> **泄密预防**: 本仓库不得包含 T3/T2 级内容（路径/Key/IP/时间戳/依赖图）。发布前必须经过叙事转化引擎（宪法第九条）处理。反向检查：禁止将内部开发信息（路径/时间戳/组织名）写入公共文档。
+> **项目状态源**: `STATE.yaml`（本仓库根目录）— 外围 Code Agent 的唯一事实源，启动时先读取 version 字段判断是否过时。
 
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
-- **版本**: v0.28.0-rc
+- **版本**: v0.30.0-GA
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
 - **架构**: 六层治理架构（天极→人极→地极→经卦→别卦→爻变）
@@ -116,8 +118,8 @@ kubectl apply -f k8s/production/
 ## Knowledge Vault
 - **路径**: `vault/`
 - **格式**: YAML with frontmatter
-- **Signals**: 12 market/technology signals (S-20260511-001 ~ 012)
-- **KDPs**: 9 key decision points (K-20260511-001 ~ 009)
+- **Signals**: 12 market/technology signals (S-001 ~ 012)
+- **KDPs**: 9 key decision points (K-001 ~ 009)
 - **Patterns**: 1 competitive positioning pattern
 
 ## Mission Workspace
@@ -126,6 +128,11 @@ kubectl apply -f k8s/production/
 - **验证**: 7 validator rounds, 4 issues found and resolved
 - **里程碑**: m0-m6 all completed
 
+## Python Version
+- **推荐**: Python 3.11 (`.venv3` → 重命名为 `.venv/`)
+- **兼容**: Python 3.10+
+- **当前**: Python 3.14 (Homebrew 系统 Python，仅限 `.venv` 使用)
+
 ## Quick Reference
 - MAREF Lite CLI: `maref-lite --help`
 - PERCV CLI: `maref percv --help`
@@ -133,14 +140,11 @@ kubectl apply -f k8s/production/
 - MCP endpoint: `POST /api/mcp`
 - MCP well-known: `GET /api/mcp/.well-known`
 
-## Open Source Execution Norm
-> **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](file:///Volumes/1TB-M2/Athena知识库/执行项目/2026/003-open%20human（碳硅基共生）/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架/04-MAREF%20开源模式/开源执行文档/01-开源执行规范-v1.0.md) 约束。
-> **宪法对齐**: Athena 系统宪法 v1.4 第十条（外部 Code Agent 治理）· 第十一条（跨仓库治理）
-> **同步方向**: A → B 单向（宪法第二条）。本仓库是 Track B 发布源。
+## 治理合规检查清单
 
-- 当前阶段: S0（详见 `11-MAREF-开源代办清单-实时更新.md`）
-- 执行规范: `04-MAREF 开源模式/开源执行文档/01-开源执行规范-v1.0.md`
-- 执行计划: `04-MAREF 开源模式/开源执行文档/05-四流并行执行计划-v1.0.md`
-- 执行日志: `04-MAREF 开源模式/开源执行文档/执行日志/`
-- 执行 skill: `.openclaw/maref/skills/` 或 `04-MAREF 开源模式/开源执行文档/SKILL.md`
-- 首次实战: 每步操作需记录日志，完成后封装 Skill
+每次提交前应确认：
+
+- [ ] 无 T3/T2 级内容（路径/Key/IP/时间戳）
+- [ ] `git remote -v` 为 `maref-org/maref`
+- [ ] pre-push hook 已就位
+- [ ] CI: pytest + mypy + ruff 通过

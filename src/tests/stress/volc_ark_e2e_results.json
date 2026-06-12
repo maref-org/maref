@@ -1,0 +1,138 @@
+{
+  "q1_real_code_generation": {
+    "success_count": 5,
+    "total_tasks": 5,
+    "success_rate": 1.0,
+    "avg_duration_ms": 38350.28,
+    "total_tokens": 24625,
+    "details": [
+      {
+        "title": "Fibonacci with memoization",
+        "success": true,
+        "code_length": 4496,
+        "has_tests": true,
+        "has_docstrings": true,
+        "duration_ms": 28502.5,
+        "total_tokens": 3318,
+        "code": "\"\"\"Unit tests for the fibonacci module.\"\"\"\n\nimport time\nimport unittest\n\n# from fibonacci import fibonacci, fibonacci_iterative\n\n\nclass TestFibonacci(unittest.TestCase):\n    \"\"\"Test suite for fibonacc"
+      },
+      {
+        "title": "HTTP Client with retry",
+        "success": true,
+        "code_length": 8966,
+        "has_tests": false,
+        "has_docstrings": true,
+        "duration_ms": 53747.0,
+        "total_tokens": 7352,
+        "code": "\"\"\"HTTP client wrapper with retry logic, timeout handling, and error handling.\"\"\"\nfrom __future__ import annotations\n\nimport logging\nimport random\nimport time\nfrom dataclasses import dataclass, field\n"
+      },
+      {
+        "title": "Data Validator",
+        "success": true,
+        "code_length": 5771,
+        "has_tests": false,
+        "has_docstrings": true,
+        "duration_ms": 42078.4,
+        "total_tokens": 5281,
+        "code": "\"\"\"\ndata_validator.py\n\nA reusable validator for emails, phone numbers, and dates.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport re\nfrom datetime import datetime\nfrom typing import Final, Optional\n\n\n"
+      },
+      {
+        "title": "LRU Cache",
+        "success": true,
+        "code_length": 5734,
+        "has_tests": true,
+        "has_docstrings": true,
+        "duration_ms": 25038.3,
+        "total_tokens": 3366,
+        "code": "import unittest\nfrom typing import List, Tuple\n\n\nclass TestLRUCache(unittest.TestCase):\n    \"\"\"Test cases for LRU Cache implementation.\"\"\"\n    \n    def setUp(self):\n        \"\"\"Create fresh cache for e"
+      },
+      {
+        "title": "JSON Parser Helper",
+        "success": true,
+        "code_length": 6495,
+        "has_tests": false,
+        "has_docstrings": true,
+        "duration_ms": 42385.2,
+        "total_tokens": 5308,
+        "code": "\"\"\"\nsafe_json_parser.py\nA utility for safely parsing JSON with custom type coercion.\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport logging\nfrom dataclasses import dataclass, field\nfrom ty"
+      }
+    ]
+  },
+  "q2_dynamic_sqi_weights": {
+    "default": {
+      "overall_score": 85.6,
+      "variance": 49.3,
+      "top_dimension": "regression_free_rate",
+      "lowest_dimension": "test_coverage_rate"
+    },
+    "enterprise_saas": {
+      "overall_score": 85.52,
+      "variance": 49.3,
+      "top_dimension": "regression_free_rate",
+      "lowest_dimension": "doc_completeness"
+    },
+    "startup_mvp": {
+      "overall_score": 85.54,
+      "variance": 49.3,
+      "top_dimension": "build_success_rate",
+      "lowest_dimension": "doc_completeness"
+    },
+    "regulated_industry": {
+      "overall_score": 84.67,
+      "variance": 49.3,
+      "top_dimension": "test_coverage_rate",
+      "lowest_dimension": "build_success_rate"
+    },
+    "ai_ml_project": {
+      "overall_score": 84.9,
+      "variance": 49.3,
+      "top_dimension": "test_coverage_rate",
+      "lowest_dimension": "lint_pass_rate"
+    }
+  },
+  "q3_aggressive_convergence": {
+    "final_sqi": 88.96,
+    "reached_target": true,
+    "rounds_to_75": 0,
+    "total_rounds": 4,
+    "round_data": [
+      {
+        "round": 0,
+        "sqi": 77.5,
+        "delta": 77.5,
+        "success_rate": 0.36,
+        "coverage": 53.94,
+        "base_quality": 0.75,
+        "strategy": "aggressive"
+      },
+      {
+        "round": 1,
+        "sqi": 83.04,
+        "delta": 5.54,
+        "success_rate": 0.5,
+        "coverage": 67.49,
+        "base_quality": 0.8,
+        "strategy": "aggressive"
+      },
+      {
+        "round": 2,
+        "sqi": 81.69,
+        "delta": -1.35,
+        "success_rate": 0.48,
+        "coverage": 62.43,
+        "base_quality": 0.85,
+        "strategy": "aggressive"
+      },
+      {
+        "round": 3,
+        "sqi": 88.96,
+        "delta": 7.28,
+        "success_rate": 0.7,
+        "coverage": 76.52,
+        "base_quality": 0.9,
+        "strategy": "aggressive"
+      }
+    ]
+  },
+  "overall_status": "success"
+}

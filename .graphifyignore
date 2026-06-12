@@ -1,0 +1,29 @@
+# Build outputs
+gui/dist/
+gui/build/
+htmlcov/
+coverage_html/
+*.egg-info/
+dist/
+build/
+__pycache__/
+
+# Dependencies
+node_modules/
+vendor/
+
+# Generated files
+*.generated.py
+*.min.js
+*.min.css
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Git
+.git/
+
+# Graphify output itself
+graphify-out/

@@ -1,0 +1,56 @@
+kdp_id: K-008
+topic: MAREF Competitive Landscape
+signal_ids:
+- S-008
+claim: MAREF is the only one among eleven major multi-agent frameworks with TLA+ formal
+  verification, Gray Code state machine governance, and Sidecar non-invasive governance
+  pattern
+metric_type: exact_number
+value: '3'
+source_citation: MAS-TS-001 standard analysis from source 'mas_ts_001_comparison'
+  on MAREF Competitive Landscape.
+confidence: 80
+verification_status: dual_blind_pass
+verification_method: protocol_a_dual_blind
+consensus_score: 0.92
+model_a_result: '{"claim": "MAREF is the only one of eleven major multi-agent frameworks
+  with three unique capabilities: TLA+ formal verification, Gray Code state machine
+  governance, and Sidecar non-invasive governance pattern.", "metric_type": "exact_number",
+  "value": "3", "unit": "unique capabilities", "source_citation": "MAS-TS-001 standard
+  analysis from source ''mas_ts_001_comparison'' on MAREF Competitive Landscape.",
+  "confidence": 85, "who": "MAREF", "who_else": ["LangGraph", "CrewAI", "AutoGen",
+  "MetaGPT", "UFO (Microsoft)", "DSPy", "SGLang", "Semantic Kernel", "Dify", "Coze"],
+  "when": "Not specified; analysis timeframe of MAS-TS-001 standard.", "where": "Multi-agent
+  framework landscape/industry", "why": "To assert MAREF''s differentiated and superior
+  technical position in terms of formal safety and governance in a crowded competitive
+  field.", "how": "By possessing formal verification (TLA+), a specific state machine
+  pattern (Gray Code), and a non-invasive governance architecture (Sidecar) that competitors
+  lack.", "impact_assessment": "Establishes MAREF as a technically distinct and potentially
+  safer/more reliable option for enterprise or critical applications, positioning
+  it against more mainstream but less formally rigorous frameworks.", "actionability":
+  "Immediate: Validate the unique capabilities against competitor documentation. 30-day
+  strategy: Develop marketing/sales materials highlighting these verified safety and
+  governance advantages. The claim is falsifiable and testable as these capabilities
+  can be compared against the source code or public specifications of the listed competitors.",
+  "evidence_quality": "medium", "keywords": ["MAREF", "multi-agent frameworks", "competitive
+  landscape", "formal verification", "TLA+", "governance", "safety guarantees"]}'
+model_b_result: '{"claim": "MAREF is the only one among eleven major multi-agent frameworks
+  with TLA+ formal verification, Gray Code state machine governance, and Sidecar non-invasive
+  governance pattern", "metric_type": "exact_number", "value": "3", "unit": "unique
+  capabilities", "source_citation": "mas_ts_001_comparison - MAS-TS-001 standard comparison
+  of eleven major multi-agent frameworks", "confidence": 75, "who": "MAREF (Multi-Agent
+  Reliable Execution Framework)", "competitors": ["LangGraph", "CrewAI", "AutoGen",
+  "MetaGPT", "UFO (Microsoft)", "DSPy", "SGLang", "Semantic Kernel", "Dify", "Coze"],
+  "when": "MAS-TS-001 standard evaluation", "where": "Multi-agent frameworks market",
+  "why": "To provide formal safety guarantees absent in orchestrator or role-player
+  frameworks", "how": "Integration of TLA+ formal verification for protocol correctness,
+  Gray Code state machines for deterministic governance transitions, and Sidecar pattern
+  for non-invasive runtime oversight", "impact_90d": "Enterprise adopters requiring
+  provable safety may shift evaluation pipelines toward MAREF, forcing competitors
+  to accelerate formal methods roadmaps or concede safety-critical segments", "strategy_response":
+  "Commission independent audit to benchmark MAREF\u2019s claim; if validated, embed
+  MAREF as optional safety tier inside existing orchestrators to neutralize exclusivity",
+  "source_quality": "medium", "is_falsifiable": true, "tags": ["multi-agent", "formal-verification",
+  "safety", "framework", "competitive-analysis"]}'
+extracted_at: '2026-05-11'
+status: active

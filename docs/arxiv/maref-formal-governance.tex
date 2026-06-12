@@ -1,0 +1,29 @@
+\title{MAREF: Formal Verification-Based Governance Operating System for Multi-Agent Systems}
+\author{Anonymous Author(s)}
+\date{\today}
+
+\begin{abstract}
+We present MAREF, a governance operating system for multi-agent systems
+that provides formal verification, cryptographic audit trails, and
+trust boundary enforcement. MAREF uses TLA+ to specify and verify
+agent governance policies, a 64-state Gray Code FSM for deterministic
+state transitions, and HMAC-SHA256 for tamper-evident audit logging.
+Unlike existing agent orchestration frameworks (LangGraph, CrewAI,
+AutoGen), MAREF is a governance layer that operates alongside any
+agent framework, adding safety guarantees without modifying agent code.
+\end{abstract}
+
+\section{Introduction}
+Multi-agent systems are increasingly deployed in production environments
+without adequate governance~\cite{agent-safety-2024}. This creates
+systemic risks including unauthorized actions, audit blind spots, and
+regulatory non-compliance.
+
+\section{Formal Verification}
+MAREF uses TLA+ to specify governance policies as temporal logic formulas.
+The 64-state Gray Code FSM ensures Hamming distance=1 between all
+state transitions, guaranteeing stability.
+
+\section{Related Work}
+TraceFix and AgentVerify provide partial governance solutions but
+lack formal verification and cryptographic audit trails.

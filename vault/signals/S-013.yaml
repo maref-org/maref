@@ -1,0 +1,30 @@
+id: S-013
+timestamp: 2026-05-16T16:00:00+08:00
+type: engineering
+category: prr-hardening
+severity: high
+description: |
+  MAREF v0.25.0-rc PRR补强工程执行 — P0安全清零 + Sidecar协议标准化 + Electron打包加固
+affected_modules:
+  - gui/electron (hardenedRuntime, entitlements)
+  - src/maref/governance/audit.py (HMAC signing)
+  - src/sidecar/mcp_bridge.py (new MCP bridge)
+  - src/sidecar/server.py (MCP JSON-RPC endpoints)
+  - gui/src/main.tsx (ErrorBoundary integration)
+  - gui/src/App.tsx (shortcutActions fix)
+actions_taken:
+  - hardenedRuntime: false → true
+  - Removed allow-unsigned-executable-memory, disable-library-validation, disable-executable-page-protection
+  - Added HMAC-SHA256 signing to AuditLogger with integrity verification
+  - Created SidecarMCPBridge for standardized MCP JSON-RPC 2.0 endpoints
+  - Integrated ErrorBoundary wrapping in main.tsx
+  - Fixed shortcutActions useMemo dependency array
+  - Created comprehensive electron-builder configuration (asar, multi-arch, compression)
+  - Populated knowledge library for S1, S2, P1-P7, T1-T6
+  - Created project-level AGENTS.md
+  - Created verify_electron_build.sh (9/9 checks passing)
+impact: |
+  P0 blockers resolved. Electron build passes all security verification checks.
+  Sidecar now supports standard MCP protocol. Audit trail is tamper-evident.
+  Project knowledge infrastructure fully populated.
+next_steps: Phase 6 — full test suite verification + Git commit

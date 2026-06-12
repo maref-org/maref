@@ -1,8 +1,8 @@
 # MAREF-ORG CI/CD 工作流配置方案
 
-> **目标**: 将 OpenClaw 的 CI 基础设施适配到 maref-org/maref 独立开源仓库  
-> **代码库**: `/Volumes/1TB-M2/public/maref` → GitHub: `maref-org/maref`  
-> **文档库**: `/Volumes/1TB-M2/Athena知识库/.../MAREF递归演进框架/`（独立，不进入代码库）  
+> **目标**: 将上游开发仓库的 CI 基础设施适配到 maref-org/maref 独立开源仓库  
+> **代码库**: `./` → GitHub: `maref-org/maref`  
+> **文档库**: 独立知识库，不进入代码库  
 > **生成日期**: 2026-05-25
 
 ---
@@ -12,7 +12,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  代码库 (Code Repository)                                        │
-│  本地: /Volumes/1TB-M2/public/maref                             │
+│  本地: ./                             │
 │  GitHub: https://github.com/maref-org/maref                     │
 │                                                                  │
 │  包含: src/, tests/, docs/ (技术文档), .github/workflows/       │
@@ -21,29 +21,29 @@
                               ↕ 隔离边界
 ┌─────────────────────────────────────────────────────────────────┐
 │  文档库 (Document Repository)                                    │
-│  本地: /Volumes/1TB-M2/Athena知识库/.../MAREF递归演进框架/       │
+│  本地: 文档知识库       │
 │                                                                  │
 │  包含: 策略文档, PERCV研究报告, 申报材料, 待执行, 归档/          │
 │  不包含: 源代码, 测试代码, CI配置                                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**红线规则**: 任何策略文档、申报材料、PERCV 研究报告**不得**进入 `/Volumes/1TB-M2/public/maref` 代码库。
+**红线规则**: 任何策略文档、申报材料、PERCV 研究报告**不得**进入 `./` 代码库。
 
 ---
 
 ## 二、工作流文件清单
 
-将以下文件创建到 `/Volumes/1TB-M2/public/maref/.github/workflows/`：
+将以下文件创建到 `./.github/workflows/`：
 
 ### 2.1 核心 CI 工作流
 
 | 文件名 | 来源 | 适配说明 |
 |--------|------|---------|
-| `ci.yml` | OpenClaw `ci.yml` | 精简为 MAREF 核心模块测试 |
-| `security-scan.yml` | OpenClaw `trufflehog-secrets-scan.yml` + `semgrep-scan.yml` | 合并为统一安全扫描 |
-| `formal-verify.yml` | OpenClaw `formal-verify.yml` | 直接复用 TLA+ 验证 |
-| `release-gate.yml` | OpenClaw `release-gate.yml` | 精简为开源发布检查 |
+| `ci.yml` | 上游开发仓库 `ci.yml` | 精简为 MAREF 核心模块测试 |
+| `security-scan.yml` | 上游开发仓库 `trufflehog-secrets-scan.yml` + `semgrep-scan.yml` | 合并为统一安全扫描 |
+| `formal-verify.yml` | 上游开发仓库 `formal-verify.yml` | 直接复用 TLA+ 验证 |
+| `release-gate.yml` | 上游开发仓库 `release-gate.yml` | 精简为开源发布检查 |
 
 ### 2.2 辅助工作流
 
@@ -57,9 +57,9 @@
 
 | 文件名 | 原因 |
 |--------|------|
-| `subtree-split.yml` | OpenClaw 特有，MAREF 是独立仓库 |
-| `check-mcp-envelope.yml` | OpenClaw 内部协议检查 |
-| `check-agent-lifecycle.yml` | OpenClaw 内部生命周期检查 |
+| `subtree-split.yml` | 上游开发仓库 特有，MAREF 是独立仓库 |
+| `check-mcp-envelope.yml` | 上游开发仓库 内部协议检查 |
+| `check-agent-lifecycle.yml` | 上游开发仓库 内部生命周期检查 |
 | `cd.yml.DISABLED` | 当前禁用，后续按需启用 |
 
 ---
@@ -303,9 +303,9 @@ jobs:
 
 ---
 
-## 七、与 OpenClaw 的差异对比
+## 七、与 上游开发仓库 的差异对比
 
-| 维度 | OpenClaw | MAREF-ORG |
+| 维度 | 上游开发仓库 | MAREF-ORG |
 |------|----------|-----------|
 | **仓库结构** | 单体大仓（internal + public） | 独立仓库 |
 | **子树拆分** | `subtree-split.yml` 自动拆分 | 不需要 |
@@ -322,7 +322,7 @@ jobs:
 ### Step 1: 创建工作流目录
 
 ```bash
-cd /Volumes/1TB-M2/public/maref
+cd ./
 mkdir -p .github/workflows
 ```
 
@@ -375,4 +375,4 @@ echo "OK: No forbidden documents in code repository"
 
 ---
 
-*方案版本: v1.0 | 生成日期: 2026-05-25 | 基于 OpenClaw CI 基础设施适配*
+*方案版本: v1.0 | 生成日期: 2026-05-25 | 基于 上游开发仓库 CI 基础设施适配*

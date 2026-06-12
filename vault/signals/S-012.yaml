@@ -1,0 +1,16 @@
+signal_id: S-012
+topic: MAREF Product Readiness
+source_node: capability_boundaries
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'Key MAREF capability boundaries: (1) CAN govern any agent framework via
+  Sidecar — proven with LangGraph, CrewAI, AutoGen adapters. (2) CAN provide formal
+  safety guarantees via TLA+ (5 theorems verified). (3) CAN detect governance violations
+  (5 safety redlines, 4-phase autonomy). (4) CANNOT orchestrate agents directly —
+  MAREF is governance, not orchestration (delegates to host framework). (5) CANNOT
+  handle real-time (<100ms) governance decisions. (6) CANNOT provide end-to-end encryption
+  for agent communication. (7) CANNOT scale beyond single-machine deployment currently.'
+summary: 'Key MAREF capability boundaries: (1) CAN govern any agent framework via
+  Sidecar — proven with LangGraph, CrewAI, AutoGen adapters. (2) CAN provide formal
+  safety guarantees via TLA+ (5 theorems verifie'
+harvested_at: '2026-05-11'
+status: raw

@@ -1,0 +1,28 @@
+name: Check FAIL_MODE
+on:
+  pull_request:
+    paths: ['src/**/mcp_*.py', 'src/**/*transport*', 'src/**/fail_mode*']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check FAIL_MODE in MCP cross-boundary calls
+        run: |
+          FAILURES=0
+          TARGET_BRANCH="${{ github.event.pull_request.base.sha || 'origin/main' }}"
+          for f in $(git diff --name-only "$TARGET_BRANCH"...HEAD -- '*.py' 2>/dev/null || echo ""); do
+            if [ -f "$f" ] && grep -q "tools/call\|send_tool_call\|MCPClient.call_tool" "$f" 2>/dev/null; then
+              if ! grep -q "FAIL_MODE\|fail_mode\|get_fail_mode" "$f" 2>/dev/null; then
+                echo "❌ $f: cross-boundary MCP call without FAIL_MODE"
+                FAILURES=$((FAILURES + 1))
+              fi
+            fi
+          done
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "---"
+            echo "$FAILURES file(s) need FAIL_MODE configuration (Article 7)"
+            exit 1
+          fi
+          echo "✅ All MCP cross-boundary calls have FAIL_MODE"

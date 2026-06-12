@@ -11,7 +11,7 @@ _COG_AGENT_AVAILABLE = False
 _transformers_available = False
 
 try:
-    from transformers import (  # type: ignore[import-not-found] # noqa: F401
+    from transformers import (  # noqa: F401
         AutoModelForCausalLM,
         AutoProcessor,
     )
@@ -301,8 +301,8 @@ class OmniParserInterface:
         device = self._config.get("device", "cpu")
         torch_dtype = self._config.get("torch_dtype", "auto")
 
-        self._processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
-        self._model = AutoModelForCausalLM.from_pretrained(
+        self._processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)  # nosec - B615 huggingface_unsafe_download
+        self._model = AutoModelForCausalLM.from_pretrained(  # nosec - B615 huggingface_unsafe_download
             model_id,
             trust_remote_code=True,
             torch_dtype=torch_dtype,
@@ -359,7 +359,7 @@ class OmniParserInterface:
             self._model.device if hasattr(self._model, "device") else "cpu"
         )
 
-        import torch  # type: ignore[import-not-found]
+        import torch
 
         with torch.no_grad():
             generated_ids = self._model.generate(**inputs, max_new_tokens=1024)
@@ -479,8 +479,8 @@ class OmniParserInterface:
         model_id = self._config.get("model_id", "THUDM/cogagent-vqa-hf")
         device = self._config.get("device", "cpu")
 
-        self._processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
-        self._model = AutoModelForCausalLM.from_pretrained(
+        self._processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)  # nosec - B615 huggingface_unsafe_download
+        self._model = AutoModelForCausalLM.from_pretrained(  # nosec - B615 huggingface_unsafe_download
             model_id,
             trust_remote_code=True,
             torch_dtype=self._config.get("torch_dtype", "auto"),

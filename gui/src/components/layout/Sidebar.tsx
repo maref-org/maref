@@ -113,6 +113,7 @@ export function Sidebar({ activeSection, onSectionChange }: Props) {
         )}
         <button
           onClick={toggleSidebar}
+          aria-label={sidebarCollapsed ? "展开侧边栏" : "折叠侧边栏"}
           className="ml-auto rounded-md p-1 text-maref-text-muted hover:bg-maref-surface-alt hover:text-maref-text transition-colors"
         >
           {sidebarCollapsed ? (
@@ -139,6 +140,7 @@ export function Sidebar({ activeSection, onSectionChange }: Props) {
                   if (item.id === "marketplace") onSectionChange("skills");
                   if (item.id === "automation") onSectionChange("automation");
                 }}
+                aria-label={item.label}
                 className={cn(
                   "flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
                   (item.id === "new-agent" && activeSessionId) || (activeSection === item.id)
@@ -162,6 +164,7 @@ export function Sidebar({ activeSection, onSectionChange }: Props) {
               </span>
               <button
                 onClick={handleNewAgent}
+                aria-label="创建新会话"
                 className="rounded p-0.5 text-maref-text-muted hover:text-maref-accent transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -223,6 +226,7 @@ export function Sidebar({ activeSection, onSectionChange }: Props) {
                 <button
                   key={item.id}
                   onClick={() => onSectionChange(item.id)}
+                  aria-label={item.label}
                   className={cn(
                     "flex w-full items-center gap-2.5 px-3 py-1.5 text-xs transition-colors",
                     activeSection === item.id
@@ -248,6 +252,7 @@ export function Sidebar({ activeSection, onSectionChange }: Props) {
                 onClick={handleNewAgent}
                 className="p-2 text-maref-text-muted hover:text-maref-text transition-colors"
                 title="新建 Agent"
+                aria-label="新建 Agent"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -264,6 +269,7 @@ export function Sidebar({ activeSection, onSectionChange }: Props) {
                       : "text-maref-text-muted hover:text-maref-text"
                   )}
                   title={item.label}
+                  aria-label={item.label}
                 >
                   <item.icon className="h-4 w-4" />
                 </button>

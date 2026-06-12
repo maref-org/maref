@@ -597,7 +597,7 @@ class SBOMGenerator:
             try:
                 import tomllib
             except ImportError:
-                import tomli as tomllib  # type: ignore[import-not-found]
+                import tomli as tomllib
             with open(project_path / "pyproject.toml", 'rb') as f:
                 data = tomllib.load(f)
 

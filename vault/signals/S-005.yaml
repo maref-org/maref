@@ -1,0 +1,14 @@
+signal_id: S-005
+topic: MAREF Competitive Landscape
+source_node: autogen_competitor
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'Microsoft AutoGen 0.4 released: Coordinator-Worker pattern, multi-agent
+  conversation framework, code generation and execution sandbox. Strengths: Microsoft
+  backing, enterprise integration, Azure deployment. Weaknesses: no formal governance
+  model, conversation-based coordination (chatty, non-deterministic), no TLA+ verification.
+  MAREF already has an AutoGen adapter built.'
+summary: 'Microsoft AutoGen 0.4 released: Coordinator-Worker pattern, multi-agent
+  conversation framework, code generation and execution sandbox. Strengths: Microsoft
+  backing, enterprise integration, Azure deplo'
+harvested_at: '2026-05-11'
+status: distilled

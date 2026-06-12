@@ -49,7 +49,7 @@ class OperationalReport:
 
 
 class OperationalValidator:
-    def __init__(self, audit_dir: str = "/tmp/maref-v0.9.0-rc-audit") -> None:
+    def __init__(self, audit_dir: str = "/tmp/maref-v0.9.0-rc-audit") -> None:  # nosec - B108 hardcoded_tmp_directory
         self._results: list[SubsystemResult] = []
         self._audit_dir = audit_dir
 

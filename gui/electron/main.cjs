@@ -16,8 +16,7 @@ if (!gotTheLock) {
   });
 }
 
-app.commandLine.appendSwitch('disable-gpu-sandbox');
-app.commandLine.appendSwitch('no-sandbox');
+// Sandbox is enabled by default in modern Electron; no explicit disable needed.
 
 let mainWindow = null;
 let sidecarProcess = null;
@@ -41,6 +40,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       preload: path.join(__dirname, 'preload.cjs'),
     },
   });
@@ -126,7 +126,7 @@ app.whenReady().then(() => {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:*;",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:*; object-src 'none'; base-uri 'self'; form-action 'self'",
           ],
         },
       });

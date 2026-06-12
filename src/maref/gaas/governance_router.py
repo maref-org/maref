@@ -25,6 +25,7 @@ from maref.gaas.models import (
     HITLTier,
     Verdict,
 )
+from maref.gaas.session_manager import is_session_active
 from maref.gaas.tenant import TenantManager
 from maref.gaas.trust_service import TrustScoreService
 
@@ -61,12 +62,15 @@ class GovernanceRouter:
         if not self._tenants.check_quota(req.tenant_id, "max_checks_per_month", usage):
             return self._deny("Quota exceeded", start)
 
-        # 3. CircuitBreaker check
+        # 3. CircuitBreaker check (session-aware depth)
+        session_id = req.context.session_id
+        override_depth = 200 if session_id and is_session_active(session_id) else None
         allowed, cb_state = self._cb.check(
             req.tenant_id,
             req.agent_id,
             req.action,
             depth=req.context.recursion_depth,
+            override_max_depth=override_depth,
         )
         if not allowed:
             return self._deny("Circuit breaker OPEN", start, cb_state)
@@ -93,18 +97,24 @@ class GovernanceRouter:
                     verdict = Verdict.ALLOW
                     reason = "Auto-approved (p3 observe tier)"
 
-        # 6. Audit logging
+        # 6. Audit logging (with session context)
+        audit_context = {
+            "recursion_depth": req.context.recursion_depth,
+            "trust_score": req.context.trust_score,
+            "cb_state": cb_state.value,
+        }
+        if session_id:
+            audit_context["session_id"] = session_id
+            from maref.gaas.session_manager import increment_step
+            increment_step(session_id, tool_name=req.action, verdict=verdict.value)
+
         audit_entry = self._audit.log(
             tenant_id=req.tenant_id,
             agent_id=req.agent_id,
             action=req.action,
             verdict=verdict.value,
             parameters=req.parameters,
-            context={
-                "recursion_depth": req.context.recursion_depth,
-                "trust_score": req.context.trust_score,
-                "cb_state": cb_state.value,
-            },
+            context=audit_context,
         )
 
         # 7. Update usage
@@ -131,19 +141,28 @@ class GovernanceRouter:
     ) -> tuple[Verdict, HITLTier, str]:
         """Evaluate governance policy. Returns (verdict, hitl_tier, reason)."""
         # P0: Block dangerous actions
-        dangerous_actions = {"file.delete", "shell.exec", "system.shutdown", "registry.modify"}
+        dangerous_actions = {"file.delete", "shell.exec", "system.shutdown", "registry.modify", "git.push"}
         if req.action in dangerous_actions:
             if req.context.trust_score < 70:
                 return Verdict.ASK_USER, HITLTier.P0, "Dangerous action requires approval"
             return Verdict.ALLOW, HITLTier.P0, "Dangerous action allowed for trusted agent"
 
-        # P1: High recursion depth
+        # P1: High recursion depth (relaxed during active sessions)
         if req.context.recursion_depth > 2:
-            return Verdict.ASK_USER, HITLTier.P1, "High recursion depth"
+            session_id = req.context.session_id
+            if session_id and is_session_active(session_id):
+                if req.context.recursion_depth > 200:
+                    return Verdict.ASK_USER, HITLTier.P1, "Session recursion depth exceeded"
+            else:
+                return Verdict.ASK_USER, HITLTier.P1, "High recursion depth"
 
         # P2: Low trust score
         if req.context.trust_score < 30:
             return Verdict.DENY, HITLTier.P2, "Trust score too low"
+
+        # P3: Git commit — observe-only by default
+        if req.action == "git.commit":
+            return Verdict.ALLOW, HITLTier.P3, "Default allow for commit"
 
         # P3: Default observe
         return Verdict.ALLOW, HITLTier.P3, "Default allow"

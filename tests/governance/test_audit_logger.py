@@ -214,3 +214,160 @@ class TestAuditLoggerUnified:
         exported = logger.export_json()
         assert len(exported) == 1
         assert exported[0]["event_type"] == "test"
+
+
+class TestAuditLoggerAnomalyDecision:
+    def test_log_anomaly(self) -> None:
+        logger = AuditLogger()
+        entry = logger.log_anomaly(
+            actor="Detector",
+            anomaly_type="cpu_spike",
+            severity="high",
+            description="cpu usage spike",
+        )
+        assert entry.event_type == "anomaly_detected"
+        assert entry.actor == "Detector"
+        assert entry.action == "handle_anomaly"
+
+    def test_log_anomaly_no_description(self) -> None:
+        logger = AuditLogger()
+        entry = logger.log_anomaly(
+            actor="Detector",
+            anomaly_type="memory_leak",
+            severity="medium",
+        )
+        assert entry.event_type == "anomaly_detected"
+        assert entry.metadata["anomaly_type"] == "memory_leak"
+        assert entry.metadata["severity"] == "medium"
+
+    def test_log_decision(self) -> None:
+        logger = AuditLogger()
+        entry = logger.log_decision(
+            actor="Governor",
+            action="approve_transfer",
+            reason="risk acceptable",
+            from_state="evaluate",
+            to_state="act",
+        )
+        assert entry.event_type == "governance_decision"
+        assert entry.actor == "Governor"
+        assert entry.action == "approve_transfer"
+        assert entry.metadata["from_state"] == "evaluate"
+        assert entry.metadata["to_state"] == "act"
+
+
+class TestAuditLoggerReadRecent:
+    def test_read_recent(self) -> None:
+        logger = AuditLogger()
+        for i in range(10):
+            logger.log(f"event_{i}", "actor", "action")
+        recent = logger.read_recent(n=3)
+        assert len(recent) == 3
+
+    def test_read_recent_all(self) -> None:
+        logger = AuditLogger()
+        logger.log("test", "actor", "action")
+        recent = logger.read_recent()
+        assert len(recent) == 1
+
+    def test_read_recent_empty(self) -> None:
+        logger = AuditLogger()
+        assert logger.read_recent(n=5) == []
+
+    def test_get_audit_trail(self) -> None:
+        logger = AuditLogger()
+        logger.log("type_a", "actor", "action_1")
+        logger.log("type_b", "actor", "action_2")
+        trail = logger.get_audit_trail(max_entries=1)
+        assert len(trail) == 1
+        assert trail[0].action == "action_2"
+
+
+class TestAuditLoggerCornerCases:
+    def test_to_unified_neutral_outcome(self) -> None:
+        entry = AuditEntry(
+            id="audit_000001",
+            timestamp=0.0,
+            event_type="state_transition",
+            actor="FSM",
+            action="enter_observe",
+            details="info",
+        )
+        unified = entry.to_unified()
+        assert unified.outcome is None
+
+    def test_verify_integrity_with_unsigned_entries(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path, hmac_key="secret")
+        logger.log("signed_1", "actor", "action")
+        # Manually append an unsigned entry
+        unsigned = AuditEntry(
+            id="unsigned_001",
+            timestamp=1.0,
+            event_type="unsigned",
+            actor="actor",
+            action="action",
+            details="",
+        )
+        with open(path, "a") as f:
+            f.write(json.dumps(unsigned.to_dict()) + "\n")
+        result = logger.verify_integrity()
+        assert result["valid_signatures"] == 1
+        assert len(result["tampered_entries"]) == 0
+
+    def test_read_all_no_limit_warning(self) -> None:
+        logger = AuditLogger()
+        logger.log("test", "actor", "action")
+        entries = logger.read_all()  # max_entries=None
+        assert len(entries) == 1
+
+    def test_read_all_file_not_found(self) -> None:
+        path = Path(tempfile.mktemp(suffix=".jsonl"))
+        logger = AuditLogger(log_path=path)
+        assert logger.read_all() == []
+
+    def test_read_filtered_file_not_found(self) -> None:
+        path = Path(tempfile.mktemp(suffix=".jsonl"))
+        logger = AuditLogger(log_path=path)
+        assert logger.read_filtered(event_type="test") == []
+
+    def test_read_filtered_in_memory(self) -> None:
+        logger = AuditLogger()
+        logger.log("type_a", "actor1", "action", "detail_a")
+        logger.log("type_b", "actor2", "action", "detail_b")
+        logger.log("type_a", "actor2", "action", "detail_c")
+        mem_filtered = logger.read_filtered(event_type="type_a")
+        assert len(mem_filtered) == 2
+        mem_filtered2 = logger.read_filtered(actor="actor2")
+        assert len(mem_filtered2) == 2
+        mem_filtered3 = logger.read_filtered(event_type="type_a", actor="actor2")
+        assert len(mem_filtered3) == 1
+
+    def test_read_filtered_in_memory_limit(self) -> None:
+        logger = AuditLogger()
+        for i in range(10):
+            logger.log("type_a", "actor", "action")
+        filtered = logger.read_filtered(max_entries=3)
+        assert len(filtered) == 3
+
+    def test_file_corruption_handling(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path)
+        logger.log("good", "actor", "action")
+        # Write corrupted line
+        with open(path, "a") as f:
+            f.write("not-json\n")
+        entries = logger.read_all()
+        assert len(entries) == 1
+        assert entries[0].event_type == "good"
+
+    def test_read_all_from_file_with_limit(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path)
+        for i in range(10):
+            logger.log(f"event_{i}", "actor", "action")
+        entries = logger.read_all(max_entries=3)
+        assert len(entries) == 3

@@ -1,0 +1,30 @@
+name: Check API Version
+on:
+  pull_request:
+    paths: ['src/**/mcp_*.py', 'src/**/*transport*', 'src/**/*mcp*']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check MCP tool schemas have api_version
+        run: |
+          FAILURES=0
+          TARGET_BRANCH="${{ github.event.pull_request.base.sha || 'origin/main' }}"
+          for f in $(git diff --name-only "$TARGET_BRANCH"...HEAD -- '*.py' 2>/dev/null || echo ""); do
+            if [ -f "$f" ] && grep -q "input_schema\|inputSchema" "$f" 2>/dev/null; then
+              if grep -q "register_tool\|MCPTool(" "$f" 2>/dev/null; then
+                if ! grep -q '"api_version"' "$f" 2>/dev/null; then
+                  echo "❌ $f: MCP tool schema missing api_version"
+                  FAILURES=$((FAILURES + 1))
+                fi
+              fi
+            fi
+          done
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "---"
+            echo "$FAILURES file(s) need api_version in input_schema (Article 15)"
+            exit 1
+          fi
+          echo "✅ All MCP tool schemas include api_version"

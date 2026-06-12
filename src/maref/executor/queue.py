@@ -182,7 +182,7 @@ class TaskQueue:
             now = _now()
             self._conn.execute(
                 f"""UPDATE tasks SET status = 'running', updated_at = ?, started_at = ?
-                WHERE id IN ({placeholders})""",
+                WHERE id IN ({placeholders})""",  # nosec B608
                 (now, now, *ids),
             )
             self._conn.commit()
@@ -272,7 +272,7 @@ class TaskQueue:
             rows = self._conn.execute(
                 f"""SELECT * FROM tasks {where_clause}
                 ORDER BY priority DESC, created_at ASC
-                LIMIT ? OFFSET ?""",
+                LIMIT ? OFFSET ?""",  # nosec B608
                 (*params, limit, offset),
             ).fetchall()
             return [self._row_to_task(r) for r in rows]
@@ -303,7 +303,7 @@ class TaskQueue:
             if conditions:
                 where_clause = "WHERE " + " AND ".join(conditions)
             row = self._conn.execute(
-                f"SELECT COUNT(*) as c FROM tasks {where_clause}",
+                f"SELECT COUNT(*) as c FROM tasks {where_clause}",  # nosec - B608 hardcoded_sql_expressions
                 params,
             ).fetchone()
             return row["c"]

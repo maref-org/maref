@@ -1,0 +1,28 @@
+name: Check MCP Envelope
+on:
+  pull_request:
+    paths: ['src/**/mcp_*.py', 'src/**/*transport*', 'src/**/*message*']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check MCP envelope fields (trace_id/timestamp/source_agent)
+        run: |
+          FAILURES=0
+          TARGET_BRANCH="${{ github.event.pull_request.base.sha || 'origin/main' }}"
+          for f in $(git diff --name-only "$TARGET_BRANCH"...HEAD -- '*.py' 2>/dev/null || echo ""); do
+            if [ -f "$f" ] && grep -q "class JSONRPCRequest\|def handle_request\|MCPTransport" "$f" 2>/dev/null; then
+              if ! grep -q "trace_id\|timestamp\|source_agent" "$f" 2>/dev/null; then
+                echo "❌ $f: MCP transport missing envelope fields"
+                FAILURES=$((FAILURES + 1))
+              fi
+            fi
+          done
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "---"
+            echo "$FAILURES file(s) need MCP envelope (Article 15-A)"
+            exit 1
+          fi
+          echo "✅ All MCP transport code includes envelope fields"

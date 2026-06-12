@@ -22,51 +22,24 @@ from maref.compliance.registry import (
     create_compliance_system,
 )
 
-# Deferred imports to break circular dependency.
-# compliance_monitor and report_generator import from compliance.registry
-# directly, so there is no cycle at module-load time.  We re-export their
-# public names lazily via __getattr__ so that ``from maref.compliance import
-# ComplianceMonitor`` still works without triggering an import loop.
+from maref.compliance.report_generator import (
+    ComplianceReport,
+    ReportFormat,
+    ReportGenerator,
+    ReportSection,
+    ReportType,
+    create_report_generator,
+)
 
-
-def __getattr__(name: str) -> Any:
-    if name in (
-        "ReportGenerator",
-        "ComplianceReport",
-        "ReportSection",
-        "ReportFormat",
-        "ReportType",
-        "create_report_generator",
-    ):
-        from maref.compliance.report_generator import (  # noqa: F401
-            ComplianceReport,
-            ReportFormat,
-            ReportGenerator,
-            ReportSection,
-            ReportType,
-            create_report_generator,
-        )
-        return locals()[name]
-    if name in (
-        "ComplianceMonitor",
-        "ComplianceSnapshot",
-        "ComplianceAlert",
-        "AlertSeverity",
-        "MonitorState",
-        "MonitoringRule",
-        "create_compliance_monitor",
-    ):
-        from maref.compliance.compliance_monitor import (  # noqa: F401
-            AlertSeverity,
-            ComplianceAlert,
-            ComplianceMonitor,
-            ComplianceSnapshot,
-            MonitoringRule,
-            MonitorState,
-            create_compliance_monitor,
-        )
-        return locals()[name]
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+from maref.compliance.compliance_monitor import (
+    AlertSeverity,
+    ComplianceAlert,
+    ComplianceMonitor,
+    ComplianceSnapshot,
+    MonitoringRule,
+    MonitorState,
+    create_compliance_monitor,
+)
 
 
 __all__ = [

@@ -1,0 +1,58 @@
+kdp_id: K-006
+topic: MAREF Product Readiness
+signal_ids:
+- S-006
+claim: MAREF competes with OpenAI Operator and Anthropic Claude Computer Use in the
+  desktop agent market through comparable UI navigation and control capabilities,
+  and differentiates itself by offering a formal governance model for multi-agent
+  systems—a feature not present in current competitor offerings.
+metric_type: qualitative
+value: INSUFFICIENT_DATA
+source_citation: desktop_agent_comparison
+confidence: 75
+verification_status: dual_blind_pass
+verification_method: protocol_a_dual_blind
+consensus_score: 0.82
+model_a_result: '{"claim": "MAREF''s StateMachine page navigation + Vision OCR + device
+  control competes at the desktop agent level, and its formal governance model is
+  a unique differentiator as no desktop agent competitor has one.", "metric_type":
+  "qualitative", "value": "INSUFFICIENT_DATA", "unit": "n/a", "source_citation": "desktop_agent_comparison",
+  "confidence": 85, "who": "Unspecified Analyst (comparing MAREF, OpenAI, Anthropic
+  Claude Computer Use)", "who_else": ["OpenAI Operator", "Anthropic Claude Computer
+  Use"], "when": "n/a", "where": "desktop agent market", "why": "To highlight MAREF''s
+  competitive advantage (governance framework) and technical parity (UI navigation
+  capabilities) in the desktop agent market.", "how": "MAREF uses a StateMachine for
+  page navigation combined with Vision OCR and device control. Competitors use screenshot-based
+  UI navigation for browsers and desktop apps. MAREF''s key differentiator is its
+  formal governance model for multi-agent systems.", "impact_assessment": "MAREF is
+  positioned as a technically competitive agent with a unique, market-differentiating
+  feature (governance) that addresses a gap left by major competitors, potentially
+  appealing to enterprise customers requiring controlled, multi-agent deployments.",
+  "actionability": "Immediate: Document MAREF''s governance model specifications and
+  benefits in detail. 30-day strategy: Develop marketing/positioning materials that
+  contrast MAREF''s governed multi-agent capabilities against the ''wild west'' of
+  current desktop agents. The claim is falsifiable and testable by evaluating whether
+  OpenAI Operator or Anthropic Claude Computer Use have published or demonstrable
+  governance frameworks for multi-agent systems.", "evidence_quality": "high", "keywords":
+  ["MAREF", "desktop agent", "governance", "StateMachine", "Vision OCR"]}'
+model_b_result: '{"claim": "MAREF is the only desktop agent offering a formal governance
+  model while matching OpenAI Operator and Anthropic Claude Computer Use on screenshot-based
+  UI navigation, browser/desktop app control, StateMachine page navigation, Vision
+  OCR, and device control.", "metric_type": "qualitative", "value": "INSUFFICIENT_DATA",
+  "unit": "n/a", "source_citation": "desktop_agent_comparison - MAREF Product Readiness",
+  "confidence": 65, "who": "MAREF", "competitors": ["OpenAI Operator", "Anthropic
+  Claude Computer Use"], "when": "current (no date provided)", "where": "desktop agent
+  market (global)", "why": "to differentiate via formal multi-agent governance framework
+  where competitors lack any governance model", "how": "implements StateMachine page
+  navigation, Vision OCR, device control, and screenshot-based UI navigation equivalent
+  to rivals, then adds unique formal governance layer for multi-agent coordination",
+  "impact_90d": "enterprise buyers may delay procurement decisions awaiting MAREF
+  governance proof-of-concept, while competitors rush governance roadmaps; MAREF could
+  secure 2\u20133 lighthouse accounts if governance is demonstrated secure and compliant",
+  "strategy_response": "publish governance white-paper with audit trail, role-based
+  access, and policy enforcement demos; run side-by-side POC against OpenAI & Anthropic
+  in controlled enterprise environment within 30 days to validate claim", "source_quality":
+  "medium", "is_falsifiable": true, "tags": ["desktop_agent", "governance", "multi_agent_systems",
+  "differentiation"]}'
+extracted_at: '2026-05-11'
+status: active

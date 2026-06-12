@@ -1,0 +1,47 @@
+name: 宪法第十条 — 外部 Agent 配置文件检查
+on:
+  pull_request:
+    paths:
+      - 'CLAUDE.md'
+  push:
+    branches: [main]
+    paths:
+      - 'CLAUDE.md'
+
+jobs:
+  check-agent-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 验证 CLAUDE.md 含宪法引用 + 安全红线
+        run: |
+          echo "🔍 验证 CLAUDE.md..."
+          VIOLATIONS=0
+          REQUIRED_PATTERNS="Athena 系统宪法\|安全红线\|MAREF 自治理\|宪法优先"
+
+          for f in CLAUDE.md; do
+            if [ ! -f "$f" ]; then
+              echo "❌ 缺失: $f"
+              VIOLATIONS=$((VIOLATIONS + 1))
+              continue
+            fi
+            matches=0
+            for pattern in $(echo "$REQUIRED_PATTERNS" | tr '|' ' '); do
+              if grep -q "$pattern" "$f" 2>/dev/null; then
+                matches=$((matches + 1))
+              fi
+            done
+            if [ "$matches" -eq 4 ]; then
+              echo "✅ $f — 含宪法引用 + 安全红线 + MAREF 自治理 + 宪法优先"
+            else
+              echo "⚠️ $f — 缺失 $((4 - matches)) 项"
+              VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+          done
+
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "❌ CLAUDE.md 未通过宪法引用检查"
+            echo "   宪法第十条要求所有外部 Agent 配置文件含宪法引用 + 安全红线 + MAREF 自治理声明 + 宪法优先声明"
+            exit 1
+          fi
+          echo "✅ CLAUDE.md 合规"

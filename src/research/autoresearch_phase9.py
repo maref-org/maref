@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -19,10 +20,12 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from drift_guard.ab_testing import ABTestFramework
-from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox
-from drift_guard.types import PipelineConfig
-from research.dashscope_client import DashScopeClient
+logger = logging.getLogger(__name__)
+
+from drift_guard.ab_testing import ABTestFramework  # noqa: E402
+from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox  # noqa: E402
+from drift_guard.types import PipelineConfig  # noqa: E402
+from research.dashscope_client import DashScopeClient  # noqa: E402
 
 
 @dataclass
@@ -92,7 +95,8 @@ class Phase9AutoResearch:
                         kl_warning=baseline.kl_warning * 1.1,
                         kl_critical=baseline.kl_critical * 1.05,
                     )
-            except Exception:
+            except Exception as e:
+                logger.warning("LLM policy proposal failed: %s", e)
                 new_config = PipelineConfig(
                     kl_warning=baseline.kl_warning * 1.1,
                     kl_critical=baseline.kl_critical * 1.05,
@@ -131,7 +135,8 @@ class Phase9AutoResearch:
                     metrics = json.loads(json_match.group())
                 else:
                     metrics = {"fpr": 0.05, "fnr": 0.05, "f1": 0.9}
-            except Exception:
+            except Exception as e:
+                logger.warning("LLM policy eval failed: %s", e)
                 metrics = {"fpr": 0.05, "fnr": 0.05, "f1": 0.9}
         else:
             # Fallback to deterministic simulation based on config quality
@@ -142,7 +147,7 @@ class Phase9AutoResearch:
 
         # Auto-approve if F1 > 0.85
         if metrics["f1"] > 0.85:
-            sandbox.approve_change(change.change_id, reviewer="auto")
+            sandbox.approve_change(change.change_id, reviewer="autoresearch_phase9")
             findings = [f"已批准: F1={metrics['f1']:.3f}"]
         else:
             sandbox.reject_change(change.change_id, "F1 too low")
@@ -190,7 +195,8 @@ class Phase9AutoResearch:
                         )
                     else:
                         new_config = PipelineConfig(kl_warning=0.15, kl_critical=0.5)
-                except Exception:
+                except Exception as e:
+                    logger.warning("LLM rollback config failed: %s", e)
                     new_config = PipelineConfig(kl_warning=0.15, kl_critical=0.5)
             else:
                 new_config = PipelineConfig(kl_warning=0.15, kl_critical=0.5)
@@ -200,7 +206,7 @@ class Phase9AutoResearch:
                 description=f"Change {i}",
                 new_config=new_config,
             )
-            sandbox.approve_change(change.change_id)
+            sandbox.approve_change(change.change_id, reviewer="autoresearch_phase9")
 
         # Rollback all
         for _ in range(num_changes):
@@ -258,7 +264,8 @@ class Phase9AutoResearch:
                 else:
                     baseline = PipelineConfig(kl_warning=0.1)
                     variant = PipelineConfig(kl_warning=0.15)
-            except Exception:
+            except Exception as e:
+                logger.warning("LLM A/B strategy generation failed: %s", e)
                 baseline = PipelineConfig(kl_warning=0.1)
                 variant = PipelineConfig(kl_warning=0.15)
         else:
@@ -307,7 +314,8 @@ class Phase9AutoResearch:
                 )
                 bad_value = float(response.content.strip())
                 bad_value = max(0.5, min(0.95, bad_value))
-            except Exception:
+            except Exception as e:
+                logger.warning("LLM degradation value failed: %s", e)
                 bad_value = 0.9
         else:
             bad_value = 0.9

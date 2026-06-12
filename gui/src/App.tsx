@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import { Sidebar, type MarefSection } from "@/components/layout/Sidebar";
 import { ChatPanel } from "@/components/layout/ChatPanel";
 import { TerminalPanel } from "@/components/layout/TerminalPanel";
@@ -11,25 +11,25 @@ import { BrowserView } from "@/components/views/BrowserView";
 import { GitView } from "@/components/views/GitView";
 import { GovernanceView } from "@/components/views/GovernanceView";
 import { HomeDashboard } from "@/components/layout/HomeDashboard";
-import { SettingsView } from "@/components/views/SettingsView";
 import { WelcomeFlow } from "@/components/onboarding/WelcomeFlow";
 import { SkillsPanel } from "@/components/views/SkillsPanel";
-import { AutomationView } from "@/components/views/AutomationView";
-import TaskPanelView from "@/components/views/TaskPanelView";
-import { HITLView } from "@/components/views/HITLView";
-import {
-  DesktopAgentView,
-  AuditLogView,
-  DriftDetectionView,
-  AnomalyMonitorView,
-  TrustScoreView,
-  FormalVerificationView,
-} from "@/components/views/MarefViews";
+import { useUIStore } from "@/stores/uiStore";
+const SettingsView = lazy(() => import("@/components/views/SettingsView"));
+const TaskPanelView = lazy(() => import("@/components/views/TaskPanelView"));
+const HITLView = lazy(() => import("@/components/views/HITLView"));
+const DesktopAgentView = lazy(() => import("@/components/views/MarefViews").then(m => ({ default: m.DesktopAgentView })));
+const AuditLogView = lazy(() => import("@/components/views/MarefViews").then(m => ({ default: m.AuditLogView })));
+const DriftDetectionView = lazy(() => import("@/components/views/MarefViews").then(m => ({ default: m.DriftDetectionView })));
+const AnomalyMonitorView = lazy(() => import("@/components/views/MarefViews").then(m => ({ default: m.AnomalyMonitorView })));
+const TrustScoreView = lazy(() => import("@/components/views/MarefViews").then(m => ({ default: m.TrustScoreView })));
+const FormalVerificationView = lazy(() => import("@/components/views/MarefViews").then(m => ({ default: m.FormalVerificationView })));
+const AutomationView = lazy(() => import("@/components/views/AutomationView"));
+
 import { useUIStore } from "@/stores/uiStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useTerminalStore } from "@/stores/terminalStore";
-import { useSessions } from "@/hooks/useSession";
+import { useSessions, useCreateSession } from "@/hooks/useSession";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { createShortcuts } from "@/stores/shortcutDefs";
 import { detectBackend, api, getBackendMode, checkBackendHealth } from "@/api/client";
@@ -109,19 +109,16 @@ export default function App() {
     detectBackend();
   }, []);
 
+  const createSession = useCreateSession();
+
   const handleNewSession = useCallback(() => {
-    addSession({
-      id: `sess-${Date.now()}`,
+    createSession.mutate({
       title: "新 Agent",
       mode: "agent",
       provider: "bailian",
       model: "deepseek-v4-pro",
-      contextPercent: 0,
-      status: "idle",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
-  }, [addSession]);
+  }, [createSession]);
 
   const handleCloseSession = useCallback(() => {
     if (activeSessionId) {
@@ -256,7 +253,9 @@ export default function App() {
                 <MainContent activeTab={activeTab} />
               ) : (
                 <div className="h-full overflow-y-auto">
-                  <SectionView />
+                  <Suspense fallback={<div className="p-4 text-maref-muted">加载中...</div>}>
+                    <SectionView />
+                  </Suspense>
                 </div>
               )}
             </div>

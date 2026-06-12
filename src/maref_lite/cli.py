@@ -269,7 +269,7 @@ def desktop_setup(
         cmd.append("--upgrade")
 
     try:
-        result = subprocess.run(cmd, check=False)
+        result = subprocess.run(cmd, check=False, timeout=300)
         if result.returncode != 0:
             console.print("[yellow]Setup completed with warnings.[/yellow]")
             raise typer.Exit(code=result.returncode)
@@ -380,9 +380,10 @@ def desktop_benchmark(
 def audit_show(
     last: int = typer.Option(10, "--last", "-n", help="Number of recent entries"),
     event_type: str = typer.Option("", "--type", "-t", help="Filter by event type"),
+    audit_path_str: str = typer.Option("governance_audit.jsonl", "--path", "-p", help="Audit log file path"),
 ) -> None:
     """Show recent audit log entries."""
-    audit_path = Path("governance_audit.jsonl")
+    audit_path = Path(audit_path_str)
     if not audit_path.exists():
         console.print("[yellow]No audit log found.[/yellow]")
         return
@@ -628,7 +629,7 @@ def serve(
         console.print("[bold green]MAREF Sidecar Server (GUI Mode)[/bold green]")
     else:
         console.print("[bold green]MAREF Sidecar Server[/bold green]")
-    console.print(f"Starting on http://0.0.0.0:{port}")
+    console.print(f"Starting on http://127.0.0.1:{port}")
 
     try:
         import uvicorn
@@ -650,15 +651,15 @@ def serve(
 
     try:
         import uvicorn
+
+        from maref.obs import MarefObsClient
         from sidecar.obs_bridge import ObsBridge
         from sidecar.server import create_app
 
-        from maref.obs import MarefObsClient
-
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
-        uvicorn.run(create_app(obs_bridge=obs_bridge), host="0.0.0.0", port=port, log_level="info")
+        uvicorn.run(create_app(obs_bridge=obs_bridge), host="127.0.0.1", port=port, log_level="info")
     except ImportError:
-        console.print(f"[dim]Sidecar server mock — http://0.0.0.0:{port}[/dim]")
+        console.print(f"[dim]Sidecar server mock — http://127.0.0.1:{port}[/dim]")
 
 
 # ── Entry point ──────────────────────────────────────────────────────

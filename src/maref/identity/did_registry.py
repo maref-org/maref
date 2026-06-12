@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from maref.governance.state_machine import GovernanceStateMachine
+from maref.security.decorators import security_critical
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,7 @@ class DIDRegistry:
     def __init__(self) -> None:
         self._agents: dict[AgentDID, AgentIdentityRecord] = {}
 
+    @security_critical
     def register(
         self,
         did: AgentDID,

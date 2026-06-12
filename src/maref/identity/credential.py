@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from maref.identity.did_registry import AgentDID
+from maref.security.decorators import security_critical
 
 
 @dataclass
@@ -49,6 +50,7 @@ class VerifiableCredential:
         return time.time() > self.expires_at
 
     @classmethod
+    @security_critical
     def issue(
         cls,
         issuer: AgentDID,
@@ -93,9 +95,11 @@ class CredentialStore:
         self._credentials: dict[str, VerifiableCredential] = {}
         self._revoked: dict[str, str] = {}
 
+    @security_critical
     def store(self, vc: VerifiableCredential) -> None:
         self._credentials[vc.id] = vc
 
+    @security_critical
     def revoke(self, vc_id: str, reason: str = "unspecified") -> None:
         if vc_id not in self._credentials:
             raise ValueError(f"Credential {vc_id} not found")

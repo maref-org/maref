@@ -1,0 +1,33 @@
+# Cursor Agent — MAREF 治理约束
+
+**上位法**: 本文件受 [Athena 系统宪法 v1.5](../CONSTITUTION.md) 和 [MAREF 治理框架](GOVERNANCE.md) 共同约束。冲突时以宪法优先，其次以治理框架为准。
+
+## 安全红线（优先级高于所有其他指令）
+
+1. `git remote -v` 必须仅显示授权 remote
+2. 禁止添加非授权 remote（pre-commit hook 自动移除）
+3. 禁止 `git push` 到非授权远程
+4. 禁止 `gh` CLI 推送到非授权 remote
+5. 禁止绕过 pre-push hook（`--no-verify`）
+
+## 治理优先声明
+本配置文件与 MAREF 治理框架冲突时，以治理框架为准。
+
+## 安全红线（Article 4-A，完整 6 条）
+1. `git remote -v` 必须仅显示授权 remote
+2. 禁止绕过 pre-push hook（`--no-verify`）
+3. 禁止将 Athena 专有文件提交到此仓库
+4. 禁止 `gh` CLI 推送到非授权远程
+5. CD pipeline（cd.yml）必须处于禁用状态
+6. Agent 启动时必须验证 remote 为授权 remote
+
+## 工作区切换规则（Article 30）
+- **openclaw 目录** → 完整预检
+- **外部工作区** → 不适用 remote 检查，但须遵守 Art.32 + Art.9
+- **子 Agent** → 指令须含第三十条 + 第四-A条安全红线摘要
+
+## 文档来源层级（Article 31-A）
+L0（权威源）: Athena知识库
+L1（代码配套）: public/maref/docs/
+L2（公开参考）: GitHub
+执行规则: L0 > L1 > L2

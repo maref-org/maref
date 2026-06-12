@@ -1,0 +1,254 @@
+{
+  "test_chain_summary": {
+    "total_phases": 5,
+    "passed_phases": 4,
+    "pass_rate": 0.8,
+    "total_duration_ms": 479198.2569580432
+  },
+  "phase_results": [
+    {
+      "phase_name": "baseline_benchmark",
+      "success": true,
+      "duration_ms": 345069.35104192235,
+      "metrics": {
+        "success_rate": 1.0,
+        "total_tasks": 20,
+        "total_tokens": 43899,
+        "avg_duration_ms": 17251.935,
+        "quality_metrics": {
+          "tests_rate": 1.0,
+          "docstrings_rate": 1.0,
+          "type_hints_rate": 1.0
+        }
+      },
+      "details": "20/20 tasks succeeded",
+      "error": ""
+    },
+    {
+      "phase_name": "e2e_verification",
+      "success": true,
+      "duration_ms": 77314.01979201473,
+      "metrics": {
+        "q1_success_rate": 1.0,
+        "q3_final_sqi": 88.96,
+        "q3_reached_target": true
+      },
+      "details": "Q1=100%, Q3 final SQI=89.0",
+      "error": ""
+    },
+    {
+      "phase_name": "adversarial_testing",
+      "success": false,
+      "duration_ms": 56803.46149997786,
+      "metrics": {
+        "total_tests": 20,
+        "passed_tests": 13,
+        "pass_rate": 0.65,
+        "avg_detection_rate": 0.8716666666666667
+      },
+      "details": "13/20 tests passed",
+      "error": ""
+    },
+    {
+      "phase_name": "sqi_convergence",
+      "success": true,
+      "duration_ms": 10.160916950553656,
+      "metrics": {
+        "final_sqi": 94.30520000000001,
+        "initial_sqi": 77.50280000000001,
+        "total_improvement": 16.802400000000006,
+        "converged": false,
+        "trend": "stable",
+        "rounds_tracked": 15,
+        "round_records": [
+          {
+            "round": 0,
+            "sqi": 77.50280000000001,
+            "delta": 77.50280000000001,
+            "success_rate": 0.36,
+            "coverage": 53.943999999999996,
+            "trend": "stable"
+          },
+          {
+            "round": 1,
+            "sqi": 83.03880000000001,
+            "delta": 5.536000000000001,
+            "success_rate": 0.5,
+            "coverage": 67.494,
+            "trend": "improving"
+          },
+          {
+            "round": 2,
+            "sqi": 81.6872,
+            "delta": -1.3516000000000048,
+            "success_rate": 0.48,
+            "coverage": 62.426,
+            "trend": "improving"
+          },
+          {
+            "round": 3,
+            "sqi": 88.9644,
+            "delta": 7.2771999999999935,
+            "success_rate": 0.7,
+            "coverage": 76.52199999999999,
+            "trend": "improving"
+          },
+          {
+            "round": 4,
+            "sqi": 94.1012,
+            "delta": 5.136800000000008,
+            "success_rate": 0.9,
+            "coverage": 81.74600000000001,
+            "trend": "improving"
+          },
+          {
+            "round": 5,
+            "sqi": 94.19720000000001,
+            "delta": 0.09600000000000364,
+            "success_rate": 0.9,
+            "coverage": 82.286,
+            "trend": "improving"
+          },
+          {
+            "round": 6,
+            "sqi": 95.89320000000001,
+            "delta": 1.695999999999998,
+            "success_rate": 0.94,
+            "coverage": 86.806,
+            "trend": "improving"
+          },
+          {
+            "round": 7,
+            "sqi": 94.40020000000001,
+            "delta": -1.492999999999995,
+            "success_rate": 0.91,
+            "coverage": 82.291,
+            "trend": "improving"
+          },
+          {
+            "round": 8,
+            "sqi": 95.3644,
+            "delta": 0.9641999999999911,
+            "success_rate": 0.93,
+            "coverage": 84.95200000000001,
+            "trend": "improving"
+          },
+          {
+            "round": 9,
+            "sqi": 93.8756,
+            "delta": -1.4887999999999977,
+            "success_rate": 0.88,
+            "coverage": 82.958,
+            "trend": "stable"
+          },
+          {
+            "round": 10,
+            "sqi": 94.165,
+            "delta": 0.28940000000000055,
+            "success_rate": 0.9,
+            "coverage": 82.155,
+            "trend": "stable"
+          },
+          {
+            "round": 11,
+            "sqi": 94.7866,
+            "delta": 0.6216000000000008,
+            "success_rate": 0.9,
+            "coverage": 85.363,
+            "trend": "stable"
+          },
+          {
+            "round": 12,
+            "sqi": 93.1204,
+            "delta": -1.6662000000000035,
+            "success_rate": 0.87,
+            "coverage": 79.842,
+            "trend": "stable"
+          },
+          {
+            "round": 13,
+            "sqi": 95.5492,
+            "delta": 2.4287999999999954,
+            "success_rate": 0.95,
+            "coverage": 83.816,
+            "trend": "stable"
+          },
+          {
+            "round": 14,
+            "sqi": 94.30520000000001,
+            "delta": -1.2439999999999856,
+            "success_rate": 0.9,
+            "coverage": 82.836,
+            "trend": "stable"
+          }
+        ]
+      },
+      "details": "Final SQI=94.3, converged=False",
+      "error": ""
+    },
+    {
+      "phase_name": "pressure_test",
+      "success": true,
+      "duration_ms": 0.5437089130282402,
+      "metrics": {
+        "total_runs": 100,
+        "avg_success_rate": 0.84,
+        "avg_sqi": 92.1692,
+        "sqi_std_dev": 3.5424649186689208,
+        "converged": false,
+        "batch_results": [
+          {
+            "batch": 0,
+            "success_rate": 0.9,
+            "avg_duration_ms": 0.0,
+            "avg_coverage": 76.875,
+            "sqi_score": 93.12500000000001,
+            "batch_duration_ms": 0.07791607640683651
+          },
+          {
+            "batch": 1,
+            "success_rate": 1.0,
+            "avg_duration_ms": 0.0,
+            "avg_coverage": 89.53,
+            "sqi_score": 97.656,
+            "batch_duration_ms": 0.08870905730873346
+          },
+          {
+            "batch": 2,
+            "success_rate": 0.8,
+            "avg_duration_ms": 0.0,
+            "avg_coverage": 73.965,
+            "sqi_score": 90.46300000000001,
+            "batch_duration_ms": 0.07599999662488699
+          },
+          {
+            "batch": 3,
+            "success_rate": 0.8,
+            "avg_duration_ms": 0.0,
+            "avg_coverage": 78.55,
+            "sqi_score": 91.39000000000001,
+            "batch_duration_ms": 0.08387502748519182
+          },
+          {
+            "batch": 4,
+            "success_rate": 0.7,
+            "avg_duration_ms": 0.0,
+            "avg_coverage": 72.21000000000001,
+            "sqi_score": 88.212,
+            "batch_duration_ms": 0.07458298932760954
+          }
+        ]
+      },
+      "details": "100 runs, avg success=84.0%, avg SQI=92.2",
+      "error": ""
+    }
+  ],
+  "key_metrics": {
+    "benchmark_success_rate": 1.0,
+    "q1_success_rate": 1.0,
+    "q3_final_sqi": 88.96,
+    "adversarial_pass_rate": 0.65,
+    "convergence_final_sqi": 94.30520000000001,
+    "pressure_avg_success_rate": 0.84
+  }
+}

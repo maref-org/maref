@@ -127,3 +127,37 @@ class TestSelfDiagnostician:
         assert report.overall_risk == RiskLevel.NORMAL
         assert report.cb_status == "CLOSED"
         assert report.recommendations == []
+
+
+class TestSemanticDiagnosisIntegration:
+    def setup_method(self) -> None:
+        self.d = SelfDiagnostician()
+
+    def test_accept_semantic_finding_adds_to_report(self) -> None:
+        finding = {"type": "code_smell", "module": "self_observer", "severity": "warning", "message": "Duplicate AST traversal logic detected"}
+        self.d.accept_semantic_diagnosis(finding)
+        snapshot = SystemSnapshot()
+        report = self.d.diagnose(snapshot)
+        assert "semantic" in report.probe_results
+        assert len(report.probe_results["semantic"]) >= 1
+
+    def test_accept_semantic_critical_detected(self) -> None:
+        finding = {"type": "security", "module": "auth", "severity": "critical", "message": "Hardcoded secret key"}
+        self.d.accept_semantic_diagnosis(finding)
+        snapshot = SystemSnapshot()
+        report = self.d.diagnose(snapshot)
+        assert report.overall_risk == RiskLevel.CRITICAL
+
+    def test_clear_semantic_findings(self) -> None:
+        self.d.accept_semantic_diagnosis({"type": "test", "severity": "warning"})
+        self.d.clear_semantic_findings()
+        snapshot = SystemSnapshot()
+        report = self.d.diagnose(snapshot)
+        assert "semantic" not in report.probe_results
+
+    def test_multiple_semantic_findings(self) -> None:
+        self.d.accept_semantic_diagnosis({"type": "a", "severity": "warning"})
+        self.d.accept_semantic_diagnosis({"type": "b", "severity": "normal"})
+        snapshot = SystemSnapshot()
+        report = self.d.diagnose(snapshot)
+        assert len(report.probe_results.get("semantic", [])) == 2

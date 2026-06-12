@@ -157,7 +157,14 @@ except ImportError:
         """Placeholder when Test Platform is not available."""
         pass
 
+from maref.integration.audit_logger import AuditLogger, AuditRecord, get_audit_logger
 from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
+from maref.integration.mcp_runtime_integration import (
+    MCPExecutionResult,
+    SecureMCPExecutor,
+    create_secure_executor,
+)
+from maref.integration.mcp_security_gate import MCPSecurityGateV2, get_security_gate
 from maref.integration.memory_bridge import (
     KnowledgeInsight,
     MemoryBridge,
@@ -224,6 +231,17 @@ __all__ = [
     "TrustLevelBasedGate",
     "sign_audit_entry",
     "verify_audit_signature",
+    # Audit Logger
+    "AuditLogger",
+    "AuditRecord",
+    "get_audit_logger",
+    # MCP Security Gate V2
+    "MCPSecurityGateV2",
+    "get_security_gate",
+    # MCP Runtime Integration
+    "SecureMCPExecutor",
+    "MCPExecutionResult",
+    "create_secure_executor",
     # PERCV integration
     "PERCVConfig",
     "PERCVGatewayAdapter",

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.governance.fail_mode import build_degraded_response, get_fail_mode
 from maref.integration.mcp_governance import MCPDecisionVerdict, MCPGovernance
 from maref.integration.mcp_security import MCPTrustLevel
 from maref.integration.mcp_transport import (
@@ -189,6 +190,17 @@ class MCPClient:
         _start = _time.time()
         resp = conn.transport.send_tool_call(tool_name, args)
         _elapsed = _time.time() - _start
+
+        # Article 7: FAIL_MODE degradation check
+        if resp.is_error:
+            fail_mode = get_fail_mode()
+            if fail_mode.value == "open":
+                degraded = build_degraded_response(request_id, resp.error)
+                resp = JSONRPCResponse(
+                    result=degraded,
+                    id=request_id or "",
+                )
+            # FAIL_MODE=closed: keep original error response (block)
 
         if self._governance is not None:
             _success = not resp.is_error

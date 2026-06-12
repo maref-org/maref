@@ -337,3 +337,20 @@ class SelfArchitect:
     @property
     def proposals(self) -> list[ArchitectureProposal]:
         return list(self._proposals)
+
+    def accept_external_proposal(self, proposal: ArchitectureProposal) -> None:
+        self._proposals.append(proposal)
+
+    def list_proposals(
+        self,
+        change_type: ChangeType | None = None,
+        max_risk: str | None = None,
+    ) -> list[ArchitectureProposal]:
+        filtered = list(self._proposals)
+        if change_type is not None:
+            filtered = [p for p in filtered if p.change_type == change_type]
+        if max_risk is not None:
+            risk_order = {"low": 0, "medium": 1, "high": 2}
+            max_val = risk_order.get(max_risk, 2)
+            filtered = [p for p in filtered if risk_order.get(p.risk_assessment, 2) <= max_val]
+        return filtered

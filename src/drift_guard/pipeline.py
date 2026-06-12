@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import time
 import uuid
 from collections import deque
@@ -33,6 +34,8 @@ from drift_guard.types import (
     ModelSignature,
     PipelineConfig,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class HumanArbitrationGate:
@@ -148,8 +151,10 @@ class DriftDetectionPipeline:
     def __init__(
         self,
         config: PipelineConfig | None = None,
+        governance: Any | None = None,
     ) -> None:
         self._config = config or PipelineConfig()
+        self._governance = governance
         self._metrics = DriftMetricsCollector()
         self._gate = HumanArbitrationGate(self._config.review_timeout_seconds)
         self._reset = BaseModelReset(self._config.reset_cooldown_seconds)
@@ -184,6 +189,13 @@ class DriftDetectionPipeline:
         if severity == DriftSeverity.LOW:
             return DriftAction.ALERT
         return DriftAction.NONE
+
+    def _emergency_halt(self, event: DriftEvent) -> None:
+        event.reason += " (EMERGENCY HALT EXECUTED)"
+        if self._governance is not None:
+            self._governance.force_stabilize(reason=f"drift_emergency_halt:{event.event_id}")
+        self._running = False
+        logger.critical("EMERGENCY HALT triggered by drift event %s: %s", event.event_id, event.reason)
 
     async def check_drift(
         self,
@@ -249,7 +261,7 @@ class DriftDetectionPipeline:
                 if not success:
                     event.reason += " (reset on cooldown)"
             elif action == DriftAction.EMERGENCY_HALT:
-                event.reason += " (EMERGENCY HALT EXECUTED)"
+                self._emergency_halt(event)
 
         event.resolved = True
         event.resolution_time = datetime.now()

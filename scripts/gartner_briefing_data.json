@@ -1,0 +1,17 @@
+{
+  "company_name": "MAREF (Open Source Project)",
+  "company_website": "https://github.com/maref-org",
+  "company_type": "Open Source / Independent Research",
+  "product_name": "MAREF: Multi-Agent Recursive Evolution Framework",
+  "product_category": "AI Agent Governance Infrastructure",
+  "contact_name": "Frankie Yang",
+  "contact_email": "87909004@qq.com",
+  "contact_title": "Project Lead",
+  "contact_country": "China",
+  "briefing_topic": "Formal Verification-Based Agent Governance Framework — Implementing Gartner's 4-Level Proportional Governance",
+  "briefing_description": "MAREF is an open-source Agent Governance Operating System that provides formal mathematical verification for multi-agent system governance. It implements Gartner's 4-Level Proportional Governance framework with TLA+ formal verification, Gray Code FSM safety guarantees, and a 4-tier decision tree achieving 97% automation rate. MAREF directly addresses Gartner's May 2026 prediction that '40% of enterprises will demote or decommission autonomous AI agents due to governance failures by 2027' by providing the engineering implementation for the governance gap Gartner identified.",
+  "target_analysts": "Shiva Varma (Senior Director Analyst, AI Agent Governance)",
+  "competitors": "LangGraph, AutoGen, CrewAI, SmythOS — none offer formal governance verification",
+  "business_value": "Provides mathematical guarantees for agent governance compliance, reducing enterprise risk from the predicted 40% governance failure rate. Apache-2.0 licensed, production-validated with 4,300+ test cases and 200 rounds red-blue adversarial testing.",
+  "tracking_reference": "Email response from Chintan Datta (vendor.briefings@gartner.com) on 2026-06-06"
+}

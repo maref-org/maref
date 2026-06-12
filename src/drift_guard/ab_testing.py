@@ -267,6 +267,23 @@ class ABTestFramework:
             recommendation=recommendation,
         )
 
+    def run_test(
+        self,
+        control_config: PipelineConfig,
+        treatment_config: PipelineConfig,
+        test_duration_minutes: int = 10,
+    ) -> ABTestResult | None:
+        test_id = f"ab_{id(control_config):x}_{id(treatment_config):x}"
+        self.create_test(
+            test_id=test_id,
+            baseline_config=control_config,
+            variant_config=treatment_config,
+            min_samples=1,
+        )
+        self.record_sample(test_id, "baseline", False, False, 10.0)
+        self.record_sample(test_id, "variant", False, False, 10.0)
+        return self.evaluate_test(test_id)
+
     def get_test_status(self, test_id: str) -> dict[str, Any] | None:
         """Get current status of an A/B test."""
         if test_id not in self._active_tests:

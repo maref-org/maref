@@ -183,7 +183,7 @@ class Checkpointer:
                 return 0
             placeholders = ",".join("?" for _ in delete_ids)
             cur = conn.execute(
-                f"DELETE FROM snapshots WHERE id IN ({placeholders})",
+                f"DELETE FROM snapshots WHERE id IN ({placeholders})",  # nosec - B608 hardcoded_sql_expressions
                 delete_ids,
             )
             conn.commit()

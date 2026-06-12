@@ -33,6 +33,18 @@ class CollaborationAction(Enum):
     DELEGATE = "delegate"      # Route to fallback agent
 
 
+_RULE_OPS: dict[str, Callable[[Any, Any], bool]] = {
+    ">": operator.gt,
+    ">=": operator.ge,
+    "<": operator.lt,
+    "<=": operator.le,
+    "==": operator.eq,
+    "!=": operator.ne,
+    "in": lambda a, b: a in b,
+    "contains": lambda a, b: b in a,
+}
+
+
 @dataclass
 class RuleCondition:
     """A single condition: field operator value."""
@@ -41,23 +53,11 @@ class RuleCondition:
     op: str                    # e.g. ">", "==", "in", "contains"
     value: Any
 
-    # Operator mapping
-    _OPS: dict[str, Callable[[Any, Any], bool]] = field(default_factory=lambda: {
-        ">": operator.gt,
-        ">=": operator.ge,
-        "<": operator.lt,
-        "<=": operator.le,
-        "==": operator.eq,
-        "!=": operator.ne,
-        "in": lambda a, b: a in b,
-        "contains": lambda a, b: b in a,
-    })
-
     def evaluate(self, context: dict[str, Any]) -> bool:
         actual = context.get(self.field)
         if actual is None:
             return False
-        fn = self._OPS.get(self.op)
+        fn = _RULE_OPS.get(self.op)
         if fn is None:
             raise ValueError(f"Unknown operator: {self.op}")
         return fn(actual, self.value)

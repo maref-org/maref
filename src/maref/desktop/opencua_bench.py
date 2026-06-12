@@ -6,8 +6,6 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import httpx
-
 if TYPE_CHECKING:
     from maref.desktop.agent import DesktopAgent
 
@@ -211,13 +209,12 @@ Target Dir:   {directory}
 Size:         ~2GB (22.6K trajectories)
 
 Option 1 — Python:
-    import httpx
-    with httpx.stream("GET", "{OPEN_CUA_DATASET_URL}") as response:
-        response.raise_for_status()
-        with open("{directory}/trajectories.jsonl", "w") as f:
-            for line in response.iter_lines():
-                if line:
-                    f.write(f"{{line}}\\n")
+    import urllib.request
+    import json
+    resp = urllib.request.urlopen("{OPEN_CUA_DATASET_URL}")
+    with open("{directory}/trajectories.jsonl", "w") as f:
+        for line in resp:
+            f.write(line.decode("utf-8"))
 
 Option 2 — curl:
     curl -L "{OPEN_CUA_DATASET_URL}" -o "{directory}/trajectories.jsonl"
@@ -249,6 +246,8 @@ Option 3 — HuggingFace CLI:
         return len(self._samples)
 
     def _download_dataset(self) -> int:
+        import urllib.request
+
         cache_path = os.path.join(self._dataset_path, "trajectories.jsonl")
 
         if os.path.exists(cache_path):
@@ -273,22 +272,20 @@ Option 3 — HuggingFace CLI:
 
         try:
             os.makedirs(self._dataset_path, exist_ok=True)
+            resp = urllib.request.urlopen(OPEN_CUA_DATASET_URL, timeout=30)   # nosec - B310 blacklist
             self._samples = []
-            with httpx.stream("GET", OPEN_CUA_DATASET_URL, timeout=30) as resp:
-                resp.raise_for_status()
-                with open(cache_path, "w") as cache_f:
-                    for line_str in resp.iter_lines():
-                        if not line_str:
-                            continue
-                        cache_f.write(f"{line_str}\n")
-                        traj = json.loads(line_str)
-                        sample = OpenCUASample(
-                            sample_id=traj.get("sample_id", traj.get("id", "")),
-                            task_description=traj.get("task", traj.get("instruction", "")),
-                            expected_actions=traj.get("steps", traj.get("actions", [])),
-                            ground_truth=traj,
-                        )
-                        self._samples.append(sample)
+            with open(cache_path, "w") as cache_f:
+                for line in resp:
+                    line_str = line.decode("utf-8")
+                    cache_f.write(line_str)
+                    traj = json.loads(line_str)
+                    sample = OpenCUASample(
+                        sample_id=traj.get("sample_id", traj.get("id", "")),
+                        task_description=traj.get("task", traj.get("instruction", "")),
+                        expected_actions=traj.get("steps", traj.get("actions", [])),
+                        ground_truth=traj,
+                    )
+                    self._samples.append(sample)
             self._loaded = True
         except Exception:
             print("Download failed. Use download_dataset() for manual instructions.")

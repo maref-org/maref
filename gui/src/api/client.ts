@@ -1,4 +1,5 @@
 import type { Session, Message, ModelProvider, Skill, Task, FileNode, HITLEvent } from "@/types";
+import { injectTraceHeaders } from "@/utils/otel";
 
 const REAL_BACKEND = "http://localhost:8000";
 const BASE_URL = "/api";
@@ -41,14 +42,25 @@ export function connectSSE(url: string): EventSource {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  const traceHeaders = injectTraceHeaders(headers);
+  Object.assign(headers, traceHeaders);
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...options,
   });
+
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message ?? "API request failed");
+    const body = await res.json().catch(() => ({}));
+    const error = new Error(body.error?.message ?? res.statusText) as Error & { code?: string };
+    error.code = body.error?.code ?? `ERR_HTTP_${res.status}`;
+    throw error;
   }
+
   return res.json();
 }
 

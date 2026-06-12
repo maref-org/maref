@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: maref-desktop-agent-pdb
+  namespace: maref
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: maref
+      component: desktop-agent

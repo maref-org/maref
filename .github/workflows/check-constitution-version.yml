@@ -1,0 +1,63 @@
+name: Check Constitution Version
+
+on:
+  push:
+    paths:
+      - CONSTITUTION.md
+    branches: [main]
+  pull_request:
+    paths:
+      - CONSTITUTION.md
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday 06:00 UTC
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extract constitution version
+        run: |
+          VERSION=$(grep -oP '\*\*版本\*\*: v\K[0-9.]+' CONSTITUTION.md | head -1)
+          echo "CONSTITUTION_VERSION=v$VERSION" >> $GITHUB_ENV
+          echo "Constitution version: v$VERSION"
+      - name: Check config files reference correct version
+        run: |
+          VERSION=${{ env.CONSTITUTION_VERSION }}
+          ERROR=0
+          CONFIG_FILES="AGENTS.md CLAUDE.md .cursorrules opencode.jsonc .github/copilot-instructions.md .trae/rules/constitution.md"
+          for f in $CONFIG_FILES; do
+            if [ -f "$f" ]; then
+              if grep -q '宪法 v' "$f" 2>/dev/null; then
+                if ! grep -q "宪法 v$VERSION" "$f" 2>/dev/null; then
+                  echo "::error::$f references wrong constitution version (expected v$VERSION)"
+                  ERROR=1
+                fi
+              fi
+            fi
+          done
+          if [ $ERROR -eq 1 ]; then
+            exit 1
+          fi
+          echo "✅ All config files reference constitution v$VERSION"
+      - name: Check git hooks reference correct version
+        run: |
+          VERSION=${{ env.CONSTITUTION_VERSION }}
+          ERROR=0
+          for hook in .git/hooks/pre-push .git/hooks/pre-commit; do
+            if [ -f "$hook" ]; then
+              if grep -q '宪法 v' "$hook" 2>/dev/null; then
+                if ! grep -q "宪法 v$VERSION" "$hook" 2>/dev/null; then
+                  echo "::error::$hook references wrong constitution version (expected v$VERSION)"
+                  ERROR=1
+                fi
+              fi
+            fi
+          done
+          if [ $ERROR -eq 1 ]; then
+            exit 1
+          fi
+          echo "✅ Git hooks reference constitution v$VERSION"

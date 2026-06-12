@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from maref.security.decorators import security_critical
+
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditRecord
 
@@ -144,6 +146,7 @@ class AuditLogger:
             )
         return entry
 
+    @security_critical
     def verify_integrity(self) -> dict[str, Any]:
         entries = self.read_all()
         total = len(entries)
@@ -174,6 +177,7 @@ class AuditLogger:
             "integrity_intact": len(tampered) == 0,
         }
 
+    @security_critical
     def log(
         self,
         event_type: str,
@@ -195,6 +199,7 @@ class AuditLogger:
         signed_entry = self._write(entry)
         return signed_entry
 
+    @security_critical
     def log_decision(
         self,
         actor: str,
