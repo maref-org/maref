@@ -31,6 +31,12 @@ from maref.gaas.models import (
     GovernResponse,
     HITLRequest,
     HITLResponse,
+    SessionCompleteRequest,
+    SessionDeclareRequest,
+    SessionDeclareResponse,
+    SessionListResponse,
+    SessionStatusResponse,
+    SessionStepResponse,
     TrustScoreResponse,
 )
 from maref.gaas.tenant import TenantManager
@@ -274,3 +280,141 @@ async def cb_status(
 async def health() -> dict[str, str]:
     """Service health check."""
     return {"status": "healthy", "service": "gaas"}
+
+
+# ------------------------------------------------------------------
+# Execution Sessions (for long task chains)
+# ------------------------------------------------------------------
+
+from maref.gaas.session_manager import (
+    cleanup_stale_sessions,
+    complete_session,
+    declare_session,
+    get_active_sessions,
+    get_session,
+    is_session_active,
+    increment_step,
+)
+
+cleanup_stale_sessions()
+
+
+@router.post("/session/declare", response_model=SessionDeclareResponse)
+async def session_declare(
+    req: SessionDeclareRequest,
+    tenant_id: str = Depends(require_api_key),
+) -> SessionDeclareResponse:
+    """Declare a new execution session for long-running tasks."""
+    try:
+        sess = declare_session(
+            agent_id=req.agent_id,
+            goal=req.goal,
+            max_steps=req.max_steps,
+            completion_criteria=req.completion_criteria,
+            trust_level=req.trust_level,
+        )
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return SessionDeclareResponse(
+        session_id=sess.session_id,
+        agent_id=sess.agent_id,
+        goal=sess.goal,
+        max_steps=sess.max_steps,
+        steps=sess.steps,
+        remaining_steps=sess.max_steps - sess.steps,
+        created_at=sess.created_at,
+        status="active",
+    )
+
+
+@router.get("/session/active", response_model=SessionListResponse)
+async def session_list_active(
+    agent_id: str | None = None,
+    tenant_id: str = Depends(require_api_key),
+) -> SessionListResponse:
+    """List active sessions, optionally filtered by agent_id."""
+    sessions = get_active_sessions(agent_id)
+    return SessionListResponse(
+        sessions=[_session_to_status(s) for s in sessions],
+        count=len(sessions),
+    )
+
+
+@router.get("/session/{session_id}", response_model=SessionStatusResponse)
+async def session_status(
+    session_id: str,
+    tenant_id: str = Depends(require_api_key),
+) -> SessionStatusResponse:
+    """Get a specific session's status."""
+    sess = get_session(session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return _session_to_status(sess)
+
+
+@router.post("/session/{session_id}/complete", response_model=SessionStatusResponse)
+async def session_complete(
+    session_id: str,
+    req: SessionCompleteRequest,
+    tenant_id: str = Depends(require_api_key),
+) -> SessionStatusResponse:
+    """Complete a session and adjust trust score."""
+    sess = complete_session(session_id, success=req.success, result=req.result)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Adjust trust score based on session outcome
+    ts = get_trust_service()
+    current = ts.get_score(tenant_id, sess.agent_id) or 50.0
+    if req.success:
+        new_score = min(100.0, current + 3.0)
+        reason = f"session_complete:success:{session_id}"
+    else:
+        new_score = max(0.0, current - 5.0)
+        reason = f"session_complete:failure:{session_id}"
+    ts.set_score(tenant_id, sess.agent_id, new_score, reason=reason)
+
+    return _session_to_status(sess)
+
+
+@router.post("/session/{session_id}/step", response_model=SessionStepResponse)
+async def session_step(
+    session_id: str,
+    tenant_id: str = Depends(require_api_key),
+) -> SessionStepResponse:
+    """Increment step counter for a session."""
+    sess = increment_step(session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return SessionStepResponse(
+        session_id=sess.session_id,
+        steps=sess.steps,
+        remaining_steps=sess.max_steps - sess.steps,
+        is_active=is_session_active(session_id),
+    )
+
+
+def _session_to_status(sess: Any) -> SessionStatusResponse:
+    """Convert a Session dataclass to SessionStatusResponse."""
+    if is_session_active(sess.session_id):
+        status = "active"
+    elif sess.success is True:
+        status = "completed"
+    elif sess.success is False:
+        status = "failed"
+    else:
+        status = "terminated"
+    return SessionStatusResponse(
+        session_id=sess.session_id,
+        agent_id=sess.agent_id,
+        goal=sess.goal,
+        max_steps=sess.max_steps,
+        steps=sess.steps,
+        remaining_steps=sess.max_steps - sess.steps,
+        completion_criteria=sess.completion_criteria,
+        created_at=sess.created_at,
+        completed_at=sess.completed_at,
+        success=sess.success,
+        result=sess.result,
+        status=status,
+    )

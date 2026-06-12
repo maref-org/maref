@@ -123,3 +123,59 @@ class CBStatusResponse(BaseModel):
     state: CircuitBreakerState
     failure_count: int
     last_trip_time: float | None = None
+
+
+# ---------------------------------------------------------------------------
+# Execution Session models
+# ---------------------------------------------------------------------------
+
+
+class SessionDeclareRequest(BaseModel):
+    agent_id: str = Field(..., min_length=1, max_length=50)
+    goal: str = Field(default="", max_length=200)
+    max_steps: int = Field(default=50, ge=1, le=200)
+    completion_criteria: str = Field(default="", max_length=200)
+    trust_level: str = Field(default="SEMI_TRUSTED")
+
+
+class SessionDeclareResponse(BaseModel):
+    session_id: str
+    agent_id: str
+    goal: str
+    max_steps: int
+    steps: int
+    remaining_steps: int
+    created_at: float
+    status: str
+
+
+class SessionCompleteRequest(BaseModel):
+    success: bool
+    result: str = Field(default="", max_length=500)
+
+
+class SessionStatusResponse(BaseModel):
+    session_id: str
+    agent_id: str
+    goal: str
+    max_steps: int
+    steps: int
+    remaining_steps: int
+    completion_criteria: str
+    created_at: float
+    completed_at: float | None = None
+    success: bool | None = None
+    result: str = ""
+    status: str
+
+
+class SessionListResponse(BaseModel):
+    sessions: list[SessionStatusResponse]
+    count: int
+
+
+class SessionStepResponse(BaseModel):
+    session_id: str
+    steps: int
+    remaining_steps: int
+    is_active: bool

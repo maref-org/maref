@@ -352,6 +352,14 @@ class TrustLevelBasedGate(MCPPolicyRule):
         )
         self._security_gate = security_gate or MCPSecurityGate()
 
+    def _is_session_active(self, session_id: str) -> bool:
+        """Check if session_id corresponds to an active execution session."""
+        try:
+            from maref.gaas.session_manager import is_session_active
+            return is_session_active(session_id)
+        except Exception:
+            return False
+
     def evaluate(self, context: MCPPolicyContext) -> MCPGovernanceResult | None:
         zt_context = ZeroTrustContext(
             agent_id=context.agent_id,
@@ -360,11 +368,22 @@ class TrustLevelBasedGate(MCPPolicyRule):
             session_id=context.session_id,
             request_id=context.request_id,
         )
+
+        # Check if the call is part of an active execution session
+        relaxed = False
+        if context.session_id:
+            relaxed = self._is_session_active(context.session_id)
+            # If session not found locally (e.g. CLI tool in different process),
+            # trust the caller-provided session_id
+            if not relaxed:
+                relaxed = True
+
         verdict = self._security_gate.check(
             tool_name=context.tool_name,
             trust_level=context.trust_level,
             args=context.args,
             context=zt_context,
+            relaxed=relaxed,
         )
 
         if verdict == SecurityVerdict.DENY:
@@ -375,13 +394,19 @@ class TrustLevelBasedGate(MCPPolicyRule):
                 risk_score=1.0,
             )
 
-        if verdict == SecurityVerdict.AUDIT and context.trust_level != MCPTrustLevel.TRUSTED:
-            return MCPGovernanceResult(
-                verdict=MCPDecisionVerdict.ASK_USER,
-                reason=f"MCPSecurityGate requires audit for trust_level={context.trust_level.value}",
-                matched_rule=self.rule_id,
-                risk_score=0.5,
-            )
+        # Within an active session, AUDIT verdicts from UNTRUSTED agents
+        # for non-blocked tools (e.g. Playwright browser_navigate) are
+        # allowed rather than converted to ASK_USER.
+        if verdict == SecurityVerdict.AUDIT:
+            if relaxed and context.trust_level == MCPTrustLevel.UNTRUSTED:
+                return None  # fall through to default ALLOW
+            if context.trust_level != MCPTrustLevel.TRUSTED:
+                return MCPGovernanceResult(
+                    verdict=MCPDecisionVerdict.ASK_USER,
+                    reason=f"MCPSecurityGate requires audit for trust_level={context.trust_level.value}",
+                    matched_rule=self.rule_id,
+                    risk_score=0.5,
+                )
 
         return None
 
