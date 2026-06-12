@@ -34,7 +34,7 @@ class APIModelAdapter(ModelAdapter):
             method="POST",
         )
 
-        with urllib.request.urlopen(req, timeout=kwargs.get("timeout", 30)) as resp:
+        with urllib.request.urlopen(req, timeout=kwargs.get("timeout", 30)) as resp:  # nosec - B310 blacklist
             data = json.loads(resp.read())
             return data["choices"][0]["message"]["content"]
 

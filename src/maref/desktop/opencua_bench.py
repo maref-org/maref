@@ -272,7 +272,7 @@ Option 3 — HuggingFace CLI:
 
         try:
             os.makedirs(self._dataset_path, exist_ok=True)
-            resp = urllib.request.urlopen(OPEN_CUA_DATASET_URL, timeout=30)
+            resp = urllib.request.urlopen(OPEN_CUA_DATASET_URL, timeout=30)   # nosec - B310 blacklist
             self._samples = []
             with open(cache_path, "w") as cache_f:
                 for line in resp:

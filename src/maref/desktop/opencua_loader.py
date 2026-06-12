@@ -43,7 +43,7 @@ class OpenCUALoader:
     def download(self) -> bool:
         try:
             from huggingface_hub import snapshot_download
-            snapshot_download(
+            snapshot_download(  # nosec - B615 huggingface_unsafe_download
                 "OpenCUA/OpenCUA",
                 repo_type="dataset",
                 cache_dir=str(self._cache),

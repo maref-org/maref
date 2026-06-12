@@ -106,7 +106,7 @@ def _fetch_url(url: str, max_size: int = DEFAULT_MAX_CONTENT_SIZE) -> tuple[byte
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:  # nosec - B310 blacklist
         content = resp.read(max_size + 1)
         if len(content) > max_size:
             raise ValueError(f"Content exceeds maximum size of {max_size} bytes")

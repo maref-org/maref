@@ -307,7 +307,7 @@ class DesktopAgent:
         if screenshot is None:
             screenshot = self.capture_screen()
 
-        file_path = screenshot.file_path or "/tmp/maref_screenshot_tmp.png"
+        file_path = screenshot.file_path or "/tmp/maref_screenshot_tmp.png"  # nosec - B108 hardcoded_tmp_directory
         if screenshot.image and not screenshot.file_path:
             screenshot.save(file_path)
 

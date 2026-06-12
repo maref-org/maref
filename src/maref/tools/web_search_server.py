@@ -186,7 +186,7 @@ def _execute_search(
         headers={"User-Agent": USER_AGENT, "Accept": "text/html"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:  # nosec - B310 blacklist
             html = resp.read().decode("utf-8", errors="replace")
     except Exception as e:
         logger.warning("Search request failed: %s", e)

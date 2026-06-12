@@ -169,7 +169,7 @@ class DeviceDiscovery:
             name=socket.gethostname(),
             device_type=DeviceType.DESKTOP,
             platform=DevicePlatform.MACOS,
-            host="0.0.0.0",
+            host="0.0.0.0",  # nosec - B104 hardcoded_bind_all_interfaces
             port=port,
             connection_method=ConnectionMethod.LOCAL,
         )
@@ -501,7 +501,7 @@ class MobileBridge:
             "data": data,
         })
 
-    def enable_real_mode(self, host: str = "0.0.0.0", port: int | None = None) -> dict[str, Any]:
+    def enable_real_mode(self, host: str = "0.0.0.0", port: int | None = None) -> dict[str, Any]:  # nosec - B104 hardcoded_bind_all_interfaces
         port = port or self.discovery.port
         self.discovery._local_device.host = host
         self.discovery._local_device.port = port

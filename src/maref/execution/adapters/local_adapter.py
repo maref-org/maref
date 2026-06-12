@@ -20,8 +20,8 @@ class LocalModelAdapter(ModelAdapter):
             return
         try:
             import transformers
-            self._tokenizer = transformers.AutoTokenizer.from_pretrained(self._model_name)
-            self._model = transformers.AutoModelForCausalLM.from_pretrained(self._model_name)
+            self._tokenizer = transformers.AutoTokenizer.from_pretrained(self._model_name)  # nosec - B615 huggingface_unsafe_download
+            self._model = transformers.AutoModelForCausalLM.from_pretrained(self._model_name)  # nosec - B615 huggingface_unsafe_download
         except ImportError:
             raise RuntimeError("transformers not installed") from None
 

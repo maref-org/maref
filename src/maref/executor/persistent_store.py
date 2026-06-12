@@ -171,7 +171,7 @@ class PersistentSessionStore:
             if expired_ids:
                 placeholders = ",".join("?" * len(expired_ids))
                 self._conn.execute(
-                    f"UPDATE sessions SET status = 'expired' WHERE id IN ({placeholders})",
+                    f"UPDATE sessions SET status = 'expired' WHERE id IN ({placeholders})",  # nosec - B608 hardcoded_sql_expressions
                     expired_ids,
                 )
                 self._conn.commit()

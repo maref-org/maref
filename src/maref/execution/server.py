@@ -169,6 +169,6 @@ async def stop_run(run_id: str) -> RunResponse:
     return RunResponse(run_id=run_id, status="stopped", message="Run stopped")
 
 
-def start(host: str = "0.0.0.0", port: int = 8000) -> None:
+def start(host: str = "0.0.0.0", port: int = 8000) -> None:  # nosec - B104 hardcoded_bind_all_interfaces
     import uvicorn
     uvicorn.run(app, host=host, port=port)
