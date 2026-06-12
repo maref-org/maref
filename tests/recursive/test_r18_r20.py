@@ -327,3 +327,60 @@ class TestSelfArchitectStructuredProposals:
         assert isinstance(proposal.target_files, list)
         assert isinstance(proposal.affected_symbols, list)
         assert isinstance(proposal.preconditions, list)
+
+
+class TestSelfArchitectExternalProposals:
+    @pytest.fixture
+    def architect(self) -> SelfArchitect:
+        from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore
+        store = UnifiedAuditStore()
+        store.append(UnifiedAuditRecord(
+            record_id="seed", timestamp=0.0, layer="inner", round=0,
+            source_module="test_mod", target_module="test_mod",
+            event_type="healing", decision="allow", justification="seed",
+            outcome="success",
+        ))
+        return SelfArchitect(store)
+
+    def test_accept_external_proposal_stores(self, architect: SelfArchitect) -> None:
+        before = len(architect.proposals)
+        proposal = ArchitectureProposal(
+            proposal_id="ext_test",
+            timestamp=time.time(),
+            current_arch="10",
+            proposed_arch="11",
+            rationale="External suggestion from Claude Code diagnosis",
+            risk_assessment="low",
+            confidence=0.80,
+            change_type=ChangeType.SPLIT_MODULE,
+            target_files=["src/mod.py"],
+        )
+        architect.accept_external_proposal(proposal)
+        assert len(architect.proposals) == before + 1
+
+    def test_list_proposals_filters_by_type(self, architect: SelfArchitect) -> None:
+        p1 = ArchitectureProposal(proposal_id="a", timestamp=0, current_arch="", proposed_arch="",
+                                  rationale="", risk_assessment="low", confidence=1.0,
+                                  change_type=ChangeType.ADD_TEST)
+        p2 = ArchitectureProposal(proposal_id="b", timestamp=0, current_arch="", proposed_arch="",
+                                  rationale="", risk_assessment="medium", confidence=1.0,
+                                  change_type=ChangeType.GENERAL_REFACTOR)
+        architect.accept_external_proposal(p1)
+        architect.accept_external_proposal(p2)
+        add_tests = architect.list_proposals(change_type=ChangeType.ADD_TEST)
+        assert len(add_tests) == 1
+        assert add_tests[0].proposal_id == "a"
+
+    def test_list_proposals_filters_by_risk(self, architect: SelfArchitect) -> None:
+        p_low = ArchitectureProposal(proposal_id="low", timestamp=0, current_arch="", proposed_arch="",
+                                     rationale="", risk_assessment="low", confidence=1.0)
+        p_med = ArchitectureProposal(proposal_id="med", timestamp=0, current_arch="", proposed_arch="",
+                                     rationale="", risk_assessment="medium", confidence=1.0)
+        p_high = ArchitectureProposal(proposal_id="high", timestamp=0, current_arch="", proposed_arch="",
+                                      rationale="", risk_assessment="high", confidence=1.0)
+        architect.accept_external_proposal(p_low)
+        architect.accept_external_proposal(p_med)
+        architect.accept_external_proposal(p_high)
+        filtered = architect.list_proposals(max_risk="low")
+        assert all(p.risk_assessment == "low" for p in filtered)
+        assert len(filtered) == 1
