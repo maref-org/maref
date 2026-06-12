@@ -44,6 +44,7 @@ from maref.recursive.agent_economy import (
     TradeProposal,
     TradeReceipt,
 )
+from maref.recursive.claude_code_adapter import AdapterConfig, ClaudeCodeAdapter, TaskResult
 from maref.recursive.capability_contracts import (
     CapabilityContract,
     CapabilityRegistry,
@@ -401,6 +402,9 @@ __all__ = [
     "LoopConfig",
     "LoopResult",
     "IterationResult",
+    "ClaudeCodeAdapter",
+    "AdapterConfig",
+    "TaskResult",
     "SelfDiagnostician",
     "RiskLevel",
     "DiagnosisReport",
