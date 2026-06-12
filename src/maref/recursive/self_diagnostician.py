@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from maref.recursive.self_observer import SystemSnapshot
@@ -44,6 +44,7 @@ class SelfDiagnostician:
         self._cb_state = "CLOSED"
         self._trip_count = 0
         self._blocked = False
+        self._semantic_findings: list[dict[str, Any]] = []
 
     @property
     def cb_state(self) -> str:
@@ -72,6 +73,25 @@ class SelfDiagnostician:
 
         tags = len(snapshot.git_stats.get("tags", []))
         probe_results["oscillation"] = self._oscillation_probe.read(oscillation_count=float(tags) / 10.0)
+
+        if self._semantic_findings:
+            semantic_readings: list[ProbeReading] = []
+            for finding in self._semantic_findings:
+                severity_str = finding.get("severity", "normal")
+                if severity_str == "critical":
+                    severity = ProbeSeverity.CRITICAL
+                elif severity_str == "warning":
+                    severity = ProbeSeverity.WARNING
+                else:
+                    severity = ProbeSeverity.NORMAL
+                semantic_readings.append(ProbeReading(
+                    probe_name="semantic",
+                    severity=severity,
+                    value=1.0 if severity != ProbeSeverity.NORMAL else 0.0,
+                    threshold=0.5,
+                    context={"message": finding.get("message", ""), "module": finding.get("module", ""), "type": finding.get("type", "")},
+                ))
+            probe_results["semantic"] = semantic_readings
 
         risk_matrix = self._build_risk_matrix(probe_results)
 
@@ -151,3 +171,9 @@ class SelfDiagnostician:
 
     def is_blocked(self) -> bool:
         return self._blocked
+
+    def accept_semantic_diagnosis(self, finding: dict[str, Any]) -> None:
+        self._semantic_findings.append(finding)
+
+    def clear_semantic_findings(self) -> None:
+        self._semantic_findings.clear()
