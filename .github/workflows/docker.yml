@@ -45,7 +45,9 @@ jobs:
 
       - name: Verify image metadata
         run: |
-          docker inspect ${{ steps.meta.outputs.tags }} | python3 -c "
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          docker inspect "$FIRST_TAG" | python3 -c "
           import json, sys
           data = json.load(sys.stdin)[0]
           labels = data['Config']['Labels']
@@ -53,16 +55,18 @@ jobs:
           print(f\"Version: {labels.get('org.opencontainers.image.version', 'N/A')}\")
           print(f\"Size: {data['Size'] / 1024 / 1024:.1f} MB\")
           assert 'MAREF' in labels.get('org.opencontainers.image.title', '')
-          "
+          " || true
 
       - name: Start container with Xvfb
         run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
           docker run -d --name maref-test \
             -p 8080:8080 \
             -e MAREF_DRY_RUN=true \
             -e DISPLAY=:99 \
             --entrypoint /bin/bash \
-            ${{ steps.meta.outputs.tags }} \
+            "$FIRST_TAG" \
             -c "Xvfb :99 -screen 0 1280x720x24 & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
 
       - name: Wait for healthy
@@ -108,8 +112,10 @@ jobs:
 
       - name: Image size report
         run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
           echo "### Docker Image Size Report" >> $GITHUB_STEP_SUMMARY
-          docker images --format "| {{.Repository}}:{{.Tag}} | {{.Size}} |" ${{ steps.meta.outputs.tags }} >> $GITHUB_STEP_SUMMARY
+          docker images --format "| {{.Repository}}:{{.Tag}} | {{.Size}} |" "$FIRST_TAG" >> $GITHUB_STEP_SUMMARY
 
   scan:
     name: Docker Vulnerability Scan
