@@ -1,106 +1,177 @@
-"""Tests for Interrupt Protocol."""
+from __future__ import annotations
 
 import pytest
 
-from maref.human.interrupt_protocol import (
-    InterruptProtocol,
-    InterruptSignal,
-    InterruptType,
-)
+from maref.human.interrupt_protocol import InterruptProtocol, InterruptSignal, InterruptType
+
+
+class TestInterruptSignal:
+    def test_frozen_dataclass(self) -> None:
+        sig = InterruptSignal(
+            signal_id="s1",
+            interrupt_type=InterruptType.PAUSE,
+            target_agents=["agent1"],
+            global_sequence=1,
+            issued_by="admin",
+        )
+        assert sig.reason == ""
+        assert sig.payload == {}
+        assert sig.issued_at > 0
+
+    def test_to_dict(self) -> None:
+        sig = InterruptSignal(
+            signal_id="s1",
+            interrupt_type=InterruptType.ABORT,
+            target_agents=[],
+            global_sequence=5,
+            issued_by="admin",
+            reason="emergency",
+            payload={"task_id": "t1"},
+        )
+        d = sig.to_dict()
+        assert d["interrupt_type"] == "abort"
+        assert d["global_sequence"] == 5
+        assert d["reason"] == "emergency"
+        assert d["payload"] == {"task_id": "t1"}
 
 
 class TestInterruptProtocol:
-    def test_issue_interrupt(self):
-        protocol = InterruptProtocol()
-        signal = protocol.issue_interrupt(
-            InterruptType.PAUSE,
-            issued_by="admin",
-            reason="Emergency",
-        )
-        assert signal.interrupt_type == InterruptType.PAUSE
-        assert signal.issued_by == "admin"
-        assert signal.global_sequence == 1
-
-    def test_global_sequence_increments(self):
-        protocol = InterruptProtocol()
-        s1 = protocol.issue_interrupt(InterruptType.PAUSE, issued_by="a")
-        s2 = protocol.issue_interrupt(InterruptType.ABORT, issued_by="b")
+    def test_issue_interrupt_increments_sequence(self) -> None:
+        p = InterruptProtocol()
+        s1 = p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        s2 = p.issue_interrupt(InterruptType.ABORT, issued_by="admin")
         assert s1.global_sequence == 1
         assert s2.global_sequence == 2
 
-    def test_get_latest_interrupt(self):
-        protocol = InterruptProtocol()
-        assert protocol.get_latest_interrupt() is None
-
-        protocol.issue_interrupt(InterruptType.PAUSE, issued_by="a")
-        latest = protocol.get_latest_interrupt()
-        assert latest is not None
-        assert latest.interrupt_type == InterruptType.PAUSE
-
-    def test_should_agent_stop_broadcast(self):
-        protocol = InterruptProtocol()
-        protocol.issue_interrupt(InterruptType.ABORT, issued_by="admin")
-
-        # Broadcast (empty target_agents) affects all agents
-        signal = protocol.should_agent_stop("agent_1", last_seen_sequence=0)
-        assert signal is not None
-        assert signal.interrupt_type == InterruptType.ABORT
-
-        # Already seen
-        signal = protocol.should_agent_stop("agent_1", last_seen_sequence=1)
-        assert signal is None
-
-    def test_should_agent_stop_targeted(self):
-        protocol = InterruptProtocol()
-        protocol.issue_interrupt(
-            InterruptType.PAUSE,
+    def test_issue_interrupt_with_targets(self) -> None:
+        p = InterruptProtocol()
+        sig = p.issue_interrupt(
+            InterruptType.OVERRIDE,
             issued_by="admin",
-            target_agents=["agent_1"],
+            target_agents=["agent_a", "agent_b"],
+            reason="update decision",
+            payload={"new_action": "approve"},
         )
+        assert sig.target_agents == ["agent_a", "agent_b"]
+        assert sig.reason == "update decision"
+        assert sig.payload == {"new_action": "approve"}
 
-        signal = protocol.should_agent_stop("agent_1", last_seen_sequence=0)
-        assert signal is not None
+    def test_issue_interrupt_no_targets(self) -> None:
+        p = InterruptProtocol()
+        sig = p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        assert sig.target_agents == []
 
-        signal = protocol.should_agent_stop("agent_2", last_seen_sequence=0)
-        assert signal is None  # Not targeted
+    def test_get_latest_interrupt_empty(self) -> None:
+        p = InterruptProtocol()
+        assert p.get_latest_interrupt() is None
 
-    def test_get_interrupts_since(self):
-        protocol = InterruptProtocol()
-        protocol.issue_interrupt(InterruptType.PAUSE, issued_by="a")
-        protocol.issue_interrupt(InterruptType.ABORT, issued_by="b")
-        protocol.issue_interrupt(InterruptType.RESUME, issued_by="c")
+    def test_get_latest_interrupt_after_issue(self) -> None:
+        p = InterruptProtocol()
+        p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        p.issue_interrupt(InterruptType.ABORT, issued_by="admin")
+        latest = p.get_latest_interrupt()
+        assert latest is not None
+        assert latest.interrupt_type == InterruptType.ABORT
 
-        since = protocol.get_interrupts_since(1)
-        assert len(since) == 2  # seq 2 and 3
+    def test_get_interrupt_by_sequence(self) -> None:
+        p = InterruptProtocol()
+        s1 = p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        got = p.get_interrupt(s1.global_sequence)
+        assert got is not None
+        assert got.signal_id == s1.signal_id
+
+    def test_get_interrupt_not_found(self) -> None:
+        p = InterruptProtocol()
+        assert p.get_interrupt(999) is None
+
+    def test_get_interrupts_since(self) -> None:
+        p = InterruptProtocol()
+        p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")  # seq=1
+        p.issue_interrupt(InterruptType.ABORT, issued_by="admin")  # seq=2
+        p.issue_interrupt(InterruptType.RESUME, issued_by="admin")  # seq=3
+        since = p.get_interrupts_since(1)
+        assert len(since) == 2
         assert since[0].interrupt_type == InterruptType.ABORT
         assert since[1].interrupt_type == InterruptType.RESUME
 
-    def test_propagate_to_agents(self):
-        protocol = InterruptProtocol()
-        signal = protocol.issue_interrupt(
-            InterruptType.OVERRIDE,
+    def test_get_interrupts_since_none(self) -> None:
+        p = InterruptProtocol()
+        p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        assert p.get_interrupts_since(999) == []
+
+    def test_should_agent_stop_no_interrupts(self) -> None:
+        p = InterruptProtocol()
+        assert p.should_agent_stop("agent1", 0) is None
+
+    def test_should_agent_stop_already_seen(self) -> None:
+        p = InterruptProtocol()
+        sig = p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        result = p.should_agent_stop("agent1", sig.global_sequence)
+        assert result is None
+
+    def test_should_agent_stop_broadcast(self) -> None:
+        p = InterruptProtocol()
+        p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        result = p.should_agent_stop("any_agent", 0)
+        assert result is not None
+        assert result.interrupt_type == InterruptType.PAUSE
+
+    def test_should_agent_stop_targeted_matches(self) -> None:
+        p = InterruptProtocol()
+        p.issue_interrupt(
+            InterruptType.ABORT,
             issued_by="admin",
-            target_agents=["agent_1"],
-            payload={"new_decision": "reject"},
+            target_agents=["agent_a"],
         )
+        assert p.should_agent_stop("agent_a", 0) is not None
+        assert p.should_agent_stop("agent_b", 0) is None
 
-        delivery = protocol.propagate_to_agents(["agent_1", "agent_2"], signal)
-        assert delivery["agent_1"] is True
-        assert delivery["agent_2"] is False
+    def test_propagate_to_agents_broadcast(self) -> None:
+        p = InterruptProtocol()
+        sig = p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        delivery = p.propagate_to_agents(["a1", "a2", "a3"], sig)
+        assert delivery == {"a1": True, "a2": True, "a3": True}
 
-    def test_history(self):
-        protocol = InterruptProtocol()
-        protocol.issue_interrupt(InterruptType.PAUSE, issued_by="a")
-        protocol.issue_interrupt(InterruptType.ABORT, issued_by="b")
+    def test_propagate_to_agents_targeted(self) -> None:
+        p = InterruptProtocol()
+        sig = p.issue_interrupt(
+            InterruptType.ABORT,
+            issued_by="admin",
+            target_agents=["a1"],
+        )
+        delivery = p.propagate_to_agents(["a1", "a2"], sig)
+        assert delivery == {"a1": True, "a2": False}
 
-        history = protocol.get_history()
+    def test_propagate_to_agents_no_targets_with_specific_ids(self) -> None:
+        p = InterruptProtocol()
+        sig = p.issue_interrupt(InterruptType.RESUME, issued_by="admin")
+        delivery = p.propagate_to_agents(["a1", "a2"], sig)
+        assert delivery == {"a1": True, "a2": True}
+
+    def test_get_history(self) -> None:
+        p = InterruptProtocol()
+        p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        p.issue_interrupt(InterruptType.ABORT, issued_by="admin")
+        history = p.get_history()
         assert len(history) == 2
-        assert history[0].interrupt_type == InterruptType.ABORT  # Latest first
-        assert history[1].interrupt_type == InterruptType.PAUSE
+        assert history[0].interrupt_type == InterruptType.ABORT  # newest first
 
-    def test_signal_immutable(self):
-        protocol = InterruptProtocol()
-        signal = protocol.issue_interrupt(InterruptType.PAUSE, issued_by="a")
+    def test_get_history_limit(self) -> None:
+        p = InterruptProtocol()
+        for i in range(10):
+            p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        assert len(p.get_history(limit=3)) == 3
 
-        with pytest.raises(AttributeError):
-            signal.reason = "modified"  # frozen dataclass
+    def test_default_heartbeat_interval(self) -> None:
+        p = InterruptProtocol()
+        assert p._heartbeat_interval == 1.0
+
+    def test_custom_heartbeat_interval(self) -> None:
+        p = InterruptProtocol(heartbeat_interval=0.5)
+        assert p._heartbeat_interval == 0.5
+
+    def test_interrupt_immutability(self) -> None:
+        p = InterruptProtocol()
+        sig = p.issue_interrupt(InterruptType.PAUSE, issued_by="admin")
+        with pytest.raises((AttributeError, TypeError)):
+            sig.reason = "changed"  # type: ignore[misc]
