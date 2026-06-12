@@ -1,0 +1,34 @@
+# MAREF Self-Iteration Experiment — Governance Config
+version: "0.30.0-ga"
+experiment_mode: dry_run
+risk_level: low
+
+self_loop:
+  max_iterations: 10
+  timeout_seconds: 300
+  circuit_breaker_policy: trip_on_critical
+  observe_timeout: 30
+  diagnose_timeout: 30
+  heal_timeout: 60
+  optimize_timeout: 60
+  plan_timeout: 60
+  execute_timeout: 120
+
+claude_code:
+  server_command: "npx @anthropic-ai/claude-code"
+  default_timeout: 120
+  max_retries: 3
+  governance_required: true
+  auto_reconnect: true
+
+diagnostician:
+  semantic_findings_limit: 50
+  external_diagnosis_enabled: true
+
+architect:
+  external_proposals_enabled: true
+  max_proposals: 100
+
+audit:
+  enabled: true
+  hmac_key_env: "MAREF_AUDIT_HMAC_KEY"
