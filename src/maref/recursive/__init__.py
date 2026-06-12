@@ -326,6 +326,7 @@ from maref.recursive.self_executor import (
 )
 from maref.recursive.self_healer import HEALING_STRATEGIES, HealAction, HealingRecord, SelfHealer
 from maref.recursive.self_knowledge import ArchHypothesis, SelfKnowledge
+from maref.recursive.self_loop_runner import IterationResult, LoopConfig, LoopResult, SelfLoopRunner
 from maref.recursive.self_observer import SelfObserver, SystemSnapshot
 from maref.recursive.self_optimizer import (
     BenchmarkResult,
@@ -396,6 +397,10 @@ from maref.recursive.zero_trust import (
 __all__ = [
     "SelfObserver",
     "SystemSnapshot",
+    "SelfLoopRunner",
+    "LoopConfig",
+    "LoopResult",
+    "IterationResult",
     "SelfDiagnostician",
     "RiskLevel",
     "DiagnosisReport",
