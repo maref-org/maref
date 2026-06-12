@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
-from maref.compliance import ComplianceRegistry, ComplianceStatus, Jurisdiction
+from maref.compliance.registry import ComplianceRegistry, ComplianceStatus, Jurisdiction
 
 
 class MonitorState(Enum):
