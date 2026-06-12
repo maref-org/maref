@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from maref.security.trust_api import TrustAPI
 
 

@@ -1,8 +1,6 @@
 """Tests for BehaviorMonitor — emergent behavior detection."""
 
-import time
 
-import pytest
 
 from maref.security.behavior_monitor import BehaviorAnomaly, BehaviorBaseline, BehaviorMonitor
 

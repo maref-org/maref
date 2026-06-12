@@ -1,8 +1,6 @@
 """Tests for SharedStateMonitor — pollution detection."""
 
-import time
 
-import pytest
 
 from maref.security.state_monitor import (
     PollutionReport,

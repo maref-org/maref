@@ -1,17 +1,20 @@
 """Tests for security-critical function decorator."""
 
+from typing import Any
+
 import pytest
 
 from maref.security.decorators import security_critical
 
 
 class TestSecurityCritical:
-    def test_marker_attribute_set(self):
+    def test_marker_attribute_set(self) -> None:
         @security_critical
-        def dummy():
+        def dummy() -> Any:
             return 42
 
-        assert dummy._maref_security_critical is True
+        marker: Any = dummy._maref_security_critical  # type: ignore[attr-defined]
+        assert marker is True
 
     def test_function_result(self):
         @security_critical

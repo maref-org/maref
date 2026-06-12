@@ -1,6 +1,5 @@
 """Tests for Sanitizer — PII detection and data protection."""
 
-import pytest
 
 from maref.security.sanitizer import Sanitizer
 

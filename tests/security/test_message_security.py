@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from maref.security.message_security import MessageSecurityReport, MessageSecurityScanner, RiskLevel
 
 

@@ -1,6 +1,5 @@
 """Tests for TrustGraph and TrustPropagation — trust graph and propagation."""
 
-import pytest
 
 from maref.security.trust_graph import TrustAgent, TrustEdge, TrustGraph, TrustPropagation
 
@@ -199,8 +198,10 @@ class TestTrustPropagation:
         graph = TrustGraph()
         graph.add_edge("a", "b", 200.0)
         edge = graph.get_edge("a", "b")
+        assert edge is not None
         assert edge.trust_score == 100.0
 
         graph.add_edge("a", "c", -10.0)
         edge = graph.get_edge("a", "c")
+        assert edge is not None
         assert edge.trust_score == 0.0
