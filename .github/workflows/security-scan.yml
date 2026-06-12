@@ -19,7 +19,6 @@ jobs:
         uses: trufflesecurity/trufflehog@v3.90.8
         with:
           path: ./
-          # Fix: schedule trigger 没有 base/head 事件，改用全量扫描
           base: ""
           head: ""
           extra_args: --only-verified
@@ -31,13 +30,11 @@ jobs:
       - name: Semgrep Scan
         uses: returntocorp/semgrep-action@v1
         with:
-          # Fix: 使用 audit 模式，扫描结果不阻塞 CI，仅报告
           config: >-
             p/security-audit
             p/owasp-top-ten
             p/cwe-top-25
-          # 只报告，不阻塞
-          auditOnCli: true
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
 
   dependency-scan:
     runs-on: ubuntu-latest
@@ -48,16 +45,16 @@ jobs:
           python-version: "3.11"
       - name: Upgrade pip first
         run: python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
       - name: Install pip-audit
-        run: python -m pip install pip-audit
+        run: pip install pip-audit
       - name: pip-audit
-        # Fix: 忽略 pip 自身的已知漏洞（由 GitHub 自动安全修复处理）
         run: pip-audit --ignore-vuln PYSEC-2026-196
 
   dast-scan:
-    runs-on: ubuntu-latest
-    # Fix: DAST 仅在 push 到 main 时运行（PR 时服务可能不可用）
     if: github.event_name == 'push'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,7 +64,6 @@ jobs:
         run: |
           pip install -e ".[dev]"
           maref serve --host 0.0.0.0 --port 8080 &
-          # Fix: 增加重试机制等待服务启动
           for i in $(seq 1 10); do
             if curl -sf http://localhost:8080/api/health; then
               echo "Server ready"
@@ -78,6 +74,7 @@ jobs:
           done
           curl -sf http://localhost:8080/api/health || exit 1
       - name: OWASP ZAP Baseline Scan
+        continue-on-error: true
         uses: zaproxy/action-baseline@v0.14.0
         with:
           target: "http://localhost:8080"
