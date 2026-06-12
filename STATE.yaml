@@ -1,0 +1,68 @@
+# MAREF 开源执行状态 — 所有外围 Code Agent 的唯一事实源
+# 版本: 1 | 最后更新: 2026-06-12 | 维护者: OPENCODE
+# 读取规则: Agent 启动时读取本文件。当 last_updated 超过 24h 时标记过时。
+# 写入规则: Agent 完成状态变更后原子更新本文件，不允许并发写入。
+
+version: 2
+last_updated: "2026-06-12T21:15:00+08:00"
+
+project:
+  name: MAREF
+  current_release: v0.30.0-GA
+  public_repo: https://github.com/maref-org/maref
+  license: Apache-2.0
+  stage: S0 (学术借力) → P0 (开源启动)
+
+track_b:
+  remote: git@github.com:maref-org/maref.git
+  pre_push_hook: present
+  branch_protection: enabled
+  ci_status: fixed
+  security_scan: clean
+
+governance:
+  deployment_status: partial
+  issues:
+    - id: GOV-20260612-01
+      severity: P0
+      description: .trae/ was gitignored — Trae CN work lost from version control
+      status: fixed
+      fix_commit: e52a3953d
+    - id: GOV-20260612-02
+      severity: P0
+      description: .openclaw/ was gitignored — agent configs not tracked
+      status: fixed
+      fix_commit: e52a3953d
+    - id: GOV-20260612-03
+      severity: P1
+      description: Trae CN has no git identity — all commits attributed to frankiehot-tech
+      status: fixed
+      fix: prepare-commit-msg hook auto-adds Co-authored-by trailer for .trae/ changes
+    - id: GOV-20260612-04
+      severity: P1
+      description: STATE.yaml missing — agents have no single source of truth
+      status: created 2026-06-12
+    - id: GOV-20260612-05
+      severity: P1
+      description: Governance layer code exists but not deployed as runtime service
+      status: backlog
+    - id: GOV-20260612-06
+      severity: P2
+      description: No cross-agent work reconciliation mechanism
+      status: backlog
+
+progress_indicators:
+  tasks_completed: 16
+  tasks_total: 28
+  percent: 57
+  last_milestone: "Phase 1 止血: Trae CN 工作恢复 + agent 配置版本化"
+  next_milestone: "Phase 2 流程加固: post-commit 审计 + git 身份归因"
+
+d1_gate:
+  G1_arxiv_id: false
+  G2_branch_protection: true
+  G3_ci_green: true
+  G4_security_clean: true
+  G5_no_runtime_artifacts: true
+  gate_passed: false
+  last_push_blocked_by: branch_protection
