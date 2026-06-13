@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
     from maref.recursive.self_diagnostician import DiagnosisReport
     from maref.recursive.unified_audit import UnifiedAuditRecord
 
@@ -76,10 +77,12 @@ class SelfHealer:
         self,
         max_iterations: int = 3,
         strategy_executor: Callable[[str, str], HealAction] | None = None,
+        gene_pipeline: AutoGeneExtractionPipeline | None = None,
     ) -> None:
         self._max_iterations = max_iterations
         self._history: list[HealingRecord] = []
         self._strategy_executor = strategy_executor or self._execute_strategy
+        self._gene_pipeline = gene_pipeline
 
     def triage(self, report: DiagnosisReport) -> list[str]:
         from maref.recursive.self_diagnostician import RiskLevel
@@ -229,6 +232,12 @@ class SelfHealer:
             action = self._strategy_executor(strategy, pt)
             action.iteration = iteration
             actions.append(action)
+            if action.success and self._gene_pipeline is not None:
+                self._gene_pipeline.extract_from_heal(
+                    snapshot=pt,
+                    fix_code=action.detail,
+                    reason=f"self_heal_{pt}",
+                )
         return actions
 
     def heal_cycle(
