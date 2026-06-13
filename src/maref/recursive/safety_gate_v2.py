@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from maref.immunity.ai_stench_detector import AIStenchDetector
 
 
 @dataclass
@@ -48,6 +51,7 @@ class SafetyGateV2:
     def __init__(self) -> None:
         self._change_history: dict[str, list[ChangeRecord]] = {}
         self._audit_trail: list[dict[str, Any]] = []
+        self._stench_detector: AIStenchDetector | None = None
 
     def detect_core_removal(self, target: str) -> ThreatAssessment:
         for core in self._CORE_COMPONENTS:
@@ -297,6 +301,37 @@ class SafetyGateV2:
             assessment = self.validate_handoff(from_agent, to_agent, from_caps, to_caps)
             if assessment.threat_detected:
                 return assessment
+        return ThreatAssessment(
+            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+        )
+
+    def attach_stench_detector(self, detector: AIStenchDetector) -> None:
+        self._stench_detector = detector
+
+    def detect_ai_stench(self, code: str) -> ThreatAssessment:
+        if self._stench_detector is None:
+            return ThreatAssessment(
+                threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            )
+        warnings = self._stench_detector.scan(code)
+        hard_blocks = [w for w in warnings if w.severity == "HARD_BLOCK"]
+        soft_warnings = [w for w in warnings if w.severity == "WARNING"]
+        if hard_blocks:
+            return ThreatAssessment(
+                threat_detected=True,
+                threat_type="ai_stench_hard",
+                severity="CRITICAL",
+                reason=f"AI generation stench detected: {', '.join(w.message for w in hard_blocks)}",
+                blocked=True,
+            )
+        if len(soft_warnings) >= 5:
+            return ThreatAssessment(
+                threat_detected=True,
+                threat_type="ai_stench_soft",
+                severity="WARNING",
+                reason=f"Multiple AI stench indicators: {len(soft_warnings)} warnings",
+                blocked=False,
+            )
         return ThreatAssessment(
             threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
         )
