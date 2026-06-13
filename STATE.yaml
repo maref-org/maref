@@ -3,8 +3,8 @@
 # 读取规则: Agent 启动时读取本文件。当 last_updated 超过 24h 时标记过时。
 # 写入规则: Agent 完成状态变更后原子更新本文件，不允许并发写入。
 
-version: 5
-last_updated: "2026-06-13T18:00:00+08:00"
+version: 6
+last_updated: "2026-06-13T19:00:00+08:00"
 
 project:
   name: MAREF
@@ -145,9 +145,9 @@ submission_pipeline:
       status: expired_or_expiring
 
 progress_indicators:
-  tasks_completed: 22
+  tasks_completed: 24
   tasks_total: 30
-  percent: 73
+  percent: 80
 
 d1_gate:
   G1_arxiv_id: false
