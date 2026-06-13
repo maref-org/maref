@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.30.0-blue)](https://github.com/maref-org/maref/releases)
+[![Version](https://img.shields.io/badge/version-0.32.0-rc-blue)](https://github.com/maref-org/maref/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]()
 [![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]()
@@ -12,6 +12,10 @@
 > **全球唯一以"Agent 治理"为核心产品定位的框架。** 在治理深度上碾压所有竞品（10/10 vs 0-3），将 Agent 治理作为独立的价值主张而非安全 feature。
 
 MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周期、安全边界、状态健康和进化方向。
+
+<p align="center">
+  <img src="docs/assets/governance-overview.svg" alt="MAREF Agent Governance OS — governing 6 AI coding agents in real-time" width="800">
+</p>
 
 ## 核心能力
 
@@ -21,6 +25,10 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
 - **四级安全决策树** — Rule→Mode→SafetyGate→User, 97% 自动化率
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
+
+<p align="center">
+  <img src="docs/assets/gray-code-fsm.svg" alt="Gray Code Governance State Machine — 10-state cyclic FSM with Hamming distance=1" width="800">
+</p>
 
 ### 操作层
 - **桌面 Agent 操控** — 截图→解析→键鼠→验证 完整闭环 (macOS/Linux/Windows)
