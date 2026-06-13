@@ -1,0 +1,2816 @@
+from __future__ import annotations
+
+import time
+from typing import TYPE_CHECKING
+
+from maref.immunity.negative_gene_bank import (
+    GenePattern,
+    GeneVariant,
+    NegativeGene,
+)
+
+if TYPE_CHECKING:
+    from maref.immunity.negative_gene_bank import NegativeGeneBank
+
+
+BUILTIN_SEED_SOURCES = {
+    "veracode": "Veracode 2025 GenAI Code Security Report — OWASP Top 10 failure patterns",
+    "coderabbit": "CodeRabbit State of AI vs Human Code Generation Report Dec 2025",
+    "cwe": "MITRE CWE Top 25 Most Dangerous Software Weaknesses 2025",
+    "curl": "Daniel Stenberg / curl bug bounty AI slop report patterns 2026",
+    "stackoverflow": "Stack Overflow 2025 Developer Survey — common AI error patterns",
+    "owasp": "OWASP Top 10 2025 — AI-specific vulnerability patterns",
+}
+
+
+def seed_all(bank: NegativeGeneBank) -> int:
+    """Load all seed gene categories. Returns total count."""
+    count = 0
+    for fn in [
+        _seed_cwe_top25,
+        _seed_cwe_expanded,
+        _seed_veracode_owasp,
+        _seed_coderabbit_ai,
+        _seed_curl_fakes,
+        _seed_supply_chain,
+        _seed_stackoverflow,
+        _seed_javascript_patterns,
+        _seed_java_patterns,
+        _seed_go_patterns,
+        _seed_rust_patterns,
+        _seed_php_patterns,
+        _seed_dotnet_patterns,
+        _seed_more_python,
+        _seed_more_cwe,
+        _seed_more_javascript,
+        _seed_more_java,
+        _seed_more_go,
+        _seed_more_stackoverflow,
+        _seed_bulk_generator,
+    ]:
+        count += fn(bank)
+    return count
+
+
+# ── CWE Top 25 (92 genes) ────────────────────────────────────────────────
+
+
+def _seed_cwe_top25(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "CWE-79",  "CRITICAL", 10, True, "Cross-Site Scripting (XSS)",
+            "AI often fails to sanitise user input before HTML output. OWASP #1.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"innerHTML\s*="),
+            GenePattern("", "", "regex", r"document\.write\("),
+            GenePattern("", "", "regex", r"(out|print)\(.*[\"'][^\"']*<"),
+        ]),
+        NegativeGene("", "CWE-89",  "CRITICAL", 10, True, "SQL Injection",
+            "String concatenation for SQL queries without parameterisation. AI frequently generates f-string SQL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"(execute|cursor\.execute|raw_query)\(.*f[\"']"),
+            GenePattern("", "", "ast_call", "cursor.execute("),
+            GenePattern("", "", "regex", r"SELECT.*FROM.*WHERE.*\+"),
+        ]),
+        NegativeGene("", "CWE-78",  "CRITICAL", 10, True, "OS Command Injection",
+            "AI passes unsanitised input to os.system/subprocess.Popen with shell=True.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "ast_call", "os.system("),
+            GenePattern("", "", "regex", r"subprocess\.(call|run|Popen)\(.*shell\s*=\s*True"),
+            GenePattern("", "", "regex", r"subprocess\.Popen\(.*shell\s*=\s*True"),
+        ]),
+        NegativeGene("", "CWE-22",  "HIGH", 9, True, "Path Traversal",
+            "AI accepts user-supplied filenames without sanitising .. or / separators.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"open\(.*request\.(GET|POST)\["),
+            GenePattern("", "", "regex", r"Path\(request\.(GET|POST)\["),
+        ]),
+        NegativeGene("", "CWE-276", "HIGH", 8, True, "Insecure Default Permissions",
+            "AI creates files/endpoints with world-readable/writable permissions by default.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"os\.chmod\(.*0o777"),
+            GenePattern("", "", "regex", r"permissions\s*=\s*0o777"),
+        ]),
+        NegativeGene("", "CWE-295", "HIGH", 9, True, "Improper Certificate Validation",
+            "AI sets verify=False or ssl._create_unverified_context to bypass SSL checks.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"verify\s*=\s*(False|0|None)"),
+            GenePattern("", "", "regex", r"create_default_https_context"),
+            GenePattern("", "", "regex", r"ssl\._create_unverified_context"),
+        ], variants=[
+            GeneVariant("", "", "python", 'requests.get(url, verify=False)'),
+            GeneVariant("", "", "python", 'requests.get(url, verify=0)'),
+            GeneVariant("", "", "python", 'requests.get(url, **{"verify": False})'),
+        ]),
+        NegativeGene("", "CWE-312", "HIGH", 9, True, "Cleartext Storage of Sensitive Info",
+            "AI stores passwords/tokens/api-keys in plaintext in code or DB.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"password\s*=\s*[\"'][^\"']+[\"']"),
+            GenePattern("", "", "regex", r"api_key\s*=\s*[\"'][^\"']+[\"']"),
+            GenePattern("", "", "regex", r"secret\s*=\s*[\"'][^\"']+[\"']"),
+        ]),
+        NegativeGene("", "CWE-326", "MEDIUM", 7, True, "Inadequate Encryption Strength",
+            "AI uses weak crypto: MD5 for passwords, DES, RC4, or hardcoded low iteration count.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"hashlib\.md5\(.*password"),
+            GenePattern("", "", "regex", r"bcrypt\.gensalt\(.*rounds\s*<\s*12"),
+            GenePattern("", "", "regex", r"cryptography\.hazmat\.primitives\.ciphers\.algorithms\.ARC4"),
+        ]),
+        NegativeGene("", "CWE-502", "HIGH", 9, True, "Deserialisation of Untrusted Data",
+            "AI uses pickle/yaml.load on untrusted input — easy RCE vector.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "import_name", "pickle"),
+            GenePattern("", "", "regex", r"pickle\.loads?\("),
+            GenePattern("", "", "regex", r"yaml\.load\(.*Loader\s*=\s*yaml\.FullLoader"),
+        ]),
+        NegativeGene("", "CWE-798", "CRITICAL", 10, True, "Hardcoded Credentials",
+            "AI embeds API keys, passwords, tokens directly in source code.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"API_KEY\s*=\s*[\"'][A-Za-z0-9_\-]{20,}[\"']"),
+            GenePattern("", "", "regex", r"sk-[A-Za-z0-9]{20,}"),  # OpenAI key pattern
+            GenePattern("", "", "regex", r"ghp_[A-Za-z0-9]{36}"),  # GitHub PAT pattern
+        ]),
+        NegativeGene("", "CWE-400", "MEDIUM", 6, True, "Uncontrolled Resource Consumption",
+            "AI writes loops without bounds, no recursion limits, no pagination.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"while True:.*\n(?!.*break)"),
+            GenePattern("", "", "regex", r"request\.get\(.*timeout\s*=\s*None"),
+        ]),
+        NegativeGene("", "CWE-20",  "MEDIUM", 7, False, "Improper Input Validation",
+            "AI omits validation of function parameters, assuming they are always valid.",
+            "cwe", now),
+        NegativeGene("", "CWE-79",  "CRITICAL", 10, True, "Stored XSS via AI Template",
+            "AI uses .format() or f-string in HTML templates without escaping.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Template\([\"'].*\{.*\}.*[\"']\)"),
+            GenePattern("", "", "regex", r"Markup\(.*\.format\("),
+        ]),
+        NegativeGene("", "CWE-269", "HIGH", 8, True, "Improper Privilege Management",
+            "AI runs entire application with root/admin privileges when not needed.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"os\.setuid\(0\)"),
+            GenePattern("", "", "regex", r"run_as_root\s*=\s*True"),
+        ]),
+        NegativeGene("", "CWE-862", "HIGH", 8, False, "Missing Authorisation",
+            "AI exposes endpoints/operations without checking user permissions.",
+            "cwe", now),
+        NegativeGene("", "CWE-94",  "CRITICAL", 10, True, "Code Injection via eval/exec",
+            "AI uses eval/exec/compile on user-controlled strings. Easy RCE.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "ast_call", "eval("),
+            GenePattern("", "", "ast_call", "exec("),
+            GenePattern("", "", "ast_call", "compile("),
+            GenePattern("", "", "ast_call", "__import__("),
+        ], variants=[
+            GeneVariant("", "", "python", 'eval(user_input)'),
+            GeneVariant("", "", "python", 'exec(user_input)'),
+            GeneVariant("", "", "python", 'compile(user_input, "<string>", "exec")'),
+        ]),
+        NegativeGene("", "CWE-259", "CRITICAL", 9, True, "Hardcoded Password in Code",
+            "AI bakes passwords into config files or class constructors.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"password\s*=\s*[\"']\w{4,20}[\"']"),
+            GenePattern("", "", "regex", r"passwd\s*=\s*[\"']\w{4,20}[\"']"),
+        ]),
+        NegativeGene("", "CWE-770", "MEDIUM", 6, False, "Allocation without Size Limits",
+            "AI reads entire file/request into memory without size check.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"request\.get\(.*\.content"),
+            GenePattern("", "", "regex", r"\.read\(\)"),
+            GenePattern("", "", "regex", r"\.load\(.*\)"),
+        ]),
+        NegativeGene("", "CWE-434", "HIGH", 8, True, "Unrestricted File Upload",
+            "AI allows file upload without checking type/size/content.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"file\.save\(.*request"),
+        ]),
+        NegativeGene("", "CWE-611", "HIGH", 8, True, "XXE — XML External Entity",
+            "AI parses XML with external entity resolution enabled.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"xml\.dom\.minidom\.parse\("),
+            GenePattern("", "", "regex", r"lxml\.etree\.parse\(.*resolve_entities\s*=\s*True"),
+        ]),
+        NegativeGene("", "CWE-190", "MEDIUM", 6, False, "Integer Overflow",
+            "AI uses unchecked arithmetic without overflow protection.",
+            "cwe", now),
+        NegativeGene("", "CWE-22",  "HIGH", 8, True, "Zip Slip (Path Traversal via Archive)",
+            "AI extracts archive files without validating member paths.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"ZipFile\.extractall\("),
+            GenePattern("", "", "regex", r"tarfile\.extractall\("),
+        ]),
+        NegativeGene("", "CWE-200", "MEDIUM", 6, False, "Information Exposure",
+            "AI prints/returns full stack traces to end users.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"traceback\.print_exc\("),
+        ]),
+        NegativeGene("", "CWE-117", "HIGH", 7, False, "Log Injection",
+            "AI logs user-controlled data without sanitisation (CRLF injection risk).",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"logger\.(info|error|warning)\(f[\"'].*request"),
+        ]),
+        NegativeGene("", "CWE-451", "MEDIUM", 5, False, "Missing X-Content-Type-Options",
+            "AI omits security headers in HTTP responses.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"return Response\(.*content_type"),
+        ]),
+        NegativeGene("", "CWE-327", "MEDIUM", 6, True, "Broken/Risky Crypto Algorithm",
+            "AI uses MD5/SHA1 for security contexts (not collision-resistant).",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"hashlib\.md5\("),
+            GenePattern("", "", "regex", r"hashlib\.sha1\("),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Veracode OWASP Top 10 AI-specific (48 genes) ─────────────────────────
+
+
+def _seed_veracode_owasp(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "CWE-80",  "CRITICAL", 10, True, "XSS via InnerHTML (AI pattern)",
+            "Veracode: 86% of AI code completion tasks for XSS (CWE-80) failed.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"\.innerHTML\s*=\s*"),
+            GenePattern("", "", "regex", r"\.outerHTML\s*=\s*"),
+        ]),
+        NegativeGene("", "CWE-117", "CRITICAL", 9, True, "Log Injection (AI pattern)",
+            "Veracode: 88% of AI log injection tasks failed. AI never sanitises log output.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"logging\.(info|error)\(.*request"),
+        ]),
+        NegativeGene("", "CWE-89",  "CRITICAL", 10, True, "SQL Injection via f-string (AI)",
+            "Veracode: AI prefers f-string SQL over parameterised queries in 45% of cases.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"(SELECT|INSERT|UPDATE|DELETE).*f[\"'].*WHERE"),
+            GenePattern("", "", "regex", r"\.execute\(\s*f[\"']"),
+            GenePattern("", "", "regex", r"\.raw\(\)"),
+        ]),
+        NegativeGene("", "CWE-89",  "CRITICAL", 10, True, "SQL Injection — ORM bypass (AI)",
+            "AI generates raw SQL when ORM would be safer. Also concatenates query params.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"connection\.execute\(.*\+"),
+            GenePattern("", "", "regex", r"WHERE\s+.*\d\s*=\s*[\"']\+"),
+        ]),
+        NegativeGene("", "CWE-79",  "HIGH", 9, True, "Reflected XSS via request params (AI)",
+            "AI echoes request.GET/POST params directly into HTML without escaping.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"request\.(GET|POST)\[.*\].*\+"),
+            GenePattern("", "", "regex", r"f[\"'].*\{request\."),
+        ]),
+        NegativeGene("", "CWE-22",  "HIGH", 8, True, "Path Traversal via file serving (AI)",
+            "AI serves user-supplied filename paths without sanitising parent dirs.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"open\(f[\"'].*/.*request"),
+        ]),
+        NegativeGene("", "CWE-78",  "CRITICAL", 10, True, "Command Injection via subprocess (AI)",
+            "AI pipes user input directly into subprocess with shell=True.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"subprocess\.(call|run|Popen|check_output)\(.*\+"),
+        ]),
+        NegativeGene("", "CWE-295", "HIGH", 9, True, "SSL Verify Disabled (AI shortcut)",
+            "Veracode: AI defaults to verify=False in HTTPS to bypass cert errors locally.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"verify\s*=\s*False"),
+            GenePattern("", "", "regex", r"CHECK_HOSTNAME\s*=\s*False"),
+        ]),
+        NegativeGene("", "CWE-312", "HIGH", 9, True, "Secret in Logs (AI)",
+            "AI logs request/response objects containing tokens without redaction.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"logger\.(info|debug)\(.*request"),
+            GenePattern("", "", "regex", r"logger\.(info|debug)\(.*response"),
+        ]),
+        NegativeGene("", "CWE-326", "HIGH", 8, True, "Weak Password Hashing (AI)",
+            "AI uses MD5 for password storage; bcrypt rounds < 12; unsalted hashes.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"hashlib\.md5\(.*pass"),
+            GenePattern("", "", "regex", r"hashlib\.sha256\(.*pass"),
+        ]),
+        NegativeGene("", "CWE-502", "CRITICAL", 9, True, "Unsafe Deserialisation: Pickle (AI)",
+            "Veracode: AI often chooses pickle over JSON for 'simplicity' in serialisation.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "import_name", "pickle"),
+            GenePattern("", "", "regex", r"pickle\.load\(open\("),
+        ]),
+        NegativeGene("", "CWE-798", "CRITICAL", 10, True, "Hardcoded Token in Code (AI)",
+            "AI places API tokens directly in source files instead of env vars.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"token\s*=\s*[\"'][A-Za-z0-9_\-\.]{16,}[\"']"),
+            GenePattern("", "", "regex", r"Bearer\s+[\"'][A-Za-z0-9_\-\.]{16,}[\"']"),
+        ]),
+        NegativeGene("", "CWE-862", "HIGH", 8, False, "Missing Auth Decorator (AI pattern)",
+            "Veracode: AI omits @login_required / @permission_required on view functions.",
+            "veracode", now),
+        NegativeGene("", "CWE-400", "MEDIUM", 6, False, "No Pagination (AI pattern)",
+            "AI returns unlimited query results without pagination. DoS vector on large datasets.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"\.all\(\)"),
+            GenePattern("", "", "regex", r"SELECT.*FROM.*LIMIT"),
+        ]),
+        NegativeGene("", "CWE-276", "MEDIUM", 6, False, "Overly Permissive CORS (AI)",
+            "AI sets Access-Control-Allow-Origin: * on authenticated endpoints.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"Access-Control-Allow-Origin\s*:\s*\*"),
+        ]),
+        NegativeGene("", "CWE-20",  "HIGH", 7, True, "Missing Input Type Validation (AI)",
+            "Veracode: AI assumes request params are always the expected type.",
+            "veracode", now, patterns=[
+            GenePattern("", "", "regex", r"int\(request\.(GET|POST)\["),
+            GenePattern("", "", "regex", r"request\.(GET|POST)\[.*\]\s*\)"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── CodeRabbit AI PR patterns (48 genes) ─────────────────────────────────
+
+
+def _seed_coderabbit_ai(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "CR-READ-001", "MEDIUM", 6, False, "AI: Excessive I/O in loop",
+            "CodeRabbit: AI-perf issue rate is 8x higher. Repeated DB/API calls in loops.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"for.*in.*:.*\n.*\.(query|get|fetch|request)\("),
+        ]),
+        NegativeGene("", "CR-READ-002", "MEDIUM", 5, False, "AI: N+1 Query Pattern",
+            "AI code has 3x more readability issues including unrolled N+1 queries.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"for.*in.*:.*\n.*\.(filter|get)\("),
+        ]),
+        NegativeGene("", "CR-LOGIC-001", "HIGH", 7, False, "AI: Missing Null Check",
+            "CodeRabbit: AI logical errors are 1.75x more frequent. Null guards omitted.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"\.filter\(.*\..*\sis"),
+            GenePattern("", "", "regex", r"data\[.*\]\s*="),
+        ]),
+        NegativeGene("", "CR-LOGIC-002", "HIGH", 7, False, "AI: Off-by-One in Range",
+            "AI iterates one element too many/few in loop boundaries.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"range\(len\(.*\)\)"),
+        ]),
+        NegativeGene("", "CR-LOGIC-003", "MEDIUM", 6, False, "AI: Silent Exception Catch",
+            "CodeRabbit: AI catches Exception and does nothing. Error handling is 2x worse.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"except\s+(Exception|BaseException)\s*:\s*\n\s*pass"),
+            GenePattern("", "", "regex", r"except:\s*\n\s*pass"),
+        ]),
+        NegativeGene("", "CR-LOGIC-004", "MEDIUM", 6, False, "AI: Bare Except Clause",
+            "AI catches all exceptions without specifying type. Masks real bugs.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"except\s*:\s*\n"),
+        ]),
+        NegativeGene("", "CR-LOGIC-005", "HIGH", 7, False, "AI: Race Condition — Missing Lock",
+            "AI multithreading code often omits locks on shared resources.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"Thread\(target="),
+            GenePattern("", "", "regex", r"threading\.Thread\("),
+        ]),
+        NegativeGene("", "CR-LOGIC-006", "MEDIUM", 5, False, "AI: Wrong Comparison Operator",
+            "CodeRabbit: AI uses = instead of ==, or inverts comparison logic.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"if\s+\(?\w+\s*=\s*\d+\)?"),
+        ]),
+        NegativeGene("", "CR-SEC-001", "HIGH", 8, True, "AI: XSS in React dangerouslySetInnerHTML",
+            "AI uses dangerouslySetInnerHTML when safe alternatives exist.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"dangerouslySetInnerHTML"),
+        ]),
+        NegativeGene("", "CR-SEC-002", "HIGH", 8, True, "AI: Unsafe Redirect",
+            "AI redirects to user-supplied URLs without validation (open redirect).",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"redirect\(request\.(GET|POST)\["),
+        ]),
+        NegativeGene("", "CR-SEC-003", "MEDIUM", 6, False, "AI: SQL Injection via Raw Query",
+            "CodeRabbit: AI generates raw SQL with string interpolation in 2.74x more cases.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"\.execute\([\"'].*\+"),
+        ]),
+        NegativeGene("", "CR-PERF-001", "MEDIUM", 5, False, "AI: Repeated Computation in Loop",
+            "CodeRabbit: AI computes invariant expressions inside loops (8x perf penalty).",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"for.*in.*range\(len"),
+        ]),
+        NegativeGene("", "CR-PERF-002", "MEDIUM", 5, False, "AI: Unnecessary Object Copy",
+            "AI makes deep copies of large objects when shallow references suffice.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"copy\.deepcopy\("),
+        ]),
+        NegativeGene("", "CR-READ-003", "LOW", 4, False, "AI: Overly Generic Variable Name",
+            "CodeRabbit: AI uses 'data', 'result', 'temp' as variable names, reducing readability.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"\b(data|result|temp|tmp|item|value)\s*="),
+        ]),
+        NegativeGene("", "CR-READ-004", "LOW", 3, False, "AI: Magic Number",
+            "AI uses raw numeric/string literals without named constants.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r"if\s+\w+\s*(<|>|==)\s*\d{4,}"),
+        ]),
+        NegativeGene("", "CR-READ-005", "MEDIUM", 5, False, "AI: Comment Repeats Function Name",
+            "CodeRabbit: AI generates comments that simply restate the function name.",
+            "coderabbit", now, patterns=[
+            GenePattern("", "", "regex", r'""".*Get\s+\w+.*"""'),
+            GenePattern("", "", "regex", r'# Get \w+'),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Curl bug bounty false report patterns (24 genes) ─────────────────────
+
+
+def _seed_curl_fakes(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "CURL-FAKE-001", "HIGH", 7, False,
+            "AI: Fake GDB Session in Report",
+            "Curl: AI-generated reports contain GDB sessions referencing functions that don't exist in curl.",
+            "curl", now, patterns=[
+            GenePattern("", "", "regex", r"(gdb|GDB).*\n.*\(gdb\)\s+(bt|backtrace|run)"),
+        ]),
+        NegativeGene("", "CURL-FAKE-002", "MEDIUM", 6, False,
+            "AI: Non-existent Function Reference",
+            "Curl: AI bug reports cite function names not present in the actual codebase.",
+            "curl", now, patterns=[
+            GenePattern("", "", "regex", r"curl_easy_cleanup_double_free"),
+        ]),
+        NegativeGene("", "CURL-FAKE-003", "MEDIUM", 5, False,
+            "AI: Hallucinated CVE Number",
+            "Curl: AI generates CVE numbers that do not exist in MITRE database.",
+            "curl", now, patterns=[
+            GenePattern("", "", "regex", r"CVE-\d{4}-\d{4,}"),
+        ]),
+        NegativeGene("", "CURL-FAKE-004", "LOW", 4, False,
+            "AI: Overly Formal Report Template",
+            "Curl: AI slop reports follow a rigid template: Impact → POC → Suggested Fix.",
+            "curl", now, patterns=[
+            GenePattern("", "", "regex", r"##\s*(Impact|PoC|POC|Proof of Concept|Suggested Fix)"),
+        ]),
+        NegativeGene("", "CURL-FAKE-005", "HIGH", 7, False,
+            "AI: Non-reproducible Crash Dump",
+            "Curl: AI includes register dumps/stack traces from non-existent execution paths.",
+            "curl", now, patterns=[
+            GenePattern("", "", "regex", r"(0x[0-9a-fA-F]{8,16}\s+in\s+\w+)"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Supply chain / dependency risks (24 genes) ───────────────────────────
+
+
+def _seed_supply_chain(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "SC-001", "CRITICAL", 10, True,
+            "AI: Pickle — Arbitrary Code Execution on Load",
+            "pickle.load() executes arbitrary Python during deserialisation. Never use on untrusted data.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "import_name", "pickle"),
+            GenePattern("", "", "ast_call", "pickle.load("),
+            GenePattern("", "", "ast_call", "pickle.loads("),
+        ]),
+        NegativeGene("", "SC-002", "HIGH", 8, True,
+            "AI: yaml.load — Arbitrary Code Execution",
+            "yaml.load() without SafeLoader executes arbitrary code. Use yaml.safe_load().",
+            "owasp", now, patterns=[
+            GenePattern("", "", "regex", r"yaml\.load\(.*Loader"),
+            GenePattern("", "", "ast_call", "yaml.load("),
+        ]),
+        NegativeGene("", "SC-003", "MEDIUM", 7, True,
+            "AI: subprocess with shell=True — Command Injection",
+            "shell=True passes the command string to /bin/sh, enabling shell injection via arguments.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "regex", r"subprocess\.(call|run|Popen|check_output)\(.*shell\s*=\s*True"),
+        ]),
+        NegativeGene("", "SC-004", "MEDIUM", 6, True,
+            "AI: Tempfile in Predictable Path",
+            "tempfile.mktemp() creates predictable temp file paths. Use tempfile.mkstemp().",
+            "owasp", now, patterns=[
+            GenePattern("", "", "ast_call", "tempfile.mktemp("),
+        ]),
+        NegativeGene("", "SC-005", "HIGH", 8, True,
+            "AI: Assert Used for Security Check",
+            "assert statements are stripped when Python runs with -O. Use proper if/raise.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "regex", r"assert\s+\w+\.(is_authenticated|has_permission|role)"),
+        ]),
+        NegativeGene("", "SC-006", "MEDIUM", 6, False,
+            "AI: Insecure Random Number Generator",
+            "random module is not cryptographically secure. Use secrets or os.urandom for security contexts.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "regex", r"random\.(randint|choice|shuffle)\(.*pass"),
+            GenePattern("", "", "regex", r"random\.(randint|choice|shuffle)\(.*token"),
+        ]),
+        NegativeGene("", "SC-007", "HIGH", 8, True,
+            "AI: Unvalidated redirect via next param",
+            "Open redirect via 'next' or 'redirect' URL parameter without domain whitelist.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "regex", r"redirect\(request\.(GET|POST)\[.next"),
+            GenePattern("", "", "regex", r"redirect\(request\.args\.get\(.next"),
+        ]),
+        NegativeGene("", "SC-008", "CRITICAL", 9, True,
+            "AI: Command Injection via os.popen",
+            "os.popen() passes the string to shell. Use subprocess with list arguments.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "ast_call", "os.popen("),
+        ]),
+        NegativeGene("", "SC-009", "MEDIUM", 6, True,
+            "AI: SQL via Dynamic Table/Column Names",
+            "Parameterised queries cannot protect dynamic identifiers. Validate against whitelist.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "regex", r"f[\"'].*WHERE\s+\w+\s*=\s*\{"),
+        ]),
+        NegativeGene("", "SC-010", "HIGH", 7, True,
+            "AI: Server-Side Request Forgery (SSRF)",
+            "AI fetches user-supplied URLs without host whitelist. Attackers can target internal services.",
+            "owasp", now, patterns=[
+            GenePattern("", "", "regex", r"requests\.(get|post)\s*\(.*request"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── CWE Expanded — Cross-Language Variants (180 genes) ─────────────────────
+
+
+def _seed_cwe_expanded(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = []
+
+    # CWE-79: XSS cross-language
+    xss_variants = [
+        # JavaScript
+        NegativeGene("", "CWE-79", "CRITICAL", 10, True,
+            "XSS via JS innerHTML (AI)",
+            "AI-generated JS sets innerHTML with unsanitized user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\$\(.*\)\.html\("),
+            GenePattern("", "", "regex", r"\.insertAdjacentHTML\("),
+        ]),
+        NegativeGene("", "CWE-79", "HIGH", 9, True,
+            "XSS via React dangerouslySetInnerHTML (AI)",
+            "AI uses dangerouslySetInnerHTML in JSX without sanitizing children.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"__html:\s*[\"'].*\{"),
+        ]),
+        NegativeGene("", "CWE-79", "CRITICAL", 10, True,
+            "XSS via location.hash (AI)",
+            "AI reads location.hash and writes directly to DOM without sanitization.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"location\.hash"),
+            GenePattern("", "", "regex", r"window\.location\.hash"),
+        ]),
+        NegativeGene("", "CWE-79", "HIGH", 9, True,
+            "XSS via Vue v-html (AI)",
+            "AI uses v-html directive to render user content unsanitized.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"v-html\s*="),
+        ]),
+        NegativeGene("", "CWE-79", "MEDIUM", 7, True,
+            "XSS via jQuery append (AI)",
+            "AI appends user input directly with jQuery without escaping.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\$\(.*\)\.(append|prepend|after|before)\(.*request"),
+        ]),
+        # Java
+        NegativeGene("", "CWE-79", "CRITICAL", 10, True,
+            "XSS via JSP out.print (AI)",
+            "AI-generated JSP/Java prints user params directly in HTML response.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"out\.println\(.*request\.getParameter"),
+            GenePattern("", "", "regex", r"out\.print\(.*request\.getParameter"),
+        ]),
+        NegativeGene("", "CWE-79", "HIGH", 9, True,
+            "XSS via Java Servlet Response (AI)",
+            "AI writes unsanitized query params to HttpServletResponse.getWriter().",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"response\.getWriter\(\)\.print\(.*request"),
+        ]),
+        NegativeGene("", "CWE-79", "HIGH", 8, True,
+            "XSS via Thymeleaf unescaped (AI)",
+            "AI uses th:utext instead of th:text for user-provided content.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"th:utext\s*="),
+        ]),
+        # Go
+        NegativeGene("", "CWE-79", "CRITICAL", 10, True,
+            "XSS via template.HTML (AI)",
+            "AI casts user input to template.HTML type, bypassing Go's auto-escaping.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"template\.HTML\(.*request"),
+            GenePattern("", "", "regex", r"template\.HTML\(.*r\.FormValue"),
+        ]),
+        # Python
+        NegativeGene("", "CWE-79", "HIGH", 9, True,
+            "XSS via Flask/Jinja2 safe filter (AI)",
+            "AI uses |safe filter on user-controlled variables, bypassing Jinja2 autoescape.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\{\{.*\|safe\}"),
+            GenePattern("", "", "regex", r"Markup\(.*request"),
+        ]),
+    ]
+    genes.extend(xss_variants)
+
+    # CWE-89: SQL Injection cross-language
+    sqli_variants = [
+        # JavaScript/Node
+        NegativeGene("", "CWE-89", "CRITICAL", 10, True,
+            "SQLi via pg query template literal (AI)",
+            "AI uses template literals with pg driver instead of $1 parameterized queries.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"client\.query\(`SELECT"),
+            GenePattern("", "", "regex", r"pool\.query\(`SELECT"),
+        ]),
+        NegativeGene("", "CWE-89", "CRITICAL", 10, True,
+            "SQLi via mysql2 string concat (AI)",
+            "AI concatenates query strings in mysql2 with + operator.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"connection\.execute\(.*\+ req"),
+            GenePattern("", "", "regex", r"\.query\([\"'].*\+.*req"),
+        ]),
+        NegativeGene("", "CWE-89", "HIGH", 9, True,
+            "SQLi via Sequelize raw query (AI)",
+            "AI uses sequelize.query() with string interpolation instead of replacements.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"sequelize\.query\(`SELECT"),
+            GenePattern("", "", "regex", r"sequelize\.query\([\"'].*\+"),
+        ]),
+        NegativeGene("", "CWE-89", "CRITICAL", 10, True,
+            "SQLi via TypeORM raw SQL (AI)",
+            "AI generates raw SQL in TypeORM/TypeScript with string interpolation.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"query\(`SELECT.*WHERE.*\$\{"),
+        ]),
+        # Java
+        NegativeGene("", "CWE-89", "CRITICAL", 10, True,
+            "SQLi via JDBC Statement (AI)",
+            "AI uses Statement instead of PreparedStatement. Classic SQLi via string concat.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Statement\s+\w+\s*=\s*connection\.createStatement"),
+            GenePattern("", "", "regex", r"stmt\.executeQuery\([\"'].*\+"),
+        ]),
+        NegativeGene("", "CWE-89", "HIGH", 9, True,
+            "SQLi via JPA @Query (AI)",
+            "AI writes native queries in @Query annotation without parameter binding.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"@Query\(\"SELECT.*\+"),
+            GenePattern("", "", "regex", r"nativeQuery\s*=\s*true.*[\"'].*\+"),
+        ]),
+        NegativeGene("", "CWE-89", "HIGH", 9, True,
+            "SQLi via MyBatis XML (AI)",
+            "AI uses ${} instead of #{} in MyBatis mapper XML — direct string substitution.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\$\{.*\}"),
+        ]),
+        # Go
+        NegativeGene("", "CWE-89", "CRITICAL", 10, True,
+            "SQLi via fmt.Sprintf in Go sql (AI)",
+            "AI uses fmt.Sprintf for SQL query building instead of parameterized ? markers.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"fmt\.Sprintf\([\"'].*SELECT"),
+            GenePattern("", "", "regex", r"db\.Query\(fmt\.Sprintf"),
+            GenePattern("", "", "regex", r"db\.Exec\(fmt\.Sprintf"),
+        ]),
+        NegativeGene("", "CWE-89", "HIGH", 9, True,
+            "SQLi via Go raw string concat (AI)",
+            "AI concatenates SQL with + operator in Go database queries.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"db\.Query\([\"'].*\+.*r\."),
+            GenePattern("", "", "regex", r"db\.Exec\([\"'].*\+.*req"),
+        ]),
+        # Python (additional)
+        NegativeGene("", "CWE-89", "HIGH", 9, True,
+            "SQLi via Django raw() (AI)",
+            "AI uses Model.objects.raw() with f-string SQL instead of params list.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.raw\(f[\"'].*WHERE"),
+            GenePattern("", "", "regex", r"\.raw\([\"'].*\%s.*\%"),
+        ]),
+        NegativeGene("", "CWE-89", "HIGH", 9, True,
+            "SQLi via SQLAlchemy text() (AI)",
+            "AI uses text() with f-string instead of :param binding.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"text\(f[\"'].*SELECT"),
+            GenePattern("", "", "regex", r"\.from_statement\(text\(f[\"']"),
+        ]),
+    ]
+    genes.extend(sqli_variants)
+
+    # CWE-78: OS Command Injection cross-language
+    cmdi_variants = [
+        # Python
+        NegativeGene("", "CWE-78", "CRITICAL", 10, True,
+            "CMDi via os.popen with user input (AI)",
+            "AI passes unsanitized user input to os.popen() with 'r'/'w' flags.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"os\.popen\([\"'](.*\{|.*\+|.*f[\"'])"),
+        ]),
+        NegativeGene("", "CWE-78", "HIGH", 9, True,
+            "CMDi via shlex.join misuse (AI)",
+            "AI uses shlex.join() on user-provided list elements, still allowing injection.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"shlex\.join\(.*request"),
+            GenePattern("", "", "regex", r"shlex\.join\(.*input"),
+        ]),
+        # JavaScript
+        NegativeGene("", "CWE-78", "CRITICAL", 10, True,
+            "CMDi via exec with user input (AI)",
+            "AI uses child_process.exec with unsanitized user-controlled strings.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"exec\(`.*\$\{.*req"),
+            GenePattern("", "", "regex", r"exec\([\"'].*\+.*req"),
+            GenePattern("", "", "regex", r"execSync\(`.*\$\{.*input"),
+        ]),
+        NegativeGene("", "CWE-78", "HIGH", 9, True,
+            "CMDi via spawn with shell:true (AI)",
+            "AI uses child_process.spawn with shell:true and concatenated args.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"spawn\([\"'].*\[.*shell:\s*true"),
+            GenePattern("", "", "regex", r"execFile\([\"'].*\+"),
+        ]),
+        # Java
+        NegativeGene("", "CWE-78", "CRITICAL", 10, True,
+            "CMDi via Runtime.exec (AI)",
+            "AI uses Runtime.getRuntime().exec(String) which splits on whitespace — enables injection.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Runtime\.getRuntime\(\)\.exec\([\"']"),
+            GenePattern("", "", "regex", r"Runtime\.getRuntime\(\)\.exec\(.*\+"),
+        ]),
+        NegativeGene("", "CWE-78", "HIGH", 9, True,
+            "CMDi via ProcessBuilder string (AI)",
+            "AI calls ProcessBuilder with a single string instead of string array.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new\s+ProcessBuilder\([\"']"),
+        ]),
+        # Go
+        NegativeGene("", "CWE-78", "CRITICAL", 10, True,
+            "CMDi via exec.Command with shell (AI)",
+            "AI pipes user input through bash -c or cmd /c, enabling shell injection.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"exec\.Command\([\"']bash[\"'].*[\"']-c[\"']"),
+            GenePattern("", "", "regex", r"exec\.Command\([\"']cmd[\"'].*/c"),
+        ]),
+        NegativeGene("", "CWE-78", "HIGH", 9, True,
+            "CMDi via exec.Command with user arg (AI)",
+            "AI passes request parameter directly as exec.Command argument without sanitization.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"exec\.Command\(.*r\.FormValue"),
+            GenePattern("", "", "regex", r"exec\.Command\(.*request"),
+        ]),
+    ]
+    genes.extend(cmdi_variants)
+
+    # CWE-22: Path Traversal cross-language
+    path_variants = [
+        # JavaScript
+        NegativeGene("", "CWE-22", "HIGH", 8, True,
+            "Path Traversal via fs.readFile (AI)",
+            "AI reads files at user-supplied paths without resolving against allowed directory.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"fs\.(readFile|readFileSync|existsSync)\(.*req"),
+            GenePattern("", "", "regex", r"fs\.(readFile|readFileSync)\(.*params"),
+        ]),
+        NegativeGene("", "CWE-22", "HIGH", 8, True,
+            "Path Traversal via sendFile (AI)",
+            "AI uses Express res.sendFile() with user-supplied path without root option.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"res\.sendFile\(.*req"),
+            GenePattern("", "", "regex", r"res\.sendFile\(.*params"),
+        ]),
+        # Java
+        NegativeGene("", "CWE-22", "HIGH", 8, True,
+            "Path Traversal via File I/O (AI)",
+            "AI creates File objects from request parameters without path sanitization.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new\s+File\(.*request\.getParameter"),
+            GenePattern("", "", "regex", r"new\s+File\(.*req\.getParam"),
+        ]),
+        NegativeGene("", "CWE-22", "HIGH", 8, True,
+            "Path Traversal via Spring Resource (AI)",
+            "AI uses ResourceLoader with user-supplied path without prefix restriction.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"resourceLoader\.getResource\(.*request"),
+        ]),
+        # Go
+        NegativeGene("", "CWE-22", "HIGH", 8, True,
+            "Path Traversal via os.Open (AI)",
+            "AI reads files using os.Open with user-supplied path from HTTP request.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"os\.Open\(.*r\.FormValue"),
+            GenePattern("", "", "regex", r"os\.Open\(.*req\."),
+        ]),
+        NegativeGene("", "CWE-22", "HIGH", 8, True,
+            "Path Traversal via http.FileServer (AI)",
+            "AI uses http.FileServer or http.ServeFile with user-controlled path.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"http\.ServeFile\(.*r\."),
+        ]),
+        # Python (additional)
+        NegativeGene("", "CWE-22", "HIGH", 8, True,
+            "Path Traversal via Django sendfile (AI)",
+            "AI serves user-requested files with sendfile() without path validation.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"sendfile\(.*request"),
+            GenePattern("", "", "regex", r"FileResponse\(open\(.*request"),
+        ]),
+    ]
+    genes.extend(path_variants)
+
+    # CWE-502: Deserialization cross-language
+    deser_variants = [
+        # Python
+        NegativeGene("", "CWE-502", "CRITICAL", 10, True,
+            "Deserialize via eval/jsonpickle (AI)",
+            "AI uses eval() or jsonpickle.decode() for restoring objects from JSON.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "ast_call", "jsonpickle.decode("),
+            GenePattern("", "", "ast_call", "jsonpickle.loads("),
+        ]),
+        # JavaScript
+        NegativeGene("", "CWE-502", "CRITICAL", 10, True,
+            "Deserialize via JSON.parse with proto (AI)",
+            "AI merges JSON.parse output directly without __proto__ filtering.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"JSON\.parse\(.*req"),
+        ]),
+        NegativeGene("", "CWE-502", "HIGH", 9, True,
+            "Deserialize via vm.runInContext (AI)",
+            "AI uses vm.runInNewContext / vm.runInThisContext on untrusted data.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"vm\.runInNewContext\("),
+            GenePattern("", "", "regex", r"vm\.runInThisContext\("),
+        ]),
+        # Java
+        NegativeGene("", "CWE-502", "CRITICAL", 10, True,
+            "Deserialize via ObjectInputStream (AI)",
+            "AI reads untrusted bytes with ObjectInputStream.readObject() — direct RCE.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new\s+ObjectInputStream\("),
+            GenePattern("", "", "regex", r"readObject\(\).*request"),
+        ]),
+        NegativeGene("", "CWE-502", "HIGH", 9, True,
+            "Deserialize via Spring Hessian (AI)",
+            "AI uses Hessian/HessianInput for deserializing untrusted data from network.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"HessianInput\s*\("),
+            GenePattern("", "", "regex", r"HessianOutput\s*\("),
+        ]),
+        # Go
+        NegativeGene("", "CWE-502", "HIGH", 9, True,
+            "Deserialize via gob.Decode (AI)",
+            "AI uses gob.Decode on untrusted data without integrity check.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"gob\.NewDecoder\(.*request"),
+            GenePattern("", "", "regex", r"gob\.NewDecoder\(.*r\.Body"),
+        ]),
+    ]
+    genes.extend(deser_variants)
+
+    # CWE-312: Cleartext Secrets cross-language
+    secret_variants = [
+        NegativeGene("", "CWE-312", "HIGH", 9, True,
+            "Cleartext AWS key in JS (AI)",
+            "AI embeds AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in JS source.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"AWS_ACCESS_KEY_ID\s*=\s*[\"']"),
+            GenePattern("", "", "regex", r"AWS_SECRET_ACCESS_KEY\s*=\s*[\"']"),
+        ]),
+        NegativeGene("", "CWE-312", "HIGH", 9, True,
+            "Cleartext DB password in Spring config (AI)",
+            "AI hardcodes DB passwords in application.properties or application.yml.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"spring\.datasource\.password\s*=\s*\w+"),
+            GenePattern("", "", "regex", r"jdbc:mysql.*password\s*=\s*\w+"),
+        ]),
+        NegativeGene("", "CWE-312", "HIGH", 9, True,
+            "Cleartext token in Go env (AI)",
+            "AI parses tokens from request body and stores in plain struct field.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"json:\"api_key\"`"),
+            GenePattern("", "", "regex", r"json:\"secret\""),
+        ]),
+        NegativeGene("", "CWE-312", "HIGH", 9, True,
+            "Cleartext JWT in config file (AI)",
+            "AI places JWT signing secret directly in config.py or .env committed to repo.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"JWT_SECRET\s*=\s*[\"'][A-Za-z0-9_\-]{16,}[\"']"),
+            GenePattern("", "", "regex", r"SECRET_KEY\s*=\s*[\"'][A-Za-z0-9_\-]{16,}[\"']"),
+        ]),
+    ]
+    genes.extend(secret_variants)
+
+    # CWE-326: Weak Crypto cross-language
+    crypto_variants = [
+        NegativeGene("", "CWE-326", "MEDIUM", 7, True,
+            "Weak crypto in Node createHash (AI)",
+            "AI uses crypto.createHash('md5') for password hashing.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"crypto\.createHash\([\"']md5"),
+            GenePattern("", "", "regex", r"crypto\.createHash\([\"']sha1"),
+        ]),
+        NegativeGene("", "CWE-326", "MEDIUM", 7, True,
+            "Weak crypto in Java MessageDigest (AI)",
+            "AI uses MessageDigest.getInstance('MD5') for security checks.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"MessageDigest\.getInstance\([\"']MD5"),
+            GenePattern("", "", "regex", r"MessageDigest\.getInstance\([\"']SHA-1"),
+        ]),
+        NegativeGene("", "CWE-326", "MEDIUM", 7, True,
+            "Weak crypto in Go md5 (AI)",
+            "AI uses crypto/md5 for password/token hashing.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"md5\.Sum\(\[\].*pass"),
+            GenePattern("", "", "regex", r"md5\.New\(\).*Write"),
+        ]),
+    ]
+    genes.extend(crypto_variants)
+
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── StackOverflow AI error complaint patterns (60 genes) ───────────────────
+
+
+def _seed_stackoverflow(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "SO-001", "MEDIUM", 6, False,
+            "SO: Wrong function signature from AI",
+            "AI generates function calls with wrong arg order or missing required params.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"TypeError:.*missing \d+ required positional argument"),
+        ]),
+        NegativeGene("", "SO-002", "MEDIUM", 5, False,
+            "SO: AI hallucinates deprecated API",
+            "AI uses API that was deprecated/removed in the current library version.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"AttributeError: module '.*' has no attribute"),
+            GenePattern("", "", "regex", r"ModuleNotFoundError: No module named"),
+        ]),
+        NegativeGene("", "SO-003", "LOW", 4, False,
+            "SO: AI imports non-existent module",
+            "AI fabricates package names that don't exist on PyPI/npm.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"import.*\b(core_utils|ml_helpers|ai_tools|utils_common)\b"),
+        ]),
+        NegativeGene("", "SO-004", "HIGH", 7, False,
+            "SO: AI infinite loop / hang",
+            "AI writes while True loop without break condition — causes infinite execution.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"while\s+True\s*:.*\n(?!.*break)"),
+            GenePattern("", "", "regex", r"for\s+\w+\s+in\s+iter\(.*\):.*\n"),
+        ]),
+        NegativeGene("", "SO-005", "MEDIUM", 6, False,
+            "SO: AI swallows exceptions silently",
+            "AI writes except: pass which hides all errors. Devs complain it's unde buggable.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"except\s*:\s*\n\s+pass"),
+        ]),
+        NegativeGene("", "SO-006", "MEDIUM", 5, False,
+            "SO: AI uses mutable default args",
+            "AI writes def foo(x=[]) — classic Python gotcha. Mutable default shared across calls.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"def \w+\(.*=\s*\[\]"),
+            GenePattern("", "", "regex", r"def \w+\(.*=\s*\{\}"),
+            GenePattern("", "", "regex", r"def \w+\(.*=\s*set\(\)"),
+        ]),
+        NegativeGene("", "SO-007", "LOW", 4, False,
+            "SO: AI confuses == and is",
+            "AI uses 'is' for value comparison instead of identity check — fails for large ints/strings.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"if\s+\w+\s+is\s+\d+"),
+            GenePattern("", "", "regex", r"if\s+\w+\s+is not\s+None"),
+        ]),
+        NegativeGene("", "SO-008", "MEDIUM", 6, False,
+            "SO: AI mixes tabs and spaces",
+            "AI generates Python code with inconsistent indentation (tabs vs spaces).",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"\t+def\s"),
+            GenePattern("", "", "regex", r"\t+class\s"),
+        ]),
+        NegativeGene("", "SO-009", "MEDIUM", 5, False,
+            "SO: AI forgets self in class method",
+            "AI writes class methods without 'self' as first parameter.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"def \w+\([^s]"),
+        ]),
+        NegativeGene("", "SO-010", "LOW", 4, False,
+            "SO: AI reimplements stdlib function",
+            "AI writes custom sorting/filtering when sorted()/filter() would work.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"def\s+sort_by_\w+\(self"),
+        ]),
+        NegativeGene("", "SO-011", "MEDIUM", 6, False,
+            "SO: AI uses wrong JS equality",
+            "AI uses == instead of === in JavaScript, causing type coercion bugs.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"==\s*null"),
+            GenePattern("", "", "regex", r"if\s*\(\s*\w+\s*==\s*[\"']"),
+        ]),
+        NegativeGene("", "SO-012", "MEDIUM", 5, False,
+            "SO: AI forgets async/await",
+            "AI calls async functions without await, gets Promise instead of value.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"\.then\(.*\.then\("),
+            GenePattern("", "", "regex", r"const\s+\w+\s*=\s*async\s*\(.*\)\s*=>\s*\{"),
+        ]),
+        NegativeGene("", "SO-013", "LOW", 4, False,
+            "SO: AI creates callback hell",
+            "AI nests callbacks 4+ levels deep instead of using Promise/async-await.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"callback\(null,.*\).*\n.*callback\(null,"),
+        ]),
+        NegativeGene("", "SO-014", "MEDIUM", 6, False,
+            "SO: AI uses var instead of let/const",
+            "AI generates JS with var declarations that leak block scope.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"var\s+\w+\s*="),
+        ]),
+        NegativeGene("", "SO-015", "MEDIUM", 5, False,
+            "SO: AI closes over loop variable",
+            "AI creates closures inside for loops with var i — all share final i value.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"for\s*\(\s*var\s+\w+\s*=\s*\d+"),
+        ]),
+        NegativeGene("", "SO-016", "LOW", 4, False,
+            r"SO: AI uses \!= null antipattern",
+            "AI checks for not null before property access, but TypeScript strict mode catches more.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"!= null\s*&&\s*\w+\.\w+"),
+        ]),
+        NegativeGene("", "SO-017", "MEDIUM", 6, False,
+            "SO: AI array mutation during iteration",
+            "AI modifies array while iterating — splice in forEach causes index shift.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"\.forEach\(.*\n.*\.splice\("),
+            GenePattern("", "", "regex", r"for\s+.*\s+in\s+.*\n.*\.pop\(\)"),
+        ]),
+        NegativeGene("", "SO-018", "HIGH", 7, False,
+            "SO: AI race condition in async code",
+            "AI reads and writes shared state without synchronization in async/await chains.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"await\s+\w+\(\)\s*;?\s*\n\s+\w+\s*=\s*\w+"),
+        ]),
+        NegativeGene("", "SO-019", "LOW", 4, False,
+            "SO: AI produces dead code",
+            "AI leaves unused variables, imports, and unreachable return statements.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"import\s+\{[^}]+\}\s+from.*\n(?!.*\1)"),
+        ]),
+        NegativeGene("", "SO-020", "MEDIUM", 5, False,
+            "SO: AI misuses array.reduce",
+            "AI uses reduce when map/filter/sum is simpler — creates unreadable accumulator logic.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"\.reduce\(\(.*\)\s*=>\s*\{"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── JavaScript / TypeScript specific patterns (80 genes) ──────────────────
+
+
+def _seed_javascript_patterns(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        # Prototype pollution
+        NegativeGene("", "JS-PP-001", "CRITICAL", 10, True,
+            "JS: Prototype pollution via merge (AI)",
+            "AI uses Object.assign or spread merge on untrusted objects — pollutes Object.prototype.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Object\.assign\(.*req"),
+            GenePattern("", "", "regex", r"\{\s*\.\.\.req"),
+            GenePattern("", "", "regex", r"\{\s*\.\.\..*body"),
+        ]),
+        NegativeGene("", "JS-PP-002", "HIGH", 9, True,
+            "JS: Prototype pollution via lodash merge (AI)",
+            "AI uses _.merge or _.defaultsDeep with user-controlled source.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"_\.merge\(.*req"),
+            GenePattern("", "", "regex", r"_\.defaultsDeep\(.*req"),
+        ]),
+        NegativeGene("", "JS-PP-003", "HIGH", 9, True,
+            "JS: polluting constructor via [__proto__] (AI)",
+            "AI assigns user input to nested object paths without checking __proto__.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\[\$**proto__\]"),
+            GenePattern("", "", "regex", r"\[\$**defineGetter__\]"),
+        ]),
+        # eval / code injection
+        NegativeGene("", "JS-EVAL-001", "CRITICAL", 10, True,
+            "JS: eval user input (AI)",
+            "AI eval()s user input from request body or query params.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"eval\(.*req"),
+            GenePattern("", "", "regex", r"eval\(.*body"),
+            GenePattern("", "", "regex", r"eval\(.*params"),
+        ]),
+        NegativeGene("", "JS-EVAL-002", "HIGH", 9, True,
+            "JS: new Function() from user string (AI)",
+            "AI uses new Function() constructor with user-controlled string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new\s+Function\([\"'].*req"),
+            GenePattern("", "", "regex", r"new\s+Function\([\"'].*params"),
+        ]),
+        NegativeGene("", "JS-EVAL-003", "MEDIUM", 6, False,
+            "JS: setTimeout with string arg (AI)",
+            "AI passes string to setTimeout which eval()s it. Use function reference.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"setTimeout\([\"']"),
+            GenePattern("", "", "regex", r"setInterval\([\"']"),
+        ]),
+        # NPM / supply chain
+        NegativeGene("", "JS-NPM-001", "MEDIUM", 6, False,
+            "JS: Install without lockfile (AI)",
+            "AI suggests npm install without --save-exact or package-lock.json.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"npm\s+install\s+(?!.*--save-exact)"),
+            GenePattern("", "", "regex", r"npm\s+i\s+(?!.*--save-exact)"),
+        ]),
+        NegativeGene("", "JS-NPM-002", "LOW", 4, False,
+            "JS: Pinning to mutable tag (AI)",
+            "AI pins dependency version to 'latest' or '*' instead of exact semver.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\"\*\""),
+            GenePattern("", "", "regex", r"\"latest\""),
+        ]),
+        NegativeGene("", "JS-NPM-003", "MEDIUM", 5, False,
+            "JS: Deprecated package suggested (AI)",
+            "AI recommends unmaintained/deprecated npm packages without noting status.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"npm\s+install\s+(underscore|gulp|request|moment|bower)"),
+        ]),
+        # Crypto misuse
+        NegativeGene("", "JS-CRYPTO-001", "HIGH", 8, True,
+            "JS: Math.random for security (AI)",
+            "AI uses Math.random() for tokens, session IDs, or CSRF tokens.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Math\.random\(\)\.toString"),
+            GenePattern("", "", "regex", r"Math\.random\(\)\s*\*.*token"),
+        ]),
+        NegativeGene("", "JS-CRYPTO-002", "HIGH", 8, True,
+            "JS: crypto.pseudoRandomBytes (AI)",
+            "AI uses crypto.pseudoRandomBytes instead of crypto.randomBytes.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"crypto\.pseudoRandomBytes\("),
+        ]),
+        # Auth / session
+        NegativeGene("", "JS-AUTH-001", "HIGH", 8, True,
+            "JS: JWT without secret rotation (AI)",
+            "AI hardcodes a single JWT_SECRET string in source and never rotates.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"jwt\.sign\(.*['\"]secret['\"]"),
+            GenePattern("", "", "regex", r"jwt\.sign\(.*['\"]shh"),
+        ]),
+        NegativeGene("", "JS-AUTH-002", "MEDIUM", 7, True,
+            "JS: No HTTP-only cookie (AI)",
+            "AI sets session cookies without httpOnly flag — XSS can steal session.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"res\.cookie\(.*httpOnly:\s*false"),
+            GenePattern("", "", "regex", r"res\.cookie\(.*(?!.*httpOnly)"),
+        ]),
+        NegativeGene("", "JS-AUTH-003", "MEDIUM", 6, False,
+            "JS: Hardcoded session secret (AI)",
+            "AI sets express session secret to a hardcoded string like 'secret'.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"secret:\s*['\']secret['\']"),
+            GenePattern("", "", "regex", r"secret:\s*['\']keyboard cat['\']"),
+        ]),
+        # SQL/NoSQL injection
+        NegativeGene("", "JS-DB-001", "CRITICAL", 10, True,
+            "JS: MongoDB $where injection (AI)",
+            "AI uses $where with unsanitized user input — allows JS injection in MongoDB.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\$where\s*:\s*.*req"),
+            GenePattern("", "", "regex", r"\$where\s*:\s*.*body"),
+        ]),
+        NegativeGene("", "JS-DB-002", "HIGH", 9, True,
+            "JS: MongoDB NoSQL injection via $gt (AI)",
+            "AI uses $gt/$ne/$regex operators on user-supplied strings — bypasses auth.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\$gt\s*:\s*[\"']"),
+            GenePattern("", "", "regex", r"\$ne\s*:\s*[\"']"),
+            GenePattern("", "", "regex", r"\$regex\s*:\s*.*req"),
+        ]),
+        NegativeGene("", "JS-DB-003", "HIGH", 9, True,
+            "JS: Mass assignment in Mongoose (AI)",
+            "AI passes whole req.body to Model.create or .update — allows field override.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Model\.create\(.*req\.body"),
+            GenePattern("", "", "regex", r"\.update\(.*req\.body"),
+            GenePattern("", "", "regex", r"findByIdAndUpdate\(.*req\.body"),
+        ]),
+        # Express / HTTP
+        NegativeGene("", "JS-HTTP-001", "MEDIUM", 6, False,
+            "JS: CORS allow all origins (AI)",
+            "AI sets Access-Control-Allow-Origin: * on all routes including auth endpoints.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"cors\(\s*\{\s*origin:\s*['\']\*['\']"),
+            GenePattern("", "", "regex", r"res\.setHeader\(['\']Access-Control-Allow-Origin['\],\s*['\']\*['\']"),
+        ]),
+        NegativeGene("", "JS-HTTP-002", "HIGH", 8, True,
+            "JS: Open redirect (AI)",
+            "AI redirects to user-supplied URL without host whitelist.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"res\.redirect\(.*req\.query\.(url|redirect|next|return)"),
+            GenePattern("", "", "regex", r"res\.redirect\(.*req\.params\.(url|redirect)"),
+        ]),
+        NegativeGene("", "JS-HTTP-003", "MEDIUM", 5, False,
+            "JS: Missing helmet/security headers (AI)",
+            "AI creates Express app without helmet middleware or security headers.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"app\.get\(\s*['\']/"),
+        ]),
+        # Async / Promise
+        NegativeGene("", "JS-ASYNC-001", "HIGH", 7, False,
+            "JS: Unhandled promise rejection (AI)",
+            "AI forgets .catch() on async operations — unhandled rejections crash Node 15+.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.then\(.*\)\s*;?\s*\n(?!.*\.catch)"),
+        ]),
+        NegativeGene("", "JS-ASYNC-002", "MEDIUM", 6, False,
+            "JS: Promise.all with no error isolation (AI)",
+            "AI uses Promise.all where one rejection fails all — should use Promise.allSettled.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Promise\.all\(\["),
+        ]),
+        NegativeGene("", "JS-ASYNC-003", "LOW", 4, False,
+            "JS: Floating promise in tests (AI)",
+            "AI returns promise from test without await — test passes before assertion runs.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"it\(['\"].*['\"]\).*\n.*\.to"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Java specific patterns (80 genes) ─────────────────────────────────────
+
+
+def _seed_java_patterns(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        # ProcessBuilder / Runtime
+        NegativeGene("", "JV-RCE-001", "CRITICAL", 10, True,
+            "Java: Runtime.exec with user arg (AI)",
+            "AI calls Runtime.exec with user-controlled string — shell injection vector.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Runtime\.getRuntime\(\)\.exec\(.*request"),
+            GenePattern("", "", "regex", r"Runtime\.getRuntime\(\)\.exec\(.*req"),
+        ]),
+        NegativeGene("", "JV-RCE-002", "CRITICAL", 10, True,
+            "Java: ProcessBuilder with shell (AI)",
+            "AI uses ProcessBuilder(\"/bin/sh\", \"-c\", userInput) — command injection.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"ProcessBuilder\(\"/bin/sh\"\)"),
+            GenePattern("", "", "regex", r"ProcessBuilder\(\"cmd\"\)"),
+        ]),
+        # Deserialization
+        NegativeGene("", "JV-DESER-001", "CRITICAL", 10, True,
+            "Java: readObject on untrusted stream (AI)",
+            "AI reads Object from user-supplied InputStream — classic Java RCE.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new\s+ObjectInputStream\(.*request"),
+            GenePattern("", "", "regex", r"new\s+ObjectInputStream\(.*getInputStream"),
+        ]),
+        NegativeGene("", "JV-DESER-002", "HIGH", 9, True,
+            "Java: XMLDecoder deserialization (AI)",
+            "AI uses XMLDecoder to parse user-supplied XML — arbitrary code execution.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"XMLDecoder\(.*request"),
+            GenePattern("", "", "regex", r"XMLDecoder\(.*input"),
+        ]),
+        NegativeGene("", "JV-DESER-003", "HIGH", 9, True,
+            "Java: SnakeYAML load (AI)",
+            "AI uses Yaml.load() from SnakeYAML on untrusted input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new\s+Yaml\(\)\.load\(.*request"),
+            GenePattern("", "", "regex", r"Yaml\.load\(.*body"),
+        ]),
+        # SQL injection
+        NegativeGene("", "JV-SQL-001", "CRITICAL", 10, True,
+            "Java: JPA native query injection (AI)",
+            "AI concatenates user input in @Query with native=true.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"@Query\(value\s*=\s*[\"'].*\+.*\?.*native"),
+            GenePattern("", "", "regex", r"em\.createNativeQuery\([\"'].*\+.*param"),
+        ]),
+        NegativeGene("", "JV-SQL-002", "HIGH", 9, True,
+            "Java: JDBC Statement concat (AI)",
+            "AI builds SQL with string concatenation using Statement object.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Statement\s+stmt\s*=\s*conn\.createStatement"),
+            GenePattern("", "", "regex", r"stmt\.executeQuery\([\"'].*\+.*request"),
+        ]),
+        NegativeGene("", "JV-SQL-003", "HIGH", 9, True,
+            "Java: MyBatis ${} injection (AI)",
+            "AI uses ${value} in MyBatis XML instead of #{value} — raw substitution.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\$\{\s*\w+\s*\}"),
+        ]),
+        # XXE
+        NegativeGene("", "JV-XXE-001", "HIGH", 8, True,
+            "Java: DocumentBuilder XXE (AI)",
+            "AI parses XML without disabling DOCTYPE/external entities.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"DocumentBuilderFactory\.newInstance\(\)"),
+            GenePattern("", "", "regex", r"SAXParserFactory\.newInstance\(\)"),
+        ]),
+        # Crypto
+        NegativeGene("", "JV-CRYPTO-001", "MEDIUM", 7, True,
+            "Java: ECB mode in AES (AI)",
+            "AI uses AES/ECB/PKCS5Padding — ECB is deterministic, leaks patterns.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"AES/ECB"),
+            GenePattern("", "", "regex", r"Cipher\.getInstance\([\"']AES[\"']"),
+        ]),
+        NegativeGene("", "JV-CRYPTO-002", "MEDIUM", 6, True,
+            "Java: Static IV in AES (AI)",
+            "AI hardcodes IV as all-zero bytes or constant — defeats CBC security.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"IvParameterSpec\(new byte\[\{0,0,0"),
+            GenePattern("", "", "regex", r"new byte\[16\]\s*\)"),
+        ]),
+        NegativeGene("", "JV-CRYPTO-003", "HIGH", 8, True,
+            "Java: Password in String (AI)",
+            "AI stores passwords in String objects — immutable and stays in heap until GC.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"String.*password\s*=\s*[\"']"),
+            GenePattern("", "", "regex", r"String.*passwd\s*=\s*[\"']"),
+        ]),
+        # SSRF
+        NegativeGene("", "JV-SSRF-001", "HIGH", 8, True,
+            "Java: URLConnection from user URL (AI)",
+            "AI opens URLConnection with user-supplied URL — SSRF to internal services.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new\s+URL\(.*request"),
+            GenePattern("", "", "regex", r"URLConnection.*request"),
+        ]),
+        NegativeGene("", "JV-SSRF-002", "HIGH", 8, True,
+            "Java: RestTemplate from user URL (AI)",
+            "AI uses RestTemplate/WebClient with user-supplied URL without allowlist.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"restTemplate\.getForObject\(.*request"),
+            GenePattern("", "", "regex", r"webClient\.get\(\)\.uri\(.*request"),
+        ]),
+        # Logs / info leak
+        NegativeGene("", "JV-LEAK-001", "MEDIUM", 6, False,
+            "Java: Stack trace in response (AI)",
+            "AI returns full stack trace to client in error response body.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"e\.printStackTrace\(\)"),
+            GenePattern("", "", "regex", r"StringWriter.*printStackTrace"),
+        ]),
+        NegativeGene("", "JV-LEAK-002", "HIGH", 8, True,
+            "Java: Logging user password (AI)",
+            "AI logs user input including password fields in debug/info level.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"log\.info\(.*request"),
+            GenePattern("", "", "regex", r"logger\.info\(.*\.getParameter"),
+        ]),
+        # Reflection
+        NegativeGene("", "JV-REFL-001", "HIGH", 8, True,
+            "Java: setAccessible(true) from AI",
+            "AI uses setAccessible(true) on private fields — breaks encapsulation, security risk.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"setAccessible\(true\)"),
+        ]),
+        NegativeGene("", "JV-REFL-002", "MEDIUM", 7, True,
+            "Java: Class.forName with user input (AI)",
+            "AI uses Class.forName() with user-controlled string — unexpected class loading.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Class\.forName\(.*request"),
+            GenePattern("", "", "regex", r"Class\.forName\(.*param"),
+        ]),
+        # Threading
+        NegativeGene("", "JV-THREAD-001", "MEDIUM", 6, False,
+            "Java: Thread.sleep in sync block (AI)",
+            "AI calls Thread.sleep() inside synchronized block — holds lock while sleeping.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"synchronized.*\n.*Thread\.sleep"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Go specific patterns (80 genes) ───────────────────────────────────────
+
+
+def _seed_go_patterns(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        # os/exec
+        NegativeGene("", "GO-CMD-001", "CRITICAL", 10, True,
+            "Go: exec.Command with shell pipe (AI)",
+            "AI pipes user input through bash -c — shell injection in Go.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"exec\.Command\(\"bash\".*\"-c\""),
+            GenePattern("", "", "regex", r"exec\.Command\(\"sh\".*\"-c\""),
+        ]),
+        NegativeGene("", "GO-CMD-002", "HIGH", 9, True,
+            "Go: exec.Command with user arg (AI)",
+            "AI passes request parameter directly as exec.Command argument.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"exec\.Command\(.*r\.FormValue"),
+            GenePattern("", "", "regex", r"exec\.Command\(.*c\.Param"),
+        ]),
+        # SQL injection
+        NegativeGene("", "GO-SQL-001", "CRITICAL", 10, True,
+            "Go: fmt.Sprintf in SQL query (AI)",
+            "AI formats SQL query with fmt.Sprintf using user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"db\.Query\(fmt\.Sprintf"),
+            GenePattern("", "", "regex", r"db\.Exec\(fmt\.Sprintf"),
+            GenePattern("", "", "regex", r"db\.QueryRow\(fmt\.Sprintf"),
+        ]),
+        NegativeGene("", "GO-SQL-002", "HIGH", 9, True,
+            "Go: Raw string concat in SQL (AI)",
+            "AI concatenates SQL strings with + operator containing user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"db\.Query\([\"'].*\+.*r\."),
+            GenePattern("", "", "regex", r"db\.Exec\([\"'].*\+.*req"),
+        ]),
+        NegativeGene("", "GO-SQL-003", "HIGH", 9, True,
+            "Go: GORM raw with fmt (AI)",
+            "AI uses db.Raw() with fmt.Sprintf instead of ? parameterized queries.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"db\.Raw\(fmt\.Sprintf"),
+            GenePattern("", "", "regex", r"gorm\.Exec\(fmt\.Sprintf"),
+        ]),
+        # Unsafe pointer
+        NegativeGene("", "GO-UNSAFE-001", "CRITICAL", 10, True,
+            "Go: unsafe.Pointer conversion (AI)",
+            "AI uses unsafe.Pointer on user-controlled data — memory corruption risk.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"unsafe\.Pointer\(.*request"),
+            GenePattern("", "", "regex", r"unsafe\.Pointer\(.*r\."),
+        ]),
+        NegativeGene("", "GO-UNSAFE-002", "HIGH", 9, True,
+            "Go: uintptr to unsafe.Pointer (AI)",
+            "AI casts uintptr to unsafe.Pointer — garbage collector may move the object.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"uintptr\(unsafe\.Pointer"),
+        ]),
+        # Crypto
+        NegativeGene("", "GO-CRYPTO-001", "MEDIUM", 7, True,
+            "Go: MD5 for password (AI)",
+            "AI uses md5.Sum() for password hashing instead of bcrypt.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"md5\.Sum\(\[\]byte\(.*pass"),
+            GenePattern("", "", "regex", r"md5\.New\(\).*Write.*password"),
+        ]),
+        NegativeGene("", "GO-CRYPTO-002", "MEDIUM", 7, True,
+            "Go: math/rand for crypto (AI)",
+            "AI uses math/rand instead of crypto/rand for token generation.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"math/rand.*token"),
+            GenePattern("", "", "regex", r"math\.rand\.Intn"),
+        ]),
+        NegativeGene("", "GO-CRYPTO-003", "HIGH", 8, True,
+            "Go: Hardcoded TLS config (AI)",
+            "AI sets InsecureSkipVerify: true in tls.Config.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"InsecureSkipVerify:\s*true"),
+        ]),
+        # Race conditions
+        NegativeGene("", "GO-RACE-001", "HIGH", 7, False,
+            "Go: Map write without mutex (AI)",
+            "AI writes to map from multiple goroutines without sync.RWMutex.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"go\s+func.*\n.*map\[.*\]"),
+            GenePattern("", "", "regex", r"sync\.Map"),
+        ]),
+        NegativeGene("", "GO-RACE-002", "MEDIUM", 6, False,
+            "Go: No sync.WaitGroup (AI)",
+            "AI spawns goroutines without sync.WaitGroup — program exits before goroutines finish.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"go\s+\w+\(\)"),
+        ]),
+        NegativeGene("", "GO-RACE-003", "HIGH", 7, False,
+            "Go: Closing channel twice (AI)",
+            "AI closes a channel in multiple goroutines — panic on double close.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"close\(.*\).*\n.*close\(.*"),
+        ]),
+        # HTTP / net
+        NegativeGene("", "GO-HTTP-001", "MEDIUM", 6, False,
+            "Go: No read/write timeout (AI)",
+            "AI creates http.Server without ReadTimeout/WriteTimeout — slow loris vector.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"http\.Server\s*\{"),
+        ]),
+        NegativeGene("", "GO-HTTP-002", "HIGH", 8, True,
+            "Go: CORS * on auth endpoints (AI)",
+            "AI sets Access-Control-Allow-Origin: * on API with auth cookies.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Access-Control-Allow-Origin.*\*"),
+        ]),
+        NegativeGene("", "GO-HTTP-003", "HIGH", 8, True,
+            "Go: Path traversal in http.ServeFile (AI)",
+            "AI uses http.ServeFile with user-supplied path from URL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"http\.ServeFile\(.*r\.URL"),
+            GenePattern("", "", "regex", r"http\.ServeFile\(.*c\.Param"),
+        ]),
+        # IO / file
+        NegativeGene("", "GO-FILE-001", "HIGH", 8, True,
+            "Go: ioutil.ReadAll no limit (AI)",
+            "AI uses ioutil.ReadAll from user-supplied reader — memory exhaustion risk.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"ioutil\.ReadAll\(.*r\.Body"),
+            GenePattern("", "", "regex", r"io\.ReadAll\(.*r\.Body"),
+        ]),
+        NegativeGene("", "GO-FILE-002", "MEDIUM", 6, False,
+            "Go: os.Open with user path (AI)",
+            "AI opens file at user-supplied path without sanitization.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"os\.Create\(.*r\.FormValue"),
+            GenePattern("", "", "regex", r"os\.OpenFile\(.*r\."),
+        ]),
+        # JSON
+        NegativeGene("", "GO-JSON-001", "MEDIUM", 5, False,
+            "Go: json.Unmarshal no limit (AI)",
+            "AI unmarshals JSON without MaxBytesReader — huge payload DoS.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"json\.NewDecoder\(.*r\.Body"),
+            GenePattern("", "", "regex", r"json\.Unmarshal\(.*r\.Body"),
+        ]),
+        NegativeGene("", "GO-JSON-002", "MEDIUM", 5, False,
+            "Go: json.Decoder without useNumber (AI)",
+            "AI decodes JSON without UseNumber — large numbers lose precision.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"json\.NewDecoder\(.*r\.Body"),
+        ]),
+        # Logging
+        NegativeGene("", "GO-LOG-001", "MEDIUM", 6, False,
+            "Go: log.Fatal after recover (AI)",
+            "AI calls log.Fatal inside deferred recover — masks panic, exits with generic message.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"recover\(\)\n.*log\.Fatal"),
+            GenePattern("", "", "regex", r"recover\(\)\n.*log\.Print"),
+        ]),
+        NegativeGene("", "GO-LOG-002", "HIGH", 8, True,
+            "Go: Logging request body without redaction (AI)",
+            "AI logs raw request body containing passwords/tokens.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"log\.Printf.*r\.Body"),
+            GenePattern("", "", "regex", r"slog\.Info.*request"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Rust specific patterns (55 genes) ──────────────────────────────────────
+
+
+def _seed_rust_patterns(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        # unsafe
+        NegativeGene("", "RS-UNSAFE-001", "CRITICAL", 10, True,
+            "Rust: unsafe block with raw pointer from user (AI)",
+            "AI writes unsafe blocks dereferencing user-controlled raw pointers.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"unsafe\s*\{.*\n.*\*const"),
+            GenePattern("", "", "regex", r"unsafe\s*\{.*\n.*\*mut"),
+        ]),
+        NegativeGene("", "RS-UNSAFE-002", "HIGH", 9, True,
+            "Rust: transmute on user data (AI)",
+            "AI uses std::mem::transmute on user-controlled data.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"mem::transmute<.*>\(.*request"),
+            GenePattern("", "", "regex", r"mem::transmute<.*>\(.*user"),
+        ]),
+        NegativeGene("", "RS-UNSAFE-003", "HIGH", 9, True,
+            "Rust: pointer offset from user input (AI)",
+            "AI offsets a raw pointer by a user-supplied value.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.offset\(.*user"),
+            GenePattern("", "", "regex", r"\.add\(.*user"),
+        ]),
+        # Command
+        NegativeGene("", "RS-CMD-001", "CRITICAL", 10, True,
+            "Rust: Command::new with shell (AI)",
+            "AI uses std::process::Command::new(\"sh\") with user arg.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Command::new\(\"sh\"\)"),
+            GenePattern("", "", "regex", r"Command::new\(\"bash\"\)"),
+        ]),
+        NegativeGene("", "RS-CMD-002", "HIGH", 9, True,
+            "Rust: Command with user input (AI)",
+            "AI passes user input directly to Command::arg without validation.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Command::new.*\.arg\(.*request"),
+            GenePattern("", "", "regex", r"Command::new.*\.arg\(.*user"),
+        ]),
+        NegativeGene("", "RS-CMD-003", "HIGH", 9, True,
+            "Rust: Command output without check (AI)",
+            "AI calls .output() or .status() without checking exit code.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.output\(\)\s*\?"),
+            GenePattern("", "", "regex", r"\.status\(\)\s*\?"),
+        ]),
+        # SQL injection
+        NegativeGene("", "RS-SQL-001", "CRITICAL", 10, True,
+            "Rust: format! in SQL query (AI)",
+            "AI uses format! macro for building SQL queries instead of sqlx prepared stmts.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"format!\([\"'].*SELECT.*\{"),
+            GenePattern("", "", "regex", r"sqlx::query\(&format!"),
+        ]),
+        NegativeGene("", "RS-SQL-002", "HIGH", 9, True,
+            "Rust: diesel raw SQL with format (AI)",
+            "AI uses diesel::sql_query with format! instead of bind parameters.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"diesel::sql_query\(format!"),
+            GenePattern("", "", "regex", r"sql_query\(&format!"),
+        ]),
+        NegativeGene("", "RS-SQL-003", "HIGH", 9, True,
+            "Rust: SQL string concat in query (AI)",
+            "AI concatenates user strings into SQL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.execute\([\"'].*\+.*\&"),
+        ]),
+        # Unwrap / expect
+        NegativeGene("", "RS-PANIC-001", "MEDIUM", 6, False,
+            "Rust: unwrap on network result (AI)",
+            "AI calls .unwrap() on IO/network Results.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.output\(\)\.unwrap\(\)"),
+            GenePattern("", "", "regex", r"TcpStream::connect.*\.unwrap\(\)"),
+            GenePattern("", "", "regex", r"request\.send\(\)\.unwrap\(\)"),
+        ]),
+        NegativeGene("", "RS-PANIC-002", "LOW", 4, False,
+            "Rust: unwrap in library code (AI)",
+            "AI uses .unwrap() in library code that should propagate errors.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"fn \w+\(.*\).*\n.*\.unwrap\(\)"),
+        ]),
+        NegativeGene("", "RS-PANIC-003", "MEDIUM", 5, False,
+            "Rust: expect with unhelpful message (AI)",
+            "AI calls .expect(\"unwrap failed\") — message adds no debugging value.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.expect\([\"']unwrap failed"),
+            GenePattern("", "", "regex", r"\.expect\([\"']Error")]),
+        NegativeGene("", "RS-PANIC-004", "MEDIUM", 6, False,
+            "Rust: index out of bounds (AI)",
+            "AI indexes into Vec/slice with user-controlled index without bounds check.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\[[\w\[\]]+\]\s*\[.*user"),
+            GenePattern("", "", "regex", r"\[[\w\[\]]+\]\s*\[.*request"),
+        ]),
+        # Race conditions
+        NegativeGene("", "RS-RACE-001", "HIGH", 7, False,
+            "Rust: MutexGuard held across await (AI)",
+            "AI holds std::sync::MutexGuard across .await point.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\.lock\(\)\.unwrap\(\);\n.*\.await"),
+        ]),
+        NegativeGene("", "RS-RACE-002", "MEDIUM", 6, False,
+            "Rust: Arc without Atomic (AI)",
+            "AI wraps mutable data in Arc without Mutex/RwLock.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Arc::new\(RefCell"),
+            GenePattern("", "", "regex", r"Arc::new\(Cell"),
+        ]),
+        NegativeGene("", "RS-RACE-003", "HIGH", 7, False,
+            "Rust: tokio::spawn without JoinHandle (AI)",
+            "AI spawns tokio tasks without storing or awaiting the JoinHandle.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"tokio::spawn\(async\s+move"),
+        ]),
+        # Crypto
+        NegativeGene("", "RS-CRYPTO-001", "MEDIUM", 7, True,
+            "Rust: SHA1 for passwords (AI)",
+            "AI uses sha1 crate for password hashing instead of argon2/bcrypt.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"sha1::Sha1::new\(\).*update.*pass"),
+            GenePattern("", "", "regex", r"Sha256::new\(\).*update.*pass"),
+        ]),
+        NegativeGene("", "RS-CRYPTO-002", "HIGH", 8, True,
+            "Rust: hardcoded private key (AI)",
+            "AI embeds PEM-encoded private key string directly in source code.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"-----BEGIN\s+(RSA|EC|PRIVATE)\s+KEY-----"),
+        ]),
+        # Unsafe IO
+        NegativeGene("", "RS-IO-001", "HIGH", 8, True,
+            "Rust: read_to_string on user file (AI)",
+            "AI reads file at user-controlled path with fs::read_to_string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"fs::read_to_string\(.*request"),
+            GenePattern("", "", "regex", r"fs::read\(.*request"),
+        ]),
+        NegativeGene("", "RS-IO-002", "MEDIUM", 6, False,
+            "Rust: no file size limit (AI)",
+            "AI reads entire file into memory without checking size first.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"fs::read\("),
+            GenePattern("", "", "regex", r"fs::read_to_string\("),
+        ]),
+        # Serialization
+        NegativeGene("", "RS-SERDE-001", "HIGH", 8, True,
+            "Rust: serde untagged enum with user input (AI)",
+            "AI uses #[serde(untagged)] on enums deserialized from untrusted sources.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"#\[serde\(untagged\)\]"),
+        ]),
+        NegativeGene("", "RS-SERDE-002", "MEDIUM", 6, False,
+            "Rust: bincode deserialize on user data (AI)",
+            "AI uses bincode::deserialize on user-supplied bytes.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"bincode::deserialize\(.*request"),
+            GenePattern("", "", "regex", r"bincode::deserialize_from\(.*user"),
+        ]),
+        # FFI
+        NegativeGene("", "RS-FFI-001", "CRITICAL", 10, True,
+            "Rust: FFI call with user string (AI)",
+            "AI calls extern C function passing CString from user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"CString::new\(.*request"),
+            GenePattern("", "", "regex", r"extern\s+\"C\".*\n.*unsafe"),
+        ]),
+        NegativeGene("", "RS-FFI-002", "HIGH", 9, True,
+            "Rust: libc function with user arg (AI)",
+            "AI calls libc::system or libc::execvp with user-controlled string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"libc::system\("),
+            GenePattern("", "", "regex", r"libc::exec"),
+        ]),
+        # HTTP
+        NegativeGene("", "RS-HTTP-001", "MEDIUM", 6, False,
+            "Rust: reqwest without TLS verify (AI)",
+            "AI sets danger_accept_invalid_certs(true) on reqwest client.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"danger_accept_invalid_certs\(true\)"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── PHP specific patterns (45 genes) ─────────────────────────────────────
+
+
+def _seed_php_patterns(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "PHP-RCE-001", "CRITICAL", 10, True,
+            "PHP: eval on user input (AI)",
+            "AI calls eval() with user-supplied string from GET/POST.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"eval\(\$_"),
+            GenePattern("", "", "regex", r"eval\(\$request"),
+        ]),
+        NegativeGene("", "PHP-RCE-002", "CRITICAL", 10, True,
+            "PHP: assert on user input (AI)",
+            "AI uses assert() with user-controlled string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"assert\(\$_"),
+        ]),
+        NegativeGene("", "PHP-RCE-003", "CRITICAL", 10, True,
+            "PHP: preg_replace /e modifier (AI)",
+            "AI uses /e modifier in preg_replace — code execution.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"preg_replace\(.*\/e"),
+        ]),
+        NegativeGene("", "PHP-RCE-004", "HIGH", 9, True,
+            "PHP: create_function with user string (AI)",
+            "AI uses create_function() with user-controlled string argument.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"create_function\(.*\$"),
+        ]),
+        NegativeGene("", "PHP-SHELL-001", "CRITICAL", 10, True,
+            "PHP: shell_exec with user input (AI)",
+            "AI passes user input to shell_exec() or exec() without escaping.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"shell_exec\(\$_"),
+            GenePattern("", "", "regex", r"exec\(\$_"),
+            GenePattern("", "", "regex", r"system\(\$_"),
+        ]),
+        NegativeGene("", "PHP-SHELL-002", "HIGH", 9, True,
+            "PHP: backtick execution (AI)",
+            "AI uses backtick operator with user-controlled string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"`\$\_"),
+            GenePattern("", "", "regex", r"`\$request"),
+        ]),
+        NegativeGene("", "PHP-SHELL-003", "HIGH", 9, True,
+            "PHP: popen with user arg (AI)",
+            "AI uses popen() or proc_open() with unsanitized user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"popen\(\$_"),
+            GenePattern("", "", "regex", r"proc_open\(\$_"),
+        ]),
+        NegativeGene("", "PHP-SQL-001", "CRITICAL", 10, True,
+            "PHP: mysql_query concat (AI)",
+            "AI uses mysql_query/query with string concatenation of user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"mysql_query\([\"'].*\$"),
+            GenePattern("", "", "regex", r"mysqli_query\(.*\$"),
+            GenePattern("", "", "regex", r"query\(\s*[\"'].*\$"),
+        ]),
+        NegativeGene("", "PHP-SQL-002", "HIGH", 9, True,
+            "PHP: Laravel raw where (AI)",
+            "AI uses DB::raw() with user input instead of parameter binding.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"DB::raw\(\s*[\"'].*\$"),
+            GenePattern("", "", "regex", r"whereRaw\(\s*[\"'].*\$"),
+        ]),
+        NegativeGene("", "PHP-FILE-001", "CRITICAL", 10, True,
+            "PHP: include with user path (AI)",
+            "AI calls include/require with user-controlled path.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"include\(\$_"),
+            GenePattern("", "", "regex", r"include_once\(\$_"),
+            GenePattern("", "", "regex", r"require\(\$_"),
+        ]),
+        NegativeGene("", "PHP-FILE-002", "HIGH", 9, True,
+            "PHP: file_get_contents with user URL (AI)",
+            "AI calls file_get_contents with user-supplied URL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"file_get_contents\(\$_"),
+            GenePattern("", "", "regex", r"file_get_contents\(\$url"),
+        ]),
+        NegativeGene("", "PHP-DESER-001", "CRITICAL", 10, True,
+            "PHP: unserialize on user data (AI)",
+            "AI calls unserialize() on user-supplied string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"unserialize\(\$_"),
+            GenePattern("", "", "regex", r"unserialize\(\$request"),
+        ]),
+        NegativeGene("", "PHP-DESER-002", "HIGH", 9, True,
+            "PHP: json_decode without assoc (AI)",
+            "AI decodes JSON to stdClass objects instead of arrays.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"json_decode\(\$.*\)\)"),
+        ]),
+        NegativeGene("", "PHP-XSS-001", "CRITICAL", 10, True,
+            "PHP: echo with no escape (AI)",
+            "AI echoes user input directly without htmlspecialchars.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"echo\s+\$_"),
+            GenePattern("", "", "regex", r"echo\s+\$request"),
+            GenePattern("", "", "regex", r"print\s+\$_"),
+        ]),
+        NegativeGene("", "PHP-XSS-002", "HIGH", 9, True,
+            "PHP: Blade unescaped echo (AI)",
+            "AI uses {!! !!} in Laravel Blade instead of {{ }}.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\{!!.*\$"),
+        ]),
+        NegativeGene("", "PHP-UPLOAD-001", "HIGH", 8, True,
+            "PHP: move_uploaded_file no check (AI)",
+            "AI moves uploaded file without checking extension/MIME type.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"move_uploaded_file\(.*\$_FILES"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── C# (.NET) specific patterns (40 genes) ─────────────────────────────────
+
+
+def _seed_dotnet_patterns(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "DN-RCE-001", "CRITICAL", 10, True,
+            "C#: Process.Start with shell (AI)",
+            "AI calls Process.Start with user arg — CMD injection.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Process\.Start\([\"'].*\..*\+"),
+            GenePattern("", "", "regex", r"new ProcessStartInfo.*FileName.*cmd"),
+        ]),
+        NegativeGene("", "DN-RCE-002", "HIGH", 9, True,
+            "C#: Process.Start with user arg (AI)",
+            "AI passes user input as Process argument.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Process\.Start\(.*request"),
+            GenePattern("", "", "regex", r"Process\.Start\(.*user"),
+        ]),
+        NegativeGene("", "DN-DESER-001", "CRITICAL", 10, True,
+            "C#: BinaryFormatter on user data (AI)",
+            "AI uses BinaryFormatter.Deserialize on user-supplied stream.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"BinaryFormatter.*Deserialize\("),
+        ]),
+        NegativeGene("", "DN-DESER-002", "CRITICAL", 10, True,
+            "C#: JavaScriptSerializer with SimpleTypeResolver (AI)",
+            "AI uses JavaScriptSerializer with SimpleTypeResolver.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"JavaScriptSerializer.*SimpleTypeResolver"),
+        ]),
+        NegativeGene("", "DN-DESER-003", "HIGH", 9, True,
+            "C#: XmlSerializer with user XML (AI)",
+            "AI deserializes user-supplied XML with XmlSerializer.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"XmlSerializer.*Deserialize\(.*request"),
+        ]),
+        NegativeGene("", "DN-SQL-001", "CRITICAL", 10, True,
+            "C#: SQL string concat (AI)",
+            "AI builds SQL by concatenating strings with user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new SqlCommand\([\"'].*\+.*request"),
+            GenePattern("", "", "regex", r"new SqlCommand\([\"'].*\+.*text"),
+        ]),
+        NegativeGene("", "DN-SQL-002", "HIGH", 9, True,
+            "C#: Entity Framework raw SQL (AI)",
+            "AI uses FromSqlRaw/ExecuteSqlRaw with string interpolation.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"FromSqlRaw\(\$"),
+            GenePattern("", "", "regex", r"ExecuteSqlRaw\(\$"),
+        ]),
+        NegativeGene("", "DN-SQL-003", "HIGH", 9, True,
+            "C#: Dapper with string concat (AI)",
+            "AI uses Dapper Query/Execute with concatenated query strings.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Query<.*>\([\"'].*\+"),
+        ]),
+        NegativeGene("", "DN-XXE-001", "HIGH", 8, True,
+            "C#: XmlDocument without DTD disable (AI)",
+            "AI parses XML with XmlDocument without disabling DTD.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new XmlDocument\(\)"),
+        ]),
+        NegativeGene("", "DN-XXE-002", "HIGH", 8, True,
+            "C#: XDocument with user XML (AI)",
+            "AI loads user XML without disabling DTD.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"XDocument\.(Load|Parse)\(.*request"),
+        ]),
+        NegativeGene("", "DN-PATH-001", "HIGH", 8, True,
+            "C#: File.ReadAllText with user path (AI)",
+            "AI reads files at user-supplied path.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"File\.ReadAllText\(.*request"),
+            GenePattern("", "", "regex", r"File\.ReadAllBytes\(.*request"),
+        ]),
+        NegativeGene("", "DN-CRYPTO-001", "MEDIUM", 7, True,
+            "C#: MD5 for passwords (AI)",
+            "AI uses MD5.Create() for password hashing instead of PBKDF2.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"MD5\.Create\(\)"),
+        ]),
+        NegativeGene("", "DN-CRYPTO-002", "MEDIUM", 6, True,
+            "C#: ECB mode AES (AI)",
+            "AI uses CipherMode.ECB in AES.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"CipherMode\.ECB"),
+        ]),
+        NegativeGene("", "DN-SSRF-001", "HIGH", 8, True,
+            "C#: HttpClient with user URL (AI)",
+            "AI creates HttpClient request to user-supplied URL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"HttpClient.*(Get|Post)Async\(.*request"),
+        ]),
+        NegativeGene("", "DN-REFL-001", "HIGH", 9, True,
+            "C#: Assembly.Load with user bytes (AI)",
+            "AI loads assembly from user-supplied byte array.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Assembly\.Load\(.*request"),
+        ]),
+        NegativeGene("", "DN-REFL-002", "HIGH", 8, True,
+            "C#: Type.InvokeMember with user name (AI)",
+            "AI calls InvokeMember with user-controlled method name.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"InvokeMember\(.*request"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── More Python specific patterns (35 genes) ──────────────────────────────
+
+
+def _seed_more_python(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "PY-PATH-001", "HIGH", 8, True,
+            "Python: pathlib with user path (AI)",
+            "AI uses Path() with user-supplied string without check.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Path\(.*request"),
+            GenePattern("", "", "regex", r"Path\(.*\.\.\."),
+        ]),
+        NegativeGene("", "PY-PATH-002", "HIGH", 8, True,
+            "Python: os.remove with user path (AI)",
+            "AI deletes files at user-controlled path.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"os\.remove\(.*request"),
+            GenePattern("", "", "regex", r"os\.unlink\(.*request"),
+        ]),
+        NegativeGene("", "PY-CMD-001", "HIGH", 9, True,
+            "Python: fabric.run with user cmd (AI)",
+            "AI uses fabric.run() with user-controlled command.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"run\([\"'].*\{"),
+        ]),
+        NegativeGene("", "PY-CMD-002", "HIGH", 9, True,
+            "Python: subprocess with list from user (AI)",
+            "AI passes user-supplied list as subprocess args.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"subprocess\.(call|run|Popen)\(.*request"),
+        ]),
+        NegativeGene("", "PY-SSTI-001", "CRITICAL", 10, True,
+            "Python: Jinja2 template from user (AI)",
+            "AI renders user-supplied string as Jinja2 template.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Jinja2.*from_string\(.*request"),
+            GenePattern("", "", "regex", r"Template\(.*request"),
+        ]),
+        NegativeGene("", "PY-YAML-001", "HIGH", 9, True,
+            "Python: PyYAML load (AI)",
+            "AI uses yaml.load() without SafeLoader.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"yaml\.load\(open"),
+            GenePattern("", "", "regex", r"yaml\.load\(stream"),
+        ]),
+        NegativeGene("", "PY-SSRF-001", "HIGH", 8, True,
+            "Python: requests with user URL (AI)",
+            "AI makes HTTP request to user-controlled URL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"requests\.(get|post)\(.*request"),
+        ]),
+        NegativeGene("", "PY-AUTH-001", "MEDIUM", 7, True,
+            "Python: hardcoded Flask secret (AI)",
+            "AI sets app.secret_key to a hardcoded string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"app\.secret_key\s*=\s*[\"']\w+[\"']"),
+        ]),
+        NegativeGene("", "PY-AUTH-002", "HIGH", 8, True,
+            "Python: Django DEBUG=True in prod (AI)",
+            "AI sets DEBUG = True in Django settings.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"DEBUG\s*=\s*True"),
+        ]),
+        NegativeGene("", "PY-CRYPTO-001", "MEDIUM", 7, True,
+            "Python: AES.new with hardcoded key (AI)",
+            "AI hardcodes AES encryption key in Python source code.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"AES\.new\([\"']\w{16}"),
+        ]),
+        NegativeGene("", "PY-ASYNC-001", "HIGH", 7, False,
+            "Python: asyncio.create_task without gather (AI)",
+            "AI creates tasks but never awaits them.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"asyncio\.create_task\("),
+        ]),
+        NegativeGene("", "PY-ASYNC-002", "MEDIUM", 6, False,
+            "Python: sync calls in async view (AI)",
+            "AI calls blocking IO in async FastAPI endpoint.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"requests\.get\(.*async"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── More CWE families — cross language (60 genes) ─────────────────────────
+
+
+def _seed_more_cwe(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "CWE-20", "HIGH", 7, True,
+            "Missing type check on user input — JS",
+            "AI does not validate query params are expected type before use.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"parseInt\(req\.(query|params)"),
+        ]),
+        NegativeGene("", "CWE-77", "HIGH", 9, True,
+            "Command injection via piped subprocess — Python",
+            "AI chains commands with pipe character in subprocess input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"subprocess\.(Popen|run)\(.*(\||\.\s)"),
+        ]),
+        NegativeGene("", "CWE-77", "HIGH", 9, True,
+            "Command injection via && — Java",
+            "AI chains commands with && in Runtime.exec.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"Runtime\.exec\(.*(&&|;)"),
+        ]),
+        NegativeGene("", "CWE-79", "HIGH", 9, True,
+            "XSS via Angular bypassSecurityTrustHtml (AI)",
+            "AI uses DomSanitizer.bypassSecurityTrustHtml on user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"bypassSecurityTrust( Html | Script )"),
+        ]),
+        NegativeGene("", "CWE-79", "HIGH", 9, True,
+            "XSS via Svelte {@html} (AI)",
+            "AI uses {@html userContent} in Svelte template.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\{@html\s+\w+"),
+        ]),
+        NegativeGene("", "CWE-89", "HIGH", 9, True,
+            "SQLi via sqlite3 concat — Python",
+            "AI uses sqlite3 with f-string queries instead of ? placeholders.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"cursor\.execute\(f[\"'].*SELECT"),
+        ]),
+        NegativeGene("", "CWE-94", "HIGH", 9, True,
+            "Code injection via eval(repr( — Python",
+            "AI uses eval(repr(...)) pattern.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"eval\(repr\("),
+        ]),
+        NegativeGene("", "CWE-94", "CRITICAL", 10, True,
+            "Code injection via execScript — VBScript",
+            "AI uses ExecScript with user-controlled string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"(ExecScript|ExecuteGlobal)\(.*request"),
+        ]),
+        NegativeGene("", "CWE-287", "HIGH", 8, True,
+            "Auth bypass via token in URL (AI)",
+            "AI places auth token in URL query string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"token\s*=\s*[\"'].*\?token"),
+        ]),
+        NegativeGene("", "CWE-352", "HIGH", 8, True,
+            "CSRF: no CSRF token in forms (AI)",
+            "AI builds POST forms without CSRF token.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"form\s+method=[\"']post[\"']"),
+        ]),
+        NegativeGene("", "CWE-352", "HIGH", 8, True,
+            "CSRF: API without SameSite cookie (AI)",
+            "AI sets cookies without SameSite attribute.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"SameSite\s*=\s*None"),
+        ]),
+        NegativeGene("", "CWE-601", "MEDIUM", 7, True,
+            "Open redirect via NextJS redirect (AI)",
+            "AI uses NextResponse.redirect with user-controlled URL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"NextResponse\.redirect\(.*params"),
+        ]),
+        NegativeGene("", "CWE-611", "HIGH", 8, True,
+            "XXE via SAXParser (AI) — Python",
+            "AI parses XML with SAX without disabling external entities.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"xml\.(sax|dom)\.parse\("),
+        ]),
+        NegativeGene("", "CWE-862", "HIGH", 8, False,
+            "Missing auth on API endpoint — Node Express",
+            "AI exposes POST route without auth middleware.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"router\.(post|delete|put).*\n(?!.*auth)"),
+        ]),
+        NegativeGene("", "CWE-862", "HIGH", 8, False,
+            "Missing auth on GraphQL resolver (AI)",
+            "AI creates GraphQL resolver without auth check.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"@(Query|Mutation)\(.*\n(?!.*Auth)"),
+        ]),
+        NegativeGene("", "CWE-918", "HIGH", 8, True,
+            "SSRF via gopher protocol (AI)",
+            "AI accepts gopher:// URLs from users.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"gopher://"),
+        ]),
+        NegativeGene("", "CWE-120", "HIGH", 9, True,
+            "Buffer overflow via strcpy (AI) — C/C++",
+            "AI uses strcpy with user-supplied string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\b(strcpy|strcat)\(.*user"),
+            GenePattern("", "", "regex", r"sprintf\(.*%s.*user"),
+        ]),
+        NegativeGene("", "CWE-120", "HIGH", 9, True,
+            "Buffer overflow via gets (AI) — C/C++",
+            "AI uses gets() to read user input.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\bgets\(.*\["),
+        ]),
+        NegativeGene("", "CWE-476", "MEDIUM", 6, False,
+            "Null deref after malloc (AI) — C/C++",
+            "AI does not check malloc return before dereferencing.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"malloc\(.*\).*->"),
+        ]),
+        NegativeGene("", "CWE-676", "HIGH", 8, True,
+            "Dangerous C function (AI) — C/C++",
+            "AI uses tmpfile/mktemp with race condition risk.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"(tmpfile|mktemp)\("),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Additional JS patterns (20 genes) ───────────────────────────────────────
+
+
+def _seed_more_javascript(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "JS-XXE-001", "HIGH", 8, True,
+            "JS: xml parser XXE (AI)",
+            "AI uses xml2js/fast-xml-parser without disabling entities.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"(xml2js|fast-xml-parser).*parse\(.*req"),
+        ]),
+        NegativeGene("", "JS-SSRF-001", "HIGH", 8, True,
+            "JS: axios with user URL (AI)",
+            "AI makes axios request to user-supplied URL.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"axios\.(get|post)\(.*req\.body\.url"),
+        ]),
+        NegativeGene("", "JS-DOS-001", "MEDIUM", 6, False,
+            "JS: ReDoS via user regex (AI)",
+            "AI applies user-supplied regex — ReDoS vector.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"new RegExp\(.*req,"),
+        ]),
+        NegativeGene("", "JS-DOS-002", "MEDIUM", 5, False,
+            "JS: body-parser without limit (AI)",
+            "AI uses express.json() without body size limit.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"express\.json\(\)"),
+        ]),
+        NegativeGene("", "JS-AUTH-004", "MEDIUM", 7, True,
+            "JS: JWT with alg: none (AI)",
+            "AI accepts JWT with alg: 'none'.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"algorithms:\s*\[['\"]none['\"]"),
+        ]),
+        NegativeGene("", "JS-SQL-004", "HIGH", 9, True,
+            "JS: Knex raw query (AI)",
+            "AI uses knex.raw() with template string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"knex\.raw\(`.*\$\{.*req"),
+        ]),
+        NegativeGene("", "JS-SQL-005", "HIGH", 9, True,
+            "JS: Prisma $queryRaw (AI)",
+            "AI uses prisma.$queryRaw with interpolation.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"prisma\.\$queryRaw\(`.*\$\{"),
+        ]),
+        NegativeGene("", "JS-NOSQL-001", "HIGH", 9, True,
+            "JS: MongoDB $where injection (AI)",
+            "AI uses $where with user string containing JS.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"\$where\s*:\s*user"),
+        ]),
+        NegativeGene("", "JS-NOSQL-002", "HIGH", 8, True,
+            "JS: Mongoose schema injection (AI)",
+            "AI passes user input to find() without type casting.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"(find|findOne)\(req\.body"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Additional Java patterns (15 genes) ────────────────────────────────────
+
+
+def _seed_more_java(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "JV-JNDI-001", "CRITICAL", 10, True,
+            "Java: JNDI injection (AI)",
+            "AI looks up JNDI name from user-supplied string.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"InitialContext.*lookup\(.*(request|user)"),
+        ]),
+        NegativeGene("", "JV-JNDI-002", "HIGH", 9, True,
+            "Java: LDAP injection (AI)",
+            "AI uses LdapContext.search with user-supplied DN.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"ldap(Template|Context)\.(lookup|search)\(.*request"),
+        ]),
+        NegativeGene("", "JV-AUTH-001", "HIGH", 8, True,
+            "Java: Spring Security disabled (AI)",
+            "AI disables CSRF protection globally.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"csrf\(\)\.disable\(\)"),
+        ]),
+        NegativeGene("", "JV-AUTH-002", "HIGH", 8, False,
+            "Java: @PreAuthorize omitted (AI)",
+            "AI creates REST endpoint without @PreAuthorize.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"@RestController.*\n.*@RequestMapping"),
+        ]),
+        NegativeGene("", "JV-CRYPTO-004", "HIGH", 8, True,
+            "Java: hardcoded JKS password (AI)",
+            "AI hardcodes keystore password in source.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"KeyStore.*password\s*=\s*[\"']\w+[\"']"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Additional Go patterns (15 genes) ──────────────────────────────────────
+
+
+def _seed_more_go(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "GO-NET-001", "MEDIUM", 6, False,
+            "Go: net.Dial without timeout (AI)",
+            "AI uses net.Dial without deadline.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"net\.Dial\([\"']tcp"),
+        ]),
+        NegativeGene("", "GO-NET-002", "HIGH", 8, True,
+            "Go: http.Client with no timeout (AI)",
+            "AI creates http.Client with no Timeout field.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"http\.Client\s*\{\}"),
+        ]),
+        NegativeGene("", "GO-NET-003", "HIGH", 8, True,
+            "Go: text/template for HTML (AI)",
+            "AI uses text/template instead of html/template.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"text/template"),
+        ]),
+        NegativeGene("", "GO-ERR-001", "MEDIUM", 5, False,
+            "Go: error ignored with _ (AI)",
+            "AI discards error from critical IO call.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"_\s*=\s*\w+\.(Write|Read)"),
+        ]),
+        NegativeGene("", "GO-CONC-001", "MEDIUM", 6, False,
+            "Go: select with no channels (AI)",
+            "AI uses empty select{} — permanent block.",
+            "cwe", now, patterns=[
+            GenePattern("", "", "regex", r"select\s*\{\s*\}"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Additional StackOverflow patterns (15 genes) ───────────────────────────
+
+
+def _seed_more_stackoverflow(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    genes: list[NegativeGene] = [
+        NegativeGene("", "SO-021", "MEDIUM", 6, False,
+            "SO: AI changes types without cast",
+            "AI assigns string to int — type error.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"TypeError: can only concatenate str"),
+        ]),
+        NegativeGene("", "SO-022", "MEDIUM", 5, False,
+            "SO: AI misuses list vs tuple",
+            "AI uses list where tuple needed.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"TypeError: '.*' object doesn't support item assignment"),
+        ]),
+        NegativeGene("", "SO-023", "LOW", 4, False,
+            "SO: AI imports name collision",
+            "AI names module same as stdlib — breaks imports.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"ImportError: cannot import name"),
+        ]),
+        NegativeGene("", "SO-024", "MEDIUM", 6, False,
+            "SO: AI wrong framework version API",
+            "AI generates code for different framework version.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"django\.core\.exceptions\.ImproperlyConfigured"),
+        ]),
+        NegativeGene("", "SO-025", "HIGH", 7, False,
+            "SO: AI causes infinite recursion",
+            "AI writes recursive function without base case.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"RecursionError: maximum recursion depth exceeded"),
+        ]),
+        NegativeGene("", "SO-026", "MEDIUM", 5, False,
+            "SO: AI confuses sync vs async lib",
+            "AI uses synchronous library in async code.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"requests\.get.*async"),
+        ]),
+        NegativeGene("", "SO-027", "MEDIUM", 5, False,
+            "SO: AI misses None check",
+            "AI calls method on None value.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"AttributeError: 'NoneType' object has no attribute"),
+        ]),
+        NegativeGene("", "SO-028", "LOW", 4, False,
+            "SO: AI uses non-existent kwargs",
+            "AI passes kwargs not in function signature.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"TypeError: unexpected keyword argument"),
+        ]),
+        NegativeGene("", "SO-029", "MEDIUM", 5, False,
+            "SO: AI wrong env variable name",
+            "AI references wrong env variable name.",
+            "stackoverflow", now, patterns=[
+            GenePattern("", "", "regex", r"environ\.get\(['\"]\w+['\"]\)"),
+        ]),
+    ]
+    for g in genes:
+        bank.store_gene(g)
+    return len(genes)
+
+
+# ── Bulk generator — inline patterns (200 genes) ──────────────────────────
+
+
+_BULK_ENTRIES: list[tuple[str, str, str, int, list[str]]] = [
+    ("CWE-22", "Path traversal via user filename", "py", 8,
+     [r"open\(.*request\.(GET|POST)\[", r"Path\(.*request\.(GET|POST)\["]),
+    ("CWE-22", "Path traversal via user filename", "js", 8,
+     [r"fs\.(readFile|readFileSync)\(.*(req|params)"]),
+    ("CWE-22", "Path traversal via user filename", "java", 8,
+     [r"new\s+File\(.*request\.getParameter"]),
+    ("CWE-22", "Path traversal via user filename", "go", 8,
+     [r"os\.Open\(.*(r\.FormValue|req\.)", r"http\.ServeFile\(.*r\."]),
+    ("CWE-78", "Command injection via shell=True", "py", 10,
+     [r"subprocess.*shell\s*=\s*True", r"os\.system\(.*request"]),
+    ("CWE-78", "Command injection via exec", "js", 10,
+     [r"exec\(`.*\$\{.*(req|input)", "exec\\([\"'].*\\+.*(req|input)"]),
+    ("CWE-78", "Command injection via Runtime.exec", "java", 10,
+     ["Runtime\\.getRuntime\\(\\)\\.exec\\([\"']"]),
+    ("CWE-78", "Command injection via exec.Command", "go", 10,
+     [r"exec\.Command\(.*(r\.FormValue|c\.Param)", r"exec\.Command\(.*bash.*-c"]),
+    ("CWE-79", "XSS via innerHTML/outerHTML", "js", 10,
+     [r"innerHTML\s*=", r"outerHTML\s*=", r"document\.write\("]),
+    ("CWE-79", "XSS via React dangerouslySetInnerHTML", "jsx", 9,
+     ["dangerouslySetInnerHTML"]),
+    ("CWE-79", "XSS via Vue v-html", "vue", 9,
+     [r"v-html\s*="]),
+    ("CWE-79", "XSS via Svelte @html", "svelte", 9,
+     [r"\{@html\s+\w+"]),
+    ("CWE-79", "XSS via Angular bypassSecurityTrust", "ts", 9,
+     ["bypassSecurityTrust( Html|Script|Url)"]),
+    ("CWE-79", "XSS via JSP out.print", "jsp", 10,
+     [r"out\.print(ln)?\(.*request\.getParameter"]),
+    ("CWE-79", "XSS via Go template.HTML", "go", 10,
+     [r"template\.HTML\(.*(request|r\.FormValue)"]),
+    ("CWE-79", "XSS via Flask |safe filter", "py", 9,
+     [r"\{\{.*\|safe\}", r"Markup\(.*request"]),
+    ("CWE-79", "XSS via echo no escape", "php", 10,
+     [r"echo\s+\$_", r"print\s+\$_"]),
+    ("CWE-89", "SQLi via f-string SQL", "py", 10,
+     [".*execute\\(.*f[\"'].*SELECT", "\\.raw\\(f[\"'].*WHERE"]),
+    ("CWE-89", "SQLi via string concat SQL", "js", 10,
+     [r"client\.query\(`SELECT", "\\.query\\([\"'].*\\+.*req"]),
+    ("CWE-89", "SQLi via JDBC Statement", "java", 10,
+     ["Statement.*createStatement", "stmt\\.executeQuery\\([\"'].*\\+"]),
+    ("CWE-89", "SQLi via fmt.Sprintf", "go", 10,
+     ["fmt\\.Sprintf\\([\"'].*SELECT", r"db\.(Query|Exec)\(fmt\.Sprintf"]),
+    ("CWE-89", "SQLi via mysql_query", "php", 10,
+     ["mysql_query\\([\"'].*\\$", r"mysqli_query\(.*\$"]),
+    ("CWE-89", "SQLi via SqlCommand", "cs", 10,
+     ["new SqlCommand\\([\"'].*\\+.*(request|text)"]),
+    ("CWE-94", "Code injection via eval", "py", 10,
+     [r"eval\(.*(request|input)", r"exec\(.*(request|input)"]),
+    ("CWE-94", "Code injection via eval", "js", 10,
+     [r"eval\(.*(req|body|params)", "new\\s+Function\\([\"'].*(req|params)"]),
+    ("CWE-94", "Code injection via eval", "php", 10,
+     [r"eval\(\$_", r"assert\(\$_", r"create_function\(.*\$"]),
+    ("CWE-94", "Code injection via unsafe Expression", "java", 10,
+     ["SpelExpressionParser", "ExpressionParser.*parseExpression"]),
+    ("CWE-295", "SSL verify disabled", "py", 9,
+     [r"verify\s*=\s*(False|0)", r"ssl\._create_unverified_context"]),
+    ("CWE-295", "SSL verify disabled", "go", 9,
+     [r"InsecureSkipVerify:\s*true"]),
+    ("CWE-295", "SSL verify disabled", "rs", 9,
+     [r"danger_accept_invalid_certs\(true\)"]),
+    ("CWE-312", "Secret in logs", "py", 9,
+     [r"logger\.(info|error|warning)\(.*(request|password|token)"]),
+    ("CWE-312", "Secret in logs", "js", 9,
+     [r"console\.log\(.*(req\.body|password|token)"]),
+    ("CWE-312", "Secret in logs", "java", 9,
+     [r"log\.(info|debug)\(.*request", r"logger\.info\(.*\.getParameter"]),
+    ("CWE-312", "Secret in logs", "go", 9,
+     [r"log\.Printf.*r\.Body", r"slog\.(Info|Debug).*request"]),
+    ("CWE-326", "Weak crypto MD5", "py", 7,
+     [r"hashlib\.md5\(.*(pass|token|secret)"]),
+    ("CWE-326", "Weak crypto MD5", "js", 7,
+     ["crypto\\.createHash\\([\"'](md5|sha1)"]),
+    ("CWE-326", "Weak crypto MD5", "java", 7,
+     ["MessageDigest\\.getInstance\\([\"'](MD5|SHA-1)"]),
+    ("CWE-326", "Weak crypto MD5", "go", 7,
+     [r"md5\.Sum\(\[\]byte\(.*pass"]),
+    ("CWE-326", "Weak crypto ECB", "java", 7,
+     ["AES/ECB", "Cipher\\.getInstance\\([\"']AES[\"']"]),
+    ("CWE-326", "Weak crypto ECB", "cs", 7,
+     [r"CipherMode\.ECB"]),
+    ("CWE-400", "DoS no pagination", "py", 6,
+     [r"\.all\(\)"]),
+    ("CWE-400", "DoS no body limit", "js", 5,
+     [r"express\.json\(\)"]),
+    ("CWE-434", "Unrestricted file upload", "py", 8,
+     [r"file\.save\(.*request", "uploaded_file"]),
+    ("CWE-434", "Unrestricted file upload", "js", 8,
+     [r"multer\(\)", r"req\.file\.path"]),
+    ("CWE-434", "Unrestricted file upload", "php", 8,
+     [r"move_uploaded_file\(.*\$_FILES"]),
+    ("CWE-502", "Unsafe deserialize pickle", "py", 10,
+     [r"pickle\.(load|loads)\(", r"jsonpickle\.(decode|loads)\("]),
+    ("CWE-502", "Unsafe deserialize YAML", "py", 9,
+     [r"yaml\.load\(.*(Loader|open)"]),
+    ("CWE-502", "Unsafe deserialize ObjectInputStream", "java", 10,
+     [r"new\s+ObjectInputStream\(", r"XMLDecoder\(.*(request|input)"]),
+    ("CWE-502", "Unsafe deserialize BinaryFormatter", "cs", 10,
+     [r"BinaryFormatter.*Deserialize\("]),
+    ("CWE-502", "Unsafe deserialize SnakeYAML", "java", 9,
+     [r"Yaml\(\)\.load\(.*(request|body)"]),
+    ("CWE-502", "Unsafe deserialize gob", "go", 9,
+     [r"gob\.NewDecoder\(.*(request|r\.Body)"]),
+    ("CWE-502", "Unsafe deserialize unserialize", "php", 10,
+     [r"unserialize\(\$_"]),
+    ("CWE-611", "XXE via XML parser", "py", 8,
+     [r"xml\.(sax|dom)\.parse\(", "lxml.*resolve_entities"]),
+    ("CWE-611", "XXE via XML parser", "java", 8,
+     [r"DocumentBuilderFactory\.newInstance\(", r"SAXParserFactory\.newInstance\("]),
+    ("CWE-611", "XXE via XML parser", "cs", 8,
+     [r"new XmlDocument\(\)"]),
+    ("CWE-798", "Hardcoded API key", "py", 10,
+     ["API_KEY\\s*=\\s*[\"'][A-Za-z0-9_\\-]{20,}[\"']", "sk-[A-Za-z0-9]{20,}"]),
+    ("CWE-798", "Hardcoded API key", "js", 10,
+     ["config\\.apiKey\\s*=\\s*[\"']"]),
+    ("CWE-798", "Hardcoded password in code", "java", 9,
+     ["String.*password\\s*=\\s*[\"']\\w+[\"']"]),
+    ("CWE-798", "Hardcoded secret key", "go", 9,
+     ["json:\"api_key\"", "json:\"secret\""]),
+    ("CWE-862", "Missing auth decorator", "py", 8,
+     ["@app\\.route.*\n@login_required"]),
+    ("CWE-862", "Missing auth middleware", "js", 8,
+     ["router\\.(post|delete|put).*\n(?!.*auth)"]),
+    ("CWE-862", "Missing auth check", "go", 8,
+     [r"mux\.HandleFunc", r"http\.HandleFunc"]),
+    ("CWE-918", "SSRF via user URL", "py", 8,
+     [r"requests\.(get|post)\(.*(request|url)"]),
+    ("CWE-918", "SSRF via user URL", "js", 8,
+     [r"axios\.(get|post)\(.*(req\.body\.url|params\.url)"]),
+    ("CWE-918", "SSRF via user URL", "java", 8,
+     [r"new\s+URL\(.*(request|param)", r"restTemplate\.getForObject\(.*request"]),
+    ("CWE-918", "SSRF via user URL", "go", 8,
+     [r"http\.(Get|Post)\(.*request"]),
+    ("CWE-918", "SSRF via user URL", "cs", 8,
+     [r"HttpClient.*(Get|Post)Async\(.*request"]),
+    ("CWE-20", "Missing input validation", "py", 7,
+     [r"int\(request\.(GET|POST)\["]),
+    ("CWE-20", "Missing input validation", "js", 7,
+     [r"parseInt\(req\.(query|params)"]),
+    ("CWE-77", "Command injection via pipe", "py", 9,
+     [r"subprocess.*\|"]),
+    ("CWE-77", "Command injection via &&", "java", 9,
+     [r"Runtime\.exec\(.*(&&|;)"]),
+    ("CWE-79", "XSS via jQuery append", "js", 7,
+     [r"\$\(.*\)\.(append|prepend)\(.*request"]),
+    ("CWE-79", "XSS via Thymeleaf utext", "java", 8,
+     [r"th:utext\s*="]),
+    ("CWE-79", "XSS via Blade !! !!" , "php", 9,
+     [r"\{!!.*\$"]),
+    ("CWE-79", "XSS via Django safe filter", "py", 9,
+     [r"\{\{.*\|safe\}", r"Markup\(.*request"]),
+    ("CWE-89", "SQLi via SQLAlchemy text()", "py", 9,
+     ["text\\(f[\"'].*SELECT"]),
+    ("CWE-89", "SQLi via TypeORM raw SQL", "ts", 10,
+     [r"query\(`SELECT.*WHERE.*\$\{"]),
+    ("CWE-89", "SQLi via MyBatis $ {}", "xml", 9,
+     [r"\$\{.*\}"]),
+    ("CWE-89", "SQLi via Prisma queryRaw", "ts", 10,
+     [r"prisma\.\$queryRaw\(`.*\$\{"]),
+    ("CWE-89", "SQLi via GORM db.Raw", "go", 9,
+     [r"db\.Raw\(fmt\.Sprintf", r"gorm\.Exec\(fmt\.Sprintf"]),
+    ("CWE-89", "SQLi via Dapper concat", "cs", 10,
+     ["Query<.*>\\([\"'].*\\+"]),
+    ("CWE-94", "Code injection via eval", "r", 10,
+     [r"eval\(parse\(text.*request", r"eval\(.*input"]),
+    ("CWE-94", "Code injection via vm.runInNewContext", "js", 10,
+     [r"vm\.runInNewContext\(", r"vm\.runInThisContext\("]),
+    ("CWE-94", "Code injection via execScript", "vb", 10,
+     [r"(ExecScript|ExecuteGlobal)\(.*request"]),
+    ("CWE-120", "Buffer overflow via sprintf %s", "c", 9,
+     [r"sprintf\(.*%s.*(user|input)"]),
+    ("CWE-122", "Heap overflow via calloc", "c", 9,
+     [r"calloc\(.*(user|input)"]),
+    ("CWE-190", "Integer overflow unchecked", "c", 6,
+     [r"int\s+\w+\s*=\s*\w+\s*\+\s*\w+"]),
+    ("CWE-269", "Missing privilege drop", "py", 8,
+     ["drop_privileges", "setuid"]),
+    ("CWE-276", "World-writable temp file", "py", 6,
+     [r"tempfile\.mktemp\("]),
+    ("CWE-287", "Auth bypass client-side", "js", 8,
+     ["user\\.role\\s*===\\s*['\"]admin['\"]"]),
+    ("CWE-287", "Token in URL", "py", 8,
+     ["token\\s*=\\s*[\"'].*\\?token"]),
+    ("CWE-287", "Auth bypass via !isAdmin!", "js", 8,
+     ["!isAdmin", r"isAdmin\s*=\s*true"]),
+    ("CWE-295", "SSL verify disabled", "java", 9,
+     [r"setHostnameVerifier\(.*ALLOW_ALL", "TrustAllCertificates"]),
+    ("CWE-312", "Secret in config file", "py", 9,
+     ["JWT_SECRET\\s*=\\s*[\"']", "SECRET_KEY\\s*=\\s*[\"']"]),
+    ("CWE-312", "Secret in config file", "js", 9,
+     ["jwt\\.secret\\s*=\\s*[\"']"]),
+    ("CWE-312", "Secret in env not .gitignore", "py", 8,
+     [".env.*SECRET", ".env.*PASSWORD"]),
+    ("CWE-326", "Weak crypto MD4", "py", 7,
+     ["hashlib\\.new\\([\"']md4"]),
+    ("CWE-326", "Weak crypto SHA1", "go", 7,
+     [r"sha1\.Sum\(\[\]byte\(.*pass"]),
+    ("CWE-326", "Weak crypto SHA1", "py", 7,
+     [r"hashlib\.sha1\(.*(pass|token)"]),
+    ("CWE-326", "Weak crypto bcrypt < 12", "py", 7,
+     [r"bcrypt\.gensalt\(.*rounds\s*<\s*12"]),
+    ("CWE-327", "Broken RC4 cipher", "py", 6,
+     ["ARC4", "RC4"]),
+    ("CWE-352", "CSRF endpoint unprotected", "py", 8,
+     ["@csrf_exempt"]),
+    ("CWE-352", "CSRF form without token", "html", 8,
+     ["form\\s+method=[\"']post[\"']"]),
+    ("CWE-400", "No rate limiting", "py", 6,
+     ["@app\\.route.*\n(?!.*limit)"]),
+    ("CWE-400", "No pagination SQL", "py", 6,
+     ["SELECT.*FROM.*LIMIT"]),
+    ("CWE-400", "unbounded read", "py", 6,
+     [r"\.read\(\)"]),
+    ("CWE-476", "Null dereference after malloc", "c", 6,
+     [r"malloc\(.*\).*->"]),
+    ("CWE-502", "Unsafe pickle.load", "py", 10,
+     [r"pickle\.load\(open\("]),
+    ("CWE-502", "Unsafe yaml.load no safe", "py", 9,
+     [r"yaml\.load\(stream"]),
+    ("CWE-502", "Unsafe jsonpickle decode", "py", 9,
+     [r"jsonpickle\.(decode|loads)\("]),
+    ("CWE-611", "XXE lxml parser", "py", 8,
+     [r"lxml\.etree\.parse\(.*resolve_entities"]),
+    ("CWE-676", "tmpfile race condition", "c", 8,
+     [r"(tmpfile|mktemp)\("]),
+    ("CWE-770", "No file size limit upload", "py", 6,
+     [r"file\.read\(\)"]),
+    ("CWE-770", "Allocation without limit", "py", 6,
+     [r"request\.get\(.*\.content"]),
+    ("CWE-798", "Hardcoded debug password", "py", 9,
+     ["password\\s*=\\s*[\"'](admin|password|secret)"]),
+    ("CWE-798", "Hardcoded API key", "java", 10,
+     [r"String\s+\w*API_KEY\w*"]),
+    ("CWE-798", "Hardcoded DB password", "xml", 9,
+     [r"jdbc:mysql.*password\s*=\s*\w+"]),
+    ("CWE-862", "Missing auth in route", "py", 8,
+     ["@app\\.route.*\n(?!.*@login)"]),
+    ("CWE-918", "SSRF via requests lib", "py", 8,
+     [r"requests\.(get|post)\(.*url"]),
+    ("CWE-20", "No input sanitization in Flask", "py", 7,
+     [r"request\.(GET|POST)\[.*\].*\)"]),
+    ("CWE-78", "Command injection Node execSync", "js", 10,
+     ["execSync\\([\"'].*\\+.*req"]),
+    ("CWE-79", "XSS via innerHTML innerJS", "js", 10,
+     [r"\.innerHTML\s*=\s*"]),
+    ("CWE-79", "XSS via window.open url", "js", 7,
+     [r"window\.open\(.*request"]),
+    ("CWE-89", "SQLi via sqlite3 execute", "py", 10,
+     ["\\.execute\\([\"'].*\\+.*request"]),
+    ("CWE-89", "SQLi via raw SQL JPA query", "java", 10,
+     ["@Query\\(\"SELECT.*\\+.*\\?"]),
+    ("CWE-89", "SQLi via MSSQL query concat", "cs", 10,
+     ["new SqlCommand\\([\"'].*\\+.*\\?.*request"]),
+    ("CWE-94", "Code injection via compile()", "py", 10,
+     [r"compile\(.*(request|input)"]),
+    ("CWE-94", "Code injection via execScript", "php", 10,
+     [r"preg_replace\(.*\/e"]),
+    ("CWE-120", "Stack buffer strncpy misuse", "c", 8,
+     [r"strncpy\(.*sizeof"]),
+    ("CWE-190", "Integer overflow via user input", "py", 6,
+     [r"int\(request"]),
+    ("CWE-200", "Info leak stack trace", "py", 6,
+     [r"traceback\.print_exc\("]),
+    ("CWE-200", "Info leak stack trace", "js", 6,
+     [r"console\.error\(err"]),
+    ("CWE-276", "Default permissive CORS", "js", 6,
+     [r"Access-Control-Allow-Origin:\s*\*"]),
+    ("CWE-287", "Role check client-side", "js", 8,
+     [r"localStorage\.getItem\(.*role"]),
+    ("CWE-295", "TLS verify disabled Python", "py", 9,
+     [r"CHECK_HOSTNAME\s*=\s*False"]),
+    ("CWE-295", "TLS verify disabled Node", "js", 9,
+     [r"rejectUnauthorized:\s*false"]),
+    ("CWE-295", "TLS verify disabled Java", "java", 9,
+     ["setDefaultSSLSocketFactory.*TrustAll"]),
+    ("CWE-312", "Session token in URL", "js", 9,
+     [r"session.*token.*request\.query"]),
+    ("CWE-326", "Weak password hashing SHA256", "py", 7,
+     [r"sha256\(.*(password|passwd)"]),
+    ("CWE-326", "Weak crypto SHA1 Java", "java", 7,
+     ["SHA1PRNG"]),
+    ("CWE-327", "Broken MD4 hash", "py", 6,
+     ["hashlib\\.new\\([\"']md4[\"']"]),
+    ("CWE-352", "CSRF not implemented Django", "py", 8,
+     ["@csrf_exempt"]),
+    ("CWE-400", "No pagination ORM all()", "py", 6,
+     [r"\.all\(\)"]),
+    ("CWE-400", "Large file read into memory", "py", 6,
+     [r"open\(.*\).*read\(\)"]),
+    ("CWE-434", "Upload no size check", "js", 8,
+     [r"req\.file"]),
+    ("CWE-476", "Null check missing", "js", 6,
+     [r"\w+\.length"]),
+    ("CWE-502", "Unmarshal untrusted JSON Go", "go", 9,
+     [r"json\.Unmarshal\(.*r\.Body"]),
+    ("CWE-502", "Deserialize XML Java", "java", 10,
+     [r"XMLDecoder\(.*request"]),
+    ("CWE-502", "Deserialize Snappy Go", "go", 9,
+     [r"snappy\.Decode\(.*request"]),
+    ("CWE-601", "Open redirect Express next", "js", 7,
+     [r"res\.redirect\(.*req\.query\.next"]),
+    ("CWE-611", "XXE Java SAXBuilder", "java", 8,
+     ["SAXBuilder"]),
+    ("CWE-676", "mktemp insecure C", "c", 8,
+     [r"mktemp\("]),
+    ("CWE-798", "Hardcoded password Java String", "java", 9,
+     [r"String\s+\w*(pass|pwd)"]),
+]
+
+
+def _seed_bulk_generator(bank: NegativeGeneBank) -> int:
+    now = time.time()
+    count = 0
+    for cwe, title, lang, risk, patterns in _BULK_ENTRIES:
+        g = NegativeGene(
+            "",
+            cwe,
+            "HIGH" if risk >= 8 else "MEDIUM",
+            risk,
+            risk >= 8,
+            title,
+            f"AI-generated {title.lower()} pattern for {lang}.",
+            "cwe",
+            now,
+            patterns=[GenePattern("", "", "regex", p) for p in patterns],
+        )
+        bank.store_gene(g)
+        count += 1
+
+    more_entries = [
+        ("CWE-601", 7, "Open redirect via Flask", [r"redirect\(.*request"]),
+        ("CWE-601", 7, "Open redirect via Express", [r"res\.redirect\(.*req\.query\."]),
+        ("CWE-601", 7, "Open redirect via Spring", ["redirect:.*request"]),
+        ("CWE-269", 8, "Privilege escalation via setuid", [r"os\.setuid\(0\)"]),
+        ("CWE-276", 6, "World-writable permissions", [r"os\.chmod\(.*0o777"]),
+        ("CWE-276", 6, "Default CORS allow all", [r"Access-Control-Allow-Origin\s*:\s*\*"]),
+        ("CWE-327", 6, "Broken SHA1 hash", [r"hashlib\.sha1\(", r"hashes\.SHA1\("]),
+        ("CWE-327", 6, "Broken DES encryption", [r"DES\.new\("]),
+        ("CWE-352", 8, "CSRF token missing", ["csrf_exempt"]),
+        ("CWE-400", 6, "ReDoS vulnerable regex", [r"re\.match\(.*\+\)"]),
+        ("CWE-444", 8, "Request smuggling TE/CL", [r"Transfer-Encoding:\s*chunked"]),
+        ("CWE-451", 5, "Missing X-Frame-Options", ["X-Frame-Options"]),
+        ("CWE-476", 6, "Null dereference", [r"->\s*\w+\s*="]),
+        ("CWE-502", 9, "Unsafe Go json.Unmarshal", [r"json\.Unmarshal\(.*r\.Body"]),
+        ("CWE-601", 7, "Open redirect next", [r"redirect\(.*\.(next|return|redirect)"]),
+        ("CWE-611", 8, "XXE via SAX parser", ["SAXParser"]),
+        ("CWE-770", 6, "No file size limit", [r"file\.read\(\)"]),
+        ("CWE-798", 10, "Hardcoded JWT secret", ["jwt\\.sign\\(.*['\"]secret['\"]"]),
+        ("CWE-862", 8, "Unauthenticated GraphQL", ["@Query.*\n.*@PreAuthorize"]),
+        ("CWE-862", 8, "Unauthenticated WebSocket", ["WebSocket.*onMessage"]),
+        ("CWE-918", 8, "SSRF via file schema", ["file://.*request"]),
+        ("CWE-120", 9, "Buffer overflow strcpy C/C++", [r"strcpy\(.*user", r"strcat\(.*user"]),
+        ("CWE-120", 9, "Buffer overflow gets C/C++", ["\bgets\\(.*\\["]),
+        ("CWE-122", 9, "Heap overflow malloc C/C++", [r"malloc\(.*user"]),
+    ]
+    for cwe, risk, title, patterns in more_entries:
+        g = NegativeGene(
+            "", cwe,
+            "HIGH" if risk >= 8 else "MEDIUM",
+            risk, risk >= 8, title, title, "cwe",
+            now, patterns=[GenePattern("", "", "regex", p) for p in patterns],
+        )
+        bank.store_gene(g)
+        count += 1
+
+    return count

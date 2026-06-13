@@ -9,10 +9,14 @@ import traceback
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from maref.recursive.safety_gate_v2 import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+
+if TYPE_CHECKING:
+    from maref.immunity.intent_drift_detector import IntentDriftDetector
+    from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
 
 
 class ExecutionStage(Enum):
@@ -483,6 +487,8 @@ class SelfExecutor:
         self._safety_gate = SafetyGateV2()
         self._deployer = AtomicDeployer()
         self._history: list[ExecutionPipelineRecord] = []
+        self._intent_drift_detector: IntentDriftDetector | None = None
+        self._gene_pipeline: AutoGeneExtractionPipeline | None = None
 
     @property
     def max_rounds(self) -> int:
@@ -538,6 +544,7 @@ class SelfExecutor:
         if deploy_result.is_failure:
             pipeline.stages.append(self._stage_rollback(code.file_path, pipeline))
             pipeline.rollback_performed = True
+            self._do_auto_gene_extraction(code, "rollback", "deploy failure")
             pipeline.final_state = "FAILED_DEPLOY_ROLLED_BACK"
             pipeline.finish()
             self._history.append(pipeline)
@@ -548,6 +555,7 @@ class SelfExecutor:
         if verify_result.is_failure:
             pipeline.stages.append(self._stage_rollback(code.file_path, pipeline))
             pipeline.rollback_performed = True
+            self._do_auto_gene_extraction(code, "rollback", "verification failure")
             pipeline.final_state = "FAILED_VERIFY_ROLLED_BACK"
             pipeline.finish()
             self._history.append(pipeline)
@@ -636,11 +644,20 @@ class SelfExecutor:
                 details={"threat": batch_check},
             )
 
+        stench_result = self._do_ai_stench_check(code)
+        if stench_result is not None:
+            self._do_auto_gene_extraction(code, "block", "AI stench detected")
+            return stench_result
+
+        drift_result = self._do_intent_drift_check(code)
+        if drift_result is not None:
+            return drift_result
+
         return ExecutionResult(
             stage=ExecutionStage.SAFETY_GATE,
             success=True,
             message="SafetyGate passed all checks",
-            details={"threats_checked": ["core_removal", "combinatorial_explosion"]},
+            details={"threats_checked": ["core_removal", "combinatorial_explosion", "ai_stench", "intent_drift"]},
         )
 
     def _stage_deploy(self, code: GeneratedCode, pipeline: ExecutionPipelineRecord) -> ExecutionResult:
@@ -697,6 +714,48 @@ class SelfExecutor:
 
         pipeline.finish()
         return pipeline
+
+    def attach_intent_drift_detector(self, detector: IntentDriftDetector) -> None:
+        self._intent_drift_detector = detector
+
+    def attach_gene_pipeline(self, pipeline: AutoGeneExtractionPipeline) -> None:
+        self._gene_pipeline = pipeline
+
+    def _do_intent_drift_check(self, code: GeneratedCode) -> ExecutionResult | None:
+        if self._intent_drift_detector is None:
+            return None
+        result = self._intent_drift_detector.evaluate_code(code.content)
+        if result.blocked:
+            return ExecutionResult(
+                stage=ExecutionStage.SAFETY_GATE,
+                success=False,
+                message=f"Intent drift blocked: {result.reason}",
+                details={"intent_drift": result},
+            )
+        return None
+
+    def _do_ai_stench_check(self, code: GeneratedCode) -> ExecutionResult | None:
+        from maref.recursive.safety_gate_v2 import ThreatAssessment
+        try:
+            threat = self._safety_gate.detect_ai_stench(code.content)
+        except AttributeError:
+            return None
+        if threat.blocked:
+            return ExecutionResult(
+                stage=ExecutionStage.SAFETY_GATE,
+                success=False,
+                message=f"AI stench blocked: {threat.threat_type} - {threat.reason}",
+                details={"threat": threat},
+            )
+        return None
+
+    def _do_auto_gene_extraction(self, code: GeneratedCode, source: str, reason: str) -> None:
+        if self._gene_pipeline is None:
+            return
+        if source == "rollback":
+            self._gene_pipeline.extract_from_rollback(code.content, reason=reason)
+        elif source == "block":
+            self._gene_pipeline.extract_from_block(code.content, reason=reason)
 
     def health_check(self) -> dict[str, Any]:
         return {

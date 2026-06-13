@@ -3,12 +3,12 @@
 # 读取规则: Agent 启动时读取本文件。当 last_updated 超过 24h 时标记过时。
 # 写入规则: Agent 完成状态变更后原子更新本文件，不允许并发写入。
 
-version: 2
-last_updated: "2026-06-12T21:15:00+08:00"
+version: 5
+last_updated: "2026-06-13T18:00:00+08:00"
 
 project:
   name: MAREF
-  current_release: v0.30.0-GA
+  current_release: v0.32.0-rc
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   stage: S0 (学术借力) → P0 (开源启动)
@@ -21,42 +21,133 @@ track_b:
   security_scan: clean
 
 governance:
-  deployment_status: partial
+  deployment_status: improving
+  last_audit: "2026-06-13"
+  audit_score: 4.5/10  # static 9/10, dynamic 2/10
   issues:
-    - id: GOV-20260612-01
-      severity: P0
-      description: .trae/ was gitignored — Trae CN work lost from version control
-      status: fixed
-      fix_commit: e52a3953d
-    - id: GOV-20260612-02
-      severity: P0
-      description: .openclaw/ was gitignored — agent configs not tracked
-      status: fixed
-      fix_commit: e52a3953d
-    - id: GOV-20260612-03
-      severity: P1
-      description: Trae CN has no git identity — all commits attributed to frankiehot-tech
-      status: fixed
-      fix: prepare-commit-msg hook auto-adds Co-authored-by trailer for .trae/ changes
     - id: GOV-20260612-04
       severity: P1
       description: STATE.yaml missing — agents have no single source of truth
-      status: created 2026-06-12
+      status: resolved  # STATE.yaml exists since 2026-06-12
+      resolved_at: "2026-06-12"
     - id: GOV-20260612-05
       severity: P1
       description: Governance layer code exists but not deployed as runtime service
-      status: backlog
+      status: improving  # sidecar running, self-gov thread fixed
     - id: GOV-20260612-06
       severity: P2
       description: No cross-agent work reconciliation mechanism
       status: backlog
+    - id: ARXIV-20260613-01
+      severity: P0
+      description: arXiv ID not obtained — G1 gate blocker. 15 endorsement emails sent, 0 eligible. 3 incomplete submissions expired 2026-06-13. Strategy pivoted to journal acceptance route.
+      status: blocked
+    - id: AIP-20260613-01
+      severity: P1
+      description: AIP Pioneer Program application materials incomplete (PPT, team info pending, arXiv ID needed). Deadline per dashboard 2026-06-15.
+      status: draft
+    - id: IEEE-20260613-01
+      severity: P2
+      description: IEEE TNSE submission system migrated from AtyponRex to Research Exchange. Old error 3b5fc88c may be obsolete. Needs new system login to verify draft status.
+      status: blocked
+    - id: GOV-20260613-01
+      severity: P0
+      description: SelfGovernanceHook had broken gh command + no logging — scan was silent
+      status: resolved  # A1-A2 fixed 2026-06-13
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-02
+      severity: P0
+      description: Main branch had no protection — anyone could push directly
+      status: resolved  # protected 2026-06-13
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-03
+      severity: P1
+      description: 5 missing labels (security, triage, performance, refactoring, ci-cd)
+      status: resolved  # created 2026-06-13
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-04
+      severity: P1
+      description: 3 automation workflows pending deployment (dependabot-auto-merge, stale, branch-cleanup)
+      status: blocked_by_D1c  # need arXiv ID to push
+    - id: GOV-20260613-07
+      severity: P1
+      description: CLA Assistant Bot installed on maref-org/maref
+      status: resolved  # installed via agent-browser, installation ID 139981381
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-08
+      severity: P2
+      description: Playwright web automation proven viable for GitHub App installation flow
+      status: resolved
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-09
+      severity: P2
+      description: agent-browser MCP integrated — semantic snapshot + @refs + session persistence
+      status: resolved
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-10
+      severity: P2
+      description: agent-browser-automation skill + cross-agent MCP sharing (Claude Code/OpenCode/Trae CN)
+      status: resolved
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-05
+      severity: P1
+      description: Crontab had 4 broken script references — all cron jobs silently failing
+      status: resolved  # cleaned 2026-06-13
+      resolved_at: "2026-06-13"
+    - id: GOV-20260613-06
+      severity: P2
+      description: Sidecar background thread used logger without handler — silent crashes
+      status: resolved  # added logging 2026-06-13
+      resolved_at: "2026-06-13"
+    - id: EVO-20260613-01
+      severity: P1
+      description: evolution/ + learning/ modules untracked — 6 source + 5 test files
+      status: resolved  # committed as part of v0.32.0 completion
+      resolved_at: "2026-06-13"
+
+submission_pipeline:
+  journals:
+    - venue: "中国科技论坛"
+      status: submitted  # 2026-06-12, CSSCI核心
+      deadline: "2026-06-15"
+      notes: "智能体的风险与治理专栏"
+    - venue: "AI and Ethics (Springer)"
+      status: submitted  # 2026-06-12 via Snapp
+      deadline: "2026-06-30"
+      notes: "Technical check stage"
+    - venue: "IEEE TNSE Special Issue"
+      status: draft_saved  # system error 3b5fc88c
+      deadline: "2026-07-01 (per CFP) / 2026-06-15 (per tracker)"
+      notes: "AtyponRex error 3b5fc88c — needs IEEE support contact"
+  arxiv_endorsement:
+    status: blocked
+    total_emailed: 15
+    replies: 2  # 王祥丰(no), Qizhe Li(no)
+    eligible_endorsers: 0
+    strategy_v1: failed  # AthenaBot batch emails, zero endorsement
+    strategy_v2: failed  # personal emails (张闻天/冯红伟), zero reply
+    fallback: journal_acceptance  # journal publication bypasses endorsement
+    zenodo_doi: pending  # proposed as backup academic identifier
+  aip_pioneer:
+    status: draft
+    contacts: [gaoge@cesi.cn, lichen@cesi.cn]
+    materials_ready: false  # PPT, team info, arXiv ID pending
+    deadline_note: "Dashboard says 2026-06-15, program states rolling applications"
+  incomplete_arxiv_submissions:
+    - id: submit/7656772
+      expires: "2026-06-13"
+      status: expired_or_expiring
+    - id: submit/7656773
+      expires: "2026-06-13"
+      status: expired_or_expiring
+    - id: submit/7656869
+      expires: "2026-06-13"
+      status: expired_or_expiring
 
 progress_indicators:
-  tasks_completed: 16
-  tasks_total: 28
-  percent: 57
-  last_milestone: "Phase 1 止血: Trae CN 工作恢复 + agent 配置版本化"
-  next_milestone: "Phase 2 流程加固: post-commit 审计 + git 身份归因"
+  tasks_completed: 22
+  tasks_total: 30
+  percent: 73
 
 d1_gate:
   G1_arxiv_id: false
@@ -65,4 +156,34 @@ d1_gate:
   G4_security_clean: true
   G5_no_runtime_artifacts: true
   gate_passed: false
-  last_push_blocked_by: branch_protection
+  last_push_blocked_by: G1_arxiv_id  # 实际阻塞项，branch_protection 已就绪
+
+dns_setup:
+  domain: maref.cc
+  registrar: alibaba cloud computing ltd. d (id: 1599)
+  dns_provider: Cloudflare
+  nameservers: [chase.ns.cloudflare.com, elisabeth.ns.cloudflare.com]
+  zone_id: 70625a7eb912b193d7f3d455f9a5916b
+  zone_status: active
+  zone_plan: Free Website
+
+  dns_records:
+    mx: [route1.mx.cloudflare.net (5), route2.mx.cloudflare.net (96), route3.mx.cloudflare.net (89)]
+    spf: "v=spf1 include:_spf.mx.cloudflare.net ~all"
+    dkim: cf2024-1._domainkey.maref.cc
+
+  email_routing:
+    enabled: true
+    status: ready
+    destination: 87909004@qq.com
+    destination_verified: true
+    forwarding_rule: "admin@maref.cc → 87909004@qq.com"
+    forwarding_enabled: true
+    delivery_test: passed  # 用户确认 2026-06-13
+
+  aliyun_ticket:
+    id: "0001ZR6ML6"
+    issue: MissingInstanceId blocked DNS modification
+    resolution: Engineer manually pushed task through
+    status: closed  # 已确认解决并评价
+    closed_at: "2026-06-12"
