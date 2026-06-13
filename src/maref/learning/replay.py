@@ -32,6 +32,7 @@ class DecisionOutcome:
     entropy_after: int
     reward: float
     context: dict[str, Any] = field(default_factory=dict)
+    role_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -43,11 +44,16 @@ class DecisionOutcome:
             "entropy_after": self.entropy_after,
             "reward": self.reward,
             "context": json.dumps(self.context, default=str),
+            "role_id": self.role_id,
         }
 
     @classmethod
     def from_row(cls, row: tuple[Any, ...]) -> DecisionOutcome:
-        _id, ts, dt, sb, sa, eb, ea, reward, ctx_json = row
+        if len(row) == 10:
+            _id, ts, dt, sb, sa, eb, ea, reward, ctx_json, role = row
+        else:
+            _id, ts, dt, sb, sa, eb, ea, reward, ctx_json = row
+            role = None
         return cls(
             timestamp=float(ts),
             decision_type=str(dt),
@@ -57,6 +63,7 @@ class DecisionOutcome:
             entropy_after=int(ea),
             reward=float(reward),
             context=json.loads(ctx_json) if ctx_json else {},
+            role_id=str(role) if role is not None else None,
         )
 
     @classmethod
@@ -73,6 +80,7 @@ class DecisionOutcome:
             entropy_after=int(d["entropy_after"]),
             reward=float(d["reward"]),
             context=ctx,
+            role_id=d.get("role_id"),
         )
 
 
@@ -102,7 +110,8 @@ class ExperienceStore:
                 entropy_before INTEGER NOT NULL,
                 entropy_after INTEGER NOT NULL,
                 reward REAL NOT NULL,
-                context TEXT DEFAULT '{}'
+                context TEXT DEFAULT '{}',
+                role_id TEXT
             )
         """)
         self._conn.execute("""
@@ -120,13 +129,14 @@ class ExperienceStore:
         cursor = self._conn.execute(
             """INSERT INTO experience
                (timestamp, decision_type, state_before, state_after,
-                entropy_before, entropy_after, reward, context)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                entropy_before, entropy_after, reward, context, role_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 d["timestamp"], d["decision_type"],
                 d["state_before"], d["state_after"],
                 d["entropy_before"], d["entropy_after"],
                 d["reward"], d["context"],
+                d["role_id"],
             ),
         )
         self._conn.commit()
@@ -139,13 +149,14 @@ class ExperienceStore:
         self._conn.executemany(
             """INSERT INTO experience
                (timestamp, decision_type, state_before, state_after,
-                entropy_before, entropy_after, reward, context)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                entropy_before, entropy_after, reward, context, role_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [
                 (d["timestamp"], d["decision_type"],
                  d["state_before"], d["state_after"],
                  d["entropy_before"], d["entropy_after"],
-                 d["reward"], d["context"])
+                 d["reward"], d["context"],
+                 d["role_id"])
                 for d in d_list
             ],
         )
@@ -291,6 +302,30 @@ class ExperienceStore:
             "positive_ratio": pos / total if total > 0 else 0.0,
             "avg_entropy_delta": avg_entropy_delta,
         }
+
+    def get_by_role(self, role_id: str) -> list[DecisionOutcome]:
+        rows = self._conn.execute(
+            "SELECT * FROM experience WHERE role_id = ? ORDER BY timestamp DESC",
+            (role_id,),
+        ).fetchall()
+        return [DecisionOutcome.from_row(tuple(r)) for r in rows]
+
+    def get_role_stats(self, role_id: str) -> dict[str, Any]:
+        row = self._conn.execute(
+            """SELECT COUNT(*) AS total, AVG(reward) AS avg_reward
+               FROM experience WHERE role_id = ?""",
+            (role_id,),
+        ).fetchone()
+        return {
+            "total_samples": row[0] if row[0] is not None else 0,
+            "avg_reward": float(row[1]) if row[1] is not None else 0.0,
+        }
+
+    def get_role_ids(self) -> list[str]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT role_id FROM experience WHERE role_id IS NOT NULL"
+        ).fetchall()
+        return [r[0] for r in rows]
 
     def clear(self) -> None:
         self._conn.execute("DELETE FROM experience")

@@ -3,8 +3,8 @@
 # 读取规则: Agent 启动时读取本文件。当 last_updated 超过 24h 时标记过时。
 # 写入规则: Agent 完成状态变更后原子更新本文件，不允许并发写入。
 
-version: 4
-last_updated: "2026-06-13T16:00:00+08:00"
+version: 5
+last_updated: "2026-06-13T18:00:00+08:00"
 
 project:
   name: MAREF
@@ -99,6 +99,11 @@ governance:
       description: Sidecar background thread used logger without handler — silent crashes
       status: resolved  # added logging 2026-06-13
       resolved_at: "2026-06-13"
+    - id: EVO-20260613-01
+      severity: P1
+      description: evolution/ + learning/ modules untracked — 6 source + 5 test files
+      status: resolved  # committed as part of v0.32.0 completion
+      resolved_at: "2026-06-13"
 
 submission_pipeline:
   journals:
@@ -140,9 +145,9 @@ submission_pipeline:
       status: expired_or_expiring
 
 progress_indicators:
-  tasks_completed: 21
+  tasks_completed: 22
   tasks_total: 30
-  percent: 70
+  percent: 73
 
 d1_gate:
   G1_arxiv_id: false
