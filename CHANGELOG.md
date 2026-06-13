@@ -33,6 +33,7 @@
 - CooldownManager.force_merge() 要求 audit_store + 污染评估
 - PollutionTax HMAC 链完整性 — reset_generation_tax() 签名验证
 - AutoGenePipeline HMAC 密钥通过 `MAREF_AUTO_GENE_HMAC_KEY` 环境变量配置
+- **TLA+ constitutional red lines 五不变量正式验证** — `MAREF_ConstitutionalRedLines.tla`，TLC 模型检查 1,187 states / 156 distinct / 0 errors
 
 ### Test Suite
 - 353 免疫模块测试（全部通过）
