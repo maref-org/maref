@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+import ast
+from dataclasses import dataclass
+from difflib import SequenceMatcher
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from maref.immunity.security_template_lib import SecurityTemplateLib
+    from maref.knowledge.graph import KnowledgeGraph
+
+
+@dataclass
+class StenchWarning:
+    type: str
+    severity: str
+    line: int
+    message: str
+    suggestion: str
+    function_name: str = ""
+
+
+class AIStenchDetector:
+    def __init__(self, kg: KnowledgeGraph | None = None,
+                 template_lib: SecurityTemplateLib | None = None) -> None:
+        self._kg = kg
+        self._template_lib = template_lib
+
+    def scan(self, code: str) -> list[StenchWarning]:
+        warnings: list[StenchWarning] = []
+        try:
+            tree = ast.parse(code)
+        except SyntaxError:
+            return warnings
+
+        warnings.extend(self._detect_comment_repetition(tree))
+        warnings.extend(self._detect_error_handler_stencil(tree))
+        warnings.extend(self._detect_missing_boundary(tree))
+        warnings.extend(self._detect_missing_security(tree, code))
+
+        return warnings
+
+    def _detect_comment_repetition(self, tree: ast.AST) -> list[StenchWarning]:
+        warnings: list[StenchWarning] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            docstring = ast.get_docstring(node) or ""
+            func_name = node.name.replace("_", " ").replace("-", " ")
+            doc_words = set(docstring.lower().split())
+            name_words = set(func_name.lower().split())
+            if not doc_words or not name_words:
+                continue
+            overlap = len(doc_words & name_words)
+            jaccard = overlap / len(doc_words | name_words)
+            if jaccard > 0.7 and len(doc_words) < 10:
+                warnings.append(StenchWarning(
+                    type="comment_repetition",
+                    severity="WARNING",
+                    line=node.lineno or 0,
+                    message=f"Comment '{docstring}' is mostly a repetition of function name '{func_name}'",
+                    suggestion="Add context: what this function does *beyond* its name",
+                    function_name=node.name,
+                ))
+        return warnings
+
+    def _detect_error_handler_stencil(self, tree: ast.AST) -> list[StenchWarning]:
+        warnings: list[StenchWarning] = []
+        handlers: list[tuple[int, str, str]] = []
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Try):
+                continue
+            for handler in node.handlers:
+                handler_code = ast.unparse(handler)
+                type_name = "Exception"
+                if handler.type is not None:
+                    type_name = ast.unparse(handler.type)
+                handlers.append((handler.lineno or 0, handler_code, type_name))
+
+        for i in range(len(handlers) - 2):
+            sim_12 = SequenceMatcher(None, handlers[i][1], handlers[i + 1][1]).ratio()
+            sim_23 = SequenceMatcher(None, handlers[i + 1][1], handlers[i + 2][1]).ratio()
+            if sim_12 > 0.85 and sim_23 > 0.85:
+                warnings.append(StenchWarning(
+                    type="error_handler_stencil",
+                    severity="WARNING",
+                    line=handlers[i][0],
+                    message="3 consecutive error handlers are nearly identical (template copy)",
+                    suggestion="Handle each exception type specifically with distinct recovery logic",
+                ))
+        return warnings
+
+    def _detect_missing_boundary(self, tree: ast.AST) -> list[StenchWarning]:
+        warnings: list[StenchWarning] = []
+        funcs_without_guard = 0
+
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not node.args.args:
+                funcs_without_guard = 0
+                continue
+
+            has_guard = False
+            for child in ast.walk(node):
+                if isinstance(child, (ast.If, ast.Try)):
+                    has_guard = True
+                    break
+
+            if not has_guard:
+                funcs_without_guard += 1
+                if funcs_without_guard >= 3:
+                    warnings.append(StenchWarning(
+                        type="missing_boundary_check",
+                        severity="HARD_BLOCK",
+                        line=node.lineno or 0,
+                        message=f"3 consecutive functions without boundary checks (including '{node.name}')",
+                        suggestion="Add null input, empty array, and large value boundary checks",
+                        function_name=node.name,
+                    ))
+                    funcs_without_guard = 0
+            else:
+                funcs_without_guard = 0
+
+        return warnings
+
+    def _detect_missing_security(self, tree: ast.AST, code: str) -> list[StenchWarning]:
+        if self._template_lib is None:
+            from maref.immunity.security_template_lib import SecurityTemplateLib
+            self._template_lib = SecurityTemplateLib()
+        warnings: list[StenchWarning] = []
+        for domain in type(self._template_lib).DOMAINS:
+            violations = self._template_lib.check_code(code, domain)
+            for v in violations:
+                warnings.append(StenchWarning(
+                    type=f"security_{v['domain']}",
+                    severity="HARD_BLOCK",
+                    line=v.get("line", 0),
+                    message=v.get("message", ""),
+                    suggestion=v.get("suggestion", ""),
+                ))
+        return warnings
+
+

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import hashlib
+import hmac as hmac_lib
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.security.decorators import security_critical
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+
+_POLLUTION_HMAC_KEY = b"ma-ref-pollution-audit-key"
 
 
 class EconomyPhase(str, Enum):
@@ -149,6 +154,9 @@ class AgentEconomy:
         self._disputes: dict[str, DisputeRecord] = {}
         self._sanctions: dict[str, SanctionRecord] = {}
         self._audit_store = audit_store or UnifiedAuditStore()
+        self._generation_tax_multipliers: dict[str, float] = {}
+        self._pollution_counts: dict[str, int] = {}
+        self._pollution_records: dict[str, list[dict[str, Any]]] = {}
 
     def register_agent(self, agent_id: str, initial_balance: float = 100.0) -> AgentWallet:
         wallet = AgentWallet(agent_id=agent_id, balance=initial_balance)
@@ -381,10 +389,100 @@ class AgentEconomy:
         result["status"] = "cycle_complete"
         return result
 
+    POLLUTION_DOWNGRADE_THRESHOLD = 3
+    POLLUTION_DOWNGRADE_SEVERITY = 0.2
+    GENERATION_TAX_MULTIPLIER = 2.0
+
+    @security_critical
+    def apply_generation_tax(self, agent_id: str) -> float:
+        self._generation_tax_multipliers[agent_id] = self.GENERATION_TAX_MULTIPLIER
+        self._audit_store.append(UnifiedAuditRecord(
+            record_id=make_record_id("gentax", hash(agent_id) % 100000),
+            timestamp=time.time(),
+            layer="economy",
+            round=0,
+            event_type="generation_tax_applied",
+            source_module="AgentEconomy",
+            target_module=agent_id,
+            decision=f"multiplier_{self.GENERATION_TAX_MULTIPLIER}",
+            justification=f"Generation tax applied to {agent_id}",
+            outcome="active",
+        ))
+        return self.GENERATION_TAX_MULTIPLIER
+
+    def reset_generation_tax(self, agent_id: str) -> None:
+        self._generation_tax_multipliers.pop(agent_id, None)
+
+    def get_generation_tax_multiplier(self, agent_id: str) -> float:
+        return self._generation_tax_multipliers.get(agent_id, 1.0)
+
+    @security_critical
+    def record_pollution(self, agent_id: str, penalty: float = 10.0,
+                         reason: str = "") -> dict[str, Any]:
+        wallet = self._wallets.get(agent_id)
+        if wallet is None:
+            return {"success": False, "reason": "agent_not_found"}
+
+        self._pollution_counts[agent_id] = self._pollution_counts.get(agent_id, 0) + 1
+        count = self._pollution_counts[agent_id]
+
+        actual_penalty = min(penalty, wallet.balance * 0.5)
+        debit_result = wallet.debit(actual_penalty)
+        if debit_result is None:
+            actual_penalty = 0.0
+
+        record = {
+            "agent_id": agent_id,
+            "penalty": actual_penalty,
+            "reason": reason,
+            "count": count,
+            "timestamp": time.time(),
+        }
+        raw = f"{agent_id}|{actual_penalty}|{reason}|{count}|{record['timestamp']}"
+        record["hmac"] = hmac_lib.new(
+            _POLLUTION_HMAC_KEY, raw.encode(), hashlib.sha256
+        ).hexdigest()
+
+        if agent_id not in self._pollution_records:
+            self._pollution_records[agent_id] = []
+        self._pollution_records[agent_id].append(record)
+
+        self._audit_store.append(UnifiedAuditRecord(
+            record_id=make_record_id("poll", hash(f"{agent_id}_{count}") % 100000),
+            timestamp=record["timestamp"],
+            layer="economy",
+            round=0,
+            event_type=f"pollution_recorded",
+            source_module="AgentEconomy",
+            target_module=agent_id,
+            decision=f"penalty_{actual_penalty}",
+            justification=f"Pollution #{count} for {agent_id}: {reason}",
+            outcome="recorded",
+        ))
+        return record
+
+    def get_pollution_count(self, agent_id: str) -> int:
+        return self._pollution_counts.get(agent_id, 0)
+
+    def get_pollution_records(self, agent_id: str) -> list[dict[str, Any]]:
+        return list(self._pollution_records.get(agent_id, []))
+
+    def verify_pollution_audit_chain(self) -> bool:
+        for agent_id, records in self._pollution_records.items():
+            for record in records:
+                raw = f"{agent_id}|{record['penalty']}|{record['reason']}|{record['count']}|{record['timestamp']}"
+                expected = hmac_lib.new(
+                    _POLLUTION_HMAC_KEY, raw.encode(), hashlib.sha256
+                ).hexdigest()
+                if record["hmac"] != expected:
+                    return False
+        return True
+
     def get_statistics(self) -> dict[str, Any]:
         wallets = list(self._wallets.values())
         total_balance = sum(w.balance for w in wallets)
         total_trades = len(self._receipts)
+        total_pollution = sum(self._pollution_counts.values())
         return {
             "total_agents": len(wallets),
             "total_balance": round(total_balance, 2),
@@ -393,6 +491,8 @@ class AgentEconomy:
             "total_sanctions": len(self._sanctions),
             "avg_balance": round(total_balance / max(len(wallets), 1), 2),
             "trade_volume": round(sum(r.price for r in self._receipts), 2),
+            "total_pollution_events": total_pollution,
+            "agents_with_tax": len(self._generation_tax_multipliers),
         }
 
     @property

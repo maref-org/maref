@@ -1,5 +1,45 @@
 # CHANGELOG
 
+## [v0.32.0] - 2026-06-13
+
+### Added
+- **Code Immune System** (`src/maref/immunity/`) — 六层主动免疫架构
+  - **M0: Negative Gene Bank** — SQLite 存储 500+ seed genes（覆盖 59 CWE 分类），HMAC-SHA256 完整性校验，occurrence 追踪，stale 清理
+  - **M1: Input Layer** — ProvenanceTracker（KnowledgeNode 来源标记 + pre-2023 防火墙），SelfKnowledge 人优先归档周期
+  - **M2: Intent Layer** — AcceptanceExtractor（≥3 验收条件提取 + SHA-256 IntentHash），IntentDriftDetector（哈希不匹配 + AST fuzz 阻断）
+  - **M3.1: AI Stench Detector** — comment_repetition / error_handler_stencil / missing_boundary_check 三检测器；SafetyGateV2 集成；自动创建 SecurityTemplateLib
+  - **M3.2: Security Template Library** — bcrypt/SQL 参数化/HTTPS verify=True 模板 + HMAC-SHA256 完整性
+  - **M4.1: Red Contamination Probe** — pickle / wrong_comment / missing_timeout 检测，全 `@security_critical`
+  - **M4.2: Cross-Generation Impact Simulator** — 污染指数 0.0–1.0，协同奖励，block_merge(≥0.7)
+  - **M4.3: Auto Gene Extraction Pipeline** — heal/rollback/block 自动提取，HMAC 签名，ExperiencePool 同步
+  - **M5.1: Pollution Tax** — 污染税 + 生成税 2× 乘数，HMAC 签名审计链，信用降级阈值=3
+  - **M5.2: Cooldown Manager** — submit→evaluate→auto_merge 状态机，force_merge 需 audit_store 授权
+  - **M6.1: Integration & Security Audit** — 16 端到端集成测试，HMAC 链完整性验证，性能基准（1000 行 < 500ms）
+  - **M6.2: Seed Gene Updater** — CWE JSON 导入（3 格式支持），导出/重导入 round-trip，版本化导入历史
+- **进化层** (`src/maref/evolution/`) — 多 Agent 进化引擎，宪法守卫，Agent 注册表
+- **学习层** (`src/maref/learning/`) — 群体优化器，奖励塑形系统
+- **SelfExecutor 扩展** — intent drift 检查、AI stench 检查、auto gene extraction 集成到 safety gate
+- **SelfHealer 扩展** — 可选 gene_pipeline 参数，heal 成功后自动提取负基因
+
+### Fixed
+- `NullAuditStore` 运行时导入修复 — 3 个免疫模块使用正确运行时导入而非 `TYPE_CHECKING`
+- `RedContaminationProbe._findings` mypy 类型重定义
+- `ImmuneChecker._resolve_call_name()` mypy 类型不兼容
+- `seed_genes.py` 正则表达式 r-string 转义规范
+
+### Security
+- `@security_critical` 装饰器覆盖全部免疫模块关键方法（10+ methods across 6 files）
+- AIStenchDetector 非绕过设计 — `template_lib=None` 时自动创建 SecurityTemplateLib
+- CooldownManager.force_merge() 要求 audit_store + 污染评估
+- PollutionTax HMAC 链完整性 — reset_generation_tax() 签名验证
+- AutoGenePipeline HMAC 密钥通过 `MAREF_AUTO_GENE_HMAC_KEY` 环境变量配置
+
+### Test Suite
+- 353 免疫模块测试（全部通过）
+- 427 总测试（免疫 + 递归演进）
+
+---
+
 ## [v0.30.0-GA] - 2026-05-25
 
 ### Added

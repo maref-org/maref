@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from maref.knowledge.graph import KnowledgeGraph, KnowledgeNode
 from maref.recursive.code_parser import CodeParser, ModuleHierarchy
+from maref.immunity.provenance_tracker import ProvenanceTracker
 
 
 @dataclass
@@ -17,13 +18,18 @@ class ArchHypothesis:
 
 
 class SelfKnowledge:
-    def __init__(self) -> None:
+    def __init__(self, provenance_tracker: ProvenanceTracker | None = None) -> None:
         self._kg = KnowledgeGraph()
         self._parser = CodeParser()
+        self._provenance_tracker = provenance_tracker or ProvenanceTracker(self._kg)
 
     @property
     def kg(self) -> KnowledgeGraph:
         return self._kg
+
+    @property
+    def provenance_tracker(self) -> ProvenanceTracker:
+        return self._provenance_tracker
 
     def extract_arch_kg(self, root_path: str) -> ModuleHierarchy:
         hierarchy = self._parser.extract_module_hierarchy(root_path)
@@ -70,6 +76,10 @@ class SelfKnowledge:
                 if self._kg.get_node(top_module) is not None:
                     self._kg.add_relation(imp_from, top_module, "precedes")
 
+        for node in self._kg.nodes:
+            if node.metadata.get("provenance") == "ai_generated":
+                node.confidence /= 2.0
+
         return hierarchy
 
     def extract_test_coverage_relations(self, test_root: str,
@@ -100,18 +110,24 @@ class SelfKnowledge:
         hypotheses: list[ArchHypothesis] = []
 
         dep_count: dict[str, int] = {}
+        human_dep_count: dict[str, int] = {}
         for node in self._kg.nodes:
+            prov = node.metadata.get("provenance", "unknown")
             for edge in node.out_edges:
                 if edge.relation.value == "precedes":
                     dep_count[edge.target_id] = dep_count.get(edge.target_id, 0) + 1
+                    if prov == "human":
+                        human_dep_count[edge.target_id] = human_dep_count.get(edge.target_id, 0) + 1
 
         for module_name, count in dep_count.items():
             if count >= 3:
+                human_count = human_dep_count.get(module_name, 0)
+                suffix = f"（其中 {human_count} 个来自人类标注节点）" if human_count > 0 else ""
                 hypotheses.append(ArchHypothesis(
                     hypothesis_id=f"h_decouple_{uuid.uuid4().hex[:8]}",
-                    description=f"{module_name} 被 {count} 个模块依赖，耦合度偏高",
+                    description=f"{module_name} 被 {count} 个模块依赖，耦合度偏高{suffix}",
                     target_module=module_name,
-                    confidence=min(1.0, count / 10.0),
+                    confidence=min(1.0, (count + human_count) / 10.0),
                 ))
 
         modules = self._kg.get_nodes_by_type("module")
@@ -139,6 +155,11 @@ class SelfKnowledge:
                     target_module=mod.id,
                     confidence=0.8,
                 ))
+
+        hypotheses.sort(key=lambda h: (
+            0 if "人类" in h.description else 1,
+            -h.confidence,
+        ))
 
         return hypotheses[:5]
 

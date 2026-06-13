@@ -4,7 +4,7 @@ import hashlib
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 
 def _compute_precondition_hash(context: str) -> str:
@@ -31,6 +31,11 @@ class ExperiencePool:
         self._by_tag: dict[str, list[int]] = defaultdict(list)
         self._by_outcome: dict[str, list[int]] = defaultdict(list)
         self._max_entries = max_entries
+        self._on_store: list[Callable[[ExperienceEntry], None]] = []
+
+    def on_store(self, callback: Callable[[ExperienceEntry], None]) -> None:
+        """Register a callback invoked on every new entry. Enables bidirectional bridges."""
+        self._on_store.append(callback)
 
     def store(self, entry: ExperienceEntry) -> None:
         if len(self._entries) >= self._max_entries:
@@ -41,6 +46,8 @@ class ExperiencePool:
         for tag in entry.tags:
             self._by_tag[tag].append(idx)
         self._by_outcome[entry.outcome].append(idx)
+        for cb in self._on_store:
+            cb(entry)
 
     def query_by_tag(self, tag: str) -> list[ExperienceEntry]:
         return [self._entries[i] for i in self._by_tag.get(tag, [])]

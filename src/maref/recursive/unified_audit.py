@@ -52,6 +52,22 @@ class UnifiedAuditRecord:
         )
 
 
+class NullAuditStore:
+    """No-op audit store for dev/test. Drops all records silently."""
+
+    def append(self, record: UnifiedAuditRecord) -> None:
+        pass
+
+    def query_by_layer(self, layer: str) -> list[UnifiedAuditRecord]:
+        return []
+
+    def query_by_event(self, event_type: str) -> list[UnifiedAuditRecord]:
+        return []
+
+    def query_by_module(self, module: str) -> list[UnifiedAuditRecord]:
+        return []
+
+
 class UnifiedAuditStore:
     def __init__(self) -> None:
         self._records: list[UnifiedAuditRecord] = []
