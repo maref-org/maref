@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "maref-governance": {
+      "command": "python3",
+      "args": ["-m", "src.sidecar.server", "--port", "8941"],
+      "env": {
+        "MAREF_MCP_LOG": ".openclaw/logs/maref_mcp.log"
+      }
+    }
+  }
+}
