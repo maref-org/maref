@@ -76,10 +76,7 @@ class ASTNormalizer:
         """递归归一化 AST 节点"""
         if isinstance(node, ast.Name):
             # 变量名 -> 占位符
-            return ast.Name(
-                id=self._get_placeholder(node.id),
-                ctx=node.ctx
-            )
+            return ast.Name(id=self._get_placeholder(node.id), ctx=node.ctx)
 
         elif isinstance(node, ast.Constant):
             # 常量 -> 保留类型但泛化值
@@ -90,7 +87,7 @@ class ASTNormalizer:
             return ast.BinOp(
                 left=cast(ast.expr, self._normalize_node(node.left)),
                 op=node.op,
-                right=cast(ast.expr, self._normalize_node(node.right))
+                right=cast(ast.expr, self._normalize_node(node.right)),
             )
 
         elif isinstance(node, ast.AugAssign):
@@ -102,7 +99,7 @@ class ASTNormalizer:
             return ast.Compare(
                 left=cast(ast.expr, self._normalize_node(node.left)),
                 ops=node.ops,
-                comparators=[cast(ast.expr, self._normalize_node(c)) for c in node.comparators]
+                comparators=[cast(ast.expr, self._normalize_node(c)) for c in node.comparators],
             )
 
         elif isinstance(node, ast.Call):
@@ -110,14 +107,11 @@ class ASTNormalizer:
             return ast.Call(
                 func=cast(ast.expr, self._normalize_node(node.func)),
                 args=[cast(ast.expr, self._normalize_node(arg)) for arg in node.args],
-                keywords=[cast(ast.keyword, self._normalize_node(kw)) for kw in node.keywords]
+                keywords=[cast(ast.keyword, self._normalize_node(kw)) for kw in node.keywords],
             )
 
         elif isinstance(node, ast.keyword):
-            return ast.keyword(
-                arg=node.arg,
-                value=cast(ast.expr, self._normalize_node(node.value))
-            )
+            return ast.keyword(arg=node.arg, value=cast(ast.expr, self._normalize_node(node.value)))
 
         elif isinstance(node, ast.FunctionDef):
             # 函数定义: 归一化函数名和参数名
@@ -125,9 +119,11 @@ class ASTNormalizer:
                 name=self._get_placeholder(node.name),
                 args=self._normalize_arguments(node.args),
                 body=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.body],
-                decorator_list=[cast(ast.expr, self._normalize_node(d)) for d in node.decorator_list],
+                decorator_list=[
+                    cast(ast.expr, self._normalize_node(d)) for d in node.decorator_list
+                ],
                 returns=node.returns,
-                type_comment=node.type_comment
+                type_comment=node.type_comment,
             )
 
         elif isinstance(node, ast.arguments):
@@ -137,26 +133,28 @@ class ASTNormalizer:
             return ast.arg(
                 arg=self._get_placeholder(node.arg),
                 annotation=node.annotation,
-                type_comment=node.type_comment
+                type_comment=node.type_comment,
             )
 
         elif isinstance(node, ast.Assign):
             return ast.Assign(
                 targets=[cast(ast.expr, self._normalize_node(t)) for t in node.targets],
                 value=cast(ast.expr, self._normalize_node(node.value)),
-                type_comment=node.type_comment
+                type_comment=node.type_comment,
             )
 
         elif isinstance(node, ast.Return):
             return ast.Return(
-                value=cast(ast.expr | None, self._normalize_node(node.value)) if node.value else None
+                value=cast(ast.expr | None, self._normalize_node(node.value))
+                if node.value
+                else None
             )
 
         elif isinstance(node, ast.If):
             return ast.If(
                 test=cast(ast.expr, self._normalize_node(node.test)),
                 body=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.body],
-                orelse=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.orelse]
+                orelse=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.orelse],
             )
 
         elif isinstance(node, ast.For):
@@ -165,45 +163,44 @@ class ASTNormalizer:
                 iter=cast(ast.expr, self._normalize_node(node.iter)),
                 body=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.body],
                 orelse=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.orelse],
-                type_comment=node.type_comment
+                type_comment=node.type_comment,
             )
 
         elif isinstance(node, ast.While):
             return ast.While(
                 test=cast(ast.expr, self._normalize_node(node.test)),
                 body=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.body],
-                orelse=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.orelse]
+                orelse=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.orelse],
             )
 
         elif isinstance(node, ast.Attribute):
             return ast.Attribute(
                 value=cast(ast.expr, self._normalize_node(node.value)),
                 attr=node.attr,  # 属性名通常保留（API 调用语义）
-                ctx=node.ctx
+                ctx=node.ctx,
             )
 
         elif isinstance(node, ast.Subscript):
             return ast.Subscript(
                 value=cast(ast.expr, self._normalize_node(node.value)),
                 slice=cast(ast.expr, self._normalize_node(node.slice)),
-                ctx=node.ctx
+                ctx=node.ctx,
             )
 
         elif isinstance(node, (ast.List, ast.Tuple)):
             return type(node)(
-                elts=[cast(ast.expr, self._normalize_node(elt)) for elt in node.elts],
-                ctx=node.ctx
+                elts=[cast(ast.expr, self._normalize_node(elt)) for elt in node.elts], ctx=node.ctx
             )
 
         elif isinstance(node, ast.Set):
-            return ast.Set(
-                elts=[cast(ast.expr, self._normalize_node(elt)) for elt in node.elts]
-            )
+            return ast.Set(elts=[cast(ast.expr, self._normalize_node(elt)) for elt in node.elts])
 
         elif isinstance(node, ast.Dict):
             return ast.Dict(
-                keys=[cast(ast.expr | None, self._normalize_node(k)) if k else None for k in node.keys],
-                values=[cast(ast.expr, self._normalize_node(v)) for v in node.values]
+                keys=[
+                    cast(ast.expr | None, self._normalize_node(k)) if k else None for k in node.keys
+                ],
+                values=[cast(ast.expr, self._normalize_node(v)) for v in node.values],
             )
 
         elif isinstance(node, ast.Expr):
@@ -212,7 +209,7 @@ class ASTNormalizer:
         elif isinstance(node, ast.Module):
             return ast.Module(
                 body=[cast(ast.stmt, self._normalize_node(stmt)) for stmt in node.body],
-                type_ignores=node.type_ignores
+                type_ignores=node.type_ignores,
             )
 
         # 对其他节点类型进行通用处理
@@ -244,10 +241,8 @@ class ASTNormalizer:
         return ast.Assign(
             targets=[target],
             value=ast.BinOp(
-                left=target,
-                op=node.op,
-                right=cast(ast.expr, self._normalize_node(node.value))
-            )
+                left=target, op=node.op, right=cast(ast.expr, self._normalize_node(node.value))
+            ),
         )
 
     def _normalize_arguments(self, node: ast.arguments) -> ast.arguments:
@@ -257,7 +252,10 @@ class ASTNormalizer:
             args=[cast(ast.arg, self._normalize_node(arg)) for arg in node.args],
             vararg=cast(ast.arg | None, self._normalize_node(node.vararg)) if node.vararg else None,
             kwonlyargs=[cast(ast.arg, self._normalize_node(arg)) for arg in node.kwonlyargs],
-            kw_defaults=[cast(ast.expr | None, self._normalize_node(d)) if d else None for d in node.kw_defaults],
+            kw_defaults=[
+                cast(ast.expr | None, self._normalize_node(d)) if d else None
+                for d in node.kw_defaults
+            ],
             defaults=[cast(ast.expr, self._normalize_node(d)) for d in node.defaults],
             kwarg=cast(ast.arg | None, self._normalize_node(node.kwarg)) if node.kwarg else None,
         )
@@ -321,7 +319,7 @@ class ASTNormalizer:
                     "source_length": len(source_code),
                     "normalized": True,
                     "language": "python",
-                }
+                },
             )
         except SyntaxError as e:
             # 无法解析的代码返回错误指纹
@@ -332,7 +330,7 @@ class ASTNormalizer:
                 metadata={
                     "error": f"SyntaxError: {e}",
                     "source_length": len(source_code),
-                }
+                },
             )
 
     def _ast_to_structure(self, node: ast.AST) -> str:
@@ -418,10 +416,7 @@ class SemanticEquivalenceChecker:
         self.normalizer = ASTNormalizer()
 
     def check_equivalence(
-        self,
-        code_a: str,
-        code_b: str,
-        threshold: float = 0.95
+        self, code_a: str, code_b: str, threshold: float = 0.95
     ) -> dict[str, Any]:
         """
         检查两段代码是否语义等价
@@ -448,14 +443,10 @@ class SemanticEquivalenceChecker:
             }
 
         # 计算结构相似度
-        structure_sim = self._structure_similarity(
-            fp_a.ast_structure, fp_b.ast_structure
-        )
+        structure_sim = self._structure_similarity(fp_a.ast_structure, fp_b.ast_structure)
 
         # 计算 token 序列相似度
-        token_sim = self._token_similarity(
-            fp_a.token_sequence, fp_b.token_sequence
-        )
+        token_sim = self._token_similarity(fp_a.token_sequence, fp_b.token_sequence)
 
         # 综合相似度（加权平均）
         overall_sim = 0.6 * structure_sim + 0.4 * token_sim

@@ -133,11 +133,7 @@ class SessionManager:
         with self._lock:
             if status is None:
                 return copy.deepcopy(list(self._sessions.values()))
-            return [
-                copy.deepcopy(s)
-                for s in self._sessions.values()
-                if s.status == status
-            ]
+            return [copy.deepcopy(s) for s in self._sessions.values() if s.status == status]
 
     def recover_session(self, session_id: str) -> Session | None:
         with self._lock:

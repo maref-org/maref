@@ -150,10 +150,7 @@ class ExperimentOrchestrator:
 
         # Check average novelty
         if self._batch_results:
-            recent_novelty = [
-                getattr(r, "novelty", 0.5)
-                for r in self._batch_results[-10:]
-            ]
+            recent_novelty = [getattr(r, "novelty", 0.5) for r in self._batch_results[-10:]]
             avg_novelty = sum(recent_novelty) / len(recent_novelty)
             if avg_novelty < self._criteria.min_novelty_threshold:
                 return True

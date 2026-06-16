@@ -4,17 +4,20 @@
 from __future__ import annotations
 
 from maref.recursive.blast_radius import (
-    BlastRadiusController, BlastRadiusConfig, CompensationStrategy,
+    BlastRadiusConfig,
+    BlastRadiusController,
+    CompensationStrategy,
 )
 from maref.recursive.saga_orchestrator import (
-    SagaOrchestrator, Saga, SagaStep, StepResult, BackpressureConfig,
+    Saga,
+    SagaOrchestrator,
+    SagaStep,
+    StepResult,
 )
 
 
 def test_full_strategy_compensates_all():
-    ctrl = BlastRadiusController(
-        BlastRadiusConfig(strategy=CompensationStrategy.FULL)
-    )
+    ctrl = BlastRadiusController(BlastRadiusConfig(strategy=CompensationStrategy.FULL))
     dec = ctrl.decide("step_3", ["step_1", "step_2"])
     assert set(dec.steps_to_compensate) == {"step_1", "step_2"}
     assert not dec.requires_human_confirm
@@ -69,11 +72,13 @@ def test_saga_with_blast_radius():
     def fail(ctx):
         return StepResult(step_id="s3", success=False, error="boom")
 
-    saga = Saga(steps=[
-        SagaStep("s1", "first", execute_fn=ok, compensate_fn=ok),
-        SagaStep("s2", "second", execute_fn=ok, compensate_fn=ok),
-        SagaStep("s3", "third", execute_fn=fail, compensate_fn=ok),
-    ])
+    saga = Saga(
+        steps=[
+            SagaStep("s1", "first", execute_fn=ok, compensate_fn=ok),
+            SagaStep("s2", "second", execute_fn=ok, compensate_fn=ok),
+            SagaStep("s3", "third", execute_fn=fail, compensate_fn=ok),
+        ]
+    )
 
     result = orch.execute(saga)
     assert result.state == "failed"
@@ -91,11 +96,13 @@ def test_saga_without_blast_radius():
     def fail(ctx):
         return StepResult(step_id="s3", success=False, error="boom")
 
-    saga = Saga(steps=[
-        SagaStep("s1", "first", execute_fn=ok, compensate_fn=ok),
-        SagaStep("s2", "second", execute_fn=ok, compensate_fn=ok),
-        SagaStep("s3", "third", execute_fn=fail, compensate_fn=ok),
-    ])
+    saga = Saga(
+        steps=[
+            SagaStep("s1", "first", execute_fn=ok, compensate_fn=ok),
+            SagaStep("s2", "second", execute_fn=ok, compensate_fn=ok),
+            SagaStep("s3", "third", execute_fn=fail, compensate_fn=ok),
+        ]
+    )
 
     result = orch.execute(saga)
     assert result.state == "failed"

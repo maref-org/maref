@@ -1,0 +1,90 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MAREF Sidecar API",
+    "description": "Sidecar observation and MCP bridge for the Multi-Agent Recursive Engineering Framework",
+    "version": "0.32.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": { "summary": "Health check", "operationId": "health", "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/agents": {
+      "get": { "summary": "List agents", "operationId": "listAgents", "responses": { "200": { "description": "Agent list" } } }
+    },
+    "/api/observations": {
+      "get": { "summary": "List observations", "operationId": "listObservations", "responses": { "200": { "description": "Observation list" } } }
+    },
+    "/api/anomalies": {
+      "get": { "summary": "List anomalies", "operationId": "listAnomalies", "responses": { "200": { "description": "Anomaly list" } } }
+    },
+    "/api/metrics": {
+      "get": { "summary": "Prometheus metrics", "operationId": "metrics", "responses": { "200": { "description": "Metrics text" } } }
+    },
+    "/api/obs/status": {
+      "get": { "summary": "Observation status", "operationId": "obsStatus", "responses": { "200": { "description": "Status" } } }
+    },
+    "/api/red-metrics": {
+      "get": { "summary": "Red metrics", "operationId": "redMetrics", "responses": { "200": { "description": "Red metrics" } } }
+    },
+    "/api/sessions": {
+      "post": { "summary": "Create session", "operationId": "createSession", "responses": { "200": { "description": "Session created" } } },
+      "get": { "summary": "List sessions", "operationId": "listSessions", "responses": { "200": { "description": "Session list" } } }
+    },
+    "/api/sessions/{session_id}": {
+      "get": { "summary": "Get session", "operationId": "getSession", "parameters": [{ "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Session details" } } },
+      "delete": { "summary": "Delete session", "operationId": "deleteSession", "parameters": [{ "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Session deleted" } } }
+    },
+    "/api/sessions/{session_id}/messages": {
+      "get": { "summary": "List messages", "operationId": "listMessages", "parameters": [{ "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Message list" } } },
+      "post": { "summary": "Send message", "operationId": "sendMessage", "parameters": [{ "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Message sent" } } }
+    },
+    "/api/sessions/{session_id}/stream": {
+      "get": { "summary": "Stream session", "operationId": "streamSession", "parameters": [{ "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "SSE stream" } } }
+    },
+    "/api/sessions/{session_id}/interrupt": {
+      "post": { "summary": "Interrupt session", "operationId": "interruptSession", "parameters": [{ "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Interrupted" } } }
+    },
+    "/api/providers": {
+      "get": { "summary": "List providers", "operationId": "listProviders", "responses": { "200": { "description": "Provider list" } } },
+      "post": { "summary": "Set provider", "operationId": "setProvider", "responses": { "200": { "description": "Provider set" } } }
+    },
+    "/api/skills": {
+      "get": { "summary": "List skills", "operationId": "listSkills", "responses": { "200": { "description": "Skill list" } } }
+    },
+    "/api/tasks": {
+      "get": { "summary": "List tasks", "operationId": "listTasks", "responses": { "200": { "description": "Task list" } } },
+      "post": { "summary": "Create task", "operationId": "createTask", "responses": { "200": { "description": "Task created" } } }
+    },
+    "/api/filetree": {
+      "get": { "summary": "Get file tree", "operationId": "getFileTree", "responses": { "200": { "description": "File tree" } } }
+    },
+    "/api/compliance/register": {
+      "post": { "summary": "Register compliance", "operationId": "registerCompliance", "responses": { "200": { "description": "Registered" } } }
+    },
+    "/api/compliance/agents": {
+      "get": { "summary": "Compliance agents", "operationId": "complianceAgents", "responses": { "200": { "description": "Agent list" } } }
+    },
+    "/api/compliance/check-action": {
+      "post": { "summary": "Check action", "operationId": "checkAction", "responses": { "200": { "description": "Check result" } } }
+    },
+    "/api/compliance/snapshot": {
+      "post": { "summary": "Compliance snapshot", "operationId": "complianceSnapshot", "responses": { "200": { "description": "Snapshot taken" } } }
+    },
+    "/api/compliance/audit-log/{agent_id}": {
+      "get": { "summary": "Audit log", "operationId": "auditLog", "parameters": [{ "name": "agent_id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Audit entries" } } }
+    },
+    "/api/mcp": {
+      "post": { "summary": "MCP endpoint", "operationId": "mcpEndpoint", "responses": { "200": { "description": "MCP response" } } }
+    },
+    "/api/mcp/.well-known": {
+      "get": { "summary": "MCP capabilities", "operationId": "mcpWellKnown", "responses": { "200": { "description": "MCP capabilities" } } }
+    },
+    "/api/status": {
+      "get": { "summary": "Status", "operationId": "status", "responses": { "200": { "description": "System status" } } }
+    },
+    "/api/version": {
+      "get": { "summary": "Version", "operationId": "version", "responses": { "200": { "description": "Version info" } } }
+    }
+  }
+}

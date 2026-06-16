@@ -141,6 +141,7 @@ class EvolutionDSL:
             self._freeze_zone = freeze_zone
         else:
             from maref.recursive.rule_freeze_zone import RuleFreezeZone
+
             self._freeze_zone = RuleFreezeZone()
 
     def load_default_rules(self, skip_frozen: bool = True) -> list[EvolutionRule]:
@@ -172,9 +173,9 @@ class EvolutionDSL:
             rules.append(rule)
         return rules
 
-    def propose(self, target: str, current_value: Any,
-                proposed_value: Any,
-                justification: str = "") -> EvolutionRule:
+    def propose(
+        self, target: str, current_value: Any, proposed_value: Any, justification: str = ""
+    ) -> EvolutionRule:
         from maref.recursive.rule_freeze_zone import FreezeBlockedError
 
         check = self._freeze_zone.check(target, proposed_value)
@@ -199,7 +200,9 @@ class EvolutionDSL:
         return self._freeze_zone
 
     def simulate(
-        self, rule: EvolutionRule, rounds: int = 3,
+        self,
+        rule: EvolutionRule,
+        rounds: int = 3,
         benchmark_fn: Any = None,
     ) -> SimulationResult:
         if rounds <= 0:
@@ -212,11 +215,14 @@ class EvolutionDSL:
             try:
                 bench = benchmark_fn()
                 if isinstance(bench, dict):
-                    metrics.update({
-                        "test_pass_rate": bench.get("tests_passed", 0) / max(bench.get("test_count", 1), 1),
-                        "coverage_pct": bench.get("coverage_pct", 0),
-                        "execution_time_ms": bench.get("execution_time_ms", 0),
-                    })
+                    metrics.update(
+                        {
+                            "test_pass_rate": bench.get("tests_passed", 0)
+                            / max(bench.get("test_count", 1), 1),
+                            "coverage_pct": bench.get("coverage_pct", 0),
+                            "execution_time_ms": bench.get("execution_time_ms", 0),
+                        }
+                    )
             except Exception:
                 pass
 
@@ -234,13 +240,15 @@ class EvolutionDSL:
         sim = self.simulate(rule, rule.safety_gate.min_simulation_rounds)
 
         applied = gate.passed and sim.passed
-        self._audit.append(EvolutionAuditEntry(
-            rule_id=rule.rule_id,
-            target=rule.target,
-            timestamp=time.time(),
-            justification=rule.justification,
-            gate_passed=gate.passed,
-        ))
+        self._audit.append(
+            EvolutionAuditEntry(
+                rule_id=rule.rule_id,
+                target=rule.target,
+                timestamp=time.time(),
+                justification=rule.justification,
+                gate_passed=gate.passed,
+            )
+        )
         return ApplyResult(
             applied=applied,
             rule_id=rule.rule_id,

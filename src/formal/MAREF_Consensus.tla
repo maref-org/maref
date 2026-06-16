@@ -1,7 +1,7 @@
 ------------------------------- MODULE MAREF_Consensus --------------------------------
 (*
   MAREF Cross-Validator: Weighted Byzantine Fault-Tolerant Consensus
-  
+
   This TLA+ specification formally models the weighted consensus algorithm
   used by the Cross-Validator. It verifies:
   1. Agreement: No two correct validators decide different values
@@ -9,7 +9,7 @@
   3. Termination: Eventually every correct validator decides
   4. Weight-based Quorum: Decisions require > 2/3 of active weight
   5. Byzantine Resilience: System tolerates up to 1/3 byzantine weight
-  
+
   Based on the MAREF WeightedConsensusEngine implementation.
 *)
 
@@ -179,7 +179,7 @@ DetectByzantine(v) ==
   /\ byzantine' = [w \in Validators |-> IF w = v THEN TRUE ELSE byzantine[w]]
   /\ UNCHANGED <<weights, trustScores, proposals, votes, decisions, round>>
 
-(* --- Next-state relation --- *)  
+(* --- Next-state relation --- *)
 Next ==
   \/ \E p \in ProposalIds \ proposals : CreateProposal(p)
   \/ \E v \in Validators, p \in proposals, val \in VoteValues : CastVote(v, p, val)
@@ -193,7 +193,7 @@ Spec == Init /\ [][Next]_vars
 
 (* --- Temporal Properties --- *)
 
-(* Liveness: Eventually a proposal reaches consensus if quorum votes *)  
+(* Liveness: Eventually a proposal reaches consensus if quorum votes *)
 ConsensusLiveness ==
   \E p \in proposals :
     (/\ \A decision \in VoteValues :

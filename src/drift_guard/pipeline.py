@@ -178,7 +178,11 @@ class DriftDetectionPipeline:
         if severity == DriftSeverity.CRITICAL:
             return DriftAction.EMERGENCY_HALT
         if severity == DriftSeverity.HIGH:
-            return DriftAction.BASE_RESET if self._config.reset_on_critical else DriftAction.HUMAN_REVIEW
+            return (
+                DriftAction.BASE_RESET
+                if self._config.reset_on_critical
+                else DriftAction.HUMAN_REVIEW
+            )
         if severity == DriftSeverity.MEDIUM:
             return DriftAction.QUARANTINE
         if severity == DriftSeverity.LOW:

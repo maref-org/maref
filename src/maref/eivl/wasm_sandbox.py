@@ -25,26 +25,31 @@ from typing import Any
 
 class SandboxError(Exception):
     """沙箱执行错误"""
+
     pass
 
 
 class MemoryLimitExceeded(SandboxError):  # noqa: N818
     """内存限制超出"""
+
     pass
 
 
 class ExecutionTimeout(SandboxError):  # noqa: N818
     """执行超时"""
+
     pass
 
 
 class CapabilityViolation(SandboxError):  # noqa: N818
     """能力违规"""
+
     pass
 
 
 class ExecutionStatus(str, Enum):
     """执行状态"""
+
     SUCCESS = "success"
     TIMEOUT = "timeout"
     MEMORY_EXCEEDED = "memory_exceeded"
@@ -97,8 +102,8 @@ class ExecutionResult:
         return {
             "status": self.status.value,
             "exit_code": self.exit_code,
-            "stdout": self.stdout.decode('utf-8', errors='replace') if self.stdout else "",
-            "stderr": self.stderr.decode('utf-8', errors='replace') if self.stderr else "",
+            "stdout": self.stdout.decode("utf-8", errors="replace") if self.stdout else "",
+            "stderr": self.stderr.decode("utf-8", errors="replace") if self.stderr else "",
             "execution_time_ms": round(self.execution_time_ms, 3),
             "memory_peak_mb": round(self.memory_peak_mb, 3),
             "cpu_time_ms": round(self.cpu_time_ms, 3),
@@ -261,12 +266,7 @@ class WasmSandboxExecutor:
     def _check_wasmtime(self) -> bool:
         """检查是否安装了 wasmtime"""
         try:
-            subprocess.run(
-                ["wasmtime", "--version"],
-                capture_output=True,
-                timeout=2,
-                check=True
-            )
+            subprocess.run(["wasmtime", "--version"], capture_output=True, timeout=2, check=True)
             return True
         except (subprocess.SubprocessError, FileNotFoundError):
             return False
@@ -288,8 +288,10 @@ class WasmSandboxExecutor:
         # 构建 wasmtime 命令
         cmd = [
             "wasmtime",
-            "--max-memory", f"{self.limits.max_memory_mb}Mi",
-            "--fuel", str(self.limits.max_cpu_time_ms * 1000),  # 粗略映射
+            "--max-memory",
+            f"{self.limits.max_memory_mb}Mi",
+            "--fuel",
+            str(self.limits.max_cpu_time_ms * 1000),  # 粗略映射
             wasm_path,
         ]
 
@@ -338,6 +340,7 @@ class WasmSandboxExecutor:
         finally:
             # 清理临时文件
             import os
+
             try:
                 os.unlink(wasm_path)
             except OSError:
@@ -357,7 +360,7 @@ class WasmSandboxExecutor:
         验证 WASM 魔术数字，模拟资源使用，并返回基于输入的确定性输出。
         """
         # 验证 WASM 头部魔术数字 (0x00 0x61 0x73 0x6D)
-        if len(wasm_bytes) < 8 or wasm_bytes[:4] != b'\x00asm':
+        if len(wasm_bytes) < 8 or wasm_bytes[:4] != b"\x00asm":
             return ExecutionResult(
                 status=ExecutionStatus.RUNTIME_ERROR,
                 exit_code=1,
@@ -458,10 +461,7 @@ class EIVLVerifier:
         self._verified_count = 0
 
     def record_evidence(
-        self,
-        wasm_hash: str,
-        result: ExecutionResult,
-        verifier_id: str = "eivl-primary"
+        self, wasm_hash: str, result: ExecutionResult, verifier_id: str = "eivl-primary"
     ) -> dict[str, Any]:
         """
         记录执行证据

@@ -96,9 +96,19 @@ class BrowserController:
 
     def navigate(self, url: str) -> BrowserResult:
         if not self.is_safe_domain(url):
-            return BrowserResult(success=False, action=BrowserAction.NAVIGATE, url=url, error=f"Domain not in safe list: {url}")
+            return BrowserResult(
+                success=False,
+                action=BrowserAction.NAVIGATE,
+                url=url,
+                error=f"Domain not in safe list: {url}",
+            )
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.NAVIGATE, url=url, text=f"[DRY RUN] Navigated to {url}")
+            result = BrowserResult(
+                success=True,
+                action=BrowserAction.NAVIGATE,
+                url=url,
+                text=f"[DRY RUN] Navigated to {url}",
+            )
         else:
             result = self._do_navigate(url)
         self._operation_log.append(result)
@@ -106,7 +116,9 @@ class BrowserController:
 
     def click(self, selector: str) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.CLICK, text=f"[DRY RUN] Clicked {selector}")
+            result = BrowserResult(
+                success=True, action=BrowserAction.CLICK, text=f"[DRY RUN] Clicked {selector}"
+            )
         else:
             result = self._do_click(selector)
         self._operation_log.append(result)
@@ -114,7 +126,11 @@ class BrowserController:
 
     def type_text(self, selector: str, text: str) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.TYPE, text=f"[DRY RUN] Typed '{text}' into {selector}")
+            result = BrowserResult(
+                success=True,
+                action=BrowserAction.TYPE,
+                text=f"[DRY RUN] Typed '{text}' into {selector}",
+            )
         else:
             result = self._do_type(selector, text)
         self._operation_log.append(result)
@@ -122,7 +138,9 @@ class BrowserController:
 
     def extract_text(self) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.EXTRACT_TEXT, text="[DRY RUN] Page text content")
+            result = BrowserResult(
+                success=True, action=BrowserAction.EXTRACT_TEXT, text="[DRY RUN] Page text content"
+            )
         else:
             result = self._do_extract_text()
         self._operation_log.append(result)
@@ -130,7 +148,9 @@ class BrowserController:
 
     def extract_links(self) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.EXTRACT_LINKS, links=["https://example.com"])
+            result = BrowserResult(
+                success=True, action=BrowserAction.EXTRACT_LINKS, links=["https://example.com"]
+            )
         else:
             result = self._do_extract_links()
         self._operation_log.append(result)
@@ -138,19 +158,34 @@ class BrowserController:
 
     def screenshot(self) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.SCREENSHOT, text="[DRY RUN] Screenshot captured")
+            result = BrowserResult(
+                success=True, action=BrowserAction.SCREENSHOT, text="[DRY RUN] Screenshot captured"
+            )
         else:
             result = self._do_screenshot()
         self._operation_log.append(result)
         return result
 
     def execute_js(self, script: str) -> BrowserResult:
-        dangerous_patterns = ["fetch(", "XMLHttpRequest", "WebSocket", "localStorage", "sessionStorage", "document.cookie"]
+        dangerous_patterns = [
+            "fetch(",
+            "XMLHttpRequest",
+            "WebSocket",
+            "localStorage",
+            "sessionStorage",
+            "document.cookie",
+        ]
         for pattern in dangerous_patterns:
             if pattern in script:
-                return BrowserResult(success=False, action=BrowserAction.EXECUTE_JS, error=f"Blocked: dangerous JS pattern '{pattern}'")
+                return BrowserResult(
+                    success=False,
+                    action=BrowserAction.EXECUTE_JS,
+                    error=f"Blocked: dangerous JS pattern '{pattern}'",
+                )
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.EXECUTE_JS, text="[DRY RUN] Executed JS")
+            result = BrowserResult(
+                success=True, action=BrowserAction.EXECUTE_JS, text="[DRY RUN] Executed JS"
+            )
         else:
             result = self._do_execute_js(script)
         self._operation_log.append(result)
@@ -181,22 +216,40 @@ class BrowserController:
             text = asyncio.run(_nav())
             return BrowserResult(success=True, action=BrowserAction.NAVIGATE, url=url, text=text)
         except Exception as e:
-            return BrowserResult(success=False, action=BrowserAction.NAVIGATE, url=url, error=str(e))
+            return BrowserResult(
+                success=False, action=BrowserAction.NAVIGATE, url=url, error=str(e)
+            )
 
     def _do_click(self, selector: str) -> BrowserResult:
-        return BrowserResult(success=False, action=BrowserAction.CLICK, error="Not implemented in shortcut path")
+        return BrowserResult(
+            success=False, action=BrowserAction.CLICK, error="Not implemented in shortcut path"
+        )
 
     def _do_type(self, selector: str, text: str) -> BrowserResult:
-        return BrowserResult(success=False, action=BrowserAction.TYPE, error="Not implemented in shortcut path")
+        return BrowserResult(
+            success=False, action=BrowserAction.TYPE, error="Not implemented in shortcut path"
+        )
 
     def _do_extract_text(self) -> BrowserResult:
-        return BrowserResult(success=False, action=BrowserAction.EXTRACT_TEXT, error="Not implemented in shortcut path")
+        return BrowserResult(
+            success=False,
+            action=BrowserAction.EXTRACT_TEXT,
+            error="Not implemented in shortcut path",
+        )
 
     def _do_extract_links(self) -> BrowserResult:
-        return BrowserResult(success=False, action=BrowserAction.EXTRACT_LINKS, error="Not implemented in shortcut path")
+        return BrowserResult(
+            success=False,
+            action=BrowserAction.EXTRACT_LINKS,
+            error="Not implemented in shortcut path",
+        )
 
     def _do_screenshot(self) -> BrowserResult:
-        return BrowserResult(success=False, action=BrowserAction.SCREENSHOT, error="Not implemented in shortcut path")
+        return BrowserResult(
+            success=False, action=BrowserAction.SCREENSHOT, error="Not implemented in shortcut path"
+        )
 
     def _do_execute_js(self, script: str) -> BrowserResult:
-        return BrowserResult(success=False, action=BrowserAction.EXECUTE_JS, error="Not implemented in shortcut path")
+        return BrowserResult(
+            success=False, action=BrowserAction.EXECUTE_JS, error="Not implemented in shortcut path"
+        )

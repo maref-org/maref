@@ -5,10 +5,10 @@ import hmac as hmac_lib
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
-from maref.security.decorators import security_critical
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+from maref.security.decorators import security_critical
 
 _POLLUTION_HMAC_KEY = b"ma-ref-pollution-audit-key"
 
@@ -32,16 +32,12 @@ class CreditToken:
         if amount > self.amount:
             return None
         self.amount -= amount
-        self.transaction_history.append(
-            f"transfer_{amount}_to_{new_owner}_{int(time.time())}"
-        )
+        self.transaction_history.append(f"transfer_{amount}_to_{new_owner}_{int(time.time())}")
         return amount
 
     def deposit(self, amount: float) -> float:
         self.amount += amount
-        self.transaction_history.append(
-            f"deposit_{amount}_{int(time.time())}"
-        )
+        self.transaction_history.append(f"deposit_{amount}_{int(time.time())}")
         return self.amount
 
 
@@ -166,8 +162,9 @@ class AgentEconomy:
     def get_wallet(self, agent_id: str) -> AgentWallet | None:
         return self._wallets.get(agent_id)
 
-    def propose_trade(self, buyer_id: str, seller_id: str,
-                       item: str, price: float) -> TradeProposal | None:
+    def propose_trade(
+        self, buyer_id: str, seller_id: str, item: str, price: float
+    ) -> TradeProposal | None:
         buyer = self._wallets.get(buyer_id)
         if buyer is None or not buyer.can_spend(price):
             return None
@@ -214,14 +211,21 @@ class AgentEconomy:
         self._audit_store.append(receipt.to_audit_record())
         return receipt
 
-    def file_dispute(self, trade_id: str, complainant_id: str,
-                      reason: str, evidence: dict[str, Any] | None = None) -> DisputeRecord | None:
+    def file_dispute(
+        self,
+        trade_id: str,
+        complainant_id: str,
+        reason: str,
+        evidence: dict[str, Any] | None = None,
+    ) -> DisputeRecord | None:
         trade = self._trades.get(trade_id)
         if trade is None:
             return None
         respondent_id = (
-            trade.seller_id if complainant_id == trade.buyer_id
-            else trade.buyer_id if complainant_id == trade.seller_id
+            trade.seller_id
+            if complainant_id == trade.buyer_id
+            else trade.buyer_id
+            if complainant_id == trade.seller_id
             else None
         )
         if respondent_id is None:
@@ -237,23 +241,26 @@ class AgentEconomy:
             timestamp=time.time(),
         )
         self._disputes[dispute.dispute_id] = dispute
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("disp", hash(dispute.dispute_id) % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=45,
-            event_type="agent_dispute_filed",
-            source_module="AgentEconomy",
-            target_module=respondent_id,
-            decision=f"dispute_{reason[:20]}",
-            justification=f"Trade {trade_id}, complainant={complainant_id}",
-            outcome="pending",
-            context_refs=[trade_id, dispute.dispute_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("disp", hash(dispute.dispute_id) % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=45,
+                event_type="agent_dispute_filed",
+                source_module="AgentEconomy",
+                target_module=respondent_id,
+                decision=f"dispute_{reason[:20]}",
+                justification=f"Trade {trade_id}, complainant={complainant_id}",
+                outcome="pending",
+                context_refs=[trade_id, dispute.dispute_id],
+            )
+        )
         return dispute
 
-    def resolve_dispute(self, dispute_id: str, resolution: str,
-                         penalty: float = 0.0, refund_amount: float = 0.0) -> DisputeRecord | None:
+    def resolve_dispute(
+        self, dispute_id: str, resolution: str, penalty: float = 0.0, refund_amount: float = 0.0
+    ) -> DisputeRecord | None:
         dispute = self._disputes.get(dispute_id)
         if dispute is None:
             return None
@@ -270,24 +277,31 @@ class AgentEconomy:
             if complainant is not None and refund_amount > 0:
                 complainant.credit(refund_amount)
 
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("disp_res", hash(dispute_id) % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=45,
-            event_type="agent_dispute_resolved",
-            source_module="AgentEconomy",
-            target_module=dispute.respondent_id,
-            decision=resolution,
-            justification=f"Penalty={penalty}, refund={refund_amount}",
-            outcome="success",
-            context_refs=[dispute_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("disp_res", hash(dispute_id) % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=45,
+                event_type="agent_dispute_resolved",
+                source_module="AgentEconomy",
+                target_module=dispute.respondent_id,
+                decision=resolution,
+                justification=f"Penalty={penalty}, refund={refund_amount}",
+                outcome="success",
+                context_refs=[dispute_id],
+            )
+        )
         return dispute
 
-    def sanction_agent(self, target_id: str, sanction_type: str,
-                        reason: str, penalty: float = 0.0,
-                        duration_seconds: float = 3600.0) -> SanctionRecord | None:
+    def sanction_agent(
+        self,
+        target_id: str,
+        sanction_type: str,
+        reason: str,
+        penalty: float = 0.0,
+        duration_seconds: float = 3600.0,
+    ) -> SanctionRecord | None:
         wallet = self._wallets.get(target_id)
         if wallet is None:
             return None
@@ -308,19 +322,21 @@ class AgentEconomy:
 
         sanction.status = "active"
         self._sanctions[sanction.sanction_id] = sanction
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("sanc", hash(sanction.sanction_id) % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=45,
-            event_type="agent_sanctioned",
-            source_module="AgentEconomy",
-            target_module=target_id,
-            decision=f"{sanction_type}_{reason[:15]}",
-            justification=f"Penalty={penalty}, duration={duration_seconds}s",
-            outcome="success",
-            context_refs=[sanction.sanction_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("sanc", hash(sanction.sanction_id) % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=45,
+                event_type="agent_sanctioned",
+                source_module="AgentEconomy",
+                target_module=target_id,
+                decision=f"{sanction_type}_{reason[:15]}",
+                justification=f"Penalty={penalty}, duration={duration_seconds}s",
+                outcome="success",
+                context_refs=[sanction.sanction_id],
+            )
+        )
         return sanction
 
     def recover_agent(self, target_id: str) -> SanctionRecord | None:
@@ -333,23 +349,27 @@ class AgentEconomy:
         for sanction in self._sanctions.values():
             if sanction.target_id == target_id and sanction.status == "active":
                 sanction.status = "recovered"
-                self._audit_store.append(UnifiedAuditRecord(
-                    record_id=make_record_id("rec", hash(sanction.sanction_id) % 100000),
-                    timestamp=time.time(),
-                    layer="evolution",
-                    round=45,
-                    event_type="agent_recovered",
-                    source_module="AgentEconomy",
-                    target_module=target_id,
-                    decision="recover",
-                    justification=f"Sanction {sanction.sanction_id} lifted",
-                    outcome="success",
-                    context_refs=[sanction.sanction_id],
-                ))
+                self._audit_store.append(
+                    UnifiedAuditRecord(
+                        record_id=make_record_id("rec", hash(sanction.sanction_id) % 100000),
+                        timestamp=time.time(),
+                        layer="evolution",
+                        round=45,
+                        event_type="agent_recovered",
+                        source_module="AgentEconomy",
+                        target_module=target_id,
+                        decision="recover",
+                        justification=f"Sanction {sanction.sanction_id} lifted",
+                        outcome="success",
+                        context_refs=[sanction.sanction_id],
+                    )
+                )
                 return sanction
         return None
 
-    def full_economy_cycle(self, buyer: str, seller: str, item: str, price: float) -> dict[str, Any]:
+    def full_economy_cycle(
+        self, buyer: str, seller: str, item: str, price: float
+    ) -> dict[str, Any]:
         result: dict[str, Any] = {"phase": EconomyPhase.TRADE.value}
 
         trade = self.propose_trade(buyer, seller, item, price)
@@ -365,22 +385,25 @@ class AgentEconomy:
 
         result["phase"] = EconomyPhase.DISPUTE.value
         dispute = self.file_dispute(
-            trade.trade_id, buyer, "quality_not_as_described",
+            trade.trade_id,
+            buyer,
+            "quality_not_as_described",
             {"actual_quality": 0.3, "promised_quality": 0.8},
         )
         if dispute:
             result["dispute"] = dispute.dispute_id
 
             resolved = self.resolve_dispute(
-                dispute.dispute_id, "partial_refund",
-                penalty=price * 0.2, refund_amount=price * 0.5,
+                dispute.dispute_id,
+                "partial_refund",
+                penalty=price * 0.2,
+                refund_amount=price * 0.5,
             )
             if resolved:
                 result["resolution"] = resolved.resolution
 
         result["phase"] = EconomyPhase.SANCTION.value
-        sanction = self.sanction_agent(seller, "penalty",
-                                         "low_quality_goods", penalty=price * 0.1)
+        sanction = self.sanction_agent(seller, "penalty", "low_quality_goods", penalty=price * 0.1)
         if sanction:
             result["sanction"] = sanction.sanction_id
 
@@ -396,18 +419,20 @@ class AgentEconomy:
     @security_critical
     def apply_generation_tax(self, agent_id: str) -> float:
         self._generation_tax_multipliers[agent_id] = self.GENERATION_TAX_MULTIPLIER
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("gentax", hash(agent_id) % 100000),
-            timestamp=time.time(),
-            layer="economy",
-            round=0,
-            event_type="generation_tax_applied",
-            source_module="AgentEconomy",
-            target_module=agent_id,
-            decision=f"multiplier_{self.GENERATION_TAX_MULTIPLIER}",
-            justification=f"Generation tax applied to {agent_id}",
-            outcome="active",
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("gentax", hash(agent_id) % 100000),
+                timestamp=time.time(),
+                layer="economy",
+                round=0,
+                event_type="generation_tax_applied",
+                source_module="AgentEconomy",
+                target_module=agent_id,
+                decision=f"multiplier_{self.GENERATION_TAX_MULTIPLIER}",
+                justification=f"Generation tax applied to {agent_id}",
+                outcome="active",
+            )
+        )
         return self.GENERATION_TAX_MULTIPLIER
 
     def reset_generation_tax(self, agent_id: str) -> None:
@@ -417,8 +442,9 @@ class AgentEconomy:
         return self._generation_tax_multipliers.get(agent_id, 1.0)
 
     @security_critical
-    def record_pollution(self, agent_id: str, penalty: float = 10.0,
-                         reason: str = "") -> dict[str, Any]:
+    def record_pollution(
+        self, agent_id: str, penalty: float = 10.0, reason: str = ""
+    ) -> dict[str, Any]:
         wallet = self._wallets.get(agent_id)
         if wallet is None:
             return {"success": False, "reason": "agent_not_found"}
@@ -439,26 +465,26 @@ class AgentEconomy:
             "timestamp": time.time(),
         }
         raw = f"{agent_id}|{actual_penalty}|{reason}|{count}|{record['timestamp']}"
-        record["hmac"] = hmac_lib.new(
-            _POLLUTION_HMAC_KEY, raw.encode(), hashlib.sha256
-        ).hexdigest()
+        record["hmac"] = hmac_lib.new(_POLLUTION_HMAC_KEY, raw.encode(), hashlib.sha256).hexdigest()
 
         if agent_id not in self._pollution_records:
             self._pollution_records[agent_id] = []
         self._pollution_records[agent_id].append(record)
 
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("poll", hash(f"{agent_id}_{count}") % 100000),
-            timestamp=record["timestamp"],
-            layer="economy",
-            round=0,
-            event_type=f"pollution_recorded",
-            source_module="AgentEconomy",
-            target_module=agent_id,
-            decision=f"penalty_{actual_penalty}",
-            justification=f"Pollution #{count} for {agent_id}: {reason}",
-            outcome="recorded",
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("poll", hash(f"{agent_id}_{count}") % 100000),
+                timestamp=cast(float, record["timestamp"]),
+                layer="economy",
+                round=0,
+                event_type="pollution_recorded",
+                source_module="AgentEconomy",
+                target_module=agent_id,
+                decision=f"penalty_{actual_penalty}",
+                justification=f"Pollution #{count} for {agent_id}: {reason}",
+                outcome="recorded",
+            )
+        )
         return record
 
     def get_pollution_count(self, agent_id: str) -> int:

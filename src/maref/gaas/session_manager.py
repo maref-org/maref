@@ -137,9 +137,7 @@ def is_session_active(session_id: str) -> bool:
         return False
     if sess.completed_at is not None:
         return False
-    if sess.steps >= sess.max_steps:
-        return False
-    return True
+    return not sess.steps >= sess.max_steps
 
 
 def increment_step(
@@ -156,13 +154,15 @@ def increment_step(
         return sess  # already done, no-op (but still return session)
 
     sess.steps += 1
-    sess.history.append({
-        "step": sess.steps,
-        "tool": tool_name,
-        "verdict": verdict,
-        "risk_score": risk_score,
-        "timestamp": time.time(),
-    })
+    sess.history.append(
+        {
+            "step": sess.steps,
+            "tool": tool_name,
+            "verdict": verdict,
+            "risk_score": risk_score,
+            "timestamp": time.time(),
+        }
+    )
     # Keep history bounded
     if len(sess.history) > MAX_STEPS_MAX:
         sess.history = sess.history[-MAX_STEPS_MAX:]
@@ -216,8 +216,7 @@ def cleanup_stale_sessions(max_idle_seconds: float = STALE_SESSION_SECONDS) -> i
     stale_ids = [
         sid
         for sid, sess in _sessions.items()
-        if sess.completed_at is not None
-        and now - sess.completed_at > max_idle_seconds
+        if sess.completed_at is not None and now - sess.completed_at > max_idle_seconds
     ]
     for sid in stale_ids:
         del _sessions[sid]

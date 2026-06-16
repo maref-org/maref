@@ -63,6 +63,7 @@ class SkillLoader:
                 self._skills.setdefault(skill.name, []).append(skill)
             except (yaml.YAMLError, ValueError) as e:
                 import logging
+
                 logging.getLogger("maref.skill_loader").warning(
                     "Failed to load skill %s: %s", yaml_file, e
                 )
@@ -74,7 +75,9 @@ class SkillLoader:
             result[name] = best
         return list(result.values())
 
-    def load_from_dict(self, data: dict[str, Any], source: SkillSource = SkillSource.BUILTIN) -> MarefSkill:
+    def load_from_dict(
+        self, data: dict[str, Any], source: SkillSource = SkillSource.BUILTIN
+    ) -> MarefSkill:
         skill = parse_skill_from_dict(data, source=source)
         self._skills.setdefault(skill.name, []).append(skill)
         merged = self._merge_by_priority()

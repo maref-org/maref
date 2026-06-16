@@ -36,6 +36,7 @@ def get_controller() -> DesktopController:
 
 # ── Request/Response models ──────────────────────────────────────
 
+
 class OperationRequest(BaseModel):
     op_type: str = Field(..., description="Operation type: click, type, hotkey, etc.")
     params: dict[str, Any] = Field(default_factory=dict, description="Operation parameters")
@@ -54,6 +55,7 @@ class TemplateRequest(BaseModel):
 
 
 # ── Endpoints ────────────────────────────────────────────────────
+
 
 @router.get("/status")
 async def get_status():
@@ -155,15 +157,22 @@ async def execute_plan(req: PlanRequest):
         else:
             enabled = ctrl.enable_real_mode()
             if not enabled:
-                raise HTTPException(status_code=400, detail="Cannot enable real mode: PyAutoGUI not available or permissions denied")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot enable real mode: PyAutoGUI not available or permissions denied",
+                )
 
     plan = ExecutionPlan(plan_id=f"plan_{int(time.time())}", description=req.description)
     for step in req.steps:
         try:
             op_type = DesktopOperationType(step.op_type)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid operation type: {step.op_type}") from e
-        plan.add_step(DesktopOperation(op_type=op_type, params=step.params, description=step.description))
+            raise HTTPException(
+                status_code=400, detail=f"Invalid operation type: {step.op_type}"
+            ) from e
+        plan.add_step(
+            DesktopOperation(op_type=op_type, params=step.params, description=step.description)
+        )
 
     result = ctrl.execute_and_persist(plan)
     return result
@@ -182,7 +191,10 @@ async def execute_template(req: TemplateRequest):
         else:
             enabled = ctrl.enable_real_mode()
             if not enabled:
-                raise HTTPException(status_code=400, detail="Cannot enable real mode: PyAutoGUI not available or permissions denied")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot enable real mode: PyAutoGUI not available or permissions denied",
+                )
 
     plan = ctrl.create_plan_from_template(req.template_name)
     result = ctrl.execute_and_persist(plan)
@@ -214,7 +226,9 @@ async def get_policy_status():
         "operation_mode": ctrl._policy_tree.mode.value,
         "decision_log_count": len(ctrl._policy_tree.get_decision_log()),
         "level_distribution": ctrl._policy_tree.get_level_distribution(),
-        "pending_hitl": ctrl.pending_hitl_decision.to_dict() if ctrl.pending_hitl_decision else None,
+        "pending_hitl": ctrl.pending_hitl_decision.to_dict()
+        if ctrl.pending_hitl_decision
+        else None,
     }
 
 
@@ -222,6 +236,7 @@ async def get_policy_status():
 async def set_operation_mode(mode: str):
     """Set operation mode: full_auto, semi_auto, ask_mode."""
     from maref.desktop.policy_decision_tree import OperationMode
+
     ctrl = get_controller()
     try:
         ctrl.set_operation_mode(OperationMode(mode))

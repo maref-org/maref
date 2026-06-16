@@ -22,6 +22,7 @@ from typing import Any
 @dataclass
 class CachedTrustScore:
     """缓存的信任评分"""
+
     agent_id: str
     score: float
     factors: list[dict[str, Any]]
@@ -45,6 +46,7 @@ class CachedTrustScore:
 @dataclass
 class BatchOperation:
     """批量操作"""
+
     operation_id: str
     operation_type: str
     items: list[Any]
@@ -98,7 +100,7 @@ class TrustScoreCache:
         agent_id: str,
         score: float,
         factors: list[dict[str, Any]],
-        ttl_seconds: float | None = None
+        ttl_seconds: float | None = None,
     ) -> CachedTrustScore:
         """设置缓存的评分"""
         # 检查是否需要淘汰
@@ -143,10 +145,7 @@ class TrustScoreCache:
 
     def clean_expired(self) -> int:
         """清理过期缓存"""
-        expired = [
-            agent_id for agent_id, cached in self._cache.items()
-            if cached.is_expired
-        ]
+        expired = [agent_id for agent_id, cached in self._cache.items() if cached.is_expired]
 
         for agent_id in expired:
             del self._cache[agent_id]
@@ -194,8 +193,7 @@ class AsyncSecurityVerifier:
 
         try:
             result = await asyncio.wait_for(
-                verifier(agent_id),
-                timeout=timeout or self.default_timeout
+                verifier(agent_id), timeout=timeout or self.default_timeout
             )
 
             latency = (time.perf_counter() - start) * 1000
@@ -244,10 +242,7 @@ class AsyncSecurityVerifier:
         start = time.perf_counter()
 
         try:
-            risks = await asyncio.wait_for(
-                analyzer(chain),
-                timeout=self.default_timeout
-            )
+            risks = await asyncio.wait_for(analyzer(chain), timeout=self.default_timeout)
 
             latency = (time.perf_counter() - start) * 1000
             self._total_latency_ms += latency
@@ -256,7 +251,7 @@ class AsyncSecurityVerifier:
             return {
                 "valid": len(risks) == 0,
                 "risk_count": len(risks),
-                "risks": [r.to_dict() if hasattr(r, 'to_dict') else str(r) for r in risks],
+                "risks": [r.to_dict() if hasattr(r, "to_dict") else str(r) for r in risks],
                 "latency_ms": round(latency, 3),
             }
 
@@ -271,7 +266,8 @@ class AsyncSecurityVerifier:
         """获取验证统计"""
         avg_latency = (
             self._total_latency_ms / self._verification_count
-            if self._verification_count > 0 else 0.0
+            if self._verification_count > 0
+            else 0.0
         )
 
         return {
@@ -296,12 +292,7 @@ class BatchSecurityProcessor:
         self._batch_count = 0
         self._total_items_processed = 0
 
-    def submit(
-        self,
-        operation_type: str,
-        items: list[Any],
-        priority: int = 1
-    ) -> str:
+    def submit(self, operation_type: str, items: list[Any], priority: int = 1) -> str:
         """提交批量操作"""
         operation = BatchOperation(
             operation_id=f"batch-{int(time.time() * 1000)}-{len(self._pending)}",
@@ -367,7 +358,9 @@ class BatchSecurityProcessor:
             "type": operation.operation_type,
             "items_processed": len(processed),
             "latency_ms": round(latency, 3),
-            "throughput_per_second": round(len(processed) / (latency / 1000), 1) if latency > 0 else 0,
+            "throughput_per_second": round(len(processed) / (latency / 1000), 1)
+            if latency > 0
+            else 0,
         }
 
     def _batch_trust_evaluation(self, items: list[Any]) -> list[dict[str, Any]]:
@@ -375,11 +368,13 @@ class BatchSecurityProcessor:
         results = []
         for agent_info in items:
             agent_id = agent_info.get("agent_id", "unknown")
-            results.append({
-                "agent_id": agent_id,
-                "score": 50.0,  # 模拟评分
-                "status": "evaluated",
-            })
+            results.append(
+                {
+                    "agent_id": agent_id,
+                    "score": 50.0,  # 模拟评分
+                    "status": "evaluated",
+                }
+            )
         return results
 
     def _batch_compliance_check(self, items: list[Any]) -> list[dict[str, Any]]:
@@ -387,11 +382,13 @@ class BatchSecurityProcessor:
         results = []
         for check in items:
             req_id = check.get("requirement_id", "unknown")
-            results.append({
-                "requirement_id": req_id,
-                "compliant": True,  # 模拟结果
-                "status": "checked",
-            })
+            results.append(
+                {
+                    "requirement_id": req_id,
+                    "compliant": True,  # 模拟结果
+                    "status": "checked",
+                }
+            )
         return results
 
     def _batch_vulnerability_scan(self, items: list[Any]) -> list[dict[str, Any]]:
@@ -399,11 +396,13 @@ class BatchSecurityProcessor:
         results = []
         for component in items:
             name = component.get("name", "unknown")
-            results.append({
-                "component": name,
-                "vulnerabilities": 0,  # 模拟结果
-                "status": "scanned",
-            })
+            results.append(
+                {
+                    "component": name,
+                    "vulnerabilities": 0,  # 模拟结果
+                    "status": "scanned",
+                }
+            )
         return results
 
     def get_stats(self) -> dict[str, Any]:
@@ -430,10 +429,7 @@ class DistributedTrustOptimizer:
         self._partition_state: dict[str, bool] = {}
 
     def propagate_trust_incremental(
-        self,
-        source_agent: str,
-        target_agent: str,
-        trust_delta: float
+        self, source_agent: str, target_agent: str, trust_delta: float
     ) -> dict[str, Any]:
         """
         增量信任传播
@@ -445,14 +441,16 @@ class DistributedTrustOptimizer:
 
         self._trust_vectors[source_agent][target_agent] = new_trust
 
-        self._update_log.append({
-            "timestamp": time.time(),
-            "source": source_agent,
-            "target": target_agent,
-            "delta": trust_delta,
-            "old_value": current,
-            "new_value": new_trust,
-        })
+        self._update_log.append(
+            {
+                "timestamp": time.time(),
+                "source": source_agent,
+                "target": target_agent,
+                "delta": trust_delta,
+                "old_value": current,
+                "new_value": new_trust,
+            }
+        )
 
         return {
             "source": source_agent,
@@ -464,10 +462,7 @@ class DistributedTrustOptimizer:
         }
 
     def handle_partition(
-        self,
-        partition_id: str,
-        agents_in_partition: list[str],
-        is_available: bool
+        self, partition_id: str, agents_in_partition: list[str], is_available: bool
     ) -> dict[str, Any]:
         """
         处理网络分区
@@ -525,25 +520,20 @@ class DistributedTrustOptimizer:
         }
 
 
-def create_trust_score_cache(
-    ttl_seconds: float = 300.0,
-    max_size: int = 10000
-) -> TrustScoreCache:
+def create_trust_score_cache(ttl_seconds: float = 300.0, max_size: int = 10000) -> TrustScoreCache:
     """创建信任评分缓存"""
     return TrustScoreCache(default_ttl_seconds=ttl_seconds, max_size=max_size)
 
 
 def create_async_security_verifier(
-    max_concurrent: int = 10,
-    default_timeout: float = 5.0
+    max_concurrent: int = 10, default_timeout: float = 5.0
 ) -> AsyncSecurityVerifier:
     """创建异步安全验证器"""
     return AsyncSecurityVerifier(max_concurrent=max_concurrent, default_timeout=default_timeout)
 
 
 def create_batch_processor(
-    batch_size: int = 100,
-    flush_interval_ms: float = 100.0
+    batch_size: int = 100, flush_interval_ms: float = 100.0
 ) -> BatchSecurityProcessor:
     """创建批量安全处理器"""
     return BatchSecurityProcessor(batch_size=batch_size, flush_interval_ms=flush_interval_ms)

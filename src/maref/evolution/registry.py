@@ -119,9 +119,7 @@ class AgentRegistry:
             DuplicateAgentError: If an agent with the same ID already exists.
         """
         if config.agent_id in self._agents:
-            raise DuplicateAgentError(
-                f"Agent '{config.agent_id}' is already registered"
-            )
+            raise DuplicateAgentError(f"Agent '{config.agent_id}' is already registered")
 
         agent = GovernanceAgent(config)
         self._agents[config.agent_id] = agent
@@ -359,14 +357,8 @@ class AgentRegistry:
             "group_count": self.group_count,
             "role_distribution": self.get_role_distribution(),
             "group_distribution": self.get_group_distribution(),
-            "agents": {
-                aid: agent.get_stats()
-                for aid, agent in self._agents.items()
-            },
-            "groups": {
-                gid: group.get_group_stats()
-                for gid, group in self._groups.items()
-            },
+            "agents": {aid: agent.get_stats() for aid, agent in self._agents.items()},
+            "groups": {gid: group.get_group_stats() for gid, group in self._groups.items()},
         }
 
     def __repr__(self) -> str:

@@ -143,6 +143,75 @@
       ],
       "title": "CircuitBreaker Recoveries",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 7 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 8 },
+      "id": 8,
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+      "targets": [
+        { "expr": "maref_pollution_tax_multiplier", "legendFormat": "tax_multiplier" }
+      ],
+      "title": "Pollution Tax Multiplier",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 20, "lineWidth": 2 },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 4, "y": 8 },
+      "id": 9,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        { "expr": "rate(maref_pollution_tax_applied_total[5m])", "legendFormat": "tax events/s" },
+        { "expr": "rate(maref_pollution_tax_penalty_total[5m])", "legendFormat": "penalties/s" }
+      ],
+      "title": "Pollution Events",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 10, "y": 8 },
+      "id": 10,
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+      "targets": [
+        { "expr": "rate(maref_pollution_tax_downgrade_total[5m])", "legendFormat": "downgrades/s" }
+      ],
+      "title": "Credit Rating Downgrades",
+      "type": "stat"
     }
   ],
   "refresh": "10s",

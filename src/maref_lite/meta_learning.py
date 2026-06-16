@@ -167,9 +167,7 @@ class MetaLearner:
 
         for key in self._state.policy_weights:
             if key in gradient:
-                self._state.policy_weights[key] += (
-                    self._state.learning_rate * gradient[key]
-                )
+                self._state.policy_weights[key] += self._state.learning_rate * gradient[key]
 
         self._clip_weights()
         self._decay_learning_rate()
@@ -261,9 +259,7 @@ class MetaLearner:
         return {
             "state": self._state.to_dict(),
             "buffer_utilization": len(self._state.experience_buffer) / self._buffer_size,
-            "avg_reward": (
-                self._state.total_reward / max(self._state.episode_count, 1)
-            ),
+            "avg_reward": (self._state.total_reward / max(self._state.episode_count, 1)),
             "store": store_stats,
             "scheduler": self._lr_scheduler.get_stats(),
             "persisted_samples": self._store.count(),

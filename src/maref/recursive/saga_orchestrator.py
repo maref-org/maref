@@ -217,9 +217,9 @@ class SagaOrchestrator:
 
         return result
 
-    def execute_parallel_group(self, saga: Saga,
-                               group_step_ids: list[str],
-                               initial_context: dict[str, Any] | None = None) -> SagaResult:
+    def execute_parallel_group(
+        self, saga: Saga, group_step_ids: list[str], initial_context: dict[str, Any] | None = None
+    ) -> SagaResult:
         group_steps = [s for s in saga.steps if s.step_id in group_step_ids]
         if not group_steps:
             return SagaResult(
@@ -237,13 +237,15 @@ class SagaOrchestrator:
         if non_group:
             before_group = Saga(
                 saga_id=f"{saga.saga_id}_pre",
-                steps=[s for s in non_group
-                       if saga.steps.index(s) < saga.steps.index(group_steps[0])],
+                steps=[
+                    s for s in non_group if saga.steps.index(s) < saga.steps.index(group_steps[0])
+                ],
             )
             after_group = Saga(
                 saga_id=f"{saga.saga_id}_post",
-                steps=[s for s in non_group
-                       if saga.steps.index(s) > saga.steps.index(group_steps[-1])],
+                steps=[
+                    s for s in non_group if saga.steps.index(s) > saga.steps.index(group_steps[-1])
+                ],
             )
             if before_group.steps:
                 pre_result = self.execute(before_group, initial_context)
@@ -257,8 +259,7 @@ class SagaOrchestrator:
             return parallel_result
         return self.execute(parallel_saga, initial_context)
 
-    def _execute_step(self, step: SagaStep,
-                      context: dict[str, Any]) -> SagaExecutionRecord:
+    def _execute_step(self, step: SagaStep, context: dict[str, Any]) -> SagaExecutionRecord:
         rec = SagaExecutionRecord(
             step_id=step.step_id,
             status=StepStatus.RUNNING,
@@ -360,10 +361,14 @@ class Saga:
         if not self.saga_id:
             self.saga_id = f"saga_{uuid.uuid4().hex[:12]}"
 
-    def add_step(self, step_or_fn, compensation=None,
-                 description: str = "",
-                 timeout_seconds: float = 30.0,
-                 retry_policy: RetryPolicy | None = None) -> Saga:
+    def add_step(
+        self,
+        step_or_fn,
+        compensation=None,
+        description: str = "",
+        timeout_seconds: float = 30.0,
+        retry_policy: RetryPolicy | None = None,
+    ) -> Saga:
         if callable(step_or_fn) and not isinstance(step_or_fn, SagaStep):
             step = SagaStep(
                 step_id=f"{self.saga_id}_step_{len(self.steps) + 1}",
@@ -378,8 +383,11 @@ class Saga:
         self.steps.append(step)
         return self
 
-    def add_parallel_group(self, steps: list[SagaStep],
-                           compensation_group: Callable[[dict[str, Any]], StepResult] | None = None) -> Saga:
+    def add_parallel_group(
+        self,
+        steps: list[SagaStep],
+        compensation_group: Callable[[dict[str, Any]], StepResult] | None = None,
+    ) -> Saga:
         group_id = f"{self.saga_id}_parallel_{len(self.steps)}"
         for step in steps:
             step.step_id = f"{group_id}_{step.step_id}"
@@ -397,7 +405,8 @@ def transaction_boundary(saga: Saga, before_id: str, after_id: str) -> Saga:
         step_id=f"{saga.saga_id}_tx_boundary_{before_id}_{after_id}",
         description=f"Transaction boundary: {before_id} → {after_id}",
         execute_fn=lambda ctx: StepResult(
-            step_id="tx_boundary", success=True,
+            step_id="tx_boundary",
+            success=True,
             data={"boundary": f"{before_id}_{after_id}"},
         ),
     )

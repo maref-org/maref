@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import structlog
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -34,6 +35,8 @@ from research.dashscope_client import DashScopeClient
 from research.finding_models import StructuredFinding
 from sidecar.collector import MockAgentAdapter, ObservationCollector
 from sidecar.monitor import CompositeMonitor
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -139,9 +142,7 @@ class MAREFAutoResearch:
                         max_tokens=20,
                     )
                     chosen_name = response.content.strip().upper()
-                    next_state = next(
-                        (s for s in valid_next if s.name == chosen_name), None
-                    )
+                    next_state = next((s for s in valid_next if s.name == chosen_name), None)
                     if next_state is None:
                         next_state = random.choice(valid_next)
                         llm_decisions.append(f"step_{step}: fallback_random")
@@ -325,13 +326,16 @@ class MAREFAutoResearch:
                 content = response.content.strip()
                 # Extract booleans and floats heuristically
                 import re
-                bools = re.findall(r'true|false', content, re.IGNORECASE)
-                confs = re.findall(r'\b0\.\d+', content)
+
+                bools = re.findall(r"true|false", content, re.IGNORECASE)
+                confs = re.findall(r"\b0\.\d+", content)
                 for i in range(min(len(bools), len(confs), 5)):
-                    scenarios.append({
-                        "actual_drift": bools[i].lower() == "true",
-                        "confidence": float(confs[i]),
-                    })
+                    scenarios.append(
+                        {
+                            "actual_drift": bools[i].lower() == "true",
+                            "confidence": float(confs[i]),
+                        }
+                    )
             except Exception:
                 pass
 
@@ -425,10 +429,7 @@ class MAREFAutoResearch:
                     key=lambda x: x[1],
                     reverse=True,
                 )[:5]
-                prompt = (
-                    f"治理状态分布: {top_states}. "
-                    f"用中文说明这暗示了什么涌现行为？一句话。"
-                )
+                prompt = f"治理状态分布: {top_states}. " f"用中文说明这暗示了什么涌现行为？一句话。"
                 response = await llm.chat_completion(
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.5,
@@ -444,9 +445,7 @@ class MAREFAutoResearch:
             experiment_type="emergence_detection",
             parameters={"n_transitions": n_transitions},
             observations={
-                "state_distribution": {
-                    s.name: count / total for s, count in state_counts.items()
-                },
+                "state_distribution": {s.name: count / total for s, count in state_counts.items()},
                 "attractors": attractors,
             },
             findings=findings,
@@ -467,14 +466,14 @@ class MAREFAutoResearch:
 
     async def run_daily_batch(self) -> DailyReport:
         """Run a full day of experiments and generate report."""
-        print(f"[{datetime.now()}] Starting daily research batch: {self._experiments_per_day} experiments")
+        logger.info("Starting daily research batch: %s experiments", self._experiments_per_day)
 
         for i in range(self._experiments_per_day):
             result = await self.run_experiment(i)
             self._results.append(result)
 
             if (i + 1) % 10 == 0:
-                print(f"  Progress: {i + 1}/{self._experiments_per_day} experiments completed")
+                logger.debug("Progress: %s/%s experiments completed", i + 1, self._experiments_per_day)
 
         return self._generate_report()
 
@@ -541,7 +540,7 @@ class MAREFAutoResearch:
         with open(md_filepath, "w") as f:
             f.write(self._format_markdown_report(report))
 
-        print(f"[{datetime.now()}] Report saved to {filepath} and {md_filepath}")
+        logger.info("Report saved to %s and %s", filepath, md_filepath)
         return filepath
 
     def _format_markdown_report(self, report: DailyReport) -> str:
@@ -560,39 +559,45 @@ class MAREFAutoResearch:
         for exp_type, count in report.experiment_types.items():
             lines.append(f"| {exp_type} | {count} |")
 
-        lines.extend([
-            "",
-            "## 关键发现",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 关键发现",
+                "",
+            ]
+        )
         for finding in report.key_findings:
             lines.append(f"- {finding}")
 
-        lines.extend([
-            "",
-            "## 自观测统计",
-            "",
-            "```json",
-            json.dumps(report.self_observation_stats, indent=2),
-            "```",
-            "",
-            "## 自适应阈值统计",
-            "",
-            "```json",
-            json.dumps(report.adaptive_threshold_stats, indent=2, default=str),
-            "```",
-            "",
-            "## 建议",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 自观测统计",
+                "",
+                "```json",
+                json.dumps(report.self_observation_stats, indent=2),
+                "```",
+                "",
+                "## 自适应阈值统计",
+                "",
+                "```json",
+                json.dumps(report.adaptive_threshold_stats, indent=2, default=str),
+                "```",
+                "",
+                "## 建议",
+                "",
+            ]
+        )
         for rec in report.recommendations:
             lines.append(f"- {rec}")
 
-        lines.extend([
-            "",
-            "---",
-            "*由 MAREF 自主研究引擎与百炼 LLM 生成*",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "*由 MAREF 自主研究引擎与百炼 LLM 生成*",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -632,16 +637,16 @@ async def main() -> None:
     )
 
     if args.continuous:
-        print(f"Starting continuous research mode (interval: {args.interval_hours}h)")
+        logger.info("Starting continuous research mode (interval: %s h)", args.interval_hours)
         while True:
             report = await research.run_daily_batch()
             research.save_report(report)
-            print(f"Sleeping for {args.interval_hours} hours...")
+            logger.info("Sleeping for %s hours...", args.interval_hours)
             await asyncio.sleep(args.interval_hours * 3600)
     else:
         report = await research.run_daily_batch()
         research.save_report(report)
-        print("Research batch complete!")
+        logger.info("Research batch complete!")
 
 
 if __name__ == "__main__":

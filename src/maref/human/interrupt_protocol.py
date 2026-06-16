@@ -18,10 +18,10 @@ from typing import Any
 class InterruptType(Enum):
     """Types of human interrupt signals."""
 
-    PAUSE = "pause"          # Pause execution, can resume later
-    ABORT = "abort"          # Terminate, trigger Saga rollback
-    OVERRIDE = "override"    # Forcefully modify an agent's decision
-    RESUME = "resume"        # Resume from PAUSE
+    PAUSE = "pause"  # Pause execution, can resume later
+    ABORT = "abort"  # Terminate, trigger Saga rollback
+    OVERRIDE = "override"  # Forcefully modify an agent's decision
+    RESUME = "resume"  # Resume from PAUSE
 
 
 @dataclass(frozen=True)
@@ -34,9 +34,9 @@ class InterruptSignal:
 
     signal_id: str
     interrupt_type: InterruptType
-    target_agents: list[str]            # Empty = broadcast to all
-    global_sequence: int                # Monotonically increasing
-    issued_by: str                      # Human user ID
+    target_agents: list[str]  # Empty = broadcast to all
+    global_sequence: int  # Monotonically increasing
+    issued_by: str  # Human user ID
     reason: str = ""
     payload: dict[str, Any] = field(default_factory=dict)  # OVERRIDE: new decision
     issued_at: float = field(default_factory=time.time)
@@ -116,10 +116,7 @@ class InterruptProtocol:
 
     def get_interrupts_since(self, sequence: int) -> list[InterruptSignal]:
         """Get all interrupts with sequence > given sequence."""
-        return [
-            sig for seq, sig in self._interrupts.items()
-            if seq > sequence
-        ]
+        return [sig for seq, sig in self._interrupts.items() if seq > sequence]
 
     def should_agent_stop(self, agent_id: str, last_seen_sequence: int) -> InterruptSignal | None:
         """Check if an agent should stop based on latest interrupts.

@@ -12,7 +12,13 @@ import argparse
 import asyncio
 import sys
 
+import structlog
+from rich.console import Console
+
 from maref.evolution.engine import EvolutionConfig, RecursiveEvolutionEngine
+
+logger = structlog.get_logger(__name__)
+console = Console()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,30 +77,30 @@ async def main() -> int:
     engine = RecursiveEvolutionEngine(config=config)
 
     if args.verbose:
-        print("Evolution engine starting...")
-        print(f"  dry_run={config.dry_run}")
-        print(f"  output_dir={config.output_dir}")
-        print(f"  max_rounds={config.max_total_rounds}")
+        logger.info("Evolution engine starting...")
+        logger.info("  dry_run=%s", config.dry_run)
+        logger.info("  output_dir=%s", config.output_dir)
+        logger.info("  max_rounds=%s", config.max_total_rounds)
         if config.resume_from_cycle:
-            print(f"  resume_from={config.resume_from_cycle}:{config.resume_from_round}")
+            logger.info("  resume_from=%s:%s", config.resume_from_cycle, config.resume_from_round)
 
     try:
         result = await engine.run()
     except KeyboardInterrupt:
-        print("\nInterrupted — stopping gracefully...")
+        console.print("\nInterrupted — stopping gracefully...")
         engine.stop()
         result = await engine.run()
     except Exception as e:
-        print(f"Fatal error: {e}", file=sys.stderr)
+        logger.error("Fatal error: %s", e)
         return 1
 
-    print(result.summary())
+    console.print(result.summary())
 
     if result.all_passed:
-        print("\nRecursive evolution completed successfully.")
+        console.print("\nRecursive evolution completed successfully.")
         return 0
     else:
-        print("\nRecursive evolution completed with failures — see report.")
+        console.print("\nRecursive evolution completed with failures — see report.")
         return 1
 
 

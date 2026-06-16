@@ -50,12 +50,14 @@ SAFE_BOUNDS: dict[str, tuple[float, float]] = {
 }
 
 # Features that must never be modified by agents
-IMMUTABLE_FEATURES = frozenset({
-    "safety_gate_threshold",
-    "circuit_breaker_enabled",
-    "max_privilege_level",
-    "audit_log_enabled",
-})
+IMMUTABLE_FEATURES = frozenset(
+    {
+        "safety_gate_threshold",
+        "circuit_breaker_enabled",
+        "max_privilege_level",
+        "audit_log_enabled",
+    }
+)
 
 # Minimum safe values for critical thresholds
 MIN_SAFE_THRESHOLDS = {
@@ -185,9 +187,7 @@ class ConstitutionGuard:
 
         # RL-001: Modified-by invariant
         if agent_id not in self._registered_agents:
-            violations.append(
-                f"Agent '{agent_id}' is not registered to modify policy weights"
-            )
+            violations.append(f"Agent '{agent_id}' is not registered to modify policy weights")
             invariant_codes.append(InvariantCode.RL_001_MODIFIED_BY_REGISTERED)
 
         # RL-002: Safety gate invariant
@@ -225,12 +225,14 @@ class ConstitutionGuard:
         # Record violations
         self._violation_count += len(violations)
         for inv_code in invariant_codes:
-            self._violation_log.append(InvariantViolation(
-                invariant=inv_code,
-                agent_id=agent_id,
-                details="; ".join(violations),
-                proposed_weights=proposed_weights,
-            ))
+            self._violation_log.append(
+                InvariantViolation(
+                    invariant=inv_code,
+                    agent_id=agent_id,
+                    details="; ".join(violations),
+                    proposed_weights=proposed_weights,
+                )
+            )
 
         return ValidationResult(
             allowed=False,
@@ -272,26 +274,27 @@ class ConstitutionGuard:
     # --- Private invariant checks ---
 
     def _check_safety_bounds(
-        self, weights: dict[str, float],
+        self,
+        weights: dict[str, float],
     ) -> list[str]:
         """RL-002: Ensure all weights stay within safe numerical bounds."""
         violations: list[str] = []
 
         # Features exempt from global magnitude check (have their own bounds)
-        exempt_from_global_check = frozenset(SAFE_BOUNDS.keys()) | frozenset(MIN_SAFE_THRESHOLDS.keys()) | frozenset(MAX_THRESHOLDS.keys())
+        exempt_from_global_check = (
+            frozenset(SAFE_BOUNDS.keys())
+            | frozenset(MIN_SAFE_THRESHOLDS.keys())
+            | frozenset(MAX_THRESHOLDS.keys())
+        )
 
         for feature, value in weights.items():
             if feature in IMMUTABLE_FEATURES:
                 # Only reject if trying to set to unsafe value
                 if feature in ("circuit_breaker_enabled", "audit_log_enabled"):
                     if not value:
-                        violations.append(
-                            f"Immutable feature '{feature}' cannot be disabled"
-                        )
+                        violations.append(f"Immutable feature '{feature}' cannot be disabled")
                 else:
-                    violations.append(
-                        f"Immutable feature '{feature}' cannot be modified"
-                    )
+                    violations.append(f"Immutable feature '{feature}' cannot be modified")
                 continue
 
             bounds = SAFE_BOUNDS.get(feature)
@@ -324,7 +327,8 @@ class ConstitutionGuard:
         return violations
 
     def _check_audit_requirements(
-        self, weights: dict[str, float],
+        self,
+        weights: dict[str, float],
     ) -> list[str]:
         """RL-003: Ensure policy changes don't disable audit logging."""
         violations: list[str] = []
@@ -335,7 +339,8 @@ class ConstitutionGuard:
         return violations
 
     def _check_circuit_breaker_invariant(
-        self, weights: dict[str, float],
+        self,
+        weights: dict[str, float],
     ) -> list[str]:
         """RL-004: Ensure circuit breaker cannot be bypassed or disabled."""
         violations: list[str] = []
@@ -346,14 +351,13 @@ class ConstitutionGuard:
         if "circuit_breaker_cooldown" in weights:
             cooldown = weights["circuit_breaker_cooldown"]
             if cooldown < MIN_SAFE_THRESHOLDS.get("circuit_breaker_cooldown", 10.0):
-                violations.append(
-                    f"Circuit breaker cooldown {cooldown}s below minimum safe value"
-                )
+                violations.append(f"Circuit breaker cooldown {cooldown}s below minimum safe value")
 
         return violations
 
     def _check_privilege_escalation(
-        self, weights: dict[str, float],
+        self,
+        weights: dict[str, float],
     ) -> list[str]:
         """RL-005: Ensure no privilege escalation through policy updates."""
         violations: list[str] = []

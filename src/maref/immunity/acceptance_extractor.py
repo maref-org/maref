@@ -26,20 +26,20 @@ class IntentHash:
 
 
 TEST_TEMPLATES: dict[str, str] = {
-    "happy_path": '''def test_{safe_desc}():
+    "happy_path": """def test_{safe_desc}():
     result = implement({args})
     assert result is not None
     assert result["status"] == "success"
-''',
-    "error": '''def test_{safe_desc}():
+""",
+    "error": """def test_{safe_desc}():
     with pytest.raises({exception}):
         implement({args})
-''',
-    "boundary": '''def test_{safe_desc}():
+""",
+    "boundary": """def test_{safe_desc}():
     result = implement({args})
     assert result is not None
     assert result["status"] == "success"
-''',
+""",
 }
 
 
@@ -108,7 +108,8 @@ class AcceptanceExtractor:
                 description="有效用户名和密码可成功登录",
                 category="happy_path",
                 test_template=_make_test_template(
-                    "有效用户名和密码可成功登录", "happy_path",
+                    "有效用户名和密码可成功登录",
+                    "happy_path",
                     args='username="admin", password="correct_password"',
                 ),
             ),
@@ -117,7 +118,8 @@ class AcceptanceExtractor:
                 description="无效密码应返回错误提示",
                 category="error",
                 test_template=_make_test_template(
-                    "无效密码应返回错误提示", "error",
+                    "无效密码应返回错误提示",
+                    "error",
                     exception="AuthenticationError",
                     args='username="admin", password="wrong_password"',
                 ),
@@ -127,7 +129,8 @@ class AcceptanceExtractor:
                 description="连续5次失败后应锁定账户",
                 category="boundary",
                 test_template=_make_test_template(
-                    "连续5次失败后应锁定账户", "boundary",
+                    "连续5次失败后应锁定账户",
+                    "boundary",
                     args='username="admin", password="wrong_password", attempts=5',
                 ),
             ),
@@ -136,7 +139,8 @@ class AcceptanceExtractor:
                 description="空用户名或密码应拒绝请求",
                 category="error",
                 test_template=_make_test_template(
-                    "空用户名或密码应拒绝请求", "error",
+                    "空用户名或密码应拒绝请求",
+                    "error",
                     exception="ValidationError",
                     args='username="", password=""',
                 ),
@@ -150,7 +154,8 @@ class AcceptanceExtractor:
                 description="新用户可以成功注册",
                 category="happy_path",
                 test_template=_make_test_template(
-                    "新用户可以成功注册", "happy_path",
+                    "新用户可以成功注册",
+                    "happy_path",
                     args='username="newuser", password="P@ssw0rd", email="a@b.com"',
                 ),
             ),
@@ -159,7 +164,8 @@ class AcceptanceExtractor:
                 description="重复用户名应返回注册失败",
                 category="error",
                 test_template=_make_test_template(
-                    "重复用户名应返回注册失败", "error",
+                    "重复用户名应返回注册失败",
+                    "error",
                     exception="UserExistsError",
                     args='username="existing", password="P@ssw0rd"',
                 ),
@@ -169,7 +175,8 @@ class AcceptanceExtractor:
                 description="密码长度小于8位应拒绝",
                 category="boundary",
                 test_template=_make_test_template(
-                    "密码长度小于8位应拒绝", "boundary",
+                    "密码长度小于8位应拒绝",
+                    "boundary",
                     args='username="newuser", password="Ab1"',
                 ),
             ),
@@ -178,7 +185,8 @@ class AcceptanceExtractor:
                 description="无效邮箱格式应返回验证错误",
                 category="error",
                 test_template=_make_test_template(
-                    "无效邮箱格式应返回验证错误", "error",
+                    "无效邮箱格式应返回验证错误",
+                    "error",
                     exception="ValidationError",
                     args='username="newuser", password="P@ssw0rd", email="invalid"',
                 ),
@@ -192,7 +200,8 @@ class AcceptanceExtractor:
                 description="关键字搜索返回匹配结果",
                 category="happy_path",
                 test_template=_make_test_template(
-                    "关键字搜索应返回匹配结果", "happy_path",
+                    "关键字搜索应返回匹配结果",
+                    "happy_path",
                     args='query="keyword"',
                 ),
             ),
@@ -201,7 +210,8 @@ class AcceptanceExtractor:
                 description="空关键字应返回空结果",
                 category="boundary",
                 test_template=_make_test_template(
-                    "空关键字应返回空结果", "boundary",
+                    "空关键字应返回空结果",
+                    "boundary",
                     args='query=""',
                 ),
             ),
@@ -210,7 +220,8 @@ class AcceptanceExtractor:
                 description="超长关键字应截断或返回错误",
                 category="boundary",
                 test_template=_make_test_template(
-                    "超长关键字应截断或返回错误", "boundary",
+                    "超长关键字应截断或返回错误",
+                    "boundary",
                     args='query="x" * 1000',
                 ),
             ),
@@ -219,7 +230,8 @@ class AcceptanceExtractor:
                 description="SQL注入关键字应被转义",
                 category="error",
                 test_template=_make_test_template(
-                    "SQL注入关键字应被转义", "error",
+                    "SQL注入关键字应被转义",
+                    "error",
                     exception="SecurityError",
                     args='query="\' OR 1=1 --"',
                 ),
@@ -233,8 +245,9 @@ class AcceptanceExtractor:
                 description="有效文件可以上传成功",
                 category="happy_path",
                 test_template=_make_test_template(
-                    "有效文件可以上传成功", "happy_path",
-                    args='file=valid_file()',
+                    "有效文件可以上传成功",
+                    "happy_path",
+                    args="file=valid_file()",
                 ),
             ),
             AcceptanceCriterion(
@@ -242,8 +255,9 @@ class AcceptanceExtractor:
                 description="超过大小限制的文件应被拒绝",
                 category="boundary",
                 test_template=_make_test_template(
-                    "超过大小限制的文件应被拒绝", "boundary",
-                    args='file=oversized_file()',
+                    "超过大小限制的文件应被拒绝",
+                    "boundary",
+                    args="file=oversized_file()",
                 ),
             ),
             AcceptanceCriterion(
@@ -251,9 +265,10 @@ class AcceptanceExtractor:
                 description="不支持的文件格式应被拒绝",
                 category="error",
                 test_template=_make_test_template(
-                    "不支持的文件格式应被拒绝", "error",
+                    "不支持的文件格式应被拒绝",
+                    "error",
                     exception="ValidationError",
-                    args='file=invalid_format_file()',
+                    args="file=invalid_format_file()",
                 ),
             ),
             AcceptanceCriterion(
@@ -261,8 +276,9 @@ class AcceptanceExtractor:
                 description="空文件应被拒绝",
                 category="boundary",
                 test_template=_make_test_template(
-                    "空文件应被拒绝", "boundary",
-                    args='file=empty_file()',
+                    "空文件应被拒绝",
+                    "boundary",
+                    args="file=empty_file()",
                 ),
             ),
         ]
@@ -274,7 +290,8 @@ class AcceptanceExtractor:
                 description=f"正常输入下{description}应成功执行",
                 category="happy_path",
                 test_template=_make_test_template(
-                    f"正常输入下{description}应成功执行", "happy_path",
+                    f"正常输入下{description}应成功执行",
+                    "happy_path",
                 ),
             ),
             AcceptanceCriterion(
@@ -282,7 +299,8 @@ class AcceptanceExtractor:
                 description="无效输入应返回错误提示",
                 category="error",
                 test_template=_make_test_template(
-                    "无效输入应返回错误提示", "error",
+                    "无效输入应返回错误提示",
+                    "error",
                 ),
             ),
             AcceptanceCriterion(
@@ -290,7 +308,8 @@ class AcceptanceExtractor:
                 description="边界条件: 空输入应被正确处理",
                 category="boundary",
                 test_template=_make_test_template(
-                    "边界条件空输入应被正确处理", "boundary",
+                    "边界条件空输入应被正确处理",
+                    "boundary",
                 ),
             ),
         ]

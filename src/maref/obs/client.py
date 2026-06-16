@@ -166,9 +166,7 @@ class MarefObsClient:
             "entropy": entropy,
         }
         event_type = (
-            ObsEventType.OSCILLATION_DETECTED
-            if detected
-            else ObsEventType.OSCILLATION_RESOLVED
+            ObsEventType.OSCILLATION_DETECTED if detected else ObsEventType.OSCILLATION_RESOLVED
         )
         return self.log_event(event_type, metadata)
 

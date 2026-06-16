@@ -24,6 +24,7 @@ from typing import Any
 
 class ProbeSeverity(Enum):
     """Severity level for probe readings."""
+
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -54,7 +55,9 @@ class ProbeReading:
 class Probe(ABC):
     """Base class for all observation probes."""
 
-    def __init__(self, name: str, primary_threshold: float, shadow_threshold: float | None = None) -> None:
+    def __init__(
+        self, name: str, primary_threshold: float, shadow_threshold: float | None = None
+    ) -> None:
         self.name = name
         self.primary_threshold = primary_threshold
         self.shadow_threshold = shadow_threshold

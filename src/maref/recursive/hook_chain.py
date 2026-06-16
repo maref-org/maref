@@ -15,12 +15,14 @@ class HookExecutionStack:
     entries: list[dict[str, Any]] = field(default_factory=list)
 
     def record(self, handler_id: str, verdict: str, duration_ms: float, message: str = "") -> None:
-        self.entries.append({
-            "handler_id": handler_id,
-            "verdict": verdict,
-            "duration_ms": duration_ms,
-            "message": message,
-        })
+        self.entries.append(
+            {
+                "handler_id": handler_id,
+                "verdict": verdict,
+                "duration_ms": duration_ms,
+                "message": message,
+            }
+        )
 
     def to_list(self) -> list[dict[str, Any]]:
         return list(self.entries)

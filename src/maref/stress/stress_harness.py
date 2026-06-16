@@ -65,8 +65,14 @@ class StressHarness:
         ab_pass_count = 0
         ab_total = 0
 
-        fault_types = ["test_failure", "dependency_conflict", "coverage_drop",
-                       "performance_regression", "import_error", "unknown"]
+        fault_types = [
+            "test_failure",
+            "dependency_conflict",
+            "coverage_drop",
+            "performance_regression",
+            "import_error",
+            "unknown",
+        ]
         healer_success: dict[str, int] = dict.fromkeys(fault_types, 0)
         healer_total: dict[str, int] = dict.fromkeys(fault_types, 0)
 
@@ -156,7 +162,9 @@ class StressHarness:
             "meta_protection_rate": 0.8 if cb.state.value[1] == "CLOSED" else 0.4,
             "graceful_degradation_rate": 0.7 if oscillation_resolved > 0 else 0.5,
             "data_consistency_rate": 0.9 if len(errors) < 5 else 0.6,
-            "throughput_under_stress": min(churn_rate / max(self._axes.get("churn_rate", 1.0), 1.0), 1.0),
+            "throughput_under_stress": min(
+                churn_rate / max(self._axes.get("churn_rate", 1.0), 1.0), 1.0
+            ),
         }
         resilience_score = self._resilience.evaluate(factors).total_score
 
@@ -171,7 +179,7 @@ class StressHarness:
             latency_p50=round(p50, 2),
             latency_p99=round(p99, 2),
             latency_p99_9=round(p999, 2),
-            cb_state=str(cb.state.value[1]) if hasattr(cb.state, 'value') else str(cb.state),
+            cb_state=str(cb.state.value[1]) if hasattr(cb.state, "value") else str(cb.state),
             meta_cb_state="CLOSED",
             healer_success_rate=round(healer_success_rate, 3),
             healer_strategy_rates=strategy_rates,
@@ -183,6 +191,9 @@ class StressHarness:
             degradation_plans=[p.strategy for p in degradation],
             duration_s=round(elapsed, 2),
             errors=errors[:20],
-            metadata={"churn_count": churn_count, "fault_total": sum(healer_total.values()),
-                       "oscillation_events": oscillation_events},
+            metadata={
+                "churn_count": churn_count,
+                "fault_total": sum(healer_total.values()),
+                "oscillation_events": oscillation_events,
+            },
         )

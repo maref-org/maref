@@ -26,6 +26,7 @@ from maref.compliance import ComplianceRegistry, ComplianceStatus, Jurisdiction
 
 class MonitorState(Enum):
     """监控状态"""
+
     IDLE = "idle"
     RUNNING = "running"
     PAUSED = "paused"
@@ -34,6 +35,7 @@ class MonitorState(Enum):
 
 class AlertSeverity(Enum):
     """告警严重程度"""
+
     CRITICAL = "critical"
     WARNING = "warning"
     INFO = "info"
@@ -206,9 +208,11 @@ class ComplianceMonitor:
             if existing:
                 previous_snapshot = existing[-1]
 
-        overall = self.registry.get_jurisdiction_compliance_status(
-            jurisdiction
-        ) if jurisdiction else self.registry.generate_compliance_report()
+        overall = (
+            self.registry.get_jurisdiction_compliance_status(jurisdiction)
+            if jurisdiction
+            else self.registry.generate_compliance_report()
+        )
 
         # 收集需求状态
         requirement_status: dict[str, ComplianceStatus] = {}
@@ -222,22 +226,26 @@ class ComplianceMonitor:
             current_rate = overall.get("compliance_rate", 0.0)
 
             if abs(current_rate - prev_rate) > 0.1:
-                changes.append({
-                    "field": "compliance_rate",
-                    "previous": prev_rate,
-                    "current": current_rate,
-                    "change": round(current_rate - prev_rate, 2),
-                })
+                changes.append(
+                    {
+                        "field": "compliance_rate",
+                        "previous": prev_rate,
+                        "current": current_rate,
+                        "change": round(current_rate - prev_rate, 2),
+                    }
+                )
 
             # 检测需求状态变化
             for req_id, status in requirement_status.items():
                 prev_status = previous_snapshot.requirement_status.get(req_id)
                 if prev_status and prev_status != status:
-                    changes.append({
-                        "field": f"requirement:{req_id}",
-                        "previous": prev_status.value,
-                        "current": status.value,
-                    })
+                    changes.append(
+                        {
+                            "field": f"requirement:{req_id}",
+                            "previous": prev_status.value,
+                            "current": status.value,
+                        }
+                    )
 
         snapshot = ComplianceSnapshot(
             snapshot_id=f"snap-{int(time.time())}",
@@ -363,7 +371,11 @@ class ComplianceMonitor:
         active = [a for a in self._alerts.values() if a.is_active]
 
         if min_severity:
-            severity_order = {AlertSeverity.CRITICAL: 3, AlertSeverity.WARNING: 2, AlertSeverity.INFO: 1}
+            severity_order = {
+                AlertSeverity.CRITICAL: 3,
+                AlertSeverity.WARNING: 2,
+                AlertSeverity.INFO: 1,
+            }
             min_level = severity_order.get(min_severity, 0)
             active = [a for a in active if severity_order.get(a.severity, 0) >= min_level]
 

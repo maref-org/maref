@@ -32,9 +32,9 @@ class PolicyChangeType(Enum):
     """Types of policy changes that can be proposed."""
 
     THRESHOLD_ADJUSTMENT = auto()  # Modify drift detection thresholds
-    MONITOR_CONFIG = auto()        # Change monitoring parameters
-    STATE_MACHINE_RULE = auto()    # Update state transition rules
-    ACTION_POLICY = auto()         # Modify response actions
+    MONITOR_CONFIG = auto()  # Change monitoring parameters
+    STATE_MACHINE_RULE = auto()  # Update state transition rules
+    ACTION_POLICY = auto()  # Modify response actions
 
 
 class PolicyStatus(Enum):
@@ -150,7 +150,7 @@ class PolicySandbox:
     def _evict_old_entries(self) -> None:
         """Remove old versions/changes from memory, keep them on disk."""
         if len(self._versions) > self._max_memory_versions:
-            versions_to_keep = set(self._version_history[-self._max_memory_versions:])
+            versions_to_keep = set(self._version_history[-self._max_memory_versions :])
             versions_to_keep.add("baseline")
             versions_to_keep.add(self._active_version)
             for version_id in list(self._versions.keys()):
@@ -167,7 +167,10 @@ class PolicySandbox:
             for change_id, change in sorted(
                 self._changes.items(), key=lambda x: x[1].proposed_at, reverse=True
             ):
-                if change.status in active_statuses or len(changes_to_keep) < self._max_memory_changes:
+                if (
+                    change.status in active_statuses
+                    or len(changes_to_keep) < self._max_memory_changes
+                ):
                     changes_to_keep.append(change_id)
                 else:
                     break
@@ -291,9 +294,7 @@ class PolicySandbox:
         self._notify(change)
         return True
 
-    def record_test_results(
-        self, change_id: str, metrics: dict[str, Any]
-    ) -> bool:
+    def record_test_results(self, change_id: str, metrics: dict[str, Any]) -> bool:
         """
         Record A/B test results for a policy change.
 
@@ -317,9 +318,7 @@ class PolicySandbox:
         self._save_change(change)
         return True
 
-    def approve_change(
-        self, change_id: str, reviewer: str = "auto"
-    ) -> bool:
+    def approve_change(self, change_id: str, reviewer: str = "auto") -> bool:
         """
         Approve and activate a policy change.
 

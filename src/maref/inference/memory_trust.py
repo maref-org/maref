@@ -42,6 +42,7 @@ class MemoryCell:
     @property
     def is_expired(self) -> bool:
         import time
+
         return self.ttl_seconds > 0 and (time.time() - self.created_at) > self.ttl_seconds
 
 
@@ -62,6 +63,7 @@ class MemoryThreeTemperature:
 
     def store(self, key: str, value: Any, tier: MemoryTier, ttl: float = 3600.0) -> MemoryCell:
         import time
+
         cell = MemoryCell(key=key, value=value, tier=tier, ttl_seconds=ttl, created_at=time.time())
         if tier == MemoryTier.HOT:
             self._hot[key] = cell
@@ -84,14 +86,22 @@ class MemoryThreeTemperature:
         return None
 
     def retrieve_by_tier(self, key: str, tier: MemoryTier) -> MemoryCell | None:
-        tier_map = {MemoryTier.HOT: self._hot, MemoryTier.WARM: self._warm, MemoryTier.COLD: self._cold}
+        tier_map = {
+            MemoryTier.HOT: self._hot,
+            MemoryTier.WARM: self._warm,
+            MemoryTier.COLD: self._cold,
+        }
         cell = tier_map[tier].get(key)
         if cell is not None:
             cell.access_count += 1
         return cell
 
     def clear_tier(self, tier: MemoryTier) -> int:
-        tier_map = {MemoryTier.HOT: self._hot, MemoryTier.WARM: self._warm, MemoryTier.COLD: self._cold}
+        tier_map = {
+            MemoryTier.HOT: self._hot,
+            MemoryTier.WARM: self._warm,
+            MemoryTier.COLD: self._cold,
+        }
         count = len(tier_map[tier])
         tier_map[tier].clear()
         return count
@@ -138,6 +148,7 @@ class TrustAntiGaming:
         if n < 3:
             return None
         import math
+
         mx = sum(x) / n
         my = sum(y) / n
         num = sum((x[i] - mx) * (y[i] - my) for i in range(n))

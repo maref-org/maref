@@ -24,37 +24,39 @@ from typing import Any
 class CollaborationAction(Enum):
     """What to do when a rule matches."""
 
-    HITL = "hitl"              # Human-in-the-loop: pause, wait for approval
-    HOTL = "hotl"              # Human-on-the-loop: execute, notify after
-    HATL = "hatl"              # Human-at-the-loop: fully autonomous
-    HALT = "halt"              # Stop everything
-    NOTIFY = "notify"          # Send notification, don't pause
-    ESCALATE = "escalate"      # Route to higher authority
-    DELEGATE = "delegate"      # Route to fallback agent
+    HITL = "hitl"  # Human-in-the-loop: pause, wait for approval
+    HOTL = "hotl"  # Human-on-the-loop: execute, notify after
+    HATL = "hatl"  # Human-at-the-loop: fully autonomous
+    HALT = "halt"  # Stop everything
+    NOTIFY = "notify"  # Send notification, don't pause
+    ESCALATE = "escalate"  # Route to higher authority
+    DELEGATE = "delegate"  # Route to fallback agent
 
 
 @dataclass
 class RuleCondition:
-    """A single condition: field operator value."""
+    """A single condition: field_name operator value."""
 
-    field: str                 # e.g. "cost", "data_classification", "risk_score"
-    op: str                    # e.g. ">", "==", "in", "contains"
+    field_name: str  # e.g. "cost", "data_classification", "risk_score"
+    op: str  # e.g. ">", "==", "in", "contains"
     value: Any
 
     # Operator mapping
-    _OPS: dict[str, Callable[[Any, Any], bool]] = field(default_factory=lambda: {
-        ">": operator.gt,
-        ">=": operator.ge,
-        "<": operator.lt,
-        "<=": operator.le,
-        "==": operator.eq,
-        "!=": operator.ne,
-        "in": lambda a, b: a in b,
-        "contains": lambda a, b: b in a,
-    })
+    _OPS: dict[str, Callable[[Any, Any], bool]] = field(
+        default_factory=lambda: {
+            ">": operator.gt,
+            ">=": operator.ge,
+            "<": operator.lt,
+            "<=": operator.le,
+            "==": operator.eq,
+            "!=": operator.ne,
+            "in": lambda a, b: a in b,
+            "contains": lambda a, b: b in a,
+        }
+    )
 
     def evaluate(self, context: dict[str, Any]) -> bool:
-        actual = context.get(self.field)
+        actual = context.get(self.field_name)
         if actual is None:
             return False
         fn = self._OPS.get(self.op)
@@ -68,10 +70,10 @@ class CollaborationRule:
     """A single collaboration rule."""
 
     name: str
-    when: list[RuleCondition]   # All must match (AND logic)
+    when: list[RuleCondition]  # All must match (AND logic)
     then: CollaborationAction
     else_: CollaborationAction | None = None
-    priority: int = 0           # Higher = evaluated first
+    priority: int = 0  # Higher = evaluated first
     enabled: bool = True
     created_at: float = field(default_factory=time.time)
 
@@ -181,8 +183,7 @@ class CollaborationRuleEngine:
             WHEN cost > 500 AND data_classification == PII THEN HITL ELSE HOTL
         """
         pattern = re.compile(
-            r"WHEN\s+(?P<when>.+?)\s+THEN\s+(?P<then>\w+)"
-            r"(?:\s+ELSE\s+(?P<else>\w+))?",
+            r"WHEN\s+(?P<when>.+?)\s+THEN\s+(?P<then>\w+)" r"(?:\s+ELSE\s+(?P<else>\w+))?",
             re.IGNORECASE,
         )
         m = pattern.match(dsl.strip())
@@ -221,8 +222,9 @@ class CollaborationRuleEngine:
     def _parse_value(value_str: str) -> Any:
         """Parse a value string into int, float, or string."""
         # Remove quotes
-        if (value_str.startswith("'") and value_str.endswith("'")) or \
-           (value_str.startswith('"') and value_str.endswith('"')):
+        if (value_str.startswith("'") and value_str.endswith("'")) or (
+            value_str.startswith('"') and value_str.endswith('"')
+        ):
             return value_str[1:-1]
         # Try int
         try:
@@ -240,6 +242,8 @@ class CollaborationRuleEngine:
     # ------------------------------------------------------------------ #
     # History / audit
     # ------------------------------------------------------------------ #
-    def get_history(self, limit: int = 100) -> list[tuple[float, dict[str, Any], CollaborationAction]]:
+    def get_history(
+        self, limit: int = 100
+    ) -> list[tuple[float, dict[str, Any], CollaborationAction]]:
         """Get evaluation history."""
         return self._history[-limit:]

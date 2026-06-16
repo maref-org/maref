@@ -64,11 +64,13 @@ class GovernanceAgentConfig:
     role: AgentRole
     share_group: str = "default"
     share_mode: ShareMode = ShareMode.FULL_SHARING
-    policy_features: list[str] = field(default_factory=lambda: [
-        "entropy_penalty",
-        "stability_bonus",
-        "transition_efficiency",
-    ])
+    policy_features: list[str] = field(
+        default_factory=lambda: [
+            "entropy_penalty",
+            "stability_bonus",
+            "transition_efficiency",
+        ]
+    )
     initial_weights: dict[str, float] = field(default_factory=dict)
     learning_rate: float = 0.02
     reward_weight: float = 1.0
@@ -103,11 +105,14 @@ class GovernanceAgentConfig:
             role=AgentRole(data["role"]),
             share_group=data.get("share_group", "default"),
             share_mode=ShareMode(data.get("share_mode", ShareMode.FULL_SHARING.value)),
-            policy_features=data.get("policy_features", [
-                "entropy_penalty",
-                "stability_bonus",
-                "transition_efficiency",
-            ]),
+            policy_features=data.get(
+                "policy_features",
+                [
+                    "entropy_penalty",
+                    "stability_bonus",
+                    "transition_efficiency",
+                ],
+            ),
             initial_weights=data.get("initial_weights", {}),
             learning_rate=data.get("learning_rate", 0.02),
             reward_weight=data.get("reward_weight", 1.0),
@@ -159,7 +164,8 @@ class GovernanceAgent:
     def __init__(self, config: GovernanceAgentConfig) -> None:
         self._config = config
         self._policy = AgentPolicyState(
-            policy_weights=dict(config.initial_weights) if config.initial_weights
+            policy_weights=dict(config.initial_weights)
+            if config.initial_weights
             else dict.fromkeys(config.policy_features, 0.0),
             learning_rate=config.learning_rate,
         )
@@ -252,7 +258,8 @@ class GovernanceAgent:
     def reset_policy(self) -> None:
         """Reset policy weights to initial values."""
         self._policy.policy_weights = (
-            dict(self._config.initial_weights) if self._config.initial_weights
+            dict(self._config.initial_weights)
+            if self._config.initial_weights
             else dict.fromkeys(self._config.policy_features, 0.0)
         )
         self._policy.total_reward = 0.0
@@ -289,9 +296,7 @@ class GovernanceAgent:
         """Clip policy weights to prevent runaway optimization."""
         for feature in self._config.policy_features:
             w = self._policy.policy_weights[feature]
-            self._policy.policy_weights[feature] = max(
-                -max_magnitude, min(max_magnitude, w)
-            )
+            self._policy.policy_weights[feature] = max(-max_magnitude, min(max_magnitude, w))
 
     def get_stats(self) -> dict[str, Any]:
         return {
@@ -404,41 +409,31 @@ class ShareGroup:
         else:
             raise ValueError(f"Unknown aggregation method: {method}")
 
-    def _aggregate_mean(
-        self, gradients: dict[str, dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate_mean(self, gradients: dict[str, dict[str, float]]) -> dict[str, float]:
         all_features: set[str] = set()
         for g in gradients.values():
             all_features.update(g.keys())
 
         result: dict[str, float] = {}
         for feature in all_features:
-            values = [
-                g[feature] for g in gradients.values() if feature in g
-            ]
+            values = [g[feature] for g in gradients.values() if feature in g]
             if values:
                 result[feature] = sum(values) / len(values)
         return result
 
-    def _aggregate_sum(
-        self, gradients: dict[str, dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate_sum(self, gradients: dict[str, dict[str, float]]) -> dict[str, float]:
         all_features: set[str] = set()
         for g in gradients.values():
             all_features.update(g.keys())
 
         result: dict[str, float] = {}
         for feature in all_features:
-            values = [
-                g[feature] for g in gradients.values() if feature in g
-            ]
+            values = [g[feature] for g in gradients.values() if feature in g]
             if values:
                 result[feature] = sum(values)
         return result
 
-    def _aggregate_weighted_mean(
-        self, gradients: dict[str, dict[str, float]]
-    ) -> dict[str, float]:
+    def _aggregate_weighted_mean(self, gradients: dict[str, dict[str, float]]) -> dict[str, float]:
         all_features: set[str] = set()
         for g in gradients.values():
             all_features.update(g.keys())
@@ -475,16 +470,10 @@ class ShareGroup:
                 updated = agent.step_gradient(aggregated_gradient)
             elif self._config.share_mode == ShareMode.FULL_SEPARATION:
                 agent.update_learning_rate(learning_rate)
-                per_agent_grad = {
-                    f: aggregated_gradient.get(f, 0.0)
-                    for f in agent.policy_features
-                }
+                per_agent_grad = {f: aggregated_gradient.get(f, 0.0) for f in agent.policy_features}
                 updated = agent.step_gradient(per_agent_grad)
             else:
-                per_agent_grad = {
-                    f: aggregated_gradient.get(f, 0.0)
-                    for f in agent.policy_features
-                }
+                per_agent_grad = {f: aggregated_gradient.get(f, 0.0) for f in agent.policy_features}
                 updated = agent.step_gradient(per_agent_grad)
 
             results[agent.agent_id] = updated
@@ -497,10 +486,7 @@ class ShareGroup:
             "share_mode": self.share_mode.value,
             "aggregation_method": self._config.aggregation_method,
             "agent_count": self.agent_count,
-            "agents": {
-                aid: agent.get_stats()
-                for aid, agent in self._agents.items()
-            },
+            "agents": {aid: agent.get_stats() for aid, agent in self._agents.items()},
         }
 
     def __repr__(self) -> str:

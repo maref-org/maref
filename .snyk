@@ -1,0 +1,20 @@
+# MAREF Snyk Configuration
+# Excludes known vulnerabilities and test fixtures
+
+exclude:
+  global:
+    - "node_modules/**"
+    - "gui/node_modules/**"
+    - "**/__pycache__/**"
+    - "*.pyc"
+    - ".venv/**"
+    - "venv/**"
+    - "dist/**"
+    - "build/**"
+    - ".missions/**"
+    - "vault/**"
+    - "knowledge-library/**"
+    - "tests/benchmark/**"
+    - "tests/fixtures/**"
+
+patch: {}

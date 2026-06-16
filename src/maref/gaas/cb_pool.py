@@ -129,7 +129,7 @@ class CircuitBreakerPool:
         to_remove = [
             key
             for key, stats in self._stats.items()
-            if now - stats.get("last_access", 0) > idle_seconds
+            if now - stats.get("last_access", 0) >= idle_seconds
         ]
         for key in to_remove:
             self._pool.pop(key, None)

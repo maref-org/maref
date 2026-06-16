@@ -242,8 +242,7 @@ class KnowledgeGraph:
         source_id: str,
     ) -> list[RelationEdge]:
         candidate_texts: list[str] = [
-            self._nodes[cid].content
-            for cid in self._find_related_node_ids(content)[:10]
+            self._nodes[cid].content for cid in self._find_related_node_ids(content)[:10]
         ]
         candidate_texts = [t for t in candidate_texts if t]
 
@@ -348,23 +347,27 @@ class KnowledgeGraph:
 
             node = self._nodes[current_id]
             if depth > 0:
-                results.append({
-                    "node_id": current_id,
-                    "content": node.content[:120],
-                    "depth": depth,
-                    "relation_path": path,
-                })
+                results.append(
+                    {
+                        "node_id": current_id,
+                        "content": node.content[:120],
+                        "depth": depth,
+                        "relation_path": path,
+                    }
+                )
 
             for edge in node.out_edges:
                 if relation_type and edge.relation != relation_type:
                     continue
                 if edge.target_id not in visited and edge.target_id in self._nodes:
                     visited.add(edge.target_id)
-                    queue.append((
-                        edge.target_id,
-                        depth + 1,
-                        path + [edge.relation.value],
-                    ))
+                    queue.append(
+                        (
+                            edge.target_id,
+                            depth + 1,
+                            path + [edge.relation.value],
+                        )
+                    )
 
         return results
 
@@ -428,7 +431,8 @@ class KnowledgeGraph:
     ) -> list[dict[str, Any]]:
         """Return high-confidence hypotheses suitable for autoDream export."""
         hypotheses = [
-            n for n in self._nodes.values()
+            n
+            for n in self._nodes.values()
             if n.type == "hypothesis" and n.confidence >= min_confidence
         ]
         hypotheses.sort(key=lambda n: n.confidence, reverse=True)
@@ -460,19 +464,15 @@ class KnowledgeGraph:
         return {
             "total_nodes": len(self._nodes),
             "by_type": types,
-            "open_questions": len([
-                n for n in self._nodes.values()
-                if n.type == "hypothesis" and n.confidence < 0.7
-            ]),
+            "open_questions": len(
+                [n for n in self._nodes.values() if n.type == "hypothesis" and n.confidence < 0.7]
+            ),
             "orphaned_nodes": connectivity["orphaned_nodes"],
             "edge_count": connectivity["edge_count"],
         }
 
     def get_open_questions(self) -> list[KnowledgeNode]:
-        return [
-            n for n in self._nodes.values()
-            if n.type == "hypothesis" and n.confidence < 0.7
-        ]
+        return [n for n in self._nodes.values() if n.type == "hypothesis" and n.confidence < 0.7]
 
     def query(self, query_str: str) -> list[KnowledgeNode]:
         return self.query_graph(query_str)

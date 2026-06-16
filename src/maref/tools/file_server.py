@@ -11,19 +11,19 @@ from maref.integration.mcp_server import MCPServer
 _DEFAULT_MAX_READ_SIZE = 10 * 1024 * 1024
 
 
-class PathSandboxError(PermissionError):
-    ...
+class PathSandboxError(PermissionError): ...
 
 
-class FileSizeLimitError(ValueError):
-    ...
+class FileSizeLimitError(ValueError): ...
 
 
 class PathSandbox:
     def __init__(self, allowed_bases: list[str] | None = None) -> None:
         cwd = os.getcwd()
         bases = allowed_bases if allowed_bases is not None else [cwd]
-        self._allowed_bases = [os.path.realpath(os.path.abspath(os.path.expanduser(b))) for b in bases]
+        self._allowed_bases = [
+            os.path.realpath(os.path.abspath(os.path.expanduser(b))) for b in bases
+        ]
 
     @property
     def allowed_bases(self) -> list[str]:
@@ -60,9 +60,7 @@ def create_file_server(
 
         file_size = os.path.getsize(safe_path)
         if file_size > max_read_size:
-            raise FileSizeLimitError(
-                f"File size {file_size} exceeds limit {max_read_size}"
-            )
+            raise FileSizeLimitError(f"File size {file_size} exceeds limit {max_read_size}")
 
         with open(safe_path, encoding=encoding) as f:
             content = f.read()
@@ -105,11 +103,13 @@ def create_file_server(
                     size = os.path.getsize(entry_path)
                 except OSError:
                     size = 0
-            items.append({
-                "name": entry,
-                "type": "dir" if is_dir else "file",
-                "size": size,
-            })
+            items.append(
+                {
+                    "name": entry,
+                    "type": "dir" if is_dir else "file",
+                    "size": size,
+                }
+            )
 
         items.sort(key=lambda x: (x["type"] != "dir", x["name"].lower()))
         return {"items": items}

@@ -77,36 +77,37 @@ class MCPTransport(ABC):
         self._state = state
 
     @abstractmethod
-    def connect(self) -> None:
-        ...
+    def connect(self) -> None: ...
 
     @abstractmethod
-    def disconnect(self) -> None:
-        ...
+    def disconnect(self) -> None: ...
 
     @abstractmethod
-    def send(self, request: JSONRPCRequest) -> JSONRPCResponse:
-        ...
+    def send(self, request: JSONRPCRequest) -> JSONRPCResponse: ...
 
     def send_initialize(self, client_name: str = "maref") -> JSONRPCResponse:
-        return self.send(JSONRPCRequest(
-            method="initialize",
-            params={
-                "protocolVersion": "2024-11-05",
-                "clientInfo": {"name": client_name, "version": "0.9.0"},
-            },
-            id=1,
-        ))
+        return self.send(
+            JSONRPCRequest(
+                method="initialize",
+                params={
+                    "protocolVersion": "2024-11-05",
+                    "clientInfo": {"name": client_name, "version": "0.9.0"},
+                },
+                id=1,
+            )
+        )
 
     def send_tools_list(self) -> JSONRPCResponse:
         return self.send(JSONRPCRequest(method="tools/list", id=2))
 
     def send_tool_call(self, tool_name: str, arguments: dict[str, Any]) -> JSONRPCResponse:
-        return self.send(JSONRPCRequest(
-            method="tools/call",
-            params={"name": tool_name, "arguments": arguments},
-            id=3,
-        ))
+        return self.send(
+            JSONRPCRequest(
+                method="tools/call",
+                params={"name": tool_name, "arguments": arguments},
+                id=3,
+            )
+        )
 
     def send_resources_list(self) -> JSONRPCResponse:
         return self.send(JSONRPCRequest(method="resources/list", id=4))
@@ -191,6 +192,7 @@ class HTTPTransport(MCPTransport):
         self.set_state(TransportState.CONNECTING)
         try:
             import httpx
+
             r = httpx.get(self._endpoint_url, timeout=5.0)
             if r.status_code < 400:
                 self.set_state(TransportState.CONNECTED)
@@ -210,9 +212,15 @@ class HTTPTransport(MCPTransport):
             )
         try:
             import httpx
+
             r = httpx.post(
                 self._endpoint_url,
-                json={"jsonrpc": request.jsonrpc, "method": request.method, "params": request.params, "id": request.id},
+                json={
+                    "jsonrpc": request.jsonrpc,
+                    "method": request.method,
+                    "params": request.params,
+                    "id": request.id,
+                },
                 timeout=10.0,
             )
             data = r.json()
@@ -238,7 +246,9 @@ class InProcessTransport(MCPTransport):
     - Testing without network overhead
     """
 
-    def __init__(self, message_handler: Callable[[JSONRPCRequest], JSONRPCResponse] | None = None) -> None:
+    def __init__(
+        self, message_handler: Callable[[JSONRPCRequest], JSONRPCResponse] | None = None
+    ) -> None:
         super().__init__()
         self._handler = message_handler or self._default_handler
         self._message_queue: list[JSONRPCRequest] = []

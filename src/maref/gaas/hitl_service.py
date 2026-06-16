@@ -119,7 +119,9 @@ class HITLService:
     ) -> list[HITLEvent]:
         """Get pending events for a tenant, optionally filtered by tier."""
         event_ids = self._tenant_index.get(tenant_id, [])
-        events = [self._events[eid] for eid in event_ids if self._events[eid].status == HITLStatus.PENDING]
+        events = [
+            self._events[eid] for eid in event_ids if self._events[eid].status == HITLStatus.PENDING
+        ]
         if tier:
             events = [e for e in events if e.tier == tier]
         return events
@@ -132,7 +134,9 @@ class HITLService:
     ) -> list[HITLEvent]:
         """Get resolved events for a tenant."""
         event_ids = self._tenant_index.get(tenant_id, [])
-        resolved = [self._events[eid] for eid in event_ids if self._events[eid].status != HITLStatus.PENDING]
+        resolved = [
+            self._events[eid] for eid in event_ids if self._events[eid].status != HITLStatus.PENDING
+        ]
         resolved.sort(key=lambda e: e.created_at, reverse=True)
         return resolved[offset : offset + limit]
 
@@ -162,7 +166,9 @@ class HITLService:
         pending = sum(1 for eid in event_ids if self._events[eid].status == HITLStatus.PENDING)
         approved = sum(1 for eid in event_ids if self._events[eid].status == HITLStatus.APPROVED)
         rejected = sum(1 for eid in event_ids if self._events[eid].status == HITLStatus.REJECTED)
-        auto_approved = sum(1 for eid in event_ids if self._events[eid].status == HITLStatus.AUTO_APPROVED)
+        auto_approved = sum(
+            1 for eid in event_ids if self._events[eid].status == HITLStatus.AUTO_APPROVED
+        )
         return {
             "tenant_id": tenant_id,
             "total_events": len(event_ids),

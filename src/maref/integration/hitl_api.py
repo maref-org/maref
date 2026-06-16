@@ -31,7 +31,9 @@ class ActionApprovalRequest(BaseModel):
     action: str = Field(..., description="Action name/type")
     description: str = Field(..., description="Human-readable action description")
     parameters: dict[str, Any] = Field(default_factory=dict)
-    tier: str = Field(default="p0_response", description="HITL tier: p0_response, p1_escalate, p2_log, p3_observe")
+    tier: str = Field(
+        default="p0_response", description="HITL tier: p0_response, p1_escalate, p2_log, p3_observe"
+    )
 
 
 class ConfirmRequest(BaseModel):

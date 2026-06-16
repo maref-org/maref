@@ -23,9 +23,12 @@ class OrchestrationResult:
 
 
 class SelfOrchestrator:
-    def __init__(self, use_hybrid: bool = False,
-                 hybrid_decomposer: HybridDecomposer | None = None,
-                 saga_orchestrator: object | None = None) -> None:
+    def __init__(
+        self,
+        use_hybrid: bool = False,
+        hybrid_decomposer: HybridDecomposer | None = None,
+        saga_orchestrator: object | None = None,
+    ) -> None:
         self._registry = InternalAgentRegistry()
         if hybrid_decomposer is not None:
             self._decomposer: TaskDecomposer | HybridDecomposer = hybrid_decomposer
@@ -60,7 +63,9 @@ class SelfOrchestrator:
 
     def orchestrate(self, task_description: str) -> OrchestrationResult:
         dag = self._decomposer.decompose(task_description)
-        decomposition_source = "hybrid" if isinstance(self._decomposer, HybridDecomposer) else "template"
+        decomposition_source = (
+            "hybrid" if isinstance(self._decomposer, HybridDecomposer) else "template"
+        )
         subtasks = list(dag.nodes.values())
 
         dispatch_results = self._dispatcher.dispatch_all(subtasks)
@@ -94,8 +99,9 @@ class SelfOrchestrator:
             decomposition_source=decomposition_source,
         )
 
-    def orchestrate_with_saga(self, task_description: str,
-                              deadline: float | None = None) -> OrchestrationResult:
+    def orchestrate_with_saga(
+        self, task_description: str, deadline: float | None = None
+    ) -> OrchestrationResult:
         if self._saga_orchestrator is None:
             return self.orchestrate(task_description)
 
@@ -114,7 +120,8 @@ class SelfOrchestrator:
             result.dag = dag
             result.decomposition_source = "saga_wrapped"
             return StepResult(
-                step_id="decompose", success=True,
+                step_id="decompose",
+                success=True,
                 data={"subtask_count": len(dag.nodes)},
             )
 
@@ -123,7 +130,8 @@ class SelfOrchestrator:
             drs = self._dispatcher.dispatch_all(subtasks)
             result.dispatch_results = drs
             return StepResult(
-                step_id="dispatch", success=len(drs) > 0,
+                step_id="dispatch",
+                success=len(drs) > 0,
                 data={"dispatched": len(drs)},
             )
 
@@ -146,7 +154,8 @@ class SelfOrchestrator:
             result.sync_log = sync_log
             result.conflicts = list(self._jsm.conflict_log)
             return StepResult(
-                step_id="execute", success=True,
+                step_id="execute",
+                success=True,
                 data={"agents": len(agent_outputs)},
             )
 
@@ -154,7 +163,8 @@ class SelfOrchestrator:
             result.dispatch_results = []
             result.agent_outputs = {}
             return StepResult(
-                step_id="rollback_dispatch", success=True,
+                step_id="rollback_dispatch",
+                success=True,
                 data={"rolled_back": True},
             )
 
@@ -170,8 +180,7 @@ class SelfOrchestrator:
             result.timed_out = True
         return result
 
-    def resolve_conflict(self, agent_a: str, agent_b: str,
-                         issue: str) -> str:
+    def resolve_conflict(self, agent_a: str, agent_b: str, issue: str) -> str:
         return self._jsm.arbitrate(agent_a, agent_b, issue)
 
     def reset(self) -> None:

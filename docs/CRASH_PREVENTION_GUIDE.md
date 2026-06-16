@@ -40,7 +40,7 @@
   ```bash
   # 单次检查
   python3 scripts/memory_monitor.py --once
-  
+
   # 持续监控（后台运行）
   nohup python3 scripts/memory_monitor.py > /dev/null 2>&1 &
   ```

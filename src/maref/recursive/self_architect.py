@@ -60,14 +60,18 @@ class SelfArchitect:
 
         for mod, count in high_fail_modules.items():
             if count >= 3:
-                bottlenecks.append({
-                    "module": mod,
-                    "heal_attempts": count,
-                    "severity": "high" if count >= 5 else "medium",
-                })
+                bottlenecks.append(
+                    {
+                        "module": mod,
+                        "heal_attempts": count,
+                        "severity": "high" if count >= 5 else "medium",
+                    }
+                )
         return bottlenecks
 
-    def analyze_low_coverage(self, source_dir: str = "src", threshold: float = 80.0) -> list[dict[str, Any]]:
+    def analyze_low_coverage(
+        self, source_dir: str = "src", threshold: float = 80.0
+    ) -> list[dict[str, Any]]:
         import subprocess
         import sys
 
@@ -75,7 +79,9 @@ class SelfArchitect:
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "coverage", "report", "-m"],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             for line in result.stdout.split("\n"):
                 stripped = line.strip()
@@ -86,12 +92,14 @@ class SelfArchitect:
                             pct = float(parts[-1].replace("%", ""))
                             file_path = parts[0]
                             if pct < threshold and file_path.endswith(".py"):
-                                low_modules.append({
-                                    "file": file_path,
-                                    "coverage_pct": pct,
-                                    "statements": parts[1] if len(parts) > 1 else "?",
-                                    "missing": parts[3] if len(parts) > 3 else "?",
-                                })
+                                low_modules.append(
+                                    {
+                                        "file": file_path,
+                                        "coverage_pct": pct,
+                                        "statements": parts[1] if len(parts) > 1 else "?",
+                                        "missing": parts[3] if len(parts) > 3 else "?",
+                                    }
+                                )
                         except ValueError:
                             continue
         except Exception:
@@ -99,7 +107,9 @@ class SelfArchitect:
         return low_modules
 
     def analyze_module_dependencies(
-        self, source_dir: str = "src", ignore_dirs: tuple[str, ...] = ("__pycache__", ".venv", "venv"),
+        self,
+        source_dir: str = "src",
+        ignore_dirs: tuple[str, ...] = ("__pycache__", ".venv", "venv"),
     ) -> dict[str, dict[str, Any]]:
         import_graph: dict[str, dict[str, Any]] = {}
         project_root = Path(source_dir)
@@ -107,7 +117,9 @@ class SelfArchitect:
             return import_graph
 
         for py_file in project_root.rglob("*.py"):
-            rel_path = str(py_file.relative_to(project_root.parent) if project_root != Path("src") else py_file)
+            rel_path = str(
+                py_file.relative_to(project_root.parent) if project_root != Path("src") else py_file
+            )
             mod_name = rel_path.replace("/", ".").replace(".py", "")
             imports = self._extract_imports(py_file)
             import_graph[mod_name] = {
@@ -133,7 +145,8 @@ class SelfArchitect:
         return imports
 
     def detect_unused_imports(
-        self, source_dir: str = "src",
+        self,
+        source_dir: str = "src",
     ) -> dict[str, list[str]]:
         unused_map: dict[str, list[str]] = {}
         project_root = Path(source_dir)
@@ -157,21 +170,31 @@ class SelfArchitect:
                         for alias in node.names:
                             name = alias.asname if alias.asname else alias.name
                             imported_names.add(name)
-                            import_nodes.append((f"{node.module}.{alias.name}" if node.module else alias.name, alias.asname))
+                            import_nodes.append(
+                                (
+                                    f"{node.module}.{alias.name}" if node.module else alias.name,
+                                    alias.asname,
+                                )
+                            )
                 used_names: set[str] = set()
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Name):
                         used_names.add(node.id)
                 file_unused = imported_names - used_names
                 if file_unused:
-                    rel = str(py_file.relative_to(project_root.parent) if project_root != Path("src") else py_file)
+                    rel = str(
+                        py_file.relative_to(project_root.parent)
+                        if project_root != Path("src")
+                        else py_file
+                    )
                     unused_map[rel] = sorted(file_unused)
             except (SyntaxError, UnicodeDecodeError, OSError):
                 continue
         return unused_map
 
     def compute_coupling_metrics(
-        self, import_graph: dict[str, dict[str, Any]],
+        self,
+        import_graph: dict[str, dict[str, Any]],
     ) -> dict[str, dict[str, float]]:
         metrics: dict[str, dict[str, float]] = {}
         if not import_graph:
@@ -180,16 +203,18 @@ class SelfArchitect:
         all_modules = set(import_graph.keys())
 
         for mod_name, info in import_graph.items():
-            internal_imports = [i for i in info["imports"] if i in all_modules or any(i.startswith(m) for m in all_modules)]
+            internal_imports = [
+                i
+                for i in info["imports"]
+                if i in all_modules or any(i.startswith(m) for m in all_modules)
+            ]
             fan_out = len(internal_imports)
 
             fan_in = sum(
-                1 for other_mod, other_info in import_graph.items()
+                1
+                for other_mod, other_info in import_graph.items()
                 if other_mod != mod_name
-                and any(
-                    i == mod_name or i.startswith(mod_name)
-                    for i in other_info["imports"]
-                )
+                and any(i == mod_name or i.startswith(mod_name) for i in other_info["imports"])
             )
 
             total = fan_in + fan_out
@@ -203,46 +228,54 @@ class SelfArchitect:
 
         return metrics
 
-    def propose_test_addition(self, low_coverage: list[dict[str, Any]]) -> list[ArchitectureProposal]:
+    def propose_test_addition(
+        self, low_coverage: list[dict[str, Any]]
+    ) -> list[ArchitectureProposal]:
         proposals: list[ArchitectureProposal] = []
         for module in low_coverage[:5]:
             file_path = module.get("file", "")
             if not file_path:
                 continue
             test_file = file_path.replace("src/", "tests/").replace(".py", "_test.py")
-            proposals.append(ArchitectureProposal(
-                proposal_id=f"add_test_{int(time.time())}_{hash(file_path) % 10000}",
-                timestamp=time.time(),
-                current_arch=str(self._arch_snapshot.get("module_count", 0)),
-                proposed_arch=f"add_tests_{Path(file_path).stem}",
-                rationale=f"Module {file_path} at {module.get('coverage_pct', 0)}% coverage. Add targeted tests.",
-                risk_assessment="low",
-                confidence=0.85,
-                target_files=[test_file],
-                change_type=ChangeType.ADD_TEST,
-                affected_symbols=[],
-                estimated_new_lines=30,
-                preconditions=[f"coverage_pct < 80 for {file_path}"],
-            ))
+            proposals.append(
+                ArchitectureProposal(
+                    proposal_id=f"add_test_{int(time.time())}_{hash(file_path) % 10000}",
+                    timestamp=time.time(),
+                    current_arch=str(self._arch_snapshot.get("module_count", 0)),
+                    proposed_arch=f"add_tests_{Path(file_path).stem}",
+                    rationale=f"Module {file_path} at {module.get('coverage_pct', 0)}% coverage. Add targeted tests.",
+                    risk_assessment="low",
+                    confidence=0.85,
+                    target_files=[test_file],
+                    change_type=ChangeType.ADD_TEST,
+                    affected_symbols=[],
+                    estimated_new_lines=30,
+                    preconditions=[f"coverage_pct < 80 for {file_path}"],
+                )
+            )
         return proposals
 
-    def propose_import_cleanup(self, unused_imports: dict[str, list[str]]) -> list[ArchitectureProposal]:
+    def propose_import_cleanup(
+        self, unused_imports: dict[str, list[str]]
+    ) -> list[ArchitectureProposal]:
         proposals: list[ArchitectureProposal] = []
         for file_path, unused in list(unused_imports.items())[:5]:
-            proposals.append(ArchitectureProposal(
-                proposal_id=f"cleanup_imports_{int(time.time())}_{hash(file_path) % 10000}",
-                timestamp=time.time(),
-                current_arch=str(self._arch_snapshot.get("module_count", 0)),
-                proposed_arch=f"cleanup_imports_{Path(file_path).stem}",
-                rationale=f"Remove {len(unused)} unused imports from {file_path}: {', '.join(unused[:5])}",
-                risk_assessment="low",
-                confidence=0.95,
-                target_files=[file_path],
-                change_type=ChangeType.REMOVE_UNUSED_IMPORT,
-                affected_symbols=list(unused),
-                estimated_new_lines=-len(unused),
-                preconditions=[f"unused imports verified by AST for {file_path}"],
-            ))
+            proposals.append(
+                ArchitectureProposal(
+                    proposal_id=f"cleanup_imports_{int(time.time())}_{hash(file_path) % 10000}",
+                    timestamp=time.time(),
+                    current_arch=str(self._arch_snapshot.get("module_count", 0)),
+                    proposed_arch=f"cleanup_imports_{Path(file_path).stem}",
+                    rationale=f"Remove {len(unused)} unused imports from {file_path}: {', '.join(unused[:5])}",
+                    risk_assessment="low",
+                    confidence=0.95,
+                    target_files=[file_path],
+                    change_type=ChangeType.REMOVE_UNUSED_IMPORT,
+                    affected_symbols=list(unused),
+                    estimated_new_lines=-len(unused),
+                    preconditions=[f"unused imports verified by AST for {file_path}"],
+                )
+            )
         return proposals
 
     def propose_redesign(self) -> ArchitectureProposal:
@@ -259,7 +292,9 @@ class SelfArchitect:
             confidence = 0.95
         elif bottleneck_count <= 2:
             mod_names = [b["module"] for b in bottlenecks]
-            rationale = f"Minor bottlenecks in: {', '.join(mod_names)}. Recommend targeted refactoring."
+            rationale = (
+                f"Minor bottlenecks in: {', '.join(mod_names)}. Recommend targeted refactoring."
+            )
             risk = "medium"
             confidence = 0.75
             proposed = f"refactor_{'_'.join(mod_names)}"
@@ -273,7 +308,9 @@ class SelfArchitect:
         try:
             import_graph = self.analyze_module_dependencies()
             coupling_metrics = self.compute_coupling_metrics(import_graph)
-            high_coupling = {m: v for m, v in coupling_metrics.items() if v.get("instability", 0) > 0.8}
+            high_coupling = {
+                m: v for m, v in coupling_metrics.items() if v.get("instability", 0) > 0.8
+            }
             if high_coupling and bottleneck_count == 0:
                 rationale += f" High coupling detected in {len(high_coupling)} modules."
                 risk = "medium"
@@ -327,11 +364,14 @@ class SelfArchitect:
         for layer in ["inner", "outer", "meta", "evolution"]:
             records = self._audit_store.query_by_layer(layer)
             if records:
-                results.append({
-                    "layer": layer,
-                    "decision_count": len(records),
-                    "success_rate": sum(1 for r in records if r.outcome == "success") / max(len(records), 1),
-                })
+                results.append(
+                    {
+                        "layer": layer,
+                        "decision_count": len(records),
+                        "success_rate": sum(1 for r in records if r.outcome == "success")
+                        / max(len(records), 1),
+                    }
+                )
         return results
 
     @property

@@ -49,10 +49,11 @@ class NackCode(str, Enum):
 
 class Recoverability(str, Enum):
     """Orchestrator decision hint derived from a NACK code."""
-    RETRY = "retry"               # same agent, maybe backoff
-    REROUTE = "reroute"           # try another agent
-    ESCALATE = "escalate"         # human or higher-order agent
-    ABORT = "abort"               # unrecoverable, fail the saga
+
+    RETRY = "retry"  # same agent, maybe backoff
+    REROUTE = "reroute"  # try another agent
+    ESCALATE = "escalate"  # human or higher-order agent
+    ABORT = "abort"  # unrecoverable, fail the saga
 
 
 # Default mapping: code -> recoverability
@@ -118,13 +119,9 @@ class NackMessage:
             to_agent=data["to_agent"],
             code=NackCode(data.get("code", "unspecified")),
             reason=data.get("reason", ""),
-            recoverability=Recoverability(
-                data.get("recoverability", Recoverability.ABORT.value)
-            ),
+            recoverability=Recoverability(data.get("recoverability", Recoverability.ABORT.value)),
             retry_after_seconds=data.get("retry_after_seconds"),
-            suggested_alternative_agents=list(
-                data.get("suggested_alternative_agents", [])
-            ),
+            suggested_alternative_agents=list(data.get("suggested_alternative_agents", [])),
             context_snapshot=dict(data.get("context_snapshot", {})),
             timestamp=data.get("timestamp", time.time()),
         )
@@ -170,9 +167,7 @@ class NackBuilder:
         return self
 
     def build(self) -> NackMessage:
-        recoverability = DEFAULT_RECOVERABILITY.get(
-            self._code, Recoverability.ABORT
-        )
+        recoverability = DEFAULT_RECOVERABILITY.get(self._code, Recoverability.ABORT)
         return NackMessage(
             nack_id=f"nack_{str(uuid.uuid4())[:8]}",
             request_id=self._request_id,
@@ -195,9 +190,7 @@ class NackHandler:
     """
 
     def __init__(self) -> None:
-        self._custom_recoverability: dict[NackCode, Recoverability] = dict(
-            DEFAULT_RECOVERABILITY
-        )
+        self._custom_recoverability: dict[NackCode, Recoverability] = dict(DEFAULT_RECOVERABILITY)
         self._retry_policies: dict[NackCode, RetryPolicy] = {}
 
     def set_recoverability(self, code: NackCode, decision: Recoverability) -> None:
@@ -207,9 +200,7 @@ class NackHandler:
         self._retry_policies[code] = policy
 
     def decide(self, nack: NackMessage) -> RecoveryDecision:
-        recoverability = self._custom_recoverability.get(
-            nack.code, Recoverability.ABORT
-        )
+        recoverability = self._custom_recoverability.get(nack.code, Recoverability.ABORT)
         policy = self._retry_policies.get(nack.code)
         return RecoveryDecision(
             nack=nack,
@@ -226,13 +217,14 @@ class RetryPolicy:
     max_delay_seconds: float = 60.0
 
     def delay_for_attempt(self, attempt: int) -> float:
-        delay = self.base_delay_seconds * (self.backoff_multiplier ** attempt)
+        delay = self.base_delay_seconds * (self.backoff_multiplier**attempt)
         return min(delay, self.max_delay_seconds)
 
 
 @dataclass(frozen=True)
 class RecoveryDecision:
     """Output of the NACK handler: what should the orchestrator do next?"""
+
     nack: NackMessage
     recoverability: Recoverability
     retry_policy: RetryPolicy | None = None

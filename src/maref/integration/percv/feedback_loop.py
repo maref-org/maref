@@ -188,7 +188,8 @@ class EvalToResearchFeedback:
             "total": len(self.directions),
             "by_priority": by_priority,
             "highlights": [
-                d.to_dict() for d in self.directions
+                d.to_dict()
+                for d in self.directions
                 if d.priority in (FeedbackPriority.CRITICAL, FeedbackPriority.HIGH)
             ],
         }

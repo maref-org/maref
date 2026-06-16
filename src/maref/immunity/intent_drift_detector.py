@@ -132,12 +132,14 @@ class IntentDriftDetector:
             desc_words = set(c.description.lower().split())
             code_lower = code.lower()
             passed = any(w in code_lower for w in desc_words if len(w) > 2)
-            results.append(FuzzTestResult(
-                criterion_id=c.criterion_id,
-                description=c.description,
-                category=c.category,
-                passed=passed,
-            ))
+            results.append(
+                FuzzTestResult(
+                    criterion_id=c.criterion_id,
+                    description=c.description,
+                    category=c.category,
+                    passed=passed,
+                )
+            )
         return results
 
     def _test_single_criterion(
@@ -147,7 +149,6 @@ class IntentDriftDetector:
         func_names: set[str],
     ) -> FuzzTestResult:
         desc = criterion.description
-        desc_lower = desc.lower()
 
         if criterion.category == "happy_path":
             for word in self._extract_keywords(desc):

@@ -24,9 +24,6 @@ from drift_guard.types import DriftSeverity, ModelSignature
 
 if TYPE_CHECKING:
     from drift_guard.pipeline import DriftDetectionPipeline
-from sidecar.collector import ObservationCollector
-from sidecar.monitor import AnomalyEvent, CompositeMonitor
-
 from maref.governance import (
     AuditLogger,
     GovernanceState,
@@ -43,6 +40,8 @@ from maref.observation.probes import (
 )
 from maref.observation.registry import ProbeRegistry
 from maref.observation.store import ObservationStore
+from sidecar.collector import ObservationCollector
+from sidecar.monitor import Anomaly, CompositeMonitor
 
 
 @dataclass
@@ -138,9 +137,13 @@ class GovernanceOverlay:
         self._probe_registry.register(AnomalyProbe(primary_threshold=10.0, shadow_threshold=3.0))
         self._probe_registry.register(LatencyProbe(primary_threshold=5.0, shadow_threshold=1.0))
         self._probe_registry.register(KGProbe(primary_threshold=0.95))
-        self._probe_registry.register(OscillationProbe(
-            primary_threshold=10.0, shadow_threshold=4.0, window_seconds=60.0,
-        ))
+        self._probe_registry.register(
+            OscillationProbe(
+                primary_threshold=10.0,
+                shadow_threshold=4.0,
+                window_seconds=60.0,
+            )
+        )
 
     # --- Event Bus ---
 
@@ -185,7 +188,7 @@ class GovernanceOverlay:
         )
         self._decisions.append(decision)
         if len(self._decisions) > self._max_decisions:
-            self._decisions = self._decisions[-self._max_decisions:]
+            self._decisions = self._decisions[-self._max_decisions :]
 
         # Audit log
         self._audit.log_decision(
@@ -219,7 +222,7 @@ class GovernanceOverlay:
         )
         self._self_observations.append(obs)
         if len(self._self_observations) > self._max_self_observations:
-            self._self_observations = self._self_observations[-self._max_self_observations:]
+            self._self_observations = self._self_observations[-self._max_self_observations :]
         for cb in self._self_observation_callbacks:
             with contextlib.suppress(Exception):
                 cb(obs)
@@ -230,9 +233,7 @@ class GovernanceOverlay:
 
         self._read_probes()
 
-    def add_self_observation_callback(
-        self, callback: Callable[[SelfObservation], None]
-    ) -> None:
+    def add_self_observation_callback(self, callback: Callable[[SelfObservation], None]) -> None:
         self._self_observation_callbacks.append(callback)
 
     def get_self_observations(self, n: int = 100) -> list[SelfObservation]:
@@ -308,12 +309,10 @@ class GovernanceOverlay:
             )
             self._handle_anomaly(anomaly)
 
-    def _handle_anomaly(self, anomaly: AnomalyEvent) -> None:
+    def _handle_anomaly(self, anomaly: Anomaly) -> None:
         if anomaly.severity == "critical" and self._state_machine.current_entropy >= 3:
             prev_state = self._state_machine.current_state
-            self._state_machine.force_stabilize(
-                reason=f"critical_anomaly:{anomaly.anomaly_type}"
-            )
+            self._state_machine.force_stabilize(reason=f"critical_anomaly:{anomaly.anomaly_type}")
             self._record_decision(
                 action="force_stabilize",
                 reason=anomaly.description,
@@ -334,9 +333,7 @@ class GovernanceOverlay:
         if not self._drift:
             return
 
-        event = await self._drift.check_drift(
-            baseline_weights, current_weights, model, baseline
-        )
+        event = await self._drift.check_drift(baseline_weights, current_weights, model, baseline)
         if event and event.reading.severity in (
             DriftSeverity.HIGH,
             DriftSeverity.CRITICAL,

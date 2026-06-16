@@ -3,6 +3,7 @@
 Runs a sequence of operations in a loop, monitors memory usage per iteration,
 detects memory leaks (>5% growth over 24h equivalent), and outputs a stability report.
 """
+
 from __future__ import annotations
 
 import logging

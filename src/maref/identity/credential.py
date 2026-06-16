@@ -38,8 +38,11 @@ class VerifiableCredential:
 
     def verify(self, issuer_secret: bytes) -> bool:
         expected = VerifiableCredential._compute_proof_signature(
-            issuer_secret, self.issuer.did_string, self.subject.did_string,
-            issued_at=self.issued_at, expires_at=self.expires_at or 0.0,
+            issuer_secret,
+            self.issuer.did_string,
+            self.subject.did_string,
+            issued_at=self.issued_at,
+            expires_at=self.expires_at or 0.0,
         )
         return self.proof.get("signature") == expected
 
@@ -64,8 +67,11 @@ class VerifiableCredential:
         vc_id = f"vc-{secrets.token_hex(8)}"
         expires = (now + ttl_seconds) if ttl_seconds is not None else None
         signature = cls._compute_proof_signature(
-            issuer_secret, issuer.did_string, subject.did_string,
-            issued_at=now, expires_at=expires or 0.0,
+            issuer_secret,
+            issuer.did_string,
+            subject.did_string,
+            issued_at=now,
+            expires_at=expires or 0.0,
         )
         proof = {"type": "HMAC-SHA256", "signature": signature}
         return cls(
@@ -81,8 +87,11 @@ class VerifiableCredential:
 
     @staticmethod
     def _compute_proof_signature(
-        secret: bytes, issuer_str: str, subject_str: str,
-        issued_at: float = 0.0, expires_at: float = 0.0,
+        secret: bytes,
+        issuer_str: str,
+        subject_str: str,
+        issued_at: float = 0.0,
+        expires_at: float = 0.0,
     ) -> str:
         message = f"{issuer_str}:{subject_str}:{issued_at}:{expires_at}".encode()
         return hmac.new(secret, message, hashlib.sha256).hexdigest()

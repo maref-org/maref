@@ -1,8 +1,8 @@
 # MAREF-ORG CI/CD 工作流配置方案
 
-> **目标**: 将 OpenClaw 的 CI 基础设施适配到 maref-org/maref 独立开源仓库  
-> **代码库**: `/Volumes/1TB-M2/public/maref` → GitHub: `maref-org/maref`  
-> **文档库**: `/Volumes/1TB-M2/Athena知识库/.../MAREF递归演进框架/`（独立，不进入代码库）  
+> **目标**: 将 OpenClaw 的 CI 基础设施适配到 maref-org/maref 独立开源仓库
+> **代码库**: `/Volumes/1TB-M2/public/maref` → GitHub: `maref-org/maref`
+> **文档库**: `/Volumes/1TB-M2/Athena知识库/.../MAREF递归演进框架/`（独立，不进入代码库）
 > **生成日期**: 2026-05-25
 
 ---

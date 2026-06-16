@@ -18,9 +18,6 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from sidecar.collector import AgentAdapter, ObservationCollector
-from sidecar.protocol import AgentId, AgentState, EntropyReading, StateSnapshot
-
 from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox
 from maref.governance import (
     AuditLogger,
@@ -30,6 +27,9 @@ from maref.governance import (
 )
 from maref_lite.governance import GovernanceOverlay
 from maref_lite.meta_learning import DecisionOutcome, MetaLearner
+from maref_lite.self_healing_loop import SelfHealingConfig, SelfHealingLoop
+from sidecar.collector import AgentAdapter, ObservationCollector
+from sidecar.protocol import AgentId, AgentState, EntropyReading, StateSnapshot
 
 
 class MAREFSelfAdapter(AgentAdapter):
@@ -80,6 +80,12 @@ class RecursiveGovernanceConfig:
     sandbox_auto_revert_minutes: int = 60
     circuit_breaker_cooldown: float = 15.0
     circuit_breaker_max_failures: int = 5
+    # Self-healing loop (P0)
+    enable_self_healing: bool = True
+    healing_check_interval_seconds: float = 300.0
+    healing_max_iterations: int = 3
+    enable_architecture_proposals: bool = True
+    arch_proposal_interval_cycles: int = 12
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -89,6 +95,9 @@ class RecursiveGovernanceConfig:
             "enable_meta_learning": self.enable_meta_learning,
             "enable_policy_sandbox": self.enable_policy_sandbox,
             "sandbox_auto_revert_minutes": self.sandbox_auto_revert_minutes,
+            "enable_self_healing": self.enable_self_healing,
+            "healing_check_interval_seconds": self.healing_check_interval_seconds,
+            "enable_architecture_proposals": self.enable_architecture_proposals,
         }
 
 
@@ -144,6 +153,17 @@ class RecursiveGovernanceOverlay:
         # M4: Sandbox auto-revert timer
         self._sandbox_timers: dict[str, asyncio.Task[None]] = {}
 
+        # P0: Self-healing loop
+        self._healing_loop: SelfHealingLoop | None = None
+        if self._config.enable_self_healing:
+            healing_config = SelfHealingConfig(
+                check_interval_seconds=self._config.healing_check_interval_seconds,
+                max_heal_iterations=self._config.healing_max_iterations,
+                enable_architecture_proposals=self._config.enable_architecture_proposals,
+                arch_proposal_interval_cycles=self._config.arch_proposal_interval_cycles,
+            )
+            self._healing_loop = SelfHealingLoop(config=healing_config)
+
         self._state_changes: list[float] = []
         self._recursion_depth = 0
         self._consecutive_anomalies = 0
@@ -164,6 +184,13 @@ class RecursiveGovernanceOverlay:
         else:
             revert_task = None
 
+        # P0: Self-healing loop task
+        healing_task = (
+            asyncio.create_task(self._healing_loop.run())
+            if self._healing_loop
+            else None
+        )
+
         try:
             await primary_task
         except asyncio.CancelledError:
@@ -175,11 +202,17 @@ class RecursiveGovernanceOverlay:
                 meta_task.cancel()
             if revert_task:
                 revert_task.cancel()
+            if healing_task:
+                healing_task.cancel()
+                if self._healing_loop:
+                    self._healing_loop.stop()
 
     def stop(self) -> None:
         self._running = False
         self._primary.stop()
         self._self_collector.stop()
+        if self._healing_loop:
+            self._healing_loop.stop()
 
     def _on_self_observation(self, observation: Any) -> None:
         now = time.time()
@@ -376,10 +409,11 @@ class RecursiveGovernanceOverlay:
             "oscillation_detected": len(self._state_changes) > self._config.max_oscillation_rate,
             "state_change_rate": len(self._state_changes),
             "circuit_breaker": self._breaker.get_stats(),
-            "meta_learning": (
-                self._meta_learner.get_stats() if self._meta_learner else None
-            ),
+            "meta_learning": (self._meta_learner.get_stats() if self._meta_learner else None),
             "sandbox": self._sandbox.get_stats() if self._sandbox else None,
+            "self_healing": (
+                self._healing_loop.get_status_summary() if self._healing_loop else None
+            ),
         }
 
     def _detect_oscillation(self) -> bool:

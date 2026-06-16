@@ -20,6 +20,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import structlog
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from maref_lite.meta_learning import DecisionOutcome, MetaLearner
@@ -29,6 +31,8 @@ from maref_lite.recursive_governance import (
 )
 from maref_lite.state_machine import GovernanceState
 from research.dashscope_client import DashScopeClient
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -86,7 +90,8 @@ class Phase10AutoResearch:
                         max_tokens=150,
                     )
                     import re
-                    json_match = re.search(r'\{[^}]+\}', response.content)
+
+                    json_match = re.search(r"\{[^}]+\}", response.content)
                     if json_match:
                         decision = json.loads(json_match.group())
                     else:
@@ -133,8 +138,8 @@ class Phase10AutoResearch:
 
         # Check if average reward trend is positive
         if len(rewards) >= 5:
-            first_half = statistics.mean(rewards[:len(rewards)//2])
-            second_half = statistics.mean(rewards[len(rewards)//2:])
+            first_half = statistics.mean(rewards[: len(rewards) // 2])
+            second_half = statistics.mean(rewards[len(rewards) // 2 :])
             improving = second_half > first_half
         else:
             improving = False
@@ -148,9 +153,7 @@ class Phase10AutoResearch:
                 "reward_trend": "improving" if improving else "stable/degrading",
                 "learning_rate": learner._state.learning_rate,
             },
-            findings=[
-                f"元学习器{'正在收敛' if improving else '未收敛'}"
-            ],
+            findings=[f"元学习器{'正在收敛' if improving else '未收敛'}"],
         )
 
     async def _experiment_weight_stability(self, exp_id: int) -> Phase10ExperimentResult:
@@ -193,8 +196,7 @@ class Phase10AutoResearch:
 
         # Check weights are still clipped
         all_clipped = all(
-            abs(w) <= learner._max_weight_magnitude
-            for w in learner._state.policy_weights.values()
+            abs(w) <= learner._max_weight_magnitude for w in learner._state.policy_weights.values()
         )
 
         return Phase10ExperimentResult(
@@ -206,9 +208,7 @@ class Phase10AutoResearch:
                 "all_clipped": all_clipped,
                 "learning_rate": learner._state.learning_rate,
             },
-            findings=[
-                "权重稳定" if all_clipped else "检测到权重不稳定！"
-            ],
+            findings=["权重稳定" if all_clipped else "检测到权重不稳定！"],
         )
 
     async def _experiment_recursive_safety(self, exp_id: int) -> Phase10ExperimentResult:
@@ -233,9 +233,7 @@ class Phase10AutoResearch:
         # Test meta-status
         status = overlay.get_recursive_status()
         has_all_components = all(
-            k in status for k in [
-                "primary_status", "meta_status", "meta_learning", "sandbox"
-            ]
+            k in status for k in ["primary_status", "meta_status", "meta_learning", "sandbox"]
         )
 
         # LLM evaluation of recursive safety
@@ -340,13 +338,13 @@ class Phase10AutoResearch:
 
     async def run_batch(self) -> dict[str, Any]:
         """Run full experiment batch."""
-        print(f"[{datetime.now()}] Phase 10: Starting {self._experiments} experiments")
+        logger.info("Phase 10: Starting %s experiments", self._experiments)
 
         for i in range(self._experiments):
             result = await self.run_experiment(i)
             self._results.append(result)
             if (i + 1) % 10 == 0:
-                print(f"  Progress: {i + 1}/{self._experiments}")
+                logger.debug("Progress: %s/%s", i + 1, self._experiments)
 
         return self._generate_report()
 
@@ -383,7 +381,8 @@ class Phase10AutoResearch:
             "experiment_types": type_counts,
             "key_findings": list(set(all_findings))[:20],
             "meta_learning_metrics": {
-                "convergence_rate": convergence_count / max(type_counts.get("meta_learning_convergence", 1), 1),
+                "convergence_rate": convergence_count
+                / max(type_counts.get("meta_learning_convergence", 1), 1),
                 "stability_rate": stability_count / max(type_counts.get("weight_stability", 1), 1),
                 "safety_rate": safety_count / max(type_counts.get("recursive_safety", 1), 1),
             },
@@ -403,7 +402,7 @@ class Phase10AutoResearch:
         with open(md_path, "w") as f:
             f.write(self._format_markdown(report))
 
-        print(f"[{datetime.now()}] Reports saved to {json_path} and {md_path}")
+        logger.info("Reports saved to %s and %s", json_path, md_path)
         return md_path
 
     def _format_markdown(self, report: dict[str, Any]) -> str:
@@ -423,25 +422,29 @@ class Phase10AutoResearch:
         for exp_type, count in report["experiment_types"].items():
             lines.append(f"| {exp_type} | {count} |")
 
-        lines.extend([
-            "",
-            "## 元学习指标",
-            "",
-            f"- 收敛率: {report['meta_learning_metrics']['convergence_rate']:.2f}",
-            f"- 稳定性: {report['meta_learning_metrics']['stability_rate']:.2f}",
-            f"- 安全性: {report['meta_learning_metrics']['safety_rate']:.2f}",
-            "",
-            "## 关键发现",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 元学习指标",
+                "",
+                f"- 收敛率: {report['meta_learning_metrics']['convergence_rate']:.2f}",
+                f"- 稳定性: {report['meta_learning_metrics']['stability_rate']:.2f}",
+                f"- 安全性: {report['meta_learning_metrics']['safety_rate']:.2f}",
+                "",
+                "## 关键发现",
+                "",
+            ]
+        )
         for finding in report["key_findings"]:
             lines.append(f"- {finding}")
 
-        lines.extend([
-            "",
-            "---",
-            "*由 MAREF Phase 10 自主研究引擎与百炼 LLM 生成*",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "*由 MAREF Phase 10 自主研究引擎与百炼 LLM 生成*",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -449,13 +452,14 @@ class Phase10AutoResearch:
 async def main() -> None:
     """Main entry point."""
     import os
+
     # Use environment variable or default to project-relative path
     default_output = Path(__file__).parent.parent.parent / "research_output"
     output_dir = Path(os.environ.get("MAREF_RESEARCH_OUTPUT", str(default_output)))
     research = Phase10AutoResearch(output_dir=output_dir, experiments=50)
     report = await research.run_batch()
     research.save_report(report)
-    print("Phase 10 research complete!")
+    logger.info("Phase 10 research complete!")
 
 
 if __name__ == "__main__":

@@ -26,9 +26,9 @@ What actually happened, including error messages or stack traces.
 
 ## Environment
 
-- MAREF version: 
-- Python version: 
-- OS: 
+- MAREF version:
+- Python version:
+- OS:
 - Dependencies: `pip list | grep -E "maref|torch|pydantic"`
 
 ## Additional Context

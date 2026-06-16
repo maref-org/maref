@@ -83,9 +83,7 @@ class ByzantineIsolationEnhancer:
             self._vote_history[vote.validator_id].append(vote)
             validator = self.engine._validators.get(vote.validator_id)
             if validator:
-                self._weight_history[vote.validator_id].append(
-                    (time.time(), validator.weight)
-                )
+                self._weight_history[vote.validator_id].append((time.time(), validator.weight))
 
     def _detect_multidimensional(self, votes: list[Vote]) -> list[IsolationDecision]:
         decisions: list[IsolationDecision] = []
@@ -107,7 +105,8 @@ class ByzantineIsolationEnhancer:
             history = self._vote_history.get(vote.validator_id, [])
             if len(history) >= 3:
                 inconsistent = sum(
-                    1 for h in history[-5:]
+                    1
+                    for h in history[-5:]
                     if h.vote_value != majority and h.vote_value != VoteValue.ABSTAIN
                 )
                 if inconsistent >= 3:
@@ -128,8 +127,7 @@ class ByzantineIsolationEnhancer:
             # Dimension 3: Temporal pattern (voting too fast/slow)
             if len(history) >= 2:
                 intervals = [
-                    history[i].timestamp - history[i - 1].timestamp
-                    for i in range(1, len(history))
+                    history[i].timestamp - history[i - 1].timestamp for i in range(1, len(history))
                 ]
                 if intervals:
                     avg_interval = sum(intervals) / len(intervals)
@@ -138,12 +136,14 @@ class ByzantineIsolationEnhancer:
                         confidence += 0.2
 
             if confidence >= 0.5:
-                decisions.append(IsolationDecision(
-                    node_id=vote.validator_id,
-                    is_isolated=True,
-                    reason="; ".join(reasons),
-                    confidence=confidence,
-                ))
+                decisions.append(
+                    IsolationDecision(
+                        node_id=vote.validator_id,
+                        is_isolated=True,
+                        reason="; ".join(reasons),
+                        confidence=confidence,
+                    )
+                )
 
         return decisions
 
@@ -170,5 +170,3 @@ class ByzantineIsolationEnhancer:
 
     def get_isolated_nodes(self) -> list[str]:
         return sorted(self._isolated_nodes)
-
-

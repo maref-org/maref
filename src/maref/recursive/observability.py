@@ -76,11 +76,13 @@ class RecursiveTracer:
     def add_event(self, span_id: str, name: str, **attributes: Any) -> None:
         span = self._active.get(span_id)
         if span is not None:
-            span.events.append({
-                "name": name,
-                "timestamp": time.time(),
-                "attributes": attributes,
-            })
+            span.events.append(
+                {
+                    "name": name,
+                    "timestamp": time.time(),
+                    "attributes": attributes,
+                }
+            )
 
     def set_attribute(self, span_id: str, key: str, value: Any) -> None:
         span = self._active.get(span_id)
@@ -174,9 +176,8 @@ class GovernanceMetrics:
 
         if self.heal_attempts > 1:
             self.avg_heal_cycle_count = (
-                (self.avg_heal_cycle_count * (self.heal_attempts - 1) + cycle_count)
-                / self.heal_attempts
-            )
+                self.avg_heal_cycle_count * (self.heal_attempts - 1) + cycle_count
+            ) / self.heal_attempts
         else:
             self.avg_heal_cycle_count = float(cycle_count)
 

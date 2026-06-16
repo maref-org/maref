@@ -74,7 +74,9 @@ class HypothesisCycle:
         self._hypotheses[h_node.id] = record
         return record
 
-    def run_experiment(self, hyp_id: str, experiment_desc: str, source: str = "agent") -> str | None:
+    def run_experiment(
+        self, hyp_id: str, experiment_desc: str, source: str = "agent"
+    ) -> str | None:
         hyp = self._hypotheses.get(hyp_id)
         if hyp is None:
             return None
@@ -93,7 +95,12 @@ class HypothesisCycle:
         return exp_node.id
 
     def record_finding(
-        self, hyp_id: str, finding_text: str, supports: bool, confidence: float, source: str = "agent"
+        self,
+        hyp_id: str,
+        finding_text: str,
+        supports: bool,
+        confidence: float,
+        source: str = "agent",
     ) -> bool:
         hyp = self._hypotheses.get(hyp_id)
         if hyp is None:

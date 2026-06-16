@@ -37,9 +37,13 @@ class HypothesisValidator:
         char_dir = self.base / "characters" / char_id
         if not char_dir.exists():
             return ValidationResult(
-                char_id=char_id, h1_pass=False, h1_detail="Character not found",
-                h2_pass=False, h2_detail="Character not found",
-                h3_pass=False, h3_detail="Character not found",
+                char_id=char_id,
+                h1_pass=False,
+                h1_detail="Character not found",
+                h2_pass=False,
+                h2_detail="Character not found",
+                h3_pass=False,
+                h3_detail="Character not found",
                 overall_pass=False,
             )
 
@@ -86,21 +90,30 @@ class HypothesisValidator:
         name = meta.get("name", "")
         archetype = meta.get("archetype", "")
         if name and archetype:
-            return True, f"Character '{name}' ({archetype}) has complete profile — viable for appeal testing"
+            return (
+                True,
+                f"Character '{name}' ({archetype}) has complete profile — viable for appeal testing",
+            )
         return True, "Profile exists but incomplete — MVP viable"
 
     def _check_h2(self, has_profile: bool, meta: dict, script_count: int) -> tuple[bool, str]:
         style_kw = meta.get("style_keywords", "") if meta else ""
         palette = meta.get("palette", "") if meta else ""
         if has_profile and style_kw and palette and script_count >= 1:
-            return True, f"Style differentiated (keywords='{style_kw[:40]}') with {script_count} scripts"
+            return (
+                True,
+                f"Style differentiated (keywords='{style_kw[:40]}') with {script_count} scripts",
+            )
         if has_profile:
             return True, "Basic style defined — MVP viable for differentiation testing"
         return False, "No profile — cannot assess style differentiation"
 
     def _check_h3(self, has_export: bool, script_count: int) -> tuple[bool, str]:
         if has_export and script_count >= 2:
-            return True, f"Export package ready with {script_count} episodes — monetization path clear"
+            return (
+                True,
+                f"Export package ready with {script_count} episodes — monetization path clear",
+            )
         if script_count >= 1:
             return True, f"{script_count} script(s) produced — MVP viable for monetization testing"
         return False, "No content produced — monetization not yet testable"

@@ -10,6 +10,7 @@ from typing import Any
 @dataclass
 class ServerlessEvent:
     """Generic serverless event envelope."""
+
     event_id: str = ""
     action: str = ""
     payload: dict[str, Any] = field(default_factory=dict)

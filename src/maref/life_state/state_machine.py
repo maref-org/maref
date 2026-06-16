@@ -69,9 +69,7 @@ class LifeStateMachine:
         self._entry_callbacks: dict[LifeState, list[Callable[[], None]]] = {
             s: [] for s in LifeState
         }
-        self._exit_callbacks: dict[LifeState, list[Callable[[], None]]] = {
-            s: [] for s in LifeState
-        }
+        self._exit_callbacks: dict[LifeState, list[Callable[[], None]]] = {s: [] for s in LifeState}
 
     @property
     def current(self) -> LifeState:
@@ -90,9 +88,7 @@ class LifeStateMachine:
 
     def transition_to(self, target: LifeState, reason: str = "") -> LifeStateTransition:
         if not self.can_transition(target):
-            raise TransitionError(
-                f"Cannot transition from {self._current.value} to {target.value}"
-            )
+            raise TransitionError(f"Cannot transition from {self._current.value} to {target.value}")
         self._run_exit_callbacks(self._current)
         transition = LifeStateTransition(
             from_state=self._current,

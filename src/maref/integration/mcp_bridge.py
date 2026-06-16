@@ -65,7 +65,9 @@ class MCPBridge:
         for handler in self._event_handlers.get(event.event_type, []):
             handler(event)
 
-    def discover_tools(self, conn: MCPConnection, trust_level: MCPTrustLevel = MCPTrustLevel.SEMI_TRUSTED) -> list[MCPToolDef]:
+    def discover_tools(
+        self, conn: MCPConnection, trust_level: MCPTrustLevel = MCPTrustLevel.SEMI_TRUSTED
+    ) -> list[MCPToolDef]:
         tools = self._client.list_tools(conn)
         for tool in tools:
             verdict = self._security.check(
@@ -74,16 +76,18 @@ class MCPBridge:
                 args={},
             )
             role = map_tool_to_role(tool.name)
-            self._emit(BridgeEvent(
-                event_type="maref.mcp.discover",
-                data={
-                    "tool": tool.name,
-                    "description": tool.description,
-                    "mapped_role": role,
-                    "trust_level": trust_level.value,
-                    "verdict": verdict,
-                },
-            ))
+            self._emit(
+                BridgeEvent(
+                    event_type="maref.mcp.discover",
+                    data={
+                        "tool": tool.name,
+                        "description": tool.description,
+                        "mapped_role": role,
+                        "trust_level": trust_level.value,
+                        "verdict": verdict,
+                    },
+                )
+            )
         return tools
 
     def invoke_tool(
@@ -99,16 +103,18 @@ class MCPBridge:
 
         resp = self._client.call_tool(conn, tool_name, args)
         role = map_tool_to_role(tool_name)
-        self._emit(BridgeEvent(
-            event_type="maref.mcp.invoke",
-            data={
-                "tool": tool_name,
-                "result": resp.result,
-                "error": resp.error,
-                "mapped_role": role,
-                "verdict": verdict,
-            },
-        ))
+        self._emit(
+            BridgeEvent(
+                event_type="maref.mcp.invoke",
+                data={
+                    "tool": tool_name,
+                    "result": resp.result,
+                    "error": resp.error,
+                    "mapped_role": role,
+                    "verdict": verdict,
+                },
+            )
+        )
         return resp.result
 
     def import_skill_from_mcp(self, resource_uri: str) -> MarefSkill | None:

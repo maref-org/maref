@@ -139,25 +139,27 @@ class ConcurrentOrchestrator:
             try:
                 result = executor(task)
                 elapsed = time.time() - start
-                results.append(ConcurrentDispatchResult(
-                    subtask_id=task.get("id", "unknown"),
-                    result=result,
-                    elapsed=elapsed,
-                ))
+                results.append(
+                    ConcurrentDispatchResult(
+                        subtask_id=task.get("id", "unknown"),
+                        result=result,
+                        elapsed=elapsed,
+                    )
+                )
             except Exception as e:
                 elapsed = time.time() - start
-                results.append(ConcurrentDispatchResult(
-                    subtask_id=task.get("id", "unknown"),
-                    result=None,
-                    elapsed=elapsed,
-                    timed_out=True,
-                    error=str(e),
-                ))
+                results.append(
+                    ConcurrentDispatchResult(
+                        subtask_id=task.get("id", "unknown"),
+                        result=None,
+                        elapsed=elapsed,
+                        timed_out=True,
+                        error=str(e),
+                    )
+                )
         return results
 
-    def resolve_dependencies(
-        self, subtasks: list[dict[str, Any]]
-    ) -> list[list[dict[str, Any]]]:
+    def resolve_dependencies(self, subtasks: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
         if not subtasks:
             return []
         task_map: dict[str, dict[str, Any]] = {t["id"]: t for t in subtasks}

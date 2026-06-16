@@ -21,7 +21,9 @@ app = FastAPI(
 
 allowed_origins = [
     origin.strip()
-    for origin in os.environ.get("MAREF_TELEMETRY_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    for origin in os.environ.get("MAREF_TELEMETRY_ALLOWED_ORIGINS", "http://localhost:3000").split(
+        ","
+    )
     if origin.strip()
 ]
 
@@ -32,7 +34,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_PATH = os.environ.get("MAREF_TELEMETRY_DB", str(Path.home() / ".maref" / "telemetry" / "events.db"))
+DB_PATH = os.environ.get(
+    "MAREF_TELEMETRY_DB", str(Path.home() / ".maref" / "telemetry" / "events.db")
+)
 
 _conn: sqlite3.Connection | None = None
 

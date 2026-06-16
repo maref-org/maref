@@ -66,15 +66,22 @@ VALID_TRANSITIONS: dict[AgentStateV3, set[AgentStateV3]] = {
     AgentStateV3.UNINITIALIZED: {AgentStateV3.BOOTING, AgentStateV3.TERMINATED},
     AgentStateV3.BOOTING: {AgentStateV3.REGISTERING, AgentStateV3.TERMINATING},
     AgentStateV3.REGISTERING: {AgentStateV3.IDLE, AgentStateV3.TERMINATING},
-    AgentStateV3.IDLE: {AgentStateV3.DISCOVERING, AgentStateV3.SELF_OPTIMIZING,
-                         AgentStateV3.PAUSED, AgentStateV3.TERMINATING,
-                         AgentStateV3.MIGRATING},
+    AgentStateV3.IDLE: {
+        AgentStateV3.DISCOVERING,
+        AgentStateV3.SELF_OPTIMIZING,
+        AgentStateV3.PAUSED,
+        AgentStateV3.TERMINATING,
+        AgentStateV3.MIGRATING,
+    },
     AgentStateV3.DISCOVERING: {AgentStateV3.NEGOTIATING, AgentStateV3.IDLE},
     AgentStateV3.NEGOTIATING: {AgentStateV3.TRUST_BUILDING, AgentStateV3.IDLE},
     AgentStateV3.TRUST_BUILDING: {AgentStateV3.CONTRACTING, AgentStateV3.IDLE},
     AgentStateV3.CONTRACTING: {AgentStateV3.EXECUTING, AgentStateV3.IDLE},
-    AgentStateV3.EXECUTING: {AgentStateV3.WAITING, AgentStateV3.VERIFYING,
-                              AgentStateV3.CONFLICTING},
+    AgentStateV3.EXECUTING: {
+        AgentStateV3.WAITING,
+        AgentStateV3.VERIFYING,
+        AgentStateV3.CONFLICTING,
+    },
     AgentStateV3.WAITING: {AgentStateV3.EXECUTING, AgentStateV3.VERIFYING},
     AgentStateV3.VERIFYING: {AgentStateV3.REPORTING, AgentStateV3.EXECUTING},
     AgentStateV3.REPORTING: {AgentStateV3.IDLE, AgentStateV3.EVOLVING},
@@ -158,25 +165,27 @@ class Agent24StateMachine:
             to_gray=to_gray,
             bit_changes=bit_changes,
             is_valid=is_valid,
-            timestamp=__import__('time').time(),
+            timestamp=__import__("time").time(),
         )
 
         if is_valid:
             self._agents[agent_id] = to_state
             self._history.append(t)
-            self._audit_store.append(UnifiedAuditRecord(
-                record_id=make_record_id("s24", hash((agent_id, to_state.value)) % 100000),
-                timestamp=t.timestamp,
-                layer="evolution",
-                round=43,
-                event_type=f"state_{current.value}_to_{to_state.value}",
-                source_module="Agent24StateMachine",
-                target_module=agent_id,
-                decision=f"{current.value}→{to_state.value}",
-                justification=f"Gray: {from_gray}→{to_gray}, bits changed: {bit_changes}",
-                outcome="success" if is_valid else "failure",
-                context_refs=[agent_id],
-            ))
+            self._audit_store.append(
+                UnifiedAuditRecord(
+                    record_id=make_record_id("s24", hash((agent_id, to_state.value)) % 100000),
+                    timestamp=t.timestamp,
+                    layer="evolution",
+                    round=43,
+                    event_type=f"state_{current.value}_to_{to_state.value}",
+                    source_module="Agent24StateMachine",
+                    target_module=agent_id,
+                    decision=f"{current.value}→{to_state.value}",
+                    justification=f"Gray: {from_gray}→{to_gray}, bits changed: {bit_changes}",
+                    outcome="success" if is_valid else "failure",
+                    context_refs=[agent_id],
+                )
+            )
 
         return t
 
@@ -197,7 +206,7 @@ class Agent24StateMachine:
             to_gray=to_gray,
             bit_changes=bit_changes,
             is_valid=is_valid,
-            timestamp=__import__('time').time(),
+            timestamp=__import__("time").time(),
         )
         self._history.append(t)
         return t
@@ -207,51 +216,65 @@ class Agent24StateMachine:
         all_states = set(AgentStateV3)
 
         has_out = all(
-            len(VALID_TRANSITIONS.get(s, set())) > 0 or s in {
-                AgentStateV3.TERMINATED, AgentStateV3.ZOMBIE
-            }
+            len(VALID_TRANSITIONS.get(s, set())) > 0
+            or s in {AgentStateV3.TERMINATED, AgentStateV3.ZOMBIE}
             for s in all_states
         )
-        checks.append(StateInvariantCheck(
-            "no_deadlock", has_out,
-            "OK" if has_out else "Some non-terminal state has no outgoing transition",
-        ))
+        checks.append(
+            StateInvariantCheck(
+                "no_deadlock",
+                has_out,
+                "OK" if has_out else "Some non-terminal state has no outgoing transition",
+            )
+        )
 
         has_incoming: set[AgentStateV3] = set()
         for _, targets in VALID_TRANSITIONS.items():
             for t in targets:
                 has_incoming.add(t)
         orphans = all_states - has_incoming - {AgentStateV3.UNINITIALIZED}
-        checks.append(StateInvariantCheck(
-            "no_orphan", len(orphans) == 0,
-            "OK" if len(orphans) == 0 else f"Orphan states: {[s.value for s in orphans]}",
-        ))
+        checks.append(
+            StateInvariantCheck(
+                "no_orphan",
+                len(orphans) == 0,
+                "OK" if len(orphans) == 0 else f"Orphan states: {[s.value for s in orphans]}",
+            )
+        )
 
-        checks.append(StateInvariantCheck(
-            "terminated_final",
-            len(VALID_TRANSITIONS.get(AgentStateV3.TERMINATED, set())) == 0,
-            "OK" if len(VALID_TRANSITIONS.get(AgentStateV3.TERMINATED, set())) == 0
-            else "TERMINATED has outgoing transitions",
-        ))
+        checks.append(
+            StateInvariantCheck(
+                "terminated_final",
+                len(VALID_TRANSITIONS.get(AgentStateV3.TERMINATED, set())) == 0,
+                "OK"
+                if len(VALID_TRANSITIONS.get(AgentStateV3.TERMINATED, set())) == 0
+                else "TERMINATED has outgoing transitions",
+            )
+        )
 
         zombie_transitions = VALID_TRANSITIONS.get(AgentStateV3.ZOMBIE, set())
-        checks.append(StateInvariantCheck(
-            "zombie_final",
-            len(zombie_transitions) == 0,
-            "OK" if len(zombie_transitions) == 0 else "ZOMBIE has outgoing transitions",
-        ))
+        checks.append(
+            StateInvariantCheck(
+                "zombie_final",
+                len(zombie_transitions) == 0,
+                "OK" if len(zombie_transitions) == 0 else "ZOMBIE has outgoing transitions",
+            )
+        )
 
-        checks.append(StateInvariantCheck(
-            "state_count",
-            len(all_states) == 24,
-            f"OK ({len(all_states)} states)" if len(all_states) == 24
-            else f"Expected 24 states, got {len(all_states)}",
-        ))
+        checks.append(
+            StateInvariantCheck(
+                "state_count",
+                len(all_states) == 24,
+                f"OK ({len(all_states)} states)"
+                if len(all_states) == 24
+                else f"Expected 24 states, got {len(all_states)}",
+            )
+        )
 
         return checks
 
-    def path_exists(self, from_state: AgentStateV3, to_state: AgentStateV3,
-                     max_depth: int = 10) -> bool:
+    def path_exists(
+        self, from_state: AgentStateV3, to_state: AgentStateV3, max_depth: int = 10
+    ) -> bool:
         visited: set[AgentStateV3] = set()
         queue: list[tuple[AgentStateV3, int]] = [(from_state, 0)]
 

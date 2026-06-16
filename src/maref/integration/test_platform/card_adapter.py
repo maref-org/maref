@@ -131,12 +131,14 @@ class AgentCardAdapter:
         # Map capabilities (list[str] → list[dict])
         mas_capabilities: list[dict[str, Any]] = []
         for cap in maref_card.capabilities:
-            mas_capabilities.append({
-                "skill_id": f"skill_{cap}",
-                "name": cap,
-                "description": "",
-                "business_rule_version": None,
-            })
+            mas_capabilities.append(
+                {
+                    "skill_id": f"skill_{cap}",
+                    "name": cap,
+                    "description": "",
+                    "business_rule_version": None,
+                }
+            )
 
         return MASAgentCard(
             agent_id=card_data.get("agent_id", ""),
@@ -154,8 +156,7 @@ class AgentCardAdapter:
         """Convert MAS-TS-001 Agent Card → MAREF SignedAgentCard."""
         # Map capabilities back (list[dict] → list[str])
         capability_names = [
-            cap.get("name", cap.get("skill_id", ""))
-            for cap in mas_card.capabilities
+            cap.get("name", cap.get("skill_id", "")) for cap in mas_card.capabilities
         ]
 
         return SignedAgentCard(
@@ -183,7 +184,7 @@ class AgentCardAdapter:
             return (
                 False,
                 f"Cross-border inconsistency: residency={card.data_residency}, "
-                f"backend={card.model_backend_location}, cross_border={card.cross_border}"
+                f"backend={card.model_backend_location}, cross_border={card.cross_border}",
             )
         return True, "Cross-border consistent"
 
@@ -200,10 +201,7 @@ class AgentCardAdapter:
                 undetectable.append(cap.get("name", cap.get("skill_id", "unknown")))
 
         if undetectable:
-            return (
-                False,
-                f"Prompt rot undetectable for skills: {', '.join(undetectable)}"
-            )
+            return (False, f"Prompt rot undetectable for skills: {', '.join(undetectable)}")
         return True, "All skills have business_rule_version"
 
     @staticmethod

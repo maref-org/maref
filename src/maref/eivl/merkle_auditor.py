@@ -73,9 +73,7 @@ class AuditEvidence:
             "previous_hash": self.previous_hash,
             "nonce": self.nonce,
         }
-        return hashlib.sha256(
-            json.dumps(data, sort_keys=True).encode()
-        ).hexdigest()
+        return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
 @dataclass
@@ -147,11 +145,7 @@ class MerkleAuditor:
         evidence_hash = evidence.compute_hash()
 
         # 创建叶子节点
-        leaf = MerkleNode(
-            hash=evidence_hash,
-            data=evidence_hash,
-            index=len(self._leaves)
-        )
+        leaf = MerkleNode(hash=evidence_hash, data=evidence_hash, index=len(self._leaves))
 
         self._leaves.append(leaf)
         self._evidence_map[evidence.evidence_id] = evidence
@@ -176,11 +170,7 @@ class MerkleAuditor:
         for evidence in evidences:
             evidence_hash = evidence.compute_hash()
 
-            leaf = MerkleNode(
-                hash=evidence_hash,
-                data=evidence_hash,
-                index=len(self._leaves)
-            )
+            leaf = MerkleNode(hash=evidence_hash, data=evidence_hash, index=len(self._leaves))
 
             self._leaves.append(leaf)
             self._evidence_map[evidence.evidence_id] = evidence
@@ -209,9 +199,7 @@ class MerkleAuditor:
                 right = current_level[i + 1] if i + 1 < len(current_level) else current_level[i]
 
                 parent = MerkleNode(
-                    hash=self._hash_pair(left.hash, right.hash),
-                    left=left,
-                    right=right
+                    hash=self._hash_pair(left.hash, right.hash), left=left, right=right
                 )
                 next_level.append(parent)
 
@@ -285,9 +273,7 @@ class MerkleAuditor:
                     current_index = len(next_level)
 
                 parent = MerkleNode(
-                    hash=self._hash_pair(left.hash, right.hash),
-                    left=left,
-                    right=right
+                    hash=self._hash_pair(left.hash, right.hash), left=left, right=right
                 )
                 next_level.append(parent)
 
@@ -297,7 +283,7 @@ class MerkleAuditor:
             target_hash=evidence_hash,
             proof_path=proof_path,
             root_hash=self._root.hash,
-            tree_size=len(self._leaves)
+            tree_size=len(self._leaves),
         )
 
     def verify_evidence_integrity(self, evidence_id: str) -> dict[str, Any]:
@@ -370,7 +356,7 @@ class MerkleAuditor:
             "metadata": {
                 "export_time": time.time(),
                 "leaf_count": len(self._leaves),
-            }
+            },
         }
 
     def compare_trees(self, other: MerkleAuditor) -> dict[str, Any]:
@@ -408,7 +394,7 @@ class MerkleAuditor:
                 "only_in_self_count": len(only_in_self),
                 "only_in_other_count": len(only_in_other),
                 "common_count": len(self_hashes & other_hashes),
-            }
+            },
         }
 
 
@@ -428,7 +414,7 @@ class AuditChainIntegrator:
         agent_id: str,
         trust_score: float,
         chain_risks: list[dict[str, Any]],
-        evaluator: str = "system"
+        evaluator: str = "system",
     ) -> str:
         """记录信任评估到审计链"""
         evidence = AuditEvidence(
@@ -456,7 +442,7 @@ class AuditChainIntegrator:
         action: str,
         resource: str,
         allowed: bool,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> str:
         """记录访问控制决策到审计链"""
         evidence = AuditEvidence(
@@ -484,7 +470,7 @@ class AuditChainIntegrator:
         delegator_id: str,
         delegatee_id: str,
         capabilities: list[str],
-        chain_id: str | None = None
+        chain_id: str | None = None,
     ) -> str:
         """记录委托行为到审计链"""
         evidence = AuditEvidence(

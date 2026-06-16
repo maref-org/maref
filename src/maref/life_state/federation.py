@@ -103,7 +103,9 @@ class LifeStateFederation:
     def find_capable(self, capability: LifeStateCapability) -> list[FederationMember]:
         return [m for m in self._members.values() if capability in m.capabilities]
 
-    def assign_task(self, task_type: str, capability: LifeStateCapability, payload: dict[str, Any]) -> FederationTask | None:
+    def assign_task(
+        self, task_type: str, capability: LifeStateCapability, payload: dict[str, Any]
+    ) -> FederationTask | None:
         candidates = self.find_capable(capability)
         if not candidates:
             return None

@@ -115,18 +115,20 @@ class FaultRecovery:
 
     async def _backoff(self, attempt: int) -> None:
         """Exponential backoff between retries."""
-        delay = self._backoff_base * (2 ** attempt)
+        delay = self._backoff_base * (2**attempt)
         logger.info(f"Backing off for {delay}s before retry...")
         await asyncio.sleep(delay)
 
     def _log_failure(self, error: str, experiment_name: str) -> None:
         """Log failure details for later analysis."""
-        self._failure_log.append({
-            "timestamp": time.time(),
-            "experiment": experiment_name,
-            "error": error,
-            "consecutive_failures": self._consecutive_failures,
-        })
+        self._failure_log.append(
+            {
+                "timestamp": time.time(),
+                "experiment": experiment_name,
+                "error": error,
+                "consecutive_failures": self._consecutive_failures,
+            }
+        )
 
     def _alert_human(self) -> None:
         """Alert human operator of persistent failures."""

@@ -31,11 +31,25 @@ class HighRiskItem:
 HIGH_RISK_CHECKLIST = [
     HighRiskItem("HR-1", "risk_management", "Establish and document risk management system"),
     HighRiskItem("HR-2", "data_governance", "Ensure training data quality and representativeness"),
-    HighRiskItem("HR-3", "technical_docs", "Maintain technical documentation for conformity assessment"),
-    HighRiskItem("HR-4", "record_keeping", "Implement automatic logging of events during operation"),
-    HighRiskItem("HR-5", "transparency", "Provide clear information about AI system capabilities and limitations"),
-    HighRiskItem("HR-6", "human_oversight", "Design human oversight measures for preventing or minimizing risks"),
-    HighRiskItem("HR-7", "accuracy", "Achieve appropriate levels of accuracy, robustness, and cybersecurity"),
+    HighRiskItem(
+        "HR-3", "technical_docs", "Maintain technical documentation for conformity assessment"
+    ),
+    HighRiskItem(
+        "HR-4", "record_keeping", "Implement automatic logging of events during operation"
+    ),
+    HighRiskItem(
+        "HR-5",
+        "transparency",
+        "Provide clear information about AI system capabilities and limitations",
+    ),
+    HighRiskItem(
+        "HR-6",
+        "human_oversight",
+        "Design human oversight measures for preventing or minimizing risks",
+    ),
+    HighRiskItem(
+        "HR-7", "accuracy", "Achieve appropriate levels of accuracy, robustness, and cybersecurity"
+    ),
     HighRiskItem("HR-8", "bias_monitoring", "Implement bias detection and correction mechanisms"),
 ]
 
@@ -51,7 +65,15 @@ class EUAIHighRiskChecklist:
             "overall_risk_score": round((1 - satisfied / total) * 100, 1) if total > 0 else 0.0,
             "satisfied": satisfied,
             "total": total,
-            "items": [{"id": i.item_id, "category": i.category, "requirement": i.requirement, "satisfied": i.satisfied} for i in self.items],
+            "items": [
+                {
+                    "id": i.item_id,
+                    "category": i.category,
+                    "requirement": i.requirement,
+                    "satisfied": i.satisfied,
+                }
+                for i in self.items
+            ],
         }
 
 
@@ -101,7 +123,9 @@ class EUAIHumanOversight:
         return {
             "requires_approval": requires,
             "approval_id": approval_id,
-            "reason": "High-risk action requires human approval" if requires else "No approval needed",
+            "reason": "High-risk action requires human approval"
+            if requires
+            else "No approval needed",
         }
 
 
@@ -113,8 +137,15 @@ class EUAITransparencyDoc:
     def generate(self) -> dict[str, Any]:
         return {
             "purpose": f"{self.agent_name} v{self.version} — Multi-agent security framework",
-            "capabilities": ["Agent identity verification", "Delegation chain tracking", "Cross-agent threat detection"],
-            "limitations": ["Requires configured trust anchors", "Behavior monitoring over baseline samples"],
+            "capabilities": [
+                "Agent identity verification",
+                "Delegation chain tracking",
+                "Cross-agent threat detection",
+            ],
+            "limitations": [
+                "Requires configured trust anchors",
+                "Behavior monitoring over baseline samples",
+            ],
             "human_oversight": "High-risk actions routed through HITL approval pipeline",
             "risk_level": "high" if "security" in self.agent_name.lower() else "limited",
         }

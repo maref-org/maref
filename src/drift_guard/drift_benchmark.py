@@ -126,8 +126,18 @@ class DriftBenchmark:
             DriftScenario(
                 drift_class=DriftClass.THEME_COLOR,
                 description="System accent color changes from blue to orange",
-                baseline_distribution={"button_bg": 0.40, "text_fg": 0.30, "border": 0.20, "highlight": 0.10},
-                drifted_distribution={"button_bg": 0.10, "text_fg": 0.30, "border": 0.20, "highlight": 0.40},
+                baseline_distribution={
+                    "button_bg": 0.40,
+                    "text_fg": 0.30,
+                    "border": 0.20,
+                    "highlight": 0.10,
+                },
+                drifted_distribution={
+                    "button_bg": 0.10,
+                    "text_fg": 0.30,
+                    "border": 0.20,
+                    "highlight": 0.40,
+                },
                 expected_detected=True,
                 metadata={"from_color": "#007AFF", "to_color": "#FF9500"},
             )
@@ -137,8 +147,18 @@ class DriftBenchmark:
             DriftScenario(
                 drift_class=DriftClass.LAYOUT_UPDATE,
                 description="Button moved from top-right to bottom-left",
-                baseline_distribution={"btn_1_x": 0.8, "btn_1_y": 0.1, "btn_2_x": 0.8, "btn_2_y": 0.3},
-                drifted_distribution={"btn_1_x": 0.1, "btn_1_y": 0.8, "btn_2_x": 0.1, "btn_2_y": 0.9},
+                baseline_distribution={
+                    "btn_1_x": 0.8,
+                    "btn_1_y": 0.1,
+                    "btn_2_x": 0.8,
+                    "btn_2_y": 0.3,
+                },
+                drifted_distribution={
+                    "btn_1_x": 0.1,
+                    "btn_1_y": 0.8,
+                    "btn_2_x": 0.1,
+                    "btn_2_y": 0.9,
+                },
                 expected_detected=True,
                 metadata={"app_version": "2.0", "element": "submit_button"},
             )
@@ -149,7 +169,11 @@ class DriftBenchmark:
                 drift_class=DriftClass.OS_VERSION,
                 description="macOS upgrade changes system font metrics",
                 baseline_distribution={"font_size": 0.5, "line_height": 0.3, "letter_spacing": 0.2},
-                drifted_distribution={"font_size": 0.35, "line_height": 0.40, "letter_spacing": 0.25},
+                drifted_distribution={
+                    "font_size": 0.35,
+                    "line_height": 0.40,
+                    "letter_spacing": 0.25,
+                },
                 expected_detected=True,
                 metadata={"from_os": "macOS 14", "to_os": "macOS 15"},
             )
@@ -170,8 +194,16 @@ class DriftBenchmark:
             DriftScenario(
                 drift_class=DriftClass.LOCALE,
                 description="Language switch from English to Japanese",
-                baseline_distribution={"text_len_short": 0.6, "text_len_medium": 0.3, "text_len_long": 0.1},
-                drifted_distribution={"text_len_short": 0.3, "text_len_medium": 0.5, "text_len_long": 0.2},
+                baseline_distribution={
+                    "text_len_short": 0.6,
+                    "text_len_medium": 0.3,
+                    "text_len_long": 0.1,
+                },
+                drifted_distribution={
+                    "text_len_short": 0.3,
+                    "text_len_medium": 0.5,
+                    "text_len_long": 0.2,
+                },
                 expected_detected=True,
                 metadata={"from_locale": "en-US", "to_locale": "ja-JP"},
             )
@@ -181,8 +213,16 @@ class DriftBenchmark:
             DriftScenario(
                 drift_class=DriftClass.FONT_RENDERING,
                 description="Anti-aliasing changed from subpixel to grayscale",
-                baseline_distribution={"edge_contrast": 0.5, "fill_density": 0.3, "blur_radius": 0.2},
-                drifted_distribution={"edge_contrast": 0.3, "fill_density": 0.4, "blur_radius": 0.3},
+                baseline_distribution={
+                    "edge_contrast": 0.5,
+                    "fill_density": 0.3,
+                    "blur_radius": 0.2,
+                },
+                drifted_distribution={
+                    "edge_contrast": 0.3,
+                    "fill_density": 0.4,
+                    "blur_radius": 0.3,
+                },
                 expected_detected=True,
                 metadata={"from_aa": "subpixel", "to_aa": "grayscale"},
             )
@@ -203,8 +243,16 @@ class DriftBenchmark:
             DriftScenario(
                 drift_class=DriftClass.DARK_MODE,
                 description="Light mode → dark mode toggle",
-                baseline_distribution={"bg_luminance": 0.8, "fg_luminance": 0.1, "accent_luminance": 0.1},
-                drifted_distribution={"bg_luminance": 0.1, "fg_luminance": 0.8, "accent_luminance": 0.1},
+                baseline_distribution={
+                    "bg_luminance": 0.8,
+                    "fg_luminance": 0.1,
+                    "accent_luminance": 0.1,
+                },
+                drifted_distribution={
+                    "bg_luminance": 0.1,
+                    "fg_luminance": 0.8,
+                    "accent_luminance": 0.1,
+                },
                 expected_detected=True,
                 metadata={"from_mode": "light", "to_mode": "dark"},
             )
@@ -215,7 +263,13 @@ class DriftBenchmark:
                 drift_class=DriftClass.NEW_ELEMENT,
                 description="New 'Share' button added to toolbar",
                 baseline_distribution={"buttons": 0.4, "fields": 0.3, "labels": 0.2, "menus": 0.1},
-                drifted_distribution={"buttons": 0.45, "fields": 0.25, "labels": 0.15, "menus": 0.1, "share_btn": 0.05},
+                drifted_distribution={
+                    "buttons": 0.45,
+                    "fields": 0.25,
+                    "labels": 0.15,
+                    "menus": 0.1,
+                    "share_btn": 0.05,
+                },
                 expected_detected=True,
                 metadata={"new_element": "share_button"},
             )
@@ -225,7 +279,12 @@ class DriftBenchmark:
             DriftScenario(
                 drift_class=DriftClass.ELEMENT_REMOVAL,
                 description="'Settings' tab removed from navigation",
-                baseline_distribution={"home": 0.3, "settings": 0.25, "profile": 0.25, "about": 0.2},
+                baseline_distribution={
+                    "home": 0.3,
+                    "settings": 0.25,
+                    "profile": 0.25,
+                    "about": 0.2,
+                },
                 drifted_distribution={"home": 0.4, "profile": 0.35, "about": 0.25},
                 expected_detected=True,
                 metadata={"removed_element": "settings_tab"},
@@ -339,8 +398,8 @@ def _cosine_similarity(p: dict[str, float], q: dict[str, float]) -> float:
     """Cosine similarity between two probability vectors."""
     all_keys = set(p.keys()) | set(q.keys())
     dot = sum(p.get(k, 0) * q.get(k, 0) for k in all_keys)
-    norm_p = math.sqrt(sum(v ** 2 for v in p.values()))
-    norm_q = math.sqrt(sum(v ** 2 for v in q.values()))
+    norm_p = math.sqrt(sum(v**2 for v in p.values()))
+    norm_q = math.sqrt(sum(v**2 for v in q.values()))
     if norm_p == 0 or norm_q == 0:
         return 0.0
     return dot / (norm_p * norm_q)

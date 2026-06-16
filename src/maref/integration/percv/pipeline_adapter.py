@@ -75,7 +75,7 @@ class PERCVPipelineAdapter:
 
     def _create_pipeline(self) -> Any:
         try:
-            from percv.pipeline import ErrorPolicy, Pipeline
+            from percv.pipeline import ErrorPolicy, Pipeline  # type: ignore[import-not-found]
 
             policy_map = {
                 "fail_fast": ErrorPolicy.FAIL_FAST,
@@ -85,8 +85,7 @@ class PERCVPipelineAdapter:
             return Pipeline(error_policy=policy_map.get(self._error_policy, ErrorPolicy.DEGRADE))
         except ImportError:
             raise RuntimeError(
-                "PERCV package is required for PipelineAdapter. "
-                "Install with: pip install percv"
+                "PERCV package is required for PipelineAdapter. " "Install with: pip install percv"
             ) from None
 
     def _determine_directive(
@@ -154,6 +153,7 @@ class PERCVPipelineAdapter:
 
         for step_name, agent_name, step_fn in step_defs:
             import time
+
             t0 = time.perf_counter()
             try:
                 result = pipeline.run_step(step_name, agent_name, step_fn)
@@ -173,7 +173,9 @@ class PERCVPipelineAdapter:
                 )
 
             step_result.directive = self._determine_directive(
-                step_name, step_result.success, step_result.error,
+                step_name,
+                step_result.success,
+                step_result.error,
             )
             results[step_name] = step_result
             self._results.append(step_result)
@@ -204,7 +206,8 @@ class PERCVPipelineAdapter:
         if harvester_fn:
             return harvester_fn()
         try:
-            from percv.agents.scout import ScoutAgent
+            from percv.agents.scout import ScoutAgent  # type: ignore[import-not-found]
+
             scout = ScoutAgent()
             return scout.harvest()
         except Exception as exc:

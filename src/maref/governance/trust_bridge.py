@@ -113,13 +113,9 @@ class GovernanceBridge:
         # 触发 governance 动作
         handled = False
         if event.event_type == RecursiveEventType.SAFETY_VIOLATION:
-            handled = self._sm.force_stabilize(
-                reason=f"safety_violation:{event.source_agent}"
-            )
+            handled = self._sm.force_stabilize(reason=f"safety_violation:{event.source_agent}")
         elif event.event_type == RecursiveEventType.CIRCUIT_TRIPPED:
-            handled = self._sm.force_halt(
-                reason=f"circuit_tripped:{event.source_agent}"
-            )
+            handled = self._sm.force_halt(reason=f"circuit_tripped:{event.source_agent}")
         elif event.event_type == RecursiveEventType.AUDIT_ANOMALY:
             # 记录异常但不强制状态转换
             handled = True
@@ -151,9 +147,7 @@ class GovernanceBridge:
             self._recursive_hooks.remove(hook)
             self._sm.remove_callback(hook)
 
-    def register_governance_hook(
-        self, hook: Callable[[RecursiveEvent], bool]
-    ) -> None:
+    def register_governance_hook(self, hook: Callable[[RecursiveEvent], bool]) -> None:
         """注册 governance 层事件处理器。"""
         self._governance_hooks.append(hook)
 

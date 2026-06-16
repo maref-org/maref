@@ -13,6 +13,7 @@ Properties verified:
 5. Entropy monotonicity: Entropy peaks at ACT state and decreases afterward
 """
 
+from rich.console import Console
 
 from maref_lite._constants import (
     ENTROPY_LEVELS,
@@ -22,6 +23,8 @@ from maref_lite._constants import (
     compute_valid_transitions,
     hamming_distance,
 )
+
+console = Console()
 
 
 def validate_single_bit_transitions() -> tuple[bool, list[str]]:
@@ -79,9 +82,7 @@ def validate_reachability() -> tuple[bool, list[str]]:
 
     unreachable = set(GRAY_CODE.keys()) - visited
     if unreachable:
-        errors.append(
-            f"Unreachable states: {[STATE_NAMES[s] for s in sorted(unreachable)]}"
-        )
+        errors.append(f"Unreachable states: {[STATE_NAMES[s] for s in sorted(unreachable)]}")
     return len(errors) == 0, errors
 
 
@@ -93,9 +94,7 @@ def validate_entropy_profile() -> tuple[bool, list[str]]:
     for s, expected in enumerate(expected_profile):
         actual = ENTROPY_LEVELS[s]
         if actual != expected:
-            errors.append(
-                f"State {STATE_NAMES[s]} entropy {actual} != expected {expected}"
-            )
+            errors.append(f"State {STATE_NAMES[s]} entropy {actual} != expected {expected}")
 
     # Verify ACT has maximum entropy
     if ENTROPY_LEVELS[5] != MAX_ENTROPY:
@@ -137,51 +136,49 @@ def run_all_validations() -> tuple[bool, dict[str, tuple[bool, list[str]]]]:
 def print_transition_graph() -> None:
     """Print the state transition graph."""
     transitions = compute_valid_transitions()
-    print("\nState Transition Graph (valid single-bit transitions):")
-    print("=" * 60)
+    console.print("\nState Transition Graph (valid single-bit transitions):")
+    console.print("=" * 60)
     for s in sorted(transitions):
         targets = transitions[s]
-        target_str = ", ".join(
-            f"{STATE_NAMES[t]}({t})" for t in targets
-        )
-        print(f"  {STATE_NAMES[s]}({s}) -> [{target_str}]")
-    print()
+        target_str = ", ".join(f"{STATE_NAMES[t]}({t})" for t in targets)
+        console.print(f"  {STATE_NAMES[s]}({s}) -> [{target_str}]")
+    console.print()
 
 
 def print_gray_code_table() -> None:
     """Print the Gray code encoding table."""
-    print("\nGray Code Encoding Table:")
-    print("=" * 60)
-    print(f"{'State':<12} {'ID':<4} {'Gray Code':<12} {'Entropy':<8}")
-    print("-" * 60)
+    console.print("\nGray Code Encoding Table:")
+    console.print("=" * 60)
+    console.print(f"{'State':<12} {'ID':<4} {'Gray Code':<12} {'Entropy':<8}")
+    console.print("-" * 60)
     for s in sorted(GRAY_CODE):
         code_str = "".join(str(b) for b in GRAY_CODE[s])
-        print(f"{STATE_NAMES[s]:<12} {s:<4} {code_str:<12} {ENTROPY_LEVELS[s]:<8}")
-    print()
+        console.print(f"{STATE_NAMES[s]:<12} {s:<4} {code_str:<12} {ENTROPY_LEVELS[s]:<8}")
+    console.print()
 
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("MAREF-Lite Gray Code State Machine Validation")
-    print("=" * 60)
+    console.print("=" * 60)
+    console.print("MAREF-Lite Gray Code State Machine Validation")
+    console.print("=" * 60)
 
     print_gray_code_table()
     print_transition_graph()
 
-    print("Running validation checks...")
-    print("=" * 60)
+    console.print("Running validation checks...")
+    console.print("=" * 60)
 
     all_passed, checks = run_all_validations()
 
     for check_name, (passed, errors) in checks.items():
         status = "PASS" if passed else "FAIL"
-        print(f"  [{status}] {check_name}")
+        console.print(f"  [{status}] {check_name}")
         for error in errors:
-            print(f"         -> {error}")
+            console.print(f"         -> {error}")
 
-    print("=" * 60)
+    console.print("=" * 60)
     if all_passed:
-        print("All validations PASSED")
+        console.print("All validations PASSED")
     else:
-        print("Some validations FAILED")
-    print("=" * 60)
+        console.print("Some validations FAILED")
+    console.print("=" * 60)

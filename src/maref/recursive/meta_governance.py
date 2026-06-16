@@ -92,9 +92,7 @@ class MetaGovernance:
 
     def __init__(self, depth: int = 0) -> None:
         if depth > _MAX_RECURSION_DEPTH:
-            raise RecursionDepthExceededError(
-                f"递归深度超出限制: {depth} > {_MAX_RECURSION_DEPTH}"
-            )
+            raise RecursionDepthExceededError(f"递归深度超出限制: {depth} > {_MAX_RECURSION_DEPTH}")
         self._depth = depth
         self._inner_governance: object | None = None
         self._meta_cb = MetaCircuitBreaker()
@@ -127,54 +125,64 @@ class MetaGovernance:
 
     def wrap(self, inner_governance: object) -> None:
         self._inner_governance = inner_governance
-        self._audit_trail.append(CrossLayerAuditEntry(
-            layer=f"depth_{self._depth}",
-            inner_state="wrapped",
-            outer_state=self._meta_cb.state.value,
-            event="wrap_inner_governance",
-        ))
+        self._audit_trail.append(
+            CrossLayerAuditEntry(
+                layer=f"depth_{self._depth}",
+                inner_state="wrapped",
+                outer_state=self._meta_cb.state.value,
+                event="wrap_inner_governance",
+            )
+        )
 
     def signal_inner_trip(self) -> None:
         self._meta_cb.record_trip()
-        self._audit_trail.append(CrossLayerAuditEntry(
-            layer=f"depth_{self._depth}",
-            inner_state="TRIPPED",
-            outer_state=self._meta_cb.state.value,
-            event="inner_cb_trip",
-        ))
+        self._audit_trail.append(
+            CrossLayerAuditEntry(
+                layer=f"depth_{self._depth}",
+                inner_state="TRIPPED",
+                outer_state=self._meta_cb.state.value,
+                event="inner_cb_trip",
+            )
+        )
         if self._meta_cb.state == MetaBreakerState.OPEN:
             self._halt()
 
     def _halt(self) -> None:
         self._halted = True
-        self._audit_trail.append(CrossLayerAuditEntry(
-            layer=f"depth_{self._depth}",
-            inner_state="HALTED",
-            outer_state=self._meta_cb.state.value,
-            event="outer_open_inner_halt",
-        ))
+        self._audit_trail.append(
+            CrossLayerAuditEntry(
+                layer=f"depth_{self._depth}",
+                inner_state="HALTED",
+                outer_state=self._meta_cb.state.value,
+                event="outer_open_inner_halt",
+            )
+        )
 
     def try_recover(self) -> bool:
         if self._halted and self._meta_cb.try_half_open():
             self._halted = False
-            self._audit_trail.append(CrossLayerAuditEntry(
-                layer=f"depth_{self._depth}",
-                inner_state="RECOVERING",
-                outer_state=self._meta_cb.state.value,
-                event="half_open_recovery_probe",
-            ))
+            self._audit_trail.append(
+                CrossLayerAuditEntry(
+                    layer=f"depth_{self._depth}",
+                    inner_state="RECOVERING",
+                    outer_state=self._meta_cb.state.value,
+                    event="half_open_recovery_probe",
+                )
+            )
             return True
         return False
 
     def confirm_recovery(self) -> bool:
         if self._meta_cb.state == MetaBreakerState.HALF_OPEN and not self._halted:
             self._meta_cb.close()
-            self._audit_trail.append(CrossLayerAuditEntry(
-                layer=f"depth_{self._depth}",
-                inner_state="RECOVERED",
-                outer_state=self._meta_cb.state.value,
-                event="recovery_confirmed",
-            ))
+            self._audit_trail.append(
+                CrossLayerAuditEntry(
+                    layer=f"depth_{self._depth}",
+                    inner_state="RECOVERED",
+                    outer_state=self._meta_cb.state.value,
+                    event="recovery_confirmed",
+                )
+            )
             return True
         self._meta_cb.fail_half_open()
         return False

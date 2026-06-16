@@ -2,20 +2,25 @@
 
 **M**ulti-**A**gent **R**ecursive **E**ngineering **F**ramework
 
-[![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.32.0-rc-blue)](https://github.com/maref-org/maref/releases)
-[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]()
+<p align="center">
+  <a href="https://github.com/maref-org/maref/stargazers"><img src="https://img.shields.io/github/stars/maref-org/maref?style=for-the-badge&logo=github&color=gold" alt="Stars"></a>
+  <a href="https://github.com/maref-org/maref/network/members"><img src="https://img.shields.io/github/forks/maref-org/maref?style=for-the-badge&logo=github&color=blue" alt="Forks"></a>
+  <a href="https://github.com/maref-org/maref/graphs/contributors"><img src="https://img.shields.io/github/contributors/maref-org/maref?style=for-the-badge&logo=github&color=green" alt="Contributors"></a>
+  <a href="https://github.com/maref-org/maref/discussions"><img src="https://img.shields.io/github/discussions/maref-org/maref?style=for-the-badge&logo=github&color=purple" alt="Discussions"></a>
+  <a href="https://github.com/maref-org/maref/releases"><img src="https://img.shields.io/github/v/release/maref-org/maref?style=for-the-badge&logo=github&color=red" alt="Release"></a>
+</p>
 
 > **全球唯一以"Agent 治理"为核心产品定位的框架。** 在治理深度上碾压所有竞品（10/10 vs 0-3），将 Agent 治理作为独立的价值主张而非安全 feature。
 
 MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周期、安全边界、状态健康和进化方向。
 
-<p align="center">
-  <img src="docs/assets/governance-overview.svg" alt="MAREF Agent Governance OS — governing 6 AI coding agents in real-time" width="800">
-</p>
+---
+
+## 趋势
+
+![Star History](https://api.star-history.com/svg?repos=maref-org/maref&type=Date)
+
+---
 
 ## 核心能力
 
@@ -51,6 +56,8 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 - **Serverless 运行时** — Lambda / Cloud Run 适配
 - **TypeScript SDK** — `@maref/sdk` npm 包
 
+---
+
 ## 快速开始
 
 ```bash
@@ -80,6 +87,8 @@ overlay._state_machine.transition(GovernanceState.ANALYZE)
 print(overlay.get_status())
 ```
 
+---
+
 ## 架构
 
 ```
@@ -96,6 +105,8 @@ print(overlay.get_status())
     └─────────────────────────────────────────────────────────┘
 ```
 
+---
+
 ## 竞品对比
 
 | 维度 | **MAREF** | Anthropic | OpenAI | LangGraph | CrewAI | AutoGen |
@@ -108,18 +119,38 @@ print(overlay.get_status())
 | 身份/信任 | **7** | 0 | 0 | 0 | 0 | 0 |
 | 社区/生态 | 3 | 8 | **9** | 8 | **9** | 8 |
 
-## 测试
+---
 
-| 类型 | 数量 | 状态 |
-|------|------|------|
-| 全量 | 4,300+ | ✅ |
-| 覆盖率 | 82% | ✅ |
+## 贡献者
 
-```bash
-pytest tests/ -v --cov
-pytest tests/desktop/ -v    # 桌面操控测试
-pytest tests/chaos/ -v       # 混沌工程
-```
+<a href="https://github.com/maref-org/maref/graphs/contributors">
+  <img src="https://contributors-img.web.app/image?repo=maref-org/maref" alt="Contributors" width="600">
+</a>
+
+---
+
+## 最新 Release
+
+<!-- MAREF_RELEASE_START -->
+<!-- MAREF_RELEASE_END -->
+
+---
+
+## 健康度
+
+| 指标 | 状态 |
+|------|------|
+| **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
+| **Tests** | 4,300+ — [![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]() |
+| **Coverage** | 82% — [![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]() |
+| **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
+| **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
+| **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
+| **Python** | ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg) |
+| **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
+| **Version** | ![v0.30.0-GA](https://img.shields.io/badge/version-v0.30.0-GA-blue) |
+
+---
 
 ## 路线图
 
@@ -129,7 +160,7 @@ pytest tests/chaos/ -v       # 混沌工程
 - [ ] v1.0: 递归进化全栈 + Agent 信用评级 + 四象治理模型
 - [ ] v2.0: 元 Agent 闭包 + 碳硅共生 + 八卦治理
 
-详见 [task_plan_v0.21.0-rc_omega_50_rounds.md](task_plan_v0.21.0-rc_omega_50_rounds.md)
+---
 
 ## 许可证
 

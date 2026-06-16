@@ -110,16 +110,18 @@ class PersistentSessionStore:
                 ).fetchall()
         sessions: list[Session] = []
         for row in rows:
-            sessions.append(Session(
-                id=row["id"],
-                status=row["status"],
-                created_at=row["created_at"],
-                last_heartbeat=row["last_heartbeat"],
-                closed_at=row["closed_at"],
-                ttl=row["ttl"],
-                metadata=json.loads(row["metadata_json"]),
-                task_ids=json.loads(row["task_ids_json"]),
-            ))
+            sessions.append(
+                Session(
+                    id=row["id"],
+                    status=row["status"],
+                    created_at=row["created_at"],
+                    last_heartbeat=row["last_heartbeat"],
+                    closed_at=row["closed_at"],
+                    ttl=row["ttl"],
+                    metadata=json.loads(row["metadata_json"]),
+                    task_ids=json.loads(row["task_ids_json"]),
+                )
+            )
         return sessions
 
     def delete_session(self, session_id: str) -> bool:

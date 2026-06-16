@@ -35,7 +35,9 @@ class JointStateMachine:
         self._barrier_clock = VectorClock()
         self._max_deviation = max_sync_deviation_ms
 
-    def register_agent(self, did: AgentDID, initial_state: GovernanceState = GovernanceState.INIT) -> None:
+    def register_agent(
+        self, did: AgentDID, initial_state: GovernanceState = GovernanceState.INIT
+    ) -> None:
         # Each agent starts with its own dimension at 0, merged with current barrier
         agent_clock = self._barrier_clock.tick(did.did_string)
         self._slots[did] = AgentSlot(

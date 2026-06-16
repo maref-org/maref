@@ -113,9 +113,7 @@ class LifeStateMetadata:
             state_id=data.get("state_id", uuid.uuid4().hex[:16]),
             state_type=LifeStateType(data.get("state_type", "agent")),
             version=data.get("version", "0.1.0"),
-            capabilities={
-                LifeStateCapability(c) for c in data.get("capabilities", [])
-            },
+            capabilities={LifeStateCapability(c) for c in data.get("capabilities", [])},
             health_score=data.get("health_score", 100.0),
             birth_time=data.get("birth_time", time.time()),
             lineage=data.get("lineage"),

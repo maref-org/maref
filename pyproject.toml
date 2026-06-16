@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.32.0"
+version = "0.33.0-rc"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -142,15 +142,10 @@ module = [
     "yaml",
     "dotenv",
     "aiohttp",
-    "chromadb",
-    "chromadb.api",
-    "chromadb.errors",
+
     "fastapi",
     "fastapi.responses",
-    "autogen_agentchat.base",
-    "autogen_agentchat.messages",
-    "autogen_agentchat.teams",
-    "percv.schemas",
+        "percv.schemas",
 ]
 ignore_missing_imports = true
 

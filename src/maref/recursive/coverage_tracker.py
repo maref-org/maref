@@ -39,7 +39,7 @@ class CoverageTracker:
         )
         self._snapshots.append(snapshot)
         if len(self._snapshots) > self._max_history:
-            self._snapshots = self._snapshots[-self._max_history:]
+            self._snapshots = self._snapshots[-self._max_history :]
         return snapshot
 
     def trend(self, window: int = 5) -> dict[str, float]:

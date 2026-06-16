@@ -55,6 +55,7 @@ class OperationalValidator:
 
     def validate(self, skill: Any, core_role: Any, plugin_roles: list[Any]) -> OperationalReport:
         import time
+
         start = time.time()
 
         self._validate_skill_loader()
@@ -85,12 +86,14 @@ class OperationalValidator:
         )
 
     def _record(self, name: str, ok: bool, details: str = "", duration_ms: float = 0.0) -> None:
-        self._results.append(SubsystemResult(
-            name=name,
-            status=SubsystemStatus.PASS if ok else SubsystemStatus.FAIL,
-            details=details,
-            duration_ms=duration_ms,
-        ))
+        self._results.append(
+            SubsystemResult(
+                name=name,
+                status=SubsystemStatus.PASS if ok else SubsystemStatus.FAIL,
+                details=details,
+                duration_ms=duration_ms,
+            )
+        )
 
     def _validate_skill_loader(self) -> None:
         try:
@@ -123,14 +126,18 @@ class OperationalValidator:
             executor = SkillExecutor()
             executor.register_handler("default", lambda ctx: {"ok": True})
             result = executor.execute(skill)
-            self._record("3.SkillExecutor", result.status.name in ("SUCCESS", "success"),
-                         f"降级链执行: {result.handler_used}")
+            self._record(
+                "3.SkillExecutor",
+                result.status.name in ("SUCCESS", "success"),
+                f"降级链执行: {result.handler_used}",
+            )
         except Exception as e:
             self._record("3.SkillExecutor", False, str(e))
 
     def _validate_mcp_transport(self) -> None:
         try:
             from maref.integration.mcp_transport import SSETransport
+
             transport = SSETransport("http://localhost:9999/test")
             transport.connect()
             ok = transport.state.value == "connected"
@@ -165,7 +172,13 @@ class OperationalValidator:
     def _validate_hook_chain(self) -> None:
         try:
             registry = HookRegistry()
-            registry.register(MarefTopic.ROLE_PRE_INVOKE, lambda d: __import__('maref.recursive.hook_registry').recursive.hook_registry.HookResult("pass", "ok"), handler_id="test")
+            registry.register(
+                MarefTopic.ROLE_PRE_INVOKE,
+                lambda d: __import__(
+                    "maref.recursive.hook_registry"
+                ).recursive.hook_registry.HookResult("pass", "ok"),
+                handler_id="test",
+            )
             chain = HookChain(registry)
             result = chain.execute(MarefTopic.ROLE_PRE_INVOKE, {})
             ok = result.passed
@@ -176,8 +189,11 @@ class OperationalValidator:
     def _validate_hook_templates(self) -> None:
         try:
             lib = create_default_template_library()
-            self._record("9.HookTemplates", len(lib.list_templates()) >= 4,
-                         f"安全模板库: {len(lib.list_templates())} 模板")
+            self._record(
+                "9.HookTemplates",
+                len(lib.list_templates()) >= 4,
+                f"安全模板库: {len(lib.list_templates())} 模板",
+            )
         except Exception as e:
             self._record("9.HookTemplates", False, str(e))
 
@@ -198,6 +214,7 @@ class OperationalValidator:
             if core_role and plugin_roles:
                 result = RoleComposer.compose(core_role, plugin_roles)
                 from maref.recursive.role_composer import HexagramWorkflow
+
                 ok = isinstance(result, HexagramWorkflow)
                 self._record("11.RoleComposer", ok, f"角色组合: {'成功' if ok else '失败'}")
             else:
@@ -210,8 +227,11 @@ class OperationalValidator:
             entry = AuditEntry(event_type="test", severity=AuditSeverity.INFO)
             jsonl = entry.to_jsonl()
             import json
+
             parsed = json.loads(jsonl)
-            self._record("12.AuditSchema", parsed.get("event_type") == "test", "JSON Schema审计日志正确")
+            self._record(
+                "12.AuditSchema", parsed.get("event_type") == "test", "JSON Schema审计日志正确"
+            )
         except Exception as e:
             self._record("12.AuditSchema", False, str(e))
 
@@ -219,6 +239,7 @@ class OperationalValidator:
         try:
             import tempfile
             from pathlib import Path
+
             with tempfile.TemporaryDirectory() as tmpdir:
                 baseline = IntegrityBaseline(Path(tmpdir) / ".maref/integrity")
                 test_file = Path(tmpdir) / "test.py"

@@ -63,6 +63,7 @@ class OscillationFixLoop:
         max_rate: float = 10.0,
     ) -> None:
         import asyncio
+
         self._lock = asyncio.Lock()
         self._stabilize_fn = stabilize_fn
         self._get_state_fn = get_state_fn
@@ -95,7 +96,10 @@ class OscillationFixLoop:
             return await self._run_fix_cycle(rate, entropy, current_state)
 
     async def _run_fix_cycle(
-        self, rate: float, entropy: int, current_state: str,
+        self,
+        rate: float,
+        entropy: int,
+        current_state: str,
     ) -> dict[str, Any]:
         if rate <= self._max_rate:
             return {"resolved": True, "stage": "none", "message": "rate_normal"}
@@ -183,7 +187,8 @@ class OscillationFixLoop:
                     "rate": self._events[-1].initial_rate,
                     "resolved": self._events[-1].resolved,
                 }
-                if self._events else None
+                if self._events
+                else None
             ),
         }
 

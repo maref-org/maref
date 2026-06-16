@@ -116,29 +116,31 @@ class SelfVersionManager:
             steps.append("    update_version()")
             steps.append("    verify_compatibility()")
 
-        steps.extend([
-            "    print('Migration complete.')",
-            "",
-            "def update_version():",
-            "    from pathlib import Path",
-            "    import re",
-            "    pp = Path('pyproject.toml')",
-            "    content = pp.read_text()",
-            f"    content = re.sub(r'version = \".*\"', 'version = \"{target_version}\"', content)",
-            "    pp.write_text(content)",
-            "",
-            "def verify_compatibility():",
-            "    import subprocess, sys",
-            "    result = subprocess.run([sys.executable, '-m', 'pytest', '--tb=short', '-q'], capture_output=True, text=True)",
-            "    if result.returncode != 0:",
-            "        print('ERROR: Tests failed after migration!')",
-            "        print(result.stdout[-500:])",
-            "        sys.exit(1)",
-            "    print('Verification passed.')",
-            "",
-            "if __name__ == '__main__':",
-            "    migrate()",
-        ])
+        steps.extend(
+            [
+                "    print('Migration complete.')",
+                "",
+                "def update_version():",
+                "    from pathlib import Path",
+                "    import re",
+                "    pp = Path('pyproject.toml')",
+                "    content = pp.read_text()",
+                f"    content = re.sub(r'version = \".*\"', 'version = \"{target_version}\"', content)",
+                "    pp.write_text(content)",
+                "",
+                "def verify_compatibility():",
+                "    import subprocess, sys",
+                "    result = subprocess.run([sys.executable, '-m', 'pytest', '--tb=short', '-q'], capture_output=True, text=True)",
+                "    if result.returncode != 0:",
+                "        print('ERROR: Tests failed after migration!')",
+                "        print(result.stdout[-500:])",
+                "        sys.exit(1)",
+                "    print('Verification passed.')",
+                "",
+                "if __name__ == '__main__':",
+                "    migrate()",
+            ]
+        )
 
         return "\n".join(steps)
 

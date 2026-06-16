@@ -212,7 +212,10 @@ class DesktopSafetyGateV2:
         )
 
     def record_operation(
-        self, operation_type: str, target: str, success: bool,
+        self,
+        operation_type: str,
+        target: str,
+        success: bool,
         threat: DesktopThreatAssessment | None = None,
     ) -> None:
         record = DesktopOperationRecord(
@@ -224,7 +227,7 @@ class DesktopSafetyGateV2:
         )
         self._operation_history.append(record)
         if len(self._operation_history) > self._max_operation_history:
-            self._operation_history = self._operation_history[-self._max_operation_history:]
+            self._operation_history = self._operation_history[-self._max_operation_history :]
         self._last_operation_time = time.time()
 
         if not success:
@@ -241,7 +244,9 @@ class DesktopSafetyGateV2:
     def get_operation_history(self, limit: int = 50) -> list[DesktopOperationRecord]:
         return self._operation_history[-limit:]
 
-    def should_block_operation(self, element_text: str, app_name: str, safe_apps: set[str]) -> DesktopThreatAssessment:
+    def should_block_operation(
+        self, element_text: str, app_name: str, safe_apps: set[str]
+    ) -> DesktopThreatAssessment:
         if self.is_locked:
             return DesktopThreatAssessment(
                 threat_detected=True,

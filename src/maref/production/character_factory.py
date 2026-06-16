@@ -29,10 +29,22 @@ _PROFILE_SCHEMA = {
 }
 
 _ARCHETYPES = [
-    "The Hero", "The Mentor", "The Trickster", "The Guardian",
-    "The Explorer", "The Rebel", "The Lover", "The Creator",
-    "The Ruler", "The Caregiver", "The Innocent", "The Sage",
-    "The Everyman", "The Jester", "The Orphan", "The Warrior",
+    "The Hero",
+    "The Mentor",
+    "The Trickster",
+    "The Guardian",
+    "The Explorer",
+    "The Rebel",
+    "The Lover",
+    "The Creator",
+    "The Ruler",
+    "The Caregiver",
+    "The Innocent",
+    "The Sage",
+    "The Everyman",
+    "The Jester",
+    "The Orphan",
+    "The Warrior",
 ]
 
 _THEME_PROMPTS: dict[str, dict[str, str]] = {
@@ -114,9 +126,17 @@ class CharacterFactory:
 
     def list_themes(self) -> list[dict[str, str]]:
         return [
-            {"id": "cyberpunk-neko", "name": "Neon-chan (Cyberpunk Neko)", "archetype": "Trickster"},
+            {
+                "id": "cyberpunk-neko",
+                "name": "Neon-chan (Cyberpunk Neko)",
+                "archetype": "Trickster",
+            },
             {"id": "fantasy-elf", "name": "Sylvara (Fantasy Elf Ranger)", "archetype": "Guardian"},
-            {"id": "retro-detective-noir", "name": "Sam Spade-3PO (Android PI)", "archetype": "Rebel"},
+            {
+                "id": "retro-detective-noir",
+                "name": "Sam Spade-3PO (Android PI)",
+                "archetype": "Rebel",
+            },
         ]
 
     def generate(self, theme_id: str, char_id: str | None = None) -> dict[str, Any]:
@@ -138,7 +158,11 @@ class CharacterFactory:
         profile_path.write_text(md, encoding="utf-8")
 
         meta_path = char_dir / "profile" / "meta.json"
-        meta = {k: v for k, v in data.items() if k in _PROFILE_SCHEMA or k in ("char_id", "created_date")}
+        meta = {
+            k: v
+            for k, v in data.items()
+            if k in _PROFILE_SCHEMA or k in ("char_id", "created_date")
+        }
         meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
 
         return {
@@ -152,7 +176,9 @@ class CharacterFactory:
         }
 
     def _render_template(self, data: dict[str, str]) -> str:
-        tmpl = (Path(__file__).parent / "templates" / "character_profile.md").read_text(encoding="utf-8")
+        tmpl = (Path(__file__).parent / "templates" / "character_profile.md").read_text(
+            encoding="utf-8"
+        )
         for key, default_val in _PROFILE_SCHEMA.items():
             placeholder = "{" + key + "}"
             val = data.get(key, default_val) or default_val

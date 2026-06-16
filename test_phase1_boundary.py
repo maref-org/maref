@@ -3,14 +3,18 @@
 
 from __future__ import annotations
 
-import time
-from maref.consensus.vector_clock import VectorClock, CausalContext, CausalRelation
 from maref.consensus.nack_protocol import (
-    NackBuilder, NackCode, NackHandler, Recoverability, RetryPolicy, DEFAULT_RECOVERABILITY,
+    DEFAULT_RECOVERABILITY,
+    NackBuilder,
+    NackCode,
+    NackHandler,
+    Recoverability,
+    RetryPolicy,
 )
-from maref.orchestration.task_graph import TaskGraph, TaskNode, TaskStatus, NodeType
-from maref.orchestration.joint_machine import JointStateMachine
+from maref.consensus.vector_clock import CausalContext, CausalRelation, VectorClock
 from maref.identity.did_registry import AgentDID
+from maref.orchestration.joint_machine import JointStateMachine
+from maref.orchestration.task_graph import TaskGraph, TaskNode, TaskStatus
 
 
 # --------------------------------------------------------------------------- #
@@ -21,8 +25,8 @@ def test_concurrent_conflict_detection():
     a = CausalContext("agent_a")
     b = CausalContext("agent_b")
 
-    a.event()          # a=1
-    b.event()          # b=1
+    a.event()  # a=1
+    b.event()  # b=1
 
     assert a.clock.is_concurrent_with(b.clock)
     assert a.clock.compare(b.clock) == CausalRelation.CONCURRENT
@@ -34,8 +38,8 @@ def test_merge_resolves_concurrency():
     a = CausalContext("agent_a")
     b = CausalContext("agent_b")
 
-    a.event()          # a=1
-    b.event()          # b=1
+    a.event()  # a=1
+    b.event()  # b=1
 
     # b receives a's clock
     b.receive(a.clock)  # b merges a, ticks b → a=1,b=2
@@ -183,22 +187,38 @@ def test_nack_serialization_roundtrip():
 def test_nack_recovery_chain_simulation():
     """Simulate a full recovery chain: OVERLOADED -> RETRY -> REROUTE -> ABORT."""
     handler = NackHandler()
-    handler.register_retry_policy(NackCode.OVERLOADED, RetryPolicy(max_retries=1, base_delay_seconds=0.1))
+    handler.register_retry_policy(
+        NackCode.OVERLOADED, RetryPolicy(max_retries=1, base_delay_seconds=0.1)
+    )
 
     # 1st attempt: overloaded -> retry
-    nack1 = NackBuilder().request("r1").agents("A", "B").because(NackCode.OVERLOADED, "busy").build()
+    nack1 = (
+        NackBuilder().request("r1").agents("A", "B").because(NackCode.OVERLOADED, "busy").build()
+    )
     dec1 = handler.decide(nack1)
     assert dec1.recoverability == Recoverability.RETRY
     assert dec1.retry_policy is not None
 
     # 2nd attempt: still overloaded after retry -> reroute
     handler.set_recoverability(NackCode.OVERLOADED, Recoverability.REROUTE)
-    nack2 = NackBuilder().request("r1").agents("A", "B").because(NackCode.OVERLOADED, "still busy").build()
+    nack2 = (
+        NackBuilder()
+        .request("r1")
+        .agents("A", "B")
+        .because(NackCode.OVERLOADED, "still busy")
+        .build()
+    )
     dec2 = handler.decide(nack2)
     assert dec2.recoverability == Recoverability.REROUTE
 
     # 3rd attempt: no alternatives -> abort
-    nack3 = NackBuilder().request("r1").agents("A", "C").because(NackCode.SAFETY_GATE_BLOCKED, "denied").build()
+    nack3 = (
+        NackBuilder()
+        .request("r1")
+        .agents("A", "C")
+        .because(NackCode.SAFETY_GATE_BLOCKED, "denied")
+        .build()
+    )
     dec3 = handler.decide(nack3)
     assert dec3.recoverability == Recoverability.ABORT
     print("  nack_recovery_chain_simulation OK")

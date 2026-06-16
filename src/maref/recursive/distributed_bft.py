@@ -277,13 +277,15 @@ class DistributedBFT:
             r.completed_at = time.time()
             self._consensus_history.append(r)
             # Audit log entry with signature proof
-            self._audit_log.append({
-                "round_id": r.round_id,
-                "decided_value": max_value,
-                "honest_vote_count": len(honest_votes),
-                "timestamp": time.time(),
-                "signature_verified": True,
-            })
+            self._audit_log.append(
+                {
+                    "round_id": r.round_id,
+                    "decided_value": max_value,
+                    "honest_vote_count": len(honest_votes),
+                    "timestamp": time.time(),
+                    "signature_verified": True,
+                }
+            )
         else:
             r.result = ConsensusResult.FAILED
 

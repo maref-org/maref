@@ -25,6 +25,7 @@ from maref.compliance import ComplianceRegistry, Jurisdiction
 
 class ReportFormat(Enum):
     """报告格式"""
+
     JSON = "json"
     MARKDOWN = "markdown"
     HTML = "html"
@@ -33,6 +34,7 @@ class ReportFormat(Enum):
 
 class ReportType(Enum):
     """报告类型"""
+
     COMPLIANCE_STATUS = "compliance_status"
     AUDIT_READINESS = "audit_readiness"
     REGULATORY_SUBMISSION = "regulatory_submission"
@@ -146,9 +148,13 @@ class ReportGenerator:
         Returns:
             ComplianceReport: 合规报告
         """
-        jurisdictions = [jurisdiction] if jurisdiction else [
-            j for j in Jurisdiction if j not in (Jurisdiction.GLOBAL, Jurisdiction.CROSS_BORDER)
-        ]
+        jurisdictions = (
+            [jurisdiction]
+            if jurisdiction
+            else [
+                j for j in Jurisdiction if j not in (Jurisdiction.GLOBAL, Jurisdiction.CROSS_BORDER)
+            ]
+        )
 
         report = ComplianceReport(
             report_id=f"csr-{int(time.time())}",
@@ -179,8 +185,8 @@ class ReportGenerator:
             section = ReportSection(
                 title=f"{jur.value.upper()} Jurisdiction",
                 content=f"Compliance Rate: {rate:.1f}%\n"
-                        f"Active Regulations: {status.get('active_regulations', 0)}\n"
-                        f"Checked Requirements: {status.get('checked_requirements', 0)}",
+                f"Active Regulations: {status.get('active_regulations', 0)}\n"
+                f"Checked Requirements: {status.get('checked_requirements', 0)}",
                 metadata={"jurisdiction": jur.value},
             )
             report.sections.append(section)
@@ -191,7 +197,9 @@ class ReportGenerator:
         report.metrics = metrics
 
         # 推荐建议
-        for rec in self.registry.generate_compliance_report(jurisdictions).get("recommendations", []):
+        for rec in self.registry.generate_compliance_report(jurisdictions).get(
+            "recommendations", []
+        ):
             report.recommendations.append(rec)
 
         report.classifications = ["INTERNAL", "COMPLIANCE_OFFICER"]
@@ -217,19 +225,34 @@ class ReportGenerator:
         soc2_criteria = [
             ("Security", "Information and systems are protected against unauthorized access"),
             ("Availability", "Information and systems are available for operation and use"),
-            ("Processing Integrity", "System processing is complete, valid, accurate, and authorized"),
+            (
+                "Processing Integrity",
+                "System processing is complete, valid, accurate, and authorized",
+            ),
             ("Confidentiality", "Information designated as confidential is protected"),
-            ("Privacy", "Personal information is collected, used, retained, and disclosed appropriately"),
+            (
+                "Privacy",
+                "Personal information is collected, used, retained, and disclosed appropriately",
+            ),
         ]
 
         # ISO 27001 Controls 参考
         iso27001_controls = [
             ("A.5 Information Security Policies", "Management direction for information security"),
-            ("A.6 Organization of Information Security", "Internal organization and mobile devices"),
+            (
+                "A.6 Organization of Information Security",
+                "Internal organization and mobile devices",
+            ),
             ("A.8 Asset Management", "Identification and classification of information assets"),
             ("A.9 Access Control", "Business requirements, user management, and responsibilities"),
-            ("A.12 Operations Security", "Protection from malware, backup, logging, and monitoring"),
-            ("A.14 System Acquisition & Development", "Security requirements in development lifecycle"),
+            (
+                "A.12 Operations Security",
+                "Protection from malware, backup, logging, and monitoring",
+            ),
+            (
+                "A.14 System Acquisition & Development",
+                "Security requirements in development lifecycle",
+            ),
             ("A.16 Incident Management", "Management of information security incidents"),
             ("A.18 Compliance", "Compliance with legal and contractual requirements"),
         ]
@@ -244,7 +267,7 @@ class ReportGenerator:
                     content=f"{description}\n\nStatus: Partially Implemented\nEvidence: Review required",
                 )
                 for criterion, description in soc2_criteria
-            ]
+            ],
         )
         report.sections.append(soc2_section)
 
@@ -258,7 +281,7 @@ class ReportGenerator:
                     content=f"{description}\n\nImplementation Status: In Progress\nGap Analysis: Pending",
                 )
                 for control, description in iso27001_controls
-            ]
+            ],
         )
         report.sections.append(iso_section)
 
@@ -269,8 +292,14 @@ class ReportGenerator:
         }
 
         report.recommendations = [
-            {"action": "Complete TSC evidence collection", "details": "Gather evidence for all 5 Trust Services Criteria"},
-            {"action": "ISO 27001 gap analysis", "details": "Perform gap analysis against all Annex A controls"},
+            {
+                "action": "Complete TSC evidence collection",
+                "details": "Gather evidence for all 5 Trust Services Criteria",
+            },
+            {
+                "action": "ISO 27001 gap analysis",
+                "details": "Perform gap analysis against all Annex A controls",
+            },
             {"action": "Third-party assessment", "details": "Schedule external auditor review"},
         ]
 
@@ -309,9 +338,9 @@ class ReportGenerator:
         section = ReportSection(
             title="Submission Details",
             content=f"**Regulation**: {regulation.name}\n"
-                    f"**Jurisdiction**: {regulation.jurisdiction.value}\n"
-                    f"**Type**: {regulation.regulation_type.value}\n"
-                    f"**Description**: {regulation.description}",
+            f"**Jurisdiction**: {regulation.jurisdiction.value}\n"
+            f"**Type**: {regulation.regulation_type.value}\n"
+            f"**Description**: {regulation.description}",
         )
         report.sections.append(section)
 
@@ -325,15 +354,17 @@ class ReportGenerator:
                     content="Status: Under Review",
                 )
                 for req in regulation.requirements
-            ]
+            ],
         )
         report.sections.append(requirements_section)
 
         if submission_data:
-            report.sections.append(ReportSection(
-                title="Submitted Data",
-                content=json.dumps(submission_data, indent=2),
-            ))
+            report.sections.append(
+                ReportSection(
+                    title="Submitted Data",
+                    content=json.dumps(submission_data, indent=2),
+                )
+            )
 
         report.metrics = {
             "regulation_id": regulation_id,
@@ -378,11 +409,13 @@ class ReportGenerator:
         ]
 
         for category, description, level in risk_categories:
-            report.sections.append(ReportSection(
-                title=f"Risk: {category}",
-                content=f"**Risk Level**: {level}\n**Description**: {description}\n"
-                        f"**Mitigation**: Review and implement controls",
-            ))
+            report.sections.append(
+                ReportSection(
+                    title=f"Risk: {category}",
+                    content=f"**Risk Level**: {level}\n**Description**: {description}\n"
+                    f"**Mitigation**: Review and implement controls",
+                )
+            )
 
         # 风险矩阵统计
         risk_counts = {"HIGH": 2, "MEDIUM": 3, "LOW": 1}
@@ -394,8 +427,14 @@ class ReportGenerator:
         }
 
         report.recommendations = [
-            {"action": "Address HIGH priority risks", "details": "Focus on Data Protection and AI Classification risks within 30 days"},
-            {"action": "Review MEDIUM priority risks", "details": "Address cross-border data transfer and breach notification procedures within 90 days"},
+            {
+                "action": "Address HIGH priority risks",
+                "details": "Focus on Data Protection and AI Classification risks within 30 days",
+            },
+            {
+                "action": "Review MEDIUM priority risks",
+                "details": "Address cross-border data transfer and breach notification procedures within 90 days",
+            },
         ]
 
         report.classifications = ["CONFIDENTIAL", "RISK_MANAGEMENT", "CISO"]
@@ -414,7 +453,9 @@ class ReportGenerator:
         )
 
         # 汇总所有法域状态
-        jurisdictions = [j for j in Jurisdiction if j not in (Jurisdiction.GLOBAL, Jurisdiction.CROSS_BORDER)]
+        jurisdictions = [
+            j for j in Jurisdiction if j not in (Jurisdiction.GLOBAL, Jurisdiction.CROSS_BORDER)
+        ]
 
         summary_data = []
         total_rate = 0.0
@@ -426,25 +467,31 @@ class ReportGenerator:
 
         overall = total_rate / len(jurisdictions) if jurisdictions else 0.0
 
-        report.sections.append(ReportSection(
-            title="Overall Compliance Status",
-            content=f"Overall Compliance Rate: **{overall:.1f}%**\n\n"
-                    + "\n".join(summary_data),
-        ))
+        report.sections.append(
+            ReportSection(
+                title="Overall Compliance Status",
+                content=f"Overall Compliance Rate: **{overall:.1f}%**\n\n"
+                + "\n".join(summary_data),
+            )
+        )
 
-        report.sections.append(ReportSection(
-            title="Key Metrics",
-            content=f"- Jurisdictions Covered: {len(jurisdictions)}\n"
-                    f"- Active Regulations: {sum(self.registry.get_jurisdiction_compliance_status(j).get('active_regulations', 0) for j in jurisdictions)}\n"
-                    f"- Reports Generated: {len(self._report_history)}",
-        ))
+        report.sections.append(
+            ReportSection(
+                title="Key Metrics",
+                content=f"- Jurisdictions Covered: {len(jurisdictions)}\n"
+                f"- Active Regulations: {sum(self.registry.get_jurisdiction_compliance_status(j).get('active_regulations', 0) for j in jurisdictions)}\n"
+                f"- Reports Generated: {len(self._report_history)}",
+            )
+        )
 
-        report.sections.append(ReportSection(
-            title="Top Actions Required",
-            content="1. Complete evidence collection for GDPR Article 5 requirements\n"
-                    "2. Update China CSL data localization procedures\n"
-                    "3. Schedule HIPAA readiness assessment",
-        ))
+        report.sections.append(
+            ReportSection(
+                title="Top Actions Required",
+                content="1. Complete evidence collection for GDPR Article 5 requirements\n"
+                "2. Update China CSL data localization procedures\n"
+                "3. Schedule HIPAA readiness assessment",
+            )
+        )
 
         report.metrics = {"overall_compliance_rate": round(overall, 2)}
         report.classifications = ["EXECUTIVE", "CONFIDENTIAL"]

@@ -31,6 +31,7 @@ from maref.security.trust_chain import DelegationCapability, DelegationChain
 
 class SecurityProofError(Exception):
     """安全证明验证失败"""
+
     pass
 
 
@@ -66,9 +67,7 @@ class SecurityPropertyProver:
 
         # 验证: 篡改导致哈希变化 (单向性)
         if not hash_changed:
-            raise SecurityProofError(
-                "Delegation chain hash should change after tampering"
-            )
+            raise SecurityProofError("Delegation chain hash should change after tampering")
 
         # 验证: 碰撞不可能 (抗碰撞性)
         # 对于简化实现，我们检查长度和内容的差异
@@ -76,8 +75,7 @@ class SecurityPropertyProver:
         tampered_content = "".join(n.agent_id + n.capability.value for n in tampered_chain.nodes)
 
         collision_impossible = (
-            original_content != tampered_content and
-            original_hash != tampered_hash
+            original_content != tampered_content and original_hash != tampered_hash
         )
 
         return {
@@ -117,12 +115,14 @@ class SecurityPropertyProver:
             证明结果
         """
         # 验证边界管理器有配置
-        has_boundaries = hasattr(boundary_manager, '_domains') or hasattr(boundary_manager, 'domains')
+        has_boundaries = hasattr(boundary_manager, "_domains") or hasattr(
+            boundary_manager, "domains"
+        )
 
         # 尝试检测跨域调用
         try:
             # 检查方法是否存在
-            cross_domain_detected = hasattr(boundary_manager, 'check_cross_domain')
+            cross_domain_detected = hasattr(boundary_manager, "check_cross_domain")
         except Exception:
             cross_domain_detected = False
 
@@ -130,9 +130,7 @@ class SecurityPropertyProver:
         boundary_enforced = has_boundaries or cross_domain_detected
 
         if not boundary_enforced:
-            raise SecurityProofError(
-                "TrustBoundaryManager does not enforce access boundaries"
-            )
+            raise SecurityProofError("TrustBoundaryManager does not enforce access boundaries")
 
         return {
             "property": "zero_trust_boundary_enforcement",
@@ -179,19 +177,18 @@ class SecurityPropertyProver:
         is_fresh = request.is_fresh(max_age_seconds)
 
         # 不可否认性证明: 签名与请求内容绑定
-        message = f"{request.agent_did}:{request.session_id}:{request.timestamp}:{request.nonce}".encode()
+        message = (
+            f"{request.agent_did}:{request.session_id}:{request.timestamp}:{request.nonce}".encode()
+        )
         signature = request.signature
 
         # 重新计算期望签名 (使用 sha256)
         hashlib.sha256(
             key_pair.private_key + message,
-        ).digest() if hasattr(key_pair, 'private_key') else b''
+        ).digest() if hasattr(key_pair, "private_key") else b""
 
         # 验证签名绑定到消息
-        signature_binds_message = (
-            signature is not None and
-            len(signature) > 0
-        )
+        signature_binds_message = signature is not None and len(signature) > 0
 
         # 完整性证明: 修改消息会导致验证失败
         message + b"tamper"
@@ -262,9 +259,7 @@ class SecurityPropertyProver:
                 )
 
             if approval_ratio < 0.5:
-                raise SecurityProofError(
-                    f"Approval ratio {approval_ratio} below minimum threshold"
-                )
+                raise SecurityProofError(f"Approval ratio {approval_ratio} below minimum threshold")
 
             return {
                 "property": "consensus_agreement",
@@ -368,6 +363,7 @@ class SecurityPropertyProver:
         # 证明1: 委托链不可伪造性
         try:
             import datetime
+
             datetime.datetime.now(datetime.timezone.utc)
             chain = DelegationChain.create("root-agent", max_depth=5)
             chain.add_delegation("root-agent", "agent-1", DelegationCapability.DELEGATE)
@@ -377,15 +373,22 @@ class SecurityPropertyProver:
             tampered.add_delegation("root-agent", "agent-1", DelegationCapability.DELEGATE)
             tampered.add_delegation("agent-1", "attacker", DelegationCapability.ADMIN)
 
-            results["delegation_chain_unforgeability"] = SecurityPropertyProver.prove_delegation_chain_unforgeability(chain, tampered)
+            results["delegation_chain_unforgeability"] = (
+                SecurityPropertyProver.prove_delegation_chain_unforgeability(chain, tampered)
+            )
         except Exception as e:
             results["delegation_chain_unforgeability"] = {"proved": False, "error": str(e)}
 
         # 证明2: 零信任边界
         try:
             from maref.security.trust_boundary import TrustBoundaryManager
+
             boundary = TrustBoundaryManager()
-            results["zero_trust_boundary"] = SecurityPropertyProver.prove_zero_trust_boundary_enforcement(boundary, "agent-1", "default")
+            results["zero_trust_boundary"] = (
+                SecurityPropertyProver.prove_zero_trust_boundary_enforcement(
+                    boundary, "agent-1", "default"
+                )
+            )
         except Exception as e:
             results["zero_trust_boundary"] = {"proved": False, "error": str(e)}
 
@@ -395,16 +398,18 @@ class SecurityPropertyProver:
                 public_key=b"test_public",
                 private_key=b"test_private",
                 algorithm="hmac-sha256",
-                key_id="test-key"
+                key_id="test-key",
             )
             request = ATPHandshakeRequest(
                 agent_did="did:test:agent",
                 session_id="session-123",
                 timestamp=int(time.time()),
                 capabilities=["read"],
-                nonce="abc123xyz"
+                nonce="abc123xyz",
             )
-            results["atp_authentication"] = SecurityPropertyProver.prove_atp_authentication_security(key_pair, request)
+            results["atp_authentication"] = (
+                SecurityPropertyProver.prove_atp_authentication_security(key_pair, request)
+            )
         except Exception as e:
             results["atp_authentication"] = {"proved": False, "error": str(e)}
 
@@ -434,7 +439,9 @@ class SecurityPropertyProver:
                 nonce=1,
             )
             auditor.add_evidence(evidence)
-            results["merkle_integrity"] = SecurityPropertyProver.prove_merkle_integrity(auditor, "proof-test-1")
+            results["merkle_integrity"] = SecurityPropertyProver.prove_merkle_integrity(
+                auditor, "proof-test-1"
+            )
         except Exception as e:
             results["merkle_integrity"] = {"proved": False, "error": str(e)}
 

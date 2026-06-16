@@ -36,6 +36,7 @@ ENTROPY_LEVELS: dict[GovernanceState, int] = {
 
 def get_valid_transitions() -> dict[GovernanceState, list[GovernanceState]]:
     from maref.governance.state_machine import _VALID_TRANSITIONS
+
     return dict(_VALID_TRANSITIONS)
 
 

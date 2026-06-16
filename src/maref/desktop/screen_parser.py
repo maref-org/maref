@@ -11,7 +11,7 @@ _COG_AGENT_AVAILABLE = False
 _transformers_available = False
 
 try:
-    from transformers import (  # type: ignore[import-not-found] # noqa: F401
+    from transformers import (  # noqa: F401
         AutoModelForCausalLM,
         AutoProcessor,
     )
@@ -116,7 +116,9 @@ class ScreenParseResult:
     def find_elements_by_type(self, element_type: UIElementType) -> list[ParsedUIElement]:
         return [e for e in self.elements if e.element_type == element_type]
 
-    def find_elements_by_text(self, text: str, case_sensitive: bool = False) -> list[ParsedUIElement]:
+    def find_elements_by_text(
+        self, text: str, case_sensitive: bool = False
+    ) -> list[ParsedUIElement]:
         if case_sensitive:
             return [e for e in self.elements if text in e.text]
         return [e for e in self.elements if text.lower() in e.text.lower()]
@@ -223,9 +225,7 @@ class OmniParserInterface:
 
         model_id = self._config.get("model_id", "microsoft/OmniParser-v2.0")
         if not self._is_model_cached(model_id):
-            _logger.warning(
-                "OmniParser model not cached locally. Falling back to mock backend."
-            )
+            _logger.warning("OmniParser model not cached locally. Falling back to mock backend.")
             self._initialized = True
             self._actual_backend = "mock"
             self._backend_info = {
@@ -270,7 +270,9 @@ class OmniParserInterface:
         except (ImportError, Exception):
             import os as _os
 
-            cache_path = _os.path.expanduser(f"~/.cache/huggingface/hub/models--{model_id.replace('/', '--')}")
+            cache_path = _os.path.expanduser(
+                f"~/.cache/huggingface/hub/models--{model_id.replace('/', '--')}"
+            )
             return _os.path.isdir(cache_path)
 
     def parse(
@@ -359,7 +361,7 @@ class OmniParserInterface:
             self._model.device if hasattr(self._model, "device") else "cpu"
         )
 
-        import torch  # type: ignore[import-not-found]
+        import torch
 
         with torch.no_grad():
             generated_ids = self._model.generate(**inputs, max_new_tokens=1024)
@@ -472,8 +474,7 @@ class OmniParserInterface:
         global _COG_AGENT_AVAILABLE
         if not _transformers_available:
             raise RuntimeError(
-                "transformers library required for CogAgent. "
-                "Install with: pip install maref[ml]"
+                "transformers library required for CogAgent. " "Install with: pip install maref[ml]"
             )
 
         model_id = self._config.get("model_id", "THUDM/cogagent-vqa-hf")
@@ -588,7 +589,11 @@ class OmniParserInterface:
             element_counts.append(len(result.elements))
 
         avg_latency = sum(latencies) / len(latencies) if latencies else 0
-        p99_latency = sorted(latencies)[int(len(latencies) * 0.99)] if len(latencies) > 1 else (latencies[0] if latencies else 0)
+        p99_latency = (
+            sorted(latencies)[int(len(latencies) * 0.99)]
+            if len(latencies) > 1
+            else (latencies[0] if latencies else 0)
+        )
 
         return {
             "backend": self._actual_backend,

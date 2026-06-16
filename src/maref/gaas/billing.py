@@ -93,10 +93,7 @@ class BillingService:
         """Generate a billing record for a period."""
         items: dict[str, int] = {}
         for record in self._records:
-            if (
-                record.tenant_id == tenant_id
-                and period_start <= record.timestamp <= period_end
-            ):
+            if record.tenant_id == tenant_id and period_start <= record.timestamp <= period_end:
                 items[record.resource] = items.get(record.resource, 0) + record.quantity
 
         return BillingRecord(
@@ -114,7 +111,5 @@ class BillingService:
         return {
             "total_records": total_records,
             "total_tenants": total_tenants,
-            "tenant_breakdown": {
-                tid: dict(usage) for tid, usage in self._tenant_usage.items()
-            },
+            "tenant_breakdown": {tid: dict(usage) for tid, usage in self._tenant_usage.items()},
         }

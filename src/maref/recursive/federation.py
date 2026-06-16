@@ -31,8 +31,9 @@ class FederationCoordinator:
     def __init__(self) -> None:
         self._agents: dict[str, FederatedAgent] = {}
 
-    def register(self, agent_id: str, framework: FrameworkType,
-                 role: str = "", trust_score: float = 50.0) -> FederatedAgent:
+    def register(
+        self, agent_id: str, framework: FrameworkType, role: str = "", trust_score: float = 50.0
+    ) -> FederatedAgent:
         agent = FederatedAgent(
             agent_id=agent_id,
             framework=framework,
@@ -42,8 +43,9 @@ class FederationCoordinator:
         self._agents[agent_id] = agent
         return agent
 
-    def register_across_frameworks(self, agents_per_framework:
-                                    dict[str, list[str]]) -> list[FederatedAgent]:
+    def register_across_frameworks(
+        self, agents_per_framework: dict[str, list[str]]
+    ) -> list[FederatedAgent]:
         registered: list[FederatedAgent] = []
         framework_map = {
             "autogen": FrameworkType.AUTOGEN,
@@ -55,8 +57,9 @@ class FederationCoordinator:
             if fw_type is None:
                 continue
             for agent_id in agent_ids:
-                agent = self.register(agent_id, fw_type,
-                                       trust_score=50.0 + hash(agent_id + fw_name) % 50)
+                agent = self.register(
+                    agent_id, fw_type, trust_score=50.0 + hash(agent_id + fw_name) % 50
+                )
                 registered.append(agent)
         return registered
 
@@ -73,8 +76,7 @@ class FederationCoordinator:
             breakdown[key] = breakdown.get(key, 0) + 1
         return breakdown
 
-    def cross_framework_trust_comparison(self) -> dict[
-            str, dict[str, float | int]]:
+    def cross_framework_trust_comparison(self) -> dict[str, dict[str, float | int]]:
         result: dict[str, dict[str, float | int]] = {}
         for fw in FrameworkType:
             agents = self.agents_by_framework(fw)
@@ -87,13 +89,9 @@ class FederationCoordinator:
             }
         return result
 
-    def fault_isolation_check(self, source_framework:
-                               FrameworkType) -> bool:
+    def fault_isolation_check(self, source_framework: FrameworkType) -> bool:
         source_agents = self.agents_by_framework(source_framework)
-        other_count = sum(
-            1 for a in self._agents.values()
-            if a.framework != source_framework
-        )
+        other_count = sum(1 for a in self._agents.values() if a.framework != source_framework)
         return len(source_agents) > 0 and other_count > 0
 
     def set_agent_status(self, agent_id: str, status: str) -> bool:
@@ -106,12 +104,10 @@ class FederationCoordinator:
     def generate_report(self) -> FederationReport:
         return FederationReport(
             framework_stats={
-                fw.value: {"count": len(self.agents_by_framework(fw))}
-                for fw in FrameworkType
+                fw.value: {"count": len(self.agents_by_framework(fw))} for fw in FrameworkType
             },
             total_agents=self.agent_count(),
             trust_comparisons={
-                agent.agent_id: agent.trust_score
-                for agent in self._agents.values()
+                agent.agent_id: agent.trust_score for agent in self._agents.values()
             },
         )

@@ -1,6 +1,6 @@
 # AIP (ACPs) Protocol Technical Analysis & MAREF Gap Assessment
 
-> Generated: 2026-05-27  
+> Generated: 2026-05-27
 > Source: AIP-PUB GitHub Organization + aip.openatom.tech
 
 ---
@@ -115,7 +115,7 @@ acps_sdk/
     └── mtls_config.py        # mTLS configuration
 ```
 
-**Tech stack**: Python 3.13+, FastAPI, Pydantic, RabbitMQ, Poetry  
+**Tech stack**: Python 3.13+, FastAPI, Pydantic, RabbitMQ, Poetry
 **Communication**: JSON-RPC 2.0 over HTTPS with mTLS
 
 ---

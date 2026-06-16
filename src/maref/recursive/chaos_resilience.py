@@ -37,15 +37,13 @@ class ChaosResilience:
         self._injector.clear()
         self._recovery_events.clear()
 
-        self._injector.inject(ChaosType.CB_OSCILLATION, "inner_cb",
-                               {"frequency": 5})
+        self._injector.inject(ChaosType.CB_OSCILLATION, "inner_cb", {"frequency": 5})
 
         for _i in range(5):
             meta.signal_inner_trip()
         cb_absorbed = meta._meta_cb.state.value == "open"
 
-        self._injector.inject(ChaosType.HALT_STORM, "meta_layer",
-                               {"count": 10})
+        self._injector.inject(ChaosType.HALT_STORM, "meta_layer", {"count": 10})
         halt_intercepted = meta._halted
 
         for _i in range(3):

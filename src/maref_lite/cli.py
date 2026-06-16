@@ -21,6 +21,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
 import sys
@@ -57,10 +58,13 @@ console = Console()
 @app.callback(invoke_without_command=True)
 def _version(
     ctx: typer.Context,
-    version: bool = typer.Option(False, "--version", "-V", help="Show version and exit", is_eager=True),
+    version: bool = typer.Option(
+        False, "--version", "-V", help="Show version and exit", is_eager=True
+    ),
 ) -> None:
     if version:
         from maref_lite import __version__
+
         console.print(f"MAREF v{__version__}")
         raise typer.Exit()
     if ctx.invoked_subcommand is None:
@@ -87,6 +91,9 @@ app.add_typer(governance_app, name="governance")
 
 scheduler_app = typer.Typer(help="Scheduler commands", no_args_is_help=True)
 app.add_typer(scheduler_app, name="scheduler")
+
+self_heal_app = typer.Typer(help="Self-healing loop commands", no_args_is_help=True)
+app.add_typer(self_heal_app, name="self-heal")
 
 app.add_typer(obs_app, name="obs")
 app.add_typer(percv_app, name="percv")
@@ -133,9 +140,15 @@ def observe(
     console.print(f"Polling every {poll_interval}s for {max_count} observations...")
 
     states = [
-        GovernanceState.OBSERVE, GovernanceState.ANALYZE, GovernanceState.EVALUATE,
-        GovernanceState.DECIDE, GovernanceState.ACT, GovernanceState.VERIFY,
-        GovernanceState.STABILIZE, GovernanceState.REPORT, GovernanceState.HALT,
+        GovernanceState.OBSERVE,
+        GovernanceState.ANALYZE,
+        GovernanceState.EVALUATE,
+        GovernanceState.DECIDE,
+        GovernanceState.ACT,
+        GovernanceState.VERIFY,
+        GovernanceState.STABILIZE,
+        GovernanceState.REPORT,
+        GovernanceState.HALT,
     ]
 
     count = 0
@@ -223,20 +236,26 @@ def desktop_run(
 
     if task:
         dtask = DesktopTask(
-            task_id="cli-task", description=task,
+            task_id="cli-task",
+            description=task,
             safe_apps=["Finder", "Safari", "TextEdit", "Google Chrome"],
             steps=[
-                DesktopStep(operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5),
+                DesktopStep(
+                    operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5
+                ),
                 DesktopStep(operation=DesktopOperation.TYPE, value=task, wait_seconds=0.5),
                 DesktopStep(operation=DesktopOperation.HOTKEY, value="enter", wait_seconds=1.0),
             ],
         )
     else:
         dtask = DesktopTask(
-            task_id="cli-demo", description="MAREF Demo",
+            task_id="cli-demo",
+            description="MAREF Demo",
             safe_apps=["Finder"],
             steps=[
-                DesktopStep(operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5),
+                DesktopStep(
+                    operation=DesktopOperation.HOTKEY, value="command+space", wait_seconds=0.5
+                ),
                 DesktopStep(operation=DesktopOperation.TYPE, value="Finder", wait_seconds=0.5),
                 DesktopStep(operation=DesktopOperation.HOTKEY, value="enter", wait_seconds=1.0),
             ],
@@ -255,7 +274,9 @@ def desktop_run(
 @desktop_app.command("setup")
 def desktop_setup(
     dry_run: bool = typer.Option(False, "--dry-run", help="Check environment without downloading"),
-    model: str = typer.Option("omni_parser", "--model", "-m", help="Model backend: omni_parser, cog_agent, both, none"),
+    model: str = typer.Option(
+        "omni_parser", "--model", "-m", help="Model backend: omni_parser, cog_agent, both, none"
+    ),
     no_model: bool = typer.Option(False, "--no-model", help="Skip model download"),
     upgrade: bool = typer.Option(False, "--upgrade", "-U", help="Upgrade existing dependencies"),
 ) -> None:
@@ -288,12 +309,14 @@ def desktop_demo() -> None:
         console.print("[red]Desktop agent modules not available.[/red]")
         raise typer.Exit(code=1) from e
 
-    console.print(Panel.fit(
-        "[bold cyan]MAREF Desktop Agent Demo[/bold cyan]\n\n"
-        "Runs in [yellow]dry-run[/yellow] mode — no real mouse/keyboard events.\n"
-        "Live: maref desktop run --live --task \"open Finder\"",
-        title="Desktop Agent",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]MAREF Desktop Agent Demo[/bold cyan]\n\n"
+            "Runs in [yellow]dry-run[/yellow] mode — no real mouse/keyboard events.\n"
+            'Live: maref desktop run --live --task "open Finder"',
+            title="Desktop Agent",
+        )
+    )
 
     agent = DesktopAgent(dry_run=True)
     console.print("[bold]1. Capturing screen...[/bold]")
@@ -314,7 +337,9 @@ def desktop_demo() -> None:
 def desktop_benchmark(
     samples: int = typer.Option(10, "--samples", "-n", help="Number of benchmark samples to run"),
     output: str = typer.Option("", "--output", "-o", help="Export results as JSON file"),
-    download: bool = typer.Option(False, "--download", "-d", help="Show dataset download instructions"),
+    download: bool = typer.Option(
+        False, "--download", "-d", help="Show dataset download instructions"
+    ),
 ) -> None:
     """Run OpenCUA benchmark on the desktop agent."""
     try:
@@ -358,7 +383,8 @@ def desktop_benchmark(
     for r in result.per_sample_results:
         match_icon = "[green]YES[/green]" if r.action_match else "[red]NO[/red]"
         per_sample_table.add_row(
-            r.sample_id, match_icon,
+            r.sample_id,
+            match_icon,
             f"{r.step_correct}/{r.step_total}",
             f"{r.latency_ms:.1f}ms",
         )
@@ -411,9 +437,13 @@ def audit_show(
     for entry in entries:
         ts = entry.get("timestamp", 0)
         time_str = time.strftime("%H:%M:%S", time.localtime(ts))
-        table.add_row(time_str, entry.get("event_type", "")[:20],
-                      entry.get("actor", "")[:15], entry.get("action", "")[:30],
-                      entry.get("details", "")[:60])
+        table.add_row(
+            time_str,
+            entry.get("event_type", "")[:20],
+            entry.get("actor", "")[:15],
+            entry.get("action", "")[:30],
+            entry.get("details", "")[:60],
+        )
 
     console.print(table)
     if not entries:
@@ -504,8 +534,12 @@ def drift_check(
         table.add_column("Detected", style="green")
 
         for cls_name, metrics in summary["per_class"].items():
-            table.add_row(cls_name, f"{metrics['kl']:.4f}", f"{metrics['js']:.4f}",
-                          "[green]YES[/]" if metrics["detected"] else "[red]NO[/]")
+            table.add_row(
+                cls_name,
+                f"{metrics['kl']:.4f}",
+                f"{metrics['js']:.4f}",
+                "[green]YES[/]" if metrics["detected"] else "[red]NO[/]",
+            )
         console.print(table)
 
     except ImportError:
@@ -614,14 +648,117 @@ def scheduler_status() -> None:
     console.print("[dim]Start the scheduler: maref scheduler start[/dim]")
 
 
+# ── Self-heal commands ────────────────────────────────────────────
+
+
+@self_heal_app.command("start")
+def self_heal_start(
+    interval: float = typer.Option(300.0, "--interval", "-i", help="Check interval in seconds"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without executing"),
+) -> None:
+    """启动自我修复循环（SelfObserver→Diagnostician→Healer 闭环）."""
+    from maref_lite.self_healing_loop import SelfHealingConfig, SelfHealingLoop
+
+    config = SelfHealingConfig(check_interval_seconds=interval)
+
+    if dry_run:
+        console.print("[bold]Self-Healing Loop — Dry Run Preview[/bold]")
+        console.print(f"  Interval:        [cyan]{interval}s[/cyan]")
+        console.print(f"  Max iterations:  [cyan]{config.max_heal_iterations}[/cyan]")
+        console.print(f"  Arch proposals:  [cyan]{config.enable_architecture_proposals}[/cyan]")
+        console.print(f"  Root path:       [dim]{Path.cwd()}[/dim]")
+        console.print()
+        console.print("[green]✓[/green] Configuration valid. Run without --dry-run to start.")
+        return
+
+    loop = SelfHealingLoop(config=config)
+
+    console.print("[bold green]Self-Healing Loop Started[/bold green]")
+    console.print(f"  Interval: [cyan]{interval}s[/cyan]")
+    console.print("  Press [bold]Ctrl+C[/bold] to stop")
+    console.print()
+
+    try:
+        asyncio.run(loop.run())
+    except KeyboardInterrupt:
+        loop.stop()
+        console.print("\n[yellow]Self-healing loop stopped by user.[/yellow]")
+
+
+@self_heal_app.command("run-once")
+def self_heal_run_once() -> None:
+    """执行单次观察→诊断→修复循环."""
+    import asyncio
+
+    from maref_lite.self_healing_loop import SelfHealingConfig, SelfHealingLoop
+
+    console.print("[bold]Self-Healing — Single Cycle[/bold]")
+    console.print("Running one observe→diagnose→heal pass...")
+    console.print()
+
+    loop = SelfHealingLoop(config=SelfHealingConfig(check_interval_seconds=999999))
+    loop._lazy_init()  # 确保 Self-* 智能体已初始化
+    report = asyncio.run(loop._run_one_cycle())
+
+    if report.converged:
+        console.print("[green]✓ Cycle completed successfully[/green]")
+    else:
+        console.print(f"[red]✗ Issues remain: risk={report.risk_level}[/red]")
+
+    console.print(f"  Risk level:      [cyan]{report.risk_level}[/cyan]")
+    console.print(f"  Problems found:  [cyan]{len(report.problems_found)}[/cyan]")
+    console.print(f"  Actions taken:   [cyan]{len(report.actions_taken)}[/cyan]")
+    console.print(f"  Converged:       [cyan]{report.converged}[/cyan]")
+    console.print(f"  Duration:        [cyan]{report.duration_ms:.0f}ms[/cyan]")
+
+    if report.problems_found:
+        console.print()
+        console.print("[yellow]Problems:[/yellow]")
+        for p in report.problems_found:
+            console.print(f"  - {p}")
+
+    if report.actions_taken:
+        console.print()
+        console.print("[yellow]Actions:[/yellow]")
+        for a in report.actions_taken:
+            icon = "[green]✓[/green]" if a["success"] else "[red]✗[/red]"
+            console.print(f"  {icon} {a['strategy']}: {a['detail'][:100]}")
+
+
+@self_heal_app.command("config")
+def self_heal_config() -> None:
+    """查看自愈循环的当前配置."""
+    from maref_lite.self_healing_loop import SelfHealingConfig
+
+    config = SelfHealingConfig()
+
+    table = Table(title="Self-Healing Loop Configuration")
+    table.add_column("Parameter", style="cyan")
+    table.add_column("Default Value", style="green")
+    table.add_column("Description")
+
+    table.add_row("check_interval_seconds", str(config.check_interval_seconds), "巡检间隔（秒）")
+    table.add_row("max_heal_iterations", str(config.max_heal_iterations), "单次最大修复迭代次数")
+    table.add_row("enable_architecture_proposals", str(config.enable_architecture_proposals), "是否启用架构改进提案")
+    table.add_row("arch_proposal_interval_cycles", str(config.arch_proposal_interval_cycles), "架构提案间隔（巡检次数）")
+
+    console.print(table)
+    console.print()
+    console.print("Override via: [cyan]maref self-heal start --interval 600[/cyan]")
+
+
 # ── Serve command ────────────────────────────────────────────────────
 
 
 @app.command()
 def serve(
     port: int = typer.Option(8000, "--port", "-p", help="HTTP server port"),
-    gui: bool = typer.Option(False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"),
-    telemetry: bool = typer.Option(False, "--telemetry/--no-telemetry", help="Enable maref-obs telemetry bridge"),
+    gui: bool = typer.Option(
+        False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"
+    ),
+    telemetry: bool = typer.Option(
+        False, "--telemetry/--no-telemetry", help="Enable maref-obs telemetry bridge"
+    ),
 ) -> None:
     """Start MAREF Sidecar HTTP server."""
     if gui:
@@ -642,21 +779,29 @@ def serve(
 
     if gui:
         console.print(f"  [green]Sessions:[/green]   http://localhost:{port}/api/sessions")
-        console.print(f"  [green]Stream:[/green]     http://localhost:{port}/api/sessions/{{id}}/stream")
-        console.print(f"  [green]Terminal:[/green]   ws://localhost:{port}/api/sessions/{{id}}/terminal")
+        console.print(
+            f"  [green]Stream:[/green]     http://localhost:{port}/api/sessions/{{id}}/stream"
+        )
+        console.print(
+            f"  [green]Terminal:[/green]   ws://localhost:{port}/api/sessions/{{id}}/terminal"
+        )
 
     if telemetry:
         console.print("  [green]Telemetry:[/green]  /api/obs/status")
 
     try:
         import uvicorn
+
+        from maref.obs import MarefObsClient
+        from sidecar.collector import MockAgentAdapter, ObservationCollector
+        from sidecar.monitor import CompositeMonitor
         from sidecar.obs_bridge import ObsBridge
         from sidecar.server import create_app
 
-        from maref.obs import MarefObsClient
-
+        collector = ObservationCollector(adapter=MockAgentAdapter())
+        monitor = CompositeMonitor()
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
-        uvicorn.run(create_app(obs_bridge=obs_bridge), host="0.0.0.0", port=port, log_level="info")
+        uvicorn.run(create_app(collector, monitor, obs_bridge=obs_bridge), host="0.0.0.0", port=port, log_level="info")
     except ImportError:
         console.print(f"[dim]Sidecar server mock — http://0.0.0.0:{port}[/dim]")
 

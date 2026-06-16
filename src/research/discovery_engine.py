@@ -84,8 +84,8 @@ class DiscoveryEngine:
             return {"trend": "insufficient_values", "confidence": 0.0}
 
         # Calculate trend
-        first_half = statistics.mean(values[:len(values)//2])
-        second_half = statistics.mean(values[len(values)//2:])
+        first_half = statistics.mean(values[: len(values) // 2])
+        second_half = statistics.mean(values[len(values) // 2 :])
 
         diff = second_half - first_half
         threshold = abs(first_half) * 0.1 if first_half != 0 else 0.01
@@ -122,14 +122,11 @@ class DiscoveryEngine:
             List of contradiction alerts
         """
         alerts = []
-        findings = [
-            n for n in self._kg._nodes.values()
-            if n.type == "finding"
-        ]
+        findings = [n for n in self._kg._nodes.values() if n.type == "finding"]
 
         # Simple contradiction detection: look for opposing statements
         for i, f1 in enumerate(findings):
-            for f2 in findings[i+1:]:
+            for f2 in findings[i + 1 :]:
                 # Check if findings are about the same topic but disagree
                 if self._are_related(f1, f2) and self._are_opposing(f1, f2):
                     alert = ContradictionAlert(
@@ -224,8 +221,9 @@ class DiscoveryEngine:
         ]
 
         for word1, word2 in opposites:
-            if (word1 in content1 and word2 in content2) or \
-               (word2 in content1 and word1 in content2):
+            if (word1 in content1 and word2 in content2) or (
+                word2 in content1 and word1 in content2
+            ):
                 return True
 
         return False
@@ -239,7 +237,7 @@ class DiscoveryEngine:
             metrics = finding.metadata.get("metrics", [])
             if len(metrics) >= 2:
                 for i, m1 in enumerate(metrics):
-                    for m2 in metrics[i+1:]:
+                    for m2 in metrics[i + 1 :]:
                         pairs.append(tuple(sorted([m1, m2])))
 
         counter = Counter(pairs)
@@ -252,22 +250,16 @@ class DiscoveryEngine:
         # Check for trends
         trends = self.analyze_trends("convergence_rate")
         if trends["trend"] != "insufficient_data":
-            insights.append(
-                f"收敛率{trends['trend']}（置信度: {trends['confidence']:.2f}）"
-            )
+            insights.append(f"收敛率{trends['trend']}（置信度: {trends['confidence']:.2f}）")
 
         # Check for contradictions
         contradictions = self.detect_contradictions()
         if contradictions:
-            insights.append(
-                f"发现 {len(contradictions)} 个矛盾需要调查"
-            )
+            insights.append(f"发现 {len(contradictions)} 个矛盾需要调查")
 
         # Check for open questions
         open_q = self._kg.get_open_questions()
         if open_q:
-            insights.append(
-                f"{len(open_q)} 个假设待验证"
-            )
+            insights.append(f"{len(open_q)} 个假设待验证")
 
         return insights

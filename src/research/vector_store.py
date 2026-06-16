@@ -11,9 +11,6 @@ Usage:
                       {"experiment": "policy_lifecycle"})
     results = store.search("best threshold for KL divergence")
 """
-
-from __future__ import annotations
-
 import contextlib
 import time
 import uuid
@@ -29,12 +26,10 @@ from chromadb.errors import NotFoundError
 @dataclass
 class SearchResult:
     """Result from a vector store semantic search."""
-
     content: str
-    score: float  # cosine distance (0 = identical, 1 = orthogonal, 2 = opposite)
+    score: float
     metadata: dict[str, Any] = field(default_factory=dict)
-    id: str = ""
-
+    id: str = ''
 
 class VectorKnowledgeStore:
     """
@@ -46,14 +41,9 @@ class VectorKnowledgeStore:
     Defaults to ephemeral storage (in-memory). Pass a `path` for persistent
     on-disk storage that survives restarts.
     """
+    DEFAULT_COLLECTION = 'maref_findings'
 
-    DEFAULT_COLLECTION = "maref_findings"
-
-    def __init__(
-        self,
-        path: Path | None = None,
-        collection_name: str = DEFAULT_COLLECTION,
-    ) -> None:
+    def __init__(self, path: Path | None=None, collection_name: str=DEFAULT_COLLECTION) -> None:
         """
         Initialize the vector store.
 
@@ -64,29 +54,16 @@ class VectorKnowledgeStore:
         if path is not None:
             path = Path(path)
             path.mkdir(parents=True, exist_ok=True)
-            self._client: ClientAPI = chromadb.PersistentClient(
-                str(path / "chroma_db")
-            )
+            self._client: ClientAPI = chromadb.PersistentClient(str(path / 'chroma_db'))
         else:
             self._client = chromadb.EphemeralClient()
-
-        # Get or create collection
         try:
             self._collection = self._client.get_collection(collection_name)
         except (ValueError, NotFoundError):
             self._collection = self._client.create_collection(collection_name)
-
         self._collection_name = collection_name
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
-    def add_finding(
-        self,
-        content: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> str:
+    def add_finding(self, content: str, metadata: dict[str, Any] | None=None) -> str:
         """
         Add a single finding to the vector store.
 
@@ -97,22 +74,13 @@ class VectorKnowledgeStore:
         Returns:
             The generated document ID.
         """
-        doc_id = f"finding_{uuid.uuid4().hex[:8]}"
-        clean_meta = {k: str(v) for k, v in (metadata or {}).items()
-                      if isinstance(v, (str, int, float, bool))}
-        clean_meta["stored_at"] = str(time.time())
-
-        self._collection.add(
-            documents=[content],
-            metadatas=[clean_meta],
-            ids=[doc_id],
-        )
+        doc_id = f'finding_{uuid.uuid4().hex[:8]}'
+        clean_meta = {k: str(v) for k, v in (metadata or {}).items() if isinstance(v, (str, int, float, bool))}
+        clean_meta['stored_at'] = str(time.time())
+        self._collection.add(documents=[content], metadatas=[clean_meta], ids=[doc_id])
         return doc_id
 
-    def add_findings(
-        self,
-        findings: list[tuple[str, dict[str, Any] | None]],
-    ) -> list[str]:
+    def add_findings(self, findings: list[tuple[str, dict[str, Any] | None]]) -> list[str]:
         """
         Add multiple findings in a single batch.
 
@@ -124,32 +92,20 @@ class VectorKnowledgeStore:
         """
         if not findings:
             return []
-
         ids: list[str] = []
         documents: list[str] = []
         metadatas: list[dict[str, str]] = []
-
         for content, metadata in findings:
-            doc_id = f"finding_{uuid.uuid4().hex[:8]}"
+            doc_id = f'finding_{uuid.uuid4().hex[:8]}'
             ids.append(doc_id)
             documents.append(content)
-            clean = {k: str(v) for k, v in (metadata or {}).items()
-                     if isinstance(v, (str, int, float, bool))}
-            clean["stored_at"] = str(time.time())
+            clean = {k: str(v) for k, v in (metadata or {}).items() if isinstance(v, (str, int, float, bool))}
+            clean['stored_at'] = str(time.time())
             metadatas.append(clean)
-
-        self._collection.add(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids,
-        )
+        self._collection.add(documents=documents, metadatas=metadatas, ids=ids)
         return ids
 
-    def search(
-        self,
-        query: str,
-        n_results: int = 5,
-    ) -> list[SearchResult]:
+    def search(self, query: str, n_results: int=5) -> list[SearchResult]:
         """
         Search findings by semantic similarity to query text.
 
@@ -162,19 +118,10 @@ class VectorKnowledgeStore:
         """
         if self.count() == 0:
             return []
-
-        results = self._collection.query(
-            query_texts=[query],
-            n_results=min(n_results, self.count()),
-        )
-
+        results = self._collection.query(query_texts=[query], n_results=min(n_results, self.count()))
         return self._build_results(results)
 
-    def search_similar(
-        self,
-        content: str,
-        n_results: int = 5,
-    ) -> list[SearchResult]:
+    def search_similar(self, content: str, n_results: int=5) -> list[SearchResult]:
         """
         Find findings semantically similar to a given finding text.
 
@@ -205,46 +152,23 @@ class VectorKnowledgeStore:
         if self.count() == 0:
             return []
         raw = self._collection.get()
-        ids = raw.get("ids", [])
+        ids = raw.get('ids', [])
         if not ids:
             return []
-        # get() returns flat lists; wrap for _build_results which expects nested
-        return self._build_results({
-            "ids": [ids],
-            "distances": [[0.0] * len(ids)],
-            "metadatas": [raw.get("metadatas", [])],
-            "documents": [raw.get("documents", [])],
-        })
+        return self._build_results({'ids': [ids], 'distances': [[0.0] * len(ids)], 'metadatas': [raw.get('metadatas', [])], 'documents': [raw.get('documents', [])]})
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _build_results(
-        self,
-        raw: dict[str, Any],
-    ) -> list[SearchResult]:
+    def _build_results(self, raw: dict[str, Any]) -> list[SearchResult]:
         """Convert raw ChromaDB response to SearchResult list."""
         parsed: list[SearchResult] = []
-
-        ids_list = raw.get("ids")
+        ids_list = raw.get('ids')
         if not ids_list or not ids_list[0]:
             return []
         ids_list = ids_list[0]
-        distances = (raw.get("distances") or [[None] * len(ids_list)])[0] or [None] * len(ids_list)
-        documents = (raw.get("documents") or [[]])[0] or []
-        metadatas = (raw.get("metadatas") or [[]])[0] or []
-
-        for doc_id, dist, doc, meta in zip(
-            ids_list, distances, documents, metadatas, strict=False
-        ):
-            parsed.append(SearchResult(
-                content=doc or "",
-                score=dist if dist is not None else 1.0,
-                metadata=meta or {},
-                id=doc_id,
-            ))
-
+        distances = (raw.get('distances') or [[None] * len(ids_list)])[0] or [None] * len(ids_list)
+        documents = (raw.get('documents') or [[]])[0] or []
+        metadatas = (raw.get('metadatas') or [[]])[0] or []
+        for doc_id, dist, doc, meta in zip(ids_list, distances, documents, metadatas, strict=False):
+            parsed.append(SearchResult(content=doc or '', score=dist if dist is not None else 1.0, metadata=meta or {}, id=doc_id))
         return parsed
 
     @property

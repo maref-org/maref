@@ -203,7 +203,7 @@ class PlanExecutor:
                             )
                             graph.add_node(stub)
                             pending.add(branch_id)
-                        elif branch_id not in (graph.node_ids - pending):
+                        elif branch_id not in (set(graph.node_ids) - pending):
                             # Already completed or failed — skip
                             pass
                         else:
@@ -211,10 +211,14 @@ class PlanExecutor:
 
                 step = steps_by_id.get(task_id)
                 if not step:
-                    records.append(StepExecutionRecord(
-                        task_id=task_id, action="unknown",
-                        result=StepResult.SKIPPED, error="Step not found in plan",
-                    ))
+                    records.append(
+                        StepExecutionRecord(
+                            task_id=task_id,
+                            action="unknown",
+                            result=StepResult.SKIPPED,
+                            error="Step not found in plan",
+                        )
+                    )
                     graph.set_node_status(task_id, TaskStatus.SKIPPED)
                     failed_steps.add(task_id)
                     continue
@@ -270,9 +274,9 @@ class PlanExecutor:
                 continue
 
             deps_ok = all(
-                graph.get_node(dep).status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
+                node.status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
                 for dep in graph.get_dependencies(task_id)
-                if graph.get_node(dep) is not None
+                if (node := graph.get_node(dep)) is not None
             )
             if not deps_ok:
                 continue
@@ -285,11 +289,14 @@ class PlanExecutor:
             elif node.node_type == NodeType.JOIN:
                 # Join is ready when ALL join_targets are terminal
                 targets_terminal = all(
-                    graph.get_node(tid).status in (
-                        TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.SKIPPED,
+                    target_node.status
+                    in (
+                        TaskStatus.COMPLETED,
+                        TaskStatus.FAILED,
+                        TaskStatus.SKIPPED,
                     )
                     for tid in node.join_targets
-                    if graph.get_node(tid) is not None
+                    if (target_node := graph.get_node(tid)) is not None
                 )
                 if targets_terminal:
                     ready.append(task_id)
@@ -298,7 +305,9 @@ class PlanExecutor:
                 ready.append(task_id)
         return ready
 
-    def _execute_step(self, step: PlanStep, history: list[StepExecutionRecord]) -> StepExecutionRecord:
+    def _execute_step(
+        self, step: PlanStep, history: list[StepExecutionRecord]
+    ) -> StepExecutionRecord:
         step_start = time.time()
 
         # ------------------------------------------------------------------ #
@@ -312,7 +321,8 @@ class PlanExecutor:
                 step.params["_dynamic_chosen"] = chosen
             else:
                 return StepExecutionRecord(
-                    task_id=step.task_id, action=step.action,
+                    task_id=step.task_id,
+                    action=step.action,
                     result=StepResult.FAILURE,
                     duration_ms=(time.time() - step_start) * 1000,
                     error=f"No route resolver for rule '{step.route_rule}'",
@@ -326,8 +336,10 @@ class PlanExecutor:
             if not allowed:
                 governance_verdict = f"denied:{reason}"
                 return StepExecutionRecord(
-                    task_id=step.task_id, action=step.action,
-                    result=StepResult.BLOCKED, duration_ms=(time.time() - step_start) * 1000,
+                    task_id=step.task_id,
+                    action=step.action,
+                    result=StepResult.BLOCKED,
+                    duration_ms=(time.time() - step_start) * 1000,
                     error=f"Governance denied: {reason}",
                     governance_verdict=governance_verdict,
                 )
@@ -336,8 +348,10 @@ class PlanExecutor:
         if not handler:
             governance_verdict = governance_verdict or "allowed"
             return StepExecutionRecord(
-                task_id=step.task_id, action=step.action,
-                result=StepResult.SKIPPED, duration_ms=(time.time() - step_start) * 1000,
+                task_id=step.task_id,
+                action=step.action,
+                result=StepResult.SKIPPED,
+                duration_ms=(time.time() - step_start) * 1000,
                 error=f"No handler registered for '{step.action}'",
                 governance_verdict=governance_verdict,
             )
@@ -346,23 +360,31 @@ class PlanExecutor:
             try:
                 handler(step.action, step.params)
                 return StepExecutionRecord(
-                    task_id=step.task_id, action=step.action,
-                    result=StepResult.SUCCESS, duration_ms=(time.time() - step_start) * 1000,
-                    retries=attempt, governance_verdict=governance_verdict,
+                    task_id=step.task_id,
+                    action=step.action,
+                    result=StepResult.SUCCESS,
+                    duration_ms=(time.time() - step_start) * 1000,
+                    retries=attempt,
+                    governance_verdict=governance_verdict,
                 )
             except Exception as e:
                 if attempt < step.max_retries:
                     time.sleep(step.retry_delay_seconds)
                 else:
                     return StepExecutionRecord(
-                        task_id=step.task_id, action=step.action,
-                        result=StepResult.FAILURE, duration_ms=(time.time() - step_start) * 1000,
-                        error=str(e), retries=attempt,
+                        task_id=step.task_id,
+                        action=step.action,
+                        result=StepResult.FAILURE,
+                        duration_ms=(time.time() - step_start) * 1000,
+                        error=str(e),
+                        retries=attempt,
                         governance_verdict=governance_verdict,
                     )
 
         return StepExecutionRecord(
-            task_id=step.task_id, action=step.action,
-            result=StepResult.FAILURE, duration_ms=(time.time() - step_start) * 1000,
+            task_id=step.task_id,
+            action=step.action,
+            result=StepResult.FAILURE,
+            duration_ms=(time.time() - step_start) * 1000,
             error="Unexpected execution path",
         )

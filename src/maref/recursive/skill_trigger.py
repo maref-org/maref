@@ -46,10 +46,7 @@ class SkillTrigger:
         active = self.get_active_skills(skills, current_hexagram, prev_hexagram)
         if file_path is None and entropy is None:
             return active
-        return [
-            s for s in active
-            if s.matches_context(file_path or "", entropy)
-        ]
+        return [s for s in active if s.matches_context(file_path or "", entropy)]
 
 
 def skill_transition_ok(skill: MarefSkill, prev_hexagram: int | None) -> bool:

@@ -69,8 +69,9 @@ class ArchitectureComplexityBudget:
     def config(self) -> ComplexityBudgetConfig:
         return self._config
 
-    def register_edge(self, source_module: str, target_module: str,
-                       edge_type: str = "import") -> ComplexityAssessment | None:
+    def register_edge(
+        self, source_module: str, target_module: str, edge_type: str = "import"
+    ) -> ComplexityAssessment | None:
         edge_key = f"{source_module}->{target_module}:{edge_type}"
         if edge_key in self._edges:
             self._edges[edge_key].call_count += 1
@@ -114,8 +115,7 @@ class ArchitectureComplexityBudget:
             recommendations.append(
                 f"[{module_name}] BLOCKED at {usage:.0%} - must reduce edges before adding"
             )
-            targeted = [e for e in self._edges.values()
-                         if e.source_module == module_name]
+            targeted = [e for e in self._edges.values() if e.source_module == module_name]
             sorted_by_count = sorted(targeted, key=lambda e: -e.call_count)
             for e in sorted_by_count[:3]:
                 recommendations.append(
@@ -152,10 +152,10 @@ class ArchitectureComplexityBudget:
 
         near_limit: list[str] = []
         at_limit: list[str] = []
-        warn_threshold = int(self._config.max_interaction_edges_per_module *
-                              self._config.warn_at_percent)
-        int(self._config.max_interaction_edges_per_module *
-                               self._config.block_at_percent)
+        warn_threshold = int(
+            self._config.max_interaction_edges_per_module * self._config.warn_at_percent
+        )
+        int(self._config.max_interaction_edges_per_module * self._config.block_at_percent)
 
         for mod, edges in self._module_edges.items():
             count = len(edges)
@@ -194,15 +194,14 @@ class ArchitectureComplexityBudget:
         assessment = self.get_module_assessment(module_name)
         return assessment.status == "BLOCKED"
 
-    def suggest_edge_reduction(self, module_name: str,
-                                 target_edge_count: int | None = None) -> list[str]:
+    def suggest_edge_reduction(
+        self, module_name: str, target_edge_count: int | None = None
+    ) -> list[str]:
         edges = self._module_edges.get(module_name, [])
         if not edges:
             return []
 
-        target = target_edge_count or (
-            self._config.max_interaction_edges_per_module - 2
-        )
+        target = target_edge_count or (self._config.max_interaction_edges_per_module - 2)
         current = len(edges)
         reduction_needed = max(current - target, 0)
         if reduction_needed == 0:
@@ -224,8 +223,9 @@ class ArchitectureComplexityBudget:
 
         return suggestions
 
-    def remove_edge(self, source_module: str, target_module: str,
-                     edge_type: str = "import") -> None:
+    def remove_edge(
+        self, source_module: str, target_module: str, edge_type: str = "import"
+    ) -> None:
         edge_key = f"{source_module}->{target_module}:{edge_type}"
         if edge_key in self._edges:
             del self._edges[edge_key]
@@ -233,37 +233,43 @@ class ArchitectureComplexityBudget:
                 e for e in self._module_edges.get(source_module, []) if e != edge_key
             ]
             remaining = len(self._module_edges.get(source_module, []))
-            self._audit_store.append(UnifiedAuditRecord(
-                record_id=make_record_id("cb", hash(edge_key) % 100000),
-                timestamp=time.time(),
-                layer="evolution",
-                round=33,
-                event_type="complexity_edge_removed",
-                source_module="ComplexityBudget",
-                target_module=source_module,
-                decision=f"remove_edge({source_module}->{target_module})",
-                justification=f"Edge removed, {remaining} remaining",
-                outcome="success",
-            ))
+            self._audit_store.append(
+                UnifiedAuditRecord(
+                    record_id=make_record_id("cb", hash(edge_key) % 100000),
+                    timestamp=time.time(),
+                    layer="evolution",
+                    round=33,
+                    event_type="complexity_edge_removed",
+                    source_module="ComplexityBudget",
+                    target_module=source_module,
+                    decision=f"remove_edge({source_module}->{target_module})",
+                    justification=f"Edge removed, {remaining} remaining",
+                    outcome="success",
+                )
+            )
 
     def _assess_module(self, module_name: str) -> ComplexityAssessment | None:
         assessment = self.get_module_assessment(module_name)
         if assessment.status == "BLOCKED":
-            self._alerts.append({
-                "timestamp": time.time(),
-                "module": module_name,
-                "event": "BLOCKED",
-                "edge_count": assessment.current_edge_count,
-                "limit": assessment.max_allowed,
-            })
+            self._alerts.append(
+                {
+                    "timestamp": time.time(),
+                    "module": module_name,
+                    "event": "BLOCKED",
+                    "edge_count": assessment.current_edge_count,
+                    "limit": assessment.max_allowed,
+                }
+            )
         elif assessment.status == "WARNING":
-            self._alerts.append({
-                "timestamp": time.time(),
-                "module": module_name,
-                "event": "WARNING",
-                "edge_count": assessment.current_edge_count,
-                "limit": assessment.max_allowed,
-            })
+            self._alerts.append(
+                {
+                    "timestamp": time.time(),
+                    "module": module_name,
+                    "event": "WARNING",
+                    "edge_count": assessment.current_edge_count,
+                    "limit": assessment.max_allowed,
+                }
+            )
         return assessment
 
     @property

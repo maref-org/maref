@@ -12,8 +12,7 @@ from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore,
 
 
 class LLMBackend(Protocol):
-    def generate(self, prompt: str, schema: dict[str, Any] | None = None) -> dict[str, Any]:
-        ...
+    def generate(self, prompt: str, schema: dict[str, Any] | None = None) -> dict[str, Any]: ...
 
 
 @dataclass
@@ -151,7 +150,9 @@ class HybridDecomposer:
         self._audit_decomposition(task_description, reason, result.node_count > 0)
         return result
 
-    def _llm_decompose(self, task_description: str, context: dict[str, Any] | None) -> TaskDAG | None:
+    def _llm_decompose(
+        self, task_description: str, context: dict[str, Any] | None
+    ) -> TaskDAG | None:
         if self._llm is None:
             return None
         context_str = json.dumps(context or {}, ensure_ascii=False)
@@ -228,18 +229,20 @@ class HybridDecomposer:
         self._cache[task_description] = DecompositionCacheEntry(dag=dag)
 
     def _audit_decomposition(self, task: str, event: str, success: bool) -> None:
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("hdec", hash((task, event)) % 100000),
-            timestamp=time.time(),
-            layer="orchestration",
-            round=41,
-            event_type=f"decomposition_{event}",
-            source_module="HybridDecomposer",
-            target_module="SelfOrchestrator",
-            decision=f"decompose_{task[:20]}",
-            justification=f"event={event}, success={success}",
-            outcome="success" if success else "failure",
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("hdec", hash((task, event)) % 100000),
+                timestamp=time.time(),
+                layer="orchestration",
+                round=41,
+                event_type=f"decomposition_{event}",
+                source_module="HybridDecomposer",
+                target_module="SelfOrchestrator",
+                decision=f"decompose_{task[:20]}",
+                justification=f"event={event}, success={success}",
+                outcome="success" if success else "failure",
+            )
+        )
 
     def warm_cache(self, tasks: list[str]) -> int:
         count = 0

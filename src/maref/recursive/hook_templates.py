@@ -113,7 +113,9 @@ class HookTemplateLibrary:
         ids: list[str] = []
         for template in self._templates.values():
             if template.topic == topic:
-                hid = registry.register(topic, template.handler_func, template.priority, template.name)
+                hid = registry.register(
+                    topic, template.handler_func, template.priority, template.name
+                )
                 ids.append(hid)
         return ids
 
@@ -121,36 +123,44 @@ class HookTemplateLibrary:
 def create_default_template_library() -> HookTemplateLibrary:
     lib = HookTemplateLibrary()
 
-    lib.register(HookTemplate(
-        topic="maref.layer3.role.pre_invoke",
-        name="destructive_operation_guard",
-        handler_func=destructive_operation_guard,
-        description="Blocks destructive operations (rm -rf, DROP TABLE, sudo, etc.)",
-        priority=100,
-    ))
+    lib.register(
+        HookTemplate(
+            topic="maref.layer3.role.pre_invoke",
+            name="destructive_operation_guard",
+            handler_func=destructive_operation_guard,
+            description="Blocks destructive operations (rm -rf, DROP TABLE, sudo, etc.)",
+            priority=100,
+        )
+    )
 
-    lib.register(HookTemplate(
-        topic="maref.layer3.role.post_invoke",
-        name="secret_leak_guard",
-        handler_func=secret_leak_guard,
-        description="Detects and blocks potential secret/key leaks in output",
-        priority=90,
-    ))
+    lib.register(
+        HookTemplate(
+            topic="maref.layer3.role.post_invoke",
+            name="secret_leak_guard",
+            handler_func=secret_leak_guard,
+            description="Detects and blocks potential secret/key leaks in output",
+            priority=90,
+        )
+    )
 
-    lib.register(HookTemplate(
-        topic="maref.session.start",
-        name="integrity_check",
-        handler_func=integrity_guard,
-        description="SHA256 integrity check on session start",
-        priority=200,
-    ))
+    lib.register(
+        HookTemplate(
+            topic="maref.session.start",
+            name="integrity_check",
+            handler_func=integrity_guard,
+            description="SHA256 integrity check on session start",
+            priority=200,
+        )
+    )
 
-    lib.register(HookTemplate(
-        topic="maref.layer3.role.pre_invoke",
-        name="sensitive_path_guard",
-        handler_func=sensitive_path_guard,
-        description="Blocks access to sensitive paths (.git, .claude, credentials)",
-        priority=80,
-    ))
+    lib.register(
+        HookTemplate(
+            topic="maref.layer3.role.pre_invoke",
+            name="sensitive_path_guard",
+            handler_func=sensitive_path_guard,
+            description="Blocks access to sensitive paths (.git, .claude, credentials)",
+            priority=80,
+        )
+    )
 
     return lib

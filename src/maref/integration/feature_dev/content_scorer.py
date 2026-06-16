@@ -27,8 +27,13 @@ class ContentScorer:
         }
 
     def overall(self, layer_scores: dict[str, float]) -> float:
-        w = {"Static Audit": 0.15, "Reasoning Metrics": 0.20,
-             "Action Metrics": 0.25, "E2E Metrics": 0.20, "MAS Dimensions": 0.20}
+        w = {
+            "Static Audit": 0.15,
+            "Reasoning Metrics": 0.20,
+            "Action Metrics": 0.25,
+            "E2E Metrics": 0.20,
+            "MAS Dimensions": 0.20,
+        }
         return round(sum(layer_scores.get(k, 0) * wv for k, wv in w.items()), 1)
 
     def _score_static_audit(self, a: dict[str, Any]) -> float:
@@ -121,16 +126,11 @@ class ContentScorer:
         chars = a.get("characters", [])
         scripts = a.get("scripts", [])
 
-        has_profile_export = any(
-            Path(c.get("profile_path", "")).exists()
-            for c in chars
-        )
+        has_profile_export = any(Path(c.get("profile_path", "")).exists() for c in chars)
         if has_profile_export:
             score += 15.0
 
-        scripts_on_disk = sum(
-            1 for s in scripts if Path(s.get("script_path", "")).exists()
-        )
+        scripts_on_disk = sum(1 for s in scripts if Path(s.get("script_path", "")).exists())
         score += min(20.0, scripts_on_disk * 5.0)
 
         stages = a.get("stages_covered", set())
@@ -163,17 +163,15 @@ class ContentScorer:
         score += min(15.0, len(styles) * 5.0)
 
         crossover_scripts = [
-            s for s in a.get("scripts", [])
-            if "crossover" in s.get("title", "").lower()
-            or "x" in s.get("char_id", "")
+            s
+            for s in a.get("scripts", [])
+            if "crossover" in s.get("title", "").lower() or "x" in s.get("char_id", "")
         ]
         if crossover_scripts:
-                score += 20.0
+            score += 20.0
 
         stages = a.get("stages_covered", set())
         if len(stages) >= 2:
             score += 10.0
 
         return min(100.0, score)
-
-

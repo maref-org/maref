@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 
@@ -99,12 +100,12 @@ class VectorClock:
         return f"VectorClock({items})"
 
 
-class CausalRelation:
+class CausalRelation(str, Enum):
     """Enumeration of causal comparison results."""
 
-    BEFORE = "before"          # self -> other
-    AFTER = "after"            # other -> self
-    EQUAL = "equal"            # identical
+    BEFORE = "before"  # self -> other
+    AFTER = "after"  # other -> self
+    EQUAL = "equal"  # identical
     CONCURRENT = "concurrent"  # incomparable
 
 

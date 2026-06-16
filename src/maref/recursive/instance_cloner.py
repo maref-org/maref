@@ -75,7 +75,7 @@ class CloneLineage:
             "child_id": self.child_id,
             "generation": self.generation,
             "evolution_path": self.evolution_path.value,
-            "cloned_at": self.timestamp if hasattr(self, 'timestamp') else self.cloned_at,
+            "cloned_at": self.timestamp if hasattr(self, "timestamp") else self.cloned_at,
             "trust_baseline": round(self.trust_baseline, 4),
             "specialization": self.specialization,
         }
@@ -131,7 +131,9 @@ class ClonedExperiencePool:
             "context_count": len(self.contexts),
         }
 
-    def apply_specialization(self, specialization: str, config: dict[str, Any]) -> ClonedKnowledgeGraph:
+    def apply_specialization(
+        self, specialization: str, config: dict[str, Any]
+    ) -> ClonedKnowledgeGraph:
         filtered = [e for e in self.entries if specialization.lower() in str(e).lower()]
         if len(filtered) < len(self.entries) * config.get("innovation_bias", 0.3):
             filtered = self.entries
@@ -210,11 +212,21 @@ class MAREFInstanceCloner:
     def snapshot_knowledge_graph(self) -> ClonedKnowledgeGraph:
         return ClonedKnowledgeGraph(
             nodes=[
-                {"id": f"kg_node_{i}", "type": "concept", "confidence": 0.9 - i * 0.05, "mutable": True}
+                {
+                    "id": f"kg_node_{i}",
+                    "type": "concept",
+                    "confidence": 0.9 - i * 0.05,
+                    "mutable": True,
+                }
                 for i in range(10)
             ],
             relations=[
-                {"from": f"kg_node_{i}", "to": f"kg_node_{i+1}", "type": "depends_on", "strength": 0.8}
+                {
+                    "from": f"kg_node_{i}",
+                    "to": f"kg_node_{i+1}",
+                    "type": "depends_on",
+                    "strength": 0.8,
+                }
                 for i in range(9)
             ],
             metadata={"source": "runtime_kg", "version": "v3"},
@@ -222,8 +234,12 @@ class MAREFInstanceCloner:
 
     def snapshot_experience_pool(self) -> ClonedExperiencePool:
         entries = [
-            {"id": f"exp_{i}", "pattern": f"pattern_{i}", "outcome": "success" if i % 3 != 0 else "failure",
-             "domain": ["healing", "optimization", "evolution"][i % 3]}
+            {
+                "id": f"exp_{i}",
+                "pattern": f"pattern_{i}",
+                "outcome": "success" if i % 3 != 0 else "failure",
+                "domain": ["healing", "optimization", "evolution"][i % 3],
+            }
             for i in range(30)
         ]
         return ClonedExperiencePool(

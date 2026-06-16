@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from maref.immunity.red_contamination_probe import ContaminationFinding, RedContaminationProbe
-
 from maref.recursive.unified_audit import NullAuditStore
 
 if TYPE_CHECKING:
@@ -60,7 +59,7 @@ class CrossGenerationImpactSimulator:
         for ftype, count in type_counts.items():
             base = _BASE_WEIGHTS.get(ftype, 0.2)
             for i in range(count):
-                weighted_score += base * (0.8 ** i)
+                weighted_score += base * (0.8**i)
             weighted_score = min(weighted_score, 0.9)
 
         if len(type_counts) >= 3:
@@ -92,23 +91,29 @@ class CrossGenerationImpactSimulator:
     def simulate_training_impact(self, code: str) -> dict[str, Any]:
         report = self.simulate_contamination(code)
         if report.contamination_index == 0.0:
-            return {"teachable_patterns": [], "risk_level": "none", "impact": "Code is safe for training"}
+            return {
+                "teachable_patterns": [],
+                "risk_level": "none",
+                "impact": "Code is safe for training",
+            }
 
         teachable: list[dict[str, Any]] = []
         for f in report.findings:
-            teachable.append({
-                "pattern": f.type,
-                "teachability": self._estimate_teachability(f),
-                "message": f.message,
-                "suggestion": f.suggestion,
-            })
+            teachable.append(
+                {
+                    "pattern": f.type,
+                    "teachability": self._estimate_teachability(f),
+                    "message": f.message,
+                    "suggestion": f.suggestion,
+                }
+            )
 
         risk_level = "critical" if report.blocked else "moderate"
 
         impact = (
             f"Code has {len(report.findings)} contamination patterns."
             f" {'MERGE BLOCKED' if report.blocked else 'Acceptable risk'}."
-            f" Training on this code would teach AI to use {', '.join(set(f.type for f in report.findings))}."
+            f" Training on this code would teach AI to use {', '.join({f.type for f in report.findings})}."
         )
 
         return {
@@ -129,6 +134,7 @@ class CrossGenerationImpactSimulator:
 
     def _write_audit(self, report: ContaminationReport) -> None:
         from maref.recursive.unified_audit import UnifiedAuditRecord
+
         ts = time.time()
         record = UnifiedAuditRecord(
             record_id=f"crossgen_{int(ts * 1000)}",

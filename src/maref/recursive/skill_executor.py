@@ -59,9 +59,14 @@ class SkillExecutor:
         result = self._try_handler(primary_name, ctx, timeout_ms)
         elapsed = (time.time() - start_time) * 1000
 
-        if result is not None and result.status not in (ExecutionStatus.FAILED, ExecutionStatus.TIMEOUT):
+        if result is not None and result.status not in (
+            ExecutionStatus.FAILED,
+            ExecutionStatus.TIMEOUT,
+        ):
             return ExecutionResult(
-                status=result.status if result.status != ExecutionStatus.FINAL_FAILURE else ExecutionStatus.SUCCESS,
+                status=result.status
+                if result.status != ExecutionStatus.FINAL_FAILURE
+                else ExecutionStatus.SUCCESS,
                 handler_used=primary_name,
                 result=result.result,
                 duration_ms=elapsed,
@@ -75,7 +80,10 @@ class SkillExecutor:
             step_result = self._try_handler(step.fallback, ctx, timeout_ms)
             (time.time() - step_start) * 1000
 
-            if step_result is not None and step_result.status not in (ExecutionStatus.FAILED, ExecutionStatus.TIMEOUT):
+            if step_result is not None and step_result.status not in (
+                ExecutionStatus.FAILED,
+                ExecutionStatus.TIMEOUT,
+            ):
                 total_elapsed = (time.time() - start_time) * 1000
                 return ExecutionResult(
                     status=ExecutionStatus.DEGRADED,

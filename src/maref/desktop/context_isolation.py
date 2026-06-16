@@ -153,7 +153,9 @@ class SubAgentSpawner:
         keys_to_explore: list[str],
     ) -> str:
         isolation_id = f"subagent-{parent_id}-{hashlib.md5(task_description.encode(), usedforsecurity=False).hexdigest()[:8]}"
-        self._isolation.snapshot(isolation_id, {"agent_id": parent_id, "task": task_description, **context})
+        self._isolation.snapshot(
+            isolation_id, {"agent_id": parent_id, "task": task_description, **context}
+        )
         self._isolation.isolate(isolation_id, keys_to_explore)
         self._spawned[isolation_id] = {
             "parent_id": parent_id,
@@ -178,7 +180,10 @@ class SubAgentSpawner:
             files_explored=files_explored,
             confidence=confidence,
             errors=errors or [],
-            completion_time_ms=(time.time() - self._spawned.get(isolation_id, {}).get("created_at", time.time())) * 1000,
+            completion_time_ms=(
+                time.time() - self._spawned.get(isolation_id, {}).get("created_at", time.time())
+            )
+            * 1000,
         )
         self._isolation.merge_summary(isolation_id, summary)
         self._summaries[isolation_id] = summary

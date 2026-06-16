@@ -23,6 +23,7 @@ from typing import Any
 
 class ActionStatus(Enum):
     """动作状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -33,6 +34,7 @@ class ActionStatus(Enum):
 
 class TriggerCondition(Enum):
     """触发条件"""
+
     THREAT_ALERT = "threat_alert"
     COMPLIANCE_VIOLATION = "compliance_violation"
     VULNERABILITY_FOUND = "vulnerability_found"
@@ -44,6 +46,7 @@ class TriggerCondition(Enum):
 
 class NotificationChannel(Enum):
     """通知渠道"""
+
     EMAIL = "email"
     SLACK = "slack"
     WEBHOOK = "webhook"
@@ -270,7 +273,9 @@ class SecurityOrchestrator:
         threat_playbook.steps = [
             PlaybookStep("step-1", "action-notify-team", order=1, timeout_seconds=60),
             PlaybookStep("step-2", "action-create-ticket", order=2, timeout_seconds=30),
-            PlaybookStep("step-3", "action-block-ip", order=3, on_failure="continue", timeout_seconds=120),
+            PlaybookStep(
+                "step-3", "action-block-ip", order=3, on_failure="continue", timeout_seconds=120
+            ),
             PlaybookStep("step-4", "action-scan-vulnerabilities", order=4, timeout_seconds=600),
         ]
         self.register_playbook(threat_playbook)
@@ -342,10 +347,7 @@ class SecurityOrchestrator:
         return event
 
     def trigger_playbook(
-        self,
-        playbook_id: str,
-        event_id: str,
-        parameters: dict[str, Any] | None = None
+        self, playbook_id: str, event_id: str, parameters: dict[str, Any] | None = None
     ) -> ExecutionRecord | None:
         """
         触发响应剧本
@@ -380,40 +382,48 @@ class SecurityOrchestrator:
             action = self._actions.get(step.action_id)
             if not action:
                 record.notes.append(f"Action not found: {step.action_id}")
-                record.step_results.append({
-                    "step_id": step.step_id,
-                    "status": ActionStatus.SKIPPED.value,
-                    "reason": "Action not found",
-                })
+                record.step_results.append(
+                    {
+                        "step_id": step.step_id,
+                        "status": ActionStatus.SKIPPED.value,
+                        "reason": "Action not found",
+                    }
+                )
                 continue
 
             # 检查是否需要审批
             if action.requires_approval:
                 record.notes.append(f"Action {action.action_id} requires manual approval")
-                record.step_results.append({
-                    "step_id": step.step_id,
-                    "action_id": action.action_id,
-                    "status": ActionStatus.PENDING.value,
-                    "reason": "Approval required",
-                })
+                record.step_results.append(
+                    {
+                        "step_id": step.step_id,
+                        "action_id": action.action_id,
+                        "status": ActionStatus.PENDING.value,
+                        "reason": "Approval required",
+                    }
+                )
                 continue
 
             # 执行动作（模拟）
             try:
-                record.step_results.append({
-                    "step_id": step.step_id,
-                    "action_id": action.action_id,
-                    "status": ActionStatus.COMPLETED.value,
-                    "action_type": action.action_type,
-                })
+                record.step_results.append(
+                    {
+                        "step_id": step.step_id,
+                        "action_id": action.action_id,
+                        "status": ActionStatus.COMPLETED.value,
+                        "action_type": action.action_type,
+                    }
+                )
                 record.notes.append(f"Executed {action.name}")
             except Exception as e:
-                record.step_results.append({
-                    "step_id": step.step_id,
-                    "action_id": action.action_id,
-                    "status": ActionStatus.FAILED.value,
-                    "error": str(e),
-                })
+                record.step_results.append(
+                    {
+                        "step_id": step.step_id,
+                        "action_id": action.action_id,
+                        "status": ActionStatus.FAILED.value,
+                        "error": str(e),
+                    }
+                )
 
                 if step.on_failure == "stop":
                     record.status = "failed"
@@ -503,11 +513,7 @@ class SecurityOrchestrator:
 
     def get_execution_history(self, limit: int = 50) -> list[ExecutionRecord]:
         """获取执行历史"""
-        return sorted(
-            self._execution_history,
-            key=lambda r: r.started_at,
-            reverse=True
-        )[:limit]
+        return sorted(self._execution_history, key=lambda r: r.started_at, reverse=True)[:limit]
 
     def get_statistics(self) -> dict[str, Any]:
         """获取SOAR统计"""
@@ -520,6 +526,7 @@ class SecurityOrchestrator:
         most_executed_playbook = ""
         if self._execution_history:
             from collections import Counter
+
             counter = Counter(r.playbook_id for r in self._execution_history)
             most_executed_playbook = counter.most_common(1)[0][0]
 
@@ -532,7 +539,9 @@ class SecurityOrchestrator:
             "total_executions": total_executions,
             "completed_executions": completed,
             "failed_executions": failed,
-            "success_rate": round(completed / total_executions * 100, 1) if total_executions > 0 else 0.0,
+            "success_rate": round(completed / total_executions * 100, 1)
+            if total_executions > 0
+            else 0.0,
             "most_executed_playbook": most_executed_playbook,
         }
 
@@ -541,9 +550,7 @@ class SecurityOrchestrator:
         return [p.to_dict() for p in self._playbooks.values()]
 
     def register_notification_handler(
-        self,
-        channel: NotificationChannel,
-        handler: Callable[[str, str, str], None]
+        self, channel: NotificationChannel, handler: Callable[[str, str, str], None]
     ) -> None:
         """注册通知处理器"""
         if channel not in self._notification_handlers:
@@ -551,11 +558,7 @@ class SecurityOrchestrator:
         self._notification_handlers[channel].append(handler)
 
     def send_notification(
-        self,
-        channel: NotificationChannel,
-        title: str,
-        message: str,
-        severity: str = "info"
+        self, channel: NotificationChannel, title: str, message: str, severity: str = "info"
     ) -> bool:
         """发送通知"""
         handlers = self._notification_handlers.get(channel, [])

@@ -55,9 +55,7 @@ class CronExpression:
             else:
                 v = int(part)
                 if v < min_val or v > max_val:
-                    raise ValueError(
-                        f"Value {v} out of range [{min_val}, {max_val}] in cron field"
-                    )
+                    raise ValueError(f"Value {v} out of range [{min_val}, {max_val}] in cron field")
                 matchers.append(("exact", v))
         return matchers
 

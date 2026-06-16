@@ -116,7 +116,9 @@ class FileSafetyGuard:
     ) -> None:
         self.allow_paths = allow_paths or set()
         self.block_paths = block_paths or _RESTRICTED_PATHS
-        self.sandbox_dir = sandbox_dir or os.path.join(os.path.expanduser("~"), ".maref_lite", "sandbox")
+        self.sandbox_dir = sandbox_dir or os.path.join(
+            os.path.expanduser("~"), ".maref_lite", "sandbox"
+        )
         self._operation_log: list[FileOpResult] = []
 
     @property
@@ -125,40 +127,108 @@ class FileSafetyGuard:
 
     def evaluate(self, request: FileOpRequest) -> SafetyVerdict:
         if request.operation in _DANGEROUS_OPERATIONS_ON_ANY_PATH:
-            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message=f"Dangerous operation blacklisted: {request.operation.value}"))
+            self._log(
+                FileOpResult(
+                    success=False,
+                    operation=request.operation,
+                    path=request.path,
+                    verdict=SafetyVerdict.BLOCK,
+                    error_message=f"Dangerous operation blacklisted: {request.operation.value}",
+                )
+            )
             return SafetyVerdict.BLOCK
 
         resolved = str(Path(request.path).resolve())
         for blocked in self.block_paths:
             if resolved == blocked or resolved.startswith(blocked + "/"):
                 if request.operation == FileOperation.WRITE:
-                    self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.SANDBOX, error_message=f"Write to restricted path redirected to sandbox: {blocked}"))
+                    self._log(
+                        FileOpResult(
+                            success=False,
+                            operation=request.operation,
+                            path=request.path,
+                            verdict=SafetyVerdict.SANDBOX,
+                            error_message=f"Write to restricted path redirected to sandbox: {blocked}",
+                        )
+                    )
                     return SafetyVerdict.SANDBOX
-                self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message=f"Path is restricted: {blocked}"))
+                self._log(
+                    FileOpResult(
+                        success=False,
+                        operation=request.operation,
+                        path=request.path,
+                        verdict=SafetyVerdict.BLOCK,
+                        error_message=f"Path is restricted: {blocked}",
+                    )
+                )
                 return SafetyVerdict.BLOCK
 
         file_name = Path(request.path).name.lower()
         ext = Path(request.path).suffix.lower()
-        if (ext in _RESTRICTED_EXTENSIONS or file_name in _RESTRICTED_EXTENSIONS) and request.operation in (FileOperation.READ, FileOperation.COPY):
-            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message=f"Sensitive file extension blocked: {ext}"))
+        if (
+            ext in _RESTRICTED_EXTENSIONS or file_name in _RESTRICTED_EXTENSIONS
+        ) and request.operation in (FileOperation.READ, FileOperation.COPY):
+            self._log(
+                FileOpResult(
+                    success=False,
+                    operation=request.operation,
+                    path=request.path,
+                    verdict=SafetyVerdict.BLOCK,
+                    error_message=f"Sensitive file extension blocked: {ext}",
+                )
+            )
             return SafetyVerdict.BLOCK
 
-        if request.operation == FileOperation.WRITE and len(request.content.encode("utf-8")) > _MAX_WRITE_BYTES:
-            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message="Write content exceeds maximum allowed size"))
+        if (
+            request.operation == FileOperation.WRITE
+            and len(request.content.encode("utf-8")) > _MAX_WRITE_BYTES
+        ):
+            self._log(
+                FileOpResult(
+                    success=False,
+                    operation=request.operation,
+                    path=request.path,
+                    verdict=SafetyVerdict.BLOCK,
+                    error_message="Write content exceeds maximum allowed size",
+                )
+            )
             return SafetyVerdict.BLOCK
 
         if request.destination and request.operation in (FileOperation.MOVE, FileOperation.COPY):
             destination = str(Path(request.destination).resolve())
             for blocked in self.block_paths:
                 if destination == blocked or destination.startswith(blocked + "/"):
-                    self._log(FileOpResult(success=False, operation=request.operation, path=request.destination, verdict=SafetyVerdict.BLOCK, error_message=f"Destination path is restricted: {blocked}"))
+                    self._log(
+                        FileOpResult(
+                            success=False,
+                            operation=request.operation,
+                            path=request.destination,
+                            verdict=SafetyVerdict.BLOCK,
+                            error_message=f"Destination path is restricted: {blocked}",
+                        )
+                    )
                     return SafetyVerdict.BLOCK
 
         if request.operation == FileOperation.DELETE:
             if resolved.startswith(os.path.expanduser("~/")):
-                self._log(FileOpResult(success=True, operation=request.operation, path=request.path, verdict=SafetyVerdict.ALLOW))
+                self._log(
+                    FileOpResult(
+                        success=True,
+                        operation=request.operation,
+                        path=request.path,
+                        verdict=SafetyVerdict.ALLOW,
+                    )
+                )
                 return SafetyVerdict.ALLOW
-            self._log(FileOpResult(success=False, operation=request.operation, path=request.path, verdict=SafetyVerdict.BLOCK, error_message="Delete outside home directory requires confirmation"))
+            self._log(
+                FileOpResult(
+                    success=False,
+                    operation=request.operation,
+                    path=request.path,
+                    verdict=SafetyVerdict.BLOCK,
+                    error_message="Delete outside home directory requires confirmation",
+                )
+            )
             return SafetyVerdict.BLOCK
 
         return SafetyVerdict.ALLOW
@@ -194,16 +264,22 @@ class FileOperator:
         return self._execute(FileOpRequest(operation=FileOperation.READ, path=path))
 
     def write_file(self, path: str, content: str) -> FileOpResult:
-        return self._execute(FileOpRequest(operation=FileOperation.WRITE, path=path, content=content))
+        return self._execute(
+            FileOpRequest(operation=FileOperation.WRITE, path=path, content=content)
+        )
 
     def delete_file(self, path: str) -> FileOpResult:
         return self._execute(FileOpRequest(operation=FileOperation.DELETE, path=path))
 
     def move_file(self, source: str, destination: str) -> FileOpResult:
-        return self._execute(FileOpRequest(operation=FileOperation.MOVE, path=source, destination=destination))
+        return self._execute(
+            FileOpRequest(operation=FileOperation.MOVE, path=source, destination=destination)
+        )
 
     def copy_file(self, source: str, destination: str) -> FileOpResult:
-        return self._execute(FileOpRequest(operation=FileOperation.COPY, path=source, destination=destination))
+        return self._execute(
+            FileOpRequest(operation=FileOperation.COPY, path=source, destination=destination)
+        )
 
     def list_directory(self, path: str) -> FileOpResult:
         return self._execute(FileOpRequest(operation=FileOperation.LIST, path=path))

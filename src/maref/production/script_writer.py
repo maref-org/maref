@@ -149,7 +149,9 @@ class ScriptWriter:
     def generate(self, char_id: str, episode_number: int = 1) -> dict[str, Any]:
         char_dir = self.base / "characters" / char_id
         if not char_dir.exists():
-            raise FileNotFoundError(f"Character '{char_id}' not found. Run character generation first.")
+            raise FileNotFoundError(
+                f"Character '{char_id}' not found. Run character generation first."
+            )
 
         meta_path = char_dir / "profile" / "meta.json"
         if not meta_path.exists():
@@ -203,7 +205,9 @@ class ScriptWriter:
         }
 
         script_path = story_dir / "episodes" / f"episode-{episode_number:02d}.md"
-        tmpl = (Path(__file__).parent / "templates" / "episode_script.md").read_text(encoding="utf-8")
+        tmpl = (Path(__file__).parent / "templates" / "episode_script.md").read_text(
+            encoding="utf-8"
+        )
         for key, val in template_vars.items():
             tmpl = tmpl.replace("{" + key + "}", val)
         script_path.write_text(tmpl, encoding="utf-8")

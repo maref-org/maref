@@ -8,6 +8,7 @@ Injects controlled failures to test system resilience.
 4. MEMORY: Memory pressure simulation
 5. CPU: CPU load injection
 """
+
 from __future__ import annotations
 
 import enum
@@ -29,7 +30,7 @@ class FaultType(enum.Enum):
     DISK = "disk"
     MEMORY = "memory"
     CPU = "cpu"
-    BYZANTINE = "byzantine"           # Phase 3.2: malicious agent output tampering
+    BYZANTINE = "byzantine"  # Phase 3.2: malicious agent output tampering
     EMERGENT_CONFLICT = "emergent_conflict"  # Phase 3.2: contradictory combined state
 
 

@@ -1,4 +1,5 @@
 """Real attack executor: dispatches AttackDefinitions to MAREF components."""
+
 from __future__ import annotations
 
 import time
@@ -27,17 +28,24 @@ class AttackExecutor:
     def __init__(self) -> None:
         self._execution_log: list[AttackExecutionResult] = []
 
-    def execute(self, attack: AttackDefinition, target_sm: GovernanceStateMachine | None = None,
-                target_cb: CircuitBreaker | None = None) -> AttackExecutionResult:
+    def execute(
+        self,
+        attack: AttackDefinition,
+        target_sm: GovernanceStateMachine | None = None,
+        target_cb: CircuitBreaker | None = None,
+    ) -> AttackExecutionResult:
         start = time.time()
 
         sm = target_sm or GovernanceStateMachine()
-        cb = target_cb or CircuitBreaker(max_depth=3, max_consecutive_failures=3, cooldown_seconds=30.0)
+        cb = target_cb or CircuitBreaker(
+            max_depth=3, max_consecutive_failures=3, cooldown_seconds=30.0
+        )
 
         result = AttackExecutionResult(
             attack_name=attack.name,
             category=attack.category.value[0],
-            success=False, penetrated=False,
+            success=False,
+            penetrated=False,
         )
 
         try:
@@ -45,11 +53,18 @@ class AttackExecutor:
                 result = self._attack_state_machine(attack, sm)
             elif attack.category in (AttackCategory.CIRCUIT_BREAKER,):
                 result = self._attack_circuit_breaker(attack, cb)
-            elif attack.category in (AttackCategory.AUDIT, AttackCategory.TRUST_ENGINE,
-                                      AttackCategory.CREDENTIAL, AttackCategory.SAFETY_GATE,
-                                      AttackCategory.META_AGENT, AttackCategory.AST_SANDBOX,
-                                      AttackCategory.POLICY_SANDBOX, AttackCategory.META_LEARNING,
-                                      AttackCategory.OSCILLATION, AttackCategory.FOUR_PHASE):
+            elif attack.category in (
+                AttackCategory.AUDIT,
+                AttackCategory.TRUST_ENGINE,
+                AttackCategory.CREDENTIAL,
+                AttackCategory.SAFETY_GATE,
+                AttackCategory.META_AGENT,
+                AttackCategory.AST_SANDBOX,
+                AttackCategory.POLICY_SANDBOX,
+                AttackCategory.META_LEARNING,
+                AttackCategory.OSCILLATION,
+                AttackCategory.FOUR_PHASE,
+            ):
                 result = self._attack_generic(attack, sm, cb)
             elif attack.category == AttackCategory.MULTI_VECTOR:
                 result = self._attack_multi_vector(attack, sm, cb)
@@ -60,10 +75,12 @@ class AttackExecutor:
         self._execution_log.append(result)
         return result
 
-    def _attack_state_machine(self, attack: AttackDefinition,
-                               sm: GovernanceStateMachine) -> AttackExecutionResult:
-        result = AttackExecutionResult(attack_name=attack.name, category="state_machine",
-                                        success=True, penetrated=False)
+    def _attack_state_machine(
+        self, attack: AttackDefinition, sm: GovernanceStateMachine
+    ) -> AttackExecutionResult:
+        result = AttackExecutionResult(
+            attack_name=attack.name, category="state_machine", success=True, penetrated=False
+        )
         count = attack.params.get("count", 50)
         bogus = attack.params.get("bogus_states", True)
 
@@ -83,10 +100,12 @@ class AttackExecutor:
 
         return result
 
-    def _attack_circuit_breaker(self, attack: AttackDefinition,
-                                  cb: CircuitBreaker) -> AttackExecutionResult:
-        result = AttackExecutionResult(attack_name=attack.name, category="circuit_breaker",
-                                        success=True, penetrated=False)
+    def _attack_circuit_breaker(
+        self, attack: AttackDefinition, cb: CircuitBreaker
+    ) -> AttackExecutionResult:
+        result = AttackExecutionResult(
+            attack_name=attack.name, category="circuit_breaker", success=True, penetrated=False
+        )
         try:
             for _ in range(min(attack.params.get("count", 10), 100)):
                 cb.record_failure()
@@ -99,11 +118,15 @@ class AttackExecutor:
             result.success = False
         return result
 
-    def _attack_generic(self, attack: AttackDefinition, sm: GovernanceStateMachine,
-                          cb: CircuitBreaker) -> AttackExecutionResult:
-        result = AttackExecutionResult(attack_name=attack.name,
-                                        category=attack.category.value[0],
-                                        success=True, penetrated=False)
+    def _attack_generic(
+        self, attack: AttackDefinition, sm: GovernanceStateMachine, cb: CircuitBreaker
+    ) -> AttackExecutionResult:
+        result = AttackExecutionResult(
+            attack_name=attack.name,
+            category=attack.category.value[0],
+            success=True,
+            penetrated=False,
+        )
         try:
             if attack.intensity > 0.5:
                 sm.force_halt("attack_detected")
@@ -116,10 +139,12 @@ class AttackExecutor:
             result.errors.append(str(e))
         return result
 
-    def _attack_multi_vector(self, attack: AttackDefinition, sm: GovernanceStateMachine,
-                               cb: CircuitBreaker) -> AttackExecutionResult:
-        result = AttackExecutionResult(attack_name=attack.name, category="multi_vector",
-                                        success=True, penetrated=False)
+    def _attack_multi_vector(
+        self, attack: AttackDefinition, sm: GovernanceStateMachine, cb: CircuitBreaker
+    ) -> AttackExecutionResult:
+        result = AttackExecutionResult(
+            attack_name=attack.name, category="multi_vector", success=True, penetrated=False
+        )
         try:
             sm.force_halt("multi_vector_halt")
             result.detected_by.append("halt")

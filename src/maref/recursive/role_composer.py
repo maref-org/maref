@@ -6,14 +6,42 @@ from typing import Any
 from maref.recursive.role_registry import PluginRole
 
 BAGUA_ARCHETYPE_TABLE: dict[str, dict[str, Any]] = {
-    "乾": {"name": "全自主 Agent", "description": "Highest trust, unlimited scope", "max_entropy": 10.0},
-    "坤": {"name": "被动执行者", "description": "Only executes explicit commands", "max_entropy": 1.0},
-    "震": {"name": "危机响应者", "description": "Emergency fix, rapid response", "max_entropy": 7.0},
-    "巽": {"name": "渗透学习者", "description": "Observe and learn, shadow mode", "max_entropy": 3.0},
-    "坎": {"name": "风险导航者", "description": "Risk assessment, path planning", "max_entropy": 5.0},
-    "离": {"name": "人机对话者", "description": "Translate, explain, summarize", "max_entropy": 4.0},
+    "乾": {
+        "name": "全自主 Agent",
+        "description": "Highest trust, unlimited scope",
+        "max_entropy": 10.0,
+    },
+    "坤": {
+        "name": "被动执行者",
+        "description": "Only executes explicit commands",
+        "max_entropy": 1.0,
+    },
+    "震": {
+        "name": "危机响应者",
+        "description": "Emergency fix, rapid response",
+        "max_entropy": 7.0,
+    },
+    "巽": {
+        "name": "渗透学习者",
+        "description": "Observe and learn, shadow mode",
+        "max_entropy": 3.0,
+    },
+    "坎": {
+        "name": "风险导航者",
+        "description": "Risk assessment, path planning",
+        "max_entropy": 5.0,
+    },
+    "离": {
+        "name": "人机对话者",
+        "description": "Translate, explain, summarize",
+        "max_entropy": 4.0,
+    },
     "艮": {"name": "防守稳定者", "description": "Security check, audit", "max_entropy": 2.0},
-    "兑": {"name": "连接互通者", "description": "Protocol bridging, data exchange", "max_entropy": 6.0},
+    "兑": {
+        "name": "连接互通者",
+        "description": "Protocol bridging, data exchange",
+        "max_entropy": 6.0,
+    },
 }
 
 DEAD_ZONE_HEXAGRAMS: set[int] = {0, 63}
@@ -115,7 +143,13 @@ class RoleComposer:
 
 def _trigram_to_index(trigram: str) -> int:
     trigram_map = {
-        "乾": 7, "兑": 6, "离": 5, "震": 4,
-        "巽": 3, "坎": 2, "艮": 1, "坤": 0,
+        "乾": 7,
+        "兑": 6,
+        "离": 5,
+        "震": 4,
+        "巽": 3,
+        "坎": 2,
+        "艮": 1,
+        "坤": 0,
     }
     return trigram_map.get(trigram, 0)

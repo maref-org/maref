@@ -50,9 +50,7 @@ class OscillationAggregator:
         conn.commit()
         return {
             "versions_processed": len(versions),
-            "recommendations_written": sum(
-                1 for r in results.values() if r.get("recommended")
-            ),
+            "recommendations_written": sum(1 for r in results.values() if r.get("recommended")),
             "per_version": results,
         }
 
@@ -161,6 +159,7 @@ def run_aggregation(db_path: str = "") -> dict[str, Any]:
     conn.row_factory = sqlite3.Row
     try:
         from main import init_db
+
         init_db(conn)
     except ImportError:
         pass

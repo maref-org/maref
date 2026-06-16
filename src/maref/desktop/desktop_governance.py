@@ -95,11 +95,16 @@ class DesktopGovernance:
         )
 
         if not success and self._safety_gate.consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
-            self._transition(GovernanceAction.CIRCUIT_BREAK, f"{self.MAX_CONSECUTIVE_FAILURES} consecutive failures on {operation_type}")
+            self._transition(
+                GovernanceAction.CIRCUIT_BREAK,
+                f"{self.MAX_CONSECUTIVE_FAILURES} consecutive failures on {operation_type}",
+            )
 
         if success and self._state == DesktopGovernanceState.LOCKED:
             self._safety_gate.reset_failure_count()
-            self._transition(GovernanceAction.RESTORE_MODE, "Operation succeeded after cooldown, restoring mode")
+            self._transition(
+                GovernanceAction.RESTORE_MODE, "Operation succeeded after cooldown, restoring mode"
+            )
 
     def detect_oscillation(self, screenshot_hash: str) -> bool:
         now = time.time()
@@ -111,11 +116,16 @@ class DesktopGovernance:
             self._oscillation_counter = 1
             self._last_screenshot_hash = screenshot_hash
 
-        recent_switches = [t for t in self._mode_switches if now - t < self.OSCILLATION_WINDOW_SECONDS]
+        recent_switches = [
+            t for t in self._mode_switches if now - t < self.OSCILLATION_WINDOW_SECONDS
+        ]
         self._mode_switches = recent_switches
 
         if len(recent_switches) >= self.MAX_OSCILLATION_COUNT:
-            self._transition(GovernanceAction.OSCILLATION_REPAIR, f"UI oscillation detected: {len(recent_switches)} changes in {self.OSCILLATION_WINDOW_SECONDS}s")
+            self._transition(
+                GovernanceAction.OSCILLATION_REPAIR,
+                f"UI oscillation detected: {len(recent_switches)} changes in {self.OSCILLATION_WINDOW_SECONDS}s",
+            )
             return True
         return False
 
@@ -124,7 +134,10 @@ class DesktopGovernance:
         if missing:
             self._ui_change_count += 1
             if self._ui_change_count >= 2:
-                self._transition(GovernanceAction.DRIFT_RECALIBRATE, f"UI drift detected: missing elements {missing}")
+                self._transition(
+                    GovernanceAction.DRIFT_RECALIBRATE,
+                    f"UI drift detected: missing elements {missing}",
+                )
                 return True
         else:
             self._ui_change_count = 0

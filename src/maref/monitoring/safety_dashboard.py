@@ -19,13 +19,14 @@ class DashboardWidget(ABC):
     widget_type: str
 
     @abstractmethod
-    def snapshot(self) -> dict[str, Any]:
-        ...
+    def snapshot(self) -> dict[str, Any]: ...
 
 
 class TrustScoreWidget(DashboardWidget):
     def __init__(self) -> None:
-        super().__init__(widget_id="trust-score", title="Agent Trust Scores", widget_type="trust_score")
+        super().__init__(
+            widget_id="trust-score", title="Agent Trust Scores", widget_type="trust_score"
+        )
         self._scores: dict[str, float] = {}
 
     def update_trust(self, agent_id: str, score: float) -> None:
@@ -49,10 +50,14 @@ class TrustScoreWidget(DashboardWidget):
 
 class ThreatDetectionWidget(DashboardWidget):
     def __init__(self) -> None:
-        super().__init__(widget_id="threat-detection", title="Threat Detection", widget_type="threat_detection")
+        super().__init__(
+            widget_id="threat-detection", title="Threat Detection", widget_type="threat_detection"
+        )
         self._threats: dict[str, dict[str, Any]] = {}
 
-    def report_threat(self, threat_id: str, severity: str, description: str, source: str = "") -> None:
+    def report_threat(
+        self, threat_id: str, severity: str, description: str, source: str = ""
+    ) -> None:
         self._threats[threat_id] = {
             "threat_id": threat_id,
             "severity": severity,
@@ -79,7 +84,9 @@ class ThreatDetectionWidget(DashboardWidget):
             "threats": active,
         }
 
-    def get_timeline(self, start_time: float = 0.0, end_time: float | None = None) -> list[dict[str, Any]]:
+    def get_timeline(
+        self, start_time: float = 0.0, end_time: float | None = None
+    ) -> list[dict[str, Any]]:
         end = end_time or time.time()
         return sorted(
             [t for t in self._threats.values() if start_time <= t["timestamp"] <= end],
@@ -89,7 +96,11 @@ class ThreatDetectionWidget(DashboardWidget):
 
 class ComplianceStatusWidget(DashboardWidget):
     def __init__(self) -> None:
-        super().__init__(widget_id="compliance-status", title="Compliance Status", widget_type="compliance_status")
+        super().__init__(
+            widget_id="compliance-status",
+            title="Compliance Status",
+            widget_type="compliance_status",
+        )
         self._frameworks: dict[str, str] = {}
 
     def update_status(self, framework: str, status: str) -> None:

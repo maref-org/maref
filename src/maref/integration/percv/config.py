@@ -66,11 +66,13 @@ class PERCVConfig:
     verification_default_rounds: int = 2
     """Default number of adversarial rounds for verification."""
 
-    preferred_models: dict[str, str] = field(default_factory=lambda: {
-        "primary": "sf-deepseek",
-        "long_context": "sf-kimi",
-        "cn_industry": "sf-qwen",
-        "global": "sf-global",
-        "reasoning": "sf-deepseek-r1",
-    })
+    preferred_models: dict[str, str] = field(
+        default_factory=lambda: {
+            "primary": "sf-deepseek",
+            "long_context": "sf-kimi",
+            "cn_industry": "sf-qwen",
+            "global": "sf-global",
+            "reasoning": "sf-deepseek-r1",
+        }
+    )
     """Model key assignments for MAREF's GatewayRole mapping."""

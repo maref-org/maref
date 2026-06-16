@@ -99,13 +99,15 @@ class EmergenceTestHarness:
             if success:
                 consistent += 1
 
-            results.append(PerturbationResult(
-                run_id=i,
-                execution_order=order,
-                final_state=state,
-                success=success,
-                duration_ms=latency_ms,
-            ))
+            results.append(
+                PerturbationResult(
+                    run_id=i,
+                    execution_order=order,
+                    final_state=state,
+                    success=success,
+                    duration_ms=latency_ms,
+                )
+            )
 
         latencies.sort()
         p99 = latencies[int(len(latencies) * 0.99)] if latencies else 0.0
@@ -142,11 +144,13 @@ class EmergenceTestHarness:
                     if val not in values_seen:
                         values_seen[val] = agent_id
             if len(values_seen) > 1:
-                conflicts.append({
-                    "key": key,
-                    "agents": list(values_seen.values()),
-                    "values": list(values_seen.keys()),
-                })
+                conflicts.append(
+                    {
+                        "key": key,
+                        "agents": list(values_seen.values()),
+                        "values": list(values_seen.keys()),
+                    }
+                )
         return conflicts
 
     # ------------------------------------------------------------------ #

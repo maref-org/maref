@@ -26,7 +26,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+import structlog
+
 from maref.evolution.agents import AgentRole
+
+logger = structlog.get_logger(__name__)
 
 
 class RewardLevel(Enum):
@@ -172,6 +176,7 @@ class RoleRewardFn:
 # Built-in reward functions for standard governance roles
 # ============================================================================
 
+
 def detector_reward_fn(round_snapshot: dict[str, Any]) -> float:
     """
     Reward for detector roles (anomaly_detector, drift_monitor).
@@ -301,6 +306,7 @@ def create_role_reward_fn(
 # Multi-Granularity Reward Assembler
 # ============================================================================
 
+
 @dataclass
 class RoundRewardSummary:
     """Summary of rewards for a single evolution round."""
@@ -362,8 +368,8 @@ class MultiGranularityRewardAssembler:
             round_num=5,
             round_snapshot={"fnr": 0.12, "fpr": 0.08},
         )
-        print(f"Round reward: {summary.round_reward}")
-        print(f"Per-role: {summary.role_rewards}")
+        logger.info("Round reward: %s", summary.round_reward)
+        logger.info("Per-role: %s", summary.role_rewards)
     """
 
     def __init__(self) -> None:
@@ -519,11 +525,7 @@ class MultiGranularityRewardAssembler:
             }
 
         all_round_rewards = [s.round_reward for s in self._round_history]
-        all_role_rewards = [
-            r.role_reward
-            for s in self._round_history
-            for r in s.role_rewards
-        ]
+        all_role_rewards = [r.role_reward for s in self._round_history for r in s.role_rewards]
 
         return {
             "total_rounds": len(self._round_history),
@@ -543,9 +545,7 @@ class MultiGranularityRewardAssembler:
 
         weighted_sum = sum(r.weighted_reward for r in role_rewards)
         total_weight = sum(
-            self._reward_fns[r.agent_id].weight
-            if r.agent_id in self._reward_fns
-            else 1.0
+            self._reward_fns[r.agent_id].weight if r.agent_id in self._reward_fns else 1.0
             for r in role_rewards
         )
 

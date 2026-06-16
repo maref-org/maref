@@ -222,7 +222,8 @@ class TrustBoundaryManager:
         target_domain: str,
     ) -> BoundaryReport:
         events = [
-            e for e in self._boundary_events
+            e
+            for e in self._boundary_events
             if e.source_domain == source_domain and e.target_domain == target_domain
         ]
         report = BoundaryReport(

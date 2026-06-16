@@ -19,10 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from cryptography import x509  # type: ignore[import-not-found]
-from cryptography.hazmat.primitives import hashes, serialization  # type: ignore[import-not-found]
-from cryptography.hazmat.primitives.asymmetric import rsa  # type: ignore[import-not-found]
-from cryptography.x509.oid import NameOID  # type: ignore[import-not-found]
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 
 
 def create_self_signed_cert(agent_id: str) -> tuple[str, str]:
@@ -35,28 +35,28 @@ def create_self_signed_cert(agent_id: str) -> tuple[str, str]:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
     # 构建证书主题
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COMMON_NAME, agent_id),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "MAREF"),
-    ])
+    subject = issuer = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COMMON_NAME, agent_id),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "MAREF"),
+        ]
+    )
 
     # 构建证书
-    cert = x509.CertificateBuilder().subject_name(
-        subject
-    ).issuer_name(
-        issuer
-    ).public_key(
-        key.public_key()
-    ).serial_number(
-        x509.random_serial_number()
-    ).not_valid_before(
-        datetime.datetime.now(datetime.timezone.utc)
-    ).not_valid_after(
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
-    ).add_extension(
-        x509.SubjectAlternativeName([x509.DNSName("localhost")]),
-        critical=False,
-    ).sign(key, hashes.SHA256())
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+        .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("localhost")]),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
 
     # 写入临时文件
     cert_dir = tempfile.mkdtemp(prefix="maref_certs_")
@@ -64,11 +64,13 @@ def create_self_signed_cert(agent_id: str) -> tuple[str, str]:
     key_path = Path(cert_dir) / f"{agent_id}.key"
 
     cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-    key_path.write_bytes(key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption(),
-    ))
+    key_path.write_bytes(
+        key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
 
     return str(cert_path), str(key_path)
 

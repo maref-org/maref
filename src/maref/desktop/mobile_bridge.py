@@ -263,7 +263,9 @@ class DeviceDiscovery:
                             name=name,
                             device_type=device_type,
                             platform=platform,
-                            host=socket.inet_ntoa(info.addresses[0]) if info.addresses else "localhost",
+                            host=socket.inet_ntoa(info.addresses[0])
+                            if info.addresses
+                            else "localhost",
                             port=info.port,
                         )
                         if device.device_id not in {d.device_id for d in discovered}:
@@ -303,7 +305,10 @@ class TaskQueue:
         self._queue.append(task)
         if task.idempotency_key:
             self._idempotency_keys.add(task.idempotency_key)
-        self._queue.sort(key=lambda t: {"urgent": 3, "high": 2, "normal": 1, "low": 0}[t.priority.value], reverse=True)
+        self._queue.sort(
+            key=lambda t: {"urgent": 3, "high": 2, "normal": 1, "low": 0}[t.priority.value],
+            reverse=True,
+        )
         return True
 
     def dequeue(self) -> BridgeTask | None:
@@ -371,7 +376,9 @@ class SessionManager:
         self._sessions: dict[str, dict[str, Any]] = {}
         self._device_pairs: set[tuple[str, str]] = set()
 
-    def create_session(self, source_id: str, target_id: str, context: dict[str, Any] | None = None) -> str:
+    def create_session(
+        self, source_id: str, target_id: str, context: dict[str, Any] | None = None
+    ) -> str:
         session_id = f"{source_id}->{target_id}-{uuid.uuid4().hex[:6]}"
         self._sessions[session_id] = {
             "source_id": source_id,
@@ -394,10 +401,14 @@ class SessionManager:
         return self._sessions.get(session_id)
 
     def find_sessions_by_source(self, source_id: str) -> list[str]:
-        return [sid for sid, s in self._sessions.items() if s["source_id"] == source_id and s["active"]]
+        return [
+            sid for sid, s in self._sessions.items() if s["source_id"] == source_id and s["active"]
+        ]
 
     def find_sessions_by_target(self, target_id: str) -> list[str]:
-        return [sid for sid, s in self._sessions.items() if s["target_id"] == target_id and s["active"]]
+        return [
+            sid for sid, s in self._sessions.items() if s["target_id"] == target_id and s["active"]
+        ]
 
     def get_active_sessions(self) -> list[str]:
         return [sid for sid, s in self._sessions.items() if s["active"]]
@@ -443,7 +454,10 @@ class MobileBridge:
 
     def create_bridge_session(self, source_device_id: str, target_device_id: str) -> str:
         session_id = self.sessions.create_session(source_device_id, target_device_id)
-        self._log_event("session_created", {"session_id": session_id, "source": source_device_id, "target": target_device_id})
+        self._log_event(
+            "session_created",
+            {"session_id": session_id, "source": source_device_id, "target": target_device_id},
+        )
         return session_id
 
     def dispatch_task(
@@ -471,7 +485,10 @@ class MobileBridge:
             if queue:
                 queue.enqueue(task)
 
-        self._log_event("task_dispatched", {"task_id": task.task_id, "source": source_device, "target": target_device})
+        self._log_event(
+            "task_dispatched",
+            {"task_id": task.task_id, "source": source_device, "target": target_device},
+        )
         return task
 
     def complete_task(self, task_id: str, result: dict[str, Any]) -> None:
@@ -495,11 +512,13 @@ class MobileBridge:
         return self._event_log[-limit:]
 
     def _log_event(self, event_type: str, data: dict[str, Any]) -> None:
-        self._event_log.append({
-            "timestamp": time.time(),
-            "event_type": event_type,
-            "data": data,
-        })
+        self._event_log.append(
+            {
+                "timestamp": time.time(),
+                "event_type": event_type,
+                "data": data,
+            }
+        )
 
     def enable_real_mode(self, host: str = "0.0.0.0", port: int | None = None) -> dict[str, Any]:
         port = port or self.discovery.port
@@ -538,12 +557,15 @@ class MobileBridge:
         except OSError:
             server_bound = False
 
-        self._log_event("real_mode_enabled", {
-            "host": host,
-            "port": port,
-            "mdns_advertising": mdns_ok,
-            "tcp_server_bound": server_bound,
-        })
+        self._log_event(
+            "real_mode_enabled",
+            {
+                "host": host,
+                "port": port,
+                "mdns_advertising": mdns_ok,
+                "tcp_server_bound": server_bound,
+            },
+        )
 
         return {
             "enabled": True,

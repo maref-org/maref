@@ -91,6 +91,7 @@ class SandboxEnvironment:
             )
         import shlex
         import subprocess
+
         try:
             result = subprocess.run(
                 shlex.split(command),
@@ -123,6 +124,7 @@ class SandboxEnvironment:
     def cleanup(self) -> None:
         if self._temp_dir and os.path.exists(self._temp_dir):
             import shutil
+
             shutil.rmtree(self._temp_dir, ignore_errors=True)
         self._active = False
 
@@ -155,7 +157,9 @@ class VersionPinner:
                     line = line.strip()
                     if line and not line.startswith("#"):
                         parts = line.split("==", 1) if "==" in line else [line, "latest"]
-                        packages[parts[0].strip()] = parts[1].strip() if len(parts) > 1 else "latest"
+                        packages[parts[0].strip()] = (
+                            parts[1].strip() if len(parts) > 1 else "latest"
+                        )
 
         pinned = PinnedRequirements(
             packages=packages,
@@ -168,6 +172,7 @@ class VersionPinner:
         for pkg, version in pinned.packages.items():
             try:
                 import importlib.metadata
+
                 installed = importlib.metadata.version(pkg)
                 if version != "latest" and installed != version:
                     return False
@@ -195,15 +200,18 @@ class DriftDetector:
         for pkg, expected in api_markers.items():
             try:
                 import importlib.metadata
+
                 actual = importlib.metadata.version(pkg)
                 if actual != expected:
-                    records.append(DriftRecord(
-                        drift_type="api_version",
-                        component=pkg,
-                        expected_version=expected,
-                        actual_version=actual,
-                        severity="WARNING",
-                    ))
+                    records.append(
+                        DriftRecord(
+                            drift_type="api_version",
+                            component=pkg,
+                            expected_version=expected,
+                            actual_version=actual,
+                            severity="WARNING",
+                        )
+                    )
             except importlib.metadata.PackageNotFoundError:
                 pass
 
@@ -266,12 +274,16 @@ class AdmissionRunner:
                 result.drift_records = api_drifts
                 if api_drifts:
                     result.passed = False
-                    errors.extend(f"API drift: {d.component} {d.expected_version} -> {d.actual_version}"
-                                  for d in api_drifts)
+                    errors.extend(
+                        f"API drift: {d.component} {d.expected_version} -> {d.actual_version}"
+                        for d in api_drifts
+                    )
 
             all_tests_pass = all(tests_passed.values()) if tests_passed else len(errors) == 0
-            result.passed = all_tests_pass and not self._gate.drift_checks_enabled or (
-                all_tests_pass and len(api_drifts) == 0
+            result.passed = (
+                all_tests_pass
+                and not self._gate.drift_checks_enabled
+                or (all_tests_pass and len(api_drifts) == 0)
             )
         finally:
             self._sandbox.cleanup()

@@ -122,29 +122,35 @@ class ResilienceEvaluatorV2:
         plans: list[DegradationPlan] = []
 
         if score.total_score < 40 or score.factors.get("meta_protection_rate", 1.0) < 0.4:
-            plans.append(DegradationPlan(
-                scenario="governance_degraded",
-                trigger_met=True,
-                strategy="governance_degraded",
-                actions=DEGRADATION_STRATEGIES["governance_degraded"]["actions"],
-                auto_recover=True,
-            ))
+            plans.append(
+                DegradationPlan(
+                    scenario="governance_degraded",
+                    trigger_met=True,
+                    strategy="governance_degraded",
+                    actions=DEGRADATION_STRATEGIES["governance_degraded"]["actions"],
+                    auto_recover=True,
+                )
+            )
 
         if score.factors.get("survival_rate", 1.0) < 0.5:
-            plans.append(DegradationPlan(
-                scenario="observation_degraded",
-                trigger_met=True,
-                strategy="observation_degraded",
-                actions=DEGRADATION_STRATEGIES["observation_degraded"]["actions"],
-            ))
+            plans.append(
+                DegradationPlan(
+                    scenario="observation_degraded",
+                    trigger_met=True,
+                    strategy="observation_degraded",
+                    actions=DEGRADATION_STRATEGIES["observation_degraded"]["actions"],
+                )
+            )
 
         if score.factors.get("throughput_under_stress", 1.0) < 0.3:
-            plans.append(DegradationPlan(
-                scenario="federation_degraded",
-                trigger_met=True,
-                strategy="federation_degraded",
-                actions=DEGRADATION_STRATEGIES["federation_degraded"]["actions"],
-            ))
+            plans.append(
+                DegradationPlan(
+                    scenario="federation_degraded",
+                    trigger_met=True,
+                    strategy="federation_degraded",
+                    actions=DEGRADATION_STRATEGIES["federation_degraded"]["actions"],
+                )
+            )
 
         return plans
 

@@ -121,18 +121,22 @@ class TLATheoremVerifier:
         violations = []
         for i in range(1, len(test_scores)):
             if phase_order[phases[i]] < phase_order[phases[i - 1]]:
-                violations.append({
-                    "score_prev": test_scores[i - 1],
-                    "phase_prev": phases[i - 1].value,
-                    "score_curr": test_scores[i],
-                    "phase_curr": phases[i].value,
-                })
+                violations.append(
+                    {
+                        "score_prev": test_scores[i - 1],
+                        "phase_prev": phases[i - 1].value,
+                        "score_curr": test_scores[i],
+                        "phase_curr": phases[i].value,
+                    }
+                )
 
         passed = len(violations) == 0
         return TheoremResult(
             theorem_name="ScorePhaseMonotonicity",
             passed=passed,
-            details="Monotonicity holds across all score levels" if passed else f"Found {len(violations)} violations",
+            details="Monotonicity holds across all score levels"
+            if passed
+            else f"Found {len(violations)} violations",
             counterexample={"violations": violations} if violations else None,
         )
 
@@ -172,7 +176,9 @@ class TLATheoremVerifier:
             theorem_name="ComplianceQuarantineSafety",
             passed=passed,
             details=f"State after CRITICAL finding: {fsm.current_state.name}",
-            counterexample={"expected": "HALT", "actual": fsm.current_state.name} if not passed else None,
+            counterexample={"expected": "HALT", "actual": fsm.current_state.name}
+            if not passed
+            else None,
         )
 
     # =========================================================================
@@ -196,6 +202,7 @@ class TLATheoremVerifier:
             # Should trigger HALT
             if report.overall_status == EvalStatus.FAIL:
                 from maref.integration.test_platform import FastScreenTrigger
+
                 if report.test_mode.value == "fast_screen":
                     FastScreenTrigger.apply(report, fsm)
                 else:
@@ -208,7 +215,9 @@ class TLATheoremVerifier:
                 theorem_name="EvalToGovernanceLiveness",
                 passed=passed,
                 details=f"Eval score {report.overall_score} → state {fsm.current_state.name}",
-                counterexample={"expected": "HALT", "actual": fsm.current_state.name} if not passed else None,
+                counterexample={"expected": "HALT", "actual": fsm.current_state.name}
+                if not passed
+                else None,
             )
 
         return TheoremResult(
@@ -244,7 +253,9 @@ class TLATheoremVerifier:
             "passed": passed,
             "failed": failed,
             "all_passed": failed == 0,
-            "details": {name: {"passed": r.passed, "details": r.details} for name, r in results.items()},
+            "details": {
+                name: {"passed": r.passed, "details": r.details} for name, r in results.items()
+            },
         }
 
 
