@@ -73,13 +73,17 @@ class TestDIDRegistry:
     def registry(self) -> DIDRegistry:
         return DIDRegistry()
 
-    def test_register_agent(self, registry: DIDRegistry, state_machine: GovernanceStateMachine) -> None:
+    def test_register_agent(
+        self, registry: DIDRegistry, state_machine: GovernanceStateMachine
+    ) -> None:
         did = AgentDID.generate()
         record = registry.register(did, state_machine, initial_roles=["worker"])
         assert record.did == did
         assert record.roles == ["worker"]
 
-    def test_resolve_registered(self, registry: DIDRegistry, state_machine: GovernanceStateMachine) -> None:
+    def test_resolve_registered(
+        self, registry: DIDRegistry, state_machine: GovernanceStateMachine
+    ) -> None:
         did = AgentDID.generate()
         registry.register(did, state_machine)
         resolved = registry.resolve(did)

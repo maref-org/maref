@@ -109,7 +109,9 @@ class TestMockEmailBackend:
 
     def test_search_by_subject(self):
         backend = MockEmailBackend()
-        backend.send(from_addr="a@x.com", to_addr=["b@x.com"], subject="Meeting tomorrow", body="Details")
+        backend.send(
+            from_addr="a@x.com", to_addr=["b@x.com"], subject="Meeting tomorrow", body="Details"
+        )
         backend.send(from_addr="c@x.com", to_addr=["d@x.com"], subject="Lunch", body="Pizza?")
         results = backend.search(query="meeting")
         assert len(results) == 1
@@ -404,11 +406,13 @@ class TestEmailServerSend:
 class TestEmailServerList:
     def test_list_emails_after_send(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Test",
-            "body": "Body",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Test",
+                "body": "Body",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -443,11 +447,13 @@ class TestEmailServerList:
     def test_list_with_max_count(self):
         server = EmailServer(write_mode=True)
         for i in range(5):
-            server._handle_email_send({
-                "to": f"bob{i}@example.com",
-                "subject": f"Test {i}",
-                "body": f"Body {i}",
-            })
+            server._handle_email_send(
+                {
+                    "to": f"bob{i}@example.com",
+                    "subject": f"Test {i}",
+                    "body": f"Body {i}",
+                }
+            )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -462,11 +468,13 @@ class TestEmailServerList:
 
     def test_list_with_custom_folder(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Test",
-            "body": "Body",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Test",
+                "body": "Body",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -483,11 +491,13 @@ class TestEmailServerList:
 class TestEmailServerRead:
     def test_read_email_by_id(self):
         server = EmailServer(write_mode=True)
-        send_result = server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Read test",
-            "body": "This is the body content",
-        })
+        send_result = server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Read test",
+                "body": "This is the body content",
+            }
+        )
         msg_id = send_result["message_id"]
         req = JSONRPCRequest(
             method="tools/call",
@@ -521,11 +531,13 @@ class TestEmailServerRead:
 
     def test_read_marks_unread_false(self):
         server = EmailServer(write_mode=True)
-        send_result = server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Unread test",
-            "body": "Body",
-        })
+        send_result = server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Unread test",
+                "body": "Body",
+            }
+        )
         msg_id = send_result["message_id"]
         list_req = JSONRPCRequest(
             method="tools/call",
@@ -545,16 +557,20 @@ class TestEmailServerRead:
 class TestEmailServerSearch:
     def test_search_by_subject(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Meeting at 3pm",
-            "body": "Details here",
-        })
-        server._handle_email_send({
-            "to": "alice@example.com",
-            "subject": "Lunch",
-            "body": "Pizza?",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Meeting at 3pm",
+                "body": "Details here",
+            }
+        )
+        server._handle_email_send(
+            {
+                "to": "alice@example.com",
+                "subject": "Lunch",
+                "body": "Pizza?",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -571,11 +587,13 @@ class TestEmailServerSearch:
 
     def test_search_by_body(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Hi",
-            "body": "Meeting at 3pm tomorrow",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Hi",
+                "body": "Meeting at 3pm tomorrow",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -590,11 +608,13 @@ class TestEmailServerSearch:
 
     def test_search_case_insensitive(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "HELLO World",
-            "body": "Test body",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "HELLO World",
+                "body": "Test body",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -609,11 +629,13 @@ class TestEmailServerSearch:
 
     def test_search_no_results(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Test",
-            "body": "Body",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Test",
+                "body": "Body",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -628,11 +650,13 @@ class TestEmailServerSearch:
 
     def test_search_with_folder(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Test",
-            "body": "Body",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Test",
+                "body": "Body",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -647,11 +671,13 @@ class TestEmailServerSearch:
 
     def test_search_empty_query(self):
         server = EmailServer(write_mode=True)
-        server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Test",
-            "body": "Body",
-        })
+        server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Test",
+                "body": "Body",
+            }
+        )
         req = JSONRPCRequest(
             method="tools/call",
             params={
@@ -705,11 +731,13 @@ class TestEmailServerFactory:
 class TestEmailServerIntegration:
     def test_full_flow_send_list_read(self):
         server = EmailServer(write_mode=True)
-        send_result = server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Integration test",
-            "body": "Testing full flow",
-        })
+        send_result = server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Integration test",
+                "body": "Testing full flow",
+            }
+        )
         assert send_result["success"] is True
         msg_id = send_result["message_id"]
         list_result = server._handle_email_list({})
@@ -725,11 +753,13 @@ class TestEmailServerIntegration:
             imap_config=None,
             write_mode=True,
         )
-        result = server._handle_email_send({
-            "to": "bob@example.com",
-            "subject": "Fallback test",
-            "body": "Should work with mock backend",
-        })
+        result = server._handle_email_send(
+            {
+                "to": "bob@example.com",
+                "subject": "Fallback test",
+                "body": "Should work with mock backend",
+            }
+        )
         assert result["success"] is True
         assert len(result["message_id"]) > 0
         list_result = server._handle_email_list({})
@@ -743,6 +773,7 @@ class TestEmailServerIntegration:
 
     def test_sanitize_email(self):
         from maref.tools.email_server import _sanitize_email
+
         assert _sanitize_email("  Alice@Example.COM  ") == "alice@example.com"
         assert _sanitize_email("invalid") == ""
         assert _sanitize_email("user@.com") == ""

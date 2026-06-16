@@ -26,6 +26,7 @@ from maref.recursive.tla_replay import TLAReplayValidator, TLAValidationReport
 # Helpers
 # ──────────────────────────────────────────────────────
 
+
 def _make_snapshot(
     round_num: int,
     cycle_id: str = "c3",
@@ -52,6 +53,7 @@ def _make_snapshot(
 # R251-R253: Convergence Dashboard
 # ──────────────────────────────────────────────────────
 
+
 class TestConvergenceDashboardWithSimulatedData:
     def test_dashboard_initializes_empty(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -66,14 +68,16 @@ class TestConvergenceDashboardWithSimulatedData:
             dashboard = ConvergenceDashboard(history_path=str(history))
 
             for r in range(50):
-                dashboard.record(_make_snapshot(
-                    round_num=r,
-                    cycle_id="c3",
-                    fnr=0.10 - 0.001 * r,
-                    fpr=0.06 - 0.0005 * r,
-                    kl_drift=0.05 - 0.0008 * r,
-                    perf_score=0.80 + 0.002 * r,
-                ))
+                dashboard.record(
+                    _make_snapshot(
+                        round_num=r,
+                        cycle_id="c3",
+                        fnr=0.10 - 0.001 * r,
+                        fpr=0.06 - 0.0005 * r,
+                        kl_drift=0.05 - 0.0008 * r,
+                        perf_score=0.80 + 0.002 * r,
+                    )
+                )
 
             assert dashboard.snapshot_count == 50
             curves = dashboard.compute_convergence_curves()
@@ -92,14 +96,38 @@ class TestConvergenceDashboardWithSimulatedData:
             dashboard = ConvergenceDashboard(history_path=str(history))
 
             for r in range(50):
-                dashboard.record(_make_snapshot(round_num=r, cycle_id="c1",
-                    fnr=0.12, fpr=0.07, kl_drift=0.02, perf_score=0.80))
+                dashboard.record(
+                    _make_snapshot(
+                        round_num=r,
+                        cycle_id="c1",
+                        fnr=0.12,
+                        fpr=0.07,
+                        kl_drift=0.02,
+                        perf_score=0.80,
+                    )
+                )
             for r in range(100):
-                dashboard.record(_make_snapshot(round_num=r, cycle_id="c2",
-                    fnr=0.08, fpr=0.04, kl_drift=0.01, perf_score=0.88))
+                dashboard.record(
+                    _make_snapshot(
+                        round_num=r,
+                        cycle_id="c2",
+                        fnr=0.08,
+                        fpr=0.04,
+                        kl_drift=0.01,
+                        perf_score=0.88,
+                    )
+                )
             for r in range(50):
-                dashboard.record(_make_snapshot(round_num=r, cycle_id="c3",
-                    fnr=0.04, fpr=0.02, kl_drift=0.005, perf_score=0.95))
+                dashboard.record(
+                    _make_snapshot(
+                        round_num=r,
+                        cycle_id="c3",
+                        fnr=0.04,
+                        fpr=0.02,
+                        kl_drift=0.005,
+                        perf_score=0.95,
+                    )
+                )
 
             curves = dashboard.compute_convergence_curves()
             assert len(curves) == 3
@@ -152,10 +180,16 @@ class TestConvergenceDashboardWithSimulatedData:
             history = Path(tmpdir) / "test_history.jsonl"
             dashboard = ConvergenceDashboard(history_path=str(history))
 
-            dashboard.record(_make_snapshot(round_num=1, cycle_id="A",
-                fnr=0.10, fpr=0.05, kl_drift=0.02, perf_score=0.85))
-            dashboard.record(_make_snapshot(round_num=2, cycle_id="B",
-                fnr=0.05, fpr=0.02, kl_drift=0.01, perf_score=0.95))
+            dashboard.record(
+                _make_snapshot(
+                    round_num=1, cycle_id="A", fnr=0.10, fpr=0.05, kl_drift=0.02, perf_score=0.85
+                )
+            )
+            dashboard.record(
+                _make_snapshot(
+                    round_num=2, cycle_id="B", fnr=0.05, fpr=0.02, kl_drift=0.01, perf_score=0.95
+                )
+            )
 
             pareto = dashboard.compute_pareto_front()
             assert len(pareto) == 1
@@ -178,6 +212,7 @@ class TestConvergenceDashboardWithSimulatedData:
 # ──────────────────────────────────────────────────────
 # R252: Saturation Detection
 # ──────────────────────────────────────────────────────
+
 
 class TestSaturationDetection:
     def test_active_when_gains_above_threshold(self):
@@ -252,6 +287,7 @@ class TestSaturationDetection:
 # ──────────────────────────────────────────────────────
 # R253: TLA Replay with Mock State Sequences
 # ──────────────────────────────────────────────────────
+
 
 class TestTLAReplayWithMockStates:
     def test_lyapunov_convergence_true(self):
@@ -361,6 +397,7 @@ class TestTLAReplayWithMockStates:
 # ──────────────────────────────────────────────────────
 # R254-R255: MetaAgentClosure 5 Red Lines
 # ──────────────────────────────────────────────────────
+
 
 class TestMetaAgentClosureRedLines:
     """
@@ -514,6 +551,7 @@ class TestMetaAgentClosureRedLines:
 # R256: MetaCircuitBreaker Cascade
 # ──────────────────────────────────────────────────────
 
+
 class TestMetaCircuitBreakerCascade:
     def test_initial_state_is_closed(self):
         cb = MetaCircuitBreaker()
@@ -536,6 +574,7 @@ class TestMetaCircuitBreakerCascade:
 
     def test_try_half_open_after_cooldown(self):
         import time
+
         cb = MetaCircuitBreaker(inner_trip_threshold=1, cooldown_seconds=0.0)
         cb.record_trip()
         assert cb.state == MetaBreakerState.OPEN
@@ -568,6 +607,7 @@ class TestMetaCircuitBreakerCascade:
 
     def test_full_cascade_open_half_open_closed(self):
         import time
+
         cb = MetaCircuitBreaker(inner_trip_threshold=2, cooldown_seconds=0.0)
 
         cb.record_trip()
@@ -584,6 +624,7 @@ class TestMetaCircuitBreakerCascade:
 
     def test_fail_half_open_reopens(self):
         import time
+
         cb = MetaCircuitBreaker(inner_trip_threshold=1, cooldown_seconds=0.0)
         cb.record_trip()
         assert cb.state == MetaBreakerState.OPEN
@@ -608,6 +649,7 @@ class TestMetaCircuitBreakerCascade:
 # ──────────────────────────────────────────────────────
 # R257: EvolutionDSL SafetyGate Constraints
 # ──────────────────────────────────────────────────────
+
 
 class TestEvolutionDSLSafetyGateConstraints:
     def test_safety_gate_default_parameters(self):
@@ -824,6 +866,7 @@ class TestEvolutionDSLSafetyGateConstraints:
 # Edge Cases & Integration
 # ──────────────────────────────────────────────────────
 
+
 class TestConvergenceEdgeCases:
     def test_dashboard_reloads_history(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -864,10 +907,14 @@ class TestConvergenceEdgeCases:
     def test_spec_reload(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             spec_path = Path(tmpdir) / "custom_spec.json"
-            spec_path.write_text(json.dumps({
-                "version": "0.24.0",
-                "invariants": [{"name": "TestInvariant", "description": "Test only"}],
-            }))
+            spec_path.write_text(
+                json.dumps(
+                    {
+                        "version": "0.24.0",
+                        "invariants": [{"name": "TestInvariant", "description": "Test only"}],
+                    }
+                )
+            )
 
             validator = TLAReplayValidator(tla_spec_path=str(spec_path))
             report = validator.generate_validation_report()

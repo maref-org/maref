@@ -42,15 +42,11 @@ class TestSBOMGenerator(unittest.TestCase):
             purl="pkg:pypi/test-package@1.0.0",
             bom_ref="pkg:pypi/test-package@1.0.0",
             description="Test package for unit testing",
-            licenses=[LicenseType.MIT]
+            licenses=[LicenseType.MIT],
         )
 
         # 创建测试SBOM
-        self.test_sbom = SBOM(
-            version=1,
-            components=[self.test_component],
-            vulnerabilities=[]
-        )
+        self.test_sbom = SBOM(version=1, components=[self.test_component], vulnerabilities=[])
 
     def test_sbom_to_dict(self):
         """测试SBOM转换为字典"""
@@ -82,7 +78,7 @@ class TestSBOMGenerator(unittest.TestCase):
 
     def test_sbom_save_load(self):
         """测试SBOM保存和加载"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             temp_file = f.name
 
         try:
@@ -119,14 +115,12 @@ class TestSBOMGenerator(unittest.TestCase):
             description="Test vulnerability for unit testing",
             severity=VulnerabilitySeverity.HIGH,
             cvss_score=7.5,
-            cvss_vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            cvss_vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
         )
 
         # 创建带漏洞的SBOM
         sbom_with_vuln = SBOM(
-            version=1,
-            components=[self.test_component],
-            vulnerabilities=[vulnerability]
+            version=1, components=[self.test_component], vulnerabilities=[vulnerability]
         )
 
         sbom_dict = sbom_with_vuln.to_dict()
@@ -155,7 +149,7 @@ class TestSBOMGenerator(unittest.TestCase):
             hashes={"sha256": "abcd1234..."},
             external_references=[{"url": "https://example.com"}],
             properties=[{"name": "test", "value": "true"}],
-            dependencies=["pkg:pypi/dependency@1.0.0"]
+            dependencies=["pkg:pypi/dependency@1.0.0"],
         )
 
         # 验证字段
@@ -189,7 +183,7 @@ class TestVulnerabilityScanner(unittest.TestCase):
             version="1.0.0",
             component_type=ComponentType.LIBRARY,
             purl="pkg:pypi/test-package@1.0.0",
-            bom_ref="pkg:pypi/test-package@1.0.0"
+            bom_ref="pkg:pypi/test-package@1.0.0",
         )
 
         # 创建测试漏洞
@@ -198,7 +192,7 @@ class TestVulnerabilityScanner(unittest.TestCase):
             source_name="Test",
             description="Test vulnerability",
             severity=VulnerabilitySeverity.HIGH,
-            cvss_score=7.5
+            cvss_score=7.5,
         )
 
     def test_scanner_initialization(self):
@@ -241,7 +235,7 @@ class TestVulnerabilityScanner(unittest.TestCase):
             vulnerability=self.test_vulnerability,
             source=VulnerabilitySource.OSV,
             confidence=0.9,
-            evidence={"test": "data"}
+            evidence={"test": "data"},
         )
 
         # 创建扫描结果
@@ -254,7 +248,7 @@ class TestVulnerabilityScanner(unittest.TestCase):
             vulnerabilities_found=1,
             matches=[match],
             errors=[],
-            warnings=["Test warning"]
+            warnings=["Test warning"],
         )
 
         # 验证字段
@@ -284,8 +278,8 @@ class TestVulnerabilityScanner(unittest.TestCase):
             confidence=0.85,
             evidence={
                 "cve_id": self.test_vulnerability.id,
-                "cvss_score": self.test_vulnerability.cvss_score
-            }
+                "cvss_score": self.test_vulnerability.cvss_score,
+            },
         )
 
         self.assertEqual(match.component.name, "test-package")
@@ -306,7 +300,7 @@ class TestVulnerabilityScanner(unittest.TestCase):
             start_time=datetime.now(),
             end_time=datetime.now(),
             components_scanned=0,
-            vulnerabilities_found=0
+            vulnerabilities_found=0,
         )
 
         self.scanner.scan_history.append(scan_result)
@@ -334,7 +328,7 @@ class TestVulnerabilityScanner(unittest.TestCase):
         # 添加一些缓存数据
         self.scanner.databases["osv"].cache["test_key"] = {
             "data": "test",
-            "timestamp": datetime.now().timestamp()
+            "timestamp": datetime.now().timestamp(),
         }
 
         # 验证缓存有数据
@@ -347,7 +341,7 @@ class TestVulnerabilityScanner(unittest.TestCase):
         # 再次添加缓存
         self.scanner.databases["osv"].cache["test_key2"] = {
             "data": "test2",
-            "timestamp": datetime.now().timestamp()
+            "timestamp": datetime.now().timestamp(),
         }
 
         # 清理所有缓存
@@ -355,13 +349,16 @@ class TestVulnerabilityScanner(unittest.TestCase):
         self.assertEqual(len(self.scanner.databases["osv"].cache), 0)
 
 
-
 class TestSBOMExtended(unittest.TestCase):
     """Extended SBOM tests for edge cases and complex serialization."""
 
     def test_sbom_to_dict_with_compositions(self):
-        sbom = SBOM(version=2, components=[], vulnerabilities=[],
-                    compositions=[{"aggregate": "complete", "assemblies": []}])
+        sbom = SBOM(
+            version=2,
+            components=[],
+            vulnerabilities=[],
+            compositions=[{"aggregate": "complete", "assemblies": []}],
+        )
         d = sbom.to_dict()
         self.assertIn("compositions", d)
         self.assertEqual(d["compositions"][0]["aggregate"], "complete")
@@ -374,22 +371,31 @@ class TestSBOMExtended(unittest.TestCase):
 
     def test_sbom_load_from_file_with_full_data(self):
         data = {
-            "bomFormat": "CycloneDX", "specVersion": "1.4", "version": 1,
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.4",
+            "version": 1,
             "serialNumber": "urn:uuid:test-0000-0000-0000-000000000001",
             "metadata": {"timestamp": "2026-01-01T00:00:00Z"},
-            "components": [{
-                "type": "library", "name": "libx", "version": "1.0",
-                "purl": "pkg:pypi/libx@1.0",
-                "bom-ref": "pkg:pypi/libx@1.0",
-                "licenses": [{"license": {"id": "MIT"}}],
-                "hashes": [{"alg": "SHA-256", "content": "abc"}],
-            }],
-            "vulnerabilities": [{
-                "id": "CVE-2024-0001", "source": {"name": "NVD"},
-                "ratings": [{"severity": "high", "score": 7.5, "method": "CVSSv3"}],
-                "description": "Test vuln",
-                "cwes": [{"cweId": 79}],
-            }],
+            "components": [
+                {
+                    "type": "library",
+                    "name": "libx",
+                    "version": "1.0",
+                    "purl": "pkg:pypi/libx@1.0",
+                    "bom-ref": "pkg:pypi/libx@1.0",
+                    "licenses": [{"license": {"id": "MIT"}}],
+                    "hashes": [{"alg": "SHA-256", "content": "abc"}],
+                }
+            ],
+            "vulnerabilities": [
+                {
+                    "id": "CVE-2024-0001",
+                    "source": {"name": "NVD"},
+                    "ratings": [{"severity": "high", "score": 7.5, "method": "CVSSv3"}],
+                    "description": "Test vuln",
+                    "cwes": [{"cweId": 79}],
+                }
+            ],
         }
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(data, f)
@@ -408,18 +414,26 @@ class TestSBOMExtended(unittest.TestCase):
 
     def test_sbom_to_dict_with_dependencies_from_field(self):
         comp = Component(
-            name="a", version="1", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/a@1", bom_ref="pkg:pypi/a@1",
+            name="a",
+            version="1",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/a@1",
+            bom_ref="pkg:pypi/a@1",
         )
-        sbom = SBOM(version=1, components=[comp], dependencies=[{"ref": comp.bom_ref, "dependsOn": []}])
+        sbom = SBOM(
+            version=1, components=[comp], dependencies=[{"ref": comp.bom_ref, "dependsOn": []}]
+        )
         d = sbom.to_dict()
         self.assertIn("dependencies", d)
         self.assertEqual(d["dependencies"][0]["ref"], comp.bom_ref)
 
     def test_sbom_to_dict_omit_optional_fields(self):
         comp = Component(
-            name="minimal", version="1", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/minimal@1", bom_ref="pkg:pypi/minimal@1",
+            name="minimal",
+            version="1",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/minimal@1",
+            bom_ref="pkg:pypi/minimal@1",
         )
         sbom = SBOM(version=1, components=[comp])
         d = sbom.to_dict()
@@ -481,7 +495,7 @@ class TestSBOMGeneratorParsers(unittest.TestCase):
         tmp_path = self._mkdtemp()
         path = tmp_path / "pyproject.toml"
         path.write_text(
-            '[tool.poetry.dependencies]\n'
+            "[tool.poetry.dependencies]\n"
             'python = "^3.10"\n'
             'requests = "^2.28"\n'
             'flask = { version = "^2.0", extras = ["async"] }\n'
@@ -506,7 +520,7 @@ class TestSBOMGeneratorParsers(unittest.TestCase):
 
     def test_detect_project_type_pipenv(self):
         tmp_path = self._mkdtemp()
-        (tmp_path / "Pipfile").write_text("[packages]\nx = \"*\"")
+        (tmp_path / "Pipfile").write_text('[packages]\nx = "*"')
         result = self.generator._detect_project_type(tmp_path)
         self.assertEqual(result, "pipenv")
 
@@ -564,22 +578,41 @@ class TestSBOMGeneratorParsers(unittest.TestCase):
         self.assertEqual(v, "0.0.0")
 
     def test_generate_sbom_uuid_deterministic(self):
-        sbom1 = SBOM(version=1, components=[
-            Component(name="a", version="1", component_type=ComponentType.LIBRARY,
-                      purl="pkg:pypi/a@1", bom_ref="a"),
-        ])
-        sbom2 = SBOM(version=1, components=[
-            Component(name="a", version="1", component_type=ComponentType.LIBRARY,
-                      purl="pkg:pypi/a@1", bom_ref="a"),
-        ])
+        sbom1 = SBOM(
+            version=1,
+            components=[
+                Component(
+                    name="a",
+                    version="1",
+                    component_type=ComponentType.LIBRARY,
+                    purl="pkg:pypi/a@1",
+                    bom_ref="a",
+                ),
+            ],
+        )
+        sbom2 = SBOM(
+            version=1,
+            components=[
+                Component(
+                    name="a",
+                    version="1",
+                    component_type=ComponentType.LIBRARY,
+                    purl="pkg:pypi/a@1",
+                    bom_ref="a",
+                ),
+            ],
+        )
         uuid1 = self.generator._generate_sbom_uuid(sbom1)
         uuid2 = self.generator._generate_sbom_uuid(sbom2)
         self.assertEqual(uuid1, uuid2)
 
     def test_compare_sboms_identical(self):
         comp = Component(
-            name="a", version="1", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/a@1", bom_ref="pkg:pypi/a@1",
+            name="a",
+            version="1",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/a@1",
+            bom_ref="pkg:pypi/a@1",
         )
         s1 = SBOM(version=1, components=[comp])
         s2 = SBOM(version=1, components=[comp])
@@ -590,12 +623,18 @@ class TestSBOMGeneratorParsers(unittest.TestCase):
 
     def test_compare_sboms_added_removed(self):
         comp_a = Component(
-            name="a", version="1", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/a@1", bom_ref="a",
+            name="a",
+            version="1",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/a@1",
+            bom_ref="a",
         )
         comp_b = Component(
-            name="b", version="1", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/b@1", bom_ref="b",
+            name="b",
+            version="1",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/b@1",
+            bom_ref="b",
         )
         s1 = SBOM(version=1, components=[comp_a])
         s2 = SBOM(version=1, components=[comp_b])
@@ -607,12 +646,18 @@ class TestSBOMGeneratorParsers(unittest.TestCase):
 
     def test_compare_sboms_version_changed(self):
         comp_old = Component(
-            name="a", version="1.0", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/a@1.0", bom_ref="a",
+            name="a",
+            version="1.0",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/a@1.0",
+            bom_ref="a",
         )
         comp_new = Component(
-            name="a", version="2.0", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/a@1.0", bom_ref="a",
+            name="a",
+            version="2.0",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/a@1.0",
+            bom_ref="a",
         )
         s1 = SBOM(version=1, components=[comp_old])
         s2 = SBOM(version=1, components=[comp_new])
@@ -678,8 +723,11 @@ class TestVulnerabilityScannerExtended(unittest.TestCase):
 
     def test_generate_cpe_for_component_python(self):
         comp = Component(
-            name="requests", version="2.28.0", component_type=ComponentType.LIBRARY,
-            purl="pkg:pypi/requests@2.28.0", bom_ref="r",
+            name="requests",
+            version="2.28.0",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:pypi/requests@2.28.0",
+            bom_ref="r",
         )
         cpe = self.scanner._generate_cpe_for_component(comp)
         self.assertIsNotNone(cpe)
@@ -688,8 +736,11 @@ class TestVulnerabilityScannerExtended(unittest.TestCase):
 
     def test_generate_cpe_for_component_npm(self):
         comp = Component(
-            name="express", version="4.18.0", component_type=ComponentType.LIBRARY,
-            purl="pkg:npm/express@4.18.0", bom_ref="e",
+            name="express",
+            version="4.18.0",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:npm/express@4.18.0",
+            bom_ref="e",
         )
         cpe = self.scanner._generate_cpe_for_component(comp)
         self.assertIsNotNone(cpe)
@@ -697,8 +748,11 @@ class TestVulnerabilityScannerExtended(unittest.TestCase):
 
     def test_generate_cpe_for_component_unknown(self):
         comp = Component(
-            name="foo", version="1", component_type=ComponentType.LIBRARY,
-            purl="pkg:unknown/foo@1", bom_ref="f",
+            name="foo",
+            version="1",
+            component_type=ComponentType.LIBRARY,
+            purl="pkg:unknown/foo@1",
+            bom_ref="f",
         )
         result = self.scanner._generate_cpe_for_component(comp)
         self.assertIsNone(result)
@@ -711,6 +765,7 @@ class TestVulnerabilityScannerExtended(unittest.TestCase):
         db.rate_limit_rpm = 99999
         try:
             import asyncio
+
             asyncio.run(self.scanner._respect_rate_limit(db))
         except Exception:
             self.fail("rate limit raised unexpectedly")
@@ -721,7 +776,9 @@ class TestVulnerabilityScannerExtended(unittest.TestCase):
             "summary": "Test vuln",
             "details": "A" * 600,
             "aliases": ["GHSA-xxxx"],
-            "severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}],
+            "severity": [
+                {"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}
+            ],
             "database_specific": {"severity": "HIGH"},
             "references": [{"url": "https://example.com"}],
             "published": "2024-01-01",
@@ -741,8 +798,11 @@ class TestVulnerabilityScannerExtended(unittest.TestCase):
 
     def test_add_database(self):
         from maref.supply_chain.vulnerability_scanner import VulnerabilityDatabase
+
         new_db = VulnerabilityDatabase(
-            name="CustomDB", api_url="https://example.com", enabled=True,
+            name="CustomDB",
+            api_url="https://example.com",
+            enabled=True,
         )
         self.scanner.add_database(new_db)
         self.assertIn("customdb", self.scanner.databases)

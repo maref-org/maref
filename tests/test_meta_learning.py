@@ -216,6 +216,7 @@ class TestMetaLearner:
         # Policies should not diverge wildly
         if len(policies) > 1:
             import statistics
+
             std_dev = statistics.stdev(policies)
             assert std_dev < 0.5, f"Policy diverged: std={std_dev}"
 

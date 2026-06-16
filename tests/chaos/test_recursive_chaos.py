@@ -14,8 +14,7 @@ class TestChaosInjector:
 
     def test_inject_with_target_and_params(self) -> None:
         injector = ChaosInjector()
-        event = injector.inject(ChaosType.AGENT_CRASH, "governance_agent",
-                                 {"severity": 9})
+        event = injector.inject(ChaosType.AGENT_CRASH, "governance_agent", {"severity": 9})
         assert event.target == "governance_agent"
         assert event.params == {"severity": 9}
 

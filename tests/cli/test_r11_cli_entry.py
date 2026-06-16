@@ -164,6 +164,7 @@ class TestCLIAnalyze:
 class TestCLIMain:
     def test_main_function_exists(self) -> None:
         from maref_lite.cli import main
+
         assert callable(main)
 
 

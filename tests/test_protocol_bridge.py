@@ -248,13 +248,10 @@ class TestSecureProtocolBridge:
         mcp_msg = MCPMessage(message_id="msg-1", method="tools/call", params={})
 
         import hashlib
-        expected_sig = hashlib.sha256(
-            f"did:agent-1:{mcp_msg.message_id}".encode()
-        ).hexdigest()
 
-        task = bridge.verify_and_convert_mcp_to_a2a(
-            mcp_msg, "agent-2", "did:agent-1", expected_sig
-        )
+        expected_sig = hashlib.sha256(f"did:agent-1:{mcp_msg.message_id}".encode()).hexdigest()
+
+        task = bridge.verify_and_convert_mcp_to_a2a(mcp_msg, "agent-2", "did:agent-1", expected_sig)
 
         assert task is not None
         assert task.agent_id == "agent-2"
@@ -278,9 +275,8 @@ class TestSecureProtocolBridge:
         mcp_msg = MCPMessage(message_id="msg-1", method="tools/call", params={})
 
         import hashlib
-        expected_sig = hashlib.sha256(
-            f"did:agent-1:{mcp_msg.message_id}".encode()
-        ).hexdigest()
+
+        expected_sig = hashlib.sha256(f"did:agent-1:{mcp_msg.message_id}".encode()).hexdigest()
 
         # 第一次转换应该成功
         task1 = bridge.verify_and_convert_mcp_to_a2a(

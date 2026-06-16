@@ -18,7 +18,9 @@ from maref.desktop.window_manager import WindowInfo, WindowManager, WindowRegion
 
 class TestWindowInfo:
     def test_center(self):
-        win = WindowInfo(window_id="test-1", title="Test", app_name="TestApp", x=0, y=0, width=100, height=200)
+        win = WindowInfo(
+            window_id="test-1", title="Test", app_name="TestApp", x=0, y=0, width=100, height=200
+        )
         assert win.center == (50, 100)
 
     def test_contains_point_inside(self):
@@ -35,8 +37,17 @@ class TestWindowInfo:
 
     def test_to_dict(self):
         win = WindowInfo(
-            window_id="finder-1", title="Downloads", app_name="Finder",
-            x=0, y=0, width=800, height=600, state=WindowState.NORMAL, is_active=True, pid=1234, layer=0,
+            window_id="finder-1",
+            title="Downloads",
+            app_name="Finder",
+            x=0,
+            y=0,
+            width=800,
+            height=600,
+            state=WindowState.NORMAL,
+            is_active=True,
+            pid=1234,
+            layer=0,
         )
         d = win.to_dict()
         assert d["window_id"] == "finder-1"
@@ -50,7 +61,9 @@ class TestWindowInfo:
 
 class TestWindowRegion:
     def test_to_dict(self):
-        region = WindowRegion(x=10, y=20, width=100, height=200, window_id="win-1", app_name="Safari")
+        region = WindowRegion(
+            x=10, y=20, width=100, height=200, window_id="win-1", app_name="Safari"
+        )
         d = region.to_dict()
         assert d["x"] == 10
         assert d["y"] == 20
@@ -134,7 +147,9 @@ class TestFileSafetyGuard:
 
     def test_block_chmod(self):
         guard = FileSafetyGuard()
-        request = FileOpRequest(operation=FileOperation.CHMOD, path="/tmp/test.txt", permissions=0o755)
+        request = FileOpRequest(
+            operation=FileOperation.CHMOD, path="/tmp/test.txt", permissions=0o755
+        )
         assert guard.evaluate(request) == SafetyVerdict.BLOCK
 
     def test_block_exec(self):
@@ -149,7 +164,9 @@ class TestFileSafetyGuard:
 
     def test_sandbox_restricted_path_write(self):
         guard = FileSafetyGuard()
-        request = FileOpRequest(operation=FileOperation.WRITE, path="/etc/something.conf", content="test")
+        request = FileOpRequest(
+            operation=FileOperation.WRITE, path="/etc/something.conf", content="test"
+        )
         assert guard.evaluate(request) == SafetyVerdict.SANDBOX
 
     def test_block_sensitive_extension_read(self):
@@ -165,7 +182,9 @@ class TestFileSafetyGuard:
     def test_allow_delete_in_home(self):
         guard = FileSafetyGuard()
         home = os.path.expanduser("~")
-        request = FileOpRequest(operation=FileOperation.DELETE, path=os.path.join(home, "test_delete_me.txt"))
+        request = FileOpRequest(
+            operation=FileOperation.DELETE, path=os.path.join(home, "test_delete_me.txt")
+        )
         assert guard.evaluate(request) == SafetyVerdict.ALLOW
 
     def test_operation_log_tracks_decisions(self):
@@ -224,7 +243,12 @@ class TestFileOperator:
 
     def test_chmod_blocked(self):
         FileOperator(dry_run=True)
-        result = FileOpResult(success=False, operation=FileOperation.CHMOD, path="/tmp/test", verdict=SafetyVerdict.BLOCK)
+        result = FileOpResult(
+            success=False,
+            operation=FileOperation.CHMOD,
+            path="/tmp/test",
+            verdict=SafetyVerdict.BLOCK,
+        )
         assert not result.success
         assert result.verdict == SafetyVerdict.BLOCK
 
@@ -276,7 +300,12 @@ class TestFileOperator:
         assert d["path"] == "/tmp/f.txt"
         assert d["content_length"] == 4
 
-        result = FileOpResult(success=True, operation=FileOperation.READ, path="/tmp/f.txt", verdict=SafetyVerdict.ALLOW)
+        result = FileOpResult(
+            success=True,
+            operation=FileOperation.READ,
+            path="/tmp/f.txt",
+            verdict=SafetyVerdict.ALLOW,
+        )
         d2 = result.to_dict()
         assert d2["success"] is True
         assert d2["verdict"] == "allow"
@@ -295,5 +324,7 @@ class TestFileOperator:
 
     def test_restricted_extensions_env(self):
         guard = FileSafetyGuard()
-        request = FileOpRequest(operation=FileOperation.COPY, path="/tmp/.env", destination="/tmp/env_copy")
+        request = FileOpRequest(
+            operation=FileOperation.COPY, path="/tmp/.env", destination="/tmp/env_copy"
+        )
         assert guard.evaluate(request) == SafetyVerdict.BLOCK

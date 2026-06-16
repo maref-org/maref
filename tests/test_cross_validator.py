@@ -233,7 +233,9 @@ class TestWeightedConsensusEngine:
 
         # 创建多个提案并投票，制造不一致行为
         for i in range(5):
-            engine.create_proposal(f"prop-{i}", {"action": f"test-{i}"}, "node-1", quorum_threshold=0.5)
+            engine.create_proposal(
+                f"prop-{i}", {"action": f"test-{i}"}, "node-1", quorum_threshold=0.5
+            )
             engine.cast_vote(f"prop-{i}", "node-1", VoteValue.APPROVE)
             engine.cast_vote(f"prop-{i}", "node-2", VoteValue.APPROVE)
             engine.cast_vote(f"prop-{i}", "node-3", VoteValue.REJECT)

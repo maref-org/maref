@@ -27,8 +27,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import textwrap
-import urllib.parse
 
 import httpx
 from defusedxml import ElementTree as ET
@@ -40,18 +38,14 @@ MAIN_TEX = os.path.join(ARXIV_DIR, "main.tex")
 BIB_FILE = os.path.join(ARXIV_DIR, "references.bib")
 
 SUBMISSION_META = {
-    "title": (
-        "MAREF: A Recursive Self-Evolving Governance Framework "
-        "for Multi-Agent Systems"
-    ),
+    "title": ("MAREF: A Recursive Self-Evolving Governance Framework " "for Multi-Agent Systems"),
     "authors": "MAREF Research Team",
     "primary_class": "cs.MA",
     "categories": "cs.MA, cs.AI, cs.SE, cs.CR, cs.DC",
     "license": "Apache-2.0",
     "version": "v0.30.0-GA",
     "comments": (
-        "v0.30.0-GA, 28 pages, Apache-2.0 licensed. "
-        "Source code: https://github.com/maref-org"
+        "v0.30.0-GA, 28 pages, Apache-2.0 licensed. " "Source code: https://github.com/maref-org"
     ),
     "abstract": (
         "We present MAREF (Multi-Agent Recursive Evolution Framework), "
@@ -133,8 +127,9 @@ def check_citations() -> None:
     with open(MAIN_TEX) as f:
         content = f.read()
     import re
+
     cites = set()
-    for match in re.finditer(r'\\cite\{([^}]*)\}', content):
+    for match in re.finditer(r"\\cite\{([^}]*)\}", content):
         for c in match.group(1).split(","):
             c = c.strip()
             if c:
@@ -259,9 +254,7 @@ def check_compilation() -> bool:
 
 def estimate_pdf_pages(pdf_path: str) -> int | None:
     try:
-        result = subprocess.run(
-            ["pdfinfo", pdf_path], capture_output=True, text=True, timeout=30
-        )
+        result = subprocess.run(["pdfinfo", pdf_path], capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
             for line in result.stdout.splitlines():
                 if "Pages" in line:
@@ -272,6 +265,7 @@ def estimate_pdf_pages(pdf_path: str) -> int | None:
         with open(pdf_path, "rb") as f:
             content = f.read()
         import re
+
         pages = len(re.findall(rb"/Type\s*/Page[^s]", content))
         if pages > 0:
             return pages
@@ -376,29 +370,29 @@ def run_pipeline(check_only: bool = False, url_only: bool = False) -> int:
         print(f"  {_red('ISSUES FOUND:')}")
         for e in errors:
             print(f"    ❌ {e}")
-        print(f"\n  Fix the above issues before submitting to arXiv.")
+        print("\n  Fix the above issues before submitting to arXiv.")
         return 1
     else:
         print(f"  {_green('ALL CHECKS PASSED')}")
         print(f"\n  Proceed to: {_green('https://arxiv.org/submit')}")
-        print(f"    Login:     MAREF / 87909004@qq.com")
-        print(f"    Upload:    main.tex + references.bib")
-        print(f"    Class:     cs.MA (Multiagent Systems)")
+        print("    Login:     MAREF / 87909004@qq.com")
+        print("    Upload:    main.tex + references.bib")
+        print("    Class:     cs.MA (Multiagent Systems)")
         return 0
 
 
 # ── Endorsement Finder ──
 
+
 def find_endorsers(max_papers: int = 20) -> list[dict]:
     """Query arXiv API for recent cs.MA papers and extract potential endorser info."""
-    import re
 
     url = (
         f"https://export.arxiv.org/api/query?"
         f"search_query=cat:cs.MA&max_results={max_papers}"
         f"&sortBy=submittedDate&sortOrder=descending"
     )
-    print(f"  fetching recent cs.MA papers from arXiv API...")
+    print("  fetching recent cs.MA papers from arXiv API...")
     try:
         with httpx.Client(timeout=30, headers={"User-Agent": "MAREF/1.0"}) as client:
             response = client.get(url)
@@ -422,7 +416,11 @@ def find_endorsers(max_papers: int = 20) -> list[dict]:
         arxiv_id = arxiv_id.replace("http://arxiv.org/abs/", "")
 
         link_el = entry.find("atom:link[@title='abstract']", ns)
-        abs_url = link_el.attrib.get("href", f"https://arxiv.org/abs/{arxiv_id}") if link_el is not None else f"https://arxiv.org/abs/{arxiv_id}"
+        abs_url = (
+            link_el.attrib.get("href", f"https://arxiv.org/abs/{arxiv_id}")
+            if link_el is not None
+            else f"https://arxiv.org/abs/{arxiv_id}"
+        )
 
         authors: list[dict] = []
         for author_el in entry.findall("atom:author", ns):
@@ -432,15 +430,19 @@ def find_endorsers(max_papers: int = 20) -> list[dict]:
                 authors.append({"name": name, "count": 0})
 
         if authors:
-            endorsers.append({
-                "arxiv_id": arxiv_id,
-                "title": title[:120],
-                "url": f"https://arxiv.org/abs/{arxiv_id}",
-                "endorse_url": f"https://arxiv.org/auth/endorse?x={arxiv_id}",
-                "authors": [a["name"] for a in authors],
-            })
+            endorsers.append(
+                {
+                    "arxiv_id": arxiv_id,
+                    "title": title[:120],
+                    "url": f"https://arxiv.org/abs/{arxiv_id}",
+                    "endorse_url": f"https://arxiv.org/auth/endorse?x={arxiv_id}",
+                    "authors": [a["name"] for a in authors],
+                }
+            )
 
-    print(f"  found {len(endorsers)} recent cs.MA papers with {sum(len(e['authors']) for e in endorsers)} authors")
+    print(
+        f"  found {len(endorsers)} recent cs.MA papers with {sum(len(e['authors']) for e in endorsers)} authors"
+    )
     return endorsers
 
 
@@ -449,7 +451,7 @@ def run_endorsement_finder() -> int:
 
     print(f"\n  Endorsement code: {_green('VAE3BR')}")
     print(f"  Your email:       {_yellow('87909004@qq.com')}")
-    print(f"  Target class:     cs.MA (Multiagent Systems)")
+    print("  Target class:     cs.MA (Multiagent Systems)")
 
     endorsers = find_endorsers(max_papers=20)
 
@@ -459,10 +461,11 @@ def run_endorsement_finder() -> int:
         return 1
 
     print(f"\n{'=' * 70}")
-    print(f"  Potential endorsers — authors of recent cs.MA papers")
+    print("  Potential endorsers — authors of recent cs.MA papers")
     print(f"{'=' * 70}")
 
     from collections import Counter
+
     author_freq = Counter()
     for e in endorsers:
         for a in e["authors"]:
@@ -487,10 +490,10 @@ def run_endorsement_finder() -> int:
 
     # Generate email template
     print(f"\n{'=' * 70}")
-    print(f"  Email template — forward this to an endorser")
+    print("  Email template — forward this to an endorser")
     print(f"{'=' * 70}")
 
-    email_template = f"""Subject: Endorsement request for arXiv cs.MA submission
+    email_template = """Subject: Endorsement request for arXiv cs.MA submission
 
 Dear Colleague,
 
@@ -518,19 +521,19 @@ Best regards,
 Frankie Yang"""
     print(f"\n{email_template}\n")
 
-    print(f"\n  Suggested endorsers (by paper URL — look for email on their website):")
+    print("\n  Suggested endorsers (by paper URL — look for email on their website):")
     for name, count in sorted(qualified, key=lambda x: -x[1])[:5]:
         papers = [e for e in endorsers if name in e["authors"]]
         print(f"    {name:<30} {papers[0]['url']}")
 
     print(f"\n  {_green('Actions')}:")
-    print(f"    1. Copy the email template above")
-    print(f"    2. Find email addresses of suggested endorsers (check their websites)")
+    print("    1. Copy the email template above")
+    print("    2. Find email addresses of suggested endorsers (check their websites)")
     print(f"    3. Forward arXiv's endorsement email to them with code {_green('VAE3BR')}")
     print(f"    4. Or share the link directly: {_green('https://arxiv.org/auth/endorse?x=VAE3BR')}")
 
     # Open browser tabs for the top papers
-    print(f"\n  Opening top 3 papers in browser for reference...")
+    print("\n  Opening top 3 papers in browser for reference...")
     for i, e in enumerate(endorsers[:3]):
         open_browser(e["url"])
 
@@ -538,9 +541,7 @@ Frankie Yang"""
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="arXiv submission automation for MAREF v0.30.0-GA"
-    )
+    parser = argparse.ArgumentParser(description="arXiv submission automation for MAREF v0.30.0-GA")
     parser.add_argument(
         "--check-only",
         action="store_true",

@@ -87,7 +87,9 @@ class TestAgentMarketplaceDiscover:
         marketplace = AgentMarketplace()
         marketplace.publish(CapabilityListing(agent_id="agent_a", capability="observe", price=10.0))
         marketplace.publish(CapabilityListing(agent_id="agent_b", capability="observe", price=5.0))
-        marketplace.publish(CapabilityListing(agent_id="agent_c", capability="graph_query", price=8.0))
+        marketplace.publish(
+            CapabilityListing(agent_id="agent_c", capability="graph_query", price=8.0)
+        )
         results = marketplace.discover("observe")
         assert len(results) == 2
         assert results[0].agent_id == "agent_b"

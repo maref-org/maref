@@ -2,9 +2,8 @@
 
 覆盖 SM2/SM3/SM4 基础功能，使用 gmssl 官方测试向量验证。
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from maref.crypto import (
     sm2_decrypt,
@@ -17,12 +16,8 @@ from maref.crypto import (
     sm4_encrypt_cbc,
 )
 
-SM2_PRIVATE_KEY = (
-    "00B9AB0B828FF68872F21A837FC303668428DEA11DCD1B24429D0C99E24EED83D5"
-)
-SM2_PUBLIC_KEY = (
-    "B9C9A6E04E9C91F7BA880429273747D7EF5DDEB0BB2FF6317EB00BEF331A83081A6994B8993F3F5D6EADDDB81872266C87C018FB4162F5AF347B483E24620207"
-)
+SM2_PRIVATE_KEY = "00B9AB0B828FF68872F21A837FC303668428DEA11DCD1B24429D0C99E24EED83D5"
+SM2_PUBLIC_KEY = "B9C9A6E04E9C91F7BA880429273747D7EF5DDEB0BB2FF6317EB00BEF331A83081A6994B8993F3F5D6EADDDB81872266C87C018FB4162F5AF347B483E24620207"
 SM4_KEY = b"3l5butlj26hvv313"
 SM4_IV = b"\x00" * 16
 
@@ -73,15 +68,11 @@ class TestSM2:
     def test_sm2_sign_verify_sm3(self) -> None:
         data = b"test data"
         # gmssl 的 sign_with_sm3 需要同一个实例同时持有公钥和私钥
-        signature = sm2_sign(
-            SM2_PRIVATE_KEY, data, public_key=SM2_PUBLIC_KEY, use_sm3=True
-        )
+        signature = sm2_sign(SM2_PRIVATE_KEY, data, public_key=SM2_PUBLIC_KEY, use_sm3=True)
         assert sm2_verify(SM2_PUBLIC_KEY, data, signature, use_sm3=True)
 
     def test_sm2_sign_verify_invalid(self) -> None:
         data = b"test data"
-        signature = sm2_sign(
-            SM2_PRIVATE_KEY, data, public_key=SM2_PUBLIC_KEY, use_sm3=True
-        )
+        signature = sm2_sign(SM2_PRIVATE_KEY, data, public_key=SM2_PUBLIC_KEY, use_sm3=True)
         # 篡改数据后验证应失败
         assert not sm2_verify(SM2_PUBLIC_KEY, b"tampered", signature, use_sm3=True)

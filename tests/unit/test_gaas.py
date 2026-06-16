@@ -31,6 +31,7 @@ from maref.gaas.trust_service import TrustScoreService
 # TenantManager
 # ------------------------------------------------------------------
 
+
 class TestTenantManager:
     def test_register_and_get(self) -> None:
         tm = TenantManager()
@@ -66,6 +67,7 @@ class TestTenantManager:
 # CircuitBreakerPool
 # ------------------------------------------------------------------
 
+
 class TestCircuitBreakerPool:
     def test_isolation(self) -> None:
         pool = CircuitBreakerPool()
@@ -97,6 +99,7 @@ class TestCircuitBreakerPool:
 # ------------------------------------------------------------------
 # AuditLogService
 # ------------------------------------------------------------------
+
 
 class TestAuditLogService:
     def test_log_and_query(self) -> None:
@@ -130,6 +133,7 @@ class TestAuditLogService:
 # TrustScoreService
 # ------------------------------------------------------------------
 
+
 class TestTrustScoreService:
     def test_set_and_get(self) -> None:
         svc = TrustScoreService()
@@ -161,6 +165,7 @@ class TestTrustScoreService:
 # ------------------------------------------------------------------
 # HITLService
 # ------------------------------------------------------------------
+
 
 class TestHITLService:
     def test_request_and_approve(self) -> None:
@@ -204,6 +209,7 @@ class TestHITLService:
 # ------------------------------------------------------------------
 # GovernanceRouter
 # ------------------------------------------------------------------
+
 
 class TestGovernanceRouter:
     def test_allow_trusted_agent(self) -> None:
@@ -296,6 +302,7 @@ class TestGovernanceRouter:
 # ------------------------------------------------------------------
 # BillingService
 # ------------------------------------------------------------------
+
 
 class TestBillingService:
     def test_record_and_get_usage(self) -> None:

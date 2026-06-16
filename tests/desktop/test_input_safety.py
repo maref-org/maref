@@ -55,15 +55,24 @@ class TestInputSafetyGateSafeRegion:
     def test_safe_region_corner_cases(self) -> None:
         g1 = _make_gate()
         g1.safe_region = (100, 100, 500, 500)
-        assert g1.check_mouse(MouseEvent(action=MouseAction.CLICK, x=100, y=100)) == SafetyDecision.ALLOW
+        assert (
+            g1.check_mouse(MouseEvent(action=MouseAction.CLICK, x=100, y=100))
+            == SafetyDecision.ALLOW
+        )
 
         g2 = _make_gate()
         g2.safe_region = (100, 100, 500, 500)
-        assert g2.check_mouse(MouseEvent(action=MouseAction.CLICK, x=300, y=300)) == SafetyDecision.ALLOW
+        assert (
+            g2.check_mouse(MouseEvent(action=MouseAction.CLICK, x=300, y=300))
+            == SafetyDecision.ALLOW
+        )
 
         g3 = _make_gate()
         g3.safe_region = (100, 100, 500, 500)
-        assert g3.check_mouse(MouseEvent(action=MouseAction.CLICK, x=500, y=500)) == SafetyDecision.ALLOW
+        assert (
+            g3.check_mouse(MouseEvent(action=MouseAction.CLICK, x=500, y=500))
+            == SafetyDecision.ALLOW
+        )
 
 
 class TestInputControllerCalibrate:
@@ -128,6 +137,10 @@ class TestInputControllerRetry:
 
 
 class TestInputControllerRealMode:
+    @pytest.mark.skipif(
+        InputController(dry_run=True).pyautogui_available,
+        reason="pyautogui is available - test requires without_pyautogui scenario",
+    )
     def test_enable_real_mode_without_pyautogui(self) -> None:
         controller = _make_dry_controller()
         result = controller.enable_real_mode()

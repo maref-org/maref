@@ -44,9 +44,18 @@ class TestRealLatencyTracker:
         assert sample.duration_ms == 1.5
 
     def test_latency_report_to_dict(self) -> None:
-        report = LatencyReport(operation="op", count=10, p50_ms=1.0, p99_ms=2.0,
-                               p99_9_ms=3.0, mean_ms=1.5, min_ms=0.5, max_ms=5.0,
-                               throughput_ops_sec=100.0, total_elapsed_s=0.1)
+        report = LatencyReport(
+            operation="op",
+            count=10,
+            p50_ms=1.0,
+            p99_ms=2.0,
+            p99_9_ms=3.0,
+            mean_ms=1.5,
+            min_ms=0.5,
+            max_ms=5.0,
+            throughput_ops_sec=100.0,
+            total_elapsed_s=0.1,
+        )
         d = report.to_dict()
         assert d["operation"] == "op"
         assert d["count"] == 10

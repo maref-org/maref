@@ -25,11 +25,14 @@ def client() -> TestClient:
 
 class TestMCPEndpoints:
     def test_mcp_jsonrpc_initialize(self, client: TestClient) -> None:
-        response = client.post("/api/mcp", json={
-            "jsonrpc": "2.0",
-            "method": "initialize",
-            "id": 1,
-        })
+        response = client.post(
+            "/api/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "method": "initialize",
+                "id": 1,
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["jsonrpc"] == "2.0"
@@ -38,41 +41,53 @@ class TestMCPEndpoints:
         assert data["result"]["serverInfo"]["name"] == "MAREF Sidecar"
 
     def test_mcp_jsonrpc_tools_list(self, client: TestClient) -> None:
-        response = client.post("/api/mcp", json={
-            "jsonrpc": "2.0",
-            "method": "tools/list",
-            "id": 2,
-        })
+        response = client.post(
+            "/api/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "id": 2,
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert len(data["result"]["tools"]) >= 10
 
     def test_mcp_jsonrpc_resources_list(self, client: TestClient) -> None:
-        response = client.post("/api/mcp", json={
-            "jsonrpc": "2.0",
-            "method": "resources/list",
-            "id": 3,
-        })
+        response = client.post(
+            "/api/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "method": "resources/list",
+                "id": 3,
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert len(data["result"]["resources"]) >= 3
 
     def test_mcp_jsonrpc_prompts_list(self, client: TestClient) -> None:
-        response = client.post("/api/mcp", json={
-            "jsonrpc": "2.0",
-            "method": "prompts/list",
-            "id": 4,
-        })
+        response = client.post(
+            "/api/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "method": "prompts/list",
+                "id": 4,
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert len(data["result"]["prompts"]) >= 2
 
     def test_mcp_jsonrpc_unknown_method(self, client: TestClient) -> None:
-        response = client.post("/api/mcp", json={
-            "jsonrpc": "2.0",
-            "method": "bogus/method",
-            "id": 5,
-        })
+        response = client.post(
+            "/api/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "method": "bogus/method",
+                "id": 5,
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["error"]["code"] == -32601
@@ -86,12 +101,15 @@ class TestMCPEndpoints:
         assert "tools" in data["capabilities"]
 
     def test_mcp_tools_call_unknown(self, client: TestClient) -> None:
-        response = client.post("/api/mcp", json={
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "id": 6,
-            "params": {"name": "nonexistent", "arguments": {}},
-        })
+        response = client.post(
+            "/api/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "id": 6,
+                "params": {"name": "nonexistent", "arguments": {}},
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["result"]["isError"] is True
@@ -112,12 +130,15 @@ class TestRedMetrics:
 
 class TestSessionCRUD:
     def test_create_session(self, client: TestClient) -> None:
-        response = client.post("/api/sessions", json={
-            "title": "Test Session",
-            "mode": "agent",
-            "provider": "bailian",
-            "model": "deepseek-v4-pro",
-        })
+        response = client.post(
+            "/api/sessions",
+            json={
+                "title": "Test Session",
+                "mode": "agent",
+                "provider": "bailian",
+                "model": "deepseek-v4-pro",
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["title"] == "Test Session"
@@ -126,17 +147,29 @@ class TestSessionCRUD:
         assert data["status"] == "idle"
 
     def test_list_sessions(self, client: TestClient) -> None:
-        client.post("/api/sessions", json={"title": "S1", "mode": "chat", "provider": "ollama", "model": "gemma3:4b"})
-        client.post("/api/sessions", json={"title": "S2", "mode": "chat", "provider": "ollama", "model": "gemma3:4b"})
+        client.post(
+            "/api/sessions",
+            json={"title": "S1", "mode": "chat", "provider": "ollama", "model": "gemma3:4b"},
+        )
+        client.post(
+            "/api/sessions",
+            json={"title": "S2", "mode": "chat", "provider": "ollama", "model": "gemma3:4b"},
+        )
         response = client.get("/api/sessions")
         assert response.status_code == 200
         data = response.json()
         assert len(data["sessions"]) >= 2
 
     def test_get_session(self, client: TestClient) -> None:
-        create_resp = client.post("/api/sessions", json={
-            "title": "GetTest", "mode": "agent", "provider": "bailian", "model": "deepseek-v4-pro",
-        })
+        create_resp = client.post(
+            "/api/sessions",
+            json={
+                "title": "GetTest",
+                "mode": "agent",
+                "provider": "bailian",
+                "model": "deepseek-v4-pro",
+            },
+        )
         sid = create_resp.json()["id"]
         response = client.get(f"/api/sessions/{sid}")
         assert response.status_code == 200
@@ -147,9 +180,15 @@ class TestSessionCRUD:
         assert response.status_code == 404
 
     def test_delete_session(self, client: TestClient) -> None:
-        create_resp = client.post("/api/sessions", json={
-            "title": "DelTest", "mode": "agent", "provider": "bailian", "model": "deepseek-v4-pro",
-        })
+        create_resp = client.post(
+            "/api/sessions",
+            json={
+                "title": "DelTest",
+                "mode": "agent",
+                "provider": "bailian",
+                "model": "deepseek-v4-pro",
+            },
+        )
         sid = create_resp.json()["id"]
         response = client.delete(f"/api/sessions/{sid}")
         assert response.status_code == 200
@@ -165,9 +204,15 @@ class TestSessionCRUD:
 
 class TestMessages:
     def test_get_messages_empty(self, client: TestClient) -> None:
-        create_resp = client.post("/api/sessions", json={
-            "title": "MsgTest", "mode": "chat", "provider": "ollama", "model": "gemma3:4b",
-        })
+        create_resp = client.post(
+            "/api/sessions",
+            json={
+                "title": "MsgTest",
+                "mode": "chat",
+                "provider": "ollama",
+                "model": "gemma3:4b",
+            },
+        )
         sid = create_resp.json()["id"]
         response = client.get(f"/api/sessions/{sid}/messages")
         assert response.status_code == 200
@@ -179,9 +224,15 @@ class TestMessages:
         assert response.status_code == 404
 
     def test_send_message(self, client: TestClient) -> None:
-        create_resp = client.post("/api/sessions", json={
-            "title": "SendTest", "mode": "chat", "provider": "ollama", "model": "gemma3:4b",
-        })
+        create_resp = client.post(
+            "/api/sessions",
+            json={
+                "title": "SendTest",
+                "mode": "chat",
+                "provider": "ollama",
+                "model": "gemma3:4b",
+            },
+        )
         sid = create_resp.json()["id"]
         response = client.post(f"/api/sessions/{sid}/messages", json={"content": "Hello"})
         assert response.status_code == 200
@@ -190,9 +241,15 @@ class TestMessages:
         assert msg["content"] == "Hello"
 
     def test_send_message_empty_content(self, client: TestClient) -> None:
-        create_resp = client.post("/api/sessions", json={
-            "title": "EmptyTest", "mode": "chat", "provider": "ollama", "model": "gemma3:4b",
-        })
+        create_resp = client.post(
+            "/api/sessions",
+            json={
+                "title": "EmptyTest",
+                "mode": "chat",
+                "provider": "ollama",
+                "model": "gemma3:4b",
+            },
+        )
         sid = create_resp.json()["id"]
         response = client.post(f"/api/sessions/{sid}/messages", json={"content": ""})
         assert response.status_code == 400
@@ -243,9 +300,15 @@ class TestProvidersSkillsTasks:
 
 class TestStreaming:
     def test_stream_endpoint(self, client: TestClient) -> None:
-        create_resp = client.post("/api/sessions", json={
-            "title": "StreamTest", "mode": "chat", "provider": "ollama", "model": "gemma3:4b",
-        })
+        create_resp = client.post(
+            "/api/sessions",
+            json={
+                "title": "StreamTest",
+                "mode": "chat",
+                "provider": "ollama",
+                "model": "gemma3:4b",
+            },
+        )
         sid = create_resp.json()["id"]
         response = client.get(f"/api/sessions/{sid}/stream")
         assert response.status_code == 200
@@ -256,9 +319,15 @@ class TestStreaming:
         assert response.status_code == 404
 
     def test_interrupt(self, client: TestClient) -> None:
-        create_resp = client.post("/api/sessions", json={
-            "title": "IntTest", "mode": "chat", "provider": "ollama", "model": "gemma3:4b",
-        })
+        create_resp = client.post(
+            "/api/sessions",
+            json={
+                "title": "IntTest",
+                "mode": "chat",
+                "provider": "ollama",
+                "model": "gemma3:4b",
+            },
+        )
         sid = create_resp.json()["id"]
         response = client.post(f"/api/sessions/{sid}/interrupt")
         assert response.status_code == 200
@@ -267,11 +336,14 @@ class TestStreaming:
 
 class TestCompliance:
     def test_compliance_register(self, client: TestClient) -> None:
-        response = client.post("/api/compliance/register", json={
-            "agent_id": "test-agent",
-            "data_residency": "CN",
-            "model_backend": "bailian",
-        })
+        response = client.post(
+            "/api/compliance/register",
+            json={
+                "agent_id": "test-agent",
+                "data_residency": "CN",
+                "model_backend": "bailian",
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["agent_id"] == "test-agent"
@@ -279,46 +351,72 @@ class TestCompliance:
         assert "governance_state" in data
 
     def test_compliance_agents_list(self, client: TestClient) -> None:
-        client.post("/api/compliance/register", json={
-            "agent_id": "agent-a", "data_residency": "CN", "model_backend": "bailian",
-        })
-        client.post("/api/compliance/register", json={
-            "agent_id": "agent-b", "data_residency": "US", "model_backend": "openai",
-        })
+        client.post(
+            "/api/compliance/register",
+            json={
+                "agent_id": "agent-a",
+                "data_residency": "CN",
+                "model_backend": "bailian",
+            },
+        )
+        client.post(
+            "/api/compliance/register",
+            json={
+                "agent_id": "agent-b",
+                "data_residency": "US",
+                "model_backend": "openai",
+            },
+        )
         response = client.get("/api/compliance/agents")
         assert response.status_code == 200
         data = response.json()
         assert len(data["agents"]) >= 2
 
     def test_compliance_check_action(self, client: TestClient) -> None:
-        client.post("/api/compliance/register", json={
-            "agent_id": "check-agent", "data_residency": "CN", "model_backend": "bailian",
-        })
-        response = client.post("/api/compliance/check-action", json={
-            "agent_id": "check-agent",
-            "action": "read_file",
-            "action_type": "read",
-            "entropy": 0.1,
-        })
+        client.post(
+            "/api/compliance/register",
+            json={
+                "agent_id": "check-agent",
+                "data_residency": "CN",
+                "model_backend": "bailian",
+            },
+        )
+        response = client.post(
+            "/api/compliance/check-action",
+            json={
+                "agent_id": "check-agent",
+                "action": "read_file",
+                "action_type": "read",
+                "entropy": 0.1,
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert "allowed" in data
         assert "decision" in data
 
     def test_compliance_check_action_unregistered(self, client: TestClient) -> None:
-        response = client.post("/api/compliance/check-action", json={
-            "agent_id": "unknown-agent",
-            "action": "read_file",
-            "action_type": "read",
-        })
+        response = client.post(
+            "/api/compliance/check-action",
+            json={
+                "agent_id": "unknown-agent",
+                "action": "read_file",
+                "action_type": "read",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["allowed"] is False
 
     @pytest.mark.skip(reason="BUG: compliance/unified.py asyncio.run() in sync method")
     def test_compliance_snapshot(self, client: TestClient) -> None:
-        client.post("/api/compliance/register", json={
-            "agent_id": "snap-agent", "data_residency": "CN", "model_backend": "bailian",
-        })
+        client.post(
+            "/api/compliance/register",
+            json={
+                "agent_id": "snap-agent",
+                "data_residency": "CN",
+                "model_backend": "bailian",
+            },
+        )
         response = client.post("/api/compliance/snapshot", json={"agent_id": "snap-agent"})
         assert response.status_code == 200
 
@@ -328,9 +426,14 @@ class TestCompliance:
         assert "error" in response.json()
 
     def test_compliance_audit_log(self, client: TestClient) -> None:
-        client.post("/api/compliance/register", json={
-            "agent_id": "audit-agent", "data_residency": "CN", "model_backend": "bailian",
-        })
+        client.post(
+            "/api/compliance/register",
+            json={
+                "agent_id": "audit-agent",
+                "data_residency": "CN",
+                "model_backend": "bailian",
+            },
+        )
         response = client.get("/api/compliance/audit-log/audit-agent")
         assert response.status_code == 200
         data = response.json()

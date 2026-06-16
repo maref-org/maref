@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from maref.desktop.agent import (
     DesktopAgent,
     DesktopAgentState,
@@ -12,6 +14,20 @@ from maref.desktop.agent import (
 )
 from maref.desktop.screen_capture import ScreenshotResult
 from maref.desktop.screen_parser import ScreenParseResult
+
+
+def _screen_capture_available() -> bool:
+    try:
+        from maref.desktop.screen_capture import ScreenCapture
+        return ScreenCapture.detect_backend() != "none"
+    except Exception:
+        return False
+
+
+requires_display = pytest.mark.skipif(
+    not _screen_capture_available(),
+    reason="No display available for screen capture",
+)
 
 
 class TestDesktopStep:
@@ -56,7 +72,9 @@ class TestDesktopStep:
         assert step.target_position == (100, 200)
 
     def test_to_dict(self):
-        step = DesktopStep(operation=DesktopOperation.CLICK, target_text="OK", description="Click OK")
+        step = DesktopStep(
+            operation=DesktopOperation.CLICK, target_text="OK", description="Click OK"
+        )
         d = step.to_dict()
         assert d["operation"] == "click"
         assert d["target_text"] == "OK"
@@ -96,7 +114,9 @@ class TestDesktopTaskResult:
         assert result.error_message == "timeout"
 
     def test_to_dict(self):
-        result = DesktopTaskResult(task_id="t1", success=True, steps_executed=2, total_duration_ms=1500.0)
+        result = DesktopTaskResult(
+            task_id="t1", success=True, steps_executed=2, total_duration_ms=1500.0
+        )
         d = result.to_dict()
         assert d["task_id"] == "t1"
         assert d["success"] is True
@@ -258,6 +278,7 @@ class TestDesktopAgent:
 class TestDesktopAgentIntegration:
     """End-to-end integration tests for M1 pipeline."""
 
+    @requires_display
     def test_full_pipeline_simple(self):
         agent = DesktopAgent(dry_run=True)
         screenshot = agent.capture_screen()
@@ -270,6 +291,7 @@ class TestDesktopAgentIntegration:
         if submit:
             assert submit.is_interactive
 
+    @requires_display
     def test_pipeline_with_verification(self):
         agent = DesktopAgent(dry_run=True)
         before = agent.capture_screen()
@@ -298,6 +320,7 @@ class TestDesktopAgentIntegration:
             agent.execute_task(task)
         assert len(agent.get_task_history()) == 3
 
+    @requires_display
     def test_screenshot_save_and_parse(self):
         agent = DesktopAgent(dry_run=True)
         import os

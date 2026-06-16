@@ -48,7 +48,9 @@ def bridge(state_machine: GovernanceStateMachine, audit_logger: AuditLogger) -> 
 
 @pytest.fixture
 def bridge_with_cb(
-    state_machine: GovernanceStateMachine, audit_logger: AuditLogger, circuit_breaker: CircuitBreaker
+    state_machine: GovernanceStateMachine,
+    audit_logger: AuditLogger,
+    circuit_breaker: CircuitBreaker,
 ) -> A2ABridge:
     return A2ABridge(
         state_machine=state_machine, audit_logger=audit_logger, circuit_breaker=circuit_breaker
@@ -78,8 +80,12 @@ class TestAgentCardGeneration:
         deserialized = json.loads(serialized)
         assert deserialized["name"] == card["name"]
 
-    def test_build_agent_card_custom_agent_name(self, state_machine: GovernanceStateMachine, audit_logger: AuditLogger) -> None:
-        bridge = A2ABridge(state_machine=state_machine, audit_logger=audit_logger, agent_name="custom-agent")
+    def test_build_agent_card_custom_agent_name(
+        self, state_machine: GovernanceStateMachine, audit_logger: AuditLogger
+    ) -> None:
+        bridge = A2ABridge(
+            state_machine=state_machine, audit_logger=audit_logger, agent_name="custom-agent"
+        )
         card = bridge.build_agent_card()
         assert card["name"] == "custom-agent"
 
@@ -148,7 +154,9 @@ class TestTaskLifecycle:
     def test_get_task_unknown_returns_none(self, bridge: A2ABridge) -> None:
         assert bridge.get_task("nonexistent") is None
 
-    def test_create_task_produces_audit_entry(self, bridge: A2ABridge, audit_logger: AuditLogger) -> None:
+    def test_create_task_produces_audit_entry(
+        self, bridge: A2ABridge, audit_logger: AuditLogger
+    ) -> None:
         before_count = len(audit_logger.read_all())
         bridge.create_task("Test task")
         after_count = len(audit_logger.read_all())
@@ -171,7 +179,9 @@ class TestTaskLifecycle:
         result = bridge.sync_state_from_a2a(task_id, "invalid-state")
         assert result is False
 
-    def test_sync_state_produces_audit_entry(self, bridge: A2ABridge, audit_logger: AuditLogger) -> None:
+    def test_sync_state_produces_audit_entry(
+        self, bridge: A2ABridge, audit_logger: AuditLogger
+    ) -> None:
         task_id = bridge.create_task("Test task")
         before_count = len(audit_logger.read_all())
         bridge.sync_state_from_a2a(task_id, "completed")
@@ -205,22 +215,30 @@ class TestTaskDelegation:
 
 
 class TestCircuitBreakerIntegration:
-    def test_open_circuit_breaker_blocks_agent_card(self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker) -> None:
+    def test_open_circuit_breaker_blocks_agent_card(
+        self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker
+    ) -> None:
         circuit_breaker._state = BreakerState.OPEN
         with pytest.raises(CommunicationBlockedError):
             bridge_with_cb.build_agent_card()
 
-    def test_open_circuit_breaker_blocks_create_task(self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker) -> None:
+    def test_open_circuit_breaker_blocks_create_task(
+        self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker
+    ) -> None:
         circuit_breaker._state = BreakerState.OPEN
         with pytest.raises(CommunicationBlockedError):
             bridge_with_cb.create_task("Test task")
 
-    def test_open_circuit_breaker_blocks_delegate(self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker) -> None:
+    def test_open_circuit_breaker_blocks_delegate(
+        self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker
+    ) -> None:
         circuit_breaker._state = BreakerState.OPEN
         with pytest.raises(CommunicationBlockedError):
             bridge_with_cb.delegate_task("some-task", "http://agent-b:8000")
 
-    def test_open_circuit_breaker_blocks_sync(self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker) -> None:
+    def test_open_circuit_breaker_blocks_sync(
+        self, bridge_with_cb: A2ABridge, circuit_breaker: CircuitBreaker
+    ) -> None:
         circuit_breaker._state = BreakerState.OPEN
         with pytest.raises(CommunicationBlockedError):
             bridge_with_cb.sync_state_from_a2a("some-task", "working")

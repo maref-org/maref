@@ -9,10 +9,14 @@ class TestMCPServerBasics:
 
     def test_server_initialize(self):
         server = MCPServer(name="test-server", version="0.1.0")
-        req = JSONRPCRequest(method="initialize", params={
-            "protocolVersion": "2024-11-05",
-            "clientInfo": {"name": "test-client", "version": "1.0.0"},
-        }, id=1)
+        req = JSONRPCRequest(
+            method="initialize",
+            params={
+                "protocolVersion": "2024-11-05",
+                "clientInfo": {"name": "test-client", "version": "1.0.0"},
+            },
+            id=1,
+        )
         resp = server.handle_request(req)
         assert not resp.is_error
         assert resp.result["serverInfo"]["name"] == "test-server"
@@ -27,6 +31,7 @@ class TestMCPServerBasics:
 
     def test_server_register_tool(self):
         server = MCPServer()
+
         def echo_handler(args):
             return {"content": [{"type": "text", "text": args.get("message", "")}]}
 
@@ -49,6 +54,7 @@ class TestMCPServerBasics:
 
     def test_server_call_tool(self):
         server = MCPServer()
+
         def add_handler(args):
             a = args.get("a", 0)
             b = args.get("b", 0)
@@ -98,6 +104,7 @@ class TestMCPServerBasics:
 
     def test_server_register_and_read_resource(self):
         server = MCPServer()
+
         def doc_handler(uri):
             return {"contents": [{"uri": uri, "mimeType": "text/plain", "text": "Hello doc"}]}
 
@@ -126,6 +133,7 @@ class TestMCPServerBasics:
 
     def test_server_register_and_get_prompt(self):
         server = MCPServer()
+
         def greeting_handler(args):
             name = args.get("name", "World")
             return {

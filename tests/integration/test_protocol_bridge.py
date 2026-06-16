@@ -51,7 +51,11 @@ class TestProtocolBridgeBasics:
         mcp.register_tool(
             name="echo",
             description="Echo message",
-            input_schema={"type": "object", "properties": {"msg": {"type": "string"}}, "required": ["msg"]},
+            input_schema={
+                "type": "object",
+                "properties": {"msg": {"type": "string"}},
+                "required": ["msg"],
+            },
             handler=echo_handler,
         )
 

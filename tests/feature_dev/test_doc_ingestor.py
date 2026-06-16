@@ -88,8 +88,10 @@ class TestExtractChecklists:
 
 class TestExtractHypotheses:
     def test_table_pattern(self) -> None:
-        text = ("| **H1** | A/B test | >80% | <50% | Extra |\n"
-                "| **H2** | Study | >70% | <40% | Extra |")
+        text = (
+            "| **H1** | A/B test | >80% | <50% | Extra |\n"
+            "| **H2** | Study | >70% | <40% | Extra |"
+        )
         hypos = _extract_hypotheses(text)
         assert len(hypos) >= 1
         assert hypos[0].name == "H1"
@@ -112,7 +114,8 @@ class TestExtractHypothesesFromText:
 class TestExtractHypothesesFromSections:
     def test_recursive(self) -> None:
         sec = DocumentSection(
-            heading="Test", level=1,
+            heading="Test",
+            level=1,
             content="| **H1: Title** | Method | >80% | <50% | Notes |",
         )
         hypos = _extract_hypotheses_from_sections([sec])
@@ -121,8 +124,12 @@ class TestExtractHypothesesFromSections:
 
     def test_nested_sections(self) -> None:
         inner = DocumentSection(heading="Inner", level=3, content="")
-        mid = DocumentSection(heading="Mid", level=2, content="| **H2: Sub** | Study | >70% | <40% | Notes |",
-                              subsections=[inner])
+        mid = DocumentSection(
+            heading="Mid",
+            level=2,
+            content="| **H2: Sub** | Study | >70% | <40% | Notes |",
+            subsections=[inner],
+        )
         sec = DocumentSection(heading="Root", level=1, content="", subsections=[mid])
         hypos = _extract_hypotheses_from_sections([sec])
         assert len(hypos) == 1
@@ -221,16 +228,20 @@ class TestAssignStagesRecursively:
 
 class TestDocumentSection:
     def test_collect_all_reqs_dedup(self) -> None:
-        sub = DocumentSection(heading="Sub", level=2, content="",
-                              requirements=["req1", "req2"])
-        sec = DocumentSection(heading="Root", level=1, content="",
-                              requirements=["req1", "req3"], subsections=[sub])
+        sub = DocumentSection(heading="Sub", level=2, content="", requirements=["req1", "req2"])
+        sec = DocumentSection(
+            heading="Root", level=1, content="", requirements=["req1", "req3"], subsections=[sub]
+        )
         all_reqs = sec.collect_all_reqs()
         assert sorted(all_reqs) == ["req1", "req2", "req3"]
 
     def test_collect_all_tables(self) -> None:
-        sub = DocumentSection(heading="Sub", level=2, content="",
-                              table_rows=[TableRow(cells=["data"], section_heading="Sub")])
+        sub = DocumentSection(
+            heading="Sub",
+            level=2,
+            content="",
+            table_rows=[TableRow(cells=["data"], section_heading="Sub")],
+        )
         sec = DocumentSection(heading="Root", level=1, content="", subsections=[sub])
         assert len(sec.collect_all_tables()) == 1
 
@@ -245,7 +256,8 @@ class TestFeatureDocument:
         sec1 = DocumentSection(heading="S1", level=2, content="", requirements=["a", "b"])
         sec2 = DocumentSection(heading="S2", level=2, content="", requirements=["b", "c"])
         doc = FeatureDocument(
-            title="T", raw_path="/tmp/t.md",
+            title="T",
+            raw_path="/tmp/t.md",
             stages={DeployStage.MVP: [sec1], DeployStage.MIXED: [sec2]},
         )
         assert doc.total_requirements == 3
@@ -253,7 +265,8 @@ class TestFeatureDocument:
     def test_total_milestones(self) -> None:
         sec = DocumentSection(heading="S", level=2, content="", milestones=["m1", "m2"])
         doc = FeatureDocument(
-            title="T", raw_path="/tmp/t.md",
+            title="T",
+            raw_path="/tmp/t.md",
             stages={DeployStage.MVP: [sec]},
         )
         assert doc.total_milestones == 2

@@ -32,21 +32,39 @@ def _macos_accessibility_granted() -> bool:
         return False
     try:
         result = subprocess.run(
-            ["osascript", "-e", 'tell application "System Events" to return count of every process'],
-            capture_output=True, text=True, timeout=5,
+            [
+                "osascript",
+                "-e",
+                'tell application "System Events" to return count of every process',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return result.returncode == 0 and result.stdout.strip().isdigit()
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
 
 
+def _screen_capture_available() -> bool:
+    try:
+        from maref.desktop.screen_capture import ScreenCapture
+        return ScreenCapture.detect_backend() != "none"
+    except Exception:
+        return False
+
 requires_accessibility = pytest.mark.skipif(
     not _macos_accessibility_granted(),
     reason="macOS Accessibility permissions not granted. "
-           "Grant in System Preferences → Privacy & Security → Accessibility.",
+    "Grant in System Preferences → Privacy & Security → Accessibility.",
 )
 
 requires_macos = pytest.mark.skipif(not IS_MACOS, reason="Requires macOS")
+
+requires_display = pytest.mark.skipif(
+    not _screen_capture_available(),
+    reason="No display available for screen capture",
+)
 
 
 # ── Environment checks ────────────────────────────────────────────────
@@ -118,6 +136,7 @@ class TestInputControllerReal:
     def test_safety_gate_blocks_dangerous_hotkey(self) -> None:
         gate = InputSafetyGate()
         from maref.desktop.input_controller import KeyboardAction, KeyboardEvent
+
         event = KeyboardEvent(
             action=KeyboardAction.HOTKEY,
             keys=["command", "option", "esc"],
@@ -129,6 +148,7 @@ class TestInputControllerReal:
     def test_safety_gate_blocks_rm_rf(self) -> None:
         gate = InputSafetyGate()
         from maref.desktop.input_controller import KeyboardAction, KeyboardEvent
+
         event = KeyboardEvent(
             action=KeyboardAction.TYPE,
             text="rm -rf /important",
@@ -144,6 +164,7 @@ class TestScreenCaptureReal:
     """Test screen capture on real hardware."""
 
     @requires_macos
+    @requires_display
     def test_capture_fullscreen_mock(self) -> None:
         capture = ScreenCapture()
         result = capture.capture_fullscreen()
@@ -152,6 +173,7 @@ class TestScreenCaptureReal:
 
     def test_redaction_engine_config(self) -> None:
         from maref.desktop.screen_capture import RedactionEngine
+
         engine = RedactionEngine(auto_detect=True)
         assert len(engine.SENSITIVE_PATTERNS) > 0
 
@@ -246,6 +268,7 @@ class TestScreenParserBackends:
         parser.initialize()
         result = parser.parse("/tmp/test.png", 1920, 1080)
         from maref.desktop.screen_parser import UIElementType
+
         buttons = result.find_elements_by_type(UIElementType.BUTTON)
         assert len(buttons) > 0
 
@@ -295,6 +318,7 @@ class TestDesktopAgentEndToEnd:
         assert agent.state.value == "idle"
         assert agent.dry_run is True
 
+    @requires_display
     def test_agent_capture_screen_mock(self) -> None:
         agent = DesktopAgent(dry_run=True)
         screenshot = agent.capture_screen()
@@ -397,6 +421,7 @@ class TestRealDesktopSmoke:
         assert len(first.app_name) > 0
 
     @requires_accessibility
+    @requires_display
     def test_real_desktop_agent_dry_run_pipeline(self) -> None:
         """Full pipeline: capture → parse → execute (dry-run) → verify."""
         agent = DesktopAgent(dry_run=True)

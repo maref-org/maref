@@ -21,22 +21,30 @@ from maref.recursive.hook_topics import MarefTopic
 class TestHookRegistry:
     def test_register_and_get_chain(self) -> None:
         registry = HookRegistry()
-        hid = registry.register(MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.PASS, "h1"))
+        hid = registry.register(
+            MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.PASS, "h1")
+        )
         chain = registry.get_chain(MarefTopic.ROLE_PRE_INVOKE)
         assert len(chain) == 1
         assert chain[0].handler_id == hid
 
     def test_multiple_handlers_sorted_by_priority(self) -> None:
         registry = HookRegistry()
-        hid_low = registry.register(MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.PASS, "low"), priority=0)
-        hid_high = registry.register(MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.PASS, "high"), priority=100)
+        hid_low = registry.register(
+            MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.PASS, "low"), priority=0
+        )
+        hid_high = registry.register(
+            MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.PASS, "high"), priority=100
+        )
         chain = registry.get_chain(MarefTopic.ROLE_PRE_INVOKE)
         assert chain[0].handler_id == hid_high
         assert chain[1].handler_id == hid_low
 
     def test_unregister_existing(self) -> None:
         registry = HookRegistry()
-        registry.register(MarefTopic.SESSION_START, lambda d: HookResult(HookVerdict.PASS), handler_id="h1")
+        registry.register(
+            MarefTopic.SESSION_START, lambda d: HookResult(HookVerdict.PASS), handler_id="h1"
+        )
         assert registry.unregister(MarefTopic.SESSION_START, "h1")
         chain = registry.get_chain(MarefTopic.SESSION_START)
         assert len(chain) == 0
@@ -110,7 +118,9 @@ class TestHookChain:
 
     def test_execute_audit_passes_through(self) -> None:
         registry = HookRegistry()
-        registry.register(MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.AUDIT, "auditor"))
+        registry.register(
+            MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.AUDIT, "auditor")
+        )
         registry.register(MarefTopic.ROLE_PRE_INVOKE, lambda d: HookResult(HookVerdict.PASS, "h2"))
         chain = HookChain(registry)
         result = chain.execute(MarefTopic.ROLE_PRE_INVOKE, {})
@@ -180,24 +190,30 @@ class TestHookTemplates:
         assert result.verdict == HookVerdict.PASS
 
     def test_integrity_guard_fails_on_mismatch(self) -> None:
-        result = integrity_guard({
-            "expected_checksums": {"a.py": "abc"},
-            "actual_checksums": {"a.py": "def"},
-        })
+        result = integrity_guard(
+            {
+                "expected_checksums": {"a.py": "abc"},
+                "actual_checksums": {"a.py": "def"},
+            }
+        )
         assert result.verdict == HookVerdict.FATAL
 
     def test_integrity_guard_fails_on_missing(self) -> None:
-        result = integrity_guard({
-            "expected_checksums": {"a.py": "abc"},
-            "actual_checksums": {},
-        })
+        result = integrity_guard(
+            {
+                "expected_checksums": {"a.py": "abc"},
+                "actual_checksums": {},
+            }
+        )
         assert result.verdict == HookVerdict.FATAL
 
     def test_integrity_guard_passes_on_match(self) -> None:
-        result = integrity_guard({
-            "expected_checksums": {"a.py": "abc"},
-            "actual_checksums": {"a.py": "abc"},
-        })
+        result = integrity_guard(
+            {
+                "expected_checksums": {"a.py": "abc"},
+                "actual_checksums": {"a.py": "abc"},
+            }
+        )
         assert result.verdict == HookVerdict.PASS
 
     def test_sensitive_path_guard_blocks_git(self) -> None:
@@ -239,13 +255,15 @@ class TestHookTemplateLibrary:
 
     def test_custom_template_registration(self) -> None:
         lib = HookTemplateLibrary()
-        lib.register(HookTemplate(
-            topic="maref.session.start",
-            name="custom_startup",
-            handler_func=lambda d: HookResult(HookVerdict.PASS),
-            description="Custom startup hook",
-            priority=50,
-        ))
+        lib.register(
+            HookTemplate(
+                topic="maref.session.start",
+                name="custom_startup",
+                handler_func=lambda d: HookResult(HookVerdict.PASS),
+                description="Custom startup hook",
+                priority=50,
+            )
+        )
         assert len(lib.list_templates()) == 1
 
     def test_install_all_session_start(self) -> None:

@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.threat_bridge import (
     ThreatGovernanceBridge,

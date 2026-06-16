@@ -24,31 +24,45 @@ class TestContentScorer:
     def test_static_audit_scales_with_content(self) -> None:
         doc = _doc()
         scorer = ContentScorer(doc)
-        base: dict[str, Any] = {"characters": [], "scripts": [], "stages_covered": set(),
-                                "requirements_covered": 0}
+        base: dict[str, Any] = {
+            "characters": [],
+            "scripts": [],
+            "stages_covered": set(),
+            "requirements_covered": 0,
+        }
         assert scorer._score_static_audit(base) == 0.0
 
-        filled = {"characters": [{"name": "A"}, {"name": "B"}, {"name": "C"}],
-                  "scripts": [{"title": str(i)} for i in range(5)],
-                  "stages_covered": {"mvp", "mixed", "internalization"},
-                  "requirements_covered": 10}
+        filled = {
+            "characters": [{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            "scripts": [{"title": str(i)} for i in range(5)],
+            "stages_covered": {"mvp", "mixed", "internalization"},
+            "requirements_covered": 10,
+        }
         assert scorer._score_static_audit(filled) == 100.0
 
     def test_static_audit_capped(self) -> None:
         doc = _doc()
         scorer = ContentScorer(doc)
-        many = {"characters": [{"name": str(i)} for i in range(20)],
-                "scripts": [{"title": str(i)} for i in range(50)],
-                "stages_covered": {"mvp", "mixed", "internalization"},
-                "requirements_covered": 999}
+        many = {
+            "characters": [{"name": str(i)} for i in range(20)],
+            "scripts": [{"title": str(i)} for i in range(50)],
+            "stages_covered": {"mvp", "mixed", "internalization"},
+            "requirements_covered": 999,
+        }
         assert scorer._score_static_audit(many) <= 100.0
 
     def test_reasoning_scores_backstory(self) -> None:
-        doc = _doc(hypotheses=[Hypothesis(name="H1", method="M", pass_threshold="P", fail_criterion="F"),
-                               Hypothesis(name="H2", method="M", pass_threshold="P", fail_criterion="F")])
+        doc = _doc(
+            hypotheses=[
+                Hypothesis(name="H1", method="M", pass_threshold="P", fail_criterion="F"),
+                Hypothesis(name="H2", method="M", pass_threshold="P", fail_criterion="F"),
+            ]
+        )
         scorer = ContentScorer(doc)
-        a: dict[str, Any] = {"characters": [{"backstory": "x" * 50, "archetype": "T", "setting": "S"}],
-                             "scripts": [{"title": "1"}, {"title": "2"}]}
+        a: dict[str, Any] = {
+            "characters": [{"backstory": "x" * 50, "archetype": "T", "setting": "S"}],
+            "scripts": [{"title": "1"}, {"title": "2"}],
+        }
         score = scorer._score_reasoning(a)
         assert score > 10.0
 
@@ -74,8 +88,10 @@ class TestContentScorer:
         scorer = ContentScorer(doc)
         a: dict[str, Any] = {
             "characters": [{"profile_path": str(i)} for i in range(10)],
-            "scripts": [{"script_path": str(i), "total_duration_s": 100, "scene_count": 10}
-                        for i in range(10)],
+            "scripts": [
+                {"script_path": str(i), "total_duration_s": 100, "scene_count": 10}
+                for i in range(10)
+            ],
             "stages_covered": {"mvp", "mixed", "internalization"},
         }
         assert scorer._score_action(a) <= 100.0
@@ -123,7 +139,10 @@ class TestContentScorer:
         doc = _doc()
         scorer = ContentScorer(doc)
         a: dict[str, Any] = {
-            "characters": [{"archetype": "A", "style_keywords": "s"}, {"archetype": "B", "style_keywords": "t"}],
+            "characters": [
+                {"archetype": "A", "style_keywords": "s"},
+                {"archetype": "B", "style_keywords": "t"},
+            ],
             "scripts": [{"title": "Crossover: Worlds Collide"}, {"title": "Episode 2"}],
             "stages_covered": {"mvp", "mixed"},
         }
@@ -133,8 +152,13 @@ class TestContentScorer:
     def test_overall_weighted(self) -> None:
         doc = _doc()
         scorer = ContentScorer(doc)
-        layers = {"Static Audit": 100.0, "Reasoning Metrics": 50.0,
-                  "Action Metrics": 60.0, "E2E Metrics": 70.0, "MAS Dimensions": 80.0}
+        layers = {
+            "Static Audit": 100.0,
+            "Reasoning Metrics": 50.0,
+            "Action Metrics": 60.0,
+            "E2E Metrics": 70.0,
+            "MAS Dimensions": 80.0,
+        }
         score = scorer.overall(layers)
         expected = round(100 * 0.15 + 50 * 0.20 + 60 * 0.25 + 70 * 0.20 + 80 * 0.20, 1)
         assert score == expected
@@ -148,5 +172,10 @@ class TestContentScorer:
         doc = _doc()
         scorer = ContentScorer(doc)
         scores = scorer.score(sample_artifacts)
-        assert set(scores.keys()) == {"Static Audit", "Reasoning Metrics", "Action Metrics",
-                                       "E2E Metrics", "MAS Dimensions"}
+        assert set(scores.keys()) == {
+            "Static Audit",
+            "Reasoning Metrics",
+            "Action Metrics",
+            "E2E Metrics",
+            "MAS Dimensions",
+        }

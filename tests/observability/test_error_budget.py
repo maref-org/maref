@@ -115,7 +115,9 @@ class TestErrorBudgetCalculator:
         assert budget.budget_remaining == 5000.0
         assert budget.budget_remaining_pct == 100.0
 
-    def test_calculate_budget_with_errors(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_calculate_budget_with_errors(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(100):
             collector.record_request("/api/test", "GET", 200, 10.0)
         for _ in range(10):
@@ -133,13 +135,17 @@ class TestErrorBudgetCalculator:
         burn_rate = calculator.calculate_burn_rate(3600)
         assert burn_rate == 0.0
 
-    def test_burn_rate_with_normal_traffic(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_burn_rate_with_normal_traffic(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(1000):
             collector.record_request("/api/test", "GET", 200, 10.0)
         burn_rate = calculator.calculate_burn_rate(3600)
         assert burn_rate == 0.0
 
-    def test_burn_rate_with_errors(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_burn_rate_with_errors(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(900):
             collector.record_request("/api/ok", "GET", 200, 10.0)
         for _ in range(100):
@@ -148,7 +154,9 @@ class TestErrorBudgetCalculator:
         expected_rate = (0.1 * 1000) / (5000.0 * (3600 / 2592000))
         assert burn_rate == pytest.approx(expected_rate, rel=0.1)
 
-    def test_burn_rate_100_percent_errors(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_burn_rate_100_percent_errors(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(100):
             collector.record_request("/api/fail", "GET", 500, 10.0)
         burn_rate = calculator.calculate_burn_rate(3600)
@@ -160,7 +168,9 @@ class TestErrorBudgetCalculator:
         for alert in alerts:
             assert alert.triggered is False
 
-    def test_check_alerts_critical_burn(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_check_alerts_critical_burn(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(100):
             collector.record_request("/api/fail", "GET", 500, 10.0)
         alerts = calculator.check_alerts()
@@ -171,7 +181,9 @@ class TestErrorBudgetCalculator:
     def test_is_budget_exhausted_false(self, calculator: ErrorBudgetCalculator) -> None:
         assert calculator.is_budget_exhausted() is False
 
-    def test_is_budget_exhausted_true(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_is_budget_exhausted_true(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(100000):
             collector.record_request("/api/fail", "GET", 500, 10.0)
         assert collector._total_requests > 0
@@ -181,13 +193,17 @@ class TestErrorBudgetCalculator:
         tte = calculator.time_to_exhaustion(3600)
         assert tte == float("inf")
 
-    def test_time_to_exhaustion_with_errors(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_time_to_exhaustion_with_errors(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(100):
             collector.record_request("/api/fail", "GET", 500, 10.0)
         tte = calculator.time_to_exhaustion(3600)
         assert tte > 0
 
-    def test_time_to_exhaustion_budget_depleted(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_time_to_exhaustion_budget_depleted(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         budget = calculator.calculate_budget(3600)
         tte = calculator.time_to_exhaustion(3600)
         if budget.budget_remaining <= 0:
@@ -211,7 +227,9 @@ class TestErrorBudgetCalculator:
         assert "time_to_exhaustion_seconds" in report
         assert "uptime_seconds" in report
 
-    def test_generate_report_with_errors(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_generate_report_with_errors(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(900):
             collector.record_request("/api/ok", "GET", 200, 10.0)
         for _ in range(100):
@@ -221,7 +239,9 @@ class TestErrorBudgetCalculator:
         assert report["budget"]["remaining"] < 5000.0
         assert report["burn_rate"] > 0
 
-    def test_high_error_rate_triggers_critical_alert(self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector) -> None:
+    def test_high_error_rate_triggers_critical_alert(
+        self, calculator: ErrorBudgetCalculator, collector: REDMetricsCollector
+    ) -> None:
         for _ in range(1000):
             collector.record_request("/api/fail", "GET", 500, 10.0)
         alerts = calculator.check_alerts()

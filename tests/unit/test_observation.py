@@ -142,33 +142,45 @@ class TestProbeRegistry:
 
 class TestDualThresholdDetector:
     def test_primary_triggers(self) -> None:
-        detector = DualThresholdDetector(DualThresholdConfig(
-            primary_threshold=4.0, shadow_threshold=2.0,
-        ))
+        detector = DualThresholdDetector(
+            DualThresholdConfig(
+                primary_threshold=4.0,
+                shadow_threshold=2.0,
+            )
+        )
         result = detector.evaluate(4.0)
         assert result["primary_triggered"]
         assert not result["shadow_triggered"]
 
     def test_shadow_triggers(self) -> None:
-        detector = DualThresholdDetector(DualThresholdConfig(
-            primary_threshold=4.0, shadow_threshold=2.0,
-        ))
+        detector = DualThresholdDetector(
+            DualThresholdConfig(
+                primary_threshold=4.0,
+                shadow_threshold=2.0,
+            )
+        )
         result = detector.evaluate(2.5)
         assert not result["primary_triggered"]
         assert result["shadow_triggered"]
 
     def test_below_all(self) -> None:
-        detector = DualThresholdDetector(DualThresholdConfig(
-            primary_threshold=4.0, shadow_threshold=2.0,
-        ))
+        detector = DualThresholdDetector(
+            DualThresholdConfig(
+                primary_threshold=4.0,
+                shadow_threshold=2.0,
+            )
+        )
         result = detector.evaluate(1.0)
         assert not result["primary_triggered"]
         assert not result["shadow_triggered"]
 
     def test_confusion_matrix(self) -> None:
-        detector = DualThresholdDetector(DualThresholdConfig(
-            primary_threshold=4.0, shadow_threshold=2.0,
-        ))
+        detector = DualThresholdDetector(
+            DualThresholdConfig(
+                primary_threshold=4.0,
+                shadow_threshold=2.0,
+            )
+        )
         detector.evaluate(4.0, ground_truth_is_anomaly=True)
         detector.evaluate(4.0, ground_truth_is_anomaly=False)
         detector.evaluate(1.0, ground_truth_is_anomaly=False)
@@ -181,27 +193,38 @@ class TestDualThresholdDetector:
         assert stats["false_negatives"] == 1
 
     def test_trend_rising(self) -> None:
-        detector = DualThresholdDetector(DualThresholdConfig(
-            primary_threshold=4.0, shadow_threshold=2.0, trend_window=3,
-        ))
+        detector = DualThresholdDetector(
+            DualThresholdConfig(
+                primary_threshold=4.0,
+                shadow_threshold=2.0,
+                trend_window=3,
+            )
+        )
         detector.evaluate(1.0)
         detector.evaluate(2.0)
         result = detector.evaluate(3.0)
         assert result["trend_rising"]
 
     def test_trend_not_rising(self) -> None:
-        detector = DualThresholdDetector(DualThresholdConfig(
-            primary_threshold=4.0, shadow_threshold=2.0, trend_window=3,
-        ))
+        detector = DualThresholdDetector(
+            DualThresholdConfig(
+                primary_threshold=4.0,
+                shadow_threshold=2.0,
+                trend_window=3,
+            )
+        )
         detector.evaluate(3.0)
         detector.evaluate(2.0)
         result = detector.evaluate(1.0)
         assert not result["trend_rising"]
 
     def test_oscillation_detected(self) -> None:
-        detector = DualThresholdDetector(DualThresholdConfig(
-            primary_threshold=4.0, oscillation_max_rate=5.0,
-        ))
+        detector = DualThresholdDetector(
+            DualThresholdConfig(
+                primary_threshold=4.0,
+                oscillation_max_rate=5.0,
+            )
+        )
         for _ in range(10):
             detector.record_change()
         result = detector.evaluate(3.0)
@@ -271,15 +294,18 @@ class TestFNRFPRSnapshot:
 
     def test_mixed(self) -> None:
         snap = FNRFPRSnapshot(
-            true_positives=8, false_positives=2,
-            true_negatives=85, false_negatives=5,
+            true_positives=8,
+            false_positives=2,
+            true_negatives=85,
+            false_negatives=5,
         )
         assert abs(snap.fnr - 5 / 13) < 0.01
         assert abs(snap.fpr - 2 / 87) < 0.01
 
     def test_to_dict(self) -> None:
-        snap = FNRFPRSnapshot(true_positives=8, false_positives=2,
-                              true_negatives=85, false_negatives=5)
+        snap = FNRFPRSnapshot(
+            true_positives=8, false_positives=2, true_negatives=85, false_negatives=5
+        )
         d = snap.to_dict()
         assert d["true_positives"] == 8
         assert d["false_positives"] == 2

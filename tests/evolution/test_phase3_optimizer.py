@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from maref.evolution.agents import (
     AgentRole,
     GovernanceAgent,
@@ -28,14 +26,13 @@ from maref.learning.group_optimizer import (
     EntropyRegularizer,
     GroupPolicyOptimizer,
     OptimizerConfig,
-    OptimizerState,
     PolicyUpdateResult,
 )
-
 
 # ============================================================================
 # EntropyRegularizer Tests
 # ============================================================================
+
 
 class TestEntropyRegularizer:
     def test_compute_entropy_uniform(self) -> None:
@@ -76,6 +73,7 @@ class TestEntropyRegularizer:
 # ============================================================================
 # AdvantageBuffer Tests
 # ============================================================================
+
 
 class TestAdvantageBuffer:
     def test_gae_advantages(self) -> None:
@@ -126,6 +124,7 @@ class TestAdvantageBuffer:
 # OptimizerConfig Tests
 # ============================================================================
 
+
 class TestOptimizerConfig:
     def test_defaults(self) -> None:
         config = OptimizerConfig()
@@ -147,6 +146,7 @@ class TestOptimizerConfig:
 # GroupPolicyOptimizer Tests
 # ============================================================================
 
+
 class TestGroupPolicyOptimizer:
     def _make_group(self, agent_count: int = 2) -> ShareGroup:
         config = ShareGroupConfig(
@@ -156,13 +156,15 @@ class TestGroupPolicyOptimizer:
         )
         group = ShareGroup(config)
         for i in range(agent_count):
-            agent = GovernanceAgent(GovernanceAgentConfig(
-                agent_id=f"agent_{i}",
-                role=AgentRole.DETECTOR,
-                share_group="test_group",
-                policy_features=["entropy_penalty", "stability_bonus"],
-                learning_rate=0.02,
-            ))
+            agent = GovernanceAgent(
+                GovernanceAgentConfig(
+                    agent_id=f"agent_{i}",
+                    role=AgentRole.DETECTOR,
+                    share_group="test_group",
+                    policy_features=["entropy_penalty", "stability_bonus"],
+                    learning_rate=0.02,
+                )
+            )
             group.add_agent(agent)
         return group
 
@@ -220,10 +222,7 @@ class TestGroupPolicyOptimizer:
         )
 
         agent_after = group.agents["agent_0"].policy_weights
-        changed = any(
-            abs(agent_after[k] - agent_before[k]) > 1e-10
-            for k in agent_before
-        )
+        changed = any(abs(agent_after[k] - agent_before[k]) > 1e-10 for k in agent_before)
         assert changed or True
         assert "agent_0" in result.agent_updates
 
@@ -377,6 +376,7 @@ class TestGroupPolicyOptimizer:
 # Integration Tests
 # ============================================================================
 
+
 class TestIntegration:
     def test_full_optimization_loop(self) -> None:
         """Run multiple optimization steps and verify convergence behavior."""
@@ -387,13 +387,15 @@ class TestIntegration:
         )
         sg = ShareGroup(group)
         for i in range(3):
-            agent = GovernanceAgent(GovernanceAgentConfig(
-                agent_id=f"detector_{i}",
-                role=AgentRole.DETECTOR,
-                share_group="detectors",
-                policy_features=["entropy_penalty", "stability_bonus"],
-                learning_rate=0.02,
-            ))
+            agent = GovernanceAgent(
+                GovernanceAgentConfig(
+                    agent_id=f"detector_{i}",
+                    role=AgentRole.DETECTOR,
+                    share_group="detectors",
+                    policy_features=["entropy_penalty", "stability_bonus"],
+                    learning_rate=0.02,
+                )
+            )
             sg.add_agent(agent)
 
         optimizer = GroupPolicyOptimizer(sg, OptimizerConfig())
@@ -427,20 +429,25 @@ class TestIntegration:
             aggregation_method="mean",
         )
         sg = ShareGroup(group)
-        agent = GovernanceAgent(GovernanceAgentConfig(
-            agent_id="detector_1",
-            role=AgentRole.DETECTOR,
-            share_group="detectors",
-            policy_features=["entropy_penalty", "stability_bonus"],
-            learning_rate=0.02,
-        ))
+        agent = GovernanceAgent(
+            GovernanceAgentConfig(
+                agent_id="detector_1",
+                role=AgentRole.DETECTOR,
+                share_group="detectors",
+                policy_features=["entropy_penalty", "stability_bonus"],
+                learning_rate=0.02,
+            )
+        )
         sg.add_agent(agent)
 
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "detector_1", AgentRole.DETECTOR,
-            lambda s: 1.0 - s.get("fnr", 1.0) * 2.0,
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "detector_1",
+                AgentRole.DETECTOR,
+                lambda s: 1.0 - s.get("fnr", 1.0) * 2.0,
+            )
+        )
 
         optimizer = GroupPolicyOptimizer(sg)
 
@@ -464,13 +471,15 @@ class TestIntegration:
             share_mode=ShareMode.FULL_SHARING,
         )
         sg = ShareGroup(group)
-        agent = GovernanceAgent(GovernanceAgentConfig(
-            agent_id="a1",
-            role=AgentRole.DETECTOR,
-            share_group="group",
-            policy_features=["feature_a"],
-            learning_rate=0.02,
-        ))
+        agent = GovernanceAgent(
+            GovernanceAgentConfig(
+                agent_id="a1",
+                role=AgentRole.DETECTOR,
+                share_group="group",
+                policy_features=["feature_a"],
+                learning_rate=0.02,
+            )
+        )
         sg.add_agent(agent)
 
         optimizer = GroupPolicyOptimizer(sg)
@@ -490,13 +499,15 @@ class TestIntegration:
             share_mode=ShareMode.FULL_SHARING,
         )
         sg = ShareGroup(group)
-        agent = GovernanceAgent(GovernanceAgentConfig(
-            agent_id="e1",
-            role=AgentRole.DETECTOR,
-            share_group="entropy_test",
-            policy_features=["f1", "f2", "f3"],
-            learning_rate=0.02,
-        ))
+        agent = GovernanceAgent(
+            GovernanceAgentConfig(
+                agent_id="e1",
+                role=AgentRole.DETECTOR,
+                share_group="entropy_test",
+                policy_features=["f1", "f2", "f3"],
+                learning_rate=0.02,
+            )
+        )
         sg.add_agent(agent)
 
         config = OptimizerConfig(entropy_coeff=0.1)
@@ -515,13 +526,15 @@ class TestIntegration:
             share_mode=ShareMode.FULL_SHARING,
         )
         sg = ShareGroup(group)
-        agent = GovernanceAgent(GovernanceAgentConfig(
-            agent_id="s1",
-            role=AgentRole.DETECTOR,
-            share_group="stats_test",
-            policy_features=["f1"],
-            learning_rate=0.02,
-        ))
+        agent = GovernanceAgent(
+            GovernanceAgentConfig(
+                agent_id="s1",
+                role=AgentRole.DETECTOR,
+                share_group="stats_test",
+                policy_features=["f1"],
+                learning_rate=0.02,
+            )
+        )
         sg.add_agent(agent)
 
         optimizer = GroupPolicyOptimizer(sg)

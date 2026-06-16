@@ -50,9 +50,7 @@ class TestCodeParser:
             src_dir = Path(tmp) / "pkg"
             src_dir.mkdir(parents=True)
             (src_dir / "__init__.py").write_text("")
-            (src_dir / "mod.py").write_text(
-                "class A:\n    pass\nclass B:\n    pass\n"
-            )
+            (src_dir / "mod.py").write_text("class A:\n    pass\nclass B:\n    pass\n")
             hierarchy = parser.extract_module_hierarchy(str(tmp))
             assert hierarchy.total_nodes >= 3
             assert any("mod" in n.name for n in hierarchy.modules)
@@ -68,9 +66,7 @@ class TestSelfKnowledge:
             src_dir = Path(tmp) / "pkg"
             src_dir.mkdir(parents=True)
             (src_dir / "__init__.py").write_text("")
-            (src_dir / "a.py").write_text(
-                "class X:\n    def f(self):\n        pass\n"
-            )
+            (src_dir / "a.py").write_text("class X:\n    def f(self):\n        pass\n")
             (src_dir / "b.py").write_text("import pkg.a\n")
             sk.extract_arch_kg(str(tmp))
             assert sk.node_count() > 0
@@ -82,17 +78,13 @@ class TestSelfKnowledge:
             src_dir = Path(tmp) / "src" / "pkg"
             src_dir.mkdir(parents=True)
             (src_dir / "__init__.py").write_text("")
-            (src_dir / "mod.py").write_text(
-                "def target_function():\n    pass\n"
-            )
+            (src_dir / "mod.py").write_text("def target_function():\n    pass\n")
             sk.extract_arch_kg(str(Path(tmp) / "src"))
 
             test_dir = Path(tmp) / "tests"
             test_dir.mkdir(parents=True)
             (test_dir / "__init__.py").write_text("")
-            (test_dir / "test_pkg_mod.py").write_text(
-                "def test_target():\n    pass\n"
-            )
+            (test_dir / "test_pkg_mod.py").write_text("def test_target():\n    pass\n")
             test_count = sk.extract_test_coverage_relations(str(test_dir), "")
             assert test_count >= 1
 
@@ -140,8 +132,7 @@ class TestSelfKnowledge:
             src_dir = Path(tmp) / "pkg"
             src_dir.mkdir(parents=True)
             (src_dir / "__init__.py").write_text("")
-            (src_dir / "x.py").write_text(
-                "class A:\n    def f(self):\n        pass\n")
+            (src_dir / "x.py").write_text("class A:\n    def f(self):\n        pass\n")
             sk.extract_arch_kg(str(tmp))
         types = sk.node_types()
         assert "module" in types

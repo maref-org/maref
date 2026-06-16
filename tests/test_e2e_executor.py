@@ -44,9 +44,7 @@ def client(queue: TaskQueue) -> TestClient:
 class TestE2ETaskLifecycle:
     """E2E-1: Task Lifecycle - full create -> get -> update -> verify cycle"""
 
-    def test_full_lifecycle(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_full_lifecycle(self, client: TestClient, queue: TaskQueue) -> None:
         response = client.post(
             "/api/v1/tasks",
             json={
@@ -82,9 +80,7 @@ class TestE2ETaskLifecycle:
 class TestE2ETaskCancel:
     """E2E-2: Task Cancel Flow - create -> cancel -> verify"""
 
-    def test_cancel_flow(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_cancel_flow(self, client: TestClient, queue: TaskQueue) -> None:
         response = client.post(
             "/api/v1/tasks",
             json={"name": "cancel-test", "priority": 1},
@@ -107,9 +103,7 @@ class TestE2ETaskCancel:
 class TestE2ETaskListFilters:
     """E2E-3: Task List with Filters"""
 
-    def test_list_with_filters(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_with_filters(self, client: TestClient, queue: TaskQueue) -> None:
         t1 = Task(name="queued-low", priority=TaskPriority.LOW)
         t2 = Task(name="queued-medium", priority=TaskPriority.MEDIUM)
         t3 = Task(name="queued-high", priority=TaskPriority.HIGH)
@@ -153,18 +147,14 @@ class TestE2EErrorHandling:
         assert response.status_code == 404
         assert "detail" in response.json()
 
-    def test_create_with_invalid_priority(
-        self, client: TestClient
-    ) -> None:
+    def test_create_with_invalid_priority(self, client: TestClient) -> None:
         response = client.post(
             "/api/v1/tasks",
             json={"name": "bad-priority", "priority": 5},
         )
         assert response.status_code == 422
 
-    def test_cancel_completed_task(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_cancel_completed_task(self, client: TestClient, queue: TaskQueue) -> None:
         task = Task(name="already-done")
         task_id = queue.enqueue(task)
         queue.update_status(task_id, TaskStatus.COMPLETED)
@@ -176,9 +166,7 @@ class TestE2EErrorHandling:
 class TestE2ENotificationIntegration:
     """E2E-5: Notification Integration with mock channel"""
 
-    def test_notification_on_task_completion(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_notification_on_task_completion(self, client: TestClient, queue: TaskQueue) -> None:
         mock_channel = MagicMock(spec=NotificationChannel)
         mock_channel.send.return_value = True
 
@@ -208,9 +196,7 @@ class TestE2ENotificationIntegration:
 class TestE2EConcurrentOperations:
     """E2E-6: Concurrent Task Operations"""
 
-    def test_concurrent_operations(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_concurrent_operations(self, client: TestClient, queue: TaskQueue) -> None:
         task_ids = []
         for i in range(10):
             response = client.post(
@@ -247,9 +233,7 @@ class TestE2EConcurrentOperations:
 class TestE2EMetadataSource:
     """E2E-7: Metadata Source Tracking"""
 
-    def test_metadata_source_tracking(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_metadata_source_tracking(self, client: TestClient, queue: TaskQueue) -> None:
         response = client.post(
             "/api/v1/tasks",
             json={"name": "source-task", "priority": 2},
@@ -289,7 +273,9 @@ class TestE2EMCPGovernanceIntegration:
         return MCPClient()
 
     def _connect(
-        self, client: MCPClient, transport: MagicMock,
+        self,
+        client: MCPClient,
+        transport: MagicMock,
     ) -> MCPConnection:
         conn = MCPConnection(
             transport=transport,
@@ -301,7 +287,8 @@ class TestE2EMCPGovernanceIntegration:
         return conn
 
     def test_mcp_governance_allow(
-        self, mock_transport: MagicMock,
+        self,
+        mock_transport: MagicMock,
         mcp_client: MCPClient,
         mcp_governance: MCPGovernance,
     ) -> None:
@@ -319,11 +306,13 @@ class TestE2EMCPGovernanceIntegration:
         assert response.is_error is False
         assert response.result == {"status": "ok"}
         mock_transport.send_tool_call.assert_called_once_with(
-            "read_file", {"path": "/tmp/test.txt"},
+            "read_file",
+            {"path": "/tmp/test.txt"},
         )
 
     def test_mcp_governance_deny(
-        self, mock_transport: MagicMock,
+        self,
+        mock_transport: MagicMock,
         mcp_client: MCPClient,
         mcp_governance: MCPGovernance,
     ) -> None:
@@ -345,7 +334,8 @@ class TestE2EMCPGovernanceIntegration:
         mock_transport.send_tool_call.assert_not_called()
 
     def test_mcp_governance_ask_user(
-        self, mock_transport: MagicMock,
+        self,
+        mock_transport: MagicMock,
         mcp_client: MCPClient,
         mcp_governance: MCPGovernance,
     ) -> None:
@@ -369,7 +359,8 @@ class TestE2EMCPGovernanceIntegration:
         mock_transport.send_tool_call.assert_not_called()
 
     def test_mcp_governance_audit_integrity(
-        self, mock_transport: MagicMock,
+        self,
+        mock_transport: MagicMock,
         mcp_client: MCPClient,
         mcp_governance: MCPGovernance,
     ) -> None:
@@ -378,17 +369,20 @@ class TestE2EMCPGovernanceIntegration:
         conn = self._connect(mcp_client, mock_transport)
 
         mcp_client.call_tool(
-            conn=conn, tool_name="read_file",
+            conn=conn,
+            tool_name="read_file",
             args={"path": "/tmp/a.txt"},
             request_id="audit-1",
         )
         mcp_client.call_tool(
-            conn=conn, tool_name="write_file",
+            conn=conn,
+            tool_name="write_file",
             args={"command": "rm -rf /"},
             request_id="audit-2",
         )
         mcp_client.call_tool(
-            conn=conn, tool_name="write_file",
+            conn=conn,
+            tool_name="write_file",
             args={"path": "/tmp/b.txt", "content": "data"},
             request_id="audit-3",
         )

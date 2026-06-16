@@ -116,6 +116,7 @@ class TestMCPRateLimitMiddleware:
 
     def test_rate_limit_window_expires(self):
         import time
+
         middleware = MCPRateLimitMiddleware(max_calls=1, window_seconds=0)
         req = JSONRPCRequest(method="tools/list", id=1)
 
@@ -163,6 +164,7 @@ class TestMCPAuditMiddleware:
 
     def test_audit_includes_timestamp(self):
         import time
+
         logs = []
         middleware = MCPAuditMiddleware(log_sink=logs.append)
         req = JSONRPCRequest(method="tools/list", id=1)

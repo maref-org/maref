@@ -102,19 +102,53 @@ class TestUnifiedAuditStoreAppend:
     @pytest.fixture
     def records(self) -> list[UnifiedAuditRecord]:
         return [
-            UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "test1", "success", []),
-            UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "test2", "success", ["r1"]),
-            UnifiedAuditRecord("r3", 3.0, "outer", 2, "governance", "MG", "inner", "halt", "test3", "failure", ["r2"]),
-            UnifiedAuditRecord("r4", 4.0, "meta", 3, "governance", "MG", "outer", "open", "test4", "failure", ["r3"]),
-            UnifiedAuditRecord("r5", 5.0, "evolution", 10, "evolution", "DSL", "cb", "tune", "test5", "success", []),
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "test1", "success", []
+            ),
+            UnifiedAuditRecord(
+                "r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "test2", "success", ["r1"]
+            ),
+            UnifiedAuditRecord(
+                "r3",
+                3.0,
+                "outer",
+                2,
+                "governance",
+                "MG",
+                "inner",
+                "halt",
+                "test3",
+                "failure",
+                ["r2"],
+            ),
+            UnifiedAuditRecord(
+                "r4",
+                4.0,
+                "meta",
+                3,
+                "governance",
+                "MG",
+                "outer",
+                "open",
+                "test4",
+                "failure",
+                ["r3"],
+            ),
+            UnifiedAuditRecord(
+                "r5", 5.0, "evolution", 10, "evolution", "DSL", "cb", "tune", "test5", "success", []
+            ),
         ]
 
-    def test_append_increases_count(self, store: UnifiedAuditStore, records: list[UnifiedAuditRecord]) -> None:
+    def test_append_increases_count(
+        self, store: UnifiedAuditStore, records: list[UnifiedAuditRecord]
+    ) -> None:
         for r in records:
             store.append(r)
         assert store.count() == 5
 
-    def test_all_returns_all_records(self, store: UnifiedAuditStore, records: list[UnifiedAuditRecord]) -> None:
+    def test_all_returns_all_records(
+        self, store: UnifiedAuditStore, records: list[UnifiedAuditRecord]
+    ) -> None:
         for r in records:
             store.append(r)
         assert len(store.all()) == 5
@@ -124,10 +158,66 @@ class TestUnifiedAuditStoreQuery:
     @pytest.fixture
     def store(self) -> UnifiedAuditStore:
         s = UnifiedAuditStore()
-        s.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SelfDiagnostician", "governance", "check", "test", "success", []))
-        s.append(UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SelfHealer", "governance", "repair", "test", "success", ["r1"]))
-        s.append(UnifiedAuditRecord("r3", 3.0, "outer", 2, "governance", "MetaGovernance", "inner_l1", "halt", "test", "failure", ["r2"]))
-        s.append(UnifiedAuditRecord("r4", 4.0, "evolution", 10, "evolution", "EvolutionDSL", "circuit_breaker", "tune", "test", "success", []))
+        s.append(
+            UnifiedAuditRecord(
+                "r1",
+                1.0,
+                "inner",
+                1,
+                "diagnosis",
+                "SelfDiagnostician",
+                "governance",
+                "check",
+                "test",
+                "success",
+                [],
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r2",
+                2.0,
+                "inner",
+                1,
+                "healing",
+                "SelfHealer",
+                "governance",
+                "repair",
+                "test",
+                "success",
+                ["r1"],
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r3",
+                3.0,
+                "outer",
+                2,
+                "governance",
+                "MetaGovernance",
+                "inner_l1",
+                "halt",
+                "test",
+                "failure",
+                ["r2"],
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r4",
+                4.0,
+                "evolution",
+                10,
+                "evolution",
+                "EvolutionDSL",
+                "circuit_breaker",
+                "tune",
+                "test",
+                "success",
+                [],
+            )
+        )
         return s
 
     def test_query_by_layer_inner(self, store: UnifiedAuditStore) -> None:
@@ -166,16 +256,32 @@ class TestUnifiedAuditStoreQuery:
 class TestUnifiedAuditStoreDecisionChain:
     def test_decision_chain_single(self) -> None:
         store = UnifiedAuditStore()
-        store.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []))
+        store.append(
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []
+            )
+        )
         chain = store.query_decision_chain("r1")
         assert len(chain) == 1
         assert chain[0].record_id == "r1"
 
     def test_decision_chain_three_links(self) -> None:
         store = UnifiedAuditStore()
-        store.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []))
-        store.append(UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]))
-        store.append(UnifiedAuditRecord("r3", 3.0, "outer", 2, "governance", "MG", "inner", "halt", "j", "failure", ["r2"]))
+        store.append(
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r3", 3.0, "outer", 2, "governance", "MG", "inner", "halt", "j", "failure", ["r2"]
+            )
+        )
         chain = store.query_decision_chain("r3")
         assert len(chain) == 3
 
@@ -183,14 +289,36 @@ class TestUnifiedAuditStoreDecisionChain:
         store = UnifiedAuditStore()
         for i in range(15):
             prev = [] if i == 0 else [f"r{i}"]
-            store.append(UnifiedAuditRecord(f"r{i+1}", float(i), "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", prev))
+            store.append(
+                UnifiedAuditRecord(
+                    f"r{i+1}",
+                    float(i),
+                    "inner",
+                    1,
+                    "diagnosis",
+                    "SD",
+                    "gov",
+                    "check",
+                    "j",
+                    "success",
+                    prev,
+                )
+            )
         chain = store.query_decision_chain("r15", max_depth=5)
         assert len(chain) <= 5
 
     def test_decision_chain_self_ref_avoids_loop(self) -> None:
         store = UnifiedAuditStore()
-        store.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", ["r2"]))
-        store.append(UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]))
+        store.append(
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", ["r2"]
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]
+            )
+        )
         chain = store.query_decision_chain("r1", max_depth=10)
         assert len(chain) == 2
 
@@ -198,26 +326,58 @@ class TestUnifiedAuditStoreDecisionChain:
 class TestUnifiedAuditStoreStats:
     def test_stats_by_event_type(self) -> None:
         store = UnifiedAuditStore()
-        store.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []))
-        store.append(UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]))
-        store.append(UnifiedAuditRecord("r3", 3.0, "inner", 1, "healing", "SH", "gov2", "repair2", "j", "success", []))
+        store.append(
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r3", 3.0, "inner", 1, "healing", "SH", "gov2", "repair2", "j", "success", []
+            )
+        )
         stats = store.stats_by_event_type()
         assert stats["diagnosis"] == 1
         assert stats["healing"] == 2
 
     def test_stats_by_module(self) -> None:
         store = UnifiedAuditStore()
-        store.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []))
-        store.append(UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]))
+        store.append(
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]
+            )
+        )
         stats = store.stats_by_module()
         assert stats["SD"] == 1
         assert stats["SH"] == 1
 
     def test_stats_by_round(self) -> None:
         store = UnifiedAuditStore()
-        store.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []))
-        store.append(UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]))
-        store.append(UnifiedAuditRecord("r3", 3.0, "outer", 2, "governance", "MG", "inner", "halt", "j", "failure", ["r2"]))
+        store.append(
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "diagnosis", "SD", "gov", "check", "j", "success", []
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r2", 2.0, "inner", 1, "healing", "SH", "gov", "repair", "j", "success", ["r1"]
+            )
+        )
+        store.append(
+            UnifiedAuditRecord(
+                "r3", 3.0, "outer", 2, "governance", "MG", "inner", "halt", "j", "failure", ["r2"]
+            )
+        )
         stats = store.stats_by_round()
         assert stats[1] == 2
         assert stats[2] == 1
@@ -300,8 +460,22 @@ class TestHealingRecordToUnified:
     def test_healing_record_to_unified(self) -> None:
         record = HealingRecord(
             actions=[
-                HealAction(problem_type="test_failure", strategy="rerun_tests", applied=True, result="simulated_recovery", iteration=0, exit_code=0),
-                HealAction(problem_type="coverage_drop", strategy="identify_untested", applied=True, result="simulated_recovery", iteration=1, exit_code=0),
+                HealAction(
+                    problem_type="test_failure",
+                    strategy="rerun_tests",
+                    applied=True,
+                    result="simulated_recovery",
+                    iteration=0,
+                    exit_code=0,
+                ),
+                HealAction(
+                    problem_type="coverage_drop",
+                    strategy="identify_untested",
+                    applied=True,
+                    result="simulated_recovery",
+                    iteration=1,
+                    exit_code=0,
+                ),
             ],
             final_state="HEALTHY",
             iterations=2,
@@ -317,7 +491,13 @@ class TestHealingRecordToUnified:
     def test_healing_record_with_failure(self) -> None:
         record = HealingRecord(
             actions=[
-                HealAction(problem_type="unknown", strategy="full_system_scan", applied=True, result="needs_investigation", iteration=0),
+                HealAction(
+                    problem_type="unknown",
+                    strategy="full_system_scan",
+                    applied=True,
+                    result="needs_investigation",
+                    iteration=0,
+                ),
             ],
             final_state="DEGRADED",
             iterations=1,
@@ -386,7 +566,15 @@ class TestUnifiedAuditE2E:
         store.append(cross_entry.to_unified(round_num=2))
 
         heal_record = HealingRecord(
-            actions=[HealAction(problem_type="test_failure", strategy="rerun_tests", applied=True, result="simulated_recovery", iteration=0)],
+            actions=[
+                HealAction(
+                    problem_type="test_failure",
+                    strategy="rerun_tests",
+                    applied=True,
+                    result="simulated_recovery",
+                    iteration=0,
+                )
+            ],
             final_state="RECOVERED",
             iterations=1,
             converged=True,

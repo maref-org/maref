@@ -1,6 +1,5 @@
 """Tests for Phase D3: Safety Gate -> Decision Tree connection and HITL interrupt flow."""
 
-
 from maref.desktop.controller import DesktopController
 from maref.desktop.policy_decision_tree import (
     DecisionLevel,
@@ -103,7 +102,9 @@ class TestDesktopControllerPolicyTreeIntegration:
         assert ctrl._policy_tree.mode == OperationMode.ASK_MODE
 
     def test_controller_policy_tree_connected(self) -> None:
-        ctrl = DesktopController(dry_run=True, parser_backend="mock", operation_mode=OperationMode.FULL_AUTO)
+        ctrl = DesktopController(
+            dry_run=True, parser_backend="mock", operation_mode=OperationMode.FULL_AUTO
+        )
         log = ctrl.get_policy_decision_log()
         initial_count = len(log)
         assert isinstance(initial_count, int)
@@ -157,7 +158,11 @@ class TestHITLInterruptFlow:
             safe_apps={"Finder"},
         )
         assert result.verdict == DecisionVerdict.ALLOW
-        assert result.level in (DecisionLevel.RULE_BASED, DecisionLevel.MODE_BASED, DecisionLevel.SAFETY_CHECK)
+        assert result.level in (
+            DecisionLevel.RULE_BASED,
+            DecisionLevel.MODE_BASED,
+            DecisionLevel.SAFETY_CHECK,
+        )
 
     def test_decision_log_records_verdicts(self) -> None:
         tree = PolicyDecisionTree()

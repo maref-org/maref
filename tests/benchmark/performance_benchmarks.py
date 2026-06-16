@@ -150,10 +150,14 @@ class TestStateMachineThroughput:
 
         sm = GovernanceStateMachine()
         states = [
-            GovernanceState.OBSERVE, GovernanceState.ANALYZE,
-            GovernanceState.EVALUATE, GovernanceState.DECIDE,
-            GovernanceState.ACT, GovernanceState.VERIFY,
-            GovernanceState.STABILIZE, GovernanceState.REPORT,
+            GovernanceState.OBSERVE,
+            GovernanceState.ANALYZE,
+            GovernanceState.EVALUATE,
+            GovernanceState.DECIDE,
+            GovernanceState.ACT,
+            GovernanceState.VERIFY,
+            GovernanceState.STABILIZE,
+            GovernanceState.REPORT,
             GovernanceState.HALT,
         ]
 

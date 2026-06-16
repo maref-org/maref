@@ -29,6 +29,7 @@ from maref.observation.detector import DualThresholdConfig, DualThresholdDetecto
 # 7.1 — 500 Agent 并发治理
 # ---------------------------------------------------------------------------
 
+
 class TestAgentConcurrency:
     """Each agent holds an independent state machine — verify no cross-contamination."""
 
@@ -113,6 +114,7 @@ class TestAgentConcurrency:
 # 7.2 — 浸泡测试 (FNR/FPR drift monitoring)
 # ---------------------------------------------------------------------------
 
+
 class TestSoakSimulation:
     """Simulate extended operation, track detector drift."""
 
@@ -180,8 +182,8 @@ class TestSoakSimulation:
             window_detector = DualThresholdDetector(
                 DualThresholdConfig(primary_threshold=4.0, shadow_threshold=2.0)
             )
-            window_vals = values[window_start:window_start + window_size]
-            window_gts = ground_truth[window_start:window_start + window_size]
+            window_vals = values[window_start : window_start + window_size]
+            window_gts = ground_truth[window_start : window_start + window_size]
 
             for val, gt in zip(window_vals, window_gts, strict=False):
                 window_detector.evaluate(val, ground_truth_is_anomaly=gt)
@@ -208,6 +210,7 @@ class TestSoakSimulation:
 # ---------------------------------------------------------------------------
 # 7.3 — 故障注入测试
 # ---------------------------------------------------------------------------
+
 
 class TestFaultInjection:
     """Simulate production failures: crash recovery, KG write failure, gradient explosion."""
@@ -310,6 +313,7 @@ class TestFaultInjection:
 # 7.5 — 性能基准
 # ---------------------------------------------------------------------------
 
+
 class TestPerformanceBenchmark:
     """Measure critical path latencies and assert within acceptable bounds."""
 
@@ -347,12 +351,10 @@ class TestPerformanceBenchmark:
         p50 = latencies[len(latencies) // 2]
         p99 = latencies[int(len(latencies) * 0.99)]
 
-        assert p50 < self.LATENCY_BUDGET_MS["state_transition"], (
-            f"P50={p50:.2f}ms exceeds budget"
-        )
-        assert p99 < self.LATENCY_BUDGET_MS["state_transition"] * 3, (
-            f"P99={p99:.2f}ms exceeds budget"
-        )
+        assert p50 < self.LATENCY_BUDGET_MS["state_transition"], f"P50={p50:.2f}ms exceeds budget"
+        assert (
+            p99 < self.LATENCY_BUDGET_MS["state_transition"] * 3
+        ), f"P99={p99:.2f}ms exceeds budget"
 
     def test_anomaly_detection_latency(self):
         """P99 anomaly detection < 10ms."""
@@ -367,12 +369,10 @@ class TestPerformanceBenchmark:
         p50 = latencies[len(latencies) // 2]
         p99 = latencies[int(len(latencies) * 0.99)]
 
-        assert p50 < self.LATENCY_BUDGET_MS["anomaly_detection"], (
-            f"P50={p50:.2f}ms exceeds budget"
-        )
-        assert p99 < self.LATENCY_BUDGET_MS["anomaly_detection"] * 3, (
-            f"P99={p99:.2f}ms exceeds budget"
-        )
+        assert p50 < self.LATENCY_BUDGET_MS["anomaly_detection"], f"P50={p50:.2f}ms exceeds budget"
+        assert (
+            p99 < self.LATENCY_BUDGET_MS["anomaly_detection"] * 3
+        ), f"P99={p99:.2f}ms exceeds budget"
 
     def test_kg_query_latency(self):
         """Knowledge graph connectivity stats query < 200ms."""
@@ -391,12 +391,8 @@ class TestPerformanceBenchmark:
         p50 = latencies[len(latencies) // 2]
         p99 = latencies[int(len(latencies) * 0.99)]
 
-        assert p50 < self.LATENCY_BUDGET_MS["kg_query"], (
-            f"P50={p50:.2f}ms exceeds budget"
-        )
-        assert p99 < self.LATENCY_BUDGET_MS["kg_query"] * 4, (
-            f"P99={p99:.2f}ms exceeds budget"
-        )
+        assert p50 < self.LATENCY_BUDGET_MS["kg_query"], f"P50={p50:.2f}ms exceeds budget"
+        assert p99 < self.LATENCY_BUDGET_MS["kg_query"] * 4, f"P99={p99:.2f}ms exceeds budget"
 
     def test_snapshot_restore_latency(self):
         """Snapshot + restore round-trip < 10ms."""
@@ -413,12 +409,10 @@ class TestPerformanceBenchmark:
         p50 = latencies[len(latencies) // 2]
         p99 = latencies[int(len(latencies) * 0.99)]
 
-        assert p50 < self.LATENCY_BUDGET_MS["snapshot_restore"], (
-            f"P50={p50:.2f}ms exceeds budget"
-        )
-        assert p99 < self.LATENCY_BUDGET_MS["snapshot_restore"] * 4, (
-            f"P99={p99:.2f}ms exceeds budget"
-        )
+        assert p50 < self.LATENCY_BUDGET_MS["snapshot_restore"], f"P50={p50:.2f}ms exceeds budget"
+        assert (
+            p99 < self.LATENCY_BUDGET_MS["snapshot_restore"] * 4
+        ), f"P99={p99:.2f}ms exceeds budget"
 
     def test_audit_log_latency(self):
         """Audit log write < 10ms per entry."""
@@ -436,9 +430,5 @@ class TestPerformanceBenchmark:
         p50 = latencies[len(latencies) // 2]
         p99 = latencies[int(len(latencies) * 0.99)]
 
-        assert p50 < self.LATENCY_BUDGET_MS["audit_log"], (
-            f"P50={p50:.2f}ms exceeds budget"
-        )
-        assert p99 < self.LATENCY_BUDGET_MS["audit_log"] * 3, (
-            f"P99={p99:.2f}ms exceeds budget"
-        )
+        assert p50 < self.LATENCY_BUDGET_MS["audit_log"], f"P50={p50:.2f}ms exceeds budget"
+        assert p99 < self.LATENCY_BUDGET_MS["audit_log"] * 3, f"P99={p99:.2f}ms exceeds budget"

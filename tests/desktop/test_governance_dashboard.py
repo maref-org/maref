@@ -1,6 +1,5 @@
 """Tests for Phase D4: Governance Dashboard - DesktopGovernance integration and API endpoints."""
 
-
 from maref.desktop.controller import DesktopController
 from maref.desktop.desktop_governance import (
     DesktopGovernanceState,
@@ -94,7 +93,11 @@ class TestGovernanceDashboardIntegration:
         from maref.desktop.controller import DesktopOperation, DesktopOperationType, ExecutionPlan
 
         plan = ExecutionPlan(plan_id="governance-test", description="Test governance")
-        plan.add_step(DesktopOperation(op_type=DesktopOperationType.CLICK, params={"x": 100, "y": 100}, description="Click"))
+        plan.add_step(
+            DesktopOperation(
+                op_type=DesktopOperationType.CLICK, params={"x": 100, "y": 100}, description="Click"
+            )
+        )
         result = ctrl.execute_plan(plan)
         assert result.success is True
         status = ctrl.get_governance_status()

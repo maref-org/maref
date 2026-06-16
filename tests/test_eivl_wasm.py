@@ -64,9 +64,7 @@ class TestSandboxCapabilities:
 
     def test_syscall_whitelist(self) -> None:
         """测试系统调用白名单"""
-        caps = SandboxCapabilities(
-            allowed_syscalls=["read", "write", "exit"]
-        )
+        caps = SandboxCapabilities(allowed_syscalls=["read", "write", "exit"])
         assert caps.validate_access("syscall:read") == True
         assert caps.validate_access("syscall:exec") == False
 
@@ -84,7 +82,7 @@ class TestWasmSandboxExecutor:
         sandbox = create_wasm_sandbox()
 
         # 最小有效 WASM 模块 (魔术数字 + 版本)
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
 
         result = sandbox.execute(wasm_bytes)
 
@@ -97,7 +95,7 @@ class TestWasmSandboxExecutor:
         sandbox = create_wasm_sandbox()
 
         # 无效 WASM
-        wasm_bytes = b'invalid'
+        wasm_bytes = b"invalid"
 
         result = sandbox.execute(wasm_bytes)
 
@@ -109,7 +107,7 @@ class TestWasmSandboxExecutor:
         sandbox = create_wasm_sandbox(limits=limits)
 
         # 创建较大的 WASM 模块触发内存限制
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00' + b'\x00' * (1024 * 1024 * 2)
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00" + b"\x00" * (1024 * 1024 * 2)
 
         result = sandbox.execute(wasm_bytes)
 
@@ -120,7 +118,7 @@ class TestWasmSandboxExecutor:
         """测试带能力的执行"""
         sandbox = create_wasm_sandbox()
 
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         caps = SandboxCapabilities(allow_network=True)
 
         result = sandbox.execute(wasm_bytes, capabilities=caps)
@@ -132,7 +130,7 @@ class TestWasmSandboxExecutor:
         """测试执行验证"""
         sandbox = create_wasm_sandbox()
 
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         result = sandbox.execute(wasm_bytes)
 
         is_valid = sandbox.verify_execution(wasm_bytes, result)
@@ -143,7 +141,7 @@ class TestWasmSandboxExecutor:
         sandbox = create_wasm_sandbox()
 
         # 执行几次
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         sandbox.execute(wasm_bytes)
         sandbox.execute(wasm_bytes)
 
@@ -164,7 +162,7 @@ class TestEIVLVerifier:
         """测试记录证据"""
         verifier = create_eivl_verifier()
 
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         sandbox = create_wasm_sandbox()
         result = sandbox.execute(wasm_bytes)
 
@@ -179,7 +177,7 @@ class TestEIVLVerifier:
         """测试验证证据"""
         verifier = create_eivl_verifier()
 
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         sandbox = create_wasm_sandbox()
         result = sandbox.execute(wasm_bytes)
 
@@ -192,7 +190,7 @@ class TestEIVLVerifier:
         """测试篡改证据检测"""
         verifier = create_eivl_verifier()
 
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         sandbox = create_wasm_sandbox()
         result = sandbox.execute(wasm_bytes)
 
@@ -208,7 +206,7 @@ class TestEIVLVerifier:
         """测试获取证据链"""
         verifier = create_eivl_verifier()
 
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         sandbox = create_wasm_sandbox()
 
         for i in range(3):
@@ -222,7 +220,7 @@ class TestEIVLVerifier:
         """测试验证统计"""
         verifier = create_eivl_verifier()
 
-        wasm_bytes = b'\x00asm\x01\x00\x00\x00'
+        wasm_bytes = b"\x00asm\x01\x00\x00\x00"
         sandbox = create_wasm_sandbox()
         result = sandbox.execute(wasm_bytes)
 

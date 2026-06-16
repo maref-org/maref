@@ -16,8 +16,10 @@ from maref.recursive.metacognition import (
 class TestUncertaintyQuantification:
     def test_create(self) -> None:
         uq = UncertaintyQuantification(
-            aleatoric=0.1, epistemic=0.2,
-            confidence_interval_low=0.3, confidence_interval_high=0.8,
+            aleatoric=0.1,
+            epistemic=0.2,
+            confidence_interval_low=0.3,
+            confidence_interval_high=0.8,
         )
         assert uq.total_uncertainty == pytest.approx(0.3)
         assert uq.confidence == pytest.approx(0.7)

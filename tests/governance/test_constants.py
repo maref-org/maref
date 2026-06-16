@@ -6,15 +6,13 @@ Governance Constants 测试
 
 from __future__ import annotations
 
-import pytest
-
 from maref.governance.constants import (
-    GRAY_CODE,
-    STATE_NAMES,
     ENTROPY_LEVELS,
+    GRAY_CODE,
     MAX_ENTROPY,
-    hamming_distance,
+    STATE_NAMES,
     compute_valid_transitions,
+    hamming_distance,
 )
 
 
@@ -85,7 +83,9 @@ class TestValidTransitions:
                 continue
             for target in targets:
                 if target != 9:  # HALT is absorbing
-                    assert state in transitions[target], f"Transition {state}->{target} not symmetric"
+                    assert (
+                        state in transitions[target]
+                    ), f"Transition {state}->{target} not symmetric"
 
     def test_no_self_loops(self) -> None:
         transitions = compute_valid_transitions()

@@ -21,17 +21,17 @@ if [[ -f "${MAREF_ENV_FILE}" ]]; then
     set -a
     source "${MAREF_ENV_FILE}"
     set +a
-    
+
     # 使用 launchctl 将环境变量注入到当前会话
     while IFS='=' read -r key value; do
         # 跳过注释和空行
         [[ "${key}" =~ ^#.*$ ]] && continue
         [[ -z "${key}" ]] && continue
-        
+
         # 注入到 launchd 环境
         launchctl setenv "${key}" "${value}" 2>/dev/null || true
     done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "${MAREF_ENV_FILE}" | sed 's/^[[:space:]]*//')
-    
+
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] MAREF environment loaded from ${MAREF_ENV_FILE}"
 else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: ${MAREF_ENV_FILE} not found"

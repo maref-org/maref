@@ -17,6 +17,7 @@ MAX_GROWTH_PERCENT_PER_HOUR = 5.0
 
 def get_memory_mb() -> float:
     import psutil
+
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024
 
@@ -57,7 +58,9 @@ def main():
         growth_rate = growth_pct / elapsed_hours if elapsed_hours > 0 else 0
         status = "PASS" if growth_rate <= MAX_GROWTH_PERCENT_PER_HOUR else "FAIL"
 
-        print(f"T+{elapsed_hours:.1f}h  Memory: {current_mb:.1f} MB  Growth: {growth_pct:.1f}%  Rate: {growth_rate:.2f}%/h  [{status}]")
+        print(
+            f"T+{elapsed_hours:.1f}h  Memory: {current_mb:.1f} MB  Growth: {growth_pct:.1f}%  Rate: {growth_rate:.2f}%/h  [{status}]"
+        )
 
         if growth_rate > MAX_GROWTH_PERCENT_PER_HOUR:
             print("\nWARNING: Memory growth rate exceeds threshold!")
@@ -84,6 +87,7 @@ def main():
     # Write report
     report_path = Path("memory_stability_report.json")
     import json
+
     report = {
         "baseline_mb": baseline_mb,
         "final_mb": final_mb,

@@ -20,9 +20,7 @@ class TestHistoryDatabase:
         try:
             db = HistoryDatabase(db_path)
             conn = sqlite3.connect(db_path)
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
             conn.close()
             table_names = [t[0] for t in tables]
             assert "executions" in table_names
@@ -36,7 +34,9 @@ class TestHistoryDatabase:
         try:
             db = HistoryDatabase(db_path)
             plan = ExecutionPlan(plan_id="test-plan-001", description="Test plan")
-            plan.add_step(DesktopOperation(op_type=DesktopOperationType.CLICK, params={"x": 10, "y": 10}))
+            plan.add_step(
+                DesktopOperation(op_type=DesktopOperationType.CLICK, params={"x": 10, "y": 10})
+            )
 
             eid = db.save_plan(plan)
             assert eid is not None
@@ -71,8 +71,20 @@ class TestOperationHistoryPersistence:
         try:
             controller1 = DesktopController(dry_run=True, history_db=db_path, parser_backend="mock")
             plan = ExecutionPlan(plan_id="persistence-test", description="Test persistence")
-            plan.add_step(DesktopOperation(op_type=DesktopOperationType.CLICK, params={"x": 100, "y": 100}, description="Click test"))
-            plan.add_step(DesktopOperation(op_type=DesktopOperationType.TYPE, params={"text": "Hello"}, description="Type test"))
+            plan.add_step(
+                DesktopOperation(
+                    op_type=DesktopOperationType.CLICK,
+                    params={"x": 100, "y": 100},
+                    description="Click test",
+                )
+            )
+            plan.add_step(
+                DesktopOperation(
+                    op_type=DesktopOperationType.TYPE,
+                    params={"text": "Hello"},
+                    description="Type test",
+                )
+            )
 
             result = controller1.execute_and_persist(plan)
             assert result["success"] is True
@@ -94,7 +106,9 @@ class TestOperationHistoryPersistence:
 
             for i in range(5):
                 plan = ExecutionPlan(plan_id=f"exec-{i}", description=f"Execution {i}")
-                plan.add_step(DesktopOperation(op_type=DesktopOperationType.CLICK, params={"x": i, "y": i}))
+                plan.add_step(
+                    DesktopOperation(op_type=DesktopOperationType.CLICK, params={"x": i, "y": i})
+                )
                 controller.execute_and_persist(plan)
 
             history = controller.get_history(limit=10)
@@ -111,8 +125,18 @@ class TestOperationHistoryPersistence:
         try:
             controller = DesktopController(dry_run=True, history_db=db_path, parser_backend="mock")
             plan = ExecutionPlan(plan_id="details-test", description="Test details")
-            plan.add_step(DesktopOperation(op_type=DesktopOperationType.CLICK, params={"x": 50, "y": 50}, description="Step 1"))
-            plan.add_step(DesktopOperation(op_type=DesktopOperationType.TYPE, params={"text": "test"}, description="Step 2"))
+            plan.add_step(
+                DesktopOperation(
+                    op_type=DesktopOperationType.CLICK,
+                    params={"x": 50, "y": 50},
+                    description="Step 1",
+                )
+            )
+            plan.add_step(
+                DesktopOperation(
+                    op_type=DesktopOperationType.TYPE, params={"text": "test"}, description="Step 2"
+                )
+            )
 
             result = controller.execute_and_persist(plan)
             execution_id = result.get("execution_id")

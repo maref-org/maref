@@ -125,7 +125,19 @@ class TestStabilityTestRunner:
             enable_tracemalloc=False,
         )
         with patch.object(runner, "_get_memory_mb") as mock_mem:
-            mock_mem.side_effect = [50.0, 50.5, 51.0, 51.5, 52.0, 52.5, 53.0, 53.5, 54.0, 60.0, 65.0]
+            mock_mem.side_effect = [
+                50.0,
+                50.5,
+                51.0,
+                51.5,
+                52.0,
+                52.5,
+                53.0,
+                53.5,
+                54.0,
+                60.0,
+                65.0,
+            ]
             report = runner.run(report_interval=10)
         assert report.leak_detected
         assert report.memory_growth_pct > 0.1

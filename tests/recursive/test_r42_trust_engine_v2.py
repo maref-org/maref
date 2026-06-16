@@ -165,6 +165,7 @@ class TestTrustEngineV2:
     def test_temporal_decay(self) -> None:
         self.engine.register_agent("inactive")
         import time
+
         profile = self.engine._profiles["inactive"]
         profile.last_active_at = time.time() - 86400 * 30
         score = self.engine.assess("inactive")

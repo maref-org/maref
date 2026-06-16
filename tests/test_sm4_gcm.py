@@ -1,10 +1,10 @@
 """SM4-GCM 模式单元测试."""
+
 from __future__ import annotations
 
 import pytest
 
-from maref.crypto.sm4_gcm import sm4_encrypt_gcm, sm4_decrypt_gcm
-
+from maref.crypto.sm4_gcm import sm4_decrypt_gcm, sm4_encrypt_gcm
 
 SM4_KEY = b"3l5butlj26hvv313"
 SM4_NONCE = b"\x00" * 12

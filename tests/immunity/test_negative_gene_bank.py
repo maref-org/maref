@@ -1,10 +1,8 @@
 import time
-import uuid
 
 import pytest
 
 from maref.immunity.negative_gene_bank import (
-    GeneMapping,
     GenePattern,
     GeneVariant,
     NegativeGene,
@@ -95,9 +93,18 @@ class TestQuery:
         assert len(results) >= 1
 
     def test_query_by_pattern_requests_get(self, bank):
-        g = NegativeGene("", "CWE-295", "HIGH", 9, True,
-                         "requests.get without verify", "desc", "test", time.time(),
-                         patterns=[GenePattern("", "", "regex", r"requests.get", "primary", 1.0)])
+        g = NegativeGene(
+            "",
+            "CWE-295",
+            "HIGH",
+            9,
+            True,
+            "requests.get without verify",
+            "desc",
+            "test",
+            time.time(),
+            patterns=[GenePattern("", "", "regex", r"requests.get", "primary", 1.0)],
+        )
         bank.store_gene(g)
         results = bank.query_by_pattern("requests.get")
         assert len(results) >= 1
@@ -179,9 +186,7 @@ class TestIntegrity:
     def test_integrity_detects_tamper(self, bank):
         gid = bank.store_gene(_sample_gene(91))
         # simulate tamper via raw SQL
-        bank._conn.execute(
-            "UPDATE negative_genes SET title='EVIL' WHERE gene_id=?", (gid,)
-        )
+        bank._conn.execute("UPDATE negative_genes SET title='EVIL' WHERE gene_id=?", (gid,))
         bank._conn.commit()
         ok, tampered = bank.verify_integrity()
         assert ok is False
@@ -222,8 +227,14 @@ class TestVariant:
 class TestMaintenance:
     def test_purge_stale(self, bank):
         old = NegativeGene(
-            "NEG-OLD-001", "CWE-999", "LOW", 1, False,
-            "Old Gene", "Should be purged", "test",
+            "NEG-OLD-001",
+            "CWE-999",
+            "LOW",
+            1,
+            False,
+            "Old Gene",
+            "Should be purged",
+            "test",
             first_seen=time.time() - (800 * 86400),  # > 730d
         )
         bank.store_gene(old)
@@ -253,6 +264,7 @@ class TestMaintenance:
         assert retrieved is not None
         assert retrieved.title == "Test Gene 120"
         import os
+
         os.unlink(db_path)
 
 

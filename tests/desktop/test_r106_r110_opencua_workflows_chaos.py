@@ -60,7 +60,13 @@ class TestOpenCUABenchmark:
 
 class TestWorkflowTemplates:
     def test_all_templates_present(self) -> None:
-        expected = {"compose_email", "edit_spreadsheet", "browser_form", "file_organize", "terminal_command"}
+        expected = {
+            "compose_email",
+            "edit_spreadsheet",
+            "browser_form",
+            "file_organize",
+            "terminal_command",
+        }
         assert set(WORKFLOW_TEMPLATES.keys()) == expected
 
     def test_each_template_has_steps(self) -> None:
@@ -169,6 +175,7 @@ class TestBrowserAuth:
 class TestDesktopChaos:
     def test_chaos_agent_recovery(self) -> None:
         from maref.desktop.task_executor import TaskExecutor, TaskStatus, TaskStep
+
         executor = TaskExecutor(max_retries=3)
         steps = [
             TaskStep(description="step 1", action_type="click", action_value="100,200"),
@@ -178,8 +185,8 @@ class TestDesktopChaos:
         assert result.status == TaskStatus.SUCCESS
 
     def test_chaos_agent_failure_recovery(self) -> None:
-
         from maref.desktop.task_executor import TaskExecutor, TaskStatus, TaskStep
+
         executor = TaskExecutor(max_retries=2)
 
         class FailingAgent:
@@ -200,6 +207,7 @@ class TestDesktopChaos:
 
     def test_chaos_timeout_handling(self) -> None:
         from maref.desktop.task_executor import TaskExecutor, TaskStep
+
         executor = TaskExecutor(max_retries=1)
         steps = [TaskStep(description="normal step", action_type="hotkey", action_value="enter")]
         result = executor.execute(steps, task_id="timeout-test")

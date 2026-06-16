@@ -89,9 +89,7 @@ class TestAllTransitionsHaveSpans:
 
 class TestGovernanceMetric:
     def test_record_custom_metric(self, bridge: OpenTelemetryBridge) -> None:
-        bridge.record_governance_metric(
-            "trust_score", 0.85, {"agent_did": "did:maref:test:1234"}
-        )
+        bridge.record_governance_metric("trust_score", 0.85, {"agent_did": "did:maref:test:1234"})
         metrics = bridge.collect_metrics()
         trust_metrics = [m for m in metrics if m["name"] == "trust_score"]
         assert len(trust_metrics) >= 1

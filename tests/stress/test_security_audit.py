@@ -29,6 +29,7 @@ from maref.observation.store import ObservationStore
 # 7.4.1 — 递归深度逃逸检查
 # ---------------------------------------------------------------------------
 
+
 class TestRecursiveDepthEscape:
     """Verify that recursion depth limits cannot be bypassed."""
 
@@ -80,6 +81,7 @@ class TestRecursiveDepthEscape:
 # 7.4.2 — 策略权重越界检查
 # ---------------------------------------------------------------------------
 
+
 class TestPolicyWeightBounds:
     """Verify that learning rate and policy weights stay within safe bounds."""
 
@@ -102,15 +104,17 @@ class TestPolicyWeightBounds:
         """Store does not exceed max_samples (default 10000)."""
         store = ExperienceStore(max_size=500)
         for _i in range(2000):
-            store.insert(DecisionOutcome(
-                timestamp=time.time(),
-                decision_type="test",
-                state_before="INIT",
-                state_after="OBSERVE",
-                entropy_before=0,
-                entropy_after=1,
-                reward=0.5,
-            ))
+            store.insert(
+                DecisionOutcome(
+                    timestamp=time.time(),
+                    decision_type="test",
+                    state_before="INIT",
+                    state_after="OBSERVE",
+                    entropy_before=0,
+                    entropy_after=1,
+                    reward=0.5,
+                )
+            )
         assert store.count() <= 500
 
     def test_extreme_negative_reward_stability(self):
@@ -125,6 +129,7 @@ class TestPolicyWeightBounds:
 # ---------------------------------------------------------------------------
 # 7.4.3 — HALT 不可绕过性验证
 # ---------------------------------------------------------------------------
+
 
 class TestHALTNonBypassability:
     """Verify that HALT is a true sink state — cannot escape, cannot be skipped."""
@@ -185,6 +190,7 @@ class TestHALTNonBypassability:
 # 7.4.4 — 状态注入攻击
 # ---------------------------------------------------------------------------
 
+
 class TestStateInjection:
     """Verify that invalid state values and transitions cannot be injected."""
 
@@ -201,8 +207,7 @@ class TestStateInjection:
                 target_code = GRAY_CODE[target_val]
                 hd = hamming_distance(from_code, target_code)
                 assert hd == 1, (
-                    f"Transition {from_val}→{target_val} "
-                    f"has Hamming distance {hd}, expected 1"
+                    f"Transition {from_val}→{target_val} " f"has Hamming distance {hd}, expected 1"
                 )
 
     def test_only_defined_transitions_allowed(self):
@@ -214,9 +219,9 @@ class TestStateInjection:
         valid_next = {GS(v) for v in valid_next_values}
         for state in GS:
             if state not in valid_next and state != GS.OBSERVE:
-                assert not sm.can_transition(state), (
-                    f"Unexpected valid transition: OBSERVE→{state.name}"
-                )
+                assert not sm.can_transition(
+                    state
+                ), f"Unexpected valid transition: OBSERVE→{state.name}"
 
     def test_bogus_state_value_rejected(self):
         """Out-of-range integer state value detected."""
@@ -237,6 +242,7 @@ class TestStateInjection:
 # ---------------------------------------------------------------------------
 # 7.4.5 — SQL 注入防护
 # ---------------------------------------------------------------------------
+
 
 class TestSQLInjectionDefense:
     """Verify that ObservationStore uses parameterized queries."""
@@ -280,7 +286,10 @@ class TestSQLInjectionDefense:
             batch_id="batch_'; DROP--",
             fnr=0.1,
             fpr=0.05,
-            tp=90, fp=5, tn=895, fn_count=10,
+            tp=90,
+            fp=5,
+            tn=895,
+            fn_count=10,
         )
         history = store.get_fnr_fpr_history(limit=5)
         assert len(history) > 0
@@ -289,15 +298,24 @@ class TestSQLInjectionDefense:
     def test_fnr_fpr_log_table_structure_intact(self):
         """After all injection attempts, tables remain intact."""
         store = ObservationStore(db_path=":memory:")
-        store.insert_reading(ProbeReading(
-            probe_name="normal", severity=ProbeSeverity.NORMAL, value=1.0,
-            threshold=4.0, timestamp=time.time(),
-        ))
-        store.insert_reading(ProbeReading(
-            probe_name="entropy'; DELETE FROM probe_readings; --",
-            severity=ProbeSeverity.WARNING, value=3.0,
-            threshold=4.0, timestamp=time.time(),
-        ))
+        store.insert_reading(
+            ProbeReading(
+                probe_name="normal",
+                severity=ProbeSeverity.NORMAL,
+                value=1.0,
+                threshold=4.0,
+                timestamp=time.time(),
+            )
+        )
+        store.insert_reading(
+            ProbeReading(
+                probe_name="entropy'; DELETE FROM probe_readings; --",
+                severity=ProbeSeverity.WARNING,
+                value=3.0,
+                threshold=4.0,
+                timestamp=time.time(),
+            )
+        )
         recent = store.get_readings(limit=100)
         assert len(recent) >= 2
 
@@ -309,6 +327,7 @@ class TestSQLInjectionDefense:
 # ---------------------------------------------------------------------------
 # 7.4.6 — 序列化安全
 # ---------------------------------------------------------------------------
+
 
 class TestSerializationSafety:
     """Verify robustness against malformed or malicious serialized inputs."""
@@ -323,11 +342,13 @@ class TestSerializationSafety:
     def test_snapshot_bogus_state_name(self):
         """Snapshot with nonexistent state ID raises ValueError — safe rejection."""
         with pytest.raises(ValueError, match="not a valid GovernanceState"):
-            StateMachineSnapshot.from_dict({
-                "current_state_id": 99,
-                "transition_count": 99,
-                "history_length": 0,
-            })
+            StateMachineSnapshot.from_dict(
+                {
+                    "current_state_id": 99,
+                    "transition_count": 99,
+                    "history_length": 0,
+                }
+            )
 
     def test_snapshot_with_extra_fields(self):
         """Extra fields in snapshot are ignored (forward compat)."""
@@ -343,9 +364,7 @@ class TestSerializationSafety:
 
     def test_empty_snapshot_dict(self):
         """Entirely empty snapshot restores to INIT."""
-        restored = GovernanceStateMachine.restore(
-            StateMachineSnapshot.from_dict({})
-        )
+        restored = GovernanceStateMachine.restore(StateMachineSnapshot.from_dict({}))
         assert restored.current_state == GS.INIT
 
     def test_experience_store_bad_db_path(self):
@@ -368,16 +387,18 @@ class TestSerializationSafety:
     def test_experience_store_injection_in_sample_data(self):
         """Samples with crafted keys don't break store internals."""
         store = ExperienceStore()
-        store.insert(DecisionOutcome(
-            timestamp=time.time(),
-            decision_type="inject_test",
-            state_before="INIT",
-            state_after="OBSERVE",
-            entropy_before=0,
-            entropy_after=1,
-            reward=0.5,
-            context={"__class__": "os.system", "__init__": "rm -rf /"},
-        ))
+        store.insert(
+            DecisionOutcome(
+                timestamp=time.time(),
+                decision_type="inject_test",
+                state_before="INIT",
+                state_after="OBSERVE",
+                entropy_before=0,
+                entropy_after=1,
+                reward=0.5,
+                context={"__class__": "os.system", "__init__": "rm -rf /"},
+            )
+        )
         assert store.count() == 1
         batch = store.sample(1)
         assert len(batch) == 1

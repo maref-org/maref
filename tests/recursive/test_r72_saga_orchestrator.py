@@ -39,7 +39,9 @@ class TestSagaStep:
             step_id="s1",
             description="test",
             execute_fn=lambda ctx: StepResult(step_id="s1", success=True),
-            compensate_fn=lambda ctx: StepResult(step_id="s1_comp", success=True, data={"rolled_back": True}),
+            compensate_fn=lambda ctx: StepResult(
+                step_id="s1_comp", success=True, data={"rolled_back": True}
+            ),
         )
         comp_result = step.compensate({})
         assert comp_result is not None
@@ -281,7 +283,12 @@ class TestSagaIntegration:
 
     def test_deploy_saga_pattern(self) -> None:
         orchestrator = SagaOrchestrator()
-        deploy_state: dict = {"backup_created": False, "deployed": False, "verified": False, "rolled_back": False}
+        deploy_state: dict = {
+            "backup_created": False,
+            "deployed": False,
+            "verified": False,
+            "rolled_back": False,
+        }
 
         def create_backup(ctx):
             deploy_state["backup_created"] = True

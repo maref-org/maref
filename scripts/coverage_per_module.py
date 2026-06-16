@@ -48,11 +48,16 @@ ALL_MODULES = {
 def run_coverage_for(include_pattern: str) -> float:
     result = subprocess.run(
         [
-            sys.executable, "-m", "coverage", "report",
+            sys.executable,
+            "-m",
+            "coverage",
+            "report",
             f"--include={include_pattern}",
             "--show-missing",
         ],
-        capture_output=True, text=True, cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        cwd=str(ROOT),
     )
     output = result.stdout
     for line in output.strip().split("\n"):

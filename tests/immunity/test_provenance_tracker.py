@@ -38,14 +38,18 @@ def _add_node(
 
 
 class TestLabelNode:
-    def test_label_node_stores_in_metadata(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_label_node_stores_in_metadata(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "node-1", time.time())
         tracker.label_node("node-1", "human")
         node = kg.get_node("node-1")
         assert node is not None
         assert node.metadata["provenance"] == "human"
 
-    def test_label_node_invalid_provenance_raises(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_label_node_invalid_provenance_raises(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "node-1", time.time())
         with pytest.raises(ValueError, match="Invalid provenance"):
             tracker.label_node("node-1", "robot")
@@ -54,7 +58,9 @@ class TestLabelNode:
         tracker.label_node("nonexistent", "ai_generated")
         assert tracker.get_provenance("nonexistent") == "ai_generated"
 
-    def test_all_provenance_labels_accepted(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_all_provenance_labels_accepted(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "n1", time.time())
         _add_node(kg, "n2", time.time())
         _add_node(kg, "n3", time.time())
@@ -68,7 +74,9 @@ class TestLabelNode:
         assert tracker.get_provenance("n3") == "ai_generated"
         assert tracker.get_provenance("n4") == "unknown"
 
-    def test_label_overwrites_previous(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_label_overwrites_previous(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "node-1", time.time())
         tracker.label_node("node-1", "human")
         tracker.label_node("node-1", "ai_generated")
@@ -85,7 +93,9 @@ class TestGetProvenance:
 
 
 class TestRetrieve:
-    def test_retrieve_pre_2023_filters_post_2023(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_retrieve_pre_2023_filters_post_2023(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "old-node", PRE_2023_CUTOFF - 86400)
         _add_node(kg, "new-node", PRE_2023_CUTOFF + 86400)
         results = tracker.retrieve(pre_2023=True)
@@ -93,19 +103,25 @@ class TestRetrieve:
         assert "old-node" in ids
         assert "new-node" not in ids
 
-    def test_retrieve_pre_2023_empty_when_all_new(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_retrieve_pre_2023_empty_when_all_new(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "n1", PRE_2023_CUTOFF + 86400)
         _add_node(kg, "n2", PRE_2023_CUTOFF + 99999999)
         results = tracker.retrieve(pre_2023=True)
         assert len(results) == 0
 
-    def test_retrieve_pre_2023_all_old(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_retrieve_pre_2023_all_old(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "n1", PRE_2023_CUTOFF - 86400)
         _add_node(kg, "n2", PRE_2023_CUTOFF - 99999999)
         results = tracker.retrieve(pre_2023=True)
         assert len(results) == 2
 
-    def test_retrieve_provenance_prioritizes_human(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_retrieve_provenance_prioritizes_human(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "human-node", time.time())
         _add_node(kg, "ai-node", time.time())
         tracker.label_node("human-node", "human")
@@ -114,7 +130,9 @@ class TestRetrieve:
         assert len(results) == 2
         assert results[0].id == "human-node"
 
-    def test_retrieve_provenance_empty_when_no_match(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_retrieve_provenance_empty_when_no_match(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "node-1", time.time())
         tracker.label_node("node-1", "ai_generated")
         results = tracker.retrieve(provenance="human")
@@ -127,7 +145,9 @@ class TestRetrieve:
         assert tracker_no_kg.retrieve(pre_2023=True) == []
         assert tracker_no_kg.retrieve(provenance="human") == []
 
-    def test_retrieve_provenance_with_pre_2023(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_retrieve_provenance_with_pre_2023(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "old-human", PRE_2023_CUTOFF - 86400)
         _add_node(kg, "old-ai", PRE_2023_CUTOFF - 86400)
         _add_node(kg, "new-human", PRE_2023_CUTOFF + 86400)
@@ -169,6 +189,7 @@ class TestSummarize:
 class TestProvenanceRecord:
     def test_provenance_record_defaults(self) -> None:
         from maref.immunity.provenance_tracker import ProvenanceRecord
+
         rec = ProvenanceRecord(
             node_id="n1",
             provenance="human",
@@ -182,14 +203,18 @@ class TestProvenanceRecord:
 
 
 class TestIntegrationWithKnowledgeGraph:
-    def test_label_appears_in_kg_metadata(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_label_appears_in_kg_metadata(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "node-1", time.time(), content="def foo(): pass")
         tracker.label_node("node-1", "human")
         node = kg.get_node("node-1")
         assert node is not None
         assert node.metadata.get("provenance") == "human"
 
-    def test_provenance_survives_reload(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_provenance_survives_reload(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         _add_node(kg, "node-1", time.time(), content="def foo(): pass")
         tracker.label_node("node-1", "ai_assisted")
         data = kg.get_node("node-1")
@@ -197,7 +222,9 @@ class TestIntegrationWithKnowledgeGraph:
         restored = KnowledgeNode.from_dict(data.to_dict())
         assert restored.metadata.get("provenance") == "ai_assisted"
 
-    def test_multiple_nodes_with_different_provenance(self, kg: KnowledgeGraph, tracker: ProvenanceTracker) -> None:
+    def test_multiple_nodes_with_different_provenance(
+        self, kg: KnowledgeGraph, tracker: ProvenanceTracker
+    ) -> None:
         for i in range(5):
             _add_node(kg, f"node-{i}", time.time())
         tracker.label_node("node-0", "human")

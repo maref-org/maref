@@ -145,9 +145,7 @@ class TestSessionManagerGetSession:
         assert retrieved is None
 
     def test_get_returns_deepcopy(self, session_manager: SessionManager) -> None:
-        session_manager.create_session(
-            session_id="copy-test", metadata={"key": "original"}
-        )
+        session_manager.create_session(session_id="copy-test", metadata={"key": "original"})
         retrieved = session_manager.get_session("copy-test")
         assert retrieved is not None
         retrieved.metadata["key"] = "mutated"
@@ -406,18 +404,14 @@ class TestSessionManagerEdgeCases:
 
     def test_large_metadata(self, session_manager: SessionManager) -> None:
         large_meta = {"data": "x" * 10000}
-        session_manager.create_session(
-            session_id="large-meta", metadata=large_meta
-        )
+        session_manager.create_session(session_id="large-meta", metadata=large_meta)
         retrieved = session_manager.get_session("large-meta")
         assert retrieved is not None
         assert len(retrieved.metadata["data"]) == 10000
 
     def test_many_task_ids(self, session_manager: SessionManager) -> None:
         task_ids = [f"task-{i}" for i in range(1000)]
-        session_manager.create_session(
-            session_id="many-tasks", task_ids=task_ids
-        )
+        session_manager.create_session(session_id="many-tasks", task_ids=task_ids)
         retrieved = session_manager.get_session("many-tasks")
         assert retrieved is not None
         assert len(retrieved.task_ids) == 1000
@@ -449,12 +443,8 @@ class TestSessionManagerEdgeCases:
         sessions.clear()
         assert session_manager.get_session("exposed") is not None
 
-    def test_recover_preserves_metadata_deepcopy(
-        self, session_manager: SessionManager
-    ) -> None:
-        session_manager.create_session(
-            session_id="deep-meta", metadata={"nested": {"a": 1}}
-        )
+    def test_recover_preserves_metadata_deepcopy(self, session_manager: SessionManager) -> None:
+        session_manager.create_session(session_id="deep-meta", metadata={"nested": {"a": 1}})
         recovered = session_manager.recover_session("deep-meta")
         assert recovered is not None
         recovered.metadata["nested"]["a"] = 2

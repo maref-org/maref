@@ -72,7 +72,8 @@ class TestRatchetBridge:
         bridge = RatchetBridge(vault_path=Path("/tmp"))
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = __import__("subprocess").TimeoutExpired(
-                cmd="percv", timeout=300,
+                cmd="percv",
+                timeout=300,
             )
             iterations = bridge.run_improvement_cycle(budget=1)
         assert iterations[0]["error"] == "timeout"

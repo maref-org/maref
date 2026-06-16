@@ -127,7 +127,9 @@ class TestCLINotificationChannel:
             result = channel.send("Test Title", "Test Message", level="error")
             assert result is True
             mock_console.print.assert_called_once()
-            mock_panel_cls.assert_called_once_with("Test Message", title="Test Title", subtitle="error")
+            mock_panel_cls.assert_called_once_with(
+                "Test Message", title="Test Title", subtitle="error"
+            )
 
     def test_cli_channel_send_fallback(self) -> None:
         with (

@@ -19,6 +19,7 @@ except ImportError:
 
 # ---- Fixtures ----
 
+
 @pytest.fixture
 def mock_screenshot_result():
     from maref.desktop.screen_capture import CaptureMode, ScreenshotResult
@@ -40,13 +41,29 @@ def mock_screenshot_result():
 @pytest.fixture
 def mock_parsed_elements():
     return [
-        {"type": "button", "text": "Submit", "bbox": {"x": 100, "y": 200, "w": 100, "h": 50}, "confidence": 0.95},
-        {"type": "input", "text": "Search", "bbox": {"x": 300, "y": 100, "w": 200, "h": 40}, "confidence": 0.88},
-        {"type": "icon", "text": "Settings", "bbox": {"x": 700, "y": 50, "w": 50, "h": 50}, "confidence": 0.92},
+        {
+            "type": "button",
+            "text": "Submit",
+            "bbox": {"x": 100, "y": 200, "w": 100, "h": 50},
+            "confidence": 0.95,
+        },
+        {
+            "type": "input",
+            "text": "Search",
+            "bbox": {"x": 300, "y": 100, "w": 200, "h": 40},
+            "confidence": 0.88,
+        },
+        {
+            "type": "icon",
+            "text": "Settings",
+            "bbox": {"x": 700, "y": 50, "w": 50, "h": 50},
+            "confidence": 0.92,
+        },
     ]
 
 
 # ---- E2E Test: Screenshot -> Parse -> Execute -> Verify ----
+
 
 class TestEndToEndScreenshotParseLoop:
     """Test the full screenshot capture and parsing pipeline."""
@@ -60,6 +77,7 @@ class TestEndToEndScreenshotParseLoop:
 
     def test_screenshot_mode_is_full_screen(self, mock_screenshot_result):
         from maref.desktop.screen_capture import CaptureMode
+
         assert mock_screenshot_result.mode == CaptureMode.FULL_SCREEN
 
 
@@ -167,7 +185,9 @@ class TestEndToEndRedactionPipeline:
         from maref.desktop.screen_capture import RedactionEngine, RedactionMode, RedactionZone
 
         engine = RedactionEngine()
-        zone = RedactionZone(x=50, y=50, width=100, height=50, reason="password_field", mode=RedactionMode.BLACK_BOX)
+        zone = RedactionZone(
+            x=50, y=50, width=100, height=50, reason="password_field", mode=RedactionMode.BLACK_BOX
+        )
         engine.add_zone(zone)
 
         result = engine.redact(mock_screenshot_result.image)
@@ -183,8 +203,12 @@ class TestEndToEndRedactionPipeline:
 
         engine = RedactionEngine()
         zones = [
-            RedactionZone(x=0, y=0, width=100, height=50, reason="api_key", mode=RedactionMode.BLACK_BOX),
-            RedactionZone(x=200, y=300, width=150, height=30, reason="token", mode=RedactionMode.BLUR),
+            RedactionZone(
+                x=0, y=0, width=100, height=50, reason="api_key", mode=RedactionMode.BLACK_BOX
+            ),
+            RedactionZone(
+                x=200, y=300, width=150, height=30, reason="token", mode=RedactionMode.BLUR
+            ),
         ]
         for z in zones:
             engine.add_zone(z)

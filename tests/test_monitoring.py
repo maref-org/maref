@@ -54,17 +54,19 @@ class TestThreatIntelligence:
         now = datetime.now()
 
         for ip in ["10.0.0.1", "10.0.0.2"]:
-            engine.add_indicator(ThreatIndicator(
-                indicator_id=f"ioc-{ip}",
-                indicator_type=IOCType.IP_ADDRESS,
-                value=ip,
-                source=ThreatSource.INTERNAL,
-                severity=ThreatSeverity.MEDIUM,
-                description=f"Malicious IP {ip}",
-                confidence=0.8,
-                first_seen=now,
-                last_seen=now,
-            ))
+            engine.add_indicator(
+                ThreatIndicator(
+                    indicator_id=f"ioc-{ip}",
+                    indicator_type=IOCType.IP_ADDRESS,
+                    value=ip,
+                    source=ThreatSource.INTERNAL,
+                    severity=ThreatSeverity.MEDIUM,
+                    description=f"Malicious IP {ip}",
+                    confidence=0.8,
+                    first_seen=now,
+                    last_seen=now,
+                )
+            )
 
         matches = engine.match_against_indicators("10.0.0.1")
         assert len(matches) == 1
@@ -86,10 +88,12 @@ class TestThreatIntelligence:
         )
         engine.add_vulnerability(vuln)
 
-        result = engine.scan_components([
-            {"name": "ExampleLib", "version": "1.0.0"},
-            {"name": "SafeLib", "version": "3.0.0"},
-        ])
+        result = engine.scan_components(
+            [
+                {"name": "ExampleLib", "version": "1.0.0"},
+                {"name": "SafeLib", "version": "3.0.0"},
+            ]
+        )
 
         assert result["vulnerabilities_found"] == 1
         assert result["risk_level"] == "critical"
@@ -133,17 +137,19 @@ class TestThreatIntelligence:
         engine = create_threat_intelligence()
         now = datetime.now()
 
-        engine.add_indicator(ThreatIndicator(
-            indicator_id="ioc-asset",
-            indicator_type=IOCType.IP_ADDRESS,
-            value="10.0.0.99",
-            source=ThreatSource.INTERNAL,
-            severity=ThreatSeverity.CRITICAL,
-            description="Malicious",
-            confidence=1.0,
-            first_seen=now,
-            last_seen=now,
-        ))
+        engine.add_indicator(
+            ThreatIndicator(
+                indicator_id="ioc-asset",
+                indicator_type=IOCType.IP_ADDRESS,
+                value="10.0.0.99",
+                source=ThreatSource.INTERNAL,
+                severity=ThreatSeverity.CRITICAL,
+                description="Malicious",
+                confidence=1.0,
+                first_seen=now,
+                last_seen=now,
+            )
+        )
 
         result = engine.assess_threat_for_asset("asset-1", {"ip": "10.0.0.99", "name": "test"})
         assert result["risk_level"] == "critical"

@@ -18,8 +18,8 @@ from maref.evolution.agents import (
     AgentRole,
     GovernanceAgentConfig,
 )
-from maref.evolution.engine import EvolutionConfig
 from maref.evolution.constitution_guard import ValidationResult
+from maref.evolution.engine import EvolutionConfig
 from maref.evolution.multi_agent_engine import (
     ConstitutionGuard,
     MultiAgentEvolutionConfig,
@@ -31,6 +31,7 @@ from maref.evolution.multi_agent_engine import (
 # ============================================================================
 # MultiAgentEvolutionConfig Tests
 # ============================================================================
+
 
 class TestMultiAgentEvolutionConfig:
     def test_default_config(self) -> None:
@@ -59,6 +60,7 @@ class TestMultiAgentEvolutionConfig:
 
     def test_custom_optimizer_config(self) -> None:
         from maref.learning.group_optimizer import OptimizerConfig
+
         opt_config = OptimizerConfig(clip_epsilon=0.1)
         config = MultiAgentEvolutionConfig(optimizer_config=opt_config)
         assert config.optimizer_config.clip_epsilon == 0.1
@@ -67,6 +69,7 @@ class TestMultiAgentEvolutionConfig:
 # ============================================================================
 # ConstitutionGuard Tests
 # ============================================================================
+
 
 class TestConstitutionGuard:
     def test_disabled_allows_all(self) -> None:
@@ -101,11 +104,13 @@ class TestConstitutionGuard:
 
     def test_constrain_weights(self) -> None:
         guard = ConstitutionGuard(enabled=True)
-        constrained = guard.constrain_weights({
-            "a": 3.0,
-            "b": -3.0,
-            "c": 0.5,
-        })
+        constrained = guard.constrain_weights(
+            {
+                "a": 3.0,
+                "b": -3.0,
+                "c": 0.5,
+            }
+        )
         assert constrained["a"] == 2.0
         assert constrained["b"] == -2.0
         assert constrained["c"] == 0.5
@@ -141,6 +146,7 @@ class TestConstitutionGuard:
 # ValidationResult Tests
 # ============================================================================
 
+
 class TestValidationResult:
     def test_allowed_result(self) -> None:
         result = ValidationResult(allowed=True, violations=[])
@@ -155,6 +161,7 @@ class TestValidationResult:
 # ============================================================================
 # MultiAgentRoundSnapshot Tests
 # ============================================================================
+
 
 class TestMultiAgentRoundSnapshot:
     def test_creation(self) -> None:
@@ -192,6 +199,7 @@ class TestMultiAgentRoundSnapshot:
 # ============================================================================
 # MultiAgentEvolutionEngine Tests
 # ============================================================================
+
 
 class TestMultiAgentEvolutionEngine:
     def test_create_engine_default(self) -> None:
@@ -240,19 +248,20 @@ class TestMultiAgentEvolutionEngine:
     def test_multi_round_dry_run(self) -> None:
         """Dry run with multiple rounds."""
         from maref.evolution.metrics import CycleSpec
+
         base = EvolutionConfig(dry_run=False)
-        base.cycles["c1"] = CycleSpec(
-            name="test", rounds=3, description="test"
-        )
+        base.cycles["c1"] = CycleSpec(name="test", rounds=3, description="test")
         config = MultiAgentEvolutionConfig(
             base_config=base,
         )
-        config.agent_configs = [GovernanceAgentConfig(
-            agent_id="test_d",
-            role=AgentRole.DETECTOR,
-            share_group="test",
-            policy_features=["entropy_penalty"],
-        )]
+        config.agent_configs = [
+            GovernanceAgentConfig(
+                agent_id="test_d",
+                role=AgentRole.DETECTOR,
+                share_group="test",
+                policy_features=["entropy_penalty"],
+            )
+        ]
         engine = MultiAgentEvolutionEngine(config)
         result = asyncio.run(engine.run())
         assert result.evolution_result.total_rounds >= 1
@@ -278,9 +287,7 @@ class TestMultiAgentEvolutionEngine:
         config.base_config.dry_run = False
         config.base_config.cycles["c1"] = __import__(
             "maref.evolution.metrics", fromlist=["CycleSpec"]
-        ).CycleSpec(
-            name="test", rounds=6, description="test"
-        )
+        ).CycleSpec(name="test", rounds=6, description="test")
         engine = MultiAgentEvolutionEngine(config)
 
         asyncio.run(engine.run())
@@ -295,6 +302,7 @@ class TestMultiAgentEvolutionEngine:
 # Integration Tests
 # ============================================================================
 
+
 class TestIntegration:
     def test_full_evolution_with_policy_updates(self) -> None:
         """Run a complete evolution cycle and verify policy updates occur."""
@@ -302,7 +310,9 @@ class TestIntegration:
 
         base = EvolutionConfig(dry_run=False)
         base.cycles["c1"] = CycleSpec(name="test", rounds=10, description="test")
-        base.cycles["c2"] = CycleSpec(name="test", rounds=10, description="test", meta_learning_enabled=True)
+        base.cycles["c2"] = CycleSpec(
+            name="test", rounds=10, description="test", meta_learning_enabled=True
+        )
         base.cycles["c3"] = CycleSpec(name="test", rounds=10, description="test")
 
         agent_configs = [
@@ -339,7 +349,9 @@ class TestIntegration:
 
         base = EvolutionConfig(dry_run=False)
         base.cycles["c1"] = CycleSpec(name="test", rounds=10, description="test")
-        base.cycles["c2"] = CycleSpec(name="test", rounds=10, description="test", meta_learning_enabled=True)
+        base.cycles["c2"] = CycleSpec(
+            name="test", rounds=10, description="test", meta_learning_enabled=True
+        )
         base.cycles["c3"] = CycleSpec(name="test", rounds=10, description="test")
 
         agent_config = GovernanceAgentConfig(

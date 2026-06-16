@@ -228,6 +228,7 @@ class TestContinuousOptimizerWithRealBenchmark:
                 "tests_failed": 28.0,
                 "exit_code": 0.0,
             }
+
         return _bn
 
     def test_init_with_benchmark_fn(self, mock_benchmark) -> None:
@@ -263,6 +264,7 @@ class TestContinuousOptimizerWithRealBenchmark:
     def test_sandbox_test_benchmark_error(self, mock_benchmark) -> None:
         def _failing() -> dict[str, float]:
             raise RuntimeError("benchmark failed")
+
         co = ContinuousOptimizer(benchmark_fn=_failing)
         cycle = OptimizationCycle(
             cycle_id="err_test",

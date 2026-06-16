@@ -18,6 +18,7 @@ class TestEIVLTrustChainIntegration:
     def test_delegation_chain_merkle_audit(self):
         """委托链哈希与 Merkle 审计集成"""
         import time
+
         chain = DelegationChain.create("root-agent")
         chain.add_delegation("root-agent", "child-1", DelegationCapability.EXECUTE)
         chain.add_delegation("child-1", "child-2", DelegationCapability.EXECUTE)
@@ -44,6 +45,7 @@ class TestEIVLTrustChainIntegration:
     def test_delegation_chain_integrity_via_eivl(self):
         """委托链完整性通过 EIVL 验证"""
         import time
+
         chain = DelegationChain.create("agent-a")
         chain.add_delegation("agent-a", "agent-b", DelegationCapability.READ)
         original_hash = chain.get_chain_hash()
@@ -122,10 +124,14 @@ class TestMCPProtocolCompatibility:
         server = MCPServer(name="compat-server", version="0.25.0")
         from maref.integration.mcp_transport import JSONRPCRequest
 
-        req = JSONRPCRequest(method="initialize", params={
-            "protocolVersion": "2024-11-05",
-            "clientInfo": {"name": "test", "version": "1.0"},
-        }, id=1)
+        req = JSONRPCRequest(
+            method="initialize",
+            params={
+                "protocolVersion": "2024-11-05",
+                "clientInfo": {"name": "test", "version": "1.0"},
+            },
+            id=1,
+        )
         resp = server.handle_request(req)
         assert resp.result["protocolVersion"] == "2024-11-05"
         assert resp.result["serverInfo"]["name"] == "compat-server"
@@ -137,7 +143,12 @@ class TestMCPProtocolCompatibility:
         def handler(args):
             return {"content": [{"type": "text", "text": "ok"}]}
 
-        mcp.register_tool("search", "Search tool", {"type": "object", "properties": {"q": {"type": "string"}}}, handler)
+        mcp.register_tool(
+            "search",
+            "Search tool",
+            {"type": "object", "properties": {"q": {"type": "string"}}},
+            handler,
+        )
 
         audit = AuditLogger()
         sm = GovernanceStateMachine()
@@ -155,9 +166,16 @@ class TestMCPProtocolCompatibility:
         def calc(args):
             return {"content": [{"type": "text", "text": str(args["x"] + args["y"])}]}
 
-        mcp.register_tool("add", "Add two nums", {
-            "type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}, "required": ["x", "y"]
-        }, calc)
+        mcp.register_tool(
+            "add",
+            "Add two nums",
+            {
+                "type": "object",
+                "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                "required": ["x", "y"],
+            },
+            calc,
+        )
 
         audit = AuditLogger()
         sm = GovernanceStateMachine()
@@ -194,7 +212,9 @@ class TestMCPProtocolCompatibility:
     def test_a2a_card_to_mcp_metadata_transfer(self):
         """A2A Agent Card 集成 MCP 元数据"""
         mcp = MCPServer(name="card-test")
-        mcp.register_tool("tool-1", "desc-1", {"type": "object", "properties": {}}, lambda a: {"content": []})
+        mcp.register_tool(
+            "tool-1", "desc-1", {"type": "object", "properties": {}}, lambda a: {"content": []}
+        )
 
         audit = AuditLogger()
         sm = GovernanceStateMachine()
@@ -243,13 +263,18 @@ class TestSelfVerification:
         boundary = TrustBoundaryManager()
         boundary.create_domain("dom-a")
         boundary.create_domain("dom-b")
-        boundary.register_agent("root", boundary._domains[list(boundary._domains.keys())[0]].domain_id)
-        boundary.register_agent("child", boundary._domains[list(boundary._domains.keys())[1]].domain_id)
+        boundary.register_agent(
+            "root", boundary._domains[list(boundary._domains.keys())[0]].domain_id
+        )
+        boundary.register_agent(
+            "child", boundary._domains[list(boundary._domains.keys())[1]].domain_id
+        )
 
         gate = MCPSecurityGate()
 
         verdict = gate.check(
-            "read_file", MCPTrustLevel.SEMI_TRUSTED,
+            "read_file",
+            MCPTrustLevel.SEMI_TRUSTED,
             args={"target": "child"},
         )
         assert verdict in ("ALLOW", "AUDIT", "DENY")

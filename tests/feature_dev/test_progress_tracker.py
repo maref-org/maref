@@ -60,9 +60,14 @@ class TestDirection:
 class TestProgressTracker:
     def _snap(self, score: float, layers: dict | None = None) -> CycleSnapshot:
         return CycleSnapshot(
-            cycle_number=1, topic="t", layer_scores=layers or {"A": score},
-            overall_score=score, overall_status=EvalStatus.CONDITIONAL,
-            verdict="ok", feedback_injected="", duration_seconds=1.0,
+            cycle_number=1,
+            topic="t",
+            layer_scores=layers or {"A": score},
+            overall_score=score,
+            overall_status=EvalStatus.CONDITIONAL,
+            verdict="ok",
+            feedback_injected="",
+            duration_seconds=1.0,
             artifacts={"stages_covered": set()},
         )
 
@@ -94,8 +99,12 @@ class TestProgressTracker:
     def test_report_generates_recommendations(self) -> None:
         pt = ProgressTracker("Test")
         snap = self._snap(50.0, {"Static Audit": 30.0})
-        snap.artifacts = {"characters": [], "scripts": [], "stages_covered": set(),
-                          "requirements_covered": 0}
+        snap.artifacts = {
+            "characters": [],
+            "scripts": [],
+            "stages_covered": set(),
+            "requirements_covered": 0,
+        }
         pt.add_snapshot(snap)
         r = pt.generate_report()
         assert len(r.recommendations) > 0
@@ -104,8 +113,12 @@ class TestProgressTracker:
     def test_report_deploy_ready(self) -> None:
         pt = ProgressTracker("Test")
         snap = self._snap(90.0, {"A": 90.0, "B": 85.0, "C": 88.0, "D": 82.0, "E": 91.0})
-        snap.artifacts = {"characters": [{"name": "A"}], "scripts": [{"title": "1"}],
-                          "stages_covered": {"mvp"}, "requirements_covered": 1}
+        snap.artifacts = {
+            "characters": [{"name": "A"}],
+            "scripts": [{"title": "1"}],
+            "stages_covered": {"mvp"},
+            "requirements_covered": 1,
+        }
         pt.add_snapshot(snap)
         r = pt.generate_report()
         assert r.deploy_gates["no_diverging_trends"]
@@ -113,10 +126,12 @@ class TestProgressTracker:
     def test_content_stats_in_report(self) -> None:
         pt = ProgressTracker("Test")
         snap = self._snap(70.0)
-        snap.artifacts = {"characters": [{"name": "A"}, {"name": "B"}],
-                          "scripts": [{"title": "1"}, {"title": "2"}, {"title": "3"}],
-                          "stages_covered": {"mvp", "mixed"},
-                          "requirements_covered": 5}
+        snap.artifacts = {
+            "characters": [{"name": "A"}, {"name": "B"}],
+            "scripts": [{"title": "1"}, {"title": "2"}, {"title": "3"}],
+            "stages_covered": {"mvp", "mixed"},
+            "requirements_covered": 5,
+        }
         pt.add_snapshot(snap)
         r = pt.generate_report()
         assert r.content_stats["characters"] == 2
@@ -135,8 +150,12 @@ class TestProgressTracker:
     def test_deploy_blocked_when_low(self) -> None:
         pt = ProgressTracker("Test")
         snap = self._snap(55.0, {"A": 55.0})
-        snap.artifacts = {"characters": [{"name": "A"}], "scripts": [{"title": "1"}],
-                          "stages_covered": set(), "requirements_covered": 0}
+        snap.artifacts = {
+            "characters": [{"name": "A"}],
+            "scripts": [{"title": "1"}],
+            "stages_covered": set(),
+            "requirements_covered": 0,
+        }
         pt.add_snapshot(snap)
         r = pt.generate_report()
         assert not r.deploy_ready
@@ -145,19 +164,34 @@ class TestProgressTracker:
 
 class TestConvergenceReport:
     def test_avg_score_empty(self) -> None:
-        r = ConvergenceReport(feature_name="T", total_cycles=0, total_duration_seconds=0.0,
-                              overall_trend="insufficient_data", layer_trends=[],
-                              deploy_ready=False, deploy_gates={}, recommendations=[])
+        r = ConvergenceReport(
+            feature_name="T",
+            total_cycles=0,
+            total_duration_seconds=0.0,
+            overall_trend="insufficient_data",
+            layer_trends=[],
+            deploy_ready=False,
+            deploy_gates={},
+            recommendations=[],
+        )
         assert r.avg_score == 0.0
 
     def test_to_dict(self) -> None:
         lt = LayerTrend("A", [70.0], "insufficient_data", 10.0)
-        r = ConvergenceReport(feature_name="T", total_cycles=1, total_duration_seconds=10.0,
-                              overall_trend="converging", layer_trends=[lt],
-                              deploy_ready=True, deploy_gates={"g1": True},
-                              recommendations=["Good"], cycle_scores=[80.0],
-                              final_decision="GO", budget_spent=100.0,
-                              content_stats={"chars": 2})
+        r = ConvergenceReport(
+            feature_name="T",
+            total_cycles=1,
+            total_duration_seconds=10.0,
+            overall_trend="converging",
+            layer_trends=[lt],
+            deploy_ready=True,
+            deploy_gates={"g1": True},
+            recommendations=["Good"],
+            cycle_scores=[80.0],
+            final_decision="GO",
+            budget_spent=100.0,
+            content_stats={"chars": 2},
+        )
         d = r.to_dict()
         assert d["feature_name"] == "T"
         assert d["final_decision"] == "GO"

@@ -62,6 +62,7 @@ class TestEvolutionMain:
         test_args = ["prog"]
         with patch.object(sys, "argv", test_args):
             import asyncio
+
             rc = asyncio.run(main())
             assert rc == 0
 
@@ -84,6 +85,7 @@ class TestEvolutionMain:
         test_args = ["prog"]
         with patch.object(sys, "argv", test_args):
             import asyncio
+
             rc = asyncio.run(main())
             assert rc == 1
 
@@ -108,6 +110,7 @@ class TestEvolutionMain:
         test_args = ["prog", "--resume-from", "c3", "--resume-round", "5"]
         with patch.object(sys, "argv", test_args):
             import asyncio
+
             rc = asyncio.run(main())
             assert rc == 0
             assert mock_config.resume_from_cycle == "c3"
@@ -128,6 +131,7 @@ class TestEvolutionMain:
         test_args = ["prog"]
         with patch.object(sys, "argv", test_args):
             import asyncio
+
             rc = asyncio.run(main())
             assert rc == 1
 
@@ -151,6 +155,7 @@ class TestEvolutionMain:
         test_args = ["prog"]
         with patch.object(sys, "argv", test_args):
             import asyncio
+
             rc = asyncio.run(main())
             assert rc == 0
 
@@ -174,6 +179,7 @@ class TestEvolutionMain:
         test_args = ["prog", "--dry-run"]
         with patch.object(sys, "argv", test_args):
             import asyncio
+
             rc = asyncio.run(main())
             assert rc == 0
             assert mock_config.dry_run is True
@@ -201,5 +207,6 @@ class TestEvolutionMain:
         test_args = ["prog", "--verbose", "--resume-from", "c1"]
         with patch.object(sys, "argv", test_args):
             import asyncio
+
             rc = asyncio.run(main())
             assert rc == 0

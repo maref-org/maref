@@ -114,13 +114,31 @@ class TestCharacterFactory:
 
     def test_render_template_all_fields(self) -> None:
         cf = CharacterFactory()
-        data: dict[str, str] = {k: f"val_{k}" for k in [
-            "name", "alias", "archetype", "role", "appearance",
-            "features", "palette", "style_keywords", "personality_type",
-            "strengths", "flaws", "quirks", "speech_pattern",
-            "backstory", "voice_tone", "voice_cadence", "catchphrases",
-            "setting", "relationships", "motivation",
-        ]}
+        data: dict[str, str] = {
+            k: f"val_{k}"
+            for k in [
+                "name",
+                "alias",
+                "archetype",
+                "role",
+                "appearance",
+                "features",
+                "palette",
+                "style_keywords",
+                "personality_type",
+                "strengths",
+                "flaws",
+                "quirks",
+                "speech_pattern",
+                "backstory",
+                "voice_tone",
+                "voice_cadence",
+                "catchphrases",
+                "setting",
+                "relationships",
+                "motivation",
+            ]
+        }
         md = cf._render_template(data)
         for val in data.values():
             assert val in md
@@ -223,7 +241,12 @@ class TestHypothesisValidator:
     def test_validate_h1_h2_h3_all_pass(self, tmp_path: Path) -> None:
         base = tmp_path
         char_dir = base / "characters" / "test-char"
-        meta = {"name": "Test Hero", "archetype": "The Hero", "style_keywords": "neon", "palette": "cyan"}
+        meta = {
+            "name": "Test Hero",
+            "archetype": "The Hero",
+            "style_keywords": "neon",
+            "palette": "cyan",
+        }
         meta_dir = char_dir / "profile"
         meta_dir.mkdir(parents=True)
         (meta_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
@@ -293,8 +316,14 @@ class TestHypothesisValidator:
 
     def test_validation_result_to_dict(self) -> None:
         vr = ValidationResult(
-            char_id="x", h1_pass=True, h1_detail="h1", h2_pass=False, h2_detail="h2",
-            h3_pass=True, h3_detail="h3", overall_pass=True,
+            char_id="x",
+            h1_pass=True,
+            h1_detail="h1",
+            h2_pass=False,
+            h2_detail="h2",
+            h3_pass=True,
+            h3_detail="h3",
+            overall_pass=True,
         )
         d = vr.to_dict()
         assert d["char_id"] == "x"
@@ -342,10 +371,14 @@ class TestContentEngine:
 
     def test_production_result_to_dict(self) -> None:
         pr = ProductionResult(
-            char_id="test", theme_id="cyberpunk-neko",
-            profile={"name": "X"}, scripts=[],
-            assembled=None, validation=None,
-            total_duration_s=1.234, steps=["step1"],
+            char_id="test",
+            theme_id="cyberpunk-neko",
+            profile={"name": "X"},
+            scripts=[],
+            assembled=None,
+            validation=None,
+            total_duration_s=1.234,
+            steps=["step1"],
         )
         d = pr.to_dict()
         assert d["char_id"] == "test"
@@ -354,13 +387,24 @@ class TestContentEngine:
 
     def test_production_result_to_dict_with_validation(self) -> None:
         vr = ValidationResult(
-            char_id="x", h1_pass=True, h1_detail="h1", h2_pass=False, h2_detail="h2",
-            h3_pass=True, h3_detail="h3", overall_pass=True,
+            char_id="x",
+            h1_pass=True,
+            h1_detail="h1",
+            h2_pass=False,
+            h2_detail="h2",
+            h3_pass=True,
+            h3_detail="h3",
+            overall_pass=True,
         )
         pr = ProductionResult(
-            char_id="x", theme_id="t", profile={}, scripts=[],
-            assembled=None, validation=vr,
-            total_duration_s=0.5, steps=[],
+            char_id="x",
+            theme_id="t",
+            profile={},
+            scripts=[],
+            assembled=None,
+            validation=vr,
+            total_duration_s=0.5,
+            steps=[],
         )
         d = pr.to_dict()
         assert d["validation"]["overall_pass"]

@@ -65,6 +65,7 @@ def _check_gpu() -> dict[str, Any]:
 
     try:
         import torch
+
         if torch.cuda.is_available():
             result["cuda"] = True
             result["device"] = f"cuda:{torch.cuda.device_count()} device(s)"
@@ -104,6 +105,7 @@ def _install_desktop_deps(upgrade: bool = False) -> bool:
 def _install_playwright_browsers() -> bool:
     try:
         from playwright.sync_api import sync_playwright
+
         with sync_playwright() as p:
             p.chromium.launch()
         print("  Playwright Chromium already installed: OK")
@@ -210,9 +212,15 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="MAREF Desktop Agent one-click setup")
-    parser.add_argument("--model", choices=["omni_parser", "cog_agent", "both", "none"],
-                        default="omni_parser", help="Model backend to download (default: omni_parser)")
-    parser.add_argument("--dry-run", action="store_true", help="Check environment only, don't download")
+    parser.add_argument(
+        "--model",
+        choices=["omni_parser", "cog_agent", "both", "none"],
+        default="omni_parser",
+        help="Model backend to download (default: omni_parser)",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Check environment only, don't download"
+    )
     parser.add_argument("--no-model", action="store_true", help="Skip model download")
     parser.add_argument("--upgrade", action="store_true", help="Upgrade existing dependencies")
     args = parser.parse_args()
@@ -287,7 +295,9 @@ def main() -> int:
             if not hf_reachable:
                 print("  HuggingFace unreachable — model download skipped")
                 print("  You can download manually later with:")
-                print(f"    python -c \"from huggingface_hub import snapshot_download; snapshot_download('{model_id}')\"")
+                print(
+                    f"    python -c \"from huggingface_hub import snapshot_download; snapshot_download('{model_id}')\""
+                )
                 steps_total -= 1
                 continue
 
@@ -309,7 +319,7 @@ def main() -> int:
     print("  Post-setup:")
     print("    1. Check environment:  python scripts/check_desktop_env.py")
     print("    2. Run demo (dry-run):  maref desktop demo")
-    print("    3. Run live task:       maref desktop run --live --task \"open Finder\"")
+    print('    3. Run live task:       maref desktop run --live --task "open Finder"')
     print()
 
     return 0 if steps_ok >= steps_total - 1 else 1

@@ -2,14 +2,11 @@
 
 import time
 
-import pytest
-
 from maref.human.decision_api import (
     DecisionContext,
     DecisionMode,
     DecisionRequest,
     DecisionResponse,
-    DecisionStatus,
     HumanDecisionAPI,
     UrgencyLevel,
 )
@@ -26,12 +23,14 @@ class TestHumanDecisionAPI:
             mode=DecisionMode.SYNC,
             timeout=1.0,
         )
+
         # Submit response in background
         def respond_later():
             time.sleep(0.1)
             api.submit_response(DecisionResponse(request_id=req.request_id, decision="approve"))
 
         import threading
+
         t = threading.Thread(target=respond_later)
         t.start()
 
@@ -79,9 +78,7 @@ class TestHumanDecisionAPI:
         api = HumanDecisionAPI()
         req = DecisionRequest(
             task_id="t4",
-            context=DecisionContext(
-                task_id="t4", agent_id="a1", action_description="low priority"
-            ),
+            context=DecisionContext(task_id="t4", agent_id="a1", action_description="low priority"),
             urgency=UrgencyLevel.LOW,
             mode=DecisionMode.SYNC,
             timeout=0.1,
@@ -92,9 +89,7 @@ class TestHumanDecisionAPI:
     def test_batch_confirmation(self):
         api = HumanDecisionAPI()
         # Register batch filter: all transfer actions go to batch
-        api.register_batch_filter(
-            lambda r: r.context.action_description.startswith("transfer")
-        )
+        api.register_batch_filter(lambda r: r.context.action_description.startswith("transfer"))
 
         # Send 5 transfer requests
         requests = []
@@ -124,9 +119,7 @@ class TestHumanDecisionAPI:
         api = HumanDecisionAPI()
         req = DecisionRequest(
             task_id="t5",
-            context=DecisionContext(
-                task_id="t5", agent_id="a1", action_description="action"
-            ),
+            context=DecisionContext(task_id="t5", agent_id="a1", action_description="action"),
             mode=DecisionMode.ASYNC,
         )
         api.request_decision(req)
@@ -137,9 +130,7 @@ class TestHumanDecisionAPI:
     def test_decision_request_to_dict(self):
         req = DecisionRequest(
             task_id="t6",
-            context=DecisionContext(
-                task_id="t6", agent_id="a1", action_description="test"
-            ),
+            context=DecisionContext(task_id="t6", agent_id="a1", action_description="test"),
         )
         d = req.to_dict()
         assert d["task_id"] == "t6"

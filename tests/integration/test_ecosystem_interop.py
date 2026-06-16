@@ -78,6 +78,7 @@ class TestLangChainInterop:
         server = MCPServer(name="tool-source")
 
         for i in range(3):
+
             def make_handler(idx):
                 return lambda args: {"content": [{"type": "text", "text": f"tool{idx}"}]}
 
@@ -128,7 +129,11 @@ class TestLangChainInterop:
         server.register_tool(
             name="echo",
             description="Echo text",
-            input_schema={"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+            input_schema={
+                "type": "object",
+                "properties": {"text": {"type": "string"}},
+                "required": ["text"],
+            },
             handler=echo_handler,
         )
 
@@ -151,6 +156,7 @@ class TestAutoGenInterop:
         """验证 AutoGenAdapter 模块存在且可导入。"""
         try:
             from sidecar.adapters.autogen import AutoGenAdapter
+
             assert AutoGenAdapter is not None
         except ImportError:
             pytest.skip("autogen_agentchat not installed")
@@ -185,6 +191,7 @@ class TestAutoGenInterop:
 
         # 模拟获取状态
         import asyncio
+
         agents = asyncio.run(adapter.list_agents())
         assert len(agents) == 2
 

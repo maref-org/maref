@@ -6,11 +6,10 @@ import tempfile
 
 import pytest
 
-from maref.immunity.negative_gene_bank import NegativeGeneBank, _new_id
+from maref.immunity.negative_gene_bank import NegativeGeneBank
 from maref.immunity.seed_updater import (
     CWEImportError,
     export_genes_to_json,
-    get_import_history,
     seed_from_cwe_json,
 )
 
@@ -43,7 +42,10 @@ SAMPLE_CWE_GENES = [
             {"type": "regex", "value": r"execute\(.*['\"]", "score": 1.0},
         ],
         "variants": [
-            {"language": "python", "code": 'cursor.execute("SELECT * FROM users WHERE id = " + uid)'},
+            {
+                "language": "python",
+                "code": 'cursor.execute("SELECT * FROM users WHERE id = " + uid)',
+            },
         ],
     },
     {
@@ -156,7 +158,9 @@ class TestSeedFromCWESjon:
 
     def test_import_records_source_in_gene_sources(self, json_file):
         bank = NegativeGeneBank(":memory:")
-        result = seed_from_cwe_json(bank, json_file, source_name="maraf_cwe", source_url="https://example.com/cwe.json")
+        result = seed_from_cwe_json(
+            bank, json_file, source_name="maraf_cwe", source_url="https://example.com/cwe.json"
+        )
         history = bank.get_import_history()
         assert len(history) == 1
         assert history[0]["source_name"] == "maraf_cwe"

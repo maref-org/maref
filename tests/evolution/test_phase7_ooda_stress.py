@@ -11,7 +11,7 @@ import asyncio
 
 import pytest
 
-from maref.evolution.agents import GovernanceAgentConfig, AgentRole
+from maref.evolution.agents import AgentRole, GovernanceAgentConfig
 from maref.evolution.constitution_guard import ConstitutionGuard
 from maref.evolution.engine import EvolutionConfig
 from maref.evolution.metrics import CycleSpec
@@ -19,8 +19,8 @@ from maref.evolution.multi_agent_engine import (
     MultiAgentEvolutionConfig,
     MultiAgentEvolutionEngine,
 )
-from maref.recursive.safety_gate_v2 import SafetyGateV2
 from maref.recursive.meta_governance import MetaGovernance
+from maref.recursive.safety_gate_v2 import SafetyGateV2
 
 
 class TestOODALoop:
@@ -153,8 +153,9 @@ class TestMultipleCycles:
         """Full three-cycle evolution completes with all rounds."""
         base = EvolutionConfig(dry_run=False)
         base.cycles["c1"] = CycleSpec(name="baseline", rounds=5, description="")
-        base.cycles["c2"] = CycleSpec(name="optimize", rounds=5, description="",
-                                       meta_learning_enabled=True)
+        base.cycles["c2"] = CycleSpec(
+            name="optimize", rounds=5, description="", meta_learning_enabled=True
+        )
         base.cycles["c3"] = CycleSpec(name="converge", rounds=5, description="")
 
         config = MultiAgentEvolutionConfig(

@@ -52,7 +52,9 @@ class TestJSONRPC:
         assert resp.result == {"ok": True}
 
     def test_response_has_error(self) -> None:
-        raw = json.dumps({"jsonrpc": "2.0", "error": {"code": -32601, "message": "Not found"}, "id": 1})
+        raw = json.dumps(
+            {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Not found"}, "id": 1}
+        )
         resp = JSONRPCResponse.from_json(raw)
         assert resp.is_error
         assert resp.error_code == -32601
@@ -257,7 +259,10 @@ class TestMCPSecurityGate:
 
     def test_untrusted_blocks_destructive_args(self) -> None:
         gate = MCPSecurityGate()
-        assert gate.check("write", MCPTrustLevel.UNTRUSTED, {"cmd": "rm -rf /"}) == SecurityVerdict.DENY
+        assert (
+            gate.check("write", MCPTrustLevel.UNTRUSTED, {"cmd": "rm -rf /"})
+            == SecurityVerdict.DENY
+        )
 
     def test_semi_trusted_blocks_shell(self) -> None:
         gate = MCPSecurityGate()

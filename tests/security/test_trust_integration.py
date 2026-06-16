@@ -25,10 +25,7 @@ class TestChainRiskAnalyzer:
     def test_create_risk_factor(self) -> None:
         """测试创建风险因子"""
         factor = ChainRiskFactor(
-            name="test_risk",
-            chain_id="chain-123",
-            risk_score=0.7,
-            risk_reason="测试风险"
+            name="test_risk", chain_id="chain-123", risk_score=0.7, risk_reason="测试风险"
         )
         assert factor.name == "test_risk"
         assert factor.risk_score == 0.7
@@ -37,10 +34,7 @@ class TestChainRiskAnalyzer:
     def test_to_dict_conversion(self) -> None:
         """测试字典转换"""
         factor = ChainRiskFactor(
-            name="depth_risk",
-            chain_id="chain-456",
-            risk_score=0.85,
-            risk_reason="深度超标"
+            name="depth_risk", chain_id="chain-456", risk_score=0.85, risk_reason="深度超标"
         )
         data = factor.to_dict()
         assert data["name"] == "depth_risk"
@@ -52,10 +46,7 @@ class TestChainRiskAnalyzer:
         analyzer = ChainRiskAnalyzer()
 
         # 创建安全的委托链
-        chain = DelegationChain(
-            chain_id="safe-chain-1",
-            root_agent_id="agent-a"
-        )
+        chain = DelegationChain(chain_id="safe-chain-1", root_agent_id="agent-a")
 
         # 添加几个安全的节点
         import datetime
@@ -66,20 +57,20 @@ class TestChainRiskAnalyzer:
             ChainNode(
                 agent_id="agent-a",
                 capability=DelegationCapability.ADMIN,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
             ),
             ChainNode(
                 agent_id="agent-b",
                 parent_id="agent-a",
                 capability=DelegationCapability.EXECUTE,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
             ),
             ChainNode(
                 agent_id="agent-c",
                 parent_id="agent-b",
                 capability=DelegationCapability.READ,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
+            ),
         ]
         chain.depth = 2
 
@@ -91,24 +82,41 @@ class TestChainRiskAnalyzer:
         analyzer = ChainRiskAnalyzer(max_chain_depth=3)
 
         # 创建超深的链
-        chain = DelegationChain(
-            chain_id="deep-chain-1",
-            root_agent_id="agent-a",
-            max_depth=3
-        )
+        chain = DelegationChain(chain_id="deep-chain-1", root_agent_id="agent-a", max_depth=3)
 
         # 深度为5，超过限制
         import datetime
 
         from maref.security.trust_chain import DelegationCapability
+
         now = datetime.datetime.now(datetime.timezone.utc)
 
         chain.nodes = [
             ChainNode(agent_id="agent-a", capability=DelegationCapability.ADMIN, timestamp=now),
-            ChainNode(agent_id="agent-b", parent_id="agent-a", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-c", parent_id="agent-b", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-d", parent_id="agent-c", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-e", parent_id="agent-d", capability=DelegationCapability.EXECUTE, timestamp=now)
+            ChainNode(
+                agent_id="agent-b",
+                parent_id="agent-a",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-c",
+                parent_id="agent-b",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-d",
+                parent_id="agent-c",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-e",
+                parent_id="agent-d",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
         ]
         chain.depth = 5
 
@@ -123,22 +131,35 @@ class TestChainRiskAnalyzer:
         """测试循环引用检测"""
         analyzer = ChainRiskAnalyzer()
 
-        chain = DelegationChain(
-            chain_id="circular-chain-1",
-            root_agent_id="agent-a"
-        )
+        chain = DelegationChain(chain_id="circular-chain-1", root_agent_id="agent-a")
 
         # 创建循环引用: a -> b -> c -> a
         import datetime
 
         from maref.security.trust_chain import DelegationCapability
+
         now = datetime.datetime.now(datetime.timezone.utc)
 
         chain.nodes = [
             ChainNode(agent_id="agent-a", capability=DelegationCapability.ADMIN, timestamp=now),
-            ChainNode(agent_id="agent-b", parent_id="agent-a", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-c", parent_id="agent-b", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-a", parent_id="agent-c", capability=DelegationCapability.EXECUTE, timestamp=now),  # 回到起点
+            ChainNode(
+                agent_id="agent-b",
+                parent_id="agent-a",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-c",
+                parent_id="agent-b",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-a",
+                parent_id="agent-c",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),  # 回到起点
         ]
         chain.depth = 3
 
@@ -152,9 +173,7 @@ class TestChainRiskAnalyzer:
         analyzer = ChainRiskAnalyzer()
 
         # 单个风险
-        single_risk = [
-            ChainRiskFactor("test1", "chain-1", 0.6, "测试风险1")
-        ]
+        single_risk = [ChainRiskFactor("test1", "chain-1", 0.6, "测试风险1")]
         penalty = analyzer.calculate_trust_penalty(single_risk)
         # 单个风险的计算公式: max_risk * (0.5 + 0.5 * risk_count_factor)
         # risk_count_factor = 1/5 = 0.2
@@ -204,15 +223,18 @@ class TestIntegratedTrustEngine:
         import datetime
 
         from maref.security.trust_chain import DelegationCapability
+
         now = datetime.datetime.now(datetime.timezone.utc)
 
-        chain = DelegationChain(
-            chain_id="safe-chain-test",
-            root_agent_id="root-agent"
-        )
+        chain = DelegationChain(chain_id="safe-chain-test", root_agent_id="root-agent")
         chain.nodes = [
             ChainNode(agent_id="root-agent", capability=DelegationCapability.ADMIN, timestamp=now),
-            ChainNode(agent_id=agent_id, parent_id="root-agent", capability=DelegationCapability.EXECUTE, timestamp=now)
+            ChainNode(
+                agent_id=agent_id,
+                parent_id="root-agent",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
         ]
         chain.depth = 1
 
@@ -229,19 +251,38 @@ class TestIntegratedTrustEngine:
         import datetime
 
         from maref.security.trust_chain import DelegationCapability
+
         now = datetime.datetime.now(datetime.timezone.utc)
 
         chain = DelegationChain(
-            chain_id="risky-chain-test",
-            root_agent_id="root-agent",
-            max_depth=2
+            chain_id="risky-chain-test", root_agent_id="root-agent", max_depth=2
         )
         chain.nodes = [
             ChainNode(agent_id="root-agent", capability=DelegationCapability.ADMIN, timestamp=now),
-            ChainNode(agent_id="agent-b", parent_id="root-agent", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-c", parent_id="agent-b", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-d", parent_id="agent-c", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id=agent_id, parent_id="agent-d", capability=DelegationCapability.READ, timestamp=now)
+            ChainNode(
+                agent_id="agent-b",
+                parent_id="root-agent",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-c",
+                parent_id="agent-b",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-d",
+                parent_id="agent-c",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id=agent_id,
+                parent_id="agent-d",
+                capability=DelegationCapability.READ,
+                timestamp=now,
+            ),
         ]
         chain.depth = 4  # 超过max_depth=2
 
@@ -264,19 +305,38 @@ class TestIntegratedTrustEngine:
         import datetime
 
         from maref.security.trust_chain import DelegationCapability
+
         now = datetime.datetime.now(datetime.timezone.utc)
 
         chain = DelegationChain(
-            chain_id="chain-summary-test",
-            root_agent_id="root-agent",
-            max_depth=2
+            chain_id="chain-summary-test", root_agent_id="root-agent", max_depth=2
         )
         chain.nodes = [
             ChainNode(agent_id="root-agent", capability=DelegationCapability.ADMIN, timestamp=now),
-            ChainNode(agent_id="agent-x", parent_id="root-agent", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-y", parent_id="agent-x", capability=DelegationCapability.EXECUTE, timestamp=now),
-            ChainNode(agent_id="agent-z", parent_id="agent-y", capability=DelegationCapability.EXECUTE, timestamp=now),  # 深度3，超标
-            ChainNode(agent_id=agent_id, parent_id="agent-z", capability=DelegationCapability.READ, timestamp=now)
+            ChainNode(
+                agent_id="agent-x",
+                parent_id="root-agent",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-y",
+                parent_id="agent-x",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
+            ChainNode(
+                agent_id="agent-z",
+                parent_id="agent-y",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),  # 深度3，超标
+            ChainNode(
+                agent_id=agent_id,
+                parent_id="agent-z",
+                capability=DelegationCapability.READ,
+                timestamp=now,
+            ),
         ]
         chain.depth = 4
 
@@ -297,15 +357,18 @@ class TestIntegratedTrustEngine:
         import datetime
 
         from maref.security.trust_chain import DelegationCapability
+
         now = datetime.datetime.now(datetime.timezone.utc)
 
-        chain = DelegationChain(
-            chain_id="report-chain-test",
-            root_agent_id="root-agent"
-        )
+        chain = DelegationChain(chain_id="report-chain-test", root_agent_id="root-agent")
         chain.nodes = [
             ChainNode(agent_id="root-agent", capability=DelegationCapability.ADMIN, timestamp=now),
-            ChainNode(agent_id=agent_id, parent_id="root-agent", capability=DelegationCapability.EXECUTE, timestamp=now)
+            ChainNode(
+                agent_id=agent_id,
+                parent_id="root-agent",
+                capability=DelegationCapability.EXECUTE,
+                timestamp=now,
+            ),
         ]
         chain.depth = 1
 
@@ -376,23 +439,23 @@ class TestTrustIntegrationAPI:
                     "agent_id": "root-agent",
                     "action": "start",
                     "timestamp": time.time(),
-                    "capability": "ADMIN"
+                    "capability": "ADMIN",
                 },
                 {
                     "agent_id": "agent-mid",
                     "parent_id": "root-agent",
                     "action": "delegate",
                     "timestamp": time.time() + 1,
-                    "capability": "EXECUTE"
+                    "capability": "EXECUTE",
                 },
                 {
                     "agent_id": agent_id,
                     "parent_id": "agent-mid",
                     "action": "execute",
                     "timestamp": time.time() + 2,
-                    "capability": "READ"
-                }
-            ]
+                    "capability": "READ",
+                },
+            ],
         }
 
         result = api.get_trust_score(agent_id, chain_data)
@@ -407,10 +470,7 @@ class TestTrustIntegrationAPI:
         agent_id = "api-test-invalid-chain"
 
         # 无效的链数据（缺少必要字段）
-        invalid_chain = {
-            "chain_id": "bad-chain",
-            "missing_root": True
-        }
+        invalid_chain = {"chain_id": "bad-chain", "missing_root": True}
 
         # 应该能处理无效数据并继续
         result = api.get_trust_score(agent_id, invalid_chain)

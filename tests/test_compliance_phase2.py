@@ -85,6 +85,7 @@ class TestReportGenerator:
     def test_export_json(self, generator: ReportGenerator) -> None:
         report = generator.generate_compliance_status_report()
         import json
+
         data = json.loads(generator.export_report(report, ReportFormat.JSON))
         assert data["report_id"] == report.report_id
 
@@ -107,6 +108,7 @@ class TestComplianceMonitor:
 
     def test_add_and_remove_rule(self, monitor: ComplianceMonitor) -> None:
         from maref.compliance.compliance_monitor import MonitoringRule
+
         rule = MonitoringRule("test-rule", "Test", "Test desc", check_interval_hours=1)
         monitor.add_rule(rule)
         assert len(monitor._rules) == 5  # 4 defaults + 1 new
@@ -198,6 +200,7 @@ class TestHIPAACompliance:
 
     def test_register_and_verify_baa(self) -> None:
         from maref.compliance.hipaa import BusinessAssociateAgreement
+
         engine = HIPAAComplianceEngine()
 
         baa = BusinessAssociateAgreement(
@@ -325,7 +328,8 @@ class TestPCICompliance:
     def test_generate_saq(self) -> None:
         engine = PCIComplianceEngine()
         cde = engine.scope_environment(
-            ["sys"], ["flow"],
+            ["sys"],
+            ["flow"],
             stores_card_data=False,
             processes_payments=False,
         )

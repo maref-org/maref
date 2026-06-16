@@ -1,14 +1,8 @@
 from __future__ import annotations
 
-import pytest
-
-from maref.immunity.acceptance_extractor import AcceptanceExtractor, AcceptanceCriterion
 from maref.immunity.intent_drift_detector import (
     IntentDriftDetector,
-    FuzzTestResult,
-    IntentDriftResult,
 )
-
 
 HAPPY_CODE = """
 def login(username, password):
@@ -118,7 +112,7 @@ class TestIntentDriftDetector:
         criteria = detector._extractor.extract_ac("实现搜索功能")
         ih = detector._extractor.compute_intent_hash(criteria)
         result = detector.evaluate_code(
-            code='function search() { return []; }',
+            code="function search() { return []; }",
             criteria=criteria,
             expected_hash=ih.hash_value,
             language="javascript",
@@ -135,8 +129,8 @@ class TestIntentDriftDetector:
         assert result.passed is False
 
     def test_evaluate_with_immune_checker(self):
-        from maref.immunity.negative_gene_bank import NegativeGeneBank
         from maref.immunity.immune_checker import ImmuneChecker
+        from maref.immunity.negative_gene_bank import NegativeGeneBank
 
         bank = NegativeGeneBank(":memory:")
         checker = ImmuneChecker(bank)

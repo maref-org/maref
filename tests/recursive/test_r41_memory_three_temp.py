@@ -68,8 +68,7 @@ class TestMemoryThreeTemperature:
         assert self.m3t.get_memory("m1") is not None
 
     def test_store_specific_temp(self) -> None:
-        record = self.m3t.store("m2", {"data": "hot_data"},
-                                 initial_temp=MemoryTemperature.HOT)
+        record = self.m3t.store("m2", {"data": "hot_data"}, initial_temp=MemoryTemperature.HOT)
         assert record.temperature == MemoryTemperature.HOT
 
     def test_access_increments_counter(self) -> None:
@@ -182,6 +181,7 @@ class TestMemoryThreeTemperature:
     def test_access_updates_timestamp(self) -> None:
         self.m3t.store("ts1", {})
         import time
+
         before = time.time()
         record = self.m3t.access("ts1")
         assert record is not None

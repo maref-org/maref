@@ -212,7 +212,9 @@ class TestHumanArbitrationGate:
         )
 
     @pytest.mark.asyncio
-    async def test_auto_approve_low(self, gate: HumanArbitrationGate, low_event: DriftEvent) -> None:
+    async def test_auto_approve_low(
+        self, gate: HumanArbitrationGate, low_event: DriftEvent
+    ) -> None:
         status = await gate.submit(low_event)
         assert status == GateStatus.AUTO
 

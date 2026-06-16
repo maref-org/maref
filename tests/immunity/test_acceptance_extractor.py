@@ -1,13 +1,7 @@
 from __future__ import annotations
 
-import hashlib
-
-import pytest
-
 from maref.immunity.acceptance_extractor import (
     AcceptanceExtractor,
-    AcceptanceCriterion,
-    IntentHash,
 )
 
 
@@ -89,27 +83,27 @@ class TestAcceptanceExtractor:
         extractor = AcceptanceExtractor()
         criteria = extractor.extract_ac("实现用户注册功能")
         assert len(criteria) >= 3
-        assert any("boundary" == c.category for c in criteria)
-        assert any("happy_path" == c.category for c in criteria)
-        assert any("error" == c.category for c in criteria)
+        assert any(c.category == "boundary" for c in criteria)
+        assert any(c.category == "happy_path" for c in criteria)
+        assert any(c.category == "error" for c in criteria)
 
     def test_search_extraction(self):
         extractor = AcceptanceExtractor()
         criteria = extractor.extract_ac("实现搜索功能")
         assert len(criteria) >= 3
-        assert any("happy_path" == c.category for c in criteria)
+        assert any(c.category == "happy_path" for c in criteria)
 
     def test_upload_extraction(self):
         extractor = AcceptanceExtractor()
         criteria = extractor.extract_ac("文件上传功能")
         assert len(criteria) >= 3
-        assert any("boundary" == c.category for c in criteria)
+        assert any(c.category == "boundary" for c in criteria)
 
     def test_generic_fallback_extraction(self):
         extractor = AcceptanceExtractor()
         criteria = extractor.extract_ac("实现数据分析功能")
         assert len(criteria) >= 3
-        assert any("happy_path" == c.category for c in criteria)
+        assert any(c.category == "happy_path" for c in criteria)
 
     def test_deduplication(self):
         extractor = AcceptanceExtractor()

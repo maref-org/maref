@@ -251,6 +251,7 @@ class TestTrustAPI:
 
     def setup_api(self):
         from maref.security.trust_graph import TrustGraph
+
         graph = TrustGraph()
         graph.add_agent("agent-1", initial_trust=75.0)
         graph.add_agent("agent-2", initial_trust=60.0)
@@ -322,6 +323,7 @@ class TestTrustVisualizer:
 
     def setup_graph(self):
         from maref.security.trust_graph import TrustGraph
+
         graph = TrustGraph()
         graph.add_agent("a", initial_trust=90.0)
         graph.add_agent("b", initial_trust=70.0)

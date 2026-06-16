@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from maref.recursive.agent_economy import AgentEconomy
-from maref.recursive.agent_credit_rating import AgentCreditRatingSystem, CreditRating, RatingDimension
 from maref.immunity.pollution_tax import PollutionTax
+from maref.recursive.agent_credit_rating import (
+    AgentCreditRatingSystem,
+    RatingDimension,
+)
+from maref.recursive.agent_economy import AgentEconomy
 from maref.recursive.unified_audit import UnifiedAuditStore
 
 

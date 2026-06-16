@@ -132,7 +132,9 @@ class TestChaosInjection:
 
     def test_ui_change_triggers_drift(self):
         gov = DesktopGovernance()
-        result = gov.detect_drift({"btn_submit", "txt_name", "chk_agree"}, {"btn_submit", "txt_name"})
+        result = gov.detect_drift(
+            {"btn_submit", "txt_name", "chk_agree"}, {"btn_submit", "txt_name"}
+        )
         assert not result
         result = gov.detect_drift({"btn_submit", "txt_email"}, {"txt_email"})
         assert result

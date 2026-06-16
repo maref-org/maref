@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 from maref.immunity.security_template_lib import (
     SecurityTemplate,
     SecurityTemplateLib,
 )
-
 
 BCRYPT_GOOD_CODE = """
 import bcrypt
@@ -282,10 +279,10 @@ class TestSecurityTemplateLibHTTPS:
 
     def test_verify_true_with_name_constant(self):
         lib = SecurityTemplateLib()
-        code = '''
+        code = """
 import requests
 r = requests.get("https://example.com", verify=True)
-'''
+"""
         violations = lib.check_code(code, "https_request")
         assert len(violations) == 0
 
@@ -365,6 +362,7 @@ class TestAIStenchDetectorSecurityIntegration:
 
     def test_detector_auto_creates_template_lib(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         detector = AIStenchDetector()
         warnings = detector.scan(BCRYPT_BAD_CODE)
         security_warnings = [w for w in warnings if w.type.startswith("security_")]
@@ -372,6 +370,7 @@ class TestAIStenchDetectorSecurityIntegration:
 
     def test_detector_with_template_lib_detects_violations(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         lib = SecurityTemplateLib()
         detector = AIStenchDetector(template_lib=lib)
         warnings = detector.scan(BCRYPT_BAD_CODE)
@@ -380,6 +379,7 @@ class TestAIStenchDetectorSecurityIntegration:
 
     def test_detector_security_warnings_are_hard_block(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         lib = SecurityTemplateLib()
         detector = AIStenchDetector(template_lib=lib)
         warnings = detector.scan(BCRYPT_BAD_CODE)
@@ -388,6 +388,7 @@ class TestAIStenchDetectorSecurityIntegration:
 
     def test_detector_good_code_no_security_warnings(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         lib = SecurityTemplateLib()
         detector = AIStenchDetector(template_lib=lib)
         warnings = detector.scan(BCRYPT_GOOD_CODE)
@@ -396,6 +397,7 @@ class TestAIStenchDetectorSecurityIntegration:
 
     def test_detector_syntax_error_returns_empty(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         lib = SecurityTemplateLib()
         detector = AIStenchDetector(template_lib=lib)
         warnings = detector.scan("def broken(")
@@ -404,6 +406,7 @@ class TestAIStenchDetectorSecurityIntegration:
 
     def test_existing_stench_detectors_still_work(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         lib = SecurityTemplateLib()
         detector = AIStenchDetector(template_lib=lib)
         warnings = detector.scan("""
@@ -416,6 +419,7 @@ def get_user_by_id(user_id):
 
     def test_detector_with_good_all_domains_no_warnings(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         lib = SecurityTemplateLib()
         detector = AIStenchDetector(template_lib=lib)
         code = BCRYPT_GOOD_CODE + "\n" + SQL_PARAMETERIZED_CODE + "\n" + HTTPS_VERIFY_TRUE_CODE
@@ -425,6 +429,7 @@ def get_user_by_id(user_id):
 
     def test_detector_with_bad_all_domains_detects_all(self):
         from maref.immunity.ai_stench_detector import AIStenchDetector
+
         lib = SecurityTemplateLib()
         detector = AIStenchDetector(template_lib=lib)
         code = BCRYPT_BAD_CODE + "\n" + SQL_CONCAT_CODE + "\n" + HTTPS_VERIFY_FALSE_CODE

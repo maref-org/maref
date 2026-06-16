@@ -24,7 +24,9 @@ def get_current_span_id() -> str | None:
     return current_span_id.get()
 
 
-def set_trace_context(trace_id: str | None = None, span_id: str | None = None, **kwargs: Any) -> None:
+def set_trace_context(
+    trace_id: str | None = None, span_id: str | None = None, **kwargs: Any
+) -> None:
     """Set trace context for the current execution flow.
 
     Args:

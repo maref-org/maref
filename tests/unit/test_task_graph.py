@@ -165,4 +165,4 @@ class TestTaskGraph:
         g.add_node(TaskNode(task_id="b", description="Task B", depends_on=["a"]))
         mermaid = g.to_mermaid()
         assert "graph TD;" in mermaid
-        assert "a --> b" in mermaid or "a[\"Task A\"]" in mermaid
+        assert "a --> b" in mermaid or 'a["Task A"]' in mermaid

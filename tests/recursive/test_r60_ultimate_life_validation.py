@@ -83,9 +83,13 @@ class TestGovernanceUpgradeLifecycle:
 class TestLifeCapabilities:
     def test_clone_then_evolve(self):
         cloner = MAREFInstanceCloner("parent_life")
-        clones = cloner.clone_multiple([
-            ClonePath.EXPLORATORY, ClonePath.CONSERVATIVE, ClonePath.SPECIALIZED,
-        ])
+        clones = cloner.clone_multiple(
+            [
+                ClonePath.EXPLORATORY,
+                ClonePath.CONSERVATIVE,
+                ClonePath.SPECIALIZED,
+            ]
+        )
         assert len(clones) == 3
 
         diff = cloner.differentiate_clones()
@@ -137,22 +141,29 @@ class TestLifeCapabilities:
         css = CarbonSiliconSymbiosis()
         css.set_agent_trust("agent_symbiosis", 0.88)
         instance = css.run_full_cycle(
-            "agent_symbiosis", TaskDomain.ARCHITECTURE_DESIGN,
+            "agent_symbiosis",
+            TaskDomain.ARCHITECTURE_DESIGN,
             "Design Distributed System",
             "Design distributed MAREF deployment with BFT consensus",
-            human_confirms=True, self_review_passes=True, spot_check_passes=True,
+            human_confirms=True,
+            self_review_passes=True,
+            spot_check_passes=True,
         )
         assert instance.status != "rejected"
 
         instance = css.run_full_cycle(
-            "agent_symbiosis", TaskDomain.MONITORING,
-            "Monitor System", "Continuous monitoring task",
+            "agent_symbiosis",
+            TaskDomain.MONITORING,
+            "Monitor System",
+            "Continuous monitoring task",
         )
         assert instance.status != "rejected"
 
         stats = css.get_stats()
-        assert stats["total_agent_interactions"] > stats["total_human_interactions"] or \
-               stats["total_agent_interactions"] >= 0
+        assert (
+            stats["total_agent_interactions"] > stats["total_human_interactions"]
+            or stats["total_agent_interactions"] >= 0
+        )
 
 
 class TestCivilizationGovernance:
@@ -160,14 +171,16 @@ class TestCivilizationGovernance:
         closure = MetaAgentClosure()
 
         d1 = closure.submit_decision(
-            "agent_a", EvolutionDecisionType.RED_LINE_MODIFICATION,
+            "agent_a",
+            EvolutionDecisionType.RED_LINE_MODIFICATION,
             "attempt to modify RL-001",
         )
         assert d1.red_line_violation
         assert d1.status == "rejected"
 
         d2 = closure.submit_decision_with_reviewers(
-            "agent_a", EvolutionDecisionType.CAPABILITY_ADDITION,
+            "agent_a",
+            EvolutionDecisionType.CAPABILITY_ADDITION,
             "add new healing capability",
             ["human_constitution_maker"],
         )
@@ -244,8 +257,9 @@ class TestEndToEndLifeSystem:
 
         css = CarbonSiliconSymbiosis()
         css.set_agent_trust("e2e_symbiosis", 0.8)
-        css.run_full_cycle("e2e_symbiosis", TaskDomain.CODE_GENERATION,
-                           "E2E Code Gen", "Generate integration code")
+        css.run_full_cycle(
+            "e2e_symbiosis", TaskDomain.CODE_GENERATION, "E2E Code Gen", "Generate integration code"
+        )
         stats = css.get_stats()
         results["symbiosis_ratio"] = stats["symbiosis_ratio"]
 

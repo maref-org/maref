@@ -65,14 +65,10 @@ class TestAgent24StateMachine:
         ]
 
     def test_path_exists(self) -> None:
-        assert self.sm.path_exists(
-            AgentStateV3.UNINITIALIZED, AgentStateV3.TERMINATED
-        )
+        assert self.sm.path_exists(AgentStateV3.UNINITIALIZED, AgentStateV3.TERMINATED)
 
     def test_path_not_exist(self) -> None:
-        assert not self.sm.path_exists(
-            AgentStateV3.TERMINATED, AgentStateV3.BOOTING
-        )
+        assert not self.sm.path_exists(AgentStateV3.TERMINATED, AgentStateV3.BOOTING)
 
     def test_traversal_path(self) -> None:
         path = self.sm.traversal_path(AgentStateV3.UNINITIALIZED, steps=8)

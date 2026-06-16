@@ -88,7 +88,9 @@ class TestAgentEconomy:
         trade = self.economy.propose_trade("buyer", "seller", "data", 30.0)
         self.economy.execute_trade(trade.trade_id)
         dispute = self.economy.file_dispute(
-            trade.trade_id, "buyer", "quality_issue",
+            trade.trade_id,
+            "buyer",
+            "quality_issue",
         )
         assert dispute is not None
 
@@ -98,10 +100,15 @@ class TestAgentEconomy:
         trade = self.economy.propose_trade("buyer", "seller", "data", 30.0)
         self.economy.execute_trade(trade.trade_id)
         dispute = self.economy.file_dispute(
-            trade.trade_id, "buyer", "quality_issue",
+            trade.trade_id,
+            "buyer",
+            "quality_issue",
         )
         resolved = self.economy.resolve_dispute(
-            dispute.dispute_id, "partial_refund", penalty=5.0, refund_amount=10.0,
+            dispute.dispute_id,
+            "partial_refund",
+            penalty=5.0,
+            refund_amount=10.0,
         )
         assert resolved is not None
         assert resolved.status == "resolved"
@@ -109,7 +116,10 @@ class TestAgentEconomy:
     def test_sanction_agent(self) -> None:
         self.economy.register_agent("bad_agent", 100.0)
         sanction = self.economy.sanction_agent(
-            "bad_agent", "penalty", "fraud", penalty=20.0,
+            "bad_agent",
+            "penalty",
+            "fraud",
+            penalty=20.0,
         )
         assert sanction is not None
         wallet = self.economy.get_wallet("bad_agent")
@@ -118,7 +128,9 @@ class TestAgentEconomy:
     def test_sanction_freeze(self) -> None:
         self.economy.register_agent("frozen_agent", 100.0)
         sanction = self.economy.sanction_agent(
-            "frozen_agent", "freeze", "severe_violation",
+            "frozen_agent",
+            "freeze",
+            "severe_violation",
         )
         assert sanction is not None
         wallet = self.economy.get_wallet("frozen_agent")

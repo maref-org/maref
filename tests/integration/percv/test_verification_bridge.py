@@ -51,9 +51,11 @@ class TestVerificationBridge:
 
         tg = MagicMock()
         bridge = VerificationBridge(gateway_adapter=gateway, trust_graph=tg)
-        results = bridge.run_protocol_a([
-            {"kdp_id": "K-001", "claim": "80% market share"},
-        ])
+        results = bridge.run_protocol_a(
+            [
+                {"kdp_id": "K-001", "claim": "80% market share"},
+            ]
+        )
 
         assert len(results) == 1
         assert results[0].confidence > 0.5
@@ -93,49 +95,59 @@ class TestVerificationBridge:
 
     def test_protocol_c_valid_forecast(self) -> None:
         bridge = VerificationBridge()
-        result = bridge.run_protocol_c({
-            "linked_kdps": ["K-001", "K-002"],
-            "assumptions": [{"text": "assumption 1"}],
-            "core_forecast": "If A then B",
-        })
+        result = bridge.run_protocol_c(
+            {
+                "linked_kdps": ["K-001", "K-002"],
+                "assumptions": [{"text": "assumption 1"}],
+                "core_forecast": "If A then B",
+            }
+        )
         assert result.passed
         assert result.confidence == 0.8
 
     def test_protocol_c_invalid_forecast(self) -> None:
         bridge = VerificationBridge()
-        result = bridge.run_protocol_c({
-            "linked_kdps": [],
-            "assumptions": [],
-            "core_forecast": "",
-        })
+        result = bridge.run_protocol_c(
+            {
+                "linked_kdps": [],
+                "assumptions": [],
+                "core_forecast": "",
+            }
+        )
         assert not result.passed
         assert "no_linked_kdps" in result.details["chain_issues"]
 
     def test_protocol_d_no_gateway(self) -> None:
         bridge = VerificationBridge()
-        results = bridge.run_protocol_d([
-            {"metric_type": "exact_number", "claim": "100M users"},
-        ])
+        results = bridge.run_protocol_d(
+            [
+                {"metric_type": "exact_number", "claim": "100M users"},
+            ]
+        )
         assert len(results) == 1
         assert "GatewayAdapter" in results[0].error
 
     def test_protocol_d_with_gateway(self) -> None:
         gateway = MagicMock()
         router = MagicMock()
-        router.triangulate_facts.return_value = [{
-            "metric_type": "exact_number",
-            "verification_results": {
-                "sf-deepseek": "VERIFIED: 100M",
-                "sf-kimi": "VERIFIED: 100M",
-                "sf-qwen": "VERIFIED: 100M",
-            },
-        }]
+        router.triangulate_facts.return_value = [
+            {
+                "metric_type": "exact_number",
+                "verification_results": {
+                    "sf-deepseek": "VERIFIED: 100M",
+                    "sf-kimi": "VERIFIED: 100M",
+                    "sf-qwen": "VERIFIED: 100M",
+                },
+            }
+        ]
         gateway._ensure_router.return_value = router
 
         bridge = VerificationBridge(gateway_adapter=gateway)
-        results = bridge.run_protocol_d([
-            {"metric_type": "exact_number", "claim": "100M users"},
-        ])
+        results = bridge.run_protocol_d(
+            [
+                {"metric_type": "exact_number", "claim": "100M users"},
+            ]
+        )
 
         assert len(results) == 1
         assert results[0].passed

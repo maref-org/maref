@@ -73,9 +73,7 @@ class TestResearchCycle:
             instance.run_research_cycle.return_value = _make_cycle_result(
                 OrchestratorCycle.RESEARCH,
             )
-            result = runner.invoke(
-                app, ["percv", "research-cycle", "t", "-b", "2000"]
-            )
+            result = runner.invoke(app, ["percv", "research-cycle", "t", "-b", "2000"])
             assert result.exit_code == 0
             instance.run_research_cycle.assert_called_once_with(topic="t")
 
@@ -262,9 +260,7 @@ class TestFeatureStatus:
 
 class TestDevelopVerify:
     def test_develop_verify_missing_doc(self):
-        result = runner.invoke(
-            app, ["percv", "develop-verify", "/nonexistent.md"]
-        )
+        result = runner.invoke(app, ["percv", "develop-verify", "/nonexistent.md"])
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower()
 

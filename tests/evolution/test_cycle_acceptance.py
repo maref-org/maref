@@ -2,8 +2,6 @@
 Tests for cycle acceptance criteria — validates each cycle's pass/fail logic.
 """
 
-
-
 from maref.evolution.metrics import (
     AcceptanceCriteria,
     CycleResult,
@@ -55,11 +53,13 @@ class TestC2OptimizationAcceptance:
     def test_stable_weights_passes(self):
         metrics = EvolutionMetrics()
         for _ in range(20):
-            metrics.policy_weights_series.append({
-                "entropy_penalty": -0.1,
-                "stability_bonus": 0.2,
-                "transition_efficiency": 0.05,
-            })
+            metrics.policy_weights_series.append(
+                {
+                    "entropy_penalty": -0.1,
+                    "stability_bonus": 0.2,
+                    "transition_efficiency": 0.05,
+                }
+            )
             metrics.learning_rate_series.append(0.004)
         criteria = AcceptanceCriteria()
         result = metrics.assess_acceptance(criteria, "c2")
@@ -68,11 +68,13 @@ class TestC2OptimizationAcceptance:
     def test_divergent_weights_fails(self):
         metrics = EvolutionMetrics()
         for i in range(20):
-            metrics.policy_weights_series.append({
-                "entropy_penalty": -0.1 + 0.1 * i,
-                "stability_bonus": 0.2 + 0.1 * i,
-                "transition_efficiency": 0.05 + 0.05 * i,
-            })
+            metrics.policy_weights_series.append(
+                {
+                    "entropy_penalty": -0.1 + 0.1 * i,
+                    "stability_bonus": 0.2 + 0.1 * i,
+                    "transition_efficiency": 0.05 + 0.05 * i,
+                }
+            )
         criteria = AcceptanceCriteria(c2_weight_std_max=0.05)
         result = metrics.assess_acceptance(criteria, "c2")
         assert result["weights_stable"] is False

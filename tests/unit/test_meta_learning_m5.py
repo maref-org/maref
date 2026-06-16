@@ -67,15 +67,17 @@ class TestExperienceStore:
     def test_get_recent(self) -> None:
         store = ExperienceStore()
         for i in range(100):
-            store.insert(DecisionOutcome(
-                timestamp=float(i),
-                decision_type="test",
-                state_before="OBSERVE",
-                state_after="ANALYZE",
-                entropy_before=1,
-                entropy_after=2,
-                reward=0.1,
-            ))
+            store.insert(
+                DecisionOutcome(
+                    timestamp=float(i),
+                    decision_type="test",
+                    state_before="OBSERVE",
+                    state_after="ANALYZE",
+                    entropy_before=1,
+                    entropy_after=2,
+                    reward=0.1,
+                )
+            )
 
         recent = store.get_recent(20)
         assert len(recent) == 20
@@ -84,25 +86,29 @@ class TestExperienceStore:
     def test_sample_stratified(self) -> None:
         store = ExperienceStore()
         for i in range(50):
-            store.insert(DecisionOutcome(
-                timestamp=float(i),
-                decision_type="test",
-                state_before="OBSERVE",
-                state_after="STABILIZE",
-                entropy_before=3,
-                entropy_after=1,
-                reward=1.0,
-            ))
+            store.insert(
+                DecisionOutcome(
+                    timestamp=float(i),
+                    decision_type="test",
+                    state_before="OBSERVE",
+                    state_after="STABILIZE",
+                    entropy_before=3,
+                    entropy_after=1,
+                    reward=1.0,
+                )
+            )
         for i in range(50):
-            store.insert(DecisionOutcome(
-                timestamp=float(100 + i),
-                decision_type="test",
-                state_before="ANALYZE",
-                state_after="HALT",
-                entropy_before=2,
-                entropy_after=0,
-                reward=-5.0,
-            ))
+            store.insert(
+                DecisionOutcome(
+                    timestamp=float(100 + i),
+                    decision_type="test",
+                    state_before="ANALYZE",
+                    state_after="HALT",
+                    entropy_before=2,
+                    entropy_after=0,
+                    reward=-5.0,
+                )
+            )
 
         sample = store.sample(batch_size=40, stratified=True)
         assert len(sample) == 40
@@ -114,15 +120,17 @@ class TestExperienceStore:
     def test_avg_reward(self) -> None:
         store = ExperienceStore()
         for i in range(100):
-            store.insert(DecisionOutcome(
-                timestamp=float(i),
-                decision_type="test",
-                state_before="OBSERVE",
-                state_after="ANALYZE",
-                entropy_before=1,
-                entropy_after=2,
-                reward=0.5,
-            ))
+            store.insert(
+                DecisionOutcome(
+                    timestamp=float(i),
+                    decision_type="test",
+                    state_before="OBSERVE",
+                    state_after="ANALYZE",
+                    entropy_before=1,
+                    entropy_after=2,
+                    reward=0.5,
+                )
+            )
 
         avg = store.avg_reward()
         assert 0.4 < avg < 0.6
@@ -131,15 +139,17 @@ class TestExperienceStore:
         db_path = tempfile.mktemp(suffix=".db")
 
         store1 = ExperienceStore(db_path=db_path)
-        store1.insert(DecisionOutcome(
-            timestamp=1000.0,
-            decision_type="test",
-            state_before="OBSERVE",
-            state_after="ANALYZE",
-            entropy_before=1,
-            entropy_after=2,
-            reward=0.7,
-        ))
+        store1.insert(
+            DecisionOutcome(
+                timestamp=1000.0,
+                decision_type="test",
+                state_before="OBSERVE",
+                state_after="ANALYZE",
+                entropy_before=1,
+                entropy_after=2,
+                reward=0.7,
+            )
+        )
         assert store1.count() == 1
         store1.close()
 
@@ -154,30 +164,34 @@ class TestExperienceStore:
     def test_trim_oldest(self) -> None:
         store = ExperienceStore(max_size=100)
         for i in range(150):
-            store.insert(DecisionOutcome(
-                timestamp=float(i),
-                decision_type="test",
-                state_before="OBSERVE",
-                state_after="ANALYZE",
-                entropy_before=1,
-                entropy_after=2,
-                reward=0.1,
-            ))
+            store.insert(
+                DecisionOutcome(
+                    timestamp=float(i),
+                    decision_type="test",
+                    state_before="OBSERVE",
+                    state_after="ANALYZE",
+                    entropy_before=1,
+                    entropy_after=2,
+                    reward=0.1,
+                )
+            )
 
         assert store.count() <= 100
 
     def test_get_stats(self) -> None:
         store = ExperienceStore()
         for i in range(50):
-            store.insert(DecisionOutcome(
-                timestamp=float(i),
-                decision_type="test",
-                state_before="OBSERVE",
-                state_after="ANALYZE",
-                entropy_before=2,
-                entropy_after=1,
-                reward=0.5,
-            ))
+            store.insert(
+                DecisionOutcome(
+                    timestamp=float(i),
+                    decision_type="test",
+                    state_before="OBSERVE",
+                    state_after="ANALYZE",
+                    entropy_before=2,
+                    entropy_after=1,
+                    reward=0.5,
+                )
+            )
 
         stats = store.get_stats()
         assert stats["total_samples"] == 50
@@ -187,15 +201,17 @@ class TestExperienceStore:
 
     def test_clear(self) -> None:
         store = ExperienceStore()
-        store.insert(DecisionOutcome(
-            timestamp=1000.0,
-            decision_type="test",
-            state_before="OBSERVE",
-            state_after="ANALYZE",
-            entropy_before=1,
-            entropy_after=2,
-            reward=0.5,
-        ))
+        store.insert(
+            DecisionOutcome(
+                timestamp=1000.0,
+                decision_type="test",
+                state_before="OBSERVE",
+                state_after="ANALYZE",
+                entropy_before=1,
+                entropy_after=2,
+                reward=0.5,
+            )
+        )
         assert store.count() == 1
         store.clear()
         assert store.count() == 0
@@ -436,15 +452,17 @@ class TestAdversarialDriftResilience:
         db_path = tempfile.mktemp(suffix=".db")
         learner1 = MetaLearner(experience_db_path=db_path)
         for i in range(100):
-            learner1.record_decision(DecisionOutcome(
-                timestamp=float(i),
-                decision_type="test",
-                state_before="OBSERVE",
-                state_after="ANALYZE",
-                entropy_before=3,
-                entropy_after=1,
-                reward=1.0,
-            ))
+            learner1.record_decision(
+                DecisionOutcome(
+                    timestamp=float(i),
+                    decision_type="test",
+                    state_before="OBSERVE",
+                    state_after="ANALYZE",
+                    entropy_before=3,
+                    entropy_after=1,
+                    reward=1.0,
+                )
+            )
         assert learner1._store.count() >= 100
         learner1._store.close()
 

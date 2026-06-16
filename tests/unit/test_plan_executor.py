@@ -109,7 +109,13 @@ class TestPlanExecutor:
             plan_id="fail-rollback",
             steps=[
                 PlanStep(task_id="s1", action="ok", description="OK"),
-                PlanStep(task_id="s2", action="fail", description="Fail", on_failure="rollback", depends_on=["s1"]),
+                PlanStep(
+                    task_id="s2",
+                    action="fail",
+                    description="Fail",
+                    on_failure="rollback",
+                    depends_on=["s1"],
+                ),
                 PlanStep(task_id="s3", action="ok2", description="OK2", depends_on=["s2"]),
             ],
         )
@@ -129,7 +135,13 @@ class TestPlanExecutor:
             plan_id="fail-skip",
             steps=[
                 PlanStep(task_id="s1", action="ok", description="OK"),
-                PlanStep(task_id="s2", action="fail", description="Fail", on_failure="skip", depends_on=["s1"]),
+                PlanStep(
+                    task_id="s2",
+                    action="fail",
+                    description="Fail",
+                    on_failure="skip",
+                    depends_on=["s1"],
+                ),
                 PlanStep(task_id="s3", action="after", description="After", depends_on=["s2"]),
             ],
         )
@@ -189,7 +201,9 @@ class TestPlanExecutor:
         )
         plan = Plan(
             plan_id="retry-exhaust",
-            steps=[PlanStep(task_id="s1", action="always_fail", max_retries=1, retry_delay_seconds=0)],
+            steps=[
+                PlanStep(task_id="s1", action="always_fail", max_retries=1, retry_delay_seconds=0)
+            ],
         )
         report = exe.execute(plan)
         assert report.steps[0].result == StepResult.FAILURE
@@ -233,10 +247,12 @@ class TestPlanExecutor:
             governance_check=_always_allow,
             action_handlers={"test": _succeed},
         )
-        report = exe.execute(Plan(
-            plan_id="dict-test",
-            steps=[PlanStep(task_id="s1", action="test")],
-        ))
+        report = exe.execute(
+            Plan(
+                plan_id="dict-test",
+                steps=[PlanStep(task_id="s1", action="test")],
+            )
+        )
         d = report.to_dict()
         assert d["plan_id"] == "dict-test"
         assert d["status"] == "completed"

@@ -46,6 +46,7 @@ class DemoReport:
 
 class MockAgent:
     """模拟 AutoGen ChatAgent."""
+
     def __init__(self, name: str, description: str) -> None:
         self.name = name
         self.description = description
@@ -54,6 +55,7 @@ class MockAgent:
 
 class MockGroupChat:
     """模拟 AutoGen BaseGroupChat."""
+
     def __init__(self, participants: list[MockAgent]) -> None:
         self._participants = participants
         self.name = "demo-group-chat"
@@ -62,6 +64,7 @@ class MockGroupChat:
     async def run_stream(self, task: str):
         """模拟消息流."""
         import random
+
         messages = [
             ("researcher", f"开始研究任务: {task}"),
             ("critic", "确认研究范围..."),
@@ -104,10 +107,7 @@ class MockAutoGenAdapter(AgentAdapter):
         self._session_start: float = time.time()
 
     async def list_agents(self) -> list[AgentId]:
-        return [
-            AgentId(name=p.name, namespace="demo")
-            for p in self._participants
-        ]
+        return [AgentId(name=p.name, namespace="demo") for p in self._participants]
 
     async def get_state(self, agent_id: AgentId) -> StateSnapshot | None:
         name = agent_id.name
@@ -212,12 +212,14 @@ async def run_sidecar_demo(task: str | None = None) -> DemoReport:
                 for agent_id in agent_ids:
                     entropy = await adapter.get_entropy(agent_id)
                     if entropy:
-                        entropy_readings.append({
-                            "agent": agent_id.name,
-                            "value": entropy.value,
-                            "level": entropy.level,
-                            "timestamp": entropy.timestamp,
-                        })
+                        entropy_readings.append(
+                            {
+                                "agent": agent_id.name,
+                                "value": entropy.value,
+                                "level": entropy.level,
+                                "timestamp": entropy.timestamp,
+                            }
+                        )
 
         latency_samples.append((time.time() - inject_start) * 1000)
 
@@ -324,7 +326,9 @@ async def main() -> None:
         print(f"  平均运行时间: {sum(durations) / len(durations):.2f}s")
         print(f"  平均 Sidecar 延迟: {sum(latencies) / len(latencies):.3f}ms")
         print(f"  最大延迟: {max(latencies):.3f}ms")
-        print(f"  消息一致性: {all(r.total_messages == all_reports[0].total_messages for r in all_reports)}")
+        print(
+            f"  消息一致性: {all(r.total_messages == all_reports[0].total_messages for r in all_reports)}"
+        )
 
 
 if __name__ == "__main__":

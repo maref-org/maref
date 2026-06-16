@@ -26,7 +26,9 @@ class TestHypothesisPropose:
         assert hyp.confidence == 0.6
         assert cycle.hypothesis_count == 1
 
-    def test_propose_adds_question_and_hypothesis_to_kg(self, cycle: HypothesisCycle, kg: KnowledgeGraph) -> None:
+    def test_propose_adds_question_and_hypothesis_to_kg(
+        self, cycle: HypothesisCycle, kg: KnowledgeGraph
+    ) -> None:
         cycle.propose("What is X?", "X is Y")
         node_types = {n.type for n in kg.nodes}
         assert "question" in node_types
@@ -34,7 +36,9 @@ class TestHypothesisPropose:
 
 
 class TestHypothesisExperiment:
-    def test_run_experiment_links_experiment_node(self, cycle: HypothesisCycle, kg: KnowledgeGraph) -> None:
+    def test_run_experiment_links_experiment_node(
+        self, cycle: HypothesisCycle, kg: KnowledgeGraph
+    ) -> None:
         hyp = cycle.propose("Q?", "H!")
         exp_id = cycle.run_experiment(hyp.node_id, "Test H")
         assert exp_id is not None
@@ -120,7 +124,9 @@ class TestTimeDecay:
 
 
 class TestFullCycle:
-    def test_hypothesis_experiment_finding_closed_loop(self, cycle: HypothesisCycle, kg: KnowledgeGraph) -> None:
+    def test_hypothesis_experiment_finding_closed_loop(
+        self, cycle: HypothesisCycle, kg: KnowledgeGraph
+    ) -> None:
         hyp = cycle.propose("What causes X?", "Y causes X")
         cycle.run_experiment(hyp.node_id, "Controlled study of Y")
         cycle.record_finding(hyp.node_id, "Data shows correlation", True, 0.85)

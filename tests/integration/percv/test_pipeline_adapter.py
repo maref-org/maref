@@ -42,10 +42,13 @@ class TestPipelineAdapter:
 
     def test_run_research_cycle_no_percv(self) -> None:
         adapter = PipelineAdapter()
-        with patch(
-            "maref.integration.percv.pipeline_adapter.PERCVPipelineAdapter._create_pipeline",
-            side_effect=RuntimeError("PERCV package is required"),
-        ), pytest.raises(RuntimeError, match="PERCV package is required"):
+        with (
+            patch(
+                "maref.integration.percv.pipeline_adapter.PERCVPipelineAdapter._create_pipeline",
+                side_effect=RuntimeError("PERCV package is required"),
+            ),
+            pytest.raises(RuntimeError, match="PERCV package is required"),
+        ):
             adapter.run_research_cycle("test topic")
 
     def test_run_research_cycle_mock(self) -> None:

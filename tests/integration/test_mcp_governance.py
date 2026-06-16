@@ -73,8 +73,6 @@ class MockTransport(MCPTransport):
         return self._response
 
 
-
-
 # ============================================================================
 # E1.1-A1: MCPGovernance.evaluate() 返回 ALLOW/DENY/ASK_USER
 # ============================================================================
@@ -411,8 +409,11 @@ class TestMCPPolicyEngine:
         class AlwaysDeny(MCPPolicyRule):
             def __init__(self):
                 super().__init__(rule_id="custom-deny", description="Always deny", priority=999)
+
             def evaluate(self, context):
-                return MCPGovernanceResult(verdict=MCPDecisionVerdict.DENY, reason="Custom deny", matched_rule=self.rule_id)
+                return MCPGovernanceResult(
+                    verdict=MCPDecisionVerdict.DENY, reason="Custom deny", matched_rule=self.rule_id
+                )
 
         engine = MCPPolicyEngine(rules=[AlwaysDeny()])
         ctx = MCPPolicyContext(tool_name="any_tool")
@@ -422,9 +423,11 @@ class TestMCPPolicyEngine:
 
     def test_add_remove_rule(self):
         engine = MCPPolicyEngine()
+
         class TestRule(MCPPolicyRule):
             def __init__(self):
                 super().__init__(rule_id="test-rule", description="Test", priority=50)
+
             def evaluate(self, context):
                 return MCPGovernanceResult(verdict=MCPDecisionVerdict.DENY, reason="Test")
 
@@ -496,13 +499,19 @@ class TestHMACAuditSigning:
     def test_different_args_hash_different_signature(self):
         entry1 = AuditLogEntry(
             timestamp=__import__("datetime").datetime(2026, 5, 20, 12, 0, 0),
-            agent_id="agent-001", tool_name="read_file",
-            trust_level="trusted", verdict="ALLOW", args_hash="abc",
+            agent_id="agent-001",
+            tool_name="read_file",
+            trust_level="trusted",
+            verdict="ALLOW",
+            args_hash="abc",
         )
         entry2 = AuditLogEntry(
             timestamp=__import__("datetime").datetime(2026, 5, 20, 12, 0, 0),
-            agent_id="agent-001", tool_name="read_file",
-            trust_level="trusted", verdict="ALLOW", args_hash="def",
+            agent_id="agent-001",
+            tool_name="read_file",
+            trust_level="trusted",
+            verdict="ALLOW",
+            args_hash="def",
         )
         sig1 = sign_audit_entry(entry1, HMAC_SECRET_KEY)
         sig2 = sign_audit_entry(entry2, HMAC_SECRET_KEY)
@@ -776,6 +785,7 @@ class TestMCPSecurityHMACIntegration:
             args_hash="abc123",
         )
         from maref.integration.mcp_security import sign_audit_entry as sec_sign
+
         sig = sec_sign(entry)
         assert len(sig) == 64
 
@@ -790,12 +800,14 @@ class TestMCPSecurityHMACIntegration:
         )
         from maref.integration.mcp_security import sign_audit_entry as sec_sign
         from maref.integration.mcp_security import verify_audit_signature as sec_verify
+
         sig = sec_sign(entry)
         assert sec_verify(entry, sig) is True
 
     def test_cross_module_compatibility(self):
         from maref.integration.mcp_governance import HMAC_SECRET_KEY as GOV_KEY
         from maref.integration.mcp_security import DEFAULT_HMAC_SECRET_KEY as SEC_KEY
+
         assert SEC_KEY == GOV_KEY
 
 
@@ -980,7 +992,9 @@ class TestMCPGovernanceCBCheck:
         assert stats.call_count >= 1
 
     def test_cb_monitor_custom_config(self):
-        monitor = MCPCircuitBreakerMonitor(max_error_rate=0.1, max_avg_latency_ms=500.0, min_calls_for_metrics=2)
+        monitor = MCPCircuitBreakerMonitor(
+            max_error_rate=0.1, max_avg_latency_ms=500.0, min_calls_for_metrics=2
+        )
         gov = MCPGovernance(cb_monitor=monitor)
         assert gov.cb_monitor is monitor
 
@@ -1169,35 +1183,43 @@ mappings:
             os.unlink(tmp_path)
 
     def test_pattern_matching_prefix(self):
-        mapping = MCPPolicyMapping(mappings=[
-            {"patterns": ["read_"], "rule": "read-rule"},
-            {"patterns": ["*"], "rule": "default-rule"},
-        ])
+        mapping = MCPPolicyMapping(
+            mappings=[
+                {"patterns": ["read_"], "rule": "read-rule"},
+                {"patterns": ["*"], "rule": "default-rule"},
+            ]
+        )
         assert mapping.get_rule_for_tool("read_file") == "read-rule"
         assert mapping.get_rule_for_tool("read_data") == "read-rule"
         assert mapping.get_rule_for_tool("write_file") == "default-rule"
 
     def test_pattern_matching_suffix(self):
-        mapping = MCPPolicyMapping(mappings=[
-            {"patterns": ["_tool"], "rule": "tool-rule"},
-            {"patterns": ["*"], "rule": "default-rule"},
-        ])
+        mapping = MCPPolicyMapping(
+            mappings=[
+                {"patterns": ["_tool"], "rule": "tool-rule"},
+                {"patterns": ["*"], "rule": "default-rule"},
+            ]
+        )
         assert mapping.get_rule_for_tool("my_tool") == "tool-rule"
         assert mapping.get_rule_for_tool("something") == "default-rule"
 
     def test_pattern_matching_substring(self):
-        mapping = MCPPolicyMapping(mappings=[
-            {"patterns": ["danger"], "rule": "danger-rule"},
-            {"patterns": ["*"], "rule": "default-rule"},
-        ])
+        mapping = MCPPolicyMapping(
+            mappings=[
+                {"patterns": ["danger"], "rule": "danger-rule"},
+                {"patterns": ["*"], "rule": "default-rule"},
+            ]
+        )
         assert mapping.get_rule_for_tool("super_dangerous_tool") == "danger-rule"
         assert mapping.get_rule_for_tool("safe_tool") == "default-rule"
 
     def test_to_yaml(self):
-        mapping = MCPPolicyMapping(mappings=[
-            {"tools": ["a"], "rule": "rule-1"},
-            {"patterns": ["*"], "rule": "rule-2"},
-        ])
+        mapping = MCPPolicyMapping(
+            mappings=[
+                {"tools": ["a"], "rule": "rule-1"},
+                {"patterns": ["*"], "rule": "rule-2"},
+            ]
+        )
         yaml_out = mapping.to_yaml()
         assert "rule-1" in yaml_out
         assert "rule-2" in yaml_out
@@ -1254,20 +1276,24 @@ class TestMCPMappedPolicyEngine:
 
     def test_set_mapping(self):
         engine = MCPMappedPolicyEngine()
-        custom_mapping = MCPPolicyMapping(mappings=[
-            {"tools": ["custom_tool"], "rule": "mcp-rule-001"},
-            {"patterns": ["*"], "rule": "mcp-rule-006"},
-        ])
+        custom_mapping = MCPPolicyMapping(
+            mappings=[
+                {"tools": ["custom_tool"], "rule": "mcp-rule-001"},
+                {"patterns": ["*"], "rule": "mcp-rule-006"},
+            ]
+        )
         engine.set_mapping(custom_mapping)
         ctx = MCPPolicyContext(tool_name="custom_tool")
         result = engine.evaluate(ctx)
         assert result.verdict == MCPDecisionVerdict.ALLOW
 
     def test_mapped_engine_in_governance(self):
-        mapping = MCPPolicyMapping(mappings=[
-            {"tools": ["safe_read"], "rule": "mcp-rule-002"},
-            {"patterns": ["*"], "rule": "mcp-rule-006"},
-        ])
+        mapping = MCPPolicyMapping(
+            mappings=[
+                {"tools": ["safe_read"], "rule": "mcp-rule-002"},
+                {"patterns": ["*"], "rule": "mcp-rule-006"},
+            ]
+        )
         engine = MCPMappedPolicyEngine(mapping=mapping)
         gov = MCPGovernance(policy_engine=engine)
 
@@ -1275,4 +1301,6 @@ class TestMCPMappedPolicyEngine:
         assert result.verdict == MCPDecisionVerdict.ALLOW
 
         result2 = gov.evaluate(tool_name="bash", agent_id="agent-001")
-        assert result2.verdict == MCPDecisionVerdict.DENY  # TrustLevelBasedGate denies untrusted shell
+        assert (
+            result2.verdict == MCPDecisionVerdict.DENY
+        )  # TrustLevelBasedGate denies untrusted shell

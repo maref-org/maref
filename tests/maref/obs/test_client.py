@@ -17,6 +17,7 @@ class TestMarefObsClient:
 
     def teardown_method(self) -> None:
         import shutil
+
         shutil.rmtree(self._tmpdir, ignore_errors=True)
         MarefObsClient.reset_default()
 
@@ -133,6 +134,7 @@ class TestMarefObsClient:
             assert client1.session_id != client2.session_id
         finally:
             import shutil
+
             shutil.rmtree(client2_dir, ignore_errors=True)
 
     def test_singleton_get_default(self) -> None:

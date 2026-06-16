@@ -54,11 +54,17 @@ class TestToolDefinition:
         assert t.risk_level == ToolRiskLevel.MEDIUM
 
     def test_read_only_detection(self):
-        t = ToolDefinition(name="reader", description="Read-only", tools=["read_file", "list_directory", "get_info"])
+        t = ToolDefinition(
+            name="reader",
+            description="Read-only",
+            tools=["read_file", "list_directory", "get_info"],
+        )
         assert t.is_read_only() is True
 
     def test_not_read_only_with_write(self):
-        t = ToolDefinition(name="writer", description="Has write", tools=["read_file", "write_file"])
+        t = ToolDefinition(
+            name="writer", description="Has write", tools=["read_file", "write_file"]
+        )
         assert t.is_read_only() is False
 
     def test_empty_tools_not_read_only(self):
@@ -66,7 +72,12 @@ class TestToolDefinition:
         assert t.is_read_only() is False
 
     def test_to_dict(self):
-        t = ToolDefinition(name="test", description="Test", category=ToolCategory.FILE, risk_level=ToolRiskLevel.HIGH)
+        t = ToolDefinition(
+            name="test",
+            description="Test",
+            category=ToolCategory.FILE,
+            risk_level=ToolRiskLevel.HIGH,
+        )
         d = t.to_dict()
         assert d["name"] == "test"
         assert d["category"] == "file"
@@ -110,7 +121,9 @@ class TestToolDefinition:
         assert t1.security_controls == t2.security_controls
 
     def test_get_recommended_rule_critical(self):
-        t = ToolDefinition(name="danger", description="Dangerous", risk_level=ToolRiskLevel.CRITICAL)
+        t = ToolDefinition(
+            name="danger", description="Dangerous", risk_level=ToolRiskLevel.CRITICAL
+        )
         assert t.get_recommended_rule() == "mcp-rule-003"
 
     def test_get_recommended_rule_write(self):
@@ -118,11 +131,15 @@ class TestToolDefinition:
         assert t.get_recommended_rule() == "mcp-rule-005"
 
     def test_get_recommended_rule_read(self):
-        t = ToolDefinition(name="reader", description="Read-only", tools=["read_file", "list_directory"])
+        t = ToolDefinition(
+            name="reader", description="Read-only", tools=["read_file", "list_directory"]
+        )
         assert t.get_recommended_rule() == "mcp-rule-002"
 
     def test_get_recommended_rule_hitl(self):
-        t = ToolDefinition(name="hitl", description="Requires HITL", requires_hitl=True, tools=["write"])
+        t = ToolDefinition(
+            name="hitl", description="Requires HITL", requires_hitl=True, tools=["write"]
+        )
         assert t.get_recommended_rule() == "mcp-rule-005"
 
 
@@ -169,13 +186,14 @@ class TestBuiltinTools:
 
     def test_list_tool_definitions(self):
         tools = list_tool_definitions()
-        assert len(tools) == 5
+        assert len(tools) == 6
         names = [t.name for t in tools]
         assert "file" in names
         assert "shell" in names
         assert "git" in names
         assert "browser" in names
         assert "email" in names
+        assert "web_search" in names
 
     def test_all_tools_have_correct_category(self):
         for t in list_tool_definitions():

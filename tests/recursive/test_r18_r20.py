@@ -18,12 +18,39 @@ class TestExperiencePool:
     @pytest.fixture
     def pool(self) -> ExperiencePool:
         p = ExperiencePool()
-        p.store(ExperienceEntry("e1", time.time(), "cb trip detected", "increase cooldown", "success",
-                                 "increase cooldown on entropy spike", ["governance", "circuit_breaker"]))
-        p.store(ExperienceEntry("e2", time.time(), "test coverage drop", "add missing tests", "failure",
-                                 "coverage drop requires targeted testing", ["testing", "coverage"]))
-        p.store(ExperienceEntry("e3", time.time(), "agent crash under load", "restart agent pool", "success",
-                                 "pre-warm agent pool before peak load", ["agent", "load"]))
+        p.store(
+            ExperienceEntry(
+                "e1",
+                time.time(),
+                "cb trip detected",
+                "increase cooldown",
+                "success",
+                "increase cooldown on entropy spike",
+                ["governance", "circuit_breaker"],
+            )
+        )
+        p.store(
+            ExperienceEntry(
+                "e2",
+                time.time(),
+                "test coverage drop",
+                "add missing tests",
+                "failure",
+                "coverage drop requires targeted testing",
+                ["testing", "coverage"],
+            )
+        )
+        p.store(
+            ExperienceEntry(
+                "e3",
+                time.time(),
+                "agent crash under load",
+                "restart agent pool",
+                "success",
+                "pre-warm agent pool before peak load",
+                ["agent", "load"],
+            )
+        )
         return p
 
     def test_store_and_count(self, pool: ExperiencePool) -> None:
@@ -54,7 +81,17 @@ class TestExperiencePool:
     def test_max_entries_eviction(self) -> None:
         pool = ExperiencePool(max_entries=3)
         for i in range(5):
-            pool.store(ExperienceEntry(f"e{i}", time.time(), f"context{i}", f"decision{i}", "success", f"lesson{i}", ["tag"]))
+            pool.store(
+                ExperienceEntry(
+                    f"e{i}",
+                    time.time(),
+                    f"context{i}",
+                    f"decision{i}",
+                    "success",
+                    f"lesson{i}",
+                    ["tag"],
+                )
+            )
         assert pool.count() == 3
 
     def test_clear(self, pool: ExperiencePool) -> None:
@@ -196,24 +233,58 @@ class TestSelfArchitect:
     @pytest.fixture
     def audit_store(self) -> UnifiedAuditStore:
         s = UnifiedAuditStore()
-        s.append(UnifiedAuditRecord("r1", 1.0, "inner", 1, "healing", "SelfHealer", "cb", "repair", "j", "success", []))
-        s.append(UnifiedAuditRecord("r2", 2.0, "inner", 1, "healing", "SelfHealer", "cb", "repair", "j", "success", []))
-        s.append(UnifiedAuditRecord("r3", 3.0, "inner", 1, "healing", "SelfHealer", "cb", "repair", "j", "failure", []))
-        s.append(UnifiedAuditRecord("r4", 4.0, "inner", 1, "healing", "SelfHealer", "sm", "repair", "j", "success", []))
-        s.append(UnifiedAuditRecord("r5", 5.0, "inner", 1, "healing", "SelfHealer", "sm", "repair", "j", "failure", []))
-        s.append(UnifiedAuditRecord("r6", 6.0, "outer", 2, "governance", "MG", "inner", "halt", "j", "failure", []))
-        s.append(UnifiedAuditRecord("r7", 7.0, "meta", 3, "governance", "MG", "outer", "open", "j", "failure", []))
-        s.append(UnifiedAuditRecord("r8", 8.0, "evolution", 10, "evolution", "DSL", "cb", "tune", "j", "success", []))
+        s.append(
+            UnifiedAuditRecord(
+                "r1", 1.0, "inner", 1, "healing", "SelfHealer", "cb", "repair", "j", "success", []
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r2", 2.0, "inner", 1, "healing", "SelfHealer", "cb", "repair", "j", "success", []
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r3", 3.0, "inner", 1, "healing", "SelfHealer", "cb", "repair", "j", "failure", []
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r4", 4.0, "inner", 1, "healing", "SelfHealer", "sm", "repair", "j", "success", []
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r5", 5.0, "inner", 1, "healing", "SelfHealer", "sm", "repair", "j", "failure", []
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r6", 6.0, "outer", 2, "governance", "MG", "inner", "halt", "j", "failure", []
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r7", 7.0, "meta", 3, "governance", "MG", "outer", "open", "j", "failure", []
+            )
+        )
+        s.append(
+            UnifiedAuditRecord(
+                "r8", 8.0, "evolution", 10, "evolution", "DSL", "cb", "tune", "j", "success", []
+            )
+        )
         return s
 
     @pytest.fixture
     def architect(self, audit_store: UnifiedAuditStore) -> SelfArchitect:
         arch = SelfArchitect(audit_store)
-        arch.snapshot_architecture({
-            "governance": "v0.4.0",
-            "recursive": "v0.4.0",
-            "observation": "v0.4.0",
-        })
+        arch.snapshot_architecture(
+            {
+                "governance": "v0.4.0",
+                "recursive": "v0.4.0",
+                "observation": "v0.4.0",
+            }
+        )
         return arch
 
     def test_snapshot_architecture(self, architect: SelfArchitect) -> None:
@@ -270,9 +341,13 @@ class TestSelfArchitectStructuredProposals:
 
     def test_architecture_proposal_new_fields(self) -> None:
         proposal = ArchitectureProposal(
-            proposal_id="p1", timestamp=time.time(),
-            current_arch="v1", proposed_arch="v2",
-            rationale="test", risk_assessment="low", confidence=0.9,
+            proposal_id="p1",
+            timestamp=time.time(),
+            current_arch="v1",
+            proposed_arch="v2",
+            rationale="test",
+            risk_assessment="low",
+            confidence=0.9,
             target_files=["tests/test_x.py"],
             change_type=ChangeType.ADD_TEST,
             affected_symbols=["test_func"],
@@ -303,8 +378,18 @@ class TestSelfArchitectStructuredProposals:
 
     def test_propose_test_addition_with_data(self, architect: SelfArchitect) -> None:
         low_cov = [
-            {"file": "src/maref/recursive/self_healer.py", "coverage_pct": 65.0, "statements": "128", "missing": "45"},
-            {"file": "src/maref/recursive/self_optimizer.py", "coverage_pct": 72.0, "statements": "160", "missing": "45"},
+            {
+                "file": "src/maref/recursive/self_healer.py",
+                "coverage_pct": 65.0,
+                "statements": "128",
+                "missing": "45",
+            },
+            {
+                "file": "src/maref/recursive/self_optimizer.py",
+                "coverage_pct": 72.0,
+                "statements": "160",
+                "missing": "45",
+            },
         ]
         proposals = architect.propose_test_addition(low_cov)
         assert len(proposals) == 2

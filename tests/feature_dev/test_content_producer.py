@@ -34,8 +34,14 @@ class TestContentProducer:
         prev = {
             "characters": [{"name": "Neon-chan", "char_id": "cyberpunk-neko"}],
             "scripts": [
-                {"char_id": "cyberpunk-neko", "episode_number": 1, "title": "Ep1",
-                 "scene_count": 3, "total_duration_s": 37, "script_path": str(tmp_path / "s1.md")},
+                {
+                    "char_id": "cyberpunk-neko",
+                    "episode_number": 1,
+                    "title": "Ep1",
+                    "scene_count": 3,
+                    "total_duration_s": 37,
+                    "script_path": str(tmp_path / "s1.md"),
+                },
             ],
             "stages_covered": {"mvp"},
             "requirements_covered": 7,
@@ -59,8 +65,16 @@ class TestContentProducer:
         prod._base = tmp_path
         prev = {
             "characters": [{"name": "Neon-chan", "char_id": "c1"}],
-            "scripts": [{"char_id": "c1", "episode_number": 1, "title": "E1",
-                         "scene_count": 3, "total_duration_s": 10, "script_path": str(tmp_path / "e1.md")}],
+            "scripts": [
+                {
+                    "char_id": "c1",
+                    "episode_number": 1,
+                    "title": "E1",
+                    "scene_count": 3,
+                    "total_duration_s": 10,
+                    "script_path": str(tmp_path / "e1.md"),
+                }
+            ],
             "stages_covered": {"mvp"},
             "requirements_covered": 7,
         }
@@ -116,8 +130,14 @@ class TestContentProducer:
                 {"name": "C", "char_id": "retro-detective-noir"},
             ],
             "scripts": [
-                {"char_id": "cyberpunk-neko", "episode_number": i, "title": f"E{i}",
-                 "scene_count": 3, "total_duration_s": 10, "script_path": str(tmp_path / f"s{i}.md")}
+                {
+                    "char_id": "cyberpunk-neko",
+                    "episode_number": i,
+                    "title": f"E{i}",
+                    "scene_count": 3,
+                    "total_duration_s": 10,
+                    "script_path": str(tmp_path / f"s{i}.md"),
+                }
                 for i in range(1, 9)
             ],
             "stages_covered": {"mvp"},

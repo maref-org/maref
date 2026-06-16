@@ -269,6 +269,7 @@ class TestEvolutionDSLFreezeIntegration:
 
     def test_safety_check_core_removal_blocked(self):
         from maref.recursive.evolution_dsl import SafetyGate
+
         gate = SafetyGate()
         rule = EvolutionRule(
             rule_id="test",

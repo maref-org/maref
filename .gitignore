@@ -152,3 +152,18 @@ gui/src-tauri/target/
 
 # Audit logs (large JSONL files >100 MB)
 governance_audit_*.jsonl
+.openclaw/
+athena-governance.jsonc
+AUDIT_REPORT_*
+docs/.obsidian/
+docs/arxiv-endorsement-emails*
+data/convergence_history.jsonl
+docs/assets/
+docs/submission-pipeline/
+docs/github-auto-agent-audit-*
+docs/plans/
+docs/arxiv-endorsement-targets.csv
+findings.md
+progress.md
+task_plan.md
+opencode.jsonc.bak.*

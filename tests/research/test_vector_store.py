@@ -19,6 +19,7 @@ class TestVectorKnowledgeStore:
     def store(self) -> VectorKnowledgeStore:
         """Ephemeral in-memory store for testing (isolated per test)."""
         import uuid
+
         s = VectorKnowledgeStore(collection_name=f"test_{uuid.uuid4().hex[:8]}")
         return s
 
@@ -46,9 +47,7 @@ class TestVectorKnowledgeStore:
         results = store.search("anything")
         assert results == []
 
-    async def test_search_relevance_ordering(
-        self, store: VectorKnowledgeStore
-    ) -> None:
+    async def test_search_relevance_ordering(self, store: VectorKnowledgeStore) -> None:
         """More semantically relevant results should have lower scores (closer = 0)."""
         store.add_finding("The cat sat on the mat", {"topic": "cats"})
         store.add_finding("Policy gradient methods optimize reward", {"topic": "rl"})
@@ -60,9 +59,7 @@ class TestVectorKnowledgeStore:
         rl_results = [r for r in results if "policy" in r.content.lower()]
         assert len(rl_results) >= 1, "Expected at least one RL-related result"
 
-    async def test_search_semantic_match_vs_keyword(
-        self, store: VectorKnowledgeStore
-    ) -> None:
+    async def test_search_semantic_match_vs_keyword(self, store: VectorKnowledgeStore) -> None:
         """Semantic search should find related concepts, not just keywords."""
         store.add_finding("Oscillation in governance states detected", {"type": "finding"})
         store.add_finding("The weather is sunny today", {"type": "irrelevant"})
@@ -72,9 +69,7 @@ class TestVectorKnowledgeStore:
         # The oscillation finding should be most relevant
         assert "oscillation" in results[0].content.lower()
 
-    async def test_search_returns_correct_structure(
-        self, store: VectorKnowledgeStore
-    ) -> None:
+    async def test_search_returns_correct_structure(self, store: VectorKnowledgeStore) -> None:
         store.add_finding("test finding", {"experiment": "test_exp"})
         results = store.search("test")
         r = results[0]
@@ -87,9 +82,7 @@ class TestVectorKnowledgeStore:
 
     # --- search_similar ---
 
-    async def test_search_similar_finds_related(
-        self, store: VectorKnowledgeStore
-    ) -> None:
+    async def test_search_similar_finds_related(self, store: VectorKnowledgeStore) -> None:
         store.add_finding("High entropy leads to unstable governance")
         store.add_finding("Entropy is a measure of disorder in systems")
         store.add_finding("The sky appears blue due to Rayleigh scattering")
@@ -101,11 +94,13 @@ class TestVectorKnowledgeStore:
     # --- add_findings (batch) ---
 
     async def test_add_findings_batch(self, store: VectorKnowledgeStore) -> None:
-        ids = store.add_findings([
-            ("Finding one", {"exp": "exp1"}),
-            ("Finding two", {"exp": "exp2"}),
-            ("Finding three", {"exp": "exp3"}),
-        ])
+        ids = store.add_findings(
+            [
+                ("Finding one", {"exp": "exp1"}),
+                ("Finding two", {"exp": "exp2"}),
+                ("Finding three", {"exp": "exp3"}),
+            ]
+        )
         assert len(ids) == 3
         assert all(id.startswith("finding_") for id in ids)
         assert store.count() == 3
@@ -114,13 +109,13 @@ class TestVectorKnowledgeStore:
         ids = store.add_findings([])
         assert ids == []
 
-    async def test_add_findings_without_metadata(
-        self, store: VectorKnowledgeStore
-    ) -> None:
-        ids = store.add_findings([
-            ("Finding one", None),
-            ("Finding two", None),
-        ])
+    async def test_add_findings_without_metadata(self, store: VectorKnowledgeStore) -> None:
+        ids = store.add_findings(
+            [
+                ("Finding one", None),
+                ("Finding two", None),
+            ]
+        )
         assert len(ids) == 2
 
     # --- count ---
@@ -166,9 +161,7 @@ class TestVectorKnowledgeStore:
 
     # --- reconstruction and semantic consistency ---
 
-    async def test_semantic_search_across_domains(
-        self, store: VectorKnowledgeStore
-    ) -> None:
+    async def test_semantic_search_across_domains(self, store: VectorKnowledgeStore) -> None:
         """Very strict test: semantically different topics should rank correctly."""
         store.add_finding("Recursive governance oscillation detection", {"area": "governance"})
         store.add_finding("F1 score for anomaly detection models", {"area": "metrics"})
@@ -178,18 +171,21 @@ class TestVectorKnowledgeStore:
         assert len(results) >= 1
         # The finding mentioning "oscillation" should be most relevant to this query
         top = results[0].content.lower()
-        assert "oscillation" in top, (
-            f"Expected oscillation finding first, got: {results[0].content}"
-        )
+        assert (
+            "oscillation" in top
+        ), f"Expected oscillation finding first, got: {results[0].content}"
 
     # --- metadata handling ---
 
     async def test_metadata_preserved(self, store: VectorKnowledgeStore) -> None:
-        store.add_finding("finding with meta", {
-            "experiment": "test_exp",
-            "phase": "8",
-            "confidence": "0.95",
-        })
+        store.add_finding(
+            "finding with meta",
+            {
+                "experiment": "test_exp",
+                "phase": "8",
+                "confidence": "0.95",
+            },
+        )
         results = store.search("finding with meta")
         assert len(results) >= 1
         meta = results[0].metadata

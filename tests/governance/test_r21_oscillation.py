@@ -55,6 +55,7 @@ class TestOscillationFixLoop:
     def get_state_fn(self):
         def _get_state():
             return {"state": "STABILIZE", "entropy": 2}
+
         return _get_state
 
     @pytest.fixture

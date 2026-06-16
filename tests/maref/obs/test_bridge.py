@@ -57,6 +57,7 @@ class TestObsBridge:
         self._bridge.wire_oscillation_loop(loop)
 
         import asyncio
+
         result = asyncio.run(loop.detect_and_fix(rate=5.0, entropy=3, current_state="ACT"))
 
         events = self._client.get_all_events()

@@ -131,9 +131,9 @@ class TestCloneMultiple:
 
     def test_differentiate_clones(self):
         cloner = MAREFInstanceCloner("parent_1")
-        cloner.clone_multiple([
-            EvolutionPath.EXPLORATORY, EvolutionPath.CONSERVATIVE, EvolutionPath.SPECIALIZED
-        ])
+        cloner.clone_multiple(
+            [EvolutionPath.EXPLORATORY, EvolutionPath.CONSERVATIVE, EvolutionPath.SPECIALIZED]
+        )
         diff = cloner.differentiate_clones()
         assert len(diff) == 3
         paths = {d["path"] for d in diff.values()}

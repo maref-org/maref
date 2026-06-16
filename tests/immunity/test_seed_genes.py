@@ -57,15 +57,18 @@ class TestSeedQuality:
     def test_every_gene_has_risk_level(self, bank):
         seed_all(bank)
         for gene in bank.query_all():
-            assert gene.risk_level in ("CRITICAL", "HIGH", "MEDIUM", "LOW"), \
-                f"Gene {gene.gene_id} invalid risk {gene.risk_level}"
+            assert gene.risk_level in (
+                "CRITICAL",
+                "HIGH",
+                "MEDIUM",
+                "LOW",
+            ), f"Gene {gene.gene_id} invalid risk {gene.risk_level}"
 
     def test_every_blocked_gene_has_regex_pattern(self, bank):
         seed_all(bank)
         for gene in bank.query_all():
             if gene.blocked:
-                assert len(gene.patterns) > 0, \
-                    f"Blocked gene {gene.gene_id} has no patterns"
+                assert len(gene.patterns) > 0, f"Blocked gene {gene.gene_id} has no patterns"
 
     def test_hmac_integrity(self, bank):
         seed_all(bank)
@@ -77,8 +80,9 @@ class TestSeedQuality:
         seed_all(bank)
         genes = bank.query_all(limit=500)
         genes_with_variants = [g for g in genes if len(g.variants) >= 2]
-        assert len(genes_with_variants) >= 2, \
-            f"Only {len(genes_with_variants)} genes have >=2 variants"
+        assert (
+            len(genes_with_variants) >= 2
+        ), f"Only {len(genes_with_variants)} genes have >=2 variants"
 
     def test_blocked_status_distinction(self, bank):
         """0.3-A4: Security genes -> blocked=True, quality genes -> blocked=False."""
@@ -86,26 +90,27 @@ class TestSeedQuality:
         genes = bank.query_all()
         for g in genes:
             if g.risk_level == "CRITICAL":
-                assert g.blocked is True, \
-                    f"{g.cwe_id} (CRITICAL) should be blocked=True"
+                assert g.blocked is True, f"{g.cwe_id} (CRITICAL) should be blocked=True"
             elif g.risk_level == "LOW":
-                assert g.blocked is False, \
-                    f"{g.cwe_id} (LOW) should be blocked=False (quality warning)"
+                assert (
+                    g.blocked is False
+                ), f"{g.cwe_id} (LOW) should be blocked=False (quality warning)"
 
     def test_seed_sources_registered(self, bank):
         seed_all(bank)
         sources = bank.count_by_source()
         for src_name in BUILTIN_SEED_SOURCES:
-            assert src_name in sources or src_name in  \
-                {s.lower() for s in sources}, \
-                f"Source {src_name} not found in {set(sources.keys())}"
+            assert src_name in sources or src_name in {
+                s.lower() for s in sources
+            }, f"Source {src_name} not found in {set(sources.keys())}"
 
 
 class TestSeedExtend:
     def test_can_add_after_seed(self, bank):
         seed_all(bank)
         before = bank.gene_count()
-        g = NegativeGene("", "CWE-001", "LOW", 1, False, "Extra Gene", "Extra",
-                         "manual", time.time())
+        g = NegativeGene(
+            "", "CWE-001", "LOW", 1, False, "Extra Gene", "Extra", "manual", time.time()
+        )
         bank.store_gene(g)
         assert bank.gene_count() == before + 1

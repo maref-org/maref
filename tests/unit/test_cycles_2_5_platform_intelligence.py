@@ -22,6 +22,7 @@ from maref.serverless_handler import (
 
 # ── Cycle 2: Platform Coverage ────────────────────────────────────
 
+
 class TestPlatformScreenCapture:
     def test_detects_current_system(self) -> None:
         cap = PlatformScreenCapture()
@@ -90,6 +91,7 @@ class TestPlatformCompatibilityMatrix:
 
 # ── Cycle 3: Intelligence Enhancement ─────────────────────────────
 
+
 class TestMemoryThreeTemperature:
     def test_store_hot(self) -> None:
         mem = MemoryThreeTemperature()
@@ -142,6 +144,7 @@ class TestMemoryThreeTemperature:
     def test_memory_cell_expiry(self) -> None:
         cell = MemoryCell(key="tk", value="tv", tier=MemoryTier.HOT, ttl_seconds=0.001)
         import time
+
         time.sleep(0.01)
         assert cell.is_expired is True
 
@@ -182,6 +185,7 @@ class TestTrustAntiGaming:
 
 
 # ── Cycle 4 + 5: Serverless + Ecosystem ───────────────────────────
+
 
 class TestServerlessHandler:
     def test_lambda_handler_cold_start(self) -> None:

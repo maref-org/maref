@@ -34,6 +34,7 @@ class TestAgentCardSignature:
         card_data = {"agent_name": "test", "version": "1.0"}
         import hashlib
         import json
+
         computed = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
         sig.card_hash = computed
         sig.verify("pub_key_pem", card_data)
@@ -63,6 +64,7 @@ class TestSignedAgentCard:
 
     def test_expired_card(self) -> None:
         import time
+
         card = SignedAgentCard(
             card_id="card_1",
             agent_id="agent_1",
