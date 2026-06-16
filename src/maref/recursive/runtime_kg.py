@@ -60,8 +60,9 @@ class RuntimeInstrumentor:
             return self._sampling_counters[caller] % self._sampling_interval == 0
         return random.random() < _SAMPLING_RATES[self._strategy]
 
-    def record_call(self, caller: str, callee: str, latency_ms: float = 0.0,
-                    error: str = "") -> None:
+    def record_call(
+        self, caller: str, callee: str, latency_ms: float = 0.0, error: str = ""
+    ) -> None:
         if not self._should_record(caller):
             return
         record = RuntimeCallRecord(
@@ -111,8 +112,15 @@ class RuntimeKGEnricher:
         self._nodes[node_id] = node
         return node
 
-    def add_relation(self, from_node: str, to_node: str, relation_type: str, **properties: Any) -> RuntimeKGRelation:
-        rel = RuntimeKGRelation(from_node=from_node, to_node=to_node, relation_type=relation_type, properties=dict(properties))
+    def add_relation(
+        self, from_node: str, to_node: str, relation_type: str, **properties: Any
+    ) -> RuntimeKGRelation:
+        rel = RuntimeKGRelation(
+            from_node=from_node,
+            to_node=to_node,
+            relation_type=relation_type,
+            properties=dict(properties),
+        )
         self._relations.append(rel)
         return rel
 
@@ -124,24 +132,36 @@ class RuntimeKGEnricher:
                 self.add_node(record.caller, "module")
 
             rtype = "CALLS_FREQUENTLY" if record.call_count > 10 else "CALLS"
-            self.add_relation(record.caller, record.callee, rtype,
-                              avg_latency=record.avg_latency,
-                              error_count=record.error_count)
+            self.add_relation(
+                record.caller,
+                record.callee,
+                rtype,
+                avg_latency=record.avg_latency,
+                error_count=record.error_count,
+            )
             if record.error_count > 0:
-                self.add_relation(record.caller, record.callee, "PROPAGATES_ERROR_TO",
-                                  last_error=record.last_error)
+                self.add_relation(
+                    record.caller,
+                    record.callee,
+                    "PROPAGATES_ERROR_TO",
+                    last_error=record.last_error,
+                )
 
     def query_hot_paths(self, min_frequency: int = 10) -> list[RuntimeKGRelation]:
-        return [r for r in self._relations
-                if r.relation_type == "CALLS_FREQUENTLY"
-                and r.properties.get("call_count", 0) >= min_frequency]
+        return [
+            r
+            for r in self._relations
+            if r.relation_type == "CALLS_FREQUENTLY"
+            and r.properties.get("call_count", 0) >= min_frequency
+        ]
 
     def query_error_propagation(self) -> list[RuntimeKGRelation]:
         return [r for r in self._relations if r.relation_type == "PROPAGATES_ERROR_TO"]
 
     def query_bottlenecks(self, latency_threshold_ms: float = 100.0) -> list[RuntimeKGRelation]:
-        return [r for r in self._relations
-                if r.properties.get("avg_latency", 0) > latency_threshold_ms]
+        return [
+            r for r in self._relations if r.properties.get("avg_latency", 0) > latency_threshold_ms
+        ]
 
     def node_count(self) -> int:
         return len(self._nodes)

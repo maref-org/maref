@@ -39,6 +39,15 @@ from maref.gaas.models import (
     SessionStepResponse,
     TrustScoreResponse,
 )
+from maref.gaas.session_manager import (
+    cleanup_stale_sessions,
+    complete_session,
+    declare_session,
+    get_active_sessions,
+    get_session,
+    increment_step,
+    is_session_active,
+)
 from maref.gaas.tenant import TenantManager
 from maref.gaas.trust_service import TrustScoreService
 
@@ -101,6 +110,7 @@ async def require_api_key(
 # Governance
 # ------------------------------------------------------------------
 
+
 @router.post("/govern", response_model=GovernResponse)
 async def govern(
     req: GovernRequest,
@@ -115,6 +125,7 @@ async def govern(
 # ------------------------------------------------------------------
 # HITL
 # ------------------------------------------------------------------
+
 
 @router.post("/hitl/request", response_model=HITLResponse)
 async def hitl_request(
@@ -193,6 +204,7 @@ async def hitl_pending(
 # Trust Score
 # ------------------------------------------------------------------
 
+
 @router.get("/trust/score")
 async def trust_score(
     agent_id: str,
@@ -215,6 +227,7 @@ async def trust_score(
 # ------------------------------------------------------------------
 # Audit Log
 # ------------------------------------------------------------------
+
 
 @router.post("/audit/query", response_model=AuditQueryResponse)
 async def audit_query(
@@ -253,6 +266,7 @@ async def audit_query(
 # Circuit Breaker
 # ------------------------------------------------------------------
 
+
 @router.get("/cb/status")
 async def cb_status(
     agent_id: str,
@@ -262,6 +276,7 @@ async def cb_status(
     """Get circuit breaker status for an action."""
     status_dict = get_cb_pool().get_status(tenant_id, agent_id, action)
     from maref.gaas.models import CircuitBreakerState
+
     return CBStatusResponse(
         tenant_id=tenant_id,
         agent_id=agent_id,
@@ -276,6 +291,7 @@ async def cb_status(
 # Health
 # ------------------------------------------------------------------
 
+
 @router.get("/health")
 async def health() -> dict[str, str]:
     """Service health check."""
@@ -285,16 +301,6 @@ async def health() -> dict[str, str]:
 # ------------------------------------------------------------------
 # Execution Sessions (for long task chains)
 # ------------------------------------------------------------------
-
-from maref.gaas.session_manager import (
-    cleanup_stale_sessions,
-    complete_session,
-    declare_session,
-    get_active_sessions,
-    get_session,
-    is_session_active,
-    increment_step,
-)
 
 cleanup_stale_sessions()
 
@@ -314,7 +320,7 @@ async def session_declare(
             trust_level=req.trust_level,
         )
     except (ValueError, RuntimeError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return SessionDeclareResponse(
         session_id=sess.session_id,
         agent_id=sess.agent_id,

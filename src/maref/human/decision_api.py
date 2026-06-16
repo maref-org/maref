@@ -19,16 +19,16 @@ from typing import Any
 class DecisionMode(Enum):
     """How the human receives and responds to the decision request."""
 
-    SYNC = "sync"          # Block until human clicks a button
-    ASYNC = "async"        # Human replies via Slack/WeChat/email callback
+    SYNC = "sync"  # Block until human clicks a button
+    ASYNC = "async"  # Human replies via Slack/WeChat/email callback
 
 
 class UrgencyLevel(Enum):
     """Urgency determines timeout default policy."""
 
-    LOW = "low"            # Timeout → suspend, wait indefinitely
-    MEDIUM = "medium"      # Timeout → escalate to higher authority
-    HIGH = "high"          # Timeout → auto-delegate to fallback agent
+    LOW = "low"  # Timeout → suspend, wait indefinitely
+    MEDIUM = "medium"  # Timeout → escalate to higher authority
+    HIGH = "high"  # Timeout → auto-delegate to fallback agent
 
 
 class DecisionStatus(Enum):
@@ -39,7 +39,7 @@ class DecisionStatus(Enum):
     REJECTED = "rejected"
     ESCALATED = "escalated"
     TIMEOUT = "timeout"
-    BATCHED = "batched"    # Merged into a batch confirmation
+    BATCHED = "batched"  # Merged into a batch confirmation
 
 
 @dataclass
@@ -49,11 +49,11 @@ class DecisionContext:
     task_id: str
     agent_id: str
     action_description: str
-    risk_score: float = 0.0          # 0.0-1.0, auto-calculated
-    data_classification: str = ""     # PII, PUBLIC, INTERNAL, etc.
+    risk_score: float = 0.0  # 0.0-1.0, auto-calculated
+    data_classification: str = ""  # PII, PUBLIC, INTERNAL, etc.
     estimated_cost: float = 0.0
     affected_resources: list[str] = field(default_factory=list)
-    historical_precedent: str = ""    # "Similar action approved 3 times last week"
+    historical_precedent: str = ""  # "Similar action approved 3 times last week"
 
 
 @dataclass
@@ -63,10 +63,10 @@ class DecisionRequest:
     task_id: str
     context: DecisionContext
     options: list[str] = field(default_factory=lambda: ["approve", "reject", "escalate"])
-    timeout: float = 300.0            # seconds
+    timeout: float = 300.0  # seconds
     urgency: UrgencyLevel = UrgencyLevel.MEDIUM
     mode: DecisionMode = DecisionMode.SYNC
-    batch_key: str | None = None      # For batch confirmation grouping
+    batch_key: str | None = None  # For batch confirmation grouping
     request_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     created_at: float = field(default_factory=time.time)
 
@@ -98,9 +98,9 @@ class DecisionResponse:
     """Human's response to a decision request."""
 
     request_id: str
-    decision: str                     # One of the options from the request
-    reason: str = ""                  # Human's free-text explanation
-    responded_by: str = ""            # User ID of the responder
+    decision: str  # One of the options from the request
+    reason: str = ""  # Human's free-text explanation
+    responded_by: str = ""  # User ID of the responder
     responded_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
@@ -148,7 +148,9 @@ class HumanDecisionAPI:
     # ------------------------------------------------------------------ #
     # Public API
     # ------------------------------------------------------------------ #
-    def request_decision(self, request: DecisionRequest, callback: DecisionCallback | None = None) -> DecisionResponse | None:
+    def request_decision(
+        self, request: DecisionRequest, callback: DecisionCallback | None = None
+    ) -> DecisionResponse | None:
         """Request a human decision.
 
         SYNC mode: blocks until human responds or timeout.

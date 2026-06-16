@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 from maref.consensus.consistency_dsl import (
-    ConsistencyLevel, CostEstimator, DynamicDegrader,
+    ConsistencyLevel,
+    CostEstimator,
+    DynamicDegrader,
 )
 
 
@@ -18,7 +20,7 @@ def test_cost_estimator_values():
 def test_compare_levels():
     cmp = CostEstimator.compare(ConsistencyLevel.STRICT, ConsistencyLevel.EVENTUAL)
     assert cmp["latency_delta_ms"] < 0  # eventual is faster
-    assert cmp["comm_ratio"] < 1.0       # eventual uses less comm
+    assert cmp["comm_ratio"] < 1.0  # eventual uses less comm
     print("  compare_levels OK")
 
 

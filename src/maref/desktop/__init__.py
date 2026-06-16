@@ -30,6 +30,7 @@ if _DESKTOP_DEPS_MISSING:
     )
     if "pytest" not in sys.modules:
         import warnings
+
         warnings.warn(_msg, ImportWarning, stacklevel=2)
 
 __all__ = [
@@ -38,4 +39,3 @@ __all__ = [
     "PolicyDecisionTree",
     "DesktopSafetyGateV2",
 ]
-

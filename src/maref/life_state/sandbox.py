@@ -135,7 +135,8 @@ class LifeStateSandbox:
 
     def get_denied_count(self, state_id: str) -> int:
         return sum(
-            1 for e in self._audit_log
+            1
+            for e in self._audit_log
             if e.state_id == state_id and e.action == SandboxAction.ACCESS_DENIED
         )
 

@@ -132,7 +132,11 @@ class BehaviorMonitor:
 
         # Use baseline samples (excluding current window) for std calculation
         # to avoid anomalous samples inflating the standard deviation
-        baseline_samples = self._samples[agent_id][:-10] if len(self._samples[agent_id]) > 20 else self._samples[agent_id][:-5]
+        baseline_samples = (
+            self._samples[agent_id][:-10]
+            if len(self._samples[agent_id]) > 20
+            else self._samples[agent_id][:-5]
+        )
 
         # Check ops rate
         ops_counts = [s["ops_count"] for s in samples]
@@ -144,14 +148,16 @@ class BehaviorMonitor:
             if std_ops > 0:
                 sigma = abs(current_ops - mean_ops) / std_ops
                 if sigma > self.sigma_threshold:
-                    anomalies.append(BehaviorAnomaly(
-                        agent_id=agent_id,
-                        severity=self._severity_from_sigma(sigma),
-                        deviation_sigma=sigma,
-                        metric_name="ops_per_minute",
-                        expected_value=mean_ops,
-                        actual_value=current_ops,
-                    ))
+                    anomalies.append(
+                        BehaviorAnomaly(
+                            agent_id=agent_id,
+                            severity=self._severity_from_sigma(sigma),
+                            deviation_sigma=sigma,
+                            metric_name="ops_per_minute",
+                            expected_value=mean_ops,
+                            actual_value=current_ops,
+                        )
+                    )
 
         # Check chain depth
         chain_depths = [s["chain_depth"] for s in samples]
@@ -163,14 +169,16 @@ class BehaviorMonitor:
             if std_depth > 0:
                 sigma = abs(current_depth - mean_depth) / std_depth
                 if sigma > self.sigma_threshold:
-                    anomalies.append(BehaviorAnomaly(
-                        agent_id=agent_id,
-                        severity=self._severity_from_sigma(sigma),
-                        deviation_sigma=sigma,
-                        metric_name="chain_depth",
-                        expected_value=mean_depth,
-                        actual_value=current_depth,
-                    ))
+                    anomalies.append(
+                        BehaviorAnomaly(
+                            agent_id=agent_id,
+                            severity=self._severity_from_sigma(sigma),
+                            deviation_sigma=sigma,
+                            metric_name="chain_depth",
+                            expected_value=mean_depth,
+                            actual_value=current_depth,
+                        )
+                    )
 
         return anomalies
 
@@ -182,8 +190,7 @@ class BehaviorMonitor:
 
         # If 2+ agents have high/critical anomalies simultaneously, escalate
         high_anomaly_agents = {
-            a.agent_id for a in all_anomalies
-            if a.severity in ("high", "critical")
+            a.agent_id for a in all_anomalies if a.severity in ("high", "critical")
         }
 
         emergent: list[BehaviorAnomaly] = []
@@ -191,14 +198,16 @@ class BehaviorMonitor:
             for agent_id in high_anomaly_agents:
                 for a in all_anomalies:
                     if a.agent_id == agent_id:
-                        emergent.append(BehaviorAnomaly(
-                            agent_id=agent_id,
-                            severity="critical",
-                            deviation_sigma=a.deviation_sigma * 2,
-                            metric_name=f"emergent_{a.metric_name}",
-                            expected_value=a.expected_value,
-                            actual_value=a.actual_value,
-                        ))
+                        emergent.append(
+                            BehaviorAnomaly(
+                                agent_id=agent_id,
+                                severity="critical",
+                                deviation_sigma=a.deviation_sigma * 2,
+                                metric_name=f"emergent_{a.metric_name}",
+                                expected_value=a.expected_value,
+                                actual_value=a.actual_value,
+                            )
+                        )
 
         return emergent
 

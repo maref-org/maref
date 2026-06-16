@@ -56,19 +56,23 @@ class HealingRecord:
         records: list[UnifiedAuditRecord] = []
         for _i, action in enumerate(self.actions):
             outcome = "success" if action.success else "failure"
-            records.append(UnifiedAuditRecord(
-                record_id=make_record_id("heal", hash((action.problem_type, action.iteration)) % 100000),
-                timestamp=time.time(),
-                layer="inner",
-                round=round_num,
-                event_type="healing",
-                source_module="SelfHealer",
-                target_module=action.problem_type,
-                decision=action.strategy,
-                justification=f"exit_code={action.exit_code} detail={action.detail}",
-                outcome=outcome,
-                context_refs=[],
-            ))
+            records.append(
+                UnifiedAuditRecord(
+                    record_id=make_record_id(
+                        "heal", hash((action.problem_type, action.iteration)) % 100000
+                    ),
+                    timestamp=time.time(),
+                    layer="inner",
+                    round=round_num,
+                    event_type="healing",
+                    source_module="SelfHealer",
+                    target_module=action.problem_type,
+                    decision=action.strategy,
+                    justification=f"exit_code={action.exit_code} detail={action.detail}",
+                    outcome=outcome,
+                    context_refs=[],
+                )
+            )
         return records
 
 
@@ -78,28 +82,46 @@ class SelfHealer:
         max_iterations: int = 3,
         strategy_executor: Callable[[str, str], HealAction] | None = None,
         gene_pipeline: AutoGeneExtractionPipeline | None = None,
+        latency_threshold_ok: float = 10.0,
     ) -> None:
         self._max_iterations = max_iterations
         self._history: list[HealingRecord] = []
         self._strategy_executor = strategy_executor or self._execute_strategy
         self._gene_pipeline = gene_pipeline
+        self._latency_threshold_ok = latency_threshold_ok
 
     def triage(self, report: DiagnosisReport) -> list[str]:
         from maref.recursive.self_diagnostician import RiskLevel
 
         problem_types: list[str] = []
         risk_matrix = report.risk_matrix
+        ctx = report.diagnostic_context
 
-        if risk_matrix.get("entropy") == RiskLevel.CRITICAL:
+        # ── Entropy high → test_failure ─────────────────────────
+        if risk_matrix.get("entropy") in (RiskLevel.WARNING, RiskLevel.CRITICAL):
             problem_types.append("test_failure")
-        if risk_matrix.get("anomaly") in (RiskLevel.WARNING, RiskLevel.CRITICAL):
-            problem_types.append("dependency_conflict")
-        if risk_matrix.get("kg") == RiskLevel.CRITICAL:
-            problem_types.append("coverage_drop")
+
+        # ── Latency: test duration → performance_regression ─────
         if risk_matrix.get("latency") in (RiskLevel.WARNING, RiskLevel.CRITICAL):
-            problem_types.append("performance_regression")
+            latency_ms = ctx.get("latency_test_duration_ms", 0)
+            entropy_ratio = ctx.get("entropy_test_failure_ratio", 0)
+            if latency_ms > 0 and entropy_ratio < 0.1:
+                # High latency but low failure rate → real performance issue
+                problem_types.append("performance_regression")
+            elif latency_ms > 0:
+                # High latency with failures → test infrastructure issue
+                problem_types.append("test_failure")
+            else:
+                problem_types.append("performance_regression")
+
+        # ── KG orphan ratio → coverage_drop ─────────────────────
+        if risk_matrix.get("knowledge_graph") in (RiskLevel.WARNING, RiskLevel.CRITICAL):
+            problem_types.append("coverage_drop")
+
+        # ── Oscillation high → import_error (release churn) ─────
         if risk_matrix.get("oscillation") == RiskLevel.CRITICAL:
             problem_types.append("import_error")
+
         if not problem_types:
             problem_types.append("unknown")
 
@@ -115,7 +137,9 @@ class SelfHealer:
             if strategy == "rerun_tests_with_verbose":
                 result = subprocess.run(
                     [sys.executable, "-m", "pytest", "-v", "--tb=short"],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
                 )
                 exit_code = result.returncode
                 stdout = result.stdout[-2000:]
@@ -125,7 +149,9 @@ class SelfHealer:
             elif strategy == "pin_to_compatible_version":
                 result = subprocess.run(
                     [sys.executable, "-m", "pip", "check"],
-                    capture_output=True, text=True, timeout=30,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
                 )
                 exit_code = result.returncode
                 stdout = result.stdout[-2000:]
@@ -138,7 +164,9 @@ class SelfHealer:
             elif strategy == "identify_untested_paths_generate_stubs":
                 result = subprocess.run(
                     [sys.executable, "-m", "coverage", "run", "-m", "pytest", "-q"],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
                 )
                 exit_code = result.returncode
                 stdout = result.stdout[-2000:]
@@ -149,15 +177,52 @@ class SelfHealer:
                     detail = f"coverage run failed exit={exit_code}"
 
             elif strategy == "bisect_commits_identify_cause":
+                import time as _time
+
+                # Measure baseline test collection time
+                t0 = _time.monotonic()
                 result = subprocess.run(
-                    ["git", "log", "--oneline", "-10"],
-                    capture_output=True, text=True, timeout=15,
+                    [sys.executable, "-m", "pytest", "tests/", "--co", "-q"],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
                 )
+                elapsed_s = _time.monotonic() - t0
                 exit_code = result.returncode
                 stdout = result.stdout[:2000]
                 stderr = result.stderr[:1000]
-                recent = stdout.strip().split("\n") if stdout.strip() else []
-                detail = f"recent commits: {len(recent)}"
+
+                # Also check recent git activity
+                git_result = subprocess.run(
+                    ["git", "log", "--oneline", "-5"],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                recent = (
+                    git_result.stdout.strip().split("\n")
+                    if git_result.returncode == 0 and git_result.stdout.strip()
+                    else []
+                )
+
+                detail_parts = [
+                    f"test_collection={elapsed_s:.2f}s",
+                    f"recent_commits={len(recent)}",
+                ]
+                # Also get head hash for traceability
+                head_result = subprocess.run(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if head_result.returncode == 0:
+                    detail_parts.append(f"HEAD={head_result.stdout.strip()}")
+                detail = " | ".join(detail_parts)
+
+                # Pytest collection quicker than 10s → latency is acceptable
+                if elapsed_s < self._latency_threshold_ok:
+                    detail += f" | latency OK (<{self._latency_threshold_ok}s)"
 
             elif strategy == "check_missing_dependency_install":
                 missing = []
@@ -168,7 +233,9 @@ class SelfHealer:
                         with contextlib.suppress(Exception):
                             subprocess.run(
                                 [sys.executable, "-m", "pip", "install", mod_name],
-                                capture_output=True, text=True, timeout=60,
+                                capture_output=True,
+                                text=True,
+                                timeout=60,
                             )
                 if missing:
                     exit_code = 0
@@ -182,7 +249,9 @@ class SelfHealer:
                 try:
                     r = subprocess.run(
                         [sys.executable, "-c", "import maref; print('maref OK')"],
-                        capture_output=True, text=True, timeout=30,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
                     )
                     checks.append(("maref_import", r.returncode, r.stdout.strip()))
                 except Exception as e:
@@ -190,7 +259,9 @@ class SelfHealer:
                 try:
                     r = subprocess.run(
                         [sys.executable, "-c", "import maref_lite; print('maref_lite OK')"],
-                        capture_output=True, text=True, timeout=30,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
                     )
                     checks.append(("maref_lite_import", r.returncode, r.stdout.strip()))
                 except Exception as e:
@@ -250,10 +321,17 @@ class SelfHealer:
     ) -> HealingRecord:
         from maref.recursive.self_diagnostician import RiskLevel
 
-        if auto_re_diagnose and re_diagnose is None and _observer is not None and _diagnostician is not None:
+        if (
+            auto_re_diagnose
+            and re_diagnose is None
+            and _observer is not None
+            and _diagnostician is not None
+        ):
+
             def _auto_re_diag() -> DiagnosisReport:
-                snapshot = _observer.observe()
+                snapshot = _observer.snapshot()
                 return _diagnostician.diagnose(snapshot)
+
             re_diagnose = _auto_re_diag
 
         healing = HealingRecord()
@@ -284,6 +362,15 @@ class SelfHealer:
 
             if current_risk == RiskLevel.NORMAL:
                 healing.final_state = "RECOVERED"
+                healing.converged = True
+                self._history.append(healing)
+                return healing
+
+            # If all actions succeeded but risk is unchanged, we've done
+            # everything we can — mark as stable-with-lingering-risk.
+            all_succeeded = all(a.success for a in actions)
+            if all_succeeded and i > 0 and current_risk == report.overall_risk:
+                healing.final_state = "STABLE_WITH_RISK"
                 healing.converged = True
                 self._history.append(healing)
                 return healing

@@ -27,7 +27,8 @@ def _hmac_key() -> bytes:
             "%s not set — using ephemeral key. "
             "HMACs will be invalid across restarts. "
             "Set %s for production.",
-            _HMAC_KEY_ENV, _HMAC_KEY_ENV,
+            _HMAC_KEY_ENV,
+            _HMAC_KEY_ENV,
         )
     return _EPHEMERAL_KEY
 
@@ -69,8 +70,10 @@ class SecurityTemplateLib:
                 "    return bcrypt.checkpw(password.encode(), hashed.encode())\n"
             ),
             blocked_keywords=[
-                "hashlib.md5", "hashlib.sha1",
-                "crypt.md5", "md5(password",
+                "hashlib.md5",
+                "hashlib.sha1",
+                "crypt.md5",
+                "md5(password",
             ],
         )
         sql_tmpl = SecurityTemplate(
@@ -84,7 +87,8 @@ class SecurityTemplateLib:
                 ")\n"
             ),
             blocked_keywords=[
-                'f"', "f'",
+                'f"',
+                "f'",
                 ".format(",
                 " % ",
             ],
@@ -94,7 +98,7 @@ class SecurityTemplateLib:
             description="HTTPS requests: verify=True required",
             template_code=(
                 "import requests\n"
-                'response = requests.get(\n'
+                "response = requests.get(\n"
                 '    "https://api.example.com/data",\n'
                 "    verify=True,\n"
                 "    timeout=30,\n"
@@ -111,10 +115,7 @@ class SecurityTemplateLib:
         self._templates[template.domain] = template
 
     def verify_integrity(self) -> bool:
-        return all(
-            t.hmac == _compute_hmac(t.template_code)
-            for t in self._templates.values()
-        )
+        return all(t.hmac == _compute_hmac(t.template_code) for t in self._templates.values())
 
     def get_template(self, domain: str) -> str | None:
         t = self._templates.get(domain)
@@ -123,18 +124,27 @@ class SecurityTemplateLib:
     def check_code(self, code: str, domain: str) -> list[dict[str, Any]]:
         template = self._templates.get(domain)
         if template is None:
-            return [{"domain": domain, "message": f"Unknown domain: {domain}", "line": 0, "suggestion": ""}]
+            return [
+                {
+                    "domain": domain,
+                    "message": f"Unknown domain: {domain}",
+                    "line": 0,
+                    "suggestion": "",
+                }
+            ]
 
         violations: list[dict[str, Any]] = []
 
         for kw in template.blocked_keywords:
             if kw in code:
-                violations.append({
-                    "domain": domain,
-                    "message": f"Blocked pattern '{kw}' detected",
-                    "suggestion": f"Use the security template:\n{template.template_code}",
-                    "line": self._find_line(code, kw),
-                })
+                violations.append(
+                    {
+                        "domain": domain,
+                        "message": f"Blocked pattern '{kw}' detected",
+                        "suggestion": f"Use the security template:\n{template.template_code}",
+                        "line": self._find_line(code, kw),
+                    }
+                )
 
         if domain == "password_storage":
             violations.extend(self._check_password_usage(code, template))
@@ -161,7 +171,9 @@ class SecurityTemplateLib:
         violations: list[dict[str, Any]] = []
         code_lower = code.lower()
 
-        if not any(kw in code_lower for kw in ("password", "passwd", "hash_password", "verify_password")):
+        if not any(
+            kw in code_lower for kw in ("password", "passwd", "hash_password", "verify_password")
+        ):
             return violations
 
         try:
@@ -185,16 +197,20 @@ class SecurityTemplateLib:
                     break
 
         if not uses_bcrypt:
-            violations.append({
-                "domain": "password_storage",
-                "message": "Password handling without bcrypt — must use bcrypt.hashpw",
-                "suggestion": f"Use the bcrypt template:\n{template.template_code}",
-                "line": 0,
-            })
+            violations.append(
+                {
+                    "domain": "password_storage",
+                    "message": "Password handling without bcrypt — must use bcrypt.hashpw",
+                    "suggestion": f"Use the bcrypt template:\n{template.template_code}",
+                    "line": 0,
+                }
+            )
 
         return violations
 
-    def _check_sql_construction(self, code: str, template: SecurityTemplate) -> list[dict[str, Any]]:
+    def _check_sql_construction(
+        self, code: str, template: SecurityTemplate
+    ) -> list[dict[str, Any]]:
         violations: list[dict[str, Any]] = []
 
         try:
@@ -214,30 +230,36 @@ class SecurityTemplateLib:
 
                 sql_arg = node.args[0]
                 if isinstance(sql_arg, (ast.JoinedStr, ast.BinOp)):
-                    violations.append({
-                        "domain": "sql_query",
-                        "message": "SQL query constructed via f-string or concatenation — use parameterized query",
-                        "suggestion": f"Use parameterized template:\n{template.template_code}",
-                        "line": getattr(sql_arg, "lineno", 0),
-                    })
+                    violations.append(
+                        {
+                            "domain": "sql_query",
+                            "message": "SQL query constructed via f-string or concatenation — use parameterized query",
+                            "suggestion": f"Use parameterized template:\n{template.template_code}",
+                            "line": getattr(sql_arg, "lineno", 0),
+                        }
+                    )
 
             if isinstance(node, (ast.BinOp, ast.JoinedStr)):
                 snippet = ast.unparse(node)
                 is_sql_construction = any(kw in snippet.upper() for kw in _SQL_KEYWORDS)
                 if is_sql_construction and isinstance(node, ast.BinOp):
-                    violations.append({
-                        "domain": "sql_query",
-                        "message": "SQL query constructed via string concatenation — use parameterized query",
-                        "suggestion": f"Use parameterized template:\n{template.template_code}",
-                        "line": getattr(node, "lineno", 0),
-                    })
+                    violations.append(
+                        {
+                            "domain": "sql_query",
+                            "message": "SQL query constructed via string concatenation — use parameterized query",
+                            "suggestion": f"Use parameterized template:\n{template.template_code}",
+                            "line": getattr(node, "lineno", 0),
+                        }
+                    )
                 elif is_sql_construction and isinstance(node, ast.JoinedStr):
-                    violations.append({
-                        "domain": "sql_query",
-                        "message": "SQL query constructed via f-string — use parameterized query",
-                        "suggestion": f"Use parameterized template:\n{template.template_code}",
-                        "line": getattr(node, "lineno", 0),
-                    })
+                    violations.append(
+                        {
+                            "domain": "sql_query",
+                            "message": "SQL query constructed via f-string — use parameterized query",
+                            "suggestion": f"Use parameterized template:\n{template.template_code}",
+                            "line": getattr(node, "lineno", 0),
+                        }
+                    )
 
         return violations
 
@@ -270,22 +292,31 @@ class SecurityTemplateLib:
                 if kw.arg == "verify":
                     has_verify = True
                     val = kw.value
-                    if isinstance(val, ast.Constant) and val.value is False or isinstance(val, ast.Name) and val.id == "False":
+                    if (
+                        isinstance(val, ast.Constant)
+                        and val.value is False
+                        or isinstance(val, ast.Name)
+                        and val.id == "False"
+                    ):
                         verify_false = True
 
             if verify_false:
-                violations.append({
-                    "domain": "https_request",
-                    "message": "HTTPS request with verify=False — security risk",
-                    "suggestion": f"Use verify=True:\n{template.template_code}",
-                    "line": getattr(node, "lineno", 0),
-                })
+                violations.append(
+                    {
+                        "domain": "https_request",
+                        "message": "HTTPS request with verify=False — security risk",
+                        "suggestion": f"Use verify=True:\n{template.template_code}",
+                        "line": getattr(node, "lineno", 0),
+                    }
+                )
             elif not has_verify:
-                violations.append({
-                    "domain": "https_request",
-                    "message": "HTTPS request without explicit verify=True",
-                    "suggestion": f"Add verify=True:\n{template.template_code}",
-                    "line": getattr(node, "lineno", 0),
-                })
+                violations.append(
+                    {
+                        "domain": "https_request",
+                        "message": "HTTPS request without explicit verify=True",
+                        "suggestion": f"Add verify=True:\n{template.template_code}",
+                        "line": getattr(node, "lineno", 0),
+                    }
+                )
 
         return violations

@@ -22,8 +22,9 @@ class DispatchResult:
 
 
 class AgentDispatcher:
-    def __init__(self, registry: InternalAgentRegistry,
-                 contract_registry: CapabilityRegistry | None = None) -> None:
+    def __init__(
+        self, registry: InternalAgentRegistry, contract_registry: CapabilityRegistry | None = None
+    ) -> None:
         self._registry = registry
         self._contract_registry = contract_registry
 
@@ -44,30 +45,34 @@ class AgentDispatcher:
             agent = self.dispatch(sub)
             if agent is not None:
                 score, contract_score, details = self._capability_match_score(sub, agent)
-                results.append(DispatchResult(
-                    subtask_id=sub.task_id,
-                    assigned_agent_id=agent.agent_id,
-                    score=score,
-                    contract_score=contract_score,
-                    match_details=details,
-                ))
+                results.append(
+                    DispatchResult(
+                        subtask_id=sub.task_id,
+                        assigned_agent_id=agent.agent_id,
+                        score=score,
+                        contract_score=contract_score,
+                        match_details=details,
+                    )
+                )
             else:
-                results.append(DispatchResult(
-                    subtask_id=sub.task_id,
-                    assigned_agent_id="",
-                    score=0.0,
-                    contract_score=0.0,
-                ))
+                results.append(
+                    DispatchResult(
+                        subtask_id=sub.task_id,
+                        assigned_agent_id="",
+                        score=0.0,
+                        contract_score=0.0,
+                    )
+                )
         return results
 
-    def _capability_match_score(self, subtask: SubTask,
-                                  agent: InternalAgent) -> tuple[float, float, list[str]]:
+    def _capability_match_score(
+        self, subtask: SubTask, agent: InternalAgent
+    ) -> tuple[float, float, list[str]]:
         string_score = self._string_match_score(subtask, agent)
         contract_score, details = self._contract_match_score(subtask, agent)
         return string_score, contract_score, details
 
-    def _string_match_score(self, subtask: SubTask,
-                            agent: InternalAgent) -> float:
+    def _string_match_score(self, subtask: SubTask, agent: InternalAgent) -> float:
         if not subtask.required_capabilities:
             return 0.5
         matches = 0
@@ -77,8 +82,9 @@ class AgentDispatcher:
                 matches += 1
         return matches / len(subtask.required_capabilities)
 
-    def _contract_match_score(self, subtask: SubTask,
-                               agent: InternalAgent) -> tuple[float, list[str]]:
+    def _contract_match_score(
+        self, subtask: SubTask, agent: InternalAgent
+    ) -> tuple[float, list[str]]:
         if self._contract_registry is None:
             return 0.0, []
         if not subtask.required_capabilities:

@@ -95,15 +95,17 @@ class ClipboardSafetyFilter:
         return found
 
     def _log(self, action: str, entry: ClipboardEntry, reason: str = "") -> None:
-        self._access_log.append({
-            "timestamp": time.time(),
-            "action": action,
-            "content_type": entry.content_type.value,
-            "source_app": entry.source_app,
-            "byte_size": entry.byte_size,
-            "is_sensitive": entry.is_sensitive,
-            "reason": reason,
-        })
+        self._access_log.append(
+            {
+                "timestamp": time.time(),
+                "action": action,
+                "content_type": entry.content_type.value,
+                "source_app": entry.source_app,
+                "byte_size": entry.byte_size,
+                "is_sensitive": entry.is_sensitive,
+                "reason": reason,
+            }
+        )
 
 
 class ClipboardController:

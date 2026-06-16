@@ -1,0 +1,61 @@
+name: Stargazer Thank You
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  thank-you:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const STATE_FILE = '.github/.last-star-count';
+
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const currentStars = repo.stargazers_count;
+
+            let lastStars = 0;
+            try {
+              lastStars = parseInt(fs.readFileSync(STATE_FILE, 'utf8')) || 0;
+            } catch { /* first run */ }
+
+            if (currentStars <= lastStars) {
+              console.log(`No new stars (${currentStars} <= ${lastStars})`);
+              fs.writeFileSync(STATE_FILE, String(currentStars));
+              return;
+            }
+
+            const newStars = currentStars - lastStars;
+            const body = `🎉 **${newStars} 位新朋友 Star 了 MAREF！**
+
+            感谢你对 Agent Governance OS 的关注！
+            现在共有 ${currentStars} 位开发者加入了 MAREF 社区。
+
+            💡 对 MAREF 感兴趣？来看看：
+            - [快速开始](https://github.com/maref-org/maref#quick-start)
+            - [Discussions](https://github.com/maref-org/maref/discussions)
+            - [贡献指南](CONTRIBUTING.md)
+
+            ---
+            _自动感谢 — 每日更新_
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🎉 Star 突破 — ${currentStars} ⭐`,
+              body: body,
+              labels: ['thank-you'],
+            });
+
+            fs.writeFileSync(STATE_FILE, String(currentStars));

@@ -133,7 +133,9 @@ class _DuckDuckGoResultParser(HTMLParser):
             self._snippet_parts.append(text)
 
 
-def _parse_search_results(html: str, max_results: int = DEFAULT_MAX_RESULTS) -> list[dict[str, Any]]:
+def _parse_search_results(
+    html: str, max_results: int = DEFAULT_MAX_RESULTS
+) -> list[dict[str, Any]]:
     parser = _DuckDuckGoResultParser()
     try:
         parser.feed(html)

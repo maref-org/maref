@@ -104,11 +104,7 @@ class DriftEvent:
             "gate_status": self.gate_status.name,
             "reason": self.reason,
             "resolved": self.resolved,
-            "resolution_time": (
-                self.resolution_time.isoformat()
-                if self.resolution_time
-                else None
-            ),
+            "resolution_time": (self.resolution_time.isoformat() if self.resolution_time else None),
         }
 
 

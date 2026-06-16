@@ -48,18 +48,24 @@ def research_cycle(
     """Run a PERCV research cycle."""
     orch = PERCVResearchOrchestrator()
     result = orch.run_research_cycle(topic=topic)
-    console.print(Panel(str(result.to_dict() if hasattr(result, "to_dict") else result), title="Research Cycle"))
+    console.print(
+        Panel(
+            str(result.to_dict() if hasattr(result, "to_dict") else result), title="Research Cycle"
+        )
+    )
 
 
 @percv_app.command()
 def status() -> None:
     """Show PERCV orchestrator status."""
     orch = PERCVResearchOrchestrator()
-    console.print_json(data={
-        "status": orch.status if isinstance(orch.status, str) else orch.status.value,
-        "cycle_count": orch.cycle_count,
-        "history": orch.get_history(),
-    })
+    console.print_json(
+        data={
+            "status": orch.status if isinstance(orch.status, str) else orch.status.value,
+            "cycle_count": orch.cycle_count,
+            "history": orch.get_history(),
+        }
+    )
 
 
 @percv_app.command()
@@ -112,10 +118,14 @@ def auto_cycle(
 
         r1 = orch.run_research_cycle(topic=f"{topic} (iter {i+1})")
         result_dict = r1.result if r1.result is not None else {}
-        console.print(f"  [green]research[/green]  → {r1.phase.value}  [{result_dict.get('topic','')}]")
+        console.print(
+            f"  [green]research[/green]  → {r1.phase.value}  [{result_dict.get('topic','')}]"
+        )
 
         r2 = orch.run_evaluate_cycle(agent_id="default-agent", report=report_with_layers)
-        console.print(f"  [blue]evaluate[/blue]   → {r2.phase.value}  [state:{sm.current_state.name}]")
+        console.print(
+            f"  [blue]evaluate[/blue]   → {r2.phase.value}  [state:{sm.current_state.name}]"
+        )
 
         r3 = orch.run_evolve_cycle(candidate_id="default-agent", score=72.0)
         v = r3.result.get("verdict", "?") if r3.result else "?"
@@ -131,16 +141,24 @@ def auto_cycle(
 
         console.print()
 
-    console.print(f"[bold green]Done:[/bold green] {orch.cycle_count} total cycles, {len(orch.get_history())} history entries, sm in {sm.current_state.name}")
+    console.print(
+        f"[bold green]Done:[/bold green] {orch.cycle_count} total cycles, {len(orch.get_history())} history entries, sm in {sm.current_state.name}"
+    )
 
 
 @percv_app.command(name="develop-feature")
 def develop_feature(
     doc_path: str = typer.Argument(..., help="Path to functional requirements document (Markdown)"),
-    feature_name: str = typer.Option("", "--feature-name", "-f", help="Feature name (defaults to doc title)"),
-    iterations: int = typer.Option(10, "--iterations", "-n", help="Number of recursive evolution cycles (default 10)"),
+    feature_name: str = typer.Option(
+        "", "--feature-name", "-f", help="Feature name (defaults to doc title)"
+    ),
+    iterations: int = typer.Option(
+        10, "--iterations", "-n", help="Number of recursive evolution cycles (default 10)"
+    ),
     output: str = typer.Option("", "--output", "-o", help="Save convergence report to JSON file"),
-    verify: bool = typer.Option(False, "--verify", "-v", help="Auto-verify against delivery standards after run"),
+    verify: bool = typer.Option(
+        False, "--verify", "-v", help="Auto-verify against delivery standards after run"
+    ),
 ) -> None:
     """Ingest a requirements doc and run the full development pipeline with recursive feedback.
 
@@ -168,7 +186,9 @@ def develop_feature(
     console.rule(f"[bold cyan]MAREF Feature Development: {name}[/bold cyan]")
     console.print(f"  [dim]Document:[/dim] {doc_path}")
     console.print(f"  [dim]Iterations:[/dim] {iterations}")
-    console.print(f"  [dim]Stages detected:[/dim] {', '.join(doc.stages.keys()) if doc.stages else '(none)'}")
+    console.print(
+        f"  [dim]Stages detected:[/dim] {', '.join(doc.stages.keys()) if doc.stages else '(none)'}"
+    )
     console.print(f"  [dim]Tasks generated:[/dim] {len(tasks)}")
     console.print(f"  [dim]Hypotheses:[/dim] {len(doc.hypotheses)}")
     console.print(f"  [dim]Compliance rules:[/dim] {len(doc.compliance_rules)}")
@@ -203,11 +223,13 @@ def develop_feature(
     if verify:
         console.rule("[bold yellow]Auto-Verification Against Delivery Standards[/bold yellow]")
         from maref.integration.feature_dev.verification_engine import DeliveryVerifier
+
         verifier = DeliveryVerifier(doc)
         verdict = verifier.verify(report)
         _print_verdict(verdict)
         if output:
             import json
+
             verdict_path = out_path.replace(".json", "_verdict.json") if output else "verdict.json"
             with open(verdict_path, "w") as f:
                 json.dump(verdict.to_dict(), f, indent=2, ensure_ascii=False)
@@ -220,11 +242,25 @@ def _print_cycle_snapshot(snap: CycleSnapshot, total: int) -> None:
 
     ARROW = chr(8594)
     c = snap.cycle_number
-    status_icon = "[green]PASS[/green]" if snap.overall_status.value == "PASS" else "[yellow]CONDITIONAL[/yellow]" if snap.overall_status.value == "CONDITIONAL" else "[red]FAIL[/red]"
-    verdict_icon = "[green]approved[/green]" if snap.verdict == "approved" else "[yellow]conditional[/yellow]" if snap.verdict == "conditional" else "[red]rejected[/red]"
+    status_icon = (
+        "[green]PASS[/green]"
+        if snap.overall_status.value == "PASS"
+        else "[yellow]CONDITIONAL[/yellow]"
+        if snap.overall_status.value == "CONDITIONAL"
+        else "[red]FAIL[/red]"
+    )
+    verdict_icon = (
+        "[green]approved[/green]"
+        if snap.verdict == "approved"
+        else "[yellow]conditional[/yellow]"
+        if snap.verdict == "conditional"
+        else "[red]rejected[/red]"
+    )
 
     panel_lines = [
-        "[bold]Cycle {}/{}[/bold]   topic: {}".format(c, total, snap.topic[:80] + ("..." if len(snap.topic) > 80 else "")),
+        "[bold]Cycle {}/{}[/bold]   topic: {}".format(
+            c, total, snap.topic[:80] + ("..." if len(snap.topic) > 80 else "")
+        ),
     ]
 
     for h in snap.history_entries:
@@ -237,18 +273,33 @@ def _print_cycle_snapshot(snap: CycleSnapshot, total: int) -> None:
             detail = "  score={}".format(h.get("score", "?"))
         elif step == "evolve":
             detail = "  verdict={}".format(h.get("verdict", "?"))
-        panel_lines.append(f"  [{_step_color(step)}]{step:<10}[/{_step_color(step)}] {ARROW} {phase}{detail}")
+        panel_lines.append(
+            f"  [{_step_color(step)}]{step:<10}[/{_step_color(step)}] {ARROW} {phase}{detail}"
+        )
 
     panel_lines.append("")
-    panel_lines.append(f"  Overall: {snap.overall_score:.1f}/100  {status_icon}  Verdict: {verdict_icon}")
-    panel_lines.append(f"  Go/No-Go: {snap.go_nogo_decision}  Budget: ${snap.budget_used:.1f}  Duration: {snap.duration_seconds:.1f}s")
-    chars = len(snap.artifacts.get('characters', []))
-    scripts = len(snap.artifacts.get('scripts', []))
-    stages = snap.artifacts.get('stages_covered', set())
+    panel_lines.append(
+        f"  Overall: {snap.overall_score:.1f}/100  {status_icon}  Verdict: {verdict_icon}"
+    )
+    panel_lines.append(
+        f"  Go/No-Go: {snap.go_nogo_decision}  Budget: ${snap.budget_used:.1f}  Duration: {snap.duration_seconds:.1f}s"
+    )
+    chars = len(snap.artifacts.get("characters", []))
+    scripts = len(snap.artifacts.get("scripts", []))
+    stages = snap.artifacts.get("stages_covered", set())
     panel_lines.append(f"  Content: {chars} chars, {scripts} scripts, stages={stages}")
 
-    console.print(Panel("\n".join(panel_lines), title=f"Cycle {c} Pipeline",
-                        border_style="cyan" if snap.overall_score >= 80 else "yellow" if snap.overall_score >= 60 else "red"))
+    console.print(
+        Panel(
+            "\n".join(panel_lines),
+            title=f"Cycle {c} Pipeline",
+            border_style="cyan"
+            if snap.overall_score >= 80
+            else "yellow"
+            if snap.overall_score >= 60
+            else "red",
+        )
+    )
 
     GAP_ARROW = chr(8594)
     layer_table = Table(title=f"Cycle {c} Layer Scores")
@@ -264,13 +315,17 @@ def _print_cycle_snapshot(snap: CycleSnapshot, total: int) -> None:
     console.print(layer_table)
 
     if snap.feedback_injected:
-        truncated = snap.feedback_injected[:120] + ("..." if len(snap.feedback_injected) > 120 else "")
+        truncated = snap.feedback_injected[:120] + (
+            "..." if len(snap.feedback_injected) > 120 else ""
+        )
         console.print(f"  [dim]feedback injected:[/dim] {truncated}")
     console.print()
 
 
 def _step_color(step: str) -> str:
-    return {"research": "green", "evaluate": "blue", "evolve": "yellow", "verify": "magenta"}.get(step, "white")
+    return {"research": "green", "evaluate": "blue", "evolve": "yellow", "verify": "magenta"}.get(
+        step, "white"
+    )
 
 
 def _score_bar(score: float, width: int = 15) -> str:
@@ -295,7 +350,13 @@ def _print_convergence_report(report: ConvergenceReport) -> None:
     summary.add_column("Value")
     summary.add_row("Total Cycles", str(report.total_cycles))
     summary.add_row("Total Duration", f"{report.total_duration_seconds:.1f}s")
-    trend_color = "green" if report.overall_trend == "converging" else "yellow" if report.overall_trend == "fluctuating" else "red"
+    trend_color = (
+        "green"
+        if report.overall_trend == "converging"
+        else "yellow"
+        if report.overall_trend == "fluctuating"
+        else "red"
+    )
     summary.add_row("Overall Trend", f"[{trend_color}]{report.overall_trend}[/]")
     summary.add_row("Average Score", f"{report.avg_score:.1f}/100")
     deploy_color = "green" if report.deploy_ready else "red"
@@ -313,13 +374,21 @@ def _print_convergence_report(report: ConvergenceReport) -> None:
 
     for t in report.layer_trends:
         scores_str = f" {ARROW} ".join(f"{s:.0f}" for s in t.scores)
-        dir_color = "green" if t.direction == "converging" else "yellow" if t.direction == "fluctuating" else "red"
+        dir_color = (
+            "green"
+            if t.direction == "converging"
+            else "yellow"
+            if t.direction == "fluctuating"
+            else "red"
+        )
         gap_str = f"{t.current_gap:.0f}" if t.current_gap > 0 else "[green]0[/green]"
         status_str = "[green]on track[/green]" if t.is_on_track else "[red]needs attention[/red]"
         trend_table.add_row(
-            t.layer_name, scores_str,
+            t.layer_name,
+            scores_str,
             f"[{dir_color}]{t.direction}[/]",
-            gap_str, status_str,
+            gap_str,
+            status_str,
         )
     console.print(trend_table)
 
@@ -367,6 +436,7 @@ def feature_status(
         return
 
     from rich.table import Table
+
     table = Table(title=f"Feature Development Reports (last {min(len(matches), latest)})")
     table.add_column("Report", style="cyan")
     table.add_column("Cycles", style="white")
@@ -402,16 +472,18 @@ def _print_verdict(verdict: DeliveryVerdict) -> None:
 
     BULLET = chr(8226)
     overall_color = "green" if verdict.overall_passed else "red"
-    console.print(Panel(
-        "[{}]{}[/]\nScore: {:.1f}%\n{}".format(
-            overall_color,
-            "PASSED" if verdict.overall_passed else "FAILED",
-            verdict.score,
-            verdict.summary,
-        ),
-        title="Delivery Standards Verification",
-        border_style=overall_color,
-    ))
+    console.print(
+        Panel(
+            "[{}]{}[/]\nScore: {:.1f}%\n{}".format(
+                overall_color,
+                "PASSED" if verdict.overall_passed else "FAILED",
+                verdict.score,
+                verdict.summary,
+            ),
+            title="Delivery Standards Verification",
+            border_style=overall_color,
+        )
+    )
 
     vt = Table(title="Per-Check Results")
     vt.add_column("Check", style="cyan")
@@ -435,7 +507,9 @@ def _print_verdict(verdict: DeliveryVerdict) -> None:
 def develop_verify(
     doc_path: str = typer.Argument(..., help="Path to the requirements document"),
     iterations: int = typer.Option(10, "--iterations", "-n", help="Number of evolution cycles"),
-    output: str = typer.Option("", "--output", "-o", help="Save full verification report to JSON file"),
+    output: str = typer.Option(
+        "", "--output", "-o", help="Save full verification report to JSON file"
+    ),
 ) -> None:
     """Run full development pipeline then auto-verify against delivery standards.
 
@@ -481,9 +555,15 @@ def develop_verify(
 
     if output:
         import json
+
         out_path = output if output.endswith(".json") else f"{output}.json"
         with open(out_path, "w") as f:
-            json.dump({"verdict": verdict.to_dict(), "report": report.to_dict()}, f, indent=2, ensure_ascii=False)
+            json.dump(
+                {"verdict": verdict.to_dict(), "report": report.to_dict()},
+                f,
+                indent=2,
+                ensure_ascii=False,
+            )
         console.print(f"[green]Full report saved to:[/green] {out_path}")
 
 

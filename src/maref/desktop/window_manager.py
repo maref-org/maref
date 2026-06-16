@@ -8,7 +8,7 @@ from typing import Any
 
 _PYOBJC_AVAILABLE = False
 try:
-    import Quartz  # type: ignore[import-not-found] # noqa: F401
+    import Quartz  # noqa: F401
 
     _PYOBJC_AVAILABLE = True
 except ImportError:
@@ -302,8 +302,7 @@ class WindowManager:
         windows: list[WindowInfo] = []
         try:
             window_list = Quartz.CGWindowListCopyWindowInfo(
-                Quartz.kCGWindowListOptionOnScreenOnly
-                | Quartz.kCGWindowListExcludeDesktopElements,
+                Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
                 Quartz.kCGNullWindowID,
             )
         except Exception:

@@ -31,12 +31,11 @@ __all__ = [
     "LicenseType",
     "Vulnerability",
     "VulnerabilitySeverity",
-
     # 漏洞扫描器
     "VulnerabilityScanner",
     "ScanResult",
     "ScanStatus",
     "VulnerabilitySource",
     "VulnerabilityMatch",
-    "VulnerabilityDatabase"
+    "VulnerabilityDatabase",
 ]

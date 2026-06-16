@@ -92,7 +92,7 @@ class NegativeGene:
 class NegativeGeneBank:
     """SQLite-persisted, HMAC-protected repository of known AI error patterns."""
 
-    _SCHEMA_VERSION = "1.0"
+    _SCHEMA_VERSION = "1.1"
 
     _CREATE_TABLES = """
     CREATE TABLE IF NOT EXISTS meta (
@@ -164,6 +164,10 @@ class NegativeGeneBank:
         schema_version TEXT NOT NULL DEFAULT '1.0',
         hmac_signature TEXT NOT NULL DEFAULT ''
     );
+    CREATE INDEX IF NOT EXISTS idx_genes_cwe_risk ON negative_genes(cwe_id, risk_level);
+    CREATE INDEX IF NOT EXISTS idx_genes_source_first_seen ON negative_genes(source, first_seen);
+    CREATE INDEX IF NOT EXISTS idx_genes_risk_blocked ON negative_genes(risk_level, blocked);
+    CREATE INDEX IF NOT EXISTS idx_patterns_type_value ON gene_patterns(pattern_type, pattern_value);
     """
 
     def __init__(self, db_path: str = ":memory:", hmac_key: bytes | None = None) -> None:
@@ -207,10 +211,20 @@ class NegativeGeneBank:
                     source,first_seen,occurrences,retention_days,hmac_signature,created_at,updated_at)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
-                    gene.gene_id, gene.cwe_id, gene.risk_level, gene.severity,
-                    int(gene.blocked), gene.title, gene.description, gene.source,
-                    gene.first_seen, gene.occurrences, gene.retention_days,
-                    gene.hmac_signature, now, now,
+                    gene.gene_id,
+                    gene.cwe_id,
+                    gene.risk_level,
+                    gene.severity,
+                    int(gene.blocked),
+                    gene.title,
+                    gene.description,
+                    gene.source,
+                    gene.first_seen,
+                    gene.occurrences,
+                    gene.retention_days,
+                    gene.hmac_signature,
+                    now,
+                    now,
                 ),
             )
             for p in gene.patterns:
@@ -220,7 +234,14 @@ class NegativeGeneBank:
                     """INSERT OR REPLACE INTO gene_patterns
                        (pattern_id,gene_id,pattern_type,pattern_value,variant_group,match_score)
                        VALUES (?,?,?,?,?,?)""",
-                    (p.pattern_id, p.gene_id, p.pattern_type, p.pattern_value, p.variant_group, p.match_score),
+                    (
+                        p.pattern_id,
+                        p.gene_id,
+                        p.pattern_type,
+                        p.pattern_value,
+                        p.variant_group,
+                        p.match_score,
+                    ),
                 )
             for v in gene.variants:
                 v.variant_id = v.variant_id or _new_id("VAR")
@@ -229,7 +250,15 @@ class NegativeGeneBank:
                     """INSERT OR REPLACE INTO gene_variants
                        (variant_id,gene_id,language,variant_code,detected_count,last_detected_at,created_at)
                        VALUES (?,?,?,?,?,?,?)""",
-                    (v.variant_id, v.gene_id, v.language, v.variant_code, v.detected_count, v.last_detected_at or now, now),
+                    (
+                        v.variant_id,
+                        v.gene_id,
+                        v.language,
+                        v.variant_code,
+                        v.detected_count,
+                        v.last_detected_at or now,
+                        now,
+                    ),
                 )
         return gene.gene_id
 
@@ -252,9 +281,17 @@ class NegativeGeneBank:
                    source=?,occurrences=?,retention_days=?,hmac_signature=?,updated_at=?
                    WHERE gene_id=?""",
                 (
-                    gene.cwe_id, gene.risk_level, gene.severity, int(gene.blocked),
-                    gene.title, gene.description, gene.source,
-                    gene.occurrences, gene.retention_days, gene.hmac_signature, now,
+                    gene.cwe_id,
+                    gene.risk_level,
+                    gene.severity,
+                    int(gene.blocked),
+                    gene.title,
+                    gene.description,
+                    gene.source,
+                    gene.occurrences,
+                    gene.retention_days,
+                    gene.hmac_signature,
+                    now,
                     gene.gene_id,
                 ),
             )
@@ -275,7 +312,8 @@ class NegativeGeneBank:
 
     def query_by_cwe(self, cwe_id: str) -> list[NegativeGene]:
         rows = self._conn.execute(
-            "SELECT * FROM negative_genes WHERE cwe_id=?", (cwe_id,),
+            "SELECT * FROM negative_genes WHERE cwe_id=?",
+            (cwe_id,),
         ).fetchall()
         return [self._row_to_gene(r) for r in rows]
 
@@ -299,7 +337,8 @@ class NegativeGeneBank:
 
     def query_by_source(self, source: str) -> list[NegativeGene]:
         rows = self._conn.execute(
-            "SELECT * FROM negative_genes WHERE source=?", (source,),
+            "SELECT * FROM negative_genes WHERE source=?",
+            (source,),
         ).fetchall()
         return [self._row_to_gene(r) for r in rows]
 
@@ -365,9 +404,7 @@ class NegativeGeneBank:
 
     def purge_stale(self) -> int:
         cutoff = time.time() - (730 * 86400)
-        result = self._conn.execute(
-            "DELETE FROM negative_genes WHERE first_seen < ?", (cutoff,)
-        )
+        result = self._conn.execute("DELETE FROM negative_genes WHERE first_seen < ?", (cutoff,))
         return result.rowcount
 
     def register_variant(self, gene_id: str, variant: GeneVariant) -> None:
@@ -378,8 +415,15 @@ class NegativeGeneBank:
                 """INSERT OR REPLACE INTO gene_variants
                    (variant_id,gene_id,language,variant_code,detected_count,last_detected_at,created_at)
                    VALUES (?,?,?,?,?,?,?)""",
-                (variant.variant_id, variant.gene_id, variant.language, variant.variant_code,
-                 variant.detected_count, variant.last_detected_at, time.time()),
+                (
+                    variant.variant_id,
+                    variant.gene_id,
+                    variant.language,
+                    variant.variant_code,
+                    variant.detected_count,
+                    variant.last_detected_at,
+                    time.time(),
+                ),
             )
             # Update parent gene HMAC since variant list changed
             row = self._conn.execute(
@@ -442,40 +486,90 @@ class NegativeGeneBank:
             for r in rows
         ]
 
+    def get_gene_lifecycle(self, gene_id: str) -> dict[str, Any] | None:
+        """Get the full lifecycle audit for a single gene."""
+        gene = self.get_gene(gene_id)
+        if not gene:
+            return None
+        return {
+            "gene_id": gene.gene_id,
+            "cwe_id": gene.cwe_id,
+            "risk_level": gene.risk_level.value if hasattr(gene.risk_level, 'value') else gene.risk_level,
+            "severity": gene.severity,
+            "blocked": gene.blocked,
+            "title": gene.title,
+            "source": gene.source,
+            "first_seen": gene.first_seen,
+            "occurrences": gene.occurrences,
+            "pattern_count": len(gene.patterns),
+            "variant_count": len(gene.variants),
+            "hmac_valid": gene.verify_hmac(self._get_hmac_key()) if hasattr(gene, 'verify_hmac') else "unknown",
+        }
+
+    def get_lifecycle_summary(self) -> dict[str, Any]:
+        """Aggregate lifecycle summary across all genes."""
+        total = self.gene_count()
+        cwe_dist = self.count_by_cwe()
+        risk_dist = self.count_by_risk()
+        return {
+            "total_genes": total,
+            "by_cwe": cwe_dist,
+            "by_risk": risk_dist,
+            "total_patterns": "see query_all",
+        }
+
+    def _get_hmac_key(self) -> bytes:
+        return self._hmac_key
+
     def close(self) -> None:
         self._conn.close()
 
     # ── Internal ──────────────────────────────────────────────────────────
 
     def _row_to_gene(self, row: sqlite3.Row | tuple) -> NegativeGene:
-        if isinstance(row, sqlite3.Row):
-            values = tuple(row)
-        else:
-            values = row
+        values = tuple(row) if isinstance(row, sqlite3.Row) else row
         gene = NegativeGene(
-            gene_id=values[0], cwe_id=values[1], risk_level=values[2],
-            severity=values[3], blocked=bool(values[4]), title=values[5],
-            description=values[6], source=values[7], first_seen=values[8],
-            occurrences=values[9], retention_days=values[10],
+            gene_id=values[0],
+            cwe_id=values[1],
+            risk_level=values[2],
+            severity=values[3],
+            blocked=bool(values[4]),
+            title=values[5],
+            description=values[6],
+            source=values[7],
+            first_seen=values[8],
+            occurrences=values[9],
+            retention_days=values[10],
             hmac_signature=values[11],
         )
         # load patterns
         for pr in self._conn.execute(
             "SELECT * FROM gene_patterns WHERE gene_id=?", (gene.gene_id,)
         ).fetchall():
-            gene.patterns.append(GenePattern(
-                pattern_id=pr[0], gene_id=pr[1], pattern_type=pr[2],
-                pattern_value=pr[3], variant_group=pr[4], match_score=pr[5],
-            ))
+            gene.patterns.append(
+                GenePattern(
+                    pattern_id=pr[0],
+                    gene_id=pr[1],
+                    pattern_type=pr[2],
+                    pattern_value=pr[3],
+                    variant_group=pr[4],
+                    match_score=pr[5],
+                )
+            )
         # load variants
         for vr in self._conn.execute(
             "SELECT * FROM gene_variants WHERE gene_id=?", (gene.gene_id,)
         ).fetchall():
-            gene.variants.append(GeneVariant(
-                variant_id=vr[0], gene_id=vr[1], language=vr[2],
-                variant_code=vr[3], detected_count=vr[4],
-                last_detected_at=vr[5],
-            ))
+            gene.variants.append(
+                GeneVariant(
+                    variant_id=vr[0],
+                    gene_id=vr[1],
+                    language=vr[2],
+                    variant_code=vr[3],
+                    detected_count=vr[4],
+                    last_detected_at=vr[5],
+                )
+            )
         return gene
 
     def __enter__(self) -> NegativeGeneBank:

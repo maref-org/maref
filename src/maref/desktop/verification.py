@@ -101,12 +101,16 @@ class ScreenshotVerifier:
         self.min_diff_area = min_diff_area
 
     def compare(
-        self, before: Image.Image, after: Image.Image, expected_change_regions: list[DiffRegion] | None = None,
+        self,
+        before: Image.Image,
+        after: Image.Image,
+        expected_change_regions: list[DiffRegion] | None = None,
     ) -> VerificationResult:
         start = time.time()
         if before.size != after.size:
             result = VerificationResult(
-                passed=False, method=VerificationMethod.SCREENSHOT_DIFF,
+                passed=False,
+                method=VerificationMethod.SCREENSHOT_DIFF,
                 details=f"Size mismatch: before={before.size} after={after.size}",
                 duration_ms=(time.time() - start) * 1000,
             )
@@ -189,7 +193,12 @@ class ScreenshotVerifier:
         return regions
 
     def _flood_fill_region(
-        self, before: Image.Image, after: Image.Image, start_x: int, start_y: int, visited: set,
+        self,
+        before: Image.Image,
+        after: Image.Image,
+        start_x: int,
+        start_y: int,
+        visited: set,
     ) -> DiffRegion:
         stack = [(start_x, start_y)]
         min_x, min_y = start_x, start_y
@@ -214,13 +223,16 @@ class ScreenshotVerifier:
                 stack.append((x + dx, y + dy))
 
         return DiffRegion(
-            x=min_x, y=min_y,
+            x=min_x,
+            y=min_y,
             width=max_x - min_x + 1,
             height=max_y - min_y + 1,
             severity=DiffSeverity.MINOR,
         )
 
-    def _count_diff_in_region(self, before: Image.Image, after: Image.Image, region: DiffRegion) -> int:
+    def _count_diff_in_region(
+        self, before: Image.Image, after: Image.Image, region: DiffRegion
+    ) -> int:
         count = 0
         for y in range(region.y, region.y + region.height):
             for x in range(region.x, region.x + region.width):
@@ -282,13 +294,12 @@ class OperationVerifier:
     ) -> VerificationResult:
         result = self._screenshot_verifier.compare(before_image, after_image)
         if expected_region and result.diff_regions:
-            found = any(
-                self._regions_overlap(r, expected_region)
-                for r in result.diff_regions
-            )
+            found = any(self._regions_overlap(r, expected_region) for r in result.diff_regions)
             if not found:
                 result.passed = False
-                result.details += f" | Expected change at ({expected_region.x},{expected_region.y}) not found"
+                result.details += (
+                    f" | Expected change at ({expected_region.x},{expected_region.y}) not found"
+                )
         return result
 
     def verify_element_disappeared(
@@ -317,7 +328,8 @@ class OperationVerifier:
         result = self._screenshot_verifier.compare(before_image, after_image)
         if result.diff_regions and expected_ignore_regions:
             unexpected = [
-                r for r in result.diff_regions
+                r
+                for r in result.diff_regions
                 if not any(self._regions_overlap(r, ignore) for ignore in expected_ignore_regions)
             ]
             if unexpected:

@@ -1,12 +1,12 @@
 -------------------------------- MODULE MarefLite --------------------------------
 (*
   MAREF-Lite: 10-State Gray Code Governance State Machine
-  
+
   This TLA+ specification formally models the 10-state (Hetu) governance
   overlay for multi-agent systems. The state machine uses Gray code encoding
   to ensure single-bit transitions between adjacent states, preventing
   race conditions during state changes.
-  
+
   States:
   - 0: INIT      (0000) - System initialization
   - 1: OBSERVE   (0001) - Passive observation mode
@@ -18,7 +18,7 @@
   - 7: STABILIZE (0100) - System stabilization
   - 8: REPORT    (1100) - Status reporting
   - 9: HALT      (1101) - Graceful halt
-  
+
   Gray Code Sequence (single-bit transitions):
   0(0000) -> 1(0001) -> 2(0011) -> 3(0010) -> 4(0110) -> 5(0111) -> 6(0101) -> 7(0100) -> 8(1100) -> 9(1101)
 *)

@@ -1,11 +1,11 @@
 # MAREF: A Recursive Self-Evolving Governance Framework for Multi-Agent Systems
 
-**Authors**: MAREF Research Team  
-**Version**: v0.30.0-GA  
-**Date**: 2026-05-25  
-**Target Venue**: arXiv cs.MA (Multiagent Systems)  
-**License**: Apache-2.0  
-**Status**: Submitted to arXiv for prior art establishment  
+**Authors**: MAREF Research Team
+**Version**: v0.30.0-GA
+**Date**: 2026-05-25
+**Target Venue**: arXiv cs.MA (Multiagent Systems)
+**License**: Apache-2.0
+**Status**: Submitted to arXiv for prior art establishment
 
 ---
 

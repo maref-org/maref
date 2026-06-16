@@ -60,8 +60,7 @@ class DistributedCRDT:
         self._gossip_log: list[GossipMessage] = []
         self._audit_store = audit_store or UnifiedAuditStore()
 
-    def register_node(self, node_id: str,
-                       peers: list[str] | None = None) -> CRDTNode:
+    def register_node(self, node_id: str, peers: list[str] | None = None) -> CRDTNode:
         node = CRDTNode(
             node_id=node_id,
             vector_clock={node_id: 0},
@@ -70,8 +69,7 @@ class DistributedCRDT:
         self._nodes[node_id] = node
         return node
 
-    def apply_op(self, node_id: str, key: str, value: Any,
-                  op_type: str = "set") -> CRDTOp | None:
+    def apply_op(self, node_id: str, key: str, value: Any, op_type: str = "set") -> CRDTOp | None:
         node = self._nodes.get(node_id)
         if node is None or not node.is_active:
             return None
@@ -136,19 +134,21 @@ class DistributedCRDT:
                 node.partition_id = partition_id
         self._partitions.append(event)
 
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("part", partition_id % 100000),
-            timestamp=time.time(),
-            layer="evolution",
-            round=46,
-            event_type="network_partition",
-            source_module="DistributedCRDT",
-            target_module="cluster",
-            decision=f"partition_{partition_id}",
-            justification=f"Nodes isolated: {len(partition_nodes)}",
-            outcome="partition",
-            context_refs=partition_nodes,
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("part", partition_id % 100000),
+                timestamp=time.time(),
+                layer="evolution",
+                round=46,
+                event_type="network_partition",
+                source_module="DistributedCRDT",
+                target_module="cluster",
+                decision=f"partition_{partition_id}",
+                justification=f"Nodes isolated: {len(partition_nodes)}",
+                outcome="partition",
+                context_refs=partition_nodes,
+            )
+        )
         return partition_id
 
     def recover_partition(self, partition_id: int) -> bool:
@@ -193,9 +193,7 @@ class DistributedCRDT:
             "total_ops": len(self._ops),
             "gossip_messages": len(self._gossip_log),
             "partitions": len(self._partitions),
-            "active_partitions": sum(
-                1 for p in self._partitions if not p.recovered
-            ),
+            "active_partitions": sum(1 for p in self._partitions if not p.recovered),
             "consistent": self.verify_consistency(),
         }
 

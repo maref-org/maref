@@ -5,6 +5,7 @@ Supports JWT + API Key dual-mode auth with tenant-scoped resource access.
 
 from __future__ import annotations
 
+import hashlib
 import secrets
 import time
 from dataclasses import dataclass, field
@@ -27,9 +28,27 @@ class Tenant:
     def __post_init__(self) -> None:
         if not self.quota:
             self.quota = {
-                "max_agents": 1 if self.tier == "free" else 10 if self.tier == "pro" else 100 if self.tier == "business" else -1,
-                "max_checks_per_month": 1000 if self.tier == "free" else 100_000 if self.tier == "pro" else 1_000_000 if self.tier == "business" else -1,
-                "audit_retention_days": 7 if self.tier == "free" else 90 if self.tier == "pro" else 365 if self.tier == "business" else 2555,
+                "max_agents": 1
+                if self.tier == "free"
+                else 10
+                if self.tier == "pro"
+                else 100
+                if self.tier == "business"
+                else -1,
+                "max_checks_per_month": 1000
+                if self.tier == "free"
+                else 100_000
+                if self.tier == "pro"
+                else 1_000_000
+                if self.tier == "business"
+                else -1,
+                "audit_retention_days": 7
+                if self.tier == "free"
+                else 90
+                if self.tier == "pro"
+                else 365
+                if self.tier == "business"
+                else 2555,
                 "hitl_enabled": self.tier != "free",
                 "federation_enabled": self.tier == "enterprise",
             }
@@ -54,15 +73,17 @@ class TenantManager:
 
         if api_key is None:
             api_key = f"mk_{secrets.token_urlsafe(32)}"
-        self._api_key_to_tenant[api_key] = tenant.tenant_id
-        tenant.api_key_hash = api_key  # Store plaintext for MVP; hash in production
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        self._api_key_to_tenant[key_hash] = tenant.tenant_id
+        tenant.api_key_hash = key_hash
         return api_key
 
     def get_by_id(self, tenant_id: str) -> Tenant | None:
         return self._tenants.get(tenant_id)
 
     def get_by_api_key(self, api_key: str) -> Tenant | None:
-        tenant_id = self._api_key_to_tenant.get(api_key)
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        tenant_id = self._api_key_to_tenant.get(key_hash)
         if tenant_id:
             return self._tenants.get(tenant_id)
         return None

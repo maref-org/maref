@@ -290,9 +290,7 @@ class MultiAgentEvolutionEngine:
                     break
 
                 try:
-                    snapshot = await self._run_one_round(
-                        cycle_id, round_num, cycle_spec
-                    )
+                    snapshot = await self._run_one_round(cycle_id, round_num, cycle_spec)
                     self._collect_round_metrics(cycle_metrics, snapshot)
 
                     if (
@@ -315,9 +313,7 @@ class MultiAgentEvolutionEngine:
 
                 self._total_rounds += 1
 
-            acceptance = cycle_metrics.assess_acceptance(
-                base.acceptance_criteria, cycle_id
-            )
+            acceptance = cycle_metrics.assess_acceptance(base.acceptance_criteria, cycle_id)
 
             actual_rounds = self._total_rounds
             cycle_result = CycleResult(
@@ -348,14 +344,8 @@ class MultiAgentEvolutionEngine:
             all_passed=all(c.passed for c in cycle_results),
         )
 
-        agent_stats = {
-            agent.agent_id: agent.get_stats()
-            for agent in self._registry.list_agents()
-        }
-        group_stats = {
-            gid: group.get_group_stats()
-            for gid, group in self._groups.items()
-        }
+        agent_stats = {agent.agent_id: agent.get_stats() for agent in self._registry.list_agents()}
+        group_stats = {gid: group.get_group_stats() for gid, group in self._groups.items()}
         reward_history = self._reward_assembler.get_cycle_history()
 
         return MultiAgentEvolutionResult(
@@ -427,7 +417,8 @@ class MultiAgentEvolutionEngine:
         return fnr, fpr
 
     def _compute_and_store_rewards(
-        self, snapshot: MultiAgentRoundSnapshot,
+        self,
+        snapshot: MultiAgentRoundSnapshot,
     ) -> None:
         """Compute role-level rewards and store as experiences."""
         round_data = {
@@ -557,10 +548,7 @@ class MultiAgentEvolutionEngine:
         }
 
         if self._optimizers:
-            status["optimizers"] = {
-                gid: opt.get_stats()
-                for gid, opt in self._optimizers.items()
-            }
+            status["optimizers"] = {gid: opt.get_stats() for gid, opt in self._optimizers.items()}
 
         status["constitution_guard"] = self._constitution_guard.get_stats()
         status["reward_assembler"] = self._reward_assembler.get_stats()

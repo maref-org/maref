@@ -169,11 +169,7 @@ class ABTestFramework:
         if test["completed"]:
             return False
 
-        metrics = (
-            test["baseline_metrics"]
-            if variant == "baseline"
-            else test["variant_metrics"]
-        )
+        metrics = test["baseline_metrics"] if variant == "baseline" else test["variant_metrics"]
 
         # Update confusion matrix
         if predicted_drift and actual_drift:
@@ -206,9 +202,7 @@ class ABTestFramework:
         variant = test["variant_metrics"]
 
         # Check if we have enough samples
-        total_samples = (
-            len(baseline.latency_ms) + len(variant.latency_ms)
-        )
+        total_samples = len(baseline.latency_ms) + len(variant.latency_ms)
         if total_samples < test["min_samples"]:
             return None
 
@@ -223,9 +217,7 @@ class ABTestFramework:
             )
         if baseline.mean_latency > 0:
             improvements["latency"] = (
-                (baseline.mean_latency - variant.mean_latency)
-                / baseline.mean_latency
-                * 100
+                (baseline.mean_latency - variant.mean_latency) / baseline.mean_latency * 100
             )
 
         # Determine winner based on F1 score (primary) and latency (secondary)
@@ -249,13 +241,9 @@ class ABTestFramework:
                 f"{improvements.get('latency', 0):.1f}% latency). Recommend deployment."
             )
         elif winner == "baseline":
-            recommendation = (
-                "Baseline performs better. Reject variant and investigate."
-            )
+            recommendation = "Baseline performs better. Reject variant and investigate."
         else:
-            recommendation = (
-                "No clear winner. Consider extending test or revising variant."
-            )
+            recommendation = "No clear winner. Consider extending test or revising variant."
 
         return ABTestResult(
             test_id=test_id,

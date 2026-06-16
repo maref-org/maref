@@ -1,30 +1,30 @@
 ------------------------------- MODULE MAREF_TestIntegration --------------------------------
 (*
   MAREF + MAS-TS-001 Joint Formal Specification
-  
+
   This TLA+ specification formally models the integration between MAREF's
   governance state machine and MAS-TS-001's Agent Test Platform. It verifies:
-  
+
   Theorem 1: CrossBorderConsistency
     If data_residency != model_backend_location, then cross_border must be true.
     Ensures no silent cross-border data transfer violations.
-  
+
   Theorem 2: PromptRotDetectionCompleteness
     Any capability without business_rule_version triggers an alert.
     Ensures prompt rot is always detectable.
-  
+
   Theorem 3: EvalToGovernanceLiveness
     Fast-Screen score < 60 eventually leads to QUARANTINE state.
     Ensures evaluation results always drive governance decisions.
-  
+
   Theorem 4: ScorePhaseMonotonicity
     Higher MAS scores always grant equal or greater permissions.
     Ensures no permission inversion from scoring.
-  
+
   Theorem 5: ComplianceQuarantineSafety
     Any CRITICAL finding in Layer 1 (Static Audit) forces HALT state.
     Ensures compliance violations cannot be bypassed.
-  
+
   Based on the MAREF test_platform integration module implementation.
 *)
 
@@ -155,11 +155,11 @@ HasCriticalFindings(agentId) ==
   THEOREM CrossBorderConsistency:
     For all registered agent cards, if data_residency differs from
     model_backend_location, then cross_border flag MUST be true.
-    
+
   This prevents silent cross-border data transfer violations where
   an agent's data is processed in a different jurisdiction without
   proper cross-border compliance marking.
-  
+
   Formal statement:
     \A card \in AgentCards :
       card.data_residency /= card.model_backend_location
@@ -179,10 +179,10 @@ CrossBorderConsistencyInvariant ==
   THEOREM PromptRotDetectionCompleteness:
     For all agent cards, any capability without a business_rule_version
     (i.e., business_rule_version = "Nil") must generate an alert.
-    
+
   This ensures that prompt rot (degradation of prompt effectiveness
   over time) is always detectable for every capability.
-  
+
   Formal statement:
     \A card \in AgentCards, \A skill \in card.capabilities :
       skill.business_rule_version = "Nil"
@@ -199,10 +199,10 @@ PromptRotDetectionInvariant == TRUE
     If an agent's Fast-Screen score falls below the quarantine threshold,
     the governance state machine MUST eventually transition to HALT
     (quarantine state).
-    
+
   This ensures that poor evaluation results always drive governance
   decisions — no agent can remain in an active state with a failing score.
-  
+
   Formal statement:
     \A agent \in Agents :
       EvalScore(agent) < 60 ~> GovernanceState(agent) = "HALT"
@@ -221,7 +221,7 @@ EvalToGovernanceLiveness ==
     For any agent, a higher evaluation score always grants equal or
     greater permissions. There is no "permission inversion" where
     a higher score results in fewer permissions.
-    
+
   Formal statement:
     \A a1, a2 \in Agents :
       evalScores[a1] >= evalScores[a2]
@@ -248,7 +248,7 @@ ScorePhaseMonotonicityInvariant ==
     Any CRITICAL finding in Layer 1 (Static Audit) forces the agent
     into HALT state immediately. No agent with a CRITICAL compliance
     finding can remain in an active governance state.
-    
+
   Formal statement:
     \A agent \in Agents :
       HasCriticalFinding(agent) => []<>(GovernanceState(agent) = "HALT")
@@ -264,25 +264,25 @@ ComplianceQuarantineSafetyInvariant ==
 (* ============================================================================ *)
 (*
   Unified MAREF-Test Sidecar uses a 4-level policy decision tree:
-  
+
     Level 0: ALLOW    — Pass through
     Level 1: WARN     — Pass through with alert
     Level 2: THROTTLE — Rate-limit, degrade QoS
     Level 3: BLOCK    — Deny, trigger state transition
-  
+
   THEOREM 6 (DecisionSafety):
     No BLOCK decision is followed by an ALLOW for the same agent-action.
     Once blocked, the action remains blocked.
-  
+
   THEOREM 7 (DecisionLiveness):
     Every submitted action eventually receives a decision.
     No action remains "pending" indefinitely.
-  
+
   THEOREM 8 (DecisionPriorityOrder):
     Rules are evaluated in priority order:
       BLOCK (priority 100) > THROTTLE (80) > WARN (60) > ALLOW (0)
     A higher-priority matching rule always overrides lower-priority ones.
-  
+
   THEOREM 9 (DecisionConsistency):
     For identical inputs (agent, action, context), the decision tree
     always produces the same decision level.
@@ -375,7 +375,7 @@ DecisionLivenessInvariant ==
 
 (* --- THEOREM 8: Priority Order Invariant --- *)
 (* Verify higher-priority rules take precedence over lower-priority ones
-   
+
    Specifically: if an agent has CRITICAL findings (Rule1, priority 100),
    the decision must be BLOCK (level 3), regardless of other conditions. *)
 DecisionPriorityInvariant ==
@@ -419,12 +419,12 @@ DecisionConsistencyInvariant ==
 (* ============================================================================ *)
 (*
   Phase 3 — TLA+ verification of MAS-TS-001 scoring algorithm.
-  
+
   THEOREM 10 (ScoreConvergence):
     The scoring function is deterministic. Given the same agent card and
     test results, it always produces the same score. This verifies that
     the scoring algorithm converges to a unique value.
-  
+
   THEOREM 11 (ThresholdCompleteness):
     The score-to-phase mapping covers all possible scores (0-100) without
     gaps. Every score maps to exactly one governance phase:
@@ -433,7 +433,7 @@ DecisionConsistencyInvariant ==
       [30, 49]  → LESSER_YIN
       [0, 29]   → OLD_YIN
     No score falls outside all thresholds.
-  
+
   THEOREM 12 (NoRuleConflicts):
     The policy decision tree rules are mutually exclusive for any given
     context. No two rules with different decision levels can match the
@@ -454,7 +454,7 @@ ThresholdCoverageInvariant ==
     LET phase == ScoreToPhase(s) IN
     /\ phase \in {"OLD_YANG", "LESSER_YANG", "LESSER_YIN", "OLD_YIN"}
     /\ (s >= 80 => phase = "OLD_YANG")
-    /\ (s >= 50 /\ s < 80 => phase = "LESSER_YANG")  
+    /\ (s >= 50 /\ s < 80 => phase = "LESSER_YANG")
     /\ (s >= 30 /\ s < 50 => phase = "LESSER_YIN")
     /\ (s < 30 => phase = "OLD_YIN")
 
@@ -470,7 +470,7 @@ ThresholdBoundaryInvariant ==
   /\ ScoreToPhase(0) = "OLD_YIN"      (* Bottom of range *)
 
 (* --- THEOREM 12: No Rule Conflicts --- *)
-(* Rule priority ensures mutual exclusion. 
+(* Rule priority ensures mutual exclusion.
    We verify the key conflict scenarios: *)
 
 NoRuleConflictInvariant ==
@@ -639,26 +639,26 @@ THEOREM TypeInvariantHolds ==
 (* ============================================================================ *)
 (*
   TLC Configuration (MAREF_TestIntegrationMC.cfg):
-  
+
   CONSTANTS
     AgentIds = {a1, a2}
     Locations = {"US", "EU", "CN"}
     MaxAgents = 2
     ScoreThresholds = <<60, 70, 80>>
-  
+
   INVARIANTS
     CrossBorderConsistencyInvariant
     PromptRotDetectionInvariant
     ScorePhaseMonotonicityInvariant
     ComplianceQuarantineSafetyInvariant
     TypeInvariant
-  
+
   PROPERTIES
     EvalToGovernanceLiveness
-  
+
   CONSTRAINT
     StateConstraint
-  
+
   StateConstraint ==
     Cardinality(DOMAIN agentCards) <= MaxAgents
 *)

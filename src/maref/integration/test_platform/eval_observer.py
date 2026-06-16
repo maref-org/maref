@@ -27,10 +27,10 @@ from maref.integration.test_platform.schema import (
 class Phase(str, Enum):
     """Four-phase autonomy governance phases."""
 
-    OLD_YANG = "old_yang"       # Maximum permissions
-    LESSER_YANG = "lesser_yang" # Partial permissions
-    LESSER_YIN = "lesser_yin"   # Restricted permissions
-    OLD_YIN = "old_yin"         # Minimum permissions
+    OLD_YANG = "old_yang"  # Maximum permissions
+    LESSER_YANG = "lesser_yang"  # Partial permissions
+    LESSER_YIN = "lesser_yin"  # Restricted permissions
+    OLD_YIN = "old_yin"  # Minimum permissions
 
 
 @dataclass
@@ -199,15 +199,17 @@ class MASEvalObserver:
     # --- Internal ---
 
     def _record_eval(self, report: EvaluationReport) -> None:
-        self._eval_history.append({
-            "agent_id": report.agent_id,
-            "report_id": report.report_id,
-            "mode": report.test_mode.value,
-            "status": report.overall_status.value,
-            "score": report.overall_score,
-            "mas_score": report.mas_dimension_score,
-            "timestamp": time.time(),
-        })
+        self._eval_history.append(
+            {
+                "agent_id": report.agent_id,
+                "report_id": report.report_id,
+                "mode": report.test_mode.value,
+                "status": report.overall_status.value,
+                "score": report.overall_score,
+                "mas_score": report.mas_dimension_score,
+                "timestamp": time.time(),
+            }
+        )
 
     def _map_score_to_phase(self, score: float) -> Phase:
         if score >= 80:

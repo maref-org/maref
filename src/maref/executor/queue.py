@@ -204,16 +204,19 @@ class TaskQueue:
             ).fetchall()
             return [self._row_to_task(r) for r in rows]
 
-    def update_status(
-        self, task_id: str, status: TaskStatus, **updates: Any
-    ) -> bool:
+    def update_status(self, task_id: str, status: TaskStatus, **updates: Any) -> bool:
         now = _now()
         fields = ["status = ?", "updated_at = ?"]
         values: list[Any] = [status.value, now]
         if status == TaskStatus.RUNNING and "started_at" not in updates:
             fields.append("started_at = ?")
             values.append(now)
-        if status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.TIMEOUT, TaskStatus.CANCELLED):
+        if status in (
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.TIMEOUT,
+            TaskStatus.CANCELLED,
+        ):
             if "completed_at" not in updates:
                 fields.append("completed_at = ?")
                 values.append(now)
@@ -235,9 +238,7 @@ class TaskQueue:
 
     def get(self, task_id: str) -> Task | None:
         with self._lock:
-            row = self._conn.execute(
-                "SELECT * FROM tasks WHERE id = ?", (task_id,)
-            ).fetchone()
+            row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
             if row is None:
                 return None
             return self._row_to_task(row)
@@ -310,17 +311,13 @@ class TaskQueue:
 
     def delete(self, task_id: str) -> bool:
         with self._lock:
-            cur = self._conn.execute(
-                "DELETE FROM tasks WHERE id = ?", (task_id,)
-            )
+            cur = self._conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
             self._conn.commit()
             return cur.rowcount > 0
 
     def move_to_dlq(self, task_id: str, reason: str = "") -> bool:
         with self._lock:
-            row = self._conn.execute(
-                "SELECT * FROM tasks WHERE id = ?", (task_id,)
-            ).fetchone()
+            row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
             if row is None:
                 return False
             task_dict = dict(row)
@@ -390,9 +387,7 @@ class TaskQueue:
             task.started_at = None
             task.completed_at = None
             task.updated_at = _now()
-            self._conn.execute(
-                "DELETE FROM dead_letter_queue WHERE id = ?", (task_id,)
-            )
+            self._conn.execute("DELETE FROM dead_letter_queue WHERE id = ?", (task_id,))
             new_row = self._task_to_row(task)
             self._conn.execute(
                 """INSERT INTO tasks
@@ -411,9 +406,7 @@ class TaskQueue:
 
     def stats(self) -> dict[str, Any]:
         with self._lock:
-            total = self._conn.execute(
-                "SELECT COUNT(*) as c FROM tasks"
-            ).fetchone()["c"]
+            total = self._conn.execute("SELECT COUNT(*) as c FROM tasks").fetchone()["c"]
             by_status: dict[str, int] = {}
             for row in self._conn.execute(
                 "SELECT status, COUNT(*) as c FROM tasks GROUP BY status"
@@ -432,9 +425,7 @@ class TaskQueue:
     def clear(self, status: TaskStatus | None = None) -> int:
         with self._lock:
             if status is not None:
-                cur = self._conn.execute(
-                    "DELETE FROM tasks WHERE status = ?", (status.value,)
-                )
+                cur = self._conn.execute("DELETE FROM tasks WHERE status = ?", (status.value,))
             else:
                 cur = self._conn.execute(
                     "DELETE FROM tasks WHERE status IN ('completed', 'failed', 'cancelled', 'timeout')"

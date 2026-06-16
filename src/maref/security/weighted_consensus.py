@@ -16,6 +16,7 @@ from typing import Any
 @dataclass
 class ConsensusVote:
     """共识投票"""
+
     agent_id: str
     value: Any
     weight: float = 1.0

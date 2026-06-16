@@ -5,6 +5,16 @@ All core logic has been moved to maref.knowledge.graph.
 This module re-exports for existing importers.
 """
 
-from maref.knowledge.graph import GraphSnapshot, KnowledgeGraph, KnowledgeNode, RelationEdge
+import maref.knowledge.graph as _kg
 
-__all__ = ["KnowledgeGraph", "KnowledgeNode", "RelationEdge", "GraphSnapshot"]
+GraphSnapshot = _kg.GraphSnapshot
+KnowledgeGraph = _kg.KnowledgeGraph
+KnowledgeNode = _kg.KnowledgeNode
+RelationEdge = _kg.RelationEdge
+
+__all__ = [
+    'GraphSnapshot',
+    'KnowledgeGraph',
+    'KnowledgeNode',
+    'RelationEdge',
+]

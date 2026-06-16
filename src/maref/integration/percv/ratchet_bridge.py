@@ -46,6 +46,7 @@ class RatchetBridge:
             return {}
         try:
             import yaml
+
             text = self._program_path.read_text(encoding="utf-8")
             # program.md uses YAML frontmatter
             if text.startswith("---"):
@@ -64,11 +65,14 @@ class RatchetBridge:
         """Run one ratchet iteration via CLI command."""
         import subprocess
         import time
+
         t0 = time.perf_counter()
         try:
             result = subprocess.run(
                 ["uv", "run", "percv", "evaluate", "--mock"],
-                capture_output=True, text=True, timeout=300,
+                capture_output=True,
+                text=True,
+                timeout=300,
             )
             elapsed = time.perf_counter() - t0
             stdout = result.stdout.strip()
@@ -89,6 +93,7 @@ class RatchetBridge:
     def _extract_score(self, stdout: str) -> float:
         """Extract numeric score from percv evaluate output."""
         import re
+
         match = re.search(r"(?:score|quality)[:\s]+([\d.]+)", stdout, re.IGNORECASE)
         if match:
             try:
@@ -100,10 +105,13 @@ class RatchetBridge:
     def _get_git_diff(self, target_file: str) -> str:
         """Get git diff for the target file."""
         import subprocess
+
         try:
             result = subprocess.run(
                 ["git", "diff", "--", target_file],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             return result.stdout[:1000] if result.stdout else ""
         except Exception:
@@ -132,7 +140,9 @@ class RatchetBridge:
 
         logger.info(
             "Starting ratchet cycle: target=%s budget=%d human_gate=%s",
-            target_file, effective_budget, effective_human_gate,
+            target_file,
+            effective_budget,
+            effective_human_gate,
         )
 
         iterations: list[dict[str, Any]] = []
@@ -163,12 +173,14 @@ class RatchetBridge:
                         if effective_human_gate:
                             logger.info(
                                 "Iteration %d: score improved to %.4f (awaiting human gate)",
-                                i, score,
+                                i,
+                                score,
                             )
                     else:
                         logger.info(
                             "Iteration %d: score %.4f rejected by MetaLearner",
-                            i, score,
+                            i,
+                            score,
                         )
                 else:
                     logger.info("Iteration %d: score %.4f (no improvement)", i, score)
@@ -193,7 +205,9 @@ class RatchetBridge:
 
         logger.info(
             "Ratchet cycle complete: %d iterations, best score %.4f at iter %d",
-            len(iterations), best_score, best_iteration or 0,
+            len(iterations),
+            best_score,
+            best_iteration or 0,
         )
         return iterations
 

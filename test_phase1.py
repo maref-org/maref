@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Phase 1 smoke tests."""
 
-from maref.consensus.vector_clock import VectorClock
 from maref.consensus.nack_protocol import NackBuilder, NackCode, NackHandler, Recoverability
-from maref.orchestration.task_graph import TaskGraph, TaskNode
-from maref.orchestration.joint_machine import JointStateMachine
-from maref.orchestration.plan_executor import PlanExecutor, Plan, PlanStep
+from maref.consensus.vector_clock import VectorClock
 from maref.identity.did_registry import AgentDID
+from maref.orchestration.joint_machine import JointStateMachine
+from maref.orchestration.plan_executor import Plan, PlanExecutor, PlanStep
+from maref.orchestration.task_graph import TaskGraph, TaskNode
 
 
 def test_vector_clock():
@@ -21,11 +21,7 @@ def test_vector_clock():
 
 def test_nack():
     nack = (
-        NackBuilder()
-        .request("req-1")
-        .agents("A", "B")
-        .because(NackCode.OVERLOADED, "busy")
-        .build()
+        NackBuilder().request("req-1").agents("A", "B").because(NackCode.OVERLOADED, "busy").build()
     )
     assert nack.code == NackCode.OVERLOADED
     handler = NackHandler()

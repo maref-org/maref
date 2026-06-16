@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-from maref.stress.emergence_harness import EmergenceTestHarness
 from maref.stress.chaos_engine import ChaosEngine, FaultType
+from maref.stress.emergence_harness import EmergenceTestHarness
 
 
 def test_temporal_perturbation_consistency():

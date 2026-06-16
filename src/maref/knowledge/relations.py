@@ -74,12 +74,14 @@ class RuleBasedExtractor:
     def __init__(self) -> None:
         if not RuleBasedExtractor._patterns:
             all_rules = (
-                _CAUSAL_PATTERNS + _CONTRADICTION_PATTERNS
-                + _SUPPORT_PATTERNS + _SUGGEST_PATTERNS + _OBSERVE_PATTERNS
+                _CAUSAL_PATTERNS
+                + _CONTRADICTION_PATTERNS
+                + _SUPPORT_PATTERNS
+                + _SUGGEST_PATTERNS
+                + _OBSERVE_PATTERNS
             )
             RuleBasedExtractor._patterns = [
-                (re.compile(pattern), rel_type)
-                for pattern, rel_type in all_rules
+                (re.compile(pattern), rel_type) for pattern, rel_type in all_rules
             ]
 
     def extract(self, text: str, candidates: list[str]) -> list[ExtractedRelation]:
@@ -210,7 +212,7 @@ def _tokenize(text: str) -> list[str]:
                 tokens.append("".join(current))
                 current = []
             continue
-        if 0x4e00 <= ord(ch) <= 0x9fff:
+        if 0x4E00 <= ord(ch) <= 0x9FFF:
             if current:
                 tokens.append("".join(current))
                 current = []
@@ -221,4 +223,4 @@ def _tokenize(text: str) -> list[str]:
     if current:
         tokens.append("".join(current))
 
-    return [t for t in tokens if len(t) >= 2 or (len(t) == 1 and 0x4e00 <= ord(t) <= 0x9fff)]
+    return [t for t in tokens if len(t) >= 2 or (len(t) == 1 and 0x4E00 <= ord(t) <= 0x9FFF)]

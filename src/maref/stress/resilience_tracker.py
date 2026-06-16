@@ -19,7 +19,9 @@ class ResilienceTracker:
         self._records: list[ResilienceRecord] = []
         self._max_history = max_history
 
-    def record_round(self, round_id: str, score: float, data: dict[str, Any] | None = None) -> ResilienceRecord:
+    def record_round(
+        self, round_id: str, score: float, data: dict[str, Any] | None = None
+    ) -> ResilienceRecord:
         record = ResilienceRecord(
             round_id=round_id,
             timestamp=time.time(),
@@ -28,7 +30,7 @@ class ResilienceTracker:
         )
         self._records.append(record)
         if len(self._records) > self._max_history:
-            self._records = self._records[-self._max_history:]
+            self._records = self._records[-self._max_history :]
         return record
 
     def trend(self, window: int = 5) -> dict[str, float]:

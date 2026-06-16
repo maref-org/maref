@@ -116,6 +116,7 @@ class LlmClient:
 
     def _resolve_provider(self) -> dict[str, Any] | None:
         import httpx
+
         for p in _PROVIDERS:
             key_fn = p["api_key"]
             key = key_fn()

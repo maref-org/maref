@@ -6,9 +6,9 @@ from __future__ import annotations
 from maref.identity.did_registry import AgentDID
 from maref.orchestration.decomposer import SubTask
 from maref.orchestration.dispatcher import AgentDispatcher
-from maref.recursive.trust_engine_v2 import TrustEngineV2
 from maref.recursive.agent_health import AgentHealthMonitor
 from maref.recursive.reliability_matrix import ReliabilityMatrix
+from maref.recursive.trust_engine_v2 import TrustEngineV2
 
 
 def test_dispatcher_with_live_trust():

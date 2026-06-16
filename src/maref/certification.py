@@ -21,6 +21,7 @@ from typing import Any
 @dataclass
 class ControlEvidence:
     """控制证据"""
+
     control_id: str
     control_name: str
     evidence_type: str  # "policy", "procedure", "log", "screenshot", "config"
@@ -40,6 +41,7 @@ class ControlEvidence:
 @dataclass
 class AuditFinding:
     """审计发现"""
+
     finding_id: str
     control_id: str
     severity: str  # critical, high, medium, low, informational
@@ -79,7 +81,7 @@ class ISO27001Preparation:
                 "A.5.4 Management responsibilities",
                 "A.5.5 Contact with special interest groups",
                 "A.5.6 Information security in project management",
-            ]
+            ],
         },
         "A.6": {
             "name": "People Controls",
@@ -90,7 +92,7 @@ class ISO27001Preparation:
                 "A.6.4 Disciplinary process",
                 "A.6.5 Responsibilities after termination or change of employment",
                 "A.6.6 Confidentiality or non-disclosure agreements",
-            ]
+            ],
         },
         "A.7": {
             "name": "Physical Controls",
@@ -102,7 +104,7 @@ class ISO27001Preparation:
                 "A.7.5 Protecting against physical and environmental threats",
                 "A.7.6 Working in secure areas",
                 "A.7.7 Clear desk and clear screen",
-            ]
+            ],
         },
         "A.8": {
             "name": "Technological Controls",
@@ -140,7 +142,7 @@ class ISO27001Preparation:
                 "A.8.31 Separation of development, test and production",
                 "A.8.32 Change management",
                 "A.8.33 Test information",
-            ]
+            ],
         },
     }
 
@@ -342,14 +344,20 @@ class SOC2Preparation:
         matrix = []
 
         for control_id, info in self.TRUST_SERVICES_CRITERIA.items():
-            matrix.append({
-                "control_id": control_id,
-                "category": info["category"],
-                "description": info["description"],
-                "type": info["type"],
-                "implementation_status": "implemented" if control_id.startswith(("CC6", "CC7")) else "partial",
-                "test_frequency": "continuous" if info["category"] == "Security" else "quarterly",
-            })
+            matrix.append(
+                {
+                    "control_id": control_id,
+                    "category": info["category"],
+                    "description": info["description"],
+                    "type": info["type"],
+                    "implementation_status": "implemented"
+                    if control_id.startswith(("CC6", "CC7"))
+                    else "partial",
+                    "test_frequency": "continuous"
+                    if info["category"] == "Security"
+                    else "quarterly",
+                }
+            )
 
         return {
             "generated_at": datetime.now().isoformat(),
@@ -362,7 +370,9 @@ class SOC2Preparation:
         """生成审计范围"""
         return {
             "audit_type": "SOC 2 Type II",
-            "observation_period_start": (datetime.now() - timedelta(days=self._observation_period_days)).isoformat(),
+            "observation_period_start": (
+                datetime.now() - timedelta(days=self._observation_period_days)
+            ).isoformat(),
             "observation_period_end": datetime.now().isoformat(),
             "in_scope_systems": [
                 "MAREF Trust Engine",
@@ -391,7 +401,7 @@ class SelfBootstrapVerifier:
         self,
         module_name: str,
         module_source: str,
-        security_checks: list[Callable[[str], dict[str, Any]]]
+        security_checks: list[Callable[[str], dict[str, Any]]],
     ) -> dict[str, Any]:
         """
         验证自身模块
@@ -540,8 +550,12 @@ class SelfBootstrapVerifier:
                 for v in self._verification_history
             ],
             "implications": [
-                "System can validate its own security modules" if self._trust_closure_achieved else "Additional verification needed",
-                "Trust is bootstrapped from verified components" if self._trust_closure_achieved else "Trust chain incomplete",
+                "System can validate its own security modules"
+                if self._trust_closure_achieved
+                else "Additional verification needed",
+                "Trust is bootstrapped from verified components"
+                if self._trust_closure_achieved
+                else "Trust chain incomplete",
             ],
         }
 
@@ -558,7 +572,9 @@ class SelfBootstrapVerifier:
                 "Continue verifying all new modules before deployment",
                 "Integrate self-verification into CI/CD pipeline",
                 "Regularly re-verify existing modules after updates",
-            ] if closure["closure_achieved"] else [
+            ]
+            if closure["closure_achieved"]
+            else [
                 "Complete verification of all security modules",
                 "Fix failed security checks",
                 "Re-run self-verification after fixes",

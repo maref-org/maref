@@ -5,15 +5,37 @@ from abc import ABC, abstractmethod
 from email.mime.text import MIMEText
 
 import httpx
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class NotificationChannel(ABC):
     @abstractmethod
-    def send(self, title: str, message: str, level: str = "info") -> bool:
-        ...
+    def send(self, title: str, message: str, level: str = "info") -> bool: ...
 
 
 class EmailChannel(NotificationChannel):
+    """Email notification channel.
+
+    Usage (Resend SMTP — recommended for agents):
+        EmailChannel(
+            smtp_host="smtp.resend.com", smtp_port=465,
+            username="resend",
+            password="re_...",
+            from_addr="admin@maref.cc",
+            to_addrs=[...],
+        )
+
+    Usage (local relay — for Outlook Mac):
+        EmailChannel(
+            smtp_host="127.0.0.1", smtp_port=1025,
+            username="", password="",
+            from_addr="admin@maref.cc",
+            to_addrs=[...], use_tls=False,
+        )
+    """
+
     def __init__(
         self,
         smtp_host: str,
@@ -23,6 +45,7 @@ class EmailChannel(NotificationChannel):
         from_addr: str,
         to_addrs: list[str],
         use_tls: bool = True,
+        sender_alias: str | None = None,
     ) -> None:
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
@@ -31,11 +54,26 @@ class EmailChannel(NotificationChannel):
         self.from_addr = from_addr
         self.to_addrs = to_addrs
         self.use_tls = use_tls
+        self.sender_alias = sender_alias
+
+    @classmethod
+    def via_resend(cls, api_key: str, to_addrs: list[str]) -> EmailChannel:
+        """Create an EmailChannel configured for Resend SMTP with admin@maref.cc sender."""
+        return cls(
+            smtp_host="smtp.resend.com",
+            smtp_port=465,
+            username="resend",
+            password=api_key,
+            from_addr="admin@maref.cc",
+            to_addrs=to_addrs,
+            use_tls=True,
+        )
 
     def send(self, title: str, message: str, level: str = "info") -> bool:
         msg = MIMEText(message, _charset="utf-8")
         msg["Subject"] = title
-        msg["From"] = self.from_addr
+        visible_from = self.sender_alias or self.from_addr
+        msg["From"] = visible_from
         msg["To"] = ", ".join(self.to_addrs)
 
         try:
@@ -93,9 +131,8 @@ class CLINotificationChannel(NotificationChannel):
             except ImportError:
                 self.use_rich = False
 
-        level_tag = level.upper()
-        print(f"[{level_tag}] {title}")
-        print(message)
+        logger.warning("Notification fallback (Rich unavailable): [%s] %s", level.upper(), title)
+        logger.info("Notification message: %s", message)
         return True
 
 

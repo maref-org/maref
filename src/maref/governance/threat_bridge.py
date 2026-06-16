@@ -106,9 +106,7 @@ class ThreatGovernanceBridge:
 
         return result
 
-    def register_handler(
-        self, handler: Callable[[ThreatAlert, str], None]
-    ) -> None:
+    def register_handler(self, handler: Callable[[ThreatAlert, str], None]) -> None:
         """注册威胁处理回调。"""
         self._handlers.append(handler)
 

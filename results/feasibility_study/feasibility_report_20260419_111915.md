@@ -50,4 +50,3 @@ Documents Analyzed: 59
         - Current plan: 599 CNY/month for 90,000 requests
         - Estimated cost per feasibility study: ~0.0067 CNY
         - Cost optimization: 41.7% compared to DeepSeek API
-        

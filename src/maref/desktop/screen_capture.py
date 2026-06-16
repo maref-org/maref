@@ -105,7 +105,9 @@ class RedactionEngine:
     def clear_zones(self) -> None:
         self._manual_zones.clear()
 
-    def redact(self, image: Image.Image, parsed_elements: list[dict[str, Any]] | None = None) -> Image.Image:
+    def redact(
+        self, image: Image.Image, parsed_elements: list[dict[str, Any]] | None = None
+    ) -> Image.Image:
         result = image.copy()
         zones = list(self._manual_zones)
         if self.auto_detect and parsed_elements:
@@ -177,6 +179,7 @@ class ScreenCapture:
 
         try:
             import pyautogui
+
             pyautogui.screenshot()
             return "pyautogui"
         except (ImportError, Exception):
@@ -185,6 +188,7 @@ class ScreenCapture:
         system = platform.system()
         if system == "Darwin":
             import shutil
+
             if shutil.which("screencapture"):
                 return "screencapture_cli"
 
@@ -193,6 +197,7 @@ class ScreenCapture:
     @staticmethod
     def benchmark_capture(num_runs: int = 5) -> dict[str, Any]:
         import time as _time
+
         capture = ScreenCapture()
         latencies: list[float] = []
         for _ in range(num_runs):
@@ -217,11 +222,19 @@ class ScreenCapture:
         return self._capture(CaptureMode.FULL_SCREEN, output_path, format)
 
     def capture_region(
-        self, x: int, y: int, width: int, height: int, output_path: str | None = None, format: str = "PNG"
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        output_path: str | None = None,
+        format: str = "PNG",
     ) -> ScreenshotResult:
         return self._capture(CaptureMode.REGION, output_path, format, region=(x, y, width, height))
 
-    def capture_active_window(self, output_path: str | None = None, format: str = "PNG") -> ScreenshotResult:
+    def capture_active_window(
+        self, output_path: str | None = None, format: str = "PNG"
+    ) -> ScreenshotResult:
         return self._capture(CaptureMode.ACTIVE_WINDOW, output_path, format)
 
     def _capture(
@@ -302,7 +315,8 @@ class ScreenCapture:
                     x, y, w, h = region
                     subprocess.run(
                         ["screencapture", "-R", f"{x},{y},{w},{h}", path],
-                        check=True, capture_output=True,
+                        check=True,
+                        capture_output=True,
                     )
                 else:
                     subprocess.run(["screencapture", "-x", path], check=True, capture_output=True)

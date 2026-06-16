@@ -82,6 +82,7 @@ class CostMonitor:
             if self._governance_manager:
                 try:
                     from maref.governance.types import GovernanceState
+
                     self._governance_manager.transition(
                         GovernanceState.HALT,
                         reason=f"cost_budget_exceeded:{spent:.0f}",
@@ -102,7 +103,9 @@ class CostMonitor:
             result["actions_taken"].append("budget_warning")
             logger.warning(
                 "LLM budget warning: %.0f%% used (¥%.0f / ¥%.0f)",
-                pct_used, spent, budget,
+                pct_used,
+                spent,
+                budget,
             )
 
         self._last_check_result = result

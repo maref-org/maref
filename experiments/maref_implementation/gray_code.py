@@ -7,7 +7,6 @@
 import logging
 import threading
 from functools import lru_cache
-from typing import List, Tuple
 
 from .hexagram import Hexagram, binary_gray_code_transform
 
@@ -24,11 +23,11 @@ class GrayCodeTransformer:
         self._halted = False
 
     @lru_cache(maxsize=128)
-    def _cached_transform(self, from_bits: str, to_bits: str) -> Tuple[str, ...]:
+    def _cached_transform(self, from_bits: str, to_bits: str) -> tuple[str, ...]:
         """带缓存的格雷编码转换（返回二进制串元组）"""
         return tuple(binary_gray_code_transform(from_bits, to_bits))
 
-    def transform(self, from_state: Hexagram, to_state: Hexagram) -> List[Hexagram]:
+    def transform(self, from_state: Hexagram, to_state: Hexagram) -> list[Hexagram]:
         """计算格雷编码转换路径，确保汉明距离=1（线程安全，带缓存）"""
         with self._lock:
             if self._halted:
@@ -82,7 +81,7 @@ class GrayCodeTransformer:
 
             return path_hexagrams
 
-    def _validate_path_continuity(self, path: List[Hexagram]) -> bool:
+    def _validate_path_continuity(self, path: list[Hexagram]) -> bool:
         """验证路径中每个相邻状态的汉明距离=1"""
         violations = []
 
@@ -110,7 +109,7 @@ class GrayCodeTransformer:
 
     def is_valid_conversion(
         self, from_state: Hexagram, to_state: Hexagram, max_hamming_distance: int = 3
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """验证转换是否有效（检查汉明距离是否过大）"""
         hamming_dist = from_state.hamming_distance(to_state)
 
@@ -131,8 +130,8 @@ class GrayCodeTransformer:
         return False, error_msg
 
     def calculate_optimal_path(
-        self, from_state: Hexagram, to_state: Hexagram, constraints: List[str] = None
-    ) -> List[Hexagram]:
+        self, from_state: Hexagram, to_state: Hexagram, constraints: list[str] = None
+    ) -> list[Hexagram]:
         """
         计算最优转换路径，考虑约束条件
         约束可以是：避免特定状态、优先特定路径等
@@ -167,7 +166,7 @@ class GrayCodeTransformer:
             logging.warning("约束路径连续性验证失败，返回基础路径")
             return base_path
 
-    def _satisfies_constraints(self, hexagram: Hexagram, constraints: List[str]) -> bool:
+    def _satisfies_constraints(self, hexagram: Hexagram, constraints: list[str]) -> bool:
         """检查卦状态是否满足约束条件"""
         if not constraints:
             return True
@@ -186,7 +185,7 @@ class GrayCodeTransformer:
         return True
 
     def _find_alternative_state(
-        self, hexagram: Hexagram, constraints: List[str], base_path: List[Hexagram]
+        self, hexagram: Hexagram, constraints: list[str], base_path: list[Hexagram]
     ) -> Optional[Hexagram]:
         """为违反约束的状态寻找替代状态"""
         # 尝试翻转一位比特

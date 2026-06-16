@@ -16,8 +16,17 @@ class ProposalType(Enum):
 
 
 REPAIR_PATTERNS = [
-    "fix", "repair", "bug", "error", "crash", "broken",
-    "patch", "revert", "rollback", "hotfix", "workaround",
+    "fix",
+    "repair",
+    "bug",
+    "error",
+    "crash",
+    "broken",
+    "patch",
+    "revert",
+    "rollback",
+    "hotfix",
+    "workaround",
 ]
 
 
@@ -81,8 +90,9 @@ class CombinatorialEngine:
     def load_experiences(self, fragments: list[dict[str, Any]]) -> None:
         self._experience_fragments.extend(fragments)
 
-    def combine(self, concepts: list[dict[str, Any]],
-                experiences: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def combine(
+        self, concepts: list[dict[str, Any]], experiences: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         for c in concepts:
             for e in experiences:
@@ -98,8 +108,10 @@ class CombinatorialEngine:
     def generate_candidates(self, count: int = 10) -> list[dict[str, Any]]:
         if not self._concept_pool or not self._experience_fragments:
             return []
-        return self.combine(self._concept_pool[:min(5, len(self._concept_pool))],
-                           self._experience_fragments[:min(5, len(self._experience_fragments))])
+        return self.combine(
+            self._concept_pool[: min(5, len(self._concept_pool))],
+            self._experience_fragments[: min(5, len(self._experience_fragments))],
+        )
 
 
 class CreativeSafetyGate:
@@ -155,8 +167,9 @@ class CreativeGenerator:
     def safety_gate(self) -> CreativeSafetyGate:
         return self._safety_gate
 
-    def load_knowledge(self, concepts: list[dict[str, Any]],
-                       experiences: list[dict[str, Any]]) -> None:
+    def load_knowledge(
+        self, concepts: list[dict[str, Any]], experiences: list[dict[str, Any]]
+    ) -> None:
         self._engine.load_concepts(concepts)
         self._engine.load_experiences(experiences)
 
@@ -164,21 +177,31 @@ class CreativeGenerator:
         base_candidates = self._engine.generate_candidates(count * 2)
 
         templates = [
-            (ProposalType.NEW_CAPABILITY,
-             "Autonomous {concept} Adaptation via {experience}",
-             "Enables the agent to autonomously adapt {concept} strategies using {experience} patterns from past interactions."),
-            (ProposalType.ARCHITECTURE_INNOVATION,
-             "Composite {concept} Bridge with {experience} Feedback",
-             "Introduces a bridge pattern connecting {concept} domain with {experience} feedback loop for cross-domain synergy."),
-            (ProposalType.INTERACTION_PATTERN,
-             "{concept}-driven {experience} Negotiation Protocol",
-             "A new negotiation protocol driven by {concept} concepts that leverages {experience} patterns for trust building."),
-            (ProposalType.OPTIMIZATION_STRATEGY,
-             "Predictive {concept} Caching via {experience} Signals",
-             "Optimizes by predictively caching {concept} resources using signals learned from {experience} patterns."),
-            (ProposalType.GOVERNANCE_EXTENSION,
-             "{concept} Oracles with {experience} Validation",
-             "Extends governance by adding {concept} oracle nodes validated through {experience} consensus mechanisms."),
+            (
+                ProposalType.NEW_CAPABILITY,
+                "Autonomous {concept} Adaptation via {experience}",
+                "Enables the agent to autonomously adapt {concept} strategies using {experience} patterns from past interactions.",
+            ),
+            (
+                ProposalType.ARCHITECTURE_INNOVATION,
+                "Composite {concept} Bridge with {experience} Feedback",
+                "Introduces a bridge pattern connecting {concept} domain with {experience} feedback loop for cross-domain synergy.",
+            ),
+            (
+                ProposalType.INTERACTION_PATTERN,
+                "{concept}-driven {experience} Negotiation Protocol",
+                "A new negotiation protocol driven by {concept} concepts that leverages {experience} patterns for trust building.",
+            ),
+            (
+                ProposalType.OPTIMIZATION_STRATEGY,
+                "Predictive {concept} Caching via {experience} Signals",
+                "Optimizes by predictively caching {concept} resources using signals learned from {experience} patterns.",
+            ),
+            (
+                ProposalType.GOVERNANCE_EXTENSION,
+                "{concept} Oracles with {experience} Validation",
+                "Extends governance by adding {concept} oracle nodes validated through {experience} consensus mechanisms.",
+            ),
         ]
 
         proposals: list[InnovationProposal] = []
@@ -200,7 +223,18 @@ class CreativeGenerator:
                 confidence=min(0.95, candidate["confidence"]),
                 combined_from=[candidate["concept"], candidate["experience"]],
                 estimated_impact=0.5 + i * 0.1,
-                risk_level=["low", "low", "medium", "low", "medium", "low", "medium", "low", "low", "low"][i % 10],
+                risk_level=[
+                    "low",
+                    "low",
+                    "medium",
+                    "low",
+                    "medium",
+                    "low",
+                    "medium",
+                    "low",
+                    "low",
+                    "low",
+                ][i % 10],
                 novelty_score=0.6 + i * 0.05,
             )
             proposals.append(proposal)
@@ -209,12 +243,15 @@ class CreativeGenerator:
             self._proposals.append(p)
         return proposals
 
-    def filter_non_repair(self, proposals: list[InnovationProposal] | None = None) -> list[InnovationProposal]:
+    def filter_non_repair(
+        self, proposals: list[InnovationProposal] | None = None
+    ) -> list[InnovationProposal]:
         source = proposals or self._proposals
         return [p for p in source if not p.is_repair_type()]
 
-    def evaluate_and_filter(self, proposals: list[InnovationProposal] | None = None
-                            ) -> tuple[list[InnovationProposal], list[InnovationProposal]]:
+    def evaluate_and_filter(
+        self, proposals: list[InnovationProposal] | None = None
+    ) -> tuple[list[InnovationProposal], list[InnovationProposal]]:
         source = proposals or self._proposals
         passed: list[InnovationProposal] = []
         blocked: list[InnovationProposal] = []

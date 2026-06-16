@@ -24,7 +24,9 @@ class OptimizationCycle:
     saturated: bool = False
     timestamp: float = field(default_factory=time.time)
 
-    def detect_saturation(self, gain_history: list[float], threshold: float = 0.005, window: int = 3) -> bool:
+    def detect_saturation(
+        self, gain_history: list[float], threshold: float = 0.005, window: int = 3
+    ) -> bool:
         if len(gain_history) < window:
             return False
         recent = gain_history[-window:]
@@ -89,29 +91,33 @@ class ContinuousOptimizer:
         proposals: list[OptimizationCycle] = []
         metrics = observations.get("metrics", {})
 
-        proposals.append(OptimizationCycle(
-            cycle_id=f"opt_cycle_{int(time.time())}_{len(self._cycles)}",
-            proposal_id=f"proposal_coverage_{len(self._cycles)}",
-            stage="proposed",
-            baseline_metrics=dict(metrics),
-            proposed_changes={
-                "type": "code_quality",
-                "targets": self._identify_low_coverage_modules(metrics),
-                "strategy": "generate_targeted_tests",
-            },
-        ))
+        proposals.append(
+            OptimizationCycle(
+                cycle_id=f"opt_cycle_{int(time.time())}_{len(self._cycles)}",
+                proposal_id=f"proposal_coverage_{len(self._cycles)}",
+                stage="proposed",
+                baseline_metrics=dict(metrics),
+                proposed_changes={
+                    "type": "code_quality",
+                    "targets": self._identify_low_coverage_modules(metrics),
+                    "strategy": "generate_targeted_tests",
+                },
+            )
+        )
 
-        proposals.append(OptimizationCycle(
-            cycle_id=f"opt_cycle_{int(time.time())}_{len(self._cycles) + 100}",
-            proposal_id=f"proposal_imports_{len(self._cycles)}",
-            stage="proposed",
-            baseline_metrics=dict(metrics),
-            proposed_changes={
-                "type": "import_optimization",
-                "targets": self._identify_unused_imports(metrics),
-                "strategy": "remove_unused_imports",
-            },
-        ))
+        proposals.append(
+            OptimizationCycle(
+                cycle_id=f"opt_cycle_{int(time.time())}_{len(self._cycles) + 100}",
+                proposal_id=f"proposal_imports_{len(self._cycles)}",
+                stage="proposed",
+                baseline_metrics=dict(metrics),
+                proposed_changes={
+                    "type": "import_optimization",
+                    "targets": self._identify_unused_imports(metrics),
+                    "strategy": "remove_unused_imports",
+                },
+            )
+        )
 
         return proposals
 
@@ -119,7 +125,9 @@ class ContinuousOptimizer:
         if self._benchmark_fn is not None:
             try:
                 bench = self._benchmark_fn()
-                before_pct = cycle.baseline_metrics.get("coverage_pct", bench.get("coverage_pct", 0))
+                before_pct = cycle.baseline_metrics.get(
+                    "coverage_pct", bench.get("coverage_pct", 0)
+                )
                 after_pct = bench.get("coverage_pct", 0)
                 gain = (after_pct - before_pct) / max(before_pct, 1)
                 return {
@@ -229,7 +237,7 @@ class ContinuousOptimizer:
         self._gain_history.append(gain)
         if len(self._gain_history) < self.SATURATION_WINDOW:
             return False
-        recent = self._gain_history[-self.SATURATION_WINDOW:]
+        recent = self._gain_history[-self.SATURATION_WINDOW :]
         return all(abs(g) < self.SATURATION_THRESHOLD for g in recent)
 
     def _identify_low_coverage_modules(self, metrics: dict[str, float]) -> list[str]:
@@ -258,17 +266,27 @@ class ContinuousOptimizer:
                         for node in ast.walk(tree):
                             if isinstance(node, ast.Import):
                                 for alias in node.names:
-                                    imported_names.add(alias.name.split(".")[-1] if alias.asname is None else alias.asname)
+                                    imported_names.add(
+                                        alias.name.split(".")[-1]
+                                        if alias.asname is None
+                                        else alias.asname
+                                    )
                             elif isinstance(node, ast.ImportFrom):
                                 for alias in node.names:
-                                    imported_names.add(alias.name if alias.asname is None else alias.asname)
+                                    imported_names.add(
+                                        alias.name if alias.asname is None else alias.asname
+                                    )
                         used_names: set[str] = set()
                         for node in ast.walk(tree):
                             if isinstance(node, ast.Name):
                                 used_names.add(node.id)
                         file_unused = imported_names - used_names
                         if file_unused:
-                            rel = py_file.relative_to(src_path.parent) if src_path != Path("src") else py_file
+                            rel = (
+                                py_file.relative_to(src_path.parent)
+                                if src_path != Path("src")
+                                else py_file
+                            )
                             unused.append(f"{rel}:{','.join(sorted(file_unused))}")
                     except (SyntaxError, UnicodeDecodeError, OSError):
                         continue
@@ -279,18 +297,20 @@ class ContinuousOptimizer:
     def resume(self) -> None:
         self._paused = False
         self._saturated_rounds = 0
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("resume", int(time.time())),
-            timestamp=time.time(),
-            layer="evolution",
-            round=34,
-            event_type="optimizer_resumed",
-            source_module="ContinuousOptimizer",
-            target_module="self",
-            decision="resume",
-            justification="Manual resume after saturation pause",
-            outcome="success",
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("resume", int(time.time())),
+                timestamp=time.time(),
+                layer="evolution",
+                round=34,
+                event_type="optimizer_resumed",
+                source_module="ContinuousOptimizer",
+                target_module="self",
+                decision="resume",
+                justification="Manual resume after saturation pause",
+                outcome="success",
+            )
+        )
 
     @property
     def is_paused(self) -> bool:
@@ -317,7 +337,8 @@ class ContinuousOptimizer:
             "saturated_rounds": self._saturated_rounds,
             "last_gain": self._gain_history[-1] if self._gain_history else 0.0,
             "avg_gain": sum(self._gain_history) / len(self._gain_history)
-                         if self._gain_history else 0.0,
+            if self._gain_history
+            else 0.0,
         }
 
     def clear(self) -> None:

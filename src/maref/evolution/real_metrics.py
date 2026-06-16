@@ -1,4 +1,5 @@
 """Real metrics collection for recursive evolution — replaces simulated FNR/FPR."""
+
 from __future__ import annotations
 
 import subprocess
@@ -22,9 +23,12 @@ class RealMetrics:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "fnr": self.fnr, "fpr": self.fpr,
-            "test_pass_rate": self.test_pass_rate, "coverage_pct": self.coverage_pct,
-            "total_tests": self.total_tests, "import_time_ms": self.import_time_ms,
+            "fnr": self.fnr,
+            "fpr": self.fpr,
+            "test_pass_rate": self.test_pass_rate,
+            "coverage_pct": self.coverage_pct,
+            "total_tests": self.total_tests,
+            "import_time_ms": self.import_time_ms,
             "cb_state": self.cb_state,
         }
 
@@ -40,7 +44,10 @@ class RealMetricsCollector:
 
     def collect_baseline(self) -> RealMetrics:
         now = time.time()
-        if self._baseline is not None and (now - self._last_baseline_time) < self._baseline_cache_seconds:
+        if (
+            self._baseline is not None
+            and (now - self._last_baseline_time) < self._baseline_cache_seconds
+        ):
             return self._baseline
 
         self._baseline = self._run_all_checks()
@@ -63,6 +70,7 @@ class RealMetricsCollector:
 
         try:
             from maref.observation.probes import EntropyProbe
+
             probe = EntropyProbe(primary_threshold=3.0, shadow_threshold=1.5)
             readings = probe.read()
             if readings:
@@ -71,7 +79,8 @@ class RealMetricsCollector:
             pass
 
         return RealMetrics(
-            fnr=round(fnr, 4), fpr=round(fpr, 4),
+            fnr=round(fnr, 4),
+            fpr=round(fpr, 4),
             test_pass_rate=round(test_pass, 4),
             coverage_pct=round(cov_pct, 1),
             total_tests=total,
@@ -85,9 +94,11 @@ class RealMetricsCollector:
         import_ms = self._measure_import_time()
 
         return RealMetrics(
-            fnr=round(failed / max(total, 1), 4), fpr=0.0,
+            fnr=round(failed / max(total, 1), 4),
+            fpr=0.0,
             test_pass_rate=round(test_pass, 4),
-            coverage_pct=0.0, total_tests=total,
+            coverage_pct=0.0,
+            total_tests=total,
             import_time_ms=round(import_ms, 1),
             cb_state="CLOSED",
         )
@@ -102,6 +113,7 @@ class RealMetricsCollector:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             output = result.stdout + result.stderr
             import re
+
             match = re.search(r"(\d+)\s+passed", output)
             total_passed = int(match.group(1)) if match else 0
             match_fail = re.search(r"(\d+)\s+failed", output)
@@ -117,10 +129,13 @@ class RealMetricsCollector:
         try:
             result = subprocess.run(
                 ["coverage", "report", "-m"],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             output = result.stdout
             import re
+
             match = re.search(r"TOTAL.*?(\d+)%", output)
             if match:
                 return float(match.group(1))
@@ -134,7 +149,9 @@ class RealMetricsCollector:
             t0 = time.perf_counter()
             result = subprocess.run(
                 ["python3", "-c", "import maref; import maref_lite"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             elapsed = (time.perf_counter() - t0) * 1000
             return elapsed if result.returncode == 0 else -1.0
@@ -145,6 +162,7 @@ class RealMetricsCollector:
     def _check_cb_state() -> str:
         try:
             from maref.governance import CircuitBreaker
+
             cb = CircuitBreaker(max_depth=3, max_consecutive_failures=3, cooldown_seconds=30.0)
             return cb.get_stats().get("state", "CLOSED")
         except Exception:

@@ -50,9 +50,9 @@ class AdversarialAuditor:
             "trust_misrepresentation",
         ]
 
-    def schedule_unannounced_audit(self, target: str,
-                                    min_delay_s: float = 0,
-                                    max_delay_s: float = 3600) -> AuditWindow:
+    def schedule_unannounced_audit(
+        self, target: str, min_delay_s: float = 0, max_delay_s: float = 3600
+    ) -> AuditWindow:
         delay = random.uniform(min_delay_s, max_delay_s)
         scheduled = time.time() + delay
         window = AuditWindow(
@@ -63,8 +63,7 @@ class AdversarialAuditor:
         self._windows.append(window)
         return window
 
-    def execute_audit(self, target: str,
-                      scope: AuditScope | None = None) -> AuditReport:
+    def execute_audit(self, target: str, scope: AuditScope | None = None) -> AuditReport:
         scope = scope or AuditScope(target=target)
         window = AuditWindow(
             window_id=f"audit_exec_{int(time.time())}_{random.randint(1000, 9999)}",
@@ -122,8 +121,9 @@ class FrequencyMatcher:
         self._agent_risk: dict[str, float] = {}
         self._task_criticality: dict[str, float] = {}
 
-    def optimal_frequency(self, agent_risk: float, task_criticality: float,
-                          human_bandwidth: float = 1.0) -> float:
+    def optimal_frequency(
+        self, agent_risk: float, task_criticality: float, human_bandwidth: float = 1.0
+    ) -> float:
         risk_weight = max(0.2, agent_risk)
         criticality_weight = max(0.2, task_criticality)
         combined = risk_weight * criticality_weight
@@ -227,15 +227,13 @@ class ChainEvent:
 
 
 class ChainReactionBreaker:
-    def __init__(self, max_chain_length: int = 5,
-                 window_seconds: float = 60.0) -> None:
+    def __init__(self, max_chain_length: int = 5, window_seconds: float = 60.0) -> None:
         self._max_chain_length = max_chain_length
         self._window_seconds = window_seconds
         self._events: dict[str, list[ChainEvent]] = {}
         self._broken_chains: set[str] = set()
 
-    def record_event(self, chain_id: str, agent_id: str,
-                     event_type: str) -> None:
+    def record_event(self, chain_id: str, agent_id: str, event_type: str) -> None:
         event = ChainEvent(
             event_id=f"{chain_id}_{len(self._events.get(chain_id, []))}",
             chain_id=chain_id,
@@ -249,8 +247,7 @@ class ChainReactionBreaker:
     def detect_chain(self, chain_id: str) -> bool:
         events = self._events.get(chain_id, [])
         if len(events) >= self._max_chain_length:
-            recent = [e for e in events
-                      if time.time() - e.timestamp <= self._window_seconds]
+            recent = [e for e in events if time.time() - e.timestamp <= self._window_seconds]
             return len(recent) >= self._max_chain_length
         return False
 
@@ -271,5 +268,8 @@ class ChainReactionBreaker:
         return chain_id in self._broken_chains
 
     def active_chains(self) -> dict[str, int]:
-        return {cid: len(events) for cid, events in self._events.items()
-                if cid not in self._broken_chains}
+        return {
+            cid: len(events)
+            for cid, events in self._events.items()
+            if cid not in self._broken_chains
+        }

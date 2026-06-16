@@ -55,7 +55,10 @@ class FileWatcher:
     }
 
     BLOCKED_WATCH_DIRS = {
-        "/etc", "/System", "/Library", "/private/etc",
+        "/etc",
+        "/System",
+        "/Library",
+        "/private/etc",
         os.path.expanduser("~/.ssh"),
         os.path.expanduser("~/.gnupg"),
     }
@@ -75,12 +78,14 @@ class FileWatcher:
         self._events: list[FileEvent] = []
         self._file_states: dict[str, os.stat_result] = {}
 
-        for d in (watch_dirs or []):
+        for d in watch_dirs or []:
             self.add_watch_dir(d)
 
     def add_watch_dir(self, directory: str) -> bool:
         resolved = os.path.realpath(os.path.expanduser(directory))
-        if resolved in self.BLOCKED_WATCH_DIRS or any(resolved.startswith(b + "/") for b in self.BLOCKED_WATCH_DIRS):
+        if resolved in self.BLOCKED_WATCH_DIRS or any(
+            resolved.startswith(b + "/") for b in self.BLOCKED_WATCH_DIRS
+        ):
             return False
         if resolved not in self._watch_dirs:
             self._watch_dirs.append(resolved)
@@ -147,10 +152,10 @@ class FileWatcher:
         self._events.extend(new_events)
 
         if self._event_callback:
-            for event in new_events[:self._max_events_per_poll]:
+            for event in new_events[: self._max_events_per_poll]:
                 self._event_callback(event)
 
-        return new_events[:self._max_events_per_poll]
+        return new_events[: self._max_events_per_poll]
 
     def get_events(self, clear: bool = True) -> list[FileEvent]:
         events = list(self._events)

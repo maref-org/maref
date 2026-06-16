@@ -137,9 +137,7 @@ class AgentCardConfig:
     tool_registry_meta: dict[str, dict[str, Any]] = field(
         default_factory=lambda: dict(TOOL_REGISTRY_META)
     )
-    mas_capabilities: list[dict[str, Any]] = field(
-        default_factory=lambda: list(MAS_CAPABILITIES)
-    )
+    mas_capabilities: list[dict[str, Any]] = field(default_factory=lambda: list(MAS_CAPABILITIES))
     trust_score: float = 0.85
 
     def to_dict(self) -> dict[str, Any]:

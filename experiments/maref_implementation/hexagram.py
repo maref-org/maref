@@ -4,9 +4,7 @@
 设计原则：格雷编码拓扑、斯佩纳完备性、控制论观察
 """
 
-import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -60,7 +58,7 @@ class Hexagram:
 
     def hamming_distance(self, other: "Hexagram") -> int:
         """计算与另一个卦的汉明距离"""
-        return sum(c1 != c2 for c1, c2 in zip(self.binary, other.binary))
+        return sum(c1 != c2 for c1, c2 in zip(self.binary, other.binary, strict=False))
 
     def is_valid_transition(self, to_state: "Hexagram") -> bool:
         """验证是否为合法的格雷编码转换（汉明距离=1）"""
@@ -227,10 +225,10 @@ HEXAGRAM_DATA = {
 }
 
 # 创建64卦集合
-HEXAGRAMS_64 = {Hexagram.from_binary(binary) for binary in HEXAGRAM_DATA.keys()}
+HEXAGRAMS_64 = {Hexagram.from_binary(binary) for binary in HEXAGRAM_DATA}
 
 
-def get_hexagram_by_name(name: str) -> Optional[Hexagram]:
+def get_hexagram_by_name(name: str) -> Hexagram | None:
     """根据卦名获取卦对象"""
     for binary, data in HEXAGRAM_DATA.items():
         if data["name"] == name:
@@ -238,7 +236,7 @@ def get_hexagram_by_name(name: str) -> Optional[Hexagram]:
     return None
 
 
-def get_hexagram_by_symbol(symbol: str) -> Optional[Hexagram]:
+def get_hexagram_by_symbol(symbol: str) -> Hexagram | None:
     """根据卦符号获取卦对象"""
     for binary, data in HEXAGRAM_DATA.items():
         if data["symbol"] == symbol:
@@ -246,7 +244,7 @@ def get_hexagram_by_symbol(symbol: str) -> Optional[Hexagram]:
     return None
 
 
-def generate_gray_code_sequence(start: int, end: int) -> List[int]:
+def generate_gray_code_sequence(start: int, end: int) -> list[int]:
     """
     生成格雷编码序列（start到end）
     格雷编码：相邻数字的二进制表示仅有一位不同
@@ -265,7 +263,7 @@ def generate_gray_code_sequence(start: int, end: int) -> List[int]:
     return sequence
 
 
-def binary_gray_code_transform(from_bits: str, to_bits: str) -> List[str]:
+def binary_gray_code_transform(from_bits: str, to_bits: str) -> list[str]:
     """
     计算从from_bits到to_bits的格雷编码转换路径
     确保每次只改变一位比特（汉明距离=1）

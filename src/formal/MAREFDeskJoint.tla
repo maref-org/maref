@@ -1,25 +1,25 @@
 -------------------------------- MODULE MAREFDeskJoint --------------------------------
 (*
   MAREF Desktop-Governance Joint State Machine — Formal Specification
-  
+
   This TLA+ specification models the joint behavior of MAREF's Desktop Agent
   (execution layer) and Governance Overlay (control plane). It formally proves:
-  
+
   Theorem 1 (LockedImpliesNoExecution):
-    When governance state = LOCKED, desktop must be IDLE or ERROR — 
+    When governance state = LOCKED, desktop must be IDLE or ERROR —
     the system cannot execute operations during a safety lock.
-  
+
   Theorem 2 (NoOscillatingLockStep):
     Governance mode cannot be LOCKED while desktop mode is EXECUTING.
     Equivalently: no safety-critical operation bypasses the CircuitBreaker.
-  
+
   Theorem 3 (GrayCodeContinuity):
     Desktop state transitions follow Gray code pattern (Hamming distance = 1),
     preventing catastrophic state jumps during recursive evolution.
-  
+
   Theorem 4 (AbsorbingHALT):
     Once governance enters HALT, the system remains in HALT (absorbing state).
-    
+
   Model checking target: < 10^6 distinct states for TLC verification.
 *)
 

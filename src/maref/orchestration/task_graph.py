@@ -17,9 +17,10 @@ class TaskStatus(Enum):
 
 class NodeType(Enum):
     """Execution primitive type for each node."""
-    SEQUENCE = "sequence"      # default: single task
-    FORK = "fork"              # splits into parallel branches
-    JOIN = "join"              # waits for all branches to complete
+
+    SEQUENCE = "sequence"  # default: single task
+    FORK = "fork"  # splits into parallel branches
+    JOIN = "join"  # waits for all branches to complete
     DYNAMIC_ROUTE = "dynamic_route"  # runtime conditional routing
 
 
@@ -214,6 +215,7 @@ class TaskGraph:
             if isinstance(obj, TaskNode):
                 return _convert(asdict(obj))
             return obj
+
         return {
             "nodes": [_convert(asdict(n)) for n in self._nodes.values()],
             "edges": _convert({k: list(v) for k, v in self._edges.items()}),
@@ -252,7 +254,8 @@ class TaskGraph:
     # ------------------------------------------------------------------ #
     def get_ready_nodes(self) -> list[str]:
         return [
-            nid for nid, node in self._nodes.items()
+            nid
+            for nid, node in self._nodes.items()
             if node.status == TaskStatus.PENDING
             and all(
                 self._nodes[dep].status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
@@ -264,7 +267,8 @@ class TaskGraph:
     def get_ready_forks(self) -> list[str]:
         """Return FORK nodes whose branches are all ready to run."""
         return [
-            nid for nid, node in self._nodes.items()
+            nid
+            for nid, node in self._nodes.items()
             if node.node_type == NodeType.FORK
             and node.status == TaskStatus.PENDING
             and all(
@@ -277,11 +281,13 @@ class TaskGraph:
     def get_ready_joins(self) -> list[str]:
         """Return JOIN nodes whose join_targets are all completed/failed/skipped."""
         return [
-            nid for nid, node in self._nodes.items()
+            nid
+            for nid, node in self._nodes.items()
             if node.node_type == NodeType.JOIN
             and node.status == TaskStatus.PENDING
             and all(
-                self._nodes[tid].status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.SKIPPED)
+                self._nodes[tid].status
+                in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.SKIPPED)
                 for tid in node.join_targets
                 if tid in self._nodes
             )

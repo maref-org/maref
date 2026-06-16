@@ -63,17 +63,23 @@ class SafetyGateV2:
                     reason=f"cannot remove core component: {target}",
                     blocked=True,
                 )
-        return ThreatAssessment(threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False)
+        return ThreatAssessment(
+            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False
+        )
 
     def detect_gradual_weakening(self, target: str, new_value: Any) -> ThreatAssessment:
         if target not in self._change_history:
             self._change_history[target] = []
-            return ThreatAssessment(threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False)
+            return ThreatAssessment(
+                threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False
+            )
 
         history = self._change_history[target]
         if len(history) < 2:
             self._record_change(target, new_value)
-            return ThreatAssessment(threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False)
+            return ThreatAssessment(
+                threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False
+            )
 
         recent = history[-2:]
         if all(r.direction == "decrease" for r in recent):
@@ -87,11 +93,15 @@ class SafetyGateV2:
             )
 
         self._record_change(target, new_value)
-        return ThreatAssessment(threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False)
+        return ThreatAssessment(
+            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False
+        )
 
     def detect_combinatorial_explosion(self, batch: list[dict[str, Any]]) -> ThreatAssessment:
         if len(batch) < 3:
-            return ThreatAssessment(threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False)
+            return ThreatAssessment(
+                threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False
+            )
 
         core_affected = set()
         for change in batch:
@@ -108,7 +118,9 @@ class SafetyGateV2:
                 reason=f"batch modifies {len(core_affected)} core components: {core_affected}",
                 blocked=True,
             )
-        return ThreatAssessment(threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False)
+        return ThreatAssessment(
+            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False
+        )
 
     def safety_self_audit(self) -> dict[str, Any]:
         core_listed = len(self._CORE_COMPONENTS)
@@ -156,18 +168,19 @@ class SafetyGateV2:
         if target not in self._change_history:
             self._change_history[target] = []
         self._change_history[target].append(record)
-        self._audit_trail.append({
-            "timestamp": record.timestamp,
-            "target": target,
-            "direction": record.direction,
-            "value": record.value,
-        })
-
-    def validate_decomposition(self, subtask_count: int,
-                                capabilities: list[str]) -> ThreatAssessment:
-        has_dangerous = any(
-            cap in self._DANGEROUS_CAPABILITIES for cap in capabilities
+        self._audit_trail.append(
+            {
+                "timestamp": record.timestamp,
+                "target": target,
+                "direction": record.direction,
+                "value": record.value,
+            }
         )
+
+    def validate_decomposition(
+        self, subtask_count: int, capabilities: list[str]
+    ) -> ThreatAssessment:
+        has_dangerous = any(cap in self._DANGEROUS_CAPABILITIES for cap in capabilities)
         if has_dangerous and subtask_count > self.DANGEROUS_MAX_SUBTASKS:
             return ThreatAssessment(
                 threat_detected=True,
@@ -185,18 +198,22 @@ class SafetyGateV2:
                 blocked=True,
             )
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )
 
-    def validate_handoff(self, from_agent: str, to_agent: str,
-                          from_capabilities: list[str],
-                          to_capabilities: list[str]) -> ThreatAssessment:
-        from_has_high = any(
-            cap in self._HIGH_PRIVILEGE_CAPABILITIES for cap in from_capabilities
-        )
-        to_has_high = any(
-            cap in self._HIGH_PRIVILEGE_CAPABILITIES for cap in to_capabilities
-        )
+    def validate_handoff(
+        self,
+        from_agent: str,
+        to_agent: str,
+        from_capabilities: list[str],
+        to_capabilities: list[str],
+    ) -> ThreatAssessment:
+        from_has_high = any(cap in self._HIGH_PRIVILEGE_CAPABILITIES for cap in from_capabilities)
+        to_has_high = any(cap in self._HIGH_PRIVILEGE_CAPABILITIES for cap in to_capabilities)
         if not from_has_high and to_has_high:
             return ThreatAssessment(
                 threat_detected=True,
@@ -206,12 +223,19 @@ class SafetyGateV2:
                 blocked=True,
             )
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )
 
-    def validate_capability_assignment(self, subtask_capabilities: list[str],
-                                        agent_capabilities: list[str],
-                                        contract_registry: Any = None) -> ThreatAssessment:
+    def validate_capability_assignment(
+        self,
+        subtask_capabilities: list[str],
+        agent_capabilities: list[str],
+        contract_registry: Any = None,
+    ) -> ThreatAssessment:
         for cap in subtask_capabilities:
             if cap in self._DANGEROUS_CAPABILITIES and cap not in agent_capabilities:
                 return ThreatAssessment(
@@ -228,6 +252,7 @@ class SafetyGateV2:
             analyzer = None
             try:
                 from maref.recursive.capability_contracts import CombinatorialRiskAnalyzer
+
                 analyzer = CombinatorialRiskAnalyzer(contract_registry)
                 report = analyzer.analyze(subtask_capabilities)
                 if report.total_risk_score >= 1.5:
@@ -250,15 +275,23 @@ class SafetyGateV2:
                 pass
 
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )
 
-    def validate_contract(self, capability_id: str,
-                          input_data: dict[str, Any],
-                          contract_registry: Any) -> ThreatAssessment:
+    def validate_contract(
+        self, capability_id: str, input_data: dict[str, Any], contract_registry: Any
+    ) -> ThreatAssessment:
         if contract_registry is None or not hasattr(contract_registry, "validate"):
             return ThreatAssessment(
-                threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+                threat_detected=False,
+                threat_type="",
+                severity="NONE",
+                reason="",
+                blocked=False,
             )
         result = contract_registry.validate(capability_id, input_data)
         if not result.valid:
@@ -270,17 +303,25 @@ class SafetyGateV2:
                 blocked=True,
             )
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )
 
-    def validate_contract_set(self, capability_ids: list[str],
-                              contract_registry: Any) -> ThreatAssessment:
+    def validate_contract_set(
+        self, capability_ids: list[str], contract_registry: Any
+    ) -> ThreatAssessment:
         if contract_registry is None:
             return ThreatAssessment(
-                threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+                threat_detected=False,
+                threat_type="",
+                severity="NONE",
+                reason="",
+                blocked=False,
             )
-        unknown = [cid for cid in capability_ids
-                   if contract_registry.get(cid) is None]
+        unknown = [cid for cid in capability_ids if contract_registry.get(cid) is None]
         if unknown:
             return ThreatAssessment(
                 threat_detected=True,
@@ -290,11 +331,16 @@ class SafetyGateV2:
                 blocked=True,
             )
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )
 
-    def validate_handoff_chain(self, chain: list[tuple[str, str]],
-                                agent_capabilities: dict[str, list[str]]) -> ThreatAssessment:
+    def validate_handoff_chain(
+        self, chain: list[tuple[str, str]], agent_capabilities: dict[str, list[str]]
+    ) -> ThreatAssessment:
         for from_agent, to_agent in chain:
             from_caps = agent_capabilities.get(from_agent, [])
             to_caps = agent_capabilities.get(to_agent, [])
@@ -302,7 +348,11 @@ class SafetyGateV2:
             if assessment.threat_detected:
                 return assessment
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )
 
     def attach_stench_detector(self, detector: AIStenchDetector) -> None:
@@ -311,7 +361,11 @@ class SafetyGateV2:
     def detect_ai_stench(self, code: str) -> ThreatAssessment:
         if self._stench_detector is None:
             return ThreatAssessment(
-                threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+                threat_detected=False,
+                threat_type="",
+                severity="NONE",
+                reason="",
+                blocked=False,
             )
         warnings = self._stench_detector.scan(code)
         hard_blocks = [w for w in warnings if w.severity == "HARD_BLOCK"]
@@ -333,5 +387,9 @@ class SafetyGateV2:
                 blocked=False,
             )
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )

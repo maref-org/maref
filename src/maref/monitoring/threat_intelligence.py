@@ -24,15 +24,17 @@ from typing import Any
 
 class ThreatSeverity(Enum):
     """威胁严重程度"""
-    CRITICAL = "critical"    # CVSS 9.0+
-    HIGH = "high"            # CVSS 7.0-8.9
-    MEDIUM = "medium"        # CVSS 4.0-6.9
-    LOW = "low"              # CVSS 0.1-3.9
-    NONE = "none"            # CVSS 0.0
+
+    CRITICAL = "critical"  # CVSS 9.0+
+    HIGH = "high"  # CVSS 7.0-8.9
+    MEDIUM = "medium"  # CVSS 4.0-6.9
+    LOW = "low"  # CVSS 0.1-3.9
+    NONE = "none"  # CVSS 0.0
 
 
 class IOCType(Enum):
     """IOC (Indicators of Compromise) 类型"""
+
     IP_ADDRESS = "ip"
     DOMAIN = "domain"
     URL = "url"
@@ -46,6 +48,7 @@ class IOCType(Enum):
 
 class ThreatSource(Enum):
     """威胁情报源"""
+
     CVE_NVD = "cve_nvd"
     OSV = "osv"
     GITHUB_SECURITY = "github_security"
@@ -173,7 +176,9 @@ class ThreatIntelligenceEngine:
         self._indicators: dict[str, ThreatIndicator] = {}
         self._vulnerabilities: dict[str, VulnerabilityReport] = {}
         self._alerts: list[ThreatAlert] = []
-        self._ioc_index: dict[IOCType, dict[str, str]] = defaultdict(dict)  # type -> value -> indicator_id
+        self._ioc_index: dict[IOCType, dict[str, str]] = defaultdict(
+            dict
+        )  # type -> value -> indicator_id
         self._alert_history: list[ThreatAlert] = []
         self._threat_cache: dict[str, Any] = {}
         self._last_update: dict[ThreatSource, datetime] = {}
@@ -308,11 +313,13 @@ class ThreatIntelligenceEngine:
             for vuln in self._vulnerabilities.values():
                 for affected in vuln.affected_components:
                     if name.lower() in affected.lower():
-                        vulnerabilities_found.append({
-                            "component": name,
-                            "version": version,
-                            "vulnerability": vuln.to_dict(),
-                        })
+                        vulnerabilities_found.append(
+                            {
+                                "component": name,
+                                "version": version,
+                                "vulnerability": vuln.to_dict(),
+                            }
+                        )
 
         risk_level = ThreatSeverity.NONE
         if vulnerabilities_found:
@@ -389,9 +396,7 @@ class ThreatIntelligenceEngine:
         """获取威胁态势摘要"""
         active_alerts = self.get_active_alerts()
 
-        severity_counts = {
-            "critical": 0, "high": 0, "medium": 0, "low": 0
-        }
+        severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
         for alert in active_alerts:
             severity_counts[alert.severity.value] += 1
 
@@ -401,12 +406,9 @@ class ThreatIntelligenceEngine:
             "total_vulnerabilities": len(self._vulnerabilities),
             "active_alerts": len(active_alerts),
             "severity_breakdown": severity_counts,
-            "threat_sources": {
-                source.value: True for source in self._last_update
-            },
+            "threat_sources": {source.value: True for source in self._last_update},
             "last_update": {
-                source.value: dt.isoformat()
-                for source, dt in self._last_update.items()
+                source.value: dt.isoformat() for source, dt in self._last_update.items()
             },
         }
 
@@ -436,10 +438,12 @@ class ThreatIntelligenceEngine:
             if isinstance(value, str):
                 matches = self.match_against_indicators(value)
                 for m in matches:
-                    matched_iocs.append({
-                        "matched_field": key,
-                        "indicator": m.to_dict(),
-                    })
+                    matched_iocs.append(
+                        {
+                            "matched_field": key,
+                            "indicator": m.to_dict(),
+                        }
+                    )
 
         # 计算风险评分
         risk_score = 0.0
@@ -469,7 +473,9 @@ class ThreatIntelligenceEngine:
             "risk_level": risk_level,
             "matched_iocs": len(matched_iocs),
             "ioc_details": matched_iocs,
-            "recommendation": "Review matched indicators and apply mitigations" if matched_iocs else "No threats detected",
+            "recommendation": "Review matched indicators and apply mitigations"
+            if matched_iocs
+            else "No threats detected",
         }
 
 

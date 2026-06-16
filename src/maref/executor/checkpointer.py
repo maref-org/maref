@@ -96,9 +96,7 @@ class Checkpointer:
         tasks_data = json.loads(snapshot.data)
         snapshot_tasks = [Task.from_dict(td) for td in tasks_data]
         current_tasks = self._queue.list_tasks()
-        running_ids = {
-            t.id for t in current_tasks if t.status == TaskStatus.RUNNING
-        }
+        running_ids = {t.id for t in current_tasks if t.status == TaskStatus.RUNNING}
         for t in current_tasks:
             if t.status != TaskStatus.RUNNING:
                 self._queue.delete(t.id)
@@ -135,9 +133,7 @@ class Checkpointer:
         conn = self._conn
         assert conn is not None
         with self._lock:
-            row = conn.execute(
-                "SELECT * FROM snapshots WHERE id = ?", (snapshot_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM snapshots WHERE id = ?", (snapshot_id,)).fetchone()
             if row is None:
                 return None
             return Snapshot(
@@ -154,9 +150,7 @@ class Checkpointer:
         conn = self._conn
         assert conn is not None
         with self._lock:
-            cur = conn.execute(
-                "DELETE FROM snapshots WHERE id = ?", (snapshot_id,)
-            )
+            cur = conn.execute("DELETE FROM snapshots WHERE id = ?", (snapshot_id,))
             conn.commit()
             return cur.rowcount > 0
 
@@ -171,14 +165,10 @@ class Checkpointer:
         conn = self._conn
         assert conn is not None
         with self._lock:
-            all_rows = conn.execute(
-                "SELECT id FROM snapshots ORDER BY created_at DESC"
-            ).fetchall()
+            all_rows = conn.execute("SELECT id FROM snapshots ORDER BY created_at DESC").fetchall()
             if len(all_rows) <= keep:
                 return 0
-            delete_ids = [
-                row["id"] for row in all_rows[keep:]
-            ]
+            delete_ids = [row["id"] for row in all_rows[keep:]]
             if not delete_ids:
                 return 0
             placeholders = ",".join("?" for _ in delete_ids)

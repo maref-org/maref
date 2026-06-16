@@ -22,59 +22,59 @@ Examples:
   %(prog)s --topic "Quantum computing" --budget 1000 --iterations 5
         """,
     )
-    
+
     parser.add_argument(
         "--topic",
         required=True,
         help="Research topic",
     )
-    
+
     parser.add_argument(
         "--goal",
         default="Explore and analyze the topic",
         help="Research goal",
     )
-    
+
     parser.add_argument(
         "--budget",
         type=int,
         default=5000,
         help="API budget in cents (default: 5000 = $50)",
     )
-    
+
     parser.add_argument(
         "--iterations",
         type=int,
         default=3,
         help="Maximum research iterations (default: 3)",
     )
-    
+
     parser.add_argument(
         "--temperature",
         type=float,
         default=0.7,
         help="LLM temperature (default: 0.7)",
     )
-    
+
     parser.add_argument(
         "--max-tokens",
         type=int,
         default=4000,
         help="Maximum tokens per response (default: 4000)",
     )
-    
+
     return parser.parse_args()
 
 
 async def run_research(args: argparse.Namespace) -> dict:
     """Run a PERCV research cycle through MAREF integration."""
-    print(f"🔍 Starting PERCV-MAREF Integration")
+    print("🔍 Starting PERCV-MAREF Integration")
     print(f"   Topic: {args.topic}")
     print(f"   Goal: {args.goal}")
     print(f"   Budget: ${args.budget/100:.2f}")
     print(f"   Iterations: {args.iterations}")
     print()
-    
+
     # Create configuration
     config = PERCVConfig(
         project_id=f"percv-cli-{hash(args.topic) % 1000}",
@@ -85,28 +85,28 @@ async def run_research(args: argparse.Namespace) -> dict:
         temperature=args.temperature,
         max_tokens=args.max_tokens,
     )
-    
+
     print("✓ Configuration created")
-    
+
     # Create adapters
     gateway = PERCVGatewayAdapter(config=config)
     # Note: PipelineAdapter would need governance_manager in production
     pipeline = PERCVPipelineAdapter(config=config, gateway_adapter=gateway)
-    
+
     print("✓ Adapters created")
-    
+
     # Check gateway status
     status = await gateway.get_status()
     print(f"✓ Gateway status: {status['status']}")
-    
+
     # Check available providers
     providers = await gateway.get_providers()
     print(f"✓ Available providers: {providers['count']}")
-    
+
     # Simulate a research query
     print()
     print("📝 Simulating research query...")
-    
+
     # In a real implementation, this would call pipeline.run_research_cycle()
     # For now, just show that the integration is working
     print("""
@@ -119,7 +119,7 @@ In a full implementation, the PERCV-MAREF pipeline would:
   6. Produce research cards
   7. Sync to knowledge graph
 """)
-    
+
     return {
         "success": True,
         "config": {
@@ -139,19 +139,19 @@ In a full implementation, the PERCV-MAREF pipeline would:
 def main() -> None:
     """Main CLI entry point."""
     args = parse_args()
-    
+
     try:
         print("=" * 60)
         print("PERCV-MAREF INTEGRATION CLI")
         print("=" * 60)
-        
+
         result = asyncio.run(run_research(args))
-        
+
         print()
         print("=" * 60)
         print("RESULTS")
         print("=" * 60)
-        print(f"✅ Integration successful")
+        print("✅ Integration successful")
         print(f"   Project ID: {result['config']['project_id']}")
         print(f"   Gateway: {result['gateway']['status']}")
         print(f"   Providers available: {result['gateway']['providers']}")
@@ -160,7 +160,7 @@ def main() -> None:
         print("  1. Set up API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)")
         print("  2. Configure a governance manager")
         print("  3. Call pipeline.run_research_cycle()")
-        
+
     except KeyboardInterrupt:
         print("\n\n❌ Operation cancelled by user")
         sys.exit(1)

@@ -103,22 +103,32 @@ class FlagBridge:
 
         rules = []
         if initial_stage not in (RolloutStage.FULL, RolloutStage.ROLLED_BACK):
-            rules.append({
-                "name": f"canary_{initial_stage.value}pct",
-                "condition": {
-                    "rolloutPercentage": float(initial_stage.value),
-                    "hashAttribute": "agent_id",
-                },
-                "force": 1,
-                "coverage": float(initial_stage.value) / 100.0,
-            })
+            rules.append(
+                {
+                    "name": f"canary_{initial_stage.value}pct",
+                    "condition": {
+                        "rolloutPercentage": float(initial_stage.value),
+                        "hashAttribute": "agent_id",
+                    },
+                    "force": 1,
+                    "coverage": float(initial_stage.value) / 100.0,
+                }
+            )
 
         flag = FeatureFlag(
             key=flag_key,
             description=f"MAREF policy optimization — {name}",
             variations=[
-                {"name": "baseline", "config": baseline_config, "weight": 100.0 - float(initial_stage.value)},
-                {"name": "candidate", "config": candidate_config, "weight": float(initial_stage.value)},
+                {
+                    "name": "baseline",
+                    "config": baseline_config,
+                    "weight": 100.0 - float(initial_stage.value),
+                },
+                {
+                    "name": "candidate",
+                    "config": candidate_config,
+                    "weight": float(initial_stage.value),
+                },
             ],
             rules=rules,
             metadata={
@@ -149,15 +159,17 @@ class FlagBridge:
             flag.metadata["stage"] = 100
             flag.metadata["stage_name"] = "FULL"
         else:
-            flag.rules = [{
-                "name": f"canary_{new_stage.value}pct",
-                "condition": {
-                    "rolloutPercentage": float(new_stage.value),
-                    "hashAttribute": "agent_id",
-                },
-                "force": 1,
-                "coverage": float(new_stage.value) / 100.0,
-            }]
+            flag.rules = [
+                {
+                    "name": f"canary_{new_stage.value}pct",
+                    "condition": {
+                        "rolloutPercentage": float(new_stage.value),
+                        "hashAttribute": "agent_id",
+                    },
+                    "force": 1,
+                    "coverage": float(new_stage.value) / 100.0,
+                }
+            ]
             flag.metadata["stage"] = new_stage.value
             flag.metadata["stage_name"] = new_stage.name
 
@@ -210,19 +222,28 @@ class FlagBridge:
         pipeline: list[dict[str, Any]] = []
 
         flag = self.create_flag(baseline, candidate, policy_name, RolloutStage.CANARY_1)
-        pipeline.append({"stage": 1, "flag_key": flag.key, "percentage": 1.0, "config": flag.to_growthbook_json()})
+        pipeline.append(
+            {
+                "stage": 1,
+                "flag_key": flag.key,
+                "percentage": 1.0,
+                "config": flag.to_growthbook_json(),
+            }
+        )
 
         for stage in stages[1:]:
-            pipeline.append({
-                "stage": stage.value,
-                "flag_key": flag.key,
-                "percentage": float(stage.value),
-                "promote_condition": "all_metrics_better_than_baseline",
-                "auto_rollback_on": [
-                    "fnr_increase > 5%",
-                    "fpr_increase > 3%",
-                    "stability_decrease > 10%",
-                ],
-            })
+            pipeline.append(
+                {
+                    "stage": stage.value,
+                    "flag_key": flag.key,
+                    "percentage": float(stage.value),
+                    "promote_condition": "all_metrics_better_than_baseline",
+                    "auto_rollback_on": [
+                        "fnr_increase > 5%",
+                        "fpr_increase > 3%",
+                        "stability_decrease > 10%",
+                    ],
+                }
+            )
 
         return pipeline

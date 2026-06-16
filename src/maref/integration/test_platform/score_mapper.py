@@ -18,11 +18,11 @@ from maref.integration.test_platform.schema import EvaluationReport
 class PermissionLevel(str, Enum):
     """Granular permission levels within a phase."""
 
-    FULL = "full"           # All operations allowed
-    STANDARD = "standard"   # Normal operations
+    FULL = "full"  # All operations allowed
+    STANDARD = "standard"  # Normal operations
     RESTRICTED = "restricted"  # Limited operations
-    READONLY = "readonly"   # Read-only
-    BLOCKED = "blocked"     # No operations
+    READONLY = "readonly"  # Read-only
+    BLOCKED = "blocked"  # No operations
 
 
 @dataclass

@@ -19,8 +19,12 @@ import statistics
 from dataclasses import dataclass, field
 from typing import Any
 
+import structlog
+
 from maref.evolution.agents import ShareGroup
 from maref.learning.scheduler import LearningRateScheduler, SchedulerConfig
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -82,8 +86,7 @@ class OptimizerState:
             "total_updates": self.total_updates,
             "total_clipped": self.total_clipped,
             "clip_fraction": (
-                self.total_clipped / self.total_updates
-                if self.total_updates > 0 else 0.0
+                self.total_clipped / self.total_updates if self.total_updates > 0 else 0.0
             ),
             "avg_grad_norm": self.avg_grad_norm,
             "recent_losses": self.loss_history[-10:],
@@ -280,7 +283,7 @@ class GroupPolicyOptimizer:
             rewards=[0.8, 0.6],
             values=[0.7, 0.5, 0.0],
         )
-        print(f"Loss: {result.loss}, Updates: {result.agent_updates}")
+        logger.debug("Loss: %s, Updates: %s", result.loss, result.agent_updates)
     """
 
     def __init__(
@@ -334,9 +337,7 @@ class GroupPolicyOptimizer:
         if not rewards:
             return []
 
-        values = list(baselines) if len(baselines) == len(rewards) + 1 else [
-            *baselines, 0.0
-        ]
+        values = list(baselines) if len(baselines) == len(rewards) + 1 else [*baselines, 0.0]
 
         return self._advantage_buffer.compute_advantages(rewards, values)
 
@@ -399,9 +400,7 @@ class GroupPolicyOptimizer:
         self._state.loss_history.append(total_loss)
         self._state.lr_history.append(self._lr_scheduler.learning_rate)
         self._state.entropy_history.append(entropy)
-        self._state.clip_fraction = (
-            self._state.total_clipped / self._state.total_updates
-        )
+        self._state.clip_fraction = self._state.total_clipped / self._state.total_updates
         self._state.avg_grad_norm = gradient_norm
 
         return PolicyUpdateResult(
@@ -454,9 +453,7 @@ class GroupPolicyOptimizer:
         self._state.loss_history.append(total_loss)
         self._state.lr_history.append(self._lr_scheduler.learning_rate)
         self._state.entropy_history.append(entropy)
-        self._state.clip_fraction = (
-            self._state.total_clipped / self._state.total_updates
-        )
+        self._state.clip_fraction = self._state.total_clipped / self._state.total_updates
         self._state.avg_grad_norm = gradient_norm
 
         return PolicyUpdateResult(
@@ -518,9 +515,7 @@ class GroupPolicyOptimizer:
 
     # --- Internal computation ---
 
-    def _compute_gradient(
-        self, advantages: list[float]
-    ) -> dict[str, float]:
+    def _compute_gradient(self, advantages: list[float]) -> dict[str, float]:
         """Compute per-feature gradient from advantages."""
         agents = self._group.agents
         if not agents:
@@ -549,9 +544,7 @@ class GroupPolicyOptimizer:
 
         return gradient
 
-    def _clip_gradient(
-        self, gradient: dict[str, float]
-    ) -> tuple[dict[str, float], int]:
+    def _clip_gradient(self, gradient: dict[str, float]) -> tuple[dict[str, float], int]:
         """
         Clip gradient by PPO clipping and gradient norm.
 
@@ -564,9 +557,7 @@ class GroupPolicyOptimizer:
         for feature, grad in gradient.items():
             if abs(grad) > self._config.clip_epsilon:
                 clipped[feature] = (
-                    self._config.clip_epsilon
-                    if grad > 0
-                    else -self._config.clip_epsilon
+                    self._config.clip_epsilon if grad > 0 else -self._config.clip_epsilon
                 )
                 clipped_count += 1
             else:
@@ -583,9 +574,7 @@ class GroupPolicyOptimizer:
     def _compute_grad_norm(self, gradient: dict[str, float]) -> float:
         return sum(v * v for v in gradient.values()) ** 0.5
 
-    def _compute_loss(
-        self, gradient: dict[str, float], advantages: list[float]
-    ) -> float:
+    def _compute_loss(self, gradient: dict[str, float], advantages: list[float]) -> float:
         """Compute combined PPO loss."""
         surrogate_loss = sum(gradient.values()) * statistics.mean(advantages) if advantages else 0.0
 
@@ -605,7 +594,6 @@ class GroupPolicyOptimizer:
             return 0.0
 
         total_entropy = sum(
-            EntropyRegularizer.compute_entropy(agent.policy_weights)
-            for agent in agents.values()
+            EntropyRegularizer.compute_entropy(agent.policy_weights) for agent in agents.values()
         )
         return total_entropy / len(agents)

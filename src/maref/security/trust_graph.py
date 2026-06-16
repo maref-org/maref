@@ -16,16 +16,18 @@ from typing import Any
 @dataclass
 class TrustEdge:
     """信任边"""
+
     source: str
     target: str
     trust_score: float  # 0-100
     weight: float = 1.0
-    timestamp: float = field(default_factory=lambda: __import__('time').time())
+    timestamp: float = field(default_factory=lambda: __import__("time").time())
 
 
 @dataclass
 class TrustAgent:
     """信任节点（Agent）"""
+
     agent_id: str
     trust_score: float = 50.0  # 0-100
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -40,7 +42,9 @@ class TrustGraph:
         self._outgoing: dict[str, set[str]] = {}
         self._incoming: dict[str, set[str]] = {}
 
-    def add_agent(self, agent_id: str, initial_trust: float = 50.0, metadata: dict[str, Any] | None = None) -> None:
+    def add_agent(
+        self, agent_id: str, initial_trust: float = 50.0, metadata: dict[str, Any] | None = None
+    ) -> None:
         if agent_id not in self.agents:
             self.agents[agent_id] = TrustAgent(
                 agent_id=agent_id,
@@ -117,7 +121,9 @@ class TrustGraph:
     def from_dict(cls, data: dict[str, Any]) -> TrustGraph:
         graph = cls()
         for aid, info in data.get("agents", {}).items():
-            graph.add_agent(aid, initial_trust=info.get("trust_score", 50.0), metadata=info.get("metadata", {}))
+            graph.add_agent(
+                aid, initial_trust=info.get("trust_score", 50.0), metadata=info.get("metadata", {})
+            )
         for edge_data in data.get("edges", []):
             graph.add_edge(
                 edge_data["source"],
@@ -185,7 +191,9 @@ class TrustPropagation:
                 if neighbor not in visited:
                     edge = self.graph.get_edge(current, neighbor)
                     if edge:
-                        visited[neighbor] = visited[current] * (edge.trust_score / 100.0) * self.decay_factor
+                        visited[neighbor] = (
+                            visited[current] * (edge.trust_score / 100.0) * self.decay_factor
+                        )
                         queue.append(neighbor)
 
         return 0.0

@@ -5,6 +5,7 @@
 - CAI（智能体身份证书）的 SM2 签名验证 + SM3 哈希
 - CertificateVerify 的 SM2 签名验证
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

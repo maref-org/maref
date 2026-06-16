@@ -152,11 +152,17 @@ class HITLRouter:
 
     def get_history(self, limit: int = 50, offset: int = 0) -> list[HITLEvent]:
         completed = [
-            e for e in self._events
-            if e.status in (HITLStatus.APPROVED, HITLStatus.REJECTED,
-                           HITLStatus.AUTO_APPROVED, HITLStatus.EXPIRED)
+            e
+            for e in self._events
+            if e.status
+            in (
+                HITLStatus.APPROVED,
+                HITLStatus.REJECTED,
+                HITLStatus.AUTO_APPROVED,
+                HITLStatus.EXPIRED,
+            )
         ]
-        return completed[offset:offset + limit]
+        return completed[offset : offset + limit]
 
     def get_all(self) -> list[HITLEvent]:
         return list(self._events)

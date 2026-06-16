@@ -103,7 +103,7 @@ class LearningRateScheduler:
         return self._lr
 
     def _compute_rolling_avg(self, new_reward: float) -> float:
-        window = self._state.reward_history[-self._config.window_size:]
+        window = self._state.reward_history[-self._config.window_size :]
         window.append(new_reward)
         return sum(window) / len(window)
 
@@ -118,9 +118,7 @@ class LearningRateScheduler:
             "current_lr": self._lr,
             "epoch_count": self._state.epoch_count,
             "best_avg_reward": (
-                self._state.best_avg_reward
-                if self._state.best_avg_reward != float("-inf")
-                else 0.0
+                self._state.best_avg_reward if self._state.best_avg_reward != float("-inf") else 0.0
             ),
             "epochs_no_improvement": self._state.epochs_no_improvement,
             "cooldown_remaining": self._state.cooldown_remaining,

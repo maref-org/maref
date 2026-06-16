@@ -52,10 +52,11 @@ class ToolDefinition:
 
     def is_read_only(self) -> bool:
         read_only_keywords = {"read", "list", "get", "search", "status", "log", "diff"}
-        return all(
-            any(t.startswith(kw) for kw in read_only_keywords)
-            for t in self.tools
-        ) if self.tools else False
+        return (
+            all(any(t.startswith(kw) for kw in read_only_keywords) for t in self.tools)
+            if self.tools
+            else False
+        )
 
     def to_dict(self) -> dict[str, Any]:
         def _convert(obj: Any) -> Any:
@@ -66,6 +67,7 @@ class ToolDefinition:
             if isinstance(obj, dict):
                 return {k: _convert(v) for k, v in obj.items()}
             return obj
+
         return _convert(asdict(self))
 
     @classmethod
@@ -79,8 +81,7 @@ class ToolDefinition:
             params = {}
             for tool_name, param_list in data["tool_parameters"].items():
                 params[tool_name] = [
-                    ToolParameter(**p) if isinstance(p, dict) else p
-                    for p in param_list
+                    ToolParameter(**p) if isinstance(p, dict) else p for p in param_list
                 ]
             data["tool_parameters"] = params
         return cls(**data)
@@ -107,10 +108,25 @@ def create_file_tool() -> ToolDefinition:
         category=ToolCategory.FILE,
         risk_level=ToolRiskLevel.HIGH,
         version="0.27.0",
-        tools=["read_file", "write_file", "list_directory", "delete_file", "copy_file", "move_file", "get_file_info"],
+        tools=[
+            "read_file",
+            "write_file",
+            "list_directory",
+            "delete_file",
+            "copy_file",
+            "move_file",
+            "get_file_info",
+        ],
         tool_parameters={
-            "read_file": [ToolParameter(name="path", type="string", description="File path", required=True)],
-            "write_file": [ToolParameter(name="path", type="string", description="File path", required=True), ToolParameter(name="content", type="string", description="File content", required=True)],
+            "read_file": [
+                ToolParameter(name="path", type="string", description="File path", required=True)
+            ],
+            "write_file": [
+                ToolParameter(name="path", type="string", description="File path", required=True),
+                ToolParameter(
+                    name="content", type="string", description="File content", required=True
+                ),
+            ],
         },
         security_controls=["PathSandbox", "FileSizeLimit"],
         default_config={"max_read_size": 10485760},
@@ -128,7 +144,11 @@ def create_shell_tool() -> ToolDefinition:
         version="0.27.0",
         tools=["run_command", "get_shell_help"],
         tool_parameters={
-            "run_command": [ToolParameter(name="command", type="string", description="Command to execute", required=True)],
+            "run_command": [
+                ToolParameter(
+                    name="command", type="string", description="Command to execute", required=True
+                )
+            ],
         },
         security_controls=["CommandWhitelist", "Timeout", "OutputLimit", "MetacharacterBlock"],
         default_config={},
@@ -186,12 +206,28 @@ def create_web_search_tool() -> ToolDefinition:
         tools=["web_search", "web_search_news"],
         tool_parameters={
             "web_search": [
-                ToolParameter(name="query", type="string", description="Search query", required=True),
-                ToolParameter(name="max_results", type="integer", description="Maximum number of results", required=False, default=10),
+                ToolParameter(
+                    name="query", type="string", description="Search query", required=True
+                ),
+                ToolParameter(
+                    name="max_results",
+                    type="integer",
+                    description="Maximum number of results",
+                    required=False,
+                    default=10,
+                ),
             ],
             "web_search_news": [
-                ToolParameter(name="query", type="string", description="News search query", required=True),
-                ToolParameter(name="max_results", type="integer", description="Maximum number of results", required=False, default=10),
+                ToolParameter(
+                    name="query", type="string", description="News search query", required=True
+                ),
+                ToolParameter(
+                    name="max_results",
+                    type="integer",
+                    description="Maximum number of results",
+                    required=False,
+                    default=10,
+                ),
             ],
         },
         security_controls=["QuerySanitizer", "ResultLimit", "DomainBlacklist"],

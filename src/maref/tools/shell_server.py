@@ -6,11 +6,27 @@ from typing import Any
 
 from maref.integration.mcp_server import MCPServer
 
-WHITELISTED_COMMANDS = frozenset({
-    "ls", "cat", "head", "tail", "wc", "grep", "find",
-    "echo", "date", "pwd", "which", "whoami", "uname",
-    "sort", "cut", "tr", "mkdir",
-})
+WHITELISTED_COMMANDS = frozenset(
+    {
+        "ls",
+        "cat",
+        "head",
+        "tail",
+        "wc",
+        "grep",
+        "find",
+        "echo",
+        "date",
+        "pwd",
+        "which",
+        "whoami",
+        "uname",
+        "sort",
+        "cut",
+        "tr",
+        "mkdir",
+    }
+)
 
 SHELL_METACHARACTER_PATTERNS = [
     "&&",
@@ -60,7 +76,9 @@ def _truncate_output(stdout: str, stderr: str) -> tuple[str, str]:
     )
 
 
-def _run_command_impl(command: str, args: list[str] | None, timeout: int, cwd: str | None) -> dict[str, Any]:
+def _run_command_impl(
+    command: str, args: list[str] | None, timeout: int, cwd: str | None
+) -> dict[str, Any]:
     whitelist = CommandWhitelist()
     if not whitelist.is_allowed(command):
         return {

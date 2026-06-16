@@ -19,16 +19,15 @@ import statistics
 import sys
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # 添加父目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from test_scenarios.baseline_scenario import (
-    analyze_baseline_results,
     run_baseline_scenario,
 )
-from test_scenarios.maref_scenario import analyze_maref_results, run_maref_scenario
+from test_scenarios.maref_scenario import run_maref_scenario
 
 
 class ValidationProtocol:
@@ -40,7 +39,7 @@ class ValidationProtocol:
         self.metrics = {}
         self.passed = False
 
-    def run(self, baseline_data: Dict[str, Any], maref_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, baseline_data: dict[str, Any], maref_data: dict[str, Any]) -> dict[str, Any]:
         """运行验证协议，必须被子类重写"""
         raise NotImplementedError("子类必须实现run方法")
 
@@ -48,7 +47,7 @@ class ValidationProtocol:
         """计算验证得分（0.0-1.0）"""
         raise NotImplementedError("子类必须实现calculate_score方法")
 
-    def get_report(self) -> Dict[str, Any]:
+    def get_report(self) -> dict[str, Any]:
         """获取验证报告"""
         return {
             "protocol_name": self.protocol_name,
@@ -72,7 +71,7 @@ class ControlEntropyTest(ValidationProtocol):
     def __init__(self):
         super().__init__("控制熵测试")
 
-    def run(self, baseline_data: Dict[str, Any], maref_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, baseline_data: dict[str, Any], maref_data: dict[str, Any]) -> dict[str, Any]:
         """运行控制熵测试"""
 
         # 从基线系统收集状态分布
@@ -122,7 +121,7 @@ class ControlEntropyTest(ValidationProtocol):
 
         return self.results
 
-    def _extract_state_distribution(self, system_data: Dict[str, Any]) -> Dict[str, int]:
+    def _extract_state_distribution(self, system_data: dict[str, Any]) -> dict[str, int]:
         """从系统数据中提取状态分布"""
         state_counts = {}
 
@@ -199,7 +198,7 @@ class ControlEntropyTest(ValidationProtocol):
 
         return state_counts
 
-    def _calculate_entropy(self, state_counts: Dict[str, int]) -> float:
+    def _calculate_entropy(self, state_counts: dict[str, int]) -> float:
         """计算熵值"""
         total = sum(state_counts.values())
         if total == 0:
@@ -251,7 +250,7 @@ class LyapunovConvergenceTest(ValidationProtocol):
     def __init__(self):
         super().__init__("李雅普诺夫收敛测试")
 
-    def run(self, baseline_data: Dict[str, Any], maref_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, baseline_data: dict[str, Any], maref_data: dict[str, Any]) -> dict[str, Any]:
         """运行李雅普诺夫收敛测试"""
 
         baseline_convergence = self._analyze_convergence(baseline_data)
@@ -277,7 +276,7 @@ class LyapunovConvergenceTest(ValidationProtocol):
 
         return self.results
 
-    def _analyze_convergence(self, system_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _analyze_convergence(self, system_data: dict[str, Any]) -> dict[str, Any]:
         """分析系统收敛性"""
         convergence_data = {"state_transitions": [], "error_rates": [], "success_rates": []}
 
@@ -293,7 +292,7 @@ class LyapunovConvergenceTest(ValidationProtocol):
 
         return convergence_data
 
-    def _calculate_convergence_index(self, convergence_data: Dict[str, Any]) -> float:
+    def _calculate_convergence_index(self, convergence_data: dict[str, Any]) -> float:
         """计算收敛指数（0-1，越高表示收敛性越好）"""
         # 简化实现：基于状态转换频率和错误率计算
         error_rates = convergence_data.get("error_rates", [])
@@ -340,7 +339,7 @@ class SpernerCompletenessTest(ValidationProtocol):
     def __init__(self):
         super().__init__("斯佩纳完备性测试")
 
-    def run(self, baseline_data: Dict[str, Any], maref_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, baseline_data: dict[str, Any], maref_data: dict[str, Any]) -> dict[str, Any]:
         """运行斯佩纳完备性测试"""
 
         # 检查基线系统的状态空间
@@ -374,7 +373,7 @@ class SpernerCompletenessTest(ValidationProtocol):
 
         return self.results
 
-    def _extract_all_states(self, system_data: Dict[str, Any]) -> List[str]:
+    def _extract_all_states(self, system_data: dict[str, Any]) -> list[str]:
         """从系统数据中提取所有状态"""
         states = []
 
@@ -472,7 +471,7 @@ class GrayCodeContinuityTest(ValidationProtocol):
     def __init__(self):
         super().__init__("格雷编码连续性测试")
 
-    def run(self, baseline_data: Dict[str, Any], maref_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, baseline_data: dict[str, Any], maref_data: dict[str, Any]) -> dict[str, Any]:
         """运行格雷编码连续性测试"""
 
         baseline_transitions = self._analyze_transitions(baseline_data)
@@ -505,7 +504,7 @@ class GrayCodeContinuityTest(ValidationProtocol):
 
         return self.results
 
-    def _analyze_transitions(self, system_data: Dict[str, Any]) -> List[Tuple[str, str]]:
+    def _analyze_transitions(self, system_data: dict[str, Any]) -> list[tuple[str, str]]:
         """分析状态转换"""
         transitions = []
 
@@ -607,7 +606,7 @@ class GrayCodeContinuityTest(ValidationProtocol):
         state_list[flip_pos] = "1" if state_list[flip_pos] == "0" else "0"
         return "".join(state_list)
 
-    def _calculate_hamming_stats(self, transitions: List[Tuple[str, str]]) -> Dict[str, Any]:
+    def _calculate_hamming_stats(self, transitions: list[tuple[str, str]]) -> dict[str, Any]:
         """计算汉明距离统计"""
         if not transitions:
             return {
@@ -640,7 +639,7 @@ class GrayCodeContinuityTest(ValidationProtocol):
             "hamming_distribution": self._calculate_distribution(hamming_distances),
         }
 
-    def _calculate_distribution(self, distances: List[int]) -> Dict[int, int]:
+    def _calculate_distribution(self, distances: list[int]) -> dict[int, int]:
         """计算汉明距离分布"""
         distribution = {}
         for d in distances:
@@ -679,7 +678,7 @@ class ComplementaryPairFaultToleranceTest(ValidationProtocol):
     def __init__(self):
         super().__init__("互补对容错测试")
 
-    def run(self, baseline_data: Dict[str, Any], maref_data: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, baseline_data: dict[str, Any], maref_data: dict[str, Any]) -> dict[str, Any]:
         """运行互补对容错测试"""
 
         baseline_fault_tolerance = self._analyze_fault_tolerance(baseline_data)
@@ -709,7 +708,7 @@ class ComplementaryPairFaultToleranceTest(ValidationProtocol):
 
         return self.results
 
-    def _analyze_fault_tolerance(self, system_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _analyze_fault_tolerance(self, system_data: dict[str, Any]) -> dict[str, Any]:
         """分析系统容错能力"""
         tolerance_data = {
             "error_recovery_rate": 0.0,
@@ -736,7 +735,7 @@ class ComplementaryPairFaultToleranceTest(ValidationProtocol):
 
         return tolerance_data
 
-    def _calculate_tolerance_index(self, tolerance_data: Dict[str, Any]) -> float:
+    def _calculate_tolerance_index(self, tolerance_data: dict[str, Any]) -> float:
         """计算容错指数（0-1，越高表示容错能力越强）"""
         recovery = tolerance_data.get("error_recovery_rate", 0.5)
         isolation = tolerance_data.get("failure_isolation", 0.5)
@@ -773,8 +772,8 @@ class ValidationController:
         self.validation_report = {}
 
     def run_all_protocols(
-        self, baseline_results: Dict[str, Any], maref_results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, baseline_results: dict[str, Any], maref_results: dict[str, Any]
+    ) -> dict[str, Any]:
         """运行所有验证协议"""
 
         print("=" * 70)
@@ -829,7 +828,7 @@ class ValidationController:
 
         return self.validation_report
 
-    def _summarize_system(self, system_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _summarize_system(self, system_data: dict[str, Any]) -> dict[str, Any]:
         """总结系统性能"""
         summary = {
             "task_count": 0,
@@ -849,7 +848,7 @@ class ValidationController:
 
         return summary
 
-    def _compare_systems(self, baseline: Dict[str, Any], maref: Dict[str, Any]) -> Dict[str, Any]:
+    def _compare_systems(self, baseline: dict[str, Any], maref: dict[str, Any]) -> dict[str, Any]:
         """比较两个系统的性能"""
         baseline_summary = self._summarize_system(baseline)
         maref_summary = self._summarize_system(maref)
@@ -876,7 +875,7 @@ class ValidationController:
 
         return comparisons
 
-    def generate_report(self, output_file: str = None) -> Dict[str, Any]:
+    def generate_report(self, output_file: str = None) -> dict[str, Any]:
         """生成验证报告"""
         report = self.validation_report
 
@@ -990,9 +989,9 @@ if __name__ == "__main__":
         else:
             print("\n⚠️ MAREF验证实验部分失败，需要进一步优化。")
 
-        print(f"\n验证报告位置: /Volumes/1TB-M2/openclaw/maref_sandbox/results_analysis/")
-        print(f"  1. 基线结果: baseline_results.json")
-        print(f"  2. MAREF结果: maref_results.json")
-        print(f"  3. 验证报告: validation_report.json")
+        print("\n验证报告位置: /Volumes/1TB-M2/openclaw/maref_sandbox/results_analysis/")
+        print("  1. 基线结果: baseline_results.json")
+        print("  2. MAREF结果: maref_results.json")
+        print("  3. 验证报告: validation_report.json")
     else:
         print("\n❌ MAREF验证实验失败，请检查错误信息。")

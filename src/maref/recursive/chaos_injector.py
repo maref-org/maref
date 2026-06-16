@@ -23,8 +23,9 @@ class ChaosInjector:
     def __init__(self) -> None:
         self._events: list[ChaosEvent] = []
 
-    def inject(self, chaos_type: ChaosType, target: str = "",
-               params: dict[str, object] | None = None) -> ChaosEvent:
+    def inject(
+        self, chaos_type: ChaosType, target: str = "", params: dict[str, object] | None = None
+    ) -> ChaosEvent:
         event = ChaosEvent(
             chaos_type=chaos_type,
             target=target,

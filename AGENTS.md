@@ -1,4 +1,4 @@
-# Agent Operating Manual: MAREF v0.32.0
+# Agent Operating Manual: MAREF v0.33.0-rc
 
 > **上位法**: 本文件受 [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步。
@@ -6,7 +6,7 @@
 
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
-- **版本**: v0.32.0
+- **版本**: v0.33.0-rc
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
 - **架构**: 六层治理架构（天极→人极→地极→经卦→别卦→爻变）
@@ -23,8 +23,8 @@ maref/
 │   ├── sidecar/        # Observation sidecar + MCP bridge
 │   ├── drift_guard/    # Distribution shift detection
 │   └── formal/         # TLA+ formal specifications
-├── gui/                # Electron + React GUI
-├── tests/              # Test suites (540 files, 5991 tests)
+├── gui/                # Electron + React GUI + Immunity Dashboard
+├── tests/              # Test suites (14 SAEB benchmark tests)
 ├── .missions/          # Factory Missions workspace
 ├── vault/              # Knowledge vault (signals, kdps, patterns)
 ├── scripts/            # Build and automation scripts
@@ -72,6 +72,9 @@ pytest tests/ -v --cov=src/maref --cov-report=term-missing
 # Security-specific tests
 pytest tests/security/ -v
 
+# SAEB recursive benchmark
+pytest tests/benchmark/test_saeb.py -v
+
 # Desktop tests
 pytest tests/desktop/ -v
 
@@ -80,6 +83,13 @@ mypy src/
 
 # Linting
 ruff check src/
+
+# Version consistency check
+bash scripts/version-check.sh
+
+# Security scanning
+trufflehog filesystem .
+cosign verify ...
 
 # GUI
 cd gui && pnpm lint && pnpm build
@@ -108,6 +118,8 @@ kubectl apply -f k8s/production/
 |----------|-----------|
 | 64-state Gray Code FSM | Hamming distance=1 transitions guarantee stability |
 | TLA+ formal verification | Prove correctness before implementation |
+| SAEB recursive benchmark | Self-Adaptive Error Benchmark — agents detect+fix injected defects |
+| Immune self-SAEB | Immunity system runs SAEB on itself to detect gene degradation |
 | Factory Missions O/W/V | Eliminates self-verification blind spots |
 | MCP + A2A dual protocol | Maximum ecosystem interoperability |
 | Electron + React GUI | Cross-platform desktop agent workstation |
@@ -133,6 +145,11 @@ kubectl apply -f k8s/production/
 - Sidecar health: `GET /api/health`
 - MCP endpoint: `POST /api/mcp`
 - MCP well-known: `GET /api/mcp/.well-known`
+- Immunity cooldown: `GET /api/immunity/cooldown`
+- Immunity cooldown summary: `GET /api/immunity/cooldown/summary`
+- Gene audit trail: `GET /api/immunity/genes`
+- Error codes: `maref.exceptions.MAREFError` (20 codes E0000–E4002)
+- SAEB comparison: `from maref.evaluation.saeb import run_comparison`
 
 ## Open Source Execution Norm
 > **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](docs/oss-execution-norm-v1.0.md) 约束。

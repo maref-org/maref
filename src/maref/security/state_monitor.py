@@ -103,9 +103,9 @@ class SharedStateMonitor:
 
         # Check for burst mutations
         recent = [
-            e for e in self._history
-            if e.agent_id == agent_id
-            and e.timestamp >= time.time() - self.burst_window_seconds
+            e
+            for e in self._history
+            if e.agent_id == agent_id and e.timestamp >= time.time() - self.burst_window_seconds
         ]
 
         if delta_ratio > self.mutation_threshold:

@@ -20,6 +20,9 @@ from dataclasses import dataclass
 from typing import Any
 
 import aiohttp
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -298,7 +301,10 @@ class DashScopeClient:
 仅返回有效JSON。"""
 
         messages = [
-            {"role": "system", "content": "你是一位研究主管，正在分析实验批次结果。始终用中文回复，仅返回有效JSON。"},
+            {
+                "role": "system",
+                "content": "你是一位研究主管，正在分析实验批次结果。始终用中文回复，仅返回有效JSON。",
+            },
             {"role": "user", "content": prompt},
         ]
 
@@ -358,7 +364,12 @@ class DashScopeClient:
             # Use asyncio.run_coroutine_threadsafe or similar if needed
             # For now, just log a warning if not closed
             import warnings
-            warnings.warn("DashScopeClient session was not properly closed. Use 'async with' or call close().", ResourceWarning, stacklevel=2)
+
+            warnings.warn(
+                "DashScopeClient session was not properly closed. Use 'async with' or call close().",
+                ResourceWarning,
+                stacklevel=2,
+            )
 
 
 async def test_client() -> None:
@@ -366,28 +377,30 @@ async def test_client() -> None:
     client = DashScopeClient()
 
     # Test simple completion
-    print("Testing chat completion...")
-    response = await client.chat_completion([
-        {"role": "user", "content": "Hello, are you working?"},
-    ])
-    print(f"Response: {response.content[:100]}...")
-    print(f"Model: {response.model}")
-    print(f"Usage: {response.usage}")
+    logger.info("Testing chat completion...")
+    response = await client.chat_completion(
+        [
+            {"role": "user", "content": "Hello, are you working?"},
+        ]
+    )
+    logger.debug("Response: %s...", response.content[:100])
+    logger.info("Model: %s", response.model)
+    logger.info("Usage: %s", response.usage)
 
     # Test finding analysis
-    print("\nTesting finding analysis...")
+    logger.info("Testing finding analysis...")
     findings = [
         "High state coverage: 9/10 states visited",
         "Entropy variance: 2.3 (unstable path)",
         "Self-observation working: 5 events captured",
     ]
     analysis = await client.analyze_findings(findings, "random_walk")
-    print(f"Summary: {analysis.summary}")
-    print(f"Significance: {analysis.significance}")
-    print(f"Confidence: {analysis.confidence}")
+    logger.info("Summary: %s", analysis.summary)
+    logger.info("Significance: %s", analysis.significance)
+    logger.info("Confidence: %s", analysis.confidence)
 
     await client.close()
-    print("\nAll tests passed!")
+    logger.info("All tests passed!")
 
 
 if __name__ == "__main__":

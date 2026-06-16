@@ -15,14 +15,12 @@ Athena队列系统模拟器
 import hashlib
 import json
 import random
-import subprocess
-import threading
 import time
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class TaskStatus(Enum):
@@ -56,20 +54,20 @@ class Task:
     created_at: str
     updated_at: str
     executor: ExecutorType
-    manifest_entry: Dict[str, Any]  # 缺陷2: 可能有重复的manifest条目
+    manifest_entry: dict[str, Any]  # 缺陷2: 可能有重复的manifest条目
 
     # 缺陷3: 进程状态管理
-    process_pid: Optional[int] = None
-    process_start_time: Optional[str] = None
+    process_pid: int | None = None
+    process_start_time: str | None = None
     process_status_updated_before_start: bool = False  # 标记是否先更新状态再启动进程
 
     # 缺陷4: 活跃检测
-    last_heartbeat: Optional[str] = None
+    last_heartbeat: str | None = None
     heartbeat_delay_minutes: int = 5  # 5分钟检测延迟
 
     # 缺陷5: Lane混淆标记
     lane_confusion: bool = False  # 是否发生了Lane混淆
-    confusion_details: Optional[str] = None
+    confusion_details: str | None = None
 
 
 class AthenaQueueSimulator:
@@ -77,10 +75,10 @@ class AthenaQueueSimulator:
 
     def __init__(self, simulation_id: str = "baseline"):
         self.simulation_id = simulation_id
-        self.tasks: Dict[str, Task] = {}
-        self.queues: Dict[str, Dict[str, Any]] = {}
-        self.manifest_entries: List[Dict[str, Any]] = []
-        self.performance_metrics: Dict[str, List[float]] = {
+        self.tasks: dict[str, Task] = {}
+        self.queues: dict[str, dict[str, Any]] = {}
+        self.manifest_entries: list[dict[str, Any]] = []
+        self.performance_metrics: dict[str, list[float]] = {
             "task_completion_times": [],
             "error_rates": [],
             "resource_waste": [],
@@ -200,7 +198,7 @@ class AthenaQueueSimulator:
         print(f"  - 重复条目数: {duplicate_count}")
         print(f"  - 重复率: {duplicate_count/len(self.manifest_entries)*100:.1f}%")
 
-    def create_task(self, name: str, task_type: str = "build") -> Tuple[bool, str, Optional[str]]:
+    def create_task(self, name: str, task_type: str = "build") -> tuple[bool, str, str | None]:
         """创建新任务（模拟argparse ID问题）"""
         self.stats["tasks_created"] += 1
 
@@ -275,13 +273,13 @@ class AthenaQueueSimulator:
         }
         return mapping.get(task_type, ExecutorType.CLAUDE_CODE_CLI)
 
-    def _get_random_manifest_entry(self) -> Dict[str, Any]:
+    def _get_random_manifest_entry(self) -> dict[str, Any]:
         """获取随机的manifest条目（可能有重复）"""
         if not self.manifest_entries:
             return {}
         return random.choice(self.manifest_entries)
 
-    def start_task(self, task_id: str) -> Tuple[bool, Optional[str]]:
+    def start_task(self, task_id: str) -> tuple[bool, str | None]:
         """启动任务（模拟进程可靠性问题）"""
         if task_id not in self.tasks:
             return False, f"任务不存在: {task_id}"
@@ -305,7 +303,7 @@ class AthenaQueueSimulator:
 
         print(f"[{self.simulation_id}] 启动任务: {task_id}")
         print(f"  - 状态更新为: {task.status.value}")
-        print(f"  - 进程可靠性问题: 先更新状态再启动进程")
+        print("  - 进程可靠性问题: 先更新状态再启动进程")
 
         # 模拟进程启动（有失败概率）
         time.sleep(0.1)  # 模拟进程启动延迟
@@ -315,7 +313,7 @@ class AthenaQueueSimulator:
             task.process_pid = None
             self.stats["process_reliability_errors"] += 1
 
-            print(f"  ⚠️ 进程启动失败，但状态已标记为running")
+            print("  ⚠️ 进程启动失败，但状态已标记为running")
 
             # 缺陷4: 由于心跳检测延迟，这个僵尸进程会存在5分钟
             task.last_heartbeat = datetime.now().isoformat()
@@ -425,7 +423,7 @@ class AthenaQueueSimulator:
 
         return cleaned_count
 
-    def check_state_inconsistencies(self) -> List[Dict[str, Any]]:
+    def check_state_inconsistencies(self) -> list[dict[str, Any]]:
         """检查状态不一致问题"""
         inconsistencies = []
 
@@ -477,7 +475,7 @@ class AthenaQueueSimulator:
 
         return inconsistencies
 
-    def run_simulation_cycle(self, num_tasks: int = 10) -> Dict[str, Any]:
+    def run_simulation_cycle(self, num_tasks: int = 10) -> dict[str, Any]:
         """运行一个模拟周期"""
         print(f"\n[{self.simulation_id}] ===== 开始模拟周期 =====")
 
@@ -545,7 +543,7 @@ class AthenaQueueSimulator:
         }
 
         print(f"[{self.simulation_id}] ===== 模拟周期完成 =====")
-        print(f"结果摘要:")
+        print("结果摘要:")
         print(f"  - 任务总数: {results['tasks_created']}")
         print(f"  - 错误率: {results['error_rate_percent']:.1f}%")
         print(f"  - 状态不一致: {results['state_inconsistencies']}")
@@ -554,7 +552,7 @@ class AthenaQueueSimulator:
 
         return results
 
-    def get_performance_summary(self) -> Dict[str, Any]:
+    def get_performance_summary(self) -> dict[str, Any]:
         """获取性能摘要"""
         if not self.performance_metrics["task_completion_times"]:
             avg_completion_time = 0

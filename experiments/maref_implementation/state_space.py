@@ -8,15 +8,14 @@ import json
 import logging
 import os
 import threading
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
-from .hexagram import HEXAGRAMS_64, Hexagram, get_hexagram_by_name
-
+from .hexagram import HEXAGRAMS_64, Hexagram
 
 HALT_STATE_BINARY = "111010"
+
 
 @dataclass
 class StateTransition:
@@ -29,7 +28,7 @@ class StateTransition:
     hamming_distance: int
     path_length: int
     success: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class StateSpaceManager:
@@ -46,8 +45,8 @@ class StateSpaceManager:
         """
         self._lock = threading.Lock()
         self.state_file = state_file
-        self.current_state: Optional[Hexagram] = None
-        self.state_history: List[StateTransition] = []
+        self.current_state: Hexagram | None = None
+        self.state_history: list[StateTransition] = []
         self.invalid_transition_count = 0
         self.rollback_count = 0
         self._halted = False
@@ -168,7 +167,7 @@ class StateSpaceManager:
 
     def transition_state(
         self, target_state: Hexagram, use_gray_code: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         执行状态转换，支持格雷编码转换（线程安全）
 
@@ -234,18 +233,18 @@ class StateSpaceManager:
                 "transition_type": transition_type,
             }
 
-    def map_queue_state_to_hexagram(self, queue_state: str) -> Optional[Hexagram]:
+    def map_queue_state_to_hexagram(self, queue_state: str) -> Hexagram | None:
         """将队列状态映射到卦状态"""
         return self.queue_state_mapping.get(queue_state)
 
-    def get_queue_state_from_hexagram(self, hexagram: Hexagram) -> Optional[str]:
+    def get_queue_state_from_hexagram(self, hexagram: Hexagram) -> str | None:
         """从卦状态反向映射到队列状态"""
         for queue_state, mapped_hexagram in self.queue_state_mapping.items():
             if hexagram == mapped_hexagram:
                 return queue_state
         return None
 
-    def validate_state_transition(self, from_state: str, to_state: str) -> Dict[str, Any]:
+    def validate_state_transition(self, from_state: str, to_state: str) -> dict[str, Any]:
         """验证状态转换的有效性（不实际执行转换）"""
         try:
             from_hexagram = Hexagram.from_binary(from_state)
@@ -274,7 +273,7 @@ class StateSpaceManager:
             "message": "状态转换验证通过" if not needs_rollback else "需要自动回滚（汉明距离过大）",
         }
 
-    def get_state_statistics(self) -> Dict[str, Any]:
+    def get_state_statistics(self) -> dict[str, Any]:
         """获取状态管理统计信息"""
         total_transitions = len(self.state_history)
         successful_transitions = sum(1 for t in self.state_history if t.success)
@@ -303,9 +302,12 @@ class StateSpaceManager:
         """状态转换写入 maref_memory.db SQLite 审计表"""
         try:
             import sqlite3
+
             db_path = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                "memory", "maref", "maref_memory.db",
+                "memory",
+                "maref",
+                "maref_memory.db",
             )
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
             conn = sqlite3.connect(db_path, timeout=5)
@@ -381,7 +383,7 @@ class StateSpaceManager:
             return
 
         try:
-            with open(self.state_file, "r", encoding="utf-8") as f:
+            with open(self.state_file, encoding="utf-8") as f:
                 state_data = json.load(f)
 
             # 加载当前状态

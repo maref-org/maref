@@ -34,7 +34,12 @@ class RecipientWhitelist:
 class SensitiveWordFilter:
     def __init__(self, sensitive_words: list[str] | None = None) -> None:
         self._words: list[str] = sensitive_words or [
-            "password", "secret", "confidential", "api_key", "token", "credential",
+            "password",
+            "secret",
+            "confidential",
+            "api_key",
+            "token",
+            "credential",
         ]
 
     def contains_sensitive(self, text: str) -> bool:
@@ -175,7 +180,10 @@ class EmailServer(MCPServer):
                 "type": "object",
                 "properties": {
                     "folder": {"type": "string", "description": "Folder name (default: INBOX)"},
-                    "max_count": {"type": "integer", "description": "Maximum number of emails to return (default: 10)"},
+                    "max_count": {
+                        "type": "integer",
+                        "description": "Maximum number of emails to return (default: 10)",
+                    },
                 },
             },
             handler=self._handle_email_list,
@@ -186,7 +194,10 @@ class EmailServer(MCPServer):
             input_schema={
                 "type": "object",
                 "properties": {
-                    "message_id": {"type": "string", "description": "Message ID of the email to read"},
+                    "message_id": {
+                        "type": "string",
+                        "description": "Message ID of the email to read",
+                    },
                 },
                 "required": ["message_id"],
             },
@@ -199,7 +210,10 @@ class EmailServer(MCPServer):
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Search query text"},
-                    "folder": {"type": "string", "description": "Folder to search in (default: INBOX)"},
+                    "folder": {
+                        "type": "string",
+                        "description": "Folder to search in (default: INBOX)",
+                    },
                 },
             },
             handler=self._handle_email_search,
@@ -230,10 +244,12 @@ class EmailServer(MCPServer):
         parsed_attachments: list[dict[str, Any]] = []
         if isinstance(attachments, list):
             for att in attachments:
-                parsed_attachments.append({
-                    "filename": att.get("filename", "attachment"),
-                    "size": len(att.get("content", "")),
-                })
+                parsed_attachments.append(
+                    {
+                        "filename": att.get("filename", "attachment"),
+                        "size": len(att.get("content", "")),
+                    }
+                )
 
         msg_id = self._mock_backend.send(
             from_addr="maref@localhost",
@@ -268,7 +284,15 @@ class EmailServer(MCPServer):
         message_id = args.get("message_id", "")
         msg = self._mock_backend.read(message_id)
         if msg is None:
-            return {"id": "", "from": "", "to": [], "subject": "", "date": "", "body": "", "attachments": []}
+            return {
+                "id": "",
+                "from": "",
+                "to": [],
+                "subject": "",
+                "date": "",
+                "body": "",
+                "attachments": [],
+            }
         return {
             "id": msg.id,
             "from": msg.from_addr,

@@ -1,7 +1,7 @@
 -------------------------------- MODULE MarefLiteModel --------------------------------
 (*
   MAREF-Lite: Executable Model with PlusCal Algorithm
-  
+
   This specification extends MarefLite.tla with an executable PlusCal
   algorithm that models the governance overlay behavior, including:
   - Agent state transitions following Gray code rules
@@ -109,18 +109,18 @@ variable nextState \in States;
 begin
   AgentLoop:
     while transitionCount[self] < MaxTransitions /\ ~IsTerminal(agentState[self]) do
-      
+
       (* Choose next valid state *)
       nextState := CHOOSE s \in NextStates(agentState[self]) : TRUE;
-      
+
       (* Atomic state transition (single-bit flip guarantees no race) *)
       agentState[self] := nextState;
       transitionCount[self] := transitionCount[self] + 1;
-      
+
       (* Update global metrics *)
       UpdateEntropy();
       CheckGovernance();
-      
+
     end while;
 end process;
 

@@ -27,11 +27,11 @@ from maref.integration.test_platform.schema import (
 class TriggerAction(str, Enum):
     """Possible actions triggered by evaluation results."""
 
-    QUARANTINE = "quarantine"     # Force HALT
-    DEGRADE = "degrade"           # Move toward VERIFY/STABILIZE
-    APPROVE = "approve"           # Move toward ACT
-    HOLD = "hold"                 # Stay in current state, log only
-    ALERT = "alert"               # Generate alert without state change
+    QUARANTINE = "quarantine"  # Force HALT
+    DEGRADE = "degrade"  # Move toward VERIFY/STABILIZE
+    APPROVE = "approve"  # Move toward ACT
+    HOLD = "hold"  # Stay in current state, log only
+    ALERT = "alert"  # Generate alert without state change
 
 
 @dataclass
@@ -244,7 +244,11 @@ class LayerSpecificTrigger:
         if not layer5:
             return None
 
-        high_findings = [f for f in layer5.findings if f.severity in (FindingSeverity.CRITICAL, FindingSeverity.HIGH)]
+        high_findings = [
+            f
+            for f in layer5.findings
+            if f.severity in (FindingSeverity.CRITICAL, FindingSeverity.HIGH)
+        ]
         if high_findings:
             # Degrade to VERIFY but don't halt
             target = GovernanceState.VERIFY
@@ -269,7 +273,9 @@ class UnifiedTrigger:
     """
 
     @classmethod
-    def apply(cls, report: EvaluationReport, fsm: GovernanceStateMachine) -> list[StateTransitionDecision]:
+    def apply(
+        cls, report: EvaluationReport, fsm: GovernanceStateMachine
+    ) -> list[StateTransitionDecision]:
         """Apply all triggers and return applied decisions."""
         decisions: list[StateTransitionDecision] = []
 

@@ -111,7 +111,10 @@ class MCPCircuitBreakerMonitor:
             return True, f"error_rate={stats.error_rate:.2f} > max={self._max_error_rate}"
 
         if stats.max_latency > self._max_avg_latency_ms / 1000.0:
-            return True, f"max_latency={stats.max_latency:.2f}s > max={self._max_avg_latency_ms/1000:.2f}s"
+            return (
+                True,
+                f"max_latency={stats.max_latency:.2f}s > max={self._max_avg_latency_ms/1000:.2f}s",
+            )
 
         return False, ""
 
@@ -187,10 +190,15 @@ class AllowMCPProtocolSignals(MCPPolicyRule):
     """Allow MCP protocol-level signals (list tools/resources, ping, etc.) without governance."""
 
     SAFE_METHODS = {
-        "tools/list", "tools/resources", "resources/list",
-        "resources/subscribe", "resources/unsubscribe",
-        "prompts/list", "prompts/get",
-        "ping", "completion/complete",
+        "tools/list",
+        "tools/resources",
+        "resources/list",
+        "resources/subscribe",
+        "resources/unsubscribe",
+        "prompts/list",
+        "prompts/get",
+        "ping",
+        "completion/complete",
         "logging/setLevel",
     }
 
@@ -216,14 +224,28 @@ class AllowKnownSafeMCPTools(MCPPolicyRule):
     """Allow known-safe MCP tools (read-only tools, info queries)."""
 
     SAFE_TOOL_PREFIXES = {
-        "read", "list", "get", "search", "query",
-        "lookup", "find", "status", "info", "help",
+        "read",
+        "list",
+        "get",
+        "search",
+        "query",
+        "lookup",
+        "find",
+        "status",
+        "info",
+        "help",
     }
 
     SAFE_TOOL_NAMES = {
-        "read_file", "list_directory", "get_file_info",
-        "search_files", "git_log", "git_status",
-        "git_diff", "git_branch", "browser_screenshot",
+        "read_file",
+        "list_directory",
+        "get_file_info",
+        "search_files",
+        "git_log",
+        "git_status",
+        "git_diff",
+        "git_branch",
+        "browser_screenshot",
     }
 
     def __init__(self) -> None:
@@ -257,10 +279,27 @@ class BlockDangerousMCPTools(MCPPolicyRule):
     """Block known-dangerous MCP tools regardless of trust level."""
 
     DANGEROUS_TOOL_NAMES = {
-        "shell", "bash", "zsh", "sh", "exec", "spawn",
-        "system", "popen", "subprocess", "eval", "exec_command",
-        "sudo", "su", "chmod", "chown", "mkfs", "format",
-        "dd", "fdisk", "mount", "umount",
+        "shell",
+        "bash",
+        "zsh",
+        "sh",
+        "exec",
+        "spawn",
+        "system",
+        "popen",
+        "subprocess",
+        "eval",
+        "exec_command",
+        "sudo",
+        "su",
+        "chmod",
+        "chown",
+        "mkfs",
+        "format",
+        "dd",
+        "fdisk",
+        "mount",
+        "umount",
     }
 
     def __init__(self) -> None:
@@ -287,11 +326,26 @@ class BlockDangerousArgs(MCPPolicyRule):
     """Block dangerous argument patterns in tool calls."""
 
     DANGEROUS_PATTERNS = [
-        "rm -rf", "rm -fr", "rm --recursive", "mkfs", "dd if=",
-        "DROP TABLE", "DROP DATABASE", "DELETE FROM",
-        "shutdown", "reboot", "init 0", "init 6",
-        "chmod 777", "chmod -R 777", "sudo ",
-        "> /dev/sda", "| bash", "| sh", "wget ", "curl ",
+        "rm -rf",
+        "rm -fr",
+        "rm --recursive",
+        "mkfs",
+        "dd if=",
+        "DROP TABLE",
+        "DROP DATABASE",
+        "DELETE FROM",
+        "shutdown",
+        "reboot",
+        "init 0",
+        "init 6",
+        "chmod 777",
+        "chmod -R 777",
+        "sudo ",
+        "> /dev/sda",
+        "| bash",
+        "| sh",
+        "wget ",
+        "curl ",
     ]
 
     def __init__(self) -> None:
@@ -317,9 +371,23 @@ class BlockDangerousArgs(MCPPolicyRule):
 class WriteToolRequiresHITL(MCPPolicyRule):
     """Tools that modify state (write, delete, push, send) require HITL."""
 
-    MODIFY_TOOL_PREFIXES = {"write", "create", "delete", "remove", "update",
-                            "edit", "push", "commit", "send", "upload",
-                            "deploy", "publish", "move", "copy", "rename"}
+    MODIFY_TOOL_PREFIXES = {
+        "write",
+        "create",
+        "delete",
+        "remove",
+        "update",
+        "edit",
+        "push",
+        "commit",
+        "send",
+        "upload",
+        "deploy",
+        "publish",
+        "move",
+        "copy",
+        "rename",
+    }
 
     def __init__(self) -> None:
         super().__init__(
@@ -356,6 +424,7 @@ class TrustLevelBasedGate(MCPPolicyRule):
         """Check if session_id corresponds to an active execution session."""
         try:
             from maref.gaas.session_manager import is_session_active
+
             return is_session_active(session_id)
         except Exception:
             return False
@@ -413,22 +482,27 @@ class TrustLevelBasedGate(MCPPolicyRule):
 
 def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes = HMAC_SECRET_KEY) -> str:
     """Create HMAC-SHA256 signature for an audit log entry."""
-    payload = json.dumps({
-        "timestamp": entry.timestamp.isoformat(),
-        "agent_id": entry.agent_id,
-        "tool_name": entry.tool_name,
-        "trust_level": entry.trust_level,
-        "verdict": entry.verdict,
-        "args_hash": entry.args_hash,
-        "chain_id": entry.chain_id,
-        "delegation_depth": entry.delegation_depth,
-        "risk_score": entry.risk_score,
-    }, sort_keys=True)
+    payload = json.dumps(
+        {
+            "timestamp": entry.timestamp.isoformat(),
+            "agent_id": entry.agent_id,
+            "tool_name": entry.tool_name,
+            "trust_level": entry.trust_level,
+            "verdict": entry.verdict,
+            "args_hash": entry.args_hash,
+            "chain_id": entry.chain_id,
+            "delegation_depth": entry.delegation_depth,
+            "risk_score": entry.risk_score,
+        },
+        sort_keys=True,
+    )
     signature = hmac.new(secret_key, payload.encode(), hashlib.sha256).hexdigest()
     return signature
 
 
-def verify_audit_signature(entry: AuditLogEntry, signature: str, secret_key: bytes = HMAC_SECRET_KEY) -> bool:
+def verify_audit_signature(
+    entry: AuditLogEntry, signature: str, secret_key: bytes = HMAC_SECRET_KEY
+) -> bool:
     """Verify HMAC-SHA256 signature of an audit log entry."""
     expected = sign_audit_entry(entry, secret_key)
     return hmac.compare_digest(expected, signature)
@@ -557,7 +631,9 @@ class MCPGovernance:
                 risk_score=1.0,
                 matched_rule="circuit_breaker_monitor",
             )
-            self._record_decision(result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args)
+            self._record_decision(
+                result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args
+            )
             self._decision_log.append(result)
             return result
 
@@ -569,12 +645,16 @@ class MCPGovernance:
                 risk_score=1.0,
                 matched_rule="circuit_breaker",
             )
-            self._record_decision(result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args)
+            self._record_decision(
+                result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args
+            )
             self._decision_log.append(result)
             return result
 
         result = self._policy_engine.evaluate(context)
-        self._record_decision(result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args)
+        self._record_decision(
+            result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args
+        )
 
         if result.verdict == MCPDecisionVerdict.ASK_USER:
             hitl_event = self._hitl_router.route(
@@ -607,9 +687,7 @@ class MCPGovernance:
         delegation_depth: int,
         args: dict[str, Any] | None = None,
     ) -> None:
-        args_hash = hashlib.sha256(
-            json.dumps(args or {}, sort_keys=True).encode()
-        ).hexdigest()[:16]
+        args_hash = hashlib.sha256(json.dumps(args or {}, sort_keys=True).encode()).hexdigest()[:16]
 
         entry = AuditLogEntry(
             timestamp=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
@@ -690,26 +768,36 @@ class MCPGovernance:
             if i < len(self._decision_log):
                 stored_sig = self._decision_log[i].metadata.get("audit_signature", "")
             if not stored_sig:
-                violations.append({"index": i, "tool_name": entry.tool_name, "issue": "no_signature"})
+                violations.append(
+                    {"index": i, "tool_name": entry.tool_name, "issue": "no_signature"}
+                )
                 continue
             if not verify_audit_signature(entry, stored_sig, self._secret_key):
-                violations.append({"index": i, "tool_name": entry.tool_name, "issue": "signature_mismatch"})
+                violations.append(
+                    {"index": i, "tool_name": entry.tool_name, "issue": "signature_mismatch"}
+                )
         return violations
 
     def export_audit_log(self, format: str = "json") -> str:
         if format == "json":
-            return json.dumps([{
-                "timestamp": e.timestamp.isoformat(),
-                "agent_id": e.agent_id,
-                "tool_name": e.tool_name,
-                "trust_level": e.trust_level,
-                "verdict": e.verdict,
-                "args_hash": e.args_hash,
-                "chain_id": e.chain_id,
-                "delegation_depth": e.delegation_depth,
-                "risk_score": e.risk_score,
-                "metadata": e.metadata,
-            } for e in self._audit_log], indent=2)
+            return json.dumps(
+                [
+                    {
+                        "timestamp": e.timestamp.isoformat(),
+                        "agent_id": e.agent_id,
+                        "tool_name": e.tool_name,
+                        "trust_level": e.trust_level,
+                        "verdict": e.verdict,
+                        "args_hash": e.args_hash,
+                        "chain_id": e.chain_id,
+                        "delegation_depth": e.delegation_depth,
+                        "risk_score": e.risk_score,
+                        "metadata": e.metadata,
+                    }
+                    for e in self._audit_log
+                ],
+                indent=2,
+            )
         elif format == "syslog":
             lines = []
             for e in self._audit_log:
@@ -817,7 +905,9 @@ class MCPPolicyMapping:
         return "mcp-rule-006"
 
     def to_yaml(self) -> str:
-        return yaml.safe_dump({"version": "1.0", "mappings": self.mappings}, default_flow_style=False)
+        return yaml.safe_dump(
+            {"version": "1.0", "mappings": self.mappings}, default_flow_style=False
+        )
 
 
 class MCPMappedPolicyEngine(MCPPolicyEngine):

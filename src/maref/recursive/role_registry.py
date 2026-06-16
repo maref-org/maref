@@ -54,7 +54,9 @@ def validate_role(role: PluginRole) -> list[str]:
         errors.append("identity.name is required")
 
     if role.capability.trigram not in VALID_TRIGRAMS:
-        errors.append(f"capability.trigram '{role.capability.trigram}' is not valid. Must be one of: {', '.join(sorted(VALID_TRIGRAMS))}")
+        errors.append(
+            f"capability.trigram '{role.capability.trigram}' is not valid. Must be one of: {', '.join(sorted(VALID_TRIGRAMS))}"
+        )
 
     intersection = set(role.capability.allowed_tools) & set(role.capability.denied_tools)
     if intersection:

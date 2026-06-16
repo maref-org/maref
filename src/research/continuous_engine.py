@@ -18,7 +18,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import structlog
 from dotenv import load_dotenv
+
+logger = structlog.get_logger(__name__)
 
 load_dotenv()  # Automatically loads .env / .env.local
 
@@ -101,14 +104,14 @@ class ContinuousAutoResearch:
             try:
                 self._llm_client = DashScopeClient(model=self._llm_model)
             except ValueError:
-                print("[WARN] DASHSCOPE_API_KEY not set, LLM analysis disabled")
+                logger.warning("DASHSCOPE_API_KEY not set, LLM analysis disabled")
                 self._enable_llm_analysis = False
                 return None
         return self._llm_client
 
     async def run_batch(self) -> ContinuousReport:
         """Run one batch of experiments."""
-        print(f"[{datetime.now()}] Starting batch {self._batch_count}")
+        logger.info("Starting batch %s", self._batch_count)
 
         self._orchestrator.reset_batch()
         findings = []
@@ -161,7 +164,7 @@ class ContinuousAutoResearch:
         llm_client = await self._ensure_llm_client()
         if llm_client and findings:
             try:
-                print(f"[{datetime.now()}] Running LLM analysis...")
+                logger.info("Running LLM analysis...")
                 batch_analysis = await llm_client.analyze_batch(
                     batch_id=self._batch_count,
                     experiment_results=[
@@ -180,9 +183,9 @@ class ContinuousAutoResearch:
                     "recommendations": batch_analysis.recommendations,
                     "overall_assessment": batch_analysis.overall_assessment,
                 }
-                print(f"[{datetime.now()}] LLM analysis complete")
+                logger.info("LLM analysis complete")
             except Exception as e:
-                print(f"[{datetime.now()}] LLM analysis failed: {e}")
+                logger.warning("LLM analysis failed: %s", e)
                 llm_analysis = {"error": str(e)}
             finally:
                 # Ensure LLM client session is closed
@@ -257,79 +260,95 @@ class ContinuousAutoResearch:
             cn_name = _TYPE_NAMES.get(exp_type, exp_type)
             lines.append(f"| {cn_name} | {count} |")
 
-        lines.extend([
-            "",
-            "## 重要发现",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 重要发现",
+                "",
+            ]
+        )
         for finding in report.top_findings:
             lines.append(f"- {finding}")
 
-        lines.extend([
-            "",
-            "## 洞察",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 洞察",
+                "",
+            ]
+        )
         for insight in report.insights:
             lines.append(f"- {insight}")
 
-        lines.extend([
-            "",
-            "## 知识图谱",
-            "",
-            "```json",
-            json.dumps(report.knowledge_graph_stats, indent=2),
-            "```",
-            "",
-            "## 系统健康",
-            "",
-            f"- 连续失败: {report.recovery_stats.get('consecutive_failures', 0)}",
-            f"- 总失败: {report.recovery_stats.get('total_failures', 0)}",
-            f"- 需要注意: {report.recovery_stats.get('needs_attention', False)}",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 知识图谱",
+                "",
+                "```json",
+                json.dumps(report.knowledge_graph_stats, indent=2),
+                "```",
+                "",
+                "## 系统健康",
+                "",
+                f"- 连续失败: {report.recovery_stats.get('consecutive_failures', 0)}",
+                f"- 总失败: {report.recovery_stats.get('total_failures', 0)}",
+                f"- 需要注意: {report.recovery_stats.get('needs_attention', False)}",
+            ]
+        )
 
         if report.llm_analysis:
-            lines.extend([
-                "",
-                "## LLM 分析 (百炼 Qwen)",
-                "",
-                f"**总体评估**: {report.llm_analysis.get('overall_assessment', 'N/A')}",
-                "",
-                "### 关键洞察",
-                "",
-            ])
-            for insight in report.llm_analysis.get('key_insights', []):
+            lines.extend(
+                [
+                    "",
+                    "## LLM 分析 (百炼 Qwen)",
+                    "",
+                    f"**总体评估**: {report.llm_analysis.get('overall_assessment', 'N/A')}",
+                    "",
+                    "### 关键洞察",
+                    "",
+                ]
+            )
+            for insight in report.llm_analysis.get("key_insights", []):
                 lines.append(f"- {insight}")
 
-            lines.extend([
-                "",
-                "### 检测到的模式",
-                "",
-            ])
-            for pattern in report.llm_analysis.get('patterns_detected', []):
+            lines.extend(
+                [
+                    "",
+                    "### 检测到的模式",
+                    "",
+                ]
+            )
+            for pattern in report.llm_analysis.get("patterns_detected", []):
                 lines.append(f"- {pattern}")
 
-            lines.extend([
-                "",
-                "### 标记的异常",
-                "",
-            ])
-            for anomaly in report.llm_analysis.get('anomalies_flagged', []):
+            lines.extend(
+                [
+                    "",
+                    "### 标记的异常",
+                    "",
+                ]
+            )
+            for anomaly in report.llm_analysis.get("anomalies_flagged", []):
                 lines.append(f"- {anomaly}")
 
-            lines.extend([
-                "",
-                "### 建议",
-                "",
-            ])
-            for rec in report.llm_analysis.get('recommendations', []):
+            lines.extend(
+                [
+                    "",
+                    "### 建议",
+                    "",
+                ]
+            )
+            for rec in report.llm_analysis.get("recommendations", []):
                 lines.append(f"- {rec}")
 
-        lines.extend([
-            "",
-            "---",
-            "*由 MAREF 持续自主研究引擎与百炼 LLM 生成*",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "*由 MAREF 持续自主研究引擎与百炼 LLM 生成*",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -342,7 +361,7 @@ class ContinuousAutoResearch:
         if not stripped:
             return False
         last_char = stripped[-1]
-        natural_ends = {"。", "！", "？", "…", "”", "\"", ")", "】", "]", "}", ">", ".", "!", "?"}
+        natural_ends = {"。", "！", "？", "…", "”", '"', ")", "】", "]", "}", ">", ".", "!", "?"}
         if last_char in natural_ends:
             return False
         truncation_markers = {",", "，", "、", "：", ":", "；", ";"}
@@ -360,7 +379,7 @@ class ContinuousAutoResearch:
 
         def _ngrams(s: str, n: int = 3) -> set[str]:
             s = s.replace("\n", " ").replace("  ", " ")
-            return {s[i:i + n] for i in range(len(s) - n + 1)}
+            return {s[i : i + n] for i in range(len(s) - n + 1)}
 
         ngrams_a = _ngrams(a)
         ngrams_b = _ngrams(b)
@@ -400,27 +419,31 @@ class ContinuousAutoResearch:
         Args:
             max_batches: Maximum number of batches (None for infinite)
         """
-        print(f"[{datetime.now()}] Starting continuous research")
-        print(f"  Output: {self._output_dir}")
-        print(f"  Batch interval: {self._batch_interval/60:.1f} minutes")
+        logger.info("Starting continuous research")
+        logger.debug("Output: %s", self._output_dir)
+        logger.debug("Batch interval: %.1f minutes", self._batch_interval / 60)
 
         while max_batches is None or self._batch_count < max_batches:
             try:
                 report = await self.run_batch()
                 self.save_report(report)
 
-                print(f"[{datetime.now()}] Batch {report.batch_id} complete: "
-                      f"{report.experiments_run} experiments, {report.findings_count} findings")
+                logger.info(
+                    "Batch %s complete: %s experiments, %s findings",
+                    report.batch_id,
+                    report.experiments_run,
+                    report.findings_count,
+                )
 
                 # Wait before next batch
                 if max_batches is None or self._batch_count < max_batches:
                     await asyncio.sleep(self._batch_interval)
 
             except KeyboardInterrupt:
-                print(f"[{datetime.now()}] Stopping continuous research")
+                logger.info("Stopping continuous research")
                 break
             except Exception as e:
-                print(f"[{datetime.now()}] Batch error: {e}")
+                logger.warning("Batch error: %s", e)
                 await asyncio.sleep(60)  # Wait 1 minute before retry
 
 

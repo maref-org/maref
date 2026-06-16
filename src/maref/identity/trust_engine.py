@@ -62,8 +62,7 @@ class TrustEngine:
 
         audit_entries = self._audit.read_all()
         agent_entries = [
-            e for e in audit_entries
-            if e.metadata.get("agent_did") == agent_did.did_string
+            e for e in audit_entries if e.metadata.get("agent_did") == agent_did.did_string
         ]
 
         completed = sum(1 for e in agent_entries if e.action == "task_completed")
@@ -74,7 +73,8 @@ class TrustEngine:
         factors["halt_avoidance"] = max(0.0, 1.0 - halts / max(len(agent_entries), 1))
 
         agent_cb_events = sum(
-            1 for e in agent_entries
+            1
+            for e in agent_entries
             if "circuit_breaker" in e.event_type.lower() or "cb_trip" in e.event_type.lower()
         )
         cb_trips = agent_cb_events
@@ -89,7 +89,11 @@ class TrustEngine:
         factors["behavior_consistency"] = behavior_score
 
         valid_creds = sum(1 for e in agent_entries if e.metadata.get("credential_valid") is True)
-        total_creds = max(valid_creds + sum(1 for e in agent_entries if e.metadata.get("credential_valid") is False), 1)
+        total_creds = max(
+            valid_creds
+            + sum(1 for e in agent_entries if e.metadata.get("credential_valid") is False),
+            1,
+        )
         factors["vc_validity"] = valid_creds / total_creds if total_creds > 0 else 0.5
 
         return factors
@@ -123,7 +127,9 @@ class TrustEngine:
         )
         return target_state
 
-    def record_event(self, agent_did: AgentDID, event_type: str, data: dict[str, Any] | None = None) -> None:
+    def record_event(
+        self, agent_did: AgentDID, event_type: str, data: dict[str, Any] | None = None
+    ) -> None:
         event = {"type": event_type, "timestamp": time.time(), **(data or {})}
         self._agent_events[agent_did].append(event)
 

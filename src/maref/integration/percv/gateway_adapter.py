@@ -118,8 +118,11 @@ class PERCVGatewayAdapter:
         if self._router is not None:
             return self._router
         try:
-            from percv.gateway.router import CostTracker as _CostTracker
+            from percv.gateway.router import (  # type: ignore[import-not-found]
+                CostTracker as _CostTracker,
+            )
             from percv.gateway.router import LLMRouter
+
             if self._cost_tracker is None:
                 self._cost_tracker = _CostTracker(monthly_budget=self._monthly_budget)
             self._router = LLMRouter(cost_tracker=self._cost_tracker)
@@ -169,6 +172,7 @@ class PERCVGatewayAdapter:
             purpose = _STATE_TO_PURPOSE.get(governance_state, "maref_inference")
 
         import time
+
         t0 = time.perf_counter()
         try:
             content = router.call(model_key, system_prompt, user_prompt, purpose=purpose)
@@ -237,6 +241,7 @@ class PERCVGatewayAdapter:
         user_prompt = "\n".join(user_parts)
 
         import time
+
         t0 = time.perf_counter()
         try:
             result = router.dual_call(
@@ -267,8 +272,12 @@ class PERCVGatewayAdapter:
             return resp_a, resp_b
         except Exception as exc:
             err_resp = GatewayResponse(
-                content="", model_used="error", cost_cny=0.0,
-                latency_ms=0.0, provider="error", error=str(exc),
+                content="",
+                model_used="error",
+                cost_cny=0.0,
+                latency_ms=0.0,
+                provider="error",
+                error=str(exc),
             )
             return err_resp, err_resp
 
@@ -307,6 +316,7 @@ class PERCVGatewayAdapter:
         """Resolve provider name for a model key without importing percv at call time."""
         try:
             from percv.gateway.router import MODELS
+
             spec = MODELS.get(model_key)
             return spec.provider if spec else "unknown"
         except ImportError:
@@ -317,8 +327,7 @@ class PERCVGatewayAdapter:
         total_calls = len(self._call_history)
         errors = sum(1 for r in self._call_history if r.error)
         avg_latency = (
-            sum(r.latency_ms for r in self._call_history) / total_calls
-            if total_calls > 0 else 0.0
+            sum(r.latency_ms for r in self._call_history) / total_calls if total_calls > 0 else 0.0
         )
         return {
             "total_calls": total_calls,

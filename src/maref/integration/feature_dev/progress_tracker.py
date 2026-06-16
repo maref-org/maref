@@ -62,10 +62,14 @@ class ConvergenceReport:
             "total_duration_seconds": round(self.total_duration_seconds, 1),
             "overall_trend": self.overall_trend,
             "layer_trends": [
-                {"layer_name": t.layer_name, "scores": t.scores,
-                 "direction": t.direction, "slope": round(t.slope, 1),
-                 "current_gap": round(t.current_gap, 1),
-                 "is_on_track": t.is_on_track}
+                {
+                    "layer_name": t.layer_name,
+                    "scores": t.scores,
+                    "direction": t.direction,
+                    "slope": round(t.slope, 1),
+                    "current_gap": round(t.current_gap, 1),
+                    "is_on_track": t.is_on_track,
+                }
                 for t in self.layer_trends
             ],
             "deploy_ready": self.deploy_ready,
@@ -93,11 +97,27 @@ def _direction(scores: list[float]) -> str:
 
 
 _RECS: dict[str, list[str]] = {
-    "Static Audit": ["Add more characters", "Increase script count", "Cover more deployment stages"],
-    "Reasoning Metrics": ["Deepen character backstories", "Add more episodes per character", "Reference document hypotheses in content"],
-    "Action Metrics": ["Produce more total content", "Add scene variety", "Increase total duration"],
+    "Static Audit": [
+        "Add more characters",
+        "Increase script count",
+        "Cover more deployment stages",
+    ],
+    "Reasoning Metrics": [
+        "Deepen character backstories",
+        "Add more episodes per character",
+        "Reference document hypotheses in content",
+    ],
+    "Action Metrics": [
+        "Produce more total content",
+        "Add scene variety",
+        "Increase total duration",
+    ],
     "E2E Metrics": ["Complete export pipeline", "Cover all document stages in content"],
-    "MAS Dimensions": ["Add characters with distinct archetypes", "Create crossover episodes", "Diversify style palettes"],
+    "MAS Dimensions": [
+        "Add characters with distinct archetypes",
+        "Create crossover episodes",
+        "Diversify style palettes",
+    ],
 }
 
 
@@ -117,8 +137,12 @@ class ProgressTracker:
                 lmap[n].append(snap.layer_scores.get(n, 0.0))
 
         trends = [
-            LayerTrend(layer_name=n, scores=s, direction=_direction(s),
-                       current_gap=max(0.0, 80.0 - (s[-1] if s else 0.0)))
+            LayerTrend(
+                layer_name=n,
+                scores=s,
+                direction=_direction(s),
+                current_gap=max(0.0, 80.0 - (s[-1] if s else 0.0)),
+            )
             for n, s in lmap.items()
         ]
 
@@ -156,10 +180,18 @@ class ProgressTracker:
             feature_name=self.feature_name,
             total_cycles=len(self.snapshots),
             total_duration_seconds=sum(s.duration_seconds for s in self.snapshots),
-            overall_trend=ot, layer_trends=trends,
-            deploy_ready=all_pass, deploy_gates=gates, recommendations=recs,
-            cycle_scores=all_scores, final_decision=final_decision,
+            overall_trend=ot,
+            layer_trends=trends,
+            deploy_ready=all_pass,
+            deploy_gates=gates,
+            recommendations=recs,
+            cycle_scores=all_scores,
+            final_decision=final_decision,
             budget_spent=budget,
-            content_stats={"characters": chars, "scripts": scripts,
-                           "stages_covered": stages, "reqs_covered": reqs},
+            content_stats={
+                "characters": chars,
+                "scripts": scripts,
+                "stages_covered": stages,
+                "reqs_covered": reqs,
+            },
         )

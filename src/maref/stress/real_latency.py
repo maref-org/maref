@@ -1,4 +1,5 @@
 """Real wall-clock latency measurement for stress tests."""
+
 from __future__ import annotations
 
 import time
@@ -32,9 +33,14 @@ class LatencyReport:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "operation": self.operation, "count": self.count,
-            "p50_ms": self.p50_ms, "p99_ms": self.p99_ms, "p99_9_ms": self.p99_9_ms,
-            "mean_ms": self.mean_ms, "min_ms": self.min_ms, "max_ms": self.max_ms,
+            "operation": self.operation,
+            "count": self.count,
+            "p50_ms": self.p50_ms,
+            "p99_ms": self.p99_ms,
+            "p99_9_ms": self.p99_9_ms,
+            "mean_ms": self.mean_ms,
+            "min_ms": self.min_ms,
+            "max_ms": self.max_ms,
             "throughput_ops_sec": self.throughput_ops_sec,
         }
 
@@ -62,7 +68,8 @@ class RealLatencyTracker:
         sorted_samples = sorted(samples)
         n = len(sorted_samples)
         return LatencyReport(
-            operation=operation, count=n,
+            operation=operation,
+            count=n,
             p50_ms=round(sorted_samples[int(n * 0.50)] / 1_000_000, 3),
             p99_ms=round(sorted_samples[int(n * 0.99)] / 1_000_000, 3) if n > 1 else 0,
             p99_9_ms=round(sorted_samples[int(n * 0.999)] / 1_000_000, 3) if n > 2 else 0,

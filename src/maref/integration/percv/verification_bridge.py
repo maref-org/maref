@@ -55,10 +55,14 @@ class VerificationBridge:
         then their results are compared for consensus.
         """
         if self._gateway is None:
-            return [VerificationResult(
-                protocol="A", passed=False, confidence=0.0,
-                error="GatewayAdapter required",
-            )]
+            return [
+                VerificationResult(
+                    protocol="A",
+                    passed=False,
+                    confidence=0.0,
+                    error="GatewayAdapter required",
+                )
+            ]
 
         results: list[VerificationResult] = []
         for kdp in kdp_cards:
@@ -67,13 +71,17 @@ class VerificationBridge:
                 continue
 
             messages = [
-                {"role": "system", "content": "Extract and verify the key data point from this claim."},
+                {
+                    "role": "system",
+                    "content": "Extract and verify the key data point from this claim.",
+                },
                 {"role": "user", "content": claim},
             ]
 
             try:
                 resp_a, resp_b = self._gateway.chat_with_verification(
-                    messages, protocol="A",
+                    messages,
+                    protocol="A",
                 )
 
                 consensus = self._compute_consensus(resp_a.content, resp_b.content)
@@ -91,7 +99,9 @@ class VerificationBridge:
 
             except Exception as exc:
                 result = VerificationResult(
-                    protocol="A", passed=False, confidence=0.0,
+                    protocol="A",
+                    passed=False,
+                    confidence=0.0,
                     error=str(exc),
                 )
 
@@ -128,7 +138,9 @@ class VerificationBridge:
 
         if self._gateway is None:
             return VerificationResult(
-                protocol="B", passed=False, confidence=0.0,
+                protocol="B",
+                passed=False,
+                confidence=0.0,
                 error="No verification backend available",
             )
 
@@ -163,7 +175,10 @@ class VerificationBridge:
 
         except Exception as exc:
             return VerificationResult(
-                protocol="B", passed=False, confidence=0.0, error=str(exc),
+                protocol="B",
+                passed=False,
+                confidence=0.0,
+                error=str(exc),
             )
 
     def run_protocol_c(self, forecast: dict[str, Any]) -> VerificationResult:
@@ -174,7 +189,9 @@ class VerificationBridge:
         """
         if not forecast:
             return VerificationResult(
-                protocol="C", passed=False, confidence=0.0,
+                protocol="C",
+                passed=False,
+                confidence=0.0,
                 error="Empty forecast data",
             )
 
@@ -217,10 +234,14 @@ class VerificationBridge:
         Cross-verifies numerical claims across three independent models.
         """
         if self._gateway is None:
-            return [VerificationResult(
-                protocol="D", passed=False, confidence=0.0,
-                error="GatewayAdapter required for Protocol D",
-            )]
+            return [
+                VerificationResult(
+                    protocol="D",
+                    passed=False,
+                    confidence=0.0,
+                    error="GatewayAdapter required for Protocol D",
+                )
+            ]
 
         results: list[VerificationResult] = []
         router = self._gateway._ensure_router()
@@ -235,8 +256,7 @@ class VerificationBridge:
                 verifications = verified_kdp.get("verification_results", {})
 
                 agreements = sum(
-                    1 for v in verifications.values()
-                    if v and v.startswith("VERIFIED")
+                    1 for v in verifications.values() if v and v.startswith("VERIFIED")
                 )
                 total = len(verifications)
                 agreement_rate = agreements / total if total > 0 else 0.0
@@ -257,7 +277,9 @@ class VerificationBridge:
 
             except Exception as exc:
                 result = VerificationResult(
-                    protocol="D", passed=False, confidence=0.0,
+                    protocol="D",
+                    passed=False,
+                    confidence=0.0,
                     error=str(exc),
                 )
 
@@ -321,15 +343,21 @@ class VerificationBridge:
             "passed": sum(1 for vr in self._history if vr.passed),
             "failed": sum(1 for vr in self._history if not vr.passed),
             "avg_confidence": round(
-                sum(vr.confidence for vr in self._history) / len(self._history), 3,
-            ) if self._history else 0.0,
+                sum(vr.confidence for vr in self._history) / len(self._history),
+                3,
+            )
+            if self._history
+            else 0.0,
             "by_protocol": {
                 proto: {
                     "total": len(vrs),
                     "passed": sum(1 for vr in vrs if vr.passed),
                     "avg_confidence": round(
-                        sum(vr.confidence for vr in vrs) / len(vrs), 3,
-                    ) if vrs else 0.0,
+                        sum(vr.confidence for vr in vrs) / len(vrs),
+                        3,
+                    )
+                    if vrs
+                    else 0.0,
                 }
                 for proto, vrs in by_protocol.items()
             },

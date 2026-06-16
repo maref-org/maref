@@ -1,5 +1,51 @@
 # CHANGELOG
 
+## [v0.33.0-rc] - 2026-06-16
+
+### Tech Debt Cleanup (Phase 0)
+- **Ruff 36→0 errors** — 25 auto-fix + 11 manual: F841 unused vars, B007 loop var, F821 forward ref, F822 __all__ re-exports, SIM103 simplify return, B905 zip strict
+- **mypy strict 25→0 errors** — fixed port_monitor type signatures, removed unused `type: ignore` comments, cleaned pyproject.toml stale sections
+- **93 `print()` → `logger.*` / `console.print()`** — across 14 files (research library → structlog, CLI tools → Rich console)
+- **Dockerfile** — version label 0.26.0 → 0.32.0
+- **pyproject.toml** — version bump 0.32.0 → 0.33.0-rc
+
+### Security
+- **`tenant.py` API key hashing** — plaintext storage replaced with SHA-256 (P0 PRR blocker resolved)
+- **`main.cjs` sandbox** — removed `disable-gpu-sandbox` / `no-sandbox` switches (P0 PRR blocker resolved)
+- **`.trufflehog.yaml`** — secret scanning config added (P0 PRR blocker resolved)
+- **CSP** — added `ws://localhost:*` and `font-src 'self' data:` to Electron CSP
+
+### Full-Stack Link Repair
+- **Backend CSP** — added `Content-Security-Policy` header to `SecurityHeadersMiddleware` (default-src 'self', ws://localhost:* for WebSocket)
+- **SSE Heartbeat** — `stream_session()` endpoint now emits `:keepalive\n\n` every 15s (was a stub that closed immediately)
+- **Error Code Framework** (`src/maref/exceptions.py`) — 20 standardized error codes (E0000-E4002) with HTTP status mapping + `MAREFError` base class with serializable `to_dict()` output
+
+### CI Infrastructure
+- **`.snyk`** — dependency vulnerability scanning config
+- **`scripts/cosign-verify.sh`** — container image signature verification
+- **`gui/playwright.config.ts` + `gui/tests/e2e/smoke.spec.ts`** — E2E smoke test scaffold
+- **`gui/openapi-schema.json`** — 27-endpoint API schema for frontend type generation
+- **`scripts/version-check.sh`** — cross-file version consistency checker
+
+### SAEB 递归深化 (Sprint 1-2)
+- **3 New Injection Types** — `import_confusion` (unresolvable import), `type_error` (wrong return type), `async_trap` (missing await); total injections 5→8
+- **Immune System Self-SAEB** — `create_immunity_scenario()` with 3 immunity-specific injections (contamination wrong, gate removed, missing return); reference fixture `immune_sample_ref.py`
+- **Multi-Agent Evolution Comparison** — `run_comparison()` runs SAEB across multiple agent adapters in one call, keyed by agent name
+- **Degradation Detection** — `check_degradation()` compares two SAEB results and flags regressions in convergence (+2σ), oscillation, time (+50%), acceptance (True→False)
+- **14 SAEB tests passed** (was 12) — 2 new: `test_run_comparison`, `test_degradation_detection`
+
+### Immunity System M7 — Production Hardening (Sprint 1-1)
+- **Cooldown Dashboard** — 3 new React components (`ImmunityDashboard`, `CooldownDashboard`, `GeneAuditTrail`) with status cards, entry table, timeline, dark theme + `GET /api/immunity/cooldown` and `GET /api/immunity/cooldown/summary` backend endpoints
+- **PollutionTax OTel Metrics** — 4 Prometheus metrics emitted: `maref_pollution_tax_applied_total`, `maref_pollution_tax_penalty_total`, `maref_pollution_tax_downgrade_total` (counters), `maref_pollution_tax_multiplier` (gauge); 3 new Grafana dashboard panels (multiplier stat, events timeseries, downgrade stat)
+- **Gene Pipeline Audit Trail** — `NegativeGeneBank.get_gene_lifecycle()` and `get_lifecycle_summary()` for full gene provenance; `GET /api/immunity/genes` endpoint
+- **NegativeGeneBank Index Optimization** — 4 composite SQLite indexes (`cwe_id+risk_level`, `source+first_seen`, `risk_level+blocked`, `pattern_type+pattern_value`); schema v1.0 → v1.1
+- **CooldownManager 超时熔断** — `auto_archive_expired(max_age_days=7)` archives stale cooling entries; `get_overdue_entries(grace_days=7)` lists past-due evaluations
+
+### Changed
+- 版本统一: pyproject.toml, CHANGELOG.md → 0.33.0-rc
+
+---
+
 ## [v0.32.0] - 2026-06-13
 
 ### Added

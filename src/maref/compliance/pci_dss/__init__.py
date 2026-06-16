@@ -23,31 +23,34 @@ from typing import Any
 
 class PCIRequirement(Enum):
     """PCI DSS 要求（12大核心要求）"""
-    R1 = "r1"   # Install and maintain network security controls
-    R2 = "r2"   # Apply secure configurations to all system components
-    R3 = "r3"   # Protect stored account data
-    R4 = "r4"   # Protect cardholder data with strong cryptography during transmission
-    R5 = "r5"   # Protect all systems and networks from malicious software
-    R6 = "r6"   # Develop and maintain secure systems and software
-    R7 = "r7"   # Restrict access to system components and cardholder data by business need to know
-    R8 = "r8"   # Identify users and authenticate access to system components
-    R9 = "r9"   # Restrict physical access to cardholder data
-    R10 = "r10" # Log and monitor all access to system components and cardholder data
-    R11 = "r11" # Test security of systems and networks regularly
-    R12 = "r12" # Support information security with organizational policies and programs
+
+    R1 = "r1"  # Install and maintain network security controls
+    R2 = "r2"  # Apply secure configurations to all system components
+    R3 = "r3"  # Protect stored account data
+    R4 = "r4"  # Protect cardholder data with strong cryptography during transmission
+    R5 = "r5"  # Protect all systems and networks from malicious software
+    R6 = "r6"  # Develop and maintain secure systems and software
+    R7 = "r7"  # Restrict access to system components and cardholder data by business need to know
+    R8 = "r8"  # Identify users and authenticate access to system components
+    R9 = "r9"  # Restrict physical access to cardholder data
+    R10 = "r10"  # Log and monitor all access to system components and cardholder data
+    R11 = "r11"  # Test security of systems and networks regularly
+    R12 = "r12"  # Support information security with organizational policies and programs
 
 
 class PCISensitivityLevel(Enum):
     """卡数据敏感度"""
-    PAN = "pan"                     # Primary Account Number
-    CARDHOLDER_NAME = "name"        # 持卡人姓名
-    EXPIRATION_DATE = "expiry"      # 过期日期
-    SERVICE_CODE = "service_code"   # 服务码
+
+    PAN = "pan"  # Primary Account Number
+    CARDHOLDER_NAME = "name"  # 持卡人姓名
+    EXPIRATION_DATE = "expiry"  # 过期日期
+    SERVICE_CODE = "service_code"  # 服务码
     SENSITIVE_AUTH = "sensitive_auth"  # 敏感认证数据 (CVV/CVC/磁条/芯片)
 
 
 class PCIComplianceStatus(Enum):
     """PCI 合规状态"""
+
     COMPLIANT = "compliant"
     NON_COMPLIANT = "non_compliant"
     COMPENSATING_CONTROL = "compensating_control"
@@ -56,13 +59,14 @@ class PCIComplianceStatus(Enum):
 
 class SAQType(Enum):
     """自评问卷类型"""
-    SAQ_A = "saq_a"          # 完全外包，无电子存储
-    SAQ_A_EP = "saq_a_ep"    # 部分外包的电子商务
-    SAQ_B = "saq_b"          # 仅印表机终端
-    SAQ_B_IP = "saq_b_ip"    # 仅独立IP终端
-    SAQ_C = "saq_c"          # 连接到互联网的支付应用
-    SAQ_C_VT = "saq_c_vt"    # 仅虚拟终端
-    SAQ_D = "saq_d"          # 所有其他商户 + 服务提供商
+
+    SAQ_A = "saq_a"  # 完全外包，无电子存储
+    SAQ_A_EP = "saq_a_ep"  # 部分外包的电子商务
+    SAQ_B = "saq_b"  # 仅印表机终端
+    SAQ_B_IP = "saq_b_ip"  # 仅独立IP终端
+    SAQ_C = "saq_c"  # 连接到互联网的支付应用
+    SAQ_C_VT = "saq_c_vt"  # 仅虚拟终端
+    SAQ_D = "saq_d"  # 所有其他商户 + 服务提供商
 
 
 @dataclass
@@ -121,8 +125,17 @@ class PCIComplianceEngine:
     MERCHANT_LEVELS = {
         1: MerchantLevel(1, ">6M transactions/year", "Annual ROC by QSA", False, True, True),
         2: MerchantLevel(2, "1M-6M transactions/year", "Annual SAQ + ASV scan", True, True, False),
-        3: MerchantLevel(3, "20K-1M e-commerce transactions/year", "Annual SAQ + ASV scan", True, True, False),
-        4: MerchantLevel(4, "<20K e-commerce transactions/year", "Annual SAQ (if required by acquirer)", True, False, False),
+        3: MerchantLevel(
+            3, "20K-1M e-commerce transactions/year", "Annual SAQ + ASV scan", True, True, False
+        ),
+        4: MerchantLevel(
+            4,
+            "<20K e-commerce transactions/year",
+            "Annual SAQ (if required by acquirer)",
+            True,
+            False,
+            False,
+        ),
     }
 
     def __init__(self):
@@ -251,7 +264,9 @@ class PCIComplianceEngine:
             "algorithm": algorithm.upper(),
             "key_length": key_length,
             "minimum_required": min_length,
-            "status": "Meets PCI DSS cryptographic requirements" if is_compliant else f"Below minimum {min_length}-bit requirement",
+            "status": "Meets PCI DSS cryptographic requirements"
+            if is_compliant
+            else f"Below minimum {min_length}-bit requirement",
         }
 
     def test_requirement(
@@ -295,7 +310,9 @@ class PCIComplianceEngine:
             evidence=evidence,
             tested_at=datetime.now(),
             findings=[] if status == PCIComplianceStatus.COMPLIANT else ["Insufficient evidence"],
-            remediation_plan=None if status == PCIComplianceStatus.COMPLIANT else "Collect required evidence",
+            remediation_plan=None
+            if status == PCIComplianceStatus.COMPLIANT
+            else "Collect required evidence",
         )
 
         self._tests[test.test_id] = test
@@ -315,9 +332,17 @@ class PCIComplianceEngine:
             ROC 摘要
         """
         total = len(self._requirement_status)
-        compliant = sum(1 for s in self._requirement_status.values() if s == PCIComplianceStatus.COMPLIANT)
-        compensating = sum(1 for s in self._requirement_status.values() if s == PCIComplianceStatus.COMPENSATING_CONTROL)
-        non_compliant = sum(1 for s in self._requirement_status.values() if s == PCIComplianceStatus.NON_COMPLIANT)
+        compliant = sum(
+            1 for s in self._requirement_status.values() if s == PCIComplianceStatus.COMPLIANT
+        )
+        compensating = sum(
+            1
+            for s in self._requirement_status.values()
+            if s == PCIComplianceStatus.COMPENSATING_CONTROL
+        )
+        non_compliant = sum(
+            1 for s in self._requirement_status.values() if s == PCIComplianceStatus.NON_COMPLIANT
+        )
 
         compliance_rate = (compliant + compensating) / total * 100 if total > 0 else 0.0
 
@@ -341,9 +366,15 @@ class PCIComplianceEngine:
         for req_value, status in self._requirement_status.items():
             if status == PCIComplianceStatus.NON_COMPLIANT:
                 req = PCIRequirement(req_value)
-                recommendations.append(f"Address non-compliance for Requirement {req.value.upper()}: {self._requirement_map.get(req, '')}")
+                recommendations.append(
+                    f"Address non-compliance for Requirement {req.value.upper()}: {self._requirement_map.get(req, '')}"
+                )
 
-        return recommendations if recommendations else ["All requirements are met or have compensating controls"]
+        return (
+            recommendations
+            if recommendations
+            else ["All requirements are met or have compensating controls"]
+        )
 
     def generate_saq(self, cde_id: str) -> dict[str, Any]:
         """
@@ -364,11 +395,13 @@ class PCIComplianceEngine:
 
         questions = []
         for req in applicable_requirements:
-            questions.append({
-                "requirement": req.value,
-                "description": self._requirement_map[req],
-                "status": self._requirement_status[req.value].value,
-            })
+            questions.append(
+                {
+                    "requirement": req.value,
+                    "description": self._requirement_map[req],
+                    "status": self._requirement_status[req.value].value,
+                }
+            )
 
         return {
             "saq_type": cde.saq_type.value,
@@ -414,7 +447,9 @@ class PCIComplianceEngine:
             "onsite_audit_required": level_info.onsite_audit_required,
         }
 
-    def validate_segment_network(self, cde_ips: list[str], non_cde_ips: list[str]) -> dict[str, Any]:
+    def validate_segment_network(
+        self, cde_ips: list[str], non_cde_ips: list[str]
+    ) -> dict[str, Any]:
         """
         验证 CDE 和非 CDE 之间的网络分段
 

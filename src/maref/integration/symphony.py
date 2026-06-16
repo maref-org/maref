@@ -180,9 +180,7 @@ class SymphonyAdapter:
                 )
 
         elif command == "force_stabilize":
-            ok = self._sm.force_stabilize(
-                reason=msg.payload.get("reason", "symphony_command")
-            )
+            ok = self._sm.force_stabilize(reason=msg.payload.get("reason", "symphony_command"))
             return SymphonyMessage(
                 msg_type=SymphonyMessageType.RESPONSE,
                 source=self._source_id,
@@ -224,7 +222,9 @@ class SymphonyAdapter:
                 for a, b in zip(from_gc_bits, to_gc_bits, strict=False):
                     if a != b:
                         gc_delta_int += 1
-                ent_delta = ENTROPY_LEVELS.get(target.value, 0) - ENTROPY_LEVELS.get(from_state.value, 0)
+                ent_delta = ENTROPY_LEVELS.get(target.value, 0) - ENTROPY_LEVELS.get(
+                    from_state.value, 0
+                )
                 sections.append(
                     f"| {from_state.name} | {target.name} | {gc_delta_int} | "
                     f"{'+' if ent_delta >= 0 else ''}{ent_delta} |"

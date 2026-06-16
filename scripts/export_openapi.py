@@ -19,12 +19,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from sidecar.collector import ObservationCollector
+from sidecar.monitor import CompositeMonitor
 from sidecar.server import create_app
 
 
 def export_openapi(output_path: Path | None = None) -> Path:
     """Generate and export OpenAPI schema from FastAPI app."""
-    app = create_app()
+    collector = ObservationCollector()
+    monitor = CompositeMonitor()
+    app = create_app(collector, monitor)
     openapi_schema = app.openapi()
 
     if output_path is None:

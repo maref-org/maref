@@ -67,7 +67,9 @@ class TaskDecomposer:
     def __init__(self) -> None:
         self._decomposition_rules: dict[str, Any] = {}
 
-    def decompose(self, task_description: str, available_capabilities: list[str]) -> tuple[TaskDAG, float]:
+    def decompose(
+        self, task_description: str, available_capabilities: list[str]
+    ) -> tuple[TaskDAG, float]:
         dag = TaskDAG()
         steps = self._extract_steps(task_description)
         confidence = 0.85
@@ -93,8 +95,16 @@ class TaskDecomposer:
             ]
         if "research" in lower:
             return [
-                {"description": "Search and collect information", "complexity": 0.4, "depends_on": []},
-                {"description": "Synthesize research findings", "complexity": 0.5, "depends_on": [0]},
+                {
+                    "description": "Search and collect information",
+                    "complexity": 0.4,
+                    "depends_on": [],
+                },
+                {
+                    "description": "Synthesize research findings",
+                    "complexity": 0.5,
+                    "depends_on": [0],
+                },
                 {"description": "Draft research summary", "complexity": 0.3, "depends_on": [1]},
             ]
         return [

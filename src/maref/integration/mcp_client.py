@@ -51,11 +51,14 @@ class MCPServerConfig:
     env: dict[str, str] | None = None
 
     def config_hash(self) -> str:
-        raw = json.dumps({
-            "command": self.command,
-            "url": self.url,
-            "transport_type": self.transport_type,
-        }, sort_keys=True)
+        raw = json.dumps(
+            {
+                "command": self.command,
+                "url": self.url,
+                "transport_type": self.transport_type,
+            },
+            sort_keys=True,
+        )
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
@@ -149,7 +152,10 @@ class MCPClient:
                 return JSONRPCResponse(
                     jsonrpc="2.0",
                     result=None,
-                    error={"code": -32002, "message": "Circuit breaker is open — tool calls blocked until recovery"},
+                    error={
+                        "code": -32002,
+                        "message": "Circuit breaker is open — tool calls blocked until recovery",
+                    },
                     id=request_id or "",
                 )
 
@@ -180,12 +186,16 @@ class MCPClient:
                         "reason": gov_result.reason,
                         "risk_score": gov_result.risk_score,
                     },
-                    error={"code": -32001, "message": f"Governance requires user approval: {gov_result.reason}"},
+                    error={
+                        "code": -32001,
+                        "message": f"Governance requires user approval: {gov_result.reason}",
+                    },
                     id=request_id or "",
                 )
 
         # E1.2: Track latency and CB monitor for actual transport call
         import time as _time
+
         _start = _time.time()
         resp = conn.transport.send_tool_call(tool_name, args)
         _elapsed = _time.time() - _start

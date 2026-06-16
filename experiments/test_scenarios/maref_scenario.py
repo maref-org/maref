@@ -19,19 +19,16 @@ import os
 import random
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # 添加父目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from maref_implementation.gray_code import GrayCodeTransformer
 from maref_implementation.hexagram import Hexagram
-from maref_implementation.state_space import StateSpaceManager
 from maref_implementation.three_talents_orchestrator import (
-    MAREFWorkflowOrchestrator,
     get_maref_orchestrator,
 )
 
@@ -62,12 +59,12 @@ class Task:
     task_type: str  # build, review, plan, scan, audit, test, deploy, monitor
     status: TaskStatus
     created_at: str
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    hexagram_state: Optional[Hexagram] = None
-    routing_decision: Optional[Dict[str, Any]] = None
-    resources: Dict[str, Any] = None
-    metadata: Dict[str, Any] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    hexagram_state: Hexagram | None = None
+    routing_decision: dict[str, Any] | None = None
+    resources: dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
     def __post_init__(self):
         if self.resources is None:
@@ -84,7 +81,7 @@ class MAREFQueueSimulator:
 
     def __init__(self, simulation_id: str = "maref_v1"):
         self.simulation_id = simulation_id
-        self.tasks: Dict[str, Task] = {}
+        self.tasks: dict[str, Task] = {}
         self.task_counter = 0
 
         # 初始化MAREF核心组件
@@ -118,8 +115,8 @@ class MAREFQueueSimulator:
         return task_id
 
     def create_task(
-        self, name: str, task_type: str = "build", resources: Dict[str, Any] = None
-    ) -> Tuple[bool, str, Optional[str]]:
+        self, name: str, task_type: str = "build", resources: dict[str, Any] = None
+    ) -> tuple[bool, str, str | None]:
         """创建任务（解决缺陷1和缺陷2）"""
         try:
             # 1. 生成规范化任务ID
@@ -165,7 +162,7 @@ class MAREFQueueSimulator:
             logger.error(error_msg)
             return False, "", error_msg
 
-    def start_task(self, task_id: str) -> Tuple[bool, Optional[str]]:
+    def start_task(self, task_id: str) -> tuple[bool, str | None]:
         """启动任务（解决缺陷3：进程可靠性契约）"""
         if task_id not in self.tasks:
             return False, f"任务不存在: {task_id}"
@@ -254,7 +251,7 @@ class MAREFQueueSimulator:
             logger.error(f"任务完成失败: {str(e)}")
             return False
 
-    def run_simulation_cycle(self, num_tasks: int = 10) -> Dict[str, Any]:
+    def run_simulation_cycle(self, num_tasks: int = 10) -> dict[str, Any]:
         """运行一个模拟周期"""
         logger.info(f"开始MAREF模拟周期，任务数: {num_tasks}")
 
@@ -345,7 +342,7 @@ class MAREFQueueSimulator:
 
         return cycle_results
 
-    def get_performance_summary(self) -> Dict[str, Any]:
+    def get_performance_summary(self) -> dict[str, Any]:
         """获取性能摘要"""
         total_tasks = self.metrics["tasks_created"]
         successful_tasks = self.metrics["tasks_completed"]
@@ -398,7 +395,7 @@ class MAREFQueueSimulator:
 
 def run_maref_scenario(
     num_cycles: int = 3, tasks_per_cycle: int = 5, output_file: str = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     运行MAREF场景
 
@@ -456,11 +453,11 @@ def run_maref_scenario(
         ],
     }
 
-    print(f"场景配置:")
+    print("场景配置:")
     print(f"  周期数: {num_cycles}")
     print(f"  每周期任务数: {tasks_per_cycle}")
     print(f"  总任务数: ~{num_cycles * tasks_per_cycle}")
-    print(f"\nMAREF特性:")
+    print("\nMAREF特性:")
     for feature in scenario_config["maref_features"]:
         print(f"  • {feature['name']}: {feature['description']}")
 
@@ -557,7 +554,7 @@ def run_maref_scenario(
     print("MAREF场景完成")
     print("=" * 40)
 
-    print(f"\n关键指标:")
+    print("\n关键指标:")
     print(f"  任务成功率: {scenario_result['metrics']['task_success_rate']:.1f}%")
     print(f"  平均错误率: {scenario_result['metrics']['avg_error_rate_percent']:.1f}%")
     print(f"  平均完成时间: {scenario_result['metrics']['avg_completion_time_seconds']:.2f}秒")
@@ -565,7 +562,7 @@ def run_maref_scenario(
     print(f"  格雷编码违规: {scenario_result['metrics']['gray_code_violation_count']}")
     print(f"  状态空间回滚: {scenario_result['metrics']['state_space_rollback_count']}")
 
-    print(f"\nMAREF系统健康:")
+    print("\nMAREF系统健康:")
     print(
         f"  状态一致性: {scenario_result['maref_system_health']['state_consistency_score']:.1f}/100"
     )
@@ -579,7 +576,7 @@ def run_maref_scenario(
         f"  总体健康评分: {scenario_result['maref_system_health']['overall_health_score']:.1f}/100"
     )
 
-    print(f"\n缺陷修复验证:")
+    print("\n缺陷修复验证:")
     defects = [
         "任务身份规范化",
         "Manifest数据质量",
@@ -602,7 +599,7 @@ def run_maref_scenario(
     return scenario_result
 
 
-def analyze_maref_results(results: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_maref_results(results: dict[str, Any]) -> dict[str, Any]:
     """
     分析MAREF结果，生成深入见解
 

@@ -78,8 +78,16 @@ class GitServer(MCPServer):
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "Path to git repository"},
-                    "max_count": {"type": "integer", "description": "Maximum number of commits", "default": 10},
-                    "branch": {"type": "string", "description": "Branch name (default: current branch)", "default": None},
+                    "max_count": {
+                        "type": "integer",
+                        "description": "Maximum number of commits",
+                        "default": 10,
+                    },
+                    "branch": {
+                        "type": "string",
+                        "description": "Branch name (default: current branch)",
+                        "default": None,
+                    },
                 },
                 "required": ["path"],
             },
@@ -92,8 +100,16 @@ class GitServer(MCPServer):
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "Path to git repository"},
-                    "target": {"type": "string", "description": "Target ref (default: HEAD)", "default": "HEAD"},
-                    "base": {"type": "string", "description": "Base ref (default: empty tree or parent)", "default": None},
+                    "target": {
+                        "type": "string",
+                        "description": "Target ref (default: HEAD)",
+                        "default": "HEAD",
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "Base ref (default: empty tree or parent)",
+                        "default": None,
+                    },
                 },
                 "required": ["path"],
             },
@@ -119,7 +135,12 @@ class GitServer(MCPServer):
                 "properties": {
                     "path": {"type": "string", "description": "Path to git repository"},
                     "message": {"type": "string", "description": "Commit message"},
-                    "files": {"type": "array", "items": {"type": "string"}, "description": "Files to commit (default: all changes)", "default": None},
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Files to commit (default: all changes)",
+                        "default": None,
+                    },
                 },
                 "required": ["path", "message"],
             },
@@ -132,8 +153,16 @@ class GitServer(MCPServer):
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "Path to git repository"},
-                    "remote": {"type": "string", "description": "Remote name (default: origin)", "default": "origin"},
-                    "branch": {"type": "string", "description": "Branch to push (default: current branch)", "default": None},
+                    "remote": {
+                        "type": "string",
+                        "description": "Remote name (default: origin)",
+                        "default": "origin",
+                    },
+                    "branch": {
+                        "type": "string",
+                        "description": "Branch to push (default: current branch)",
+                        "default": None,
+                    },
                 },
                 "required": ["path"],
             },
@@ -142,7 +171,9 @@ class GitServer(MCPServer):
 
     def _enforce_write_mode(self) -> None:
         if not self._write_mode:
-            raise PermissionError("Write mode is disabled. Set write_mode=True to allow write operations.")
+            raise PermissionError(
+                "Write mode is disabled. Set write_mode=True to allow write operations."
+            )
 
     def _handle_git_status(self, args: dict[str, Any]) -> dict[str, Any]:
         path = args["path"]
@@ -188,12 +219,14 @@ class GitServer(MCPServer):
             if line.strip():
                 parts = line.split("|", 3)
                 if len(parts) == 4:
-                    commits.append({
-                        "hash": parts[0],
-                        "author": parts[1],
-                        "date": parts[2],
-                        "message": parts[3],
-                    })
+                    commits.append(
+                        {
+                            "hash": parts[0],
+                            "author": parts[1],
+                            "date": parts[2],
+                            "message": parts[3],
+                        }
+                    )
 
         return {"commits": commits}
 

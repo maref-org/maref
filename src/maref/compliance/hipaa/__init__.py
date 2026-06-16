@@ -21,6 +21,7 @@ from typing import Any
 
 class PHICategory(Enum):
     """PHI 数据类别"""
+
     DEMOGRAPHIC = "demographic"
     MEDICAL_RECORD = "medical_record"
     PAYMENT = "payment"
@@ -35,6 +36,7 @@ class PHICategory(Enum):
 
 class HIPAAComplianceStatus(Enum):
     """HIPAA 合规状态"""
+
     COMPLIANT = "compliant"
     NON_COMPLIANT = "non_compliant"
     PARTIAL = "partial"
@@ -43,6 +45,7 @@ class HIPAAComplianceStatus(Enum):
 
 class SecurityRuleCategory(Enum):
     """HIPAA Security Rule 分类"""
+
     ADMINISTRATIVE = "administrative"
     PHYSICAL = "physical"
     TECHNICAL = "technical"
@@ -50,6 +53,7 @@ class SecurityRuleCategory(Enum):
 
 class BreachRiskLevel(Enum):
     """泄露风险等级"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -111,11 +115,24 @@ class HIPAAComplianceEngine:
 
     # HIPAA 标识符列表（18类）
     HIPAA_IDENTIFIERS = [
-        "name", "address", "dates", "telephone", "fax",
-        "email", "ssn", "medical_record_number", "health_plan_number",
-        "account_number", "certificate_number", "vehicle_identifier",
-        "device_identifier", "url", "ip_address", "biometric_identifier",
-        "full_face_photo", "any_other_unique_identifier"
+        "name",
+        "address",
+        "dates",
+        "telephone",
+        "fax",
+        "email",
+        "ssn",
+        "medical_record_number",
+        "health_plan_number",
+        "account_number",
+        "certificate_number",
+        "vehicle_identifier",
+        "device_identifier",
+        "url",
+        "ip_address",
+        "biometric_identifier",
+        "full_face_photo",
+        "any_other_unique_identifier",
     ]
 
     def __init__(self):
@@ -127,16 +144,81 @@ class HIPAAComplianceEngine:
     def _initialize_default_elements(self) -> None:
         """初始化默认 PHI 数据元素"""
         defaults = [
-            PHIDataElement("phi-name", "Patient Name", PHICategory.DEMOGRAPHIC, True, access_controls=["role_based", "audit_log"]),
-            PHIDataElement("phi-ssn", "Social Security Number", PHICategory.DEMOGRAPHIC, True, access_controls=["role_based", "encryption", "masking"]),
-            PHIDataElement("phi-dob", "Date of Birth", PHICategory.DEMOGRAPHIC, False, access_controls=["role_based"]),
-            PHIDataElement("phi-mrn", "Medical Record Number", PHICategory.MEDICAL_RECORD, True, access_controls=["role_based", "audit_log"]),
-            PHIDataElement("phi-diag", "Diagnosis Information", PHICategory.MEDICAL_RECORD, True, access_controls=["role_based", "encryption"]),
-            PHIDataElement("phi-med", "Medication List", PHICategory.MEDICAL_RECORD, False, access_controls=["role_based"]),
-            PHIDataElement("phi-insurance", "Insurance ID", PHICategory.INSURANCE, True, access_controls=["role_based", "encryption"]),
-            PHIDataElement("phi-payment", "Payment Information", PHICategory.PAYMENT, True, access_controls=["role_based", "encryption", "audit_log"]),
-            PHIDataElement("phi-genetic", "Genetic Information", PHICategory.GENETIC, True, access_controls=["role_based", "encryption", "consent_required"]),
-            PHIDataElement("phi-mental", "Mental Health Records", PHICategory.MENTAL_HEALTH, True, access_controls=["role_based", "encryption", "consent_required", "special_protection"]),
+            PHIDataElement(
+                "phi-name",
+                "Patient Name",
+                PHICategory.DEMOGRAPHIC,
+                True,
+                access_controls=["role_based", "audit_log"],
+            ),
+            PHIDataElement(
+                "phi-ssn",
+                "Social Security Number",
+                PHICategory.DEMOGRAPHIC,
+                True,
+                access_controls=["role_based", "encryption", "masking"],
+            ),
+            PHIDataElement(
+                "phi-dob",
+                "Date of Birth",
+                PHICategory.DEMOGRAPHIC,
+                False,
+                access_controls=["role_based"],
+            ),
+            PHIDataElement(
+                "phi-mrn",
+                "Medical Record Number",
+                PHICategory.MEDICAL_RECORD,
+                True,
+                access_controls=["role_based", "audit_log"],
+            ),
+            PHIDataElement(
+                "phi-diag",
+                "Diagnosis Information",
+                PHICategory.MEDICAL_RECORD,
+                True,
+                access_controls=["role_based", "encryption"],
+            ),
+            PHIDataElement(
+                "phi-med",
+                "Medication List",
+                PHICategory.MEDICAL_RECORD,
+                False,
+                access_controls=["role_based"],
+            ),
+            PHIDataElement(
+                "phi-insurance",
+                "Insurance ID",
+                PHICategory.INSURANCE,
+                True,
+                access_controls=["role_based", "encryption"],
+            ),
+            PHIDataElement(
+                "phi-payment",
+                "Payment Information",
+                PHICategory.PAYMENT,
+                True,
+                access_controls=["role_based", "encryption", "audit_log"],
+            ),
+            PHIDataElement(
+                "phi-genetic",
+                "Genetic Information",
+                PHICategory.GENETIC,
+                True,
+                access_controls=["role_based", "encryption", "consent_required"],
+            ),
+            PHIDataElement(
+                "phi-mental",
+                "Mental Health Records",
+                PHICategory.MENTAL_HEALTH,
+                True,
+                access_controls=[
+                    "role_based",
+                    "encryption",
+                    "consent_required",
+                    "special_protection",
+                ],
+            ),
         ]
 
         for element in defaults:
@@ -161,7 +243,11 @@ class HIPAAComplianceEngine:
 
         for category in data_categories:
             for element in self._phi_elements.values():
-                if element.name.lower() in category.lower() or category.lower() in element.name.lower() or element.category.value in category.lower():
+                if (
+                    element.name.lower() in category.lower()
+                    or category.lower() in element.name.lower()
+                    or element.category.value in category.lower()
+                ):
                     phi_matches.append(element)
 
         return phi_matches
@@ -269,8 +355,7 @@ class HIPAAComplianceEngine:
             BAA 验证结果
         """
         matching_baas = [
-            b for b in self._baas.values()
-            if b.business_associate == business_associate
+            b for b in self._baas.values() if b.business_associate == business_associate
         ]
 
         if not matching_baas:
@@ -322,7 +407,11 @@ class HIPAAComplianceEngine:
         hhs_required = False
         media_required = False
 
-        sensitive_categories = {PHICategory.GENETIC, PHICategory.MENTAL_HEALTH, PHICategory.SUBSTANCE_ABUSE}
+        sensitive_categories = {
+            PHICategory.GENETIC,
+            PHICategory.MENTAL_HEALTH,
+            PHICategory.SUBSTANCE_ABUSE,
+        }
         has_sensitive = bool(set(affected_phi_categories) & sensitive_categories)
 
         if affected_individuals >= 500:
@@ -339,7 +428,9 @@ class HIPAAComplianceEngine:
             notification_required = True
 
         # 通知截止日期（60天内）
-        notification_deadline = now + __import__('datetime').timedelta(days=60) if notification_required else None
+        notification_deadline = (
+            now + __import__("datetime").timedelta(days=60) if notification_required else None
+        )
 
         assessment = BreachAssessment(
             assessment_id=f"breach-{int(now.timestamp())}",
@@ -371,7 +462,9 @@ class HIPAAComplianceEngine:
             "generated_at": now.isoformat(),
             "framework": "HIPAA + HITECH",
             "elements_registered": total_elements,
-            "encryption_coverage": round(encrypted_elements / total_elements * 100, 1) if total_elements > 0 else 0.0,
+            "encryption_coverage": round(encrypted_elements / total_elements * 100, 1)
+            if total_elements > 0
+            else 0.0,
             "active_baas": active_baas,
             "breach_incidents": total_breaches,
             "security_rule_categories": {
@@ -404,18 +497,58 @@ class HIPAAComplianceEngine:
     def get_security_rule_checklist(self) -> list[dict[str, Any]]:
         """获取 HIPAA Security Rule 检查清单"""
         return [
-            {"id": "sra-1", "category": "administrative", "control": "Risk Analysis", "required": True},
-            {"id": "sra-2", "category": "administrative", "control": "Risk Management", "required": True},
-            {"id": "sra-3", "category": "administrative", "control": "Sanction Policy", "required": True},
-            {"id": "sra-4", "category": "administrative", "control": "Information System Activity Review", "required": True},
-            {"id": "srp-1", "category": "physical", "control": "Facility Access Controls", "required": True},
+            {
+                "id": "sra-1",
+                "category": "administrative",
+                "control": "Risk Analysis",
+                "required": True,
+            },
+            {
+                "id": "sra-2",
+                "category": "administrative",
+                "control": "Risk Management",
+                "required": True,
+            },
+            {
+                "id": "sra-3",
+                "category": "administrative",
+                "control": "Sanction Policy",
+                "required": True,
+            },
+            {
+                "id": "sra-4",
+                "category": "administrative",
+                "control": "Information System Activity Review",
+                "required": True,
+            },
+            {
+                "id": "srp-1",
+                "category": "physical",
+                "control": "Facility Access Controls",
+                "required": True,
+            },
             {"id": "srp-2", "category": "physical", "control": "Workstation Use", "required": True},
-            {"id": "srp-3", "category": "physical", "control": "Device and Media Controls", "required": True},
+            {
+                "id": "srp-3",
+                "category": "physical",
+                "control": "Device and Media Controls",
+                "required": True,
+            },
             {"id": "srt-1", "category": "technical", "control": "Access Control", "required": True},
             {"id": "srt-2", "category": "technical", "control": "Audit Controls", "required": True},
             {"id": "srt-3", "category": "technical", "control": "Integrity", "required": True},
-            {"id": "srt-4", "category": "technical", "control": "Person or Entity Authentication", "required": True},
-            {"id": "srt-5", "category": "technical", "control": "Transmission Security", "required": True},
+            {
+                "id": "srt-4",
+                "category": "technical",
+                "control": "Person or Entity Authentication",
+                "required": True,
+            },
+            {
+                "id": "srt-5",
+                "category": "technical",
+                "control": "Transmission Security",
+                "required": True,
+            },
         ]
 
 

@@ -23,11 +23,11 @@ class StructuredFinding:
     When displayed in reports, falls back to ``content``.
     """
 
-    content: str                         # Human-readable description
-    metric_name: str                     # "f1_score" / "entropy" / "fnr" / "fpr" / "accuracy"
-    values: list[float]                  # [0.887, 0.903, 0.892] — supports statistical ops
-    unit: str = ""                       # "%", "ms", "nats", etc.
-    direction: str = "neutral"           # "higher_is_better" | "lower_is_better" | "neutral"
+    content: str  # Human-readable description
+    metric_name: str  # "f1_score" / "entropy" / "fnr" / "fpr" / "accuracy"
+    values: list[float]  # [0.887, 0.903, 0.892] — supports statistical ops
+    unit: str = ""  # "%", "ms", "nats", etc.
+    direction: str = "neutral"  # "higher_is_better" | "lower_is_better" | "neutral"
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:

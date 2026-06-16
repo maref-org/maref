@@ -71,7 +71,7 @@ class ReliabilityMatrix:
     """Sparse matrix: observer -> target -> task_type -> ReliabilityCell."""
 
     BYPASS_THRESHOLD = 3  # consecutive failures before bypass
-    HISTORY_WINDOW = 20   # keep last N outcomes per cell
+    HISTORY_WINDOW = 20  # keep last N outcomes per cell
 
     def __init__(self) -> None:
         # _data[observer_id][target_id][task_type] = ReliabilityCell
@@ -104,14 +104,8 @@ class ReliabilityMatrix:
     # ------------------------------------------------------------------ #
     # Queries
     # ------------------------------------------------------------------ #
-    def get_cell(
-        self, observer_id: str, target_id: str, task_type: str
-    ) -> ReliabilityCell | None:
-        return (
-            self._data.get(observer_id, {})
-            .get(target_id, {})
-            .get(task_type)
-        )
+    def get_cell(self, observer_id: str, target_id: str, task_type: str) -> ReliabilityCell | None:
+        return self._data.get(observer_id, {}).get(target_id, {}).get(task_type)
 
     def success_rate(self, observer_id: str, target_id: str, task_type: str) -> float:
         cell = self.get_cell(observer_id, target_id, task_type)
@@ -126,9 +120,7 @@ class ReliabilityMatrix:
             return False
         return cell.is_unreliable
 
-    def list_bypassed(
-        self, observer_id: str, task_type: str
-    ) -> list[str]:
+    def list_bypassed(self, observer_id: str, task_type: str) -> list[str]:
         """Return all target_ids that are currently bypassed from *observer_id*'s
         perspective for the given task type."""
         bypassed: list[str] = []
@@ -158,9 +150,7 @@ class ReliabilityMatrix:
     # ------------------------------------------------------------------ #
     # Internal
     # ------------------------------------------------------------------ #
-    def _ensure_cell(
-        self, observer_id: str, target_id: str, task_type: str
-    ) -> ReliabilityCell:
+    def _ensure_cell(self, observer_id: str, target_id: str, task_type: str) -> ReliabilityCell:
         obs = self._data.setdefault(observer_id, {})
         tgt = obs.setdefault(target_id, {})
         if task_type not in tgt:

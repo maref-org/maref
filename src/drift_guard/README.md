@@ -73,11 +73,11 @@ async def main():
         kl_max=1.0,
     )
     pipeline = DriftDetectionPipeline(config)
-    
+
     # 模拟权重
     baseline = np.random.randn(1000)
     current = baseline + np.random.randn(1000) * 0.5
-    
+
     # 检测漂移
     event = await pipeline.check_drift(
         baseline_weights=baseline,
@@ -85,7 +85,7 @@ async def main():
         model=ModelSignature("lora-adapter", "v1"),
         baseline=ModelSignature("base-model", "v1"),
     )
-    
+
     if event:
         print(f"Drift detected: {event.reading.severity.name}")
         print(f"Action: {event.action_taken.name}")

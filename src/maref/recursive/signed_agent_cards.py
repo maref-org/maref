@@ -22,9 +22,7 @@ class AgentCardSignature:
     verified: bool = False
 
     def verify(self, public_key_pem: str, card_data: dict[str, Any]) -> bool:
-        computed_hash = hashlib.sha256(
-            json.dumps(card_data, sort_keys=True).encode()
-        ).hexdigest()
+        computed_hash = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
         match = computed_hash == self.card_hash
         self.verified = match and (time.time() < self.expires_at)
         return self.verified
@@ -59,9 +57,7 @@ class SignedAgentCard:
         }
 
     def is_valid(self) -> bool:
-        return time.time() < self.expires_at and all(
-            s.verified for s in self.signatures
-        )
+        return time.time() < self.expires_at and all(s.verified for s in self.signatures)
 
     def to_audit_record(self, round_num: int = 36) -> UnifiedAuditRecord:
         return UnifiedAuditRecord(
@@ -88,15 +84,11 @@ class AgentCardSigner:
 
     def sign_card(self, card: SignedAgentCard, private_key_pem: str) -> AgentCardSignature:
         card_data = card.to_card_data()
-        card_hash = hashlib.sha256(
-            json.dumps(card_data, sort_keys=True).encode()
-        ).hexdigest()
+        card_hash = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
 
         object.__setattr__(card, "card_hash", card_hash)
 
-        signature_value = hashlib.sha256(
-            (card_hash + private_key_pem).encode()
-        ).hexdigest()
+        signature_value = hashlib.sha256((card_hash + private_key_pem).encode()).hexdigest()
 
         sig = AgentCardSignature(
             signature_id=f"sig_{card.card_id}_{int(time.time())}",
@@ -166,19 +158,21 @@ class SignedAgentCardStore:
         card = self._cards.get(card_id)
         if card:
             card.expires_at = time.time() - 1.0
-            self._audit_store.append(UnifiedAuditRecord(
-                record_id=make_record_id("revoke", hash(card_id) % 100000),
-                timestamp=time.time(),
-                layer="evolution",
-                round=36,
-                event_type="agent_card_revoked",
-                source_module="SignedAgentCards",
-                target_module=card.agent_id,
-                decision="revoke",
-                justification=f"Card {card_id} manually revoked",
-                outcome="success",
-                context_refs=[card_id],
-            ))
+            self._audit_store.append(
+                UnifiedAuditRecord(
+                    record_id=make_record_id("revoke", hash(card_id) % 100000),
+                    timestamp=time.time(),
+                    layer="evolution",
+                    round=36,
+                    event_type="agent_card_revoked",
+                    source_module="SignedAgentCards",
+                    target_module=card.agent_id,
+                    decision="revoke",
+                    justification=f"Card {card_id} manually revoked",
+                    outcome="success",
+                    context_refs=[card_id],
+                )
+            )
 
     @property
     def card_count(self) -> int:

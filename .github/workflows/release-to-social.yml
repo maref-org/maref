@@ -1,0 +1,119 @@
+name: Release to Social Media
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  notify-discussions:
+    runs-on: ubuntu-latest
+    permissions:
+      discussions: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Announcement Discussion
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = context.payload.release;
+            const tag = release.tag_name;
+            const body = `## ${release.name || tag} 发布
+
+            ${release.body || ''}
+
+            ---
+            [查看 Release →](${release.html_url})
+            `;
+            await github.rest.discussions.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚀 ${release.name || tag}`,
+              body: body,
+              category: 'Announcements',
+            });
+      - name: Generate Release Blog Draft
+        uses: actions/github-script@v7
+        id: release-blog
+        with:
+          script: |
+            const release = context.payload.release;
+            const tag = release.tag_name;
+            const version = tag.replace(/^v/, '');
+            const today = new Date().toISOString().slice(0, 10);
+            const body = (release.body || '').replace(/#### /g, '### ').slice(0, 500);
+
+            const blog = `---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+
+<BlogLayout
+  locale="en"
+  title="MAREF ${version} Released"
+  description="${(release.name || tag)} — key updates and improvements."
+  date="${today}"
+  author="MAREF Engineering"
+  tags={["release", "${version}"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  MAREF ${version} is now available.
+</p>
+
+${body}
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  See the <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">full changelog on GitHub</a> for details.
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em><a href="/en/docs/quickstart" class="text-brand-accent-blue hover:underline">Deploy MAREF in 5 minutes</a> · <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub Release</a></em>
+</p>
+
+</BlogLayout>
+`;
+
+            const zhBlog = `---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+
+<BlogLayout
+  locale="zh"
+  title="MAREF ${version} 发布"
+  description="${(release.name || tag)} — 关键更新和改进。"
+  date="${today}"
+  author="MAREF Engineering"
+  tags={["发布", "${version}"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  MAREF ${version} 现已发布。
+</p>
+
+${body}
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  查看 <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub 完整变更日志</a> 了解详情。
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em><a href="/zh/docs/quickstart" class="text-brand-accent-blue hover:underline">5 分钟部署 MAREF</a> · <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub Release</a></em>
+</p>
+
+</BlogLayout>
+`;
+
+            core.setOutput("en_blog", blog);
+            core.setOutput("zh_blog", zhBlog);
+            core.setOutput("version", version);
+      - name: Print Release Blog Draft
+        run: |
+          echo "=== English Release Blog ==="
+          echo "Copy to: src/pages/en/blog/maref-${{ steps.release-blog.outputs.version }}/index.astro"
+          echo "${{ steps.release-blog.outputs.en_blog }}"
+          echo ""
+          echo "=== Chinese Release Blog ==="
+          echo "Copy to: src/pages/zh/blog/maref-${{ steps.release-blog.outputs.version }}/index.astro"
+          echo "${{ steps.release-blog.outputs.zh_blog }}"

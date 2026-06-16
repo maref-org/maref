@@ -190,9 +190,7 @@ class DeerFlowBridge:
 
         if any(n for n in dag.nodes if n.id.endswith("halt")):
             halt_node = next(n for n in dag.nodes if n.id.endswith("halt"))
-            has_dep = any(
-                halt_node.id in other.depends_on for other in dag.nodes
-            )
+            has_dep = any(halt_node.id in other.depends_on for other in dag.nodes)
             if not has_dep and len(dag.nodes) > 1:
                 warnings.append("HALT node has no downstream dependents (expected for terminal)")
 

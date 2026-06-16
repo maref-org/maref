@@ -67,13 +67,24 @@ class CardBridge:
 
     def _card_to_kg_node(self, card: Any) -> Any:
         """Convert a PERCV card to a MAREF knowledge graph node dict."""
-        card_id = getattr(card, "signal_id", None) or getattr(card, "kdp_id", None) or getattr(card, "forecast_id", None) or getattr(card, "pattern_id", "")
+        card_id = (
+            getattr(card, "signal_id", None)
+            or getattr(card, "kdp_id", None)
+            or getattr(card, "forecast_id", None)
+            or getattr(card, "pattern_id", "")
+        )
         if not isinstance(card_id, str):
             card_id = str(card_id)
         card_type_prefix = card_id.split("-")[0] if "-" in card_id else "UNKNOWN"
         kg_type = CARD_TO_KG_TYPE.get(card_type_prefix, "research_artifact")
 
-        content = getattr(card, "claim", None) or getattr(card, "core_forecast", None) or getattr(card, "pattern_name", None) or getattr(card, "summary", "") or getattr(card, "raw_text", "")[:500]
+        content = (
+            getattr(card, "claim", None)
+            or getattr(card, "core_forecast", None)
+            or getattr(card, "pattern_name", None)
+            or getattr(card, "summary", "")
+            or getattr(card, "raw_text", "")[:500]
+        )
 
         if self._kg is None:
             return {
@@ -98,6 +109,7 @@ class CardBridge:
                 edge_targets = card.source_forecast_ids
 
             import time
+
             node = KnowledgeNode(
                 id=card_id,
                 type=kg_type,
@@ -113,8 +125,13 @@ class CardBridge:
             return None
 
     def _extract_confidence(self, card: Any) -> float:
-        for attr in ("consensus_score", "confidence", "fact_consistency_score",
-                     "causal_audit_score", "hit_rate"):
+        for attr in (
+            "consensus_score",
+            "confidence",
+            "fact_consistency_score",
+            "causal_audit_score",
+            "hit_rate",
+        ):
             val = getattr(card, attr, None)
             if val is not None:
                 try:
@@ -125,10 +142,22 @@ class CardBridge:
 
     def _card_to_metadata(self, card: Any) -> dict[str, Any]:
         meta: dict[str, Any] = {"schema_version": getattr(card, "schema_version", 1)}
-        for attr in ("topic", "status", "source_node", "source_url", "metric_type",
-                     "value", "source_citation", "verification_status", "horizon",
-                     "validated_at", "validation_result", "first_observed",
-                     "trigger_conditions", "applicable_domains"):
+        for attr in (
+            "topic",
+            "status",
+            "source_node",
+            "source_url",
+            "metric_type",
+            "value",
+            "source_citation",
+            "verification_status",
+            "horizon",
+            "validated_at",
+            "validation_result",
+            "first_observed",
+            "trigger_conditions",
+            "applicable_domains",
+        ):
             val = getattr(card, attr, None)
             if val is not None:
                 meta[attr] = val
@@ -161,6 +190,7 @@ class CardBridge:
 
                 if self._hitl_router:
                     from maref.integration.hitl import HITLEvent, HITLTier
+
                     event = HITLEvent(
                         event_id=f"percv-{card_id}",
                         tier=HITLTier.P3_OBSERVE,

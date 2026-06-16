@@ -26,18 +26,22 @@ class MetricsDashboard:
                 "survival_rate": self.metrics.get("survival_rate", 1.0),
                 "avg_recovery_time_ms": self.metrics.get("avg_recovery_time_ms", 0.0),
                 "federation_sync_latency_ms": self.metrics.get("federation_sync_latency_ms", 0.0),
-                "cross_framework_task_success_rate": self.metrics.get("cross_framework_task_success_rate", 1.0),
+                "cross_framework_task_success_rate": self.metrics.get(
+                    "cross_framework_task_success_rate", 1.0
+                ),
             },
             "health_status": self.health_status,
         }
 
     def to_json(self) -> str:
         import json
+
         return json.dumps(self.to_dict(), indent=2, default=str)
 
 
 def build_dashboard(metrics: dict[str, Any], status: str = "HEALTHY") -> MetricsDashboard:
     import time
+
     return MetricsDashboard(
         timestamp=time.time(),
         metrics=metrics,

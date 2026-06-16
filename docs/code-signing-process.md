@@ -13,7 +13,7 @@ MAREF 桌面端分发需要代码签名以确保用户信任：
 - Xcode 命令行工具：`xcode-select --install`
 - 证书类型：`Developer ID Application`（分发用）或 `Apple Development`（开发用）
 
-### Windows  
+### Windows
 - EV Code Signing Certificate（约 $300/年，如 DigiCert、Sectigo）
 - Windows SDK（含 SignTool）
 
@@ -45,7 +45,7 @@ security export -k ~/Library/Keychains/login.keychain-db \
 
 ### 3. Tauri 构建配置
 
-`gui/src-tauri/tauri.conf.json` 中已包含 macOS 最低版本 `"minimumSystemVersion": "12.0"`。  
+`gui/src-tauri/tauri.conf.json` 中已包含 macOS 最低版本 `"minimumSystemVersion": "12.0"`。
 签名由 Tauri CLI 自动处理（当环境变量配置正确时）。
 
 ### 4. CI 集成

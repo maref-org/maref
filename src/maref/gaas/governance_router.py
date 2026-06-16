@@ -64,13 +64,11 @@ class GovernanceRouter:
 
         # 3. CircuitBreaker check (session-aware depth)
         session_id = req.context.session_id
-        override_depth = 200 if session_id and is_session_active(session_id) else None
         allowed, cb_state = self._cb.check(
             req.tenant_id,
             req.agent_id,
             req.action,
             depth=req.context.recursion_depth,
-            override_max_depth=override_depth,
         )
         if not allowed:
             return self._deny("Circuit breaker OPEN", start, cb_state)
@@ -106,6 +104,7 @@ class GovernanceRouter:
         if session_id:
             audit_context["session_id"] = session_id
             from maref.gaas.session_manager import increment_step
+
             increment_step(session_id, tool_name=req.action, verdict=verdict.value)
 
         audit_entry = self._audit.log(
@@ -199,7 +198,9 @@ class GovernanceRouter:
         else:
             new_score = current
 
-        self._trust.set_score(req.tenant_id, req.agent_id, new_score, reason=f"govern:{verdict.value}")
+        self._trust.set_score(
+            req.tenant_id, req.agent_id, new_score, reason=f"govern:{verdict.value}"
+        )
 
     def get_stats(self, tenant_id: str) -> dict[str, Any]:
         return {

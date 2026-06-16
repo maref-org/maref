@@ -25,9 +25,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import structlog
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from research.dashscope_client import DashScopeClient
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -136,7 +140,10 @@ class ChaosInjector:
                     findings.append("Max retries exceeded - fallback activated")
 
         duration = time.time() - start
-        metrics_after = {"error_rate": error_count / (max_retries + 1), "retry_count": float(error_count)}
+        metrics_after = {
+            "error_rate": error_count / (max_retries + 1),
+            "retry_count": float(error_count),
+        }
 
         return ChaosResult(
             scenario="error_response",
@@ -167,7 +174,9 @@ class ChaosInjector:
             await asyncio.sleep(0.01)  # Simulate successful request
 
         drop_rate = dropped / total_requests
-        findings.append(f"Packet loss simulation: {dropped}/{total_requests} dropped ({drop_rate:.0%})")
+        findings.append(
+            f"Packet loss simulation: {dropped}/{total_requests} dropped ({drop_rate:.0%})"
+        )
 
         if drop_rate > 0.25:
             findings.append("High packet loss detected - system should queue or buffer")
@@ -209,7 +218,10 @@ class ChaosInjector:
             findings.append("Entropy threshold exceeded - governance should intervene")
 
         duration = time.time() - start
-        metrics_after = {"message_rate": burst_messages / duration, "entropy_level": simulated_entropy}
+        metrics_after = {
+            "message_rate": burst_messages / duration,
+            "entropy_level": simulated_entropy,
+        }
 
         return ChaosResult(
             scenario="entropy_storm",
@@ -249,7 +261,7 @@ class ChaosInjector:
 
         # Detect oscillation (repeated back-and-forth)
         for i in range(2, len(transitions)):
-            if transitions[i] == transitions[i-2] and transitions[i] != transitions[i-1]:
+            if transitions[i] == transitions[i - 2] and transitions[i] != transitions[i - 1]:
                 oscillation_count += 1
 
         findings.append(f"State transitions: {len(transitions)}")
@@ -259,7 +271,10 @@ class ChaosInjector:
             findings.append("CRITICAL: High oscillation rate - governance should stabilize")
 
         duration = time.time() - start
-        metrics_after = {"state_changes": float(len(transitions)), "oscillation_rate": oscillation_count / max(len(transitions), 1)}
+        metrics_after = {
+            "state_changes": float(len(transitions)),
+            "oscillation_rate": oscillation_count / max(len(transitions), 1),
+        }
 
         return ChaosResult(
             scenario="state_oscillation",
@@ -281,17 +296,17 @@ class ChaosInjector:
             self.scenario_state_oscillation,
         ]
 
-        print(f"[{time.strftime('%H:%M:%S')}] Starting chaos engineering test suite")
-        print(f"  Total scenarios: {len(scenarios)}")
+        logger.info("Starting chaos engineering test suite")
+        logger.debug("Total scenarios: %s", len(scenarios))
 
         for i, scenario_fn in enumerate(scenarios):
-            print(f"\n  [{i+1}/{len(scenarios)}] Running {scenario_fn.__name__}...")
+            logger.debug("[%s/%s] Running %s...", i + 1, len(scenarios), scenario_fn.__name__)
             result = await scenario_fn()
             self._results.append(result)
-            print(f"    Duration: {result.duration_sec:.2f}s")
-            print(f"    Stable: {result.system_stable}")
+            logger.debug("  Duration: %.2fs", result.duration_sec)
+            logger.debug("  Stable: %s", result.system_stable)
             for finding in result.findings[:2]:
-                print(f"    - {finding}")
+                logger.debug("  - %s", finding)
 
         return self._results
 
@@ -339,9 +354,9 @@ async def main() -> None:
     if args.with_llm:
         try:
             llm = DashScopeClient()
-            print("LLM client initialized for chaos tests")
+            logger.info("LLM client initialized for chaos tests")
         except ValueError:
-            print("Warning: No DASHSCOPE_API_KEY, running without LLM")
+            logger.warning("No DASHSCOPE_API_KEY, running without LLM")
 
     injector = ChaosInjector(llm_client=llm)
     try:
@@ -351,15 +366,16 @@ async def main() -> None:
         # Save report
         args.output.parent.mkdir(parents=True, exist_ok=True)
         import json
+
         with open(args.output, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
-        print(f"\nChaos test report saved to {args.output}")
-        print(f"Stability rate: {report['stability_rate']:.0%}")
+        logger.info("Chaos test report saved to %s", args.output)
+        logger.info("Stability rate: %.0f%%", report["stability_rate"] * 100)
     finally:
         if llm:
             await llm.close()
-            print("LLM client session closed.")
+            logger.info("LLM client session closed.")
 
 
 if __name__ == "__main__":

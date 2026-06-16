@@ -21,8 +21,9 @@ class StenchWarning:
 
 
 class AIStenchDetector:
-    def __init__(self, kg: KnowledgeGraph | None = None,
-                 template_lib: SecurityTemplateLib | None = None) -> None:
+    def __init__(
+        self, kg: KnowledgeGraph | None = None, template_lib: SecurityTemplateLib | None = None
+    ) -> None:
         self._kg = kg
         self._template_lib = template_lib
 
@@ -54,14 +55,16 @@ class AIStenchDetector:
             overlap = len(doc_words & name_words)
             jaccard = overlap / len(doc_words | name_words)
             if jaccard > 0.7 and len(doc_words) < 10:
-                warnings.append(StenchWarning(
-                    type="comment_repetition",
-                    severity="WARNING",
-                    line=node.lineno or 0,
-                    message=f"Comment '{docstring}' is mostly a repetition of function name '{func_name}'",
-                    suggestion="Add context: what this function does *beyond* its name",
-                    function_name=node.name,
-                ))
+                warnings.append(
+                    StenchWarning(
+                        type="comment_repetition",
+                        severity="WARNING",
+                        line=node.lineno or 0,
+                        message=f"Comment '{docstring}' is mostly a repetition of function name '{func_name}'",
+                        suggestion="Add context: what this function does *beyond* its name",
+                        function_name=node.name,
+                    )
+                )
         return warnings
 
     def _detect_error_handler_stencil(self, tree: ast.AST) -> list[StenchWarning]:
@@ -82,13 +85,15 @@ class AIStenchDetector:
             sim_12 = SequenceMatcher(None, handlers[i][1], handlers[i + 1][1]).ratio()
             sim_23 = SequenceMatcher(None, handlers[i + 1][1], handlers[i + 2][1]).ratio()
             if sim_12 > 0.85 and sim_23 > 0.85:
-                warnings.append(StenchWarning(
-                    type="error_handler_stencil",
-                    severity="WARNING",
-                    line=handlers[i][0],
-                    message="3 consecutive error handlers are nearly identical (template copy)",
-                    suggestion="Handle each exception type specifically with distinct recovery logic",
-                ))
+                warnings.append(
+                    StenchWarning(
+                        type="error_handler_stencil",
+                        severity="WARNING",
+                        line=handlers[i][0],
+                        message="3 consecutive error handlers are nearly identical (template copy)",
+                        suggestion="Handle each exception type specifically with distinct recovery logic",
+                    )
+                )
         return warnings
 
     def _detect_missing_boundary(self, tree: ast.AST) -> list[StenchWarning]:
@@ -111,14 +116,16 @@ class AIStenchDetector:
             if not has_guard:
                 funcs_without_guard += 1
                 if funcs_without_guard >= 3:
-                    warnings.append(StenchWarning(
-                        type="missing_boundary_check",
-                        severity="HARD_BLOCK",
-                        line=node.lineno or 0,
-                        message=f"3 consecutive functions without boundary checks (including '{node.name}')",
-                        suggestion="Add null input, empty array, and large value boundary checks",
-                        function_name=node.name,
-                    ))
+                    warnings.append(
+                        StenchWarning(
+                            type="missing_boundary_check",
+                            severity="HARD_BLOCK",
+                            line=node.lineno or 0,
+                            message=f"3 consecutive functions without boundary checks (including '{node.name}')",
+                            suggestion="Add null input, empty array, and large value boundary checks",
+                            function_name=node.name,
+                        )
+                    )
                     funcs_without_guard = 0
             else:
                 funcs_without_guard = 0
@@ -128,18 +135,19 @@ class AIStenchDetector:
     def _detect_missing_security(self, tree: ast.AST, code: str) -> list[StenchWarning]:
         if self._template_lib is None:
             from maref.immunity.security_template_lib import SecurityTemplateLib
+
             self._template_lib = SecurityTemplateLib()
         warnings: list[StenchWarning] = []
         for domain in type(self._template_lib).DOMAINS:
             violations = self._template_lib.check_code(code, domain)
             for v in violations:
-                warnings.append(StenchWarning(
-                    type=f"security_{v['domain']}",
-                    severity="HARD_BLOCK",
-                    line=v.get("line", 0),
-                    message=v.get("message", ""),
-                    suggestion=v.get("suggestion", ""),
-                ))
+                warnings.append(
+                    StenchWarning(
+                        type=f"security_{v['domain']}",
+                        severity="HARD_BLOCK",
+                        line=v.get("line", 0),
+                        message=v.get("message", ""),
+                        suggestion=v.get("suggestion", ""),
+                    )
+                )
         return warnings
-
-

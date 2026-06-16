@@ -73,37 +73,45 @@ class DeliveryVerifier:
         required = {"H1", "H2", "H3"}
         found = required.intersection(names)
         missing = required - found
-        self.items.append(VerdictItem(
-            check_id="§1.5_hypotheses",
-            description="All 3 core hypotheses (H1/H2/H3) extracted from §1.5",
-            passed=len(found) >= 3,
-            detail=f"Found: {', '.join(sorted(found))}. "
-                   f"{'Missing: ' + ', '.join(missing) if missing else 'Complete.'}",
-            weight=3.0,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="§1.5_hypotheses",
+                description="All 3 core hypotheses (H1/H2/H3) extracted from §1.5",
+                passed=len(found) >= 3,
+                detail=f"Found: {', '.join(sorted(found))}. "
+                f"{'Missing: ' + ', '.join(missing) if missing else 'Complete.'}",
+                weight=3.0,
+            )
+        )
 
         if hypos:
             has_thresholds = all(h.pass_threshold and h.fail_criterion for h in hypos)
-            self.items.append(VerdictItem(
-                check_id="§1.5_thresholds",
-                description="Each hypothesis has pass threshold and fail criterion",
-                passed=has_thresholds,
-                detail=f"{'All' if has_thresholds else 'Some'} hypotheses have complete pass/fail criteria.",
-                weight=2.0,
-            ))
+            self.items.append(
+                VerdictItem(
+                    check_id="§1.5_thresholds",
+                    description="Each hypothesis has pass threshold and fail criterion",
+                    passed=has_thresholds,
+                    detail=f"{'All' if has_thresholds else 'Some'} hypotheses have complete pass/fail criteria.",
+                    weight=2.0,
+                )
+            )
 
     def _check_go_nogo(self) -> None:
         has_go = any(
             "Go" in sec.heading or "决策" in sec.heading
             for sec in self._all_flat(self.doc.all_sections)
         )
-        self.items.append(VerdictItem(
-            check_id="§1.6_go_nogo",
-            description="Go/No-Go/Kill decision matrix defined (§1.6)",
-            passed=has_go,
-            detail="Go/No-Go decision section detected." if has_go else "Go/No-Go section NOT detected.",
-            weight=2.0,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="§1.6_go_nogo",
+                description="Go/No-Go/Kill decision matrix defined (§1.6)",
+                passed=has_go,
+                detail="Go/No-Go decision section detected."
+                if has_go
+                else "Go/No-Go section NOT detected.",
+                weight=2.0,
+            )
+        )
 
     def _check_stages(self) -> None:
         stages = self.doc.metadata.get("detected_stages", [])
@@ -111,14 +119,16 @@ class DeliveryVerifier:
         required = {"mvp", "mixed", "internalization"}
         found = required.intersection(stage_set)
         missing = required - found
-        self.items.append(VerdictItem(
-            check_id="§1-3_stages",
-            description="All 3 deployment stages detected (MVP/Mixed/Internalization)",
-            passed=len(found) >= 3,
-            detail=f"Detected: {', '.join(sorted(found))}. "
-                   f"{'Missing: ' + ', '.join(missing) if missing else 'All 3 stages present.'}",
-            weight=3.0,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="§1-3_stages",
+                description="All 3 deployment stages detected (MVP/Mixed/Internalization)",
+                passed=len(found) >= 3,
+                detail=f"Detected: {', '.join(sorted(found))}. "
+                f"{'Missing: ' + ', '.join(missing) if missing else 'All 3 stages present.'}",
+                weight=3.0,
+            )
+        )
 
     def _check_checklists(self) -> None:
         rules = self.doc.compliance_rules
@@ -126,97 +136,113 @@ class DeliveryVerifier:
         has_daily = "daily" in categories
         has_weekly = "weekly" in categories
         has_monthly = "monthly" in categories
-        self.items.append(VerdictItem(
-            check_id="§6_checklists",
-            description="Daily/Weekly/Monthly compliance checklists extracted (§6)",
-            passed=has_daily and has_weekly and has_monthly,
-            detail=f"Daily={'YES' if has_daily else 'NO'}, "
-                   f"Weekly={'YES' if has_weekly else 'NO'}, "
-                   f"Monthly={'YES' if has_monthly else 'NO'}. "
-                   f"Total rules: {len(rules)}.",
-            weight=2.0,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="§6_checklists",
+                description="Daily/Weekly/Monthly compliance checklists extracted (§6)",
+                passed=has_daily and has_weekly and has_monthly,
+                detail=f"Daily={'YES' if has_daily else 'NO'}, "
+                f"Weekly={'YES' if has_weekly else 'NO'}, "
+                f"Monthly={'YES' if has_monthly else 'NO'}. "
+                f"Total rules: {len(rules)}.",
+                weight=2.0,
+            )
+        )
 
     def _check_cost_models(self) -> None:
         models = self.doc.cost_models
-        self.items.append(VerdictItem(
-            check_id="§7_cost_models",
-            description="Cost models extracted from §7 (at least 3 stages compared)",
-            passed=len(models) >= 3,
-            detail=f"Found {len(models)} cost model(s). "
-                   f"{'All stages covered.' if len(models) >= 3 else 'Insufficient coverage.'}",
-            weight=1.5,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="§7_cost_models",
+                description="Cost models extracted from §7 (at least 3 stages compared)",
+                passed=len(models) >= 3,
+                detail=f"Found {len(models)} cost model(s). "
+                f"{'All stages covered.' if len(models) >= 3 else 'Insufficient coverage.'}",
+                weight=1.5,
+            )
+        )
 
     def _check_disciplines(self) -> None:
         rules = self.doc.compliance_rules
         discipline_rules = [r for r in rules if r.category == "discipline"]
-        self.items.append(VerdictItem(
-            check_id="§9_disciplines",
-            description="6 unbreakable disciplines extracted (§9)",
-            passed=len(discipline_rules) >= 3,
-            detail=f"Found {len(discipline_rules)} discipline rule(s). "
-                   f"Document defines 6 rules in §9.",
-            weight=1.5,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="§9_disciplines",
+                description="6 unbreakable disciplines extracted (§9)",
+                passed=len(discipline_rules) >= 3,
+                detail=f"Found {len(discipline_rules)} discipline rule(s). "
+                f"Document defines 6 rules in §9.",
+                weight=1.5,
+            )
+        )
 
     def _check_deploy_readiness(self, report: ConvergenceReport | None) -> None:
         if report is None:
-            self.items.append(VerdictItem(
-                check_id="pipeline_deploy",
-                description="Pipeline deploy readiness",
-                passed=False,
-                detail="No pipeline report available.",
-                weight=3.0,
-            ))
+            self.items.append(
+                VerdictItem(
+                    check_id="pipeline_deploy",
+                    description="Pipeline deploy readiness",
+                    passed=False,
+                    detail="No pipeline report available.",
+                    weight=3.0,
+                )
+            )
             return
-        self.items.append(VerdictItem(
-            check_id="pipeline_deploy",
-            description="Pipeline deploy readiness after evolution cycles",
-            passed=report.deploy_ready,
-            detail=(
-                f"Deploy={'YES' if report.deploy_ready else 'NO'}. "
-                f"Final score={report.avg_score:.1f}. "
-                f"Trend={report.overall_trend}. "
-                f"Decision={report.final_decision}. "
-                f"Gates: {report.deploy_gates}."
-            ),
-            weight=3.0,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="pipeline_deploy",
+                description="Pipeline deploy readiness after evolution cycles",
+                passed=report.deploy_ready,
+                detail=(
+                    f"Deploy={'YES' if report.deploy_ready else 'NO'}. "
+                    f"Final score={report.avg_score:.1f}. "
+                    f"Trend={report.overall_trend}. "
+                    f"Decision={report.final_decision}. "
+                    f"Gates: {report.deploy_gates}."
+                ),
+                weight=3.0,
+            )
+        )
 
     def _check_convergence(self, report: ConvergenceReport | None) -> None:
         if report is None:
             return
-        self.items.append(VerdictItem(
-            check_id="pipeline_convergence",
-            description="Score converges upward over 10 rounds",
-            passed=report.overall_trend in ("converging", "fluctuating"),
-            detail=f"Overall trend: {report.overall_trend}. "
-                   f"Score trajectory: {report.cycle_scores}.",
-            weight=2.0,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="pipeline_convergence",
+                description="Score converges upward over 10 rounds",
+                passed=report.overall_trend in ("converging", "fluctuating"),
+                detail=f"Overall trend: {report.overall_trend}. "
+                f"Score trajectory: {report.cycle_scores}.",
+                weight=2.0,
+            )
+        )
 
     def _check_methods_tracked(self, report: ConvergenceReport | None) -> None:
         if report is None:
             return
         methods = getattr(report, "methods_used", None)
         if methods is None:
-            self.items.append(VerdictItem(
-                check_id="pipeline_methods",
-                description="Methods used are tracked across cycles",
-                passed=False,
-                detail="No methods_used data in report.",
-                weight=1.0,
-            ))
+            self.items.append(
+                VerdictItem(
+                    check_id="pipeline_methods",
+                    description="Methods used are tracked across cycles",
+                    passed=False,
+                    detail="No methods_used data in report.",
+                    weight=1.0,
+                )
+            )
             return
         unique_methods = {m.method for m in methods}
-        self.items.append(VerdictItem(
-            check_id="pipeline_methods",
-            description="Methods used are tracked across cycles",
-            passed=len(unique_methods) >= 3,
-            detail=f"{len(unique_methods)} unique methods used: {', '.join(sorted(unique_methods))}.",
-            weight=1.0,
-        ))
+        self.items.append(
+            VerdictItem(
+                check_id="pipeline_methods",
+                description="Methods used are tracked across cycles",
+                passed=len(unique_methods) >= 3,
+                detail=f"{len(unique_methods)} unique methods used: {', '.join(sorted(unique_methods))}.",
+                weight=1.0,
+            )
+        )
 
     def _all_flat(self, sections: list) -> list:
         result = []
@@ -241,9 +267,7 @@ class DeliveryVerifier:
         total_weight = sum(i.weight for i in self.items)
         weighted_score = sum(i.weight * (100.0 if i.passed else 0.0) for i in self.items)
         score = weighted_score / total_weight if total_weight > 0 else 0.0
-        overall_passed = score >= 75.0 and all(
-            i.passed for i in self.items if i.weight >= 2.0
-        )
+        overall_passed = score >= 75.0 and all(i.passed for i in self.items if i.weight >= 2.0)
 
         passed_count = sum(1 for i in self.items if i.passed)
         total_count = len(self.items)

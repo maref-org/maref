@@ -14,11 +14,13 @@ class DashboardEvent:
     timestamp: float = field(default_factory=time.time)
 
     def to_json(self) -> str:
-        return json.dumps({
-            "type": self.event_type,
-            "payload": self.payload,
-            "timestamp": self.timestamp,
-        })
+        return json.dumps(
+            {
+                "type": self.event_type,
+                "payload": self.payload,
+                "timestamp": self.timestamp,
+            }
+        )
 
 
 @dataclass
@@ -33,13 +35,17 @@ class DashboardPanel:
 
     def update(self, value: Any) -> DashboardEvent | None:
         self.current_value = value
-        self.history.append({
-            "value": value,
-            "timestamp": time.time(),
-        })
-        if (self.alert_threshold is not None
-                and isinstance(value, (int, float))
-                and value > self.alert_threshold):
+        self.history.append(
+            {
+                "value": value,
+                "timestamp": time.time(),
+            }
+        )
+        if (
+            self.alert_threshold is not None
+            and isinstance(value, (int, float))
+            and value > self.alert_threshold
+        ):
             self.alert_active = True
             return DashboardEvent(
                 event_type=f"alert_{self.panel_id}",
@@ -61,9 +67,9 @@ class DashboardV3:
         self._subscribers: dict[str, list[str]] = defaultdict(list)
         self._last_event_id: int = 0
 
-    def create_panel(self, panel_id: str, title: str,
-                      metric_type: str,
-                      alert_threshold: float | None = None) -> DashboardPanel:
+    def create_panel(
+        self, panel_id: str, title: str, metric_type: str, alert_threshold: float | None = None
+    ) -> DashboardPanel:
         panel = DashboardPanel(
             panel_id=panel_id,
             title=title,
@@ -124,8 +130,7 @@ class DashboardV3:
         for _subs in self._subscribers.values():
             pass
 
-    def broadcast_event(self, event_type: str,
-                         payload: dict[str, Any]) -> DashboardEvent:
+    def broadcast_event(self, event_type: str, payload: dict[str, Any]) -> DashboardEvent:
         event = DashboardEvent(event_type=event_type, payload=payload)
         self._event_stream.append(event)
         self._push_event(event)

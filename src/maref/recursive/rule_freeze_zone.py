@@ -8,31 +8,61 @@ from dataclasses import dataclass, field
 from typing import Any
 
 FROZEN_TARGETS: dict[str, frozenset[str]] = {
-    "rl_table": frozenset({
-        "RL-001", "RL-002", "RL-003", "RL-004", "RL-005",
-    }),
-    "safety_gate_params": frozenset({
-        "safety_gate", "safety gate",
-        "min_test_pass_rate", "max_coverage_drop_pct",
-        "max_perf_regression_pct", "forbid_core_removal",
-        "min_simulation_rounds", "require_sandbox_simulation",
-    }),
-    "core_components": frozenset({
-        "circuit_breaker", "state_machine", "audit_logger",
-        "meta_governance", "evolution_dsl",
-    }),
-    "circuit_breaker_hard_limits": frozenset({
-        "max_depth", "max_failures", "trip_threshold",
-        "cooldown_s", "max_consecutive_failures",
-        "max_recursion_depth", "meta_cb_trip_threshold",
-    }),
-    "audit_immutability": frozenset({
-        "hmac_key", "max_file_size_mb", "audit_retention_days",
-    }),
-    "meta_freeze": frozenset({
-        "rule_freeze_zone", "RuleFreezeZone",
-        "frozen_targets",
-    }),
+    "rl_table": frozenset(
+        {
+            "RL-001",
+            "RL-002",
+            "RL-003",
+            "RL-004",
+            "RL-005",
+        }
+    ),
+    "safety_gate_params": frozenset(
+        {
+            "safety_gate",
+            "safety gate",
+            "min_test_pass_rate",
+            "max_coverage_drop_pct",
+            "max_perf_regression_pct",
+            "forbid_core_removal",
+            "min_simulation_rounds",
+            "require_sandbox_simulation",
+        }
+    ),
+    "core_components": frozenset(
+        {
+            "circuit_breaker",
+            "state_machine",
+            "audit_logger",
+            "meta_governance",
+            "evolution_dsl",
+        }
+    ),
+    "circuit_breaker_hard_limits": frozenset(
+        {
+            "max_depth",
+            "max_failures",
+            "trip_threshold",
+            "cooldown_s",
+            "max_consecutive_failures",
+            "max_recursion_depth",
+            "meta_cb_trip_threshold",
+        }
+    ),
+    "audit_immutability": frozenset(
+        {
+            "hmac_key",
+            "max_file_size_mb",
+            "audit_retention_days",
+        }
+    ),
+    "meta_freeze": frozenset(
+        {
+            "rule_freeze_zone",
+            "RuleFreezeZone",
+            "frozen_targets",
+        }
+    ),
 }
 
 ALL_FROZEN: frozenset[str] = frozenset().union(*FROZEN_TARGETS.values())
@@ -98,9 +128,13 @@ def compare_pareto(
     higher_is_better: frozenset[str] | None = None,
 ) -> ParetoComparison:
     if higher_is_better is None:
-        higher_is_better = frozenset({
-            "test_pass_rate", "coverage_pct", "stability",
-        })
+        higher_is_better = frozenset(
+            {
+                "test_pass_rate",
+                "coverage_pct",
+                "stability",
+            }
+        )
 
     all_keys = set(baseline.keys()) | set(proposal.keys())
     better_metrics: list[str] = []
@@ -180,8 +214,9 @@ class RuleFreezeZone:
         self._audit.append(result)
         return result
 
-    def check_proposal(self, target: str, current_value: Any,
-                       proposed_value: Any) -> FreezeZoneCheckResult:
+    def check_proposal(
+        self, target: str, current_value: Any, proposed_value: Any
+    ) -> FreezeZoneCheckResult:
         return self.check(target, proposed_value)
 
     def override(self, target: str, duration_seconds: float) -> None:
@@ -197,8 +232,7 @@ class RuleFreezeZone:
         return count
 
     @contextmanager
-    def temporary_override(self, target: str,
-                           duration_seconds: float = 5.0) -> Iterator[None]:
+    def temporary_override(self, target: str, duration_seconds: float = 5.0) -> Iterator[None]:
         self.override(target, duration_seconds)
         try:
             yield

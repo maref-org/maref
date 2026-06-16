@@ -1,4 +1,5 @@
 """Distributed multi-process stress harness."""
+
 from __future__ import annotations
 
 import multiprocessing
@@ -20,8 +21,9 @@ class WorkerResult:
     elapsed_s: float = 0.0
 
 
-def _worker_runner(worker_id: int, level: StressLevel, rounds: int,
-                    duration_min: float) -> WorkerResult:
+def _worker_runner(
+    worker_id: int, level: StressLevel, rounds: int, duration_min: float
+) -> WorkerResult:
     result = WorkerResult(worker_id=worker_id)
     start = time.time()
     try:
@@ -43,16 +45,17 @@ class DistributedStressHarness:
     def __init__(self, num_workers: int = 4) -> None:
         self._num_workers = max(num_workers, 1)
 
-    def run_concurrent(self, level: StressLevel, rounds_per_worker: int = 5,
-                       duration_min: float = 0.5) -> list[WorkerResult]:
+    def run_concurrent(
+        self, level: StressLevel, rounds_per_worker: int = 5, duration_min: float = 0.5
+    ) -> list[WorkerResult]:
         with multiprocessing.Pool(processes=self._num_workers) as pool:
-            args = [(i, level, rounds_per_worker, duration_min)
-                    for i in range(self._num_workers)]
+            args = [(i, level, rounds_per_worker, duration_min) for i in range(self._num_workers)]
             results = pool.starmap(_worker_runner, args)
         return list(results)
 
-    def run_progressive_load(self, base_level: StressLevel,
-                              rounds_per_step: int = 3) -> list[WorkerResult]:
+    def run_progressive_load(
+        self, base_level: StressLevel, rounds_per_step: int = 3
+    ) -> list[WorkerResult]:
         all_results: list[WorkerResult] = []
         for worker_count in (2, 4, 8, 16, 32):
             workers = min(worker_count, multiprocessing.cpu_count() * 2)

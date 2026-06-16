@@ -1,7 +1,7 @@
 # MAREF Convergence Whitepaper: Formal Guarantees for Recursive Self-Evolution
 
-**Version:** 0.24.0-rc  
-**Date:** 2026-05-11  
+**Version:** 0.24.0-rc
+**Date:** 2026-05-11
 **Status:** Draft — C3 Convergence Verification Phase
 
 ---

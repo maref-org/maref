@@ -89,13 +89,15 @@ class ResourceMonitor:
     def record(self, usage: ResourceUsage) -> None:
         self._usages.append(usage)
         if usage.is_over_limit():
-            self._alerts.append({
-                "state_id": usage.state_id,
-                "resource_type": usage.resource_type.value,
-                "used": usage.used,
-                "limit": usage.limit,
-                "timestamp": time.time(),
-            })
+            self._alerts.append(
+                {
+                    "state_id": usage.state_id,
+                    "resource_type": usage.resource_type.value,
+                    "used": usage.used,
+                    "limit": usage.limit,
+                    "timestamp": time.time(),
+                }
+            )
 
     def get_usage(self, state_id: str, resource_type: ResourceType) -> ResourceUsage | None:
         for u in reversed(self._usages):

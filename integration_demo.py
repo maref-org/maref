@@ -8,17 +8,17 @@ state machine, creating a closed-loop system.
 
 import asyncio
 import logging
-from typing import Dict, Any
 
+from maref.governance.state_machine import GovernanceStateMachine
 from maref.integration import (
     PERCVGatewayAdapter,
     PERCVPipelineAdapter,
-    PERCVRatchetBridge as RatchetBridge,
     PERCVVerificationBridge,
 )
-from maref.integration.percv import PERCVConfig, CostMonitor, CardBridge
-from maref import governance
-from maref.governance.state_machine import GovernanceStateMachine
+from maref.integration import (
+    PERCVRatchetBridge as RatchetBridge,
+)
+from maref.integration.percv import CostMonitor, PERCVConfig
 
 
 def configure_logging() -> None:
@@ -45,7 +45,7 @@ def create_percv_config() -> PERCVConfig:
 def create_governance_manager() -> GovernanceStateMachine:
     """Create a governance manager for the demo."""
     from maref.governance.state_machine import GovernanceStateMachine
-    
+
     manager = GovernanceStateMachine(project_id="maref-integration-demo")
     return manager
 
@@ -109,7 +109,9 @@ async def demo_basic_integration() -> None:
 
         # Process through pipeline
         print("\nProcessing through PERCV-MAREF pipeline...")
-        print("1. Gateway routing → 2. Cost monitoring → 3. Governance checks → 4. Result verification")
+        print(
+            "1. Gateway routing → 2. Cost monitoring → 3. Governance checks → 4. Result verification"
+        )
 
         # Simulate the pipeline flow
         gov_state = gov_manager.get_state()
@@ -117,7 +119,7 @@ async def demo_basic_integration() -> None:
 
         # Update with simulated cost
         cost_monitor.update_cost("claude-3-5-sonnet", 0.25)
-        print(f"✓ Updated cost: $0.25 (model: claude-3-5-sonnet)")
+        print("✓ Updated cost: $0.25 (model: claude-3-5-sonnet)")
 
         # Simulate a governance event
         gov_manager.handle_event("cost_update", {"cost_cents": 25, "budget_used": 0.5})
@@ -129,6 +131,7 @@ async def demo_basic_integration() -> None:
     except Exception as e:
         print(f"✗ Error in basic integration: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -267,4 +270,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nFatal error running demo: {e}")
         import traceback
+
         traceback.print_exc()

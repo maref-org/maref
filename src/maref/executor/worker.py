@@ -84,9 +84,7 @@ class WorkerPool:
                 time.sleep(0.05)
                 continue
             if self._pause_event.is_set():
-                self._queue.update_status(
-                    tasks[0].id, TaskStatus.QUEUED, started_at=None
-                )
+                self._queue.update_status(tasks[0].id, TaskStatus.QUEUED, started_at=None)
                 time.sleep(0.05)
                 continue
             task = tasks[0]

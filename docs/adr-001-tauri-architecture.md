@@ -1,8 +1,8 @@
 # ADR-001: 桌面端架构决策 — Tauri-only
 
-**状态**: 已接受  
-**日期**: 2026-05-14  
-**决策者**: MAREF 架构组  
+**状态**: 已接受
+**日期**: 2026-05-14
+**决策者**: MAREF 架构组
 
 ## 背景
 
@@ -39,7 +39,7 @@ Tauri 在安全、性能、包体积三个维度碾压 Electron，且 MAREF 的�
 ## 实施检查项
 
 - [x] 修复 Tauri CSP（已完成）
-- [x] 修复 Electron hardenedRuntime（已完成）  
+- [x] 修复 Electron hardenedRuntime（已完成）
 - [ ] Electron 配置标记 deprecated（README 标注）
 - [ ] v0.26.0 移除 Electron 相关文件
 - [ ] Tauri Updater 配置

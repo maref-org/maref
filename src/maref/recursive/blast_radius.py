@@ -15,9 +15,9 @@ from typing import Any
 
 
 class CompensationStrategy(Enum):
-    FULL = "full"               # compensate all completed steps
-    PARTIAL = "partial"         # compensate up to max_radius steps
-    SELECTIVE = "selective"     # only steps matching a predicate
+    FULL = "full"  # compensate all completed steps
+    PARTIAL = "partial"  # compensate up to max_radius steps
+    SELECTIVE = "selective"  # only steps matching a predicate
     SKIP_NON_CRITICAL = "skip_non_critical"  # skip steps marked non-critical
 
 
@@ -26,7 +26,7 @@ class BlastRadiusConfig:
     """Configuration for blast-radius-limited compensation."""
 
     strategy: CompensationStrategy = CompensationStrategy.FULL
-    max_radius: int = 2           # max number of steps to compensate
+    max_radius: int = 2  # max number of steps to compensate
     skip_on_partial_failure: bool = True
     # Human-confirmation gate for large-radius compensations
     confirm_radius_threshold: int = 3
@@ -105,7 +105,7 @@ class BlastRadiusController:
                     else:
                         skipped.append(sid)
                     if len(to_compensate) >= max_radius:
-                        skipped.extend(candidates[candidates.index(sid) + 1:])
+                        skipped.extend(candidates[candidates.index(sid) + 1 :])
                         break
         elif strategy == CompensationStrategy.SKIP_NON_CRITICAL:
             for sid in candidates:
@@ -115,7 +115,7 @@ class BlastRadiusController:
                     skipped.append(sid)
                     if len(to_compensate) >= max_radius:
                         # Once we hit the radius cap, everything else is skipped
-                        skipped.extend(candidates[candidates.index(sid) + 1:])
+                        skipped.extend(candidates[candidates.index(sid) + 1 :])
                         break
         else:
             to_compensate = candidates[:max_radius]

@@ -3,7 +3,7 @@
   MAREF Constitutional Red Lines — TLA+ Formal Specification
 
   INV-001 → RedLineImmutability
-  INV-002 → SafetyGateIntegrity  
+  INV-002 → SafetyGateIntegrity
   INV-003 → AuditTrailCompleteness
   INV-004 → ConstitutionSupremacy
   INV-005 → HumanConstitutionSoleAuthority

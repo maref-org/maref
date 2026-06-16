@@ -44,8 +44,12 @@ class AuthSessionManager:
         self._dir.mkdir(parents=True, exist_ok=True)
         self._active_states: dict[str, AuthState] = {}
 
-    def save_state(self, domain: str, cookies: list[dict[str, Any]] | None = None,
-                   local_storage: dict[str, str] | None = None) -> str:
+    def save_state(
+        self,
+        domain: str,
+        cookies: list[dict[str, Any]] | None = None,
+        local_storage: dict[str, str] | None = None,
+    ) -> str:
         cookies_json = json.dumps(cookies or [])
         storage_json = json.dumps(local_storage or {})
 
@@ -108,15 +112,24 @@ class AuthSessionManager:
         key_bytes = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
         nonce = os.urandom(16)[:12]
         try:
-            from cryptography.hazmat.primitives.ciphers.aead import (  # type: ignore[import-not-found]
+            from cryptography.hazmat.primitives.ciphers.aead import (
                 AESGCM,
             )
+
             aesgcm = AESGCM(key_bytes)
             encrypted = aesgcm.encrypt(nonce or os.urandom(12), data.encode(), None)
             return (nonce + encrypted).hex()
         except ImportError:
             encoded = data.encode()
-            result = bytes(a ^ b for a, b in zip(encoded, key_bytes[:len(encoded)] * (len(encoded) // len(key_bytes[:len(encoded)]) + 1), strict=False))
+            result = bytes(
+                a ^ b
+                for a, b in zip(
+                    encoded,
+                    key_bytes[: len(encoded)]
+                    * (len(encoded) // len(key_bytes[: len(encoded)]) + 1),
+                    strict=False,
+                )
+            )
             return result.hex()
 
     def _decrypt(self, encrypted_hex: str) -> str:
@@ -125,6 +138,7 @@ class AuthSessionManager:
             nonce = raw[:12]
             ciphertext = raw[12:]
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
             key_bytes = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
             aesgcm = AESGCM(key_bytes)
             decrypted = aesgcm.decrypt(nonce, ciphertext, None)
@@ -132,5 +146,12 @@ class AuthSessionManager:
         except (ImportError, Exception):
             raw = bytes.fromhex(encrypted_hex)
             key_bytes = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
-            result = bytes(a ^ b for a, b in zip(raw, key_bytes[:len(raw)] * (len(raw) // len(key_bytes[:len(raw)]) + 1), strict=False))
+            result = bytes(
+                a ^ b
+                for a, b in zip(
+                    raw,
+                    key_bytes[: len(raw)] * (len(raw) // len(key_bytes[: len(raw)]) + 1),
+                    strict=False,
+                )
+            )
             return result.decode(errors="replace")

@@ -77,7 +77,8 @@ class PERCVResearchOrchestrator:
         self.quality_gate = quality_gate
         self.governance_hook = governance_hook or (
             PERCVGovernanceHook(state_machine=state_machine, circuit_breaker=circuit_breaker)
-            if state_machine else None
+            if state_machine
+            else None
         )
 
         self._status = OrchestratorStatus.CREATED
@@ -154,8 +155,7 @@ class PERCVResearchOrchestrator:
 
             if self.circuit_breaker and not self.gateway_adapter:
                 raise RuntimeError(
-                    "gateway_adapter required for research cycle "
-                    "when circuit_breaker is present"
+                    "gateway_adapter required for research cycle " "when circuit_breaker is present"
                 )
 
             if self.state_machine:
@@ -168,6 +168,7 @@ class PERCVResearchOrchestrator:
             if self.gateway_adapter:
                 try:
                     from maref.integration.percv import PERCVPipelineAdapter
+
                     pipeline = PERCVPipelineAdapter(
                         gateway_adapter=self.gateway_adapter,
                         governance_state_machine=self.state_machine,
@@ -193,7 +194,8 @@ class PERCVResearchOrchestrator:
             logger.error("Research cycle failed: %s", exc)
             if self.governance_hook:
                 self.governance_hook.handle_event(
-                    PERCVEventType.RESEARCH_FAIL, {"error": str(exc)},
+                    PERCVEventType.RESEARCH_FAIL,
+                    {"error": str(exc)},
                 )
             if self.circuit_breaker:
                 try:
@@ -231,6 +233,7 @@ class PERCVResearchOrchestrator:
                         EvaluationReport,
                         TestMode,
                     )
+
                     report = EvaluationReport(
                         report_id=f"auto-{cycle_id}",
                         agent_id=agent_id,
@@ -280,7 +283,8 @@ class PERCVResearchOrchestrator:
                     score=score,
                 )
                 gate_result = self.quality_gate.evaluate_c1_to_c2(
-                    candidate_id, mock_report,
+                    candidate_id,
+                    mock_report,
                 )
                 result.result = {"verdict": gate_result.verdict.value, "score": score}
 
@@ -308,11 +312,23 @@ class PERCVResearchOrchestrator:
         summary: list[dict[str, Any]] = []
         for i in range(iterations):
             r = self.run_research_cycle(topic=f"{topic} (iter {i+1})")
-            summary.append({"step": "research", "phase": r.phase.value, "topic": r.result.get("topic", "") if r.result else ""})
+            summary.append(
+                {
+                    "step": "research",
+                    "phase": r.phase.value,
+                    "topic": r.result.get("topic", "") if r.result else "",
+                }
+            )
             e = self.run_evaluate_cycle(agent_id=agent_id)
             summary.append({"step": "evaluate", "phase": e.phase.value})
             ev = self.run_evolve_cycle(candidate_id=agent_id)
-            summary.append({"step": "evolve", "phase": ev.phase.value, "verdict": ev.result.get("verdict", "") if ev.result else ""})
+            summary.append(
+                {
+                    "step": "evolve",
+                    "phase": ev.phase.value,
+                    "verdict": ev.result.get("verdict", "") if ev.result else "",
+                }
+            )
             v = self.run_verify_cycle(agent_id=agent_id)
             summary.append({"step": "verify", "phase": v.phase.value})
             fb = self.get_research_directions()

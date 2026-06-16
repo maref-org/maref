@@ -15,17 +15,18 @@ if TYPE_CHECKING:
     from maref.immunity.negative_gene_bank import NegativeGeneBank
 
 
-SUPPORTED_SOURCES = frozenset({
-    "mitre_cwe",
-    "maraf_cwe",
-    "owasp",
-    "veracode",
-    "custom",
-})
+SUPPORTED_SOURCES = frozenset(
+    {
+        "mitre_cwe",
+        "maraf_cwe",
+        "owasp",
+        "veracode",
+        "custom",
+    }
+)
 
 
-class CWEImportError(Exception):
-    ...
+class CWEImportError(Exception): ...
 
 
 def seed_from_cwe_json(
@@ -61,8 +62,7 @@ def seed_from_cwe_json(
     """
     if source_name not in SUPPORTED_SOURCES:
         raise CWEImportError(
-            f"Unknown source '{source_name}'. "
-            f"Supported: {sorted(SUPPORTED_SOURCES)}"
+            f"Unknown source '{source_name}'. " f"Supported: {sorted(SUPPORTED_SOURCES)}"
         )
 
     with open(json_path, encoding="utf-8") as f:
@@ -176,7 +176,9 @@ def get_import_history(bank: NegativeGeneBank) -> list[dict[str, Any]]:
     return bank.get_import_history()
 
 
-def export_genes_to_json(bank: NegativeGeneBank, json_path: str, cwe_filter: str | None = None) -> int:
+def export_genes_to_json(
+    bank: NegativeGeneBank, json_path: str, cwe_filter: str | None = None
+) -> int:
     """Export the NegativeGeneBank to a CWE JSON file.
 
     Parameters
@@ -191,10 +193,7 @@ def export_genes_to_json(bank: NegativeGeneBank, json_path: str, cwe_filter: str
     -------
     Number of exported genes.
     """
-    if cwe_filter:
-        genes = bank.query_by_cwe(cwe_filter)
-    else:
-        genes = bank.query_all(limit=10000)
+    genes = bank.query_by_cwe(cwe_filter) if cwe_filter else bank.query_all(limit=10000)
 
     entries = []
     for g in genes:
@@ -226,6 +225,11 @@ def export_genes_to_json(bank: NegativeGeneBank, json_path: str, cwe_filter: str
         entries.append(entry)
 
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump({"genes": entries, "exported_at": time.time(), "count": len(entries)}, f, indent=2, ensure_ascii=False)
+        json.dump(
+            {"genes": entries, "exported_at": time.time(), "count": len(entries)},
+            f,
+            indent=2,
+            ensure_ascii=False,
+        )
 
     return len(entries)

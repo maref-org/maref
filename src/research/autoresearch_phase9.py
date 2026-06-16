@@ -17,12 +17,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import structlog
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from drift_guard.ab_testing import ABTestFramework
 from drift_guard.policy_sandbox import PolicyChangeType, PolicySandbox
 from drift_guard.types import PipelineConfig
 from research.dashscope_client import DashScopeClient
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -80,7 +84,8 @@ class Phase9AutoResearch:
                 )
                 # Parse JSON from response
                 import re
-                json_match = re.search(r'\{[^}]+\}', response.content)
+
+                json_match = re.search(r"\{[^}]+\}", response.content)
                 if json_match:
                     proposed = json.loads(json_match.group())
                     new_config = PipelineConfig(
@@ -126,7 +131,8 @@ class Phase9AutoResearch:
                     max_tokens=100,
                 )
                 import re
-                json_match = re.search(r'\{[^}]+\}', response.content)
+
+                json_match = re.search(r"\{[^}]+\}", response.content)
                 if json_match:
                     metrics = json.loads(json_match.group())
                 else:
@@ -172,16 +178,17 @@ class Phase9AutoResearch:
             if llm:
                 try:
                     prompt = (
-                    "生成一个漂移检测配置变体. "
-                    "以JSON响应: {'kl_warning': float(0.05-0.3), 'kl_critical': float(0.3-0.8)}"
-                )
+                        "生成一个漂移检测配置变体. "
+                        "以JSON响应: {'kl_warning': float(0.05-0.3), 'kl_critical': float(0.3-0.8)}"
+                    )
                     response = await llm.chat_completion(
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.7,
                         max_tokens=100,
                     )
                     import re
-                    json_match = re.search(r'\{[^}]+\}', response.content)
+
+                    json_match = re.search(r"\{[^}]+\}", response.content)
                     if json_match:
                         cfg = json.loads(json_match.group())
                         new_config = PipelineConfig(
@@ -235,8 +242,8 @@ class Phase9AutoResearch:
                 prompt = (
                     "设计两个漂移检测策略用于A/B测试. "
                     "策略A（保守）和策略B（激进）. "
-                    "以JSON响应: {\"A\": {\"kl_warning\": float, \"kl_critical\": float}, "
-                    "\"B\": {\"kl_warning\": float, \"kl_critical\": float}}"
+                    '以JSON响应: {"A": {"kl_warning": float, "kl_critical": float}, '
+                    '"B": {"kl_warning": float, "kl_critical": float}}'
                 )
                 response = await llm.chat_completion(
                     messages=[{"role": "user", "content": prompt}],
@@ -244,7 +251,8 @@ class Phase9AutoResearch:
                     max_tokens=150,
                 )
                 import re
-                json_match = re.search(r'\{[^}]+\}', response.content)
+
+                json_match = re.search(r"\{[^}]+\}", response.content)
                 if json_match:
                     strategies = json.loads(json_match.group())
                     baseline = PipelineConfig(
@@ -281,9 +289,7 @@ class Phase9AutoResearch:
             experiment_type="ab_test_winner",
             parameters={"variant_kl_warning": variant.kl_warning},
             observations=result.to_dict() if result else {},
-            findings=[
-                f"胜出者: {result.winner}" if result else "测试未完成"
-            ],
+            findings=[f"胜出者: {result.winner}" if result else "测试未完成"],
         )
 
     async def _experiment_degradation_prevention(self, exp_id: int) -> Phase9ExperimentResult:
@@ -296,10 +302,7 @@ class Phase9AutoResearch:
         # Use LLM to identify a bad configuration
         if llm:
             try:
-                prompt = (
-                    "什么样的漂移检测阈值是危险的宽松？"
-                    "仅回复kl_warning值（应>0.5才算差）。"
-                )
+                prompt = "什么样的漂移检测阈值是危险的宽松？" "仅回复kl_warning值（应>0.5才算差）。"
                 response = await llm.chat_completion(
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.5,
@@ -333,10 +336,7 @@ class Phase9AutoResearch:
             experiment_type="degradation_prevention",
             parameters={"bad_kl_warning": bad_value},
             observations=result.to_dict() if result else {},
-            findings=[
-                f"退化已预防: {result.winner == 'baseline'}"
-                if result else "测试未完成"
-            ],
+            findings=[f"退化已预防: {result.winner == 'baseline'}" if result else "测试未完成"],
         )
 
     async def run_experiment(self, exp_id: int) -> Phase9ExperimentResult:
@@ -352,13 +352,13 @@ class Phase9AutoResearch:
 
     async def run_batch(self) -> dict[str, Any]:
         """Run full experiment batch."""
-        print(f"[{datetime.now()}] Phase 9: Starting {self._experiments} experiments")
+        logger.info("Phase 9: Starting %s experiments", self._experiments)
 
         for i in range(self._experiments):
             result = await self.run_experiment(i)
             self._results.append(result)
             if (i + 1) % 10 == 0:
-                print(f"  Progress: {i + 1}/{self._experiments}")
+                logger.debug("Progress: %s/%s", i + 1, self._experiments)
 
         return self._generate_report()
 
@@ -393,10 +393,18 @@ class Phase9AutoResearch:
                 "rollback_failures": rollback_failures,
                 "degradation_prevented": degradation_prevented,
                 "safety_score": (
-                    self._results and
-                     (1 - rollback_failures / max(len([r for r in self._results if r.experiment_type == "rollback_safety"]), 1))
-                     * 100
-
+                    self._results
+                    and (
+                        1
+                        - rollback_failures
+                        / max(
+                            len(
+                                [r for r in self._results if r.experiment_type == "rollback_safety"]
+                            ),
+                            1,
+                        )
+                    )
+                    * 100
                 ),
             },
         }
@@ -415,7 +423,7 @@ class Phase9AutoResearch:
         with open(md_path, "w") as f:
             f.write(self._format_markdown(report))
 
-        print(f"[{datetime.now()}] Reports saved to {json_path} and {md_path}")
+        logger.info("Reports saved to %s and %s", json_path, md_path)
         return md_path
 
     def _format_markdown(self, report: dict[str, Any]) -> str:
@@ -435,25 +443,29 @@ class Phase9AutoResearch:
         for exp_type, count in report["experiment_types"].items():
             lines.append(f"| {exp_type} | {count} |")
 
-        lines.extend([
-            "",
-            "## 安全指标",
-            "",
-            f"- 回滚失败次数: {report['safety_metrics']['rollback_failures']}",
-            f"- 退化预防次数: {report['safety_metrics']['degradation_prevented']}",
-            f"- 安全评分: {report['safety_metrics']['safety_score']:.1f}%",
-            "",
-            "## 关键发现",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 安全指标",
+                "",
+                f"- 回滚失败次数: {report['safety_metrics']['rollback_failures']}",
+                f"- 退化预防次数: {report['safety_metrics']['degradation_prevented']}",
+                f"- 安全评分: {report['safety_metrics']['safety_score']:.1f}%",
+                "",
+                "## 关键发现",
+                "",
+            ]
+        )
         for finding in report["key_findings"]:
             lines.append(f"- {finding}")
 
-        lines.extend([
-            "",
-            "---",
-            "*由 MAREF Phase 9 自主研究引擎与百炼 LLM 生成*",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "*由 MAREF Phase 9 自主研究引擎与百炼 LLM 生成*",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -461,13 +473,14 @@ class Phase9AutoResearch:
 async def main() -> None:
     """Main entry point."""
     import os
+
     # Use environment variable or default to project-relative path
     default_output = Path(__file__).parent.parent.parent / "research_output"
     output_dir = Path(os.environ.get("MAREF_RESEARCH_OUTPUT", str(default_output)))
     research = Phase9AutoResearch(output_dir=output_dir, experiments=50)
     report = await research.run_batch()
     research.save_report(report)
-    print("Phase 9 research complete!")
+    logger.info("Phase 9 research complete!")
 
 
 if __name__ == "__main__":

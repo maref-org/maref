@@ -164,7 +164,10 @@ class FiveEyesMapper:
                     "standard_id": s.value,
                     "controls": [c.control_id for c in self.get_controls(s)],
                     "compliance_rate": round(
-                        sum(1 for c in self.get_controls(s) if c.status == "implemented") / len(self.get_controls(s)) * 100, 1
+                        sum(1 for c in self.get_controls(s) if c.status == "implemented")
+                        / len(self.get_controls(s))
+                        * 100,
+                        1,
                     ),
                 }
                 for s in FiveEyesStandard

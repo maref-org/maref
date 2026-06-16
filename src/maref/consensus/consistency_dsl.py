@@ -12,9 +12,9 @@ from typing import Any
 
 
 class ConsistencyLevel(Enum):
-    STRICT = "strict"       # synchronous replication, full barrier
-    CAUSAL = "causal"       # vector-clock bounded staleness
-    EVENTUAL = "eventual"   # best-effort, no barrier
+    STRICT = "strict"  # synchronous replication, full barrier
+    CAUSAL = "causal"  # vector-clock bounded staleness
+    EVENTUAL = "eventual"  # best-effort, no barrier
 
 
 @dataclass(frozen=True)
@@ -142,8 +142,6 @@ class DynamicDegrader:
             "latency_before_ms": cost_before.latency_ms,
             "latency_after_ms": cost_after.latency_ms,
             "reason": (
-                "load below threshold"
-                if effective == requested
-                else "degraded due to high load"
+                "load below threshold" if effective == requested else "degraded due to high load"
             ),
         }

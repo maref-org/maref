@@ -53,17 +53,19 @@ class ImmuneChecker:
                     idx = code.index(variant.variant_code)
                     line = code[:idx].count("\n") + 1
                     col = idx - code.rfind("\n", 0, idx) - 1
-                    hits.append(ImmuneHit(
-                        gene_id=gene.gene_id,
-                        gene_title=gene.title,
-                        risk_level=gene.risk_level,
-                        severity=gene.severity,
-                        blocked=gene.blocked,
-                        match_type="variant",
-                        match_location=(line, max(col, 0)),
-                        match_snippet=variant.variant_code,
-                        fix_suggestion=self._default_fix(pat) if gene.blocked else None,
-                    ))
+                    hits.append(
+                        ImmuneHit(
+                            gene_id=gene.gene_id,
+                            gene_title=gene.title,
+                            risk_level=gene.risk_level,
+                            severity=gene.severity,
+                            blocked=gene.blocked,
+                            match_type="variant",
+                            match_location=(line, max(col, 0)),
+                            match_snippet=variant.variant_code,
+                            fix_suggestion=self._default_fix(pat) if gene.blocked else None,
+                        )
+                    )
         # deduplicate by (gene_id, match_location)
         seen: set[tuple[str, int, int]] = set()
         deduped: list[ImmuneHit] = []
@@ -88,17 +90,21 @@ class ImmuneChecker:
                     for gene in self._bank.query_by_pattern(func_name):
                         for pat in gene.patterns:
                             if pat.pattern_type in ("ast_call", "function_name"):
-                                hits.append(ImmuneHit(
-                                    gene_id=gene.gene_id,
-                                    gene_title=gene.title,
-                                    risk_level=gene.risk_level,
-                                    severity=gene.severity,
-                                    blocked=gene.blocked,
-                                    match_type="ast_call",
-                                    match_location=(node.lineno or 0, node.col_offset or 0),
-                                    match_snippet=func_name,
-                                    fix_suggestion=self._default_fix(pat) if gene.blocked else None,
-                                ))
+                                hits.append(
+                                    ImmuneHit(
+                                        gene_id=gene.gene_id,
+                                        gene_title=gene.title,
+                                        risk_level=gene.risk_level,
+                                        severity=gene.severity,
+                                        blocked=gene.blocked,
+                                        match_type="ast_call",
+                                        match_location=(node.lineno or 0, node.col_offset or 0),
+                                        match_snippet=func_name,
+                                        fix_suggestion=self._default_fix(pat)
+                                        if gene.blocked
+                                        else None,
+                                    )
+                                )
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 names = [a.name for a in node.names]
                 if isinstance(node, ast.ImportFrom) and node.module:
@@ -107,17 +113,21 @@ class ImmuneChecker:
                     for gene in self._bank.query_by_pattern(name):
                         for pat in gene.patterns:
                             if pat.pattern_type == "import_name":
-                                hits.append(ImmuneHit(
-                                    gene_id=gene.gene_id,
-                                    gene_title=gene.title,
-                                    risk_level=gene.risk_level,
-                                    severity=gene.severity,
-                                    blocked=gene.blocked,
-                                    match_type="import_name",
-                                    match_location=(node.lineno or 0, node.col_offset or 0),
-                                    match_snippet=name,
-                                    fix_suggestion=self._default_fix(pat) if gene.blocked else None,
-                                ))
+                                hits.append(
+                                    ImmuneHit(
+                                        gene_id=gene.gene_id,
+                                        gene_title=gene.title,
+                                        risk_level=gene.risk_level,
+                                        severity=gene.severity,
+                                        blocked=gene.blocked,
+                                        match_type="import_name",
+                                        match_location=(node.lineno or 0, node.col_offset or 0),
+                                        match_snippet=name,
+                                        fix_suggestion=self._default_fix(pat)
+                                        if gene.blocked
+                                        else None,
+                                    )
+                                )
         return hits
 
     @security_critical
@@ -137,7 +147,7 @@ class ImmuneChecker:
         if pat.pattern_type == "regex":
             m = self._get_regex(pat.pattern_value).search(code)
             if m:
-                line = code[:m.start()].count("\n") + 1
+                line = code[: m.start()].count("\n") + 1
                 col = m.start() - code.rfind("\n", 0, m.start()) - 1
                 return ImmuneHit(
                     gene_id=gene.gene_id,
@@ -147,7 +157,7 @@ class ImmuneChecker:
                     blocked=gene.blocked,
                     match_type="regex",
                     match_location=(line, max(col, 0)),
-                    match_snippet=code[m.start():m.end()][:120],
+                    match_snippet=code[m.start() : m.end()][:120],
                     fix_suggestion=self._default_fix(pat) if gene.blocked else None,
                 )
         elif pat.pattern_type == "string_content":

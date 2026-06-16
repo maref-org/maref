@@ -168,7 +168,10 @@ class MCPServer:
             verdict = self.security_gate.check(tool_name, trust_level, arguments)
             if verdict.value == "DENY":
                 return JSONRPCResponse(
-                    error={"code": -32000, "message": f"Tool blocked by security gate: {tool_name}"},
+                    error={
+                        "code": -32000,
+                        "message": f"Tool blocked by security gate: {tool_name}",
+                    },
                     id=req_id,
                 )
 

@@ -77,8 +77,9 @@ class StigmergySwarm:
         self._environments[env_id] = env
         return env
 
-    def register_member(self, agent_id: str, role: str = "worker",
-                         preferences: list[str] | None = None) -> SwarmMember:
+    def register_member(
+        self, agent_id: str, role: str = "worker", preferences: list[str] | None = None
+    ) -> SwarmMember:
         member = SwarmMember(
             agent_id=agent_id,
             role=role,
@@ -87,10 +88,15 @@ class StigmergySwarm:
         self._members[agent_id] = member
         return member
 
-    def deposit_pheromone(self, env_id: str, agent_id: str,
-                           p_type: PheromoneType, location: str,
-                           intensity: float = 1.0,
-                           metadata: dict[str, Any] | None = None) -> Pheromone | None:
+    def deposit_pheromone(
+        self,
+        env_id: str,
+        agent_id: str,
+        p_type: PheromoneType,
+        location: str,
+        intensity: float = 1.0,
+        metadata: dict[str, Any] | None = None,
+    ) -> Pheromone | None:
         env = self._environments.get(env_id)
         if env is None:
             return None
@@ -152,18 +158,15 @@ class StigmergySwarm:
         if env is None:
             return EmergenceResult(detected=False)
 
-        active_agents = sum(
-            1 for m in self._members.values() if m.active
+        active_agents = sum(1 for m in self._members.values() if m.active)
+        pheromone_count = len(
+            [p for p in env.pheromones.values() if p.current_intensity > self.INTENSITY_THRESHOLD]
         )
-        pheromone_count = len([
-            p for p in env.pheromones.values()
-            if p.current_intensity > self.INTENSITY_THRESHOLD
-        ])
 
         coordinated = (
-            active_agents >= self.MIN_EMERGENCE_AGENTS and
-            len(env.completed_tasks) > 0 and
-            pheromone_count >= active_agents
+            active_agents >= self.MIN_EMERGENCE_AGENTS
+            and len(env.completed_tasks) > 0
+            and pheromone_count >= active_agents
         )
 
         phase_transitions = len(self._emergence_events)
@@ -178,25 +181,25 @@ class StigmergySwarm:
 
         if coordinated:
             self._emergence_events.append(result)
-            self._audit_store.append(UnifiedAuditRecord(
-                record_id=make_record_id("swarm", hash(env_id) % 100000),
-                timestamp=time.time(),
-                layer="evolution",
-                round=47,
-                event_type="emergence_detected",
-                source_module="StigmergySwarm",
-                target_module=env_id,
-                decision="emergence_coordinated",
-                justification=f"Agents={active_agents}, pheromones={pheromone_count}",
-                outcome="success",
-                context_refs=[env_id],
-            ))
+            self._audit_store.append(
+                UnifiedAuditRecord(
+                    record_id=make_record_id("swarm", hash(env_id) % 100000),
+                    timestamp=time.time(),
+                    layer="evolution",
+                    round=47,
+                    event_type="emergence_detected",
+                    source_module="StigmergySwarm",
+                    target_module=env_id,
+                    decision="emergence_coordinated",
+                    justification=f"Agents={active_agents}, pheromones={pheromone_count}",
+                    outcome="success",
+                    context_refs=[env_id],
+                )
+            )
 
         return result
 
-    def run_swarm_cycle(self, env_id: str,
-                         tasks: list[str],
-                         agents: list[str]) -> EmergenceResult:
+    def run_swarm_cycle(self, env_id: str, tasks: list[str], agents: list[str]) -> EmergenceResult:
         env = self._environments.get(env_id)
         if env is None:
             self.create_environment(env_id)
@@ -210,20 +213,22 @@ class StigmergySwarm:
 
         for agent_id in agents:
             self.deposit_pheromone(
-                env_id, agent_id,
+                env_id,
+                agent_id,
                 PheromoneType.RECRUITMENT,
                 location="task_board",
                 intensity=0.8,
             )
 
-        assigned = tasks[:len(agents)]
+        assigned = tasks[: len(agents)]
         for i, task_id in enumerate(assigned):
             if i < len(agents):
                 self.assign_task(env_id, task_id, agents[i])
 
         for agent_id in agents:
             self.deposit_pheromone(
-                env_id, agent_id,
+                env_id,
+                agent_id,
                 PheromoneType.COMPLETION_MARKER,
                 location="completed",
                 intensity=0.9,
@@ -231,8 +236,7 @@ class StigmergySwarm:
 
         return self.detect_emergence(env_id)
 
-    def register_multiple(self, count: int,
-                           prefix: str = "swarm_agent") -> list[SwarmMember]:
+    def register_multiple(self, count: int, prefix: str = "swarm_agent") -> list[SwarmMember]:
         members: list[SwarmMember] = []
         for i in range(count):
             agent_id = f"{prefix}_{i}"
@@ -246,9 +250,7 @@ class StigmergySwarm:
             "active_members": sum(1 for m in self._members.values() if m.active),
             "environments": len(self._environments),
             "emergence_events": len(self._emergence_events),
-            "total_completed": sum(
-                len(e.completed_tasks) for e in self._environments.values()
-            ),
+            "total_completed": sum(len(e.completed_tasks) for e in self._environments.values()),
         }
 
     @property

@@ -8,7 +8,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .gray_code import get_gray_code_transformer
 from .hexagram import Hexagram, get_hexagram_by_name
@@ -21,9 +21,9 @@ class AgentRole:
 
     name: str  # 角色名称
     function: str  # 功能描述
-    hexagram: Optional[Hexagram] = None  # 对应的卦象
-    complementary_role: Optional[str] = None  # 互补角色名称
-    mirror_role: Optional[str] = None  # 镜像角色名称
+    hexagram: Hexagram | None = None  # 对应的卦象
+    complementary_role: str | None = None  # 互补角色名称
+    mirror_role: str | None = None  # 镜像角色名称
 
 
 class MAREFWorkflowOrchestrator:
@@ -38,12 +38,12 @@ class MAREFWorkflowOrchestrator:
         """
         # 核心组件初始化
         self.current_state: Hexagram = Hexagram.from_binary("111111")  # 初始：乾
-        self.state_history: List[Hexagram] = [self.current_state]
+        self.state_history: list[Hexagram] = [self.current_state]
 
         # 初始化三才六层组件
-        self.agent_roles: Dict[str, AgentRole] = self._initialize_agent_roles()
-        self.complementary_pairs: Dict[Hexagram, Hexagram] = self._setup_complementary_pairs()
-        self.mirror_agents: Dict[str, str] = self._setup_mirror_agents()
+        self.agent_roles: dict[str, AgentRole] = self._initialize_agent_roles()
+        self.complementary_pairs: dict[Hexagram, Hexagram] = self._setup_complementary_pairs()
+        self.mirror_agents: dict[str, str] = self._setup_mirror_agents()
 
         # 初始化工具组件
         self.gray_code_transformer = get_gray_code_transformer()
@@ -66,7 +66,7 @@ class MAREFWorkflowOrchestrator:
 
         logging.info(f"MAREF工作流编排器初始化完成，初始状态: {self.current_state.symbol}")
 
-    def _initialize_agent_roles(self) -> Dict[str, AgentRole]:
+    def _initialize_agent_roles(self) -> dict[str, AgentRole]:
         """初始化8个卦象角色（经层）"""
         roles = {
             "乾": AgentRole(
@@ -128,7 +128,7 @@ class MAREFWorkflowOrchestrator:
         }
         return roles
 
-    def _setup_complementary_pairs(self) -> Dict[Hexagram, Hexagram]:
+    def _setup_complementary_pairs(self) -> dict[Hexagram, Hexagram]:
         """设置互补对（错卦）网络"""
         complementary_pairs = {}
 
@@ -159,7 +159,7 @@ class MAREFWorkflowOrchestrator:
         logging.info(f"已设置 {len(complementary_pairs)} 对互补关系")
         return complementary_pairs
 
-    def _setup_mirror_agents(self) -> Dict[str, str]:
+    def _setup_mirror_agents(self) -> dict[str, str]:
         """设置镜像智能体（综卦）"""
         mirror_agents = {
             "乾": "坤",  # 乾的镜像是坤（纯阳 ↔ 纯阴）
@@ -173,10 +173,10 @@ class MAREFWorkflowOrchestrator:
         }
         return mirror_agents
 
-    def _load_config(self, config_file: str) -> Dict[str, Any]:
+    def _load_config(self, config_file: str) -> dict[str, Any]:
         """加载配置文件"""
         try:
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 config = json.load(f)
             logging.info(f"配置文件加载成功: {config_file}")
             return config
@@ -184,7 +184,7 @@ class MAREFWorkflowOrchestrator:
             logging.warning(f"配置文件加载失败: {str(e)}，使用默认配置")
             return {}
 
-    def transition_state(self, target_state: Hexagram) -> Dict[str, Any]:
+    def transition_state(self, target_state: Hexagram) -> dict[str, Any]:
         """
         执行格雷编码状态转换
 
@@ -251,7 +251,7 @@ class MAREFWorkflowOrchestrator:
         logging.info(f"状态转换完成: {result['path_length']} 步转换")
         return result
 
-    def _calculate_gray_code_path(self, from_state: Hexagram, to_state: Hexagram) -> List[Hexagram]:
+    def _calculate_gray_code_path(self, from_state: Hexagram, to_state: Hexagram) -> list[Hexagram]:
         """计算格雷编码转换路径"""
         return self.gray_code_transformer.transform(from_state, to_state)
 
@@ -315,7 +315,7 @@ class MAREFWorkflowOrchestrator:
 
         return False
 
-    def route_task(self, task_metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def route_task(self, task_metadata: dict[str, Any]) -> dict[str, Any]:
         """
         智能路由任务到合适的卦状态和执行器
 
@@ -414,7 +414,7 @@ class MAREFWorkflowOrchestrator:
             # 阴爻为主的卦，使用Memory
             return self.agent_roles["坤"]
 
-    def get_system_status(self) -> Dict[str, Any]:
+    def get_system_status(self) -> dict[str, Any]:
         """获取系统状态信息"""
         gray_code_stats = self.gray_code_transformer.get_conversion_statistics()
         state_space_stats = self.state_space_manager.get_state_statistics()

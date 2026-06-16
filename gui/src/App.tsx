@@ -11,6 +11,7 @@ import { BrowserView } from "@/components/views/BrowserView";
 import { GitView } from "@/components/views/GitView";
 import { GovernanceView } from "@/components/views/GovernanceView";
 import { HomeDashboard } from "@/components/layout/HomeDashboard";
+import { ImmunityDashboard } from "@/components/immunity/ImmunityDashboard";
 import { SettingsView } from "@/components/views/SettingsView";
 import { WelcomeFlow } from "@/components/onboarding/WelcomeFlow";
 import { SkillsPanel } from "@/components/views/SkillsPanel";
@@ -40,6 +41,7 @@ const SECTION_VIEWS: Record<MarefSection, React.ComponentType> = {
   home: HomeDashboard,
   desktop: DesktopAgentView,
   governance: GovernanceView,
+  immunity: ImmunityDashboard,
   hitl: HITLView,
   audit: AuditLogView,
   drift: DriftDetectionView,

@@ -5,9 +5,8 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from maref.security.decorators import security_critical
-
 from maref.recursive.unified_audit import NullAuditStore
+from maref.security.decorators import security_critical
 
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditStore
@@ -67,25 +66,29 @@ class RedContaminationProbe:
                 if isinstance(node, ast.ImportFrom) and node.module:
                     names.append(node.module)
                 if "pickle" in " ".join(names):
-                    findings.append(ContaminationFinding(
-                        type="deprecated_pickle",
-                        severity="POLLUTION",
-                        line=node.lineno or 0,
-                        message="pickle import detected — insecure deserialization can execute arbitrary code",
-                        suggestion="Replace pickle with JSON (json.loads/json.dumps) or MessagePack",
-                        code_snippet=ast.unparse(node)[:100],
-                    ))
+                    findings.append(
+                        ContaminationFinding(
+                            type="deprecated_pickle",
+                            severity="POLLUTION",
+                            line=node.lineno or 0,
+                            message="pickle import detected — insecure deserialization can execute arbitrary code",
+                            suggestion="Replace pickle with JSON (json.loads/json.dumps) or MessagePack",
+                            code_snippet=ast.unparse(node)[:100],
+                        )
+                    )
             if isinstance(node, ast.Call):
                 name = ast.unparse(node.func)
                 if "pickle." in name:
-                    findings.append(ContaminationFinding(
-                        type="deprecated_pickle",
-                        severity="POLLUTION",
-                        line=node.lineno or 0,
-                        message=f"pickle operation '{name}' — insecure deserialization risk",
-                        suggestion="Replace pickle with JSON or another safe serialization format",
-                        code_snippet=ast.unparse(node)[:100],
-                    ))
+                    findings.append(
+                        ContaminationFinding(
+                            type="deprecated_pickle",
+                            severity="POLLUTION",
+                            line=node.lineno or 0,
+                            message=f"pickle operation '{name}' — insecure deserialization risk",
+                            suggestion="Replace pickle with JSON or another safe serialization format",
+                            code_snippet=ast.unparse(node)[:100],
+                        )
+                    )
         return findings
 
     def _detect_wrong_comments(self, tree: ast.AST, code: str) -> list[ContaminationFinding]:
@@ -99,20 +102,23 @@ class RedContaminationProbe:
                     continue
                 for i, line in enumerate(code_lines, 1):
                     if phrase in line.lower():
-                        nearby = code_lines[max(0, i - 3):min(len(code_lines), i + 2)]
+                        nearby = code_lines[max(0, i - 3) : min(len(code_lines), i + 2)]
                         has_authoritative = any(
                             any(kw in l.lower() for kw in _PROFESSIONAL_KW)
-                            for l in nearby if l.strip().startswith(("#", '"""', "'''"))
+                            for l in nearby
+                            if l.strip().startswith(("#", '"""', "'''"))
                         )
                         if has_authoritative:
-                            findings.append(ContaminationFinding(
-                                type="wrong_comment",
-                                severity="POLLUTION",
-                                line=i,
-                                message=f"Dangerous '{trigger}' with authoritative comment — teaches bad practices",
-                                suggestion=f"Remove {trigger} usage and replace with a safe alternative",
-                                code_snippet=line.strip()[:100],
-                            ))
+                            findings.append(
+                                ContaminationFinding(
+                                    type="wrong_comment",
+                                    severity="POLLUTION",
+                                    line=i,
+                                    message=f"Dangerous '{trigger}' with authoritative comment — teaches bad practices",
+                                    suggestion=f"Remove {trigger} usage and replace with a safe alternative",
+                                    code_snippet=line.strip()[:100],
+                                )
+                            )
                             break
 
         for i, line in enumerate(code_lines, 1):
@@ -122,20 +128,19 @@ class RedContaminationProbe:
             has_authoritative = any(kw in line_lower for kw in _PROFESSIONAL_KW)
             if not has_authoritative:
                 continue
-            nearby = code_lines[max(0, i - 3):min(len(code_lines), i + 2)]
-            has_danger = any(
-                any(t in l.lower() for t in _DANGEROUS_TRIGGERS)
-                for l in nearby
-            )
+            nearby = code_lines[max(0, i - 3) : min(len(code_lines), i + 2)]
+            has_danger = any(any(t in l.lower() for t in _DANGEROUS_TRIGGERS) for l in nearby)
             if has_danger:
-                findings.append(ContaminationFinding(
-                    type="wrong_comment",
-                    severity="POLLUTION",
-                    line=i,
-                    message=f"Authoritative comment near dangerous pattern — '{line.strip()[:80]}'",
-                    suggestion="Remove authoritative-sounding justification for dangerous code patterns",
-                    code_snippet=line.strip()[:100],
-                ))
+                findings.append(
+                    ContaminationFinding(
+                        type="wrong_comment",
+                        severity="POLLUTION",
+                        line=i,
+                        message=f"Authoritative comment near dangerous pattern — '{line.strip()[:80]}'",
+                        suggestion="Remove authoritative-sounding justification for dangerous code patterns",
+                        code_snippet=line.strip()[:100],
+                    )
+                )
 
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -150,14 +155,16 @@ class RedContaminationProbe:
             sounds_professional = any(kw in doc_lower for kw in _PROFESSIONAL_KW)
             has_danger = any(kw in body_lower for kw in _DANGEROUS_KW_IN_BODY)
             if sounds_professional and has_danger:
-                findings.append(ContaminationFinding(
-                    type="wrong_comment",
-                    severity="POLLUTION",
-                    line=node.lineno or 0,
-                    message=f"Professional docstring with dangerous body — '{docstring[:80]}'",
-                    suggestion="Fix code to use safe alternatives or honestly describe limitations",
-                    code_snippet=docstring[:120],
-                ))
+                findings.append(
+                    ContaminationFinding(
+                        type="wrong_comment",
+                        severity="POLLUTION",
+                        line=node.lineno or 0,
+                        message=f"Professional docstring with dangerous body — '{docstring[:80]}'",
+                        suggestion="Fix code to use safe alternatives or honestly describe limitations",
+                        code_snippet=docstring[:120],
+                    )
+                )
 
         return findings
 
@@ -177,19 +184,22 @@ class RedContaminationProbe:
             has_timeout = any(kw.arg == "timeout" for kw in node.keywords if kw.arg is not None)
 
             if not has_timeout:
-                findings.append(ContaminationFinding(
-                    type="missing_dangerous_pattern",
-                    severity="POLLUTION",
-                    line=node.lineno or 0,
-                    message=f"'{func_name}' without timeout — teaches AI that omitting timeout is acceptable",
-                    suggestion="Always add explicit timeout: requests.get(url, timeout=30)",
-                    code_snippet=ast.unparse(node)[:120],
-                ))
+                findings.append(
+                    ContaminationFinding(
+                        type="missing_dangerous_pattern",
+                        severity="POLLUTION",
+                        line=node.lineno or 0,
+                        message=f"'{func_name}' without timeout — teaches AI that omitting timeout is acceptable",
+                        suggestion="Always add explicit timeout: requests.get(url, timeout=30)",
+                        code_snippet=ast.unparse(node)[:120],
+                    )
+                )
 
         return findings
 
     def _write_to_audit(self) -> None:
         from maref.recursive.unified_audit import UnifiedAuditRecord
+
         ts = time.time()
         for i, f in enumerate(self._findings):
             record = UnifiedAuditRecord(

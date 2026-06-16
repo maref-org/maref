@@ -120,10 +120,7 @@ class AgentHealthMonitor:
         return snap.load_ratio
 
     def list_overloaded(self) -> list[str]:
-        return [
-            sid for sid, snap in self._snapshots.items()
-            if snap.is_overloaded
-        ]
+        return [sid for sid, snap in self._snapshots.items() if snap.is_overloaded]
 
     def summary(self) -> dict[str, Any]:
         return {

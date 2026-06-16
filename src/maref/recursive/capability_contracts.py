@@ -41,7 +41,11 @@ class CostProfile:
     currency: str = "credit_token"
 
     def estimate(self, input_size: int = 0, output_size: int = 0) -> float:
-        return self.base_cost + input_size * self.cost_per_input_token + output_size * self.cost_per_output_token
+        return (
+            self.base_cost
+            + input_size * self.cost_per_input_token
+            + output_size * self.cost_per_output_token
+        )
 
 
 @dataclass
@@ -106,8 +110,12 @@ class CapabilityContract:
     @staticmethod
     def _check_type(value: Any, expected: str) -> bool:
         type_map: dict[str, type | tuple[type, ...]] = {
-            "string": str, "integer": int, "number": (int, float),
-            "boolean": bool, "array": list, "object": dict,
+            "string": str,
+            "integer": int,
+            "number": (int, float),
+            "boolean": bool,
+            "array": list,
+            "object": dict,
         }
         expected_type = type_map.get(expected)
         if expected_type is None:
@@ -210,12 +218,14 @@ class CapabilityRegistry:
     def count(self) -> int:
         return len(self._contracts)
 
-    def validate(self, capability_id: str, input_data: dict[str, Any],
-                 state: dict[str, Any] | None = None) -> ContractValidationResult:
+    def validate(
+        self, capability_id: str, input_data: dict[str, Any], state: dict[str, Any] | None = None
+    ) -> ContractValidationResult:
         contract = self._contracts.get(capability_id)
         if contract is None:
             return ContractValidationResult(
-                valid=False, contract_id=capability_id,
+                valid=False,
+                contract_id=capability_id,
                 errors=[f"unknown capability: {capability_id}"],
             )
         state = state or {}
@@ -232,13 +242,14 @@ class CapabilityRegistry:
         self._validation_log.append(result)
         return result
 
-    def validate_output(self, capability_id: str,
-                        output_data: dict[str, Any],
-                        state: dict[str, Any] | None = None) -> ContractValidationResult:
+    def validate_output(
+        self, capability_id: str, output_data: dict[str, Any], state: dict[str, Any] | None = None
+    ) -> ContractValidationResult:
         contract = self._contracts.get(capability_id)
         if contract is None:
             return ContractValidationResult(
-                valid=False, contract_id=capability_id,
+                valid=False,
+                contract_id=capability_id,
                 errors=[f"unknown capability: {capability_id}"],
             )
         state = state or {}
@@ -255,8 +266,9 @@ class CapabilityRegistry:
         self._validation_log.append(result)
         return result
 
-    def compose(self, contracts: list[CapabilityContract],
-                mode: CompositionMode = CompositionMode.AND) -> CompositeContract:
+    def compose(
+        self, contracts: list[CapabilityContract], mode: CompositionMode = CompositionMode.AND
+    ) -> CompositeContract:
         combined_id = "_and_".join(c.capability_id for c in contracts)
         preconds: list[Predicate] = []
         postconds: list[Predicate] = []
@@ -330,7 +342,7 @@ class CombinatorialRiskAnalyzer:
             ca = self._registry.get(cid_a)
             if ca is None:
                 continue
-            for cid_b in capability_ids[i + 1:]:
+            for cid_b in capability_ids[i + 1 :]:
                 cb = self._registry.get(cid_b)
                 if cb is None:
                     continue
@@ -339,8 +351,9 @@ class CombinatorialRiskAnalyzer:
                     interactions.append(risk)
         return interactions
 
-    def _assess_pair(self, ca: CapabilityContract,
-                     cb: CapabilityContract) -> InteractionRisk | None:
+    def _assess_pair(
+        self, ca: CapabilityContract, cb: CapabilityContract
+    ) -> InteractionRisk | None:
         shared_side = set(ca.side_effects) & set(cb.side_effects)
         risk_tags_a = set(ca.tags)
         risk_tags_b = set(cb.tags)
@@ -380,288 +393,315 @@ class CombinatorialRiskAnalyzer:
 def build_default_capability_contracts() -> list[CapabilityContract]:
     contracts: list[CapabilityContract] = []
 
-    contracts.append(CapabilityContract(
-        capability_id="state_transition",
-        version="1.0.0",
-        description="Execute a state transition in the governance state machine",
-        preconditions=[Predicate(name="governance_agent_active")],
-        postconditions=[Predicate(name="state_transition_completed")],
-        input_schema={
-            "type": "object",
-            "required": ["from_state", "to_state"],
-            "properties": {
-                "from_state": {"type": "string"},
-                "to_state": {"type": "string"},
+    contracts.append(
+        CapabilityContract(
+            capability_id="state_transition",
+            version="1.0.0",
+            description="Execute a state transition in the governance state machine",
+            preconditions=[Predicate(name="governance_agent_active")],
+            postconditions=[Predicate(name="state_transition_completed")],
+            input_schema={
+                "type": "object",
+                "required": ["from_state", "to_state"],
+                "properties": {
+                    "from_state": {"type": "string"},
+                    "to_state": {"type": "string"},
+                },
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["transition_id", "success"],
-        },
-        side_effects=["state_change", "audit_log_append"],
-        tags=["state_change"],
-        required_trust_level=0.3,
-        timeout_seconds=10.0,
-        cost_profile=CostProfile(base_cost=0.01),
-    ))
-
-    contracts.append(CapabilityContract(
-        capability_id="circuit_break",
-        version="1.0.0",
-        description="Trip the circuit breaker to halt operations",
-        preconditions=[Predicate(name="circuit_breaker_closed")],
-        postconditions=[Predicate(name="circuit_breaker_open")],
-        input_schema={
-            "type": "object",
-            "required": ["reason"],
-            "properties": {"reason": {"type": "string"}},
-        },
-        output_schema={
-            "type": "object",
-            "required": ["breaker_state", "tripped_at"],
-        },
-        side_effects=["circuit_breaker_trip", "halt_all_operations"],
-        degradation_modes=["partial_halt", "read_only_mode"],
-        tags=["halt", "circuit_break", "mutation"],
-        required_trust_level=0.8,
-        timeout_seconds=5.0,
-        cost_profile=CostProfile(base_cost=0.0),
-    ))
-
-    contracts.append(CapabilityContract(
-        capability_id="halt",
-        version="1.0.0",
-        description="Immediately halt all agent operations",
-        preconditions=[Predicate(name="agent_operational")],
-        postconditions=[Predicate(name="agent_halted")],
-        input_schema={
-            "type": "object",
-            "required": ["reason"],
-            "properties": {"reason": {"type": "string"}},
-        },
-        output_schema={
-            "type": "object",
-            "required": ["halted_at"],
-        },
-        side_effects=["halt_all_operations", "freeze_agent_state"],
-        tags=["halt", "mutation", "escalation"],
-        required_trust_level=0.9,
-        timeout_seconds=5.0,
-        cost_profile=CostProfile(base_cost=0.0),
-    ))
-
-    contracts.append(CapabilityContract(
-        capability_id="observe",
-        version="1.0.0",
-        description="Observe system metrics and agent behavior",
-        preconditions=[Predicate(name="observer_active")],
-        postconditions=[Predicate(name="observation_recorded")],
-        input_schema={
-            "type": "object",
-            "properties": {
-                "metric_names": {"type": "array", "items": {"type": "string"}},
+            output_schema={
+                "type": "object",
+                "required": ["transition_id", "success"],
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["metrics", "timestamp"],
-        },
-        side_effects=["metrics_collection"],
-        degradation_modes=["reduced_frequency", "sampling_mode"],
-        tags=[],
-        required_trust_level=0.0,
-        timeout_seconds=30.0,
-        cost_profile=CostProfile(base_cost=0.001),
-    ))
+            side_effects=["state_change", "audit_log_append"],
+            tags=["state_change"],
+            required_trust_level=0.3,
+            timeout_seconds=10.0,
+            cost_profile=CostProfile(base_cost=0.01),
+        )
+    )
 
-    contracts.append(CapabilityContract(
-        capability_id="collect",
-        version="1.0.0",
-        description="Collect telemetry data from sidecar proxies",
-        preconditions=[Predicate(name="sidecar_connected")],
-        postconditions=[Predicate(name="telemetry_collected")],
-        input_schema={
-            "type": "object",
-            "properties": {
-                "targets": {"type": "array", "items": {"type": "string"}},
+    contracts.append(
+        CapabilityContract(
+            capability_id="circuit_break",
+            version="1.0.0",
+            description="Trip the circuit breaker to halt operations",
+            preconditions=[Predicate(name="circuit_breaker_closed")],
+            postconditions=[Predicate(name="circuit_breaker_open")],
+            input_schema={
+                "type": "object",
+                "required": ["reason"],
+                "properties": {"reason": {"type": "string"}},
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["collected_data", "target_count"],
-        },
-        side_effects=["data_collection"],
-        tags=[],
-        required_trust_level=0.0,
-        timeout_seconds=60.0,
-        cost_profile=CostProfile(base_cost=0.002),
-    ))
-
-    contracts.append(CapabilityContract(
-        capability_id="monitor",
-        version="1.0.0",
-        description="Continuously monitor agent health and governance state",
-        preconditions=[Predicate(name="monitor_running")],
-        postconditions=[Predicate(name="monitor_cycle_complete")],
-        input_schema={
-            "type": "object",
-            "properties": {
-                "duration_seconds": {"type": "number"},
+            output_schema={
+                "type": "object",
+                "required": ["breaker_state", "tripped_at"],
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["health_status", "anomalies"],
-        },
-        side_effects=["continuous_monitoring"],
-        degradation_modes=["reduced_interval"],
-        tags=[],
-        required_trust_level=0.1,
-        timeout_seconds=300.0,
-        cost_profile=CostProfile(base_cost=0.005),
-    ))
+            side_effects=["circuit_breaker_trip", "halt_all_operations"],
+            degradation_modes=["partial_halt", "read_only_mode"],
+            tags=["halt", "circuit_break", "mutation"],
+            required_trust_level=0.8,
+            timeout_seconds=5.0,
+            cost_profile=CostProfile(base_cost=0.0),
+        )
+    )
 
-    contracts.append(CapabilityContract(
-        capability_id="graph_query",
-        version="1.0.0",
-        description="Query the knowledge graph for nodes and relations",
-        preconditions=[Predicate(name="kg_initialized")],
-        postconditions=[Predicate(name="query_executed")],
-        input_schema={
-            "type": "object",
-            "required": ["query_type"],
-            "properties": {
-                "query_type": {"type": "string"},
-                "filters": {"type": "object"},
+    contracts.append(
+        CapabilityContract(
+            capability_id="halt",
+            version="1.0.0",
+            description="Immediately halt all agent operations",
+            preconditions=[Predicate(name="agent_operational")],
+            postconditions=[Predicate(name="agent_halted")],
+            input_schema={
+                "type": "object",
+                "required": ["reason"],
+                "properties": {"reason": {"type": "string"}},
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["results", "count"],
-        },
-        side_effects=["kg_read"],
-        tags=[],
-        required_trust_level=0.0,
-        timeout_seconds=15.0,
-        cost_profile=CostProfile(base_cost=0.001),
-    ))
-
-    contracts.append(CapabilityContract(
-        capability_id="hypothesis_test",
-        version="1.0.0",
-        description="Form and test hypotheses using the knowledge graph",
-        preconditions=[Predicate(name="kg_initialized"), Predicate(name="hypothesis_cycle_active")],
-        postconditions=[Predicate(name="hypothesis_result_recorded")],
-        input_schema={
-            "type": "object",
-            "required": ["hypothesis", "test_method"],
-            "properties": {
-                "hypothesis": {"type": "string"},
-                "test_method": {"type": "string"},
+            output_schema={
+                "type": "object",
+                "required": ["halted_at"],
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["result", "confidence"],
-        },
-        side_effects=["kg_write", "hypothesis_log"],
-        tags=[],
-        required_trust_level=0.2,
-        timeout_seconds=30.0,
-        cost_profile=CostProfile(base_cost=0.003),
-    ))
+            side_effects=["halt_all_operations", "freeze_agent_state"],
+            tags=["halt", "mutation", "escalation"],
+            required_trust_level=0.9,
+            timeout_seconds=5.0,
+            cost_profile=CostProfile(base_cost=0.0),
+        )
+    )
 
-    contracts.append(CapabilityContract(
-        capability_id="relation_infer",
-        version="1.0.0",
-        description="Infer new relations between knowledge graph nodes",
-        preconditions=[Predicate(name="kg_initialized")],
-        postconditions=[Predicate(name="inferred_relations_added")],
-        input_schema={
-            "type": "object",
-            "properties": {
-                "source_node": {"type": "string"},
-                "max_inferences": {"type": "integer"},
+    contracts.append(
+        CapabilityContract(
+            capability_id="observe",
+            version="1.0.0",
+            description="Observe system metrics and agent behavior",
+            preconditions=[Predicate(name="observer_active")],
+            postconditions=[Predicate(name="observation_recorded")],
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "metric_names": {"type": "array", "items": {"type": "string"}},
+                },
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["inferred_relations", "count"],
-        },
-        side_effects=["kg_write"],
-        tags=[],
-        required_trust_level=0.1,
-        timeout_seconds=20.0,
-        cost_profile=CostProfile(base_cost=0.002),
-    ))
-
-    contracts.append(CapabilityContract(
-        capability_id="did_resolve",
-        version="1.0.0",
-        description="Resolve a decentralized identifier to its DID document",
-        preconditions=[Predicate(name="did_registry_active")],
-        postconditions=[Predicate(name="did_resolved")],
-        input_schema={
-            "type": "object",
-            "required": ["did"],
-            "properties": {"did": {"type": "string"}},
-        },
-        output_schema={
-            "type": "object",
-            "required": ["did_document", "resolution_metadata"],
-        },
-        side_effects=["did_lookup"],
-        tags=[],
-        required_trust_level=0.0,
-        timeout_seconds=10.0,
-        cost_profile=CostProfile(base_cost=0.001),
-    ))
-
-    contracts.append(CapabilityContract(
-        capability_id="vc_verify",
-        version="1.0.0",
-        description="Verify a verifiable credential's proof and status",
-        preconditions=[Predicate(name="credential_store_active")],
-        postconditions=[Predicate(name="vc_verified")],
-        input_schema={
-            "type": "object",
-            "required": ["credential_id"],
-            "properties": {
-                "credential_id": {"type": "string"},
-                "challenge": {"type": "string"},
+            output_schema={
+                "type": "object",
+                "required": ["metrics", "timestamp"],
             },
-        },
-        output_schema={
-            "type": "object",
-            "required": ["valid", "verification_details"],
-        },
-        side_effects=["vc_verification"],
-        tags=[],
-        required_trust_level=0.1,
-        timeout_seconds=10.0,
-        cost_profile=CostProfile(base_cost=0.001),
-    ))
+            side_effects=["metrics_collection"],
+            degradation_modes=["reduced_frequency", "sampling_mode"],
+            tags=[],
+            required_trust_level=0.0,
+            timeout_seconds=30.0,
+            cost_profile=CostProfile(base_cost=0.001),
+        )
+    )
 
-    contracts.append(CapabilityContract(
-        capability_id="trust_evaluate",
-        version="1.0.0",
-        description="Evaluate trust score for an agent using multi-factor analysis",
-        preconditions=[Predicate(name="trust_engine_active")],
-        postconditions=[Predicate(name="trust_score_computed")],
-        input_schema={
-            "type": "object",
-            "required": ["agent_id"],
-            "properties": {"agent_id": {"type": "string"}},
-        },
-        output_schema={
-            "type": "object",
-            "required": ["trust_score", "factors"],
-        },
-        side_effects=["trust_computation"],
-        tags=[],
-        required_trust_level=0.2,
-        timeout_seconds=15.0,
-        cost_profile=CostProfile(base_cost=0.002),
-    ))
+    contracts.append(
+        CapabilityContract(
+            capability_id="collect",
+            version="1.0.0",
+            description="Collect telemetry data from sidecar proxies",
+            preconditions=[Predicate(name="sidecar_connected")],
+            postconditions=[Predicate(name="telemetry_collected")],
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "targets": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["collected_data", "target_count"],
+            },
+            side_effects=["data_collection"],
+            tags=[],
+            required_trust_level=0.0,
+            timeout_seconds=60.0,
+            cost_profile=CostProfile(base_cost=0.002),
+        )
+    )
+
+    contracts.append(
+        CapabilityContract(
+            capability_id="monitor",
+            version="1.0.0",
+            description="Continuously monitor agent health and governance state",
+            preconditions=[Predicate(name="monitor_running")],
+            postconditions=[Predicate(name="monitor_cycle_complete")],
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "duration_seconds": {"type": "number"},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["health_status", "anomalies"],
+            },
+            side_effects=["continuous_monitoring"],
+            degradation_modes=["reduced_interval"],
+            tags=[],
+            required_trust_level=0.1,
+            timeout_seconds=300.0,
+            cost_profile=CostProfile(base_cost=0.005),
+        )
+    )
+
+    contracts.append(
+        CapabilityContract(
+            capability_id="graph_query",
+            version="1.0.0",
+            description="Query the knowledge graph for nodes and relations",
+            preconditions=[Predicate(name="kg_initialized")],
+            postconditions=[Predicate(name="query_executed")],
+            input_schema={
+                "type": "object",
+                "required": ["query_type"],
+                "properties": {
+                    "query_type": {"type": "string"},
+                    "filters": {"type": "object"},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["results", "count"],
+            },
+            side_effects=["kg_read"],
+            tags=[],
+            required_trust_level=0.0,
+            timeout_seconds=15.0,
+            cost_profile=CostProfile(base_cost=0.001),
+        )
+    )
+
+    contracts.append(
+        CapabilityContract(
+            capability_id="hypothesis_test",
+            version="1.0.0",
+            description="Form and test hypotheses using the knowledge graph",
+            preconditions=[
+                Predicate(name="kg_initialized"),
+                Predicate(name="hypothesis_cycle_active"),
+            ],
+            postconditions=[Predicate(name="hypothesis_result_recorded")],
+            input_schema={
+                "type": "object",
+                "required": ["hypothesis", "test_method"],
+                "properties": {
+                    "hypothesis": {"type": "string"},
+                    "test_method": {"type": "string"},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["result", "confidence"],
+            },
+            side_effects=["kg_write", "hypothesis_log"],
+            tags=[],
+            required_trust_level=0.2,
+            timeout_seconds=30.0,
+            cost_profile=CostProfile(base_cost=0.003),
+        )
+    )
+
+    contracts.append(
+        CapabilityContract(
+            capability_id="relation_infer",
+            version="1.0.0",
+            description="Infer new relations between knowledge graph nodes",
+            preconditions=[Predicate(name="kg_initialized")],
+            postconditions=[Predicate(name="inferred_relations_added")],
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "source_node": {"type": "string"},
+                    "max_inferences": {"type": "integer"},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["inferred_relations", "count"],
+            },
+            side_effects=["kg_write"],
+            tags=[],
+            required_trust_level=0.1,
+            timeout_seconds=20.0,
+            cost_profile=CostProfile(base_cost=0.002),
+        )
+    )
+
+    contracts.append(
+        CapabilityContract(
+            capability_id="did_resolve",
+            version="1.0.0",
+            description="Resolve a decentralized identifier to its DID document",
+            preconditions=[Predicate(name="did_registry_active")],
+            postconditions=[Predicate(name="did_resolved")],
+            input_schema={
+                "type": "object",
+                "required": ["did"],
+                "properties": {"did": {"type": "string"}},
+            },
+            output_schema={
+                "type": "object",
+                "required": ["did_document", "resolution_metadata"],
+            },
+            side_effects=["did_lookup"],
+            tags=[],
+            required_trust_level=0.0,
+            timeout_seconds=10.0,
+            cost_profile=CostProfile(base_cost=0.001),
+        )
+    )
+
+    contracts.append(
+        CapabilityContract(
+            capability_id="vc_verify",
+            version="1.0.0",
+            description="Verify a verifiable credential's proof and status",
+            preconditions=[Predicate(name="credential_store_active")],
+            postconditions=[Predicate(name="vc_verified")],
+            input_schema={
+                "type": "object",
+                "required": ["credential_id"],
+                "properties": {
+                    "credential_id": {"type": "string"},
+                    "challenge": {"type": "string"},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["valid", "verification_details"],
+            },
+            side_effects=["vc_verification"],
+            tags=[],
+            required_trust_level=0.1,
+            timeout_seconds=10.0,
+            cost_profile=CostProfile(base_cost=0.001),
+        )
+    )
+
+    contracts.append(
+        CapabilityContract(
+            capability_id="trust_evaluate",
+            version="1.0.0",
+            description="Evaluate trust score for an agent using multi-factor analysis",
+            preconditions=[Predicate(name="trust_engine_active")],
+            postconditions=[Predicate(name="trust_score_computed")],
+            input_schema={
+                "type": "object",
+                "required": ["agent_id"],
+                "properties": {"agent_id": {"type": "string"}},
+            },
+            output_schema={
+                "type": "object",
+                "required": ["trust_score", "factors"],
+            },
+            side_effects=["trust_computation"],
+            tags=[],
+            required_trust_level=0.2,
+            timeout_seconds=15.0,
+            cost_profile=CostProfile(base_cost=0.002),
+        )
+    )
 
     return contracts

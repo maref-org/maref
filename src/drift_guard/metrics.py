@@ -105,9 +105,7 @@ def hellinger_distance(p: np.ndarray, q: np.ndarray) -> float:
     return math.sqrt(1.0 - bc)
 
 
-def weights_to_distribution(
-    weights: np.ndarray, num_bins: int = 100
-) -> np.ndarray:
+def weights_to_distribution(weights: np.ndarray, num_bins: int = 100) -> np.ndarray:
     """
     Convert weight tensor to probability distribution via histogram.
 

@@ -170,15 +170,18 @@ class AutoGeneExtractionPipeline:
 
     def _record_extraction(self, source: str, gene_id: str, reason: str) -> None:
         self._extraction_count += 1
-        self._recent_extractions.append({
-            "gene_id": gene_id,
-            "source": source,
-            "reason": reason,
-            "timestamp": time.time(),
-        })
+        self._recent_extractions.append(
+            {
+                "gene_id": gene_id,
+                "source": source,
+                "reason": reason,
+                "timestamp": time.time(),
+            }
+        )
 
     def _sync_to_experience(self, gene: Any, tag_hint: str) -> None:
         from maref.recursive.experience_pool import ExperienceEntry
+
         entry = ExperienceEntry(
             entry_id=f"ext_{uuid.uuid4().hex[:8]}",
             timestamp=time.time(),
@@ -192,6 +195,7 @@ class AutoGeneExtractionPipeline:
 
     def _sync_to_experience_from_record(self, extraction: dict[str, Any]) -> None:
         from maref.recursive.experience_pool import ExperienceEntry
+
         entry = ExperienceEntry(
             entry_id=f"sync_{uuid.uuid4().hex[:8]}",
             timestamp=time.time(),

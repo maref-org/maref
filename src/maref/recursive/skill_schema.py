@@ -77,7 +77,9 @@ class MarefSkill:
     parameter_injection: ParameterInjection | None = None
     hooks: list[SkillHookRef] = field(default_factory=list)
     context_activation: ContextActivation | None = None
-    degradation_chain: DegradationChain = field(default_factory=lambda: DegradationChain(primary=""))
+    degradation_chain: DegradationChain = field(
+        default_factory=lambda: DegradationChain(primary="")
+    )
     behavior: dict[str, Any] = field(default_factory=dict)
     skill_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     source: SkillSource = SkillSource.BUILTIN
@@ -97,7 +99,11 @@ class MarefSkill:
             return False
         if trigger.exclude and current in trigger.exclude:
             return False
-        return not (trigger.transition_from is not None and previous is not None and previous not in trigger.transition_from)
+        return not (
+            trigger.transition_from is not None
+            and previous is not None
+            and previous not in trigger.transition_from
+        )
 
     def matches_context(self, file_path: str, entropy: float | None = None) -> bool:
         if self.context_activation is None:
@@ -175,10 +181,12 @@ def validate_skill_dict(data: dict[str, Any]) -> list[SkillValidationError]:
     errors: list[SkillValidationError] = []
 
     if data.get("maref_skill") != "1.0":
-        errors.append(SkillValidationError(
-            field="maref_skill",
-            message="maref_skill must be '1.0'",
-        ))
+        errors.append(
+            SkillValidationError(
+                field="maref_skill",
+                message="maref_skill must be '1.0'",
+            )
+        )
 
     meta = data.get("meta", {})
     if not meta.get("name"):
@@ -186,50 +194,64 @@ def validate_skill_dict(data: dict[str, Any]) -> list[SkillValidationError]:
     if not meta.get("version"):
         errors.append(SkillValidationError(field="meta.version", message="version is required"))
     if not meta.get("description"):
-        errors.append(SkillValidationError(field="meta.description", message="description is required"))
+        errors.append(
+            SkillValidationError(field="meta.description", message="description is required")
+        )
 
     trigger = data.get("hexagram_trigger", {})
     require = trigger.get("require", [])
     for val in require:
         if not (0 <= val <= 63):
-            errors.append(SkillValidationError(
-                field="hexagram_trigger.require",
-                message=f"hexagram value {val} out of range 0-63",
-            ))
+            errors.append(
+                SkillValidationError(
+                    field="hexagram_trigger.require",
+                    message=f"hexagram value {val} out of range 0-63",
+                )
+            )
     exclude = trigger.get("exclude", [])
     for val in exclude:
         if not (0 <= val <= 63):
-            errors.append(SkillValidationError(
-                field="hexagram_trigger.exclude",
-                message=f"hexagram value {val} out of range 0-63",
-            ))
+            errors.append(
+                SkillValidationError(
+                    field="hexagram_trigger.exclude",
+                    message=f"hexagram value {val} out of range 0-63",
+                )
+            )
     tf = trigger.get("transition_from")
     if tf is not None:
         for val in tf:
             if not (0 <= val <= 63):
-                errors.append(SkillValidationError(
-                    field="hexagram_trigger.transition_from",
-                    message=f"hexagram value {val} out of range 0-63",
-                ))
+                errors.append(
+                    SkillValidationError(
+                        field="hexagram_trigger.transition_from",
+                        message=f"hexagram value {val} out of range 0-63",
+                    )
+                )
 
     dc = data.get("degradation_chain")
     if dc and not dc.get("primary"):
-        errors.append(SkillValidationError(
-            field="degradation_chain.primary",
-            message="primary is required in degradation_chain",
-        ))
+        errors.append(
+            SkillValidationError(
+                field="degradation_chain.primary",
+                message="primary is required in degradation_chain",
+            )
+        )
 
     behavior = data.get("behavior", {})
     if not behavior.get("entrypoint"):
-        errors.append(SkillValidationError(
-            field="behavior.entrypoint",
-            message="behavior.entrypoint is required",
-        ))
+        errors.append(
+            SkillValidationError(
+                field="behavior.entrypoint",
+                message="behavior.entrypoint is required",
+            )
+        )
 
     return errors
 
 
-def parse_skill_from_dict(data: dict[str, Any], source: SkillSource = SkillSource.BUILTIN) -> MarefSkill:
+def parse_skill_from_dict(
+    data: dict[str, Any], source: SkillSource = SkillSource.BUILTIN
+) -> MarefSkill:
     errors = validate_skill_dict(data)
     if errors:
         msg = "; ".join(f"{e.field}: {e.message}" for e in errors)
@@ -259,10 +281,7 @@ def parse_skill_from_dict(data: dict[str, Any], source: SkillSource = SkillSourc
             timeout_ms=pi_raw.get("timeout_ms"),
         )
 
-    hooks = [
-        SkillHookRef(event=h["event"], handler=h["handler"])
-        for h in data.get("hooks", [])
-    ]
+    hooks = [SkillHookRef(event=h["event"], handler=h["handler"]) for h in data.get("hooks", [])]
 
     ca_raw = data.get("context_activation")
     context_activation = None

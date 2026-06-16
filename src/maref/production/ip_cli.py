@@ -34,24 +34,29 @@ def scaffold() -> None:
     """Create the IP asset directory structure (§2.3)."""
     s = AssetScaffolder()
     result = s.scaffold()
-    console.print(Panel(
-        f"[green]Asset database scaffolded[/green]\n"
-        f"  Base: {result['base']}\n"
-        f"  Directories: {result['directories_created']}",
-        title="IP Asset Scaffold",
-    ))
+    console.print(
+        Panel(
+            f"[green]Asset database scaffolded[/green]\n"
+            f"  Base: {result['base']}\n"
+            f"  Directories: {result['directories_created']}",
+            title="IP Asset Scaffold",
+        )
+    )
 
 
 @ip_app.command()
 def produce(
     theme: str = typer.Option("cyberpunk-neko", "--theme", "-t", help="Character theme ID"),
     episodes: int = typer.Option(2, "--episodes", "-e", help="Number of episodes to generate"),
-    char_id: str = typer.Option("", "--char-id", help="Custom character ID (defaults to theme name)"),
+    char_id: str = typer.Option(
+        "", "--char-id", help="Custom character ID (defaults to theme name)"
+    ),
 ) -> None:
     """Run full production pipeline: scaffold → character → scripts → assemble → validate."""
     engine = ContentEngine()
-    result = engine.run_full_pipeline(theme_id=theme, char_id=char_id or None,
-                                       episode_count=episodes)
+    result = engine.run_full_pipeline(
+        theme_id=theme, char_id=char_id or None, episode_count=episodes
+    )
 
     console.rule(f"[bold cyan]Production Pipeline: {result.char_id}[/bold cyan]")
 
@@ -63,7 +68,9 @@ def produce(
     console.print(f"  [dim]Profile:[/dim] {p['directory']}")
 
     for s in result.scripts:
-        console.print(f"  [dim]Episode {s['episode_number']}:[/dim] {s['title']} ({s['total_duration_s']}s)")
+        console.print(
+            f"  [dim]Episode {s['episode_number']}:[/dim] {s['title']} ({s['total_duration_s']}s)"
+        )
         console.print(f"    [dim]Script:[/dim] {s['script_path']}")
 
     a = result.assembled
@@ -73,11 +80,15 @@ def produce(
 
     v = result.validation
     if v:
-        console.print(f"\n[bold]Hypothesis Validation:[/bold] "
-                      f"[{'green' if v.overall_pass else 'red'}]{'PASS' if v.overall_pass else 'FAIL'}[/]")
-        for name, passed, detail in [("H1", v.h1_pass, v.h1_detail),
-                                       ("H2", v.h2_pass, v.h2_detail),
-                                       ("H3", v.h3_pass, v.h3_detail)]:
+        console.print(
+            f"\n[bold]Hypothesis Validation:[/bold] "
+            f"[{'green' if v.overall_pass else 'red'}]{'PASS' if v.overall_pass else 'FAIL'}[/]"
+        )
+        for name, passed, detail in [
+            ("H1", v.h1_pass, v.h1_detail),
+            ("H2", v.h2_pass, v.h2_detail),
+            ("H3", v.h3_pass, v.h3_detail),
+        ]:
             icon = "[green]PASS[/green]" if passed else "[red]FAIL[/red]"
             console.print(f"  {icon} {name}: {detail[:80]}")
 
@@ -104,7 +115,9 @@ def write_script(
     """Generate an episode script for a character."""
     engine = ContentEngine()
     result = engine.run_script_only(char_id=char_id, episode=episode)
-    console.print(f"[green]Script written:[/green] Episode {result['episode_number']}: {result['title']}")
+    console.print(
+        f"[green]Script written:[/green] Episode {result['episode_number']}: {result['title']}"
+    )
     console.print(f"  Path: {result['script_path']}")
     console.print(f"  Scenes: {result['scene_count']}, Duration: {result['total_duration_s']}s")
 
@@ -131,12 +144,16 @@ def validate(
     engine = ContentEngine()
     result = engine.run_validate_only(char_id=char_id)
     console.print(f"[bold]Hypothesis Validation: {result.char_id}[/bold]")
-    for name, passed, detail in [("H1", result.h1_pass, result.h1_detail),
-                                   ("H2", result.h2_pass, result.h2_detail),
-                                   ("H3", result.h3_pass, result.h3_detail)]:
+    for name, passed, detail in [
+        ("H1", result.h1_pass, result.h1_detail),
+        ("H2", result.h2_pass, result.h2_detail),
+        ("H3", result.h3_pass, result.h3_detail),
+    ]:
         icon = "[green]PASS[/green]" if passed else "[red]FAIL[/red]"
         console.print(f"  {icon} {name}: {detail}")
-    console.print(f"\n  Overall: [{'green' if result.overall_pass else 'red'}]{'PASS' if result.overall_pass else 'FAIL'}[/]")
+    console.print(
+        f"\n  Overall: [{'green' if result.overall_pass else 'red'}]{'PASS' if result.overall_pass else 'FAIL'}[/]"
+    )
 
 
 @ip_app.command()
@@ -145,11 +162,17 @@ def status() -> None:
     s = AssetScaffolder()
     status = s.get_status()
     if not status["exists"]:
-        console.print("[yellow]IP asset database not initialized. Run 'maref ip scaffold' first.[/yellow]")
+        console.print(
+            "[yellow]IP asset database not initialized. Run 'maref ip scaffold' first.[/yellow]"
+        )
         return
     console.print(f"[bold]IP Asset Database:[/bold] {status['base']}")
-    console.print(f"  Characters: {len(status['characters'])} — {', '.join(status['characters']) if status['characters'] else '(none)'}")
-    console.print(f"  Storylines: {len(status['storylines'])} — {', '.join(status['storylines']) if status['storylines'] else '(none)'}")
+    console.print(
+        f"  Characters: {len(status['characters'])} — {', '.join(status['characters']) if status['characters'] else '(none)'}"
+    )
+    console.print(
+        f"  Storylines: {len(status['storylines'])} — {', '.join(status['storylines']) if status['storylines'] else '(none)'}"
+    )
     console.print(f"  Exports: {status['export_count']}")
     console.print(f"  Size: {status['size_mb']} MB")
 
@@ -201,9 +224,13 @@ def full_cycle(
         for cid in chars:
             result = engine.run_validate_only(char_id=cid)
             icon = "[green]PASS[/green]" if result.overall_pass else "[red]FAIL[/red]"
-            console.print(f"  {icon} {cid}: H1={result.h1_pass} H2={result.h2_pass} H3={result.h3_pass}")
+            console.print(
+                f"  {icon} {cid}: H1={result.h1_pass} H2={result.h2_pass} H3={result.h3_pass}"
+            )
 
-    console.print("[bold green]Full cycle complete: Analysis → Production → Validation[/bold green]")
+    console.print(
+        "[bold green]Full cycle complete: Analysis → Production → Validation[/bold green]"
+    )
 
 
 def main() -> None:

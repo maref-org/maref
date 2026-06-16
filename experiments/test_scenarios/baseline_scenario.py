@@ -18,7 +18,7 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 # 添加父目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,7 +28,7 @@ from simulation_engine.athena_queue_simulator import run_baseline_simulation
 
 def run_baseline_scenario(
     num_cycles: int = 5, tasks_per_cycle: int = 10, output_file: str = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     运行基线场景
 
@@ -91,7 +91,7 @@ def run_baseline_scenario(
         ],
     }
 
-    print(f"场景配置:")
+    print("场景配置:")
     print(f"  周期数: {num_cycles}")
     print(f"  每周期任务数: {tasks_per_cycle}")
     print(f"  总任务数: ~{num_cycles * tasks_per_cycle}")
@@ -162,14 +162,14 @@ def run_baseline_scenario(
         print("基线场景完成")
         print("=" * 40)
 
-        print(f"\n关键指标:")
+        print("\n关键指标:")
         print(f"  任务成功率: {scenario_result['metrics']['task_success_rate']:.1f}%")
         print(f"  平均错误率: {scenario_result['metrics']['avg_error_rate_percent']:.1f}%")
         print(f"  平均完成时间: {scenario_result['metrics']['avg_completion_time_seconds']:.2f}秒")
         print(f"  状态不一致性: {scenario_result['metrics']['avg_state_inconsistencies']:.1f}")
         print(f"  总错误数: {scenario_result['metrics']['total_errors']}")
 
-        print(f"\n缺陷影响:")
+        print("\n缺陷影响:")
         for defect_id, impact in defect_impacts.items():
             defect_name = next(
                 d["name"]
@@ -199,7 +199,7 @@ def run_baseline_scenario(
         return {"error": str(e), "scenario_config": scenario_config, "success": False}
 
 
-def analyze_baseline_results(results: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_baseline_results(results: dict[str, Any]) -> dict[str, Any]:
     """
     分析基线结果，生成深入见解
 

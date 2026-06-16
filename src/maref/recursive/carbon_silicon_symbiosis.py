@@ -142,8 +142,9 @@ class CarbonSiliconSymbiosis:
     def is_old_yang_mode(self, agent_id: str) -> bool:
         return self.get_agent_trust(agent_id) >= self.OLD_YANG_TRUST_THRESHOLD
 
-    def allocate_task(self, domain: TaskDomain, agent_id: str,
-                      task_title: str, task_desc: str) -> WorkflowTask:
+    def allocate_task(
+        self, domain: TaskDomain, agent_id: str, task_title: str, task_desc: str
+    ) -> WorkflowTask:
         base_allocation = DOMAIN_ALLOCATION[domain]
 
         if self.is_old_yang_mode(agent_id):
@@ -161,8 +162,9 @@ class CarbonSiliconSymbiosis:
         )
         return task
 
-    def start_workflow(self, agent_id: str, domain: TaskDomain,
-                       title: str, description: str) -> WorkflowInstance:
+    def start_workflow(
+        self, agent_id: str, domain: TaskDomain, title: str, description: str
+    ) -> WorkflowInstance:
         task = self.allocate_task(domain, agent_id, title, description)
 
         instance = WorkflowInstance(task=task)
@@ -244,8 +246,9 @@ class CarbonSiliconSymbiosis:
 
         return instance
 
-    def agent_self_review(self, task_id: str, agent_id: str,
-                          passed: bool = True) -> WorkflowInstance | None:
+    def agent_self_review(
+        self, task_id: str, agent_id: str, passed: bool = True
+    ) -> WorkflowInstance | None:
         instance = self._workflows.get(task_id)
         if not instance:
             return None
@@ -270,11 +273,14 @@ class CarbonSiliconSymbiosis:
             return None
 
         allocation = instance.task.allocation
-        self.get_agent_trust(self._agent_trust.keys().__iter__().__next__() if self._agent_trust else "default")
+        self.get_agent_trust(
+            self._agent_trust.keys().__iter__().__next__() if self._agent_trust else "default"
+        )
         needs_check = allocation in (TaskAllocation.HUMAN_REQUIRED, TaskAllocation.COLLABORATIVE)
 
         if allocation == TaskAllocation.AGENT_ONLY:
             import random
+
             if random.random() > self.HUMAN_SPOT_CHECK_RATE:
                 needs_check = False
 
@@ -306,12 +312,16 @@ class CarbonSiliconSymbiosis:
 
         return instance
 
-    def run_full_cycle(self, agent_id: str, domain: TaskDomain,
-                       title: str, description: str,
-                       human_confirms: bool = True,
-                       self_review_passes: bool = True,
-                       spot_check_passes: bool = True) -> WorkflowInstance:
-
+    def run_full_cycle(
+        self,
+        agent_id: str,
+        domain: TaskDomain,
+        title: str,
+        description: str,
+        human_confirms: bool = True,
+        self_review_passes: bool = True,
+        spot_check_passes: bool = True,
+    ) -> WorkflowInstance:
         instance = self.start_workflow(agent_id, domain, title, description)
 
         if instance.task.allocation != TaskAllocation.AGENT_ONLY:
@@ -321,7 +331,9 @@ class CarbonSiliconSymbiosis:
 
         instance = self.agent_execute(instance.task.task_id, agent_id) or instance
 
-        instance = self.agent_self_review(instance.task.task_id, agent_id, self_review_passes) or instance
+        instance = (
+            self.agent_self_review(instance.task.task_id, agent_id, self_review_passes) or instance
+        )
 
         instance = self.human_spot_check(instance.task.task_id, spot_check_passes) or instance
 
@@ -349,9 +361,7 @@ class CarbonSiliconSymbiosis:
             "completed_workflows": completed,
             "total_human_interactions": total_human,
             "total_agent_interactions": total_agent,
-            "symbiosis_ratio": round(
-                total_agent / max(1, total_human + total_agent), 3
-            ),
+            "symbiosis_ratio": round(total_agent / max(1, total_human + total_agent), 3),
         }
 
     def to_dict(self) -> dict[str, Any]:

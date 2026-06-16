@@ -111,7 +111,7 @@ class GatewayRouter:
         # Try to use PERCV adapter if available
         if self._percv_adapter:
             try:
-                if hasattr(self._percv_adapter, 'get_recommended_route'):
+                if hasattr(self._percv_adapter, "get_recommended_route"):
                     route_info = self._percv_adapter.get_recommended_route(
                         state=state.name,
                         entropy=entropy,
@@ -188,7 +188,9 @@ class GatewayRouter:
         else:
             route_scores[GatewayRoute.STANDARD] += 0.2
 
-        latency_preference = GatewayRoute.CHEAP if self._latency_budget_ms < 200 else GatewayRoute.STANDARD
+        latency_preference = (
+            GatewayRoute.CHEAP if self._latency_budget_ms < 200 else GatewayRoute.STANDARD
+        )
         route_scores[latency_preference] += 0.1
 
         route_scores[GatewayRoute.FALLBACK] += 0.1
@@ -228,7 +230,8 @@ class GatewayRouter:
 
         avg_confidence = (
             sum(d.confidence for d in self._decision_history) / len(self._decision_history)
-            if self._decision_history else 0.0
+            if self._decision_history
+            else 0.0
         )
 
         return {

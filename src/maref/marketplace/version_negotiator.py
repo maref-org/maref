@@ -14,9 +14,9 @@ from typing import Any
 
 
 class Compatibility(Enum):
-    COMPATIBLE = "compatible"           # Direct call
-    BACKWARD_COMPATIBLE = "backward"    # v1 client → v2 skill, with adapter
-    INCOMPATIBLE = "incompatible"       # VERSION_MISMATCH
+    COMPATIBLE = "compatible"  # Direct call
+    BACKWARD_COMPATIBLE = "backward"  # v1 client → v2 skill, with adapter
+    INCOMPATIBLE = "incompatible"  # VERSION_MISMATCH
     UNKNOWN = "unknown"
 
 
@@ -128,6 +128,7 @@ class VersionNegotiator:
 
     def _is_within_grace_period(self, skill_id: str, version: str) -> bool:
         import time
+
         history = self._version_history.get(skill_id, [])
         for v, released_at in history:
             if v == version:
@@ -137,6 +138,7 @@ class VersionNegotiator:
     def get_supported_versions(self, skill_id: str) -> list[str]:
         """List all versions still within grace period."""
         import time
+
         history = self._version_history.get(skill_id, [])
         cutoff = time.time() - self.BACKWARD_COMPATIBLE_DAYS * 86400
         return [v for v, released_at in history if released_at >= cutoff]

@@ -97,19 +97,21 @@ class AgentMarketplace:
                 [listing.capability],
                 trust=0.5,
             )
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("mkt", hash(listing.listing_id) % 100000),
-            timestamp=time.time(),
-            layer="orchestration",
-            round=45,
-            event_type="capability_published",
-            source_module="AgentMarketplace",
-            target_module=listing.agent_id,
-            decision=f"publish_{listing.capability}",
-            justification=f"Price={listing.price}, trust={listing.trust_requirement.value}",
-            outcome="success",
-            context_refs=[listing.listing_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("mkt", hash(listing.listing_id) % 100000),
+                timestamp=time.time(),
+                layer="orchestration",
+                round=45,
+                event_type="capability_published",
+                source_module="AgentMarketplace",
+                target_module=listing.agent_id,
+                decision=f"publish_{listing.capability}",
+                justification=f"Price={listing.price}, trust={listing.trust_requirement.value}",
+                outcome="success",
+                context_refs=[listing.listing_id],
+            )
+        )
         return listing.listing_id
 
     def discover(self, required_capability: str) -> list[CapabilityListing]:
@@ -121,12 +123,19 @@ class AgentMarketplace:
         return results
 
     def discover_by_agent(self, agent_id: str) -> list[CapabilityListing]:
-        return [l for l in self._listings.values()
-                if l.agent_id == agent_id and l.status == ListingStatus.ACTIVE]
+        return [
+            l
+            for l in self._listings.values()
+            if l.agent_id == agent_id and l.status == ListingStatus.ACTIVE
+        ]
 
-    def negotiate(self, buyer_id: str, listing_id: str,
-                   max_price: float | None = None,
-                   buyer_trust: float = 0.5) -> NegotiationResult:
+    def negotiate(
+        self,
+        buyer_id: str,
+        listing_id: str,
+        max_price: float | None = None,
+        buyer_trust: float = 0.5,
+    ) -> NegotiationResult:
         listing = self._listings.get(listing_id)
         if listing is None:
             return NegotiationResult(
@@ -188,8 +197,9 @@ class AgentMarketplace:
             )
 
         commission = final_price * self.COMMISSION_RATE
-        trade = self._economy.propose_trade(buyer_id, listing.agent_id,
-                                             listing.capability, final_price - commission)
+        trade = self._economy.propose_trade(
+            buyer_id, listing.agent_id, listing.capability, final_price - commission
+        )
         if trade is None:
             return NegotiationResult(
                 accepted=False,
@@ -219,19 +229,21 @@ class AgentMarketplace:
         self._fulfilled[agreement_id] = result
         listing.status = ListingStatus.FULFILLED
 
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("mkt_n", hash(agreement_id) % 100000),
-            timestamp=time.time(),
-            layer="orchestration",
-            round=45,
-            event_type="capability_negotiated",
-            source_module="AgentMarketplace",
-            target_module=listing.agent_id,
-            decision=f"negotiate_{listing.capability}",
-            justification=f"Price={final_price}, buyer={buyer_id}",
-            outcome="success",
-            context_refs=[agreement_id, listing_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("mkt_n", hash(agreement_id) % 100000),
+                timestamp=time.time(),
+                layer="orchestration",
+                round=45,
+                event_type="capability_negotiated",
+                source_module="AgentMarketplace",
+                target_module=listing.agent_id,
+                decision=f"negotiate_{listing.capability}",
+                justification=f"Price={final_price}, buyer={buyer_id}",
+                outcome="success",
+                context_refs=[agreement_id, listing_id],
+            )
+        )
         return result
 
     def revoke_listing(self, listing_id: str) -> bool:
@@ -239,19 +251,21 @@ class AgentMarketplace:
         if listing is None or listing.status != ListingStatus.ACTIVE:
             return False
         listing.status = ListingStatus.REVOKED
-        self._audit_store.append(UnifiedAuditRecord(
-            record_id=make_record_id("mkt_r", hash(listing_id) % 100000),
-            timestamp=time.time(),
-            layer="orchestration",
-            round=45,
-            event_type="capability_revoked",
-            source_module="AgentMarketplace",
-            target_module=listing.agent_id,
-            decision=f"revoke_{listing.capability}",
-            justification="Listing revoked",
-            outcome="success",
-            context_refs=[listing_id],
-        ))
+        self._audit_store.append(
+            UnifiedAuditRecord(
+                record_id=make_record_id("mkt_r", hash(listing_id) % 100000),
+                timestamp=time.time(),
+                layer="orchestration",
+                round=45,
+                event_type="capability_revoked",
+                source_module="AgentMarketplace",
+                target_module=listing.agent_id,
+                decision=f"revoke_{listing.capability}",
+                justification="Listing revoked",
+                outcome="success",
+                context_refs=[listing_id],
+            )
+        )
         return True
 
     def get_listing(self, listing_id: str) -> CapabilityListing | None:
@@ -264,8 +278,7 @@ class AgentMarketplace:
         return list(self._fulfilled.values())
 
     def stats(self) -> dict[str, Any]:
-        active = sum(1 for l in self._listings.values()
-                     if l.status == ListingStatus.ACTIVE)
+        active = sum(1 for l in self._listings.values() if l.status == ListingStatus.ACTIVE)
         return {
             "total_listings": len(self._listings),
             "active_listings": active,

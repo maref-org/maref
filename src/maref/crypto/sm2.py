@@ -2,6 +2,7 @@
 
 基于 gmssl 的纯 Python 实现，提供与 cryptography 库风格一致的 API。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -150,9 +151,7 @@ def sm2_sign(
     Returns:
         hex 格式的签名值
     """
-    crypt = _sm2.CryptSM2(
-        public_key=_strip_sm2_prefix(public_key), private_key=private_key
-    )
+    crypt = _sm2.CryptSM2(public_key=_strip_sm2_prefix(public_key), private_key=private_key)
     if use_sm3:
         return crypt.sign_with_sm3(data)
     random_hex = func.random_hex(crypt.para_len)
@@ -177,9 +176,7 @@ def sm2_verify(
     Returns:
         验证是否通过
     """
-    crypt = _sm2.CryptSM2(
-        public_key=_strip_sm2_prefix(public_key), private_key=""
-    )
+    crypt = _sm2.CryptSM2(public_key=_strip_sm2_prefix(public_key), private_key="")
     if use_sm3:
         return crypt.verify_with_sm3(signature, data)
     return crypt.verify(signature, data)
