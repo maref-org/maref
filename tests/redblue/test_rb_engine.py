@@ -17,6 +17,7 @@ from maref.redblue.red_blue_engine import RedBlueEngine, RedBlueResult
 
 # ── Scoring Formula Tests (RB1) ──────────────────────────────────
 
+
 class TestScoringFormula:
     def test_total_score_range_0_to_100(self) -> None:
         engine = RedBlueEngine()
@@ -26,8 +27,9 @@ class TestScoringFormula:
 
     def test_max_possible_score_is_100(self) -> None:
         engine = RedBlueEngine()
-        attack = AttackDefinition(AttackCategory.STATE_MACHINE, "weak",
-                                   "Very weak attack", 0.0, 0.0, {})
+        attack = AttackDefinition(
+            AttackCategory.STATE_MACHINE, "weak", "Very weak attack", 0.0, 0.0, {}
+        )
         result = engine.run_round("max-test", 1, attack, RedLevel.R1, BlueLevel.B5)
         assert result.total_score < 100.0 or result.total_score >= 0.0
 
@@ -40,12 +42,10 @@ class TestScoringFormula:
 
     def test_passed_threshold_is_50(self) -> None:
         engine = RedBlueEngine()
-        attack = AttackDefinition(AttackCategory.STATE_MACHINE, "weak",
-                                   "Weak attack", 0.0, 0.0, {})
+        attack = AttackDefinition(AttackCategory.STATE_MACHINE, "weak", "Weak attack", 0.0, 0.0, {})
         result = engine.run_round("pass-test", 1, attack, RedLevel.R1, BlueLevel.B5)
         high_pass = result.passed
-        attack2 = AttackDefinition(AttackCategory.MULTI_VECTOR, "strong",
-                                    "Strong", 1.0, 1.0, {})
+        attack2 = AttackDefinition(AttackCategory.MULTI_VECTOR, "strong", "Strong", 1.0, 1.0, {})
         result2 = engine.run_round("fail-test", 1, attack2, RedLevel.R5, BlueLevel.B1)
         assert high_pass or not result2.passed
 
@@ -60,6 +60,7 @@ class TestScoringFormula:
 
 # ── Engine Tests (RB2-RB3) ───────────────────────────────────────
 
+
 class TestRedBlueEngine:
     def test_engine_initializes(self) -> None:
         engine = RedBlueEngine()
@@ -68,8 +69,14 @@ class TestRedBlueEngine:
 
     def test_meta_cb_triggered_populated(self) -> None:
         engine = RedBlueEngine()
-        attack = AttackDefinition(AttackCategory.MULTI_VECTOR, "strong",
-                                   "High intensity trigger", 0.9, 0.5, {"count": 100})
+        attack = AttackDefinition(
+            AttackCategory.MULTI_VECTOR,
+            "strong",
+            "High intensity trigger",
+            0.9,
+            0.5,
+            {"count": 100},
+        )
         result = engine.run_round("cb-meta", 1, attack, RedLevel.R5, BlueLevel.B1)
         assert isinstance(result.meta_cb_triggered, bool)
 
@@ -102,8 +109,9 @@ class TestRedBlueEngine:
     def test_blue_memory_accumulates(self) -> None:
         engine = RedBlueEngine()
         for i in range(5):
-            engine.run_round(f"mem-{i}", 1, PHASE1_ATTACKS[i % len(PHASE1_ATTACKS)],
-                           RedLevel.R2, BlueLevel.B4)
+            engine.run_round(
+                f"mem-{i}", 1, PHASE1_ATTACKS[i % len(PHASE1_ATTACKS)], RedLevel.R2, BlueLevel.B4
+            )
         assert any(v > 0 for v in engine._blue_memory.values())
 
     def test_blue_hardening_grows_on_high_detection(self) -> None:
@@ -115,24 +123,28 @@ class TestRedBlueEngine:
 
 # ── Attack Vector Tests ──────────────────────────────────────────
 
+
 class TestAttackVectors:
     def test_68_attacks_total(self) -> None:
-        all_attacks = (PHASE1_ATTACKS + PHASE2_ATTACKS + PHASE3_ATTACKS +
-                       PHASE4_ATTACKS + PHASE5_ATTACKS)
+        all_attacks = (
+            PHASE1_ATTACKS + PHASE2_ATTACKS + PHASE3_ATTACKS + PHASE4_ATTACKS + PHASE5_ATTACKS
+        )
         assert len(all_attacks) == 68
 
     def test_phase1_attacks_exist(self) -> None:
         assert len(PHASE1_ATTACKS) == 12
 
     def test_all_attacks_have_unique_names(self) -> None:
-        all_attacks = (PHASE1_ATTACKS + PHASE2_ATTACKS + PHASE3_ATTACKS +
-                       PHASE4_ATTACKS + PHASE5_ATTACKS)
+        all_attacks = (
+            PHASE1_ATTACKS + PHASE2_ATTACKS + PHASE3_ATTACKS + PHASE4_ATTACKS + PHASE5_ATTACKS
+        )
         names = [a.name for a in all_attacks]
         assert len(names) == len(set(names))
 
     def test_attack_intensity_in_range(self) -> None:
-        all_attacks = (PHASE1_ATTACKS + PHASE2_ATTACKS + PHASE3_ATTACKS +
-                       PHASE4_ATTACKS + PHASE5_ATTACKS)
+        all_attacks = (
+            PHASE1_ATTACKS + PHASE2_ATTACKS + PHASE3_ATTACKS + PHASE4_ATTACKS + PHASE5_ATTACKS
+        )
         for attack in all_attacks:
             assert 0.0 <= attack.intensity <= 1.0, f"{attack.name}: {attack.intensity}"
             assert 0.0 <= attack.stealth <= 1.0, f"{attack.name}: {attack.stealth}"
@@ -152,6 +164,7 @@ class TestAttackVectors:
 
 
 # ── Attack Executor Tests (RB5-RB12) ─────────────────────────────
+
 
 class TestAttackExecutor:
     def test_executor_initializes(self) -> None:
@@ -198,21 +211,32 @@ class TestAttackExecutor:
 
 # ── Result Properties Tests ──────────────────────────────────────
 
+
 class TestRedBlueResult:
     def test_result_creation(self) -> None:
         result = RedBlueResult(
-            round_id="R101", phase=1, red_level="R1", blue_level="B1",
-            attack_category="state_machine", attack_name="test_attack",
-            attack_intensity=0.5, attack_stealth=0.3,
+            round_id="R101",
+            phase=1,
+            red_level="R1",
+            blue_level="B1",
+            attack_category="state_machine",
+            attack_name="test_attack",
+            attack_intensity=0.5,
+            attack_stealth=0.3,
         )
         assert result.round_id == "R101"
         assert result.passed is False
 
     def test_result_has_errors_list(self) -> None:
         result = RedBlueResult(
-            round_id="R1", phase=1, red_level="R1", blue_level="B1",
-            attack_category="test", attack_name="test",
-            attack_intensity=0.1, attack_stealth=0.1,
+            round_id="R1",
+            phase=1,
+            red_level="R1",
+            blue_level="B1",
+            attack_category="test",
+            attack_name="test",
+            attack_intensity=0.1,
+            attack_stealth=0.1,
             errors=["err1", "err2"],
         )
         assert len(result.errors) == 2

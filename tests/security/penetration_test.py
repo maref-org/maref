@@ -53,9 +53,9 @@ class TestPromptInjection:
         gate = InputSafetyGate()
         event = KeyboardEvent(action=KeyboardAction.TYPE, text=injection_text)
         decision = gate.check_keyboard(event)
-        assert decision.value == "block", (
-            f"Vector '{vector_name}' should be BLOCKED, got {decision.value}"
-        )
+        assert (
+            decision.value == "block"
+        ), f"Vector '{vector_name}' should be BLOCKED, got {decision.value}"
 
 
 # ── Test 2: API Key Leak Prevention ──────────────────────────────────
@@ -224,8 +224,12 @@ class TestAuditImmutability:
         from maref.governance.audit import AuditEntry
 
         entry = AuditEntry(
-            id="frozen-001", timestamp=300.0,
-            event_type="test", actor="a", action="test", details="",
+            id="frozen-001",
+            timestamp=300.0,
+            event_type="test",
+            actor="a",
+            action="test",
+            details="",
         )
         with pytest.raises(Exception):  # noqa: B017
             entry.timestamp = 999.0
@@ -293,11 +297,17 @@ class TestCircuitBreakerBypass:
         from maref_lite.state_machine import GovernanceState, GovernanceStateMachine
 
         sm = GovernanceStateMachine()
-        for target in [GovernanceState.OBSERVE, GovernanceState.ANALYZE,
-                        GovernanceState.EVALUATE, GovernanceState.DECIDE,
-                        GovernanceState.ACT, GovernanceState.VERIFY,
-                        GovernanceState.STABILIZE, GovernanceState.REPORT,
-                        GovernanceState.HALT]:
+        for target in [
+            GovernanceState.OBSERVE,
+            GovernanceState.ANALYZE,
+            GovernanceState.EVALUATE,
+            GovernanceState.DECIDE,
+            GovernanceState.ACT,
+            GovernanceState.VERIFY,
+            GovernanceState.STABILIZE,
+            GovernanceState.REPORT,
+            GovernanceState.HALT,
+        ]:
             if sm.can_transition(target):
                 sm.transition(target, reason="test")
 

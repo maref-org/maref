@@ -66,6 +66,7 @@ class TestAgentCreditRatingSystemInit:
 
     def test_init_with_registration_time(self):
         import time
+
         now = time.time()
         system = AgentCreditRatingSystem("agent_1", registered_at=now)
         assert system.survival_days < 0.01

@@ -49,8 +49,12 @@ class TestExperienceEntryDecay:
 
 class TestSearchSimilarWithDecay:
     def _make_entry(
-        self, entry_id: str, context: str, version_tag: str = "v0.5.0",
-        age_hours: float = 0.0, decay_factor: float = 1.0,
+        self,
+        entry_id: str,
+        context: str,
+        version_tag: str = "v0.5.0",
+        age_hours: float = 0.0,
+        decay_factor: float = 1.0,
     ) -> ExperienceEntry:
         return ExperienceEntry(
             entry_id=entry_id,

@@ -152,22 +152,26 @@ class TestCapabilityRegistry:
     @pytest.fixture
     def registry(self) -> CapabilityRegistry:
         r = CapabilityRegistry()
-        r.register(CapabilityContract(
-            capability_id="read_data",
-            version="1.0.0",
-            preconditions=[Predicate(name="db_available")],
-            input_schema={"required": ["query"]},
-            output_schema={"required": ["results"]},
-        ))
-        r.register(CapabilityContract(
-            capability_id="write_data",
-            version="1.0.0",
-            preconditions=[Predicate(name="db_available"), Predicate(name="authorized")],
-            input_schema={"required": ["data"]},
-            output_schema={"required": ["written_id"]},
-            side_effects=["db_write"],
-            tags=["mutation"],
-        ))
+        r.register(
+            CapabilityContract(
+                capability_id="read_data",
+                version="1.0.0",
+                preconditions=[Predicate(name="db_available")],
+                input_schema={"required": ["query"]},
+                output_schema={"required": ["results"]},
+            )
+        )
+        r.register(
+            CapabilityContract(
+                capability_id="write_data",
+                version="1.0.0",
+                preconditions=[Predicate(name="db_available"), Predicate(name="authorized")],
+                input_schema={"required": ["data"]},
+                output_schema={"required": ["written_id"]},
+                side_effects=["db_write"],
+                tags=["mutation"],
+            )
+        )
         return r
 
     def test_register_and_get(self) -> None:
@@ -244,30 +248,38 @@ class TestCombinatorialRiskAnalyzer:
     @pytest.fixture
     def registry(self) -> CapabilityRegistry:
         r = CapabilityRegistry()
-        r.register(CapabilityContract(
-            capability_id="safe_read",
-            version="1.0.0",
-            side_effects=["kg_read"],
-            tags=[],
-        ))
-        r.register(CapabilityContract(
-            capability_id="safe_write",
-            version="1.0.0",
-            side_effects=["kg_write"],
-            tags=[],
-        ))
-        r.register(CapabilityContract(
-            capability_id="dangerous_halt",
-            version="1.0.0",
-            side_effects=["halt_all_operations"],
-            tags=["halt", "mutation"],
-        ))
-        r.register(CapabilityContract(
-            capability_id="dangerous_break",
-            version="1.0.0",
-            side_effects=["circuit_breaker_trip", "halt_all_operations"],
-            tags=["circuit_break", "mutation"],
-        ))
+        r.register(
+            CapabilityContract(
+                capability_id="safe_read",
+                version="1.0.0",
+                side_effects=["kg_read"],
+                tags=[],
+            )
+        )
+        r.register(
+            CapabilityContract(
+                capability_id="safe_write",
+                version="1.0.0",
+                side_effects=["kg_write"],
+                tags=[],
+            )
+        )
+        r.register(
+            CapabilityContract(
+                capability_id="dangerous_halt",
+                version="1.0.0",
+                side_effects=["halt_all_operations"],
+                tags=["halt", "mutation"],
+            )
+        )
+        r.register(
+            CapabilityContract(
+                capability_id="dangerous_break",
+                version="1.0.0",
+                side_effects=["circuit_breaker_trip", "halt_all_operations"],
+                tags=["circuit_break", "mutation"],
+            )
+        )
         return r
 
     def test_analyze_low_risk(self, registry: CapabilityRegistry) -> None:
@@ -296,9 +308,7 @@ class TestCombinatorialRiskAnalyzer:
 
     def test_pairwise_shared_side_effects(self, registry: CapabilityRegistry) -> None:
         analyzer = CombinatorialRiskAnalyzer(registry)
-        interactions = analyzer.pairwise_interactions(
-            ["dangerous_halt", "dangerous_break"]
-        )
+        interactions = analyzer.pairwise_interactions(["dangerous_halt", "dangerous_break"])
         shared = [ir for ir in interactions if "shared side effects" in ir.risk_type]
         assert len(shared) >= 1
 
@@ -309,10 +319,18 @@ class TestBuildDefaults:
         assert len(contracts) == 12
         ids = {c.capability_id for c in contracts}
         expected = {
-            "state_transition", "circuit_break", "halt",
-            "observe", "collect", "monitor",
-            "graph_query", "hypothesis_test", "relation_infer",
-            "did_resolve", "vc_verify", "trust_evaluate",
+            "state_transition",
+            "circuit_break",
+            "halt",
+            "observe",
+            "collect",
+            "monitor",
+            "graph_query",
+            "hypothesis_test",
+            "relation_infer",
+            "did_resolve",
+            "vc_verify",
+            "trust_evaluate",
         }
         assert ids == expected
 
@@ -326,10 +344,12 @@ class TestContractAwareRegister:
     def test_register_with_contracts(self) -> None:
         registry = InternalAgentRegistry()
         contracts = build_default_capability_contracts()
-        gov_contracts = [c for c in contracts
-                         if c.capability_id in ("state_transition", "circuit_break", "halt")]
+        gov_contracts = [
+            c for c in contracts if c.capability_id in ("state_transition", "circuit_break", "halt")
+        ]
         agent = registry.register_with_contracts(
-            "test_agent", "test.module",
+            "test_agent",
+            "test.module",
             ["state_transition", "circuit_break", "halt"],
             "governance",
             gov_contracts,
@@ -340,10 +360,12 @@ class TestContractAwareRegister:
     def test_find_by_contract(self) -> None:
         registry = InternalAgentRegistry()
         contracts = build_default_capability_contracts()
-        gov_contracts = [c for c in contracts
-                         if c.capability_id in ("state_transition", "circuit_break", "halt")]
+        gov_contracts = [
+            c for c in contracts if c.capability_id in ("state_transition", "circuit_break", "halt")
+        ]
         registry.register_with_contracts(
-            "gov_agent", "test.module",
+            "gov_agent",
+            "test.module",
             ["state_transition", "circuit_break", "halt"],
             "governance",
             gov_contracts,
@@ -362,10 +384,14 @@ class TestContractAwareDispatch:
         for c in build_default_capability_contracts():
             contract_registry.register(c)
 
-        gov_contracts = [c for c in build_default_capability_contracts()
-                         if c.capability_id in ("state_transition", "circuit_break", "halt")]
+        gov_contracts = [
+            c
+            for c in build_default_capability_contracts()
+            if c.capability_id in ("state_transition", "circuit_break", "halt")
+        ]
         agent_registry.register_with_contracts(
-            "gov_agent", "test.module",
+            "gov_agent",
+            "test.module",
             ["state_transition", "circuit_break", "halt"],
             "governance",
             gov_contracts,
@@ -389,10 +415,14 @@ class TestContractAwareDispatch:
         for c in build_default_capability_contracts():
             contract_registry.register(c)
 
-        gov_contracts = [c for c in build_default_capability_contracts()
-                         if c.capability_id in ("state_transition", "circuit_break", "halt")]
+        gov_contracts = [
+            c
+            for c in build_default_capability_contracts()
+            if c.capability_id in ("state_transition", "circuit_break", "halt")
+        ]
         agent_registry.register_with_contracts(
-            "gov_agent", "test.module",
+            "gov_agent",
+            "test.module",
             ["state_transition", "circuit_break", "halt"],
             "governance",
             gov_contracts,
@@ -417,8 +447,10 @@ class TestDiscoveryWithContracts:
             AgentDiscovery,
             CapabilityContractRef,
         )
-        sm = __import__("maref.recursive.agent_24_state_machine",
-                        fromlist=["Agent24StateMachine"]).Agent24StateMachine("test")
+
+        sm = __import__(
+            "maref.recursive.agent_24_state_machine", fromlist=["Agent24StateMachine"]
+        ).Agent24StateMachine("test")
         discovery = AgentDiscovery(sm)
         contracts = [
             CapabilityContractRef("state_transition", "1.0.0", 0.3, 10.0),
@@ -433,10 +465,13 @@ class TestDiscoveryWithContracts:
             AgentNegotiator,
             CapabilityContractRef,
         )
+
         negotiator = AgentNegotiator()
         contracts = [CapabilityContractRef("observe", "1.0.0", 0.0, 30.0)]
         proposal = negotiator.propose(
-            "agent_a", "agent_b", "capability_exchange",
+            "agent_a",
+            "agent_b",
+            "capability_exchange",
             {"exchange": "mutual"},
             contracts=contracts,
         )

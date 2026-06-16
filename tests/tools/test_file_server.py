@@ -160,9 +160,7 @@ class TestListDirectory:
         Path(os.path.join(temp_dir, "data.xml")).write_text("<r/>")
         Path(os.path.join(temp_dir, "readme.md")).write_text("# Hi")
 
-        resp = file_server.send_tool_call(
-            "list_directory", {"path": temp_dir, "pattern": "*.json"}
-        )
+        resp = file_server.send_tool_call("list_directory", {"path": temp_dir, "pattern": "*.json"})
         assert not resp.is_error
         names = [i["name"] for i in resp.result["items"]]
         assert names == ["data.json"]
@@ -324,14 +322,16 @@ class TestSecurity:
         resp = file_server.send_tool_call("delete_file", {"path": "/etc/hosts"})
         assert resp.is_error
 
-    def test_copy_source_outside_sandbox(self, file_server: InProcessTransport, temp_dir: str) -> None:
+    def test_copy_source_outside_sandbox(
+        self, file_server: InProcessTransport, temp_dir: str
+    ) -> None:
         dst = os.path.join(temp_dir, "dest.txt")
-        resp = file_server.send_tool_call(
-            "copy_file", {"source": "/etc/hosts", "destination": dst}
-        )
+        resp = file_server.send_tool_call("copy_file", {"source": "/etc/hosts", "destination": dst})
         assert resp.is_error
 
-    def test_move_dest_outside_sandbox(self, file_server: InProcessTransport, temp_dir: str) -> None:
+    def test_move_dest_outside_sandbox(
+        self, file_server: InProcessTransport, temp_dir: str
+    ) -> None:
         src = os.path.join(temp_dir, "src.txt")
         Path(src).write_text("data")
         resp = file_server.send_tool_call(
@@ -365,7 +365,9 @@ class TestErrorCases:
         )
         assert resp.is_error
 
-    def test_get_info_non_existent_path(self, file_server: InProcessTransport, temp_dir: str) -> None:
+    def test_get_info_non_existent_path(
+        self, file_server: InProcessTransport, temp_dir: str
+    ) -> None:
         resp = file_server.send_tool_call(
             "get_file_info", {"path": os.path.join(temp_dir, "no_such_file.txt")}
         )
@@ -434,7 +436,9 @@ class TestEndToEnd:
         read_resp = file_server.send_tool_call("read_file", {"path": test_file})
         assert read_resp.is_error
 
-    def test_list_dir_with_mixed_content(self, file_server: InProcessTransport, temp_dir: str) -> None:
+    def test_list_dir_with_mixed_content(
+        self, file_server: InProcessTransport, temp_dir: str
+    ) -> None:
         Path(os.path.join(temp_dir, "alpha.txt")).write_text("a")
         Path(os.path.join(temp_dir, "beta.txt")).write_text("b")
         os.mkdir(os.path.join(temp_dir, "gamma"))
@@ -454,7 +458,9 @@ class TestEndToEnd:
         assert resp.result["size"] == 11
         assert resp.result["is_dir"] is False
 
-    def test_list_directory_default_path(self, file_server: InProcessTransport, temp_dir: str) -> None:
+    def test_list_directory_default_path(
+        self, file_server: InProcessTransport, temp_dir: str
+    ) -> None:
         Path(os.path.join(temp_dir, "default.txt")).write_text("x")
 
         resp = file_server.send_tool_call("list_directory", {"path": temp_dir})

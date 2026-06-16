@@ -12,8 +12,13 @@ from maref.knowledge.graph import (
 from maref.knowledge.relations import RelationType
 
 
-def _make_node(node_id: str, ntype: str = "finding", content: str = "test",
-               confidence: float = 0.8, out_edges: list | None = None) -> KnowledgeNode:
+def _make_node(
+    node_id: str,
+    ntype: str = "finding",
+    content: str = "test",
+    confidence: float = 0.8,
+    out_edges: list | None = None,
+) -> KnowledgeNode:
     return KnowledgeNode(
         id=node_id,
         type=ntype,
@@ -194,12 +199,14 @@ class TestTraverseGraph:
         kg.add_node(_make_node("a"))
         a_node = kg.get_node("a")
         assert a_node is not None
-        a_node.out_edges.append(RelationEdge(
-            relation=RelationType.SUPPORTS,
-            target_id="ghost_node",
-            confidence=0.5,
-            method="test",
-        ))
+        a_node.out_edges.append(
+            RelationEdge(
+                relation=RelationType.SUPPORTS,
+                target_id="ghost_node",
+                confidence=0.5,
+                method="test",
+            )
+        )
         results = kg.traverse("a")
         assert len(results) == 0
 

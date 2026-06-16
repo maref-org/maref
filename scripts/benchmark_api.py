@@ -4,7 +4,6 @@
 import asyncio
 import statistics
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 
@@ -19,7 +18,9 @@ CONCURRENCY = [1, 10, 50]
 DURATION_SECONDS = 30
 
 
-async def measure_latency(client: httpx.AsyncClient, method: str, path: str, body: dict | None) -> float:
+async def measure_latency(
+    client: httpx.AsyncClient, method: str, path: str, body: dict | None
+) -> float:
     start = time.perf_counter()
     try:
         if method == "GET":
@@ -31,15 +32,14 @@ async def measure_latency(client: httpx.AsyncClient, method: str, path: str, bod
     return time.perf_counter() - start
 
 
-async def benchmark_endpoint(path: str, method: str, body: dict | None, concurrency: int, duration: int):
+async def benchmark_endpoint(
+    path: str, method: str, body: dict | None, concurrency: int, duration: int
+):
     results = []
     start_time = time.time()
     async with httpx.AsyncClient() as client:
         while time.time() - start_time < duration:
-            tasks = [
-                measure_latency(client, method, path, body)
-                for _ in range(concurrency)
-            ]
+            tasks = [measure_latency(client, method, path, body) for _ in range(concurrency)]
             batch = await asyncio.gather(*tasks)
             results.extend([r for r in batch if r >= 0])
             await asyncio.sleep(0.01)
@@ -82,7 +82,9 @@ async def main():
             result = await benchmark_endpoint(path, method, body, conc, DURATION_SECONDS)
             if result:
                 all_results.append(result)
-                print(f"  RPS: {result['rps']:.1f} | P95: {result['p95_ms']}ms | P99: {result['p99_ms']}ms")
+                print(
+                    f"  RPS: {result['rps']:.1f} | P95: {result['p95_ms']}ms | P99: {result['p99_ms']}ms"
+                )
             else:
                 print("  FAILED: no successful requests")
             print()
@@ -92,7 +94,9 @@ async def main():
     print("-" * 75)
     for r in all_results:
         status = "PASS" if r["p99_ms"] < 500 else "WARN" if r["p99_ms"] < 1000 else "FAIL"
-        print(f"{r['path']:<25} {r['concurrency']:>6} {r['rps']:>8.1f} {r['p95_ms']:>10.2f} {r['p99_ms']:>10.2f} {status:>10}")
+        print(
+            f"{r['path']:<25} {r['concurrency']:>6} {r['rps']:>8.1f} {r['p95_ms']:>10.2f} {r['p99_ms']:>10.2f} {status:>10}"
+        )
 
 
 if __name__ == "__main__":

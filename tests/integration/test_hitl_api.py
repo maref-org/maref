@@ -14,13 +14,16 @@ client = TestClient(app)
 
 class TestHITLAPI:
     def test_request_approval_p0(self):
-        resp = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "execute_command",
-            "description": "Run `rm -rf /` on production server",
-            "parameters": {"command": "rm -rf /", "server": "prod-01"},
-            "tier": "p0_response",
-        })
+        resp = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "execute_command",
+                "description": "Run `rm -rf /` on production server",
+                "parameters": {"command": "rm -rf /", "server": "prod-01"},
+                "tier": "p0_response",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["action"] == "execute_command"
@@ -29,47 +32,62 @@ class TestHITLAPI:
         assert data["event_id"].startswith("hitl-")
 
     def test_request_approval_p1(self):
-        resp = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "read_file",
-            "description": "Read /etc/config.json",
-            "tier": "p1_escalate",
-        })
+        resp = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "read_file",
+                "description": "Read /etc/config.json",
+                "tier": "p1_escalate",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["auto_approve_seconds"] == 30.0
         assert data["requires_human"] is False
 
     def test_confirm_action(self):
-        req_resp = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "write_file",
-            "description": "Write to /etc/config.json",
-            "tier": "p0_response",
-        })
+        req_resp = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "write_file",
+                "description": "Write to /etc/config.json",
+                "tier": "p0_response",
+            },
+        )
         event_id = req_resp.json()["event_id"]
 
-        resp = client.post("/api/v1/hitl/confirm", json={
-            "event_id": event_id,
-            "reviewer": "test-user",
-        })
+        resp = client.post(
+            "/api/v1/hitl/confirm",
+            json={
+                "event_id": event_id,
+                "reviewer": "test-user",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["event_id"] == event_id
         assert data["approved"] is True
 
     def test_cancel_action(self):
-        req_resp = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "delete_file",
-            "description": "Delete /etc/config.json",
-            "tier": "p0_response",
-        })
+        req_resp = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "delete_file",
+                "description": "Delete /etc/config.json",
+                "tier": "p0_response",
+            },
+        )
         event_id = req_resp.json()["event_id"]
 
-        resp = client.post("/api/v1/hitl/cancel", json={
-            "event_id": event_id,
-        })
+        resp = client.post(
+            "/api/v1/hitl/cancel",
+            json={
+                "event_id": event_id,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["event_id"] == event_id
@@ -85,12 +103,15 @@ class TestHITLAPI:
         assert resp.json()["resumed"] is True
 
     def test_get_pending_events(self):
-        client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "pending_action",
-            "description": "A pending action",
-            "tier": "p0_response",
-        })
+        client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "pending_action",
+                "description": "A pending action",
+                "tier": "p0_response",
+            },
+        )
 
         resp = client.get("/api/v1/hitl/pending")
         assert resp.status_code == 200
@@ -99,12 +120,15 @@ class TestHITLAPI:
         assert any(e["action"] == "pending_action" for e in data["events"])
 
     def test_get_pending_by_tier(self):
-        client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "p1_action",
-            "description": "An auto-approve action",
-            "tier": "p1_escalate",
-        })
+        client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "p1_action",
+                "description": "An auto-approve action",
+                "tier": "p1_escalate",
+            },
+        )
 
         resp = client.get("/api/v1/hitl/pending?tier=p0_response")
         assert resp.status_code == 200
@@ -120,12 +144,15 @@ class TestHITLAPI:
         assert "total_events" in data["stats"]
 
     def test_approve_by_path(self):
-        req_resp = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "path_approve",
-            "description": "Approve via path endpoint",
-            "tier": "p0_response",
-        })
+        req_resp = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "path_approve",
+                "description": "Approve via path endpoint",
+                "tier": "p0_response",
+            },
+        )
         event_id = req_resp.json()["event_id"]
 
         resp = client.post(f"/api/v1/hitl/{event_id}/approve?reviewer=tester")
@@ -136,12 +163,15 @@ class TestHITLAPI:
         assert data["status"] == "approved"
 
     def test_deny_by_path(self):
-        req_resp = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "path_deny",
-            "description": "Deny via path endpoint",
-            "tier": "p0_response",
-        })
+        req_resp = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "path_deny",
+                "description": "Deny via path endpoint",
+                "tier": "p0_response",
+            },
+        )
         event_id = req_resp.json()["event_id"]
 
         resp = client.post(f"/api/v1/hitl/{event_id}/deny?reason=Not+needed")
@@ -151,12 +181,15 @@ class TestHITLAPI:
         assert data["cancelled"] is True
 
     def test_get_history(self):
-        created = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "history_item",
-            "description": "Should appear in history after approval",
-            "tier": "p0_response",
-        }).json()
+        created = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "history_item",
+                "description": "Should appear in history after approval",
+                "tier": "p0_response",
+            },
+        ).json()
         event_id = created["event_id"]
         client.post(f"/api/v1/hitl/{event_id}/approve")
 
@@ -173,12 +206,15 @@ class TestHITLAPI:
 
     def test_auto_approve_timeout_scenario(self):
         """P1 tier auto-approves after timeout window (verify flow)."""
-        resp = client.post("/api/v1/hitl/request", json={
-            "session_id": "test-session",
-            "action": "auto_approve_test",
-            "description": "Should auto-approve after 30s",
-            "tier": "p1_escalate",
-        })
+        resp = client.post(
+            "/api/v1/hitl/request",
+            json={
+                "session_id": "test-session",
+                "action": "auto_approve_test",
+                "description": "Should auto-approve after 30s",
+                "tier": "p1_escalate",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["requires_human"] is False

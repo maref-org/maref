@@ -258,8 +258,10 @@ class TestDesktopDemo:
 
 class TestDesktopBenchmark:
     def test_benchmark_default(self) -> None:
-        with patch("maref.desktop.agent.DesktopAgent") as mock_agent_cls, \
-             patch("maref.desktop.opencua_bench.OpenCUABenchmark") as mock_bench_cls:
+        with (
+            patch("maref.desktop.agent.DesktopAgent") as mock_agent_cls,
+            patch("maref.desktop.opencua_bench.OpenCUABenchmark") as mock_bench_cls,
+        ):
             bench = mock_bench_cls.return_value
             bench.run_with_agent.return_value = MagicMock(
                 total_samples=2,
@@ -283,8 +285,10 @@ class TestDesktopBenchmark:
             bench.download_dataset.assert_called_once()
 
     def test_benchmark_with_output(self) -> None:
-        with patch("maref.desktop.agent.DesktopAgent") as mock_agent_cls, \
-             patch("maref.desktop.opencua_bench.OpenCUABenchmark") as mock_bench_cls:
+        with (
+            patch("maref.desktop.agent.DesktopAgent") as mock_agent_cls,
+            patch("maref.desktop.opencua_bench.OpenCUABenchmark") as mock_bench_cls,
+        ):
             bench = mock_bench_cls.return_value
             bench.run_with_agent.return_value = MagicMock(
                 total_samples=1,
@@ -294,11 +298,15 @@ class TestDesktopBenchmark:
                 p99_latency_ms=5.0,
                 per_sample_results=[],
             )
-            result = runner.invoke(app, ["desktop", "benchmark", "--samples", "1", "--output", "/tmp/res"])
+            result = runner.invoke(
+                app, ["desktop", "benchmark", "--samples", "1", "--output", "/tmp/res"]
+            )
             assert result.exit_code == 0
 
     def test_benchmark_import_error(self) -> None:
-        with patch("maref.desktop.opencua_bench.OpenCUABenchmark", side_effect=ImportError("missing")):
+        with patch(
+            "maref.desktop.opencua_bench.OpenCUABenchmark", side_effect=ImportError("missing")
+        ):
             result = runner.invoke(app, ["desktop", "benchmark"])
             assert result.exit_code == 1
 
@@ -316,8 +324,24 @@ class TestAuditShow:
     def test_audit_show_with_entries(self, tmp_path: Path) -> None:
         audit_file = tmp_path / "governance_audit.jsonl"
         entries = [
-            json.dumps({"timestamp": 1700000000, "event_type": "transition", "actor": "agent-1", "action": "OBSERVE->ANALYZE", "details": "ok"}),
-            json.dumps({"timestamp": 1700000001, "event_type": "transition", "actor": "agent-1", "action": "ANALYZE->DECIDE", "details": "ok"}),
+            json.dumps(
+                {
+                    "timestamp": 1700000000,
+                    "event_type": "transition",
+                    "actor": "agent-1",
+                    "action": "OBSERVE->ANALYZE",
+                    "details": "ok",
+                }
+            ),
+            json.dumps(
+                {
+                    "timestamp": 1700000001,
+                    "event_type": "transition",
+                    "actor": "agent-1",
+                    "action": "ANALYZE->DECIDE",
+                    "details": "ok",
+                }
+            ),
         ]
         audit_file.write_text("\n".join(entries))
         with patch("maref_lite.cli.Path") as mock_path_cls:
@@ -328,8 +352,24 @@ class TestAuditShow:
     def test_audit_show_filter_by_type(self, tmp_path: Path) -> None:
         audit_file = tmp_path / "governance_audit.jsonl"
         entries = [
-            json.dumps({"timestamp": 1700000000, "event_type": "transition", "actor": "a", "action": "x", "details": ""}),
-            json.dumps({"timestamp": 1700000001, "event_type": "error", "actor": "a", "action": "y", "details": ""}),
+            json.dumps(
+                {
+                    "timestamp": 1700000000,
+                    "event_type": "transition",
+                    "actor": "a",
+                    "action": "x",
+                    "details": "",
+                }
+            ),
+            json.dumps(
+                {
+                    "timestamp": 1700000001,
+                    "event_type": "error",
+                    "actor": "a",
+                    "action": "y",
+                    "details": "",
+                }
+            ),
         ]
         audit_file.write_text("\n".join(entries))
         with patch("maref_lite.cli.Path") as mock_path_cls:
@@ -412,7 +452,9 @@ class TestDriftCheck:
             assert result.exit_code == 0
 
     def test_drift_check_import_error(self) -> None:
-        with patch("drift_guard.drift_benchmark.DriftBenchmark", side_effect=ImportError("missing")):
+        with patch(
+            "drift_guard.drift_benchmark.DriftBenchmark", side_effect=ImportError("missing")
+        ):
             result = runner.invoke(app, ["drift", "check"])
             assert result.exit_code == 0
             assert "not available" in result.stdout or result.stdout == ""
@@ -448,7 +490,12 @@ class TestServe:
 
     def test_serve_uvicorn_not_installed(self) -> None:
         # The first uvicorn import is inside the command; it catches ImportError
-        with patch("builtins.__import__", side_effect=lambda name, *args, **kwargs: __import__(name) if name != "uvicorn" else (_ for _ in ()).throw(ImportError("no uvicorn"))):
+        with patch(
+            "builtins.__import__",
+            side_effect=lambda name, *args, **kwargs: __import__(name)
+            if name != "uvicorn"
+            else (_ for _ in ()).throw(ImportError("no uvicorn")),
+        ):
             result = runner.invoke(app, ["serve"])
             assert result.exit_code == 1
 
@@ -506,6 +553,7 @@ class TestSubcommandHelp:
 class TestMainEntryPoint:
     def test_main_function_runs_without_error(self) -> None:
         from maref_lite.cli import main
+
         with patch("maref_lite.cli.app") as mock_app:
             try:
                 main()

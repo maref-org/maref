@@ -29,7 +29,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             category=DataCategory.CONFIDENTIAL,
             classification_level="CONFIDENTIAL",
             cross_border_allowed=True,
-            allowed_jurisdictions=[]  # 不设置地域限制，允许所有地区
+            allowed_jurisdictions=[],  # 不设置地域限制，允许所有地区
         )
 
         self.manager.register_data_class(self.test_data_class)
@@ -46,7 +46,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             id="test_new",
             name="Test New Data",
             category=DataCategory.INTERNAL,
-            classification_level="INTERNAL"
+            classification_level="INTERNAL",
         )
 
         self.manager.register_data_class(new_data_class)
@@ -60,7 +60,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             name="Test Restriction",
             countries_allowed=[CountryCode.US, CountryCode.CA],
             countries_blocked=[CountryCode.CN],
-            data_categories_affected=[DataCategory.CONFIDENTIAL]
+            data_categories_affected=[DataCategory.CONFIDENTIAL],
         )
 
         self.manager.add_geographic_restriction(new_restriction)
@@ -75,7 +75,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             category=DataCategory.INTERNAL,
             classification_level="INTERNAL",
             cross_border_allowed=True,
-            allowed_jurisdictions=[]
+            allowed_jurisdictions=[],
         )
         self.manager.register_data_class(internal_data_class)
 
@@ -84,7 +84,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[internal_data_class],
             source_country=CountryCode.US,
             destination_country=CountryCode.CA,
-            transfer_purpose="Business operations"
+            transfer_purpose="Business operations",
         )
 
         decision = self.manager.evaluate_data_transfer(request)
@@ -102,7 +102,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             name="Block China Transfers",
             countries_allowed=[CountryCode.US, CountryCode.CA],
             countries_blocked=[CountryCode.CN],
-            data_categories_affected=[DataCategory.CONFIDENTIAL]
+            data_categories_affected=[DataCategory.CONFIDENTIAL],
         )
         self.manager.add_geographic_restriction(restriction)
 
@@ -112,7 +112,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[self.test_data_class],
             source_country=CountryCode.US,
             destination_country=CountryCode.CN,
-            transfer_purpose="Business operations"
+            transfer_purpose="Business operations",
         )
 
         decision = self.manager.evaluate_data_transfer(request)
@@ -129,7 +129,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             name="GDPR Personal Data",
             category=DataCategory.PERSONAL,
             classification_level="PERSONAL",
-            cross_border_allowed=False  # GDPR限制跨境传输
+            cross_border_allowed=False,  # GDPR限制跨境传输
         )
         self.manager.register_data_class(personal_data)
 
@@ -139,7 +139,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[personal_data],
             source_country=CountryCode.DE,
             destination_country=CountryCode.CN,
-            transfer_purpose="Data processing"
+            transfer_purpose="Data processing",
         )
 
         decision = self.manager.evaluate_data_transfer(request)
@@ -156,7 +156,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             name="Test Approval Requirement",
             countries_allowed=[CountryCode.US, CountryCode.CA],
             data_categories_affected=[DataCategory.CONFIDENTIAL],
-            requires_approval=True
+            requires_approval=True,
         )
         self.manager.add_geographic_restriction(restriction)
 
@@ -165,7 +165,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[self.test_data_class],
             source_country=CountryCode.US,
             destination_country=CountryCode.CA,
-            transfer_purpose="Business operations"
+            transfer_purpose="Business operations",
         )
 
         decision = self.manager.evaluate_data_transfer(request)
@@ -176,10 +176,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
 
     def test_get_cross_border_compliance_report(self):
         """测试获取跨境合规报告"""
-        report = self.manager.get_cross_border_compliance_report(
-            CountryCode.US,
-            CountryCode.CN
-        )
+        report = self.manager.get_cross_border_compliance_report(CountryCode.US, CountryCode.CN)
 
         self.assertEqual(report["source_country"], "US")
         self.assertEqual(report["destination_country"], "CN")
@@ -224,8 +221,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
 
         # 应该包含原配置中的地理限制
         self.assertGreaterEqual(
-            len(new_manager.geographic_restrictions),
-            len(self.manager.geographic_restrictions)
+            len(new_manager.geographic_restrictions), len(self.manager.geographic_restrictions)
         )
 
     def test_get_transfer_history(self):
@@ -236,7 +232,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[self.test_data_class],
             source_country=CountryCode.US,
             destination_country=CountryCode.CA,
-            transfer_purpose="Test"
+            transfer_purpose="Test",
         )
         self.manager.evaluate_data_transfer(request1)
 
@@ -245,7 +241,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[self.test_data_class],
             source_country=CountryCode.US,
             destination_country=CountryCode.CN,
-            transfer_purpose="Test"
+            transfer_purpose="Test",
         )
         self.manager.evaluate_data_transfer(request2)
 
@@ -267,7 +263,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             name="No Cross-Border Data",
             category=DataCategory.RESTRICTED,
             classification_level="RESTRICTED",
-            cross_border_allowed=False  # 关键: 不允许跨境
+            cross_border_allowed=False,  # 关键: 不允许跨境
         )
         self.manager.register_data_class(no_cross_border_class)
 
@@ -276,7 +272,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[no_cross_border_class],
             source_country=CountryCode.US,
             destination_country=CountryCode.CA,  # 不同国家
-            transfer_purpose="Test"
+            transfer_purpose="Test",
         )
 
         decision = self.manager.evaluate_data_transfer(request)
@@ -296,7 +292,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             name="Allowed Data",
             category=DataCategory.PUBLIC,
             classification_level="PUBLIC",
-            cross_border_allowed=True
+            cross_border_allowed=True,
         )
 
         # 创建一个不允许的数据类
@@ -305,7 +301,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             name="Blocked Data",
             category=DataCategory.RESTRICTED,
             classification_level="RESTRICTED",
-            cross_border_allowed=False
+            cross_border_allowed=False,
         )
 
         self.manager.register_data_class(allowed_class)
@@ -317,7 +313,7 @@ class TestDataSovereigntyManager(unittest.TestCase):
             data_classes=[allowed_class, blocked_class],
             source_country=CountryCode.US,
             destination_country=CountryCode.CA,
-            transfer_purpose="Mixed data transfer"
+            transfer_purpose="Mixed data transfer",
         )
 
         decision = self.manager.evaluate_data_transfer(request)

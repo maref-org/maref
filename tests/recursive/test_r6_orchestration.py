@@ -65,8 +65,7 @@ class TestInternalAgentRegistry:
 
     def test_register_custom_agent(self) -> None:
         registry = InternalAgentRegistry()
-        agent = registry.register("custom", "custom.module",
-                                   ["custom_cap"], "custom")
+        agent = registry.register("custom", "custom.module", ["custom_cap"], "custom")
         assert agent.agent_id == "custom"
         assert registry.count() == 1
 
@@ -151,7 +150,8 @@ class TestAgentDispatcher:
     def test_dispatch_all_with_partial_match(self, registry: InternalAgentRegistry) -> None:
         dispatcher = AgentDispatcher(registry)
         subtask = SubTask(
-            "partial", "desc",
+            "partial",
+            "desc",
             required_capabilities=["observe", "no_such_capability"],
         )
         agent = dispatcher.dispatch(subtask)
@@ -243,9 +243,9 @@ class TestSelfOrchestrator:
     def test_resolve_conflict(self) -> None:
         orchestrator = SelfOrchestrator()
         orchestrator.initialize()
-        resolution = orchestrator.resolve_conflict("governance_agent",
-                                                    "kg_agent",
-                                                    "execution order")
+        resolution = orchestrator.resolve_conflict(
+            "governance_agent", "kg_agent", "execution order"
+        )
         assert "resolved" in resolution.lower()
         assert len(orchestrator.jsm.conflict_log) == 1
 

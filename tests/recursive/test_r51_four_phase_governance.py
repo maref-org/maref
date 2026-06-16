@@ -24,7 +24,9 @@ class TestGovernancePhase:
 
     def test_phase_ordering(self):
         assert GovernancePhase.OLD_YANG.autonomy_level > GovernancePhase.LESSER_YIN.autonomy_level
-        assert GovernancePhase.LESSER_YIN.autonomy_level > GovernancePhase.LESSER_YANG.autonomy_level
+        assert (
+            GovernancePhase.LESSER_YIN.autonomy_level > GovernancePhase.LESSER_YANG.autonomy_level
+        )
         assert GovernancePhase.LESSER_YANG.autonomy_level > GovernancePhase.OLD_YIN.autonomy_level
 
 
@@ -110,8 +112,12 @@ class TestPhaseTransitions:
 
     def test_demote_to_old_yin_on_red_line(self):
         gov = FourPhaseGovernance("agent_1", initial_trust=0.8)
-        transition = gov.update_trust(new_trust=0.65, violation_occurred=True, red_line_hit=True,
-                                       red_line_detail="safety_breach")
+        transition = gov.update_trust(
+            new_trust=0.65,
+            violation_occurred=True,
+            red_line_hit=True,
+            red_line_detail="safety_breach",
+        )
         assert transition is not None
         assert transition.to_phase == GovernancePhase.OLD_YIN
         assert "red_line" in transition.reason

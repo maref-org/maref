@@ -33,8 +33,14 @@ def _macos_accessibility_granted() -> bool:
         return False
     try:
         result = subprocess.run(
-            ["osascript", "-e", 'tell application "System Events" to return count of every process'],
-            capture_output=True, text=True, timeout=5,
+            [
+                "osascript",
+                "-e",
+                'tell application "System Events" to return count of every process',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return result.returncode == 0 and result.stdout.strip().isdigit()
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -47,6 +53,11 @@ requires_accessibility = pytest.mark.skipif(
 )
 
 requires_macos = pytest.mark.skipif(not IS_MACOS, reason="Requires macOS")
+
+requires_display = pytest.mark.skipif(
+    ScreenCapture.detect_backend() == "none",
+    reason="No display available for screen capture",
+)
 
 
 class TestEnvironmentCheck:
@@ -82,6 +93,7 @@ class TestScreenCaptureBenchmark:
         assert backend in ("pyautogui", "screencapture_cli", "none")
 
     @requires_macos
+    @requires_display
     def test_detect_backend_macos(self) -> None:
         backend = ScreenCapture.detect_backend()
         assert backend != "none"
@@ -359,11 +371,13 @@ class TestActionRecorderIntegration:
             recording_id="test-rec-persist",
             name="Persistence Test",
         )
-        agent.execute_task(DesktopTask(
-            task_id="persist-task",
-            description="Task for persistence test",
-            steps=[DesktopStep(operation=DesktopOperation.WAIT, wait_seconds=0.01)],
-        ))
+        agent.execute_task(
+            DesktopTask(
+                task_id="persist-task",
+                description="Task for persistence test",
+                steps=[DesktopStep(operation=DesktopOperation.WAIT, wait_seconds=0.01)],
+            )
+        )
         agent.stop_recording()
 
         loaded = agent.recorder.load("test-rec-persist")

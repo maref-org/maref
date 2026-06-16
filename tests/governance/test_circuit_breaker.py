@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
 
 

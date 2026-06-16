@@ -36,7 +36,9 @@ def circuit_breaker() -> CircuitBreaker:
 
 @pytest.fixture
 def bridge(
-    state_machine: GovernanceStateMachine, audit_logger: AuditLogger, circuit_breaker: CircuitBreaker
+    state_machine: GovernanceStateMachine,
+    audit_logger: AuditLogger,
+    circuit_breaker: CircuitBreaker,
 ) -> A2ABridge:
     return A2ABridge(
         state_machine=state_machine,
@@ -71,9 +73,7 @@ class TestFullTaskLifecycle:
         assert after_complete > after_delegate
 
     def test_parallel_tasks_independent(self, bridge: A2ABridge) -> None:
-        tasks = [
-            bridge.create_task(f"Task {i}") for i in range(3)
-        ]
+        tasks = [bridge.create_task(f"Task {i}") for i in range(3)]
         bridge.sync_state_from_a2a(tasks[0], "working")
         bridge.sync_state_from_a2a(tasks[1], "completed")
         assert bridge.get_task(tasks[0]).a2a_state == A2ATaskState.WORKING  # type: ignore[union-attr]
@@ -122,9 +122,7 @@ class TestCircuitBreakerScenarios:
 
 
 class TestAuditTrail:
-    def test_every_operation_logged(
-        self, bridge: A2ABridge, audit_logger: AuditLogger
-    ) -> None:
+    def test_every_operation_logged(self, bridge: A2ABridge, audit_logger: AuditLogger) -> None:
         before = len(audit_logger.read_all())
         task_id = bridge.create_task("Audit test")
         bridge.delegate_task(task_id, "http://agent-b:8000")
@@ -145,9 +143,7 @@ class TestAuditTrail:
             assert "actor" in data
             assert "action" in data
 
-    def test_halt_produces_audit_entry(
-        self, bridge: A2ABridge, audit_logger: AuditLogger
-    ) -> None:
+    def test_halt_produces_audit_entry(self, bridge: A2ABridge, audit_logger: AuditLogger) -> None:
         task_id = bridge.create_task("Halt audit test")
         before = len(audit_logger.read_all())
         bridge.force_halt_task(task_id, "Testing audit on halt")

@@ -27,14 +27,18 @@ class TestCombinatorialEngine:
 
     def test_multiple_combinations(self):
         engine = CombinatorialEngine()
-        engine.load_concepts([
-            {"name": "healing", "confidence": 0.8},
-            {"name": "optimization", "confidence": 0.9},
-        ])
-        engine.load_experiences([
-            {"pattern": "auto_recovery", "confidence": 0.7},
-            {"pattern": "pattern_cache", "confidence": 0.6},
-        ])
+        engine.load_concepts(
+            [
+                {"name": "healing", "confidence": 0.8},
+                {"name": "optimization", "confidence": 0.9},
+            ]
+        )
+        engine.load_experiences(
+            [
+                {"pattern": "auto_recovery", "confidence": 0.7},
+                {"pattern": "pattern_cache", "confidence": 0.6},
+            ]
+        )
         results = engine.generate_candidates()
         assert len(results) >= 2
 
@@ -43,8 +47,11 @@ class TestCreativeSafetyGate:
     def test_pass_low_risk(self):
         gate = CreativeSafetyGate()
         proposal = InnovationProposal(
-            proposal_id="p1", title="test", description="test",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.7,
+            proposal_id="p1",
+            title="test",
+            description="test",
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.7,
             risk_level="low",
         )
         assert gate.evaluate(proposal) == SafetyGateVerdict.PASS
@@ -52,8 +59,11 @@ class TestCreativeSafetyGate:
     def test_block_critical_risk(self):
         gate = CreativeSafetyGate()
         proposal = InnovationProposal(
-            proposal_id="p1", title="test", description="test",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.7,
+            proposal_id="p1",
+            title="test",
+            description="test",
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.7,
             risk_level="critical",
         )
         assert gate.evaluate(proposal) == SafetyGateVerdict.BLOCK
@@ -61,8 +71,11 @@ class TestCreativeSafetyGate:
     def test_needs_human_review_high_risk(self):
         gate = CreativeSafetyGate()
         proposal = InnovationProposal(
-            proposal_id="p1", title="test", description="test",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.7,
+            proposal_id="p1",
+            title="test",
+            description="test",
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.7,
             risk_level="high",
         )
         assert gate.evaluate(proposal) == SafetyGateVerdict.NEEDS_HUMAN_REVIEW
@@ -70,8 +83,11 @@ class TestCreativeSafetyGate:
     def test_needs_human_review_low_confidence(self):
         gate = CreativeSafetyGate()
         proposal = InnovationProposal(
-            proposal_id="p1", title="test", description="test",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.2,
+            proposal_id="p1",
+            title="test",
+            description="test",
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.2,
             risk_level="low",
         )
         assert gate.evaluate(proposal) == SafetyGateVerdict.NEEDS_HUMAN_REVIEW
@@ -79,8 +95,11 @@ class TestCreativeSafetyGate:
     def test_pass_with_warning_medium_risk(self):
         gate = CreativeSafetyGate()
         proposal = InnovationProposal(
-            proposal_id="p1", title="test", description="test",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.7,
+            proposal_id="p1",
+            title="test",
+            description="test",
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.7,
             risk_level="medium",
         )
         assert gate.evaluate(proposal) == SafetyGateVerdict.PASS_WITH_WARNING
@@ -88,8 +107,11 @@ class TestCreativeSafetyGate:
     def test_blocked_domain(self):
         gate = CreativeSafetyGate(blocked_domains=["restricted"])
         proposal = InnovationProposal(
-            proposal_id="p1", title="test", description="restricted operation",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.7,
+            proposal_id="p1",
+            title="test",
+            description="restricted operation",
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.7,
             risk_level="low",
         )
         assert gate.evaluate(proposal) == SafetyGateVerdict.BLOCK
@@ -98,24 +120,31 @@ class TestCreativeSafetyGate:
 class TestInnovationProposal:
     def test_is_repair_type_true(self):
         p = InnovationProposal(
-            proposal_id="p1", title="fix bug in system",
+            proposal_id="p1",
+            title="fix bug in system",
             description="repair a broken component",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.5,
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.5,
         )
         assert p.is_repair_type()
 
     def test_is_repair_type_false(self):
         p = InnovationProposal(
-            proposal_id="p1", title="autonomous adaptation",
+            proposal_id="p1",
+            title="autonomous adaptation",
             description="new capability for self-evolution",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.5,
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.5,
         )
         assert not p.is_repair_type()
 
     def test_proposal_to_dict(self):
         p = InnovationProposal(
-            proposal_id="p1", title="test", description="desc",
-            proposal_type=ProposalType.NEW_CAPABILITY, confidence=0.8,
+            proposal_id="p1",
+            title="test",
+            description="desc",
+            proposal_type=ProposalType.NEW_CAPABILITY,
+            confidence=0.8,
         )
         d = p.to_dict()
         assert d["title"] == "test"

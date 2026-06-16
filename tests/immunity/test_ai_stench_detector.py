@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import pytest
-
-from maref.immunity.ai_stench_detector import AIStenchDetector, StenchWarning
-
+from maref.immunity.ai_stench_detector import AIStenchDetector
 
 COMMENT_REPETITION_CODE = """
 def get_user_by_id(user_id):

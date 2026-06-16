@@ -76,7 +76,9 @@ class TestSelfHealer:
         d = SelfDiagnostician()
         return d.diagnose(snapshot)
 
-    def test_triage_test_failure(self, healer: SelfHealer, critical_report: DiagnosisReport) -> None:
+    def test_triage_test_failure(
+        self, healer: SelfHealer, critical_report: DiagnosisReport
+    ) -> None:
         problem_types = healer.triage(critical_report)
         assert "test_failure" in problem_types
 
@@ -102,16 +104,22 @@ class TestSelfHealer:
         assert healing.final_state == "HEALTHY"
         assert healing.iterations == 0
 
-    def test_heal_cycle_critical_max_iterations(self, healer: SelfHealer, critical_report: DiagnosisReport) -> None:
+    def test_heal_cycle_critical_max_iterations(
+        self, healer: SelfHealer, critical_report: DiagnosisReport
+    ) -> None:
         healing = healer.heal_cycle(critical_report)
         assert healing.iterations >= 1
         assert len(healing.actions) >= 1
 
-    def test_heal_cycle_stores_history(self, healer: SelfHealer, critical_report: DiagnosisReport) -> None:
+    def test_heal_cycle_stores_history(
+        self, healer: SelfHealer, critical_report: DiagnosisReport
+    ) -> None:
         healer.heal_cycle(critical_report)
         assert len(healer.history) == 1
 
-    def test_heal_cycle_with_re_diagnose(self, healer: SelfHealer, critical_report: DiagnosisReport) -> None:
+    def test_heal_cycle_with_re_diagnose(
+        self, healer: SelfHealer, critical_report: DiagnosisReport
+    ) -> None:
         re_diagnose_calls = []
 
         def re_diagnose() -> DiagnosisReport:
@@ -131,7 +139,9 @@ class TestSelfHealer:
         assert healing.converged is True
         assert healing.final_state == "RECOVERED"
 
-    def test_heal_cycle_failing_all_strategies(self, healer_failing: SelfHealer, critical_report: DiagnosisReport) -> None:
+    def test_heal_cycle_failing_all_strategies(
+        self, healer_failing: SelfHealer, critical_report: DiagnosisReport
+    ) -> None:
         healing = healer_failing.heal_cycle(critical_report)
         assert healing.converged is False
         assert healing.final_state == "DEGRADED"
@@ -145,7 +155,9 @@ class TestSelfHealer:
         assert "import_error" in HEALING_STRATEGIES
 
     def test_heal_action_dataclass(self) -> None:
-        action = HealAction(problem_type="test_failure", strategy="rerun", applied=True, result="passed")
+        action = HealAction(
+            problem_type="test_failure", strategy="rerun", applied=True, result="passed"
+        )
         assert action.problem_type == "test_failure"
         assert action.applied is True
 
@@ -159,7 +171,9 @@ class TestSelfHealer:
         record = HealingRecord(
             actions=[
                 HealAction(problem_type="test_failure", strategy="rerun", exit_code=0, detail="ok"),
-                HealAction(problem_type="coverage_drop", strategy="stubs", exit_code=1, detail="fail"),
+                HealAction(
+                    problem_type="coverage_drop", strategy="stubs", exit_code=1, detail="fail"
+                ),
             ],
             final_state="RECOVERED",
             iterations=1,

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from maref.immunity.red_contamination_probe import RedContaminationProbe, ContaminationFinding
+from maref.immunity.red_contamination_probe import ContaminationFinding, RedContaminationProbe
 from maref.recursive.unified_audit import UnifiedAuditStore
-
 
 PICKLE_IMPORT_CODE = """
 import pickle
@@ -311,7 +310,9 @@ class TestContaminationFinding:
     """ContaminationFinding dataclass."""
 
     def test_finding_creation(self):
-        f = ContaminationFinding(type="test", severity="POLLUTION", line=1, message="msg", suggestion="sug")
+        f = ContaminationFinding(
+            type="test", severity="POLLUTION", line=1, message="msg", suggestion="sug"
+        )
         assert f.type == "test"
         assert f.severity == "POLLUTION"
         assert f.line == 1
@@ -319,10 +320,18 @@ class TestContaminationFinding:
         assert f.suggestion == "sug"
 
     def test_finding_default_code_snippet_empty(self):
-        f = ContaminationFinding(type="test", severity="POLLUTION", line=1, message="msg", suggestion="sug")
+        f = ContaminationFinding(
+            type="test", severity="POLLUTION", line=1, message="msg", suggestion="sug"
+        )
         assert f.code_snippet == ""
 
     def test_finding_with_code_snippet(self):
-        f = ContaminationFinding(type="test", severity="POLLUTION", line=1, message="msg", suggestion="sug",
-                                 code_snippet="import pickle")
+        f = ContaminationFinding(
+            type="test",
+            severity="POLLUTION",
+            line=1,
+            message="msg",
+            suggestion="sug",
+            code_snippet="import pickle",
+        )
         assert f.code_snippet == "import pickle"

@@ -44,4 +44,6 @@ def export_openapi(output_path: Path | None = None) -> Path:
 
 if __name__ == "__main__":
     output = export_openapi()
-    print(f"\nNext step: cd gui && pnpm exec openapi-typescript openapi-schema.json -o src/types/api.d.ts")
+    print(
+        "\nNext step: cd gui && pnpm exec openapi-typescript openapi-schema.json -o src/types/api.d.ts"
+    )

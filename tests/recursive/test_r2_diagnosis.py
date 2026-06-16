@@ -26,23 +26,32 @@ class TestSelfDiagnostician:
             total_lines=1000,
         )
 
-    def test_diagnose_returns_report(self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot) -> None:
+    def test_diagnose_returns_report(
+        self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
+    ) -> None:
         report = diagnostician.diagnose(normal_snapshot)
         assert isinstance(report, DiagnosisReport)
         assert report.overall_risk == RiskLevel.NORMAL
 
-    def test_diagnose_runs_all_five_probes(self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot) -> None:
+    def test_diagnose_runs_all_five_probes(
+        self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
+    ) -> None:
         report = diagnostician.diagnose(normal_snapshot)
         expected_probes = {"entropy", "anomaly", "latency", "kg", "oscillation"}
-        assert set(report.probe_results.keys()) == expected_probes, \
-            f"Expected {expected_probes}, got {set(report.probe_results.keys())}"
+        assert (
+            set(report.probe_results.keys()) == expected_probes
+        ), f"Expected {expected_probes}, got {set(report.probe_results.keys())}"
 
-    def test_normal_state_all_risk_normal(self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot) -> None:
+    def test_normal_state_all_risk_normal(
+        self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
+    ) -> None:
         report = diagnostician.diagnose(normal_snapshot)
         for probe_name, level in report.risk_matrix.items():
             assert level == RiskLevel.NORMAL, f"Probe {probe_name} expected NORMAL, got {level}"
 
-    def test_diagnose_recommendations_normal(self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot) -> None:
+    def test_diagnose_recommendations_normal(
+        self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
+    ) -> None:
         report = diagnostician.diagnose(normal_snapshot)
         assert len(report.recommendations) >= 1
         assert any("正常" in r or "无异常" in r for r in report.recommendations)
@@ -75,7 +84,9 @@ class TestSelfDiagnostician:
         assert diagnostician.cb_state == "OPEN"
         assert diagnostician.is_blocked()
 
-    def test_circuit_breaker_blocked_blocks_snapshot(self, diagnostician: SelfDiagnostician) -> None:
+    def test_circuit_breaker_blocked_blocks_snapshot(
+        self, diagnostician: SelfDiagnostician
+    ) -> None:
         snapshot = SystemSnapshot(
             test_stats={"total": 100, "passed": 0, "failed": 100},
             module_graph={"a": []},

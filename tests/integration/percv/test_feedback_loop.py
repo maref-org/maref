@@ -72,10 +72,7 @@ class TestEvalToResearchFeedback:
 
     def test_generate_with_all_high_scores(self):
         report = MagicMock()
-        report.layers = [
-            MagicMock(layer_number=n, score=95.0)
-            for n in range(1, 6)
-        ]
+        report.layers = [MagicMock(layer_number=n, score=95.0) for n in range(1, 6)]
         report.mas_dimension_score = 95.0
 
         fb = EvalToResearchFeedback()

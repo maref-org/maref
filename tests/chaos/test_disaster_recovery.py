@@ -23,9 +23,12 @@ BACKUP_ROOT_ENV = "MAREF_BACKUP_ROOT"
 TEST_ROOT_ENV = "MAREF_TEST_ROOT"
 
 
-def _run_backup(*args: str, backup_root: str | Path | None = None,
-                test_root: str | Path | None = None,
-                extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _run_backup(
+    *args: str,
+    backup_root: str | Path | None = None,
+    test_root: str | Path | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = {"PATH": os.environ.get("PATH", "")}
     if backup_root is not None:
         env[BACKUP_ROOT_ENV] = str(backup_root)
@@ -35,7 +38,8 @@ def _run_backup(*args: str, backup_root: str | Path | None = None,
         env.update(extra_env)
     return subprocess.run(
         [str(BACKUP_SCRIPT)] + list(args),
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
         env=env,
     )
 
@@ -72,7 +76,8 @@ class TestBackupScriptAvailability:
     def test_backup_script_syntax(self) -> None:
         result = subprocess.run(
             ["bash", "-n", str(BACKUP_SCRIPT)],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"Shell syntax error:\n{result.stderr}"
 
@@ -104,7 +109,9 @@ class TestBackupFullMode:
         assert len(date_part) == 15
         assert date_part[8] == "-"
 
-    def test_full_backup_contains_expected_content(self, backup_root: Path, backup_env: Path) -> None:
+    def test_full_backup_contains_expected_content(
+        self, backup_root: Path, backup_env: Path
+    ) -> None:
         _run_backup("--mode", "full", backup_root=backup_env, test_root=backup_root)
 
         archives = list(backup_env.glob("daily/maref-backup-full-*.tar.gz"))
@@ -254,7 +261,8 @@ class TestCleanupExpiredBackups:
             f.write_text(f"dummy backup {i}")
 
         result = _run_backup(
-            "--mode", "clean",
+            "--mode",
+            "clean",
             backup_root=backup_env,
             extra_env={"MAREF_BACKUP_RETENTION_DAILY": "5"},
         )
@@ -287,9 +295,9 @@ class TestRTOValidation:
         elapsed = time.time() - start
 
         max_rto_s = 30 * 60
-        assert elapsed < max_rto_s, (
-            f"Restore took {elapsed:.2f}s, exceeds RTO of {max_rto_s}s (30min)"
-        )
+        assert (
+            elapsed < max_rto_s
+        ), f"Restore took {elapsed:.2f}s, exceeds RTO of {max_rto_s}s (30min)"
 
     def test_daily_backup_rpo_compliance(self, backup_root: Path) -> None:
         latest_mtime = 0.0
@@ -304,19 +312,25 @@ class TestRTOValidation:
         age_hours = (time.time() - latest_mtime) / 3600
         max_rpo_hours = 24.0
 
-        assert age_hours < max_rpo_hours, (
-            f"Data age {age_hours:.1f}h exceeds RPO of {max_rpo_hours}h"
-        )
+        assert (
+            age_hours < max_rpo_hours
+        ), f"Data age {age_hours:.1f}h exceeds RPO of {max_rpo_hours}h"
 
-    def test_backup_script_restore_mode_accepts_file(self, backup_root: Path, backup_env: Path) -> None:
+    def test_backup_script_restore_mode_accepts_file(
+        self, backup_root: Path, backup_env: Path
+    ) -> None:
         _run_backup("--mode", "full", backup_root=backup_env, test_root=backup_root)
 
         archives = list(backup_env.glob("daily/maref-backup-full-*.tar.gz"))
         assert len(archives) >= 1
 
         result = _run_backup(
-            "--mode", "restore", "--backup-file", str(archives[0]),
-            backup_root=backup_env, test_root=backup_root,
+            "--mode",
+            "restore",
+            "--backup-file",
+            str(archives[0]),
+            backup_root=backup_env,
+            test_root=backup_root,
         )
 
         assert result.returncode == 0 or "VERIFY" in result.stdout
@@ -354,14 +368,18 @@ class TestWeeklyAndMonthlyBackups:
     """Test weekly and monthly backup labels."""
 
     def test_weekly_backup_label(self, backup_root: Path, backup_env: Path) -> None:
-        result = _run_backup("--mode", "full", "--weekly", backup_root=backup_env, test_root=backup_root)
+        result = _run_backup(
+            "--mode", "full", "--weekly", backup_root=backup_env, test_root=backup_root
+        )
         assert result.returncode == 0
 
         weeklies = list(backup_env.glob("weekly/maref-backup-full-*.tar.gz"))
         assert len(weeklies) >= 1
 
     def test_monthly_backup_label(self, backup_root: Path, backup_env: Path) -> None:
-        result = _run_backup("--mode", "full", "--monthly", backup_root=backup_env, test_root=backup_root)
+        result = _run_backup(
+            "--mode", "full", "--monthly", backup_root=backup_env, test_root=backup_root
+        )
         assert result.returncode == 0
 
         monthlies = list(backup_env.glob("monthly/maref-backup-full-*.tar.gz"))
@@ -385,7 +403,10 @@ class TestErrorHandling:
 
     def test_restore_nonexistent_file_fails(self, backup_env: Path) -> None:
         result = _run_backup(
-            "--mode", "restore", "--backup-file", "/nonexistent/backup.tar.gz",
+            "--mode",
+            "restore",
+            "--backup-file",
+            "/nonexistent/backup.tar.gz",
             backup_root=backup_env,
         )
         assert result.returncode != 0

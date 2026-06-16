@@ -74,6 +74,7 @@ class TestSelfObserver:
 
     def test_self_observer_uses_root_path(self) -> None:
         import pathlib
+
         custom_root = pathlib.Path(__file__).resolve().parent.parent.parent
         observer = SelfObserver(root_path=custom_root)
         module_graph = observer.observe_codebase()

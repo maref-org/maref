@@ -165,20 +165,20 @@ class TestLLMExtractor:
         extractor = LLMExtractor()
         result = extractor.extract("text", ["candidate"])
         import asyncio
+
         relations = asyncio.run(result)
         assert relations == []
 
     def test_extract_with_client(self, mock_client):
-        mock_response = json.dumps([
-            {"subject": "内存泄漏", "relation": "causes", "object": "服务崩溃"}
-        ])
+        mock_response = json.dumps(
+            [{"subject": "内存泄漏", "relation": "causes", "object": "服务崩溃"}]
+        )
         mock_client.chat.return_value = mock_response
 
         extractor = LLMExtractor(client=mock_client)
         import asyncio
-        relations = asyncio.run(
-            extractor.extract("内存泄漏", ["服务崩溃"])
-        )
+
+        relations = asyncio.run(extractor.extract("内存泄漏", ["服务崩溃"]))
         assert len(relations) == 1
         assert relations[0].relation == RelationType.CAUSES
         assert relations[0].method == "llm"
@@ -189,15 +189,12 @@ class TestLLMExtractor:
 
         extractor = LLMExtractor(client=mock_client)
         import asyncio
-        relations = asyncio.run(
-            extractor.extract("text", ["candidate"])
-        )
+
+        relations = asyncio.run(extractor.extract("text", ["candidate"]))
         assert relations == []
 
     def test_parse_response_valid_json(self):
-        response = json.dumps([
-            {"subject": "A", "relation": "supports", "object": "B"}
-        ])
+        response = json.dumps([{"subject": "A", "relation": "supports", "object": "B"}])
         result = LLMExtractor._parse_response(response)
         assert len(result) == 1
         assert result[0]["subject"] == "A"
@@ -224,15 +221,12 @@ class TestLLMExtractor:
         assert result == []
 
     def test_extract_candidates_truncation(self, mock_client):
-        mock_response = json.dumps([
-            {"subject": "A", "relation": "supports", "object": "B1"}
-        ])
+        mock_response = json.dumps([{"subject": "A", "relation": "supports", "object": "B1"}])
         mock_client.chat.return_value = mock_response
 
         extractor = LLMExtractor(client=mock_client)
         many_candidates = [f"candidate_{i}" for i in range(50)]
         import asyncio
-        relations = asyncio.run(
-            extractor.extract("test text", many_candidates)
-        )
+
+        relations = asyncio.run(extractor.extract("test text", many_candidates))
         assert len(relations) >= 1

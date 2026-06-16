@@ -4,7 +4,6 @@ import pytest
 
 from maref.human.interrupt_protocol import (
     InterruptProtocol,
-    InterruptSignal,
     InterruptType,
 )
 

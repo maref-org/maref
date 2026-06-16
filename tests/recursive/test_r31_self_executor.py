@@ -266,6 +266,7 @@ class TestCodeGenerator:
 
     def test_generate_generic_code(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="test_001",
             timestamp=0.0,
@@ -281,6 +282,7 @@ class TestCodeGenerator:
 
     def test_generate_refactor_code(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="refactor_001",
             timestamp=0.0,
@@ -296,6 +298,7 @@ class TestCodeGenerator:
 
     def test_generate_test_code(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="test_002",
             timestamp=0.0,
@@ -323,6 +326,7 @@ class TestSelfExecutor:
 
     def test_execute_success_pipeline(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="exec_test",
             timestamp=0.0,
@@ -338,6 +342,7 @@ class TestSelfExecutor:
 
     def test_dry_run(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="dry_test",
             timestamp=0.0,
@@ -364,6 +369,7 @@ class TestSelfExecutor:
         audit = UnifiedAuditStore()
         executor = SelfExecutor(max_rounds=2, project_root=self.tmpdir, audit_store=audit)
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="audit_test",
             timestamp=0.0,
@@ -378,6 +384,7 @@ class TestSelfExecutor:
 
     def test_multiple_executions(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         for i in range(2):
             proposal = ArchitectureProposal(
                 proposal_id=f"multi_exec_{i}",
@@ -395,11 +402,16 @@ class TestSelfExecutor:
 class TestCodeGeneratorEdgeCases:
     def test_classify_coverage_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         gen = CodeGenerator()
         proposal = ArchitectureProposal(
             proposal_id="cov_test",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="v0.6.0",
-            rationale="coverage gap", risk_assessment="low", confidence=0.9,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="v0.6.0",
+            rationale="coverage gap",
+            risk_assessment="low",
+            confidence=0.9,
         )
         result = gen.generate(proposal, "/tmp/proj")
         assert len(result) == 1
@@ -407,11 +419,16 @@ class TestCodeGeneratorEdgeCases:
 
     def test_classify_refactor_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         gen = CodeGenerator()
         proposal = ArchitectureProposal(
             proposal_id="ref_test",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="v0.6.0",
-            rationale="restructure the module layout", risk_assessment="medium", confidence=0.8,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="v0.6.0",
+            rationale="restructure the module layout",
+            risk_assessment="medium",
+            confidence=0.8,
         )
         result = gen.generate(proposal, "/tmp/proj")
         assert len(result) == 1
@@ -465,23 +482,36 @@ class TestSelfExecutorEdgeCases:
 
     def test_execute_code_gen_failure_path(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="bad_gen",
-            timestamp=0.0, current_arch="", proposed_arch="",
-            rationale="", risk_assessment="low", confidence=0.5,
+            timestamp=0.0,
+            current_arch="",
+            proposed_arch="",
+            rationale="",
+            risk_assessment="low",
+            confidence=0.5,
         )
         pipeline = self.executor.execute(proposal)
         assert pipeline.final_state in (
-            "FAILED_CODE_GEN", "FAILED_AST_VALIDATE",
-            "FAILED_SAFETY_GATE", "SUCCESS", "FAILED_DEPLOY_ROLLED_BACK",
+            "FAILED_CODE_GEN",
+            "FAILED_AST_VALIDATE",
+            "FAILED_SAFETY_GATE",
+            "SUCCESS",
+            "FAILED_DEPLOY_ROLLED_BACK",
         )
 
     def test_health_check_after_failure(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="health_test",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="v0.6.0",
-            rationale="test health after exec", risk_assessment="low", confidence=0.95,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="v0.6.0",
+            rationale="test health after exec",
+            risk_assessment="low",
+            confidence=0.95,
         )
         self.executor.execute(proposal)
         health = self.executor.health_check()
@@ -490,10 +520,15 @@ class TestSelfExecutorEdgeCases:
 
     def test_deployed_files_after_deploy(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="deploy_track",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="v0.6.0",
-            rationale="test deploy tracking", risk_assessment="low", confidence=0.95,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="v0.6.0",
+            rationale="test deploy tracking",
+            risk_assessment="low",
+            confidence=0.95,
         )
         self.executor.execute(proposal)
         files = self.executor.deployed_files
@@ -501,52 +536,77 @@ class TestSelfExecutorEdgeCases:
 
     def test_execute_with_confidence_low(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="low_conf",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="v0.6.0",
-            rationale="test with low confidence", risk_assessment="high", confidence=0.3,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="v0.6.0",
+            rationale="test with low confidence",
+            risk_assessment="high",
+            confidence=0.3,
         )
         pipeline = self.executor.execute(proposal)
         assert pipeline.final_state != ""
 
     def test_execute_safety_gate_blocked(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="core_removal_test",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="circuit_breaker_v3",
-            rationale="refactor circuit breaker", risk_assessment="high", confidence=0.8,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="circuit_breaker_v3",
+            rationale="refactor circuit breaker",
+            risk_assessment="high",
+            confidence=0.8,
         )
         pipeline = self.executor.execute(proposal)
         assert pipeline.final_state in (
-            "FAILED_SAFETY_GATE", "FAILED_AST_VALIDATE",
-            "FAILED_CODE_GEN", "SUCCESS",
+            "FAILED_SAFETY_GATE",
+            "FAILED_AST_VALIDATE",
+            "FAILED_CODE_GEN",
+            "SUCCESS",
         )
 
     def test_execute_deploy_to_readonly(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         read_only_dir = os.path.join(self.tmpdir, "readonly")
         os.makedirs(read_only_dir)
         os.chmod(read_only_dir, 0o444)
         executor_ro = SelfExecutor(max_rounds=1, project_root=read_only_dir)
         proposal = ArchitectureProposal(
             proposal_id="deploy_fail",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="v0.6.0",
-            rationale="test deploy failure", risk_assessment="low", confidence=0.95,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="v0.6.0",
+            rationale="test deploy failure",
+            risk_assessment="low",
+            confidence=0.95,
         )
         pipeline = executor_ro.execute(proposal)
         assert pipeline.final_state in (
-            "FAILED_CODE_GEN", "FAILED_DEPLOY_ROLLED_BACK",
-            "FAILED_AST_VALIDATE", "FAILED_SAFETY_GATE", "SUCCESS",
+            "FAILED_CODE_GEN",
+            "FAILED_DEPLOY_ROLLED_BACK",
+            "FAILED_AST_VALIDATE",
+            "FAILED_SAFETY_GATE",
+            "SUCCESS",
         )
         os.chmod(read_only_dir, 0o755)
 
     def test_admin_health_check_after_multiple(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         for i in range(3):
             proposal = ArchitectureProposal(
                 proposal_id=f"admin_{i}",
-                timestamp=0.0, current_arch="v0.5.0", proposed_arch=f"v0.6.{i}",
-                rationale="test admin", risk_assessment="low", confidence=0.9,
+                timestamp=0.0,
+                current_arch="v0.5.0",
+                proposed_arch=f"v0.6.{i}",
+                rationale="test admin",
+                risk_assessment="low",
+                confidence=0.9,
             )
             self.executor.execute(proposal)
         health = self.executor.health_check()
@@ -555,20 +615,35 @@ class TestSelfExecutorEdgeCases:
 
     def test_dry_run_with_valid_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="dry_valid",
-            timestamp=0.0, current_arch="v0.5.0", proposed_arch="v0.6.0",
-            rationale="test dry run", risk_assessment="low", confidence=0.95,
+            timestamp=0.0,
+            current_arch="v0.5.0",
+            proposed_arch="v0.6.0",
+            rationale="test dry run",
+            risk_assessment="low",
+            confidence=0.95,
         )
         pipeline = self.executor.dry_run(proposal)
-        assert pipeline.final_state in ("DRY_RUN_OK", "DRY_RUN_AST_FAIL", "DRY_RUN_NO_CODE", "DRY_RUN_ERROR")
+        assert pipeline.final_state in (
+            "DRY_RUN_OK",
+            "DRY_RUN_AST_FAIL",
+            "DRY_RUN_NO_CODE",
+            "DRY_RUN_ERROR",
+        )
 
     def test_dry_run_empty_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id="dry_empty",
-            timestamp=0.0, current_arch="", proposed_arch="",
-            rationale="", risk_assessment="low", confidence=0.5,
+            timestamp=0.0,
+            current_arch="",
+            proposed_arch="",
+            rationale="",
+            risk_assessment="low",
+            confidence=0.5,
         )
         pipeline = self.executor.dry_run(proposal)
         assert pipeline.final_state != ""
@@ -579,6 +654,20 @@ class TestSelfExecutorEdgeCases:
 
     def test_max_rounds_property(self) -> None:
         assert self.executor.max_rounds == 5
+
+    def test_attach_intent_drift_detector(self) -> None:
+        from unittest.mock import MagicMock
+
+        detector = MagicMock()
+        self.executor.attach_intent_drift_detector(detector)
+        assert self.executor._intent_drift_detector is detector
+
+    def test_attach_gene_pipeline(self) -> None:
+        from unittest.mock import MagicMock
+
+        pipeline = MagicMock()
+        self.executor.attach_gene_pipeline(pipeline)
+        assert self.executor._gene_pipeline is pipeline
 
 
 class TestExecutionPipelineRecord:
@@ -609,7 +698,8 @@ class TestExecutionPipelineRecord:
 
     def test_finish_state(self) -> None:
         pipeline = ExecutionPipelineRecord(
-            pipeline_id="p1", proposal_id="pp1",
+            pipeline_id="p1",
+            proposal_id="pp1",
             final_state="SUCCESS",
         )
         pipeline.finish()
@@ -629,7 +719,10 @@ class TestExecutionPipelineRecord:
 
     def test_pipeline_rollback_flag(self) -> None:
         pipeline = ExecutionPipelineRecord(
-            pipeline_id="rb_pipe", proposal_id="rb_prop",
+            pipeline_id="rb_pipe",
+            proposal_id="rb_prop",
             rollback_performed=True,
         )
         assert pipeline.rollback_performed is True
+
+

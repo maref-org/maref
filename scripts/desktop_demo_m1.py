@@ -100,11 +100,17 @@ def demo_parse_screen(agent: DesktopAgent) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="MAREF M1 Desktop Agent Demo")
-    parser.add_argument("--live", action="store_true", help="Enable live mouse control (USE WITH CAUTION)")
-    parser.add_argument("--task", choices=["finder", "parse"], default="finder", help="Demo task to run")
     parser.add_argument(
-        "--parser-backend", choices=OmniParserInterface.SUPPORTED_BACKENDS,
-        default="mock", help="Screen parser backend"
+        "--live", action="store_true", help="Enable live mouse control (USE WITH CAUTION)"
+    )
+    parser.add_argument(
+        "--task", choices=["finder", "parse"], default="finder", help="Demo task to run"
+    )
+    parser.add_argument(
+        "--parser-backend",
+        choices=OmniParserInterface.SUPPORTED_BACKENDS,
+        default="mock",
+        help="Screen parser backend",
     )
     args = parser.parse_args()
 

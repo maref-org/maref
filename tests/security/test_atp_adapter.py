@@ -22,9 +22,7 @@ class TestATPConfig:
 
     def test_custom_config(self):
         config = ATPConfig(
-            endpoint="https://custom.example.com",
-            timeout_seconds=60,
-            api_key="test-key"
+            endpoint="https://custom.example.com", timeout_seconds=60, api_key="test-key"
         )
         assert config.endpoint == "https://custom.example.com"
         assert config.timeout_seconds == 60
@@ -74,7 +72,7 @@ class TestATPAdapter:
         adapter = ATPAdapter(config)
         assert adapter.config == config
 
-    @patch('maref.security.agent_identity.ATPAdapter._make_request')
+    @patch("maref.security.agent_identity.ATPAdapter._make_request")
     def test_register_identity(self, mock_request):
         mock_request.return_value = {
             "status": "registered",
@@ -88,7 +86,7 @@ class TestATPAdapter:
         assert result is True
         mock_request.assert_called_once()
 
-    @patch('maref.security.agent_identity.ATPAdapter._make_request')
+    @patch("maref.security.agent_identity.ATPAdapter._make_request")
     def test_verify_identity_success(self, mock_request):
         mock_request.return_value = {
             "status": "verified",
@@ -104,7 +102,7 @@ class TestATPAdapter:
         assert result.agent_id == "agent-001"
         assert result.trust_score == 0.92
 
-    @patch('maref.security.agent_identity.ATPAdapter._make_request')
+    @patch("maref.security.agent_identity.ATPAdapter._make_request")
     def test_verify_identity_failure(self, mock_request):
         mock_request.return_value = {
             "status": "unverified",
@@ -118,7 +116,7 @@ class TestATPAdapter:
         assert result.is_valid is False
         assert result.reason == "certificate_expired"
 
-    @patch('maref.security.agent_identity.ATPAdapter._make_request')
+    @patch("maref.security.agent_identity.ATPAdapter._make_request")
     def test_create_challenge(self, mock_request):
         mock_request.return_value = {
             "nonce": "abc123",
@@ -132,7 +130,7 @@ class TestATPAdapter:
         assert challenge.agent_id == "agent-001"
         assert challenge.nonce == "abc123"
 
-    @patch('maref.security.agent_identity.ATPAdapter._make_request')
+    @patch("maref.security.agent_identity.ATPAdapter._make_request")
     def test_verify_challenge_response(self, mock_request):
         mock_request.return_value = {
             "status": "verified",
@@ -172,13 +170,13 @@ class TestATPIntegration:
         adapter = ATPAdapter(config)
 
         # Step 1: Register
-        with patch.object(adapter, '_make_request') as mock_req:
+        with patch.object(adapter, "_make_request") as mock_req:
             mock_req.return_value = {"status": "registered", "agent_id": "agent-001"}
             assert adapter.register_identity("agent-001", "pubkey-123") is True
 
         # Step 2: Create challenge
         now = datetime.now(timezone.utc)
-        with patch.object(adapter, '_make_request') as mock_req:
+        with patch.object(adapter, "_make_request") as mock_req:
             mock_req.return_value = {
                 "nonce": "challenge-123",
                 "timestamp": now.isoformat(),
@@ -188,7 +186,7 @@ class TestATPIntegration:
             assert challenge.nonce == "challenge-123"
 
         # Step 3: Verify
-        with patch.object(adapter, '_make_request') as mock_req:
+        with patch.object(adapter, "_make_request") as mock_req:
             mock_req.return_value = {
                 "status": "verified",
                 "agent_id": "agent-001",

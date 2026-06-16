@@ -115,6 +115,7 @@ class TestStopConditions:
             metrics.fpr_series.append(0.02)
 
         from maref.evolution.engine import RecursiveEvolutionEngine
+
         engine = RecursiveEvolutionEngine()
         result = engine._check_stop_conditions(metrics, "c1")
         assert result == "gradient_disaster"
@@ -135,10 +136,12 @@ class TestStopConditions:
         engine._breaker._state = BreakerState.OPEN
         engine._breaker._trip_count = BREAKER_FAIL_CONSECUTIVE_LIMIT
         engine._breaker._consecutive_failures = BREAKER_FAIL_CONSECUTIVE_LIMIT
-        engine._breaker.get_stats = MagicMock(return_value={
-            "state": BreakerState.OPEN.value,
-            "trip_count": BREAKER_FAIL_CONSECUTIVE_LIMIT,
-        })
+        engine._breaker.get_stats = MagicMock(
+            return_value={
+                "state": BreakerState.OPEN.value,
+                "trip_count": BREAKER_FAIL_CONSECUTIVE_LIMIT,
+            }
+        )
         result = engine._check_stop_conditions(metrics, "c1")
         assert result == "circuit_breaker_permanent_open"
 
@@ -224,7 +227,9 @@ class TestMetaLearningStep:
         engine._sandbox = mock_sandbox
 
         engine._run_meta_learning_step(5, 0.08)
-        mock_sandbox.approve_change.assert_called_once_with("ch_001", reviewer="meta_recursive_evolution")
+        mock_sandbox.approve_change.assert_called_once_with(
+            "ch_001", reviewer="meta_recursive_evolution"
+        )
 
     def test_meta_learning_with_low_reward_skips_approve(self) -> None:
         engine = RecursiveEvolutionEngine()

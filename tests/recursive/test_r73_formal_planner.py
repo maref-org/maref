@@ -37,7 +37,8 @@ class TestAction:
     def test_applicable(self) -> None:
         pre = Predicate(name="ready")
         action = Action(
-            name="go", preconditions=[pre],
+            name="go",
+            preconditions=[pre],
             add_effects=[Predicate(name="done")],
             del_effects=[pre],
         )
@@ -206,11 +207,16 @@ class TestPlanValidator:
         idle = Predicate(name="idle")
 
         action1 = Action(
-            name="step1", preconditions=[idle],
-            add_effects=[ready], del_effects=[idle],
+            name="step1",
+            preconditions=[idle],
+            add_effects=[ready],
+            del_effects=[idle],
         )
         action2 = Action(
-            name="step2", preconditions=[ready], add_effects=[done], del_effects=[],
+            name="step2",
+            preconditions=[ready],
+            add_effects=[done],
+            del_effects=[],
         )
         domain = PlanningDomain(
             name="test",
@@ -231,12 +237,16 @@ class TestPlanValidator:
         idle = Predicate(name="idle")
 
         action1 = Action(
-            name="consume", preconditions=[resource],
-            add_effects=[idle], del_effects=[resource],
+            name="consume",
+            preconditions=[resource],
+            add_effects=[idle],
+            del_effects=[resource],
         )
         action2 = Action(
-            name="use_after_consumed", preconditions=[resource],
-            add_effects=[Predicate(name="done")], del_effects=[],
+            name="use_after_consumed",
+            preconditions=[resource],
+            add_effects=[Predicate(name="done")],
+            del_effects=[],
         )
         domain = PlanningDomain(
             name="resource_conflict",
@@ -254,8 +264,10 @@ class TestPlanValidator:
         idle = Predicate(name="idle")
         done = Predicate(name="done")
         action = Action(
-            name="do_nothing", preconditions=[idle],
-            add_effects=[], del_effects=[],
+            name="do_nothing",
+            preconditions=[idle],
+            add_effects=[],
+            del_effects=[],
         )
         domain = PlanningDomain(
             name="goal_fail",

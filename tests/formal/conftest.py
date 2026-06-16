@@ -85,11 +85,13 @@ class GrayCodeValidator:
             for s, targets in transitions.items()
             for t in targets
         )
-        results.append({
-            "check": "single_bit_transitions",
-            "passed": all_single,
-            "detail": f"{sum(len(v) for v in transitions.values())} total transitions",
-        })
+        results.append(
+            {
+                "check": "single_bit_transitions",
+                "passed": all_single,
+                "detail": f"{sum(len(v) for v in transitions.values())} total transitions",
+            }
+        )
         return results
 
     @staticmethod
@@ -103,11 +105,13 @@ class GrayCodeValidator:
         transitions[9] = []
 
         no_loops = all(s not in targets for s, targets in transitions.items())
-        return [{
-            "check": "no_self_loops",
-            "passed": no_loops,
-            "detail": "All states verified",
-        }]
+        return [
+            {
+                "check": "no_self_loops",
+                "passed": no_loops,
+                "detail": "All states verified",
+            }
+        ]
 
     @staticmethod
     def check_terminal_absorbing() -> list[dict[str, Any]]:
@@ -120,11 +124,13 @@ class GrayCodeValidator:
         transitions[9] = []
 
         is_absorbing = 9 not in transitions or transitions[9] == []
-        return [{
-            "check": "terminal_absorbing",
-            "passed": is_absorbing,
-            "detail": "HALT has no outgoing edges",
-        }]
+        return [
+            {
+                "check": "terminal_absorbing",
+                "passed": is_absorbing,
+                "detail": "HALT has no outgoing edges",
+            }
+        ]
 
     @staticmethod
     def check_reachability() -> list[dict[str, Any]]:
@@ -148,11 +154,13 @@ class GrayCodeValidator:
                     queue.append(neighbor)
 
         all_reachable = len(visited) == 10
-        return [{
-            "check": "reachability",
-            "passed": all_reachable,
-            "detail": f"Reached {len(visited)}/10 states",
-        }]
+        return [
+            {
+                "check": "reachability",
+                "passed": all_reachable,
+                "detail": f"Reached {len(visited)}/10 states",
+            }
+        ]
 
     @staticmethod
     def check_entropy_profile() -> list[dict[str, Any]]:
@@ -164,22 +172,26 @@ class GrayCodeValidator:
             and entropy[9] == 0
             and max(entropy) <= MAX_ENTROPY
         )
-        return [{
-            "check": "entropy_profile",
-            "passed": is_mountain,
-            "detail": f"Profile: {entropy}",
-        }]
+        return [
+            {
+                "check": "entropy_profile",
+                "passed": is_mountain,
+                "detail": f"Profile: {entropy}",
+            }
+        ]
 
     @staticmethod
     def check_gray_code_uniqueness() -> list[dict[str, Any]]:
         """Verify all 10 Gray codes are unique."""
         codes = list(GRAY_CODE.values())
         all_unique = len(codes) == len(set(codes))
-        return [{
-            "check": "gray_code_uniqueness",
-            "passed": all_unique,
-            "detail": f"{len(codes)} codes, {len(set(codes))} unique",
-        }]
+        return [
+            {
+                "check": "gray_code_uniqueness",
+                "passed": all_unique,
+                "detail": f"{len(codes)} codes, {len(set(codes))} unique",
+            }
+        ]
 
     @classmethod
     def run_all(cls) -> list[dict[str, Any]]:

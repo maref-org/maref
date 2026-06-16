@@ -288,6 +288,7 @@ class TestSkillLoader:
             skills_dir.mkdir(parents=True)
             skill_yaml_path = skills_dir / "test.yaml"
             import yaml
+
             skill_yaml_path.write_text(yaml.dump(VALID_SKILL_DICT), encoding="utf-8")
 
             loader = SkillLoader()

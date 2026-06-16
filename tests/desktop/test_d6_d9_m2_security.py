@@ -414,7 +414,13 @@ class TestActionRecorder:
             "recording_id": "from-dict",
             "name": "Dict Test",
             "steps": [
-                {"step_id": "0000", "action_type": "mouse_click", "timestamp": 0.5, "x": 10, "y": 20},
+                {
+                    "step_id": "0000",
+                    "action_type": "mouse_click",
+                    "timestamp": 0.5,
+                    "x": 10,
+                    "y": 20,
+                },
             ],
             "screen_width": 1920,
             "screen_height": 1080,

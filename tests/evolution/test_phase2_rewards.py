@@ -12,14 +12,11 @@ Validates:
 
 from __future__ import annotations
 
-import pytest
-
 from maref.evolution.agents import AgentRole
 from maref.learning.replay import DecisionOutcome, ExperienceStore
 from maref.learning.rewards import (
     BUILTIN_REWARD_FUNCTIONS,
     MultiGranularityRewardAssembler,
-    RewardLevel,
     RoleReward,
     RoleRewardFn,
     RoundRewardSummary,
@@ -30,10 +27,10 @@ from maref.learning.rewards import (
     optimizer_reward_fn,
 )
 
-
 # ============================================================================
 # RoleReward Tests
 # ============================================================================
+
 
 class TestRoleReward:
     def test_basic_creation(self) -> None:
@@ -93,6 +90,7 @@ class TestRoleReward:
 # ============================================================================
 # RoleRewardFn Tests
 # ============================================================================
+
 
 class TestRoleRewardFn:
     def test_custom_reward_function(self) -> None:
@@ -182,6 +180,7 @@ class TestRoleRewardFn:
 # ============================================================================
 # Built-in Reward Function Tests
 # ============================================================================
+
 
 class TestBuiltinRewardFunctions:
     def test_detector_reward_fn_low_error(self) -> None:
@@ -280,6 +279,7 @@ class TestBuiltinRewardFunctions:
 # MultiGranularityRewardAssembler Tests
 # ============================================================================
 
+
 class TestMultiGranularityRewardAssembler:
     def test_empty_assembler(self) -> None:
         assembler = MultiGranularityRewardAssembler()
@@ -290,7 +290,9 @@ class TestMultiGranularityRewardAssembler:
     def test_register_unregister_reward_fn(self) -> None:
         assembler = MultiGranularityRewardAssembler()
         fn = RoleRewardFn(
-            "detector_1", AgentRole.DETECTOR, lambda s: 0.5,
+            "detector_1",
+            AgentRole.DETECTOR,
+            lambda s: 0.5,
         )
         assembler.register_reward_fn(fn)
         assert assembler.has_reward_fn("detector_1")
@@ -328,14 +330,20 @@ class TestMultiGranularityRewardAssembler:
 
     def test_assemble_round_rewards(self) -> None:
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "detector_1", AgentRole.DETECTOR,
-            lambda s: 1.0 - s.get("fnr", 1.0) * 2.0,
-        ))
-        assembler.register_reward_fn(RoleRewardFn(
-            "evaluator_1", AgentRole.EVALUATOR,
-            lambda s: 1.0 - s.get("scoring_error", 1.0),
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "detector_1",
+                AgentRole.DETECTOR,
+                lambda s: 1.0 - s.get("fnr", 1.0) * 2.0,
+            )
+        )
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "evaluator_1",
+                AgentRole.EVALUATOR,
+                lambda s: 1.0 - s.get("scoring_error", 1.0),
+            )
+        )
 
         summary = assembler.assemble_round_rewards(
             round_num=5,
@@ -353,12 +361,20 @@ class TestMultiGranularityRewardAssembler:
 
     def test_assemble_round_rewards_specific_agents(self) -> None:
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "a1", AgentRole.DETECTOR, lambda s: 0.5,
-        ))
-        assembler.register_reward_fn(RoleRewardFn(
-            "a2", AgentRole.EVALUATOR, lambda s: 0.7,
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "a1",
+                AgentRole.DETECTOR,
+                lambda s: 0.5,
+            )
+        )
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "a2",
+                AgentRole.EVALUATOR,
+                lambda s: 0.7,
+            )
+        )
 
         summary = assembler.assemble_round_rewards(
             round_num=1,
@@ -395,9 +411,13 @@ class TestMultiGranularityRewardAssembler:
 
     def test_apply_cycle_rewards(self) -> None:
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "detector_1", AgentRole.DETECTOR, lambda s: 0.5,
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "detector_1",
+                AgentRole.DETECTOR,
+                lambda s: 0.5,
+            )
+        )
 
         assembler.assemble_round_rewards(
             round_num=1,
@@ -416,9 +436,13 @@ class TestMultiGranularityRewardAssembler:
 
     def test_round_history(self) -> None:
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "a1", AgentRole.DETECTOR, lambda s: 0.5,
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "a1",
+                AgentRole.DETECTOR,
+                lambda s: 0.5,
+            )
+        )
 
         for i in range(5):
             assembler.assemble_round_rewards(
@@ -436,18 +460,24 @@ class TestMultiGranularityRewardAssembler:
     def test_cycle_history(self) -> None:
         assembler = MultiGranularityRewardAssembler()
         for i in range(3):
-            assembler.apply_cycle_rewards({
-                "fnr_series": [0.5 - 0.1 * j for j in range(5)],
-                "converged": i == 2,
-            })
+            assembler.apply_cycle_rewards(
+                {
+                    "fnr_series": [0.5 - 0.1 * j for j in range(5)],
+                    "converged": i == 2,
+                }
+            )
         history = assembler.get_cycle_history()
         assert len(history) == 3
 
     def test_stats(self) -> None:
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "a1", AgentRole.DETECTOR, lambda s: 0.5,
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "a1",
+                AgentRole.DETECTOR,
+                lambda s: 0.5,
+            )
+        )
 
         assembler.assemble_round_rewards(round_num=1, round_snapshot={})
 
@@ -464,12 +494,22 @@ class TestMultiGranularityRewardAssembler:
 
     def test_weighted_aggregation(self) -> None:
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "high_weight", AgentRole.DETECTOR, lambda s: 1.0, weight=3.0,
-        ))
-        assembler.register_reward_fn(RoleRewardFn(
-            "low_weight", AgentRole.DETECTOR, lambda s: 0.0, weight=1.0,
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "high_weight",
+                AgentRole.DETECTOR,
+                lambda s: 1.0,
+                weight=3.0,
+            )
+        )
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "low_weight",
+                AgentRole.DETECTOR,
+                lambda s: 0.0,
+                weight=1.0,
+            )
+        )
 
         summary = assembler.assemble_round_rewards(
             round_num=1,
@@ -516,6 +556,7 @@ class TestMultiGranularityRewardAssembler:
 # ============================================================================
 # DecisionOutcome Backward Compatibility Tests
 # ============================================================================
+
 
 class TestDecisionOutcomeBackwardCompat:
     def test_legacy_outcome_without_role_id(self) -> None:
@@ -602,6 +643,7 @@ class TestDecisionOutcomeBackwardCompat:
 # ExperienceStore Per-Role Querying Tests
 # ============================================================================
 
+
 class TestExperienceStorePerRole:
     def test_insert_with_role_id(self) -> None:
         store = ExperienceStore(":memory:")
@@ -620,24 +662,42 @@ class TestExperienceStorePerRole:
 
     def test_get_by_role(self) -> None:
         store = ExperienceStore(":memory:")
-        store.insert(DecisionOutcome(
-            timestamp=1000.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.8, role_id="detector_1",
-        ))
-        store.insert(DecisionOutcome(
-            timestamp=1001.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.5, role_id="evaluator_1",
-        ))
-        store.insert(DecisionOutcome(
-            timestamp=1002.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.9, role_id="detector_1",
-        ))
+        store.insert(
+            DecisionOutcome(
+                timestamp=1000.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.8,
+                role_id="detector_1",
+            )
+        )
+        store.insert(
+            DecisionOutcome(
+                timestamp=1001.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.5,
+                role_id="evaluator_1",
+            )
+        )
+        store.insert(
+            DecisionOutcome(
+                timestamp=1002.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.9,
+                role_id="detector_1",
+            )
+        )
 
         detector_outcomes = store.get_by_role("detector_1")
         assert len(detector_outcomes) == 2
@@ -647,18 +707,30 @@ class TestExperienceStorePerRole:
 
     def test_get_role_stats(self) -> None:
         store = ExperienceStore(":memory:")
-        store.insert(DecisionOutcome(
-            timestamp=1000.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.6, role_id="detector_1",
-        ))
-        store.insert(DecisionOutcome(
-            timestamp=1001.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.8, role_id="detector_1",
-        ))
+        store.insert(
+            DecisionOutcome(
+                timestamp=1000.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.6,
+                role_id="detector_1",
+            )
+        )
+        store.insert(
+            DecisionOutcome(
+                timestamp=1001.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.8,
+                role_id="detector_1",
+            )
+        )
 
         stats = store.get_role_stats("detector_1")
         assert stats["total_samples"] == 2
@@ -671,24 +743,41 @@ class TestExperienceStorePerRole:
 
     def test_get_role_ids(self) -> None:
         store = ExperienceStore(":memory:")
-        store.insert(DecisionOutcome(
-            timestamp=1000.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.8, role_id="detector_1",
-        ))
-        store.insert(DecisionOutcome(
-            timestamp=1001.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.5, role_id="evaluator_1",
-        ))
-        store.insert(DecisionOutcome(
-            timestamp=1002.0, decision_type="test",
-            state_before="active", state_after="active",
-            entropy_before=2, entropy_after=1,
-            reward=0.9,
-        ))
+        store.insert(
+            DecisionOutcome(
+                timestamp=1000.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.8,
+                role_id="detector_1",
+            )
+        )
+        store.insert(
+            DecisionOutcome(
+                timestamp=1001.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.5,
+                role_id="evaluator_1",
+            )
+        )
+        store.insert(
+            DecisionOutcome(
+                timestamp=1002.0,
+                decision_type="test",
+                state_before="active",
+                state_after="active",
+                entropy_before=2,
+                entropy_after=1,
+                reward=0.9,
+            )
+        )
 
         role_ids = store.get_role_ids()
         assert set(role_ids) == {"detector_1", "evaluator_1"}
@@ -716,18 +805,25 @@ class TestExperienceStorePerRole:
 # Integration Tests
 # ============================================================================
 
+
 class TestIntegration:
     def test_full_reward_flow(self) -> None:
         """Complete flow: register agents → compute rewards → store → query."""
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "detector_1", AgentRole.DETECTOR,
-            lambda s: 1.0 - s.get("fnr", 1.0) * 2.0,
-        ))
-        assembler.register_reward_fn(RoleRewardFn(
-            "evaluator_1", AgentRole.EVALUATOR,
-            lambda s: 1.0 - s.get("scoring_error", 1.0),
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "detector_1",
+                AgentRole.DETECTOR,
+                lambda s: 1.0 - s.get("fnr", 1.0) * 2.0,
+            )
+        )
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "evaluator_1",
+                AgentRole.EVALUATOR,
+                lambda s: 1.0 - s.get("scoring_error", 1.0),
+            )
+        )
 
         store = ExperienceStore(":memory:")
 
@@ -763,9 +859,13 @@ class TestIntegration:
 
     def test_cycle_reward_application(self) -> None:
         assembler = MultiGranularityRewardAssembler()
-        assembler.register_reward_fn(RoleRewardFn(
-            "detector_1", AgentRole.DETECTOR, lambda s: 0.5,
-        ))
+        assembler.register_reward_fn(
+            RoleRewardFn(
+                "detector_1",
+                AgentRole.DETECTOR,
+                lambda s: 0.5,
+            )
+        )
 
         for i in range(10):
             assembler.assemble_round_rewards(
@@ -773,11 +873,13 @@ class TestIntegration:
                 round_snapshot={"fnr": 0.5 - i * 0.04},
             )
 
-        cycle_reward = assembler.apply_cycle_rewards({
-            "fnr_series": [0.5 - i * 0.04 for i in range(10)],
-            "fpr_series": [0.3 - i * 0.02 for i in range(10)],
-            "converged": True,
-        })
+        cycle_reward = assembler.apply_cycle_rewards(
+            {
+                "fnr_series": [0.5 - i * 0.04 for i in range(10)],
+                "fpr_series": [0.3 - i * 0.02 for i in range(10)],
+                "converged": True,
+            }
+        )
         assert len(cycle_reward) == 1
 
         stats = assembler.get_stats()

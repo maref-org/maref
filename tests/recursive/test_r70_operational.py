@@ -53,15 +53,22 @@ class TestOperationalValidator:
             PluginRoleIdentity,
             PluginRoleTrust,
         )
+
         core_role = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:core/executor/v1", name="executor", version="1.0"),
-            capability=PluginRoleCapability(trigram="震", allowed_tools=["write", "edit"], max_entropy=12.0),
+            identity=PluginRoleIdentity(
+                did="did:maref:core/executor/v1", name="executor", version="1.0"
+            ),
+            capability=PluginRoleCapability(
+                trigram="震", allowed_tools=["write", "edit"], max_entropy=12.0
+            ),
             trust=PluginRoleTrust(min_trust_score=0.5),
         )
         security_plugin = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:plugin/security/v1", name="security", version="1.0"),
+            identity=PluginRoleIdentity(
+                did="did:maref:plugin/security/v1", name="security", version="1.0"
+            ),
             capability=PluginRoleCapability(trigram="艮", allowed_tools=["audit"]),
             trust=PluginRoleTrust(min_trust_score=0.6),
         )
@@ -88,9 +95,12 @@ class TestOperationalValidator:
             PluginRoleIdentity,
             PluginRoleTrust,
         )
+
         core_role = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:core/test/v1", name="test-core", version="1.0"),
+            identity=PluginRoleIdentity(
+                did="did:maref:core/test/v1", name="test-core", version="1.0"
+            ),
             capability=PluginRoleCapability(trigram="乾", allowed_tools=["do"], max_entropy=10.0),
             trust=PluginRoleTrust(),
         )

@@ -18,7 +18,6 @@ Usage:
 """
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -36,13 +35,13 @@ VERSION_FILES = {
     },
     "README.md": {
         "path": ROOT / "README.md",
-        "pattern": r'version-([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z]+)?)\-',
-        "replacement": 'version-{version}-',
+        "pattern": r"version-([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z]+)?)\-",
+        "replacement": "version-{version}-",
         "priority": "derived",
     },
     "CHANGELOG.md": {
         "path": ROOT / "CHANGELOG.md",
-        "pattern": r'^## \[v?([^\]]+)\]',
+        "pattern": r"^## \[v?([^\]]+)\]",
         "replacement": None,
         "priority": "derived",
         "has_group": True,
@@ -154,7 +153,7 @@ def sync_version(target_version: str | None = None) -> bool:
             config["replacement"].format(version=target_version) if config["replacement"] else "",
             content,
             count=0,
-            flags=re.MULTILINE
+            flags=re.MULTILINE,
         )
 
         if count > 0:

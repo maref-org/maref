@@ -14,13 +14,23 @@ from maref.integration.test_platform.schema import EvalStatus
 class TestCycleSnapshot:
     def test_to_dict(self) -> None:
         snap = CycleSnapshot(
-            cycle_number=1, topic="Test",
-            layer_scores={"A": 80.0, "B": 70.0}, overall_score=75.0,
-            overall_status=EvalStatus.CONDITIONAL, verdict="approved",
-            feedback_injected="Good", duration_seconds=10.0,
-            artifacts={"characters": [{"name": "A"}], "scripts": [{"title": "1"}],
-                       "stages_covered": {"mvp"}, "requirements_covered": 5},
-            go_nogo_decision="GO", budget_used=100.0, llm_used=True,
+            cycle_number=1,
+            topic="Test",
+            layer_scores={"A": 80.0, "B": 70.0},
+            overall_score=75.0,
+            overall_status=EvalStatus.CONDITIONAL,
+            verdict="approved",
+            feedback_injected="Good",
+            duration_seconds=10.0,
+            artifacts={
+                "characters": [{"name": "A"}],
+                "scripts": [{"title": "1"}],
+                "stages_covered": {"mvp"},
+                "requirements_covered": 5,
+            },
+            go_nogo_decision="GO",
+            budget_used=100.0,
+            llm_used=True,
         )
         d = snap.to_dict()
         assert d["cycle_number"] == 1
@@ -33,9 +43,14 @@ class TestCycleSnapshot:
 
     def test_to_dict_empty_artifacts(self) -> None:
         snap = CycleSnapshot(
-            cycle_number=1, topic="T", layer_scores={}, overall_score=0.0,
-            overall_status=EvalStatus.FAIL, verdict="fail",
-            feedback_injected="", duration_seconds=0.0,
+            cycle_number=1,
+            topic="T",
+            layer_scores={},
+            overall_score=0.0,
+            overall_status=EvalStatus.FAIL,
+            verdict="fail",
+            feedback_injected="",
+            duration_seconds=0.0,
         )
         d = snap.to_dict()
         assert d["characters"] == 0
@@ -47,12 +62,24 @@ def _make_cycle(**attrs: Any) -> FeatureDevelopmentCycle:
     for k, v in attrs.items():
         setattr(cycle, k, v)
     missing = {
-        "doc": None, "tasks": None, "iterations": 10, "budget_cents": 50000.0,
-        "snapshots": [], "_llm": None, "_sm": None, "_eval_obs": None,
-        "_qg": None, "_orch": None, "_producer": None, "_scorer": None,
-        "_base_topic": "Test topic", "_budget_spent": 0.0,
-        "_prev_artifacts": None, "_go_nogo_triggered": False,
-        "_final_decision": "in_progress", "_llm_feedback_history": [],
+        "doc": None,
+        "tasks": None,
+        "iterations": 10,
+        "budget_cents": 50000.0,
+        "snapshots": [],
+        "_llm": None,
+        "_sm": None,
+        "_eval_obs": None,
+        "_qg": None,
+        "_orch": None,
+        "_producer": None,
+        "_scorer": None,
+        "_base_topic": "Test topic",
+        "_budget_spent": 0.0,
+        "_prev_artifacts": None,
+        "_go_nogo_triggered": False,
+        "_final_decision": "in_progress",
+        "_llm_feedback_history": [],
     }
     for k, v in missing.items():
         if not hasattr(cycle, k):
@@ -116,9 +143,13 @@ class TestBuildTopic:
 
     def test_later_cycle_focuses_low_layers(self) -> None:
         snap = MagicMock()
-        snap.layer_scores = {"Static Audit": 40.0, "Reasoning Metrics": 80.0,
-                             "Action Metrics": 70.0, "E2E Metrics": 90.0,
-                             "MAS Dimensions": 85.0}
+        snap.layer_scores = {
+            "Static Audit": 40.0,
+            "Reasoning Metrics": 80.0,
+            "Action Metrics": 70.0,
+            "E2E Metrics": 90.0,
+            "MAS Dimensions": 85.0,
+        }
         cycle = _make_cycle(snapshots=[snap])
         topic = cycle._build_topic(2)
         assert "focus" in topic
@@ -152,7 +183,8 @@ class TestCompileStructuralFeedback:
     def test_all_layers_at_target(self) -> None:
         cycle = _make_cycle()
         result = cycle._compile_structural_feedback(
-            {"A": 85.0, "B": 82.0}, {"characters": [], "scripts": []},
+            {"A": 85.0, "B": 82.0},
+            {"characters": [], "scripts": []},
         )
         assert "All layers at target" in result
 

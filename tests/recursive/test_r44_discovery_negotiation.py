@@ -53,7 +53,9 @@ class TestAgentNegotiator:
 
     def test_propose(self) -> None:
         proposal = self.negotiator.propose(
-            "agent_a", "agent_b", "task_assign",
+            "agent_a",
+            "agent_b",
+            "task_assign",
             {"task": "search", "reward": 10.0},
             trust_level=0.5,
         )
@@ -62,7 +64,10 @@ class TestAgentNegotiator:
 
     def test_evaluate_accept(self) -> None:
         proposal = self.negotiator.propose(
-            "a", "b", "collaboration", {"scope": "full"},
+            "a",
+            "b",
+            "collaboration",
+            {"scope": "full"},
         )
         result = self.negotiator.evaluate(proposal, 0.8)
         assert result.accepted
@@ -74,7 +79,11 @@ class TestAgentNegotiator:
 
     def test_evaluate_reject_counterparty_min(self) -> None:
         proposal = self.negotiator.propose(
-            "a", "b", "task", {}, trust_level=0.9,
+            "a",
+            "b",
+            "task",
+            {},
+            trust_level=0.9,
         )
         result = self.negotiator.evaluate(proposal, 0.5)
         assert not result.accepted

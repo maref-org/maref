@@ -97,9 +97,11 @@ def configure_logging(
     if is_production:
         logging.getLogger().handlers.clear()
         handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(structlog.stdlib.ProcessorFormatter(
-            processor=structlog.processors.JSONRenderer(),
-        ))
+        handler.setFormatter(
+            structlog.stdlib.ProcessorFormatter(
+                processor=structlog.processors.JSONRenderer(),
+            )
+        )
         logging.getLogger().addHandler(handler)
 
 

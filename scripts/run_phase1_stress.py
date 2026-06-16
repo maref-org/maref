@@ -1,4 +1,5 @@
 """Phase 1: Single-Axis Calibration (R71-R76)."""
+
 from maref.stress import ResilienceTracker, StressHarness, StressLevel
 
 
@@ -24,9 +25,11 @@ def run_phase1() -> ResilienceTracker:
             result = harness.run(rid)
             tracker.record_round(rid, result.resilience_score, result.to_dict())
             status = "PASS" if result.passed else f"FAIL({len(result.errors)} errors)"
-            print(f"  {rid:30s} score={result.resilience_score:6.2f}  "
-                  f"p50={result.latency_p50:7.2f}ms  p99={result.latency_p99:7.2f}ms  "
-                  f"healer={result.healer_success_rate:.2f}  {status}")
+            print(
+                f"  {rid:30s} score={result.resilience_score:6.2f}  "
+                f"p50={result.latency_p50:7.2f}ms  p99={result.latency_p99:7.2f}ms  "
+                f"healer={result.healer_success_rate:.2f}  {status}"
+            )
 
     return tracker
 

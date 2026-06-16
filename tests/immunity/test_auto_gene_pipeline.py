@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from maref.immunity.negative_gene_bank import NegativeGeneBank
 from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
+from maref.immunity.negative_gene_bank import NegativeGeneBank
 from maref.recursive.experience_pool import ExperiencePool
 
 

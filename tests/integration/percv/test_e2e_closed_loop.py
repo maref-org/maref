@@ -95,11 +95,13 @@ class TestClosedLoop:
         kdp_results = bridge.run_protocol_a([{"claim": "Revenue grew 20%"}])
         assert len(kdp_results) >= 1
 
-        hypothesis_result = bridge.run_protocol_c({
-            "linked_kdps": ["K-001"],
-            "assumptions": [{"text": "a1"}],
-            "core_forecast": "If A then B",
-        })
+        hypothesis_result = bridge.run_protocol_c(
+            {
+                "linked_kdps": ["K-001"],
+                "assumptions": [{"text": "a1"}],
+                "core_forecast": "If A then B",
+            }
+        )
         assert hypothesis_result.protocol == "C"
 
     def test_full_pipeline_directive_flow(self) -> None:
@@ -142,6 +144,7 @@ class TestClosedLoop:
             RatchetBridge,
             VerificationBridge,
         )
+
         assert PERCVGatewayAdapter is not None
         assert GatewayResponse is not None
         assert GatewayRole is not None

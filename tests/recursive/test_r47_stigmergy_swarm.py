@@ -24,7 +24,10 @@ class TestStigmergySwarm:
         self.swarm.create_environment("env_1")
         self.swarm.register_member("agent_1")
         p = self.swarm.deposit_pheromone(
-            "env_1", "agent_1", PheromoneType.TASK_READY, "board",
+            "env_1",
+            "agent_1",
+            PheromoneType.TASK_READY,
+            "board",
             intensity=1.0,
         )
         assert p is not None
@@ -32,9 +35,15 @@ class TestStigmergySwarm:
 
     def test_deposit_bad_env(self) -> None:
         self.swarm.register_member("agent_1")
-        assert self.swarm.deposit_pheromone(
-            "nonexistent", "agent_1", PheromoneType.TASK_READY, "x",
-        ) is None
+        assert (
+            self.swarm.deposit_pheromone(
+                "nonexistent",
+                "agent_1",
+                PheromoneType.TASK_READY,
+                "x",
+            )
+            is None
+        )
 
     def test_sense_pheromones(self) -> None:
         self.swarm.create_environment("env_1")
@@ -82,7 +91,10 @@ class TestStigmergySwarm:
         self.swarm.create_environment("env_1")
         self.swarm.register_member("a1")
         p = self.swarm.deposit_pheromone(
-            "env_1", "a1", PheromoneType.TASK_READY, "loc",
+            "env_1",
+            "a1",
+            PheromoneType.TASK_READY,
+            "loc",
             intensity=1.0,
         )
         assert p is not None

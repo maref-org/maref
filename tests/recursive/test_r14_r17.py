@@ -73,9 +73,16 @@ class TestResilienceV2:
 
     def test_auto_recommend_degradation_no_degradation(self) -> None:
         evaluator = ResilienceEvaluatorV2()
-        score = ResilienceScore(total_score=90.0,
-                                factors={"survival_rate": 1.0, "meta_protection_rate": 1.0, "throughput_under_stress": 1.0},
-                                thresholds={}, passed=True)
+        score = ResilienceScore(
+            total_score=90.0,
+            factors={
+                "survival_rate": 1.0,
+                "meta_protection_rate": 1.0,
+                "throughput_under_stress": 1.0,
+            },
+            thresholds={},
+            passed=True,
+        )
         plans = evaluator.auto_recommend_degradation(score)
         assert len(plans) == 0
 

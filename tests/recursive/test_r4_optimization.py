@@ -56,7 +56,9 @@ class TestSelfOptimizer:
         )
 
     def test_propose_optimizations_generates_hypotheses(
-        self, optimizer: SelfOptimizer, large_snapshot: SystemSnapshot,
+        self,
+        optimizer: SelfOptimizer,
+        large_snapshot: SystemSnapshot,
     ) -> None:
         hypotheses = optimizer.propose_optimizations(large_snapshot)
         assert len(hypotheses) >= 3
@@ -184,6 +186,8 @@ class TestSelfOptimizer:
     def test_real_benchmark_integration(self) -> None:
         from maref.recursive.self_optimizer import _run_real_benchmark
 
-        result = _run_real_benchmark(timeout=30, test_path="tests/recursive/test_r4_optimization.py")
+        result = _run_real_benchmark(
+            timeout=30, test_path="tests/recursive/test_r4_optimization.py"
+        )
         assert "test_count" in result
         assert isinstance(result["test_count"], float)

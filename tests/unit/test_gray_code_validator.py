@@ -1,6 +1,5 @@
 """Unit tests for the Gray code state machine validator."""
 
-
 from formal.gray_code_validator import (
     ENTROPY_LEVELS,
     GRAY_CODE,

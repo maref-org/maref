@@ -91,9 +91,9 @@ class TestGovernanceStateFlow:
 
     def test_entropy_trend_accumulation(self, sm: GovernanceStateMachine) -> None:
         """Entropy trend should accumulate correctly across transitions."""
-        sm.transition(GovernanceState.OBSERVE)     # entropy: 0->1
-        sm.transition(GovernanceState.ANALYZE)      # 1->2
-        sm.transition(GovernanceState.EVALUATE)     # 2->2
+        sm.transition(GovernanceState.OBSERVE)  # entropy: 0->1
+        sm.transition(GovernanceState.ANALYZE)  # 1->2
+        sm.transition(GovernanceState.EVALUATE)  # 2->2
         trend = sm.get_entropy_trend()
         assert trend["current"] == 2
         assert trend["max"] == 2
@@ -116,7 +116,9 @@ class TestObservationToAnomalyFlow:
         return CompositeMonitor()
 
     @pytest.fixture
-    def overlay(self, collector: ObservationCollector, monitor: CompositeMonitor) -> GovernanceOverlay:
+    def overlay(
+        self, collector: ObservationCollector, monitor: CompositeMonitor
+    ) -> GovernanceOverlay:
         return GovernanceOverlay(
             collector=collector,
             monitor=monitor,

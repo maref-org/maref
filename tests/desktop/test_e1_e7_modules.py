@@ -59,17 +59,24 @@ class TestDeviceInfo:
 
     def test_from_dict(self):
         data = {
-            "device_id": "desk-001", "name": "Mac Studio",
-            "device_type": "desktop", "platform": "macos",
-            "host": "127.0.0.1", "port": 8080,
+            "device_id": "desk-001",
+            "name": "Mac Studio",
+            "device_type": "desktop",
+            "platform": "macos",
+            "host": "127.0.0.1",
+            "port": 8080,
         }
         device = DeviceInfo.from_dict(data)
         assert device.device_id == "desk-001"
         assert device.host == "127.0.0.1"
 
     def test_fingerprint(self):
-        d1 = DeviceInfo(device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="1.2.3.4", port=80)
-        d2 = DeviceInfo(device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="1.2.3.4", port=80)
+        d1 = DeviceInfo(
+            device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="1.2.3.4", port=80
+        )
+        d2 = DeviceInfo(
+            device_id="a", name="Mac", platform=DevicePlatform.MACOS, host="1.2.3.4", port=80
+        )
         assert d1.fingerprint == d2.fingerprint
 
     def test_default_values(self):
@@ -92,8 +99,12 @@ class TestDeviceDiscovery:
 
     def test_discover_by_type(self):
         discovery = DeviceDiscovery()
-        discovery.register_device(DeviceInfo(device_id="d1", name="Desktop", device_type=DeviceType.DESKTOP))
-        discovery.register_device(DeviceInfo(device_id="p1", name="Phone", device_type=DeviceType.MOBILE))
+        discovery.register_device(
+            DeviceInfo(device_id="d1", name="Desktop", device_type=DeviceType.DESKTOP)
+        )
+        discovery.register_device(
+            DeviceInfo(device_id="p1", name="Phone", device_type=DeviceType.MOBILE)
+        )
         assert len(discovery.discover_by_type(DeviceType.MOBILE)) == 1
         assert len(discovery.discover_by_type(DeviceType.DESKTOP)) == 1
 
@@ -120,7 +131,9 @@ class TestDeviceDiscovery:
 
     def test_online_check(self):
         discovery = DeviceDiscovery()
-        discovery.register_device(DeviceInfo(device_id="test", name="Test", host="127.0.0.1", port=9876))
+        discovery.register_device(
+            DeviceInfo(device_id="test", name="Test", host="127.0.0.1", port=9876)
+        )
         status = discovery.check_online(timeout=0.5)
         assert "test" in status
 
@@ -247,7 +260,12 @@ class TestMobileBridge:
     def test_register_and_topology(self):
         bridge = MobileBridge()
         bridge.register_mobile_device(
-            DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE, platform=DevicePlatform.ANDROID)
+            DeviceInfo(
+                device_id="phone-1",
+                name="Phone",
+                device_type=DeviceType.MOBILE,
+                platform=DevicePlatform.ANDROID,
+            )
         )
         topo = bridge.get_device_topology()
         assert len(topo["discovered"]) == 1
@@ -255,7 +273,9 @@ class TestMobileBridge:
 
     def test_create_session_and_dispatch(self):
         bridge = MobileBridge()
-        bridge.register_mobile_device(DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE))
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE)
+        )
         bridge.create_bridge_session("phone-1", bridge.device_id)
 
         task = bridge.dispatch_task(
@@ -274,28 +294,38 @@ class TestMobileBridge:
 
     def test_complete_task(self):
         bridge = MobileBridge()
-        bridge.register_mobile_device(DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE))
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE)
+        )
         task = bridge.dispatch_task("phone-1", bridge.device_id, "Test", {})
         bridge.complete_task(task.task_id, {"result": "success"})
         assert bridge.get_device_topology()["pending_tasks"] == 0
 
     def test_fail_task(self):
         bridge = MobileBridge()
-        bridge.register_mobile_device(DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE))
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE)
+        )
         task = bridge.dispatch_task("phone-1", bridge.device_id, "Test", {})
         bridge.fail_task(task.task_id, "Network error")
         assert bridge.get_device_topology()["pending_tasks"] == 0
 
     def test_event_log(self):
         bridge = MobileBridge()
-        bridge.register_mobile_device(DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE))
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE)
+        )
         bridge.create_bridge_session("phone-1", bridge.device_id)
         assert len(bridge.get_event_log()) == 2
 
     def test_topology_multiple_devices(self):
         bridge = MobileBridge()
-        bridge.register_mobile_device(DeviceInfo(device_id="p1", name="Phone1", device_type=DeviceType.MOBILE))
-        bridge.register_mobile_device(DeviceInfo(device_id="p2", name="Phone2", device_type=DeviceType.MOBILE))
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="p1", name="Phone1", device_type=DeviceType.MOBILE)
+        )
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="p2", name="Phone2", device_type=DeviceType.MOBILE)
+        )
         bridge.create_bridge_session("p1", bridge.device_id)
         bridge.create_bridge_session("p2", bridge.device_id)
 
@@ -484,7 +514,9 @@ class TestBrowserController:
         assert len(bc.get_operation_log()) == 2
 
     def test_result_to_dict(self):
-        result = BrowserResult(success=True, action=BrowserAction.NAVIGATE, url="https://example.com")
+        result = BrowserResult(
+            success=True, action=BrowserAction.NAVIGATE, url="https://example.com"
+        )
         d = result.to_dict()
         assert d["success"] is True
         assert d["url"] == "https://example.com"
@@ -665,19 +697,27 @@ class TestBridgeIntegration:
         bridge = MobileBridge()
         spawner = SubAgentSpawner()
 
-        bridge.register_mobile_device(DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE))
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE)
+        )
         bridge.create_bridge_session("phone-1", bridge.device_id)
 
-        task = bridge.dispatch_task("phone-1", bridge.device_id, "Explore Project", {"path": "/tmp/test"})
+        task = bridge.dispatch_task(
+            "phone-1", bridge.device_id, "Explore Project", {"path": "/tmp/test"}
+        )
         iso_id = spawner.spawn(bridge.device_id, task.name, {"task": task.to_dict()}, ["task"])
-        summary = spawner.complete(iso_id, ["Found test files"], ["/tmp/test/a.txt"], confidence=0.92)
+        summary = spawner.complete(
+            iso_id, ["Found test files"], ["/tmp/test/a.txt"], confidence=0.92
+        )
         bridge.complete_task(task.task_id, {"summary": summary.to_dict()})
 
         assert spawner.get_token_savings(iso_id) > 0
 
     def test_one_phone_multiple_desktop_topology(self):
         bridge = MobileBridge()
-        bridge.register_mobile_device(DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE))
+        bridge.register_mobile_device(
+            DeviceInfo(device_id="phone-1", name="Phone", device_type=DeviceType.MOBILE)
+        )
         bridge.create_bridge_session("phone-1", bridge.device_id)
         bridge.dispatch_task("phone-1", bridge.device_id, "Task A", {"action": "screenshot"})
         bridge.dispatch_task("phone-1", bridge.device_id, "Task B", {"action": "parse_ui"})

@@ -21,7 +21,19 @@ class TestCommandWhitelist:
 
     def test_blocked_commands(self):
         wl = CommandWhitelist()
-        for cmd in ["rm", "rmdir", "chmod", "chown", "dd", "sudo", "su", "kill", "passwd", "shutdown", "reboot"]:
+        for cmd in [
+            "rm",
+            "rmdir",
+            "chmod",
+            "chown",
+            "dd",
+            "sudo",
+            "su",
+            "kill",
+            "passwd",
+            "shutdown",
+            "reboot",
+        ]:
             assert not wl.is_allowed(cmd)
 
     def test_is_allowed_with_path(self):
@@ -109,7 +121,9 @@ class TestShellServerRunCommand:
         self.transport.connect()
 
     def test_echo_success(self):
-        resp = self.transport.send_tool_call("run_command", {"command": "echo", "args": ["hello world"]})
+        resp = self.transport.send_tool_call(
+            "run_command", {"command": "echo", "args": ["hello world"]}
+        )
         assert not resp.is_error
         assert resp.result["stdout"].strip() == "hello world"
         assert resp.result["exit_code"] == 0
@@ -128,7 +142,9 @@ class TestShellServerRunCommand:
         assert len(resp.result["stdout"]) > 0
 
     def test_echo_with_multiple_args(self):
-        resp = self.transport.send_tool_call("run_command", {"command": "echo", "args": ["hello", "world"]})
+        resp = self.transport.send_tool_call(
+            "run_command", {"command": "echo", "args": ["hello", "world"]}
+        )
         assert not resp.is_error
         assert resp.result["stdout"].strip() == "hello world"
         assert resp.result["exit_code"] == 0
@@ -140,13 +156,17 @@ class TestShellServerRunCommand:
         assert "not in the whitelist" in resp.result["stderr"]
 
     def test_shell_metacharacters_semicolon(self):
-        resp = self.transport.send_tool_call("run_command", {"command": "echo", "args": ["hello;world"]})
+        resp = self.transport.send_tool_call(
+            "run_command", {"command": "echo", "args": ["hello;world"]}
+        )
         assert not resp.is_error
         assert resp.result["exit_code"] == -1
         assert "metacharacters" in resp.result["stderr"]
 
     def test_shell_metacharacters_pipe(self):
-        resp = self.transport.send_tool_call("run_command", {"command": "echo", "args": ["hello", "|", "wc"]})
+        resp = self.transport.send_tool_call(
+            "run_command", {"command": "echo", "args": ["hello", "|", "wc"]}
+        )
         assert not resp.is_error
         assert resp.result["exit_code"] == -1
         assert "metacharacters" in resp.result["stderr"]
@@ -158,7 +178,9 @@ class TestShellServerRunCommand:
         assert "metacharacters" in resp.result["stderr"]
 
     def test_shell_metacharacters_and_and(self):
-        resp = self.transport.send_tool_call("run_command", {"command": "echo", "args": ["ls && pwd"]})
+        resp = self.transport.send_tool_call(
+            "run_command", {"command": "echo", "args": ["ls && pwd"]}
+        )
         assert not resp.is_error
         assert resp.result["exit_code"] == -1
         assert "metacharacters" in resp.result["stderr"]
@@ -169,7 +191,9 @@ class TestShellServerRunCommand:
         assert not resp.result["timed_out"]
 
     def test_cwd_relative_path_rejected(self):
-        resp = self.transport.send_tool_call("run_command", {"command": "pwd", "cwd": "relative/path"})
+        resp = self.transport.send_tool_call(
+            "run_command", {"command": "pwd", "cwd": "relative/path"}
+        )
         assert not resp.is_error
         assert resp.result["exit_code"] == -1
         assert "absolute path" in resp.result["stderr"]
@@ -212,15 +236,43 @@ class TestShellServerRunCommand:
 
     def test_whitelist_contains_all_specified_commands(self):
         wl = CommandWhitelist()
-        expected = {"ls", "cat", "head", "tail", "wc", "grep", "find",
-                    "echo", "date", "pwd", "which", "whoami", "uname",
-                    "sort", "cut", "tr", "mkdir"}
+        expected = {
+            "ls",
+            "cat",
+            "head",
+            "tail",
+            "wc",
+            "grep",
+            "find",
+            "echo",
+            "date",
+            "pwd",
+            "which",
+            "whoami",
+            "uname",
+            "sort",
+            "cut",
+            "tr",
+            "mkdir",
+        }
         for cmd in expected:
             assert wl.is_allowed(cmd), f"{cmd} should be whitelisted"
 
     def test_whitelist_excludes_dangerous_commands(self):
         wl = CommandWhitelist()
-        forbidden = {"rm", "rmdir", "chmod", "chown", "dd", "sudo", "su", "kill", "passwd", "shutdown", "reboot"}
+        forbidden = {
+            "rm",
+            "rmdir",
+            "chmod",
+            "chown",
+            "dd",
+            "sudo",
+            "su",
+            "kill",
+            "passwd",
+            "shutdown",
+            "reboot",
+        }
         for cmd in forbidden:
             assert not wl.is_allowed(cmd), f"{cmd} should not be whitelisted"
 

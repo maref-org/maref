@@ -2,8 +2,6 @@
 
 import time
 
-import pytest
-
 from maref.memory.memory_manager import (
     ConfidenceLabel,
     EpisodicMemoryStore,
@@ -80,14 +78,20 @@ class TestWorkingMemoryStore:
 
     def test_query_user_isolation(self):
         store = WorkingMemoryStore(ttl_seconds=60)
-        store.put(MemoryRecord(
-            memory_id="m1", content={},
-            user_tag=UserIsolationTag("user1", "sess1"),
-        ))
-        store.put(MemoryRecord(
-            memory_id="m2", content={},
-            user_tag=UserIsolationTag("user2", "sess2"),
-        ))
+        store.put(
+            MemoryRecord(
+                memory_id="m1",
+                content={},
+                user_tag=UserIsolationTag("user1", "sess1"),
+            )
+        )
+        store.put(
+            MemoryRecord(
+                memory_id="m2",
+                content={},
+                user_tag=UserIsolationTag("user2", "sess2"),
+            )
+        )
         results = store.query(MemoryQuery(user_tag=UserIsolationTag("user1")))
         assert len(results) == 1
         assert results[0].memory_id == "m1"
@@ -126,14 +130,18 @@ class TestEpisodicMemoryStore:
 
     def test_get_agent_history(self):
         store = EpisodicMemoryStore()
-        store.append(MemoryRecord(
-            memory_id="e1",
-            content={"agent_id": "agent-a", "outcome": "success"},
-        ))
-        store.append(MemoryRecord(
-            memory_id="e2",
-            content={"agent_id": "agent-b", "outcome": "failure"},
-        ))
+        store.append(
+            MemoryRecord(
+                memory_id="e1",
+                content={"agent_id": "agent-a", "outcome": "success"},
+            )
+        )
+        store.append(
+            MemoryRecord(
+                memory_id="e2",
+                content={"agent_id": "agent-b", "outcome": "failure"},
+            )
+        )
         history = store.get_agent_history("agent-a")
         assert len(history) == 1
         assert history[0].memory_id == "e1"
@@ -141,12 +149,16 @@ class TestEpisodicMemoryStore:
     def test_summarize_episodes(self):
         store = EpisodicMemoryStore()
         for i in range(5):
-            store.append(MemoryRecord(
-                content={"task_type": "report", "outcome": "success", "duration_ms": 100},
-            ))
-        store.append(MemoryRecord(
-            content={"task_type": "report", "outcome": "failure", "duration_ms": 200},
-        ))
+            store.append(
+                MemoryRecord(
+                    content={"task_type": "report", "outcome": "success", "duration_ms": 100},
+                )
+            )
+        store.append(
+            MemoryRecord(
+                content={"task_type": "report", "outcome": "failure", "duration_ms": 200},
+            )
+        )
         summary = store.summarize_episodes("report")
         assert summary["count"] == 6
         assert summary["success_rate"] == 5 / 6

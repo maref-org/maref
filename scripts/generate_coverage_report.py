@@ -42,9 +42,7 @@ def generate_module_report():
                     total_missing += file_data["summary"]["missing_lines"]
 
         if total_statements > 0:
-            coverage_pct = round(
-                ((total_statements - total_missing) / total_statements) * 100, 2
-            )
+            coverage_pct = round(((total_statements - total_missing) / total_statements) * 100, 2)
         else:
             coverage_pct = 0.0
 

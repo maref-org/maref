@@ -12,18 +12,26 @@ def _init_git_repo(path: Path) -> None:
     subprocess.run(["git", "init"], cwd=path, capture_output=True, text=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=path, capture_output=True, text=True, check=True,
+        cwd=path,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "test"],
-        cwd=path, capture_output=True, text=True, check=True,
+        cwd=path,
+        capture_output=True,
+        text=True,
+        check=True,
     )
 
 
 def _make_commit(path: Path, filename: str, content: str, message: str) -> None:
     (path / filename).write_text(content)
     subprocess.run(["git", "add", filename], cwd=path, capture_output=True, text=True, check=True)
-    subprocess.run(["git", "commit", "-m", message], cwd=path, capture_output=True, text=True, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", message], cwd=path, capture_output=True, text=True, check=True
+    )
 
 
 def _call_tool(
@@ -146,7 +154,10 @@ class TestGitServerBasic:
         _make_commit(tmp_path, "init.txt", "init", "initial commit")
         subprocess.run(
             ["git", "branch", "feature-branch"],
-            cwd=tmp_path, capture_output=True, text=True, check=True,
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         whitelist = RepoWhitelist([str(tmp_path)])
         server = GitServer(repo_whitelist=whitelist)
@@ -206,7 +217,8 @@ class TestGitServerSecurity:
         server = GitServer(repo_whitelist=whitelist, write_mode=False)
 
         error = _call_tool_error(
-            server, "git_commit",
+            server,
+            "git_commit",
             {"path": str(tmp_path), "message": "should fail"},
         )
 
@@ -220,7 +232,8 @@ class TestGitServerSecurity:
 
         (tmp_path / "newfile.txt").write_text("new content")
         result = _call_tool(
-            server, "git_commit",
+            server,
+            "git_commit",
             {"path": str(tmp_path), "message": "add newfile"},
         )
 
@@ -232,13 +245,17 @@ class TestGitServerSecurity:
         _make_commit(tmp_path, "init.txt", "init", "initial commit")
         current_branch = subprocess.run(
             ["git", "branch", "--show-current"],
-            cwd=tmp_path, capture_output=True, text=True, check=True,
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
         whitelist = RepoWhitelist([str(tmp_path)])
         server = GitServer(repo_whitelist=whitelist)
 
         result = _call_tool(
-            server, "git_log",
+            server,
+            "git_log",
             {"path": str(tmp_path), "branch": current_branch},
         )
 
@@ -255,7 +272,8 @@ class TestGitServerWriteMode:
         (tmp_path / "a.txt").write_text("a")
         (tmp_path / "b.txt").write_text("b")
         result = _call_tool(
-            server, "git_commit",
+            server,
+            "git_commit",
             {"path": str(tmp_path), "message": "add two files", "files": ["a.txt"]},
         )
 
@@ -269,7 +287,8 @@ class TestGitServerWriteMode:
         server = GitServer(repo_whitelist=whitelist, write_mode=False)
 
         error = _call_tool_error(
-            server, "git_push",
+            server,
+            "git_push",
             {"path": str(tmp_path), "remote": "origin"},
         )
 
@@ -282,7 +301,8 @@ class TestGitServerWriteMode:
 
         (tmp_path / "test.txt").write_text("content")
         _call_tool(
-            server, "git_commit",
+            server,
+            "git_commit",
             {"path": str(tmp_path), "message": "test commit"},
         )
 
@@ -364,10 +384,14 @@ class TestGitServerMCPProtocol:
 
         transport = server.get_inprocess_transport()
         transport.connect()
-        req = JSONRPCRequest(method="initialize", params={
-            "protocolVersion": "2024-11-05",
-            "clientInfo": {"name": "test", "version": "1.0"},
-        }, id=1)
+        req = JSONRPCRequest(
+            method="initialize",
+            params={
+                "protocolVersion": "2024-11-05",
+                "clientInfo": {"name": "test", "version": "1.0"},
+            },
+            id=1,
+        )
         resp = transport.send(req)
         assert not resp.is_error
         assert resp.result["serverInfo"]["name"] == "git-test"
@@ -416,7 +440,8 @@ class TestGitServerDiffEdgeCases:
         first_hash = log["commits"][1]["hash"]
 
         result = _call_tool(
-            server, "git_diff",
+            server,
+            "git_diff",
             {"path": str(tmp_path), "target": "HEAD", "base": first_hash},
         )
 

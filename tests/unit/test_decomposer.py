@@ -54,6 +54,7 @@ class TestTaskDAG:
 
     def test_dag_fuzz_no_false_positives(self) -> None:
         import random
+
         random.seed(42)
         for _ in range(100):
             dag = TaskDAG()
@@ -91,6 +92,7 @@ class TestTaskDecomposer:
 
     def test_decompose_accuracy(self, decomposer: TaskDecomposer) -> None:
         import random
+
         random.seed(42)
         total = 20
         test_phrases = ["analyze", "report", "research", "investigate", "synthesize"]

@@ -82,9 +82,7 @@ class TestCreateTask:
 
 
 class TestGetTask:
-    def test_get_task_success(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_get_task_success(self, client: TestClient, queue: TaskQueue) -> None:
         task = Task(
             name="fetch-me",
             description="Task to fetch",
@@ -109,9 +107,7 @@ class TestGetTask:
 
 
 class TestCancelTask:
-    def test_cancel_task_success(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_cancel_task_success(self, client: TestClient, queue: TaskQueue) -> None:
         task = Task(name="cancel-me")
         task_id = queue.enqueue(task)
 
@@ -125,9 +121,7 @@ class TestCancelTask:
         assert cancelled is not None
         assert cancelled.status == TaskStatus.CANCELLED
 
-    def test_cancel_completed_task(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_cancel_completed_task(self, client: TestClient, queue: TaskQueue) -> None:
         task = Task(name="already-done")
         task_id = queue.enqueue(task)
         queue.update_status(task_id, TaskStatus.COMPLETED)
@@ -135,9 +129,7 @@ class TestCancelTask:
         response = client.post(f"/api/v1/tasks/{task_id}/cancel")
         assert response.status_code == 409
 
-    def test_cancel_failed_task(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_cancel_failed_task(self, client: TestClient, queue: TaskQueue) -> None:
         task = Task(name="already-failed")
         task_id = queue.enqueue(task)
         queue.update_status(task_id, TaskStatus.FAILED)
@@ -158,9 +150,7 @@ class TestListTasks:
         assert data["tasks"] == []
         assert data["total"] == 0
 
-    def test_list_tasks_all(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_all(self, client: TestClient, queue: TaskQueue) -> None:
         for i in range(3):
             task = Task(name=f"task-{i}")
             queue.enqueue(task)
@@ -171,9 +161,7 @@ class TestListTasks:
         assert len(data["tasks"]) == 3
         assert data["total"] == 3
 
-    def test_list_tasks_filter_by_status(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_filter_by_status(self, client: TestClient, queue: TaskQueue) -> None:
         t1 = Task(name="queued-one")
         queue.enqueue(t1)
         t2 = Task(name="queued-two")
@@ -194,9 +182,7 @@ class TestListTasks:
         assert len(data["tasks"]) == 1
         assert data["total"] == 1
 
-    def test_list_tasks_filter_by_priority(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_filter_by_priority(self, client: TestClient, queue: TaskQueue) -> None:
         t1 = Task(name="low", priority=TaskPriority.LOW)
         queue.enqueue(t1)
         t2 = Task(name="medium", priority=TaskPriority.MEDIUM)
@@ -218,9 +204,7 @@ class TestListTasks:
         assert data["total"] == 1
         assert data["tasks"][0]["name"] == "low"
 
-    def test_list_tasks_filter_by_session_id(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_filter_by_session_id(self, client: TestClient, queue: TaskQueue) -> None:
         t1 = Task(name="session-a", session_id="session-A")
         queue.enqueue(t1)
         t2 = Task(name="session-b", session_id="session-B")
@@ -233,9 +217,7 @@ class TestListTasks:
         assert data["total"] == 1
         assert data["tasks"][0]["name"] == "session-a"
 
-    def test_list_tasks_filter_by_tag(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_filter_by_tag(self, client: TestClient, queue: TaskQueue) -> None:
         t1 = Task(name="tagged-one", tags=["urgent", "backend"])
         queue.enqueue(t1)
         t2 = Task(name="tagged-two", tags=["backend"])
@@ -250,9 +232,7 @@ class TestListTasks:
         assert data["total"] == 1
         assert data["tasks"][0]["name"] == "tagged-one"
 
-    def test_list_tasks_pagination(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_pagination(self, client: TestClient, queue: TaskQueue) -> None:
         for i in range(10):
             task = Task(name=f"paged-{i}")
             queue.enqueue(task)
@@ -272,9 +252,7 @@ class TestListTasks:
         response = client.get("/api/v1/tasks?limit=1000&offset=0")
         assert response.status_code == 200
 
-    def test_list_tasks_max_limit(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_max_limit(self, client: TestClient, queue: TaskQueue) -> None:
         for i in range(1500):
             task = Task(name=f"bulk-{i}")
             queue.enqueue(task)
@@ -285,9 +263,7 @@ class TestListTasks:
         assert len(data["tasks"]) == 1000
         assert data["total"] == 1500
 
-    def test_list_tasks_combined_filters(
-        self, client: TestClient, queue: TaskQueue
-    ) -> None:
+    def test_list_tasks_combined_filters(self, client: TestClient, queue: TaskQueue) -> None:
         t1 = Task(
             name="urgent-high",
             priority=TaskPriority.HIGH,
@@ -310,9 +286,7 @@ class TestListTasks:
         )
         queue.enqueue(t3)
 
-        response = client.get(
-            "/api/v1/tasks?tag=urgent&session_id=sess-1"
-        )
+        response = client.get("/api/v1/tasks?tag=urgent&session_id=sess-1")
         assert response.status_code == 200
         data = response.json()
         assert len(data["tasks"]) == 1

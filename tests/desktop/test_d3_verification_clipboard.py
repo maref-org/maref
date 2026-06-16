@@ -142,7 +142,9 @@ class TestOperationVerifier:
 
 class TestDiffRegion:
     def test_creation(self):
-        region = DiffRegion(x=10, y=20, width=30, height=40, severity=DiffSeverity.MAJOR, diff_percentage=0.8)
+        region = DiffRegion(
+            x=10, y=20, width=30, height=40, severity=DiffSeverity.MAJOR, diff_percentage=0.8
+        )
         assert region.x == 10
         assert region.y == 20
         assert region.severity == DiffSeverity.MAJOR
@@ -229,7 +231,9 @@ class TestClipboardSafetyFilter:
         sf = ClipboardSafetyFilter()
         patterns = sf.detect_sensitive("my API-KEY is sk-123 and password is secret")
         assert len(patterns) > 0
-        assert "key" in patterns or "sk-" in patterns or "password" in patterns or "secret" in patterns
+        assert (
+            "key" in patterns or "sk-" in patterns or "password" in patterns or "secret" in patterns
+        )
 
     def test_detect_no_sensitive(self):
         sf = ClipboardSafetyFilter()

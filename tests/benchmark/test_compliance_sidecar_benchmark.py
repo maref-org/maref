@@ -53,9 +53,9 @@ class TestDecisionTreeLatency:
         print(f"    P99:  {p99:.4f}ms")
         print(f"    Max:  {p100:.4f}ms")
 
-        assert p99 < DECISION_TREE_LATENCY_TARGET_MS, (
-            f"P99 {p99:.4f}ms exceeds target {DECISION_TREE_LATENCY_TARGET_MS}ms"
-        )
+        assert (
+            p99 < DECISION_TREE_LATENCY_TARGET_MS
+        ), f"P99 {p99:.4f}ms exceeds target {DECISION_TREE_LATENCY_TARGET_MS}ms"
 
     def test_decision_tree_worst_case(self):
         tree = DecisionTree()
@@ -87,17 +87,37 @@ class TestDecisionTreeLatency:
         print(f"    P99:  {p99:.4f}ms")
         print(f"    Max:  {p100:.4f}ms")
 
-        assert p99 < DECISION_TREE_LATENCY_TARGET_MS, (
-            f"P99 {p99:.4f}ms exceeds target {DECISION_TREE_LATENCY_TARGET_MS}ms"
-        )
+        assert (
+            p99 < DECISION_TREE_LATENCY_TARGET_MS
+        ), f"P99 {p99:.4f}ms exceeds target {DECISION_TREE_LATENCY_TARGET_MS}ms"
 
     def test_decision_tree_all_decision_levels(self):
         tree = DecisionTree()
         contexts = [
             ("ALLOW", PolicyContext(agent_id="a", action="r", agent_phase="OLD_YANG")),
-            ("WARN", PolicyContext(agent_id="a", action="r", data_residency="US", model_backend="EU", cross_border=False, agent_phase="OLD_YANG")),
-            ("THROTTLE", PolicyContext(agent_id="a", action="r", current_entropy=3.5, agent_phase="OLD_YANG")),
-            ("BLOCK", PolicyContext(agent_id="a", action="r", has_critical_findings=True, agent_phase="OLD_YANG")),
+            (
+                "WARN",
+                PolicyContext(
+                    agent_id="a",
+                    action="r",
+                    data_residency="US",
+                    model_backend="EU",
+                    cross_border=False,
+                    agent_phase="OLD_YANG",
+                ),
+            ),
+            (
+                "THROTTLE",
+                PolicyContext(
+                    agent_id="a", action="r", current_entropy=3.5, agent_phase="OLD_YANG"
+                ),
+            ),
+            (
+                "BLOCK",
+                PolicyContext(
+                    agent_id="a", action="r", has_critical_findings=True, agent_phase="OLD_YANG"
+                ),
+            ),
         ]
         for name, ctx in contexts:
             decision = tree.evaluate(ctx)
@@ -157,9 +177,9 @@ class TestUnifiedSidecarLatency:
         print(f"    P50:  {p50:.3f}ms")
         print(f"    P99:  {p99:.3f}ms")
 
-        assert p99 < SIDECAR_CHECK_TARGET_MS, (
-            f"P99 {p99:.3f}ms exceeds target {SIDECAR_CHECK_TARGET_MS}ms"
-        )
+        assert (
+            p99 < SIDECAR_CHECK_TARGET_MS
+        ), f"P99 {p99:.3f}ms exceeds target {SIDECAR_CHECK_TARGET_MS}ms"
 
     def test_sidecar_check_action_block(self):
         sc = UnifiedSidecar(agent_id="bench", phase="OLD_YIN")
@@ -175,9 +195,9 @@ class TestUnifiedSidecarLatency:
         print("\n  Sidecar check_action (BLOCK):")
         print(f"    P99:  {p99:.3f}ms")
 
-        assert p99 < SIDECAR_CHECK_TARGET_MS, (
-            f"P99 {p99:.3f}ms exceeds target {SIDECAR_CHECK_TARGET_MS}ms"
-        )
+        assert (
+            p99 < SIDECAR_CHECK_TARGET_MS
+        ), f"P99 {p99:.3f}ms exceeds target {SIDECAR_CHECK_TARGET_MS}ms"
 
     def test_sidecar_concurrent_checks(self):
         instances = [UnifiedSidecar(agent_id=f"a{i}", phase="OLD_YANG") for i in range(50)]
@@ -209,6 +229,7 @@ class TestMemoryUsage:
 
     def get_rss_mb(self) -> float:
         import psutil
+
         return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
 
     def test_sidecar_single_instance_memory(self):
@@ -222,16 +243,13 @@ class TestMemoryUsage:
         print(f"    RSS before: {rss_before:.1f}MB")
         print(f"    RSS after:  {rss_after:.1f}MB")
         print(f"    Delta:      {delta:.1f}MB")
-        assert delta < MEMORY_TARGET_MB, (
-            f"Memory delta {delta:.1f}MB exceeds target {MEMORY_TARGET_MB}MB"
-        )
+        assert (
+            delta < MEMORY_TARGET_MB
+        ), f"Memory delta {delta:.1f}MB exceeds target {MEMORY_TARGET_MB}MB"
 
     def test_sidecar_many_instances(self):
         rss_before = self.get_rss_mb()
-        instances = [
-            UnifiedSidecar(agent_id=f"mem-{i}", phase="OLD_YANG")
-            for i in range(100)
-        ]
+        instances = [UnifiedSidecar(agent_id=f"mem-{i}", phase="OLD_YANG") for i in range(100)]
         for sc in instances:
             sc.check_action("read", "tool_execution")
         rss_after = self.get_rss_mb()
@@ -242,12 +260,13 @@ class TestMemoryUsage:
         print(f"    RSS after:      {rss_after:.1f}MB")
         print(f"    Delta:          {delta:.1f}MB")
         print(f"    Per instance:   {per_instance:.3f}MB")
-        assert delta < MEMORY_TARGET_MB, (
-            f"Memory delta {delta:.1f}MB exceeds target {MEMORY_TARGET_MB}MB for 100 instances"
-        )
+        assert (
+            delta < MEMORY_TARGET_MB
+        ), f"Memory delta {delta:.1f}MB exceeds target {MEMORY_TARGET_MB}MB for 100 instances"
 
     def test_audit_log_memory(self):
         import sys
+
         sc = UnifiedSidecar(agent_id="mem", phase="OLD_YANG")
         sizes_before = sys.getsizeof(sc._audit_log)
         for i in range(10000):
@@ -255,9 +274,9 @@ class TestMemoryUsage:
         sizes_after = sys.getsizeof(sc._audit_log)
         print("\n  Audit log (10000 entries):")
         print(f"    Object size: {sizes_after / 1024:.1f}KB")
-        assert sizes_after < 1024 * 1024, (
-            f"Audit log {sizes_after} bytes exceeds 1MB for 10000 entries"
-        )
+        assert (
+            sizes_after < 1024 * 1024
+        ), f"Audit log {sizes_after} bytes exceeds 1MB for 10000 entries"
 
 
 # ── Deterministic Decision Verification ────────────────────────

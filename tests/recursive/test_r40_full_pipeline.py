@@ -44,9 +44,7 @@ class TestR40FullProcessRegression:
         assert step3_corr.link_count == 1, "Step 3: Correlation link created"
 
         trace = step3_corr.query_full_trace(span_id, "span")
-        assert trace.hop_count <= 5, (
-            f"Step 3: Full trace in {trace.hop_count} hops (must be ≤ 5)"
-        )
+        assert trace.hop_count <= 5, f"Step 3: Full trace in {trace.hop_count} hops (must be ≤ 5)"
         assert trace.complete, (
             f"Step 3: Trace complete={trace.complete}, "
             f"spans={len(trace.span_ids)}, audits={len(trace.audit_ids)}, "
@@ -62,20 +60,22 @@ class TestR40FullProcessRegression:
         assert not step4_budget.is_module_blocked("self_executor"), "Step 4: Executor not blocked"
 
         step5_optimizer = ContinuousOptimizer(audit_store=audit)
-        step5_optimizer.run_cycle({
-            "coverage": 96.25,
-            "test_count": 1391.0,
-            "self_executor_coverage": 90.0,
-        })
+        step5_optimizer.run_cycle(
+            {
+                "coverage": 96.25,
+                "test_count": 1391.0,
+                "self_executor_coverage": 90.0,
+            }
+        )
         assert step5_optimizer.health_check()["total_cycles"] >= 1, "Step 5: Optimizer ran cycles"
 
         step7_migration = LiveMigration(project_root=tmpdir, audit_store=audit)
         plan = step7_migration.plan_migration("0.5.0", "0.6.0")
         dry_result = step7_migration.dry_run(plan)
         assert dry_result["estimated_ok"], "Step 6: Migration dry-run estimates OK"
-        assert dry_result["compatibility"] != "unknown", (
-            f"Step 6: Compatibility = {dry_result['compatibility']}"
-        )
+        assert (
+            dry_result["compatibility"] != "unknown"
+        ), f"Step 6: Compatibility = {dry_result['compatibility']}"
 
         step8_signer = AgentCardSigner()
         step8_signer.register_key("maref_executor", "public_key_r40")
@@ -95,9 +95,9 @@ class TestR40FullProcessRegression:
         assert store.valid_count >= 1, "Step 7: Valid cards in store"
 
         final_audit_count = audit.count()
-        assert final_audit_count >= 8, (
-            f"R40 Complete: Total audit records = {final_audit_count} (expected ≥ 8)"
-        )
+        assert (
+            final_audit_count >= 8
+        ), f"R40 Complete: Total audit records = {final_audit_count} (expected ≥ 8)"
 
     def test_r40_trace_completeness(self) -> None:
         audit = UnifiedAuditStore()
@@ -120,9 +120,15 @@ class TestR40FullProcessRegression:
         budget = ArchitectureComplexityBudget(audit_store=audit)
 
         modules = [
-            "self_executor", "correlation_engine", "continuous_optimizer",
-            "signed_agent_cards", "live_migration", "self_architect",
-            "safety_gate_v2", "unified_audit", "self_diagnostician",
+            "self_executor",
+            "correlation_engine",
+            "continuous_optimizer",
+            "signed_agent_cards",
+            "live_migration",
+            "self_architect",
+            "safety_gate_v2",
+            "unified_audit",
+            "self_diagnostician",
             "self_healer",
         ]
 

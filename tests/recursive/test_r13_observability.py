@@ -54,8 +54,9 @@ class TestRecursiveSpan:
         assert span.duration_ms >= 0
 
     def test_span_attributes(self) -> None:
-        span = RecursiveSpan("s", None, 1, "inner", "decision", "pending", time.time(),
-                             attributes={"key": "value"})
+        span = RecursiveSpan(
+            "s", None, 1, "inner", "decision", "pending", time.time(), attributes={"key": "value"}
+        )
         assert span.attributes["key"] == "value"
 
     def test_span_events(self) -> None:

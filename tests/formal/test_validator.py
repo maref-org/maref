@@ -156,5 +156,6 @@ class TestBFSPathFinding:
     def test_hamming_single_bit(self, gray_code_matrix: Any) -> None:
         codes = gray_code_matrix
         for i in range(9):
-            assert hamming_distance(codes[i], codes[i + 1]) == 1, \
-                f"Adjacent states {i}→{i + 1} must differ by 1 bit"
+            assert (
+                hamming_distance(codes[i], codes[i + 1]) == 1
+            ), f"Adjacent states {i}→{i + 1} must differ by 1 bit"

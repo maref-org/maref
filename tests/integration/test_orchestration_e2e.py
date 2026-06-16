@@ -188,6 +188,7 @@ class TestFullPipelineHandoff:
         jsm.register_agent("agent_b")
         jsm.initiate_handoff("agent_a", "agent_b", timeout_seconds=0.001)
         import time
+
         time.sleep(0.01)
         timed_out = jsm.check_handoff_timeout()
         assert len(timed_out) > 0
@@ -246,13 +247,16 @@ class TestFullPipelineSafetyIntegration:
         assert dec_threat.blocked is True
 
         hoff_threat = sg.validate_handoff(
-            "sidecar", "governance",
-            ["observe"], ["halt", "circuit_break"],
+            "sidecar",
+            "governance",
+            ["observe"],
+            ["halt", "circuit_break"],
         )
         assert hoff_threat.blocked is True
 
         cap_threat = sg.validate_capability_assignment(
-            ["halt"], ["observe"],
+            ["halt"],
+            ["observe"],
         )
         assert cap_threat.blocked is True
 
@@ -274,6 +278,7 @@ class TestFullPipelineBackwardCompatibility:
 
     def test_original_decomposer_still_works(self) -> None:
         from maref.recursive.task_decomposer import TaskDecomposer
+
         dec = TaskDecomposer()
         dag = dec.decompose("optimize_system")
         assert dag.node_count == 4

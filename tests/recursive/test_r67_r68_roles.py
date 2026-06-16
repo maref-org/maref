@@ -297,8 +297,12 @@ class TestRoleComposer:
     def test_core_without_plugins(self) -> None:
         core = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:core/executor/v1", name="executor", version="1.0"),
-            capability=PluginRoleCapability(trigram="震", allowed_tools=["write", "edit"], denied_tools=["rm"]),
+            identity=PluginRoleIdentity(
+                did="did:maref:core/executor/v1", name="executor", version="1.0"
+            ),
+            capability=PluginRoleCapability(
+                trigram="震", allowed_tools=["write", "edit"], denied_tools=["rm"]
+            ),
             trust=PluginRoleTrust(min_trust_score=0.5),
         )
         result = RoleComposer.compose(core, [])
@@ -309,13 +313,22 @@ class TestRoleComposer:
     def test_core_with_one_plugin(self) -> None:
         core = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:core/executor/v1", name="executor", version="1.0"),
-            capability=PluginRoleCapability(trigram="震", allowed_tools=["write", "edit", "run", "test"], denied_tools=["rm"], max_entropy=12.0),
+            identity=PluginRoleIdentity(
+                did="did:maref:core/executor/v1", name="executor", version="1.0"
+            ),
+            capability=PluginRoleCapability(
+                trigram="震",
+                allowed_tools=["write", "edit", "run", "test"],
+                denied_tools=["rm"],
+                max_entropy=12.0,
+            ),
             trust=PluginRoleTrust(min_trust_score=0.5),
         )
         plugin = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:plugin/security/v1", name="security-expert", version="1.0"),
+            identity=PluginRoleIdentity(
+                did="did:maref:plugin/security/v1", name="security-expert", version="1.0"
+            ),
             capability=PluginRoleCapability(trigram="艮", allowed_tools=["audit"], denied_tools=[]),
             trust=PluginRoleTrust(min_trust_score=0.6),
         )
@@ -326,7 +339,9 @@ class TestRoleComposer:
     def test_plugin_entropy_exceeds_core(self) -> None:
         core = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:core/executor/v1", name="executor", version="1.0"),
+            identity=PluginRoleIdentity(
+                did="did:maref:core/executor/v1", name="executor", version="1.0"
+            ),
             capability=PluginRoleCapability(trigram="坤", allowed_tools=["do"], max_entropy=1.0),
             trust=PluginRoleTrust(),
         )
@@ -338,6 +353,7 @@ class TestRoleComposer:
         )
         result = RoleComposer.compose(core, [plugin])
         from maref.recursive.role_composer import CompositionError
+
         assert isinstance(result, CompositionError)
 
     def test_validate_empty_name(self) -> None:
@@ -361,7 +377,9 @@ class TestRoleComposer:
     def test_dead_zone_avoided(self) -> None:
         core = PluginRole(
             maref_role="1.0",
-            identity=PluginRoleIdentity(did="did:maref:core/neutral/v1", name="neutral", version="1.0"),
+            identity=PluginRoleIdentity(
+                did="did:maref:core/neutral/v1", name="neutral", version="1.0"
+            ),
             capability=PluginRoleCapability(trigram="坤", allowed_tools=["do"], max_entropy=10.0),
             trust=PluginRoleTrust(),
         )

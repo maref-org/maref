@@ -48,6 +48,7 @@ class TestSandboxEnvironment:
 class TestVersionPinner:
     def test_pin_requirements(self) -> None:
         import tempfile
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("pytest==7.0.0\nruff==0.1.0\n")
             req_file = f.name
@@ -59,10 +60,12 @@ class TestVersionPinner:
             assert pinned.packages["pytest"] == "7.0.0"
         finally:
             import os
+
             os.unlink(req_file)
 
     def test_pin_empty_file(self) -> None:
         import tempfile
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             req_file = f.name
 
@@ -72,6 +75,7 @@ class TestVersionPinner:
             assert len(pinned.packages) == 0
         finally:
             import os
+
             os.unlink(req_file)
 
     def test_get_pinned_returns_none(self) -> None:

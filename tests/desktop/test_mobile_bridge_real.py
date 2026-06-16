@@ -44,27 +44,47 @@ class TestDeviceRegistration:
 
     def test_discover_all_devices(self) -> None:
         dd = DeviceDiscovery(device_id="test-desktop", port=9099)
-        dd.register_device(DeviceInfo(
-            device_id="mobile-001", name="Phone A",
-            device_type=DeviceType.MOBILE, host="127.0.0.1", port=9090,
-        ))
-        dd.register_device(DeviceInfo(
-            device_id="mobile-002", name="Phone B",
-            device_type=DeviceType.MOBILE, host="127.0.0.1", port=9091,
-        ))
+        dd.register_device(
+            DeviceInfo(
+                device_id="mobile-001",
+                name="Phone A",
+                device_type=DeviceType.MOBILE,
+                host="127.0.0.1",
+                port=9090,
+            )
+        )
+        dd.register_device(
+            DeviceInfo(
+                device_id="mobile-002",
+                name="Phone B",
+                device_type=DeviceType.MOBILE,
+                host="127.0.0.1",
+                port=9091,
+            )
+        )
         discovered = dd.discover()
         assert len(discovered) == 2
 
     def test_discover_by_type(self) -> None:
         dd = DeviceDiscovery(device_id="test-desktop", port=9099)
-        dd.register_device(DeviceInfo(
-            device_id="mobile-001", name="Phone A",
-            device_type=DeviceType.MOBILE, host="127.0.0.1", port=9090,
-        ))
-        dd.register_device(DeviceInfo(
-            device_id="desktop-002", name="Other Desktop",
-            device_type=DeviceType.DESKTOP, host="127.0.0.1", port=9091,
-        ))
+        dd.register_device(
+            DeviceInfo(
+                device_id="mobile-001",
+                name="Phone A",
+                device_type=DeviceType.MOBILE,
+                host="127.0.0.1",
+                port=9090,
+            )
+        )
+        dd.register_device(
+            DeviceInfo(
+                device_id="desktop-002",
+                name="Other Desktop",
+                device_type=DeviceType.DESKTOP,
+                host="127.0.0.1",
+                port=9091,
+            )
+        )
         mobiles = dd.discover_by_type(DeviceType.MOBILE)
         desktops = dd.discover_by_type(DeviceType.DESKTOP)
         assert len(mobiles) == 1
@@ -72,14 +92,24 @@ class TestDeviceRegistration:
 
     def test_discover_by_capability(self) -> None:
         dd = DeviceDiscovery(device_id="test-desktop", port=9099)
-        dd.register_device(DeviceInfo(
-            device_id="mobile-001", name="Phone",
-            capabilities=["screenshot", "touch"], host="127.0.0.1", port=9090,
-        ))
-        dd.register_device(DeviceInfo(
-            device_id="desktop-002", name="Desktop",
-            capabilities=["screenshot", "keyboard"], host="127.0.0.1", port=9091,
-        ))
+        dd.register_device(
+            DeviceInfo(
+                device_id="mobile-001",
+                name="Phone",
+                capabilities=["screenshot", "touch"],
+                host="127.0.0.1",
+                port=9090,
+            )
+        )
+        dd.register_device(
+            DeviceInfo(
+                device_id="desktop-002",
+                name="Desktop",
+                capabilities=["screenshot", "keyboard"],
+                host="127.0.0.1",
+                port=9091,
+            )
+        )
         touch_devices = dd.discover_by_capability("touch")
         screenshot_devices = dd.discover_by_capability("screenshot")
         assert len(touch_devices) == 1
@@ -87,9 +117,14 @@ class TestDeviceRegistration:
 
     def test_unregister_device(self) -> None:
         dd = DeviceDiscovery(device_id="test-desktop", port=9099)
-        dd.register_device(DeviceInfo(
-            device_id="mobile-001", name="Phone", host="127.0.0.1", port=9090,
-        ))
+        dd.register_device(
+            DeviceInfo(
+                device_id="mobile-001",
+                name="Phone",
+                host="127.0.0.1",
+                port=9090,
+            )
+        )
         dd.unregister_device("mobile-001")
         assert dd.get_device("mobile-001") is None
 
@@ -102,8 +137,11 @@ class TestDeviceRegistration:
 
     def test_device_fingerprint(self) -> None:
         device = DeviceInfo(
-            device_id="t-001", name="Test",
-            platform=DevicePlatform.MACOS, host="127.0.0.1", port=9090,
+            device_id="t-001",
+            name="Test",
+            platform=DevicePlatform.MACOS,
+            host="127.0.0.1",
+            port=9090,
         )
         fp = device.fingerprint
         assert isinstance(fp, str)
@@ -111,9 +149,13 @@ class TestDeviceRegistration:
 
     def test_device_to_from_dict_roundtrip(self) -> None:
         device = DeviceInfo(
-            device_id="roundtrip-001", name="Test Roundtrip",
-            device_type=DeviceType.MOBILE, platform=DevicePlatform.ANDROID,
-            host="127.0.0.1", port=9090, capabilities=["screenshot"],
+            device_id="roundtrip-001",
+            name="Test Roundtrip",
+            device_type=DeviceType.MOBILE,
+            platform=DevicePlatform.ANDROID,
+            host="127.0.0.1",
+            port=9090,
+            capabilities=["screenshot"],
         )
         data = device.to_dict()
         restored = DeviceInfo.from_dict(data)
@@ -124,8 +166,10 @@ class TestDeviceRegistration:
     def test_check_online_localhost(self) -> None:
         dd = DeviceDiscovery(device_id="test-desktop", port=0)
         device = DeviceInfo(
-            device_id="local-test", name="Local Device",
-            host="127.0.0.1", port=0,
+            device_id="local-test",
+            name="Local Device",
+            host="127.0.0.1",
+            port=0,
         )
         dd.register_device(device)
         status = dd.check_online(timeout=0.5)
@@ -229,8 +273,12 @@ class TestTaskDispatch:
 
     def test_idempotency_deduplication(self) -> None:
         tq = TaskQueue()
-        task_a = BridgeTask(name="a", source_device="s", target_device="t", idempotency_key="key-001")
-        task_b = BridgeTask(name="b", source_device="s", target_device="t", idempotency_key="key-001")
+        task_a = BridgeTask(
+            name="a", source_device="s", target_device="t", idempotency_key="key-001"
+        )
+        task_b = BridgeTask(
+            name="b", source_device="s", target_device="t", idempotency_key="key-001"
+        )
         assert tq.enqueue(task_a) is True
         assert tq.enqueue(task_b) is False
         assert tq.size == 1
@@ -316,10 +364,12 @@ class TestMobileBridgeFull:
     def test_bridge_register_and_topology(self) -> None:
         bridge = MobileBridge(device_id="desktop-1", port=9099)
         device = DeviceInfo(
-            device_id="phone-1", name="Test Phone",
+            device_id="phone-1",
+            name="Test Phone",
             device_type=DeviceType.MOBILE,
             platform=DevicePlatform.IOS,
-            host="127.0.0.1", port=9090,
+            host="127.0.0.1",
+            port=9090,
         )
         bridge.register_mobile_device(device)
         topology = bridge.get_device_topology()
@@ -335,10 +385,14 @@ class TestMobileBridgeFull:
 
     def test_bridge_dispatch_task(self) -> None:
         bridge = MobileBridge(device_id="desktop-1", port=9099)
-        bridge.register_mobile_device(DeviceInfo(
-            device_id="phone-1", name="Phone",
-            host="127.0.0.1", port=9090,
-        ))
+        bridge.register_mobile_device(
+            DeviceInfo(
+                device_id="phone-1",
+                name="Phone",
+                host="127.0.0.1",
+                port=9090,
+            )
+        )
         task = bridge.dispatch_task(
             source_device="phone-1",
             target_device="desktop-1",
@@ -431,10 +485,14 @@ class TestMobileBridgeFull:
     def test_bridge_one_to_n_topology(self) -> None:
         bridge = MobileBridge(device_id="desktop-1", port=9099)
         for i in range(3):
-            bridge.register_mobile_device(DeviceInfo(
-                device_id=f"phone-{i}", name=f"Phone {i}",
-                host="127.0.0.1", port=9090 + i,
-            ))
+            bridge.register_mobile_device(
+                DeviceInfo(
+                    device_id=f"phone-{i}",
+                    name=f"Phone {i}",
+                    host="127.0.0.1",
+                    port=9090 + i,
+                )
+            )
         topology = bridge.get_device_topology()
         assert len(topology["discovered"]) == 3
         assert topology["local"]["device_id"] == "desktop-1"

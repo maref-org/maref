@@ -10,13 +10,9 @@ Validates:
 
 from __future__ import annotations
 
-import json
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from maref.evolution.agents import (
-    AgentPolicyState,
     AgentRole,
     GovernanceAgent,
     GovernanceAgentConfig,
@@ -27,15 +23,14 @@ from maref.evolution.agents import (
 from maref.evolution.registry import (
     AgentRegistry,
     DuplicateAgentError,
-    RegistryState,
     UnknownAgentError,
     UnknownGroupError,
 )
 
-
 # ============================================================================
 # GovernanceAgentConfig Tests
 # ============================================================================
+
 
 class TestGovernanceAgentConfig:
     def test_default_config(self) -> None:
@@ -132,6 +127,7 @@ class TestGovernanceAgentConfig:
 # ============================================================================
 # GovernanceAgent Tests
 # ============================================================================
+
 
 class TestGovernanceAgent:
     def _make_agent(self, **kwargs) -> GovernanceAgent:
@@ -272,11 +268,16 @@ class TestGovernanceAgent:
 # ShareGroup Tests
 # ============================================================================
 
+
 class TestShareGroup:
-    def _make_agent(self, agent_id: str, group_id: str = "test_group",
-                    share_mode: ShareMode = ShareMode.FULL_SHARING,
-                    reward_weight: float = 1.0,
-                    learning_rate: float = 0.02) -> GovernanceAgent:
+    def _make_agent(
+        self,
+        agent_id: str,
+        group_id: str = "test_group",
+        share_mode: ShareMode = ShareMode.FULL_SHARING,
+        reward_weight: float = 1.0,
+        learning_rate: float = 0.02,
+    ) -> GovernanceAgent:
         config = GovernanceAgentConfig(
             agent_id=agent_id,
             role=AgentRole.DETECTOR,
@@ -435,9 +436,11 @@ class TestShareGroup:
 # AgentRegistry Tests
 # ============================================================================
 
+
 class TestAgentRegistry:
-    def _make_config(self, agent_id: str, role: AgentRole = AgentRole.DETECTOR,
-                     share_group: str = "default") -> GovernanceAgentConfig:
+    def _make_config(
+        self, agent_id: str, role: AgentRole = AgentRole.DETECTOR, share_group: str = "default"
+    ) -> GovernanceAgentConfig:
         return GovernanceAgentConfig(
             agent_id=agent_id,
             role=role,
@@ -610,27 +613,32 @@ class TestAgentRegistry:
 # Integration Tests
 # ============================================================================
 
+
 class TestIntegration:
     def test_full_workflow(self) -> None:
         """End-to-end: register agents → aggregate gradients → apply update."""
         registry = AgentRegistry()
 
-        registry.register_agent(GovernanceAgentConfig(
-            agent_id="detector_1",
-            role=AgentRole.DETECTOR,
-            share_group="detectors",
-            share_mode=ShareMode.FULL_SHARING,
-            policy_features=["entropy_penalty", "stability_bonus"],
-            learning_rate=0.1,
-        ))
-        registry.register_agent(GovernanceAgentConfig(
-            agent_id="detector_2",
-            role=AgentRole.DETECTOR,
-            share_group="detectors",
-            share_mode=ShareMode.FULL_SHARING,
-            policy_features=["entropy_penalty", "stability_bonus"],
-            learning_rate=0.1,
-        ))
+        registry.register_agent(
+            GovernanceAgentConfig(
+                agent_id="detector_1",
+                role=AgentRole.DETECTOR,
+                share_group="detectors",
+                share_mode=ShareMode.FULL_SHARING,
+                policy_features=["entropy_penalty", "stability_bonus"],
+                learning_rate=0.1,
+            )
+        )
+        registry.register_agent(
+            GovernanceAgentConfig(
+                agent_id="detector_2",
+                role=AgentRole.DETECTOR,
+                share_group="detectors",
+                share_mode=ShareMode.FULL_SHARING,
+                policy_features=["entropy_penalty", "stability_bonus"],
+                learning_rate=0.1,
+            )
+        )
 
         group = registry.get_group("detectors")
 
@@ -668,30 +676,36 @@ class TestIntegration:
         """Verify that different share modes in different groups work correctly."""
         registry = AgentRegistry()
 
-        registry.register_agent(GovernanceAgentConfig(
-            agent_id="sharing_a",
-            role=AgentRole.DETECTOR,
-            share_group="shared",
-            share_mode=ShareMode.FULL_SHARING,
-            policy_features=["f1"],
-            learning_rate=0.1,
-        ))
-        registry.register_agent(GovernanceAgentConfig(
-            agent_id="sharing_b",
-            role=AgentRole.DETECTOR,
-            share_group="shared",
-            share_mode=ShareMode.FULL_SHARING,
-            policy_features=["f1"],
-            learning_rate=0.1,
-        ))
-        registry.register_agent(GovernanceAgentConfig(
-            agent_id="separate_a",
-            role=AgentRole.OPTIMIZER,
-            share_group="separate",
-            share_mode=ShareMode.FULL_SEPARATION,
-            policy_features=["f1"],
-            learning_rate=0.1,
-        ))
+        registry.register_agent(
+            GovernanceAgentConfig(
+                agent_id="sharing_a",
+                role=AgentRole.DETECTOR,
+                share_group="shared",
+                share_mode=ShareMode.FULL_SHARING,
+                policy_features=["f1"],
+                learning_rate=0.1,
+            )
+        )
+        registry.register_agent(
+            GovernanceAgentConfig(
+                agent_id="sharing_b",
+                role=AgentRole.DETECTOR,
+                share_group="shared",
+                share_mode=ShareMode.FULL_SHARING,
+                policy_features=["f1"],
+                learning_rate=0.1,
+            )
+        )
+        registry.register_agent(
+            GovernanceAgentConfig(
+                agent_id="separate_a",
+                role=AgentRole.OPTIMIZER,
+                share_group="separate",
+                share_mode=ShareMode.FULL_SEPARATION,
+                policy_features=["f1"],
+                learning_rate=0.1,
+            )
+        )
 
         shared_group = registry.get_group("shared")
         sep_group = registry.get_group("separate")

@@ -24,7 +24,9 @@ class TestEvolutionEngineQualityGate:
 
         engine = RecursiveEvolutionEngine(quality_gate=gate)
         result = engine.evaluate_candidate_with_quality_gate(
-            candidate_id="test", cycle="c1", score=85.0,
+            candidate_id="test",
+            cycle="c1",
+            score=85.0,
         )
         assert result.get("verdict") == "approved"
         gate.evaluate_c1_to_c2.assert_called_once()
@@ -36,7 +38,9 @@ class TestEvolutionEngineQualityGate:
 
         engine = RecursiveEvolutionEngine(quality_gate=gate)
         result = engine.evaluate_candidate_with_quality_gate(
-            candidate_id="test", cycle="c1", score=55.0,
+            candidate_id="test",
+            cycle="c1",
+            score=55.0,
         )
         assert result.get("verdict") == "rejected"
 

@@ -162,6 +162,7 @@ class TestClipboardLocked:
         assert isinstance(result.success, bool)
 
 
+@pytest.mark.skip(reason="requires real browser/display environment")
 class TestPlaywrightCrash:
     """Test agent resilience when browser/Playwright crashes."""
 
@@ -185,6 +186,7 @@ class TestPlaywrightCrash:
     def test_browser_controller_fallback(self) -> None:
         try:
             from maref.desktop.browser_controller import BrowserController
+
             bc = BrowserController(dry_run=True)
             assert bc is not None
         except ImportError:
@@ -412,9 +414,9 @@ class TestAllFiveFailuresIntegrated:
             survived += 1
 
         survival_rate = survived / max(total_attempts, 1)
-        assert survival_rate > 0.90, (
-            f"Sequential chain survival rate {survival_rate:.2%} ({survived}/{total_attempts})"
-        )
+        assert (
+            survival_rate > 0.90
+        ), f"Sequential chain survival rate {survival_rate:.2%} ({survived}/{total_attempts})"
         assert agent.state != "error"
 
     @pytest.mark.slow

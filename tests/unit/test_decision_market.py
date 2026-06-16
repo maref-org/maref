@@ -294,9 +294,7 @@ class TestDecisionMarketVote:
         market.register_participant("alice", initial_stake=100.0)
         proposal = market.propose("target", 1, 2, "alice")
         market.register_participant("bob", initial_stake=100.0)
-        vote = market.vote(
-            proposal.proposal_id, "bob", VoteValue.APPROVE, stake_amount=10.0
-        )
+        vote = market.vote(proposal.proposal_id, "bob", VoteValue.APPROVE, stake_amount=10.0)
         assert vote.vote_value == VoteValue.APPROVE
         assert vote.stake_amount == 10.0
 

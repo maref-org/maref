@@ -152,21 +152,25 @@ class TestSidecarRequest:
 
 class TestSidecarResponse:
     def test_from_success_json(self) -> None:
-        json_str = json.dumps({
-            "jsonrpc": "2.0",
-            "result": {"agents": 5},
-            "id": "sr_1",
-        })
+        json_str = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "result": {"agents": 5},
+                "id": "sr_1",
+            }
+        )
         resp = SidecarResponse.from_json_rpc(json_str)
         assert resp.is_error is False
         assert resp.result["agents"] == 5
 
     def test_from_error_json(self) -> None:
-        json_str = json.dumps({
-            "jsonrpc": "2.0",
-            "error": {"code": -32001, "message": "Governance rejected"},
-            "id": "sr_err",
-        })
+        json_str = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "error": {"code": -32001, "message": "Governance rejected"},
+                "id": "sr_err",
+            }
+        )
         resp = SidecarResponse.from_json_rpc(json_str)
         assert resp.is_error is True
 

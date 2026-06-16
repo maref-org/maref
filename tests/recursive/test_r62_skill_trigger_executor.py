@@ -110,9 +110,7 @@ class TestSkillTrigger:
         }
         skill = parse_skill_from_dict(skill_data)
         trigger = SkillTrigger()
-        filtered = trigger.match_and_filter(
-            [skill], 10, file_path="src/main.py"
-        )
+        filtered = trigger.match_and_filter([skill], 10, file_path="src/main.py")
         assert len(filtered) == 1
 
     def test_match_and_filter_file_not_matched(self) -> None:
@@ -123,9 +121,7 @@ class TestSkillTrigger:
         }
         skill = parse_skill_from_dict(skill_data)
         trigger = SkillTrigger()
-        filtered = trigger.match_and_filter(
-            [skill], 10, file_path="README.md"
-        )
+        filtered = trigger.match_and_filter([skill], 10, file_path="README.md")
         assert len(filtered) == 0
 
 
@@ -160,7 +156,9 @@ class TestSkillExecutor:
     def test_execute_fallback_to_degraded(self) -> None:
         skill = parse_skill_from_dict(VALID_SKILL_DICT)
         executor = SkillExecutor()
-        executor.register_handler("handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
+        executor.register_handler(
+            "handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
         executor.register_handler("handler_b", lambda ctx: {"ok": True})
         result = executor.execute(skill)
         assert result.status == ExecutionStatus.DEGRADED
@@ -170,9 +168,15 @@ class TestSkillExecutor:
     def test_execute_all_fail(self) -> None:
         skill = parse_skill_from_dict(VALID_SKILL_DICT)
         executor = SkillExecutor()
-        executor.register_handler("handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
-        executor.register_handler("handler_b", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
-        executor.register_handler("handler_c", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
+        executor.register_handler(
+            "handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
+        executor.register_handler(
+            "handler_b", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
+        executor.register_handler(
+            "handler_c", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
         result = executor.execute(skill)
         assert result.status == ExecutionStatus.FINAL_FAILURE
 
@@ -185,7 +189,9 @@ class TestSkillExecutor:
     def test_execute_degradation_path_recorded(self) -> None:
         skill = parse_skill_from_dict(VALID_SKILL_DICT)
         executor = SkillExecutor()
-        executor.register_handler("handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
+        executor.register_handler(
+            "handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
         executor.register_handler("handler_b", lambda ctx: {"ok": True})
         result = executor.execute(skill)
         assert "handler_a(failed)" in result.degradation_path
@@ -193,9 +199,15 @@ class TestSkillExecutor:
     def test_execute_all_degradation_path(self) -> None:
         skill = parse_skill_from_dict(VALID_SKILL_DICT)
         executor = SkillExecutor()
-        executor.register_handler("handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
-        executor.register_handler("handler_b", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
-        executor.register_handler("handler_c", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail")))
+        executor.register_handler(
+            "handler_a", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
+        executor.register_handler(
+            "handler_b", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
+        executor.register_handler(
+            "handler_c", lambda ctx: (_ for _ in ()).throw(RuntimeError("fail"))
+        )
         result = executor.execute(skill)
         assert len(result.degradation_path) == 3
 
@@ -204,9 +216,8 @@ class TestSkillExecutor:
         skill.parameter_injection = None
         executor = SkillExecutor(default_timeout_ms=100)
         import time
-        executor.register_handler(
-            "handler_a", lambda ctx: time.sleep(2) or {"ok": True}
-        )
+
+        executor.register_handler("handler_a", lambda ctx: time.sleep(2) or {"ok": True})
         result = executor.execute(skill)
         assert result.status in (ExecutionStatus.TIMEOUT, ExecutionStatus.FINAL_FAILURE)
 

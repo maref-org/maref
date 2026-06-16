@@ -22,7 +22,6 @@ from maref.recursive.unified_audit import UnifiedAuditStore
 
 
 class TestR50Acceptance3PartyIntegration:
-
     def test_memory_trust_joint(self) -> None:
         audit = UnifiedAuditStore()
         m3t = MemoryThreeTemperature(audit_store=audit)
@@ -31,10 +30,13 @@ class TestR50Acceptance3PartyIntegration:
 
         for i in range(3):
             agent_id = f"r50_agent_{i}"
-            m3t.store(f"mem_{agent_id}", {
-                "skills": ["search", "compute", "analyze"],
-                "quality": 0.7 + i * 0.1,
-            })
+            m3t.store(
+                f"mem_{agent_id}",
+                {
+                    "skills": ["search", "compute", "analyze"],
+                    "quality": 0.7 + i * 0.1,
+                },
+            )
             trust.register_agent(agent_id, "maref")
             sm.register(agent_id)
             sm.transition(agent_id, AgentStateV3.BOOTING)
@@ -42,8 +44,9 @@ class TestR50Acceptance3PartyIntegration:
 
         for agent_id in [f"r50_agent_{i}" for i in range(3)]:
             for j in range(5):
-                trust.record_task(agent_id, f"task_{j}",
-                                   success=True, quality=0.8, latency_ms=100.0)
+                trust.record_task(
+                    agent_id, f"task_{j}", success=True, quality=0.8, latency_ms=100.0
+                )
 
         score = trust.assess("r50_agent_0")
         assert score is not None, "Joint: Trust assessment available"
@@ -76,7 +79,9 @@ class TestR50Acceptance3PartyIntegration:
         assert seller_balance > 50.0, "Social: Seller paid"
 
         proposal = negotiator.propose(
-            "seller_1", "buyer_1", "recurring_data",
+            "seller_1",
+            "buyer_1",
+            "recurring_data",
             {"frequency": "weekly", "price": 25.0},
         )
         result = negotiator.evaluate(proposal, 0.8)
@@ -122,18 +127,22 @@ class TestR50Acceptance3PartyIntegration:
         sm.register("pipeline_agent")
 
         path = [
-            AgentStateV3.BOOTING, AgentStateV3.REGISTERING, AgentStateV3.IDLE,
-            AgentStateV3.DISCOVERING, AgentStateV3.NEGOTIATING,
-            AgentStateV3.TRUST_BUILDING, AgentStateV3.CONTRACTING,
-            AgentStateV3.EXECUTING, AgentStateV3.VERIFYING,
+            AgentStateV3.BOOTING,
+            AgentStateV3.REGISTERING,
+            AgentStateV3.IDLE,
+            AgentStateV3.DISCOVERING,
+            AgentStateV3.NEGOTIATING,
+            AgentStateV3.TRUST_BUILDING,
+            AgentStateV3.CONTRACTING,
+            AgentStateV3.EXECUTING,
+            AgentStateV3.VERIFYING,
             AgentStateV3.REPORTING,
         ]
         for state in path:
             result = sm.transition("pipeline_agent", state)
             assert result is not None, f"State transition to {state.value} failed"
             if state == AgentStateV3.EXECUTING:
-                trust.record_task("pipeline_agent", "pipeline_exec",
-                                   success=True, quality=0.95)
+                trust.record_task("pipeline_agent", "pipeline_exec", success=True, quality=0.95)
 
         score = trust.assess("pipeline_agent")
         assert score is not None
@@ -160,9 +169,7 @@ class TestR50Acceptance3PartyIntegration:
                     new_reachable.add(target)
             reachable |= new_reachable
 
-        assert len(reachable) >= 20, (
-            f"Only {len(reachable)} states reachable from UNINITIALIZED"
-        )
+        assert len(reachable) >= 20, f"Only {len(reachable)} states reachable from UNINITIALIZED"
 
     def test_social_trade_dispute_sanction_recovery(self) -> None:
         audit = UnifiedAuditStore()
@@ -171,7 +178,10 @@ class TestR50Acceptance3PartyIntegration:
         economy.register_agent("bad_seller", 100.0)
 
         result = economy.full_economy_cycle(
-            "good_buyer", "bad_seller", "premium_data", 80.0,
+            "good_buyer",
+            "bad_seller",
+            "premium_data",
+            80.0,
         )
         assert result["status"] == "cycle_complete"
         assert True, "TRADE→DISPUTE→SANCTION→RECOVERY cycle completed"

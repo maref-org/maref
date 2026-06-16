@@ -44,7 +44,8 @@ class TestSafetyGateV2Handoff:
     def test_validate_handoff_same_privilege(self) -> None:
         sg = SafetyGateV2()
         result = sg.validate_handoff(
-            "agent_a", "agent_b",
+            "agent_a",
+            "agent_b",
             ["observe", "collect"],
             ["observe", "monitor"],
         )
@@ -53,7 +54,8 @@ class TestSafetyGateV2Handoff:
     def test_validate_handoff_high_to_low_allowed(self) -> None:
         sg = SafetyGateV2()
         result = sg.validate_handoff(
-            "governance", "sidecar",
+            "governance",
+            "sidecar",
             ["halt", "circuit_break", "state_transition"],
             ["observe", "collect"],
         )
@@ -62,7 +64,8 @@ class TestSafetyGateV2Handoff:
     def test_validate_handoff_low_to_high_blocked(self) -> None:
         sg = SafetyGateV2()
         result = sg.validate_handoff(
-            "sidecar", "governance",
+            "sidecar",
+            "governance",
             ["observe", "collect"],
             ["halt", "circuit_break"],
         )
@@ -73,7 +76,8 @@ class TestSafetyGateV2Handoff:
     def test_validate_handoff_both_high_allowed(self) -> None:
         sg = SafetyGateV2()
         result = sg.validate_handoff(
-            "gov_a", "gov_b",
+            "gov_a",
+            "gov_b",
             ["halt", "state_transition"],
             ["circuit_break", "state_transition"],
         )

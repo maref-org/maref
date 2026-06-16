@@ -19,7 +19,10 @@ class TestTrigramsGovernance:
         assert TrigramsGovernance.KUN.label == "\u5764"
 
     def test_trigram_descriptions(self):
-        assert "自" in TrigramsGovernance.QIAN.description or "\u81ea" in TrigramsGovernance.QIAN.description
+        assert (
+            "自" in TrigramsGovernance.QIAN.description
+            or "\u81ea" in TrigramsGovernance.QIAN.description
+        )
 
     def test_all_have_config(self):
         for trigram in TrigramsGovernance:
@@ -160,8 +163,7 @@ class TestSerialization:
         assert "config" in d
 
     def test_trigram_transition_to_dict(self):
-        t = TrigramTransition(TrigramsGovernance.DUI, TrigramsGovernance.QIAN,
-                              "upgrade", 0.92)
+        t = TrigramTransition(TrigramsGovernance.DUI, TrigramsGovernance.QIAN, "upgrade", 0.92)
         d = t.to_dict()
         assert d["from"] == "dui"
         assert d["to"] == "qian"

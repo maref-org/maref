@@ -96,7 +96,9 @@ class TestCheckpointerCreateSnapshot:
         assert snapshot.task_count == 0
         assert snapshot.status_summary == {}
 
-    def test_create_snapshot_with_mixed_statuses(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_create_snapshot_with_mixed_statuses(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         t1 = Task(name="queued")
         t2 = Task(name="running")
         t3 = Task(name="completed")
@@ -113,7 +115,9 @@ class TestCheckpointerCreateSnapshot:
         assert snapshot.status_summary.get("running") == 1
         assert snapshot.status_summary.get("completed") == 1
 
-    def test_create_snapshot_default_label(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_create_snapshot_default_label(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         queue.enqueue(Task(name="default-label"))
         sid = checkpointer.create_snapshot()
         snapshot = checkpointer.get_snapshot(sid)
@@ -126,14 +130,18 @@ class TestCheckpointerCreateSnapshot:
         sid2 = checkpointer.create_snapshot("s2")
         assert sid1 != sid2
 
-    def test_create_snapshot_checksum_present(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_create_snapshot_checksum_present(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         queue.enqueue(Task(name="checksum-test"))
         sid = checkpointer.create_snapshot("checksum")
         snapshot = checkpointer.get_snapshot(sid)
         assert snapshot is not None
         assert len(snapshot.checksum) == 64
 
-    def test_create_snapshot_data_serializes_tasks(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_create_snapshot_data_serializes_tasks(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         t = Task(name="serialize-me", priority=TaskPriority.HIGH, tags=["urgent"])
         queue.enqueue(t)
         sid = checkpointer.create_snapshot("serialize")
@@ -158,7 +166,9 @@ class TestCheckpointerRestore:
         assert len(tasks) == 1
         assert tasks[0].name == "restore-me"
 
-    def test_restore_preserves_running_tasks(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_restore_preserves_running_tasks(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         running = Task(name="running-task")
         queued = Task(name="queued-task")
         queue.enqueue(running)
@@ -190,7 +200,9 @@ class TestCheckpointerRestore:
         names = sorted(t.name for t in tasks)
         assert names == [f"restore-{i}" for i in range(5)]
 
-    def test_restore_skips_running_tasks_in_current_queue(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_restore_skips_running_tasks_in_current_queue(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         t = Task(name="should-persist")
         queue.enqueue(t)
         sid = checkpointer.create_snapshot("skip-running")
@@ -227,7 +239,9 @@ class TestCheckpointerListSnapshots:
         assert sid2 in ids
         assert sid1 in ids
 
-    def test_list_snapshots_ordered_by_recency(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_list_snapshots_ordered_by_recency(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         queue.enqueue(Task(name="order-test"))
         sid1 = checkpointer.create_snapshot("oldest")
         sid2 = checkpointer.create_snapshot("middle")
@@ -244,7 +258,9 @@ class TestCheckpointerListSnapshots:
         snapshots = checkpointer.list_snapshots(limit=3)
         assert len(snapshots) == 3
 
-    def test_list_snapshots_returns_snapshot_objects(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_list_snapshots_returns_snapshot_objects(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         queue.enqueue(Task(name="type-test"))
         checkpointer.create_snapshot("type-check")
         snapshots = checkpointer.list_snapshots()
@@ -269,7 +285,9 @@ class TestCheckpointerGetSnapshot:
         snapshot = checkpointer.get_snapshot("i-do-not-exist")
         assert snapshot is None
 
-    def test_get_snapshot_has_all_fields(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_get_snapshot_has_all_fields(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         queue.enqueue(Task(name="field-test"))
         sid = checkpointer.create_snapshot("fields")
         snapshot = checkpointer.get_snapshot(sid)
@@ -311,7 +329,9 @@ class TestCheckpointerVerifyIntegrity:
         sid = checkpointer.create_snapshot("valid")
         assert checkpointer.verify_integrity(sid) is True
 
-    def test_verify_integrity_tampered_checksum(self, queue: TaskQueue, checkpointer: Checkpointer, db_path: str) -> None:
+    def test_verify_integrity_tampered_checksum(
+        self, queue: TaskQueue, checkpointer: Checkpointer, db_path: str
+    ) -> None:
         queue.enqueue(Task(name="tamper-me"))
         sid = checkpointer.create_snapshot("tamper")
         conn = sqlite3.connect(db_path)
@@ -323,13 +343,13 @@ class TestCheckpointerVerifyIntegrity:
         conn.close()
         assert checkpointer.verify_integrity(sid) is False
 
-    def test_verify_integrity_tampered_data(self, queue: TaskQueue, checkpointer: Checkpointer, db_path: str) -> None:
+    def test_verify_integrity_tampered_data(
+        self, queue: TaskQueue, checkpointer: Checkpointer, db_path: str
+    ) -> None:
         queue.enqueue(Task(name="data-tamper"))
         sid = checkpointer.create_snapshot("data-tamper")
         conn = sqlite3.connect(db_path)
-        original = conn.execute(
-            "SELECT data FROM snapshots WHERE id = ?", (sid,)
-        ).fetchone()[0]
+        original = conn.execute("SELECT data FROM snapshots WHERE id = ?", (sid,)).fetchone()[0]
         tampered_data = original.replace("data-tamper", "tampered!")
         conn.execute(
             "UPDATE snapshots SET data = ? WHERE id = ?",
@@ -348,7 +368,9 @@ class TestCheckpointerVerifyIntegrity:
 
 
 class TestCheckpointerPrune:
-    def test_prune_removes_old_snapshots(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_prune_removes_old_snapshots(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         queue.enqueue(Task(name="prune-test"))
         sids = []
         for i in range(5):
@@ -401,7 +423,9 @@ class TestCheckpointerPrune:
 
 
 class TestCheckpointerEdgeCases:
-    def test_create_snapshot_with_many_tasks(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_create_snapshot_with_many_tasks(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         for i in range(50):
             queue.enqueue(Task(name=f"bulk-{i}", payload={"index": i}))
         sid = checkpointer.create_snapshot("bulk")
@@ -409,7 +433,9 @@ class TestCheckpointerEdgeCases:
         assert snapshot is not None
         assert snapshot.task_count == 50
 
-    def test_create_twice_with_same_label(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_create_twice_with_same_label(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         queue.enqueue(Task(name="dup-label"))
         sid1 = checkpointer.create_snapshot("duplicate")
         sid2 = checkpointer.create_snapshot("duplicate")
@@ -437,7 +463,9 @@ class TestCheckpointerEdgeCases:
         assert len(snapshots) == 1
         c2.close()
 
-    def test_snapshot_checksum_deterministic(self, queue: TaskQueue, checkpointer: Checkpointer) -> None:
+    def test_snapshot_checksum_deterministic(
+        self, queue: TaskQueue, checkpointer: Checkpointer
+    ) -> None:
         t = Task(name="deterministic")
         queue.enqueue(t)
         q2 = TaskQueue(queue._db_path)

@@ -130,7 +130,11 @@ class TestCapabilityHierarchy:
 
     def test_execute_cannot_delegate(self):
         """EXECUTE, WRITE, READ have no delegation rights."""
-        for cap in (DelegationCapability.EXECUTE, DelegationCapability.WRITE, DelegationCapability.READ):
+        for cap in (
+            DelegationCapability.EXECUTE,
+            DelegationCapability.WRITE,
+            DelegationCapability.READ,
+        ):
             chain = DelegationChain.create("root")
             chain.add_delegation("root", "agent", cap)
             assert chain.add_delegation("agent", "c1", DelegationCapability.READ) is False

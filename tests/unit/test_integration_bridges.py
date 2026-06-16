@@ -122,6 +122,7 @@ class TestSymphonyAdapter:
 
     def test_handle_transition_command(self) -> None:
         from maref.integration.symphony import SymphonyMessage, SymphonyMessageType
+
         cmd = SymphonyMessage(
             msg_type=SymphonyMessageType.COMMAND,
             source="test",
@@ -133,6 +134,7 @@ class TestSymphonyAdapter:
 
     def test_handle_invalid_transition(self) -> None:
         from maref.integration.symphony import SymphonyMessage, SymphonyMessageType
+
         cmd = SymphonyMessage(
             msg_type=SymphonyMessageType.COMMAND,
             source="test",
@@ -143,6 +145,7 @@ class TestSymphonyAdapter:
 
     def test_handle_force_stabilize(self) -> None:
         from maref.integration.symphony import SymphonyMessage, SymphonyMessageType
+
         cmd = SymphonyMessage(
             msg_type=SymphonyMessageType.COMMAND,
             source="test",
@@ -153,6 +156,7 @@ class TestSymphonyAdapter:
 
     def test_handle_unknown_command(self) -> None:
         from maref.integration.symphony import SymphonyMessage, SymphonyMessageType
+
         cmd = SymphonyMessage(
             msg_type=SymphonyMessageType.COMMAND,
             source="test",

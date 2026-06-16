@@ -2,25 +2,21 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
-from maref.immunity.negative_gene_bank import NegativeGeneBank
-from maref.immunity.seed_genes import seed_all
-from maref.immunity.provenance_tracker import ProvenanceTracker
 from maref.immunity.acceptance_extractor import AcceptanceExtractor
-from maref.immunity.intent_drift_detector import IntentDriftDetector
 from maref.immunity.ai_stench_detector import AIStenchDetector
-from maref.immunity.security_template_lib import SecurityTemplateLib
-from maref.immunity.red_contamination_probe import RedContaminationProbe
-from maref.immunity.cross_gen_simulator import CrossGenerationImpactSimulator
-from maref.immunity.pollution_tax import PollutionTax
-from maref.immunity.cooldown_manager import CooldownManager
 from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
+from maref.immunity.cooldown_manager import CooldownManager
+from maref.immunity.cross_gen_simulator import CrossGenerationImpactSimulator
+from maref.immunity.intent_drift_detector import IntentDriftDetector
+from maref.immunity.negative_gene_bank import NegativeGeneBank
+from maref.immunity.pollution_tax import PollutionTax
+from maref.immunity.provenance_tracker import ProvenanceTracker
+from maref.immunity.red_contamination_probe import RedContaminationProbe
+from maref.immunity.security_template_lib import SecurityTemplateLib
+from maref.immunity.seed_genes import seed_all
 from maref.recursive.agent_economy import AgentEconomy
-from maref.recursive.agent_credit_rating import AgentCreditRatingSystem, RatingDimension
-from maref.recursive.unified_audit import UnifiedAuditStore
 from maref.recursive.experience_pool import ExperiencePool
-
+from maref.recursive.unified_audit import UnifiedAuditStore
 
 GOOD_CODE = """
 import bcrypt
@@ -232,7 +228,8 @@ class TestIntegrationPerformance:
     """6.1-A4: Performance benchmarks."""
 
     def _generate_large_code(self, lines: int) -> str:
-        code_parts = ["""
+        code_parts = [
+            """
 def add(a, b):
     if a is None or b is None:
         raise ValueError("none")
@@ -240,7 +237,8 @@ def add(a, b):
         return a + b
     except TypeError:
         return 0
-"""] * (lines // 10 + 1)
+"""
+        ] * (lines // 10 + 1)
         return "\n".join(code_parts)
 
     def test_ai_stench_scan_under_500ms(self):

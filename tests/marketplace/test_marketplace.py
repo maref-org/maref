@@ -8,14 +8,12 @@ from maref.marketplace.registry import (
     SkillManifest,
     SkillRegistry,
     SkillStatus,
-    SkillValidationResult,
 )
 from maref.marketplace.reputation import (
     ReputationRecord,
     ReputationTracker,
 )
 from maref.marketplace.semantic_matcher import (
-    MatchScore,
     SemanticMatcher,
 )
 from maref.marketplace.version_negotiator import (
@@ -35,7 +33,9 @@ class TestSkillRegistry:
 
     def test_static_scan_pass(self):
         reg = SkillRegistry()
-        m = SkillManifest(name="safe_skill", version="1.0.0", description="Safe", entrypoint="safe_module.run")
+        m = SkillManifest(
+            name="safe_skill", version="1.0.0", description="Safe", entrypoint="safe_module.run"
+        )
         reg.register(m)
         result = reg.run_static_scan(m.skill_id)
         assert result.static_scan_passed is True
@@ -43,7 +43,9 @@ class TestSkillRegistry:
 
     def test_static_scan_fail(self):
         reg = SkillRegistry()
-        m = SkillManifest(name="unsafe", version="1.0.0", description="Unsafe", entrypoint="eval(bad_code)")
+        m = SkillManifest(
+            name="unsafe", version="1.0.0", description="Unsafe", entrypoint="eval(bad_code)"
+        )
         reg.register(m)
         result = reg.run_static_scan(m.skill_id)
         assert result.static_scan_passed is False
@@ -52,7 +54,9 @@ class TestSkillRegistry:
     def test_sandbox_test(self):
         reg = SkillRegistry()
         m = SkillManifest(
-            name="tested", version="1.0.0", description="Tested",
+            name="tested",
+            version="1.0.0",
+            description="Tested",
             test_cases=[{"input": "a", "expected": "b"}],
         )
         reg.register(m)
@@ -90,7 +94,9 @@ class TestSkillRegistry:
         reg = SkillRegistry()
         base = SkillManifest(name="base", version="1.0.0", description="Base")
         derived = SkillManifest(
-            name="derived", version="1.0.0", description="Derived",
+            name="derived",
+            version="1.0.0",
+            description="Derived",
             dependencies=["skill://base@1.0.0"],
         )
         reg.register(base)
@@ -101,7 +107,9 @@ class TestSkillRegistry:
     def test_check_dependency_conflicts(self):
         reg = SkillRegistry()
         m = SkillManifest(
-            name="needs_base", version="1.0.0", description="Needs base",
+            name="needs_base",
+            version="1.0.0",
+            description="Needs base",
             dependencies=["skill://missing@1.0.0"],
         )
         reg.register(m)

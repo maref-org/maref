@@ -6,8 +6,6 @@ GovernanceStateMachine 关键路径测试
 
 from __future__ import annotations
 
-import pytest
-
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.types import GovernanceState
 

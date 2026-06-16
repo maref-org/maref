@@ -15,7 +15,11 @@ class TestEnvironmentTypes:
         assert len(EnvironmentType) == 4
 
     def test_env_defaults_complete(self):
-        for env in [EnvironmentType.STANDALONE, EnvironmentType.KUBERNETES, EnvironmentType.DISTRIBUTED]:
+        for env in [
+            EnvironmentType.STANDALONE,
+            EnvironmentType.KUBERNETES,
+            EnvironmentType.DISTRIBUTED,
+        ]:
             defaults = ENV_DEFAULTS[env]
             assert "observation_frequency_hz" in defaults
             assert "instrumentation_depth" in defaults

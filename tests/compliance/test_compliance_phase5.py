@@ -23,7 +23,9 @@ class TestFiveEyesCompliance:
         mapper = FiveEyesMapper()
         for standard in FiveEyesStandard:
             for control in mapper.get_controls(standard):
-                assert control.implementation_guide, f"{control.control_id} missing implementation guide"
+                assert (
+                    control.implementation_guide
+                ), f"{control.control_id} missing implementation guide"
 
     def test_maref_module_mapping(self):
         mapper = FiveEyesMapper()
@@ -64,7 +66,11 @@ class TestFiveEyesCompliance:
     def test_audit_logging_compliance(self):
         mapper = FiveEyesMapper()
         audit_std = next(
-            (s for s in FiveEyesStandard if "audit" in s.value.lower() or "logging" in s.value.lower()),
+            (
+                s
+                for s in FiveEyesStandard
+                if "audit" in s.value.lower() or "logging" in s.value.lower()
+            ),
             FiveEyesStandard.AGENTIC_AI_SECURITY,
         )
         controls = mapper.get_controls(audit_std)
@@ -77,23 +83,27 @@ class TestEUAICompliance:
 
     def test_high_risk_checklist_exists(self):
         from maref.compliance.eu_ai_act import EUAIHighRiskChecklist
+
         checklist = EUAIHighRiskChecklist()
         assert len(checklist.items) > 0
 
     def test_high_risk_criteria(self):
         from maref.compliance.eu_ai_act import EUAIHighRiskChecklist
+
         checklist = EUAIHighRiskChecklist()
         scored = checklist.evaluate_risk({})
         assert 0 <= scored["overall_risk_score"] <= 100
 
     def test_human_oversight_requirements(self):
         from maref.compliance.eu_ai_act import EUAIHumanOversight
+
         oversight = EUAIHumanOversight()
         assert len(oversight.requirements) > 0
         assert any("human" in r.title.lower() for r in oversight.requirements)
 
     def test_human_oversight_approval_flow(self):
         from maref.compliance.eu_ai_act import EUAIHumanOversight
+
         oversight = EUAIHumanOversight()
         result = oversight.request_approval(
             action="deploy_agent",
@@ -104,6 +114,7 @@ class TestEUAICompliance:
 
     def test_transparency_documentation(self):
         from maref.compliance.eu_ai_act import EUAITransparencyDoc
+
         doc = EUAITransparencyDoc(agent_name="test-agent", version="0.25.0")
         sections = doc.generate()
         assert "purpose" in sections
@@ -112,6 +123,7 @@ class TestEUAICompliance:
 
     def test_compliance_summary(self):
         from maref.compliance.eu_ai_act import EUAIComplianceEngine
+
         engine = EUAIComplianceEngine()
         summary = engine.generate_summary()
         assert "overall_compliant" in summary
@@ -124,6 +136,7 @@ class TestEnhancedAuditLogging:
 
     def test_syslog_export(self):
         from maref.governance.audit import AuditLogger
+
         logger = AuditLogger()
 
         logger.log("test_event", "actor-1", "test_action", details="test")
@@ -134,6 +147,7 @@ class TestEnhancedAuditLogging:
 
     def test_json_export(self):
         from maref.governance.audit import AuditLogger
+
         logger = AuditLogger()
 
         logger.log("event-1", "actor-a", "action-1", details="detail-1")
@@ -145,6 +159,7 @@ class TestEnhancedAuditLogging:
 
     def test_export_filter(self):
         from maref.governance.audit import AuditLogger
+
         logger = AuditLogger()
 
         logger.log("security", "a", "login", details="user login")
@@ -157,6 +172,7 @@ class TestEnhancedAuditLogging:
 
     def test_audit_trail_integrity(self):
         from maref.governance.audit import AuditLogger
+
         logger = AuditLogger()
 
         logger.log("e1", "a", "read", details="read file")
@@ -177,6 +193,7 @@ class TestEnhancedAuditLogging:
         import time
 
         from maref.governance.audit import AuditLogger
+
         logger = AuditLogger()
 
         logger.log("e1", "a", "action-1", details="before")
@@ -191,6 +208,7 @@ class TestEnhancedAuditLogging:
 
     def test_multiple_log_entries_preserve_order(self):
         from maref.governance.audit import AuditLogger
+
         logger = AuditLogger()
 
         for i in range(10):

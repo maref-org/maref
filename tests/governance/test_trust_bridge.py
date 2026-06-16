@@ -6,8 +6,6 @@ GovernanceBridge 测试
 
 from __future__ import annotations
 
-import pytest
-
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.trust_bridge import (
     GovernanceBridge,
@@ -133,9 +131,7 @@ class TestGovernanceBridge:
             )
         )
 
-        events = bridge.get_recent_events(
-            event_type=RecursiveEventType.SAFETY_VIOLATION
-        )
+        events = bridge.get_recent_events(event_type=RecursiveEventType.SAFETY_VIOLATION)
         assert len(events) == 1
         assert events[0].source_agent == "agent-2"
 

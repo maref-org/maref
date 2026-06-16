@@ -9,9 +9,15 @@ class TestUnifiedAuditClear:
     def test_clear_resets_all(self) -> None:
         store = UnifiedAuditStore()
         r = UnifiedAuditRecord(
-            record_id="r1", timestamp=1.0, layer="meta",
-            round=1, event_type="test", source_module="mod",
-            target_module="mod2", decision="act", justification="because",
+            record_id="r1",
+            timestamp=1.0,
+            layer="meta",
+            round=1,
+            event_type="test",
+            source_module="mod",
+            target_module="mod2",
+            decision="act",
+            justification="because",
         )
         store.append(r)
         assert store.count() == 1
@@ -26,15 +32,27 @@ class TestUnifiedAuditClear:
     def test_query_decision_chain_circular(self) -> None:
         store = UnifiedAuditStore()
         r1 = UnifiedAuditRecord(
-            record_id="r1", timestamp=1.0, layer="meta",
-            round=1, event_type="test", source_module="m1",
-            target_module="m2", decision="act", justification="j",
+            record_id="r1",
+            timestamp=1.0,
+            layer="meta",
+            round=1,
+            event_type="test",
+            source_module="m1",
+            target_module="m2",
+            decision="act",
+            justification="j",
             context_refs=["r2"],
         )
         r2 = UnifiedAuditRecord(
-            record_id="r2", timestamp=2.0, layer="inner",
-            round=1, event_type="test", source_module="m2",
-            target_module="m3", decision="act", justification="j",
+            record_id="r2",
+            timestamp=2.0,
+            layer="inner",
+            round=1,
+            event_type="test",
+            source_module="m2",
+            target_module="m3",
+            decision="act",
+            justification="j",
             context_refs=["r1"],
         )
         store.append(r1)
@@ -75,6 +93,7 @@ class TestSafetyGateV2EdgeCases:
 
     def test_detect_gradual_weakening_mixed_direction(self) -> None:
         from maref.recursive.safety_gate_v2 import ChangeRecord
+
         gate = SafetyGateV2()
         gate._change_history["target_x"] = [
             ChangeRecord(timestamp=1.0, target="target_x", direction="decrease", value=0.9),

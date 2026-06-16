@@ -39,8 +39,12 @@ class TestGatewayResponse:
 
     def test_to_dict_with_error(self) -> None:
         resp = GatewayResponse(
-            content="", model_used="sf-deepseek", cost_cny=0.0,
-            latency_ms=0.0, provider="error", error="timeout",
+            content="",
+            model_used="sf-deepseek",
+            cost_cny=0.0,
+            latency_ms=0.0,
+            provider="error",
+            error="timeout",
         )
         assert resp.to_dict()["error"] == "timeout"
 
@@ -52,7 +56,9 @@ class TestGatewayAdapter:
         assert adapter._cost_tracker is None
 
     def test_chat_no_percv(self) -> None:
-        with patch.dict("sys.modules", {"percv": None, "percv.gateway": None, "percv.gateway.router": None}):
+        with patch.dict(
+            "sys.modules", {"percv": None, "percv.gateway": None, "percv.gateway.router": None}
+        ):
             adapter = GatewayAdapter()
             with pytest.raises(RuntimeError, match="PERCV package is required"):
                 adapter.chat([{"role": "user", "content": "hello"}])
@@ -86,10 +92,12 @@ class TestGatewayAdapter:
         mock_cost.current_month_spent.return_value = 0.01
 
         adapter = GatewayAdapter(router=mock_router, cost_tracker=mock_cost)
-        resp = adapter.chat([
-            {"role": "system", "content": "You are an expert analyst."},
-            {"role": "user", "content": "Analyze market trends."},
-        ])
+        resp = adapter.chat(
+            [
+                {"role": "system", "content": "You are an expert analyst."},
+                {"role": "user", "content": "Analyze market trends."},
+            ]
+        )
 
         assert resp.content == "system aware response"
         call_kwargs = mock_router.call.call_args
@@ -129,7 +137,8 @@ class TestGatewayAdapter:
         mock_cost = MagicMock()
         mock_cost.current_month_spent.return_value = 1234.56
         adapter = GatewayAdapter(
-            router=MagicMock(), cost_tracker=mock_cost,
+            router=MagicMock(),
+            cost_tracker=mock_cost,
         )
         assert adapter.get_monthly_cost() == 1234.56
 

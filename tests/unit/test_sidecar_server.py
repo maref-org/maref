@@ -56,7 +56,6 @@ class TestSidecarFastAPI:
         assert "maref_observations_total" in response.text
 
     def test_observations_with_data(self, client: TestClient) -> None:
-
         response = client.get("/api/observations")
         data = response.json()
         assert data["count"] >= 0

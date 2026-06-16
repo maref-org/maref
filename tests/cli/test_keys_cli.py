@@ -17,7 +17,9 @@ class TestKeysSet:
             instance = MockStore.return_value
             instance.set.return_value = True
             instance.available = True
-            result = runner.invoke(keys_cli, ["set", "--key", "DASHSCOPE_API_KEY", "--value", "secret123"])
+            result = runner.invoke(
+                keys_cli, ["set", "--key", "DASHSCOPE_API_KEY", "--value", "secret123"]
+            )
             assert result.exit_code == 0
             assert "Stored DASHSCOPE_API_KEY in keychain" in result.output
             instance.set.assert_called_once_with("DASHSCOPE_API_KEY", "secret123")
@@ -65,7 +67,9 @@ class TestKeysSet:
             instance = MockStore.return_value
             instance.set.return_value = False
             instance.available = True
-            result = runner.invoke(keys_cli, ["set", "--key", "DASHSCOPE_API_KEY", "--value", "secret"])
+            result = runner.invoke(
+                keys_cli, ["set", "--key", "DASHSCOPE_API_KEY", "--value", "secret"]
+            )
             assert result.exit_code == 0
             assert "Failed to store DASHSCOPE_API_KEY" in result.output
 
@@ -74,7 +78,9 @@ class TestKeysSet:
             instance = MockStore.return_value
             instance.set.return_value = False
             instance.available = False
-            result = runner.invoke(keys_cli, ["set", "--key", "DASHSCOPE_API_KEY", "--value", "secret"])
+            result = runner.invoke(
+                keys_cli, ["set", "--key", "DASHSCOPE_API_KEY", "--value", "secret"]
+            )
             assert result.exit_code == 0
             assert "Failed to store DASHSCOPE_API_KEY" in result.output
             assert "pip install keyring" in result.output

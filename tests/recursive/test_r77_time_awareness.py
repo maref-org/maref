@@ -87,24 +87,32 @@ class TestTimelineTracker:
 
     def test_concurrent_timelines(self) -> None:
         tracker = TimelineTracker()
-        tracker.register("t1", TimeContext(task_id="t1",
-                                           deadline=time.time() + 3600))
-        tracker.register("t2", TimeContext(task_id="t2",
-                                           deadline=time.time() + 3600))
+        tracker.register("t1", TimeContext(task_id="t1", deadline=time.time() + 3600))
+        tracker.register("t2", TimeContext(task_id="t2", deadline=time.time() + 3600))
         active = tracker.concurrent_timelines("")
         assert len(active) >= 2
 
     def test_detect_conflict_overlapping(self) -> None:
         tracker = TimelineTracker()
         now = time.time()
-        tracker.register("t1", TimeContext(
-            task_id="t1", deadline=now + 100,
-            started_at=now, estimated_duration=50,
-        ))
-        tracker.register("t2", TimeContext(
-            task_id="t2", deadline=now + 80,
-            started_at=now + 20, estimated_duration=50,
-        ))
+        tracker.register(
+            "t1",
+            TimeContext(
+                task_id="t1",
+                deadline=now + 100,
+                started_at=now,
+                estimated_duration=50,
+            ),
+        )
+        tracker.register(
+            "t2",
+            TimeContext(
+                task_id="t2",
+                deadline=now + 80,
+                started_at=now + 20,
+                estimated_duration=50,
+            ),
+        )
         conflicts = tracker.detect_conflict()
         assert len(conflicts) == 1
         assert conflicts[0].conflict_type == "temporal_overlap"
@@ -112,28 +120,48 @@ class TestTimelineTracker:
     def test_no_conflict_sequential(self) -> None:
         tracker = TimelineTracker()
         now = time.time()
-        tracker.register("t1", TimeContext(
-            task_id="t1", deadline=now + 50,
-            started_at=now, estimated_duration=50,
-        ))
-        tracker.register("t2", TimeContext(
-            task_id="t2", deadline=now + 150,
-            started_at=now + 51, estimated_duration=50,
-        ))
+        tracker.register(
+            "t1",
+            TimeContext(
+                task_id="t1",
+                deadline=now + 50,
+                started_at=now,
+                estimated_duration=50,
+            ),
+        )
+        tracker.register(
+            "t2",
+            TimeContext(
+                task_id="t2",
+                deadline=now + 150,
+                started_at=now + 51,
+                estimated_duration=50,
+            ),
+        )
         conflicts = tracker.detect_conflict()
         assert len(conflicts) == 0
 
     def test_merge_timelines(self) -> None:
         tracker = TimelineTracker()
         now = time.time()
-        tracker.register("t1", TimeContext(
-            task_id="t1", deadline=now + 60,
-            estimated_duration=30, started_at=now,
-        ))
-        tracker.register("t2", TimeContext(
-            task_id="t2", deadline=now + 120,
-            estimated_duration=60, started_at=now + 10,
-        ))
+        tracker.register(
+            "t1",
+            TimeContext(
+                task_id="t1",
+                deadline=now + 60,
+                estimated_duration=30,
+                started_at=now,
+            ),
+        )
+        tracker.register(
+            "t2",
+            TimeContext(
+                task_id="t2",
+                deadline=now + 120,
+                estimated_duration=60,
+                started_at=now + 10,
+            ),
+        )
         merged = tracker.merge_timelines(["t1", "t2"])
         assert merged is not None
         assert merged.estimated_duration == 90

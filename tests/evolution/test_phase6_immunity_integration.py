@@ -9,16 +9,14 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
+from maref.evolution.agents import AgentRole, GovernanceAgentConfig
 from maref.evolution.constitution_guard import ConstitutionGuard, InvariantCode
+from maref.evolution.engine import EvolutionConfig
+from maref.evolution.metrics import CycleSpec
 from maref.evolution.multi_agent_engine import (
     MultiAgentEvolutionConfig,
     MultiAgentEvolutionEngine,
 )
-from maref.evolution.agents import GovernanceAgentConfig, AgentRole
-from maref.evolution.metrics import CycleSpec
-from maref.evolution.engine import EvolutionConfig
 
 
 class TestConstitutionGuardBlocksImmunityViolation:

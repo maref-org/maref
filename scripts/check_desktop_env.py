@@ -61,6 +61,7 @@ def check_gpu() -> dict[str, Any]:
     result: dict[str, Any] = {"cuda": False, "mps": False, "available": False, "device": "cpu"}
     try:
         import torch
+
         if torch.cuda.is_available():
             result["cuda"] = True
             result["available"] = True
@@ -97,9 +98,9 @@ def check_disk_space() -> dict[str, Any]:
         usage = shutil.disk_usage(cache_dir)
         return {
             "cache_path": str(cache_dir),
-            "free_gb": round(usage.free / (1024 ** 3), 1),
-            "total_gb": round(usage.total / (1024 ** 3), 1),
-            "sufficient": usage.free > 10 * 1024 ** 3,
+            "free_gb": round(usage.free / (1024**3), 1),
+            "total_gb": round(usage.total / (1024**3), 1),
+            "sufficient": usage.free > 10 * 1024**3,
         }
     except Exception as e:
         return {"error": str(e), "sufficient": False}
@@ -108,6 +109,7 @@ def check_disk_space() -> dict[str, Any]:
 def check_screen_resolution() -> dict[str, Any]:
     try:
         import pyautogui
+
         w, h = pyautogui.size()
         return {"width": w, "height": h, "adequate": w >= 1024 and h >= 768}
     except ImportError:
@@ -120,7 +122,9 @@ def check_multi_display() -> dict[str, Any]:
         try:
             result = subprocess.run(
                 ["system_profiler", "SPDisplaysDataType"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             count = result.stdout.count("Display Type")
             return {"count": max(count, 1)}
@@ -131,6 +135,7 @@ def check_multi_display() -> dict[str, Any]:
 
 def check_sandbox_mode() -> dict[str, Any]:
     from maref.desktop.agent import DesktopAgent
+
     try:
         agent_live = DesktopAgent(dry_run=False)
         live_ok = agent_live.controller.pyautogui_available
@@ -159,16 +164,15 @@ def check_macos_permissions() -> dict[str, Any]:
         return {"note": "Not macOS — permissions check skipped"}
 
     accessibility = False
-    output = _run_osascript(
-        'tell application "System Events" to return count of every process'
-    )
+    output = _run_osascript('tell application "System Events" to return count of every process')
     if output is not None and output.strip().isdigit():
         accessibility = True
 
     return {
         "accessibility": accessibility,
         "accessibility_hint": (
-            None if accessibility
+            None
+            if accessibility
             else "System Preferences → Privacy & Security → Accessibility → add Terminal"
         ),
     }
@@ -236,12 +240,16 @@ def check_desktop_agent() -> dict[str, Any]:
 
 def main() -> int:
     import argparse
+
     parser = argparse.ArgumentParser(description="MAREF Desktop Agent runtime diagnostic")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
 
     results: dict[str, Any] = {}
-    results["python"] = {"version": sys.version, "platform": f"{platform.system()} {platform.release()}"}
+    results["python"] = {
+        "version": sys.version,
+        "platform": f"{platform.system()} {platform.release()}",
+    }
     results["dependencies"] = {}
     deps = check_dependencies()
     for name, info in deps.items():
@@ -264,6 +272,7 @@ def main() -> int:
 
     if args.json:
         import json as _json
+
         print(_json.dumps(results, indent=2, default=str))
         return 0
 
@@ -371,7 +380,9 @@ def main() -> int:
     issues: list[str] = []
     if not all_deps_ok:
         issues.append("dependencies missing (pip install maref[desktop])")
-    if platform.system() == "Darwin" and not results.get("macos_permissions", {}).get("accessibility", False):
+    if platform.system() == "Darwin" and not results.get("macos_permissions", {}).get(
+        "accessibility", False
+    ):
         issues.append("Accessibility permission not granted")
     if not gpu["available"]:
         issues.append("no GPU — visual parsing will be slow")

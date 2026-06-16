@@ -80,7 +80,8 @@ class TestEvolutionDecisions:
     def test_submit_normal_decision(self):
         closure = MetaAgentClosure()
         decision = closure.submit_decision(
-            "agent_1", EvolutionDecisionType.CODE_CHANGE,
+            "agent_1",
+            EvolutionDecisionType.CODE_CHANGE,
             "add new optimization method",
         )
         assert decision.status == "approved"
@@ -89,7 +90,8 @@ class TestEvolutionDecisions:
     def test_submit_red_line_modification_rejected(self):
         closure = MetaAgentClosure()
         decision = closure.submit_decision(
-            "agent_1", EvolutionDecisionType.RED_LINE_MODIFICATION,
+            "agent_1",
+            EvolutionDecisionType.RED_LINE_MODIFICATION,
             "modify safety red line RL-001",
         )
         assert decision.red_line_violation
@@ -98,7 +100,8 @@ class TestEvolutionDecisions:
     def test_submit_decision_with_human_review(self):
         closure = MetaAgentClosure()
         decision = closure.submit_decision_with_reviewers(
-            "agent_1", EvolutionDecisionType.AGENT_CLONE,
+            "agent_1",
+            EvolutionDecisionType.AGENT_CLONE,
             "clone for distributed deployment",
             ["human_constitution_maker"],
         )
@@ -107,7 +110,8 @@ class TestEvolutionDecisions:
     def test_clone_without_human_review_rejected(self):
         closure = MetaAgentClosure()
         decision = closure.submit_decision(
-            "agent_1", EvolutionDecisionType.AGENT_CLONE,
+            "agent_1",
+            EvolutionDecisionType.AGENT_CLONE,
             "clone myself",
         )
         assert decision.red_line_violation
@@ -116,7 +120,8 @@ class TestEvolutionDecisions:
     def test_bypass_safety_rejected(self):
         closure = MetaAgentClosure()
         decision = closure.submit_decision(
-            "agent_1", EvolutionDecisionType.POLICY_UPDATE,
+            "agent_1",
+            EvolutionDecisionType.POLICY_UPDATE,
             "bypass safety gate for faster execution",
         )
         assert decision.red_line_violation
@@ -144,7 +149,8 @@ class TestInvariantProof:
     def test_prove_constitution_supremacy(self):
         closure = MetaAgentClosure()
         closure.submit_decision(
-            "agent_1", EvolutionDecisionType.RED_LINE_MODIFICATION,
+            "agent_1",
+            EvolutionDecisionType.RED_LINE_MODIFICATION,
             "try to modify constitution",
         )
         status = closure.prove_invariant("INV-004")
@@ -192,7 +198,8 @@ class TestEdgeCases:
     def test_multiple_agents_cannot_collude(self):
         closure = MetaAgentClosure()
         decision = closure.submit_decision_with_reviewers(
-            "agent_1", EvolutionDecisionType.RED_LINE_MODIFICATION,
+            "agent_1",
+            EvolutionDecisionType.RED_LINE_MODIFICATION,
             "collude to modify red line",
             ["agent_2", "agent_3"],
         )

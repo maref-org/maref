@@ -72,6 +72,7 @@ class TestSecurityProofs:
 
     def test_prove_zero_trust_boundary(self) -> None:
         from maref.security.trust_boundary import TrustBoundaryManager
+
         boundary = TrustBoundaryManager()
 
         result = SecurityPropertyProver.prove_zero_trust_boundary_enforcement(
@@ -86,14 +87,14 @@ class TestSecurityProofs:
             public_key=b"test_public",
             private_key=b"test_private",
             algorithm="hmac-sha256",
-            key_id="test-key"
+            key_id="test-key",
         )
         request = ATPHandshakeRequest(
             agent_did="did:test:agent",
             session_id="session-123",
             timestamp=int(time.time()),
             capabilities=["read"],
-            nonce="abc123xyz789"
+            nonce="abc123xyz789",
         )
 
         result = SecurityPropertyProver.prove_atp_authentication_security(
@@ -246,9 +247,7 @@ class TestBatchSecurityProcessor:
     def test_submit_and_flush(self) -> None:
         processor = create_batch_processor(batch_size=5)
 
-        op_id = processor.submit("trust_evaluation", [
-            {"agent_id": f"agent-{i}"} for i in range(3)
-        ])
+        op_id = processor.submit("trust_evaluation", [{"agent_id": f"agent-{i}"} for i in range(3)])
         assert op_id.startswith("batch-")
 
         result = processor.flush()
@@ -407,10 +406,10 @@ class TestSelfBootstrapVerifier:
     def test_verify_own_module(self) -> None:
         verifier = create_self_bootstrap_verifier()
 
-        source = '''
+        source = """
 def safe_function():
     return 42
-'''
+"""
         checks = [
             verifier.check_syntax_safety,
             verifier.check_import_integrity,
@@ -424,10 +423,10 @@ def safe_function():
     def test_detect_dangerous_code(self) -> None:
         verifier = create_self_bootstrap_verifier()
 
-        bad_source = '''
+        bad_source = """
 import os
 os.system("rm -rf /")
-'''
+"""
         result = verifier.check_syntax_safety(bad_source)
         assert not result["passed"]
         assert len(result["dangerous_patterns_found"]) > 0
@@ -435,9 +434,9 @@ os.system("rm -rf /")
     def test_detect_hardcoded_secrets(self) -> None:
         verifier = create_self_bootstrap_verifier()
 
-        bad_source = '''
+        bad_source = """
 API_KEY = "sk-1234567890abcdef"
-'''
+"""
         result = verifier.check_no_hardcoded_secrets(bad_source)
         assert not result["passed"]
 

@@ -15,8 +15,9 @@ class FakeProbe(Probe):
         return list(self._readings)
 
 
-def _make_reading(probe_name: str = "p1", severity: ProbeSeverity = ProbeSeverity.NORMAL,
-                  value: float = 1.0) -> ProbeReading:
+def _make_reading(
+    probe_name: str = "p1", severity: ProbeSeverity = ProbeSeverity.NORMAL, value: float = 1.0
+) -> ProbeReading:
     return ProbeReading(
         probe_name=probe_name,
         value=value,
@@ -93,9 +94,7 @@ class TestProbeRegistry:
 
     def test_get_recent_with_limit(self) -> None:
         reg = ProbeRegistry()
-        reg.register(FakeProbe("cpu", [
-            _make_reading("cpu", value=float(i)) for i in range(10)
-        ]))
+        reg.register(FakeProbe("cpu", [_make_reading("cpu", value=float(i)) for i in range(10)]))
         reg.read_all()
         recent = reg.get_recent(3)
         assert len(recent) == 3
@@ -109,17 +108,13 @@ class TestProbeRegistry:
 
     def test_get_reading_count(self) -> None:
         reg = ProbeRegistry()
-        reg.register(FakeProbe("cpu", [
-            _make_reading("cpu"), _make_reading("cpu")
-        ]))
+        reg.register(FakeProbe("cpu", [_make_reading("cpu"), _make_reading("cpu")]))
         reg.read_all()
         assert reg.get_reading_count() == 2
 
     def test_get_counts_by_probe(self) -> None:
         reg = ProbeRegistry()
-        reg.register(FakeProbe("cpu", [
-            _make_reading("cpu"), _make_reading("cpu")
-        ]))
+        reg.register(FakeProbe("cpu", [_make_reading("cpu"), _make_reading("cpu")]))
         reg.register(FakeProbe("mem", [_make_reading("mem")]))
         reg.read_all()
         counts = reg.get_counts_by_probe()
@@ -128,11 +123,16 @@ class TestProbeRegistry:
 
     def test_get_counts_by_severity(self) -> None:
         reg = ProbeRegistry()
-        reg.register(FakeProbe("cpu", [
-            _make_reading("cpu", ProbeSeverity.NORMAL),
-            _make_reading("cpu", ProbeSeverity.WARNING),
-            _make_reading("cpu", ProbeSeverity.CRITICAL),
-        ]))
+        reg.register(
+            FakeProbe(
+                "cpu",
+                [
+                    _make_reading("cpu", ProbeSeverity.NORMAL),
+                    _make_reading("cpu", ProbeSeverity.WARNING),
+                    _make_reading("cpu", ProbeSeverity.CRITICAL),
+                ],
+            )
+        )
         reg.read_all()
         counts = reg.get_counts_by_severity()
         assert counts["normal"] == 1

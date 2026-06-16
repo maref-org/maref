@@ -3,7 +3,6 @@ from __future__ import annotations
 from maref.immunity.cross_gen_simulator import CrossGenerationImpactSimulator
 from maref.recursive.unified_audit import UnifiedAuditStore
 
-
 CLEAN_CODE = """
 def add(a, b):
     return a + b
@@ -26,10 +25,14 @@ def fetch():
     return requests.get("https://api.example.com/data")
 """
 
-ALL_THREE_CODE = PICKLE_CODE + """
+ALL_THREE_CODE = (
+    PICKLE_CODE
+    + """
 # Enterprise-grade security
 result = eval(user_input)
-""" + MISSING_TIMEOUT_CODE
+"""
+    + MISSING_TIMEOUT_CODE
+)
 
 
 class TestCrossGenerationImpactSimulatorIndex:
@@ -70,7 +73,7 @@ class TestCrossGenerationImpactSimulatorIndex:
     def test_wrong_comment_weight_higher_than_pickle_base(self):
         sim = CrossGenerationImpactSimulator()
         report_comment = sim.simulate_contamination(WRONG_COMMENT_CODE)
-        single_pickle = 'import pickle\n'
+        single_pickle = "import pickle\n"
         report_single_pickle = sim.simulate_contamination(single_pickle)
         assert report_comment.contamination_index >= report_single_pickle.contamination_index
 

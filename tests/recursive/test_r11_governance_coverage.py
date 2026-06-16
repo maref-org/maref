@@ -67,7 +67,9 @@ class TestMAREFSelfAdapter:
         assert entropy is not None
         assert isinstance(entropy.value, float)
 
-    async def test_get_entropy_level_is_normal_or_critical(self, self_adapter: MAREFSelfAdapter) -> None:
+    async def test_get_entropy_level_is_normal_or_critical(
+        self, self_adapter: MAREFSelfAdapter
+    ) -> None:
         entropy = await self_adapter.get_entropy(AgentId(name="maref-core", namespace="self"))
         assert entropy is not None
         assert entropy.level in ("normal", "critical")
@@ -200,7 +202,9 @@ class TestRecursiveGovernanceOverlayMethods:
         assert "meta_learning" in status
         assert "sandbox" in status
 
-    def test_get_recursive_status_recursion_depth_zero(self, overlay: RecursiveGovernanceOverlay) -> None:
+    def test_get_recursive_status_recursion_depth_zero(
+        self, overlay: RecursiveGovernanceOverlay
+    ) -> None:
         status = overlay.get_recursive_status()
         assert status["recursion_depth"] == 0
 
@@ -212,16 +216,22 @@ class TestRecursiveGovernanceOverlayMethods:
         decisions = overlay.get_meta_decisions()
         assert decisions == []
 
-    def test_detect_oscillation_negative_when_few_changes(self, overlay: RecursiveGovernanceOverlay) -> None:
+    def test_detect_oscillation_negative_when_few_changes(
+        self, overlay: RecursiveGovernanceOverlay
+    ) -> None:
         overlay._state_changes = [time.time()]
         assert overlay._detect_oscillation() is False
 
-    def test_detect_oscillation_positive_when_many_changes(self, overlay: RecursiveGovernanceOverlay) -> None:
+    def test_detect_oscillation_positive_when_many_changes(
+        self, overlay: RecursiveGovernanceOverlay
+    ) -> None:
         now = time.time()
         overlay._state_changes = [now] * 20
         assert overlay._detect_oscillation() is True
 
-    def test_state_changes_pruned_after_one_minute(self, overlay: RecursiveGovernanceOverlay) -> None:
+    def test_state_changes_pruned_after_one_minute(
+        self, overlay: RecursiveGovernanceOverlay
+    ) -> None:
         old_time = time.time() - 120.0
         recent_time = time.time()
         overlay._state_changes = [old_time, old_time, recent_time]
@@ -236,7 +246,9 @@ class TestRecursiveGovernanceOverlayMethods:
         assert status["meta_learning"] is None
         assert status["sandbox"] is None
 
-    def test_recursive_status_oscillation_detected_flag(self, overlay: RecursiveGovernanceOverlay) -> None:
+    def test_recursive_status_oscillation_detected_flag(
+        self, overlay: RecursiveGovernanceOverlay
+    ) -> None:
         overlay._state_changes = [time.time()] * 15
         status = overlay.get_recursive_status()
         assert status["oscillation_detected"] is True

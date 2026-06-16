@@ -354,16 +354,20 @@ class TestSchedulerRegisterEvent:
     def test_register_event_returns_id(self, scheduler: Scheduler) -> None:
         def handler(data: dict) -> None:
             pass
+
         event_id = scheduler.register_event("test_event", handler)
         assert event_id is not None
         assert isinstance(event_id, str)
 
     def test_register_multiple_events(self, scheduler: Scheduler) -> None:
         results: list[str] = []
+
         def handler_a(data: dict) -> None:
             results.append("a")
+
         def handler_b(data: dict) -> None:
             results.append("b")
+
         id_a = scheduler.register_event("type_a", handler_a)
         id_b = scheduler.register_event("type_b", handler_b)
         assert id_a != id_b
@@ -375,8 +379,10 @@ class TestSchedulerRegisterEvent:
 class TestSchedulerTriggerEvent:
     def test_trigger_existing_event(self, scheduler: Scheduler) -> None:
         captured: list[dict] = []
+
         def handler(data: dict) -> None:
             captured.append(data)
+
         scheduler.register_event("test", handler)
         result = scheduler.trigger_event("test", {"key": "value"})
         assert result is True
@@ -388,10 +394,13 @@ class TestSchedulerTriggerEvent:
 
     def test_trigger_overwritten_event(self, scheduler: Scheduler) -> None:
         captured: list[str] = []
+
         def handler1(data: dict) -> None:
             captured.append("old")
+
         def handler2(data: dict) -> None:
             captured.append("new")
+
         scheduler.register_event("test", handler1)
         scheduler.register_event("test", handler2)
         scheduler.trigger_event("test", {})
@@ -492,8 +501,10 @@ class TestSchedulerEdgeCases:
 
     def test_register_event_called_with_data(self, scheduler: Scheduler) -> None:
         captured: list[dict] = []
+
         def handler(data: dict) -> None:
             captured.append(data)
+
         scheduler.register_event("data_test", handler)
         scheduler.trigger_event("data_test", {"a": 1, "b": [2, 3]})
         assert captured[0] == {"a": 1, "b": [2, 3]}

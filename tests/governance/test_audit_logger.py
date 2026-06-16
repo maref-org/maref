@@ -106,7 +106,7 @@ class TestAuditLoggerHMAC:
         logger = AuditLogger(log_path=path, hmac_key="secret")
         logger.log("test", "actor", "action")
         # Tamper with the file
-        with open(path, "r") as f:
+        with open(path) as f:
             line = f.read()
         data = json.loads(line)
         data["action"] = "tampered_action"
@@ -204,7 +204,7 @@ class TestAuditLoggerUnified:
         logger.log("test", "actor", "action", "details")
         syslog = logger.export_syslog()
         assert "MAREF" in syslog
-        assert "actor=\"actor\"" in syslog
+        assert 'actor="actor"' in syslog
 
     def test_export_json(self) -> None:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:

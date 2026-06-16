@@ -23,9 +23,23 @@ def basic_plan() -> Plan:
     return Plan(
         plan_id="integ-test-1",
         steps=[
-            PlanStep(task_id="step1", action="analyze", params={"target": "a"}, description="Analyze A"),
-            PlanStep(task_id="step2", action="compute", params={"target": "b"}, depends_on=["step1"], description="Compute B"),
-            PlanStep(task_id="step3", action="report", params={"target": "c"}, depends_on=["step2"], description="Report C"),
+            PlanStep(
+                task_id="step1", action="analyze", params={"target": "a"}, description="Analyze A"
+            ),
+            PlanStep(
+                task_id="step2",
+                action="compute",
+                params={"target": "b"},
+                depends_on=["step1"],
+                description="Compute B",
+            ),
+            PlanStep(
+                task_id="step3",
+                action="report",
+                params={"target": "c"},
+                depends_on=["step2"],
+                description="Report C",
+            ),
         ],
     )
 
@@ -34,11 +48,14 @@ def make_gov_check(hitl: HITLRouter):
     def check(task_id: str, params: dict) -> tuple[bool, str | None]:
         _ = hitl.route("critical", "governance_check", f"Check {task_id}")
         return True, None
+
     return check
 
 
 class TestHITLAndPlanExecutor:
-    def test_plan_executor_creates_hitl_events(self, hitl_router: HITLRouter, basic_plan: Plan) -> None:
+    def test_plan_executor_creates_hitl_events(
+        self, hitl_router: HITLRouter, basic_plan: Plan
+    ) -> None:
         executor = PlanExecutor(governance_check=make_gov_check(hitl_router))
         executor.register_handler("analyze", lambda tid, p: {"status": "ok"})
         executor.register_handler("compute", lambda tid, p: {"status": "ok"})
@@ -68,7 +85,13 @@ class TestHITLAndPlanExecutor:
             plan_id="approval-test",
             steps=[
                 PlanStep(task_id="step1", action="setup", params={}, description="Setup"),
-                PlanStep(task_id="step2", action="process", params={}, depends_on=["step1"], description="Process"),
+                PlanStep(
+                    task_id="step2",
+                    action="process",
+                    params={},
+                    depends_on=["step1"],
+                    description="Process",
+                ),
             ],
         )
 
@@ -132,7 +155,13 @@ class TestTaskGraphAndPlanIntegration:
             plan_id="roundtrip",
             steps=[
                 PlanStep(task_id="a", action="read", params={"file": "x"}, description="Read X"),
-                PlanStep(task_id="b", action="write", params={"file": "y"}, depends_on=["a"], description="Write Y"),
+                PlanStep(
+                    task_id="b",
+                    action="write",
+                    params={"file": "y"},
+                    depends_on=["a"],
+                    description="Write Y",
+                ),
             ],
         )
 
@@ -151,8 +180,20 @@ class TestTaskGraphAndPlanIntegration:
             plan_id="graph-exec",
             steps=[
                 PlanStep(task_id="fetch", action="read", params={}, description="Fetch data"),
-                PlanStep(task_id="validate", action="check", params={}, depends_on=["fetch"], description="Validate"),
-                PlanStep(task_id="store", action="write", params={}, depends_on=["validate"], description="Store"),
+                PlanStep(
+                    task_id="validate",
+                    action="check",
+                    params={},
+                    depends_on=["fetch"],
+                    description="Validate",
+                ),
+                PlanStep(
+                    task_id="store",
+                    action="write",
+                    params={},
+                    depends_on=["validate"],
+                    description="Store",
+                ),
             ],
         )
 
@@ -203,7 +244,9 @@ class TestTaskGraphAndPlanIntegration:
         )
 
         executor = PlanExecutor()
-        executor.register_handler(shell_tool.name, lambda tid, p: {"output": "hello", "exit_code": 0})
+        executor.register_handler(
+            shell_tool.name, lambda tid, p: {"output": "hello", "exit_code": 0}
+        )
 
         report = executor.execute(plan)
 

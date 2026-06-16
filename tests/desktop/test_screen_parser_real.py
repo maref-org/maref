@@ -73,4 +73,6 @@ class TestOmniParserBackendInfo:
         parser = OmniParserInterface(backend="auto")
         parser.initialize()
         result = parser.parse("/tmp/test.png", 1920, 1080)
-        assert result.model_name == "mock-omni-parser-v0" or "omni-parser" in result.model_name.lower()
+        assert (
+            result.model_name == "mock-omni-parser-v0" or "omni-parser" in result.model_name.lower()
+        )

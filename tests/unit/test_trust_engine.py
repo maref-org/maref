@@ -28,24 +28,18 @@ def circuit_breaker() -> CircuitBreaker:
 
 
 @pytest.fixture
-def trust_engine(
-    circuit_breaker: CircuitBreaker, audit_logger: AuditLogger
-) -> TrustEngine:
+def trust_engine(circuit_breaker: CircuitBreaker, audit_logger: AuditLogger) -> TrustEngine:
     return TrustEngine(circuit_breaker=circuit_breaker, audit_logger=audit_logger)
 
 
 class TestTrustScoreEvaluation:
-    def test_evaluate_new_agent_default_score(
-        self, trust_engine: TrustEngine
-    ) -> None:
+    def test_evaluate_new_agent_default_score(self, trust_engine: TrustEngine) -> None:
         did = AgentDID.generate()
         score = trust_engine.evaluate(did)
         assert 0.0 <= score.value <= 1.0
         assert score.confidence <= 1.0
 
-    def test_record_event_improves_confidence(
-        self, trust_engine: TrustEngine
-    ) -> None:
+    def test_record_event_improves_confidence(self, trust_engine: TrustEngine) -> None:
         did = AgentDID.generate()
         score1 = trust_engine.evaluate(did)
         for _ in range(50):
@@ -114,9 +108,7 @@ class TestTrustToCircuitBreakerSync:
 
 
 class TestTrustRecovery:
-    def test_trust_can_recover(
-        self, trust_engine: TrustEngine, audit_logger: AuditLogger
-    ) -> None:
+    def test_trust_can_recover(self, trust_engine: TrustEngine, audit_logger: AuditLogger) -> None:
         did = AgentDID.generate()
         for _ in range(5):
             audit_logger.log(
@@ -140,9 +132,7 @@ class TestTrustRecovery:
 
 
 class TestTrustScoreStorage:
-    def test_get_score_returns_last_evaluated(
-        self, trust_engine: TrustEngine
-    ) -> None:
+    def test_get_score_returns_last_evaluated(self, trust_engine: TrustEngine) -> None:
         did = AgentDID.generate()
         assert trust_engine.get_score(did) is None
         score = trust_engine.evaluate(did)

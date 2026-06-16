@@ -1,9 +1,10 @@
 """SM2 密钥生成单元测试."""
+
 from __future__ import annotations
 
 import pytest
 
-from maref.crypto.sm2 import SM2KeyPair, sm2_encrypt, sm2_decrypt, sm2_sign, sm2_verify
+from maref.crypto.sm2 import SM2KeyPair, sm2_decrypt, sm2_encrypt, sm2_sign, sm2_verify
 
 
 class TestSM2KeyGeneration:
@@ -32,17 +33,13 @@ class TestSM2KeyGeneration:
     def test_generated_keypair_sign_verify(self) -> None:
         kp = SM2KeyPair.generate()
         data = b"data to sign"
-        signature = sm2_sign(
-            kp.private_key, data, public_key=kp.public_key, use_sm3=True
-        )
+        signature = sm2_sign(kp.private_key, data, public_key=kp.public_key, use_sm3=True)
         assert sm2_verify(kp.public_key, data, signature, use_sm3=True)
 
     def test_generated_keypair_sign_verify_invalid(self) -> None:
         kp = SM2KeyPair.generate()
         data = b"data to sign"
-        signature = sm2_sign(
-            kp.private_key, data, public_key=kp.public_key, use_sm3=True
-        )
+        signature = sm2_sign(kp.private_key, data, public_key=kp.public_key, use_sm3=True)
         assert not sm2_verify(kp.public_key, b"tampered", signature, use_sm3=True)
 
     def test_keypair_immutable(self) -> None:

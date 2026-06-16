@@ -93,6 +93,7 @@ class TestSafetyDashboard:
 
     def test_threat_timeline(self):
         import time
+
         widget = ThreatDetectionWidget()
 
         t1 = time.time()

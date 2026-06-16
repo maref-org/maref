@@ -33,8 +33,12 @@ class TestDeliveryVerifier:
             ],
             compliance_rules=[
                 ComplianceRule(rule_id="c1", description="R1", category="daily", is_automated=True),
-                ComplianceRule(rule_id="c2", description="R2", category="weekly", is_automated=True),
-                ComplianceRule(rule_id="c3", description="R3", category="monthly", is_automated=True),
+                ComplianceRule(
+                    rule_id="c2", description="R2", category="weekly", is_automated=True
+                ),
+                ComplianceRule(
+                    rule_id="c3", description="R3", category="monthly", is_automated=True
+                ),
                 ComplianceRule(rule_id="d1", description="D1", category="discipline"),
                 ComplianceRule(rule_id="d2", description="D2", category="discipline"),
                 ComplianceRule(rule_id="d3", description="D3", category="discipline"),
@@ -52,10 +56,17 @@ class TestDeliveryVerifier:
     def _make_report(self, **overrides) -> ConvergenceReport:
         lt = LayerTrend("A", [80.0], "converging", 0.0)
         params = dict(
-            feature_name="T", total_cycles=1, total_duration_seconds=10.0,
-            overall_trend="converging", layer_trends=[lt],
-            deploy_ready=True, deploy_gates={"g1": True}, recommendations=[],
-            cycle_scores=[80.0], final_decision="GO", budget_spent=100.0,
+            feature_name="T",
+            total_cycles=1,
+            total_duration_seconds=10.0,
+            overall_trend="converging",
+            layer_trends=[lt],
+            deploy_ready=True,
+            deploy_gates={"g1": True},
+            recommendations=[],
+            cycle_scores=[80.0],
+            final_decision="GO",
+            budget_spent=100.0,
         )
         params.update(overrides)
         return ConvergenceReport(**params)
@@ -180,9 +191,11 @@ class TestDeliveryVerifier:
         doc = self._make_doc()
         v = DeliveryVerifier(doc)
         report = self._make_report()
-        report.methods_used = [Hypothesis(name="H1", method="A", pass_threshold="P", fail_criterion="F"),
-                               Hypothesis(name="H2", method="B", pass_threshold="P", fail_criterion="F"),
-                               Hypothesis(name="H3", method="C", pass_threshold="P", fail_criterion="F")]
+        report.methods_used = [
+            Hypothesis(name="H1", method="A", pass_threshold="P", fail_criterion="F"),
+            Hypothesis(name="H2", method="B", pass_threshold="P", fail_criterion="F"),
+            Hypothesis(name="H3", method="C", pass_threshold="P", fail_criterion="F"),
+        ]
         v._check_methods_tracked(report)
         assert v.items[-1].passed
 
@@ -203,6 +216,7 @@ class TestDeliveryVerifier:
 
 def CostModel_wrap(stage: str, **kw):
     from maref.integration.feature_dev.doc_ingestor import CostModel
+
     return CostModel(stage=stage, items={"A": 100.0}, total=100.0, **kw)
 
 

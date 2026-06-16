@@ -22,8 +22,9 @@ class TestTaskGenerator:
         assert tasks[0].deploy_stage == DeployStage.UNKNOWN
 
     def test_generate_fallback_no_sections(self) -> None:
-        doc = FeatureDocument(title="NoSections", raw_path="/tmp/n.md",
-                              stages={DeployStage.MVP: []})
+        doc = FeatureDocument(
+            title="NoSections", raw_path="/tmp/n.md", stages={DeployStage.MVP: []}
+        )
         tg = TaskGenerator(doc)
         tasks = tg.generate()
         assert len(tasks) == 1
@@ -59,7 +60,9 @@ class TestTaskGenerator:
         assert len(topics) > 0
         assert any("Test Feature" in t for t in topics)
 
-    def test_get_initial_research_topic_with_tasks(self, valid_feature_doc: FeatureDocument) -> None:
+    def test_get_initial_research_topic_with_tasks(
+        self, valid_feature_doc: FeatureDocument
+    ) -> None:
         tg = TaskGenerator(valid_feature_doc)
         tg.generate()
         topic = tg.get_initial_research_topic()
