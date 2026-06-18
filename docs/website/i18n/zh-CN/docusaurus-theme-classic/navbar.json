@@ -1,0 +1,26 @@
+{
+  "title": {
+    "message": "MAREF",
+    "description": "The title in the navbar"
+  },
+  "item.label.Docs": {
+    "message": "文档",
+    "description": "Navbar item with label Docs"
+  },
+  "item.label.API Reference": {
+    "message": "API 参考",
+    "description": "Navbar item with label API Reference"
+  },
+  "item.label.Architecture": {
+    "message": "架构",
+    "description": "Navbar item with label Architecture"
+  },
+  "item.label.Security": {
+    "message": "安全",
+    "description": "Navbar item with label Security"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

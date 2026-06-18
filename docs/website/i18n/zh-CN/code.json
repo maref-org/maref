@@ -1,0 +1,10 @@
+{
+  "homepage.title": {
+    "message": "MAREF — Agent 治理操作系统",
+    "description": "The title of the homepage"
+  },
+  "homepage.description": {
+    "message": "多智能体递归演化框架 — 为多智能体系统提供形式化验证、宪法治理、自愈基础设施和全面合规",
+    "description": "The description of the homepage"
+  }
+}
