@@ -73,6 +73,7 @@ const config: Config = {
         { type: 'doc', docId: 'api-reference', position: 'left', label: 'API Reference' },
         { type: 'doc', docId: 'architecture', position: 'left', label: 'Architecture' },
         { to: '/blog', label: 'Blog', position: 'left' },
+        { to: '/about', label: 'About', position: 'right' },
         { type: 'docsVersionDropdown', position: 'right' },
         { type: 'localeDropdown', position: 'right' },
         { to: '/security', label: 'Security', position: 'right' },

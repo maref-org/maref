@@ -1,7 +1,9 @@
-export { DesktopAgentView } from "./DesktopAgentView";
-export { GovernanceView } from "./GovernanceView";
 export { AuditLogView } from "./AuditLogView";
-export { DriftDetectionView } from "./DriftDetectionView";
 export { AnomalyMonitorView } from "./AnomalyMonitorView";
-export { TrustScoreView } from "./TrustScoreView";
+export { DesktopAgentView } from "./DesktopAgentView";
+export { DriftDetectionView } from "./DriftDetectionView";
 export { FormalVerificationView } from "./FormalVerificationView";
+export { ErrorBudgetView } from "./ErrorBudgetView";
+export { GovernanceView } from "./GovernanceView";
+export { GuardrailsView } from "./GuardrailsView";
+export { TrustScoreView } from "./TrustScoreView";

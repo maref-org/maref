@@ -1,0 +1,29 @@
+{
+  "id": "integrations/autogen",
+  "title": "AutoGen 集成",
+  "description": "将 MAREF 治理应用于 AutoGen Agent",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/integrations/autogen.md",
+  "sourceDirName": "integrations",
+  "slug": "/integrations/autogen",
+  "permalink": "/zh-CN/docs/integrations/autogen",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/integrations/autogen.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "AutoGen 集成",
+    "description": "将 MAREF 治理应用于 AutoGen Agent"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "CrewAI 集成",
+    "permalink": "/zh-CN/docs/integrations/crewai"
+  },
+  "next": {
+    "title": "Dify 集成",
+    "permalink": "/zh-CN/docs/integrations/dify"
+  }
+}

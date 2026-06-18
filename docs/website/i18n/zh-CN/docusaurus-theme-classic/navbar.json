@@ -15,6 +15,10 @@
     "message": "架构",
     "description": "Navbar item with label Architecture"
   },
+  "item.label.About": {
+    "message": "关于",
+    "description": "Navbar item with label About"
+  },
   "item.label.Security": {
     "message": "安全",
     "description": "Navbar item with label Security"

@@ -1,0 +1,29 @@
+{
+  "id": "integrations/dify",
+  "title": "Dify 集成",
+  "description": "将 MAREF 治理应用于 Dify 工作流",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/integrations/dify.md",
+  "sourceDirName": "integrations",
+  "slug": "/integrations/dify",
+  "permalink": "/zh-CN/docs/integrations/dify",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/integrations/dify.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Dify 集成",
+    "description": "将 MAREF 治理应用于 Dify 工作流"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "AutoGen 集成",
+    "permalink": "/zh-CN/docs/integrations/autogen"
+  },
+  "next": {
+    "title": "部署",
+    "permalink": "/zh-CN/docs/deployment"
+  }
+}

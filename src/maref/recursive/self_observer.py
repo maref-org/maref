@@ -61,17 +61,44 @@ class SelfObserver:
 
         return module_graph
 
-    def observe_tests(self) -> dict[str, int]:
+    def observe_tests(self, collect_only: bool = False) -> dict[str, int]:
+        """观察测试状态。
+
+        Args:
+            collect_only: True 时仅收集不运行（快速但无 pass/fail 信号）；
+                          False 时实际运行测试（默认，提供真实失败信号）。
+        """
         t0 = time.monotonic()
-        result = subprocess.run(
-            ["python3", "-m", "pytest", "tests/", "--co", "-q"],
-            cwd=str(self._root),
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
+        cmd = ["python3", "-m", "pytest", "tests/", "-q", "--no-header"]
+        if collect_only:
+            cmd.append("--co")
+        # 实际运行测试需要更长超时（与巡检间隔 300s 匹配）
+        timeout = 60 if collect_only else 300
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=str(self._root),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+            output = result.stdout + result.stderr
+            returncode = result.returncode
+        except subprocess.TimeoutExpired as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            output = (e.stdout or "") + (e.stderr or "") if isinstance(e.stdout, str) else ""
+            returncode = -1
+            return {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": 0,
+                "coverage_pct": 0,
+                "duration_ms": elapsed_ms,
+                "timeout": True,
+            }
+
         elapsed_ms = int((time.monotonic() - t0) * 1000)
-        output = result.stdout + result.stderr
         stats: dict[str, int] = {
             "total": 0,
             "passed": 0,
@@ -81,9 +108,31 @@ class SelfObserver:
             "duration_ms": elapsed_ms,
         }
 
-        collected_match = re.search(r"(\d+)\s+tests?\s+collected", output)
-        if collected_match:
-            stats["total"] = int(collected_match.group(1))
+        if collect_only:
+            # collect-only 模式：从 "X tests collected" 提取 total
+            collected_match = re.search(r"(\d+)\s+tests?\s+collected", output)
+            if collected_match:
+                stats["total"] = int(collected_match.group(1))
+        else:
+            # 实际运行模式：从总结行提取 passed/failed/errors
+            # 格式: "5659 passed, 10 errors in 19.47s"
+            # 或: "3 failed, 5656 passed, 10 errors in 19.47s"
+            passed_match = re.search(r"(\d+)\s+passed", output)
+            failed_match = re.search(r"(\d+)\s+failed", output)
+            errors_match = re.search(r"(\d+)\s+errors?", output)
+            collected_match = re.search(r"(\d+)\s+tests?\s+collected", output)
+
+            if passed_match:
+                stats["passed"] = int(passed_match.group(1))
+            if failed_match:
+                stats["failed"] = int(failed_match.group(1))
+            if errors_match:
+                stats["errors"] = int(errors_match.group(1))
+            if collected_match:
+                stats["total"] = int(collected_match.group(1))
+            else:
+                # 无 "collected" 行时，total = passed + failed + errors
+                stats["total"] = stats["passed"] + stats["failed"] + stats["errors"]
 
         return stats
 

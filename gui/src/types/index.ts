@@ -154,3 +154,55 @@ export interface HITLStats {
   by_status: Record<string, number>;
   tier_map: Record<string, string>;
 }
+
+export interface GuardrailStats {
+  total_checks: number;
+  allow_rate: number;
+  deny_rate: number;
+  audit_rate: number;
+  risk_scores: Array<{ agent_id: string; score: number }>;
+  open_circuit_breakers: number;
+  active_denials: number;
+}
+
+export interface GuardrailEvent {
+  verdict: string;
+  gate: string;
+  duration: number;
+  timestamp: number;
+}
+
+export interface CooldownEntry {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  status: "cooling" | "blocked" | "merged" | "force_merged";
+  submitted_at: string;
+  evaluated_at: string | null;
+  merged_at: string | null;
+  age_seconds: number;
+  contamination_score: number;
+  blocked_reason: string | null;
+  merged_branch: string | null;
+}
+
+export interface CooldownSummary {
+  status: string;
+  total_agents: number;
+  cooling: number;
+  blocked: number;
+  merged: number;
+  force_merged: number;
+}
+
+export interface GeneEntry {
+  id: string;
+  source: string;
+  cwe: string;
+  risk_level: "low" | "medium" | "high" | "critical";
+  severity: number;
+  occurrences: number;
+  first_seen: string;
+  last_seen: string;
+  description: string;
+}

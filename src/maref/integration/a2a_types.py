@@ -6,6 +6,8 @@ from typing import Any
 
 from maref.governance.types import GovernanceState
 
+A2A_PROTOCOL_VERSION = "1.0"
+
 
 class A2ATaskState(str, Enum):
     SUBMITTED = "submitted"
@@ -15,7 +17,6 @@ class A2ATaskState(str, Enum):
     CANCELED = "canceled"
     FAILED = "failed"
     REJECTED = "rejected"
-    AUTH_REQUIRED = "auth-required"
 
 
 A2A_TO_MAREF_MAP: dict[A2ATaskState, GovernanceState] = {
@@ -26,7 +27,6 @@ A2A_TO_MAREF_MAP: dict[A2ATaskState, GovernanceState] = {
     A2ATaskState.CANCELED: GovernanceState.HALT,
     A2ATaskState.FAILED: GovernanceState.HALT,
     A2ATaskState.REJECTED: GovernanceState.HALT,
-    A2ATaskState.AUTH_REQUIRED: GovernanceState.EVALUATE,
 }
 
 MAREF_TO_A2A_MAP: dict[GovernanceState, A2ATaskState] = {

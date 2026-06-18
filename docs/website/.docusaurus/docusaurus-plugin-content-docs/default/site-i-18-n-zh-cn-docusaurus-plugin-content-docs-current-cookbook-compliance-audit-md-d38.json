@@ -1,0 +1,29 @@
+{
+  "id": "cookbook/compliance-audit",
+  "title": "合规审计",
+  "description": "HMAC 签名审计追踪与合规报告",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/cookbook/compliance-audit.md",
+  "sourceDirName": "cookbook",
+  "slug": "/cookbook/compliance-audit",
+  "permalink": "/zh-CN/docs/cookbook/compliance-audit",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/cookbook/compliance-audit.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "合规审计",
+    "description": "HMAC 签名审计追踪与合规报告"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "HITL 审批流程",
+    "permalink": "/zh-CN/docs/cookbook/hitl-approval-flow"
+  },
+  "next": {
+    "title": "LangGraph 集成",
+    "permalink": "/zh-CN/docs/integrations/langgraph"
+  }
+}

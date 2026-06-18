@@ -1,0 +1,25 @@
+{
+  "id": "introduction",
+  "title": "简介",
+  "description": "MAREF — Agent 治理操作系统",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/introduction.md",
+  "sourceDirName": ".",
+  "slug": "/introduction",
+  "permalink": "/zh-CN/docs/introduction",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/introduction.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "简介",
+    "description": "MAREF — Agent 治理操作系统"
+  },
+  "sidebar": "docsSidebar",
+  "next": {
+    "title": "Quickstart",
+    "permalink": "/zh-CN/docs/quickstart"
+  }
+}

@@ -1,29 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Clock, XCircle, GitMerge, Ban, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface CooldownEntry {
-  id: string;
-  agent_id: string;
-  agent_name: string;
-  status: "cooling" | "blocked" | "merged" | "force_merged";
-  submitted_at: string;
-  evaluated_at: string | null;
-  merged_at: string | null;
-  age_seconds: number;
-  contamination_score: number;
-  blocked_reason: string | null;
-  merged_branch: string | null;
-}
-
-interface CooldownSummary {
-  status: string;
-  total_agents: number;
-  cooling: number;
-  blocked: number;
-  merged: number;
-  force_merged: number;
-}
+import { api } from "@/api/client";
+import type { CooldownEntry, CooldownSummary } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
   cooling: "bg-maref-info/10 text-maref-info",
@@ -38,16 +17,6 @@ const STATUS_LABELS: Record<string, string> = {
   merged: "已合并",
   force_merged: "强制合并",
 };
-
-async function fetchCooldownData(): Promise<{ entries: CooldownEntry[]; summary: CooldownSummary }> {
-  const [entriesRes, summaryRes] = await Promise.all([
-    fetch("/api/immunity/cooldown"),
-    fetch("/api/immunity/cooldown/summary"),
-  ]);
-  const entries = entriesRes.ok ? await entriesRes.json() : { entries: [] };
-  const summary = summaryRes.ok ? await summaryRes.json() : { status: "no_manager" };
-  return { entries: entries.entries ?? [], summary };
-}
 
 function SummaryCards({ summary }: { summary: CooldownSummary }) {
   const cards = [
@@ -117,9 +86,12 @@ export function CooldownDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchCooldownData();
-      setEntries(data.entries);
-      setSummary(data.summary);
+      const [entriesRes, summaryRes] = await Promise.all([
+        api.getImmunityCooldown(),
+        api.getImmunityCooldownSummary(),
+      ]);
+      setEntries(entriesRes.entries ?? []);
+      setSummary(summaryRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load cooldown data");
     } finally {

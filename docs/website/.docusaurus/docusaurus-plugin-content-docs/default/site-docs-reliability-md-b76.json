@@ -1,0 +1,25 @@
+{
+  "id": "reliability",
+  "title": "Reliability & SLO",
+  "description": "MAREF service level objectives, error budgets, and reliability targets",
+  "source": "@site/docs/reliability.md",
+  "sourceDirName": ".",
+  "slug": "/reliability",
+  "permalink": "/docs/reliability",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/reliability.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 12,
+  "frontMatter": {
+    "sidebar_position": 12,
+    "title": "Reliability & SLO",
+    "description": "MAREF service level objectives, error budgets, and reliability targets"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Sidecar Deployment",
+    "permalink": "/docs/deployment-sidecar"
+  }
+}

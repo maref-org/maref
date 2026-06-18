@@ -1,0 +1,29 @@
+{
+  "id": "cookbook/mcp-tool-integration",
+  "title": "MCP 工具集成",
+  "description": "通过治理管道连接 MCP 服务器",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/cookbook/mcp-tool-integration.md",
+  "sourceDirName": "cookbook",
+  "slug": "/cookbook/mcp-tool-integration",
+  "permalink": "/zh-CN/docs/cookbook/mcp-tool-integration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/cookbook/mcp-tool-integration.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "MCP 工具集成",
+    "description": "通过治理管道连接 MCP 服务器"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "A2A 联邦",
+    "permalink": "/zh-CN/docs/cookbook/a2a-federation"
+  },
+  "next": {
+    "title": "HITL 审批流程",
+    "permalink": "/zh-CN/docs/cookbook/hitl-approval-flow"
+  }
+}

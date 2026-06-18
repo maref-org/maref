@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import Any
@@ -8,7 +9,9 @@ from maref.governance.audit import AuditLogger
 from maref.governance.circuit_breaker import CircuitBreaker
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.types import GovernanceState
+from maref.integration.a2a_client import A2AClient
 from maref.integration.a2a_types import (
+    A2A_PROTOCOL_VERSION,
     A2ASkillDefinition,
     A2ATaskContext,
     A2ATaskState,
@@ -43,6 +46,23 @@ DEFAULT_GOVERNANCE_SKILLS = [
 
 
 class A2ABridge:
+    """Bridge between MAREF governance and the A2A protocol.
+
+    Wraps a GovernanceStateMachine, AuditLogger, and optional CircuitBreaker
+    into an A2A-compatible agent that can create, delegate, and sync tasks
+    across a multi-agent federation.
+
+    Attributes:
+        _sm: The governance state machine tracking this agent's lifecycle.
+        _audit: HMAC-signed audit logger for tamper-evident records.
+        _cb: Optional circuit breaker for fault isolation.
+        _name: Human-readable agent name.
+        _description: Agent description used in Agent Card.
+        _tasks: In-memory map of task_id -> A2ATaskContext.
+        _delegated_tasks: Map of task_id -> DelegatedTask for cross-agent delegation.
+        _capabilities: List of registered A2ASkillDefinition capabilities.
+    """
+
     def __init__(
         self,
         state_machine: GovernanceStateMachine,
@@ -51,6 +71,15 @@ class A2ABridge:
         agent_name: str = "maref-agent",
         agent_description: str = "MAREF-governed agent",
     ) -> None:
+        """Initialize the A2A bridge with governance components.
+
+        Args:
+            state_machine: The governance state machine instance.
+            audit_logger: Audit logger for recording decisions.
+            circuit_breaker: Optional circuit breaker for fault tolerance.
+            agent_name: Name exposed in the Agent Card.
+            agent_description: Description exposed in the Agent Card.
+        """
         self._sm = state_machine
         self._audit = audit_logger
         self._cb = circuit_breaker
@@ -59,12 +88,22 @@ class A2ABridge:
         self._tasks: dict[str, A2ATaskContext] = {}
         self._delegated_tasks: dict[str, DelegatedTask] = {}
         self._capabilities: list[A2ASkillDefinition] = []
+        self._lock = asyncio.Lock()
+        self._state_queues: dict[str, asyncio.Queue[A2ATaskState]] = {}
         self._register_default_capabilities()
 
     def _register_default_capabilities(self) -> None:
         self._capabilities.extend(DEFAULT_GOVERNANCE_SKILLS)
 
     def register_capability(self, capability: A2ASkillDefinition) -> None:
+        """Register a custom skill capability for this agent.
+
+        The capability is appended to the Agent Card's skills list and
+        an audit log entry is created recording the registration.
+
+        Args:
+            capability: The skill definition to register.
+        """
         self._capabilities.append(capability)
         self._audit.log(
             event_type="a2a_capability_registered",
@@ -80,7 +119,36 @@ class A2ABridge:
                 "Circuit breaker is OPEN — all A2A communication is blocked"
             )
 
+    def _notify_state_change(self, task_id: str) -> None:
+        task = self._tasks.get(task_id)
+        if task is None:
+            return
+        if task_id not in self._state_queues:
+            self._state_queues[task_id] = asyncio.Queue()
+        self._state_queues[task_id].put_nowait(task.a2a_state)
+
+    async def wait_for_state_change(self, task_id: str) -> A2ATaskState:
+        if task_id not in self._state_queues:
+            self._state_queues[task_id] = asyncio.Queue()
+        state = await self._state_queues[task_id].get()
+        return state
+
     def build_agent_card(self, base_url: str = "http://localhost:8000") -> dict[str, Any]:
+        """Build an A2A Agent Card for service discovery.
+
+        Constructs a dictionary conforming to the A2A Agent Card schema,
+        including agent metadata, protocol version, capabilities, and skills.
+
+        Args:
+            base_url: The base URL where this agent is reachable.
+
+        Returns:
+            A dictionary representing the Agent Card.
+
+        Raises:
+            CommunicationBlockedError: If the circuit breaker is open.
+            ValueError: If the generated card fails schema validation.
+        """
         self._check_circuit_breaker()
         skills = [
             {
@@ -99,7 +167,7 @@ class A2ABridge:
             "description": self._description,
             "version": "0.2.0",
             "url": base_url,
-            "protocolVersion": "0.2.6",
+            "protocolVersion": A2A_PROTOCOL_VERSION,
             "capabilities": {
                 "streaming": True,
                 "pushNotifications": True,
@@ -114,6 +182,21 @@ class A2ABridge:
         return card
 
     def create_task(self, task_description: str, context: dict[str, Any] | None = None) -> str:
+        """Create a new governed task.
+
+        Generates a unique task ID, wraps it in an A2ATaskContext with
+        SUBMITTED A2A state and INIT MAREF state, and records an audit entry.
+
+        Args:
+            task_description: Human-readable description of the task.
+            context: Optional metadata dictionary for the task.
+
+        Returns:
+            The generated task ID (format: maref-task-{uuid}).
+
+        Raises:
+            CommunicationBlockedError: If the circuit breaker is open.
+        """
         self._check_circuit_breaker()
         task_id = f"maref-task-{uuid.uuid4().hex[:12]}"
         now = time.time()
@@ -138,9 +221,32 @@ class A2ABridge:
         return task_id
 
     def get_task(self, task_id: str) -> A2ATaskContext | None:
+        """Retrieve a task by its ID.
+
+        Args:
+            task_id: The task ID to look up.
+
+        Returns:
+            The A2ATaskContext if found, or None.
+        """
         return self._tasks.get(task_id)
 
     def delegate_task(self, task_id: str, target_agent_url: str) -> bool:
+        """Delegate a task to another A2A agent.
+
+        Marks the local task as WORKING, creates a DelegatedTask record,
+        and attempts to send the task asynchronously via A2AClient.
+
+        Args:
+            task_id: The ID of the task to delegate.
+            target_agent_url: The URL of the target agent.
+
+        Returns:
+            True if the task exists and delegation was initiated, False otherwise.
+
+        Raises:
+            CommunicationBlockedError: If the circuit breaker is open.
+        """
         self._check_circuit_breaker()
         if task_id not in self._tasks:
             return False
@@ -165,9 +271,43 @@ class A2ABridge:
                 "delegated_at": now,
             },
         )
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                client = A2AClient()
+                task = self._tasks.get(task_id)
+                if task is not None:
+                    loop.create_task(
+                        client.send_task(
+                            agent_url=target_agent_url,
+                            skill_id="maref-delegate",
+                            input_data=task.description,
+                            metadata=task.context,
+                        )
+                    )
+        except RuntimeError:
+            pass
+        except Exception:
+            pass
         return True
 
     def sync_state_from_a2a(self, task_id: str, a2a_state: str) -> bool:
+        """Synchronize task state from an A2A state update.
+
+        Maps the A2A state string to the corresponding MAREF governance state
+        and updates the task context accordingly. Creates audit log entry.
+
+        Args:
+            task_id: The ID of the task to update.
+            a2a_state: The A2A state string (e.g. 'working', 'completed').
+
+        Returns:
+            True if the task was found and state was updated, False otherwise.
+
+        Raises:
+            CommunicationBlockedError: If the circuit breaker is open.
+        """
         self._check_circuit_breaker()
         if task_id not in self._tasks:
             return False
@@ -191,9 +331,23 @@ class A2ABridge:
                 "maref_state": maref_state.name,
             },
         )
+        self._notify_state_change(task_id)
         return True
 
     def handle_push_notification(self, task_id: str, event: dict[str, Any]) -> None:
+        """Handle an incoming SSE push notification for a task.
+
+        Processes state_update events by calling sync_state_from_a2a and
+        stores the raw event in the task context.
+
+        Args:
+            task_id: The ID of the task the notification applies to.
+            event: The push notification event dictionary (must contain 'type' key).
+
+        Raises:
+            CommunicationBlockedError: If the circuit breaker is open.
+            ValueError: If the task_id is unknown.
+        """
         self._check_circuit_breaker()
         if task_id not in self._tasks:
             raise ValueError(f"Unknown task: {task_id}")
@@ -208,6 +362,15 @@ class A2ABridge:
     def list_governed_tasks(
         self, filter_state: GovernanceState | None = None
     ) -> list[dict[str, Any]]:
+        """List all governed tasks, optionally filtered by MAREF state.
+
+        Args:
+            filter_state: If provided, only tasks in this governance state are returned.
+
+        Returns:
+            A list of task summary dictionaries with task_id, description,
+            a2a_state, maref_state, created_at, and updated_at.
+        """
         tasks = []
         for task in self._tasks.values():
             if filter_state is not None and task.maref_state != filter_state:
@@ -225,6 +388,18 @@ class A2ABridge:
         return tasks
 
     def force_halt_task(self, task_id: str, reason: str = "") -> bool:
+        """Forcefully halt a task and transition to HALT state.
+
+        Sets the task's A2A state to CANCELED and MAREF state to HALT,
+        records the event in the audit log.
+
+        Args:
+            task_id: The ID of the task to halt.
+            reason: Optional human-readable reason for halting.
+
+        Returns:
+            True if the task was found and halted, False otherwise.
+        """
         if task_id not in self._tasks:
             return False
         task = self._tasks[task_id]
@@ -239,9 +414,16 @@ class A2ABridge:
             details=f"Halted task {task_id}: {reason}",
             metadata={"task_id": task_id, "reason": reason},
         )
+        self._notify_state_change(task_id)
         return True
 
     def get_delegated_tasks(self) -> list[dict[str, Any]]:
+        """Return all tasks that have been delegated to other agents.
+
+        Returns:
+            A list of delegated task dictionaries with task_id, target_agent_url,
+            delegated_at, and status.
+        """
         return [
             {
                 "task_id": dt.task_id,

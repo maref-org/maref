@@ -50,7 +50,7 @@ export const useHITLStore = create<HITLState>((set, get) => ({
   fetchStats: async () => {
     try {
       const res = await api.hitlStats();
-      set({ stats: res.stats as unknown as HITLStats });
+      set({ stats: res as HITLStats });
     } catch {
       // silent fail for stats
     }

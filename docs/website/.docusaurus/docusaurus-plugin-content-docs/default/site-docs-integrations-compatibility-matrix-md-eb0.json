@@ -1,0 +1,20 @@
+{
+  "id": "integrations/compatibility-matrix",
+  "title": "Compatibility Matrix",
+  "description": "Framework and protocol compatibility for MAREF integration",
+  "source": "@site/docs/integrations/compatibility-matrix.md",
+  "sourceDirName": "integrations",
+  "slug": "/integrations/compatibility-matrix",
+  "permalink": "/docs/integrations/compatibility-matrix",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/integrations/compatibility-matrix.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 10,
+  "frontMatter": {
+    "sidebar_position": 10,
+    "title": "Compatibility Matrix",
+    "description": "Framework and protocol compatibility for MAREF integration"
+  }
+}

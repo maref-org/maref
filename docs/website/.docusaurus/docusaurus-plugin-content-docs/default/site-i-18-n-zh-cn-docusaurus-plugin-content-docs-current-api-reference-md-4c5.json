@@ -1,0 +1,29 @@
+{
+  "id": "api-reference",
+  "title": "API 参考",
+  "description": "完整的 MAREF API 参考文档",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/api-reference.md",
+  "sourceDirName": ".",
+  "slug": "/api-reference",
+  "permalink": "/zh-CN/docs/api-reference",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/api-reference.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "API 参考",
+    "description": "完整的 MAREF API 参考文档"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Architecture",
+    "permalink": "/zh-CN/docs/architecture"
+  },
+  "next": {
+    "title": "受治理 Agent 搭建",
+    "permalink": "/zh-CN/docs/cookbook/governed-agent-setup"
+  }
+}

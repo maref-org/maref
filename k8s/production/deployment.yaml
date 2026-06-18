@@ -1,28 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: maref-desktop-agent
+  name: maref-governance
   namespace: maref
   labels:
-    app: maref
-    component: desktop-agent
-    version: v0.28.0-rc
+    app: maref-governance
+    component: governance
+    version: v0.34.0-rc
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: maref
-      component: desktop-agent
+      app: maref-governance
+      component: governance
   template:
     metadata:
       labels:
-        app: maref
-        component: desktop-agent
-        version: v0.28.0-rc
+        app: maref-governance
+        component: governance
+        version: v0.34.0-rc
     spec:
       containers:
-        - name: agent
-          image: maref/desktop-agent:v0.28.0-rc
+        - name: governance
+          image: maref/governance:v0.34.0-rc
           imagePullPolicy: IfNotPresent
           resources:
             requests:
@@ -36,8 +36,6 @@ spec:
               value: "production"
             - name: MAREF_DRY_RUN
               value: "false"
-            - name: DISPLAY
-              value: ":99"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://otel-collector:4318"
           envFrom:
@@ -45,17 +43,15 @@ spec:
                 name: maref-config
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
-            runAsUser: 1000
+            runAsUser: 1001
             capabilities:
               drop:
                 - ALL
           ports:
             - containerPort: 8080
               name: http
-            - containerPort: 8000
-              name: sidecar
           livenessProbe:
             httpGet:
               path: /health
@@ -68,19 +64,58 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+        - name: sidecar
+          image: maref/sidecar:v0.34.0-rc
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          env:
+            - name: MAREF_SAFETY_LEVEL
+              value: "production"
+          envFrom:
+            - configMapRef:
+                name: maref-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1002
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 8000
+              name: sidecar
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: maref-desktop-agent
+  name: maref-governance
   namespace: maref
   labels:
-    app: maref
-    component: desktop-agent
+    app: maref-governance
+    component: governance
 spec:
   selector:
-    app: maref
-    component: desktop-agent
+    app: maref-governance
+    component: governance
   ports:
     - name: http
       port: 8080

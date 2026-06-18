@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+import httpx
+
 
 class MCPTrustLevel(str, Enum):
     TRUSTED = "trusted"
@@ -92,6 +94,168 @@ class ZeroTrustContext:
     max_delegation_depth: int = 5
     session_id: str = ""
     request_id: str = ""
+    token_claims: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class OAuthTokenData:
+    access_token: str = ""
+    refresh_token: str = ""
+    expires_at: float = 0.0
+    scopes: list[str] = field(default_factory=list)
+    token_type: str = "Bearer"
+    issuer: str = ""
+    subject: str = ""
+
+
+class OAuthTokenProvider:
+    def __init__(
+        self,
+        token_url: str = "",
+        client_id: str = "",
+        client_secret: str = "",
+        scopes: list[str] | None = None,
+        flow: str = "client_credentials",
+    ) -> None:
+        self.token_url = token_url
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.scopes = scopes or ["maref:mcp"]
+        self.flow = flow
+        self._tokens: dict[str, OAuthTokenData] = {}
+
+    def get_token(self, server_url: str) -> str:
+        token_data = self._tokens.get(server_url)
+        if token_data and token_data.access_token:
+            if token_data.expires_at > time.time() + 30:
+                return token_data.access_token
+            try:
+                return self.refresh_token(server_url)
+            except Exception:
+                pass
+        return self._acquire_token(server_url)
+
+    def refresh_token(self, server_url: str) -> str:
+        token_data = self._tokens.get(server_url)
+        if token_data and token_data.refresh_token:
+            return self._do_refresh(server_url, token_data.refresh_token)
+        return self._acquire_token(server_url)
+
+    def store_token(self, server_url: str, token_data: OAuthTokenData) -> None:
+        self._tokens[server_url] = token_data
+
+    def _acquire_token(self, server_url: str) -> str:
+        if self.flow == "client_credentials":
+            return self._client_credentials_grant(server_url)
+        if self.flow == "authorization_code":
+            raise NotImplementedError("authorization_code flow requires an authorization code")
+        raise ValueError(f"Unsupported OAuth flow: {self.flow}")
+
+    def _client_credentials_grant(self, server_url: str) -> str:
+        token_endpoint = self.token_url or f"{server_url.rstrip('/')}/oauth/token"
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "scope": " ".join(self.scopes),
+        }
+        try:
+            response = httpx.post(token_endpoint, data=payload, timeout=30.0)
+            response.raise_for_status()
+            data = response.json()
+            token_data = OAuthTokenData(
+                access_token=data.get("access_token", ""),
+                refresh_token=data.get("refresh_token", ""),
+                expires_at=time.time() + data.get("expires_in", 3600),
+                scopes=data.get("scope", " ".join(self.scopes)).split(),
+                token_type=data.get("token_type", "Bearer"),
+                issuer=server_url,
+                subject=self.client_id,
+            )
+            self._tokens[server_url] = token_data
+            return token_data.access_token
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(f"OAuth token acquisition failed: {exc.response.status_code}") from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"OAuth token request failed: {exc}") from exc
+
+    def _do_refresh(self, server_url: str, refresh_token: str) -> str:
+        token_endpoint = self.token_url or f"{server_url.rstrip('/')}/oauth/token"
+        payload = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+        }
+        try:
+            response = httpx.post(token_endpoint, data=payload, timeout=30.0)
+            response.raise_for_status()
+            data = response.json()
+            token_data = OAuthTokenData(
+                access_token=data.get("access_token", ""),
+                refresh_token=data.get("refresh_token", refresh_token),
+                expires_at=time.time() + data.get("expires_in", 3600),
+                scopes=data.get("scope", " ".join(self.scopes)).split(),
+                token_type=data.get("token_type", "Bearer"),
+                issuer=server_url,
+                subject=self.client_id,
+            )
+            self._tokens[server_url] = token_data
+            return token_data.access_token
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(f"OAuth token refresh failed: {exc.response.status_code}") from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"OAuth token refresh request failed: {exc}") from exc
+
+
+class OAuthMiddleware:
+    def __init__(self, token_provider: OAuthTokenProvider | None = None) -> None:
+        self._provider = token_provider
+
+    async def authenticate(
+        self, headers: dict[str, str]
+    ) -> ZeroTrustContext:
+        auth_header = headers.get("authorization", headers.get("Authorization", ""))
+        if not auth_header:
+            raise PermissionError("Missing Authorization header")
+
+        parts = auth_header.strip().split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            raise PermissionError("Invalid Authorization header format")
+
+        token = parts[1]
+        if not token:
+            raise PermissionError("Empty Bearer token")
+
+        claims = self._validate_token(token)
+        return ZeroTrustContext(
+            agent_id=claims.get("sub", "oauth-user"),
+            session_id=claims.get("session_id", ""),
+            request_id=claims.get("jti", ""),
+            token_claims=claims,
+        )
+
+    def _validate_token(self, token: str) -> dict[str, Any]:
+        try:
+            import base64
+            parts = token.split(".")
+            if len(parts) == 3:
+                padding = 4 - len(parts[1]) % 4
+                if padding != 4:
+                    parts[1] += "=" * padding
+                try:
+                    payload = json.loads(base64.urlsafe_b64decode(parts[1]))
+                    exp = payload.get("exp", 0)
+                    if exp and exp < time.time():
+                        raise PermissionError("Token has expired")
+                    return payload
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            raise PermissionError("Invalid token format or signature")
+        except PermissionError:
+            raise
+        except Exception as exc:
+            raise PermissionError(f"Token validation failed: {exc}") from exc
 
 
 @dataclass
@@ -104,7 +268,46 @@ class MCPSecurityGate:
     enable_delegation_check: bool = True
     max_delegation_depth: int = 5
     rate_limiter: RateLimiter = field(default_factory=lambda: RateLimiter())
+    oauth_provider: OAuthTokenProvider | None = None
     _audit_log: list[AuditLogEntry] = field(default_factory=list, repr=False)
+
+    def authenticate_request(self, headers: dict[str, str]) -> ZeroTrustContext:
+        auth_header = headers.get("authorization", headers.get("Authorization", ""))
+        if not auth_header:
+            return ZeroTrustContext(agent_id="anonymous")
+
+        parts = auth_header.strip().split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            return ZeroTrustContext(agent_id="anonymous")
+
+        token = parts[1]
+        if not token:
+            return ZeroTrustContext(agent_id="anonymous")
+
+        try:
+            import base64
+            segments = token.split(".")
+            if len(segments) == 3:
+                padding = 4 - len(segments[1]) % 4
+                if padding != 4:
+                    segments[1] += "=" * padding
+                try:
+                    payload = json.loads(base64.urlsafe_b64decode(segments[1]))
+                    exp = payload.get("exp", 0)
+                    if exp and exp < time.time():
+                        return ZeroTrustContext(agent_id="anonymous", token_claims={"error": "expired"})
+                    return ZeroTrustContext(
+                        agent_id=payload.get("sub", "oauth-user"),
+                        session_id=payload.get("session_id", ""),
+                        request_id=payload.get("jti", ""),
+                        token_claims=payload,
+                    )
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        except Exception:
+            pass
+
+        return ZeroTrustContext(agent_id="anonymous")
 
     def check(
         self,

@@ -2,12 +2,14 @@ signal_id: S-20260511-001
 topic: MAREF Product Readiness
 source_node: maref_architecture
 source_url: https://athena-knowledge-base/maref-research
-raw_text: MAREF is a 64-hexagram state machine system for multi-agent governance,
-  built on I Ching. It uses Gray Code state transitions (Hamming distance=1) to ensure
-  deterministic agent state changes. The system has 16-state Gray-code governance
-  machine (v2), TLA+ formal verification with 5 proven theorems, and a Sidecar non-invasive
-  pattern that can govern any existing agent framework without modifying the host.
-  44,394 lines of source code, 31,647 lines of tests, 3,124 test cases, 88% coverage.
+raw_text: MAREF is a 10-state Gray Code governance state machine system for multi-agent
+  governance, built on I Ching principles. It uses Gray Code state transitions (Hamming
+  distance=1) to ensure deterministic agent state changes. The system has TLA+ formal
+  verification with 5 proven theorems (3 specs: MarefLite, MAREF_Consensus,
+  MAREF_ConstitutionalRedLines), and a Sidecar non-invasive pattern that can govern
+  any existing agent framework without modifying the host.
+  ~110,479 lines of source code, ~75,789 lines of tests, 6,817 test cases, 27.87% overall
+  coverage (core governance needs improvement to meet 70% threshold).
 summary: MAREF is a 64-hexagram state machine system for multi-agent governance, built
   on I Ching. It uses Gray Code state transitions (Hamming distance=1) to ensure deterministic
   agent state changes. The syst

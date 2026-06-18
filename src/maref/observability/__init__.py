@@ -1,3 +1,4 @@
+from maref.observability.alert_rules import Alert, AlertRule, evaluate
 from maref.observability.error_budget import (
     BURN_RATE_CONFIG,
     BurnRateAlert,
@@ -5,6 +6,7 @@ from maref.observability.error_budget import (
     ErrorBudget,
     ErrorBudgetCalculator,
 )
+from maref.observability.guardrail_metrics import GuardrailMetricsCollector, get_guardrail_metrics
 from maref.observability.logging import configure_logging, get_logger
 from maref.observability.otel_middleware import (
     _OTEL_AVAILABLE,
@@ -25,6 +27,9 @@ from maref.observability.trace_context import (
 )
 
 __all__ = [
+    "Alert",
+    "AlertRule",
+    "evaluate",
     "BURN_RATE_CONFIG",
     "BurnRateAlert",
     "BurnRateLevel",
@@ -35,6 +40,8 @@ __all__ = [
     "get_current_span_id",
     "get_current_trace_id",
     "get_trace_context",
+    "GuardrailMetricsCollector",
+    "get_guardrail_metrics",
     "inject_trace_context",
     "set_trace_context",
     "DesktopOperationSpanMixin",

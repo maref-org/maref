@@ -1,18 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Dna, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface GeneEntry {
-  id: string;
-  source: string;
-  cwe: string;
-  risk_level: "low" | "medium" | "high" | "critical";
-  severity: number;
-  occurrences: number;
-  first_seen: string;
-  last_seen: string;
-  description: string;
-}
+import { api } from "@/api/client";
+import type { GeneEntry } from "@/types";
 
 type SortField = "cwe" | "risk_level" | "severity" | "occurrences" | "last_seen";
 type SortDir = "asc" | "desc";
@@ -30,12 +20,6 @@ const RISK_LABELS: Record<string, string> = {
   high: "高",
   critical: "严重",
 };
-
-async function fetchGenes(): Promise<{ genes: GeneEntry[] }> {
-  const res = await fetch("/api/immunity/genes");
-  if (!res.ok) return { genes: [] };
-  return res.json();
-}
 
 function SortableHeader({
   field,
@@ -73,7 +57,7 @@ export function GeneAuditTrail() {
   const loadGenes = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchGenes();
+      const data = await api.getImmunityGenes();
       setGenes(data.genes ?? []);
     } catch {
       setGenes([]);
@@ -83,6 +67,7 @@ export function GeneAuditTrail() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadGenes();
   }, [loadGenes]);
 

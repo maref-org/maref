@@ -1,0 +1,29 @@
+{
+  "id": "deployment",
+  "title": "部署",
+  "description": "MAREF 部署与运维指南",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/deployment.md",
+  "sourceDirName": ".",
+  "slug": "/deployment",
+  "permalink": "/zh-CN/docs/deployment",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/deployment.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 8,
+  "frontMatter": {
+    "sidebar_position": 8,
+    "title": "部署",
+    "description": "MAREF 部署与运维指南"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Dify 集成",
+    "permalink": "/zh-CN/docs/integrations/dify"
+  },
+  "next": {
+    "title": "Docker 部署",
+    "permalink": "/zh-CN/docs/deployment-docker"
+  }
+}

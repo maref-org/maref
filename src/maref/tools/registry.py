@@ -13,7 +13,11 @@ def _register_builtin_tools() -> None:
     from maref.tools.email_server import create_email_server
     from maref.tools.file_server import create_file_server
     from maref.tools.git_server import create_git_server
+    from maref.tools.github_server import create_github_server
+    from maref.tools.jira_server import create_jira_server
+    from maref.tools.notion_server import create_notion_server
     from maref.tools.shell_server import create_shell_server
+    from maref.tools.slack_server import create_slack_server
     from maref.tools.web_search_server import create_web_search_server
 
     TOOL_REGISTRY["file"] = {
@@ -77,6 +81,42 @@ def _register_builtin_tools() -> None:
         "default_config": {"max_results": 10},
         "tools": ["web_search", "web_search_news"],
         "security_controls": ["QuerySanitizer", "ResultLimit", "DomainBlacklist"],
+    }
+    TOOL_REGISTRY["github"] = {
+        "name": "github",
+        "description": "GitHub API tools for repository and issue management",
+        "factory": create_github_server,
+        "version": "0.33.0",
+        "default_config": {},
+        "tools": ["github_list_repos", "github_get_issue", "github_create_issue", "github_search_code"],
+        "security_controls": ["EnvVarCheck"],
+    }
+    TOOL_REGISTRY["notion"] = {
+        "name": "notion",
+        "description": "Notion-like content management tools",
+        "factory": create_notion_server,
+        "version": "0.33.0",
+        "default_config": {},
+        "tools": ["notion_query_database", "notion_create_page", "notion_search"],
+        "security_controls": ["EnvVarCheck"],
+    }
+    TOOL_REGISTRY["slack"] = {
+        "name": "slack",
+        "description": "Slack messaging and channel management tools",
+        "factory": create_slack_server,
+        "version": "0.33.0",
+        "default_config": {},
+        "tools": ["slack_send_message", "slack_list_channels", "slack_search_messages"],
+        "security_controls": ["EnvVarCheck"],
+    }
+    TOOL_REGISTRY["jira"] = {
+        "name": "jira",
+        "description": "Jira issue tracking and project management tools",
+        "factory": create_jira_server,
+        "version": "0.33.0",
+        "default_config": {},
+        "tools": ["jira_get_issue", "jira_search_issues", "jira_create_issue"],
+        "security_controls": ["EnvVarCheck"],
     }
 
 

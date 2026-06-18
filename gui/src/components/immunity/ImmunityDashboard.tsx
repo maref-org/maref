@@ -1,36 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { Shield, Activity, Dna, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/api/client";
 import { CooldownDashboard } from "./CooldownDashboard";
 import { GeneAuditTrail } from "./GeneAuditTrail";
-
-async function fetchImmunitySummary(): Promise<{
-  total_agents: number;
-  cooling: number;
-  blocked: number;
-  merged: number;
-  gene_count: number;
-  critical_genes: number;
-}> {
-  try {
-    const [summaryRes, geneRes] = await Promise.all([
-      fetch("/api/immunity/cooldown/summary"),
-      fetch("/api/immunity/genes"),
-    ]);
-    const summary = summaryRes.ok ? await summaryRes.json() : {};
-    const geneData = geneRes.ok ? await geneRes.json() : { genes: [] };
-    return {
-      total_agents: summary.total_agents ?? 0,
-      cooling: summary.cooling ?? 0,
-      blocked: summary.blocked ?? 0,
-      merged: summary.merged ?? 0,
-      gene_count: (geneData.genes ?? []).length,
-      critical_genes: (geneData.genes ?? []).filter((g: { risk_level: string }) => g.risk_level === "critical").length,
-    };
-  } catch {
-    return { total_agents: 0, cooling: 0, blocked: 0, merged: 0, gene_count: 0, critical_genes: 0 };
-  }
-}
 
 export function ImmunityDashboard() {
   const [summary, setSummary] = useState({
@@ -43,11 +16,26 @@ export function ImmunityDashboard() {
   });
 
   const loadSummary = useCallback(async () => {
-    const data = await fetchImmunitySummary();
-    setSummary(data);
+    try {
+      const [summaryRes, geneRes] = await Promise.all([
+        api.getImmunityCooldownSummary(),
+        api.getImmunityGenes(),
+      ]);
+      setSummary({
+        total_agents: summaryRes.total_agents ?? 0,
+        cooling: summaryRes.cooling ?? 0,
+        blocked: summaryRes.blocked ?? 0,
+        merged: summaryRes.merged ?? 0,
+        gene_count: (geneRes.genes ?? []).length,
+        critical_genes: (geneRes.genes ?? []).filter((g) => g.risk_level === "critical").length,
+      });
+    } catch {
+      setSummary({ total_agents: 0, cooling: 0, blocked: 0, merged: 0, gene_count: 0, critical_genes: 0 });
+    }
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSummary();
   }, [loadSummary]);
 

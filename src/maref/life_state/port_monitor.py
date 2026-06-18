@@ -6,6 +6,7 @@ integrates with HealthMonitor for scoring, and SelfHealer for auto-recovery.
 
 from __future__ import annotations
 
+import shlex
 import socket
 import subprocess
 import time
@@ -273,8 +274,7 @@ class PortMonitor:
                 )
             try:
                 subprocess.Popen(
-                    service.restart_command,
-                    shell=True,
+                    shlex.split(service.restart_command),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )

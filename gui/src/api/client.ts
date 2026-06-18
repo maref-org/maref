@@ -1,4 +1,4 @@
-import type { Session, Message, ModelProvider, Skill, Task, FileNode, HITLEvent } from "@/types";
+import type { GuardrailStats, Session, Message, ModelProvider, Skill, Task, FileNode, HITLEvent, HITLStats } from "@/types";
 
 const REAL_BACKEND = "http://localhost:8000";
 const BASE_URL = "/api";
@@ -76,13 +76,7 @@ export const api = {
   interrupt: (sessionId: string) =>
     request<void>(`/sessions/${sessionId}/interrupt`, { method: "POST" }),
 
-  approve: (sessionId: string, actionId: string) =>
-    request<void>(`/sessions/${sessionId}/approve`, {
-      method: "POST",
-      body: JSON.stringify({ actionId }),
-    }),
-
-  getTasks: () => request<{ tasks: Task[] }>("/tasks"),
+  getTasks: () => request<{ tasks: Task[] }>("/v1/tasks"),
 
   submitTask: (body: {
     name: string;
@@ -123,13 +117,13 @@ export const api = {
 
   getStreamUrl: (sessionId: string) =>
     _backendMode === "real"
-      ? `${REAL_BACKEND}/sessions/${sessionId}/stream`
-      : `${BASE_URL}/sessions/${sessionId}/stream`,
+      ? `${REAL_BACKEND}/api/v1/sessions/${sessionId}/stream`
+      : `${BASE_URL}/v1/sessions/${sessionId}/stream`,
 
   getTerminalUrl: (sessionId: string) =>
     _backendMode === "real"
-      ? `ws://localhost:8000/sessions/${sessionId}/terminal`
-      : `ws://localhost:8000/api/sessions/${sessionId}/terminal`,
+      ? `ws://localhost:8000/api/v1/sessions/${sessionId}/terminal`
+      : `ws://localhost:8000/api/v1/sessions/${sessionId}/terminal`,
 
   // ── Desktop Controller API ──────────────────────────────
 
@@ -208,12 +202,12 @@ export const api = {
 
   hitlPending: (tier?: string) => {
     const params = tier ? `?tier=${tier}` : "";
-    return request<{ events: Array<{ event_id: string; tier: string; severity: string; description: string; action: string; timestamp: number; auto_approve_seconds: number; status: string }>; count: number }>(
+    return request<{ events: HITLEvent[]; count: number }>(
       `/v1/hitl/pending${params}`);
   },
 
   hitlStats: () =>
-    request<{ stats: Record<string, unknown> }>("/v1/hitl/stats"),
+    request<HITLStats>("/v1/hitl/stats"),
 
   hitlApprove: (eventId: string) =>
     request<{ event_id: string; status: string; approved: boolean }>(
@@ -226,4 +220,86 @@ export const api = {
   hitlHistory: (limit = 50, offset = 0) =>
     request<{ events: HITLEvent[]; count: number }>(
       `/v1/hitl/history?limit=${limit}&offset=${offset}`),
+
+  // ── Immunity API ────────────────────────────────────
+
+  getImmunityCooldown: () =>
+    request<{ entries: Array<{ id: string; agent_id: string; agent_name: string; status: string; submitted_at: string; evaluated_at: string | null; merged_at: string | null; age_seconds: number; contamination_score: number; blocked_reason: string | null; merged_branch: string | null }> }>(
+      "/api/immunity/cooldown"),
+
+  getImmunityCooldownSummary: () =>
+    request<{ status: string; total_agents: number; cooling: number; blocked: number; merged: number; force_merged: number }>(
+      "/api/immunity/cooldown/summary"),
+
+  getImmunityGenes: () =>
+    request<{ genes: Array<{ id: string; source: string; cwe: string; risk_level: string; severity: number; occurrences: number; first_seen: string; last_seen: string; description: string }> }>(
+      "/api/immunity/genes"),
+
+  // ── Governance API ───────────────────────────────────
+
+  getGovernanceState: () =>
+    request<{ state: string; entropy: number; entropy_max: number; transition_count: number; circuit_breaker: string }>(
+      "/v1/governance/state"),
+
+  getGovernanceTransitions: () =>
+    request<{ transitions: Array<{ from: string; to: string; reason: string; time: string; valid: boolean }> }>(
+      "/v1/governance/transitions"),
+
+  getCircuitBreakerEvents: () =>
+    request<{ events: Array<{ from: string; to: string; reason: string; time: string }> }>(
+      "/v1/governance/circuit-breaker"),
+
+  getOscillationEvents: () =>
+    request<{ events: Array<{ stage: string; desc: string; time: string }> }>(
+      "/v1/governance/oscillation"),
+
+  // ── Audit API ────────────────────────────────────────
+
+  // ── Guardrails API ───────────────────────────────────
+
+  getGuardrailsStats: () =>
+    request<GuardrailStats>("/v1/guardrails/stats"),
+
+  getGuardrailsEvents: (limit = 50) =>
+    request<{ events: Array<{ verdict: string; gate: string; duration: number; timestamp: number }> }>(
+      `/v1/guardrails/events?limit=${limit}`),
+
+  // ── Observability API ──────────────────────────────
+
+  getErrorBudget: () =>
+    request<{
+      slo_target: number;
+      budget: { total: number; consumed: number; remaining: number; remaining_pct: number };
+      burn_rate: number;
+      alerts: Array<{ level: string; burn_rate: number; threshold: number; window_seconds: number; triggered: boolean; slo_name: string }>;
+      budget_exhausted: boolean;
+      time_to_exhaustion_seconds: number;
+      total_errors?: number;
+      recent_errors?: Array<{ id: string; severity: string; source: string; message: string; timestamp: string }>;
+    }>("/v1/observability/error-budget"),
+
+  getCostReport: (agentId?: string, since?: string) => {
+    const params = new URLSearchParams();
+    if (agentId) params.set("agent_id", agentId);
+    if (since) params.set("since", since);
+    const qs = params.toString();
+    return request<{ agent_id: string; total_cost: number; record_count: number; records?: Array<Record<string, unknown>> }>(
+      `/v1/observability/cost-report${qs ? `?${qs}` : ""}`);
+  },
+
+  getCostByTeam: () =>
+    request<Record<string, number>>("/v1/observability/cost-by-team"),
+
+  // ── Audit API ────────────────────────────────────────
+
+  getAuditLogs: (params?: { type?: string; search?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.set("type", params.type);
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+    if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
+    const qs = searchParams.toString();
+    return request<{ entries: Array<{ id: number; type: string; actor: string; action: string; reason: string; severity: string; time: string }>; total: number; counts: Record<string, number> }>(
+      `/v1/audit/logs${qs ? `?${qs}` : ""}`);
+  },
 };

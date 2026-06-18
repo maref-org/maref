@@ -54,6 +54,16 @@ The default value is for development/testing only and MUST NOT be used in produc
 
 @dataclass
 class MCPToolCallStats:
+    """Aggregated statistics for a single MCP tool call pattern.
+
+    Attributes:
+        tool_name: Name of the tool being tracked.
+        call_count: Total number of calls recorded.
+        error_count: Number of calls that resulted in errors.
+        total_latency: Sum of all call latencies in seconds.
+        max_latency: Maximum observed latency in seconds.
+    """
+
     tool_name: str
     call_count: int = 0
     error_count: int = 0
@@ -62,12 +72,14 @@ class MCPToolCallStats:
 
     @property
     def avg_latency(self) -> float:
+        """Average latency per call in seconds."""
         if self.call_count == 0:
             return 0.0
         return self.total_latency / self.call_count
 
     @property
     def error_rate(self) -> float:
+        """Fraction of calls that resulted in errors (0.0 to 1.0)."""
         if self.call_count == 0:
             return 0.0
         return self.error_count / self.call_count
@@ -92,6 +104,13 @@ class MCPCircuitBreakerMonitor:
         self._tool_stats: dict[str, MCPToolCallStats] = {}
 
     def record_call(self, tool_name: str, latency: float, success: bool) -> None:
+        """Record a tool call for metrics tracking.
+
+        Args:
+            tool_name: Name of the tool that was called.
+            latency: Call duration in seconds.
+            success: Whether the call succeeded.
+        """
         if tool_name not in self._tool_stats:
             self._tool_stats[tool_name] = MCPToolCallStats(tool_name=tool_name)
         stats = self._tool_stats[tool_name]
@@ -103,6 +122,17 @@ class MCPCircuitBreakerMonitor:
             stats.error_count += 1
 
     def should_trip(self, tool_name: str) -> tuple[bool, str]:
+        """Check whether the circuit breaker should trip for a tool.
+
+        Evaluates error rate and max latency against configured thresholds.
+
+        Args:
+            tool_name: Name of the tool to evaluate.
+
+        Returns:
+            A tuple of (should_trip, reason). If should_trip is True, reason
+            contains the human-readable explanation.
+        """
         stats = self._tool_stats.get(tool_name)
         if stats is None or stats.call_count < self._min_calls_for_metrics:
             return False, ""
@@ -119,15 +149,34 @@ class MCPCircuitBreakerMonitor:
         return False, ""
 
     def get_tool_stats(self, tool_name: str) -> MCPToolCallStats | None:
+        """Get statistics for a specific tool.
+
+        Args:
+            tool_name: Name of the tool.
+
+        Returns:
+            MCPToolCallStats if the tool has been tracked, or None.
+        """
         return self._tool_stats.get(tool_name)
 
     def get_all_stats(self) -> dict[str, MCPToolCallStats]:
+        """Get statistics for all tracked tools.
+
+        Returns:
+            Dictionary mapping tool names to their MCPToolCallStats.
+        """
         return dict(self._tool_stats)
 
     def reset_tool(self, tool_name: str) -> None:
+        """Reset statistics for a single tool.
+
+        Args:
+            tool_name: Name of the tool to reset.
+        """
         self._tool_stats.pop(tool_name, None)
 
     def reset_all(self) -> None:
+        """Reset statistics for all tracked tools."""
         self._tool_stats.clear()
 
 
@@ -161,6 +210,12 @@ class MCPGovernanceResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the governance result to a dictionary.
+
+        Returns:
+            Dictionary with verdict, reason, risk_score, audit_signature,
+            hitl_event_id, hitl_tier, matched_rule, and metadata.
+        """
         return {
             "verdict": self.verdict.value,
             "reason": self.reason,
@@ -174,16 +229,40 @@ class MCPGovernanceResult:
 
 
 class MCPPolicyRule(ABC):
-    """Base class for MCP policy rules. Each rule evaluates a tool call context
-    and returns a verdict if it matches, or None to pass to the next rule."""
+    """Base class for MCP policy rules.
+
+    Each rule evaluates a tool call context and returns a verdict if it
+    matches, or None to pass to the next rule in the chain.
+
+    Attributes:
+        rule_id: Unique identifier for this rule.
+        description: Human-readable description of what this rule does.
+        priority: Evaluation priority (higher = evaluated first).
+    """
 
     def __init__(self, rule_id: str, description: str, priority: int = 0) -> None:
+        """Initialize a policy rule.
+
+        Args:
+            rule_id: Unique identifier for the rule.
+            description: Human-readable description.
+            priority: Evaluation priority (default 0, higher = earlier).
+        """
         self.rule_id = rule_id
         self.description = description
         self.priority = priority
 
     @abstractmethod
-    def evaluate(self, context: MCPPolicyContext) -> MCPGovernanceResult | None: ...
+    def evaluate(self, context: MCPPolicyContext) -> MCPGovernanceResult | None:
+        """Evaluate a tool call against this rule.
+
+        Args:
+            context: The policy context containing tool name, args, trust level, etc.
+
+        Returns:
+            MCPGovernanceResult if the rule matches, or None to pass.
+        """
+        ...
 
 
 class AllowMCPProtocolSignals(MCPPolicyRule):
@@ -527,6 +606,17 @@ class MCPPolicyEngine:
         ]
 
     def evaluate(self, context: MCPPolicyContext) -> MCPGovernanceResult:
+        """Evaluate a tool call against all registered rules.
+
+        Rules are evaluated in priority order (highest first). The first
+        rule that returns a non-None result determines the verdict.
+
+        Args:
+            context: The policy context with tool name, args, trust level, etc.
+
+        Returns:
+            MCPGovernanceResult with the final verdict.
+        """
         sorted_rules = sorted(self._rules, key=lambda r: r.priority, reverse=True)
         for rule in sorted_rules:
             result = rule.evaluate(context)
@@ -540,9 +630,22 @@ class MCPPolicyEngine:
         )
 
     def add_rule(self, rule: MCPPolicyRule) -> None:
+        """Register a new policy rule.
+
+        Args:
+            rule: The rule instance to add.
+        """
         self._rules.append(rule)
 
     def remove_rule(self, rule_id: str) -> bool:
+        """Remove a policy rule by its ID.
+
+        Args:
+            rule_id: The rule ID to remove.
+
+        Returns:
+            True if the rule was found and removed, False otherwise.
+        """
         for i, rule in enumerate(self._rules):
             if rule.rule_id == rule_id:
                 self._rules.pop(i)
@@ -550,6 +653,11 @@ class MCPPolicyEngine:
         return False
 
     def get_rules(self) -> list[MCPPolicyRule]:
+        """Return all registered rules.
+
+        Returns:
+            A list of MCPPolicyRule instances.
+        """
         return list(self._rules)
 
 
@@ -610,6 +718,29 @@ class MCPGovernance:
         request_id: str = "",
         timeout_seconds: float = 0.0,
     ) -> MCPGovernanceResult:
+        """Evaluate a tool call through the full governance pipeline.
+
+        Pipeline steps:
+        1. Circuit breaker monitor check (error rate / latency thresholds)
+        2. Circuit breaker depth check (delegation depth)
+        3. Policy engine evaluation (allow/deny/ask_user)
+        4. HITL routing if verdict is ASK_USER
+        5. HMAC-signed audit logging
+
+        Args:
+            tool_name: Name of the tool being called.
+            args: Arguments passed to the tool.
+            trust_level: Trust level of the calling agent.
+            agent_id: Identifier of the calling agent.
+            session_id: Active execution session ID (if applicable).
+            chain_id: Delegation chain ID for tracking.
+            delegation_depth: Current depth in the delegation chain.
+            request_id: Unique request identifier for correlation.
+            timeout_seconds: Timeout for HITL auto-approve.
+
+        Returns:
+            MCPGovernanceResult with verdict and full decision metadata.
+        """
         context = MCPPolicyContext(
             tool_name=tool_name,
             args=args or {},
@@ -709,20 +840,54 @@ class MCPGovernance:
         self._audit_log.append(entry)
 
     def approve_tool_call(self, event_id: str, reviewer: str = "human") -> bool:
+        """Approve a HITL-blocked tool call.
+
+        Args:
+            event_id: The HITL event ID to approve.
+            reviewer: Identifier of the human reviewer.
+
+        Returns:
+            True if the event was approved, False otherwise.
+        """
         status = self._hitl_router.approve(event_id, reviewer)
         return status == HITLStatus.APPROVED
 
     def reject_tool_call(self, event_id: str, reason: str = "") -> bool:
+        """Reject a HITL-blocked tool call.
+
+        Args:
+            event_id: The HITL event ID to reject.
+            reason: Optional reason for rejection.
+
+        Returns:
+            True if the event was rejected, False otherwise.
+        """
         status = self._hitl_router.reject(event_id, reason)
         return status == HITLStatus.REJECTED
 
     def get_audit_log(self) -> list[AuditLogEntry]:
+        """Return the full audit log.
+
+        Returns:
+            A list of AuditLogEntry instances.
+        """
         return list(self._audit_log)
 
     def get_decision_log(self) -> list[MCPGovernanceResult]:
+        """Return the full decision log.
+
+        Returns:
+            A list of MCPGovernanceResult instances.
+        """
         return list(self._decision_log)
 
     def get_audit_summary(self) -> dict[str, Any]:
+        """Get a summary of governance activity.
+
+        Returns:
+            Dictionary with total_calls, allowed, denied, ask_user counts,
+            circuit_breaker_state, trip_count, hitl_pending, and per-tool stats.
+        """
         total = len(self._audit_log)
         allowed = sum(1 for e in self._audit_log if e.verdict == "ALLOW")
         denied = sum(1 for e in self._audit_log if e.verdict == "DENY")
@@ -751,17 +916,38 @@ class MCPGovernance:
         }
 
     def get_audit_entry(self, index: int) -> AuditLogEntry | None:
+        """Get a single audit entry by index.
+
+        Args:
+            index: Zero-based index into the audit log.
+
+        Returns:
+            AuditLogEntry at the index, or None if out of bounds.
+        """
         if 0 <= index < len(self._audit_log):
             return self._audit_log[index]
         return None
 
     def clear_audit_log(self) -> int:
+        """Clear the audit and decision logs.
+
+        Returns:
+            The number of audit entries that were cleared.
+        """
         count = len(self._audit_log)
         self._audit_log.clear()
         self._decision_log.clear()
         return count
 
     def verify_audit_integrity(self) -> list[dict[str, Any]]:
+        """Verify HMAC signatures across the entire audit log.
+
+        Compares each entry's stored signature against a freshly computed one.
+
+        Returns:
+            A list of violation dicts with 'index', 'tool_name', and 'issue' keys.
+            Empty list means all signatures are valid.
+        """
         violations = []
         for i, entry in enumerate(self._audit_log):
             stored_sig = None
@@ -779,6 +965,17 @@ class MCPGovernance:
         return violations
 
     def export_audit_log(self, format: str = "json") -> str:
+        """Export the audit log in JSON or syslog format.
+
+        Args:
+            format: Output format — 'json' or 'syslog'.
+
+        Returns:
+            Formatted string of the audit log.
+
+        Raises:
+            ValueError: If format is not 'json' or 'syslog'.
+        """
         if format == "json":
             return json.dumps(
                 [
@@ -813,18 +1010,41 @@ class MCPGovernance:
             raise ValueError(f"Unsupported export format: {format}")
 
     def get_hitl_events(self, status: str | None = None) -> list[dict[str, Any]]:
+        """Get HITL events, optionally filtered by status.
+
+        Args:
+            status: Filter by status string (e.g. 'pending', 'approved').
+
+        Returns:
+            List of HITL event dictionaries.
+        """
         events = self._hitl_router.get_all()
         if status:
             events = [e for e in events if e.status.value == status]
         return [e.to_dict() for e in events]
 
     def get_hitl_event(self, event_id: str) -> dict[str, Any] | None:
+        """Get a single HITL event by ID.
+
+        Args:
+            event_id: The HITL event ID.
+
+        Returns:
+            Event dictionary if found, or None.
+        """
         for event in self._hitl_router.get_all():
             if event.event_id == event_id:
                 return event.to_dict()
         return None
 
     def check_hitl_timeouts(self) -> list[str]:
+        """Check for HITL events that have exceeded their auto-approve timeout.
+
+        Events past their deadline are automatically approved.
+
+        Returns:
+            List of event IDs that were auto-approved due to timeout.
+        """
         auto_approved = []
         for event in self._hitl_router.get_pending():
             if event.auto_approve_seconds > 0 and self._hitl_router.check_timeout(event):
@@ -863,12 +1083,26 @@ class MCPPolicyMapping:
     - tools: list of exact tool names
     - patterns: list of glob-style patterns (supports '*' prefix/suffix)
     - rule: rule_id to apply
+
+    Attributes:
+        mappings: List of mapping entries, each with 'tools', 'patterns', and 'rule' keys.
     """
 
     mappings: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def from_yaml(cls, yaml_str: str) -> MCPPolicyMapping:
+        """Parse a YAML string into a MCPPolicyMapping.
+
+        Args:
+            yaml_str: YAML content with 'mappings' key.
+
+        Returns:
+            A new MCPPolicyMapping instance.
+
+        Raises:
+            ValueError: If the YAML is missing the 'mappings' key.
+        """
         data = yaml.safe_load(yaml_str)
         if not data or "mappings" not in data:
             raise ValueError("Invalid policy mapping YAML: missing 'mappings' key")
@@ -876,14 +1110,38 @@ class MCPPolicyMapping:
 
     @classmethod
     def from_yaml_file(cls, path: str) -> MCPPolicyMapping:
+        """Read a YAML file and parse it into a MCPPolicyMapping.
+
+        Args:
+            path: File system path to the YAML file.
+
+        Returns:
+            A new MCPPolicyMapping instance.
+        """
         with open(path) as f:
             return cls.from_yaml(f.read())
 
     @classmethod
     def default(cls) -> MCPPolicyMapping:
+        """Return the default policy mapping with all built-in rules.
+
+        Returns:
+            A MCPPolicyMapping instance with the DEFAULT_POLICY_MAPPING_YAML.
+        """
         return cls.from_yaml(DEFAULT_POLICY_MAPPING_YAML)
 
     def get_rule_for_tool(self, tool_name: str) -> str:
+        """Determine which rule applies to a given tool name.
+
+        Checks exact matches first, then pattern matches, with '*'
+        as the catch-all fallback.
+
+        Args:
+            tool_name: Name of the tool to look up.
+
+        Returns:
+            The rule_id that applies (defaults to 'mcp-rule-006').
+        """
         for mapping in self.mappings:
             tools = mapping.get("tools", [])
             patterns = mapping.get("patterns", [])
@@ -905,6 +1163,11 @@ class MCPPolicyMapping:
         return "mcp-rule-006"
 
     def to_yaml(self) -> str:
+        """Serialize the mapping back to YAML format.
+
+        Returns:
+            YAML string representation of the mapping.
+        """
         return yaml.safe_dump(
             {"version": "1.0", "mappings": self.mappings}, default_flow_style=False
         )
@@ -926,12 +1189,29 @@ class MCPMappedPolicyEngine(MCPPolicyEngine):
 
     @property
     def mapping(self) -> MCPPolicyMapping:
+        """The current policy mapping table."""
         return self._mapping
 
     def set_mapping(self, mapping: MCPPolicyMapping) -> None:
+        """Replace the current policy mapping table.
+
+        Args:
+            mapping: The new MCPPolicyMapping to use.
+        """
         self._mapping = mapping
 
     def evaluate(self, context: MCPPolicyContext) -> MCPGovernanceResult:
+        """Evaluate a tool call using the mapping-based policy engine.
+
+        Looks up the tool in the mapping table, then delegates to the
+        matched rule for evaluation.
+
+        Args:
+            context: The policy context to evaluate.
+
+        Returns:
+            MCPGovernanceResult with the matched rule's verdict.
+        """
         rule_id = self._mapping.get_rule_for_tool(context.tool_name)
         rule = self._rule_map.get(rule_id)
 

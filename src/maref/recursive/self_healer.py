@@ -115,7 +115,7 @@ class SelfHealer:
                 problem_types.append("performance_regression")
 
         # ── KG orphan ratio → coverage_drop ─────────────────────
-        if risk_matrix.get("knowledge_graph") in (RiskLevel.WARNING, RiskLevel.CRITICAL):
+        if risk_matrix.get("kg") in (RiskLevel.WARNING, RiskLevel.CRITICAL):
             problem_types.append("coverage_drop")
 
         # ── Oscillation high → import_error (release churn) ─────

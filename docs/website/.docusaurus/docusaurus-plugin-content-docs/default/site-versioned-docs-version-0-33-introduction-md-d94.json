@@ -1,0 +1,25 @@
+{
+  "id": "introduction",
+  "title": "Introduction",
+  "description": "MAREF v0.33.0-rc — Agent Governance OS",
+  "source": "@site/versioned_docs/version-0.33/introduction.md",
+  "sourceDirName": ".",
+  "slug": "/introduction",
+  "permalink": "/zh-CN/docs/0.33/introduction",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/versioned_docs/version-0.33/introduction.md",
+  "tags": [],
+  "version": "0.33",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Introduction",
+    "description": "MAREF v0.33.0-rc — Agent Governance OS"
+  },
+  "sidebar": "docsSidebar",
+  "next": {
+    "title": "Quickstart",
+    "permalink": "/zh-CN/docs/0.33/quickstart"
+  }
+}

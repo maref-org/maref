@@ -235,6 +235,113 @@ def create_web_search_tool() -> ToolDefinition:
     )
 
 
+def create_github_tool() -> ToolDefinition:
+    return ToolDefinition(
+        name="github",
+        description="GitHub API tools for repository and issue management",
+        category=ToolCategory.CUSTOM,
+        risk_level=ToolRiskLevel.MEDIUM,
+        version="0.33.0",
+        tools=["github_list_repos", "github_get_issue", "github_create_issue", "github_search_code"],
+        tool_parameters={
+            "github_list_repos": [
+                ToolParameter(name="username", type="string", description="GitHub username", required=True),
+            ],
+            "github_get_issue": [
+                ToolParameter(name="owner", type="string", description="Repository owner", required=True),
+                ToolParameter(name="repo", type="string", description="Repository name", required=True),
+                ToolParameter(name="issue_number", type="integer", description="Issue number", required=True),
+            ],
+            "github_create_issue": [
+                ToolParameter(name="owner", type="string", description="Repository owner", required=True),
+                ToolParameter(name="repo", type="string", description="Repository name", required=True),
+                ToolParameter(name="title", type="string", description="Issue title", required=True),
+                ToolParameter(name="body", type="string", description="Issue body", required=True),
+            ],
+            "github_search_code": [
+                ToolParameter(name="query", type="string", description="Search query", required=True),
+            ],
+        },
+        security_controls=["EnvVarCheck"],
+        default_config={},
+    )
+
+
+def create_notion_tool() -> ToolDefinition:
+    return ToolDefinition(
+        name="notion",
+        description="Notion-like content management tools",
+        category=ToolCategory.CUSTOM,
+        risk_level=ToolRiskLevel.MEDIUM,
+        version="0.33.0",
+        tools=["notion_query_database", "notion_create_page", "notion_search"],
+        tool_parameters={
+            "notion_query_database": [
+                ToolParameter(name="database_id", type="string", description="Notion database ID", required=True),
+            ],
+            "notion_create_page": [
+                ToolParameter(name="database_id", type="string", description="Target database ID", required=True),
+                ToolParameter(name="title", type="string", description="Page title", required=True),
+                ToolParameter(name="content", type="string", description="Page content", required=True),
+            ],
+            "notion_search": [
+                ToolParameter(name="query", type="string", description="Search query", required=True),
+            ],
+        },
+        security_controls=["EnvVarCheck"],
+        default_config={},
+    )
+
+
+def create_slack_tool() -> ToolDefinition:
+    return ToolDefinition(
+        name="slack",
+        description="Slack messaging and channel management tools",
+        category=ToolCategory.CUSTOM,
+        risk_level=ToolRiskLevel.MEDIUM,
+        version="0.33.0",
+        tools=["slack_send_message", "slack_list_channels", "slack_search_messages"],
+        tool_parameters={
+            "slack_send_message": [
+                ToolParameter(name="channel", type="string", description="Slack channel ID or name", required=True),
+                ToolParameter(name="text", type="string", description="Message text", required=True),
+            ],
+            "slack_list_channels": [],
+            "slack_search_messages": [
+                ToolParameter(name="query", type="string", description="Search query", required=True),
+            ],
+        },
+        security_controls=["EnvVarCheck"],
+        default_config={},
+    )
+
+
+def create_jira_tool() -> ToolDefinition:
+    return ToolDefinition(
+        name="jira",
+        description="Jira issue tracking and project management tools",
+        category=ToolCategory.CUSTOM,
+        risk_level=ToolRiskLevel.MEDIUM,
+        version="0.33.0",
+        tools=["jira_get_issue", "jira_search_issues", "jira_create_issue"],
+        tool_parameters={
+            "jira_get_issue": [
+                ToolParameter(name="issue_key", type="string", description="Jira issue key (e.g. PROJ-123)", required=True),
+            ],
+            "jira_search_issues": [
+                ToolParameter(name="jql", type="string", description="JQL query string", required=True),
+            ],
+            "jira_create_issue": [
+                ToolParameter(name="project", type="string", description="Project key", required=True),
+                ToolParameter(name="summary", type="string", description="Issue summary", required=True),
+                ToolParameter(name="description", type="string", description="Issue description", required=True),
+            ],
+        },
+        security_controls=["EnvVarCheck"],
+        default_config={},
+    )
+
+
 BUILTIN_TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
     "file": create_file_tool(),
     "shell": create_shell_tool(),
@@ -242,6 +349,10 @@ BUILTIN_TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
     "browser": create_browser_tool(),
     "email": create_email_tool(),
     "web_search": create_web_search_tool(),
+    "github": create_github_tool(),
+    "notion": create_notion_tool(),
+    "slack": create_slack_tool(),
+    "jira": create_jira_tool(),
 }
 
 
