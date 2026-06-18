@@ -12,7 +12,14 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from maref.recursive.self_architect import SelfArchitect
+    from maref.recursive.self_diagnostician import SelfDiagnostician
+    from maref.recursive.self_healer import SelfHealer
+    from maref.recursive.self_observer import SelfObserver
+    from maref.recursive.unified_audit import UnifiedAuditStore
 
 logger = logging.getLogger("maref.self_healing_loop")
 
@@ -27,6 +34,11 @@ class SelfHealingConfig:
     arch_proposal_interval_cycles: int = 12  # 每 12 次巡检（约 1 小时）做一次架构提案
     log_dir: str = ".self_healing_logs"
     enable_audit: bool = True
+
+    # Self-Executor bridge (Gap 1+2): 把 SelfArchitect 提案送入 SelfExecutor 执行
+    enable_proposal_execution: bool = True
+    max_proposals_per_cycle: int = 3  # 每周期最多执行多少提案（防雪崩）
+    proposal_dry_run: bool = False  # True 时只走 dry_run 不实际部署
 
 
 @dataclass
@@ -43,6 +55,10 @@ class HealingCycleReport:
     final_state: str
     duration_ms: float
     proposals_generated: int = 0
+    # Gap 1+2: SelfExecutor 桥接结果
+    proposals_executed: int = 0
+    proposals_succeeded: int = 0
+    proposals_failed: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -56,6 +72,9 @@ class HealingCycleReport:
             "final_state": self.final_state,
             "duration_ms": round(self.duration_ms, 2),
             "proposals_generated": self.proposals_generated,
+            "proposals_executed": self.proposals_executed,
+            "proposals_succeeded": self.proposals_succeeded,
+            "proposals_failed": self.proposals_failed,
         }
 
 
@@ -89,11 +108,12 @@ class SelfHealingLoop:
         self._history: list[HealingCycleReport] = []
 
         # 延迟导入 — 避免模块加载时的循环依赖
-        self._observer = None
-        self._diagnostician = None
-        self._healer = None
-        self._architect = None
-        self._audit_store = None
+        self._observer: SelfObserver | None = None
+        self._diagnostician: SelfDiagnostician | None = None
+        self._healer: SelfHealer | None = None
+        self._architect: SelfArchitect | None = None
+        self._audit_store: UnifiedAuditStore | None = None
+        self._executor = None  # Gap 1+2: SelfExecutor 桥接
 
     # ── 生命周期 ────────────────────────────────────────────────
 
@@ -158,6 +178,7 @@ class SelfHealingLoop:
 
         from maref.recursive.self_architect import SelfArchitect
         from maref.recursive.self_diagnostician import SelfDiagnostician
+        from maref.recursive.self_executor import SelfExecutor
         from maref.recursive.self_healer import SelfHealer
         from maref.recursive.self_observer import SelfObserver
         from maref.recursive.unified_audit import UnifiedAuditStore
@@ -168,8 +189,20 @@ class SelfHealingLoop:
         self._audit_store = UnifiedAuditStore()
         self._architect = SelfArchitect(audit_store=self._audit_store)
 
+        # Gap 1+2: 实例化 SelfExecutor，桥接 SelfArchitect 提案→执行
+        if self._config.enable_proposal_execution:
+            self._executor = SelfExecutor(
+                project_root=str(self._root_path),
+                audit_store=self._audit_store,
+            )
+
     async def _run_one_cycle(self) -> HealingCycleReport:
         """执行一次完整的观察→诊断→修复循环."""
+        assert self._observer is not None
+        assert self._diagnostician is not None
+        assert self._healer is not None
+        assert self._architect is not None
+        assert self._audit_store is not None
         cycle_start = time.time()
         start_ts = cycle_start
 
@@ -239,6 +272,9 @@ class SelfHealingLoop:
 
         # ── 4. 架构提案（低频） ──────────────────────────────────
         proposals_generated = 0
+        proposals_executed = 0
+        proposals_succeeded = 0
+        proposals_failed = 0
         if (
             self._config.enable_architecture_proposals
             and self._cycle_count % self._config.arch_proposal_interval_cycles == 0
@@ -252,6 +288,58 @@ class SelfHealingLoop:
                         self._cycle_count,
                         proposals_generated,
                     )
+
+                # Gap 1+2: 把通过校验的提案送入 SelfExecutor 执行
+                # 之前这里只 log 不执行，导致自演进闭环断裂
+                if self._executor is not None and proposals:
+                    executable = [
+                        p for p in proposals if self._architect.validate_proposal(p)
+                    ]
+                    # 限制每周期执行数量，防雪崩
+                    executable = executable[: self._config.max_proposals_per_cycle]
+                    if executable:
+                        logger.info(
+                            "Cycle %d: executing %d/%d proposals (dry_run=%s)",
+                            self._cycle_count,
+                            len(executable),
+                            proposals_generated,
+                            self._config.proposal_dry_run,
+                        )
+                    for proposal in executable:
+                        try:
+                            if self._config.proposal_dry_run:
+                                record = self._executor.dry_run(proposal)
+                            else:
+                                record = self._executor.execute(
+                                    proposal, round_num=self._cycle_count
+                                )
+                            proposals_executed += 1
+                            if record.final_state in ("SUCCESS", "DRY_RUN_OK"):
+                                proposals_succeeded += 1
+                                logger.info(
+                                    "Cycle %d: proposal %s → %s",
+                                    self._cycle_count,
+                                    proposal.proposal_id,
+                                    record.final_state,
+                                )
+                            else:
+                                proposals_failed += 1
+                                logger.warning(
+                                    "Cycle %d: proposal %s → %s",
+                                    self._cycle_count,
+                                    proposal.proposal_id,
+                                    record.final_state,
+                                )
+                        except Exception as exc:
+                            proposals_executed += 1
+                            proposals_failed += 1
+                            logger.error(
+                                "Cycle %d: proposal %s execution failed: %s",
+                                self._cycle_count,
+                                proposal.proposal_id,
+                                exc,
+                                exc_info=True,
+                            )
             except Exception as exc:
                 logger.warning("Architecture proposal failed: %s", exc)
 
@@ -293,18 +381,25 @@ class SelfHealingLoop:
             final_state=final_state,
             duration_ms=duration_ms,
             proposals_generated=proposals_generated,
+            proposals_executed=proposals_executed,
+            proposals_succeeded=proposals_succeeded,
+            proposals_failed=proposals_failed,
         )
 
     def _log_cycle_result(self, report: HealingCycleReport) -> None:
         """打印一次循环的结果摘要. 使用 logger.info."""
         status = "✅" if report.converged else "❌"
         logger.info(
-            "%s Cycle %d | risk=%s | actions=%d | converged=%s | duration=%.0fms",
+            "%s Cycle %d | risk=%s | actions=%d | converged=%s | "
+            "proposals=%d/%d/%d (gen/exec/succ) | duration=%.0fms",
             status,
             report.cycle_id,
             report.risk_level,
             len(report.actions_taken),
             report.converged,
+            report.proposals_generated,
+            report.proposals_executed,
+            report.proposals_succeeded,
             report.duration_ms,
         )
 
@@ -320,6 +415,9 @@ class SelfHealingLoop:
                 "check_interval_seconds": self._config.check_interval_seconds,
                 "max_heal_iterations": self._config.max_heal_iterations,
                 "enable_architecture_proposals": self._config.enable_architecture_proposals,
+                "enable_proposal_execution": self._config.enable_proposal_execution,
+                "proposal_dry_run": self._config.proposal_dry_run,
+                "max_proposals_per_cycle": self._config.max_proposals_per_cycle,
             },
             "recent_cycles": [r.to_dict() for r in recent],
             "audit_record_count": (

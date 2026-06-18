@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import sys
 
+import pytest
+
 from maref.integration.mcp_bridge import (
     BridgeEvent,
     MCPBridge,
@@ -135,23 +137,52 @@ for line in sys.stdin:
 
 
 class TestSSETransport:
-    def test_connect_and_disconnect(self) -> None:
-        transport = SSETransport("http://localhost:9999/sse")
-        transport.connect()
-        assert transport.state == TransportState.CONNECTED
-        transport.disconnect()
-        assert transport.state == TransportState.DISCONNECTED
+    def test_connect_fails_no_server(self) -> None:
+        transport = SSETransport("http://localhost:0/sse", max_retries=0, timeout=1.0)
+        with pytest.raises(ConnectionError):
+            transport.connect()
+        assert transport.state in (TransportState.DISCONNECTED, TransportState.ERROR)
 
-    def test_send_while_connected(self) -> None:
-        transport = SSETransport("http://localhost:9999/sse")
-        transport.connect()
-        resp = transport.send(JSONRPCRequest(method="test", id=1))
-        assert not resp.is_error
+    def test_state_transitions(self) -> None:
+        transport = SSETransport("http://localhost:0/sse")
+        assert transport.state == TransportState.DISCONNECTED
+        transport.set_state(TransportState.CONNECTING)
+        assert transport.state == TransportState.CONNECTING
+        transport.set_state(TransportState.CONNECTED)
+        assert transport.state == TransportState.CONNECTED
+        transport.set_state(TransportState.ERROR)
+        assert transport.state == TransportState.ERROR
 
     def test_send_while_disconnected(self) -> None:
-        transport = SSETransport("http://localhost:9999/sse")
+        transport = SSETransport("http://localhost:0/sse")
         resp = transport.send(JSONRPCRequest(method="test", id=1))
         assert resp.is_error
+        assert "not connected" in (resp.error or {}).get("message", "").lower()
+
+    def test_default_state(self) -> None:
+        transport = SSETransport("http://localhost:0/sse")
+        assert transport.state == TransportState.DISCONNECTED
+
+    def test_on_event_callback(self) -> None:
+        transport = SSETransport("http://localhost:0/sse")
+        received: list[str] = []
+
+        transport.on_event("test_event", lambda d: received.append(d))
+        transport._process_event("test_event", '{"hello": "world"}')
+        assert len(received) == 1
+        assert received[0] == '{"hello": "world"}'
+
+    def test_process_endpoint_event(self) -> None:
+        from urllib.parse import urljoin
+
+        transport = SSETransport("http://localhost:8080/sse")
+        transport._process_event("endpoint", "/messages")
+        assert transport._message_endpoint == "http://localhost:8080/messages"
+
+    def test_process_session_id_event(self) -> None:
+        transport = SSETransport("http://localhost:8080/sse")
+        transport._process_event("session_id", "sess-abc")
+        assert transport._session_id == "sess-abc"
 
 
 class TestMCPServerConfig:

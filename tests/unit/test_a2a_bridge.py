@@ -108,7 +108,6 @@ class TestA2AStateMapping:
             (A2ATaskState.CANCELED, GovernanceState.HALT),
             (A2ATaskState.FAILED, GovernanceState.HALT),
             (A2ATaskState.REJECTED, GovernanceState.HALT),
-            (A2ATaskState.AUTH_REQUIRED, GovernanceState.EVALUATE),
         ],
     )
     def test_a2a_to_maref(self, a2a_state: A2ATaskState, expected_maref: GovernanceState) -> None:

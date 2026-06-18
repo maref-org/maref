@@ -11,7 +11,12 @@ M6: Provides clean interfaces for plugging MAREF into:
 """
 
 from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
+from maref.integration.a2a_client import A2AClient
+from maref.integration.a2a_discovery import A2ADiscovery
+from maref.integration.a2a_secure_transport import A2ASecureTransport, CertificateManager
+from maref.integration.a2a_server import create_a2a_router
 from maref.integration.a2a_types import (
+    A2A_PROTOCOL_VERSION,
     A2ASkillDefinition,
     A2ATaskContext,
     A2ATaskState,
@@ -210,11 +215,17 @@ from maref.integration.remote_bridge import (
 from maref.integration.symphony import SymphonyAdapter, SymphonyMessage, SymphonyMessageType
 
 __all__ = [
+    "A2A_PROTOCOL_VERSION",
     "A2ABridge",
+    "A2AClient",
+    "A2ADiscovery",
+    "A2ASecureTransport",
     "A2ASkillDefinition",
     "A2ATaskContext",
     "A2ATaskState",
+    "CertificateManager",
     "CommunicationBlockedError",
+    "create_a2a_router",
     "DelegatedTask",
     "map_a2a_to_maref",
     "map_maref_to_a2a",

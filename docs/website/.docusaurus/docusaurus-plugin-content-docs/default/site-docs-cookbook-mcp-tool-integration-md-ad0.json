@@ -1,0 +1,29 @@
+{
+  "id": "cookbook/mcp-tool-integration",
+  "title": "MCP Tool Integration",
+  "description": "Connect MCP servers with governance",
+  "source": "@site/docs/cookbook/mcp-tool-integration.md",
+  "sourceDirName": "cookbook",
+  "slug": "/cookbook/mcp-tool-integration",
+  "permalink": "/docs/cookbook/mcp-tool-integration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/cookbook/mcp-tool-integration.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "MCP Tool Integration",
+    "description": "Connect MCP servers with governance"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "A2A Federation",
+    "permalink": "/docs/cookbook/a2a-federation"
+  },
+  "next": {
+    "title": "HITL Approval Flow",
+    "permalink": "/docs/cookbook/hitl-approval-flow"
+  }
+}

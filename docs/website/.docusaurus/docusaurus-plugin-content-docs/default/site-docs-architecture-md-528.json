@@ -1,0 +1,29 @@
+{
+  "id": "architecture",
+  "title": "Architecture",
+  "description": "MAREF six-layer governance architecture",
+  "source": "@site/docs/architecture.md",
+  "sourceDirName": ".",
+  "slug": "/architecture",
+  "permalink": "/docs/architecture",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/architecture.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Architecture",
+    "description": "MAREF six-layer governance architecture"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Quickstart",
+    "permalink": "/docs/quickstart"
+  },
+  "next": {
+    "title": "API Reference",
+    "permalink": "/docs/api-reference"
+  }
+}

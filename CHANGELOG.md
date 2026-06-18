@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [v0.34.0-rc] - 2026-06-17
+
+### Audit-Driven Fixes (Day 1)
+- **Version consistency** — unified all version strings to 0.34.0-rc across 6 files (`__init__.py`, `agent_card_config.py`, `STATE.yaml`, `gui/package.json`, `Dockerfile`, `pyproject.toml`)
+- **Version check automation** — `scripts/version-check.sh` now also checks `STATE.yaml` and `agent_card_config.py`; fixed macOS grep compatibility
+- **Coverage baseline established** — governance module at ~90%, overall at 27.87% (baseline for improvement sprint)
+
 ## [v0.33.0-rc] - 2026-06-16
 
 ### Tech Debt Cleanup (Phase 0)

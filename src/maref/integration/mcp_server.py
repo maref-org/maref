@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -35,21 +36,31 @@ class MCPPrompt:
     handler: Callable[[dict[str, Any]], dict[str, Any]]
 
 
+class SamplingHandler(ABC):
+    @abstractmethod
+    def create_message(
+        self,
+        messages: list[dict[str, Any]],
+        model_preferences: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+        max_tokens: int | None = None,
+    ) -> dict[str, Any]: ...
+
+
 class MCPServer:
-    """MCP Server 实现。
-
-    支持 Tools、Resources、Prompts 端点，可与安全门集成。
-    """
-
     def __init__(
         self,
         name: str = "maref-mcp-server",
         version: str = "0.25.0",
         security_gate: Any | None = None,
+        sampling_handler: SamplingHandler | None = None,
+        roots: list[dict[str, Any]] | None = None,
     ) -> None:
         self.name = name
         self.version = version
         self.security_gate = security_gate
+        self.sampling_handler = sampling_handler
+        self._roots = roots or []
         self._tools: dict[str, MCPTool] = {}
         self._resources: dict[str, MCPResource] = {}
         self._prompts: dict[str, MCPPrompt] = {}
@@ -119,6 +130,10 @@ class MCPServer:
             return self._handle_prompts_list(request.id)
         elif method == "prompts/get":
             return self._handle_prompts_get(request.id, params)
+        elif method == "sampling/createMessage":
+            return self._handle_sampling_create_message(request.id, params)
+        elif method == "roots/list":
+            return self._handle_roots_list(request.id)
         else:
             return JSONRPCResponse(
                 error={"code": -32601, "message": f"Method not found: {method}"},
@@ -238,6 +253,38 @@ class MCPServer:
                 error={"code": -32603, "message": f"Prompt execution error: {e}"},
                 id=req_id,
             )
+
+    def _handle_sampling_create_message(
+        self, req_id: int | str, params: dict[str, Any]
+    ) -> JSONRPCResponse:
+        if self.sampling_handler is None:
+            return JSONRPCResponse(
+                error={
+                    "code": -32000,
+                    "message": "Sampling not supported — no handler configured",
+                },
+                id=req_id,
+            )
+        try:
+            messages = params.get("messages", [])
+            model_preferences = params.get("modelPreferences")
+            system_prompt = params.get("systemPrompt")
+            max_tokens = params.get("maxTokens")
+            result = self.sampling_handler.create_message(
+                messages=messages,
+                model_preferences=model_preferences,
+                system_prompt=system_prompt,
+                max_tokens=max_tokens,
+            )
+            return JSONRPCResponse(result=result, id=req_id)
+        except Exception as e:
+            return JSONRPCResponse(
+                error={"code": -32603, "message": f"Sampling error: {e}"},
+                id=req_id,
+            )
+
+    def _handle_roots_list(self, req_id: int | str) -> JSONRPCResponse:
+        return JSONRPCResponse(result={"roots": self._roots}, id=req_id)
 
     def get_inprocess_transport(self) -> InProcessTransport:
         if self._inprocess_transport is None:

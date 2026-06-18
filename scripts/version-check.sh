@@ -30,7 +30,7 @@ check_file() {
         return
     fi
 
-    version=$(grep -E "$pattern" "$file" | grep -oP '["\x27]?\d+\.\d+\.\d+[-a-zA-Z0-9]*' | head -1 || echo "")
+    version=$(grep -E "$pattern" "$file" | grep -Eo '["\x27]?[0-9]+\.[0-9]+\.[0-9]+[-a-zA-Z0-9]*' | head -1 | sed 's/["\x27]//g' || echo "")
     if [ -z "$version" ]; then
         echo "  [SKIP] $desc — no version pattern found"
         return
@@ -47,7 +47,9 @@ check_file() {
 check_file "$GIT_ROOT/pyproject.toml" '^version\s*=' 'pyproject.toml'
 check_file "$GIT_ROOT/Dockerfile" 'org\.opencontainers\.image\.version' 'Dockerfile LABEL'
 check_file "$GIT_ROOT/src/maref/__init__.py" '__version__' 'maref/__init__.py'
+check_file "$GIT_ROOT/src/maref/agent_card_config.py" 'AGENT_VERSION' 'agent_card_config.py'
 check_file "$GIT_ROOT/gui/package.json" '"version"' 'gui/package.json'
+check_file "$GIT_ROOT/STATE.yaml" 'current_release' 'STATE.yaml'
 check_file "$GIT_ROOT/CHANGELOG.md" '^## \[' 'CHANGELOG.md (latest)'
 
 echo ""

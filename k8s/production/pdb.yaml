@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: maref-pdb
+  namespace: maref
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: maref-governance

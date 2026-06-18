@@ -25,6 +25,8 @@ import {
   AnomalyMonitorView,
   TrustScoreView,
   FormalVerificationView,
+  GuardrailsView,
+  ErrorBudgetView,
 } from "@/components/views/MarefViews";
 import { useUIStore } from "@/stores/uiStore";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -48,6 +50,8 @@ const SECTION_VIEWS: Record<MarefSection, React.ComponentType> = {
   anomaly: AnomalyMonitorView,
   trust: TrustScoreView,
   formal: FormalVerificationView,
+  guardrails: GuardrailsView,
+  error_budget: ErrorBudgetView,
   skills: SkillsPanel,
   automation: AutomationView,
   tasks: TaskPanelView,

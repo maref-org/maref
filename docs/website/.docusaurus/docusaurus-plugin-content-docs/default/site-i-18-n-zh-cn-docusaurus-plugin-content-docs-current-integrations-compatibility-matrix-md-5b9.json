@@ -1,0 +1,20 @@
+{
+  "id": "integrations/compatibility-matrix",
+  "title": "兼容性矩阵",
+  "description": "MAREF 集成的框架与协议兼容性",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/integrations/compatibility-matrix.md",
+  "sourceDirName": "integrations",
+  "slug": "/integrations/compatibility-matrix",
+  "permalink": "/zh-CN/docs/integrations/compatibility-matrix",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/integrations/compatibility-matrix.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 10,
+  "frontMatter": {
+    "sidebar_position": 10,
+    "title": "兼容性矩阵",
+    "description": "MAREF 集成的框架与协议兼容性"
+  }
+}

@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: maref-ingress
+  namespace: maref
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - maref.example.com
+    secretName: maref-tls
+  rules:
+  - host: maref.example.com
+    http:
+      paths:
+      - path: /api/mcp(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: maref-governance
+            port:
+              number: 8000
+      - path: /api(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: maref-governance
+            port:
+              number: 8080
+      - path: /.well-known(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: maref-governance
+            port:
+              number: 8000

@@ -1,0 +1,29 @@
+{
+  "id": "api-reference",
+  "title": "API Reference",
+  "description": "Complete MAREF API reference",
+  "source": "@site/docs/api-reference.md",
+  "sourceDirName": ".",
+  "slug": "/api-reference",
+  "permalink": "/docs/api-reference",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/api-reference.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "API Reference",
+    "description": "Complete MAREF API reference"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Architecture",
+    "permalink": "/docs/architecture"
+  },
+  "next": {
+    "title": "Governed Agent Setup",
+    "permalink": "/docs/cookbook/governed-agent-setup"
+  }
+}

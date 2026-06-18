@@ -1,0 +1,29 @@
+{
+  "id": "cookbook/hitl-approval-flow",
+  "title": "HITL 审批流程",
+  "description": "人在回路审批配置",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/cookbook/hitl-approval-flow.md",
+  "sourceDirName": "cookbook",
+  "slug": "/cookbook/hitl-approval-flow",
+  "permalink": "/zh-CN/docs/cookbook/hitl-approval-flow",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/cookbook/hitl-approval-flow.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "HITL 审批流程",
+    "description": "人在回路审批配置"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "MCP 工具集成",
+    "permalink": "/zh-CN/docs/cookbook/mcp-tool-integration"
+  },
+  "next": {
+    "title": "合规审计",
+    "permalink": "/zh-CN/docs/cookbook/compliance-audit"
+  }
+}

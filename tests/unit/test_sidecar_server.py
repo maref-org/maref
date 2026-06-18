@@ -53,7 +53,7 @@ class TestSidecarFastAPI:
     def test_metrics_endpoint(self, client: TestClient) -> None:
         response = client.get("/api/metrics")
         assert response.status_code == 200
-        assert "maref_observations_total" in response.text
+        assert "guardrail_checks_total" in response.text
 
     def test_observations_with_data(self, client: TestClient) -> None:
         response = client.get("/api/observations")

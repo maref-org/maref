@@ -1,0 +1,29 @@
+{
+  "id": "deployment-k8s",
+  "title": "Kubernetes Deployment",
+  "description": "Deploy MAREF on Kubernetes",
+  "source": "@site/docs/deployment-k8s.md",
+  "sourceDirName": ".",
+  "slug": "/deployment-k8s",
+  "permalink": "/docs/deployment-k8s",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/deployment-k8s.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 10,
+  "frontMatter": {
+    "sidebar_position": 10,
+    "title": "Kubernetes Deployment",
+    "description": "Deploy MAREF on Kubernetes"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Docker Deployment",
+    "permalink": "/docs/deployment-docker"
+  },
+  "next": {
+    "title": "Sidecar Deployment",
+    "permalink": "/docs/deployment-sidecar"
+  }
+}

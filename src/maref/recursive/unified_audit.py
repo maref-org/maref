@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -69,12 +71,26 @@ class NullAuditStore:
 
 
 class UnifiedAuditStore:
-    def __init__(self) -> None:
+    """Audit store with optional JSON file persistence.
+
+    When *persist_path* is provided, every append() also writes to the
+    JSON lines (`.jsonl`) file so data survives process restarts.
+    """
+
+    def __init__(self, persist_path: str | Path | None = None) -> None:
         self._records: list[UnifiedAuditRecord] = []
         self._by_layer: dict[str, list[int]] = defaultdict(list)
         self._by_module: dict[str, list[int]] = defaultdict(list)
         self._by_event_type: dict[str, list[int]] = defaultdict(list)
         self._by_round: dict[int, list[int]] = defaultdict(list)
+        self._persist_path: Path | None = (
+            Path(persist_path) if persist_path else None
+        )
+        if self._persist_path:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            self._load_from_disk()
+
+    # ── public API ──────────────────────────────────────────────
 
     def append(self, record: UnifiedAuditRecord) -> None:
         idx = len(self._records)
@@ -84,6 +100,8 @@ class UnifiedAuditStore:
         self._by_module[record.target_module].append(idx)
         self._by_event_type[record.event_type].append(idx)
         self._by_round[record.round].append(idx)
+        if self._persist_path:
+            self._append_to_disk(record)
 
     def query_by_layer(self, layer: str) -> list[UnifiedAuditRecord]:
         return [self._records[i] for i in self._by_layer.get(layer, [])]
@@ -141,6 +159,42 @@ class UnifiedAuditStore:
         self._by_module.clear()
         self._by_event_type.clear()
         self._by_round.clear()
+
+    @property
+    def persist_path(self) -> Path | None:
+        return self._persist_path
+
+    # ── disk persistence ────────────────────────────────────────
+
+    def _load_from_disk(self) -> None:
+        if not self._persist_path or not self._persist_path.exists():
+            return
+        try:
+            with open(self._persist_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    record = UnifiedAuditRecord.from_dict(data)
+                    idx = len(self._records)
+                    self._records.append(record)
+                    self._by_layer[record.layer].append(idx)
+                    self._by_module[record.source_module].append(idx)
+                    self._by_module[record.target_module].append(idx)
+                    self._by_event_type[record.event_type].append(idx)
+                    self._by_round[record.round].append(idx)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    def _append_to_disk(self, record: UnifiedAuditRecord) -> None:
+        if self._persist_path is None:
+            return
+        try:
+            with open(self._persist_path, "a") as f:
+                f.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
+        except OSError:
+            pass
 
 
 def make_record_id(prefix: str, counter: int) -> str:

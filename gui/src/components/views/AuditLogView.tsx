@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   FileText,
   Search,
@@ -10,23 +10,9 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/api/client";
 
 type AuditType = "transition" | "decision" | "anomaly" | "operation" | "all";
-
-const AUDIT_ENTRIES = [
-  { id: 1, type: "transition", actor: "StateMachine", action: "INIT → OBSERVE", reason: "系统启动", severity: "INFO", time: "2026-05-09 14:00:01" },
-  { id: 2, type: "transition", actor: "StateMachine", action: "OBSERVE → ANALYZE", reason: "探针读数就绪", severity: "INFO", time: "2026-05-09 14:01:23" },
-  { id: 3, type: "decision", actor: "GovernanceOverlay", action: "ALLOW 操作", reason: "安全门评估通过", severity: "INFO", time: "2026-05-09 14:03:45" },
-  { id: 4, type: "anomaly", actor: "DualThresholdDetector", action: "anomaly_probe 超阈值", reason: "主阈值 10.0 被触发", severity: "WARN", time: "2026-05-09 14:05:12" },
-  { id: 5, type: "transition", actor: "StateMachine", action: "ACT → VERIFY", reason: "操作执行完毕", severity: "INFO", time: "2026-05-09 14:06:30" },
-  { id: 6, type: "decision", actor: "CircuitBreaker", action: "CLOSED → OPEN", reason: "连续失败 5 次", severity: "ERROR", time: "2026-05-09 13:45:00" },
-  { id: 7, type: "anomaly", actor: "OscillationProbe", action: "振荡检测触发", reason: "频率 12.0/s > 阈值 10.0", severity: "WARN", time: "2026-05-09 13:20:00" },
-  { id: 8, type: "operation", actor: "DesktopAgent", action: "click / Finder 窗口", reason: "桌面自动化", severity: "INFO", time: "2026-05-09 13:15:00" },
-  { id: 9, type: "transition", actor: "StateMachine", action: "STABILIZE → REPORT", reason: "稳定期结束", severity: "INFO", time: "2026-05-09 13:10:00" },
-  { id: 10, type: "decision", actor: "HumanArbitration", action: "APPROVE 漂移事件", reason: "人工审批", severity: "INFO", time: "2026-05-09 12:55:00" },
-  { id: 11, type: "anomaly", actor: "LatencyProbe", action: "延迟超标", reason: "决策延迟 8ms > 阈值 5ms", severity: "WARN", time: "2026-05-09 12:40:00" },
-  { id: 12, type: "operation", actor: "DesktopAgent", action: "type / 搜索 Documents", reason: "桌面自动化", severity: "INFO", time: "2026-05-09 12:30:00" },
-];
 
 const TYPE_COLORS: Record<string, string> = {
   transition: "bg-maref-info/10 text-maref-info",
@@ -57,26 +43,61 @@ const TYPE_LABELS: Record<string, string> = {
 export function AuditLogView() {
   const [typeFilter, setTypeFilter] = useState<AuditType>("all");
   const [search, setSearch] = useState("");
+  const [entries, setEntries] = useState<Array<{ id: number; type: string; actor: string; action: string; reason: string; severity: string; time: string }>>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const limit = 100;
 
-  const filtered = AUDIT_ENTRIES.filter((entry) => {
-    if (typeFilter !== "all" && entry.type !== typeFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        entry.actor.toLowerCase().includes(q) ||
-        entry.action.toLowerCase().includes(q) ||
-        entry.reason.toLowerCase().includes(q)
-      );
+  const loadLogs = useCallback(async (nextOffset = 0, append = false) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.getAuditLogs({
+        type: typeFilter !== "all" ? typeFilter : undefined,
+        search: search || undefined,
+        limit,
+        offset: nextOffset,
+      });
+      setEntries((prev) => append ? [...prev, ...res.entries] : res.entries);
+      setCounts(res.counts);
+      setTotal(res.total);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
     }
-    return true;
-  });
+  }, [typeFilter, search, limit]);
 
-  const counts = {
-    transition: AUDIT_ENTRIES.filter((e) => e.type === "transition").length,
-    decision: AUDIT_ENTRIES.filter((e) => e.type === "decision").length,
-    anomaly: AUDIT_ENTRIES.filter((e) => e.type === "anomaly").length,
-    operation: AUDIT_ENTRIES.filter((e) => e.type === "operation").length,
-  };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOffset(0);
+    loadLogs(0, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeFilter, search]);
+
+  const loadMore = useCallback(async () => {
+    const nextOffset = offset + limit;
+    setOffset(nextOffset);
+    await loadLogs(nextOffset, true);
+  }, [offset, limit, loadLogs]);
+
+  const exportCsv = useCallback(() => {
+    const headers = ["id", "time", "type", "actor", "action", "reason", "severity"];
+    const rows = entries.map((e) =>
+      headers.map((h) => JSON.stringify(String((e as Record<string, unknown>)[h] ?? ""))).join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [entries]);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -110,7 +131,7 @@ export function AuditLogView() {
                  <FileText className="h-4 w-4" />}
               </div>
               <div>
-                <div className="text-xs font-semibold text-maref-text">{counts[type]}</div>
+                <div className="text-xs font-semibold text-maref-text">{counts[type] ?? 0}</div>
                 <div className="text-[11px] text-maref-text-muted">{TYPE_LABELS[type]}</div>
               </div>
             </button>
@@ -127,50 +148,87 @@ export function AuditLogView() {
           />
           <Filter className="h-3.5 w-3.5 text-maref-text-muted" />
           <span className="text-[11px] text-maref-text-muted">
-            {filtered.length} / {AUDIT_ENTRIES.length} 条
+            {entries.length} / {total} 条
           </span>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-maref-border">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-maref-border bg-maref-surface-alt">
-                <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted w-8">#</th>
-                <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">时间</th>
-                <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">类型</th>
-                <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">角色</th>
-                <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">操作</th>
-                <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">原因</th>
-                <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">级别</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((entry) => {
-                const SevIcon = SEVERITY_ICONS[entry.severity];
-                return (
-                  <tr key={entry.id} className="border-b border-maref-border last:border-0 hover:bg-maref-surface-alt/30">
-                    <td className="px-4 py-2 text-maref-text-muted">{entry.id}</td>
-                    <td className="px-4 py-2 text-maref-text-muted whitespace-nowrap">{entry.time}</td>
-                    <td className="px-4 py-2">
-                      <span className={cn("rounded px-1.5 py-0.5 text-[10px]", TYPE_COLORS[entry.type])}>
-                        {TYPE_LABELS[entry.type]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-maref-text">{entry.actor}</td>
-                    <td className="px-4 py-2 text-maref-text font-medium">{entry.action}</td>
-                    <td className="px-4 py-2 text-maref-text-muted">{entry.reason}</td>
-                    <td className="px-4 py-2">
-                      <span className={cn("flex items-center gap-1 font-medium", SEVERITY_COLORS[entry.severity])}>
-                        <SevIcon className="h-3 w-3" />
-                        {entry.severity}
-                      </span>
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-sm text-maref-text-muted">
+            加载中…
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center py-20 text-sm text-maref-danger">
+            加载失败: {error}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-maref-border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-maref-border bg-maref-surface-alt">
+                  <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted w-8">#</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">时间</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">类型</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">角色</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">操作</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">原因</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">级别</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-16 text-center text-maref-text-muted">
+                      暂无审计日志
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  entries.map((entry) => {
+                    const SevIcon = SEVERITY_ICONS[entry.severity] ?? CheckCircle;
+                    return (
+                      <tr key={entry.id} className="border-b border-maref-border last:border-0 hover:bg-maref-surface-alt/30">
+                        <td className="px-4 py-2 text-maref-text-muted">{entry.id}</td>
+                        <td className="px-4 py-2 text-maref-text-muted whitespace-nowrap">{entry.time}</td>
+                        <td className="px-4 py-2">
+                          <span className={cn("rounded px-1.5 py-0.5 text-[10px]", TYPE_COLORS[entry.type] ?? TYPE_COLORS.operation)}>
+                            {TYPE_LABELS[entry.type] ?? entry.type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-maref-text">{entry.actor}</td>
+                        <td className="px-4 py-2 text-maref-text font-medium">{entry.action}</td>
+                        <td className="px-4 py-2 text-maref-text-muted">{entry.reason}</td>
+                        <td className="px-4 py-2">
+                          <span className={cn("flex items-center gap-1 font-medium", SEVERITY_COLORS[entry.severity] ?? "text-maref-text-muted")}>
+                            <SevIcon className="h-3 w-3" />
+                            {entry.severity}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {entries.length > 0 && (
+          <div className="flex items-center justify-between pt-2">
+            <button
+              onClick={exportCsv}
+              className="flex items-center gap-1.5 rounded-lg border border-maref-border bg-maref-surface-alt px-3 py-1.5 text-xs text-maref-text-muted hover:text-maref-text"
+            >
+              Export CSV
+            </button>
+            {entries.length < total && (
+              <button
+                onClick={loadMore}
+                disabled={loading}
+                className="flex items-center gap-1.5 rounded-lg border border-maref-border bg-maref-surface-alt px-3 py-1.5 text-xs text-maref-text-muted hover:text-maref-text disabled:opacity-50"
+              >
+                Load More ({entries.length} / {total})
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

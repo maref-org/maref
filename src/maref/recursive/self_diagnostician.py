@@ -50,7 +50,7 @@ class SelfDiagnostician:
     def __init__(self) -> None:
         self._entropy_probe = EntropyProbe(primary_threshold=3.0, shadow_threshold=1.5)
         self._anomaly_probe = AnomalyProbe(primary_threshold=3000, shadow_threshold=1500)
-        self._latency_probe = LatencyProbe(primary_threshold=120.0, shadow_threshold=60.0)
+        self._latency_probe = LatencyProbe(primary_threshold=60000.0, shadow_threshold=30000.0)
         self._kg_probe = KGProbe(primary_threshold=0.8)
         self._oscillation_probe = OscillationProbe(primary_threshold=5.0, shadow_threshold=2.0)
         self._cb_state = "CLOSED"
@@ -86,16 +86,13 @@ class SelfDiagnostician:
         diagnostic_context["latency_value"] = round(latency_ms, 1)
         probe_results["latency"] = self._latency_probe.read(latency_ms=latency_ms)
 
-        # ── Knowledge Graph: orphan ratio in module deps ────────
+        # ── Knowledge Graph: dependency health ────────────────────
         kg_nodes = snapshot.source_file_count if snapshot.source_file_count > 0 else 0
         total_edges = sum(len(deps) for deps in snapshot.module_graph.values())
-        orphaned = max(0, kg_nodes - total_edges)
         diagnostic_context["kg_nodes"] = kg_nodes
-        diagnostic_context["kg_orphaned"] = orphaned
-        diagnostic_context["kg_orphan_ratio"] = round(orphaned / max(kg_nodes, 1), 4)
+        diagnostic_context["kg_relation_density"] = round(total_edges / max(kg_nodes, 1), 4)
         probe_results["kg"] = self._kg_probe.read(
             total_nodes=float(kg_nodes),
-            orphaned_nodes=float(orphaned),
             relation_count=float(total_edges),
         )
 

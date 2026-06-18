@@ -1,0 +1,25 @@
+{
+  "id": "reliability",
+  "title": "可靠性与 SLO",
+  "description": "MAREF 服务等级目标、错误预算和可靠性指标",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/reliability.md",
+  "sourceDirName": ".",
+  "slug": "/reliability",
+  "permalink": "/zh-CN/docs/reliability",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/reliability.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 12,
+  "frontMatter": {
+    "sidebar_position": 12,
+    "title": "可靠性与 SLO",
+    "description": "MAREF 服务等级目标、错误预算和可靠性指标"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Sidecar 部署",
+    "permalink": "/zh-CN/docs/deployment-sidecar"
+  }
+}

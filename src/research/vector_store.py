@@ -102,7 +102,7 @@ class VectorKnowledgeStore:
             clean = {k: str(v) for k, v in (metadata or {}).items() if isinstance(v, (str, int, float, bool))}
             clean['stored_at'] = str(time.time())
             metadatas.append(clean)
-        self._collection.add(documents=documents, metadatas=metadatas, ids=ids)
+        self._collection.add(documents=documents, metadatas=metadatas, ids=ids)  # type: ignore[arg-type]
         return ids
 
     def search(self, query: str, n_results: int=5) -> list[SearchResult]:
@@ -157,7 +157,7 @@ class VectorKnowledgeStore:
             return []
         return self._build_results({'ids': [ids], 'distances': [[0.0] * len(ids)], 'metadatas': [raw.get('metadatas', [])], 'documents': [raw.get('documents', [])]})
 
-    def _build_results(self, raw: dict[str, Any]) -> list[SearchResult]:
+    def _build_results(self, raw: Any) -> list[SearchResult]:
         """Convert raw ChromaDB response to SearchResult list."""
         parsed: list[SearchResult] = []
         ids_list = raw.get('ids')

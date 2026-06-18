@@ -1,0 +1,29 @@
+{
+  "id": "quickstart",
+  "title": "Quickstart",
+  "description": "5 minutes to your first governed multi-agent system",
+  "source": "@site/versioned_docs/version-0.33/quickstart.md",
+  "sourceDirName": ".",
+  "slug": "/quickstart",
+  "permalink": "/zh-CN/docs/0.33/quickstart",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/versioned_docs/version-0.33/quickstart.md",
+  "tags": [],
+  "version": "0.33",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Quickstart",
+    "description": "5 minutes to your first governed multi-agent system"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Introduction",
+    "permalink": "/zh-CN/docs/0.33/introduction"
+  },
+  "next": {
+    "title": "Architecture",
+    "permalink": "/zh-CN/docs/0.33/architecture"
+  }
+}

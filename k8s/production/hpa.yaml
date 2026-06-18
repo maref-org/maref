@@ -3,12 +3,14 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: maref-governance-hpa
   namespace: maref
+  labels:
+    app: maref-governance
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: maref-governance
-  minReplicas: 2
+  minReplicas: 3
   maxReplicas: 10
   metrics:
     - type: Resource

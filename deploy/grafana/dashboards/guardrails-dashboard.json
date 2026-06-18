@@ -1,0 +1,125 @@
+{
+  "title": "MAREF Guardrails",
+  "uid": "maref-guardrails",
+  "tags": ["maref", "guardrails", "security"],
+  "schemaVersion": 39,
+  "version": 2,
+  "timezone": "browser",
+  "theme": "dark",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Allow vs Deny Rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "min": 0
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(guardrail_checks_total{verdict=\"ALLOW\"}[5m])",
+          "legendFormat": "allow"
+        },
+        {
+          "expr": "rate(guardrail_checks_total{verdict=\"DENY\"}[5m])",
+          "legendFormat": "deny"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "type": "heatmap",
+      "title": "Risk Scores",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "expr": "guardrail_risk_score",
+          "legendFormat": "risk"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Circuit Breaker Status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "guardrail_circuit_breakers_open",
+          "legendFormat": "state"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "type": "heatmap",
+      "title": "Guardrail Latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(guardrail_check_duration_seconds_sum[5m]) / rate(guardrail_check_duration_seconds_count[5m])",
+          "legendFormat": "latency"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      }
+    }
+  ]
+}

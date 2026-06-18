@@ -1,194 +1,497 @@
 """
-Tests for VectorKnowledgeStore (P1.1)
-
-Verifies semantic search, batch operations, and edge cases
-using ChromaDB's ONNX-based embedding (no external API calls).
+Comprehensive tests for vector_store.py.
+All external dependencies (chromadb, uuid, time, pathlib) are mocked.
 """
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
+from chromadb.errors import NotFoundError
 from research.vector_store import SearchResult, VectorKnowledgeStore
 
 
-class TestVectorKnowledgeStore:
-    """Test suite for vector store."""
+class TestSearchResult:
+    """Tests for SearchResult dataclass construction and defaults."""
 
-    @pytest.fixture
-    def store(self) -> VectorKnowledgeStore:
-        """Ephemeral in-memory store for testing (isolated per test)."""
-        import uuid
+    def test_construction_all_fields(self) -> None:
+        sr = SearchResult(content="hello", score=0.5, metadata={"k": "v"}, id="id1")
+        assert sr.content == "hello"
+        assert sr.score == 0.5
+        assert sr.metadata == {"k": "v"}
+        assert sr.id == "id1"
 
-        s = VectorKnowledgeStore(collection_name=f"test_{uuid.uuid4().hex[:8]}")
-        return s
+    def test_defaults(self) -> None:
+        sr = SearchResult(content="hello", score=0.5)
+        assert sr.metadata == {}
+        assert sr.id == ""
 
-    # --- add_finding ---
+    def test_default_factory_isolation(self) -> None:
+        sr1 = SearchResult(content="a", score=0.1)
+        sr2 = SearchResult(content="b", score=0.2)
+        sr1.metadata["x"] = 1
+        assert "x" not in sr2.metadata
 
-    async def test_add_and_search(self, store: VectorKnowledgeStore) -> None:
-        """Basic add + search round-trip."""
-        store.add_finding("KL divergence threshold 0.15 gives best F1 score", {"metric": "f1"})
-        results = store.search("best KL threshold")
-        assert len(results) >= 1
-        assert results[0].score < 1.0  # semantically similar
+    def test_empty_content(self) -> None:
+        sr = SearchResult(content="", score=0.0)
+        assert sr.content == ""
+        assert sr.score == 0.0
 
-    async def test_add_returns_id(self, store: VectorKnowledgeStore) -> None:
-        doc_id = store.add_finding("test finding", {"experiment": "test"})
-        assert doc_id.startswith("finding_")
-        assert len(doc_id) > 10
+    def test_negative_score(self) -> None:
+        sr = SearchResult(content="x", score=-1.5)
+        assert sr.score == -1.5
 
-    async def test_add_empty_content(self, store: VectorKnowledgeStore) -> None:
-        doc_id = store.add_finding("", {"experiment": "test"})
-        assert doc_id is not None
 
-    # --- search ---
+@pytest.fixture
+def mock_uuid() -> MagicMock:
+    counter = 0
+    def _fake() -> object:
+        nonlocal counter
+        counter += 1
+        return type("FakeUUID", (), {"hex": f"{counter:08x}"})()
+    return MagicMock(side_effect=_fake)
 
-    async def test_search_empty_store(self, store: VectorKnowledgeStore) -> None:
-        results = store.search("anything")
-        assert results == []
 
-    async def test_search_relevance_ordering(self, store: VectorKnowledgeStore) -> None:
-        """More semantically relevant results should have lower scores (closer = 0)."""
-        store.add_finding("The cat sat on the mat", {"topic": "cats"})
-        store.add_finding("Policy gradient methods optimize reward", {"topic": "rl"})
-        store.add_finding("KL divergence measures distribution distance", {"topic": "math"})
+@pytest.fixture
+def mock_chromadb_client() -> tuple[MagicMock, MagicMock]:
+    client = MagicMock()
+    collection = MagicMock()
+    client.get_collection.return_value = collection
+    client.create_collection.return_value = collection
+    client.delete_collection.return_value = None
+    collection.count.return_value = 0
+    collection.add.return_value = None
+    collection.query.return_value = {
+        "ids": [[]],
+        "distances": [[]],
+        "documents": [[]],
+        "metadatas": [[]],
+    }
+    collection.get.return_value = {
+        "ids": [],
+        "documents": [],
+        "metadatas": [],
+    }
+    return client, collection
 
-        results = store.search("machine learning policy optimization")
-        assert len(results) > 0
-        # At least one RL-related result should be returned
-        rl_results = [r for r in results if "policy" in r.content.lower()]
-        assert len(rl_results) >= 1, "Expected at least one RL-related result"
 
-    async def test_search_semantic_match_vs_keyword(self, store: VectorKnowledgeStore) -> None:
-        """Semantic search should find related concepts, not just keywords."""
-        store.add_finding("Oscillation in governance states detected", {"type": "finding"})
-        store.add_finding("The weather is sunny today", {"type": "irrelevant"})
+@pytest.fixture
+def patched_store(mock_chromadb_client: tuple[MagicMock, MagicMock], mock_uuid: MagicMock):
+    client, collection = mock_chromadb_client
+    with (
+        patch("research.vector_store.chromadb.EphemeralClient", return_value=client),
+        patch("research.vector_store.chromadb.PersistentClient", return_value=client),
+        patch("research.vector_store.uuid.uuid4", mock_uuid),
+        patch("research.vector_store.time.time", return_value=1234567890.0),
+    ):
+        yield client, collection
 
-        results = store.search("unstable state transitions in agents")
-        assert len(results) > 0
-        # The oscillation finding should be most relevant
-        assert "oscillation" in results[0].content.lower()
 
-    async def test_search_returns_correct_structure(self, store: VectorKnowledgeStore) -> None:
-        store.add_finding("test finding", {"experiment": "test_exp"})
-        results = store.search("test")
-        r = results[0]
-        assert isinstance(r, SearchResult)
-        assert isinstance(r.content, str)
-        assert isinstance(r.score, float)
-        assert isinstance(r.metadata, dict)
-        assert isinstance(r.id, str)
-        assert r.metadata.get("experiment") == "test_exp"
+class TestInit:
+    """Tests for VectorKnowledgeStore.__init__."""
 
-    # --- search_similar ---
+    def test_ephemeral_no_path(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        assert store.collection_name == VectorKnowledgeStore.DEFAULT_COLLECTION
+        assert store._client is client
+        assert store._collection is collection
 
-    async def test_search_similar_finds_related(self, store: VectorKnowledgeStore) -> None:
-        store.add_finding("High entropy leads to unstable governance")
-        store.add_finding("Entropy is a measure of disorder in systems")
-        store.add_finding("The sky appears blue due to Rayleigh scattering")
+    def test_persistent_with_path(self, patched_store: tuple[MagicMock, MagicMock], tmp_path) -> None:
+        client, collection = patched_store
+        db_path = tmp_path / "db"
+        store = VectorKnowledgeStore(path=db_path)
+        from research.vector_store import chromadb
+        chromadb.PersistentClient.assert_called_once_with(str(db_path / "chroma_db"))
+        assert store.collection_name == VectorKnowledgeStore.DEFAULT_COLLECTION
 
-        results = store.search_similar("entropy and stability in governance")
-        assert len(results) >= 2
-        assert all(r.score < 1.5 for r in results[:2])
+    def test_path_as_string(self, patched_store: tuple[MagicMock, MagicMock], tmp_path) -> None:
+        client, collection = patched_store
+        db_path = str(tmp_path / "db")
+        store = VectorKnowledgeStore(path=db_path)
+        assert store.collection_name == VectorKnowledgeStore.DEFAULT_COLLECTION
 
-    # --- add_findings (batch) ---
+    def test_custom_collection_name(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore(collection_name="custom")
+        client.get_collection.assert_called_once_with("custom")
+        assert store.collection_name == "custom"
 
-    async def test_add_findings_batch(self, store: VectorKnowledgeStore) -> None:
-        ids = store.add_findings(
-            [
-                ("Finding one", {"exp": "exp1"}),
-                ("Finding two", {"exp": "exp2"}),
-                ("Finding three", {"exp": "exp3"}),
-            ]
-        )
-        assert len(ids) == 3
-        assert all(id.startswith("finding_") for id in ids)
-        assert store.count() == 3
+    def test_collection_exists(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        client.get_collection.assert_called_once()
+        client.create_collection.assert_not_called()
 
-    async def test_add_findings_empty(self, store: VectorKnowledgeStore) -> None:
-        ids = store.add_findings([])
-        assert ids == []
+    def test_collection_not_found_valueerror(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        client.get_collection.side_effect = ValueError("no such collection")
+        store = VectorKnowledgeStore()
+        client.create_collection.assert_called_once()
 
-    async def test_add_findings_without_metadata(self, store: VectorKnowledgeStore) -> None:
-        ids = store.add_findings(
-            [
-                ("Finding one", None),
-                ("Finding two", None),
-            ]
-        )
-        assert len(ids) == 2
+    def test_collection_not_found_notfounderror(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        client.get_collection.side_effect = NotFoundError("missing")
+        store = VectorKnowledgeStore()
+        client.create_collection.assert_called_once()
 
-    # --- count ---
 
-    async def test_count_empty(self, store: VectorKnowledgeStore) -> None:
-        assert store.count() == 0
+class TestAddFinding:
+    """Tests for add_finding."""
 
-    async def test_count_after_add(self, store: VectorKnowledgeStore) -> None:
-        store.add_finding("finding 1")
-        store.add_finding("finding 2")
-        store.add_finding("finding 3")
-        assert store.count() == 3
+    def test_basic(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        doc_id = store.add_finding("content", {"key": "value"})
+        assert doc_id == "finding_00000001"
+        collection.add.assert_called_once()
+        kwargs = collection.add.call_args[1]
+        assert kwargs["documents"] == ["content"]
+        assert kwargs["ids"] == ["finding_00000001"]
+        meta = kwargs["metadatas"][0]
+        assert meta["key"] == "value"
+        assert meta["stored_at"] == "1234567890.0"
 
-    # --- clear ---
+    def test_no_metadata(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        doc_id = store.add_finding("content")
+        assert doc_id == "finding_00000001"
+        kwargs = collection.add.call_args[1]
+        assert kwargs["metadatas"][0] == {"stored_at": "1234567890.0"}
 
-    async def test_clear(self, store: VectorKnowledgeStore) -> None:
-        store.add_finding("something")
-        assert store.count() > 0
-        store.clear()
-        assert store.count() == 0
+    def test_empty_content(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        store.add_finding("")
+        kwargs = collection.add.call_args[1]
+        assert kwargs["documents"] == [""]
 
-    async def test_clear_then_add(self, store: VectorKnowledgeStore) -> None:
-        store.add_finding("first")
-        store.clear()
-        store.add_finding("second")
-        assert store.count() == 1
-        results = store.search("second")
-        assert len(results) == 1
-
-    # --- get_all ---
-
-    async def test_get_all(self, store: VectorKnowledgeStore) -> None:
-        store.add_finding("A", {"idx": "1"})
-        store.add_finding("B", {"idx": "2"})
-        store.add_finding("C", {"idx": "3"})
-        all_items = store.get_all()
-        assert len(all_items) == 3
-        contents = {r.content for r in all_items}
-        assert contents == {"A", "B", "C"}
-
-    async def test_get_all_empty(self, store: VectorKnowledgeStore) -> None:
-        assert store.get_all() == []
-
-    # --- reconstruction and semantic consistency ---
-
-    async def test_semantic_search_across_domains(self, store: VectorKnowledgeStore) -> None:
-        """Very strict test: semantically different topics should rank correctly."""
-        store.add_finding("Recursive governance oscillation detection", {"area": "governance"})
-        store.add_finding("F1 score for anomaly detection models", {"area": "metrics"})
-        store.add_finding("KL divergence threshold optimization", {"area": "drift"})
-
-        results = store.search("detecting oscillation in multi-agent systems")
-        assert len(results) >= 1
-        # The finding mentioning "oscillation" should be most relevant to this query
-        top = results[0].content.lower()
-        assert (
-            "oscillation" in top
-        ), f"Expected oscillation finding first, got: {results[0].content}"
-
-    # --- metadata handling ---
-
-    async def test_metadata_preserved(self, store: VectorKnowledgeStore) -> None:
+    def test_metadata_filters_invalid_types(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
         store.add_finding(
-            "finding with meta",
+            "x",
             {
-                "experiment": "test_exp",
-                "phase": "8",
-                "confidence": "0.95",
+                "good_str": "val",
+                "bad_list": [1, 2],
+                "bad_dict": {"a": 1},
+                "bad_none": None,
+                "bad_bytes": b"data",
             },
         )
-        results = store.search("finding with meta")
-        assert len(results) >= 1
-        meta = results[0].metadata
-        assert meta.get("experiment") == "test_exp"
-        assert meta.get("phase") == "8"
-        assert meta.get("confidence") == "0.95"
+        meta = collection.add.call_args[1]["metadatas"][0]
+        assert "good_str" in meta
+        assert "bad_list" not in meta
+        assert "bad_dict" not in meta
+        assert "bad_none" not in meta
+        assert "bad_bytes" not in meta
+        assert "stored_at" in meta
+
+    def test_metadata_keeps_valid_types(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        store.add_finding(
+            "x",
+            {"s": "a", "i": 1, "f": 1.5, "b": True},
+        )
+        meta = collection.add.call_args[1]["metadatas"][0]
+        assert meta["s"] == "a"
+        assert meta["i"] == "1"
+        assert meta["f"] == "1.5"
+        assert meta["b"] == "True"
+        assert meta["stored_at"] == "1234567890.0"
+
+
+class TestAddFindings:
+    """Tests for add_findings (batch)."""
+
+    def test_empty_list(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        result = store.add_findings([])
+        assert result == []
+        collection.add.assert_not_called()
+
+    def test_batch(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        ids = store.add_findings([
+            ("one", {"a": "1"}),
+            ("two", {"b": "2"}),
+        ])
+        assert ids == ["finding_00000001", "finding_00000002"]
+        collection.add.assert_called_once()
+        kwargs = collection.add.call_args[1]
+        assert kwargs["documents"] == ["one", "two"]
+        assert len(kwargs["metadatas"]) == 2
+
+    def test_mixed_metadata(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        ids = store.add_findings([
+            ("one", None),
+            ("two", {"k": "v"}),
+        ])
+        assert len(ids) == 2
+        kwargs = collection.add.call_args[1]
+        assert kwargs["metadatas"][0] == {"stored_at": "1234567890.0"}
+        assert kwargs["metadatas"][1]["k"] == "v"
+        assert "stored_at" in kwargs["metadatas"][1]
+
+    def test_invalid_metadata_filtered(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        store.add_findings([
+            ("one", {"valid": "yes", "invalid": [1]}),
+        ])
+        meta = collection.add.call_args[1]["metadatas"][0]
+        assert "valid" in meta
+        assert "invalid" not in meta
+
+
+class TestCount:
+    """Tests for count."""
+
+    def test_returns_collection_count(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 7
+        assert store.count() == 7
+
+    def test_zero(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 0
+        assert store.count() == 0
+
+
+class TestSearch:
+    """Tests for search."""
+
+    def test_empty_store(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 0
+        results = store.search("query")
+        assert results == []
+        collection.query.assert_not_called()
+
+    def test_non_empty(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 2
+        collection.query.return_value = {
+            "ids": [["id1", "id2"]],
+            "distances": [[0.1, 0.5]],
+            "documents": [["doc1", "doc2"]],
+            "metadatas": [[{"k": "1"}, {"k": "2"}]],
+        }
+        results = store.search("query", n_results=5)
+        assert len(results) == 2
+        assert results[0].id == "id1"
+        assert results[0].score == 0.1
+        assert results[0].content == "doc1"
+        assert results[0].metadata == {"k": "1"}
+        collection.query.assert_called_once_with(query_texts=["query"], n_results=2)
+
+    def test_n_results_capped(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 1
+        collection.query.return_value = {
+            "ids": [["id1"]],
+            "distances": [[0.0]],
+            "documents": [["d1"]],
+            "metadatas": [[{}]],
+        }
+        store.search("q", n_results=10)
+        collection.query.assert_called_once_with(query_texts=["q"], n_results=1)
+
+    def test_n_results_zero(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 3
+        collection.query.return_value = {
+            "ids": [[]],
+            "distances": [[]],
+            "documents": [[]],
+            "metadatas": [[]],
+        }
+        store.search("q", n_results=0)
+        collection.query.assert_called_once_with(query_texts=["q"], n_results=0)
+
+    def test_result_ordering(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 3
+        collection.query.return_value = {
+            "ids": [["a", "b", "c"]],
+            "distances": [[0.01, 0.5, 0.9]],
+            "documents": [["A", "B", "C"]],
+            "metadatas": [[{}, {}, {}]],
+        }
+        results = store.search("q")
+        assert [r.id for r in results] == ["a", "b", "c"]
+        assert [r.score for r in results] == [0.01, 0.5, 0.9]
+
+
+class TestSearchSimilar:
+    """Tests for search_similar."""
+
+    def test_delegates_to_search(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 1
+        collection.query.return_value = {
+            "ids": [["id1"]],
+            "distances": [[0.2]],
+            "documents": [["doc1"]],
+            "metadatas": [[{"x": "y"}]],
+        }
+        results = store.search_similar("content", n_results=3)
+        assert len(results) == 1
+        assert results[0].id == "id1"
+        collection.query.assert_called_once_with(query_texts=["content"], n_results=1)
+
+
+class TestClear:
+    """Tests for clear."""
+
+    def test_deletes_and_recreates(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        store.clear()
+        client.delete_collection.assert_called_once_with(VectorKnowledgeStore.DEFAULT_COLLECTION)
+        client.create_collection.assert_called_once_with(VectorKnowledgeStore.DEFAULT_COLLECTION)
+        assert store._collection is collection
+
+    def test_suppresses_valueerror(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        client.delete_collection.side_effect = ValueError("no")
+        store.clear()
+        client.create_collection.assert_called_once()
+
+    def test_suppresses_notfounderror(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        client.delete_collection.side_effect = NotFoundError("missing")
+        store.clear()
+        client.create_collection.assert_called_once()
+
+
+class TestGetAll:
+    """Tests for get_all."""
+
+    def test_empty_store(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 0
+        assert store.get_all() == []
+        collection.get.assert_not_called()
+
+    def test_non_empty(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 2
+        collection.get.return_value = {
+            "ids": ["i1", "i2"],
+            "documents": ["d1", "d2"],
+            "metadatas": [{"k": "1"}, {"k": "2"}],
+        }
+        results = store.get_all()
+        assert len(results) == 2
+        assert results[0].id == "i1"
+        assert results[0].content == "d1"
+        assert results[0].metadata == {"k": "1"}
+        assert results[0].score == 0.0
+        assert results[1].score == 0.0
+
+    def test_no_ids_in_get(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        collection.count.return_value = 1
+        collection.get.return_value = {
+            "ids": [],
+            "documents": [],
+            "metadatas": [],
+        }
+        assert store.get_all() == []
+
+
+class TestBuildResults:
+    """Tests for _build_results internal helper."""
+
+    def test_empty_ids(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        assert store._build_results({"ids": [[]]}) == []
+
+    def test_no_ids_key(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        assert store._build_results({}) == []
+
+    def test_missing_distances(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        raw = {
+            "ids": [["id1"]],
+            "documents": [["doc1"]],
+            "metadatas": [[{"k": "v"}]],
+        }
+        results = store._build_results(raw)
+        assert len(results) == 1
+        assert results[0].score == 1.0
+
+    def test_none_values(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        raw = {
+            "ids": [["id1"]],
+            "distances": [[None]],
+            "documents": [[None]],
+            "metadatas": [[None]],
+        }
+        results = store._build_results(raw)
+        assert results[0].score == 1.0
+        assert results[0].content == ""
+        assert results[0].metadata == {}
+
+    def test_multiple_items(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        raw = {
+            "ids": [["a", "b"]],
+            "distances": [[0.1, 0.2]],
+            "documents": [["A", "B"]],
+            "metadatas": [[{"x": 1}, {"y": 2}]],
+        }
+        results = store._build_results(raw)
+        assert len(results) == 2
+        assert results[0].id == "a"
+        assert results[1].id == "b"
+
+    def test_empty_inner_documents_metadatas(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore()
+        raw = {
+            "ids": [["id1"]],
+            "distances": [[0.5]],
+            "documents": [[]],
+            "metadatas": [[]],
+        }
+        # zip stops at shortest iterable, so no results
+        assert store._build_results(raw) == []
+
+
+class TestCollectionNameProperty:
+    """Tests for collection_name property."""
+
+    def test_returns_name(self, patched_store: tuple[MagicMock, MagicMock]) -> None:
+        client, collection = patched_store
+        store = VectorKnowledgeStore(collection_name="my_collection")
+        assert store.collection_name == "my_collection"

@@ -1,0 +1,29 @@
+{
+  "id": "deployment-sidecar",
+  "title": "Sidecar 部署",
+  "description": "部署 MAREF 观测 Sidecar",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/deployment-sidecar.md",
+  "sourceDirName": ".",
+  "slug": "/deployment-sidecar",
+  "permalink": "/zh-CN/docs/deployment-sidecar",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/deployment-sidecar.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 11,
+  "frontMatter": {
+    "sidebar_position": 11,
+    "title": "Sidecar 部署",
+    "description": "部署 MAREF 观测 Sidecar"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Kubernetes 部署",
+    "permalink": "/zh-CN/docs/deployment-k8s"
+  },
+  "next": {
+    "title": "Reliability & SLO",
+    "permalink": "/zh-CN/docs/reliability"
+  }
+}
