@@ -44,9 +44,14 @@ const sidebars: SidebarsConfig = {
       ],
     },
     {
-      type: 'doc',
-      id: 'deployment',
+      type: 'category',
       label: 'Deployment',
+      items: [
+        'deployment',
+        'deployment-docker',
+        'deployment-k8s',
+        'deployment-sidecar',
+      ],
     },
   ],
 };
