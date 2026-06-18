@@ -37,7 +37,16 @@ const config: Config = {
             current: { label: 'v0.33.0-rc', path: '/' },
           },
         },
-        blog: false,
+        blog: {
+          showReadingTime: true,
+          blogSidebarTitle: 'Recent posts',
+          blogSidebarCount: 5,
+          postsPerPage: 5,
+          feedOptions: {
+            type: 'rss',
+            copyright: `Copyright © ${new Date().getFullYear()} MAREF Contributors. Apache-2.0 License.`,
+          },
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -63,6 +72,7 @@ const config: Config = {
         { type: 'doc', docId: 'introduction', position: 'left', label: 'Docs' },
         { type: 'doc', docId: 'api-reference', position: 'left', label: 'API Reference' },
         { type: 'doc', docId: 'architecture', position: 'left', label: 'Architecture' },
+        { to: '/blog', label: 'Blog', position: 'left' },
         { type: 'docsVersionDropdown', position: 'right' },
         { type: 'localeDropdown', position: 'right' },
         { to: '/security', label: 'Security', position: 'right' },
