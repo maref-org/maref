@@ -1,7 +1,7 @@
 import React from 'react';
 import Layout from '@theme/Layout';
 
-function ReportVulnerability() {
+function ReportVulnerability(): JSX.Element {
   return (
     <section className="margin-vert--lg">
       <div className="container">
@@ -24,7 +24,7 @@ function ReportVulnerability() {
   );
 }
 
-function SupportedVersions() {
+function SupportedVersions(): JSX.Element {
   return (
     <section className="margin-vert--lg">
       <div className="container">
@@ -62,7 +62,7 @@ function SupportedVersions() {
   );
 }
 
-function Scope() {
+function Scope(): JSX.Element {
   return (
     <section className="margin-vert--lg">
       <div className="container">
@@ -101,7 +101,7 @@ function Scope() {
   );
 }
 
-function SecurityArchitecture() {
+function SecurityArchitecture(): JSX.Element {
   const features = [
     {
       title: '4-Level Policy Decision Tree',
@@ -158,7 +158,7 @@ function SecurityArchitecture() {
   );
 }
 
-function CryptoCompliance() {
+function CryptoCompliance(): JSX.Element {
   return (
     <section className="margin-vert--lg">
       <div className="container">
@@ -190,7 +190,7 @@ function CryptoCompliance() {
             </tr>
             <tr>
               <td>SM3</td>
-              <td>GB/T 32918.1-2016</td>
+              <td>GB/T 32905-2016</td>
               <td>Cryptographic hash function (256-bit)</td>
               <td>
                 <code>src/maref/crypto/sm3.py</code>
@@ -240,14 +240,14 @@ function CryptoCompliance() {
   );
 }
 
-function BestPractices() {
+function BestPractices(): JSX.Element {
   const practices = [
-    'Always run with MAREF_SAFETY_LEVEL=production',
-    'Enable all 8 defense layers (they are on by default)',
-    'Grant only the minimum required OS permissions',
-    'Review audit logs regularly (maref audit show --last 100)',
-    'Monitor CircuitBreaker trip rate via Prometheus',
-    'Keep dependencies updated (pip list --outdated)',
+    { id: 'safety-level', text: 'Always run with MAREF_SAFETY_LEVEL=production' },
+    { id: 'defense-layers', text: 'Enable all 8 defense layers (they are on by default)' },
+    { id: 'min-permissions', text: 'Grant only the minimum required OS permissions' },
+    { id: 'audit-logs', text: 'Review audit logs regularly (maref audit show --last 100)' },
+    { id: 'circuit-breaker', text: 'Monitor CircuitBreaker trip rate via Prometheus' },
+    { id: 'dependencies', text: 'Keep dependencies updated (pip list --outdated)' },
   ];
 
   return (
@@ -256,9 +256,9 @@ function BestPractices() {
         <h2>Security Best Practices</h2>
         <p>When deploying MAREF in production:</p>
         <ol>
-          {practices.map((p, i) => (
-            <li key={i}>
-              <p>{p}</p>
+          {practices.map((p) => (
+            <li key={p.id}>
+              <p>{p.text}</p>
             </li>
           ))}
         </ol>
