@@ -1,0 +1,9 @@
+{
+  "docsSidebar": [
+    { "type": "doc", "id": "introduction", "label": "Introduction" },
+    { "type": "doc", "id": "quickstart", "label": "Quickstart" },
+    { "type": "doc", "id": "architecture", "label": "Architecture" },
+    { "type": "doc", "id": "api-reference", "label": "API Reference" },
+    { "type": "doc", "id": "deployment", "label": "Deployment" }
+  ]
+}
