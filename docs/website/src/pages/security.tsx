@@ -62,6 +62,45 @@ function SupportedVersions() {
   );
 }
 
+function Scope() {
+  return (
+    <section className="margin-vert--lg">
+      <div className="container">
+        <h2>Scope</h2>
+        <p>
+          This security policy applies to the following components of the MAREF
+          project:
+        </p>
+        <h3>In-Scope</h3>
+        <ul>
+          <li>
+            <strong>MAREF Core Framework</strong> — <code>src/maref/</code>
+          </li>
+          <li>
+            <strong>MAREF Lite</strong> — <code>src/maref_lite/</code>
+          </li>
+          <li>
+            <strong>Sidecar</strong> — <code>src/sidecar/</code>
+          </li>
+          <li>
+            <strong>GUI</strong> — <code>gui/</code>
+          </li>
+          <li>
+            <strong>Website</strong> — <code>docs/website/</code>
+          </li>
+        </ul>
+        <h3>Out-of-Scope</h3>
+        <ul>
+          <li>
+            Third-party dependencies unless the vulnerability is in how MAREF
+            integrates them
+          </li>
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 function SecurityArchitecture() {
   const features = [
     {
@@ -245,6 +284,7 @@ export default function Security(): React.ReactElement {
       <main>
         <ReportVulnerability />
         <SupportedVersions />
+        <Scope />
         <SecurityArchitecture />
         <CryptoCompliance />
         <BestPractices />
