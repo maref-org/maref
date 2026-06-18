@@ -53,6 +53,11 @@ const sidebars: SidebarsConfig = {
         'deployment-sidecar',
       ],
     },
+    {
+      type: 'doc',
+      id: 'reliability',
+      label: 'Reliability & SLO',
+    },
   ],
 };
 
