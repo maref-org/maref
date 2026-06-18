@@ -51,7 +51,7 @@ const config: Config = {
           customCss: './src/css/custom.css',
         },
         gtag: {
-          trackingID: 'G-XXXXXXXXXX',
+          trackingID: 'G-TBD', // Set your Google Analytics tracking ID here
           anonymizeIP: true,
         },
         sitemap: {
@@ -117,8 +117,8 @@ const config: Config = {
       additionalLanguages: ['python', 'bash', 'json', 'yaml', 'typescript'],
     },
     algolia: {
-      appId: 'YOUR_APP_ID',
-      apiKey: 'YOUR_API_KEY',
+      appId: 'TBD', // Set your Algolia credentials here
+      apiKey: 'TBD', // Set your Algolia credentials here
       indexName: 'maref',
       placeholder: 'Search docs...',
     },

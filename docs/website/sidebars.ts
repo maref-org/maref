@@ -55,6 +55,11 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'doc',
+      id: 'error-codes',
+      label: 'Error Codes',
+    },
+    {
+      type: 'doc',
       id: 'reliability',
       label: 'Reliability & SLO',
     },
