@@ -16,7 +16,7 @@ As AI agents become autonomous and interconnected, governing their behavior beco
 |-----------|---------------|
 | **Safety** | 5 constitutional red lines enforced by MetaAgentClosure |
 | **Trust** | 8-trigram trust states with Gray-code transitions |
-| **Interoperability** | Dual protocol (A2A + MCP) for maximum ecosystem compatibility |
+| **Interoperability** | Dual protocol (A2A v0.3 + MCP 2025-03-26) for maximum ecosystem compatibility |
 | **Compliance** | HMAC-SHA256 audit chains, EU AI Act, SOC 2 modules |
 
 ## Core Capabilities
@@ -24,8 +24,8 @@ As AI agents become autonomous and interconnected, governing their behavior beco
 - **Six-Layer Governance** — Heaven (constitutional) → Human (HITL) → Earth (zero trust) → Trigram (roles) → Hexagram (contracts) → Change (evolution)
 - **64-State Gray-Code FSM** — Hamming distance=1 transitions guarantee stability
 - **TLA+ Formal Verification** — 5 proven invariants running at runtime
-- **A2A Protocol** — Google-standard Agent-to-Agent task delegation
-- **MCP Protocol** — Anthropic-standard Model Context Protocol with 6 transports
+- **A2A Protocol v0.3** — Google-standard Agent-to-Agent task delegation
+- **MCP Protocol 2025-03-26** — Anthropic-standard Model Context Protocol with 6 transports
 - **Self-Healing** — 8 Self-* modules for autonomous recovery
 - **Governance as a Service** — Multi-tenant REST API for governance decisions
 - **Compliance** — HMAC audit, EU AI Act, SOC 2, HIPAA, PCI-DSS
@@ -37,6 +37,13 @@ As AI agents become autonomous and interconnected, governing their behavior beco
 - [API 参考](/docs/api-reference) — 完整 API 文档
 - [操作指南](/docs/cookbook/governed-agent-setup) — 逐步教程
 - [部署指南](/docs/deployment) — K8s、Docker、桌面端部署
+
+## 项目状态
+
+- **CI/CD**: [GitHub Actions CI](https://github.com/maref-org/maref/actions/workflows/ci.yml)
+- **代码覆盖率**: [Codecov](https://codecov.io/gh/maref-org/maref)
+- **SBOM**: [`sbom.spdx.json`](https://github.com/maref-org/maref/blob/main/sbom.spdx.json)
+- **混沌测试报告**: [`.chaos-reports/`](https://github.com/maref-org/maref/blob/main/.chaos-reports/)
 
 ## License
 
