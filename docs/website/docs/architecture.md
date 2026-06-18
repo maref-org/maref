@@ -10,7 +10,7 @@ description: MAREF six-layer governance architecture
 
 ## Overview
 
-MAREF (Multi-Agent Recursive Evolution Framework) is an Agent Governance Operating System. It provides six-layer governance, formal verification via TLA+, a 64-state Gray-code finite state machine, dual-protocol communication (A2A + MCP), and a full audit/security/compliance infrastructure.
+MAREF (Multi-Agent Recursive Evolution Framework) is an Agent Governance Operating System. It provides six-layer governance, formal verification via TLA+, a 64-state Gray-code finite state machine, dual-protocol communication (A2A v0.3 + MCP 2025-03-26), and a full audit/security/compliance infrastructure.
 
 This document describes the architecture from four perspectives: the six-layer governance model, the runtime architecture layers, the protocol layer, and the security architecture.
 
@@ -119,13 +119,13 @@ MAREF implements two standard protocols for agent communication:
 └───────────────────────────────────────────────────────┘
 ```
 
-### A2A (Agent-to-Agent) Protocol v0.2.6
+### A2A (Agent-to-Agent) Protocol v0.3
 
-Google-standard A2A protocol for inter-agent task delegation with signed agent cards, capability-based discovery, and JSON-RPC 2.0 messaging.
+Google-standard A2A v0.3 protocol for inter-agent task delegation with signed agent cards, capability-based discovery, and JSON-RPC 2.0 messaging.
 
-### MCP (Model Context Protocol)
+### MCP (Model Context Protocol) 2025-03-26
 
-Anthropic-standard MCP for tool discovery, resource access, and prompt templates with 6 transport types: Stdio, SSE, HTTP, InProcess, AsyncStdio, AsyncSSE.
+Anthropic-standard MCP 2025-03-26 for tool discovery, resource access, and prompt templates with 6 transport types: Stdio, SSE, HTTP, InProcess, AsyncStdio, AsyncSSE.
 
 ---
 
@@ -138,8 +138,17 @@ Anthropic-standard MCP for tool discovery, resource access, and prompt templates
 | 5 constitutional red lines | Immutable safety constraints enforced at meta layer |
 | 8-trigram trust states | Trust-aware autonomy scaling with smooth transitions |
 | HMAC-SHA256 audit chain | Tamper-evident logging for ISO 27001 compliance |
-| Dual protocol (A2A + MCP) | Interoperability with Google and Anthropic ecosystems |
+| Dual protocol (A2A v0.3 + MCP 2025-03-26) | Interoperability with Google and Anthropic ecosystems |
 | Recursion depth limit=3 | Prevents infinite governance loops |
 | 5% spot check rate | Balances autonomy with human oversight |
+
+---
+
+## 5. Protocol Versions
+
+| Protocol | Version | Specification |
+|----------|---------|---------------|
+| A2A (Agent-to-Agent) | v0.3 | [Google A2A](https://github.com/google/A2A) |
+| MCP (Model Context Protocol) | 2025-03-26 | [Anthropic MCP](https://spec.modelcontextprotocol.io/) |
 
 See the [full architecture document](https://github.com/maref-org/maref/blob/main/docs/architecture.md) for complete details on all layers, flow diagrams, and module dependency maps.
