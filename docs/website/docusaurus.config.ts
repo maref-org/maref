@@ -2,6 +2,10 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+const gaTrackingId = process.env.GA_TRACKING_ID;
+const algoliaAppId = process.env.ALGOLIA_APP_ID;
+const algoliaApiKey = process.env.ALGOLIA_API_KEY;
+
 const config: Config = {
   title: 'MAREF',
   tagline: 'Multi-Agent Recursive Evolution Framework — Agent Governance OS',
@@ -50,10 +54,10 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
-        gtag: {
-          trackingID: 'G-TBD', // Set your Google Analytics tracking ID here
+        gtag: gaTrackingId ? {
+          trackingID: gaTrackingId,
           anonymizeIP: true,
-        },
+        } : undefined,
         sitemap: {
           lastmod: 'date',
           changefreq: 'weekly',
@@ -116,12 +120,12 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['python', 'bash', 'json', 'yaml', 'typescript'],
     },
-    algolia: {
-      appId: 'TBD', // Set your Algolia credentials here
-      apiKey: 'TBD', // Set your Algolia credentials here
+    algolia: (algoliaAppId && algoliaApiKey) ? {
+      appId: algoliaAppId,
+      apiKey: algoliaApiKey,
       indexName: 'maref',
       placeholder: 'Search docs...',
-    },
+    } : undefined,
   } satisfies Preset.ThemeConfig,
 };
 
