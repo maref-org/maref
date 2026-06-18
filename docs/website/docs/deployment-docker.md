@@ -15,7 +15,7 @@ docker run -d \
   --name maref \
   -p 8080:8080 \
   -p 8000:8000 \
-  maref/lite:latest
+  maref/maref:latest
 ```
 
 ## Building from Source

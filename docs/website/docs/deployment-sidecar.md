@@ -75,7 +75,6 @@ The sidecar writes HMAC-signed audit logs to the configured path. Each entry inc
 | Port | Service | Description |
 |------|---------|-------------|
 | 8000 | Sidecar | MCP/A2A protocol endpoint |
-| 9090 | Metrics | Prometheus metrics (if enabled) |
 | 3000-3010 | GUI | Development GUI servers |
 | 9000-9010 | Test | SAEB benchmark servers |
 

@@ -90,12 +90,6 @@ MAREF 以 Sidecar 容器形式与 Agent 工作负载部署在同一 Pod 中。�
 - HPA 扩缩容事件
 - 网络策略拦截
 
-使用 Prometheus Operator 部署：
-
-```bash
-kubectl apply -f k8s/monitoring/
-```
-
 ## 回滚
 
 回滚步骤请参见[部署指南](/docs/deployment)。
