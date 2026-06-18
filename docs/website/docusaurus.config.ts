@@ -92,6 +92,7 @@ const config: Config = {
         {
           title: 'More',
           items: [
+            { label: 'Terms of Service', to: '/terms' },
             { label: 'Security Whitepaper', href: 'https://github.com/maref-org/maref/blob/main/docs/MAREF-Security-Whitepaper.md' },
             { label: 'Changelog', href: 'https://github.com/maref-org/maref/releases' },
           ],
