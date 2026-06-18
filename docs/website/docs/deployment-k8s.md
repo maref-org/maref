@@ -90,12 +90,6 @@ Prometheus metrics are exposed at `/metrics` on both containers. The Grafana das
 - HPA scaling events
 - Network policy drops
 
-Deploy with Prometheus Operator:
-
-```bash
-kubectl apply -f k8s/monitoring/
-```
-
 ## Rollback
 
 See the [Deployment](/docs/deployment) guide for rollback procedures.
