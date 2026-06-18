@@ -6,5 +6,81 @@
   "homepage.description": {
     "message": "多智能体递归演化框架 — 为多智能体系统提供形式化验证、宪法治理、自愈基础设施和全面合规",
     "description": "The description of the homepage"
+  },
+  "about.title": {
+    "message": "关于 MAREF",
+    "description": "About page title and heading"
+  },
+  "about.description": {
+    "message": "MAREF — 多智能体递归演化框架。通过 TLA+ 形式化验证、李雅普诺夫稳定性分析和密码学审计追踪，实现可证明安全的多智能体 AI 治理。",
+    "description": "About page meta description"
+  },
+  "about.subtitle": {
+    "message": "多智能体递归演化框架",
+    "description": "About page hero subtitle"
+  },
+  "about.mission": {
+    "message": "使命",
+    "description": "Mission section heading"
+  },
+  "about.mission.text": {
+    "message": "MAREF 让多智能体 AI 系统可证明安全。不是\"我们希望它安全\"——而是可证明的安全，使用 TLA+ 形式化验证、李雅普诺夫稳定性分析和密码学审计追踪。",
+    "description": "Mission section text"
+  },
+  "about.whyGovernanceFirst": {
+    "message": "为什么治理优先？",
+    "description": "Why governance-first section heading"
+  },
+  "about.whyGovernanceFirst.text": {
+    "message": "88% 的组织已经遭遇过 AI 智能体安全事件。94% 缺乏成熟策略。企业在 AI 驱动的安全上投入是保障 AI 自身安全的 17 倍。MAREF 弥补了这一差距——不是通过减缓开发，而是通过设置护栏。",
+    "description": "Why governance-first section text"
+  },
+  "about.statCheck": {
+    "message": "{strong} — 88% 事件率，94% 无成熟策略，17 倍投入差距。",
+    "description": "Stat check alert"
+  },
+  "about.differentiators": {
+    "message": "关键差异化优势",
+    "description": "Key differentiators section heading"
+  },
+  "about.diff.tla": {
+    "message": "{strong} — 每个治理状态转换都经过数学证明",
+    "description": "TLA+ differentiator"
+  },
+  "about.diff.defense": {
+    "message": "{strong} — 纵深防御即架构本身，而非附加功能",
+    "description": "8-layer defense differentiator"
+  },
+  "about.diff.evolution": {
+    "message": "{strong} — 系统随时间推移可证明更安全（200 轮后 FNR 降低 60%）",
+    "description": "Recursive evolution differentiator"
+  },
+  "about.diff.zeroTrust": {
+    "message": "{strong} — 每项决策使用 Ed25519 签名",
+    "description": "Zero-trust differentiator"
+  },
+  "about.diff.crypto": {
+    "message": "{strong} — SM2/SM3/SM4-GCM（GB/T 32918）",
+    "description": "National-grade cryptography differentiator"
+  },
+  "about.projectStatus": {
+    "message": "项目状态",
+    "description": "Project status section heading"
+  },
+  "about.projectStatus.text": {
+    "message": "基于 Apache 2.0 协议积极开发中。4,300+ 测试用例，82% 代码覆盖率。访问 {link}。",
+    "description": "Project status text"
+  },
+  "about.contact": {
+    "message": "联系我们",
+    "description": "Contact section heading"
+  },
+  "about.contact.text": {
+    "message": "技术支持与一般咨询：{email}。",
+    "description": "Contact text"
+  },
+  "about.backToHome": {
+    "message": "返回首页",
+    "description": "Back to home link"
   }
 }
