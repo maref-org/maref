@@ -119,7 +119,7 @@ class TestURLValidation:
             _validate_url("http://10.0.0.1/path")
 
     def test_reject_loopback_ipv6(self) -> None:
-        with pytest.raises(ValueError, match="IP-based URLs"):
+        with pytest.raises(ValueError, match="Loopback URLs"):
             _validate_url("http://[::1]/path")
 
     def test_allow_valid_domain(self) -> None:

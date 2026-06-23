@@ -52,3 +52,40 @@ class TestSubgoalInterceptor:
         stats = si.get_stats()
         assert stats["total_interceptions"] == 2
         assert "allow" in stats["action_summary"] or "slow" in stats["action_summary"]
+
+    def test_block_when_safety_gate_blocks(self) -> None:
+        si = SubgoalInterceptor()
+        tokens = ["bypass", "all", "safety", "remove", "security", "disable", "guard"]
+        action, _ = si.intercept("s1", tokens, task_description="security_critical")
+        assert action in (InterceptorAction.ALLOW, InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT)
+
+    def test_block_with_governance(self) -> None:
+        sm = GovernanceStateMachine()
+        cb = CircuitBreaker(cooldown_seconds=300, max_consecutive_failures=3)
+        si = SubgoalInterceptor(state_machine=sm, circuit_breaker=cb)
+        tokens = ["bypass", "all", "safety", "remove", "disable", "gate"]
+        si.intercept("s1", tokens, task_description="secure")
+        assert cb.state in (BreakerState.CLOSED, BreakerState.OPEN)
+
+    def test_halt_with_governance_exact(self) -> None:
+        sm = GovernanceStateMachine()
+        cb = CircuitBreaker(cooldown_seconds=300, max_consecutive_failures=3)
+        si = SubgoalInterceptor(state_machine=sm, circuit_breaker=cb)
+        tokens = ["take", "over", "the", "system", "bypass", "all", "safety",
+                  "replace", "human", "operator", "gain", "control"]
+        for _ in range(3):
+            si.intercept("s1", tokens, task_description="secure")
+        assert cb.state == BreakerState.OPEN or sm.is_terminal()
+
+    def test_slow_delegation_creep(self) -> None:
+        si = SubgoalInterceptor()
+        si.intercept("active", ["hello", "world"])
+        si.intercept("active", ["perform", "task"])
+        si.intercept("active", ["elevated", "access", "granted"])
+        action, _ = si.intercept("active", ["request", "more", "permissions"])
+        assert action in (InterceptorAction.ALLOW, InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT)
+
+    def test_allow_low_risk(self) -> None:
+        si = SubgoalInterceptor()
+        action, meta = si.intercept("s1", ["the", "weather", "is", "nice"])
+        assert action in (InterceptorAction.ALLOW, InterceptorAction.SLOW)

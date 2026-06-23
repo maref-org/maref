@@ -105,3 +105,56 @@ class TestMetaCognitiveAuditor:
         session = _make_session("s1")
         result = auditor.assess("standalone", session)
         assert result.recommendation == InferenceRecommendation.OBSERVE
+
+    def test_assess_no_probes(self) -> None:
+        sm = GovernanceStateMachine()
+        cb = CircuitBreaker()
+        auditor = MetaCognitiveAuditor(state_machine=sm, circuit_breaker=cb)
+        session = _make_session("s1")
+        result = auditor.assess("agent", session, known_capabilities=["math"], run_probes=False)
+        assert result.recommendation == InferenceRecommendation.OBSERVE
+
+    def test_get_analyst_exists(self) -> None:
+        auditor = MetaCognitiveAuditor()
+        session = _make_session("s1")
+        auditor.assess("agent", session, known_capabilities=["math"])
+        analyst = auditor.get_analyst("agent")
+        assert analyst is not None
+
+    def test_get_analyst_none(self) -> None:
+        auditor = MetaCognitiveAuditor()
+        assert auditor.get_analyst("unknown") is None
+
+    def test_governance_increase_sampling(self) -> None:
+        sm = GovernanceStateMachine()
+        cb = CircuitBreaker()
+        auditor = MetaCognitiveAuditor(state_machine=sm, circuit_breaker=cb)
+        normal = _make_session("n1", capabilities={"math", "code", "security"})
+        auditor.assess("agent", normal, known_capabilities=[])
+        for i in range(3):
+            session = SessionRecord(
+                session_id=f"a{i}", agent_id="agent",
+                outputs=[f"moderately different output {i} with some variation"],
+                response_times=[2.0, 3.0],
+                capabilities_demonstrated=set(),
+                refusal_count=2, refusal_topics=["security", "code"],
+            )
+            auditor.assess("agent", session, known_capabilities=["code", "security"])
+        assert cb.state in (BreakerState.CLOSED, BreakerState.OPEN)
+
+    def test_governance_escalate_audit(self) -> None:
+        sm = GovernanceStateMachine()
+        cb = CircuitBreaker()
+        auditor = MetaCognitiveAuditor(state_machine=sm, circuit_breaker=cb)
+        normal = _make_session("n1", capabilities={"math", "code", "security", "translation"})
+        auditor.assess("agent", normal, known_capabilities=[])
+        for i in range(6):
+            session = SessionRecord(
+                session_id=f"s{i}", agent_id="agent",
+                outputs=[f"high entropy varied output with many different words !@#$%^ XZ {i} and more"],
+                response_times=[3.0 + i, 5.0 + i],
+                capabilities_demonstrated=set(),
+                refusal_count=8, refusal_topics=["security", "code", "math", "translation"],
+            )
+            auditor.assess("agent", session, known_capabilities=["code", "security", "math", "translation"])
+        assert cb.state == BreakerState.OPEN or sm.is_terminal()

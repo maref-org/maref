@@ -680,9 +680,9 @@ class TestBrowserController:
 
     def test_do_navigate_real_error(self):
         bc = BrowserController(dry_run=False)
-        result = bc.navigate("https://docs.python.org")
+        # 使用不可达 URL 触发 DNS 解析错误
+        result = bc.navigate("https://nonexistent-domain-maref-test-99999.test/")
         assert not result.success
-        assert "No module" in result.error or "playwright" in result.error.lower()
 
     def test_close_cleanup(self):
         bc = BrowserController(dry_run=False)

@@ -252,6 +252,30 @@ class TestCrossInstanceGovernor:
         gov = CrossInstanceGovernor("local-abc")
         assert gov.local_instance_id == "local-abc"
 
+    def test_instance_info_to_dict(self) -> None:
+        gov = CrossInstanceGovernor("local")
+        info = gov.register_instance("r1", "10.0.0.1", 9000)
+        d = info.to_dict()
+        assert d["instance_id"] == "r1"
+        assert d["status"] == "active"
+        assert d["host"] == "10.0.0.1"
+
+    def test_weight_snapshot_to_dict(self) -> None:
+        gov = CrossInstanceGovernor("local")
+        snapshot = gov.receive_weights("r1", {"trust": 0.5})
+        d = snapshot.to_dict()
+        assert d["instance_id"] == "r1"
+        assert d["weights"]["trust"] == 0.5
+
+    def test_set_status_unknown_instance(self) -> None:
+        gov = CrossInstanceGovernor("local")
+        assert not gov.set_instance_status("nonexistent", InstanceStatus.SUSPENDED)
+
+    def test_audit_log_property(self) -> None:
+        gov = CrossInstanceGovernor("local")
+        assert gov.audit_log is not None
+        assert gov.audit_log.entry_count == 0
+
     def test_consensus_validator(self) -> None:
         gov = CrossInstanceGovernor("local")
         gov.register_instance("r1", "10.0.0.1", 9000)
