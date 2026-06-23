@@ -9,12 +9,6 @@ from maref.governance.cross_instance import (
     SyncResult,
     WeightPoisonDetector,
 )
-from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
-from maref.governance.percv_hooks import (
-    PERCVEventType,
-    PERCVGovernanceHook,
-    handle_percv_event,
-)
 from maref.governance.economic import (
     AgentInsurancePricing,
     BountyStatus,
@@ -22,6 +16,12 @@ from maref.governance.economic import (
     RiskTier,
     SafetyInvestmentAuditor,
     VulnerabilityBountyBoard,
+)
+from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
+from maref.governance.percv_hooks import (
+    PERCVEventType,
+    PERCVGovernanceHook,
+    handle_percv_event,
 )
 from maref.governance.social_impact import (
     DeploymentVerdict,

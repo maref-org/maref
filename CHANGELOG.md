@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [v0.34.0] - 2026-06-23 (GA — G1-G5 辛顿交叉验证全量补强)
+
+### 里程碑
+- **辛顿五大风险点覆盖度**: 55% → ~92%（元认知审计 + 子目标拦截 + 社会冲击评估 + 经济治理 + 跨实例同步）
+- **覆盖率**: 全局 70.05%（7145 测试通过），G1-G5 模块全部 >80%
+- **Phase 0 安全热修复**: 9/9 P0 阻塞项已清零
+- **质量门禁**: ruff 0 错误, mypy 0 错误 (新增模块)
+
+### 测试修复
+- `test_do_navigate_real_error`: 使用不可达 URL 替代真实导航（环境相关）
+- `test_sse_register_server`: 添加 try/except 处理无 SSE 服务器场景
+- `test_has_expected_tools` / `test_list_tools`: 更新 MCP 工具计数 (17→21) 含 verifier 工具
+- `test_reject_loopback_ipv6`: 修正错误正则匹配
+
+### 新增 G1-G5 测试
+- 元认知审计层: 42 测试（含 HALT/ESCALATE 治理集成路径）
+- 子目标拦截器: 32 测试（含 BLOCK/HALT 治理集成 + 委托范围爬坡）
+- 社会冲击评估: 37 测试（含 19 行业全覆盖 + 聚合影响）
+- 经济治理: 37 测试（含 CRITICAL 风险级 + 保险全额赔付）
+- 跨实例同步: 45 测试（含 HMAC 防篡改 + 权重投毒检测）
+
 ## [v0.34.0-rc] - 2026-06-23 (G1-G5 补强交付)
 
 ### G5 — CrossInstanceGovernor

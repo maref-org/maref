@@ -147,6 +147,14 @@ class TestAgentInsurancePricing:
         pricing = AgentInsurancePricing()
         assert not pricing.resolve_violation("a1", 0)
 
+    def test_critical_risk_tier(self) -> None:
+        pricing = AgentInsurancePricing()
+        pricing.record_violation("a1", "data_breach", "critical")
+        pricing.record_violation("a1", "system_hack", "critical")
+        premium = pricing.calculate_premium("a1")
+        assert premium.risk_tier == RiskTier.CRITICAL
+        assert premium.risk_multiplier >= 3.0
+
 
 class TestVulnerabilityBountyBoard:
     def test_submit_report(self) -> None:
