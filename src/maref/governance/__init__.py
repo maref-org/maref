@@ -3,6 +3,12 @@
 from maref.governance.audit import AuditEntry, AuditLogger
 from maref.governance.audit_bus import AuditBus
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
+from maref.governance.cross_instance import (
+    CrossInstanceGovernor,
+    InstanceStatus,
+    SyncResult,
+    WeightPoisonDetector,
+)
 from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
 from maref.governance.percv_hooks import (
     PERCVEventType,
@@ -85,4 +91,9 @@ __all__ = [
     "InvestmentCategory",
     "RiskTier",
     "BountyStatus",
+    # Cross-Instance Governance
+    "CrossInstanceGovernor",
+    "InstanceStatus",
+    "SyncResult",
+    "WeightPoisonDetector",
 ]
