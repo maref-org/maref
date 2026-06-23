@@ -9,6 +9,12 @@ from maref.governance.percv_hooks import (
     PERCVGovernanceHook,
     handle_percv_event,
 )
+from maref.governance.social_impact import (
+    DeploymentVerdict,
+    ImpactLevel,
+    SocialImpactAssessor,
+    SocialImpactReport,
+)
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.threat_bridge import ThreatGovernanceBridge, ThreatGovernanceMapping
 from maref.governance.trust_bridge import (
@@ -59,4 +65,9 @@ __all__ = [
     "ConsensusResult",
     # Meta-Cognitive Audit
     "MetaCognitiveAuditor",
+    # Social Impact Assessment
+    "SocialImpactAssessor",
+    "SocialImpactReport",
+    "ImpactLevel",
+    "DeploymentVerdict",
 ]
