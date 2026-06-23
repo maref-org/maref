@@ -1,13 +1,8 @@
 # CHANGELOG
 
-## [v0.34.0-rc] - 2026-06-17
+## [v0.33.0-rc] - 2026-06-23 (版本回正基线)
 
-### Audit-Driven Fixes (Day 1)
-- **Version consistency** — unified all version strings to 0.34.0-rc across 6 files (`__init__.py`, `agent_card_config.py`, `STATE.yaml`, `gui/package.json`, `Dockerfile`, `pyproject.toml`)
-- **Version check automation** — `scripts/version-check.sh` now also checks `STATE.yaml` and `agent_card_config.py`; fixed macOS grep compatibility
-- **Coverage baseline established** — governance module at ~90%, overall at 27.87% (baseline for improvement sprint)
-
-## [v0.33.0-rc] - 2026-06-16
+版本回正说明：v0.34.0-rc / v0.35.0-rc / v0.36.0-rc 为过量版本号 bump，代码内容合并至 v0.33.0-rc。
 
 ### Tech Debt Cleanup (Phase 0)
 - **Ruff 36→0 errors** — 25 auto-fix + 11 manual: F841 unused vars, B007 loop var, F821 forward ref, F822 __all__ re-exports, SIM103 simplify return, B905 zip strict
@@ -33,6 +28,7 @@
 - **`gui/playwright.config.ts` + `gui/tests/e2e/smoke.spec.ts`** — E2E smoke test scaffold
 - **`gui/openapi-schema.json`** — 27-endpoint API schema for frontend type generation
 - **`scripts/version-check.sh`** — cross-file version consistency checker
+- **Version check automation** — `scripts/version-check.sh` now also checks `STATE.yaml` and `agent_card_config.py`; fixed macOS grep compatibility
 
 ### SAEB 递归深化 (Sprint 1-2)
 - **3 New Injection Types** — `import_confusion` (unresolvable import), `type_error` (wrong return type), `async_trap` (missing await); total injections 5→8
@@ -48,8 +44,15 @@
 - **NegativeGeneBank Index Optimization** — 4 composite SQLite indexes (`cwe_id+risk_level`, `source+first_seen`, `risk_level+blocked`, `pattern_type+pattern_value`); schema v1.0 → v1.1
 - **CooldownManager 超时熔断** — `auto_archive_expired(max_age_days=7)` archives stale cooling entries; `get_overdue_entries(grace_days=7)` lists past-due evaluations
 
-### Changed
-- 版本统一: pyproject.toml, CHANGELOG.md → 0.33.0-rc
+### Recursive Evolution Reinforcement
+- Real metrics mode for `RecursiveEvolutionEngine` with injectable `RealMetricsCollector`
+- Hardened `RealMetricsCollector` failure semantics
+- `SelfExecutor` quality gate with content verification, py_compile, ruff, mypy, targeted pytest, rollback, and failed-pipeline audit
+- `SelfHealingConfig` now defaults proposal execution to dry-run; CLI requires `--execute-proposals` for writes
+- Added `ConstitutionHarness`, EVO state substrate, EvolutionVault, IterationAnalyzer, DailyEvolutionLoop, PERCV hypothesis bridge, and Sidecar evolution endpoints
+
+### Coverage
+- Coverage baseline established — governance module at ~90%, overall at 27.87% (baseline for improvement sprint)
 
 ---
 
