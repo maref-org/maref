@@ -3,12 +3,12 @@
 # 读取规则: Agent 启动时读取本文件。当 last_updated 超过 24h 时标记过时。
 # 写入规则: Agent 完成状态变更后原子更新本文件，不允许并发写入。
 
-version: 9
-last_updated: "2026-06-17T18:30:00+08:00"
+version: 10
+last_updated: "2026-06-22T17:30:00+08:00"
 
 project:
   name: MAREF
-  current_release: "0.34.0-rc"
+  current_release: "0.33.0-rc"
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   stage: S0 (学术借力) → P0 (开源启动)
@@ -24,9 +24,9 @@ governance:
   deployment_status: improving
   last_audit: "2026-06-17"
   audit_score: 5.8/10
-  coverage_overall: 27.87%
+  coverage_overall: 69.92%
   coverage_governance: "~90%"
-  mypy_errors: 29
+  mypy_errors: 19
   issues:
     - id: GOV-20260612-04
       severity: P1
@@ -64,7 +64,27 @@ governance:
     - id: AUDIT-20260617-01
       severity: P0
       description: Code coverage 27.87% — below required 70% threshold
-      status: active
+      status: resolved
+      resolved_at: "2026-06-22"
+      details:
+        - Phase 1: Coverage from 27.87% to 69.92% (fail-under=47 passed)
+        - 259 new tests across 7 files
+        - Ruff src/ from 1095→0 errors
+    - id: PY5-20260622-01
+      severity: P1
+      description: "Phase 1 — Coverage 27.87%→69.92%: 259 new tests (group_optimizer/saeb_runner/mcp_transport_async/self_executor/exceptions/promotion_history/tool_schema). fail-under=47 passed."
+      status: resolved
+      resolved_at: "2026-06-22"
+    - id: PY5-20260622-02
+      severity: P2
+      description: "Phase 2 — Benchmark framework + Sidecar Pydantic: conftest(LatencyTracker/ProfileFixture) + 23 benchmarks(MCP bridge/governance scan/HMAC). 28 Pydantic models, response_model= on 30 routes, Depends API key auth."
+      status: resolved
+      resolved_at: "2026-06-22"
+    - id: PY5-20260622-03
+      severity: P2
+      description: "Phase 3 — Annotated+__all__+Pyright strict: 13 gaas/api.py Depends→Annotated. __all__ exports for gaas(40)/sidecar(16)/integration(73). Pyright basic→strict, 0 errors baseline with 2,942 warnings."
+      status: resolved
+      resolved_at: "2026-06-22"
     - id: AUDIT-20260617-02
       severity: P0
       description: Version strings unified to 0.34.0-rc (was 4-way mismatch)

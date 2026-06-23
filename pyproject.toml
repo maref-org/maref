@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.34.0-rc"
+version = "0.33.0-rc"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -155,7 +155,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-report=json"
+addopts = "-v --tb=short --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-report=json --ignore=tests/research"
 asyncio_mode = "auto"
 markers = [
     "unit: Unit tests",
