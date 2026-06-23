@@ -17,11 +17,6 @@
       "name": "@docusaurus/plugin-content-pages",
       "version": "3.10.1"
     },
-    "docusaurus-plugin-google-gtag": {
-      "type": "package",
-      "name": "@docusaurus/plugin-google-gtag",
-      "version": "3.10.1"
-    },
     "docusaurus-plugin-sitemap": {
       "type": "package",
       "name": "@docusaurus/plugin-sitemap",
@@ -35,11 +30,6 @@
     "docusaurus-theme-classic": {
       "type": "package",
       "name": "@docusaurus/theme-classic",
-      "version": "3.10.1"
-    },
-    "docusaurus-theme-search-algolia": {
-      "type": "package",
-      "name": "@docusaurus/theme-search-algolia",
       "version": "3.10.1"
     }
   }

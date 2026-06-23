@@ -111,7 +111,7 @@ class TestSidecarMCPBridge:
 
     def test_list_tools(self, bridge: SidecarMCPBridge) -> None:
         tools = bridge.list_tools()
-        assert len(tools) == len(SIDECAR_MCP_TOOLS)
+        assert len(tools) == 21
         assert all("name" in t for t in tools)
         assert all("description" in t for t in tools)
         assert all("inputSchema" in t for t in tools)

@@ -14,4 +14,4 @@ Architecture:
 
 from __future__ import annotations
 
-__version__ = "0.33.0-rc"
+__version__ = "0.34.0-rc"

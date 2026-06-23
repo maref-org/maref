@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from maref.governance.circuit_breaker import BreakerState, CircuitBreaker
+
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditRecord
 
@@ -21,36 +23,72 @@ class RecursionDepthExceededError(RuntimeError):
     pass
 
 
-@dataclass
+_META_TO_BREAKER = {
+    MetaBreakerState.CLOSED: BreakerState.CLOSED,
+    MetaBreakerState.OPEN: BreakerState.OPEN,
+    MetaBreakerState.HALF_OPEN: BreakerState.HALF_OPEN,
+}
+
+_BREAKER_TO_META = {v: k for k, v in _META_TO_BREAKER.items()}
+
+
 class MetaCircuitBreaker:
-    inner_trip_threshold: int = 3
-    state: MetaBreakerState = MetaBreakerState.CLOSED
-    inner_trip_count: int = 0
-    last_open_time: float = 0.0
-    cooldown_seconds: float = 30.0
+    """Circuit breaker that delegates to the governance CircuitBreaker.
+
+    Keeps backward-compatible attributes (``inner_trip_count``,
+    ``last_open_time``, ``cooldown_seconds``) while delegating the
+    underlying state machine to ``CircuitBreaker``.
+    """
+
+    def __init__(
+        self, inner_trip_threshold: int = 3, cooldown_seconds: float = 30.0
+    ) -> None:
+        self.inner_trip_threshold = inner_trip_threshold
+        self.inner_trip_count: int = 0
+        self.last_open_time: float = 0.0
+        self.cooldown_seconds: float = cooldown_seconds
+        self._state_override: MetaBreakerState | None = None
+        self._cb = CircuitBreaker(
+            max_consecutive_failures=inner_trip_threshold,
+            cooldown_seconds=cooldown_seconds,
+        )
+
+    @property
+    def state(self) -> MetaBreakerState:
+        if self._state_override is not None:
+            return self._state_override
+        return _BREAKER_TO_META[self._cb.state]
+
+    @state.setter
+    def state(self, value: MetaBreakerState) -> None:
+        self._state_override = value
 
     def record_trip(self) -> None:
-        if self.state == MetaBreakerState.CLOSED:
+        self._state_override = None
+        was_closed = self.state == MetaBreakerState.CLOSED
+        self._cb.record_failure()
+        if was_closed:
             self.inner_trip_count += 1
             if self.inner_trip_count >= self.inner_trip_threshold:
-                self.state = MetaBreakerState.OPEN
+                self._state_override = MetaBreakerState.OPEN
                 self.last_open_time = time.time()
 
     def try_half_open(self) -> bool:
         if self.state == MetaBreakerState.OPEN:
             elapsed = time.time() - self.last_open_time
             if elapsed >= self.cooldown_seconds:
-                self.state = MetaBreakerState.HALF_OPEN
+                self._state_override = MetaBreakerState.HALF_OPEN
                 return True
         return False
 
     def close(self) -> None:
-        self.state = MetaBreakerState.CLOSED
+        self._cb.reset()
+        self._state_override = MetaBreakerState.CLOSED
         self.inner_trip_count = 0
 
     def fail_half_open(self) -> None:
         if self.state == MetaBreakerState.HALF_OPEN:
-            self.state = MetaBreakerState.OPEN
+            self._state_override = MetaBreakerState.OPEN
             self.last_open_time = time.time()
 
 

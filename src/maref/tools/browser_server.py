@@ -44,18 +44,20 @@ def _validate_url(url: str, whitelist: DomainWhitelist | None = None) -> str:
     hostname = parsed.hostname or ""
 
     try:
-        ipaddress.ip_address(hostname)
+        addr = ipaddress.ip_address(hostname)
     except ValueError:
-        ip = None
-    else:
-        ip = True
+        addr = None
 
-    if ip is not None:
+    if addr is not None:
+        if addr.is_loopback or addr == ipaddress.IPv4Address("0.0.0.0"):
+            if whitelist is not None and whitelist.is_allowed(hostname):
+                return url
+            raise ValueError(f"Loopback URLs are not allowed: {url}")
         if whitelist is not None and whitelist.is_allowed(hostname):
             return url
         raise ValueError(f"IP-based URLs are not allowed: {url}")
 
-    if hostname in ("localhost", "127.0.0.1", "::1") or hostname.endswith(".local"):
+    if hostname in ("localhost", "::1") or hostname.endswith(".local"):
         if whitelist is not None and whitelist.is_allowed(hostname):
             return url
         raise ValueError(f"Localhost URLs are not allowed: {url}")

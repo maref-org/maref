@@ -6,7 +6,7 @@ description: MAREF six-layer governance architecture
 
 # MAREF Architecture
 
-> Version: v0.33.0-rc | Last updated: 2026-06-17
+> Version: v0.34.0-rc | Last updated: 2026-06-17
 
 ## Overview
 

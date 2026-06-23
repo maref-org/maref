@@ -1,4 +1,4 @@
-# Agent Operating Manual: MAREF v0.33.0-rc
+# Agent Operating Manual: MAREF v0.34.0-rc
 
 > **上位法**: 本文件受 [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步。
@@ -6,7 +6,7 @@
 
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
-- **版本**: v0.33.0-rc
+- **版本**: v0.34.0-rc
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
 - **架构**: 六层治理架构（天极→人极→地极→经卦→别卦→爻变）
@@ -89,7 +89,6 @@ bash scripts/version-check.sh
 
 # Security scanning
 trufflehog filesystem .
-cosign verify ...
 
 # GUI
 cd gui && pnpm lint && pnpm build
@@ -105,6 +104,12 @@ cd gui && pnpm install && pnpm electron:dev
 
 # Build verification
 bash scripts/verify_electron_build.sh
+
+# Sidecar binary (PyInstaller)
+bash packaging/build-sidecar.sh
+
+# Sidecar binary verification
+bash packaging/verify-sidecar.sh
 
 # Docker
 docker build -t maref:latest .

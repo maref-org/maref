@@ -9,7 +9,7 @@ export default [
   },
   {
     path: '/zh-CN/blog',
-    component: ComponentCreator('/zh-CN/blog', 'd8b'),
+    component: ComponentCreator('/zh-CN/blog', '4fd'),
     exact: true
   },
   {
@@ -28,13 +28,23 @@ export default [
     exact: true
   },
   {
+    path: '/zh-CN/blog/from-steadicam-to-agent-governance',
+    component: ComponentCreator('/zh-CN/blog/from-steadicam-to-agent-governance', '50c'),
+    exact: true
+  },
+  {
     path: '/zh-CN/blog/tags',
     component: ComponentCreator('/zh-CN/blog/tags', 'e31'),
     exact: true
   },
   {
+    path: '/zh-CN/blog/tags/agent-safety',
+    component: ComponentCreator('/zh-CN/blog/tags/agent-safety', '2af'),
+    exact: true
+  },
+  {
     path: '/zh-CN/blog/tags/ai-safety',
-    component: ComponentCreator('/zh-CN/blog/tags/ai-safety', 'e56'),
+    component: ComponentCreator('/zh-CN/blog/tags/ai-safety', '960'),
     exact: true
   },
   {
@@ -44,17 +54,22 @@ export default [
   },
   {
     path: '/zh-CN/blog/tags/governance',
-    component: ComponentCreator('/zh-CN/blog/tags/governance', '81b'),
+    component: ComponentCreator('/zh-CN/blog/tags/governance', '3f4'),
+    exact: true
+  },
+  {
+    path: '/zh-CN/blog/tags/marref',
+    component: ComponentCreator('/zh-CN/blog/tags/marref', '2fb'),
+    exact: true
+  },
+  {
+    path: '/zh-CN/blog/tags/openclaw',
+    component: ComponentCreator('/zh-CN/blog/tags/openclaw', 'e63'),
     exact: true
   },
   {
     path: '/zh-CN/blog/tags/production',
-    component: ComponentCreator('/zh-CN/blog/tags/production', '56e'),
-    exact: true
-  },
-  {
-    path: '/zh-CN/search',
-    component: ComponentCreator('/zh-CN/search', '4e2'),
+    component: ComponentCreator('/zh-CN/blog/tags/production', '487'),
     exact: true
   },
   {
@@ -69,7 +84,7 @@ export default [
   },
   {
     path: '/zh-CN/docs',
-    component: ComponentCreator('/zh-CN/docs', 'c91'),
+    component: ComponentCreator('/zh-CN/docs', '039'),
     routes: [
       {
         path: '/zh-CN/docs/0.33',
@@ -115,11 +130,11 @@ export default [
       },
       {
         path: '/zh-CN/docs/',
-        component: ComponentCreator('/zh-CN/docs/', '67d'),
+        component: ComponentCreator('/zh-CN/docs/', '5f9'),
         routes: [
           {
             path: '/zh-CN/docs/',
-            component: ComponentCreator('/zh-CN/docs/', 'd3f'),
+            component: ComponentCreator('/zh-CN/docs/', '6b5'),
             routes: [
               {
                 path: '/zh-CN/docs/api-reference',
@@ -188,6 +203,12 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/zh-CN/docs/error-codes',
+                component: ComponentCreator('/zh-CN/docs/error-codes', '7a3'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
                 path: '/zh-CN/docs/integrations/autogen',
                 component: ComponentCreator('/zh-CN/docs/integrations/autogen', '751'),
                 exact: true,
@@ -219,6 +240,12 @@ export default [
               {
                 path: '/zh-CN/docs/introduction',
                 component: ComponentCreator('/zh-CN/docs/introduction', '4c6'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/zh-CN/docs/loop-engineering',
+                component: ComponentCreator('/zh-CN/docs/loop-engineering', '2f9'),
                 exact: true,
                 sidebar: "docsSidebar"
               },

@@ -49,6 +49,7 @@ check_file "$GIT_ROOT/Dockerfile" 'org\.opencontainers\.image\.version' 'Dockerf
 check_file "$GIT_ROOT/src/maref/__init__.py" '__version__' 'maref/__init__.py'
 check_file "$GIT_ROOT/src/maref/agent_card_config.py" 'AGENT_VERSION' 'agent_card_config.py'
 check_file "$GIT_ROOT/gui/package.json" '"version"' 'gui/package.json'
+check_file "$GIT_ROOT/gui/src-tauri/Cargo.toml" '^version\s*=' 'gui/src-tauri/Cargo.toml'
 check_file "$GIT_ROOT/STATE.yaml" 'current_release' 'STATE.yaml'
 check_file "$GIT_ROOT/CHANGELOG.md" '^## \[' 'CHANGELOG.md (latest)'
 

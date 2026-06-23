@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "maref-sidecar": {
+      "type": "local",
+      "command": ["python3", "-m", "maref", "--stdio"],
+      "enabled": true,
+      "timeout": 30000
+    }
+  }
+}

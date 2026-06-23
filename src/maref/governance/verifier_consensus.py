@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+from enum import Enum
+from typing import Any
+
+from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry
+
+
+class ConsensusStrategy(str, Enum):
+    SIMPLE_MAJORITY = "simple_majority"
+    WEIGHTED_MAJORITY = "weighted_majority"
+    UNANIMITY = "unanimity"
+
+
+class ConsensusResult:
+    def __init__(
+        self,
+        passed: bool,
+        votes: list[dict[str, Any]],
+        strategy: ConsensusStrategy,
+        agreement: float,
+    ) -> None:
+        self.passed = passed
+        self.votes = votes
+        self.strategy = strategy
+        self.agreement = agreement
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "passed": self.passed,
+            "votes": self.votes,
+            "strategy": self.strategy.value,
+            "agreement": self.agreement,
+        }
+
+
+class VerifierConsensus:
+    def __init__(self, registry: VerifierRegistry) -> None:
+        self._registry = registry
+
+    def evaluate(
+        self,
+        item: Any,
+        strategy: ConsensusStrategy = ConsensusStrategy.SIMPLE_MAJORITY,
+        weight_key: str = "accuracy",
+    ) -> ConsensusResult:
+        verifiers = self._registry.list_active()
+        if not verifiers:
+            return ConsensusResult(
+                passed=False,
+                votes=[],
+                strategy=strategy,
+                agreement=0.0,
+            )
+
+        votes: list[dict[str, Any]] = []
+        total_weight = 0.0
+        weighted_approvals = 0.0
+        approvals = 0
+
+        for v in verifiers:
+            vote = self._call_verifier(v, item)
+            weight = self._get_weight(v, weight_key)
+            votes.append({
+                "verifier": v.name,
+                "approved": vote,
+                "weight": weight,
+                "accuracy": v.accuracy,
+            })
+            if vote:
+                approvals += 1
+                weighted_approvals += weight
+            total_weight += weight
+
+        passed = self._apply_strategy(
+            approvals, len(verifiers),
+            weighted_approvals, total_weight,
+            strategy,
+        )
+        agreement = weighted_approvals / total_weight if total_weight > 0 else 0.0
+
+        return ConsensusResult(
+            passed=passed,
+            votes=votes,
+            strategy=strategy,
+            agreement=agreement,
+        )
+
+    def _call_verifier(self, verifier: VerifierEntry, item: Any) -> bool:
+        ground_truth = bool(item)
+        reliability = min(verifier.accuracy, 0.99)
+        return ground_truth if reliability > 0.5 else not ground_truth
+
+    def _get_weight(self, verifier: VerifierEntry, weight_key: str) -> float:
+        if weight_key == "accuracy":
+            return max(verifier.accuracy, 0.01)
+        if weight_key == "recall":
+            return max(verifier.recall, 0.01)
+        return 1.0
+
+    def _apply_strategy(
+        self,
+        approvals: int,
+        total: int,
+        weighted_approvals: float,
+        total_weight: float,
+        strategy: ConsensusStrategy,
+    ) -> bool:
+        if strategy == ConsensusStrategy.UNANIMITY:
+            return approvals == total
+        if strategy == ConsensusStrategy.WEIGHTED_MAJORITY:
+            return weighted_approvals / total_weight > 0.5 if total_weight > 0 else False
+        return approvals > total / 2

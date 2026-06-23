@@ -87,6 +87,7 @@ class EvolutionConfig:
     dry_run_rounds: int = 1
     resume_from_cycle: str | None = None
     resume_from_round: int = 0
+    metrics_mode: str = "simulated"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -105,6 +106,7 @@ class EvolutionConfig:
             "output_dir": self.output_dir,
             "dry_run": self.dry_run,
             "dry_run_rounds": self.dry_run_rounds,
+            "metrics_mode": self.metrics_mode,
         }
 
 
@@ -125,9 +127,11 @@ class RecursiveEvolutionEngine:
         config: EvolutionConfig | None = None,
         seed: int | None = None,
         quality_gate: Any | None = None,
+        metrics_collector: Any | None = None,
     ) -> None:
         self._config = config or EvolutionConfig()
         self._quality_gate = quality_gate
+        self._metrics_collector = metrics_collector
         self._output_base = Path(self._config.output_dir)
         self._rng = random.Random(seed if seed is not None else ROUND_SEED)
         self._running = False
@@ -309,7 +313,7 @@ class RecursiveEvolutionEngine:
             halt_reason = "round_end_force"
             entropy_sequence.append(sm.current_entropy)
 
-        fnr, fpr = self._simulate_detector_metrics(round_num)
+        fnr, fpr, metrics_source, real_metrics = self._collect_detector_metrics(round_num)
 
         if (
             cycle_spec.meta_learning_enabled
@@ -329,7 +333,22 @@ class RecursiveEvolutionEngine:
             "total_attempts": total_attempts,
             "halt_reason": halt_reason,
             "final_state": sm.current_state.name,
+            "metrics_source": metrics_source,
+            "real_metrics": real_metrics,
         }
+
+    def _collect_detector_metrics(self, round_num: int) -> tuple[float, float, str, dict[str, Any]]:
+        if self._config.metrics_mode == "real":
+            collector = self._metrics_collector
+            if collector is None:
+                from maref.evolution.real_metrics import RealMetricsCollector
+
+                collector = RealMetricsCollector()
+                self._metrics_collector = collector
+            metrics = collector.collect_incremental()
+            return metrics.fnr, metrics.fpr, "real", metrics.to_dict()
+        fnr, fpr = self._simulate_detector_metrics(round_num)
+        return fnr, fpr, "simulated", {}
 
     def _simulate_detector_metrics(self, round_num: int) -> tuple[float, float]:
         base_fnr = 0.10 + self._rng.uniform(-0.05, 0.03)

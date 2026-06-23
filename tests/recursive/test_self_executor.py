@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from maref.recursive.self_executor import (
     ASTSandbox,
     ASTValidationResult,
@@ -163,6 +161,22 @@ class TestCodeGenerator:
         generated = cg.generate(proposal, project_root="/tmp")
         assert len(generated) >= 1
         assert "class Test" in generated[0].content
+
+    def test_generated_tests_do_not_use_assert_true_placeholder(self) -> None:
+        cg = CodeGenerator()
+
+        class ChangeType:
+            value = "add_test"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            proposal = MockProposal(
+                proposal_id="p-test",
+                rationale="need test coverage",
+                change_type=ChangeType(),
+                target_files=[os.path.join(tmp, "tests", "test_generated.py")],
+            )
+            generated = cg.generate(proposal, project_root=tmp)
+            assert "assert True" not in generated[0].content
 
     def test_generate_remove_unused_imports(self) -> None:
         cg = CodeGenerator()
@@ -436,6 +450,25 @@ class TestSelfExecutor:
             result = e.execute(proposal)
             assert result.final_state == "FAILED_AST_VALIDATE"
 
+    def test_execute_constitution_harness_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "src" / "maref" / "recursive" / "meta_agent_closure.py"
+            target.parent.mkdir(parents=True)
+            target.write_text("ORIGINAL = True\n")
+            e = SelfExecutor(project_root=tmp)
+            proposal = MockProposal(
+                proposal_id="p-constitution",
+                change_type="refactor_module",
+                target_files=[str(target)],
+                proposed_arch="meta_agent_closure",
+                rationale="modify red lines",
+            )
+
+            result = e.execute(proposal)
+
+            assert result.final_state == "FAILED_SAFETY_GATE"
+            assert target.read_text() == "ORIGINAL = True\n"
+
     def test_execute_safety_gate_blocked(self) -> None:
         e = SelfExecutor()
         proposal = MockProposal(proposal_id="p1")
@@ -524,6 +557,54 @@ class TestSelfExecutor:
             ):
                 result = e.execute(proposal)
                 assert "VERIFY_ROLLED_BACK" in result.final_state
+
+    def test_default_quality_gate_runs_mypy_for_src_python_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "src" / "maref" / "generated.py"
+            target.parent.mkdir(parents=True)
+            target.write_text("VALUE: int = 1\n")
+            executor = SelfExecutor(project_root=tmp)
+            code = GeneratedCode(
+                file_path=str(target),
+                content="VALUE: int = 1\n",
+                target_module="generated",
+            )
+            pipeline = ExecutionPipelineRecord(pipeline_id="p", proposal_id="prop")
+            completed = MagicMock()
+            completed.returncode = 0
+            completed.stdout = ""
+            completed.stderr = ""
+
+            with patch("maref.recursive.self_executor.subprocess.run", return_value=completed) as run:
+                result = executor._default_quality_gate(code, pipeline)
+
+            commands = [call.args[0] for call in run.call_args_list]
+            assert any(command[0] == "mypy" for command in commands)
+            assert result.success is True
+
+    def test_execute_rolls_back_when_quality_gate_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "target.py"
+            target.write_text("VALUE = 1\n")
+            e = SelfExecutor(project_root=tmp)
+            proposal = MockProposal(
+                proposal_id="p-quality",
+                change_type="refactor_module",
+                target_files=[str(target)],
+                proposed_arch="target",
+                rationale="refactor",
+            )
+            e._quality_gate = lambda code, pipeline: ExecutionResult(
+                stage=ExecutionStage.VERIFY,
+                success=False,
+                message="pytest failed",
+            )
+
+            result = e.execute(proposal)
+
+            assert result.final_state == "FAILED_VERIFY_ROLLED_BACK"
+            assert result.rollback_performed is True
+            assert target.read_text() == "VALUE = 1\n"
 
     def test_execute_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

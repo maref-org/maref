@@ -255,6 +255,19 @@ class OntologyDriftDetector:
                 )
         return changes
 
+    def get_mean_drift(self, window: int = 5) -> float:
+        """计算最近 N 个快照间所有概念的平均漂移 (供 SemanticConvergenceDetected 消费)。"""
+        if len(self._snapshots) < 2:
+            return 0.0
+        recent = self._snapshots[-min(window, len(self._snapshots)) :]
+        if len(recent) < 2:
+            return 0.0
+        drifts: list[float] = []
+        for i in range(1, len(recent)):
+            d = self.semantic_distance(recent[i - 1], recent[i])
+            drifts.append(d)
+        return sum(drifts) / len(drifts) if drifts else 0.0
+
     def snapshot_count(self) -> int:
         return len(self._snapshots)
 

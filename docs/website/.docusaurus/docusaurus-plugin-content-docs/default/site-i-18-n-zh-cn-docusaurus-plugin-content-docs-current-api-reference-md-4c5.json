@@ -19,8 +19,8 @@
   },
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Architecture",
-    "permalink": "/zh-CN/docs/architecture"
+    "title": "Loop Engineering",
+    "permalink": "/zh-CN/docs/loop-engineering"
   },
   "next": {
     "title": "受治理 Agent 搭建",

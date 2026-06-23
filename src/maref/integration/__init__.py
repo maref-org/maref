@@ -199,6 +199,7 @@ except ImportError:
 
 
 from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
+from maref.integration.maref_loop_adapter import MAREFLoop
 from maref.integration.memory_bridge import (
     KnowledgeInsight,
     MemoryBridge,
@@ -298,4 +299,6 @@ __all__ = [
     "RemoteBridge",
     "RemoteCommand",
     "RemoteCommandResult",
+    # MAREFLoop adapter
+    "MAREFLoop",
 ]

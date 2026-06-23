@@ -19,8 +19,8 @@
   },
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Architecture",
-    "permalink": "/docs/architecture"
+    "title": "Loop Engineering",
+    "permalink": "/docs/loop-engineering"
   },
   "next": {
     "title": "Governed Agent Setup",

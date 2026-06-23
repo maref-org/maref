@@ -1,0 +1,47 @@
+"""MAREF AuditBus — pub/sub layer over AuditLogger."""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from collections.abc import Callable
+from typing import Any
+
+from maref.governance.audit import AuditEntry, AuditLogger
+
+SubscriberFn = Callable[[AuditEntry], Any]
+
+_WILDCARD = "*"
+
+
+class AuditBus:
+    """Pub/sub event bus layered on top of AuditLogger.
+
+    Topics follow the convention: ``"state_transition"``, ``"anomaly"``,
+    ``"compliance"``, ``"governance_decision"``, or ``"*"`` (all events).
+    """
+
+    def __init__(self, logger: AuditLogger | None = None) -> None:
+        self._logger = logger or AuditLogger()
+        self._subscribers: dict[str, list[SubscriberFn]] = defaultdict(list)
+
+    def subscribe(self, topic: str, callback: SubscriberFn) -> None:
+        self._subscribers[topic].append(callback)
+
+    def unsubscribe(self, topic: str, callback: SubscriberFn) -> None:
+        try:
+            self._subscribers[topic].remove(callback)
+        except ValueError:
+            pass
+
+    def publish(self, entry: AuditEntry) -> None:
+        self._logger.log(
+            event_type=entry.event_type,
+            actor=entry.actor,
+            action=entry.action,
+            details=entry.details,
+            metadata=entry.metadata,
+        )
+        for cb in self._subscribers.get(entry.event_type, []):
+            cb(entry)
+        for cb in self._subscribers.get(_WILDCARD, []):
+            cb(entry)

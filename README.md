@@ -25,11 +25,14 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 ## 核心能力
 
 ### 治理层 (世界领先)
+- **三种 Loop 元模式** — 收敛型/探索型/交互型 模板库 🚧 (v0.36.0-rc)
 - **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (6bit, 汉明距离=1)
 - **TLA+ 形式化验证** — 5 定理证明 (Lyapunov收敛 + Sperner完备性)
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
 - **四级安全决策树** — Rule→Mode→SafetyGate→User, 97% 自动化率
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
+- **Verifier 交叉验证** — VerifierRegistry + VerifierConsensus (加权多数/一致通过)
+- **MAREFLoop 适配器** — 5 行代码为任意 Loop 接入 MAREF 治理
 
 <p align="center">
   <img src="docs/assets/gray-code-fsm.svg" alt="Gray Code Governance State Machine — 10-state cyclic FSM with Hamming distance=1" width="800">
@@ -85,6 +88,22 @@ overlay = GovernanceOverlay()
 overlay._state_machine.transition(GovernanceState.OBSERVE)
 overlay._state_machine.transition(GovernanceState.ANALYZE)
 print(overlay.get_status())
+
+# --- Loop Engineering (v0.36.0-rc) ---
+
+from maref.loop.convergent import ConvergentLoop
+from maref.loop.exploratory import ExploratoryLoop
+from maref.loop.interactive import InteractiveLoop
+from maref.loop.bridge import LoopGovernanceBridge
+
+async def example():
+    loop = ConvergentLoop(
+        solve_fn=lambda x: {"score": 0.95, "output": x},
+        max_rounds=10,
+    )
+    bridge = LoopGovernanceBridge()
+    result = await bridge.run_governed(loop, "example input")
+    print(result.stop_reason, result.rounds_completed)
 ```
 
 ---
@@ -112,6 +131,8 @@ print(overlay.get_status())
 | 维度 | **MAREF** | Anthropic | OpenAI | LangGraph | CrewAI | AutoGen |
 |------|----------|-----------|--------|-----------|--------|---------|
 | 治理/安全 | **10** | 4 | 3 | 2 | 1 | 1 |
+| Loop 集成 (Verifier×Governance) | **10** | 6 | 0 | 0 | 0 | 0 |
+| Loop 元模式模板 (收/探/交) | ✅ v36 | 0 | 0 | 0 | 0 | 0 |
 | 形式化验证 | **10** | 0 | 0 | 0 | 0 | 0 |
 | 漂移检测 | **9** | 0 | 0 | 0 | 0 | 0 |
 | 桌面操控 | 8 | **9** | 7 | 0 | 0 | 0 |
@@ -148,7 +169,7 @@ print(overlay.get_status())
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
 | **Python** | ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg) |
 | **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
-| **Version** | ![v0.30.0-GA](https://img.shields.io/badge/version-v0.30.0-GA-blue) |
+| **Version** | ![v0.36.0-rc](https://img.shields.io/badge/version-v0.36.0--rc-blue) |
 
 ---
 
@@ -157,6 +178,8 @@ print(overlay.get_status())
 - [x] v0.1.0-v0.20.0: 工程基础设施 + 形式化验证 + Sidecar + 漂移 + 混沌 + A2A + Identity + 编排 + Desktop Agent → GA
 - [x] Phase Ω (R101-R150): 50 轮自主递归演进全量补强 → v0.21.0 Final
 - [x] v0.30.0-GA: 人机协同层 + 记忆层 + 技能市场层 + 国密 SM2/SM3/SM4-GCM + 技术白皮书
+- [x] v0.35.0-rc: Loop Engineering 叙事层 + 三种元模式架构设计 + Verifier 交叉验证 + 覆盖率 60%+ 模块达标
+- [x] v0.36.0-rc: `maref.loop` 模块实现 — ConvergentLoop / ExploratoryLoop / InteractiveLoop + LoopGovernanceBridge + TrustBoundary 集成
 - [ ] v1.0: 递归进化全栈 + Agent 信用评级 + 四象治理模型
 - [ ] v2.0: 元 Agent 闭包 + 碳硅共生 + 八卦治理
 

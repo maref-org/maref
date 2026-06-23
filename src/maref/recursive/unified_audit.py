@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from maref.governance.audit import AuditEntry
+from maref.governance.audit_bus import AuditBus
+
 
 @dataclass
 class UnifiedAuditRecord:
@@ -70,14 +73,37 @@ class NullAuditStore:
         return []
 
 
-class UnifiedAuditStore:
-    """Audit store with optional JSON file persistence.
+def _record_to_audit_entry(record: UnifiedAuditRecord) -> AuditEntry:
+    return AuditEntry(
+        id=record.record_id,
+        timestamp=record.timestamp,
+        event_type=record.event_type,
+        actor=record.source_module,
+        action=record.decision,
+        details=record.justification,
+        metadata={
+            "layer": record.layer,
+            "round": record.round,
+            "target_module": record.target_module,
+            "outcome": record.outcome,
+            "context_refs": record.context_refs,
+        },
+    )
 
-    When *persist_path* is provided, every append() also writes to the
-    JSON lines (`.jsonl`) file so data survives process restarts.
+
+class UnifiedAuditStore:
+    """Audit store that delegates persistence to AuditBus.
+
+    When *persist_path* is provided, an ``AuditBus`` with an underlying
+    ``AuditLogger`` is created automatically.  An externally-owned bus
+    can be passed via the *audit_bus* parameter instead.
     """
 
-    def __init__(self, persist_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        persist_path: str | Path | None = None,
+        audit_bus: AuditBus | None = None,
+    ) -> None:
         self._records: list[UnifiedAuditRecord] = []
         self._by_layer: dict[str, list[int]] = defaultdict(list)
         self._by_module: dict[str, list[int]] = defaultdict(list)
@@ -86,11 +112,16 @@ class UnifiedAuditStore:
         self._persist_path: Path | None = (
             Path(persist_path) if persist_path else None
         )
+        if audit_bus is not None:
+            self._audit_bus = audit_bus
+        elif self._persist_path is not None:
+            from maref.governance.audit import AuditLogger
+            self._audit_bus = AuditBus(AuditLogger(self._persist_path))
+        else:
+            self._audit_bus = AuditBus()
         if self._persist_path:
             self._persist_path.parent.mkdir(parents=True, exist_ok=True)
             self._load_from_disk()
-
-    # ── public API ──────────────────────────────────────────────
 
     def append(self, record: UnifiedAuditRecord) -> None:
         idx = len(self._records)
@@ -100,8 +131,7 @@ class UnifiedAuditStore:
         self._by_module[record.target_module].append(idx)
         self._by_event_type[record.event_type].append(idx)
         self._by_round[record.round].append(idx)
-        if self._persist_path:
-            self._append_to_disk(record)
+        self._audit_bus.publish(_record_to_audit_entry(record))
 
     def query_by_layer(self, layer: str) -> list[UnifiedAuditRecord]:
         return [self._records[i] for i in self._by_layer.get(layer, [])]
@@ -115,7 +145,9 @@ class UnifiedAuditStore:
     def query_by_round(self, round_num: int) -> list[UnifiedAuditRecord]:
         return [self._records[i] for i in self._by_round.get(round_num, [])]
 
-    def query_decision_chain(self, record_id: str, max_depth: int = 10) -> list[UnifiedAuditRecord]:
+    def query_decision_chain(
+        self, record_id: str, max_depth: int = 10
+    ) -> list[UnifiedAuditRecord]:
         chain: list[UnifiedAuditRecord] = []
         visited: set[str] = set()
         queue = [record_id]
@@ -164,8 +196,6 @@ class UnifiedAuditStore:
     def persist_path(self) -> Path | None:
         return self._persist_path
 
-    # ── disk persistence ────────────────────────────────────────
-
     def _load_from_disk(self) -> None:
         if not self._persist_path or not self._persist_path.exists():
             return
@@ -185,15 +215,6 @@ class UnifiedAuditStore:
                     self._by_event_type[record.event_type].append(idx)
                     self._by_round[record.round].append(idx)
         except (OSError, json.JSONDecodeError):
-            pass
-
-    def _append_to_disk(self, record: UnifiedAuditRecord) -> None:
-        if self._persist_path is None:
-            return
-        try:
-            with open(self._persist_path, "a") as f:
-                f.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
-        except OSError:
             pass
 
 

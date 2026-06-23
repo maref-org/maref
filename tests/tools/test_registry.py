@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from maref.tools.registry import ToolRegistry, get_tool_info, list_tools
+from unittest.mock import MagicMock, patch
+
+from maref.integration.mcp_server import MCPServer
+from maref.tools.registry import (
+    TOOL_REGISTRY,
+    ToolRegistry,
+    get_tool_info,
+    list_tools,
+)
 
 
 class TestToolRegistryDiscover:
@@ -25,7 +33,7 @@ class TestToolRegistryDiscover:
 
     def test_list_tools_function(self):
         tools = list_tools()
-        assert len(tools) == 6
+        assert len(tools) == 11
         assert "factory" not in tools[0]
 
 
@@ -165,3 +173,28 @@ class TestToolRegistryGetTransport:
         registry.install("file")
         transport = registry.get_transport("file")
         assert transport is not None
+
+
+class TestCodedepthRegistry:
+    def test_codedepth_in_discover(self):
+        tools = list_tools()
+        names = [t["name"] for t in tools]
+        assert "codedepth" in names
+
+    def test_codedepth_registry_entry(self):
+        assert "codedepth" in TOOL_REGISTRY
+        entry = TOOL_REGISTRY["codedepth"]
+        assert entry["name"] == "codedepth"
+        assert "depth_rebuild" in entry["tools"]
+
+    def test_codedepth_is_installable(self):
+        registry = ToolRegistry()
+        with patch("maref.codedepth.server.create_code_depth_server") as mock_create:
+            mock_server = MagicMock(spec=MCPServer)
+            mock_create.return_value = mock_server
+            server = registry.install("codedepth", {"repo_path": "/tmp/test"})
+            assert server is mock_server
+            assert registry.get_server("codedepth") is mock_server
+
+    def test_codedepth_does_not_auto_install(self):
+        assert "codedepth" not in ToolRegistry()._instances

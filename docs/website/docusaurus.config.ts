@@ -38,7 +38,7 @@ const config: Config = {
           editUrl: 'https://github.com/maref-org/maref/edit/main/docs/website/',
           lastVersion: 'current',
           versions: {
-            current: { label: 'v0.33.0-rc', path: '/' },
+            current: { label: 'v0.34.0-rc', path: '/' },
           },
         },
         blog: {

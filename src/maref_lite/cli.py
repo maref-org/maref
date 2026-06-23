@@ -657,11 +657,19 @@ def scheduler_status() -> None:
 def self_heal_start(
     interval: float = typer.Option(300.0, "--interval", "-i", help="Check interval in seconds"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without executing"),
+    execute_proposals: bool = typer.Option(
+        False,
+        "--execute-proposals",
+        help="Allow SelfExecutor to write proposal changes",
+    ),
 ) -> None:
     """启动自我修复循环（SelfObserver→Diagnostician→Healer 闭环）."""
     from maref_lite.self_healing_loop import SelfHealingConfig, SelfHealingLoop
 
-    config = SelfHealingConfig(check_interval_seconds=interval)
+    config = SelfHealingConfig(
+        check_interval_seconds=interval,
+        proposal_dry_run=not execute_proposals,
+    )
 
     if dry_run:
         console.print("[bold]Self-Healing Loop — Dry Run Preview[/bold]")
@@ -750,6 +758,31 @@ def self_heal_config() -> None:
 
 
 # ── Serve command ────────────────────────────────────────────────────
+
+
+@app.command()
+@app.command()
+def start(
+    port: int = typer.Option(8000, "--port", "-p", help="Sidecar HTTP server port"),
+    gui: bool = typer.Option(
+        False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"
+    ),
+) -> None:
+    """Start MAREF sidecar + register MCP with opencode.
+
+    Starts the governance sidecar HTTP server and writes a
+    project-level opencode.json so opencode discovers MAREF's
+    MCP tools automatically.
+    """
+    console.print("[bold green]MAREF Start — Initializing Governance Runtime[/bold green]")
+    project_root = Path(__file__).resolve().parent.parent.parent
+    opencode_config = project_root / "opencode.json"
+    if opencode_config.exists():
+        console.print(f"  [green]MCP config:[/green] {opencode_config}")
+        console.print("  [green]opencode[/green] will discover MAREF tools on next launch.")
+    else:
+        console.print("  [yellow]Warning:[/yellow] opencode.json not found — MCP auto-registration unavailable.")
+    serve(port=port, gui=gui)
 
 
 @app.command()

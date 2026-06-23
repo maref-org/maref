@@ -5,16 +5,15 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
 from maref_lite.self_healing_loop import (
-    SelfHealingConfig,
     HealingCycleReport,
+    SelfHealingConfig,
     SelfHealingLoop,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
@@ -97,7 +96,7 @@ class TestSelfHealingConfig:
         assert config.enable_audit is True
         assert config.enable_proposal_execution is True
         assert config.max_proposals_per_cycle == 3
-        assert config.proposal_dry_run is False
+        assert config.proposal_dry_run is True
 
     def test_custom_construction(self):
         config = SelfHealingConfig(

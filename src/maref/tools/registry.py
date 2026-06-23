@@ -8,6 +8,13 @@ from maref.integration.mcp_transport import InProcessTransport
 TOOL_REGISTRY: dict[str, dict[str, Any]] = {}
 
 
+def _create_codedepth_server(**kwargs: object) -> Any:
+    from maref.codedepth.server import create_code_depth_server
+
+    repo_path = kwargs.get("repo_path")
+    return create_code_depth_server(repo_path=str(repo_path) if repo_path is not None else None)
+
+
 def _register_builtin_tools() -> None:
     from maref.tools.browser_server import create_browser_server
     from maref.tools.email_server import create_email_server
@@ -117,6 +124,23 @@ def _register_builtin_tools() -> None:
         "default_config": {},
         "tools": ["jira_get_issue", "jira_search_issues", "jira_create_issue"],
         "security_controls": ["EnvVarCheck"],
+    }
+    TOOL_REGISTRY["codedepth"] = {
+        "name": "codedepth",
+        "description": "Code depth indexer — AST-based symbol search, call graph, import chain, file outline",
+        "factory": _create_codedepth_server,
+        "version": "0.1.0",
+        "default_config": {},
+        "tools": [
+            "depth_rebuild",
+            "depth_stats",
+            "depth_symbol_search",
+            "depth_file_outline",
+            "depth_call_graph",
+            "depth_imports",
+            "depth_references",
+        ],
+        "security_controls": ["IndexSandbox"],
     }
 
 

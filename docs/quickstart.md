@@ -112,11 +112,34 @@ maref serve --port 8000
 # http://localhost:8000/metrics   — Prometheus metrics
 ```
 
+### 2.10 MCP Integration + Sidecar Start
+
+```bash
+# Start sidecar + auto-register MCP tools with opencode
+maref start --port 8000
+
+# With GUI dashboard
+maref start --port 8000 --gui
+```
+
+The `start` command writes/checks `opencode.json` so opencode discovers MAREF's MCP tools on launch. Available MCP tools:
+
+| Tool | Description |
+|------|-------------|
+| `maref_status` | Governance state machine status |
+| `maref_audit_log` | Query audit log entries |
+| `maref_circuit_breaker` | Circuit breaker states |
+| `maref_trust_score` | Agent trust scores |
+| `maref_drift_check` | Distribution drift detection |
+| `maref_health` | Sidecar health check |
+
+MCP endpoint: `POST /api/mcp` (JSON-RPC), capabilities at `GET /api/mcp/.well-known`.
+
 ---
 
-## 3. Integrate with Existing Agent Frameworks
+## 4. Integrate with Existing Agent Frameworks
 
-### 3.1 AutoGen
+### 4.1 AutoGen
 
 ```python
 from autogen_agentchat.teams import RoundRobinGroupChat
@@ -139,7 +162,7 @@ msg = {"content": "rm -rf /important"}
 msg = adapter.inject_governance(msg, GovernanceDecision.BLOCK, "destructive command")
 ```
 
-### 3.2 CrewAI
+### 4.2 CrewAI
 
 ```python
 from crewai import Crew, Agent, Task
@@ -161,7 +184,7 @@ adapter.observe_agent_activity(agent.role, task.description)
 state = await adapter.get_state(AgentId(name=agent.role, namespace="crewai"))
 ```
 
-### 3.3 LangGraph
+### 4.3 LangGraph
 
 ```python
 from langgraph.graph import StateGraph
@@ -184,7 +207,7 @@ else:
 
 ---
 
-## 4. Environment Diagnostic
+## 5. Environment Diagnostic
 
 ```bash
 python scripts/check_desktop_env.py
@@ -194,7 +217,7 @@ Checks: dependencies → macOS permissions → window manager → input controll
 
 ---
 
-## 5. Next Steps
+## 6. Next Steps
 
 - Read the [Security Whitepaper](docs/MAREF-Security-Whitepaper.md)
 - Run `pytest tests/ -v` for the full test suite
@@ -203,7 +226,7 @@ Checks: dependencies → macOS permissions → window manager → input controll
 
 ---
 
-## 6. Common Issues
+## 7. Common Issues
 
 | Problem | Solution |
 |---------|----------|

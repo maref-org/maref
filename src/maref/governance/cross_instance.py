@@ -47,7 +47,7 @@ class InstanceInfo:
     status: InstanceStatus = InstanceStatus.ACTIVE
     trust_score: float = 0.5
     last_seen: float = field(default_factory=time.time)
-    version: str = "0.33.0-rc"
+    version: str = "0.34.0-rc"
     capabilities: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -99,7 +99,7 @@ class CrossInstanceGovernor:
         instance_id: str,
         host: str,
         port: int,
-        version: str = "0.33.0-rc",
+        version: str = "0.34.0-rc",
         capabilities: list[str] | None = None,
     ) -> InstanceInfo:
         info = InstanceInfo(

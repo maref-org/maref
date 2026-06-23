@@ -23,7 +23,7 @@
     "permalink": "/zh-CN/docs/deployment-k8s"
   },
   "next": {
-    "title": "Reliability & SLO",
-    "permalink": "/zh-CN/docs/reliability"
+    "title": "Error Codes",
+    "permalink": "/zh-CN/docs/error-codes"
   }
 }
