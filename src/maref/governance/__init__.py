@@ -9,6 +9,14 @@ from maref.governance.percv_hooks import (
     PERCVGovernanceHook,
     handle_percv_event,
 )
+from maref.governance.economic import (
+    AgentInsurancePricing,
+    BountyStatus,
+    InvestmentCategory,
+    RiskTier,
+    SafetyInvestmentAuditor,
+    VulnerabilityBountyBoard,
+)
 from maref.governance.social_impact import (
     DeploymentVerdict,
     ImpactLevel,
@@ -70,4 +78,11 @@ __all__ = [
     "SocialImpactReport",
     "ImpactLevel",
     "DeploymentVerdict",
+    # Economic Governance
+    "SafetyInvestmentAuditor",
+    "AgentInsurancePricing",
+    "VulnerabilityBountyBoard",
+    "InvestmentCategory",
+    "RiskTier",
+    "BountyStatus",
 ]
