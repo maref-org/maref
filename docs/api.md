@@ -425,3 +425,67 @@ class DriftEvent:
     resolved: bool = False
     resolution_time: datetime | None = None
 ```
+
+---
+
+## MCP 协议端点
+
+MAREF Sidecar 提供 MCP (Model Context Protocol) 端点，支持 AI Agent 发现和调用治理能力。
+
+### MCP 端点
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/mcp` | POST | MCP JSON-RPC 处理器 |
+| `/api/mcp/.well-known` | GET | MCP 能力发现 |
+
+### MCP 协议版本
+
+- `protocol`: `mcp`
+- `version`: `2024-11-05`
+- `serverInfo`: `MAREF Sidecar`
+
+### 支持的工具 (22+)
+
+| 工具名 | 描述 | 参数 |
+|--------|------|------|
+| `maref_observe_agent` | 观测指定 Agent 状态 | `agent_id: string` |
+| `maref_read_entropy` | 读取 Agent 熵值 | `agent_id: string` |
+| `maref_read_observations` | 读取最近观测数据 | `count: integer` |
+| `maref_read_anomalies` | 读取最近异常 | `count: integer` |
+| `maref_compliance_check` | 合规检查 | `agent_id, action` |
+| `maref_ingest_signal` | 注入外部信号 | `signal_type, payload, source` |
+| `maref_list_agents` | 列举所有已注册 Agent | — |
+| `maref_get_snapshot` | 获取完整状态快照 | `agent_id: string` |
+| `maref_health_check` | Sidecar 健康检查 | `detail: boolean` |
+| `maref_get_correlation` | 获取关联数据 | `source: string` |
+| `maref_migrate` | Agent 状态迁移 | `agent_id, target_state` |
+
+### MCP 调用示例
+
+```python
+import httpx
+
+# 列举工具
+response = httpx.post("http://localhost:8000/api/mcp", json={
+    "jsonrpc": "2.0",
+    "method": "tools/list",
+    "id": 1,
+})
+tools = response.json()["result"]["tools"]
+
+# 调用治理工具
+response = httpx.post("http://localhost:8000/api/mcp", json={
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "id": 2,
+    "params": {
+        "name": "maref_compliance_check",
+        "arguments": {
+            "agent_id": "agent-1",
+            "action": "read_file",
+        },
+    },
+})
+result = response.json()["result"]
+```

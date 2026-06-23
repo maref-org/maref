@@ -133,23 +133,25 @@ class TestCLINotificationChannel:
 
     def test_cli_channel_send_fallback(self) -> None:
         with (
-            patch("builtins.print") as mock_print,
+            patch("maref.executor.notifications.logger.warning") as mock_warning,
             patch("rich.console.Console", side_effect=ImportError("no rich")),
         ):
             channel = CLINotificationChannel(use_rich=True)
             result = channel.send("Fallback Title", "Fallback Message")
             assert result is True
             assert channel.use_rich is False
-            mock_print.assert_any_call("[INFO] Fallback Title")
-            mock_print.assert_any_call("Fallback Message")
+            mock_warning.assert_any_call(
+                "Notification fallback (Rich unavailable): [%s] %s", "INFO", "Fallback Title"
+            )
 
     def test_cli_channel_send_fallback_when_use_rich_false(self) -> None:
-        with patch("builtins.print") as mock_print:
+        with patch("maref.executor.notifications.logger.warning") as mock_warning:
             channel = CLINotificationChannel(use_rich=False)
             result = channel.send("Plain Title", "Plain Message", level="critical")
             assert result is True
-            mock_print.assert_any_call("[CRITICAL] Plain Title")
-            mock_print.assert_any_call("Plain Message")
+            mock_warning.assert_any_call(
+                "Notification fallback (Rich unavailable): [%s] %s", "CRITICAL", "Plain Title"
+            )
 
 
 class TestNotificationManager:

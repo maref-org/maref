@@ -12,6 +12,9 @@
 | RB-006 | `MarefGovernanceDrift` | P1 | 治理漂移分数超过阈值持续 3 个检测周期 | [rb-008-governance-drift.md](rb-008-governance-drift.md) | > 6h → 治理团队; > 24h → 架构师 |
 | RB-007 | `MarefGovernanceLatencyHigh` | P1 | P99 治理决策延迟 > 500ms 持续 5 分钟 | [rb-002-governance-latency.md](rb-002-governance-latency.md) | 30 分钟未恢复 → 治理团队 |
 | RB-008 | `MarefDriftDetected` | P1 | 漂移值超过阈值持续 2 个检测周期 | [rb-003-drift-detected.md](rb-003-drift-detected.md) | > 6h → 数据科学团队 |
+| RB-009 | `MarefMCPToolFailure` | P1/P0 | MCP 工具调用返回错误或超时 | [rb-009-mcp-tool-failure.md](rb-009-mcp-tool-failure.md) | 全部工具失败 → P0 升级至 SRE |
+| RB-010 | `MarefBrowserAutomationFailure` | P1 | BrowserController 方法异常 | [rb-010-browser-automation-failure.md](rb-010-browser-automation-failure.md) | > 15min → 桌面自动化团队 |
+| RB-011 | `MarefAuditBusDown` | P1/P0 | AuditBus 事件延迟 > 5s 或订阅者未收到 | [rb-011-auditbus-down.md](rb-011-auditbus-down.md) | 完全阻塞 > 10min → 架构团队 |
 
 ## 通用流程
 

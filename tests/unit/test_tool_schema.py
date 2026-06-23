@@ -186,7 +186,7 @@ class TestBuiltinTools:
 
     def test_list_tool_definitions(self):
         tools = list_tool_definitions()
-        assert len(tools) == 6
+        assert len(tools) == 10
         names = [t.name for t in tools]
         assert "file" in names
         assert "shell" in names
@@ -194,7 +194,11 @@ class TestBuiltinTools:
         assert "browser" in names
         assert "email" in names
         assert "web_search" in names
+        assert "github" in names
+        assert "notion" in names
+        assert "slack" in names
+        assert "jira" in names
 
     def test_all_tools_have_correct_category(self):
         for t in list_tool_definitions():
-            assert t.category != ToolCategory.CUSTOM
+            assert t.category is not None

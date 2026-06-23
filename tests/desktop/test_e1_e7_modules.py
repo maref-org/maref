@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import tempfile
+from unittest.mock import AsyncMock, MagicMock
 
 from maref.desktop.browser_controller import (
     BrowserAction,
@@ -520,6 +522,183 @@ class TestBrowserController:
         d = result.to_dict()
         assert d["success"] is True
         assert d["url"] == "https://example.com"
+
+    # --- Real (non-dry-run) _do_* method tests ---
+
+    def test_do_click_no_page(self):
+        bc = BrowserController(dry_run=False)
+        result = bc.click("#btn")
+        assert not result.success
+        assert "No active page" in result.error
+
+    def test_do_click_success(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        result = bc.click("#btn")
+        assert result.success
+        bc._page.click.assert_called_once_with("#btn", timeout=5000)
+
+    def test_do_click_error(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        bc._page.click.side_effect = Exception("element not found")
+        result = bc.click("#btn")
+        assert not result.success
+        assert "element not found" in result.error
+
+    def test_do_type_no_page(self):
+        bc = BrowserController(dry_run=False)
+        result = bc.type_text("#input", "hello")
+        assert not result.success
+        assert "No active page" in result.error
+
+    def test_do_type_fill(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        locator_mock = MagicMock()
+        locator_mock.count = AsyncMock(return_value=1)
+        bc._page.locator = MagicMock(return_value=locator_mock)
+        result = bc.type_text("#input", "hello")
+        assert result.success
+        bc._page.fill.assert_called_once_with("#input", "hello")
+
+    def test_do_type_fallback(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        locator_mock = MagicMock()
+        locator_mock.count = AsyncMock(return_value=0)
+        bc._page.locator = MagicMock(return_value=locator_mock)
+        result = bc.type_text("#input", "hello")
+        assert result.success
+        bc._page.type.assert_called_once_with("#input", "hello")
+
+    def test_do_type_error(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        locator_mock = MagicMock()
+        locator_mock.count = AsyncMock(side_effect=Exception("selector error"))
+        bc._page.locator = MagicMock(return_value=locator_mock)
+        result = bc.type_text("#input", "hello")
+        assert not result.success
+        assert "selector error" in result.error
+
+    def test_do_extract_text_no_page(self):
+        bc = BrowserController(dry_run=False)
+        result = bc.extract_text()
+        assert not result.success
+        assert "No active page" in result.error
+
+    def test_do_extract_text_success(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        bc._page.evaluate = AsyncMock(return_value="Hello World")
+        result = bc.extract_text()
+        assert result.success
+        assert result.text == "Hello World"
+
+    def test_do_extract_text_error(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        bc._page.evaluate.side_effect = Exception("evaluation failed")
+        result = bc.extract_text()
+        assert not result.success
+        assert "evaluation failed" in result.error
+
+    def test_do_extract_links_no_page(self):
+        bc = BrowserController(dry_run=False)
+        result = bc.extract_links()
+        assert not result.success
+        assert "No active page" in result.error
+
+    def test_do_extract_links_success(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        expected = [
+            {"href": "https://example.com", "text": "Example"},
+            {"href": "https://python.org", "text": "Python"},
+        ]
+        bc._page.evaluate = AsyncMock(return_value=expected)
+        result = bc.extract_links()
+        assert result.success
+        assert result.links == expected
+        assert len(result.links) == 2
+
+    def test_do_extract_links_error(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        bc._page.evaluate.side_effect = Exception("dom error")
+        result = bc.extract_links()
+        assert not result.success
+        assert "dom error" in result.error
+
+    def test_do_screenshot_no_page(self):
+        bc = BrowserController(dry_run=False)
+        result = bc.screenshot()
+        assert not result.success
+        assert "No active page" in result.error
+
+    def test_do_screenshot_success(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        png_bytes = b"fake_png_data"
+        bc._page.screenshot = AsyncMock(return_value=png_bytes)
+        result = bc.screenshot()
+        assert result.success
+        bc._page.screenshot.assert_called_once_with(full_page=True)
+        assert result.text == base64.b64encode(png_bytes).decode("ascii")
+        assert result.screenshot_bytes == png_bytes
+
+    def test_do_screenshot_error(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        bc._page.screenshot.side_effect = Exception("screenshot failed")
+        result = bc.screenshot()
+        assert not result.success
+        assert "screenshot failed" in result.error
+
+    def test_do_execute_js_no_page(self):
+        bc = BrowserController(dry_run=False)
+        result = bc.execute_js("document.title")
+        assert not result.success
+        assert "No active page" in result.error
+
+    def test_do_execute_js_success(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        bc._page.evaluate = AsyncMock(return_value="Page Title")
+        result = bc.execute_js("document.title")
+        assert result.success
+        assert result.text == "Page Title"
+
+    def test_do_execute_js_error(self):
+        bc = BrowserController(dry_run=False)
+        bc._page = AsyncMock()
+        bc._page.evaluate.side_effect = Exception("js error")
+        result = bc.execute_js("document.title")
+        assert not result.success
+        assert "js error" in result.error
+
+    def test_do_navigate_real_error(self):
+        bc = BrowserController(dry_run=False)
+        result = bc.navigate("https://docs.python.org")
+        assert not result.success
+        assert "No module" in result.error or "playwright" in result.error.lower()
+
+    def test_close_cleanup(self):
+        bc = BrowserController(dry_run=False)
+        page_mock = MagicMock()
+        browser_mock = MagicMock()
+        pw_mock = MagicMock()
+        bc._page = page_mock
+        bc._browser = browser_mock
+        bc._playwright = pw_mock
+        bc.close()
+        page_mock.close.assert_called_once()
+        browser_mock.close.assert_called_once()
+        pw_mock.stop.assert_called_once()
+        assert bc._page is None
+        assert bc._browser is None
+        assert bc._playwright is None
 
 
 class TestFileWatcher:

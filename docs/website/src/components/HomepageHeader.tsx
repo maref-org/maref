@@ -69,7 +69,7 @@ export default function HomepageHeader() {
             </Link>
           </div>
           <div className={styles.versionInfo}>
-            <span className="version-badge">v0.33.0-rc</span>
+            <span className="version-badge">v0.34.0-rc</span>
             <span className={styles.license}>Apache-2.0</span>
             <span className={styles.platforms}>Python · Electron · TLA+</span>
           </div>

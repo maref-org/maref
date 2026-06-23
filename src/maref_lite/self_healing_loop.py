@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from maref.recursive.self_architect import SelfArchitect
     from maref.recursive.self_diagnostician import SelfDiagnostician
+    from maref.recursive.self_executor import SelfExecutor
     from maref.recursive.self_healer import SelfHealer
     from maref.recursive.self_observer import SelfObserver
     from maref.recursive.unified_audit import UnifiedAuditStore
@@ -38,7 +39,7 @@ class SelfHealingConfig:
     # Self-Executor bridge (Gap 1+2): 把 SelfArchitect 提案送入 SelfExecutor 执行
     enable_proposal_execution: bool = True
     max_proposals_per_cycle: int = 3  # 每周期最多执行多少提案（防雪崩）
-    proposal_dry_run: bool = False  # True 时只走 dry_run 不实际部署
+    proposal_dry_run: bool = True  # True 时只走 dry_run 不实际部署
 
 
 @dataclass
@@ -113,7 +114,7 @@ class SelfHealingLoop:
         self._healer: SelfHealer | None = None
         self._architect: SelfArchitect | None = None
         self._audit_store: UnifiedAuditStore | None = None
-        self._executor = None  # Gap 1+2: SelfExecutor 桥接
+        self._executor: SelfExecutor | None = None  # Gap 1+2: SelfExecutor 桥接
 
     # ── 生命周期 ────────────────────────────────────────────────
 
@@ -308,19 +309,19 @@ class SelfHealingLoop:
                     for proposal in executable:
                         try:
                             if self._config.proposal_dry_run:
-                                record = self._executor.dry_run(proposal)
+                                record = self._executor.dry_run(proposal)  # type: ignore[assignment]
                             else:
-                                record = self._executor.execute(
+                                record = self._executor.execute(  # type: ignore[assignment]
                                     proposal, round_num=self._cycle_count
                                 )
                             proposals_executed += 1
-                            if record.final_state in ("SUCCESS", "DRY_RUN_OK"):
+                            if record.final_state in ("SUCCESS", "DRY_RUN_OK"):  # type: ignore[attr-defined]
                                 proposals_succeeded += 1
                                 logger.info(
                                     "Cycle %d: proposal %s → %s",
                                     self._cycle_count,
                                     proposal.proposal_id,
-                                    record.final_state,
+                                    record.final_state,  # type: ignore[attr-defined]
                                 )
                             else:
                                 proposals_failed += 1
@@ -328,7 +329,7 @@ class SelfHealingLoop:
                                     "Cycle %d: proposal %s → %s",
                                     self._cycle_count,
                                     proposal.proposal_id,
-                                    record.final_state,
+                                    record.final_state,  # type: ignore[attr-defined]
                                 )
                         except Exception as exc:
                             proposals_executed += 1

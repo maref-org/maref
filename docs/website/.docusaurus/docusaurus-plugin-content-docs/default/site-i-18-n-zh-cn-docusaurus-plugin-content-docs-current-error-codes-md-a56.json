@@ -1,0 +1,29 @@
+{
+  "id": "error-codes",
+  "title": "错误代码",
+  "description": "MAREF 错误代码、HTTP 状态码和故障排除指南的完整参考",
+  "source": "@site/i18n/zh-CN/docusaurus-plugin-content-docs/current/error-codes.md",
+  "sourceDirName": ".",
+  "slug": "/error-codes",
+  "permalink": "/zh-CN/docs/error-codes",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/maref-org/maref/edit/main/docs/website/docs/error-codes.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 13,
+  "frontMatter": {
+    "sidebar_position": 13,
+    "title": "错误代码",
+    "description": "MAREF 错误代码、HTTP 状态码和故障排除指南的完整参考"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Sidecar 部署",
+    "permalink": "/zh-CN/docs/deployment-sidecar"
+  },
+  "next": {
+    "title": "Reliability & SLO",
+    "permalink": "/zh-CN/docs/reliability"
+  }
+}

@@ -51,5 +51,9 @@
     ],
     "date": "2026-06-18T00:00:00.000Z"
   },
-  "unlisted": false
+  "unlisted": false,
+  "prevItem": {
+    "title": "I Shot Films for 30 Years. Now I'm Building Safety Systems for AI Agents",
+    "permalink": "/zh-CN/blog/from-steadicam-to-agent-governance"
+  }
 }

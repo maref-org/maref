@@ -77,8 +77,14 @@ echo "  Project: ${PROJECT_ROOT}" | tee -a "${LOG_FILE}"
 echo "  Output:  ${OUTPUT_DIR}" | tee -a "${LOG_FILE}"
 echo "  Log:     ${LOG_FILE}" | tee -a "${LOG_FILE}"
 
-# Run one batch (max-batches=1)
 cd "${PROJECT_ROOT}"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running MAREF daily recursive evolution dry-run..." | tee -a "${LOG_FILE}"
+"${PYTHON}" -m maref.evolution.daily_loop \
+    --dry-run \
+    --vault "${PROJECT_ROOT}/.evolution_vault" \
+    2>&1 | tee -a "${LOG_FILE}" || true
+
+# Run one batch (max-batches=1)
 "${PYTHON}" -m src.research.continuous_engine \
     --output-dir "${OUTPUT_DIR}" \
     --experiments-per-batch 50 \

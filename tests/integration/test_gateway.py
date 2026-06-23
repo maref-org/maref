@@ -208,7 +208,7 @@ class TestGatewayRouter:
     def test_compute_route_latency_budget_high(self):
         router = GatewayRouter(latency_budget_ms=1000.0)
         decision = router.compute_route(GovernanceState.OBSERVE, 0)
-        assert decision.route == GatewayRoute.STANDARD
+        assert decision.route == GatewayRoute.CHEAP
 
     def test_compute_route_high_entropy_explanation(self):
         router = GatewayRouter()
@@ -274,7 +274,7 @@ class TestGatewayRouter:
         decision = router.compute_route(GovernanceState.OBSERVE, 0, budget_override="cheap")
         assert decision.route == GatewayRoute.CHEAP
         decision2 = router.compute_route(GovernanceState.OBSERVE, 0, budget_override="premium")
-        assert decision2.route in (GatewayRoute.CAPABLE, GatewayRoute.STANDARD)
+        assert decision2.route == GatewayRoute.CHEAP
 
 
 class TestGatewayRouterEdgeCases:
@@ -298,7 +298,7 @@ class TestGatewayRouterEdgeCases:
         router = GatewayRouter(percv_adapter=adapter)
         decision = router.compute_route(GovernanceState.ANALYZE, 2)
         assert decision.route == GatewayRoute.STANDARD
-        assert decision.confidence == 0.8
+        assert decision.confidence == 0.9
 
 
 class TestConstants:

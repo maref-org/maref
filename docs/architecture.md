@@ -1,6 +1,6 @@
 # MAREF Architecture
 
-> Version: v0.33.0-rc | Last updated: 2026-06-17
+> Version: v0.36.0-rc | Last updated: 2026-06-19
 
 ## Overview
 
@@ -435,6 +435,18 @@ entry = {
 - `OAuthMiddleware` -- token validation and context extraction
 - JWT decoding with expiration checking
 - Scope-based authorization (`maref:mcp` default scope)
+
+---
+
+## 4.5 Loop Engineering Integration
+
+MAREF treats agent loops as first-class governance citizens. See [Loop Engineering Integration](./loop-engineering-integration.md) for:
+
+- **Three meta-patterns** — Convergent Loop (monotonic improvement), Exploratory Loop (diversity coverage), Interactive Loop (human-in-the-loop)
+- **Scenario-Governance Design Matrix** — mapping loop patterns to governance strategy and tool boundaries
+- **Design flow** — Step-by-step process for adding governance to any agent loop
+- **Template specs** — `docs/loop-engineering/` with per-pattern Evaluator interfaces, tool whitelists, and stop conditions
+- **Roadmap** — `src/maref/loop/` subsystem planned for v0.36.0-rc
 
 ---
 

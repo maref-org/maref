@@ -117,6 +117,9 @@ governance_audit*.jsonl
 governance_observations.db
 *.db
 
+# CodeDepth index (regeneratable)
+.codedepth/
+
 # Debug / development utilities
 debug_bus.py
 debug_test.py

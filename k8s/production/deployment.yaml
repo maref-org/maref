@@ -18,11 +18,11 @@ spec:
       labels:
         app: maref-governance
         component: governance
-version: v0.33.0-rc
+version: v0.34.0-rc
     spec:
       containers:
         - name: governance
-          image: maref/governance:v0.33.0-rc
+          image: maref/governance:v0.34.0-rc
           imagePullPolicy: IfNotPresent
           resources:
             requests:
@@ -65,7 +65,7 @@ version: v0.33.0-rc
             initialDelaySeconds: 5
             periodSeconds: 10
         - name: sidecar
-          image: maref/sidecar:v0.33.0-rc
+          image: maref/sidecar:v0.34.0-rc
           imagePullPolicy: IfNotPresent
           resources:
             requests:

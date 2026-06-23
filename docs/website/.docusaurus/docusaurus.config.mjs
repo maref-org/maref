@@ -58,10 +58,6 @@ export default {
         "theme": {
           "customCss": "./src/css/custom.css"
         },
-        "gtag": {
-          "trackingID": "G-XXXXXXXXXX",
-          "anonymizeIP": true
-        },
         "sitemap": {
           "lastmod": "date",
           "changefreq": "weekly",
@@ -402,15 +398,6 @@ export default {
           }
         }
       ]
-    },
-    "algolia": {
-      "appId": "YOUR_APP_ID",
-      "apiKey": "YOUR_API_KEY",
-      "indexName": "maref",
-      "placeholder": "Search docs...",
-      "contextualSearch": true,
-      "searchParameters": {},
-      "searchPagePath": "search"
     },
     "colorMode": {
       "defaultMode": "light",

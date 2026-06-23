@@ -64,6 +64,10 @@ class RealMetricsCollector:
         cov_pct = self._run_coverage()
         import_ms = self._measure_import_time()
         cb_state = self._check_cb_state()
+        if import_ms < 0:
+            errors.append("import_time_failed")
+        if cov_pct == 0.0:
+            errors.append("coverage_unavailable")
 
         fnr = failed / max(total, 1)
         fpr = 0.0
@@ -90,8 +94,11 @@ class RealMetricsCollector:
         )
 
     def _run_quick_checks(self) -> RealMetrics:
+        errors: list[str] = []
         test_pass, total, failed = self._run_pytest(quick=True)
         import_ms = self._measure_import_time()
+        if import_ms < 0:
+            errors.append("import_time_failed")
 
         return RealMetrics(
             fnr=round(failed / max(total, 1), 4),
@@ -101,6 +108,7 @@ class RealMetricsCollector:
             total_tests=total,
             import_time_ms=round(import_ms, 1),
             cb_state="CLOSED",
+            errors=errors,
         )
 
     @staticmethod
@@ -122,7 +130,7 @@ class RealMetricsCollector:
             pass_rate = total_passed / max(total, 1)
             return round(pass_rate, 4), total, total_failed
         except Exception:
-            return 1.0, 0, 0
+            return 0.0, 1, 1
 
     @staticmethod
     def _run_coverage() -> float:

@@ -66,6 +66,11 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "error-codes",
+              "path": "/zh-CN/docs/error-codes",
+              "sidebar": "docsSidebar"
+            },
+            {
               "id": "integrations/autogen",
               "path": "/zh-CN/docs/integrations/autogen",
               "sidebar": "docsSidebar"
@@ -92,6 +97,11 @@
             {
               "id": "introduction",
               "path": "/zh-CN/docs/introduction",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "loop-engineering",
+              "path": "/zh-CN/docs/loop-engineering",
               "sidebar": "docsSidebar"
             },
             {
@@ -160,15 +170,6 @@
         }
       ],
       "breadcrumbs": true
-    }
-  },
-  "docusaurus-plugin-google-gtag": {
-    "default": {
-      "trackingID": [
-        "G-XXXXXXXXXX"
-      ],
-      "anonymizeIP": true,
-      "id": "default"
     }
   }
 }

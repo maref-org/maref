@@ -4,7 +4,7 @@ title: Quickstart
 description: 5 minutes to your first governed multi-agent system
 ---
 
-# MAREF Quickstart Guide (v0.33.0-rc)
+# MAREF Quickstart Guide (v0.34.0-rc)
 
 **5 minutes to your first governed multi-agent system.**
 

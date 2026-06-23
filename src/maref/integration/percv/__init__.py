@@ -11,6 +11,7 @@ from maref.integration.percv.gateway_adapter import (
     GatewayRole,
     PERCVGatewayAdapter,
 )
+from maref.integration.percv.hypothesis_bridge import PERCVHypothesis, PERCVHypothesisBridge
 from maref.integration.percv.orchestrator import (
     CyclePhase,
     OrchestratorCycle,
@@ -31,6 +32,8 @@ __all__ = [
     "GatewayRole",
     "PERCVPipelineAdapter",
     "PipelineDirective",
+    "PERCVHypothesis",
+    "PERCVHypothesisBridge",
     "CardBridge",
     "CostMonitor",
     "RatchetBridge",

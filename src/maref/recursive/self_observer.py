@@ -83,11 +83,9 @@ class SelfObserver:
                 timeout=timeout,
             )
             output = result.stdout + result.stderr
-            returncode = result.returncode
         except subprocess.TimeoutExpired as e:
             elapsed_ms = int((time.monotonic() - t0) * 1000)
             output = (e.stdout or "") + (e.stderr or "") if isinstance(e.stdout, str) else ""
-            returncode = -1
             return {
                 "total": 0,
                 "passed": 0,

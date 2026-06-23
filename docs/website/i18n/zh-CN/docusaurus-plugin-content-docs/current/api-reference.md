@@ -6,7 +6,7 @@ description: 完整的 MAREF API 参考文档
 
 # MAREF API Reference
 
-> Version: v0.33.0-rc | Sidecar: v0.32.0-rc | GaaS: v0.28.0
+> Version: v0.34.0-rc | Sidecar: v0.32.0-rc | GaaS: v0.28.0
 
 This document covers all public APIs: Sidecar REST API, Governance-as-a-Service (GaaS) API, A2A Python API, and MCP Python API.
 

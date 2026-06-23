@@ -19,6 +19,11 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'doc',
+      id: 'loop-engineering',
+      label: 'Loop Engineering',
+    },
+    {
+      type: 'doc',
       id: 'api-reference',
       label: 'API Reference',
     },

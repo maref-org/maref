@@ -1,8 +1,31 @@
 # CHANGELOG
 
+## [v0.34.0-rc] - 2026-06-23 (G1-G5 补强交付)
+
+### G5 — CrossInstanceGovernor
+- `cross_instance.py`: 跨实例同步授权 + 审计 + 权重投毒检测（MAD-based z-score）
+- `sync_policy.py`: 8 种数据类型同步策略 + 冲突解决
+- `federated_audit.py`: HMAC-SHA256 防篡改审计追踪
+- TLA+ 形式化规范: `MAREF_CrossInstance.tla`
+
+### G4 — EconomicGovernor
+- `economic.py`: SafetyInvestmentAuditor（安全投入 ≥20% 红线）、AgentInsurancePricing（风险保费）、VulnerabilityBountyBoard（CVSS 悬赏 $100-$5000）
+
+### G3 — SocialImpactAssessor
+- `social_impact.py` + `industry_data.py`: ISIC Rev.4 19 行业替代率模型（10%/25%/50% 三级阈值）
+- HITL 自动升级（BLOCK→P0, RESTRICT→P1, WARN→P2, ALLOW→P3）
+
+### G2 — SubgoalInterceptor + DelegationGraph
+- `subgoal/` 包: CoTMonitor（流式推理链监控）、GoalInferencer（DAG 推断 + 控制评分）、DelegationGraph（委托链追踪 + 范围爬坡）
+- 四动作决策: ALLOW/SLOW/BLOCK/HALT + GovernanceStateMachine 集成
+
+### G1 — MetaCognitiveAuditor
+- `metacognition/` 包: BehaviorBaseline + StealthProbe + DeceptionInferenceEngine + MetaCognitiveAuditor
+- 四层架构：行为基线→隐蔽测试→意图推断→治理响应
+
 ## [v0.33.0-rc] - 2026-06-23 (版本回正基线)
 
-版本回正说明：v0.34.0-rc / v0.35.0-rc / v0.36.0-rc 为过量版本号 bump，代码内容合并至 v0.33.0-rc。
+版本回正说明：v0.34.0-rc / v0.35.0-rc / v0.36.0-rc 为过量版本号 bump，实际交付合并至此基线。G1-G5 补强从本版本开始递进。
 
 ### Tech Debt Cleanup (Phase 0)
 - **Ruff 36→0 errors** — 25 auto-fix + 11 manual: F841 unused vars, B007 loop var, F821 forward ref, F822 __all__ re-exports, SIM103 simplify return, B905 zip strict

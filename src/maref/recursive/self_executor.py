@@ -3,14 +3,18 @@ from __future__ import annotations
 import ast
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 import time
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from maref.evolution.constitution_harness import ConstitutionHarness, EvolutionChange
 from maref.recursive.safety_gate_v2 import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
 
@@ -233,8 +237,8 @@ import pytest
 
 
 class Test{module_name.title().replace('_', '')}:
-    def test_auto_generated_smoke(self) -> None:
-        assert True, "Auto-generated test placeholder"
+    def test_auto_generated_target_resolution(self) -> None:
+        pytest.skip("target module unresolved")
 
     def test_auto_generated_structure(self) -> None:
         from maref.recursive.self_executor import ExecutionStage
@@ -432,8 +436,11 @@ class AtomicDeployer:
         )
 
         try:
-            if os.path.exists(file_path):
+            had_existing_file = os.path.exists(file_path)
+            if had_existing_file:
                 shutil.copy2(file_path, backup_path)
+            else:
+                backup_path = ""
 
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
@@ -465,6 +472,23 @@ class AtomicDeployer:
 
     def rollback(self, file_path: str) -> ExecutionResult:
         backup_path = self._deployed.get(file_path)
+        if backup_path == "":
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                return ExecutionResult(
+                    stage=ExecutionStage.ROLLBACK,
+                    success=True,
+                    message=f"Removed newly deployed file {file_path}",
+                    details={"file_path": file_path},
+                )
+            except Exception as e:
+                return ExecutionResult(
+                    stage=ExecutionStage.ROLLBACK,
+                    success=False,
+                    message=f"Rollback failed: {e}",
+                    details={"error": str(e)},
+                )
         if not backup_path or not os.path.exists(backup_path):
             return ExecutionResult(
                 stage=ExecutionStage.ROLLBACK,
@@ -530,6 +554,7 @@ class SelfExecutor:
         max_rounds: int = 3,
         project_root: str | None = None,
         audit_store: UnifiedAuditStore | None = None,
+        quality_gate: Callable[[GeneratedCode, ExecutionPipelineRecord], ExecutionResult] | None = None,
     ) -> None:
         self._max_rounds = max_rounds
         self._project_root = project_root or os.getcwd()
@@ -537,7 +562,9 @@ class SelfExecutor:
         self._code_gen = CodeGenerator()
         self._sandbox = ASTSandbox()
         self._safety_gate = SafetyGateV2()
+        self._constitution_harness = ConstitutionHarness()
         self._deployer = AtomicDeployer()
+        self._quality_gate = quality_gate or self._default_quality_gate
         self._history: list[ExecutionPipelineRecord] = []
         self._intent_drift_detector: IntentDriftDetector | None = None
         self._gene_pipeline: AutoGeneExtractionPipeline | None = None
@@ -611,6 +638,7 @@ class SelfExecutor:
             pipeline.final_state = "FAILED_VERIFY_ROLLED_BACK"
             pipeline.finish()
             self._history.append(pipeline)
+            self._audit_pipeline(pipeline, round_num)
             return pipeline
 
         pipeline.final_state = "SUCCESS"
@@ -678,6 +706,24 @@ class SelfExecutor:
     def _stage_safety_gate(
         self, code: GeneratedCode, proposal, pipeline: ExecutionPipelineRecord
     ) -> ExecutionResult:
+        constitution_result = self._constitution_harness.check_change(
+            EvolutionChange(
+                change_id=str(getattr(proposal, "proposal_id", pipeline.proposal_id)),
+                files=[code.file_path],
+                description=str(getattr(proposal, "rationale", "")),
+                diff_text=code.content,
+                actor="self_executor",
+                audit_planned=True,
+            )
+        )
+        if not constitution_result.allowed:
+            return ExecutionResult(
+                stage=ExecutionStage.SAFETY_GATE,
+                success=False,
+                message=f"ConstitutionHarness blocked: {', '.join(constitution_result.violations)}",
+                details={"constitution": constitution_result},
+            )
+
         threat = self._safety_gate.detect_core_removal(code.target_module)
         if threat.blocked:
             return ExecutionResult(
@@ -735,7 +781,121 @@ class SelfExecutor:
     def _stage_verify(
         self, code: GeneratedCode, pipeline: ExecutionPipelineRecord
     ) -> ExecutionResult:
-        return self._deployer.verify_deployed(code.file_path, code.content)
+        content_result = self._deployer.verify_deployed(code.file_path, code.content)
+        if content_result.is_failure:
+            return content_result
+        return self._quality_gate(code, pipeline)
+
+    def _default_quality_gate(
+        self, code: GeneratedCode, pipeline: ExecutionPipelineRecord
+    ) -> ExecutionResult:
+        file_path = Path(code.file_path)
+        if file_path.suffix != ".py":
+            return ExecutionResult(
+                stage=ExecutionStage.VERIFY,
+                success=True,
+                message="Quality gate skipped for non-Python file",
+                details={"file_path": code.file_path},
+            )
+
+        checks: list[dict[str, Any]] = []
+        py_compile = subprocess.run(
+            [sys.executable, "-m", "py_compile", code.file_path],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        checks.append({
+            "name": "py_compile",
+            "exit_code": py_compile.returncode,
+            "stderr": py_compile.stderr[-500:],
+        })
+        if py_compile.returncode != 0:
+            return ExecutionResult(
+                stage=ExecutionStage.VERIFY,
+                success=False,
+                message="Quality gate failed: py_compile",
+                details={"checks": checks},
+            )
+
+        try:
+            rel_path = file_path.resolve().relative_to(Path(self._project_root).resolve())
+        except ValueError:
+            rel_path = None
+
+        if rel_path is not None:
+            ruff = subprocess.run(
+                ["ruff", "check", str(rel_path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=self._project_root,
+            )
+            checks.append({
+                "name": "ruff",
+                "exit_code": ruff.returncode,
+                "stdout": ruff.stdout[-500:],
+                "stderr": ruff.stderr[-500:],
+            })
+            if ruff.returncode != 0:
+                return ExecutionResult(
+                    stage=ExecutionStage.VERIFY,
+                    success=False,
+                    message="Quality gate failed: ruff",
+                    details={"checks": checks},
+                )
+
+            rel_parts = rel_path.parts
+            if rel_parts and rel_parts[0] == "src":
+                mypy = subprocess.run(
+                    ["mypy", str(rel_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    cwd=self._project_root,
+                )
+                checks.append({
+                    "name": "mypy",
+                    "exit_code": mypy.returncode,
+                    "stdout": mypy.stdout[-500:],
+                    "stderr": mypy.stderr[-500:],
+                })
+                if mypy.returncode != 0:
+                    return ExecutionResult(
+                        stage=ExecutionStage.VERIFY,
+                        success=False,
+                        message="Quality gate failed: mypy",
+                        details={"checks": checks},
+                    )
+
+            if rel_parts and rel_parts[0] == "tests":
+                pytest_result = subprocess.run(
+                    [sys.executable, "-m", "pytest", str(rel_path), "-q", "--no-cov"],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    cwd=self._project_root,
+                )
+                checks.append({
+                    "name": "pytest",
+                    "exit_code": pytest_result.returncode,
+                    "stdout": pytest_result.stdout[-500:],
+                    "stderr": pytest_result.stderr[-500:],
+                })
+                if pytest_result.returncode != 0:
+                    return ExecutionResult(
+                        stage=ExecutionStage.VERIFY,
+                        success=False,
+                        message="Quality gate failed: pytest",
+                        details={"checks": checks},
+                    )
+
+        return ExecutionResult(
+            stage=ExecutionStage.VERIFY,
+            success=True,
+            message="Deployment verified with quality gate",
+            details={"file_path": code.file_path, "checks": checks},
+        )
 
     def _stage_rollback(self, file_path: str, pipeline: ExecutionPipelineRecord) -> ExecutionResult:
         return self._deployer.rollback(file_path)
