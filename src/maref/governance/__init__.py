@@ -1,6 +1,7 @@
 """MAREF Governance — state machine + audit + circuit breaker + oscillation fix."""
 
 from maref.governance.audit import AuditEntry, AuditLogger
+from maref.governance.audit_bus import AuditBus
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
 from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
 from maref.governance.percv_hooks import (
@@ -17,6 +18,13 @@ from maref.governance.trust_bridge import (
     RecursiveEventType,
 )
 from maref.governance.types import GovernanceState, StateMachineSnapshot, StateTransition
+from maref.governance.verifier_consensus import (
+    ConsensusResult,
+    ConsensusStrategy,
+    VerifierConsensus,
+)
+from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry, VerifierStatus
+from maref.metacognition import MetaCognitiveAuditor
 
 __all__ = [
     "GovernanceState",
@@ -25,6 +33,7 @@ __all__ = [
     "StateMachineSnapshot",
     "AuditLogger",
     "AuditEntry",
+    "AuditBus",
     "CircuitBreaker",
     "BreakerState",
     "BreakerTrip",
@@ -40,4 +49,14 @@ __all__ = [
     "RecursiveEventType",
     "ThreatGovernanceBridge",
     "ThreatGovernanceMapping",
+    # Verifier Registry
+    "VerifierRegistry",
+    "VerifierEntry",
+    "VerifierStatus",
+    # Verifier Consensus
+    "VerifierConsensus",
+    "ConsensusStrategy",
+    "ConsensusResult",
+    # Meta-Cognitive Audit
+    "MetaCognitiveAuditor",
 ]
