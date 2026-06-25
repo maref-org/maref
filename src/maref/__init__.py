@@ -1,6 +1,6 @@
 """MAREF — Multi-Agent Reliable Execution Framework."""
 
-__version__ = "0.30.0-GA"
+__version__ = "0.35.0-rc"
 
 from maref.agent_card_config import (
     AGENT_DESCRIPTION,
