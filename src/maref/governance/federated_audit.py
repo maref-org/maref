@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac as hmac_lib
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -32,7 +33,30 @@ class AuditEventType(Enum):
     UNAUTHORIZED_SYNC = "unauthorized_sync"
 
 
-_HMAC_KEY = b"maref-federated-audit-key"
+_HMAC_KEY: bytes | None = None
+
+
+def _ensure_hmac_key() -> bytes:
+    global _HMAC_KEY
+    if _HMAC_KEY is not None:
+        return _HMAC_KEY
+    key = os.environ.get("MAREF_FEDERATED_AUDIT_KEY")
+    if key:
+        _HMAC_KEY = key.encode("utf-8")
+        return _HMAC_KEY
+    try:
+        import keyring
+        stored = keyring.get_password("system", "maref-federated-audit-key")
+        if stored:
+            _HMAC_KEY = stored.encode("utf-8")
+            return _HMAC_KEY
+    except ImportError:
+        pass
+    raise RuntimeError(
+        "MAREF_FEDERATED_AUDIT_KEY environment variable not set. "
+        "Use keyring_store.py to store it, or set the env var before "
+        "using federated audit."
+    )
 
 
 @dataclass
@@ -62,7 +86,9 @@ class FederatedAuditEntry:
             "hmac_signature": self.hmac_signature,
         }
 
-    def sign(self, key: bytes = _HMAC_KEY) -> str:
+    def sign(self, key: bytes | None = None) -> str:
+        if key is None:
+            key = _ensure_hmac_key()
         payload = (
             f"{self.entry_id}:{self.event_type.value}:{self.source_instance}:"
             f"{self.target_instance}:{self.data_type}:{self.details}:{self.timestamp}"
@@ -70,9 +96,11 @@ class FederatedAuditEntry:
         self.hmac_signature = hmac_lib.new(key, payload, hashlib.sha256).hexdigest()
         return self.hmac_signature
 
-    def verify(self, key: bytes = _HMAC_KEY) -> bool:
+    def verify(self, key: bytes | None = None) -> bool:
         if not self.hmac_signature:
             return False
+        if key is None:
+            key = _ensure_hmac_key()
         payload = (
             f"{self.entry_id}:{self.event_type.value}:{self.source_instance}:"
             f"{self.target_instance}:{self.data_type}:{self.details}:{self.timestamp}"

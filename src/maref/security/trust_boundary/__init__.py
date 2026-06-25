@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from maref.security.decorators import security_critical
+
 if TYPE_CHECKING:
     from maref.governance.audit import AuditLogger
     from maref.governance.circuit_breaker import CircuitBreaker
@@ -138,6 +140,7 @@ class TrustBoundaryManager:
     def get_agent_domain(self, agent_id: str) -> str | None:
         return self._agent_domain_map.get(agent_id)
 
+    @security_critical
     def check_cross_domain(
         self,
         source_agent_id: str,

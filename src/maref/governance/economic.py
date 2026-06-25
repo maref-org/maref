@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.security.decorators import security_critical
+
 # ── Safety Investment Auditor ────────────────────────────────────────────────
 
 
@@ -96,6 +98,7 @@ class SafetyInvestmentAuditor:
         self._entries.append(entry)
         return entry
 
+    @security_critical
     def audit(self) -> SafetyAuditReport:
         total = sum(e.amount for e in self._entries)
         safety = sum(
@@ -215,6 +218,7 @@ class AgentInsurancePricing:
         self._violations.setdefault(agent_id, []).append(record)
         return record
 
+    @security_critical
     def calculate_premium(
         self,
         agent_id: str,
@@ -353,6 +357,7 @@ class VulnerabilityBountyBoard:
         self._reports[report.report_id] = report
         return report
 
+    @security_critical
     def review_report(
         self, report_id: str, reviewer: str, accepted: bool
     ) -> VulnerabilityReport | None:
@@ -367,6 +372,7 @@ class VulnerabilityBountyBoard:
         report.reviewer = reviewer
         return report
 
+    @security_critical
     def pay_report(self, report_id: str) -> VulnerabilityReport | None:
         report = self._reports.get(report_id)
         if report is None or report.status != BountyStatus.ACCEPTED:

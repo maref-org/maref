@@ -53,6 +53,10 @@ class BehaviorBaseline:
     def get_profile(self, agent_id: str) -> AgentProfile | None:
         return self._profiles.get(agent_id)
 
+    @property
+    def profile_count(self) -> int:
+        return len(self._profiles)
+
     def _compute_profile(self, agent_id: str, history: list[SessionRecord]) -> AgentProfile:
         if not history:
             return AgentProfile(agent_id=agent_id)
