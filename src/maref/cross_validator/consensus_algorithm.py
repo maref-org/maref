@@ -181,6 +181,10 @@ class WeightedConsensusEngine:
         self._proposals: dict[str, Proposal] = {}
         self._consensus_history: list[ConsensusResult] = []
 
+    def has_validator(self, node_id: str) -> bool:
+        """Check if a validator is already registered."""
+        return node_id in self._validators
+
     def register_validator(
         self, node_id: str, initial_weight: float = 1.0, trust_score: float = 1.0
     ) -> ValidatorNode:
@@ -386,34 +390,64 @@ class WeightedConsensusEngine:
 
     def _detect_byzantine_behavior(self, proposal_id: str, votes: list[Vote]) -> list[str]:
         """
-        检测拜占庭行为
+        Detect Byzantine behavior using weighted consensus.
 
-        简单策略：如果某个节点频繁与其他节点投票不一致，可能为拜占庭节点。
+        Uses weighted voting to resist majority tyranny:
+        - Computes weighted majority (not raw count)
+        - Only flags nodes when consensus strength > 2/3
+        - Considers trust score before flagging as Byzantine
         """
         byzantine_nodes: list[str] = []
 
-        # 获取多数投票意见
-        approve_count = sum(1 for v in votes if v.vote_value == VoteValue.APPROVE)
-        reject_count = sum(1 for v in votes if v.vote_value == VoteValue.REJECT)
+        # Weighted vote aggregation
+        total_approve_weight = 0.0
+        total_reject_weight = 0.0
 
-        majority_vote = VoteValue.APPROVE if approve_count > reject_count else VoteValue.REJECT
+        for v in votes:
+            validator = self._validators.get(v.validator_id)
+            weight = validator.weight if validator else 1.0
+            if v.vote_value == VoteValue.APPROVE:
+                total_approve_weight += weight
+            elif v.vote_value == VoteValue.REJECT:
+                total_reject_weight += weight
 
-        # 检查每个验证者的历史行为
+        total_weight = total_approve_weight + total_reject_weight
+        if total_weight == 0:
+            return []
+
+        # Weighted majority with strength check
+        majority_approves = total_approve_weight > total_reject_weight
+        majority_weight = max(total_approve_weight, total_reject_weight)
+        consensus_strength = majority_weight / total_weight
+
+        # Only flag if consensus is strong (>2/3 threshold)
+        if consensus_strength <= 2 / 3:
+            return []
+
         for vote in votes:
             validator = self._validators.get(vote.validator_id)
             if not validator:
                 continue
 
-            # 如果当前投票与多数派严重不一致
-            if vote.vote_value != majority_vote and vote.vote_value != VoteValue.ABSTAIN:
-                # 检查历史记录
-                inconsistent_count = sum(
-                    1 for h in validator.reputation_history[-10:] if h.get("action") == "penalize"
-                )
+            if vote.vote_value == VoteValue.ABSTAIN:
+                continue
 
-                if inconsistent_count >= 3:
-                    byzantine_nodes.append(vote.validator_id)
-                    validator.is_byzantine = True
+            dissents = (
+                (vote.vote_value == VoteValue.APPROVE and not majority_approves)
+                or (vote.vote_value == VoteValue.REJECT and majority_approves)
+            )
+            if not dissents:
+                continue
+
+            # Only flag as Byzantine if trust score is critically low
+            # AND multiple penalizations in recent history
+            penalization_count = sum(
+                1 for h in validator.reputation_history[-10:] if h.get("action") == "penalize"
+            )
+
+            if validator.trust_score < 0.3 and penalization_count >= 3:
+                byzantine_nodes.append(vote.validator_id)
+                validator.is_byzantine = True
 
         return byzantine_nodes
 
@@ -542,7 +576,7 @@ class CrossValidator:
 
         for agent_id, output in outputs.items():
             # 检查是否已注册为验证者，如果没有则自动注册
-            if agent_id not in self.consensus._validators:
+            if not self.consensus.has_validator(agent_id):
                 self.consensus.register_validator(agent_id)
 
             # 语义等价性检查

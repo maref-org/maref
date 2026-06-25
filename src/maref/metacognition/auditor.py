@@ -117,7 +117,7 @@ class MetaCognitiveAuditor:
 
     def get_stats(self) -> dict[str, Any]:
         return {
-            "agents_tracked": len(self._baseline._profiles),
+            "agents_tracked": self._baseline.profile_count,
             "total_assessments": sum(len(v) for v in self._assessments.values()),
             "assessments_by_agent": {
                 agent_id: len(results)

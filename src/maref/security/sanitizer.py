@@ -13,6 +13,8 @@ import re
 import secrets
 from dataclasses import dataclass, field
 
+from maref.security.decorators import security_critical
+
 # PII patterns (conservative — flag and replace, never silently pass)
 PII_PATTERNS: dict[str, re.Pattern] = {
     "phone_cn": re.compile(r"1[3-9]\d{9}"),
@@ -66,6 +68,7 @@ class Sanitizer:
 
     TOKEN_PREFIX = "[PII_"
 
+    @security_critical
     def sanitize_input(self, text: str) -> SanitizeResult:
         """Sanitize input text: detect PII, SQL injection, validate length."""
         result = SanitizeResult(text=text)

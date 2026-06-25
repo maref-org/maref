@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Callable
+from threading import RLock
 
 from maref.governance.constants import (
     ENTROPY_LEVELS as _ENTROPY_LEVELS_INT,
@@ -62,6 +63,7 @@ class GovernanceStateMachine:
         self._callbacks: list[Callable[[StateTransition], None]] = []
         self._entropy_history: list[int] = []
         self._transition_count: int = 0
+        self._lock: RLock = RLock()
 
     # --- Properties ---
 
@@ -110,22 +112,23 @@ class GovernanceStateMachine:
 
         Returns True if the transition was accepted.
         """
-        if not self.can_transition(target):
-            return False
+        with self._lock:
+            if not self.can_transition(target):
+                return False
 
-        event = StateTransition(
-            from_state=self._state,
-            to_state=target,
-            reason=reason,
-        )
+            event = StateTransition(
+                from_state=self._state,
+                to_state=target,
+                reason=reason,
+            )
 
-        self._state = target
-        self._history.append(event)
-        self._entropy_history.append(self.current_entropy)
-        self._transition_count += 1
+            self._state = target
+            self._history.append(event)
+            self._entropy_history.append(self.current_entropy)
+            self._transition_count += 1
 
-        self._notify_callbacks(event)
-        return True
+            self._notify_callbacks(event)
+            return True
 
     # --- Force Operations ---
 
@@ -136,23 +139,25 @@ class GovernanceStateMachine:
         Can reach STABILIZE from any non-HALT state by walking
         through valid intermediate states.
         """
-        if self._state == GovernanceState.HALT:
-            return False
-        if self.can_transition(GovernanceState.STABILIZE):
-            return self.transition(GovernanceState.STABILIZE, reason)
-        return self._bfs_to(GovernanceState.STABILIZE, reason)
+        with self._lock:
+            if self._state == GovernanceState.HALT:
+                return False
+            if self.can_transition(GovernanceState.STABILIZE):
+                return self.transition(GovernanceState.STABILIZE, reason)
+            return self._bfs_to(GovernanceState.STABILIZE, reason)
 
     def force_halt(self, reason: str = "emergency") -> bool:
         """Force transition to HALT via BFS shortest path."""
-        if self._state == GovernanceState.HALT:
-            return False
-        if self.can_transition(GovernanceState.HALT):
-            return self.transition(GovernanceState.HALT, reason)
-        if self.can_transition(GovernanceState.REPORT):
-            self.transition(GovernanceState.REPORT, "pre_halt")
+        with self._lock:
+            if self._state == GovernanceState.HALT:
+                return False
             if self.can_transition(GovernanceState.HALT):
                 return self.transition(GovernanceState.HALT, reason)
-        return self._bfs_to(GovernanceState.HALT, reason)
+            if self.can_transition(GovernanceState.REPORT):
+                self.transition(GovernanceState.REPORT, "pre_halt")
+                if self.can_transition(GovernanceState.HALT):
+                    return self.transition(GovernanceState.HALT, reason)
+            return self._bfs_to(GovernanceState.HALT, reason)
 
     def _bfs_to(self, target: GovernanceState, reason: str) -> bool:
         """Find and execute shortest path to target via BFS."""

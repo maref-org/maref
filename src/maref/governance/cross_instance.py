@@ -22,6 +22,7 @@ from typing import Any
 
 from maref.governance.federated_audit import AuditEventType, FederatedAuditLog
 from maref.governance.sync_policy import SyncDataType, SyncDirection, SyncPolicyRegistry
+from maref.security.decorators import security_critical
 
 
 class SyncResult(Enum):
@@ -132,6 +133,7 @@ class CrossInstanceGovernor:
         )
         return True
 
+    @security_critical
     def request_sync(
         self,
         data_type: SyncDataType,
@@ -181,11 +183,13 @@ class CrossInstanceGovernor:
         )
         return SyncResult.SUCCESS
 
+    @security_critical
     def register_consensus_validator(
         self, validator: Callable[[str, str, Any], bool]
     ) -> None:
         self._consensus_validators.append(validator)
 
+    @security_critical
     def receive_weights(
         self,
         instance_id: str,
@@ -257,6 +261,7 @@ class CrossInstanceGovernor:
 
 
 class WeightPoisonDetector:
+    @security_critical
     def detect_poisoning(
         self, all_weights: dict[str, dict[str, float]]
     ) -> list[dict[str, Any]]:
