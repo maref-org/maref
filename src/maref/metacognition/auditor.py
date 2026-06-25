@@ -120,7 +120,6 @@ class MetaCognitiveAuditor:
             "agents_tracked": self._baseline.profile_count,
             "total_assessments": sum(len(v) for v in self._assessments.values()),
             "assessments_by_agent": {
-                agent_id: len(results)
-                for agent_id, results in self._assessments.items()
+                agent_id: len(results) for agent_id, results in self._assessments.items()
             },
         }
