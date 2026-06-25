@@ -142,7 +142,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", default=True)
     args = parser.parse_args()
     result = DailyEvolutionLoop(vault_dir=args.vault, dry_run=args.dry_run).run_once()
-    print(result.to_dict())
+    print(result.to_dict() if result else "{}")
 
 
 if __name__ == "__main__":

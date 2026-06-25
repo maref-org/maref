@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [v0.34.1] - 2026-06-25 (Patch — 门禁修复 + 版本一致性 + 覆盖口径对齐)
+
+### Fixed
+- **mypy 1 error**: `src/maref/evolution/daily_loop.py:145` — None 处理缺失
+- **版本一致性**: 4 文件 `0.34.0-rc` → `0.34.1`（Dockerfile, agent_card_config, Cargo.toml, STATE.yaml）
+- **覆盖口径对齐**: `branch=false`, source=`src/maref/` 核心模块, fail_under=30
+- **覆盖率基线**: `src/maref/` 36.1% (v0.34.1 baseline, 目标 v0.35.0 提升至 50%+)
+
+### Quality Gate
+- Ruff: 0 errors ✅
+- Mypy: 0 errors ✅
+- Version consistency: all 8 files aligned ✅
+
 ## [v0.34.0] - 2026-06-23 (GA — G1-G5 辛顿交叉验证全量补强)
 
 ### 里程碑

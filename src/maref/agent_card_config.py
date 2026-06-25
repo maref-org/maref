@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-AGENT_ID = "maref-v0.34.0-rc"
+AGENT_ID = "maref-v0.34.1"
 AGENT_NAME = "MAREF"
-AGENT_VERSION = "0.34.0-rc"
+AGENT_VERSION = "0.34.1"
 AGENT_DESCRIPTION = (
     "Multi-Agent Recursive Engineering Framework — "
     "six-layer governance architecture with tool orchestration, "
