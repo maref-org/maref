@@ -41,7 +41,13 @@ jobs:
         run: |
           coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark"
       - name: Validate mock consistency
-        run: python -c "from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, f'Mock mismatch: {errors}'"
+        shell: python
+        run: |
+          from pathlib import Path
+          from maref.testing.mock_validator import MockValidator
+          v = MockValidator(schema_dir=Path("vault/schemas"), mock_dir=Path("vault/mocks"))
+          errors = v.validate_all()
+          assert not errors, f"Mock mismatch: {errors}"
       - name: Coverage report
         run: coverage report --fail-under=70
 
