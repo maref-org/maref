@@ -1,14 +1,14 @@
 # MAREF 开源执行状态 — 所有外围 Code Agent 的唯一事实源
-# 版本: 1 | 最后更新: 2026-06-17 | 维护者: OPENCODE
+# 版本: 1 | 最后更新: 2026-06-25 | 维护者: OPENCODE
 # 读取规则: Agent 启动时读取本文件。当 last_updated 超过 24h 时标记过时。
 # 写入规则: Agent 完成状态变更后原子更新本文件，不允许并发写入。
 
-version: 10
-last_updated: "2026-06-22T17:30:00+08:00"
+version: 11
+last_updated: "2026-06-25T16:00:00+08:00"
 
 project:
   name: MAREF
-  current_release: "0.34.0-rc"
+  current_release: "0.34.1"
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   stage: S0 (学术借力) → P0 (开源启动)
@@ -22,11 +22,12 @@ track_b:
 
 governance:
   deployment_status: improving
-  last_audit: "2026-06-17"
+  last_audit: "2026-06-25"
   audit_score: 5.8/10
-  coverage_overall: 69.92%
-  coverage_governance: "~90%"
-  mypy_errors: 19
+  coverage_overall: 36.1%  # v0.34.1 baseline (src/maref/ only, branch=false)
+  coverage_governance: "~60%"  # governance/ subpackage
+  coverage_target_v0350: "50%+"
+  mypy_errors: 0
   issues:
     - id: GOV-20260612-04
       severity: P1
@@ -93,7 +94,18 @@ governance:
     - id: AUDIT-20260617-03
       severity: P1
       description: mypy strict mode 29 errors in 9 files
+      status: resolved  # 0 errors as of v0.34.1
+      resolved_at: "2026-06-25"
+    - id: V0341-20260625-01
+      severity: P1
+      description: Version consistency 4-file mismatch (0.34.0-rc vs 0.34.0), fixed to 0.34.1
+      status: resolved
+      resolved_at: "2026-06-25"
+    - id: V0341-20260625-02
+      severity: P2
+      description: Coverage baseline realigned — src/maref/ 36.1% (branch=false). Target v0.35.0: 50%+
       status: active
+      target: v0.35.0
     - id: AUDIT-20260617-04
       severity: P1
       description: Coverage Day 1 — security module from ~55% to ~87%
