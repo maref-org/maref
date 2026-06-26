@@ -52,6 +52,20 @@ jobs:
       - name: pip-audit
         run: pip-audit --ignore-vuln PYSEC-2026-196
 
+  trivy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+          skip-dirs: gui/src-tauri/target,website/node_modules,.git,.worktrees
+
   dast-scan:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest

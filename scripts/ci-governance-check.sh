@@ -68,13 +68,16 @@ fi
 
 # Check 6: CLAUDE.md contains constitutional requirements (if file exists)
 if [ -f "CLAUDE.md" ]; then
-    PATTERNS="Athena 系统宪法\|安全红线\|宪法优先"
+    PATTERNS="Athena 系统宪法|安全红线|宪法优先"
     MATCHES=0
-    for pattern in $(echo "$PATTERNS" | tr '|' ' '); do
+    OLD_IFS="$IFS"
+    IFS='|'
+    for pattern in $PATTERNS; do
         if grep -q "$pattern" CLAUDE.md 2>/dev/null; then
             MATCHES=$((MATCHES + 1))
         fi
     done
+    IFS="$OLD_IFS"
     if [ "$MATCHES" -eq 3 ]; then
         echo "  ✅ CLAUDE.md constitutional compliance"
     else

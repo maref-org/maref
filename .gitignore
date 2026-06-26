@@ -71,6 +71,7 @@ results/experiments/*
 *.pem
 *.secret
 credentials/
+.gaas_api_key
 
 # Generated LaunchAgent plists (machine-specific)
 scripts/*.plist
@@ -130,6 +131,9 @@ telemetry-server/data/
 
 # OpenCode config
 .opencode/
+
+# Website (maref.cc) — Track A asset (openclaw), not in this repo
+website/
 
 # Policy versions (runtime generated)
 policy_versions/

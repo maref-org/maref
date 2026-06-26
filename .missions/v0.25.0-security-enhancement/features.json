@@ -1,0 +1,77 @@
+{
+  "mission_id": "maref-v0.25.0-security-enhancement",
+  "version": "0.25.0",
+  "milestones": [
+    {
+      "id": "m0",
+      "name": "Security Audit Foundation",
+      "description": "Base security audit infrastructure",
+      "features": [
+        {"id": "1.1", "name": "SecurityScanner", "description": "SAST/DAST/SCA 扫描管线", "dependencies": [], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "1.2", "name": "BanditTriage", "description": "Bandit 问题分类处理", "dependencies": ["1.1"], "test_coverage_threshold": 80, "status": "completed"}
+      ]
+    },
+    {
+      "id": "m1",
+      "name": "Code Quality Gates",
+      "description": "质量门禁强化",
+      "features": [
+        {"id": "2.1", "name": "RuffZero", "description": "Ruff 0 违规门禁", "dependencies": [], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "2.2", "name": "MypyStrict", "description": "Mypy strict mode 0 错误", "dependencies": [], "test_coverage_threshold": 0, "status": "completed"}
+      ]
+    },
+    {
+      "id": "m2",
+      "name": "Secret & Credential Hardening",
+      "description": "密钥与凭证安全加固",
+      "features": [
+        {"id": "3.1", "name": "KeyScan", "description": "TruffleHog/GitLeaks 密钥扫描集成", "dependencies": [], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "3.2", "name": "KeyringStore", "description": "macOS Keychain 密钥存储集成", "dependencies": [], "test_coverage_threshold": 85, "status": "completed"}
+      ]
+    },
+    {
+      "id": "m3",
+      "name": "Input Validation & Sanitization",
+      "description": "输入验证与消毒",
+      "features": [
+        {"id": "4.1", "name": "Sanitizer", "description": "通用输入消毒器", "dependencies": [], "test_coverage_threshold": 90, "status": "completed"},
+        {"id": "4.2", "name": "PydanticValidation", "description": "Pydantic + 自定义校验器全覆盖", "dependencies": ["4.1"], "test_coverage_threshold": 90, "status": "completed"}
+      ]
+    },
+    {
+      "id": "m4",
+      "name": "Audit Logging & Integrity",
+      "description": "审计日志与完整性保护",
+      "features": [
+        {"id": "5.1", "name": "HMAC Audit", "description": "HMAC-SHA256 审计日志签名", "dependencies": [], "test_coverage_threshold": 90, "status": "completed"},
+        {"id": "5.2", "name": "MerkleProof", "description": "Merkle 审计链完整性证明", "dependencies": ["5.1"], "test_coverage_threshold": 80, "status": "completed"}
+      ]
+    },
+    {
+      "id": "m5",
+      "name": "Trust Boundary Isolation",
+      "description": "信任边界隔离",
+      "features": [
+        {"id": "6.1", "name": "TrustBoundaryManager", "description": "跨域调用授权管理器", "dependencies": [], "test_coverage_threshold": 90, "status": "completed"},
+        {"id": "6.2", "name": "ZeroTrustValidator", "description": "零信任验证器", "dependencies": ["6.1"], "test_coverage_threshold": 85, "status": "completed"}
+      ]
+    },
+    {
+      "id": "m6",
+      "name": "Security Gate & Release Checklist",
+      "description": "安全门控验证与发布检查清单",
+      "features": [
+        {"id": "7.1", "name": "SafetyGate", "description": "安全门控 v2 验证器", "dependencies": ["6.1"], "test_coverage_threshold": 85, "status": "completed"},
+        {"id": "7.2", "name": "CertificationChecklist", "description": "发布前合规检查清单", "dependencies": ["7.1", "5.2"], "test_coverage_threshold": 80, "status": "completed"}
+      ]
+    }
+  ],
+  "current_milestone": "m6",
+  "completed_milestones": ["m0", "m1", "m2", "m3", "m4", "m5", "m6"],
+  "total_estimated_tokens": "5M",
+  "budget_usd": 0,
+  "risk_level": "high",
+  "validator_rounds": 7,
+  "features_total": 14,
+  "features_completed": 14
+}

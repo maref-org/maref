@@ -138,7 +138,7 @@ class A2AClient:
         self, agent_url: str, task_id: str, callback: Callable[[str], Any]
     ) -> None:
         try:
-            async with httpx.AsyncClient(timeout=None) as client, client.stream(
+            async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=5.0, read=None)) as client, client.stream(
                 "GET",
                 f"{agent_url.rstrip('/')}/api/a2a/task/{task_id}/stream",
                 headers=self._headers(),
