@@ -95,7 +95,7 @@ output-test/
 *.swo
 
 # Build artifacts / legacy packages
-sidecar/
+/sidecar/
 
 # Runtime audit / data files
 *_audit.jsonl

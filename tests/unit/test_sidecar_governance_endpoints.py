@@ -174,28 +174,16 @@ class TestObservabilityEndpoints:
         data = response.json()
         assert isinstance(data, dict)
 
-    @pytest.mark.xfail(
-        sys.platform == "darwin",
-        reason="SQLite threading issue on macOS with FastAPI TestClient",
-    )
     def test_cost_report(self, client: TestClient) -> None:
         response = client.get("/api/v1/observability/cost-report")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, dict)
 
-    @pytest.mark.xfail(
-        sys.platform == "darwin",
-        reason="SQLite threading issue on macOS with FastAPI TestClient",
-    )
     def test_cost_report_with_params(self, client: TestClient) -> None:
         response = client.get("/api/v1/observability/cost-report?agent_id=agent-1&since=2026-01-01")
         assert response.status_code == 200
 
-    @pytest.mark.xfail(
-        sys.platform == "darwin",
-        reason="SQLite threading issue on macOS with FastAPI TestClient",
-    )
     def test_cost_by_team(self, client: TestClient) -> None:
         response = client.get("/api/v1/observability/cost-by-team")
         assert response.status_code == 200
