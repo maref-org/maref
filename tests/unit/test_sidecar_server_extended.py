@@ -259,7 +259,6 @@ class TestMessages:
         assert response.status_code == 404
 
 
-@pytest.mark.xfail(strict=False, reason="需要实际 provider 后端返回数据，mock 环境中 providers/models 不可用")
 class TestProvidersSkillsTasks:
     def test_providers_endpoint(self, client: TestClient) -> None:
         response = client.get("/api/providers")
