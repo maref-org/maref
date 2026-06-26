@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from maref.governance.cross_instance import (
     CrossInstanceGovernor,
     InstanceStatus,
@@ -343,3 +345,47 @@ class TestWeightPoisonDetector:
     def test_empty_weights_no_detection(self) -> None:
         detector = WeightPoisonDetector()
         assert detector.detect_poisoning({}) == []
+
+
+class TestFederatedAuditEdgeCases:
+    def test_sign_with_explicit_key(self) -> None:
+        from maref.governance.federated_audit import FederatedAuditEntry, AuditEventType
+        entry = FederatedAuditEntry(
+            entry_id="e1", event_type=AuditEventType.SYNC_STARTED,
+            source_instance="a", target_instance="b", data_type="t", details="",
+        )
+        sig = entry.sign(key=b"custom-key")
+        assert entry.hmac_signature == sig
+        assert entry.verify(key=b"custom-key")
+
+    def test_verify_empty_signature(self) -> None:
+        from maref.governance.federated_audit import FederatedAuditEntry, AuditEventType
+        entry = FederatedAuditEntry(
+            entry_id="e1", event_type=AuditEventType.SYNC_FAILED,
+            source_instance="a", target_instance="b", data_type="t", details="",
+        )
+        assert not entry.verify()
+
+    def test_get_entries_returns_copy(self) -> None:
+        from maref.governance.federated_audit import FederatedAuditLog, AuditEventType
+        log = FederatedAuditLog()
+        log.record(AuditEventType.SYNC_STARTED, "a", "b", "t")
+        entries = log.get_entries()
+        entries.clear()
+        assert log.entry_count == 1
+
+    def test_query_limit(self) -> None:
+        from maref.governance.federated_audit import FederatedAuditLog, AuditEventType
+        log = FederatedAuditLog()
+        log.record(AuditEventType.SYNC_STARTED, "a", "b", "t1")
+        log.record(AuditEventType.SYNC_FAILED, "c", "d", "t2")
+        results = log.query(limit=1)
+        assert len(results) == 1
+
+    def test_missing_key_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import importlib
+        fed = importlib.import_module("maref.governance.federated_audit")
+        monkeypatch.delenv("MAREF_FEDERATED_AUDIT_KEY", raising=False)
+        monkeypatch.setattr(fed, "_HMAC_KEY", None, raising=False)
+        with pytest.raises(RuntimeError, match="MAREF_FEDERATED_AUDIT_KEY"):
+            fed._ensure_hmac_key()
