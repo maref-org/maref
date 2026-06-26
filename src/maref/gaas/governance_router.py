@@ -146,6 +146,16 @@ class GovernanceRouter:
                 return Verdict.ASK_USER, HITLTier.P0, "Dangerous action requires approval"
             return Verdict.ALLOW, HITLTier.P0, "Dangerous action allowed for trusted agent"
 
+        # P0: Git push requires human approval
+        if req.action == "git.push":
+            return Verdict.ASK_USER, HITLTier.P0, "git.push requires human approval"
+
+        # P1: Git commit requires human approval for untrusted agents
+        if req.action == "git.commit":
+            if req.context.trust_score < 80:
+                return Verdict.ASK_USER, HITLTier.P1, "git.commit requires human approval for untrusted agents"
+            return Verdict.ALLOW, HITLTier.P1, "git.commit allowed for trusted agent"
+
         # P1: High recursion depth (relaxed during active sessions)
         if req.context.recursion_depth > 2:
             session_id = req.context.session_id

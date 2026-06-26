@@ -1,6 +1,6 @@
 # MAREF — Multi-Agent Recursive Evolution Framework
 
-> **上位法**: [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md)。冲突时宪法优先。
+> **上位法**: [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md)。安全红线不可降级。冲突时宪法优先。
 > **项目状态**: `STATE.yaml` — 仓库的唯一事实源
 > **Agent 操作手册**: `AGENTS.md` — Agent 行为规范与架构边界
 

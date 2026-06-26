@@ -102,7 +102,55 @@ app.add_typer(ip_app, name="ip")
 app.add_typer(demo_app, name="demo")
 
 
-# ── Core commands ────────────────────────────────────────────────────
+# ── Rollback command ──────────────────────────────────────────────────
+
+
+@app.command()
+def rollback(
+    target: str = typer.Argument(
+        default="",
+        help="Target version to rollback to (e.g. v0.34.0). Empty to list available versions.",
+    ),
+) -> None:
+    """Show rollback instructions or execute version rollback plan.
+
+    MAREF uses pip-managed packages. Rollback between releases:
+      1. Install target version:  pip install maref==<version>
+      2. Revert database:         python scripts/db_revert.py <version>
+      3. Restore Docker image:    docker pull maref/maref:<version>
+      4. Verify:                  maref --version && maref status
+
+    Use 'maref rollback' without arguments to list available versions.
+    """
+    from maref_lite import __version__ as current
+
+    console.print(f"[bold]Current version:[/bold] MAREF v{current}")
+    console.print()
+
+    if target:
+        ver = target.removeprefix("v")
+        console.print(f"[yellow]Rollback plan to v{ver}:[/yellow]")
+        console.print(f"  1. pip install maref=={ver}")
+        console.print(f"  2. docker pull maref/maref:{ver}")
+        console.print("  3. maref --version  # verify")
+        console.print("  4. maref status     # confirm governance state")
+        return
+
+    console.print("[bold]Available versions (from git tags):[/bold]")
+    try:
+        result = subprocess.run(
+            ["git", "tag", "--sort=-version:refname"],
+            capture_output=True, text=True, timeout=10,
+        )
+        for tag in result.stdout.strip().split("\n")[:10]:
+            marker = " ← current" if tag == f"v{current}" else ""
+            console.print(f"  {tag}{marker}")
+    except Exception:
+        console.print("  [dim](git not available — install via pip)[/dim]")
+
+    console.print()
+    console.print("[bold]Usage:[/bold] maref rollback <version>")
+    console.print("  e.g. maref rollback v0.34.0")
 
 
 @app.command()

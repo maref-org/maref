@@ -140,7 +140,7 @@ kubectl apply -f k8s/production/
 
 ## Mission Workspace
 - **路径**: `.missions/v0.25.0-security-enhancement/`
-- **特性**: 22/22 completed, 330 tests passed
+- **特性**: 22/22 completed, 9327 tests collected (5968 passed in standard suite)
 - **验证**: 7 validator rounds, 4 issues found and resolved
 - **里程碑**: m0-m6 all completed
 
