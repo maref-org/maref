@@ -8,6 +8,7 @@ from typing import Any
 
 _OMNI_PARSER_AVAILABLE = False
 _COG_AGENT_AVAILABLE = False
+_ACCESSIBILITY_AVAILABLE = False
 _transformers_available = False
 
 try:
@@ -145,13 +146,14 @@ class ScreenParseResult:
 class OmniParserInterface:
     """Multi-backend screen parsing interface.
 
-    Supports three pluggable backends:
+    Supports four pluggable backends:
     - omni_parser: Microsoft OmniParser v2 (local, via HuggingFace transformers)
     - cog_agent: THUDM CogAgent (grounding vision-language model)
+    - accessibility: macOS Accessibility API via JXA (no GPU, no ML models)
     - mock: Deterministic fake elements for testing without GPU
     """
 
-    SUPPORTED_BACKENDS = ("omni_parser", "cog_agent", "mock", "auto")
+    SUPPORTED_BACKENDS = ("omni_parser", "cog_agent", "mock", "accessibility", "auto")
 
     def __init__(self, backend: str = "auto", model_config: dict[str, Any] | None = None) -> None:
         if backend not in self.SUPPORTED_BACKENDS:
@@ -165,6 +167,7 @@ class OmniParserInterface:
         self._processor: Any = None
         self._backend_info: dict[str, Any] = {}
         self._actual_backend = backend
+        self._accessibility_parser: Any = None
 
     @property
     def backend(self) -> str:
@@ -195,6 +198,8 @@ class OmniParserInterface:
                 self._init_omni_parser()
             elif self._backend == "cog_agent":
                 self._init_cog_agent()
+            elif self._backend == "accessibility":
+                self._init_accessibility()
             self._initialized = True
             self._actual_backend = self._backend
             return True
@@ -205,8 +210,29 @@ class OmniParserInterface:
 
     def _initialize_auto(self) -> bool:
         import logging
+        import platform
 
         _logger = logging.getLogger(__name__)
+
+        # macOS: try Accessibility API first (no GPU needed)
+        if platform.system() == "Darwin":
+            try:
+                from maref.desktop.accessibility_parser import AccessibilityParser
+
+                ax_parser = AccessibilityParser()
+                if ax_parser.initialize():
+                    self._accessibility_parser = ax_parser
+                    self._initialized = True
+                    self._actual_backend = "accessibility"
+                    self._backend_info = {
+                        "backend": "auto",
+                        "loaded": True,
+                        "model": "macOS-accessibility-api",
+                        "selected": "accessibility",
+                    }
+                    return True
+            except Exception as exc:
+                _logger.debug("Accessibility API not available: %s", exc)
 
         if not _transformers_available:
             _logger.warning(
@@ -287,6 +313,14 @@ class OmniParserInterface:
             return self._omni_parser_parse(screenshot_path, screen_width, screen_height)
         if backend == "cog_agent":
             return self._cog_agent_parse(screenshot_path, screen_width, screen_height)
+        if backend == "accessibility":
+            if self._accessibility_parser is not None:
+                return self._accessibility_parser.parse(
+                    target_app="",
+                    screen_width=screen_width,
+                    screen_height=screen_height,
+                )
+            return self._mock_parse(screen_width, screen_height)
         raise ValueError(f"Unknown backend: {backend}")
 
     # ── OmniParser (Microsoft) backend ──────────────────────────────────
@@ -574,6 +608,23 @@ class OmniParserInterface:
             parse_time_ms=5.0,
             model_name="mock-omni-parser-v0",
         )
+
+    # ── Accessibility backend ───────────────────────────────────────────
+
+    def _init_accessibility(self) -> None:
+        global _ACCESSIBILITY_AVAILABLE
+        from maref.desktop.accessibility_parser import AccessibilityParser
+
+        parser = AccessibilityParser()
+        if not parser.initialize():
+            raise RuntimeError("AX permissions not granted for AccessibilityParser")
+        self._accessibility_parser = parser
+        self._backend_info = {
+            "backend": "accessibility",
+            "loaded": True,
+            "model": "macOS-accessibility-api",
+        }
+        _ACCESSIBILITY_AVAILABLE = True
 
     def benchmark(self, screenshot_path: str = "", num_runs: int = 5) -> dict[str, Any]:
         """Run a quick benchmark: returns avg latency and element count."""
