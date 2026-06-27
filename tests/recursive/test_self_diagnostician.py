@@ -294,13 +294,21 @@ class TestSelfDiagnostician:
         assert d.check_and_trip(report) is False
         assert d._blocked is True
 
-    def test_check_and_trip_cb_closed_critical(self) -> None:
+    def test_check_and_trip_cb_closed_critical_returns_true(self) -> None:
         d = SelfDiagnostician()
+        report = DiagnosisReport(snapshot_ref="s1", risk_matrix={"entropy": RiskLevel.CRITICAL})
+        assert d.check_and_trip(report) is True
+        assert d._cb_state == "CLOSED"
+        assert d._blocked is False
+        assert d._trip_count == 1
+
+    def test_check_and_trip_trips_after_3_critical(self) -> None:
+        d = SelfDiagnostician()
+        d._trip_count = 3
         report = DiagnosisReport(snapshot_ref="s1", risk_matrix={"entropy": RiskLevel.CRITICAL})
         assert d.check_and_trip(report) is False
         assert d._cb_state == "OPEN"
         assert d._blocked is True
-        assert d._trip_count == 1
 
     def test_check_and_trip_cb_closed_no_critical(self) -> None:
         d = SelfDiagnostician()

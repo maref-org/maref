@@ -9,7 +9,7 @@
 - **版本**: v0.34.0-rc
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
-- **架构**: 六层治理架构（天极→人极→地极→经卦→别卦→爻变）
+- **架构**: 概念语义层 天极→人极→地极→经卦→别卦→爻变（I Ching 治理语义）映射到代码实现层叠 元层→治理层→编排层→执行层→基础设施层（详见 docs/architecture.md）
 - **代码风格**: PEP 8 + ruff + mypy strict mode
 - **安全级别**: 最高（不可降级安全断言）
 - **开源协议**: Apache-2.0

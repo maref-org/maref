@@ -22,6 +22,25 @@ if TYPE_CHECKING:
     from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
     from maref.immunity.intent_drift_detector import IntentDriftDetector
 
+USE_CODEGEN_LOOP = os.environ.get("MAREF_USE_CODEGEN_LOOP", "0") in {"1", "true", "yes"}
+
+HAS_CODEGEN = False
+try:
+    from maref.codegen.context import ContextManager, Message  # noqa: F401
+    from maref.codegen.executor import ToolExecutor  # noqa: F401
+    from maref.codegen.loop import CodeGenLoop  # noqa: F401
+    from maref.codegen.permissions import (  # noqa: F401
+        PermissionEngine,
+        PermissionMode,
+        PermissionRule,
+    )
+    from maref.codegen.quality import QualityGateConfig  # noqa: F401
+    from maref.codegen.registry import ToolRegistry  # noqa: F401
+    from maref.codegen.tool import ToolContext  # noqa: F401
+    HAS_CODEGEN = True
+except ImportError:
+    pass
+
 
 class ExecutionStage(Enum):
     CODE_GEN = "code_generation"
@@ -568,6 +587,9 @@ class SelfExecutor:
         self._history: list[ExecutionPipelineRecord] = []
         self._intent_drift_detector: IntentDriftDetector | None = None
         self._gene_pipeline: AutoGeneExtractionPipeline | None = None
+        self._codegen_loop: Any = None
+        self._codegen_tool: Any = None
+        self._use_new_loop = USE_CODEGEN_LOOP and HAS_CODEGEN
 
     @property
     def max_rounds(self) -> int:
@@ -580,6 +602,102 @@ class SelfExecutor:
     @property
     def deployed_files(self) -> list[str]:
         return self._deployer.deployed_files
+
+    def init_codegen_loop(self) -> None:
+        if not HAS_CODEGEN:
+            return
+        from maref.codegen.codegen_tool import CodeGenTool
+        from maref.codegen.context import ContextManager
+        from maref.codegen.executor import ToolExecutor
+        from maref.codegen.loop import CodeGenLoop
+        from maref.codegen.permissions import PermissionEngine
+        from maref.codegen.quality import QualityGateConfig
+        from maref.codegen.registry import ToolRegistry
+        from maref.tools.ask_user_tool import AskUserTool
+        from maref.tools.bash_tool import BashTool
+        from maref.tools.edit_tool import EditTool
+        from maref.tools.glob_tool import GlobTool
+        from maref.tools.govern_tool import GovernTool
+        from maref.tools.grep_tool import GrepTool
+        from maref.tools.lint_tool import LintTool
+        from maref.tools.read_tool import ReadTool
+        from maref.tools.test_tool import TestTool
+        from maref.tools.write_tool import WriteTool
+
+        registry = ToolRegistry()
+        registry.register_all(
+            ReadTool(),
+            EditTool(),
+            WriteTool(),
+            GlobTool(),
+            GrepTool(),
+            BashTool(),
+            LintTool(),
+            TestTool(),
+            AskUserTool(),
+            GovernTool(state_machine=getattr(self, "_governance", None)),
+        )
+
+        perm_engine = PermissionEngine()
+        context_mgr = ContextManager()
+        quality_cfg = QualityGateConfig(strict=False)
+        tool_exec = ToolExecutor(registry)
+        loop = CodeGenLoop(
+            registry=registry,
+            permission_engine=perm_engine,
+            context_manager=context_mgr,
+            quality_config=quality_cfg,
+            tool_executor=tool_exec,
+        )
+        self._codegen_loop = loop
+        self._codegen_tool = CodeGenTool(
+            loop=loop,
+            quality_config=quality_cfg,
+            project_root=self._project_root,
+        )
+
+    async def execute_async(self, proposal, round_num: int = 31) -> ExecutionPipelineRecord:
+        if not self._use_new_loop or self._codegen_loop is None:
+            import asyncio
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, self.execute, proposal, round_num)
+        from maref.codegen.tool import ToolContext
+        from maref.tools.edit_tool import EditInput
+        from maref.tools.lint_tool import LintInput
+        from maref.tools.read_tool import ReadInput
+
+        tool_calls: list[tuple[str, Any]] = []
+
+        for target in getattr(proposal, "target_files", []):
+            tool_calls.append(("Read", ReadInput(file_path=target, offset=None, limit=None)))
+
+        code = self._code_gen.generate(proposal, self._project_root)
+        if code:
+            for gen in code:
+                if gen.content:
+                    tool_calls.append((
+                        "Edit",
+                        EditInput(
+                            file_path=gen.file_path,
+                            old_string="",
+                            new_string=gen.content,
+                            use_ast=False,
+                            replace_all=False,
+                        ),
+                    ))
+                    tool_calls.append((
+                        "Lint",
+                        LintInput(file_path=gen.file_path, tool_name="ruff"),
+                    ))
+
+        ctx = ToolContext(
+            agent_id=getattr(proposal, "proposal_id", "executor"),
+            workspace_root=self._project_root,
+            permission_mode="governed",
+        )
+
+        pipeline = await self._codegen_tool.execute(proposal, tool_calls, ctx)
+        return pipeline
 
     def execute(self, proposal, round_num: int = 31) -> ExecutionPipelineRecord:
         pipeline = ExecutionPipelineRecord(

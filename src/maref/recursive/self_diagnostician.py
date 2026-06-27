@@ -211,11 +211,15 @@ class SelfDiagnostician:
         if self._cb_state == "OPEN":
             self._blocked = True
             return False
-        if self._cb_state == "CLOSED" and critical_count >= 1:
-            self._cb_state = "OPEN"
-            self._blocked = True
+        if critical_count >= 1:
             self._trip_count += 1
-            return False
+            if self._trip_count > 3:
+                self._cb_state = "OPEN"
+                self._blocked = True
+                return False
+            return True
+        if self._trip_count > 0:
+            self._trip_count -= 1
         return True
 
     def reset_to_half_open(self) -> None:

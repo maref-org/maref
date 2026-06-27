@@ -2,6 +2,7 @@
 
 from maref.governance.audit import AuditEntry, AuditLogger
 from maref.governance.audit_bus import AuditBus
+from maref.governance.budget_breaker import BudgetBreaker, BudgetBreakerState, BudgetBreakerTrip
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
 from maref.governance.cross_instance import (
     CrossInstanceGovernor,
@@ -57,6 +58,9 @@ __all__ = [
     "CircuitBreaker",
     "BreakerState",
     "BreakerTrip",
+    "BudgetBreaker",
+    "BudgetBreakerState",
+    "BudgetBreakerTrip",
     "OscillationFixLoop",
     "OscillationStage",
     "OscillationEvent",

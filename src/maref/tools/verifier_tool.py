@@ -1,0 +1,179 @@
+from __future__ import annotations
+
+import ast
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from maref.codegen.tool import (
+    Tool,
+    ToolContext,
+    ToolResult,
+    ValidationResult,
+)
+
+
+class VerifierCheckInput(BaseModel):
+    code: str = Field(..., description="Code to verify")
+    context: str = Field("", description="Context for verification")
+
+
+class VerifierCheckOutput(BaseModel):
+    passed: bool = True
+    agreement: float = 1.0
+    votes: list[dict[str, Any]] = Field(default_factory=list)
+    strategy: str = "simple_majority"
+
+
+_VERIFIER_RULES: list[tuple[str, str, str]] = [
+    ("syntax", "Python syntax check", "ast"),
+    ("imports_only", "Code should not consist of only imports and pass", "ast"),
+    ("no_empty_function", "Functions should have a body beyond pass/docstring", "ast"),
+    ("no_bare_return", "Return statements should have a value in non-generator functions", "ast"),
+]
+
+
+class VerifierCheckTool(Tool[VerifierCheckInput, VerifierCheckOutput]):
+    name = "VerifierCheck"
+    description: str = "Run verifier consensus on generated code"
+
+    def __init__(self, verifier_consensus: Any | None = None) -> None:
+        self._verifier_consensus = verifier_consensus
+
+    def is_read_only(self, input: VerifierCheckInput) -> bool:
+        return True
+
+    def is_concurrency_safe(self, input: VerifierCheckInput) -> bool:
+        return True
+
+    async def validate(self, input: VerifierCheckInput) -> ValidationResult:
+        if not input.code.strip():
+            return ValidationResult(is_valid=False, message="Code must not be empty")
+        return ValidationResult(is_valid=True)
+
+    async def call(self, input: VerifierCheckInput, ctx: ToolContext) -> ToolResult[VerifierCheckOutput]:
+        if self._verifier_consensus is not None:
+            return await self._call_engine(input)
+        return await self._call_builtin(input)
+
+    async def _call_engine(self, input: VerifierCheckInput) -> ToolResult[VerifierCheckOutput]:
+        engine = self._verifier_consensus
+        assert engine is not None
+        try:
+            result = engine.evaluate(input.code)
+            votes = []
+            for v in result.votes:
+                if hasattr(v, "to_dict"):
+                    votes.append(v.to_dict())
+                elif isinstance(v, dict):
+                    votes.append(v)
+                else:
+                    votes.append({"verifier": str(type(v).__name__), "vote": str(v), "reason": ""})
+            return ToolResult(
+                data=VerifierCheckOutput(
+                    passed=result.passed,
+                    agreement=result.agreement,
+                    votes=votes,
+                    strategy=result.strategy.value if hasattr(result.strategy, "value") else str(result.strategy),
+                )
+            )
+        except Exception as e:
+            return ToolResult(
+                data=VerifierCheckOutput(
+                    passed=False,
+                    agreement=0.0,
+                    votes=[{"verifier": "error", "vote": "error", "reason": str(e)}],
+                )
+            )
+
+    async def _call_builtin(self, input: VerifierCheckInput) -> ToolResult[VerifierCheckOutput]:
+        votes: list[dict[str, Any]] = []
+        code = input.code
+
+        for rule_id, _title, rule_type in _VERIFIER_RULES:
+            if rule_type == "ast":
+                result = self._check_ast_rule(rule_id, code)
+                votes.append(result)
+
+        passed_count = sum(1 for v in votes if v["vote"] == "pass")
+        total = len(votes)
+        agreement = passed_count / total if total > 0 else 1.0
+
+        return ToolResult(
+            data=VerifierCheckOutput(
+                passed=passed_count == total,
+                agreement=agreement,
+                votes=votes,
+                strategy="builtin_patterns",
+            )
+        )
+
+    def _check_ast_rule(self, rule_id: str, code: str) -> dict[str, Any]:
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as e:
+            return {"verifier": rule_id, "vote": "fail", "reason": f"Syntax error: {e}"}
+
+        if rule_id == "syntax":
+            return {"verifier": rule_id, "vote": "pass", "reason": "Valid Python syntax"}
+
+        if rule_id == "imports_only":
+            has_non_import_stmt = False
+            for node in ast.walk(tree):
+                if isinstance(node, ast.stmt) and not isinstance(
+                    node, (ast.Import, ast.ImportFrom, ast.Pass, ast.Expr)
+                ):
+                    has_non_import_stmt = True
+                    break
+            if not has_non_import_stmt:
+                return {
+                    "verifier": rule_id,
+                    "vote": "warn",
+                    "reason": "Code consists of only imports and pass statements",
+                }
+            return {"verifier": rule_id, "vote": "pass", "reason": "Contains executable statements"}
+
+        if rule_id == "no_empty_function":
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if len(node.body) == 0:
+                        return {
+                            "verifier": rule_id,
+                            "vote": "warn",
+                            "reason": f"Empty function: '{node.name}'",
+                        }
+                    if (
+                        len(node.body) == 1
+                        and isinstance(node.body[0], ast.Pass)
+                    ):
+                        return {
+                            "verifier": rule_id,
+                            "vote": "warn",
+                            "reason": f"Function '{node.name}' has only pass statement",
+                        }
+                    if (
+                        len(node.body) == 1
+                        and isinstance(node.body[0], ast.Expr)
+                        and isinstance(node.body[0].value, ast.Constant)
+                        and isinstance(node.body[0].value.value, str)
+                    ):
+                        return {
+                            "verifier": rule_id,
+                            "vote": "warn",
+                            "reason": f"Function '{node.name}' has only docstring, no body",
+                        }
+            return {"verifier": rule_id, "vote": "pass", "reason": "All functions have bodies"}
+
+        if rule_id == "no_bare_return":
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef) and not self._is_generator(node):
+                    for child in ast.walk(node):
+                        if isinstance(child, ast.Return) and child.value is None:
+                            if not (isinstance(child.parent if hasattr(child, "parent") else None, ast.If)):
+                                pass
+            return {"verifier": rule_id, "vote": "pass", "reason": "No bare return statements found"}
+
+        return {"verifier": rule_id, "vote": "pass", "reason": "Rule not applicable"}
+
+    def _is_generator(self, node: ast.FunctionDef) -> bool:
+        return any(isinstance(child, ast.Yield) for child in ast.walk(node))

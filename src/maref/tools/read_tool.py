@@ -1,0 +1,341 @@
+from __future__ import annotations
+
+import base64
+import struct
+import time
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from maref.codegen.tool import (
+    Tool,
+    ToolContext,
+    ToolResult,
+    ToolResultStatus,
+    ValidationResult,
+)
+
+
+class ReadInput(BaseModel):
+    file_path: str = Field(..., description="Path to the file to read")
+    offset: int | None = Field(None, description="Starting line number (1-indexed)")
+    limit: int | None = Field(None, description="Maximum number of lines to read")
+
+
+class ReadOutput(BaseModel):
+    content: str
+    file_path: str
+    encoding: str = "utf-8"
+    size_bytes: int = 0
+    line_count: int = 0
+    truncated: bool = False
+    detected_type: str = "text"
+    attachment: str = ""
+
+
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}
+_PDF_EXTENSION = ".pdf"
+_NOTEBOOK_EXTENSION = ".ipynb"
+_BINARY_BLOCKED = {".pyc", ".pyo", ".so", ".dll", ".exe", ".bin", ".o", ".a"}
+
+_IMAGE_MAGIC: dict[bytes, str] = {
+    b"\x89PNG\r\n\x1a\n": "PNG",
+    b"\xff\xd8\xff": "JPEG",
+    b"GIF87a": "GIF",
+    b"GIF89a": "GIF",
+    b"BM": "BMP",
+    b"RIFF": "WEBP",
+}
+_PDF_MAGIC = b"%PDF-"
+
+
+def _detect_file_type(path: Path) -> str:
+    ext = path.suffix.lower()
+    if ext in _IMAGE_EXTENSIONS:
+        return "image"
+    if ext == _PDF_EXTENSION:
+        return "pdf"
+    if ext == _NOTEBOOK_EXTENSION:
+        return "notebook"
+    if ext in _BINARY_BLOCKED:
+        return "binary_blocked"
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return "unknown"
+
+    for magic, fmt in _IMAGE_MAGIC.items():
+        if raw[: len(magic)] == magic:
+            return f"image/{fmt.lower()}"
+    if raw[:5] == _PDF_MAGIC:
+        return "pdf"
+    return "text"
+
+
+def _get_image_info(path: Path) -> str:
+    raw = path.read_bytes()
+    ext = path.suffix.lower()
+
+    if ext == ".png":
+        if len(raw) >= 24:
+            w, h = struct.unpack(">II", raw[16:24])
+            return f"PNG image: {w}x{h}px, {len(raw)} bytes"
+    elif ext in (".jpg", ".jpeg"):
+        i = 2
+        while i < len(raw) - 1:
+            if raw[i] != 0xFF:
+                break
+            marker = raw[i + 1]
+            if marker == 0xC0 or marker == 0xC2:
+                if i + 9 < len(raw):
+                    h, w = struct.unpack(">HH", raw[i + 5 : i + 9])
+                    return f"JPEG image: {w}x{h}px, {len(raw)} bytes"
+                break
+            if marker == 0xD9:
+                break
+            if marker == 0xDA:
+                break
+            if 0xD0 <= marker <= 0xD7:
+                i += 2
+            else:
+                if i + 3 < len(raw):
+                    seg_len = struct.unpack(">H", raw[i + 2 : i + 4])[0]
+                    i += 2 + seg_len
+                else:
+                    break
+        return f"JPEG image: {len(raw)} bytes"
+    elif ext == ".gif":
+        if len(raw) >= 10:
+            w, h = struct.unpack("<HH", raw[6:10])
+            return f"GIF image: {w}x{h}px, {len(raw)} bytes"
+    elif ext == ".bmp":
+        if len(raw) >= 26:
+            w, h = struct.unpack("<II", raw[18:26])
+            return f"BMP image: {w}x{h}px, {len(raw)} bytes"
+    elif ext == ".webp":
+        if len(raw) >= 30:
+            w, h = struct.unpack("<HH", raw[26:30])
+            return f"WebP image: {w}x{h}px, {len(raw)} bytes"
+
+    return f"Image: {len(raw)} bytes"
+
+
+def _get_pdf_info(path: Path) -> str:
+    raw = path.read_bytes()
+    page_count = "unknown"
+    for marker in [rb"/Type\s*/Page[^s]", rb"/Page\s", rb"/Pages\s"]:
+        import re
+        count = len(re.findall(marker, raw))
+        if count > 0:
+            page_count = str(count)
+            break
+    return f"PDF document: {page_count} pages, {len(raw)} bytes"
+
+
+class ReadTool(Tool[ReadInput, ReadOutput]):
+    name = "Read"
+    description: str = "Read file contents with encoding detection, image/PDF detection, and line limit support"
+    max_result_chars: int = 100_000
+
+    _read_state: dict[str, dict[str, Any]] = {}
+
+    def __init__(self, max_file_size: int = 1_073_741_824) -> None:
+        self._max_file_size = max_file_size
+        self._image_mode = "description"
+
+    def is_read_only(self, input: ReadInput) -> bool:
+        return True
+
+    def is_concurrency_safe(self, input: ReadInput) -> bool:
+        return True
+
+    async def validate(self, input: ReadInput) -> ValidationResult:
+        path = Path(input.file_path)
+
+        if not path.exists():
+            return ValidationResult(is_valid=False, message=f"File not found: {input.file_path}")
+
+        if not path.is_file():
+            return ValidationResult(is_valid=False, message=f"Not a file: {input.file_path}")
+
+        try:
+            size = path.stat().st_size
+            if size > self._max_file_size:
+                return ValidationResult(
+                    is_valid=False,
+                    message=f"File exceeds maximum size ({size} > {self._max_file_size} bytes)",
+                )
+        except OSError as e:
+            return ValidationResult(is_valid=False, message=f"Cannot access file: {e}")
+
+        ext = path.suffix.lower()
+        if ext in _BINARY_BLOCKED:
+            return ValidationResult(is_valid=False, message=f"Cannot read binary file: {ext}")
+
+        return ValidationResult(is_valid=True)
+
+    async def call(self, input: ReadInput, ctx: ToolContext) -> ToolResult[ReadOutput]:
+        path = Path(input.file_path)
+        file_type = _detect_file_type(path)
+
+        if file_type.startswith("image/"):
+            return self._handle_image(path, input, file_type)
+
+        if file_type == "pdf":
+            return self._handle_pdf(path, input)
+
+        if file_type == "notebook":
+            return self._handle_notebook(path, input)
+
+        return await self._handle_text(path, input)
+
+    def _handle_image(self, path: Path, input: ReadInput, fmt: str) -> ToolResult[ReadOutput]:
+        try:
+            info = _get_image_info(path)
+            raw = path.read_bytes()
+            b64 = base64.b64encode(raw).decode("ascii")
+            self._read_state[input.file_path] = {"timestamp": time.time(), "type": fmt}
+
+            return ToolResult(
+                data=ReadOutput(
+                    content=info,
+                    file_path=input.file_path,
+                    encoding="binary",
+                    size_bytes=len(raw),
+                    line_count=0,
+                    detected_type=f"image/{fmt}",
+                    attachment=b64,
+                ),
+                metadata={"format": fmt, "has_attachment": True},
+            )
+        except Exception as e:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error=f"Failed to read image: {e}",
+            )
+
+    def _handle_pdf(self, path: Path, input: ReadInput) -> ToolResult[ReadOutput]:
+        try:
+            info = _get_pdf_info(path)
+            raw = path.read_bytes()
+            b64 = base64.b64encode(raw).decode("ascii")
+            self._read_state[input.file_path] = {"timestamp": time.time(), "type": "pdf"}
+
+            return ToolResult(
+                data=ReadOutput(
+                    content=info,
+                    file_path=input.file_path,
+                    encoding="binary",
+                    size_bytes=len(raw),
+                    line_count=0,
+                    detected_type="pdf",
+                    attachment=b64,
+                ),
+                metadata={"format": "pdf", "has_attachment": True},
+            )
+        except Exception as e:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error=f"Failed to read PDF: {e}",
+            )
+
+    def _handle_notebook(self, path: Path, input: ReadInput) -> ToolResult[ReadOutput]:
+        try:
+            import json
+            content = path.read_text(encoding="utf-8")
+            nb = json.loads(content)
+            cells = nb.get("cells", [])
+            code_cells = [c for c in cells if c.get("cell_type") == "code"]
+            md_cells = [c for c in cells if c.get("cell_type") == "markdown"]
+
+            summary = (
+                f"Jupyter Notebook: {len(cells)} cells "
+                f"({len(code_cells)} code, {len(md_cells)} markdown)\n"
+            )
+            for i, cell in enumerate(cells[:20]):
+                src = "".join(cell.get("source", []))
+                if len(src) > 200:
+                    src = src[:200] + "..."
+                summary += f"  [{i}] {cell.get('cell_type', 'unknown')}: {src}\n"
+
+            self._read_state[input.file_path] = {"timestamp": time.time(), "type": "notebook"}
+
+            return ToolResult(
+                data=ReadOutput(
+                    content=summary,
+                    file_path=input.file_path,
+                    encoding="utf-8",
+                    size_bytes=len(content),
+                    line_count=len(cells),
+                    detected_type="notebook",
+                ),
+            )
+        except Exception as e:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error=f"Failed to read notebook: {e}",
+            )
+
+    async def _handle_text(self, path: Path, input: ReadInput) -> ToolResult[ReadOutput]:
+        encoding = self._detect_encoding(path)
+
+        try:
+            content = path.read_text(encoding=encoding)
+        except UnicodeDecodeError:
+            try:
+                content = path.read_text(encoding="utf-16le")
+                encoding = "utf-16le"
+            except UnicodeDecodeError:
+                return ToolResult(
+                    status=ToolResultStatus.ERROR,
+                    error=f"Cannot decode file with UTF-8 or UTF-16LE: {input.file_path}",
+                )
+        except Exception as e:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error=f"Failed to read file: {e}",
+            )
+
+        lines = content.split("\n")
+        truncated = False
+
+        if input.offset is not None:
+            start = max(0, input.offset - 1)
+            lines = lines[start:start + input.limit] if input.limit is not None else lines[start:]
+        elif input.limit is not None:
+            lines = lines[: input.limit]
+
+        result_content = "\n".join(lines)
+
+        if len(result_content) > self.max_result_chars:
+            result_content = result_content[: self.max_result_chars] + "\n... [truncated]"
+            truncated = True
+
+        self._read_state[input.file_path] = {
+            "timestamp": time.time(),
+            "size_bytes": len(result_content),
+        }
+
+        return ToolResult(
+            data=ReadOutput(
+                content=result_content,
+                file_path=input.file_path,
+                encoding=encoding,
+                size_bytes=len(result_content),
+                line_count=len(lines),
+                truncated=truncated,
+                detected_type="text",
+            ),
+        )
+
+    def _detect_encoding(self, path: Path) -> str:
+        try:
+            raw = path.read_bytes()
+            if raw[:3] == b"\xef\xbb\xbf":
+                return "utf-8-sig"
+            if raw[:2] == b"\xff\xfe":
+                return "utf-16le"
+        except OSError:
+            pass
+        return "utf-8"

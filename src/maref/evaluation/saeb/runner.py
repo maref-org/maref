@@ -146,12 +146,18 @@ class MAREFSelfAdapter(AgentAdapter):
                 for p in proposals:
                     if architect.validate_proposal(p):
                         pipeline = executor.execute(p, round_num=round_num)
-                        if pipeline.final_state == "complete":
+                        if pipeline.final_state == "SUCCESS":
                             changes_made = True
         except ImportError:
-            pass
+            import logging
+            logging.getLogger("maref.saeb").warning(
+                "Recursive pipeline modules not available", exc_info=True
+            )
         except Exception:
-            pass
+            import logging
+            logging.getLogger("maref.saeb").warning(
+                "Recursive pipeline error", exc_info=True
+            )
 
         return changes_made
 
