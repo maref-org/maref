@@ -393,6 +393,23 @@ from maref.recursive.zero_trust import (
     ValidationResult as ZTValidationResult,
 )
 
+try:
+    from maref.codegen.context import ContextManager as CodegenContextManager  # noqa: F401
+    from maref.codegen.executor import ToolExecutor as CodegenToolExecutor  # noqa: F401
+    from maref.codegen.loop import CodeGenLoop, LoopEvent, LoopState  # noqa: F401
+    from maref.codegen.permissions import (  # noqa: F401
+        PermissionEngine,
+        PermissionMode,
+        PermissionRule,
+    )
+    from maref.codegen.quality import QualityGateConfig  # noqa: F401
+    from maref.codegen.registry import ToolRegistry as CodegenToolRegistry  # noqa: F401
+    from maref.codegen.tool import Tool, ToolResult  # noqa: F401
+    from maref.codegen.tool import ValidationResult as CodegenValidationResult
+    _CODEGEN_AVAILABLE = True
+except ImportError:
+    _CODEGEN_AVAILABLE = False
+
 __all__ = [
     "SelfObserver",
     "SystemSnapshot",
@@ -713,4 +730,17 @@ __all__ = [
     "DecisionNode",
     "ChainReactionBreaker",
     "ChainEvent",
+    "CodeGenLoop",
+    "LoopEvent",
+    "LoopState",
+    "Tool",
+    "ToolResult",
+    "CodegenValidationResult",
+    "CodegenToolRegistry",
+    "CodegenToolExecutor",
+    "CodegenContextManager",
+    "PermissionEngine",
+    "PermissionMode",
+    "PermissionRule",
+    "QualityGateConfig",
 ]

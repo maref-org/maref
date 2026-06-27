@@ -277,11 +277,11 @@ class AccessibilityParser:
                 continue
             if role in _SKIP_ROLES:
                 continue
-            x_raw = item.get("x")
-            y_raw = item.get("y")
-            w_raw = item.get("width")
-            h_raw = item.get("height")
-            if any(v is None for v in (x_raw, y_raw, w_raw, h_raw)):
+            x_raw: float | None = item.get("x")
+            y_raw: float | None = item.get("y")
+            w_raw: float | None = item.get("width")
+            h_raw: float | None = item.get("height")
+            if x_raw is None or y_raw is None or w_raw is None or h_raw is None:
                 continue
             x = int(x_raw)
             y = int(y_raw)

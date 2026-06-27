@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+import asyncio
+import sys
+
+from pydantic import BaseModel, Field
+
+from maref.codegen.tool import (
+    Tool,
+    ToolContext,
+    ToolResult,
+    ValidationResult,
+)
+
+
+class AskUserInput(BaseModel):
+    question: str = Field(..., description="Question to ask the user")
+    options: list[str] | None = Field(None, description="Multiple choice options")
+    allow_custom: bool = Field(True, description="Allow free-text response")
+
+
+class AskUserOutput(BaseModel):
+    answer: str
+    selected_option: str | None = None
+
+
+class AskUserTool(Tool[AskUserInput, AskUserOutput]):
+    name = "AskUser"
+    description: str = "Ask the user a question and get their response"
+    requires_user_interaction: bool = True
+
+    def is_read_only(self, input: AskUserInput) -> bool:
+        return True
+
+    def is_concurrency_safe(self, input: AskUserInput) -> bool:
+        return False
+
+    async def validate(self, input: AskUserInput) -> ValidationResult:
+        if not input.question.strip():
+            return ValidationResult(is_valid=False, message="Question must not be empty")
+        return ValidationResult(is_valid=True)
+
+    async def call(self, input: AskUserInput, ctx: ToolContext) -> ToolResult[AskUserOutput]:
+        try:
+            loop = asyncio.get_running_loop()
+            prompt = input.question
+            if input.options:
+                for i, opt in enumerate(input.options, 1):
+                    prompt += f"\n  [{i}] {opt}"
+                if input.allow_custom:
+                    prompt += f"\n  [{len(input.options) + 1}] Other (type freely)"
+
+            def _read_input() -> str:
+                print(prompt, flush=True)
+                return sys.stdin.readline().strip()
+
+            answer = await loop.run_in_executor(None, _read_input)
+            selected: str | None = None
+            if input.options:
+                try:
+                    idx = int(answer)
+                    if 1 <= idx <= len(input.options):
+                        selected = input.options[idx - 1]
+                        answer = selected
+                    elif input.allow_custom and idx == len(input.options) + 1:
+                        def _read_custom() -> str:
+                            print("Your answer: ", end="", flush=True)
+                            return sys.stdin.readline().strip()
+                        answer = await loop.run_in_executor(None, _read_custom)
+                        selected = None
+                except ValueError:
+                    if input.allow_custom:
+                        pass
+                    else:
+                        return ToolResult(
+                            data=AskUserOutput(answer="", selected_option=None),
+                            metadata={
+                                "question": input.question,
+                                "error": "Invalid selection, expected number 1-" + str(len(input.options)),
+                                "requires_interaction": True,
+                            },
+                        )
+            return ToolResult(
+                data=AskUserOutput(answer=answer, selected_option=selected),
+                metadata={"question": input.question},
+            )
+        except Exception as exc:
+            return ToolResult(
+                data=AskUserOutput(answer="", selected_option=None),
+                metadata={"question": input.question, "error": str(exc), "requires_interaction": True},
+            )

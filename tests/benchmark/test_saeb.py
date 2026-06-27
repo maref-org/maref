@@ -196,3 +196,70 @@ def test_maref_self_adapter(calculator_scenario: SAEBScenario) -> None:
     assert len(result.metrics) > 0
     assert result.fnr_trajectory() is not None
     assert result.coverage_trajectory() is not None
+
+
+def test_recursive_pipeline_chain() -> None:
+    from maref.recursive.self_architect import SelfArchitect
+    from maref.recursive.self_diagnostician import (
+        DiagnosisReport,
+        RiskLevel,
+        SelfDiagnostician,
+    )
+    from maref.recursive.self_executor import SelfExecutor
+    from maref.recursive.self_observer import SystemSnapshot
+    from maref.recursive.unified_audit import UnifiedAuditStore
+
+    store = UnifiedAuditStore()
+    diagnostician = SelfDiagnostician()
+    diagnostician.attach_circuit_breaker()
+
+    snapshot = SystemSnapshot(
+        timestamp=1000.0,
+        module_graph={"mod_a": ["mod_b"]},
+        test_stats={"total": 10, "failed": 6, "duration_ms": 100},
+        git_stats={"tags": ["v1.0"]},
+        source_file_count=5,
+    )
+
+    diagnosis = diagnostician.diagnose(snapshot)
+    assert diagnosis.overall_risk in (RiskLevel.WARNING, RiskLevel.CRITICAL), (
+        f"Expected warning or critical, got {diagnosis.overall_risk}"
+    )
+
+    proceed = diagnostician.check_and_trip(diagnosis)
+    assert proceed is True, "check_and_trip should return True when defects exist"
+    assert diagnostician._trip_count == 1, "Trip count should increment"
+
+    check_again = diagnostician.check_and_trip(diagnosis)
+    assert check_again is True, "Should still allow fixing (trip_count < 4)"
+
+    for _ in range(2):
+        diagnostician.check_and_trip(diagnosis)
+    assert diagnostician._trip_count == 4
+
+    blocked = diagnostician.check_and_trip(diagnosis)
+    assert blocked is False, "Should trip after 4 critical detections"
+    assert diagnostician._cb_state == "OPEN"
+
+    diagnostician.close()
+    assert diagnostician._cb_state == "CLOSED"
+
+
+def test_architect_propose_execute_chain(tmp_path: Path) -> None:
+    from maref.recursive.self_architect import SelfArchitect
+    from maref.recursive.self_executor import SelfExecutor
+    from maref.recursive.unified_audit import UnifiedAuditStore
+
+    store = UnifiedAuditStore()
+    architect = SelfArchitect(audit_store=store)
+    executor = SelfExecutor(project_root=str(tmp_path), audit_store=store)
+
+    proposals = architect.propose_all()
+    assert len(proposals) > 0, "Architect should propose fixes"
+
+    valid_proposals = [p for p in proposals if architect.validate_proposal(p)]
+    if valid_proposals:
+        pipeline = executor.dry_run(valid_proposals[0])
+        assert pipeline.final_state.startswith("DRY_RUN"), (
+            f"Expected DRY_RUN state, got {pipeline.final_state}"
+        )

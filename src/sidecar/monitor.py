@@ -1,0 +1,135 @@
+from __future__ import annotations
+
+import time
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any
+
+from sidecar.protocol import AgentState, EntropyReading, Observation, ObservationType, StateSnapshot
+
+
+@dataclass
+class Anomaly:
+    anomaly_type: str = ""
+    severity: str = "info"
+    message: str = ""
+    description: str = ""
+    source: str = ""
+    timestamp: float = field(default_factory=time.time)
+
+
+class EntropyMonitor:
+    def __init__(self, warning_threshold: float = 1.5, critical_threshold: float = 3.0, max_threshold: float = 4.0) -> None:
+        self._warning_threshold = warning_threshold
+        self._critical_threshold = critical_threshold
+        self._max_threshold = max_threshold
+        self._history: list[EntropyReading] = []
+
+    def process(self, reading: EntropyReading) -> list[Anomaly]:
+        self._history.append(reading)
+        anomalies: list[Anomaly] = []
+        if reading.value > self._max_threshold:
+            anomalies.append(Anomaly(anomaly_type="entropy_max_breach", severity="critical", source=reading.source))
+        elif reading.value >= self._critical_threshold:
+            anomalies.append(Anomaly(anomaly_type="entropy_critical", severity="critical", source=reading.source))
+        elif reading.value >= self._warning_threshold:
+            anomalies.append(Anomaly(anomaly_type="entropy_warning", severity="warning", source=reading.source))
+        if self._detect_spike(reading):
+            anomalies.append(Anomaly(anomaly_type="entropy_spike", severity="warning", source=reading.source))
+        return anomalies
+
+    def _detect_spike(self, reading: EntropyReading) -> bool:
+        if len(self._history) < 5:
+            return False
+        recent = self._history[-5:-1]
+        if not recent:
+            return False
+        avg = sum(r.value for r in recent) / len(recent)
+        return reading.value > avg * 2 and reading.value >= self._warning_threshold
+
+
+class MessageQueueMonitor:
+    def __init__(self, warning_threshold: int = 5, critical_threshold: int = 10) -> None:
+        self._warning_threshold = warning_threshold
+        self._critical_threshold = critical_threshold
+
+    def process(self, snapshot: StateSnapshot) -> list[Anomaly]:
+        if snapshot.pending_messages >= self._critical_threshold:
+            return [Anomaly(anomaly_type="message_queue_critical", severity="critical")]
+        if snapshot.pending_messages >= self._warning_threshold:
+            return [Anomaly(anomaly_type="message_queue_warning", severity="warning")]
+        return []
+
+
+class StateOscillationDetector:
+    def __init__(self, window_size: int = 5, threshold: int = 4) -> None:
+        self._window_size = window_size
+        self._threshold = threshold
+        self._history: dict[str, list[AgentState]] = defaultdict(list)
+
+    def process(self, snapshot: StateSnapshot) -> list[Anomaly]:
+        key = str(snapshot.agent_id)
+        self._history[key].append(snapshot.state)
+        if len(self._history[key]) > self._window_size:
+            self._history[key] = self._history[key][-self._window_size:]
+        if len(self._history[key]) < self._window_size:
+            return []
+        unique_states = len(set(self._history[key]))
+        if unique_states >= self._threshold:
+            return [Anomaly(anomaly_type="state_oscillation", severity="warning")]
+        return []
+
+
+class DeadlockDetector:
+    def __init__(self, stuck_threshold_seconds: float = 5.0) -> None:
+        self._stuck_threshold = stuck_threshold_seconds
+        self._last_progress: dict[str, tuple[float, float]] = {}
+
+    def process(self, snapshot: StateSnapshot) -> list[Anomaly]:
+        key = str(snapshot.agent_id)
+        now = time.time()
+        if key in self._last_progress:
+            last_time, last_progress = self._last_progress[key]
+            if snapshot.task_progress == last_progress and (now - last_time) >= self._stuck_threshold:
+                return [Anomaly(anomaly_type="potential_deadlock", severity="critical")]
+        self._last_progress[key] = (now, snapshot.task_progress)
+        return []
+
+
+class CompositeMonitor:
+    def __init__(self) -> None:
+        self._monitors: list[Any] = []
+        self._anomalies: list[Anomaly] = []
+        self._entropy_monitor = EntropyMonitor()
+        self._queue_monitor = MessageQueueMonitor()
+
+    def add_monitor(self, monitor: Any) -> None:
+        self._monitors.append(monitor)
+
+    def check_all(self) -> list[dict[str, Any]]:
+        return []
+
+    def process(self, obs: Observation) -> list[Anomaly]:
+        anomalies: list[Anomaly] = []
+        if obs.obs_type == ObservationType.ENTROPY_METRIC and isinstance(obs.payload, EntropyReading):
+            anomalies.extend(self._entropy_monitor.process(obs.payload))
+        elif obs.obs_type == ObservationType.STATE_SNAPSHOT and isinstance(obs.payload, StateSnapshot):
+            anomalies.extend(self._queue_monitor.process(obs.payload))
+        self._anomalies.extend(anomalies)
+        return anomalies
+
+    def get_anomaly_count(self) -> int:
+        return len(self._anomalies)
+
+    def get_critical_count(self) -> int:
+        return sum(1 for a in self._anomalies if a.severity == "critical")
+
+    def get_recent_anomalies(self, n: int = 10) -> list[Anomaly]:
+        return self._anomalies[-n:]
+
+
+class AnomalyEvent:
+    def __init__(self, source: str, severity: str, message: str) -> None:
+        self.source = source
+        self.severity = severity
+        self.message = message
