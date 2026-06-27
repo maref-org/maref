@@ -2,6 +2,7 @@
 
 import sys
 
+from maref.desktop.accessibility_parser import AccessibilityParser
 from maref.desktop.agent import DesktopAgent, DesktopAgentState
 from maref.desktop.policy_decision_tree import PolicyDecisionTree
 from maref.desktop.safety_gate_desktop import DesktopSafetyGateV2
@@ -34,6 +35,7 @@ if _DESKTOP_DEPS_MISSING:
         warnings.warn(_msg, ImportWarning, stacklevel=2)
 
 __all__ = [
+    "AccessibilityParser",
     "DesktopAgent",
     "DesktopAgentState",
     "PolicyDecisionTree",
