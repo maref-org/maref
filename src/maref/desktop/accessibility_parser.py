@@ -99,6 +99,8 @@ _SKIP_ROLES = {
 }
 
 # JXA script to get UI elements from frontmost window
+# Note: el.position() and el.size() return array-like objects with [0],[1] keys
+# (not named x/y or width/height properties)
 _JXA_GET_ELEMENTS = """
 function run() {
     var sys = Application("System Events");
@@ -142,8 +144,8 @@ function run() {
                 title: title,
                 description: desc,
                 value: value,
-                x: pos.x, y: pos.y,
-                width: size.width, height: size.height,
+                x: pos[0], y: pos[1],
+                width: size[0], height: size[1],
                 enabled: enabled,
                 focused: focused,
                 selected: selected
@@ -275,10 +277,16 @@ class AccessibilityParser:
                 continue
             if role in _SKIP_ROLES:
                 continue
-            x = int(item.get("x", 0))
-            y = int(item.get("y", 0))
-            w = max(1, int(item.get("width", 0)))
-            h = max(1, int(item.get("height", 0)))
+            x_raw = item.get("x")
+            y_raw = item.get("y")
+            w_raw = item.get("width")
+            h_raw = item.get("height")
+            if any(v is None for v in (x_raw, y_raw, w_raw, h_raw)):
+                continue
+            x = int(x_raw)
+            y = int(y_raw)
+            w = int(w_raw)
+            h = int(h_raw)
             if w <= 0 or h <= 0:
                 continue
             element_type = ax_role_to_element_type(role)
