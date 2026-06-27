@@ -8,7 +8,6 @@ from typing import Any
 
 _OMNI_PARSER_AVAILABLE = False
 _COG_AGENT_AVAILABLE = False
-_ACCESSIBILITY_AVAILABLE = False
 _transformers_available = False
 
 try:
@@ -612,7 +611,6 @@ class OmniParserInterface:
     # ── Accessibility backend ───────────────────────────────────────────
 
     def _init_accessibility(self) -> None:
-        global _ACCESSIBILITY_AVAILABLE
         from maref.desktop.accessibility_parser import AccessibilityParser
 
         parser = AccessibilityParser()
@@ -624,7 +622,6 @@ class OmniParserInterface:
             "loaded": True,
             "model": "macOS-accessibility-api",
         }
-        _ACCESSIBILITY_AVAILABLE = True
 
     def benchmark(self, screenshot_path: str = "", num_runs: int = 5) -> dict[str, Any]:
         """Run a quick benchmark: returns avg latency and element count."""

@@ -45,6 +45,11 @@ class TestAccessibilityParserInit:
         parser = AccessibilityParser()
         assert not parser.initialized
 
+    def test_parse_raises_if_not_initialized(self):
+        parser = AccessibilityParser()
+        with pytest.raises(RuntimeError, match="not initialized"):
+            parser.parse()
+
 
 class TestAccessibilityParserIntegration:
     @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS only")
@@ -53,7 +58,6 @@ class TestAccessibilityParserIntegration:
         parser.initialize()
         result = parser.parse()
         assert result is not None
-        assert len(result.elements) > 0
         assert len(result.elements) > 0
 
     @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS only")

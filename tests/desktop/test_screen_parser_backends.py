@@ -21,6 +21,8 @@ class TestAccessibilityBackendRegistration:
             assert parser.initialized
             result = parser.parse("/tmp/test.png", 1440, 900)
             assert len(result.elements) > 0
+        else:
+            pytest.skip("AX permissions not available; skipping accessibility verification")
 
     @pytest.mark.skipif(platform.system() == "Darwin", reason="non-macOS only")
     def test_auto_falls_back_on_non_macos(self):
