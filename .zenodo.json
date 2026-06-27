@@ -1,0 +1,32 @@
+{
+  "title": "MAREF: Multi-Agent Recursive Evolution Framework — Agent Governance Operating System",
+  "description": "MAREF is an Agent Governance Operating System implementing a six-layer recursive governance architecture (天极/人极/地极/经卦/别卦/爻变) with an Eight-Trigrams trust state machine based on Gray Code transitions. It provides G1-G5 governance auditors (MetaCognitiveAuditor, SubgoalInterceptor, SocialImpactAssessor, EconomicGovernor, CrossInstanceGovernor), MCP bridging via sidecar, TLA+ formal specifications, and an Electron+React desktop GUI.\n\nKey capabilities:\n- Multi-agent recursive evolution with self-* (observer/diagnostician/healer/architect/executor/optimizer/knowledge) modules\n- Eight-Trigrams trust state machine (8 states, Gray Code hamming-distance=1 transitions)\n- G1-G5 辛顿交叉验证 governance layer (meta-cognition, subgoal interception, social impact, economic governance, cross-instance consistency)\n- ZeroTrust security boundary with HMAC-authenticated MCP bridge\n- TLA+ formal verification of safety properties\n- Desktop GUI (Tauri/Electron + React 19 + TypeScript)",
+  "license": "Apache-2.0",
+  "upload_type": "software",
+  "version": "0.35.0-beta",
+  "language": "eng",
+  "keywords": [
+    "agent-framework",
+    "ai-governance",
+    "formal-verification",
+    "governance",
+    "python",
+    "agent-governance",
+    "agent-orchestration",
+    "ai-safety",
+    "desktop-agent",
+    "multi-agent",
+    "state-machine",
+    "tla-plus",
+    "recursive-evolution",
+    "trust-state-machine"
+  ],
+  "creators": [
+    {
+      "name": "MAREF Team",
+      "affiliation": "MAREF Project"
+    }
+  ],
+  "access_right": "open",
+  "notes": "MAREF v0.35.0-beta. Active development — G1 arXiv ID endorsement blocked, Zenodo DOI proposed as backup academic identifier per STATE.yaml. Project homepage: https://maref.cc"
+}
