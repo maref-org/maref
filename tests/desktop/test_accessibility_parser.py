@@ -57,6 +57,7 @@ class TestAccessibilityParserIntegration:
         assert len(result.elements) > 0
 
     @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS only")
+    @pytest.mark.xfail(reason="Finder often returns 0 elements due to SIP/TCC restrictions", strict=False)
     def test_parse_specific_app(self):
         parser = AccessibilityParser()
         parser.initialize()
