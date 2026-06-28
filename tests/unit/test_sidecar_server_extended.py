@@ -6,6 +6,9 @@ and streaming endpoints not tested in test_sidecar_server.py.
 
 from __future__ import annotations
 
+import threading
+
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -298,6 +301,31 @@ class TestProvidersSkillsTasks:
         assert "task-3" in task_ids
 
 
+_stream_result: dict[str, object] = {}
+_stream_event = threading.Event()
+
+
+def _do_stream_get(client: TestClient, url: str) -> None:
+    try:
+        with client.stream("GET", url) as response:
+            next(response.iter_raw(64), None)
+            _stream_result["response"] = response
+    except Exception as e:
+        _stream_result["error"] = e
+    finally:
+        _stream_event.set()
+
+
+def _fetch_stream(client: TestClient, url: str) -> httpx.Response | None:
+    t = threading.Thread(target=_do_stream_get, args=(client, url), daemon=True)
+    t.start()
+    if _stream_event.wait(timeout=5.0):
+        if "error" in _stream_result:
+            return None
+        return _stream_result.get("response")
+    return None
+
+
 @pytest.mark.xfail(strict=False, reason="SSE 流式端点在无真实事件源时挂起 (TestClient 等待 response body 完成)")
 class TestStreaming:
     def test_stream_endpoint(self, client: TestClient) -> None:
@@ -311,7 +339,8 @@ class TestStreaming:
             },
         )
         sid = create_resp.json()["id"]
-        response = client.get(f"/api/sessions/{sid}/stream")
+        response = _fetch_stream(client, f"/api/sessions/{sid}/stream")
+        assert response is not None
         assert response.status_code == 200
         assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
 
