@@ -251,6 +251,9 @@ class BaseProbe(ABC):
 from maref.observation.probes.desktop_probe import (  # noqa: E402
     DesktopProbe as DesktopProbe,
 )
+from maref.observation.probes.gui_build_probe import (  # noqa: E402
+    GUIBuildProbe as GUIBuildProbe,
+)
 from maref.observation.probes.playwright_probe import (  # noqa: E402
     PlaywrightProbe as PlaywrightProbe,
 )
@@ -260,6 +263,7 @@ __all__ = [
     "BaseProbe",
     "DesktopProbe",
     "EntropyProbe",
+    "GUIBuildProbe",
     "KGProbe",
     "LatencyProbe",
     "OscillationProbe",
