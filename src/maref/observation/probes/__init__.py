@@ -248,6 +248,9 @@ class BaseProbe(ABC):
         return len(self._readings)
 
 
+from maref.observation.probes.desktop_probe import (  # noqa: E402
+    DesktopProbe as DesktopProbe,
+)
 from maref.observation.probes.playwright_probe import (  # noqa: E402
     PlaywrightProbe as PlaywrightProbe,
 )
@@ -255,6 +258,7 @@ from maref.observation.probes.playwright_probe import (  # noqa: E402
 __all__ = [
     "AnomalyProbe",
     "BaseProbe",
+    "DesktopProbe",
     "EntropyProbe",
     "KGProbe",
     "LatencyProbe",
