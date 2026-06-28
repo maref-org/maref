@@ -18,6 +18,17 @@ from maref.evolution.real_metrics import RealMetricsCollector
 logger = logging.getLogger(__name__)
 
 
+def _run_async(coro: Any) -> Any:
+    """Safely await a coroutine from a sync context, even inside a running loop."""
+    try:
+        asyncio.get_running_loop()
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+
 @dataclass
 class DailyEvolutionResult:
     day: str
@@ -85,7 +96,7 @@ class DailyEvolutionLoop:
         )
         config = EvolutionConfig(dry_run=self._dry_run, metrics_mode="real")
         try:
-            evolution_result = asyncio.run(
+            evolution_result = _run_async(
                 RecursiveEvolutionEngine(config, metrics_collector=self._metrics_collector).run()
             )
         except Exception:
