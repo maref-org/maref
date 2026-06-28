@@ -11,6 +11,7 @@ Probe types:
 - latency_probe: Decision latency measurement
 - kg_probe: Knowledge graph health (node count, relation density)
 - oscillation_probe: State oscillation frequency detection
+- playwright_probe: Playwright installation status
 """
 
 from __future__ import annotations
@@ -213,3 +214,53 @@ class OscillationProbe(Probe):
             rate,
             {"change_rate": rate, "window_seconds": self._window},
         )
+
+
+class BaseProbe(ABC):
+    """Simplified base class for observation probes.
+
+    Provides a measure() interface that returns a single ProbeReading,
+    suitable for lightweight / stateless probes.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        critical_threshold: float,
+        warning_threshold: float,
+    ) -> None:
+        self.name = name
+        self.description = description
+        self.critical_threshold = critical_threshold
+        self.warning_threshold = warning_threshold
+        self._readings: list[ProbeReading] = []
+
+    @abstractmethod
+    def measure(self, context: dict[str, Any] | None = None) -> ProbeReading:
+        """Take a single measurement and return the reading."""
+
+    def get_readings(self, n: int = 100) -> list[ProbeReading]:
+        return self._readings[-n:]
+
+    @property
+    def reading_count(self) -> int:
+        return len(self._readings)
+
+
+from maref.observation.probes.playwright_probe import (  # noqa: E402
+    PlaywrightProbe as PlaywrightProbe,
+)
+
+__all__ = [
+    "AnomalyProbe",
+    "BaseProbe",
+    "EntropyProbe",
+    "KGProbe",
+    "LatencyProbe",
+    "OscillationProbe",
+    "PlaywrightProbe",
+    "Probe",
+    "ProbeReading",
+    "ProbeSeverity",
+]

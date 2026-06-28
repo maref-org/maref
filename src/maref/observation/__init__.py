@@ -3,10 +3,12 @@
 from maref.observation.detector import DualThresholdConfig, DualThresholdDetector, FNRFPRSnapshot
 from maref.observation.probes import (
     AnomalyProbe,
+    BaseProbe,
     EntropyProbe,
     KGProbe,
     LatencyProbe,
     OscillationProbe,
+    PlaywrightProbe,
     Probe,
     ProbeReading,
     ProbeSeverity,
@@ -16,6 +18,7 @@ from maref.observation.store import ObservationStore
 
 __all__ = [
     "Probe",
+    "BaseProbe",
     "ProbeReading",
     "ProbeSeverity",
     "EntropyProbe",
@@ -23,6 +26,7 @@ __all__ = [
     "LatencyProbe",
     "KGProbe",
     "OscillationProbe",
+    "PlaywrightProbe",
     "ProbeRegistry",
     "ObservationStore",
     "DualThresholdDetector",
