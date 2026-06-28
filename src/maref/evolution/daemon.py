@@ -25,6 +25,7 @@ class DaemonConfig:
     state_file: str | Path = ".evolution_daemon_state.json"
     pid_file: str | Path = "/tmp/maref-evolution-daemon.pid"
     dry_run: bool = True
+    engine: str = "daily"
 
 
 @dataclass
@@ -50,10 +51,14 @@ class EvolutionDaemon:
         self._config = config
         self._state = self._load_state()
         self._shutdown = False
-        self._loop = DailyEvolutionLoop(
-            vault_dir=config.vault_dir,
-            dry_run=config.dry_run,
-        )
+        if config.engine == "rel":
+            from maref.evolution.rel_adapter import RELAdapter
+            self._loop: DailyEvolutionLoop | RELAdapter = RELAdapter(dry_run=config.dry_run)
+        else:
+            self._loop = DailyEvolutionLoop(
+                vault_dir=config.vault_dir,
+                dry_run=config.dry_run,
+            )
 
     # ── Core loop ────────────────────────────────────────────────────
 
@@ -271,6 +276,12 @@ def main() -> None:
         help="Polling interval in hours",
     )
     parser.add_argument(
+        "--engine",
+        choices=["daily", "rel"],
+        default="daily",
+        help="Evolution engine: daily (RecursiveEvolutionEngine) or rel (RecursiveEvolutionLoop)",
+    )
+    parser.add_argument(
         "--daemon",
         action="store_true",
         help="Run as a persistent daemon (infinite loop)",
@@ -298,6 +309,7 @@ def main() -> None:
         state_file=args.state_file,
         pid_file=args.pid_file,
         dry_run=args.dry_run,
+        engine=args.engine,
     )
 
     # Service file generation (non-daemon mode, just generate and exit)
