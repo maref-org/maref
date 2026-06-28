@@ -807,6 +807,164 @@ def self_heal_config() -> None:
     console.print("Override via: [cyan]maref self-heal start --interval 600[/cyan]")
 
 
+# ── Daemon commands ──────────────────────────────────────────────────
+
+daemon_app = typer.Typer(help="Evolution daemon commands", no_args_is_help=True)
+app.add_typer(daemon_app, name="daemon")
+
+
+@daemon_app.command("start")
+def daemon_start(
+    interval: float = typer.Option(6.0, "--interval", "-i", help="Polling interval in hours"),
+    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
+    vault: str = typer.Option(".evolution_vault", "--vault", "-v", help="Evolution vault directory"),
+) -> None:
+    """启动演进守护进程，按间隔（默认 6h）自动运行递归演进。"""
+    import asyncio
+
+    from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
+
+    config = DaemonConfig(
+        interval_hours=interval,
+        vault_dir=vault,
+        dry_run=dry_run,
+        engine=engine,
+    )
+
+    if dry_run:
+        console.print("[bold]Evolution Daemon — Dry Run Preview[/bold]")
+        console.print(f"  Interval:  [cyan]{interval}h[/cyan]")
+        console.print(f"  Engine:    [cyan]{engine}[/cyan]")
+        console.print(f"  Vault:     [dim]{vault}[/dim]")
+        console.print()
+        console.print("[green]✓[/green] Configuration valid. Run with --no-dry-run to enable real writes.")
+        return
+
+    daemon = EvolutionDaemon(config)
+
+    console.print("[bold green]Evolution Daemon Started[/bold green]")
+    console.print(f"  Interval: [cyan]{interval}h[/cyan]")
+    console.print(f"  Engine:   [cyan]{engine}[/cyan]")
+    console.print(f"  Vault:    [dim]{vault}[/dim]")
+    console.print("  Press [bold]Ctrl+C[/bold] to stop")
+    console.print()
+
+    try:
+        asyncio.run(daemon.run_forever())
+    except KeyboardInterrupt:
+        daemon._handle_shutdown()
+        console.print("\n[yellow]Evolution daemon stopped by user.[/yellow]")
+
+
+@daemon_app.command("run-once")
+def daemon_run_once(
+    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
+    vault: str = typer.Option(".evolution_vault", "--vault", "-v", help="Evolution vault directory"),
+) -> None:
+    """执行单次演进循环并报告结果。"""
+    from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
+
+    console.print("[bold]Evolution Daemon — Single Cycle[/bold]")
+    console.print(f"  Engine:  [cyan]{engine}[/cyan]")
+    console.print(f"  Vault:   [dim]{vault}[/dim]")
+    console.print(f"  Dry run: [cyan]{dry_run}[/cyan]")
+    console.print()
+
+    config = DaemonConfig(
+        vault_dir=vault,
+        dry_run=dry_run,
+        engine=engine,
+    )
+    daemon = EvolutionDaemon(config)
+    result = daemon.run_once()
+
+    if result is None:
+        console.print("[red]✗ Cycle failed[/red]")
+    else:
+        console.print("[green]✓ Cycle completed[/green]")
+        console.print(f"  Stop reason:  [cyan]{result.stop_reason}[/cyan]")
+        console.print(f"  Priority:     [cyan]{result.priority}[/cyan]")
+        console.print(f"  Dry run:      [cyan]{result.dry_run}[/cyan]")
+        console.print(f"  Phases:       [cyan]{', '.join(result.phases)}[/cyan]")
+
+
+@daemon_app.command("install-launchd")
+def daemon_install_launchd(
+    interval: float = typer.Option(6.0, "--interval", "-i", help="Polling interval in hours"),
+    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
+    output: str = typer.Option(
+        "/Library/LaunchDaemons/com.maref.evolution-daemon.plist",
+        "--output", "-o",
+        help="Output path for launchd plist",
+    ),
+) -> None:
+    """生成并安装 macOS launchd 服务配置文件。"""
+    from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
+
+    config = DaemonConfig(
+        interval_hours=interval,
+        dry_run=dry_run,
+        engine=engine,
+    )
+    daemon = EvolutionDaemon(config)
+    daemon.generate_launchd_plist(output)
+
+    console.print(f"[green]✓[/green] launchd plist written to [cyan]{output}[/cyan]")
+    console.print(f"  Load with: [dim]sudo launchctl load -w {output}[/dim]")
+
+
+@daemon_app.command("install-systemd")
+def daemon_install_systemd(
+    interval: float = typer.Option(6.0, "--interval", "-i", help="Polling interval in hours"),
+    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
+    output: str = typer.Option(
+        "/etc/systemd/system/maref-evolution-daemon.service",
+        "--output", "-o",
+        help="Output path for systemd unit",
+    ),
+) -> None:
+    """生成并安装 Linux systemd 服务配置文件。"""
+    from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
+
+    config = DaemonConfig(
+        interval_hours=interval,
+        dry_run=dry_run,
+        engine=engine,
+    )
+    daemon = EvolutionDaemon(config)
+    daemon.generate_systemd_unit(output)
+
+    console.print(f"[green]✓[/green] systemd unit written to [cyan]{output}[/cyan]")
+    console.print("  Enable with: [dim]sudo systemctl enable maref-evolution-daemon[/dim]")
+
+
+@daemon_app.command("status")
+def daemon_status() -> None:
+    """查看演进守护进程的当前状态。"""
+    from pathlib import Path
+
+    state_path = Path(".evolution_daemon_state.json")
+    if not state_path.exists():
+        console.print("[yellow]No daemon state file found. Daemon has never run.[/yellow]")
+        return
+
+    import json
+    state = json.loads(state_path.read_text())
+    console.print("[bold]Evolution Daemon Status[/bold]")
+    console.print(f"  Last run:  [cyan]{state.get('last_run', 'never')}[/cyan]")
+    console.print(f"  Total runs: [cyan]{state.get('total_runs', 0)}[/cyan]")
+    console.print(f"  Failed runs: [cyan]{state.get('failed_runs', 0)}[/cyan]")
+
+    pid_path = Path("/tmp/maref-evolution-daemon.pid")
+    if pid_path.exists():
+        pid = pid_path.read_text().strip()
+        console.print(f"  PID:       [cyan]{pid}[/cyan] (running)")
+
+
 # ── Serve command ────────────────────────────────────────────────────
 
 
