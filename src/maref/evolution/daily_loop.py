@@ -83,7 +83,7 @@ class DailyEvolutionLoop:
                 audit_planned=True,
             )
         )
-        config = EvolutionConfig(dry_run=True, metrics_mode="real")
+        config = EvolutionConfig(dry_run=self._dry_run, metrics_mode="real")
         try:
             evolution_result = asyncio.run(
                 RecursiveEvolutionEngine(config, metrics_collector=self._metrics_collector).run()
