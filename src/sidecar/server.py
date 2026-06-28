@@ -17,6 +17,9 @@ from maref.observability.metric_store import MetricStore
 from maref.observability.security_headers_middleware import SecurityHeadersMiddleware
 from maref.recursive.cost_tracker import CostTracker
 from sidecar.collector import MockAgentAdapter, ObservationCollector
+from maref.mcp.evolution_tools import EVOLUTION_TOOLS
+from maref.mcp.router import MCPServerAdapter
+from maref.tool.registry import ToolRegistry
 from sidecar.gaas_router import router as gaas_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
@@ -148,12 +151,24 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     _metric_store = MetricStore()
     _cost_tracker = CostTracker(metric_store=_metric_store)
     mcp_bridge = SidecarMCPBridge(repo_path=os.getcwd())
+
+    _tool_registry = ToolRegistry()
+    for t in EVOLUTION_TOOLS:
+        _tool_registry.register(t)
+    _mcp_adapter = MCPServerAdapter(_tool_registry)
+
     gateway = MCPGateway()
     gateway.register_backend(
         prefix="maref_",
         transport_type="in-process",
         handler=mcp_bridge.handle_tool_call,
         tools=[t.to_dict() for t in SIDECAR_MCP_TOOLS],
+    )
+    gateway.register_backend(
+        prefix="maref_evolution_",
+        transport_type="in-process",
+        handler=_mcp_adapter.handle_tool_call,
+        tools=_mcp_adapter.list_tools(),
     )
     gateway_router = create_mcp_gateway_router(gateway)
     app.include_router(gateway_router)
