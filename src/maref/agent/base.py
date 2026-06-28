@@ -1,0 +1,15 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class AgentDefinition:
+    agent_type: str
+    description: str
+    when_to_use: str
+    allowed_tools: list[str] = field(default_factory=list)
+    disallowed_tools: list[str] = field(default_factory=list)
+    max_turns: int = 50
+    model: str = "inherit"
+    permission_mode: str = "default"
