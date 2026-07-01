@@ -1,27 +1,23 @@
 ---
 name: Feature Request
-about: Suggest a new feature for MAREF
-title: "[Feature] "
-labels: ["enhancement"]
-assignees: []
+about: Suggest an idea for MAREF
+title: "[FEATURE]"
+labels: feature, triage
+assignees: ''
+
 ---
 
-## Problem Statement
+## Feature Description
+A clear and concise description of the feature you'd like to see.
 
-What problem does this feature solve?
+## Use Case
+Explain why this feature is needed. What problem does it solve?
 
 ## Proposed Solution
-
-Describe the feature you'd like to see.
+Describe how you think this feature could be implemented.
 
 ## Alternatives Considered
-
-Any alternative approaches you've thought about.
-
-## Impact
-
-Which MAREF modules/components would be affected?
+Have you considered any alternative approaches?
 
 ## Additional Context
-
-Any references, papers, or examples from other projects.
+Add any other context or screenshots about the feature request here.

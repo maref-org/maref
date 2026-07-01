@@ -1,36 +1,35 @@
 ---
 name: Bug Report
-about: Report a bug in MAREF
-title: "[Bug] "
-labels: ["bug"]
-assignees: []
+about: Create a report to help us improve MAREF
+title: "[BUG]"
+labels: bug, triage
+assignees: ''
+
 ---
 
-## Description
-
-Clear and concise description of the bug.
+## Bug Description
+A clear and concise description of what the bug is.
 
 ## Steps to Reproduce
-
-1.
-2.
-3.
+1. Go to '...'
+2. Click on '....'
+3. Scroll down to '....'
+4. See error
 
 ## Expected Behavior
-
-What you expected to happen.
+A clear and concise description of what you expected to happen.
 
 ## Actual Behavior
-
-What actually happened, including error messages or stack traces.
+What actually happened.
 
 ## Environment
+- MAREF Version: [e.g., v0.35.0-beta]
+- Python Version: [e.g., 3.10.12]
+- OS: [e.g., macOS 14.5]
+- Browser (if applicable): [e.g., Chrome 120]
 
-- MAREF version:
-- Python version:
-- OS:
-- Dependencies: `pip list | grep -E "maref|torch|pydantic"`
+## Screenshots
+If applicable, add screenshots to help explain your problem.
 
 ## Additional Context
-
-Any other context, logs, or screenshots.
+Add any other context about the problem here.

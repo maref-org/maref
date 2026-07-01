@@ -1,19 +1,17 @@
 ---
-name: ❓ Question
-about: Ask a question about MAREF usage, architecture, or deployment
-title: "[Question] "
+name: Question
+about: Ask a question about using MAREF
+title: "[QUESTION]"
 labels: question
 assignees: ''
+
 ---
 
-**Question**
-A clear and concise description of your question.
+## Question
+What would you like to know about MAREF?
 
-**Context**
-What are you trying to accomplish? What have you already tried?
+## Context
+Provide any relevant context about your use case.
 
-**Environment (if applicable)**
-- MAREF version:
-- Python version:
-- OS:
-- Agent framework used (if any):
+## Additional Information
+Add any other details that might help us answer your question.
