@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DaemonConfig:
     interval_hours: float = 6.0
+    max_runs: int = 0
     vault_dir: str | Path = ".evolution_vault"
     state_file: str | Path = ".evolution_daemon_state.json"
     pid_file: str | Path = "/tmp/maref-evolution-daemon.pid"
@@ -54,6 +55,9 @@ class EvolutionDaemon:
         if config.engine == "rel":
             from maref.evolution.rel_adapter import RELAdapter
             self._loop: DailyEvolutionLoop | RELAdapter = RELAdapter(dry_run=config.dry_run)
+        elif config.engine == "multi":
+            from maref.evolution.multi_adapter import MultiAdapter
+            self._loop: DailyEvolutionLoop | MultiAdapter = MultiAdapter(dry_run=config.dry_run)
         else:
             self._loop = DailyEvolutionLoop(
                 vault_dir=config.vault_dir,
@@ -66,32 +70,39 @@ class EvolutionDaemon:
         self._setup_signal_handlers()
         self._write_pid_file()
         logger.info(
-            "Evolution daemon started (interval=%.1fh, pid=%d)",
+            "Evolution daemon started (interval=%.1fh, max_runs=%d, pid=%d)",
             self._config.interval_hours,
+            self._config.max_runs,
             os.getpid(),
         )
 
+        runs_done = 0
         while not self._shutdown:
             try:
                 await self.run_once()
             except Exception:
                 logger.exception("Unhandled error in daemon run")
 
+            runs_done += 1
             if self._shutdown:
                 break
 
-            interval_seconds = self._config.interval_hours * 3600
-            logger.debug("Sleeping for %.1f hours", self._config.interval_hours)
+            if self._config.max_runs > 0 and runs_done >= self._config.max_runs:
+                logger.info("Reached max_runs=%d, shutting down", self._config.max_runs)
+                break
 
-            for _ in range(int(interval_seconds)):
-                if self._shutdown:
-                    break
-                await asyncio.sleep(1)
+            interval_seconds = self._config.interval_hours * 3600
+            if interval_seconds > 0:
+                logger.info("Sleeping for %.1f hours until next run", self._config.interval_hours)
+                for _ in range(int(interval_seconds)):
+                    if self._shutdown:
+                        break
+                    await asyncio.sleep(1)
 
         self._remove_pid_file()
         logger.info("Evolution daemon shut down gracefully")
 
-    async def run_once(self) -> None:
+    async def run_once(self) -> DailyEvolutionResult | None:
         start = time.time()
         logger.info("Daemon run #%d starting", self._state.total_runs + 1)
 
@@ -112,9 +123,11 @@ class EvolutionDaemon:
         except Exception:
             self._state.failed_runs += 1
             logger.exception("Daemon run #%d failed", self._state.total_runs + 1)
+            result = None
 
         self._state.last_run = datetime.now(timezone.utc).isoformat()
         self._save_state()
+        return result
 
     # ── State persistence ────────────────────────────────────────────
 
@@ -170,12 +183,11 @@ class EvolutionDaemon:
     # ── Service file generation ──────────────────────────────────────
 
     def generate_launchd_plist(self, output_path: str) -> str:
-        executable = sys.executable or "/usr/bin/python3"
-        script_path = os.path.abspath(sys.argv[0]) if sys.argv else __file__
+        executable = sys.executable or "/opt/homebrew/bin/python3"
         pid_path = os.path.abspath(str(self._config.pid_file))
         vault_dir = os.path.abspath(str(self._config.vault_dir))
         state_file = os.path.abspath(str(self._config.state_file))
-        interval_seconds = int(self._config.interval_hours * 3600)
+        user_home = os.path.expanduser("~")
 
         plist = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -185,9 +197,12 @@ class EvolutionDaemon:
     <string>com.maref.evolution-daemon</string>
     <key>ProgramArguments</key>
     <array>
+        <string>/Users/frankie/bin/drive-wait.sh</string>
         <string>{executable}</string>
-        <string>{script_path}</string>
+        <string>-m</string>
+        <string>maref.evolution.daemon</string>
         <string>--daemon</string>
+        <string>--no-dry-run</string>
         <string>--vault</string>
         <string>{vault_dir}</string>
         <string>--pid-file</string>
@@ -196,13 +211,15 @@ class EvolutionDaemon:
         <string>{state_file}</string>
         <string>--interval</string>
         <string>{self._config.interval_hours}</string>
+        <string>--max-runs</string>
+        <string>{self._config.max_runs}</string>
     </array>
     <key>KeepAlive</key>
-    <false/>
+    <true/>
     <key>RunAtLoad</key>
     <true/>
-    <key>StartInterval</key>
-    <integer>{interval_seconds}</integer>
+    <key>WorkingDirectory</key>
+    <string>{user_home}</string>
     <key>StandardOutPath</key>
     <string>/tmp/maref-evolution-daemon.log</string>
     <key>StandardErrorPath</key>
@@ -210,7 +227,9 @@ class EvolutionDaemon:
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>{os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")}</string>
+        <string>{os.environ.get("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")}</string>
+        <key>HOME</key>
+        <string>/Users/frankie</string>
     </dict>
 </dict>
 </plist>
@@ -252,10 +271,16 @@ WantedBy=multi-user.target
 
 def main() -> None:
     """Entry point: parse args → create daemon → asyncio.run()."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     parser = argparse.ArgumentParser(
         description="MAREF evolution daemon — periodic self-evolution loop"
     )
     parser.add_argument("--vault", default=".evolution_vault", help="Evolution vault directory")
+    parser.add_argument("--max-runs", type=int, default=0, help="Max evolution cycles (0 = infinite)")
     parser.add_argument("--dry-run", action="store_true", default=True, help="Dry-run mode (default: on)")
     parser.add_argument(
         "--no-dry-run",
@@ -277,9 +302,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--engine",
-        choices=["daily", "rel"],
+        choices=["daily", "rel", "multi"],
         default="daily",
-        help="Evolution engine: daily (RecursiveEvolutionEngine) or rel (RecursiveEvolutionLoop)",
+        help="Evolution engine: daily (RecursiveEvolutionEngine), rel (RecursiveEvolutionLoop), or multi (MultiAgentEvolutionEngine)",
     )
     parser.add_argument(
         "--daemon",
@@ -305,6 +330,7 @@ def main() -> None:
 
     config = DaemonConfig(
         interval_hours=args.interval,
+        max_runs=args.max_runs,
         vault_dir=args.vault,
         state_file=args.state_file,
         pid_file=args.pid_file,
@@ -339,14 +365,14 @@ def main() -> None:
             )
             sys.exit(1)
         except (OSError, ValueError):
-            logger.warning("Stale PID file %s found, overwriting", pid_path)
+            logger.info("Stale PID file %s removed, starting fresh", pid_path)
 
     if args.daemon:
         daemon = EvolutionDaemon(config)
         asyncio.run(daemon.run_forever())
     else:
-        loop = DailyEvolutionLoop(vault_dir=config.vault_dir, dry_run=config.dry_run)
-        result = loop.run_once()
+        daemon = EvolutionDaemon(config)
+        result = daemon._loop.run_once()
         print(result.to_dict() if result else "{}")
 
 
