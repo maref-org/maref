@@ -404,7 +404,8 @@ class SidecarMCPBridge:
             state_path = ".evolution_daemon_state.json"
             import os
             if os.path.exists(state_path):
-                data = json.loads(open(state_path).read())
+                with open(state_path) as f:
+                    data = json.loads(f.read())
             else:
                 data = {"last_run": "", "total_runs": 0, "failed_runs": 0}
             return {
