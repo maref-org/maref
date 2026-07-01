@@ -1,101 +1,166 @@
-# Contributing to MAREF
+# MAREF 贡献指南
 
-Thank you for considering contributing to MAREF! We welcome contributions from everyone.
+> **贡献方式**：Pull Request 或 Fork + PR
+> - **MAREF 采用 Pull Request 模式**：小团队快速迭代，避免分支爆炸
 
-## Code of Conduct
+---
 
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+## 快速开始
 
-## How to Contribute
-
-### 1. Fork the Repository
-
-Fork the repository to your own GitHub account.
-
-### 2. Clone the Repository
+### 1. 环境准备
 
 ```bash
-git clone https://github.com/<your-username>/maref.git
+# 克隆仓库
+git clone https://github.com/maref-org/maref.git
 cd maref
+
+# 创建虚拟环境（推荐）
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 安装开发依赖
+pip install -e ".[dev]"
 ```
 
-### 3. Create a Branch
-
-Create a branch for your changes:
+### 2. 开发流程
 
 ```bash
+# 拉取最新代码
+git pull origin main
+
+# 创建功能分支（从 main 分支）
 git checkout -b feature/your-feature-name
-```
 
-### 4. Make Changes
+# 进行开发
+# ... 你的修改 ...
 
-Make your changes and ensure they follow our coding standards:
-- Python: PEP 8 + ruff + mypy strict mode
-- TypeScript: ESLint + TypeScript strict mode
+# 运行测试
+pytest tests/ -v
 
-### 5. Run Tests
-
-```bash
-# Run unit tests
-pytest tests/ -v --cov=src/maref
-
-# Run security tests
-pytest tests/security/ -v
-
-# Type checking
-mypy src/
-
-# Linting
-ruff check src/
-```
-
-### 6. Commit Changes
-
-```bash
+# 提交更改
 git add .
-git commit -m "feat(module): description of your changes"
-```
+git commit -m "feat: add your feature"
 
-### 7. Push and Create PR
-
-```bash
+# 推送到远程分支
 git push origin feature/your-feature-name
 ```
 
-Then create a Pull Request from your branch to the main branch.
+### 3. 提交 Pull Request
 
-## Issue Guidelines
+```bash
+# 在 GitHub 上创建 Pull Request
+gh pr create --title "Add your feature" --body "描述你的更改"
+```
 
-### Bug Reports
+---
 
-- Use the [Bug Report template](.github/ISSUE_TEMPLATE/bug_report.md)
-- Include steps to reproduce
-- Include expected and actual behavior
-- Include environment information
+## 代码规范
 
-### Feature Requests
+### Python
 
-- Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md)
-- Describe the use case
-- Provide a proposed solution
+- **PEP 8 遵循**：遵循 PEP 8 编码规范
+- **类型注解**：使用 `from __future__ import annotations` + 类型注解
+- **文档字符串**：使用三引号字符串 `"""` �不是单引号字符串 `'`
+- **导入顺序**：标准库 → 第三方库 → 本地模块
 
-## PR Guidelines
+### TypeScript
 
-- Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md)
-- Reference related issues using `Fixes #123`
-- Include tests for your changes
-- Ensure all existing tests pass
-- Keep PRs focused on a single change
+- **ESLint + TypeScript strict mode**
+- **类型安全**：避免 `any`，使用具体类型
 
-## Code Review Process
+---
 
-1. PR is submitted
-2. CI/CD runs automatically
-3. Reviewers are assigned
-4. Feedback is provided
-5. Changes are made if needed
-6. PR is merged
+## 测试规范
 
-## Getting Help
+### 单元测试
 
-If you need help, feel free to ask in [Discussions](https://github.com/maref-org/maref/discussions) or create a [Question issue](.github/ISSUE_TEMPLATE/question.md).
+```python
+# 运行所有测试
+pytest tests/ -v
+
+# 运行特定测试文件
+pytest tests/test_specific_file.py -v
+
+# 运行特定测试并生成覆盖率报告
+pytest tests/ --cov=src/maref --cov-report=html
+```
+
+### 集成测试
+
+```bash
+# 运行所有测试并生成覆盖率报告
+pytest tests/ -v --cov=src/maref --cov-report=html --cov-report=term
+
+# 检查覆盖率是否达到目标（核心模块 ≥60%，整体 ≥40%）
+```
+
+---
+
+## 提交前检查清单
+
+### 代码质量
+
+- [ ] 运行 `ruff check src/` - 0 错误
+- [ ] 运行 `mypy src/maref/ --ignore-missing-imports` - 0 �误误
+
+### 测试
+
+- [ ] 运行 `pytest tests/ -v` - 所有测试通过
+- [ ] 运行 `pytest tests/integration/percv/ -v` - PERCV 集成测试通过
+
+### 文档
+
+- [ ] 更新相关文档（如适用）
+
+---
+
+## 提交信息模板
+
+```
+feat: 简短描述
+
+详细描述（可选）：
+- 实现了什么功能
+- 使用了什么技术
+- 影响了哪些模块
+
+关联 Issue（可选）：
+- Fixes #123
+- Closes #456
+
+Breaking Changes（可选）：
+- 列出所有破坏性变更
+
+Co-authored-by（可选）：
+- 列出共同贡献者
+```
+
+---
+
+## 常见问题
+
+### 贡献前
+
+- 是否有未提交的更改？`git status`
+- 是否有未推送的提交？`git log origin/main..HEAD`
+
+### 开发中
+
+- 如何处理冲突？`git pull --rebase origin main`
+- 如何撤销本地更改？`git reset --hard HEAD~1`
+
+---
+
+## 联系方式
+
+- **GitHub Discussions**: 用于技术讨论
+- **GitHub Issues**: 用于 Bug 报告和功能请求
+- **Email**: admin@maref.cc
+
+---
+
+## 资源
+
+- [MAREF 官法](docs/CONSTITUTION.md)
+- [MAREF 开源执行规范](docs/oss-execution-norm-v1.0.md)
+- [AGENTS.md](AGENTS.md)
