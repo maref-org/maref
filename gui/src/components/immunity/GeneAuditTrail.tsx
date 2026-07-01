@@ -24,7 +24,7 @@ const RISK_LABELS: Record<string, string> = {
 function SortableHeader({
   field,
   sortField,
-  sortDir,
+  sortDir: _sortDir,
   onSort,
   children,
 }: {
@@ -58,7 +58,7 @@ export function GeneAuditTrail() {
     try {
       setLoading(true);
       const data = await api.getImmunityGenes();
-      setGenes(data.genes ?? []);
+      setGenes((data.genes ?? []) as GeneEntry[]);
     } catch {
       setGenes([]);
     } finally {

@@ -130,20 +130,24 @@ export function DesktopAgentView() {
 
   const refreshHistory = useCallback(() => {
     api.desktopHistory(20)
-      .then((data: Record<string, unknown> | unknown[]) => {
-        const executionsArray = Array.isArray(data)
-          ? data
-          : ((data as { executions?: Array<Record<string, unknown>> })?.executions ?? []);
-        const records: ExecutionRecord[] = executionsArray.map((item: Record<string, unknown>) => ({
-          id: Number(item.id ?? 0),
-          plan_id: String(item.plan_id ?? ""),
-          description: String(item.description ?? ""),
-          success: Boolean(item.success),
-          created_at: Number(item.created_at ?? 0),
-          executed_at: Number(item.executed_at ?? 0),
-          plan_json: String(item.plan_json ?? ""),
-          result_json: String(item.result_json ?? ""),
-        }));
+      .then((data) => {
+        const response = data as Record<string, unknown> | unknown[];
+        const executionsArray = Array.isArray(response)
+          ? response
+          : ((response as { executions?: Array<Record<string, unknown>> })?.executions ?? []);
+        const records: ExecutionRecord[] = executionsArray.map((item) => {
+          const obj = item as Record<string, unknown>;
+          return {
+            id: Number(obj.id ?? 0),
+            plan_id: String(obj.plan_id ?? ""),
+            description: String(obj.description ?? ""),
+            success: Boolean(obj.success),
+            created_at: Number(obj.created_at ?? 0),
+            executed_at: Number(obj.executed_at ?? 0),
+            plan_json: String(obj.plan_json ?? ""),
+            result_json: String(obj.result_json ?? ""),
+          };
+        });
         setExecutions(records);
       })
       .catch(() => {
@@ -153,23 +157,27 @@ export function DesktopAgentView() {
 
   const viewExecutionDetails = useCallback((executionId: number) => {
     api.desktopExecutionDetails(executionId)
-      .then((data: Record<string, unknown>) => {
+      .then((data) => {
+        const d = data as Record<string, unknown>;
         setSelectedExecution(executionId);
-        const opsArray = (data.operations as Array<Record<string, unknown>>) ?? [];
-        const ops: OperationRecord[] = opsArray.map((item: Record<string, unknown>) => ({
-          id: Number(item.id ?? 0),
-          execution_id: Number(item.execution_id ?? 0),
-          step_index: Number(item.step_index ?? 0),
-          op_type: String(item.op_type ?? ""),
-          params_json: String(item.params_json ?? "{}"),
-          description: String(item.description ?? ""),
-          success: Boolean(item.success),
-          duration_ms: Number(item.duration_ms ?? 0),
-          error: String(item.error ?? ""),
-          safety_decision: String(item.safety_decision ?? "allow"),
-          verification_passed: Boolean(item.verification_passed),
-          verification_diff_pct: Number(item.verification_diff_pct ?? 0),
-        }));
+        const opsArray = (d.operations as Array<Record<string, unknown>>) ?? [];
+        const ops: OperationRecord[] = opsArray.map((item) => {
+          const obj = item as Record<string, unknown>;
+          return {
+            id: Number(obj.id ?? 0),
+            execution_id: Number(obj.execution_id ?? 0),
+            step_index: Number(obj.step_index ?? 0),
+            op_type: String(obj.op_type ?? ""),
+            params_json: String(obj.params_json ?? "{}"),
+            description: String(obj.description ?? ""),
+            success: Boolean(obj.success),
+            duration_ms: Number(obj.duration_ms ?? 0),
+            error: String(obj.error ?? ""),
+            safety_decision: String(obj.safety_decision ?? "allow"),
+            verification_passed: Boolean(obj.verification_passed),
+            verification_diff_pct: Number(obj.verification_diff_pct ?? 0),
+          };
+        });
         setExecutionOps(ops);
       })
       .catch(() => {
@@ -445,10 +453,10 @@ export function DesktopAgentView() {
                 color={policyStatus?.pending_hitl ? "bg-maref-warning/20 text-maref-warning" : "bg-maref-success/20 text-maref-success"}
               />
             </div>
-            {policyStatus?.pending_hitl && (
+            {policyStatus?.pending_hitl != null && (
               <div className="rounded-lg border border-maref-warning/30 bg-maref-warning/10 p-4">
                 <p className="mb-2 text-xs font-medium text-maref-warning">
-                  HITL 待确认: {(policyStatus.pending_hitl as Record<string, string>).reason}
+                  HITL 待确认: {(policyStatus.pending_hitl as {reason: string}).reason}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -472,7 +480,7 @@ export function DesktopAgentView() {
                 </div>
               </div>
             )}
-            {policyStatus?.level_distribution && (
+            {policyStatus?.level_distribution != null && (
               <div className="rounded-lg border border-maref-border p-3">
                 <p className="mb-2 text-[10px] text-maref-text-muted">决策层级分布</p>
                 <div className="flex gap-3">

@@ -90,7 +90,7 @@ export function CooldownDashboard() {
         api.getImmunityCooldown(),
         api.getImmunityCooldownSummary(),
       ]);
-      setEntries(entriesRes.entries ?? []);
+      setEntries((entriesRes.entries ?? []) as CooldownEntry[]);
       setSummary(summaryRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load cooldown data");
