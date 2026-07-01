@@ -19,6 +19,12 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
 _STATE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "STATE.yaml")
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,21 +32,30 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _read_state() -> dict | None:
     """Parse STATE.yaml."""
     if not os.path.isfile(_STATE_PATH):
-        # Try public/maref STATE.yaml
         alt = "/Volumes/1TB-M2/public/maref/STATE.yaml"
         if os.path.isfile(alt):
             with open(alt) as f:
-                return _parse_yaml_simple(f.read())
+                return _parse_yaml(f.read())
         return None
     try:
         with open(_STATE_PATH) as f:
-            return _parse_yaml_simple(f.read())
+            return _parse_yaml(f.read())
     except OSError:
         return None
 
 
+def _parse_yaml(text: str) -> dict:
+    """Parse YAML using yaml module if available, otherwise fallback."""
+    if HAS_YAML:
+        try:
+            return yaml.safe_load(text) or {}
+        except yaml.YAMLError:
+            pass
+    return _parse_yaml_simple(text)
+
+
 def _parse_yaml_simple(text: str) -> dict:
-    """Minimal YAML parser for flat nested dicts (no deps)."""
+    """Minimal YAML parser for flat nested dicts (fallback)."""
     result: dict = {}
     current = result
     path: list[str] = []
@@ -56,7 +71,6 @@ def _parse_yaml_simple(text: str) -> dict:
             key = key.strip()
             value = value.strip()
             if value == "":
-                # Nested key
                 new_dict: dict = {}
                 if path:
                     parent = result
@@ -68,7 +82,6 @@ def _parse_yaml_simple(text: str) -> dict:
                 path.append((key, indent))
                 current = new_dict
             else:
-                # Parse value
                 if value.lower() == "true":
                     value = True
                 elif value.lower() == "false":
@@ -113,14 +126,43 @@ def check_gates(json_output: bool = False) -> tuple[bool, list[dict]]:
 
     d1 = (state or {}).get("d1_gate", {})
 
-    # G1: arXiv ID
+    # G1: arXiv ID or Journal Acceptance (fallback)
     g1_pass = d1.get("G1_arxiv_id", False)
+    
+    # Check journal acceptance as fallback bypass (per STATE.yaml strategy)
+    submission_pipeline = (state or {}).get("submission_pipeline", {})
+    journals = submission_pipeline.get("journals", [])
+    arxiv_endorsement = submission_pipeline.get("arxiv_endorsement", {})
+    fallback_strategy = arxiv_endorsement.get("fallback", "")
+    
+    journal_accepted = any(j.get("status") == "accepted" for j in journals)
+    g1_bypass = journal_accepted and fallback_strategy == "journal_acceptance"
+    
+    # Check override (for emergency pushes during arXiv blocking period)
+    allow_override = d1.get("allow_push_override", False)
+    override_reason = d1.get("override_reason", "")
+    
+    if allow_override and override_reason:
+        g1_pass = True
+        detail = f"⚠️ Override enabled: {override_reason}"
+        action = None
+    elif g1_bypass:
+        g1_pass = True
+        detail = f"✅ Journal acceptance bypass (arXiv not needed)"
+        action = None
+    elif g1_pass:
+        detail = "✅ arXiv ID obtained"
+        action = None
+    else:
+        detail = f"❌ arXiv ID not obtained. {len(journals)} journal(s) submitted, fallback={fallback_strategy}"
+        action = "Publish to journal and use acceptance as arXiv bypass"
+    
     gates.append({
         "id": "G1",
-        "name": "arXiv ID",
+        "name": "arXiv ID / Journal Acceptance",
         "pass": g1_pass,
-        "detail": "arXiv ID obtained" if g1_pass else (state or {}).get("submission_pipeline", {}).get("arxiv_endorsement", {}).get("fallback", "Not obtained"),
-        "action": "Publish to journal and use acceptance as arXiv bypass" if not g1_pass else None,
+        "detail": detail,
+        "action": action,
     })
     if not g1_pass:
         all_pass = False

@@ -2,7 +2,7 @@ name: Branch Cleanup
 
 on:
   schedule:
-    - cron: "0 4 * * 0"
+    - cron: '0 0 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -12,24 +12,18 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Delete merged/abandoned branches
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cleanup merged branches
         run: |
-          # Keep main, develop, release/*, feat/deploy-*
-          for branch in $(gh api repos/${{ github.repository }}/branches --paginate --jq '.[].name'); do
-            case "$branch" in
-              main|develop|release/*|feat/deploy-*) echo "Protected: $branch" ;;
-              *)
-                # Check if branch has open PR
-                pr_count=$(gh pr list --head "$branch" --state open --json id --jq 'length' 2>/dev/null || echo 0)
-                if [ "$pr_count" -eq 0 ]; then
-                  echo "Deleting abandoned branch: $branch"
-                  gh api repos/${{ github.repository }}/git/refs/heads/$branch -X DELETE
-                else
-                  echo "Branch has open PR: $branch"
-                fi
-                ;;
-            esac
+          git fetch --prune
+          git branch --merged origin/main | grep -v -E "^[*]\s*main$" | grep -v -E "^[*]\s*develop$" | while read branch; do
+            branch=$(echo "$branch" | xargs)
+            if [[ ! "$branch" =~ ^(main|develop)$ ]]; then
+              echo "Deleting branch: $branch"
+              git push origin --delete "$branch"
+            fi
           done
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
