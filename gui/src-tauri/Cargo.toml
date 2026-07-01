@@ -1,6 +1,6 @@
 [package]
 name = "maref-agent"
-version = "0.35.0-beta"
+version = "0.36.0-rc"
 edition = "2021"
 
 [dependencies]

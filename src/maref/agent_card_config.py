@@ -6,7 +6,7 @@ from typing import Any
 
 _URN_PATTERN = re.compile(r"^urn:agent:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9_-]+$")
 
-AGENT_ID = "urn:agent:maref:0-35-0-beta:main"
+AGENT_ID = "urn:agent:maref:0-36-0-rc:main"
 
 
 def validate_agent_urn(agent_id: str) -> bool:
@@ -15,7 +15,7 @@ def validate_agent_urn(agent_id: str) -> bool:
 
 
 AGENT_NAME = "MAREF"
-AGENT_VERSION = "0.35.0-beta"
+AGENT_VERSION = "0.36.0-rc"
 AGENT_DESCRIPTION = (
     "Multi-Agent Recursive Engineering Framework — "
     "six-layer governance architecture with tool orchestration, "
