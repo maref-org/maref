@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import os
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from maref.integration.percv.meta_ratchet import MetaRatchet
+from maref.integration.percv.meta_ratchet import (
+    MetaRatchet,
+    ProtocolChange,
+    StagnationDiagnosis,
+)
 from maref.integration.percv.multi_target_ratchet import ImprovementTarget
 from maref.integration.percv.ratchet_bridge import RatchetIterationRecord
 
@@ -11,7 +17,22 @@ class TestMetaRatchet:
     def test_init_defaults(self) -> None:
         meta = MetaRatchet()
         assert meta.diagnosis_history == []
-        assert meta.CONSTITUTIONAL_IMMUTABLES == ["branch_prefix"]
+        assert "branch_prefix" in meta.CONSTITUTIONAL_IMMUTABLES
+        assert "human_gate" in meta.CONSTITUTIONAL_IMMUTABLES
+
+    def test_is_production_default(self) -> None:
+        meta = MetaRatchet()
+        assert meta.is_production is False
+
+    def test_is_production_env_set(self) -> None:
+        with patch.dict(os.environ, {"MAREF_ENV": "production"}):
+            meta = MetaRatchet()
+            assert meta.is_production is True
+
+    def test_is_production_staging(self) -> None:
+        with patch.dict(os.environ, {"MAREF_ENV": "staging"}):
+            meta = MetaRatchet()
+            assert meta.is_production is True
 
     def test_check_triggers_no_bridge(self) -> None:
         meta = MetaRatchet()
@@ -70,7 +91,6 @@ class TestMetaRatchet:
 
     def test_propose_protocol_change_low_severity_returns_none(self) -> None:
         meta = MetaRatchet()
-        from maref.integration.percv.meta_ratchet import StagnationDiagnosis
         diag = StagnationDiagnosis(
             diagnosis_type="saturation", severity="low",
             details="nothing wrong",
@@ -81,7 +101,6 @@ class TestMetaRatchet:
     def test_propose_protocol_change_consecutive_discards(self) -> None:
         bridge = MagicMock()
         meta = MetaRatchet(ratchet_bridge=bridge)
-        from maref.integration.percv.meta_ratchet import StagnationDiagnosis
         diag = StagnationDiagnosis(
             diagnosis_type="consecutive_discards", severity="high",
             details="5 consecutive discards",
@@ -91,20 +110,19 @@ class TestMetaRatchet:
         assert change is not None
         assert change.config_key == "max_consecutive_discards"
 
-    def test_sandbox_test_rejects_insufficient_rounds(self) -> None:
-        meta = MetaRatchet()
-        from maref.integration.percv.meta_ratchet import ProtocolChange
-        change = ProtocolChange(
-            config_key="max_consecutive_discards",
-            old_value=5, new_value=4, rationale="test",
-        )
-        result = meta.sandbox_test(change, n_rounds=5)
-        assert result.adopted is False
-        assert result.improvement == 0
+    def test_sandbox_test_rejects_insufficient_rounds_in_prod(self) -> None:
+        with patch.dict(os.environ, {"MAREF_ENV": "production"}):
+            meta = MetaRatchet()
+            change = ProtocolChange(
+                config_key="max_consecutive_discards",
+                old_value=5, new_value=4, rationale="test",
+            )
+            result = meta.sandbox_test(change, n_rounds=5)
+            assert result.adopted is False
+            assert result.is_production_safe is False
 
     def test_sandbox_test_adequate_rounds(self) -> None:
         meta = MetaRatchet()
-        from maref.integration.percv.meta_ratchet import ProtocolChange
         change = ProtocolChange(
             config_key="max_consecutive_discards",
             old_value=5, new_value=4, rationale="test",
@@ -116,7 +134,6 @@ class TestMetaRatchet:
 
     def test_sandbox_test_with_custom_evaluator(self) -> None:
         meta = MetaRatchet()
-        from maref.integration.percv.meta_ratchet import ProtocolChange
         change = ProtocolChange(
             config_key="max_consecutive_discards",
             old_value=5, new_value=3, rationale="test",
@@ -132,7 +149,6 @@ class TestMetaRatchet:
 
     def test_sandbox_test_custom_evaluator_no_improvement(self) -> None:
         meta = MetaRatchet()
-        from maref.integration.percv.meta_ratchet import ProtocolChange
         change = ProtocolChange(
             config_key="max_consecutive_discards",
             old_value=5, new_value=7, rationale="test",
@@ -150,3 +166,47 @@ class TestMetaRatchet:
         meta = MetaRatchet(ratchet_bridge=bridge)
         meta.diagnose_stagnation(ImprovementTarget.PROMPT_DISTILL)
         assert len(meta.diagnosis_history) == 1
+
+    def test_audit_log_written(self) -> None:
+        meta = MetaRatchet(audit_log_path="/tmp/test_meta_audit.jsonl")
+        bridge = MagicMock()
+        bridge.get_history.return_value = []
+        meta._ratchet_bridge = bridge
+        meta.diagnose_stagnation(ImprovementTarget.PROMPT_DISTILL)
+        assert len(meta._audit_buffer) == 1
+        assert meta._audit_buffer[0].phase == "diagnose"
+
+    def test_redline_block_constitutional_immutable(self) -> None:
+        bridge = MagicMock()
+        meta = MetaRatchet(ratchet_bridge=bridge)
+        change = ProtocolChange(
+            config_key="human_gate",
+            old_value=True, new_value=False,
+            rationale="test block",
+        )
+        violations = meta._check_redlines(change, ImprovementTarget.PROMPT_DISTILL)
+        assert any("RL-005" in v for v in violations)
+
+    def test_production_safety_report(self) -> None:
+        meta = MetaRatchet()
+        report = meta.get_production_safety_report()
+        assert "is_production" in report
+        assert "hitl_required" in report
+        assert "constitutional_immutables" in report
+
+    def test_audit_summary_empty(self) -> None:
+        meta = MetaRatchet(audit_log_path="/tmp/test_meta_audit_empty.jsonl")
+        summary = meta.get_audit_summary()
+        assert summary == []
+
+    def test_production_hitl_gate_blocks_protocol_change(self) -> None:
+        with patch.dict(os.environ, {"MAREF_ENV": "production"}):
+            meta = MetaRatchet()
+            change = ProtocolChange(
+                config_key="evaluation_command",
+                old_value="old_cmd", new_value="new_cmd",
+                rationale="test production HITL",
+            )
+            result = meta.sandbox_test(change, n_rounds=10)
+            assert change.hitl_approved is False
+            assert result.is_production_safe is False
