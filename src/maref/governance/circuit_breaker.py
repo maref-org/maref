@@ -56,11 +56,17 @@ class CircuitBreaker:
         max_oscillation_rate: float = 10.0,
         max_consecutive_failures: int = 5,
         cooldown_seconds: float = 30.0,
+        rsi_max_flip_flops: int = 7,
+        rsi_quality_window: int = 5,
+        rsi_min_quality: float = 0.3,
     ) -> None:
         self._max_depth = max_depth
         self._max_oscillation = max_oscillation_rate
         self._max_failures = max_consecutive_failures
         self._cooldown = cooldown_seconds
+        self._rsi_max_flip_flops = rsi_max_flip_flops
+        self._rsi_quality_window = rsi_quality_window
+        self._rsi_min_quality = rsi_min_quality
         self._state = BreakerState.CLOSED
         self._failure_count = 0
         self._last_trip_time = 0.0
@@ -117,6 +123,41 @@ class CircuitBreaker:
         else:
             self._failure_count = 0
 
+    def check_rsi_oscillation(self, statuses: list[str]) -> bool:
+        """RSI-specific: detect keep/discard oscillation.
+        Trips if flip-flops >= threshold in the full provided window.
+        Returns True if allowed, False if tripped."""
+        if self.is_open:
+            return False
+        if len(statuses) < 2:
+            return True
+        flips = sum(1 for i in range(1, len(statuses)) if statuses[i] != statuses[i - 1])
+        if flips >= self._rsi_max_flip_flops:
+            self._trip(
+                f"rsi_oscillation:{flips}>={self._rsi_max_flip_flops}",
+                0, 0, "",
+            )
+            return False
+        return True
+
+    def check_rsi_quality(self, scores: list[float]) -> bool:
+        """RSI-specific: detect sustained quality degradation.
+        Trips if avg of last N scores drops below min_quality.
+        Returns True if allowed, False if tripped."""
+        if self.is_open:
+            return False
+        if len(scores) < self._rsi_quality_window:
+            return True
+        recent = scores[-self._rsi_quality_window:]
+        avg = sum(recent) / len(recent)
+        if avg < self._rsi_min_quality:
+            self._trip(
+                f"rsi_quality_degradation:avg={avg:.2f}<{self._rsi_min_quality}",
+                0, 0, "",
+            )
+            return False
+        return True
+
     def _trip(self, reason: str, depth: int, entropy: int, state_before: str) -> None:
         self._state = BreakerState.OPEN
         self._last_trip_time = time.time()
@@ -161,6 +202,9 @@ class CircuitBreaker:
             "max_oscillation_rate": self._max_oscillation,
             "max_consecutive_failures": self._max_failures,
             "cooldown_seconds": self._cooldown,
+            "rsi_max_flip_flops": self._rsi_max_flip_flops,
+            "rsi_quality_window": self._rsi_quality_window,
+            "rsi_min_quality": self._rsi_min_quality,
             "state": self._state.value,
             "trip_count": len(self._trips),
             "recent_trips": [

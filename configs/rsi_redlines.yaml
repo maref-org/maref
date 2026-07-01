@@ -1,0 +1,31 @@
+version: 1.0
+rsi_immutables:
+  - rule_id: RSI-RL-001
+    description: "human_gate 不得在生产 Ratchet 中设置为 false"
+    severity: CRITICAL
+    auto_action: HALT
+    applies_to: ["ratchet", "meta_ratchet"]
+
+  - rule_id: RSI-RL-002
+    description: "元 Ratchet 每次运行需至少 10 轮沙箱测试"
+    severity: HIGH
+    auto_action: BLOCK
+    applies_to: ["meta_ratchet"]
+
+  - rule_id: RSI-RL-003
+    description: "跨维度改进必须触发 CrossDimensionalAnalyzer"
+    severity: MEDIUM
+    auto_action: WARN_AND_CONTINUE
+    applies_to: ["ratchet"]
+
+  - rule_id: RSI-RL-004
+    description: "MAS-TS L0 评估分不得低于 60（满分 100）"
+    severity: HIGH
+    auto_action: DISCARD
+    applies_to: ["ratchet"]
+
+  - rule_id: RSI-RL-005
+    description: "元 Ratchet 不得修改 CONSTITUTIONAL_IMMUTABLES 中的配置项"
+    severity: CRITICAL
+    auto_action: HALT
+    applies_to: ["meta_ratchet"]

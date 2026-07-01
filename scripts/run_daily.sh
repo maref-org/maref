@@ -103,6 +103,11 @@ if [[ ${EXIT_CODE} -eq 0 ]]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Syncing reports..." | tee -a "${LOG_FILE}"
         bash "${SCRIPT_DIR}/sync_reports.sh" 2>&1 | tee -a "${LOG_FILE}" || true
     fi
+
+    # Phase 5: RSI loop — multi-target ratchet + cross-analyze + meta-diagnose
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting RSI loop..." | tee -a "${LOG_FILE}"
+    bash "${SCRIPT_DIR}/run_rsi_loop.sh" 2>&1 | tee -a "${LOG_FILE}" || true
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] RSI loop complete." | tee -a "${LOG_FILE}"
 else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Batch failed with exit code ${EXIT_CODE}." | tee -a "${LOG_FILE}"
 fi

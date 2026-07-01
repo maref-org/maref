@@ -265,12 +265,12 @@ class RELTransactionManager:
             if path.exists():
                 original_content = path.read_text(encoding="utf-8")
                 shutil.copy2(str(path), backup_path)
-            tx = FileSnapshot(
+            snap = FileSnapshot(
                 path=fp,
                 original_content=original_content,
                 backup_path=backup_path,
             )
-            snapshots.append(tx)
+            snapshots.append(snap)
 
         tx = RELTransaction(
             tx_id=tx_id,
@@ -481,7 +481,7 @@ class RecursiveEvolutionLoop:
         self._governor = safety_governor or RELSafetyGovernor()
         self._rounds: list[RELRoundRecord] = []
         self._current_round = 0
-        self._current_snapshot: dict[str, Any] | None = None
+        self._current_snapshot: Any = None
         self._current_report: Any = None
         self._current_proposal: Any = None
         self._current_code: Any = None
@@ -542,6 +542,14 @@ class RecursiveEvolutionLoop:
         start = time.time()
         round_num = self._current_round + 1
         start_state = self._sm.state
+
+        current_state = self._sm.state
+        if current_state in (RELState.HALT, RELState.STOP):
+            return ConvergenceVerdict(
+                converged=False,
+                reason=f"state_already_{current_state.name.lower()}",
+                metrics_snapshot=metrics_after,
+            )
 
         verdict = self._detector.evaluate(metrics_after)
 
@@ -736,20 +744,21 @@ class RecursiveEvolutionLoop:
                         logger.info("ImmuneChecker not available, skipping")
                     except Exception:
                         logger.exception("ImmuneChecker scan failed, continuing")
-                    from maref.recursive.safety_gate_v2 import SafetyGateV2
-                    gate = SafetyGateV2()
-                    threat = gate.detect_core_removal(code_str)
-                    if threat.blocked:
-                        self.halt(f"safety: {threat.reason}")
-                if can_transition(RELState.SAFETY, RELState.DEPLOY):
+                    if self._sm.state == RELState.SAFETY:
+                        from maref.recursive.safety_gate_v2 import SafetyGateV2
+                        gate = SafetyGateV2()
+                        threat = gate.detect_core_removal(code_str)
+                        if threat.blocked:
+                            self.halt(f"safety: {threat.reason}")
+                if self._sm.state == RELState.SAFETY and can_transition(self._sm.state, RELState.DEPLOY):
                     self._sm.transition(RELState.DEPLOY)
 
             elif state == RELState.DEPLOY:
                 from maref.recursive.self_executor import SelfExecutor
                 executor = SelfExecutor()
                 if self._current_code is not None:
-                    result = executor.deploy(self._current_code)
-                    if not result.success:
+                    deploy_result = executor.deploy(self._current_code)
+                    if not deploy_result.success:
                         last_tx = self._tx_mgr.get_by_round(self._current_round)
                         if last_tx:
                             self._tx_mgr.rollback(last_tx[-1])

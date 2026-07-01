@@ -7,6 +7,7 @@ from maref.learning.ab_test import (
     MetricSnapshot,
     StrategyComparator,
 )
+from maref.learning.online_engine import OnlineLearningEngine, OnlineWeightRecord
 from maref.learning.replay import DecisionOutcome, ExperienceStore
 from maref.learning.scheduler import LearningRateScheduler, SchedulerConfig, SchedulerState
 
@@ -21,4 +22,6 @@ __all__ = [
     "ABDecision",
     "ABWinner",
     "MetricSnapshot",
+    "OnlineLearningEngine",
+    "OnlineWeightRecord",
 ]

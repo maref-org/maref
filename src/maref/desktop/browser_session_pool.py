@@ -67,14 +67,17 @@ class BrowserSession:
 
 class BrowserSessionPool:
     _instance: BrowserSessionPool | None = None
-    _lock: asyncio.Lock | None = None
+    _lock: asyncio.Lock
+    _sessions: dict[str, BrowserSession]
+    _playwright_available: bool
+    _cleanup_task: asyncio.Task[Any] | None
 
     def __new__(cls) -> BrowserSessionPool:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._sessions: dict[str, BrowserSession] = {}
+            cls._instance._sessions = {}
             cls._instance._playwright_available = False
-            cls._instance._cleanup_task: asyncio.Task[Any] | None = None
+            cls._instance._cleanup_task = None
             cls._lock = asyncio.Lock()
             try:
                 import playwright  # noqa: F401

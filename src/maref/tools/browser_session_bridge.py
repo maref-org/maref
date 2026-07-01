@@ -11,11 +11,12 @@ logger = logging.getLogger(__name__)
 
 class BrowserSessionBridge:
     _instance: BrowserSessionBridge | None = None
+    _controllers: dict[str, Any]
 
     def __new__(cls) -> BrowserSessionBridge:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._controllers: dict[str, Any] = {}
+            cls._instance._controllers = {}
         return cls._instance
 
     def register(self, controller: Any) -> None:
@@ -69,6 +70,7 @@ class BrowserSessionBridge:
                     page = session.active_page
                     if page is None:
                         page = await pool.new_page("_bridge_screenshot")
+                    assert page is not None
                     await page.goto(url, timeout=30000)
                     png_bytes = await page.screenshot(full_page=True)
                     b64 = base64.b64encode(png_bytes).decode("ascii")
