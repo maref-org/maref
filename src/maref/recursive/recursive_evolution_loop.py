@@ -685,7 +685,7 @@ class RecursiveEvolutionLoop:
             elif state == RELState.OBSERVE:
                 from maref.recursive.self_observer import SelfObserver
                 observer = SelfObserver()
-                snapshot = observer.snapshot()
+                snapshot = observer.snapshot(collect_only=True)
                 self._current_snapshot = snapshot
                 if can_transition(RELState.OBSERVE, RELState.DIAGNOSE):
                     self._sm.transition(RELState.DIAGNOSE)
@@ -712,18 +712,38 @@ class RecursiveEvolutionLoop:
                 generator = LLMCodeGenerator()
                 if self._current_proposal is not None:
                     result = await generator.generate(self._current_proposal)
-                    self._current_code = result
+                    if result.success and result.generated:
+                        self._current_code = result.generated[0]
+                    else:
+                        errs = "; ".join(result.validation_errors)
+                        logger.warning("CODEGEN: generation failed: %s", errs or "unknown")
                 else:
                     logger.warning("CODEGEN: no proposal available, skipping")
                 if can_transition(RELState.CODEGEN, RELState.SAFETY):
                     self._sm.transition(RELState.SAFETY)
 
             elif state == RELState.SAFETY:
-                from maref.recursive.safety_gate_v2 import SafetyGateV2
-                gate = SafetyGateV2()
                 if self._current_code is not None:
-                    target = getattr(self._current_code, "generated", [])
-                    threat = gate.detect_core_removal(str(target))
+                    code_str = str(getattr(self._current_code, "content", str(self._current_code)))
+                    try:
+                        from maref.immunity.immune_checker import ImmuneChecker
+                        from maref.immunity.negative_gene_bank import NegativeGeneBank
+                        from maref.immunity.seed_genes import seed_all
+                        bank = NegativeGeneBank()
+                        seed_all(bank)
+                        checker = ImmuneChecker(gene_bank=bank)
+                        immune_hits = checker.scan(code_str) + checker.scan_ast(code_str)
+                        blocked_hits = [h for h in immune_hits if h.blocked]
+                        if blocked_hits:
+                            reasons = "; ".join(f"{h.gene_id}:{h.gene_title}" for h in blocked_hits[:5])
+                            self.halt(f"immune: {reasons}")
+                    except ImportError:
+                        logger.info("ImmuneChecker not available, skipping")
+                    except Exception:
+                        logger.exception("ImmuneChecker scan failed, continuing")
+                    from maref.recursive.safety_gate_v2 import SafetyGateV2
+                    gate = SafetyGateV2()
+                    threat = gate.detect_core_removal(code_str)
                     if threat.blocked:
                         self.halt(f"safety: {threat.reason}")
                 if can_transition(RELState.SAFETY, RELState.DEPLOY):
