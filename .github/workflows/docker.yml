@@ -69,26 +69,20 @@ jobs:
             "$FIRST_TAG" \
             -c "Xvfb :99 -screen 0 1280x720x24 & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
 
-      - name: Wait for healthy
+      - name: Wait for health endpoint
         run: |
           for i in $(seq 1 30); do
-            status=$(docker inspect --format='{{json .State.Health.Status}}' maref-test 2>/dev/null || echo "\"starting\"")
-            echo "Attempt $i: Health=$status"
-            if [ "$status" = "\"healthy\"" ]; then
-              echo "✓ Container is healthy!"
+            if curl -sf http://localhost:8080/api/health > /dev/null 2>&1; then
+              echo "✓ Container is healthy (attempt $i)!"
+              curl -s http://localhost:8080/api/health | python3 -m json.tool
               exit 0
             fi
+            echo "Attempt $i: Health endpoint not yet available"
             sleep 2
           done
           echo "✗ Container failed to become healthy within 60s"
-          docker logs maref-test --tail 50
+          docker logs maref-test --tail 100
           exit 1
-
-      - name: Verify health endpoint
-        run: |
-          curl -sf http://localhost:8080/api/health || \
-            (echo "⚠ Health endpoint not available — checking container logs"; \
-             docker logs maref-test --tail 20)
 
       - name: Container logs (on failure)
         if: failure()
@@ -136,7 +130,7 @@ jobs:
           tags: maref/maref:scan
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.20.0
         with:
           scan-type: image
           scan-ref: maref/maref:scan
@@ -146,7 +140,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Run Trivy with SARIF output
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.20.0
         if: always()
         with:
           scan-type: image
