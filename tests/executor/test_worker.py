@@ -581,3 +581,56 @@ class TestWorkerPoolEdgeCases:
         status = w.get_status()
         assert status["active_workers"] == 0
         w.stop(timeout=1.0)
+
+    def test_timeout_with_handler_success(self, worker: WorkerPool) -> None:
+        executed: list[bool] = []
+        lock = threading.Lock()
+
+        def quick_handler(task: Task) -> None:
+            with lock:
+                executed.append(True)
+
+        worker.register_handler("quick-timeout", quick_handler)
+        worker.start()
+        task = Task(name="quick-timeout", timeout_seconds=5.0)
+        worker.submit(task)
+        time.sleep(0.3)
+        worker.stop(timeout=2.0)
+        assert len(executed) == 1
+        retrieved = worker._queue.get(task.id)
+        assert retrieved is not None
+        assert retrieved.status == TaskStatus.COMPLETED
+
+    def test_timeout_with_handler_exception(self, worker: WorkerPool) -> None:
+        def failing_handler(task: Task) -> None:
+            raise ValueError("failed inside timeout")
+
+        worker.register_handler("fail-timeout", failing_handler)
+        worker.start()
+        task = Task(name="fail-timeout", timeout_seconds=5.0)
+        worker.submit(task)
+        time.sleep(0.3)
+        worker.stop(timeout=2.0)
+        retrieved = worker._queue.get(task.id)
+        assert retrieved is None
+        dlq = worker._queue.list_dlq()
+        assert len(dlq) == 1
+        assert "failed inside timeout" in dlq[0]["dlq_reason"]
+
+    def test_pause_during_dequeue_requeues_task(self, worker: WorkerPool) -> None:
+        executed: list[str] = []
+        lock = threading.Lock()
+
+        def handler(task: Task) -> None:
+            with lock:
+                executed.append(task.id)
+
+        worker.register_handler("pause-race", handler)
+        worker.start()
+        task = Task(name="pause-race")
+        worker.submit(task)
+        time.sleep(0.05)
+        worker.pause()
+        time.sleep(0.2)
+        status = worker.get_status()
+        assert status["paused"] is True

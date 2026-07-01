@@ -541,6 +541,29 @@ class TestSchedulerEdgeCases:
         assert len(tasks) == 0
         s.stop()
 
+    def test_tick_fires_matching_cron(self, queue: TaskQueue) -> None:
+        s = Scheduler(queue, tick_interval=60.0)
+        task = Task(name="fire-me", priority=TaskPriority.HIGH, max_retries=2)
+        s.add_cron_job("every-minute", "* * * * *", task)
+        s._tick()
+        tasks = queue.list_tasks()
+        assert len(tasks) == 1
+        assert tasks[0].name == "fire-me"
+        job = s.get_job(next(iter(s._jobs)))
+        assert job is not None
+        assert job.last_run is not None
+        assert job.run_count == 1
+        s.stop()
+
+    def test_tick_next_run_exception_handled(self, queue: TaskQueue) -> None:
+        s = Scheduler(queue, tick_interval=60.0)
+        task = Task(name="no-next")
+        s.add_cron_job("no-next", "0 0 30 2 *", task)
+        s._tick()
+        job = s.get_job(next(iter(s._jobs)))
+        assert job is not None
+        s.stop()
+
     def test_cron_job_default_fields(self) -> None:
         job = CronJob()
         assert job.id is not None
@@ -582,3 +605,15 @@ class TestSchedulerEdgeCases:
         assert next_dt.second == 0
         assert next_dt.microsecond == 0
         assert next_dt == datetime(2026, 5, 21, 10, 31, 0, tzinfo=timezone.utc)
+
+    def test_dow_range_containing_7(self) -> None:
+        cron = CronExpression("* * * * 5-7")
+        dt = datetime(2026, 5, 22, 0, 0, 0, tzinfo=timezone.utc)  # Friday
+        assert cron.matches(dt)
+        dt2 = datetime(2026, 5, 23, 0, 0, 0, tzinfo=timezone.utc)  # Saturday
+        assert cron.matches(dt2)
+
+    def test_dow_range_0_to_7(self) -> None:
+        cron = CronExpression("* * * * 0-7")
+        dt = datetime(2026, 5, 22, 0, 0, 0, tzinfo=timezone.utc)  # Friday
+        assert cron.matches(dt)
