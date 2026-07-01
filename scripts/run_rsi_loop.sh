@@ -3,11 +3,11 @@
 set -euo pipefail
 
 TAG="rsi-$(date +%Y%m%d-%H%M)"
-ROOT="/Volumes/1TB-M2/public"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "[RSI] Starting daily loop: $TAG"
 
-cd "$ROOT/maref"
+cd "$ROOT"
 
 # Phase 0/1: 多目标 Ratchet 运行
 for TARGET in prompts/distill_v1.yaml prompts/project_v1.yaml config/quality_config.yaml; do
