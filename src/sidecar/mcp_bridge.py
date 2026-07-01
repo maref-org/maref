@@ -126,9 +126,30 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
         input_schema={"type": "object", "properties": {}},
     ),
     MCPToolDefinition(
-        name="maref_verifier_drift",
-        description="Detect verifier accuracy drift",
+        name="maref_health_check",
+        description="Check sidecar health",
         input_schema={"type": "object", "properties": {}},
+    ),
+    MCPToolDefinition(
+        name="maref_run_evolution",
+        description="Trigger a single evolution run with the specified engine",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "engine": {"type": "string", "enum": ["daily", "rel", "multi", "continuous", "saeb", "tla"]},
+                "dry_run": {"type": "boolean"},
+            },
+        },
+    ),
+    MCPToolDefinition(
+        name="maref_get_evolution_status",
+        description="Get current evolution daemon status (last run, total runs, failures)",
+        input_schema={"type": "object", "properties": {}},
+    ),
+    MCPToolDefinition(
+        name="maref_list_evolution_results",
+        description="List recent evolution run results from vault",
+        input_schema={"type": "object", "properties": {"limit": {"type": "integer"}}},
     ),
 ]
 
@@ -320,6 +341,12 @@ class SidecarMCPBridge:
                 "isError": True,
                 "content": [{"type": "text", "text": f"Unknown tool: {name}"}],
             }
+        elif name == "maref_run_evolution":
+            result = self._handle_evolution_run(args)
+        elif name == "maref_get_evolution_status":
+            result = self._handle_evolution_status(args)
+        elif name == "maref_list_evolution_results":
+            result = self._handle_evolution_results(args)
         else:
             result = {
                 "content": [{"type": "text", "text": f"Tool {name} executed"}],
@@ -355,6 +382,51 @@ class SidecarMCPBridge:
             return json.dumps({"error": f"Unknown codedepth tool: {name}"})
         except Exception as e:
             return json.dumps({"error": str(e)})
+
+    def _handle_evolution_run(self, args: dict[str, Any]) -> dict[str, Any]:
+        import json
+        try:
+            from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
+            engine = args.get("engine", "daily")
+            dry_run = args.get("dry_run", True)
+            config = DaemonConfig(engine=engine, dry_run=dry_run, max_runs=1)
+            daemon = EvolutionDaemon(config)
+            result = daemon._loop.run_once()
+            return {
+                "content": [{"type": "text", "text": json.dumps(result.to_dict() if result else {"error": "no result"}, indent=2)}],
+            }
+        except Exception as e:
+            return {"isError": True, "content": [{"type": "text", "text": f"Evolution run failed: {e}"}]}
+
+    def _handle_evolution_status(self, args: dict[str, Any]) -> dict[str, Any]:
+        import json
+        try:
+            state_path = ".evolution_daemon_state.json"
+            import os
+            if os.path.exists(state_path):
+                data = json.loads(open(state_path).read())
+            else:
+                data = {"last_run": "", "total_runs": 0, "failed_runs": 0}
+            return {
+                "content": [{"type": "text", "text": json.dumps(data, indent=2)}],
+            }
+        except Exception as e:
+            return {"isError": True, "content": [{"type": "text", "text": f"Status check failed: {e}"}]}
+
+    def _handle_evolution_results(self, args: dict[str, Any]) -> dict[str, Any]:
+        import json
+        import os
+        try:
+            limit = args.get("limit", 10)
+            vault_dir = ".evolution_vault"
+            if not os.path.isdir(vault_dir):
+                return {"content": [{"type": "text", "text": "[]"}]}
+            results = sorted(os.listdir(vault_dir), reverse=True)[:limit]
+            return {
+                "content": [{"type": "text", "text": json.dumps(results, indent=2)}],
+            }
+        except Exception as e:
+            return {"isError": True, "content": [{"type": "text", "text": f"List results failed: {e}"}]}
 
     def close(self) -> None:
         """释放后端资源。"""
