@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
+import tempfile
 import time
-from pathlib import Path
 
 from maref.evaluation.saeb.runner import run_saeb
 from maref.evaluation.saeb.scenario import SAEBScenario
@@ -37,21 +37,29 @@ class SAEBAdapter:
             )
 
         try:
-            scenario = SAEBScenario(name=f"daemon_run_{self._run_count}")
-            result = run_saeb(scenario, rounds=3)
+            with tempfile.TemporaryDirectory(prefix="saeb_daemon_") as tmpdir:
+                from pathlib import Path
+                scenario = SAEBScenario(
+                    name=f"daemon_run_{self._run_count}",
+                    description=f"DAEMON SAEB benchmark run {self._run_count}",
+                    workdir=Path(tmpdir) / "calc",
+                )
+                result = run_saeb(scenario, rounds=3)
+            fnrs = result.fnr_trajectory()
+            avg_fnr = sum(fnrs) / len(fnrs) if fnrs else 0.0
             return DailyEvolutionResult(
                 day=current_day,
                 phases=["saeb_benchmark"],
                 dry_run=False,
                 real_writes_enabled=True,
-                priority="high" if result.failure_count > 0 else "low",
-                stop_reason=f"sae_{result.failure_count}_failures_{result.passed_count}_passed",
+                priority="high" if result.oscillation_count > 0 else "low",
+                stop_reason=f"{result.rounds_completed}_rounds_fnr_{avg_fnr:.4f}",
                 artifacts={
-                    "total_scenarios": str(result.total_scenarios),
-                    "passed": str(result.passed_count),
-                    "failed": str(result.failure_count),
-                    "avg_fnr": f"{result.average_fnr:.4f}",
-                    "duration_s": f"{result.duration_seconds:.1f}",
+                    "rounds": str(result.rounds_completed),
+                    "convergence_round": str(result.convergence_round),
+                    "oscillation_count": str(result.oscillation_count),
+                    "avg_fnr": f"{avg_fnr:.4f}",
+                    "total_time_s": f"{result.total_time_s:.1f}",
                 },
             )
         except Exception:

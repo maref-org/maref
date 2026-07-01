@@ -21,7 +21,6 @@ class RELAdapter:
         self._rel = RecursiveEvolutionLoop()
 
     def _reset(self) -> None:
-        from maref.recursive.recursive_evolution_loop import RELState
         self._rel.state_machine.reset()
         self._rel._current_round = 0
         self._rel._rounds.clear()
