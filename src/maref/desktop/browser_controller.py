@@ -251,6 +251,7 @@ class BrowserController:
             page = session.active_page
             if page is None:
                 page = await self._pool.new_page(self._session_id)
+            assert page is not None
             await page.goto(url, timeout=30000)
             text = await page.evaluate("document.body.innerText")
             try:

@@ -5,19 +5,35 @@ Usage:
     maref percv status
     maref percv sync-cards
     maref percv cost-report
+    maref percv ratchet --target TARGET --rounds N --mas-ts
+    maref percv cross-analyze --window N
+    maref percv meta-diagnose --tag TAG
+    maref percv meta-sandbox --diagnosis FILE --rounds N
+    maref percv rsi-report --output FILE
+    maref percv learn
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from maref.governance.state_machine import GovernanceStateMachine
+from maref.integration.percv.cross_dimensional_analyzer import CrossDimensionalAnalyzer
+from maref.integration.percv.mas_ts_bridge import MasTSBridge
+from maref.integration.percv.meta_ratchet import MetaRatchet
+from maref.integration.percv.multi_target_ratchet import (
+    ImprovementTarget,
+)
 from maref.integration.percv.orchestrator import PERCVResearchOrchestrator
+from maref.integration.percv.ratchet_bridge import RatchetBridge
+from maref.integration.percv.weight_registry import SimpleWeightRegistry
 from maref.integration.test_platform import (
     EvalStatus,
     EvaluationReport,
@@ -565,6 +581,267 @@ def develop_verify(
                 ensure_ascii=False,
             )
         console.print(f"[green]Full report saved to:[/green] {out_path}")
+
+
+# ── RSI Commands ─────────────────────────────────────────────────────
+
+
+@percv_app.command(name="ratchet")
+def ratchet_command(
+    target: str = typer.Option("prompts/distill_v1.yaml", "--target", "-t", help="改进目标文件"),
+    rounds: int = typer.Option(3, "--rounds", "-n", help="迭代轮数"),
+    mas_ts: bool = typer.Option(False, "--mas-ts", help="启用 MAS-TS 验证集成"),
+    tag: str = typer.Option("rsi-run", "--tag", help="运行标签"),
+) -> None:
+    """运行 Ratchet 改进循环。"""
+    bridge = RatchetBridge(mas_ts_bridge=MasTSBridge() if mas_ts else None)
+    results = bridge.run_improvement_cycle(
+        target_file=target,
+        budget=rounds,
+        use_mas_ts=mas_ts,
+    )
+    table = Table(title=f"Ratchet Results: {tag}")
+    table.add_column("Iter", style="cyan")
+    table.add_column("Score", style="white")
+    table.add_column("Status", style="yellow")
+    table.add_column("MAS-TS", style="green")
+    table.add_column("Delta", style="magenta")
+    table.add_column("Error", style="red")
+    for r in results:
+        status_color = "green" if r.status == "keep" else "red"
+        table.add_row(
+            str(r.iteration),
+            f"{r.score:.4f}",
+            f"[{status_color}]{r.status}[/]",
+            f"{r.mas_ts_score:.1f}" if r.mas_ts_score else "-",
+            f"{r.delta:+.4f}" if r.delta else "-",
+            r.error or "",
+        )
+    console.print(table)
+    console.print(f"[dim]Best score: {max(r.score for r in results):.4f}[/dim]")
+
+    redline_violations = bridge.check_redlines(target, score=0, mas_ts_score=max(r.mas_ts_score for r in results) if results else 0)
+    if redline_violations:
+        for v in redline_violations:
+            console.print(f"[red]RL: {v}[/red]")
+
+
+@percv_app.command(name="learn")
+def learn_command() -> None:
+    """触发学习循环（当前 stub）。"""
+    registry = SimpleWeightRegistry()
+    console.print(f"[green]Learning weights:[/green] {registry.get_all_weights()}")
+
+
+@percv_app.command(name="cross-analyze")
+def cross_analyze_command(
+    window: int = typer.Option(20, "--window", "-w", help="分析窗口大小"),
+    results_file: str = typer.Option("", "--results", "-r", help="results.tsv 路径"),
+) -> None:
+    """运行跨维度交叉影响分析。"""
+    history: list[Any] = []
+    if results_file:
+        p = Path(results_file)
+        if p.exists():
+            import csv
+            with p.open() as f:
+                reader = csv.DictReader(f, delimiter="\t")
+                for row in reader:
+                    from maref.integration.percv.multi_target_ratchet import ExperimentResult
+                    history.append(ExperimentResult(
+                        commit=row.get("commit", ""),
+                        metric_value=float(row.get("metric_value", 0)),
+                        previous_best=float(row.get("previous_best", 0)),
+                        delta=float(row.get("delta", 0)),
+                        status=row.get("status", ""),
+                        description=row.get("description", ""),
+                        memory_mb=float(row.get("memory_mb", 0)),
+                        mas_ts_score=float(row.get("mas_ts_score", 0)),
+                        mas_ts_level=row.get("mas_ts_level", ""),
+                        target_dimension=row.get("target_dimension", ""),
+                    ))
+
+    analyzer = CrossDimensionalAnalyzer(history)
+    effects = analyzer.detect_cross_effects(window=window)
+
+    if not effects:
+        console.print("[yellow]No significant cross-dimensional effects detected.[/yellow]")
+        return
+
+    table = Table(title=f"Cross-Dimensional Effects (window={window})")
+    table.add_column("Source", style="cyan")
+    table.add_column("Target", style="white")
+    table.add_column("Effect", style="yellow")
+    table.add_column("Confidence", style="green")
+    table.add_column("Samples", style="magenta")
+
+    for effect in effects:
+        effect_color = "green" if effect.effect_size > 0 else "red"
+        table.add_row(
+            effect.source_dim,
+            effect.target_dim,
+            f"[{effect_color}]{effect.effect_size:+.3f}[/]",
+            f"{effect.confidence:.2f}",
+            str(effect.samples),
+        )
+    console.print(table)
+
+    pareto = analyzer.recommend_multi_objective({"correctness": 0.7, "testing": 0.6, "code_quality": 0.5, "security": 0.4})
+    if pareto:
+        console.print("\n[bold]Recommended weight adjustments:[/bold]")
+        for dim, weight in pareto.recommended_weights.items():
+            current = 0.5
+            arrow = "[green]↑[/green]" if weight > current else "[red]↓[/red]"
+            console.print(f"  {dim}: {current:.3f} {arrow} {weight:.3f}")
+
+
+@percv_app.command(name="meta-diagnose")
+def meta_diagnose_command(
+    tag: str = typer.Option("rsi-run", "--tag", help="运行标签"),
+    target: str = typer.Option("prompts/distill_v1.yaml", "--target", "-t", help="改进目标"),
+) -> None:
+    """诊断 Ratchet 改进停滞。"""
+    bridge = RatchetBridge()
+    meta = MetaRatchet(ratchet_bridge=bridge)
+    imp_target = ImprovementTarget(target)
+    diagnosis = meta.diagnose_stagnation(imp_target)
+
+    console.print(Panel(
+        f"[bold]Type:[/bold] {diagnosis.diagnosis_type}\n"
+        f"[bold]Severity:[/bold] {diagnosis.severity}\n"
+        f"[bold]Details:[/bold] {diagnosis.details}\n"
+        f"[bold]Suggested:[/bold] {diagnosis.suggested_action}",
+        title="Stagnation Diagnosis",
+    ))
+
+    with open(".meta_ratchet_diagnosis.json", "w") as f:
+        json.dump({
+            "type": diagnosis.diagnosis_type,
+            "severity": diagnosis.severity,
+            "details": diagnosis.details,
+            "affected_target": diagnosis.affected_target.value if diagnosis.affected_target else None,
+            "suggested_action": diagnosis.suggested_action,
+        }, f, indent=2)
+    console.print("[dim]Diagnosis saved to .meta_ratchet_diagnosis.json[/dim]")
+
+
+@percv_app.command(name="meta-sandbox")
+def meta_sandbox_command(
+    diagnosis: str = typer.Option(".meta_ratchet_diagnosis.json", "--diagnosis", "-d", help="诊断文件路径"),
+    rounds: int = typer.Option(10, "--rounds", "-n", help="沙箱测试轮数"),
+) -> None:
+    """在沙箱中测试 Ratchet 协议变更。"""
+    diag_path = Path(diagnosis)
+    if not diag_path.exists():
+        console.print(f"[red]Diagnosis file not found:[/red] {diag_path}")
+        raise typer.Exit(code=1)
+
+    data = json.loads(diag_path.read_text())
+    bridge = RatchetBridge()
+    meta = MetaRatchet(ratchet_bridge=bridge)
+
+    from maref.integration.percv.meta_ratchet import StagnationDiagnosis
+    sd = StagnationDiagnosis(
+        diagnosis_type=data.get("type", "saturation"),
+        severity=data.get("severity", "low"),
+        details=data.get("details", ""),
+        affected_target=ImprovementTarget(data["affected_target"]) if data.get("affected_target") else None,
+        suggested_action=data.get("suggested_action", ""),
+    )
+
+    change = meta.propose_protocol_change(sd)
+    if change is None:
+        console.print("[yellow]No protocol change proposed (severity too low).[/yellow]")
+        return
+
+    console.print(f"[bold]Proposed change:[/bold] {change.config_key} = {change.old_value} → {change.new_value}")
+    console.print(f"  Rationale: {change.rationale}")
+    console.print(f"  Sandbox rounds: {rounds}")
+
+    if rounds < 10:
+        console.print("[red]RL: RSI-RL-002 requires >= 10 sandbox rounds[/red]")
+        raise typer.Exit(code=1)
+
+    result = meta.sandbox_test(change, n_rounds=rounds)
+    if result.adopted:
+        console.print(f"[green]Change adopted! Effect size: {result.improvement:.3f} (Cohen's d)[/green]")
+    else:
+        console.print(f"[yellow]Change rejected. Effect size: {result.improvement:.3f} (need >0.3)[/yellow]")
+
+    console.print(f"  Old avg: {result.old_avg_score:.4f}")
+    console.print(f"  New avg: {result.new_avg_score:.4f}")
+
+
+@percv_app.command(name="rsi-report")
+def rsi_report_command(
+    output: str = typer.Option("reports/rsi-report.md", "--output", "-o", help="输出报告路径"),
+) -> None:
+    """生成 RSI 执行报告。"""
+    bridge = RatchetBridge()
+    history = bridge.get_history()
+
+    report_lines = [
+        "---",
+        "title: RSI Daily Report",
+        f"date: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "---",
+        "",
+        "## Summary",
+        f"- Total iterations: {len(history)}",
+        f"- Approved: {sum(1 for r in history if r.approved)}",
+        f"- Best score: {max((r.score for r in history), default=0):.4f}",
+        "",
+        "## Per-Target Results",
+    ]
+
+    targets: dict[str, list[Any]] = {}
+    for r in history:
+        targets.setdefault(r.target, []).append(r)
+    for tgt, recs in targets.items():
+        scores = [r.score for r in recs if r.approved]
+        report_lines.append(f"- **{tgt}**: {len(recs)} runs, best={max(scores):.4f}" if scores else f"- **{tgt}**: {len(recs)} runs, no approvals")
+
+    report_lines.append("")
+    report_lines.append("## MAS-TS Scores")
+    mas_ts_scores = [r.mas_ts_score for r in history if r.mas_ts_score > 0]
+    if mas_ts_scores:
+        report_lines.append(f"- Avg: {sum(mas_ts_scores)/len(mas_ts_scores):.1f}")
+        report_lines.append(f"- Min: {min(mas_ts_scores):.1f}")
+        report_lines.append(f"- Max: {max(mas_ts_scores):.1f}")
+    else:
+        report_lines.append("- No MAS-TS data")
+
+    out = Path(output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(report_lines))
+    console.print(f"[green]Report saved to:[/green] {out}")
+
+
+@percv_app.command(name="redlines")
+def redlines_command() -> None:
+    """显示当前 RSI 宪法红线配置。"""
+    from pathlib import Path
+
+    import yaml
+    p = Path("configs/rsi_redlines.yaml")
+    if not p.exists():
+        console.print("[yellow]No rsi_redlines.yaml found.[/yellow]")
+        return
+    data = yaml.safe_load(p.read_text())
+    table = Table(title="RSI Constitutional Redlines")
+    table.add_column("Rule ID", style="cyan")
+    table.add_column("Severity", style="red")
+    table.add_column("Action", style="yellow")
+    table.add_column("Description", style="white")
+    for rule in data.get("rsi_immutables", []):
+        sev_color = "red" if rule.get("severity") == "CRITICAL" else "yellow" if rule.get("severity") == "HIGH" else "white"
+        table.add_row(
+            rule.get("rule_id", ""),
+            f"[{sev_color}]{rule.get('severity', '')}[/]",
+            rule.get("auto_action", ""),
+            rule.get("description", ""),
+        )
+    console.print(table)
 
 
 def main() -> None:

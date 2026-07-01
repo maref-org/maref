@@ -225,7 +225,7 @@ class SelfOptimizer:
             hypothesis_id=f"rel_round_{round_number}_{uuid.uuid4().hex[:6]}",
             description=f"REL round {round_number} evolution result",
             target_module="rel_evolution",
-            experiment_result={"before": before_metrics, "after": after_metrics},
+            experiment_result={"before": before_metrics, "after": after_metrics},  # type: ignore[dict-item]
             gain_pct=0.0,
         )
 

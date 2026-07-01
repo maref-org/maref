@@ -2268,7 +2268,7 @@ def _seed_stackoverflow(bank: NegativeGeneBank) -> int:
             "stackoverflow",
             now,
             patterns=[
-                GenePattern("", "", "regex", r"import\s+\{[^}]+\}\s+from.*\n(?!.*\1)"),
+                GenePattern("", "", "regex", r"import\s+\{[^}]+\}\s+from"),
             ],
         ),
         NegativeGene(
@@ -2340,8 +2340,8 @@ def _seed_javascript_patterns(bank: NegativeGeneBank) -> int:
             "cwe",
             now,
             patterns=[
-                GenePattern("", "", "regex", r"\[\$**proto__\]"),
-                GenePattern("", "", "regex", r"\[\$**defineGetter__\]"),
+                GenePattern("", "", "regex", r"\[__proto__\]"),
+                GenePattern("", "", "regex", r"\[__defineGetter__\]"),
             ],
         ),
         # eval / code injection

@@ -28,9 +28,9 @@ class LLMProvider(Protocol):
 
 
 class OpenAIProvider:
-    def __init__(self, api_key: str | None = None, model: str = "gpt-4o") -> None:
+    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self._model = model
+        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
         self._client: Any = None
 
     async def generate(
@@ -38,7 +38,7 @@ class OpenAIProvider:
         prompt: str,
         system_prompt: str | None = None,
         temperature: float = 0.2,
-        max_tokens: int = 4096,
+        max_tokens: int = 8192,
     ) -> str:
         if self._client is None:
             from openai import AsyncOpenAI
@@ -78,7 +78,7 @@ class AnthropicProvider:
         prompt: str,
         system_prompt: str | None = None,
         temperature: float = 0.2,
-        max_tokens: int = 4096,
+        max_tokens: int = 8192,
     ) -> str:
         if self._client is None:
             from anthropic import AsyncAnthropic
@@ -132,6 +132,8 @@ class CodeContextBuilder:
         "audit_logger, meta_governance, evolution_dsl)\n"
         "- Never bypass safety assertions or downgrade security levels\n"
         "- Output a single complete Python file with all imports\n"
+        "- Output raw Python code only — NO markdown code fences, NO backticks, NO explanation, NO docstrings longer than 3 lines\n"
+        "- Keep generated code under 200 lines — concise, focused, no boilerplate\n"
         "- Use `from __future__ import annotations`\n"
         "- All async functions must be wrapped in try/except\n"
     )
@@ -272,6 +274,7 @@ class LLMCodeGenerator:
             )
 
         validation_errors: list[str] = []
+        output = self._strip_markdown_fences(output)
         try:
             ast.parse(output)
         except SyntaxError as e:
@@ -291,6 +294,15 @@ class LLMCodeGenerator:
             generated=[gen],
             provider_name=self._provider.name,
         )
+
+    @staticmethod
+    def _strip_markdown_fences(output: str) -> str:
+        lines = output.split("\n")
+        cleaned = [l for l in lines if not l.startswith("```")]
+        result = "\n".join(cleaned).strip()
+        if not result:
+            return output.strip()
+        return result
 
     def estimate_cost(self, proposal: ArchitectureProposal) -> float:
         prompt_chars = (
