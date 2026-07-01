@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -451,3 +452,90 @@ class TestSessionManagerEdgeCases:
         original = session_manager.get_session("deep-meta")
         assert original is not None
         assert original.metadata["nested"]["a"] == 1
+
+
+class TestSessionManagerStoreMethods:
+    def test_save_to_store_no_store(self, session_manager: SessionManager) -> None:
+        session_manager.create_session(session_id="no-store")
+        result = session_manager.save_to_store("no-store")
+        assert result is False
+
+    def test_load_from_store_no_store(self, session_manager: SessionManager) -> None:
+        result = session_manager.load_from_store("any")
+        assert result is None
+
+    def test_save_all_to_store_no_store(self, session_manager: SessionManager) -> None:
+        result = session_manager.save_all_to_store()
+        assert result == 0
+
+    def test_load_all_from_store_no_store(self, session_manager: SessionManager) -> None:
+        result = session_manager.load_all_from_store()
+        assert result == 0
+
+    def test_save_to_store_nonexistent_session(self, session_manager: SessionManager) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            from pathlib import Path
+            from maref.executor.persistent_store import PersistentSessionStore
+            store = PersistentSessionStore(Path(tmp) / "sessions.db")
+            session_manager._persistent_store = store
+            result = session_manager.save_to_store("nonexistent")
+            assert result is False
+            store.close()
+
+    def test_save_and_load_from_store(self, queue: TaskQueue) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            from pathlib import Path
+            from maref.executor.persistent_store import PersistentSessionStore
+            store = PersistentSessionStore(Path(tmp) / "sessions.db")
+            sm = SessionManager(queue, persistent_store=store)
+            created = sm.create_session(session_id="store-test", metadata={"k": "v"})
+            save_ok = sm.save_to_store("store-test")
+            assert save_ok is True
+            sm._sessions.clear()
+            loaded = sm.load_from_store("store-test")
+            assert loaded is not None
+            assert loaded.id == "store-test"
+            assert loaded.metadata == {"k": "v"}
+            store.close()
+
+    def test_save_all_and_load_all_from_store(self, queue: TaskQueue) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            from pathlib import Path
+            from maref.executor.persistent_store import PersistentSessionStore
+            store = PersistentSessionStore(Path(tmp) / "sessions.db")
+            sm = SessionManager(queue, persistent_store=store)
+            sm.create_session(session_id="a")
+            sm.create_session(session_id="b")
+            saved = sm.save_all_to_store()
+            assert saved == 2
+            sm._sessions.clear()
+            loaded = sm.load_all_from_store()
+            assert loaded == 2
+            assert sm.get_session("a") is not None
+            assert sm.get_session("b") is not None
+            store.close()
+
+    def test_sync_to_store(self, queue: TaskQueue) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            from pathlib import Path
+            from maref.executor.persistent_store import PersistentSessionStore
+            store = PersistentSessionStore(Path(tmp) / "sessions.db")
+            sm = SessionManager(queue, persistent_store=store)
+            sm.create_session(session_id="sync-me")
+            result = sm.sync_to_store()
+            assert result["saved"] == 1
+            store.close()
+
+    def test_sync_to_store_no_persistent(self, session_manager: SessionManager) -> None:
+        result = session_manager.sync_to_store()
+        assert result == {"saved": 0, "loaded": 0}
+
+    def test_save_nonexistent_to_store(self, queue: TaskQueue) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            from pathlib import Path
+            from maref.executor.persistent_store import PersistentSessionStore
+            store = PersistentSessionStore(Path(tmp) / "sessions.db")
+            sm = SessionManager(queue, persistent_store=store)
+            result = sm.save_to_store("ghost")
+            assert result is False
+            store.close()

@@ -144,6 +144,36 @@ class TestTaskQueueGet:
 
 
 class TestTaskQueueUpdateStatus:
+    def test_update_invalid_field(self, queue: TaskQueue) -> None:
+        task = Task()
+        queue.enqueue(task)
+        with pytest.raises(ValueError, match="Invalid update field"):
+            queue.update_status(task.id, TaskStatus.RUNNING, nonexistent_field="x")
+
+    def test_update_payload_via_update(self, queue: TaskQueue) -> None:
+        task = Task()
+        queue.enqueue(task)
+        queue.update_status(task.id, TaskStatus.RUNNING, payload={"key": "val"})
+        updated = queue.get(task.id)
+        assert updated is not None
+        assert updated.payload == {"key": "val"}
+
+    def test_update_tags_via_update(self, queue: TaskQueue) -> None:
+        task = Task()
+        queue.enqueue(task)
+        queue.update_status(task.id, TaskStatus.RUNNING, tags=["a", "b"])
+        updated = queue.get(task.id)
+        assert updated is not None
+        assert updated.tags == ["a", "b"]
+
+    def test_update_metadata_via_update(self, queue: TaskQueue) -> None:
+        task = Task()
+        queue.enqueue(task)
+        queue.update_status(task.id, TaskStatus.RUNNING, metadata={"env": "test"})
+        updated = queue.get(task.id)
+        assert updated is not None
+        assert updated.metadata == {"env": "test"}
+
     def test_update_to_running(self, queue: TaskQueue) -> None:
         task = Task()
         queue.enqueue(task)
