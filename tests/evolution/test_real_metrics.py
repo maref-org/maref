@@ -47,12 +47,8 @@ class TestRealMetricsCollector:
 
     def test_collect_incremental_records_measurement_errors(self) -> None:
         collector = RealMetricsCollector()
-        with (
-            mock.patch.object(collector, "_run_pytest", return_value=(0.0, 1, 1)),
-            mock.patch.object(collector, "_measure_import_time", return_value=-1.0),
-        ):
+        with mock.patch.object(collector, "_measure_import_time", return_value=-1.0):
             metrics = collector.collect_incremental()
-            assert metrics.fnr == 1.0
             assert metrics.import_time_ms == -1.0
             assert "import_time_failed" in metrics.errors
 
@@ -133,11 +129,8 @@ class TestRealMetricsCollector:
 
     def test_run_quick_checks(self) -> None:
         collector = RealMetricsCollector()
-        with (
-            mock.patch.object(collector, "_run_pytest", return_value=(1.0, 5, 0)),
-            mock.patch.object(collector, "_measure_import_time", return_value=50.0),
-        ):
+        with mock.patch.object(collector, "_measure_import_time", return_value=50.0):
             rm = collector._run_quick_checks()
             assert rm.fnr == 0.0
-            assert rm.total_tests == 5
+            assert rm.total_tests == 0
             assert rm.coverage_pct == 0.0

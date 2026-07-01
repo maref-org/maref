@@ -187,7 +187,7 @@ class TestEvolutionDaemon:
         assert output.exists()
         assert "com.maref.evolution-daemon" in plist
         assert "KeepAlive" in plist
-        assert "StartInterval" in plist
+        assert "RunAtLoad" in plist
 
     def test_generate_systemd_unit(self, tmp_path: Path) -> None:
         output = tmp_path / "maref-evolution-daemon.service"
