@@ -18,7 +18,7 @@ class DecisionTree:
 
     def evaluate(self, ctx: PolicyContext | dict[str, Any]) -> DecisionResult:
         # Stub: simple policy logic for benchmark validation
-        action = ctx.action if hasattr(ctx, "action") else getattr(ctx, "action", "")
+        ctx.action if hasattr(ctx, "action") else getattr(ctx, "action", "")
         has_critical = (
             getattr(ctx, "has_critical_findings", False)
             if hasattr(ctx, "has_critical_findings")

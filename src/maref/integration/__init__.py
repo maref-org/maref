@@ -25,12 +25,6 @@ from maref.integration.a2a_types import (
     map_maref_to_a2a,
     validate_agent_card_json,
 )
-from maref.integration.trajectory import (
-    TaskTrajectory,
-    TrajectoryCollector,
-    TrajectoryEvent,
-    TrajectoryEventType,
-)
 from maref.integration.deerflow_bridge import DeerFlowBridge, DeerFlowDAG, DeerFlowNode
 from maref.integration.flag_bridge import FeatureFlag, FlagBridge, PolicySnapshot, RolloutStage
 from maref.integration.gateway import (
@@ -57,6 +51,12 @@ from maref.integration.mcp_governance import (
     WriteToolRequiresHITL,
     sign_audit_entry,
     verify_audit_signature,
+)
+from maref.integration.trajectory import (
+    TaskTrajectory,
+    TrajectoryCollector,
+    TrajectoryEvent,
+    TrajectoryEventType,
 )
 
 # PERCV integration (optional)

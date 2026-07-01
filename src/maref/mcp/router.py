@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 from maref.tool.base import Tool
@@ -22,7 +21,7 @@ def _run_async_from_sync(coro: Any) -> Any:
         loop = asyncio.get_running_loop()
         if loop.is_running():
             import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
+            with concurrent.futures.ThreadPoolExecutor():
                 future = asyncio.run_coroutine_threadsafe(coro, loop)
                 return future.result()
     except RuntimeError:

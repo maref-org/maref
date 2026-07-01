@@ -87,8 +87,8 @@ class ArchitectTool(Tool[str]):
         return {"type": "object", "properties": {}}
 
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
-        from maref.recursive.self_architect import SelfArchitect
         from maref.recursive.audit_store import UnifiedAuditStore
+        from maref.recursive.self_architect import SelfArchitect
         store = UnifiedAuditStore()
         arch = SelfArchitect(audit_store=store)
         proposals = arch.propose_all()
@@ -121,12 +121,11 @@ class CodegenTool(Tool[str]):
         return {"type": "object", "properties": {"proposal_json": {"type": "string"}}}
 
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
-        from maref.recursive.llm_code_generator import LLMCodeGenerator
-        from maref.recursive.self_architect import SelfArchitect
-        from maref.recursive.audit_store import UnifiedAuditStore
         import uuid
+
+        from maref.recursive.llm_code_generator import LLMCodeGenerator
         gen = LLMCodeGenerator()
-        from maref.recursive.self_architect import ArchitectureProposal, ChangeType
+        from maref.recursive.self_architect import ArchitectureProposal
         proposal = ArchitectureProposal(
             proposal_id=input.get("proposal_id", str(uuid.uuid4())),
             timestamp=__import__("time").time(),
@@ -164,9 +163,11 @@ class DeployTool(Tool[str]):
         return {"type": "object", "properties": {"proposal_json": {"type": "string"}, "dry_run": {"type": "boolean"}}}
 
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
+        import json as _json
+        import uuid
+
+        from maref.recursive.self_architect import ArchitectureProposal
         from maref.recursive.self_executor import SelfExecutor
-        from maref.recursive.self_architect import SelfArchitect, ArchitectureProposal
-        import uuid, json as _json
         proposal_data = _json.loads(input.get("proposal_json", "{}"))
         proposal = ArchitectureProposal(
             proposal_id=proposal_data.get("proposal_id", str(uuid.uuid4())),
@@ -207,7 +208,8 @@ class VerifyTool(Tool[str]):
         return {"type": "object", "properties": {"target": {"type": "string"}}}
 
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
-        import subprocess, json as _json
+        import json as _json
+        import subprocess
         target = input.get("target", "tests/")
         result = subprocess.run(
             ["python", "-m", "pytest", target, "-v", "--tb=short", "--no-header", "-q"],

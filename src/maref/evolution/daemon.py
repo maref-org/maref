@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from maref.evolution.daily_loop import DailyEvolutionLoop
+from maref.evolution.daily_loop import DailyEvolutionLoop, DailyEvolutionResult
 
 logger = logging.getLogger(__name__)
 
@@ -54,19 +54,19 @@ class EvolutionDaemon:
         self._shutdown = False
         if config.engine == "rel":
             from maref.evolution.rel_adapter import RELAdapter
-            self._loop = RELAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+            self._loop: Any = RELAdapter(dry_run=config.dry_run)
         elif config.engine == "multi":
             from maref.evolution.multi_adapter import MultiAdapter
-            self._loop = MultiAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+            self._loop = MultiAdapter(dry_run=config.dry_run)
         elif config.engine == "continuous":
             from maref.evolution.continuous_adapter import ContinuousAdapter
-            self._loop = ContinuousAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+            self._loop = ContinuousAdapter(dry_run=config.dry_run)
         elif config.engine == "saeb":
             from maref.evolution.saeb_adapter import SAEBAdapter
-            self._loop = SAEBAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+            self._loop = SAEBAdapter(dry_run=config.dry_run)
         elif config.engine == "tla":
             from maref.evolution.tla_adapter import TLAAdapter
-            self._loop = TLAAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+            self._loop = TLAAdapter(dry_run=config.dry_run)
         else:
             self._loop = DailyEvolutionLoop(
                 vault_dir=config.vault_dir,
