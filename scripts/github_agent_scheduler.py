@@ -21,7 +21,11 @@ TODO_PATTERNS = [
     r"<!--\s*(TODO|FIXME|HACK|XXX)\s*[:-]?\s*(.+?)\s*-->",
 ]
 
-SKIP_DIRS = {"__pycache__", ".git", "node_modules", "dist", "build", ".eggs"}
+SKIP_DIRS = {
+    "__pycache__", ".git", "node_modules", "dist", "build", ".eggs",
+    ".venv", "venv", ".env", ".tox", "htmlcov",
+    ".trae", ".mypy_cache", ".ruff_cache", ".pytest_cache",
+}
 
 
 class CodeScanner:
@@ -33,7 +37,7 @@ class CodeScanner:
         for root, dirs, files in os.walk(self.repo_path):
             dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
             for file in files:
-                if file.endswith((".py", ".ts", ".tsx", ".md")):
+                if file.endswith((".py", ".ts", ".tsx")):
                     file_path = os.path.join(root, file)
                     rel_path = os.path.relpath(file_path, self.repo_path)
                     todos.extend(self._scan_file(rel_path))
