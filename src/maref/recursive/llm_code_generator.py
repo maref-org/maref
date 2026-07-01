@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from maref.recursive.self_architect import ArchitectureProposal
     from maref.recursive.self_observer import SystemSnapshot
-    from maref.recursive.self_executor import GeneratedCode
 
 
 class LLMProvider(Protocol):
@@ -44,14 +43,14 @@ class OpenAIProvider:
         if self._client is None:
             from openai import AsyncOpenAI
             self._client = AsyncOpenAI(api_key=self._api_key)
-        kwargs: dict[str, Any] = dict(
-            model=self._model,
-            messages=[
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": [
                 {"role": "user", "content": prompt},
             ],
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
         if system_prompt:
             kwargs["messages"].insert(
                 0, {"role": "system", "content": system_prompt}
@@ -84,12 +83,12 @@ class AnthropicProvider:
         if self._client is None:
             from anthropic import AsyncAnthropic
             self._client = AsyncAnthropic(api_key=self._api_key)
-        kwargs: dict[str, Any] = dict(
-            model=self._model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": [{"role": "user", "content": prompt}],
+        }
         if system_prompt:
             kwargs["system"] = system_prompt
         response = await self._client.messages.create(**kwargs)

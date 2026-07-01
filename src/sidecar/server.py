@@ -12,14 +12,14 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from maref.governance import AuditLogger, CircuitBreaker, GovernanceStateMachine
 from maref.integration.a2a_bridge import A2ABridge
 from maref.integration.a2a_server import create_a2a_router
+from maref.mcp.evolution_tools import EVOLUTION_TOOLS
+from maref.mcp.router import MCPServerAdapter
 from maref.observability.guardrail_metrics import get_guardrail_metrics
 from maref.observability.metric_store import MetricStore
 from maref.observability.security_headers_middleware import SecurityHeadersMiddleware
 from maref.recursive.cost_tracker import CostTracker
-from sidecar.collector import MockAgentAdapter, ObservationCollector
-from maref.mcp.evolution_tools import EVOLUTION_TOOLS
-from maref.mcp.router import MCPServerAdapter
 from maref.tool.registry import ToolRegistry
+from sidecar.collector import MockAgentAdapter, ObservationCollector
 from sidecar.gaas_router import router as gaas_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router

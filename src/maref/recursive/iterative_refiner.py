@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from maref.recursive.llm_code_generator import LLMCodeGenResult, LLMCodeGenerator
+    from maref.recursive.llm_code_generator import LLMCodeGenerator, LLMCodeGenResult
     from maref.recursive.self_architect import ArchitectureProposal
     from maref.recursive.self_executor import ExecutionResult
     from maref.recursive.self_observer import SystemSnapshot

@@ -13,11 +13,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
 
-    from maref.recursive.self_architect import ArchitectureProposal
-    from maref.recursive.self_executor import ExecutionResult, GeneratedCode
-    from maref.recursive.unified_audit import UnifiedAuditRecord
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -170,9 +167,7 @@ class RELConvergenceDetector:
             return True
         if coverage_drop > self._max_coverage_drop:
             return True
-        if compile_errors > 0:
-            return True
-        return False
+        return compile_errors > 0
 
     def _check_oscillation(self) -> bool:
         if len(self._history) < 3:
@@ -330,7 +325,7 @@ class RELTransactionManager:
             to_remove = sorted(matching, key=lambda item: item[1].round_number)[
                 :len(matching) - max_count
             ]
-            for tid, tx in to_remove:
+            for tid, _tx in to_remove:
                 tx_dir = os.path.join(self._SNAPSHOT_DIR, tid)
                 if os.path.exists(tx_dir):
                     shutil.rmtree(tx_dir, ignore_errors=True)

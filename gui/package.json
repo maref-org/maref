@@ -25,13 +25,16 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "electron-window-state": "^5.0.3",
+    "i18next": "^26.3.4",
     "lucide-react": "^1.17.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-i18next": "^17.0.8",
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
+    "web-vitals": "^5.3.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

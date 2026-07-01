@@ -143,6 +143,7 @@ from maref.recursive.eight_trigrams_governance import (
     TrigramState,
     TrigramTransition,
 )
+from maref.recursive.event_trigger import EventTrigger, RelEvent
 from maref.recursive.evolution_dsl import (
     ApplyResult,
     EvolutionAuditEntry,
@@ -207,12 +208,21 @@ from maref.recursive.instance_cloner import (
     MAREFInstanceCloner,
 )
 from maref.recursive.internal_agents import InternalAgent, InternalAgentRegistry
+from maref.recursive.iterative_refiner import IterativeRefiner, RefinementResult, VerificationError
 from maref.recursive.joint_state_machine import JointStateMachine
 from maref.recursive.live_migration import (
     LiveMigration,
     MigrationPlan,
     MigrationStep,
     VersionCompatibilityMatrix,
+)
+from maref.recursive.llm_code_generator import (
+    ASTModuleSummary,
+    CodeContextBuilder,
+    LLMCodeGenerator,
+    LLMCodeGenResult,
+    LLMProvider,
+    MockProvider,
 )
 from maref.recursive.memory_three_temperature import (
     MemoryHealthScore,
@@ -268,6 +278,24 @@ from maref.recursive.ontology_drift import (
 from maref.recursive.otel_dashboard import (
     MetricsDashboard,
     build_dashboard,
+)
+from maref.recursive.recursive_evolution_loop import (
+    ConvergenceVerdict,
+    FileSnapshot,
+    GovernorVerdict,
+    IllegalTransitionError,
+    RecursiveEvolutionLoop,
+    RELConvergenceDetector,
+    RELRoundRecord,
+    RELSafetyGovernor,
+    RELState,
+    RELStateMachine,
+    RELTransaction,
+    RELTransactionManager,
+    SafetyGovernorConfig,
+    TransactionState,
+    can_transition,
+    hamming_distance,
 )
 from maref.recursive.resilience_v2 import (
     DegradationPlan,
@@ -391,34 +419,6 @@ from maref.recursive.zero_trust import (
 )
 from maref.recursive.zero_trust import (
     ValidationResult as ZTValidationResult,
-)
-from maref.recursive.event_trigger import EventTrigger, RelEvent
-from maref.recursive.iterative_refiner import IterativeRefiner, RefinementResult, VerificationError
-from maref.recursive.llm_code_generator import (
-    ASTModuleSummary,
-    CodeContextBuilder,
-    LLMCodeGenResult,
-    LLMCodeGenerator,
-    LLMProvider,
-    MockProvider,
-)
-from maref.recursive.recursive_evolution_loop import (
-    ConvergenceVerdict,
-    FileSnapshot,
-    GovernorVerdict,
-    IllegalTransitionError,
-    RELConvergenceDetector,
-    RELRoundRecord,
-    RELSafetyGovernor,
-    RELState,
-    RELStateMachine,
-    RELTransaction,
-    RELTransactionManager,
-    RecursiveEvolutionLoop,
-    SafetyGovernorConfig,
-    TransactionState,
-    can_transition,
-    hamming_distance,
 )
 
 try:

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from maref.recursive.unified_audit import UnifiedAuditStore
 
 if TYPE_CHECKING:
-    from maref.recursive.llm_code_generator import ASTModuleSummary
+    pass
 
 
 class ChangeType(Enum):

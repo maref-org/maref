@@ -32,6 +32,9 @@ importers:
       electron-window-state:
         specifier: ^5.0.3
         version: 5.0.3
+      i18next:
+        specifier: ^26.3.4
+        version: 26.3.4(typescript@6.0.3)
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.6)
@@ -41,6 +44,9 @@ importers:
       react-dom:
         specifier: ^19.2.5
         version: 19.2.6(react@19.2.6)
+      react-i18next:
+        specifier: ^17.0.8
+        version: 17.0.8(i18next@26.3.4(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.2.14)(react@19.2.6)
@@ -53,9 +59,12 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
+      web-vitals:
+        specifier: ^5.3.0
+        version: 5.3.0
       zustand:
         specifier: ^5.0.14
-        version: 5.0.14(@types/react@19.2.14)(react@19.2.6)
+        version: 5.0.14(@types/react@19.2.14)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -2018,6 +2027,9 @@ packages:
     resolution: {integrity: sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
 
+  html-parse-stringify@3.0.1:
+    resolution: {integrity: sha512-KknJ50kTInJ7qIScF3jeaFRpMpE8/lfiTdzf/twXyPBLAGrLRTmkz3AdTnKeh40X8k9L2fdYwEp/42WGXIRGcg==}
+
   html-url-attributes@3.0.1:
     resolution: {integrity: sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ==}
 
@@ -2047,6 +2059,14 @@ packages:
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
+
+  i18next@26.3.4:
+    resolution: {integrity: sha512-pa7m0d7pBDqGHZxljT+WPFeyFgQ7P7SciPPo1tTqYuO0z4sqADYhwnBESmmGp/wEof1inwdls/k8ZgTg8rxFHA==}
+    peerDependencies:
+      typescript: ^5 || ^6
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   iconv-corefoundation@1.1.7:
     resolution: {integrity: sha512-T10qvkw0zz4wnm560lOEg0PovVqUXuOFhhHAkixw8/sycy7TJt7v/RrkEKEQnAw2viPSJu6iAkErxnzR0g8PpQ==}
@@ -2931,6 +2951,22 @@ packages:
     peerDependencies:
       react: ^19.2.6
 
+  react-i18next@17.0.8:
+    resolution: {integrity: sha512-0ooKbGLU8JXhe1zwpQUWIeXSgLPOfwJmgheWRIUpcoA0CpyabpGhayjdG+/eA5esC1AQ8h2jWpXjJfzQzeDOCw==}
+    peerDependencies:
+      i18next: '>= 26.2.0'
+      react: '>= 16.8.0'
+      react-dom: '*'
+      react-native: '*'
+      typescript: ^5 || ^6
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
+      typescript:
+        optional: true
+
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
 
@@ -3478,6 +3514,11 @@ packages:
   urlpattern-polyfill@10.0.0:
     resolution: {integrity: sha512-H/A06tKD7sS1O1X2SshBVeA5FLycRpjqiBeqGKmBwBDBy28EnRjORxTNe269KSSr5un5qyWi1iL61wLxpd+ZOg==}
 
+  use-sync-external-store@1.6.0:
+    resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   utf8-byte-length@1.0.5:
     resolution: {integrity: sha512-Xn0w3MtiQ6zoz2vFyUVruaCL53O/DwUvkEeOvj+uulMm0BkUGYWmBYVyElqZaSLhY6ZD0ulfU3aBra2aVT4xfA==}
 
@@ -3588,6 +3629,10 @@ packages:
       jsdom:
         optional: true
 
+  void-elements@3.1.0:
+    resolution: {integrity: sha512-Dhxzh5HZuiHQhbvTW9AMetFfBHDMYpo23Uo9btPXgdYP+3T5S+p+jgNy7spra+veYhBP2dCSgxR/i2Y02h5/6w==}
+    engines: {node: '>=0.10.0'}
+
   w3c-xmlserializer@5.0.0:
     resolution: {integrity: sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==}
     engines: {node: '>=18'}
@@ -3596,6 +3641,9 @@ packages:
     resolution: {integrity: sha512-rCoJEhvMr0X6alHmwc9abbrA5ZrLZFKpFQVKPNFwl2h7DapXOGdmimIHDtLOWhT4PjhZhxFEtZoQgEXbkDWdZw==}
     engines: {node: '>=20.0.0'}
     hasBin: true
+
+  web-vitals@5.3.0:
+    resolution: {integrity: sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -5954,6 +6002,10 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
+  html-parse-stringify@3.0.1:
+    dependencies:
+      void-elements: 3.1.0
+
   html-url-attributes@3.0.1: {}
 
   http-cache-semantics@4.2.0: {}
@@ -5993,6 +6045,10 @@ snapshots:
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
+
+  i18next@26.3.4(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
 
   iconv-corefoundation@1.1.7:
     dependencies:
@@ -7073,6 +7129,17 @@ snapshots:
       react: 19.2.6
       scheduler: 0.27.0
 
+  react-i18next@17.0.8(i18next@26.3.4(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3):
+    dependencies:
+      '@babel/runtime': 7.29.7
+      html-parse-stringify: 3.0.1
+      i18next: 26.3.4(typescript@6.0.3)
+      react: 19.2.6
+      use-sync-external-store: 1.6.0(react@19.2.6)
+    optionalDependencies:
+      react-dom: 19.2.6(react@19.2.6)
+      typescript: 6.0.3
+
   react-is@17.0.2: {}
 
   react-markdown@10.1.0(@types/react@19.2.14)(react@19.2.6):
@@ -7706,6 +7773,10 @@ snapshots:
 
   urlpattern-polyfill@10.0.0: {}
 
+  use-sync-external-store@1.6.0(react@19.2.6):
+    dependencies:
+      react: 19.2.6
+
   utf8-byte-length@1.0.5: {}
 
   utils-merge@1.0.1: {}
@@ -7771,6 +7842,8 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
+  void-elements@3.1.0: {}
+
   w3c-xmlserializer@5.0.0:
     dependencies:
       xml-name-validator: 5.0.0
@@ -7784,6 +7857,8 @@ snapshots:
       rxjs: 7.8.2
     transitivePeerDependencies:
       - debug
+
+  web-vitals@5.3.0: {}
 
   webidl-conversions@3.0.1: {}
 
@@ -7940,9 +8015,10 @@ snapshots:
 
   zod@4.4.3: {}
 
-  zustand@5.0.14(@types/react@19.2.14)(react@19.2.6):
+  zustand@5.0.14(@types/react@19.2.14)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6)):
     optionalDependencies:
       '@types/react': 19.2.14
       react: 19.2.6
+      use-sync-external-store: 1.6.0(react@19.2.6)
 
   zwitch@2.0.4: {}
