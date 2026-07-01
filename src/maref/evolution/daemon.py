@@ -54,10 +54,13 @@ class EvolutionDaemon:
         self._shutdown = False
         if config.engine == "rel":
             from maref.evolution.rel_adapter import RELAdapter
-            self._loop: DailyEvolutionLoop | RELAdapter = RELAdapter(dry_run=config.dry_run)
+            self._loop: DailyEvolutionLoop = RELAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
         elif config.engine == "multi":
             from maref.evolution.multi_adapter import MultiAdapter
-            self._loop: DailyEvolutionLoop | MultiAdapter = MultiAdapter(dry_run=config.dry_run)
+            self._loop = MultiAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+        elif config.engine == "continuous":
+            from maref.evolution.continuous_adapter import ContinuousAdapter
+            self._loop = ContinuousAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
         else:
             self._loop = DailyEvolutionLoop(
                 vault_dir=config.vault_dir,
@@ -302,9 +305,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--engine",
-        choices=["daily", "rel", "multi"],
+        choices=["daily", "rel", "multi", "continuous"],
         default="daily",
-        help="Evolution engine: daily (RecursiveEvolutionEngine), rel (RecursiveEvolutionLoop), or multi (MultiAgentEvolutionEngine)",
+        help="Evolution engine: daily, rel, multi, or continuous",
     )
     parser.add_argument(
         "--daemon",
