@@ -14,9 +14,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from maref.agent_card_config import (
+    MAS_CAPABILITIES,
     get_default_card_config,
 )
 from maref.recursive.signed_agent_cards import SignedAgentCard
+
+# Lookup for enriching MAS capabilities with input_schema/output_schema
+_mas_cap_lookup: dict[str, dict[str, Any]] = {
+    cap["name"]: cap for cap in MAS_CAPABILITIES
+}
 
 # MAS-TS-001 Agent Card JSON Schema (subset)
 MAS_TS001_AGENT_CARD_SCHEMA: dict[str, Any] = {
@@ -128,17 +134,24 @@ class AgentCardAdapter:
         """Convert MAREF SignedAgentCard → MAS-TS-001 Agent Card."""
         card_data = maref_card.to_card_data()
 
-        # Map capabilities (list[str] → list[dict])
+        # Map capabilities (list[str] → list[dict]) with MAS-TS-001 schema fields
         mas_capabilities: list[dict[str, Any]] = []
         for cap in maref_card.capabilities:
-            mas_capabilities.append(
-                {
-                    "skill_id": f"skill_{cap}",
-                    "name": cap,
-                    "description": "",
-                    "business_rule_version": None,
-                }
-            )
+            entry: dict[str, Any] = {
+                "skill_id": f"skill_{cap}",
+                "name": cap,
+                "description": "",
+                "business_rule_version": None,
+                "input_schema": None,
+                "output_schema": None,
+            }
+            if cap in _mas_cap_lookup:
+                full = _mas_cap_lookup[cap]
+                entry["input_schema"] = full.get("input_schema")
+                entry["output_schema"] = full.get("output_schema")
+                entry["business_rule_version"] = full.get("business_rule_version")
+                entry["description"] = full.get("description", "")
+            mas_capabilities.append(entry)
 
         return MASAgentCard(
             agent_id=card_data.get("agent_id", ""),

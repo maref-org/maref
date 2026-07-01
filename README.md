@@ -63,23 +63,43 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 
 ## 快速开始
 
+### 5 分钟上手指南
+
+```bash
+# 1. 安装 MAREF
+pip install maref
+
+# 2. 运行环境诊断 (15项检查)
+python scripts/check_desktop_env.py
+
+# 3. 启动桌面 Agent 演示 (安全 dry-run 模式)
+maref desktop demo
+
+# 4. 启动 Sidecar 服务
+maref serve --port 8000
+
+# 5. 访问 GUI
+open http://localhost:8000
+```
+
+### 快速启动示例
+
+**方式一：命令行模式**
 ```bash
 # 一键安装
 pip install maref
 
-# 桌面操控 (dry-run 安全模式)
-maref desktop demo
-
-# 环境诊断 (15项检查)
-python scripts/check_desktop_env.py
-
 # 治理状态查询
 maref status
 
-# 启动 Sidecar 服务
+# 桌面 Agent 演示
+maref desktop demo
+
+# 启动服务
 maref serve --port 8000 --gui
 ```
 
+**方式二：Python API**
 ```python
 from maref_lite.governance import GovernanceOverlay
 from maref_lite.state_machine import GovernanceState
@@ -105,6 +125,35 @@ async def example():
     result = await bridge.run_governed(loop, "example input")
     print(result.stop_reason, result.rounds_completed)
 ```
+
+**方式三：完整项目示例**
+```bash
+# 克隆仓库
+git clone https://github.com/maref-org/maref.git
+cd maref
+
+# 使用 uv 创建虚拟环境 (推荐)
+uv venv
+source .venv/bin/activate
+
+# 安装依赖
+uv pip install -e ".[all]"
+
+# 运行测试
+pytest tests/ -v --tb=short
+
+# 启动完整演示
+python examples/simple_integration_demo.py
+```
+
+### 常见问题
+
+| 问题 | 解决方案 |
+|------|----------|
+| 安装失败 | `pip install --upgrade pip` 后重试 |
+| 桌面操控权限问题 | 在系统设置中授予辅助功能权限 |
+| 端口被占用 | 使用 `--port` 指定其他端口 |
+| 依赖冲突 | 使用 `uv venv` 创建隔离环境 |
 
 ---
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+import contextlib
+from typing import Any
+from unittest.mock import patch
 
 from maref.observation.probes import ProbeReading, ProbeSeverity
 from maref.recursive.self_diagnostician import (
@@ -39,6 +39,16 @@ class TestSelfDiagnostician:
         assert d._blocked is False
         assert d._trip_count == 0
 
+    @staticmethod
+    def _normal_reading(name: str, value: float = 1.0, threshold: float = 0.0, **kw: Any) -> ProbeReading:
+        return ProbeReading(
+            probe_name=name,
+            severity=ProbeSeverity.NORMAL,
+            value=value,
+            threshold=threshold,
+            context=kw,
+        )
+
     def test_diagnose_normal_snapshot(self) -> None:
         d = SelfDiagnostician()
         snapshot = SystemSnapshot(
@@ -48,11 +58,21 @@ class TestSelfDiagnostician:
             git_stats={"tags": ["v1.0", "v1.1"]},
             source_file_count=5,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.snapshot_ref == f"snapshot_{snapshot.timestamp}"
         assert report.overall_risk == RiskLevel.NORMAL
         assert report.cb_status == "CLOSED"
         assert "系统正常" in report.recommendations[0]
+
+    def _mock_env_probes(self, d: SelfDiagnostician) -> tuple:
+        return (
+            patch.object(d._playwright_probe, "measure", return_value=self._normal_reading("playwright", installed=True, chromium_available=True)),
+            patch.object(d._desktop_probe, "measure", return_value=self._normal_reading("desktop", pool_available=True, active_sessions=1)),
+            patch.object(d._gui_build_probe, "measure", return_value=self._normal_reading("gui_build", lint_passes=True, build_success=True, ts_errors=0)),
+        )
 
     def test_diagnose_entropy_critical(self) -> None:
         d = SelfDiagnostician()
@@ -63,7 +83,10 @@ class TestSelfDiagnostician:
             git_stats={"tags": []},
             source_file_count=5,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.risk_matrix.get("entropy") == RiskLevel.CRITICAL
         assert report.overall_risk == RiskLevel.CRITICAL
         assert any("CRITICAL" in r for r in report.recommendations)
@@ -77,7 +100,10 @@ class TestSelfDiagnostician:
             git_stats={"tags": []},
             source_file_count=5,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.risk_matrix.get("entropy") in (RiskLevel.WARNING, RiskLevel.CRITICAL)
 
     def test_diagnose_total_tests_zero_falls_back_to_one(self) -> None:
@@ -88,7 +114,10 @@ class TestSelfDiagnostician:
             git_stats={"tags": []},
             source_file_count=0,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.overall_risk == RiskLevel.NORMAL
 
     def test_diagnose_latency_from_duration(self) -> None:
@@ -99,7 +128,10 @@ class TestSelfDiagnostician:
             git_stats={"tags": []},
             source_file_count=1,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.diagnostic_context["latency_test_duration_ms"] >= 120000
 
     def test_diagnose_latency_from_source_file_count(self) -> None:
@@ -110,7 +142,10 @@ class TestSelfDiagnostician:
             git_stats={"tags": []},
             source_file_count=100,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.diagnostic_context["latency_test_duration_ms"] >= 50.0
 
     def test_diagnose_kg_relation_density(self) -> None:
@@ -121,7 +156,10 @@ class TestSelfDiagnostician:
             git_stats={"tags": []},
             source_file_count=2,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.diagnostic_context["kg_nodes"] == 2
         assert report.diagnostic_context["kg_relation_density"] == 1.5
 
@@ -133,7 +171,10 @@ class TestSelfDiagnostician:
             git_stats={"tags": ["v1", "v2", "v3", "v4", "v5"] * 10},
             source_file_count=5,
         )
-        report = d.diagnose(snapshot)
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            report = d.diagnose(snapshot)
         assert report.diagnostic_context["oscillation_tag_count"] == 50
         assert report.diagnostic_context["oscillation_value"] == 5.0
 
@@ -277,6 +318,115 @@ class TestSelfDiagnostician:
     def test_generate_recommendations_unknown_probe_warning(self) -> None:
         recs = SelfDiagnostician._generate_recommendations({}, {"custom": RiskLevel.WARNING})
         assert any("监控" in r for r in recs)
+
+    def test_diagnose_includes_playwright_probe_normal(self) -> None:
+        d = SelfDiagnostician()
+        snapshot = SystemSnapshot(
+            timestamp=1000.0,
+            module_graph={},
+            test_stats={"total": 1, "failed": 0, "duration_ms": 0},
+            git_stats={"tags": []},
+            source_file_count=0,
+        )
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            stack.enter_context(patch.object(
+                d._playwright_probe,
+                "measure",
+                return_value=ProbeReading(
+                    probe_name="playwright",
+                    severity=ProbeSeverity.NORMAL,
+                    value=1.0,
+                    threshold=0.0,
+                    context={"installed": True, "chromium_available": True},
+                ),
+            ))
+            report = d.diagnose(snapshot)
+        assert "playwright" in report.probe_results
+        assert report.risk_matrix["playwright"] == RiskLevel.NORMAL
+
+    def test_diagnose_includes_desktop_probe_normal(self) -> None:
+        d = SelfDiagnostician()
+        snapshot = SystemSnapshot(
+            timestamp=1000.0,
+            module_graph={},
+            test_stats={"total": 1, "failed": 0, "duration_ms": 0},
+            git_stats={"tags": []},
+            source_file_count=0,
+        )
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            stack.enter_context(patch.object(
+                d._desktop_probe,
+                "measure",
+                return_value=ProbeReading(
+                    probe_name="desktop",
+                    severity=ProbeSeverity.NORMAL,
+                    value=1.0,
+                    threshold=0.3,
+                    context={"pool_available": True, "active_sessions": 2},
+                ),
+            ))
+            report = d.diagnose(snapshot)
+        assert "desktop" in report.probe_results
+        assert report.risk_matrix["desktop"] == RiskLevel.NORMAL
+
+    def test_diagnose_includes_gui_build_probe_normal(self) -> None:
+        d = SelfDiagnostician()
+        snapshot = SystemSnapshot(
+            timestamp=1000.0,
+            module_graph={},
+            test_stats={"total": 1, "failed": 0, "duration_ms": 0},
+            git_stats={"tags": []},
+            source_file_count=0,
+        )
+        with contextlib.ExitStack() as stack:
+            for p in self._mock_env_probes(d):
+                stack.enter_context(p)
+            stack.enter_context(patch.object(
+                d._gui_build_probe,
+                "measure",
+                return_value=ProbeReading(
+                    probe_name="gui_build",
+                    severity=ProbeSeverity.NORMAL,
+                    value=0.8,
+                    threshold=0.3,
+                    context={"lint_passes": True, "build_success": True, "ts_errors": 0},
+                ),
+            ))
+            report = d.diagnose(snapshot)
+        assert "gui_build" in report.probe_results
+        assert report.risk_matrix["gui_build"] == RiskLevel.NORMAL
+
+    def test_generate_recommendations_playwright_critical(self) -> None:
+        recs = SelfDiagnostician._generate_recommendations(
+            {},
+            {"playwright": RiskLevel.CRITICAL},
+        )
+        assert any("Playwright 未安装" in r for r in recs)
+
+    def test_generate_recommendations_desktop_critical(self) -> None:
+        recs = SelfDiagnostician._generate_recommendations(
+            {},
+            {"desktop": RiskLevel.CRITICAL},
+        )
+        assert any("桌面代理不可用" in r for r in recs)
+
+    def test_generate_recommendations_gui_build_critical(self) -> None:
+        recs = SelfDiagnostician._generate_recommendations(
+            {},
+            {"gui_build": RiskLevel.CRITICAL},
+        )
+        assert any("GUI 构建完全失败" in r for r in recs)
+
+    def test_generate_recommendations_gui_build_warning(self) -> None:
+        recs = SelfDiagnostician._generate_recommendations(
+            {},
+            {"gui_build": RiskLevel.WARNING},
+        )
+        assert any("TypeScript" in r for r in recs)
 
     def test_attach_circuit_breaker(self) -> None:
         d = SelfDiagnostician()

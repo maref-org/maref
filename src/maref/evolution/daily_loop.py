@@ -13,7 +13,10 @@ from maref.evolution.constitution_harness import ConstitutionHarness, EvolutionC
 from maref.evolution.engine import EvolutionConfig, RecursiveEvolutionEngine
 from maref.evolution.evolution_vault import EvolutionVault
 from maref.evolution.iteration_analyzer import IterationAnalyzer
+from maref.evolution.optimizer_bridge import OptimizerEvolutionBridge
 from maref.evolution.real_metrics import RealMetricsCollector
+from maref.recursive.self_diagnostician import SelfDiagnostician
+from maref.recursive.self_observer import SelfObserver
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +89,36 @@ class DailyEvolutionLoop:
         }
         previous_snapshot = self._load_previous_metrics(current_day)
         analysis = self._analyzer.compare_snapshots(previous_snapshot, current_snapshot)
+
+        # ── Self-diagnosis: observe system, diagnose risks, generate hypotheses ──
+        try:
+            observer = SelfObserver()
+            snapshot = observer.snapshot()
+            diagnostician = SelfDiagnostician()
+            report = diagnostician.diagnose(snapshot)
+            bridge = OptimizerEvolutionBridge()
+            hypotheses = bridge.diagnose_to_hypotheses(report, snapshot)
+            if hypotheses:
+                logger.info(
+                    "Self-diagnosis generated %d hypotheses from risk matrix: %s",
+                    len(hypotheses),
+                    {h.hypothesis_id: h.description[:60] for h in hypotheses},
+                )
+            self._vault.write_metrics_snapshot(
+                current_day,
+                {
+                    **current_snapshot,
+                    "overall_risk": report.overall_risk.value,
+                    "hypothesis_count": len(hypotheses),
+                    "diagnostic_context": {
+                        k: v for k, v in report.diagnostic_context.items()
+                        if isinstance(v, (int, float))
+                    },
+                },
+            )
+        except Exception:
+            logger.exception("Self-diagnosis pipeline failed on day %s", current_day)
+
         constitution_result = self._constitution.check_change(
             EvolutionChange(
                 change_id=f"daily-{current_day}",
@@ -102,7 +135,6 @@ class DailyEvolutionLoop:
         except Exception:
             logger.exception("Daily evolution failed on day %s", current_day)
             return None
-        self._vault.write_metrics_snapshot(current_day, current_snapshot)
         self._vault.write_experiment_result(
             current_day,
             {

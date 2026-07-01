@@ -1,0 +1,139 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from maref.recursive.llm_code_generator import LLMCodeGenResult, LLMCodeGenerator
+    from maref.recursive.self_architect import ArchitectureProposal
+    from maref.recursive.self_executor import ExecutionResult
+    from maref.recursive.self_observer import SystemSnapshot
+
+
+@dataclass
+class VerificationError:
+    category: str
+    message: str
+    location: str = ""
+
+
+@dataclass
+class RefinementResult:
+    success: bool
+    attempts: int
+    final_result: LLMCodeGenResult | None = None
+    errors: list[VerificationError] = field(default_factory=list)
+    duration_seconds: float = 0.0
+
+
+class IterativeRefiner:
+    def __init__(
+        self,
+        codegen: LLMCodeGenerator,
+        max_retries: int = 3,
+    ) -> None:
+        self._codegen = codegen
+        self._max_retries = max_retries
+
+    async def refine(
+        self,
+        proposal: ArchitectureProposal,
+        snapshot: SystemSnapshot | None,
+        verification_errors: list[VerificationError],
+        round_number: int = 0,
+    ) -> RefinementResult:
+        start = time.time()
+        errors = list(verification_errors)
+        attempts = 0
+
+        for _ in range(self._max_retries):
+            attempts += 1
+            feedback = self.build_feedback_prompt(errors)
+
+            result = await self._codegen.generate(
+                proposal=proposal,
+                snapshot=snapshot,
+                feedback=feedback,
+            )
+
+            if result.success:
+                return RefinementResult(
+                    success=True,
+                    attempts=attempts,
+                    final_result=result,
+                    duration_seconds=time.time() - start,
+                )
+
+            errors = [
+                VerificationError(
+                    category="validation",
+                    message=ve,
+                    location="",
+                )
+                for ve in result.validation_errors
+            ]
+
+        return RefinementResult(
+            success=False,
+            attempts=attempts,
+            errors=errors,
+            duration_seconds=time.time() - start,
+        )
+
+    @staticmethod
+    def collect_errors(execution_result: ExecutionResult) -> list[VerificationError]:
+        collected: list[VerificationError] = []
+        details = execution_result.details
+
+        if "errors" in details:
+            for e in details["errors"]:
+                collected.append(
+                    VerificationError(
+                        category="validation",
+                        message=str(e),
+                    )
+                )
+
+        if "stdout" in details:
+            collected.append(
+                VerificationError(
+                    category="output",
+                    message=str(details["stdout"])[:200],
+                )
+            )
+
+        if "stderr" in details:
+            collected.append(
+                VerificationError(
+                    category="error_output",
+                    message=str(details["stderr"])[:200],
+                )
+            )
+
+        if not collected:
+            collected.append(
+                VerificationError(
+                    category="unknown",
+                    message=execution_result.message,
+                )
+            )
+
+        return collected
+
+    @staticmethod
+    def build_feedback_prompt(
+        errors: list[VerificationError],
+    ) -> str:
+        lines = [
+            "\n[ITERATIVE REFINEMENT]",
+            f"Previous attempt produced code with {len(errors)} error(s):",
+        ]
+        for e in errors:
+            loc = f" (at {e.location})" if e.location else ""
+            lines.append(f"  - {e.category}: {e.message}{loc}")
+        lines.append(
+            "\nPlease fix the above issues and regenerate the complete file. "
+            "Do not change the module's public API signature."
+        )
+        return "\n".join(lines)

@@ -9,6 +9,7 @@ from maref.desktop.browser_controller import (
     BrowserController,
     BrowserResult,
 )
+from maref.desktop.browser_types import BrowserType
 
 
 class TestBrowserControllerDryRun:
@@ -142,3 +143,48 @@ class TestBrowserControllerEdgeCases:
         assert d["success"] is True
         assert d["action"] == "navigate"
         assert d["url"] == "https://example.com"
+
+
+class TestBrowserControllerNewMethods:
+    @pytest.fixture
+    def controller(self) -> BrowserController:
+        return BrowserController(dry_run=True)
+
+    def test_get_html_dry_run(self, controller: BrowserController) -> None:
+        result = controller.get_html()
+        assert isinstance(result, BrowserResult)
+        assert result.action == BrowserAction.GET_HTML
+        assert "[DRY RUN]" in result.html
+
+    def test_wait_for_selector_dry_run(self, controller: BrowserController) -> None:
+        result = controller.wait_for_selector("#test-btn", timeout=5.0)
+        assert isinstance(result, BrowserResult)
+        assert result.action == BrowserAction.WAIT
+        assert result.success is True
+
+    def test_wait_for_navigation_dry_run(self, controller: BrowserController) -> None:
+        result = controller.wait_for_navigation(timeout=10.0)
+        assert isinstance(result, BrowserResult)
+        assert result.action == BrowserAction.WAIT
+        assert result.success is True
+
+    def test_get_cookies_dry_run(self, controller: BrowserController) -> None:
+        cookies = controller.get_cookies()
+        assert isinstance(cookies, list)
+
+    def test_set_cookies_dry_run(self, controller: BrowserController) -> None:
+        result = controller.set_cookies([{"name": "test", "value": "val", "domain": ".example.com"}])
+        assert isinstance(result, BrowserResult)
+
+    def test_session_id_unique(self) -> None:
+        c1 = BrowserController(dry_run=True)
+        c2 = BrowserController(dry_run=True)
+        assert c1.session_id != c2.session_id
+
+    def test_dry_run_default_false_when_no_env(self) -> None:
+        import os
+        old = os.environ.pop("MAREF_BROWSER_DRY_RUN", None)
+        ctrl = BrowserController()
+        assert ctrl.dry_run is False
+        if old is not None:
+            os.environ["MAREF_BROWSER_DRY_RUN"] = old

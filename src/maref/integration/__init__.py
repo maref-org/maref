@@ -25,6 +25,12 @@ from maref.integration.a2a_types import (
     map_maref_to_a2a,
     validate_agent_card_json,
 )
+from maref.integration.trajectory import (
+    TaskTrajectory,
+    TrajectoryCollector,
+    TrajectoryEvent,
+    TrajectoryEventType,
+)
 from maref.integration.deerflow_bridge import DeerFlowBridge, DeerFlowDAG, DeerFlowNode
 from maref.integration.flag_bridge import FeatureFlag, FlagBridge, PolicySnapshot, RolloutStage
 from maref.integration.gateway import (
@@ -301,4 +307,9 @@ __all__ = [
     "RemoteCommandResult",
     # MAREFLoop adapter
     "MAREFLoop",
+    # Trajectory collection (MAS-TS-001 D2/D3)
+    "TaskTrajectory",
+    "TrajectoryCollector",
+    "TrajectoryEvent",
+    "TrajectoryEventType",
 ]

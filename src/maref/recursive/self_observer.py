@@ -191,9 +191,9 @@ class SelfObserver:
         except Exception:
             return {"error": "failed_to_create_state_machine"}
 
-    def snapshot(self) -> SystemSnapshot:
+    def snapshot(self, collect_only: bool = True) -> SystemSnapshot:
         module_graph = self.observe_codebase()
-        test_stats = self.observe_tests()
+        test_stats = self.observe_tests(collect_only=collect_only)
         git_stats = self.observe_git()
         state_machine_status = self._build_state_machine_status()
 

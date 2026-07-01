@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import ipaddress
 import re
 from html.parser import HTMLParser
@@ -10,6 +9,7 @@ from urllib.parse import urlparse
 import httpx
 
 from maref.integration.mcp_server import MCPServer
+from maref.tools.browser_session_bridge import get_bridge
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -151,8 +151,14 @@ def create_browser_server(
 
     def _browser_screenshot(args: dict[str, Any]) -> dict[str, Any]:
         url = _validate_url(str(args["url"]), whitelist)
-        placeholder = base64.b64encode(b"placeholder_png_data").decode("ascii")
-        return {"url": url, "screenshot": placeholder, "format": "png"}
+        bridge = get_bridge()
+        result = bridge.screenshot_url(url)
+        if result is not None:
+            return result
+        headless = bridge.take_headless_screenshot(url)
+        if headless is not None:
+            return headless
+        return {"url": url, "error": "Screenshot unavailable - no Playwright session available"}
 
     def _browser_get_html(args: dict[str, Any]) -> dict[str, Any]:
         url = _validate_url(str(args["url"]), whitelist)
@@ -193,7 +199,7 @@ def create_browser_server(
 
     server.register_tool(
         name="browser_screenshot",
-        description="Take a screenshot of a URL (placeholder implementation)",
+        description="Take a screenshot of a URL via Playwright (falls back to headless if no desktop session)",
         input_schema={
             "type": "object",
             "properties": {"url": {"type": "string"}},

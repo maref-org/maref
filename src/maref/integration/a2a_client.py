@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-AGENT_ID = "maref-agent"
+AGENT_ID = "urn:agent:maref:0-35-0-beta:a2a-client"
 
 
 class A2AClient:

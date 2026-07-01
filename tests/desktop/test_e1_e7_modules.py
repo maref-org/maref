@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from maref.desktop.browser_controller import (
     BrowserAction,
@@ -450,7 +450,7 @@ class TestSubAgentSpawner:
 class TestBrowserController:
     def test_init_defaults(self):
         bc = BrowserController()
-        assert bc.dry_run is True
+        assert bc.dry_run is False
         assert bc.browser_type == BrowserType.CHROMIUM
 
     def test_is_safe_domain(self):
@@ -527,6 +527,7 @@ class TestBrowserController:
 
     def test_do_click_no_page(self):
         bc = BrowserController(dry_run=False)
+        bc._ensure_session = AsyncMock(return_value=None)  # type: ignore[method-assign]
         result = bc.click("#btn")
         assert not result.success
         assert "No active page" in result.error
@@ -548,6 +549,7 @@ class TestBrowserController:
 
     def test_do_type_no_page(self):
         bc = BrowserController(dry_run=False)
+        bc._ensure_session = AsyncMock(return_value=None)  # type: ignore[method-assign]
         result = bc.type_text("#input", "hello")
         assert not result.success
         assert "No active page" in result.error
@@ -584,6 +586,7 @@ class TestBrowserController:
 
     def test_do_extract_text_no_page(self):
         bc = BrowserController(dry_run=False)
+        bc._ensure_session = AsyncMock(return_value=None)  # type: ignore[method-assign]
         result = bc.extract_text()
         assert not result.success
         assert "No active page" in result.error
@@ -606,6 +609,7 @@ class TestBrowserController:
 
     def test_do_extract_links_no_page(self):
         bc = BrowserController(dry_run=False)
+        bc._ensure_session = AsyncMock(return_value=None)  # type: ignore[method-assign]
         result = bc.extract_links()
         assert not result.success
         assert "No active page" in result.error
@@ -633,6 +637,7 @@ class TestBrowserController:
 
     def test_do_screenshot_no_page(self):
         bc = BrowserController(dry_run=False)
+        bc._ensure_session = AsyncMock(return_value=None)  # type: ignore[method-assign]
         result = bc.screenshot()
         assert not result.success
         assert "No active page" in result.error
@@ -658,6 +663,7 @@ class TestBrowserController:
 
     def test_do_execute_js_no_page(self):
         bc = BrowserController(dry_run=False)
+        bc._ensure_session = AsyncMock(return_value=None)  # type: ignore[method-assign]
         result = bc.execute_js("document.title")
         assert not result.success
         assert "No active page" in result.error
@@ -680,25 +686,15 @@ class TestBrowserController:
 
     def test_do_navigate_real_error(self):
         bc = BrowserController(dry_run=False)
-        # 使用不可达 URL 触发 DNS 解析错误
-        result = bc.navigate("https://nonexistent-domain-maref-test-99999.test/")
-        assert not result.success
+        with patch.object(bc._pool, 'acquire', side_effect=Exception("pool error")):
+            result = bc.navigate("https://nonexistent-domain-maref-test-99999.test/")
+            assert not result.success
 
     def test_close_cleanup(self):
         bc = BrowserController(dry_run=False)
-        page_mock = MagicMock()
-        browser_mock = MagicMock()
-        pw_mock = MagicMock()
-        bc._page = page_mock
-        bc._browser = browser_mock
-        bc._playwright = pw_mock
-        bc.close()
-        page_mock.close.assert_called_once()
-        browser_mock.close.assert_called_once()
-        pw_mock.stop.assert_called_once()
-        assert bc._page is None
-        assert bc._browser is None
-        assert bc._playwright is None
+        with patch.object(bc._pool, 'release', new_callable=AsyncMock) as mock_release:
+            bc.close()
+            mock_release.assert_called_once_with(bc._session_id)
 
 
 class TestFileWatcher:

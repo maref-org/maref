@@ -213,6 +213,38 @@ class SelfOptimizer:
     def adopted(self) -> list[OptimizationHypothesis]:
         return list(self._adopted)
 
+    def ingest_rel_result(
+        self,
+        round_number: int,
+        before_metrics: dict[str, float],
+        after_metrics: dict[str, float],
+        adopted: bool,
+    ) -> OptimizationHypothesis:
+        import uuid
+        hypothesis = OptimizationHypothesis(
+            hypothesis_id=f"rel_round_{round_number}_{uuid.uuid4().hex[:6]}",
+            description=f"REL round {round_number} evolution result",
+            target_module="rel_evolution",
+            experiment_result={"before": before_metrics, "after": after_metrics},
+            gain_pct=0.0,
+        )
+
+        if before_metrics.get("coverage_pct", 0) > 0:
+            gain = (
+                after_metrics.get("coverage_pct", 0) - before_metrics.get("coverage_pct", 0)
+            ) / max(before_metrics.get("coverage_pct", 1), 1)
+            hypothesis.gain_pct = gain
+
+        if adopted and hypothesis.gain_pct >= 0:
+            hypothesis.adopted = True
+            hypothesis.conclusion = f"adopted from REL round {round_number}"
+            self._adopted.append(hypothesis)
+        else:
+            hypothesis.conclusion = f"rejected from REL round {round_number}"
+            self._hypotheses.append(hypothesis)
+
+        return hypothesis
+
     @property
     def reverted(self) -> list[OptimizationHypothesis]:
         return list(self._reverted)

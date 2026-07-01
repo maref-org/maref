@@ -8,7 +8,9 @@ import pytest
 from maref.evaluation.saeb import (
     SAEBMetricsCollector,
     SAEBScenario,
+    create_browser_engine_scenario,
     create_calculator_scenario,
+    create_desktop_agent_scenario,
     run_saeb,
 )
 from maref.evaluation.saeb.report import (
@@ -245,6 +247,94 @@ def test_recursive_pipeline_chain() -> None:
     assert diagnostician._cb_state == "CLOSED"
 
 
+@pytest.fixture
+def desktop_agent_scenario() -> SAEBScenario:
+    workdir = Path(f"/tmp/saeb-test-desktop-{uuid.uuid4().hex[:8]}")
+    scenario = create_desktop_agent_scenario(workdir)
+    scenario.setup()
+    yield scenario
+    scenario.cleanup()
+
+
+def test_create_desktop_agent_scenario(desktop_agent_scenario: SAEBScenario) -> None:
+    assert desktop_agent_scenario.name == "desktop-v1"
+    assert len(desktop_agent_scenario.injections) == 6
+    assert (desktop_agent_scenario.workdir / "desktop_agent/agent.py").exists()
+    assert (desktop_agent_scenario.workdir / "tests/test_desktop_agent.py").exists()
+
+
+def test_desktop_agent_baseline_metrics_pass(desktop_agent_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(desktop_agent_scenario.workdir, src_dir="desktop_agent")
+    metrics = collector.collect(0, "baseline")
+    assert metrics.passed == 8, f"Expected 8 passed, got {metrics.passed}"
+    assert metrics.failed == 0
+    assert metrics.errors == 0
+    assert metrics.fnr == 0.0
+
+
+def test_desktop_agent_injection_session_browser_wrong(desktop_agent_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(desktop_agent_scenario.workdir, src_dir="desktop_agent")
+    desktop_agent_scenario.apply_injection("session_browser_wrong")
+    metrics = collector.collect(1, "session_browser_wrong")
+    assert metrics.failed >= 1
+    assert metrics.fnr > 0.1
+    assert metrics.errors == 0
+
+
+def test_desktop_agent_injection_broken_import(desktop_agent_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(desktop_agent_scenario.workdir, src_dir="desktop_agent")
+    desktop_agent_scenario.apply_injection("broken_import")
+    metrics = collector.collect(1, "broken_import")
+    assert metrics.errors >= 1
+    assert metrics.compilation_error_rate > 0.5
+    assert metrics.fnr == 0.0
+
+
+def test_desktop_agent_injection_async_trap(desktop_agent_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(desktop_agent_scenario.workdir, src_dir="desktop_agent")
+    desktop_agent_scenario.apply_injection("async_trap")
+    metrics = collector.collect(1, "async_trap")
+    assert metrics.failed >= 1
+    assert metrics.fnr > 0.1
+
+
+def test_desktop_agent_all_injections(desktop_agent_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(desktop_agent_scenario.workdir, src_dir="desktop_agent")
+    for inj in desktop_agent_scenario.injections:
+        desktop_agent_scenario.apply_injection(inj.label)
+        m = collector.collect(1, inj.label)
+        desktop_agent_scenario.revert_injection(inj.label)
+        desktop_agent_scenario.restore_reference()
+        if inj.expected_fnr_gt > 0:
+            assert m.fnr > inj.expected_fnr_gt, (
+                f"{inj.label}: expected FNR > {inj.expected_fnr_gt}, got {m.fnr}"
+            )
+        if inj.expected_compilation_error:
+            assert m.compilation_error_rate > 0, (
+                f"{inj.label}: expected compilation error"
+            )
+
+
+def test_desktop_agent_fix_restores_passing(desktop_agent_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(desktop_agent_scenario.workdir, src_dir="desktop_agent")
+    desktop_agent_scenario.apply_injection("session_browser_wrong")
+    m_broken = collector.collect(1, "broken")
+    assert m_broken.fnr > 0
+    desktop_agent_scenario.revert_injection("session_browser_wrong")
+    desktop_agent_scenario.restore_reference()
+    m_fixed = collector.collect(2, "fixed")
+    assert m_fixed.fnr == 0.0, "Fix should restore FNR to 0"
+
+
+def test_desktop_agent_engine_check_no_url_validation_both_signals(desktop_agent_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(desktop_agent_scenario.workdir, src_dir="desktop_agent")
+    baseline = collector.collect(0, "baseline")
+    desktop_agent_scenario.apply_injection("screenshot_no_url_validation")
+    desktop_agent_scenario.apply_injection("engine_check_always_true")
+    metrics = collector.collect(1, "mixed")
+    assert metrics.fnr > baseline.fnr, "Logic errors should increase FNR"
+
+
 def test_architect_propose_execute_chain(tmp_path: Path) -> None:
     from maref.recursive.self_architect import SelfArchitect
     from maref.recursive.self_executor import SelfExecutor
@@ -263,3 +353,97 @@ def test_architect_propose_execute_chain(tmp_path: Path) -> None:
         assert pipeline.final_state.startswith("DRY_RUN"), (
             f"Expected DRY_RUN state, got {pipeline.final_state}"
         )
+
+
+@pytest.fixture
+def browser_engine_scenario() -> SAEBScenario:
+    workdir = Path(f"/tmp/saeb-test-browser-{uuid.uuid4().hex[:8]}")
+    scenario = create_browser_engine_scenario(workdir)
+    scenario.setup()
+    yield scenario
+    scenario.cleanup()
+
+
+def test_create_browser_engine_scenario(browser_engine_scenario: SAEBScenario) -> None:
+    assert browser_engine_scenario.name == "browser-engine-v1"
+    assert len(browser_engine_scenario.injections) == 4
+    assert (browser_engine_scenario.workdir / "browser_engine/engine.py").exists()
+    assert (browser_engine_scenario.workdir / "tests/test_browser_engine.py").exists()
+
+
+def test_browser_engine_baseline_metrics_pass(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    metrics = collector.collect(0, "baseline")
+    assert metrics.passed == 9, f"Expected 9 passed, got {metrics.passed}"
+    assert metrics.failed == 0
+    assert metrics.errors == 0
+    assert metrics.fnr == 0.0
+
+
+def test_browser_engine_injection_wrong_user_agent(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    browser_engine_scenario.apply_injection("wrong_user_agent")
+    metrics = collector.collect(1, "wrong_user_agent")
+    assert metrics.failed >= 1
+    assert metrics.fnr > 0.1
+    assert metrics.errors == 0
+
+
+def test_browser_engine_injection_broken_redirect(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    browser_engine_scenario.apply_injection("broken_redirect")
+    metrics = collector.collect(1, "broken_redirect")
+    assert metrics.failed >= 1
+    assert metrics.fnr > 0.1
+    assert metrics.errors == 0
+
+
+def test_browser_engine_injection_timeout_too_low(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    browser_engine_scenario.apply_injection("timeout_too_low")
+    metrics = collector.collect(1, "timeout_too_low")
+    assert metrics.failed >= 1
+    assert metrics.fnr > 0.1
+    assert metrics.errors == 0
+
+
+def test_browser_engine_injection_missing_content_type(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    browser_engine_scenario.apply_injection("missing_content_type")
+    metrics = collector.collect(1, "missing_content_type")
+    assert metrics.failed >= 1
+    assert metrics.fnr > 0.1
+    assert metrics.errors == 0
+
+
+def test_browser_engine_all_injections(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    for inj in browser_engine_scenario.injections:
+        browser_engine_scenario.apply_injection(inj.label)
+        m = collector.collect(1, inj.label)
+        browser_engine_scenario.revert_injection(inj.label)
+        browser_engine_scenario.restore_reference()
+        if inj.expected_fnr_gt > 0:
+            assert m.fnr > inj.expected_fnr_gt, (
+                f"{inj.label}: expected FNR > {inj.expected_fnr_gt}, got {m.fnr}"
+            )
+
+
+def test_browser_engine_fix_restores_passing(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    browser_engine_scenario.apply_injection("wrong_user_agent")
+    m_broken = collector.collect(1, "broken")
+    assert m_broken.fnr > 0
+    browser_engine_scenario.revert_injection("wrong_user_agent")
+    browser_engine_scenario.restore_reference()
+    m_fixed = collector.collect(2, "fixed")
+    assert m_fixed.fnr == 0.0, "Fix should restore FNR to 0"
+
+
+def test_browser_engine_mixed_injections(browser_engine_scenario: SAEBScenario) -> None:
+    collector = SAEBMetricsCollector(browser_engine_scenario.workdir, src_dir="browser_engine")
+    baseline = collector.collect(0, "baseline")
+    browser_engine_scenario.apply_injection("wrong_user_agent")
+    browser_engine_scenario.apply_injection("broken_redirect")
+    metrics = collector.collect(1, "mixed")
+    assert metrics.fnr > baseline.fnr, "Logic errors should increase FNR"

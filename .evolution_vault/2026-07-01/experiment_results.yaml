@@ -1,0 +1,3 @@
+- all_passed: true
+  constitution_allowed: true
+  stop_reason: dry_run_complete

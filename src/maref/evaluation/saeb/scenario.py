@@ -29,8 +29,6 @@ class SAEBScenario:
 
     def setup(self) -> None:
         self.workdir.mkdir(parents=True, exist_ok=True)
-        (self.workdir / "calculator").mkdir(exist_ok=True)
-        (self.workdir / "tests").mkdir(exist_ok=True)
         self.restore_reference()
 
     def restore_reference(self) -> None:
@@ -465,3 +463,482 @@ def test_validate_gene_invalid_high_severity() -> None:
         },
         injections=injections,
     )
+
+
+def create_desktop_agent_scenario(workdir: str | Path | None = None) -> SAEBScenario:
+    if workdir is None:
+        workdir = Path("/tmp/saeb-desktop-agent")
+    workdir = Path(workdir)
+
+    agent_src = """from __future__ import annotations
+
+from enum import Enum
+from typing import Any
+
+
+class BrowserType(Enum):
+    CHROMIUM = "chromium"
+    FIREFOX = "firefox"
+    WEBKIT = "webkit"
+
+
+class SessionState(Enum):
+    ACTIVE = "active"
+    IDLE = "idle"
+    EXPIRED = "expired"
+
+
+def create_session(browser: BrowserType, timeout: int = 30) -> dict[str, Any]:
+    return {
+        "browser": browser.value,
+        "timeout": timeout,
+        "state": SessionState.ACTIVE.value,
+    }
+
+
+def release_session(session: dict[str, Any]) -> dict[str, Any]:
+    session["state"] = SessionState.EXPIRED.value
+    return session
+
+
+def check_browser_engine(browser: BrowserType) -> bool:
+    if not isinstance(browser, BrowserType):
+        return False
+    return browser in (BrowserType.CHROMIUM, BrowserType.FIREFOX, BrowserType.WEBKIT)
+
+
+def take_screenshot(url: str, timeout: int = 10) -> str:
+    if not url.startswith("http"):
+        raise ValueError(f"Invalid URL: {url}")
+    return f"screenshot_of_{url.replace('/', '_')}.png"
+
+
+def get_active_sessions(sessions: list[dict[str, Any]]) -> int:
+    return sum(1 for s in sessions if s.get("state") == SessionState.ACTIVE.value)
+"""
+
+    test_src = """from __future__ import annotations
+
+import pytest
+from desktop_agent.agent import (
+    BrowserType,
+    check_browser_engine,
+    create_session,
+    get_active_sessions,
+    release_session,
+    take_screenshot,
+)
+
+
+def test_create_session_chromium() -> None:
+    s = create_session(BrowserType.CHROMIUM)
+    assert s["browser"] == "chromium"
+    assert s["state"] == "active"
+    assert s["timeout"] == 30
+
+
+def test_create_session_firefox_custom_timeout() -> None:
+    s = create_session(BrowserType.FIREFOX, timeout=60)
+    assert s["browser"] == "firefox"
+    assert s["timeout"] == 60
+
+
+def test_release_session() -> None:
+    s = create_session(BrowserType.WEBKIT)
+    result = release_session(s)
+    assert result["state"] == "expired"
+
+
+def test_check_browser_engine_valid() -> None:
+    assert check_browser_engine(BrowserType.CHROMIUM) is True
+    assert check_browser_engine(BrowserType.FIREFOX) is True
+    assert check_browser_engine(BrowserType.WEBKIT) is True
+
+
+def test_check_browser_engine_invalid() -> None:
+    assert check_browser_engine("invalid") is False  # type: ignore[arg-type]
+
+
+def test_take_screenshot() -> None:
+    result = take_screenshot("http://example.com")
+    assert result == "screenshot_of_http:__example.com.png"
+
+
+def test_take_screenshot_invalid_url() -> None:
+    with pytest.raises(ValueError, match="Invalid URL"):
+        take_screenshot("not-a-url")
+
+
+def test_get_active_sessions() -> None:
+    sessions = [
+        create_session(BrowserType.CHROMIUM),
+        create_session(BrowserType.FIREFOX),
+    ]
+    release_session(sessions[1])
+    assert get_active_sessions(sessions) == 1
+"""
+
+    init_src = (
+        "from desktop_agent.agent import BrowserType, SessionState, "
+        "check_browser_engine, create_session, get_active_sessions, "
+        "release_session, take_screenshot\n"
+    )
+
+    def inj_session_browser_wrong(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            '"browser": browser.value',
+            '"browser": browser.name',
+        )
+
+    def rev_session_browser_wrong(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_release_no_state_change(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            '    session["state"] = SessionState.EXPIRED.value\n    return session',
+            "    return session",
+        )
+
+    def rev_release_no_state_change(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_engine_check_always_true(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "def check_browser_engine(browser: BrowserType) -> bool:\n"
+            "    if not isinstance(browser, BrowserType):\n"
+            "        return False\n"
+            "    return browser in (BrowserType.CHROMIUM, BrowserType.FIREFOX, BrowserType.WEBKIT)",
+            "def check_browser_engine(browser: BrowserType) -> bool:\n"
+            "    return True",
+        )
+
+    def rev_engine_check_always_true(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_screenshot_no_url_validation(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "def take_screenshot(url: str, timeout: int = 10) -> str:\n"
+            '    if not url.startswith("http"):\n'
+            '        raise ValueError(f"Invalid URL: {url}")\n'
+            "    return f\"screenshot_of_{url.replace('/', '_')}.png\"",
+            "def take_screenshot(url: str, timeout: int = 10) -> str:\n"
+            "    return f\"screenshot_of_{url.replace('/', '_')}.png\"",
+        )
+
+    def rev_screenshot_no_url_validation(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_broken_import(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "from __future__ import annotations\n",
+            "from __future__ import annotations\nfrom nonexistent_module import magic_function\n",
+        )
+
+    def rev_broken_import(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_async_trap(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "def take_screenshot(url: str, timeout: int = 10) -> str:",
+            "async def take_screenshot(url: str, timeout: int = 10) -> str:",
+        )
+
+    def rev_async_trap(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    injections = [
+        DefectInjection(
+            label="session_browser_wrong",
+            apply_fn=inj_session_browser_wrong,
+            revert_fn=rev_session_browser_wrong,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="release_no_state_change",
+            apply_fn=inj_release_no_state_change,
+            revert_fn=rev_release_no_state_change,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="engine_check_always_true",
+            apply_fn=inj_engine_check_always_true,
+            revert_fn=rev_engine_check_always_true,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="screenshot_no_url_validation",
+            apply_fn=inj_screenshot_no_url_validation,
+            revert_fn=rev_screenshot_no_url_validation,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="broken_import",
+            apply_fn=inj_broken_import,
+            revert_fn=rev_broken_import,
+            expected_compilation_error=True,
+        ),
+        DefectInjection(
+            label="async_trap",
+            apply_fn=inj_async_trap,
+            revert_fn=rev_async_trap,
+            expected_fnr_gt=0.1,
+        ),
+    ]
+
+    return SAEBScenario(
+        name="desktop-v1",
+        description="Desktop agent with browser session management, engine detection, and screenshot. "
+        "Tests cover session lifecycle, browser type validation, URL validation, "
+        "and active session counting.",
+        workdir=workdir,
+        reference_files={
+            "desktop_agent/__init__.py": init_src,
+            "desktop_agent/agent.py": agent_src,
+            "tests/__init__.py": "",
+            "tests/test_desktop_agent.py": test_src,
+        },
+        injections=injections,
+    )
+
+
+def create_browser_engine_scenario(workdir: str | Path | None = None) -> SAEBScenario:
+    if workdir is None:
+        workdir = Path("/tmp/saeb-browser-engine")
+    workdir = Path(workdir)
+
+    engine_src = """from __future__ import annotations
+
+from typing import Any
+
+
+def make_request(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    if headers is None:
+        headers = {}
+    if "User-Agent" not in headers:
+        headers["User-Agent"] = "Mozilla/5.0 (compatible; MAREF/1.0)"
+    return {"url": url, "headers": headers, "status": 200}
+
+
+def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:
+    status = response.get("status", 200)
+    if status in (301, 302, 303, 307, 308):
+        redirect_url = response.get("location", "")
+        if redirect_url:
+            return make_request(redirect_url)
+    return response
+
+
+def navigate(url: str, timeout: int = 30) -> dict[str, Any]:
+    if timeout <= 0:
+        raise ValueError("Timeout must be positive")
+    return {"url": url, "status": 200, "content": f"<html><body>{url}</body></html>"}
+
+
+def parse_response(response: dict[str, Any]) -> dict[str, Any]:
+    content = response.get("content", "")
+    content_type = response.get("content_type", "text/html; charset=utf-8")
+    charset = "utf-8"
+    if "charset=" in content_type:
+        charset = content_type.split("charset=")[-1].split(";")[0].strip()
+    return {
+        "url": response.get("url", ""),
+        "content": content,
+        "charset": charset,
+        "size": len(content),
+    }
+"""
+
+    test_src = """from __future__ import annotations
+
+import pytest
+from browser_engine.engine import (
+    follow_redirect,
+    make_request,
+    navigate,
+    parse_response,
+)
+
+
+def test_make_request_default_user_agent() -> None:
+    result = make_request("http://example.com")
+    assert result["url"] == "http://example.com"
+    assert result["headers"]["User-Agent"].startswith("Mozilla")
+
+
+def test_make_request_custom_headers() -> None:
+    result = make_request("http://example.com", {"X-Custom": "value"})
+    assert result["headers"]["X-Custom"] == "value"
+    assert result["headers"]["User-Agent"].startswith("Mozilla")
+
+
+def test_follow_redirect_no_redirect() -> None:
+    response = {"url": "http://example.com", "status": 200, "content": "ok"}
+    result = follow_redirect(response)
+    assert result["url"] == "http://example.com"
+
+
+def test_follow_redirect_302() -> None:
+    response = {"url": "http://old.com", "status": 302, "location": "http://new.com"}
+    result = follow_redirect(response)
+    assert result["url"] == "http://new.com"
+
+
+def test_navigate_positive_timeout() -> None:
+    result = navigate("http://example.com", timeout=15)
+    assert result["status"] == 200
+    assert "example.com" in result["content"]
+
+
+def test_navigate_zero_timeout() -> None:
+    with pytest.raises(ValueError, match="Timeout must be positive"):
+        navigate("http://example.com", timeout=0)
+
+
+def test_parse_response_utf8() -> None:
+    response = {"url": "http://example.com", "content": "<html></html>",
+                "content_type": "text/html; charset=utf-8"}
+    result = parse_response(response)
+    assert result["charset"] == "utf-8"
+
+
+def test_parse_response_no_charset() -> None:
+    response = {"url": "http://example.com", "content": "<html></html>",
+                "content_type": "text/html"}
+    result = parse_response(response)
+    assert result["charset"] == "utf-8"
+
+
+def test_parse_response_iso_8859_1() -> None:
+    response = {"url": "http://example.com", "content": "<html></html>",
+                "content_type": "text/html; charset=iso-8859-1"}
+    result = parse_response(response)
+    assert result["charset"] == "iso-8859-1"
+"""
+
+    init_src = (
+        "from browser_engine.engine import follow_redirect, make_request, "
+        "navigate, parse_response\n"
+    )
+
+    def inj_wrong_user_agent(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            'headers["User-Agent"] = "Mozilla/5.0 (compatible; MAREF/1.0)"',
+            'headers["User-Agent"] = "invalid-ua"',
+        )
+
+    def rev_wrong_user_agent(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    def inj_broken_redirect(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            "def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    status = response.get(\"status\", 200)\n"
+            "    if status in (301, 302, 303, 307, 308):\n"
+            "        redirect_url = response.get(\"location\", \"\")\n"
+            "        if redirect_url:\n"
+            "            return make_request(redirect_url)\n"
+            "    return response",
+            "def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    return response",
+        )
+
+    def rev_broken_redirect(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    def inj_timeout_too_low(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            "def navigate(url: str, timeout: int = 30) -> dict[str, Any]:\n"
+            "    if timeout <= 0:\n"
+            '        raise ValueError("Timeout must be positive")\n'
+            '    return {"url": url, "status": 200, "content": f"<html><body>{url}</body></html>"}',
+            "def navigate(url: str, timeout: int = 30) -> dict[str, Any]:\n"
+            '    return {"url": url, "status": 200, "content": f"<html><body>{url}</body></html>"}',
+        )
+
+    def rev_timeout_too_low(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    def inj_missing_content_type(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            "def parse_response(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    content = response.get(\"content\", \"\")\n"
+            '    content_type = response.get("content_type", "text/html; charset=utf-8")\n'
+            '    charset = "utf-8"\n'
+            '    if "charset=" in content_type:\n'
+            '        charset = content_type.split("charset=")[-1].split(";")[0].strip()\n'
+            '    return {\n'
+            '        "url": response.get("url", ""),\n'
+            '        "content": content,\n'
+            '        "charset": charset,\n'
+            '        "size": len(content),\n'
+            "    }",
+            "def parse_response(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    content = response.get(\"content\", \"\")\n"
+            '    return {\n'
+            '        "url": response.get("url", ""),\n'
+            '        "content": content,\n'
+            '        "charset": "utf-8",\n'
+            '        "size": len(content),\n'
+            "    }",
+        )
+
+    def rev_missing_content_type(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    injections = [
+        DefectInjection(
+            label="wrong_user_agent",
+            apply_fn=inj_wrong_user_agent,
+            revert_fn=rev_wrong_user_agent,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="broken_redirect",
+            apply_fn=inj_broken_redirect,
+            revert_fn=rev_broken_redirect,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="timeout_too_low",
+            apply_fn=inj_timeout_too_low,
+            revert_fn=rev_timeout_too_low,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="missing_content_type",
+            apply_fn=inj_missing_content_type,
+            revert_fn=rev_missing_content_type,
+            expected_fnr_gt=0.1,
+        ),
+    ]
+
+    return SAEBScenario(
+        name="browser-engine-v1",
+        description="Browser engine with request construction, redirect following, "
+        "navigation timeout, and Content-Type charset parsing. "
+        "Tests cover User-Agent header, 302 redirect, timeout validation, "
+        "and charset detection.",
+        workdir=workdir,
+        reference_files={
+            "browser_engine/__init__.py": init_src,
+            "browser_engine/engine.py": engine_src,
+            "tests/__init__.py": "",
+            "tests/test_browser_engine.py": test_src,
+        },
+        injections=injections,
+    )
+
+
+# ── END OF registry naming convention ────────────────────────────────────────
+# New scenario factory functions should be inserted above this marker.
+# Each factory must return an SAEBScenario with a unique name.

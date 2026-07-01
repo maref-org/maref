@@ -1,9 +1,9 @@
-import { randomBytes } from "crypto";
-
 const NONCE_KEY = "maref-csp-nonce";
 
 export function generateNonce(): string {
-  return randomBytes(16).toString("base64");
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr));
 }
 
 export function getNonce(): string {

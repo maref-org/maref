@@ -153,3 +153,18 @@ class CircuitBreaker:
             "trip_count": len(self._trips),
             "last_trip": self._trips[-1].reason if self._trips else None,
         }
+
+    def get_config(self) -> dict[str, Any]:
+        """Export all configuration thresholds for MAS-TS-001 D4 auditing."""
+        return {
+            "max_depth": self._max_depth,
+            "max_oscillation_rate": self._max_oscillation,
+            "max_consecutive_failures": self._max_failures,
+            "cooldown_seconds": self._cooldown,
+            "state": self._state.value,
+            "trip_count": len(self._trips),
+            "recent_trips": [
+                {"timestamp": t.timestamp, "reason": t.reason, "depth": t.depth, "entropy": t.entropy}
+                for t in self._trips[-5:]
+            ],
+        }
