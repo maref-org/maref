@@ -19,6 +19,7 @@ from maref.integration.a2a_types import (
     map_a2a_to_maref,
     validate_agent_card_json,
 )
+from maref.integration.trajectory import TrajectoryCollector, TrajectoryEventType
 
 DEFAULT_GOVERNANCE_SKILLS = [
     A2ASkillDefinition(
@@ -70,6 +71,7 @@ class A2ABridge:
         circuit_breaker: CircuitBreaker | None = None,
         agent_name: str = "maref-agent",
         agent_description: str = "MAREF-governed agent",
+        trajectory_collector: TrajectoryCollector | None = None,
     ) -> None:
         """Initialize the A2A bridge with governance components.
 
@@ -79,6 +81,7 @@ class A2ABridge:
             circuit_breaker: Optional circuit breaker for fault tolerance.
             agent_name: Name exposed in the Agent Card.
             agent_description: Description exposed in the Agent Card.
+            trajectory_collector: Optional trajectory collector for D2/D3 data.
         """
         self._sm = state_machine
         self._audit = audit_logger
@@ -90,6 +93,7 @@ class A2ABridge:
         self._capabilities: list[A2ASkillDefinition] = []
         self._lock = asyncio.Lock()
         self._state_queues: dict[str, asyncio.Queue[A2ATaskState]] = {}
+        self._trajectory = trajectory_collector or TrajectoryCollector()
         self._register_default_capabilities()
 
     def _register_default_capabilities(self) -> None:
@@ -159,6 +163,8 @@ class A2ABridge:
                 "examples": cap.examples,
                 "inputModes": cap.input_modes,
                 "outputModes": cap.output_modes,
+                "inputSchema": cap.input_schema,
+                "outputSchema": cap.output_schema,
             }
             for cap in self._capabilities
         ]
@@ -218,6 +224,7 @@ class A2ABridge:
             details=f"Created task: {task_description}",
             metadata={"task_id": task_id, "a2a_state": A2ATaskState.SUBMITTED.value},
         )
+        self._trajectory.start_task(task_id, task_description, actor=self._name)
         return task_id
 
     def get_task(self, task_id: str) -> A2ATaskContext | None:
@@ -271,6 +278,7 @@ class A2ABridge:
                 "delegated_at": now,
             },
         )
+        self._trajectory.record_delegation(task_id, target_agent_url)
         try:
             import asyncio
             loop = asyncio.get_event_loop()
@@ -330,6 +338,12 @@ class A2ABridge:
                 "a2a_state": a2a_state,
                 "maref_state": maref_state.name,
             },
+        )
+        self._trajectory.record_event(
+            task_id,
+            TrajectoryEventType.TASK_STATE_CHANGED,
+            self._name,
+            {"a2a_state": a2a_state, "maref_state": maref_state.name},
         )
         self._notify_state_change(task_id)
         return True
@@ -414,6 +428,7 @@ class A2ABridge:
             details=f"Halted task {task_id}: {reason}",
             metadata={"task_id": task_id, "reason": reason},
         )
+        self._trajectory.complete_task(task_id, final_state="canceled")
         self._notify_state_change(task_id)
         return True
 

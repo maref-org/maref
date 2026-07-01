@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 import time
@@ -815,18 +816,20 @@ app.add_typer(daemon_app, name="daemon")
 
 @daemon_app.command("start")
 def daemon_start(
-    interval: float = typer.Option(6.0, "--interval", "-i", help="Polling interval in hours"),
+    interval: float = typer.Option(0.0, "--interval", "-i", help="Polling interval in hours (0 = no sleep between runs)"),
+    max_runs: int = typer.Option(100, "--max-runs", "-n", help="Max evolution cycles (0 = infinite)"),
     engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
     vault: str = typer.Option(".evolution_vault", "--vault", "-v", help="Evolution vault directory"),
 ) -> None:
-    """启动演进守护进程，按间隔（默认 6h）自动运行递归演进。"""
+    """启动演进守护进程，连续运行指定次数的递归演进。"""
     import asyncio
 
     from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
 
     config = DaemonConfig(
         interval_hours=interval,
+        max_runs=max_runs,
         vault_dir=vault,
         dry_run=dry_run,
         engine=engine,
@@ -878,7 +881,8 @@ def daemon_run_once(
         engine=engine,
     )
     daemon = EvolutionDaemon(config)
-    result = daemon.run_once()
+    import asyncio
+    result = asyncio.run(daemon.run_once())
 
     if result is None:
         console.print("[red]✗ Cycle failed[/red]")
@@ -896,7 +900,7 @@ def daemon_install_launchd(
     engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
     output: str = typer.Option(
-        "/Library/LaunchDaemons/com.maref.evolution-daemon.plist",
+        os.path.expanduser("~/Library/LaunchAgents/com.maref.evolution-daemon.plist"),
         "--output", "-o",
         help="Output path for launchd plist",
     ),
@@ -913,7 +917,7 @@ def daemon_install_launchd(
     daemon.generate_launchd_plist(output)
 
     console.print(f"[green]✓[/green] launchd plist written to [cyan]{output}[/cyan]")
-    console.print(f"  Load with: [dim]sudo launchctl load -w {output}[/dim]")
+    console.print(f"  Load with: [dim]launchctl load {output}[/dim]")
 
 
 @daemon_app.command("install-systemd")

@@ -227,19 +227,79 @@ class TLATheoremVerifier:
         )
 
     # =========================================================================
+    # THEOREM 6: GovernanceConfigExport
+    # =========================================================================
+    # Circuit breaker and state machine must expose complete configuration.
+
+    @classmethod
+    def verify_governance_config_export(
+        cls,
+        circuit_breaker: Any | None = None,
+        state_machine: Any | None = None,
+    ) -> TheoremResult:
+        """
+        Verify Theorem 6: Governance Config Export Completeness.
+
+        Formal: CircuitBreaker.get_config() AND StateMachine.health_check()
+                return all required keys.
+        """
+        from maref.governance.circuit_breaker import CircuitBreaker
+        from maref.governance.state_machine import GovernanceStateMachine
+
+        cb = circuit_breaker or CircuitBreaker()
+        sm = state_machine or GovernanceStateMachine()
+
+        cb_config = cb.get_config()
+        required_cb_keys = [
+            "max_depth", "max_oscillation_rate", "max_consecutive_failures",
+            "cooldown_seconds", "state",
+        ]
+        missing_cb = [k for k in required_cb_keys if k not in cb_config]
+
+        sm_health = sm.health_check()
+        required_sm_keys = [
+            "current_state", "current_entropy", "transition_count",
+            "is_terminal", "valid_next_states",
+        ]
+        missing_sm = [k for k in required_sm_keys if k not in sm_health]
+
+        all_issues = missing_cb + missing_sm
+        passed = len(all_issues) == 0
+        return TheoremResult(
+            theorem_name="GovernanceConfigExport",
+            passed=passed,
+            details="All governance config exports are complete"
+            if passed
+            else f"Missing keys: {', '.join(all_issues)}",
+            counterexample={"missing_cb_keys": missing_cb, "missing_sm_keys": missing_sm}
+            if not passed
+            else None,
+        )
+
+    # =========================================================================
     # Full Verification Suite
     # =========================================================================
 
     @classmethod
-    def verify_all(cls, card: MASAgentCard, report: EvaluationReport) -> dict[str, TheoremResult]:
+    def verify_all(
+        cls,
+        card: MASAgentCard,
+        report: EvaluationReport,
+        circuit_breaker: Any | None = None,
+        state_machine: Any | None = None,
+    ) -> dict[str, TheoremResult]:
         """Run all theorem verifications and return results."""
-        return {
+        results = {
             "CrossBorderConsistency": cls.verify_cross_border_consistency(card),
             "PromptRotDetectionCompleteness": cls.verify_prompt_rot_detection(card),
             "ScorePhaseMonotonicity": cls.verify_score_phase_monotonicity(),
             "ComplianceQuarantineSafety": cls.verify_compliance_quarantine_safety(report),
             "EvalToGovernanceLiveness": cls.verify_eval_to_governance(report),
         }
+        results["GovernanceConfigExport"] = cls.verify_governance_config_export(
+            circuit_breaker, state_machine
+        )
+        return results
 
     @classmethod
     def summary(cls, results: dict[str, TheoremResult]) -> dict[str, Any]:

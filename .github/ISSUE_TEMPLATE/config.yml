@@ -6,3 +6,6 @@ contact_links:
   - name: 📢 Discussions
     url: https://github.com/maref-org/maref/discussions
     about: Ask questions and share ideas in Discussions
+  - name: 🚀 Good First Issues
+    url: https://github.com/maref-org/maref/issues?q=is%3Aopen+is%3Aissue+label%3Agood-first-issue
+    about: Start here if you're new to MAREF

@@ -118,7 +118,7 @@ class A2ASecureTransport:
     ca_path: str | None = None
     verify_ssl: bool = True
     allowed_peers: list[str] | None = None
-    agent_id: str = "maref-agent"
+    agent_id: str = "urn:agent:maref:0-35-0-beta:transport"
     cert_manager: CertificateManager | None = None
 
     def __post_init__(self) -> None:

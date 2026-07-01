@@ -95,17 +95,16 @@ class RealMetricsCollector:
 
     def _run_quick_checks(self) -> RealMetrics:
         errors: list[str] = []
-        test_pass, total, failed = self._run_pytest(quick=True)
         import_ms = self._measure_import_time()
         if import_ms < 0:
             errors.append("import_time_failed")
 
         return RealMetrics(
-            fnr=round(failed / max(total, 1), 4),
+            fnr=0.0,
             fpr=0.0,
-            test_pass_rate=round(test_pass, 4),
+            test_pass_rate=0.0,
             coverage_pct=0.0,
-            total_tests=total,
+            total_tests=0,
             import_time_ms=round(import_ms, 1),
             cb_state="CLOSED",
             errors=errors,

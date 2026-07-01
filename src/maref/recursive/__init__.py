@@ -392,6 +392,34 @@ from maref.recursive.zero_trust import (
 from maref.recursive.zero_trust import (
     ValidationResult as ZTValidationResult,
 )
+from maref.recursive.event_trigger import EventTrigger, RelEvent
+from maref.recursive.iterative_refiner import IterativeRefiner, RefinementResult, VerificationError
+from maref.recursive.llm_code_generator import (
+    ASTModuleSummary,
+    CodeContextBuilder,
+    LLMCodeGenResult,
+    LLMCodeGenerator,
+    LLMProvider,
+    MockProvider,
+)
+from maref.recursive.recursive_evolution_loop import (
+    ConvergenceVerdict,
+    FileSnapshot,
+    GovernorVerdict,
+    IllegalTransitionError,
+    RELConvergenceDetector,
+    RELRoundRecord,
+    RELSafetyGovernor,
+    RELState,
+    RELStateMachine,
+    RELTransaction,
+    RELTransactionManager,
+    RecursiveEvolutionLoop,
+    SafetyGovernorConfig,
+    TransactionState,
+    can_transition,
+    hamming_distance,
+)
 
 try:
     from maref.codegen.context import ContextManager as CodegenContextManager  # noqa: F401
@@ -743,4 +771,31 @@ __all__ = [
     "PermissionMode",
     "PermissionRule",
     "QualityGateConfig",
+    "RELState",
+    "RELStateMachine",
+    "IllegalTransitionError",
+    "can_transition",
+    "hamming_distance",
+    "RELConvergenceDetector",
+    "ConvergenceVerdict",
+    "RELTransaction",
+    "RELTransactionManager",
+    "TransactionState",
+    "FileSnapshot",
+    "SafetyGovernorConfig",
+    "GovernorVerdict",
+    "RELSafetyGovernor",
+    "RecursiveEvolutionLoop",
+    "RELRoundRecord",
+    "EventTrigger",
+    "RelEvent",
+    "IterativeRefiner",
+    "RefinementResult",
+    "VerificationError",
+    "LLMProvider",
+    "LLMCodeGenerator",
+    "LLMCodeGenResult",
+    "CodeContextBuilder",
+    "ASTModuleSummary",
+    "MockProvider",
 ]

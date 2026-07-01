@@ -14,8 +14,16 @@ Key properties:
 from __future__ import annotations
 
 import contextlib
+import fcntl
+import hashlib
+import json
+import os
+import time
+import uuid
 from collections.abc import Callable
+from pathlib import Path
 from threading import RLock
+from typing import Any
 
 from maref.governance.constants import (
     ENTROPY_LEVELS as _ENTROPY_LEVELS_INT,
@@ -28,6 +36,95 @@ from maref.governance.types import (
     StateMachineSnapshot,
     StateTransition,
 )
+
+
+def _default_audit_log_path() -> Path:
+    """Return default audit log path."""
+    base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+    candidate = base / "governance_audit.jsonl"
+    if candidate.parent.exists():
+        return candidate
+    return Path.cwd() / "governance_audit.jsonl"
+
+
+def _actor_audit_log_path(actor: str) -> Path:
+    """Return shard audit log path for a specific actor."""
+    base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+    safe_actor = actor.replace("-", "_").replace("/", "_")
+    shard = base / f"governance_audit_{safe_actor}.jsonl"
+    return shard
+
+
+def _append_record_locked(fh, record: dict[str, Any]) -> None:
+    """Append a JSON record to an open file handle with POSIX advisory lock."""
+    fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+    try:
+        fh.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+        fh.flush()
+    finally:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
+def _write_state_transition(event: StateTransition, actor: str = "state_machine") -> None:
+    """Append a state_transition record to the audit log (best-effort).
+
+    Writes to both the global log and a per-actor shard for isolation.
+    Uses POSIX advisory locks to prevent inter-process corruption.
+    """
+    log_path = _default_audit_log_path()
+    shard_path = _actor_audit_log_path(actor)
+    try:
+        previous_hash = ""
+        chain_hash = ""
+        if log_path.exists():
+            lines = log_path.read_text().splitlines()
+            for line in reversed(lines):
+                line = line.strip()
+                if line:
+                    try:
+                        prev = json.loads(line)
+                        previous_hash = prev.get("chain_hash", prev.get("id", ""))
+                    except json.JSONDecodeError:
+                        pass
+                    break
+
+        payload = json.dumps(
+            {
+                "id": f"audit_{uuid.uuid4().hex[:8]}",
+                "timestamp": time.time(),
+                "event_type": "state_transition",
+                "actor": actor,
+                "action": f"{event.from_state.name}_to_{event.to_state.name}",
+                "details": event.reason or f"Gray code transition {event.from_state.name} → {event.to_state.name}",
+                "metadata": {
+                    "from_state": event.from_state.name,
+                    "from_state_id": event.from_state.value,
+                    "to_state": event.to_state.name,
+                    "to_state_id": event.to_state.value,
+                    "entropy_before": _ENTROPY_LEVELS.get(event.from_state, 0),
+                    "entropy_after": _ENTROPY_LEVELS.get(event.to_state, 0),
+                    "previous_hash": previous_hash,
+                },
+                "previous_hash": previous_hash,
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+        chain_hash = hashlib.sha256(payload.encode()).hexdigest()
+
+        record = json.loads(payload)
+        record["chain_hash"] = chain_hash
+
+        # Global log (backward compatible)
+        with open(log_path, "a") as f:
+            _append_record_locked(f, record)
+
+        # Per-actor shard (isolation)
+        shard_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(shard_path, "a") as f:
+            _append_record_locked(f, record)
+    except Exception:
+        pass
 
 _ENTROPY_LEVELS: dict[GovernanceState, int] = {
     GovernanceState(s): e for s, e in _ENTROPY_LEVELS_INT.items()
@@ -127,6 +224,7 @@ class GovernanceStateMachine:
             self._entropy_history.append(self.current_entropy)
             self._transition_count += 1
 
+            _write_state_transition(event)
             self._notify_callbacks(event)
             return True
 
@@ -201,6 +299,17 @@ class GovernanceStateMachine:
         return self.valid_next_states
 
     # --- Snapshot / Restore ---
+
+    def health_check(self) -> dict[str, Any]:
+        """Export runtime health state for MAS-TS-001 D4 auditing."""
+        return {
+            "current_state": self._state.name,
+            "current_entropy": float(self.current_entropy),
+            "transition_count": self._transition_count,
+            "is_terminal": self.is_terminal(),
+            "valid_next_states": [s.name for s in self.valid_next_states],
+            "entropy_trend": self.get_entropy_trend(),
+        }
 
     def snapshot(self) -> StateMachineSnapshot:
         """Create a pickle-safe snapshot of the current state machine."""

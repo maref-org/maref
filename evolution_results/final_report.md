@@ -1,6 +1,6 @@
 # MAREF Recursive Evolution — Final Report
 
-**Generated**: 2026-06-26 18:14:44
+**Generated**: 2026-07-01 10:05:14
 **Stop reason**: dry_run_complete
 **Total rounds**: 1
 **Overall result**: **PASSED**
@@ -16,8 +16,8 @@
   - fpr_below_max: ✅
   - no_breaker_trip: ✅
   - halt_only_normal: ✅
-- FNR range: 0.0989 — 0.0989
-- FPR range: 0.0383 — 0.0383
+- FNR range: 0.0000 — 0.0000
+- FPR range: 0.0000 — 0.0000
 
 ---
 

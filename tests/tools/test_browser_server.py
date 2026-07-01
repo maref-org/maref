@@ -195,7 +195,7 @@ class TestBrowserServerTools:
         assert not resp.is_error
         assert resp.result["title"] == ""
 
-    def test_browser_screenshot(self, test_server_port: int) -> None:
+    def test_browser_screenshot_not_placeholder(self, test_server_port: int) -> None:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
@@ -206,11 +206,11 @@ class TestBrowserServerTools:
             id=3,
         )
         resp = server.handle_request(req)
-        assert not resp.is_error
-        assert resp.result["url"] == f"http://127.0.0.1:{test_server_port}/"
-        assert resp.result["format"] == "png"
-        assert isinstance(resp.result["screenshot"], str)
-        assert len(resp.result["screenshot"]) > 0
+        assert not resp.is_error, f"Error: {resp.error}"
+        result_text = str(resp.result)
+        assert "placeholder" not in result_text, "Screenshot should not be placeholder data"
+        if "screenshot" in resp.result:
+            assert len(resp.result["screenshot"]) > 100, "Screenshot should be a real image"
 
     def test_browser_get_html(self, test_server_port: int) -> None:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])

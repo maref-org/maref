@@ -52,6 +52,8 @@ class A2ASkillDefinition:
     examples: list[str] = field(default_factory=list)
     input_modes: list[str] = field(default_factory=lambda: ["text/plain"])
     output_modes: list[str] = field(default_factory=lambda: ["application/json"])
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
 
 
 @dataclass
@@ -103,6 +105,8 @@ A2A_AGENT_CARD_SCHEMA = {
                     "examples": {"type": "array", "items": {"type": "string"}},
                     "inputModes": {"type": "array", "items": {"type": "string"}},
                     "outputModes": {"type": "array", "items": {"type": "string"}},
+                    "inputSchema": {"type": "object"},
+                    "outputSchema": {"type": "object"},
                 },
             },
         },

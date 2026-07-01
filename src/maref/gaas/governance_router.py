@@ -96,9 +96,11 @@ class GovernanceRouter:
                     reason = "Auto-approved (p3 observe tier)"
 
         # 6. Audit logging (with session context)
+        stored_trust = self._trust.get_score(req.tenant_id, req.agent_id)
         audit_context = {
             "recursion_depth": req.context.recursion_depth,
             "trust_score": req.context.trust_score,
+            "stored_trust_score": stored_trust or req.context.trust_score,
             "cb_state": cb_state.value,
         }
         if session_id:
@@ -139,10 +141,15 @@ class GovernanceRouter:
         req: GovernRequest,
     ) -> tuple[Verdict, HITLTier, str]:
         """Evaluate governance policy. Returns (verdict, hitl_tier, reason)."""
+        # Resolve effective trust score from service, fall back to 50 for new agents
+        effective_trust = self._trust.get_score(req.tenant_id, req.agent_id)
+        if effective_trust is None:
+            effective_trust = 50.0
+
         # P0: Block dangerous actions
         dangerous_actions = {"file.delete", "shell.exec", "system.shutdown", "registry.modify"}
         if req.action in dangerous_actions:
-            if req.context.trust_score < 70:
+            if effective_trust < 70:
                 return Verdict.ASK_USER, HITLTier.P0, "Dangerous action requires approval"
             return Verdict.ALLOW, HITLTier.P0, "Dangerous action allowed for trusted agent"
 
@@ -152,7 +159,7 @@ class GovernanceRouter:
 
         # P1: Git commit requires human approval for untrusted agents
         if req.action == "git.commit":
-            if req.context.trust_score < 80:
+            if effective_trust < 80:
                 return Verdict.ASK_USER, HITLTier.P1, "git.commit requires human approval for untrusted agents"
             return Verdict.ALLOW, HITLTier.P1, "git.commit allowed for trusted agent"
 
@@ -166,8 +173,8 @@ class GovernanceRouter:
                 return Verdict.ASK_USER, HITLTier.P1, "High recursion depth"
 
         # P2: Low trust score
-        if req.context.trust_score < 30:
-            return Verdict.DENY, HITLTier.P2, "Trust score too low"
+        if effective_trust < 30:
+            return Verdict.DENY, HITLTier.P2, f"Trust score too low ({effective_trust:.0f})"
 
         # P3: Default observe
         return Verdict.ALLOW, HITLTier.P3, "Default allow"

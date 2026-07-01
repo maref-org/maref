@@ -9,10 +9,13 @@ if TYPE_CHECKING:
 
 from maref.observation.probes import (
     AnomalyProbe,
+    DesktopProbe,
     EntropyProbe,
+    GUIBuildProbe,
     KGProbe,
     LatencyProbe,
     OscillationProbe,
+    PlaywrightProbe,
     ProbeReading,
     ProbeSeverity,
 )
@@ -53,6 +56,9 @@ class SelfDiagnostician:
         self._latency_probe = LatencyProbe(primary_threshold=60000.0, shadow_threshold=30000.0)
         self._kg_probe = KGProbe(primary_threshold=0.8)
         self._oscillation_probe = OscillationProbe(primary_threshold=5.0, shadow_threshold=2.0)
+        self._playwright_probe = PlaywrightProbe(critical_threshold=0.0)
+        self._desktop_probe = DesktopProbe(critical_threshold=0.3, warning_threshold=0.6)
+        self._gui_build_probe = GUIBuildProbe(critical_threshold=0.3, warning_threshold=0.6)
         self._cb_state = "CLOSED"
         self._trip_count = 0
         self._blocked = False
@@ -104,6 +110,33 @@ class SelfDiagnostician:
         probe_results["oscillation"] = self._oscillation_probe.read(
             oscillation_count=oscillation_val
         )
+
+        # ── Playwright: browser engine install status ──────────
+        playwright_reading = self._playwright_probe.measure()
+        probe_results["playwright"] = [playwright_reading]
+        diagnostic_context["playwright_installed"] = playwright_reading.context.get("installed", False)
+        diagnostic_context["playwright_browsers"] = sum(
+            playwright_reading.context.get(k, False)
+            for k in ("chromium_available", "firefox_available", "webkit_available")
+        )
+
+        # ── Desktop: desktop agent runtime health ─────────────
+        desktop_reading = self._desktop_probe.measure()
+        probe_results["desktop"] = [desktop_reading]
+        diagnostic_context["desktop_active_sessions"] = desktop_reading.context.get(
+            "active_sessions", 0
+        )
+        diagnostic_context["desktop_pool_available"] = desktop_reading.context.get(
+            "pool_available", False
+        )
+
+        # ── GUI Build: Electron build health ──────────────────
+        gui_reading = self._gui_build_probe.measure()
+        probe_results["gui_build"] = [gui_reading]
+        diagnostic_context["gui_build_value"] = gui_reading.value
+        diagnostic_context["gui_lint_passes"] = gui_reading.context.get("lint_passes", False)
+        diagnostic_context["gui_build_success"] = gui_reading.context.get("build_success", False)
+        diagnostic_context["gui_ts_errors"] = gui_reading.context.get("ts_errors", 0)
 
         risk_matrix = self._build_risk_matrix(probe_results)
 
@@ -181,6 +214,18 @@ class SelfDiagnostician:
                     recommendations.append(
                         f"[oscillation] CRITICAL: oscillation rate={val:.1f} — 版本发布频率异常"
                     )
+                elif probe_name == "playwright":
+                    recommendations.append(
+                        "[playwright] CRITICAL: Playwright 未安装或无可用浏览器引擎 — 桌面自动化将不可用"
+                    )
+                elif probe_name == "desktop":
+                    recommendations.append(
+                        "[desktop] CRITICAL: 桌面代理不可用 — 浏览器会话池为空或 Playwright 未安装"
+                    )
+                elif probe_name == "gui_build":
+                    recommendations.append(
+                        "[gui_build] CRITICAL: GUI 构建完全失败 — 建议立即修复构建流程"
+                    )
                 else:
                     recommendations.append(f"[{probe_name}] CRITICAL: 建议立即修复")
 
@@ -195,6 +240,10 @@ class SelfDiagnostician:
                     recommendations.append("[anomaly] WARNING: 代码量增长较快")
                 elif probe_name == "oscillation":
                     recommendations.append("[oscillation] WARNING: 发布频率偏高")
+                elif probe_name == "gui_build":
+                    recommendations.append(
+                        "[gui_build] WARNING: GUI 构建质量下降 — 存在 TypeScript 错误或 lint 失败"
+                    )
                 else:
                     recommendations.append(f"[{probe_name}] WARNING: 建议监控")
 

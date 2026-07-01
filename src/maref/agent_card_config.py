@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
-AGENT_ID = "maref-v0.35.0-beta"
+_URN_PATTERN = re.compile(r"^urn:agent:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9_-]+$")
+
+AGENT_ID = "urn:agent:maref:0-35-0-beta:main"
+
+
+def validate_agent_urn(agent_id: str) -> bool:
+    """Validate agent_id matches `urn:agent:{ns}:{ver}:{variant}` per MAS-TS-001 D1."""
+    return bool(_URN_PATTERN.match(agent_id))
+
+
 AGENT_NAME = "MAREF"
 AGENT_VERSION = "0.35.0-beta"
 AGENT_DESCRIPTION = (
@@ -87,36 +97,105 @@ MAS_CAPABILITIES = [
         "name": "agent_spawn",
         "description": "Sub-agent spawning with recursive evolution support",
         "business_rule_version": "1.0.0",
+        "input_schema": {
+            "type": "object",
+            "properties": {"task_description": {"type": "string"}},
+            "required": ["task_description"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {"agent_id": {"type": "string"}},
+            "required": ["agent_id"],
+        },
     },
     {
         "skill_id": "skill_coordination",
         "name": "coordination",
         "description": "Multi-agent coordination via Gray Code state machine",
         "business_rule_version": "1.0.0",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "state_changes": {"type": "array"},
+                "target_entropy": {"type": "integer"},
+            },
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {"coordinated_state": {"type": "string"}},
+        },
     },
     {
         "skill_id": "skill_session_isolation",
         "name": "session_isolation",
         "description": "Isolated execution sessions with sandboxed environments",
         "business_rule_version": "1.0.0",
+        "input_schema": {
+            "type": "object",
+            "properties": {"session_config": {"type": "object"}},
+            "required": ["session_config"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string"},
+                "sandbox_ref": {"type": "string"},
+            },
+        },
     },
     {
         "skill_id": "skill_state_persistence",
         "name": "state_persistence",
         "description": "Cross-session state persistence via SQLite backend",
         "business_rule_version": "1.0.0",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "operation": {"type": "string"},
+                "key": {"type": "string"},
+            },
+            "required": ["operation", "key"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {"success": {"type": "boolean"}},
+        },
     },
     {
         "skill_id": "skill_scheduling",
         "name": "scheduling",
         "description": "Cron-based and event-driven task scheduling",
         "business_rule_version": "1.0.0",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cron_expr": {"type": "string"},
+                "action": {"type": "string"},
+            },
+            "required": ["cron_expr"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {"schedule_id": {"type": "string"}},
+        },
     },
     {
         "skill_id": "skill_remote_control",
         "name": "remote_control",
         "description": "Remote bridge control via MCP transports",
         "business_rule_version": "1.0.0",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string"},
+                "command": {"type": "string"},
+            },
+            "required": ["target"],
+        },
+        "output_schema": {
+            "type": "object",
+            "properties": {"bridge_state": {"type": "string"}},
+        },
     },
 ]
 

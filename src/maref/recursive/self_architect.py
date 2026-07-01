@@ -5,9 +5,12 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from maref.recursive.unified_audit import UnifiedAuditStore
+
+if TYPE_CHECKING:
+    from maref.recursive.llm_code_generator import ASTModuleSummary
 
 
 class ChangeType(Enum):
@@ -373,6 +376,46 @@ class SelfArchitect:
                     }
                 )
         return results
+
+    def to_llm_plan(self, proposal: ArchitectureProposal) -> dict[str, Any]:
+        return {
+            "proposal_id": proposal.proposal_id,
+            "change_type": proposal.change_type.value if hasattr(proposal.change_type, "value") else str(proposal.change_type),
+            "rationale": proposal.rationale,
+            "target_files": list(proposal.target_files),
+            "affected_symbols": list(proposal.affected_symbols),
+            "current_structure": self._extract_ast_summary(proposal.target_files),
+        }
+
+    def _extract_ast_summary(self, file_paths: list[str]) -> list[dict[str, Any]]:
+        summaries: list[dict[str, Any]] = []
+        for fp in file_paths:
+            path = Path(fp)
+            if not path.exists():
+                continue
+            try:
+                tree = ast.parse(path.read_text())
+                classes = [
+                    n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)
+                ]
+                functions = [
+                    n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+                ]
+                imports = [
+                    (n.names[0].name if isinstance(n, ast.Import) else n.module)
+                    for n in ast.walk(tree)
+                    if isinstance(n, (ast.Import, ast.ImportFrom))
+                ][:30]
+                summaries.append({
+                    "file_path": fp,
+                    "classes": classes,
+                    "functions": functions,
+                    "imports": imports,
+                    "line_count": len(tree.body),
+                })
+            except (SyntaxError, OSError):
+                continue
+        return summaries
 
     @property
     def proposals(self) -> list[ArchitectureProposal]:

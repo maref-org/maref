@@ -2,20 +2,20 @@
 MAREF Self-Assessment — MAS-TS-001 Full-Run Evaluation
 Generates a comprehensive 5-layer evaluation report based on current code state.
 """
-
 from __future__ import annotations
 
 import json
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from maref.agent_card_config import get_default_card_config
+from maref.governance.circuit_breaker import CircuitBreaker
+from maref.governance.state_machine import GovernanceStateMachine
 from maref.integration.test_platform.card_adapter import (
     AgentCardAdapter,
     MASAgentCard,
-)
-from maref.integration.test_platform.quality_gate import (
-    EvolutionQualityGate,
 )
 from maref.integration.test_platform.schema import (
     EvalStatus,
@@ -25,6 +25,11 @@ from maref.integration.test_platform.schema import (
     LayerReport,
     TestMode,
     build_findings_summary,
+)
+from maref.integration.test_platform.quality_gate import (
+    EvolutionQualityGate,
+    EvolutionVerdict,
+    QualityGateConfig,
 )
 from maref.integration.test_platform.score_mapper import (
     LayerScoreAggregator,
@@ -42,73 +47,53 @@ def layer1_static_audit(card: MASAgentCard, root: Path) -> LayerReport:
 
     cross_ok, cross_msg = AgentCardAdapter.validate_cross_border_consistency(card)
     if not cross_ok:
-        findings.append(
-            Finding(
-                finding_id="L1-001",
-                layer=1,
-                severity=FindingSeverity.CRITICAL,
-                title="Cross-Border Endpoint Mismatch",
-                description=cross_msg,
-                rule_id="MAS-TS-001-L1-001",
-                remediation="Set data_residency == model_backend_location OR set cross_border=True",
-            )
-        )
+        findings.append(Finding(
+            finding_id="L1-001", layer=1, severity=FindingSeverity.CRITICAL,
+            title="Cross-Border Endpoint Mismatch",
+            description=cross_msg,
+            rule_id="MAS-TS-001-L1-001",
+            remediation="Set data_residency == model_backend_location OR set cross_border=True",
+        ))
 
     rot_ok, rot_msg = AgentCardAdapter.validate_prompt_rot_detectability(card)
     if not rot_ok:
-        findings.append(
-            Finding(
-                finding_id="L1-002",
-                layer=1,
-                severity=FindingSeverity.MEDIUM,
-                title="Prompt Rot Undetectable",
-                description=rot_msg,
-                rule_id="MAS-TS-001-L1-002",
-                remediation="Add business_rule_version to all capabilities",
-            )
-        )
+        findings.append(Finding(
+            finding_id="L1-002", layer=1, severity=FindingSeverity.MEDIUM,
+            title="Prompt Rot Undetectable",
+            description=rot_msg,
+            rule_id="MAS-TS-001-L1-002",
+            remediation="Add business_rule_version to all capabilities",
+        ))
 
     config = get_default_card_config()
     endpoint_ok, endpoint_msg = config.validate_endpoint_consistency()
     if not endpoint_ok:
-        findings.append(
-            Finding(
-                finding_id="L1-003",
-                layer=1,
-                severity=FindingSeverity.CRITICAL,
-                title="Agent Card Endpoint Inconsistency",
-                description=endpoint_msg,
-                rule_id="MAS-TS-001-L1-003",
-                remediation="Align endpoints in agent_card_config.py",
-            )
-        )
+        findings.append(Finding(
+            finding_id="L1-003", layer=1, severity=FindingSeverity.CRITICAL,
+            title="Agent Card Endpoint Inconsistency",
+            description=endpoint_msg,
+            rule_id="MAS-TS-001-L1-003",
+            remediation="Align endpoints in agent_card_config.py",
+        ))
 
     # Verify agent card schema compliance
     if len(card.compliance_labels) < 2:
-        findings.append(
-            Finding(
-                finding_id="L1-004",
-                layer=1,
-                severity=FindingSeverity.MEDIUM,
-                title="Insufficient Compliance Labels",
-                description=f"Only {len(card.compliance_labels)} labels found",
-                rule_id="MAS-TS-001-L1-004",
-                remediation="Add data_residency_CN, mas_ts_001, and other labels",
-            )
-        )
+        findings.append(Finding(
+            finding_id="L1-004", layer=1, severity=FindingSeverity.MEDIUM,
+            title="Insufficient Compliance Labels",
+            description=f"Only {len(card.compliance_labels)} labels found",
+            rule_id="MAS-TS-001-L1-004",
+            remediation="Add data_residency_CN, mas_ts_001, and other labels",
+        ))
 
     # Add info finding for schema compliance
-    findings.append(
-        Finding(
-            finding_id="L1-INFO",
-            layer=1,
-            severity=FindingSeverity.INFO,
-            title=f"Agent Card Schema Compliance: {card.agent_id} v{card.version}",
-            description=f"data_residency={card.data_residency}, backend={card.model_backend_location}, "
-            f"cross_border={card.cross_border}, capabilities={len(card.capabilities)}",
-            rule_id="MAS-TS-001-L1-SCHEMA",
-        )
-    )
+    findings.append(Finding(
+        finding_id="L1-INFO", layer=1, severity=FindingSeverity.INFO,
+        title=f"Agent Card Schema Compliance: {card.agent_id} v{card.version}",
+        description=f"data_residency={card.data_residency}, backend={card.model_backend_location}, "
+                    f"cross_border={card.cross_border}, capabilities={len(card.capabilities)}",
+        rule_id="MAS-TS-001-L1-SCHEMA",
+    ))
 
     critical_count = sum(1 for f in findings if f.severity == FindingSeverity.CRITICAL)
     high_count = sum(1 for f in findings if f.severity == FindingSeverity.HIGH)
@@ -143,42 +128,30 @@ def layer2_reasoning_metrics(card: MASAgentCard) -> LayerReport:
     context_window = config.model_config.get("context_window", 0)
 
     if context_window < 65536:
-        findings.append(
-            Finding(
-                finding_id="L2-001",
-                layer=2,
-                severity=FindingSeverity.HIGH,
-                title="Context Window Below Recommended Size",
-                description=f"Context window: {context_window} (< 65536 recommended)",
-                rule_id="MAS-TS-001-L2-001",
-                remediation="Increase context_window to >= 65536",
-            )
-        )
+        findings.append(Finding(
+            finding_id="L2-001", layer=2, severity=FindingSeverity.HIGH,
+            title="Context Window Below Recommended Size",
+            description=f"Context window: {context_window} (< 65536 recommended)",
+            rule_id="MAS-TS-001-L2-001",
+            remediation="Increase context_window to >= 65536",
+        ))
     else:
-        findings.append(
-            Finding(
-                finding_id="L2-OK",
-                layer=2,
-                severity=FindingSeverity.INFO,
-                title="Context Window Meets Standard",
-                description=f"Context window: {context_window} (>= 65536)",
-                rule_id="MAS-TS-001-L2-001",
-            )
-        )
+        findings.append(Finding(
+            finding_id="L2-OK", layer=2, severity=FindingSeverity.INFO,
+            title="Context Window Meets Standard",
+            description=f"Context window: {context_window} (>= 65536)",
+            rule_id="MAS-TS-001-L2-001",
+        ))
 
     backend = config.model_config.get("backend", "unknown")
     endpoint = config.model_config.get("endpoint", "")
 
-    findings.append(
-        Finding(
-            finding_id="L2-002",
-            layer=2,
-            severity=FindingSeverity.INFO,
-            title="Model Backend Configuration",
-            description=f"Backend: {backend}, Endpoint: {endpoint}, Context: {context_window}",
-            rule_id="MAS-TS-001-L2-002",
-        )
-    )
+    findings.append(Finding(
+        finding_id="L2-002", layer=2, severity=FindingSeverity.INFO,
+        title=f"Model Backend Configuration",
+        description=f"Backend: {backend}, Endpoint: {endpoint}, Context: {context_window}",
+        rule_id="MAS-TS-001-L2-002",
+    ))
 
     score = 100.0 if context_window >= 65536 else 85.0
 
@@ -209,29 +182,21 @@ def layer3_action_metrics(card: MASAgentCard) -> LayerReport:
 
     for tool in present_core:
         meta = tool_meta.get(tool, {})
-        findings.append(
-            Finding(
-                finding_id=f"L3-TOOL-{tool}",
-                layer=3,
-                severity=FindingSeverity.INFO,
-                title=f"Core Tool: {tool} v{meta.get('version', 'N/A')}",
-                description=f"Security controls: {meta.get('security_controls', [])}",
-                rule_id="MAS-TS-001-L3-TOOL",
-            )
-        )
+        findings.append(Finding(
+            finding_id=f"L3-TOOL-{tool}", layer=3, severity=FindingSeverity.INFO,
+            title=f"Core Tool: {tool} v{meta.get('version', 'N/A')}",
+            description=f"Security controls: {meta.get('security_controls', [])}",
+            rule_id="MAS-TS-001-L3-TOOL",
+        ))
 
     for tool in missing_core:
-        findings.append(
-            Finding(
-                finding_id=f"L3-MISSING-{tool}",
-                layer=3,
-                severity=FindingSeverity.CRITICAL,
-                title=f"Missing Core Tool: {tool}",
-                description=f"Required core tool '{tool}' not found in registry",
-                rule_id="MAS-TS-001-L3-TOOL",
-                remediation=f"Implement {tool} tool with security controls",
-            )
-        )
+        findings.append(Finding(
+            finding_id=f"L3-MISSING-{tool}", layer=3, severity=FindingSeverity.CRITICAL,
+            title=f"Missing Core Tool: {tool}",
+            description=f"Required core tool '{tool}' not found in registry",
+            rule_id="MAS-TS-001-L3-TOOL",
+            remediation=f"Implement {tool} tool with security controls",
+        ))
 
     core_coverage = len(present_core) / len(core_tools) * 100 if core_tools else 0
     score = core_coverage
@@ -263,29 +228,21 @@ def layer4_e2e_metrics(root: Path) -> LayerReport:
 
     for name, path in e2e_scenarios.items():
         if path.exists():
-            findings.append(
-                Finding(
-                    finding_id=f"L4-E2E-{name}",
-                    layer=4,
-                    severity=FindingSeverity.INFO,
-                    title=f"E2E Scenario: {name}",
-                    description=f"E2E test file exists at {path}",
-                    rule_id="MAS-TS-001-L4-E2E",
-                )
-            )
+            findings.append(Finding(
+                finding_id=f"L4-E2E-{name}", layer=4, severity=FindingSeverity.INFO,
+                title=f"E2E Scenario: {name}",
+                description=f"E2E test file exists at {path}",
+                rule_id="MAS-TS-001-L4-E2E",
+            ))
             completed += 1
         else:
-            findings.append(
-                Finding(
-                    finding_id=f"L4-MISSING-{name}",
-                    layer=4,
-                    severity=FindingSeverity.HIGH,
-                    title=f"Missing E2E Scenario: {name}",
-                    description=f"No E2E test found for '{name}'",
-                    rule_id="MAS-TS-001-L4-E2E",
-                    remediation=f"Implement E2E tests for {name}",
-                )
-            )
+            findings.append(Finding(
+                finding_id=f"L4-MISSING-{name}", layer=4, severity=FindingSeverity.HIGH,
+                title=f"Missing E2E Scenario: {name}",
+                description=f"No E2E test found for '{name}'",
+                rule_id="MAS-TS-001-L4-E2E",
+                remediation=f"Implement E2E tests for {name}",
+            ))
 
     score = (completed / total * 100) if total > 0 else 0
 
@@ -329,28 +286,20 @@ def layer5_mas_dimensions(card: MASAgentCard) -> LayerReport:
 
     for dim, present in mas_dims.items():
         if present:
-            findings.append(
-                Finding(
-                    finding_id=f"L5-{dim}",
-                    layer=5,
-                    severity=FindingSeverity.INFO,
-                    title=f"MAS Dimension: {dim}",
-                    description="Capability declared and implemented",
-                    rule_id="MAS-TS-001-L5-MAS",
-                )
-            )
+            findings.append(Finding(
+                finding_id=f"L5-{dim}", layer=5, severity=FindingSeverity.INFO,
+                title=f"MAS Dimension: {dim}",
+                description=f"Capability declared and implemented",
+                rule_id="MAS-TS-001-L5-MAS",
+            ))
         else:
-            findings.append(
-                Finding(
-                    finding_id=f"L5-MISSING-{dim}",
-                    layer=5,
-                    severity=FindingSeverity.CRITICAL,
-                    title=f"Missing MAS Dimension: {dim}",
-                    description=f"Required MAS capability '{dim}' not declared",
-                    rule_id="MAS-TS-001-L5-MAS",
-                    remediation=f"Implement and declare {dim} capability",
-                )
-            )
+            findings.append(Finding(
+                finding_id=f"L5-MISSING-{dim}", layer=5, severity=FindingSeverity.CRITICAL,
+                title=f"Missing MAS Dimension: {dim}",
+                description=f"Required MAS capability '{dim}' not declared",
+                rule_id="MAS-TS-001-L5-MAS",
+                remediation=f"Implement and declare {dim} capability",
+            ))
 
     score = (dim_count / len(mas_dims)) * 100
 
@@ -399,7 +348,7 @@ def main() -> None:
         overall_status=EvalStatus.PASS,
         layers=[l1, l2, l3, l4, l5],
         findings_summary=summary,
-        evaluated_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        evaluated_at=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         metadata={
             "data_residency": card.data_residency,
             "model_backend": card.model_backend_location,
@@ -417,31 +366,11 @@ def main() -> None:
     print(f"{'Layer':<10} {'Name':<20} {'Score':>6} {'Grade':>6}")
     print("-" * 50)
     for l in [l1, l2, l3, l4, l5]:
-        grade = (
-            "A"
-            if l.score >= 90
-            else "B"
-            if l.score >= 80
-            else "C"
-            if l.score >= 70
-            else "D"
-            if l.score >= 60
-            else "F"
-        )
+        grade = "A" if l.score >= 90 else "B" if l.score >= 80 else "C" if l.score >= 70 else "D" if l.score >= 60 else "F"
         print(f"L{l.layer_number:<9} {l.layer_name:<20} {l.score:>6.1f} {grade:>6}")
 
     print("-" * 50)
-    grade = (
-        "A"
-        if overall >= 90
-        else "B"
-        if overall >= 80
-        else "C"
-        if overall >= 70
-        else "D"
-        if overall >= 60
-        else "F"
-    )
+    grade = "A" if overall >= 90 else "B" if overall >= 80 else "C" if overall >= 70 else "D" if overall >= 60 else "F"
     print(f"{'OVERALL':<10} {'':<20} {overall:>6.1f} {grade:>6}")
 
     print()
@@ -464,17 +393,19 @@ def main() -> None:
     # --- TLA+ Theorem Verification ---
     print()
     print("## TLA+ Theorem Verification")
-    tla_results = TLATheoremVerifier.verify_all(card, report)
+    tla_cb = CircuitBreaker()
+    tla_sm = GovernanceStateMachine()
+    tla_results = TLATheoremVerifier.verify_all(card, report, circuit_breaker=tla_cb, state_machine=tla_sm)
     tla_summary = TLATheoremVerifier.summary(tla_results)
     print(f"  Total Theorems: {tla_summary['total_theorems']}")
     print(f"  Passed:         {tla_summary['passed']}")
     print(f"  Failed:         {tla_summary['failed']}")
     print(f"  All Passed:     {tla_summary['all_passed']}")
     for r in tla_results:
-        if hasattr(r, "passed"):
+        if hasattr(r, 'passed'):
             status = "PASS" if r.passed else "FAIL"
             print(f"    [{status}] {r.theorem_name}: {r.details}")
-            if hasattr(r, "counterexample") and r.counterexample:
+            if hasattr(r, 'counterexample') and r.counterexample:
                 print(f"           Counterexample: {r.counterexample}")
         else:
             print(f"    {r}")
