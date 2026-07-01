@@ -1,25 +1,13 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
-from typing import Any
 
+from maref.evolution._async_util import run_async
 from maref.evolution.daily_loop import DailyEvolutionResult
 from maref.recursive.recursive_evolution_loop import RecursiveEvolutionLoop
 
 logger = logging.getLogger(__name__)
-
-
-def _run_async(coro: Any) -> Any:
-    """Safely await a coroutine from a sync context, even inside a running loop."""
-    try:
-        asyncio.get_running_loop()
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(asyncio.run, coro).result()
-    except RuntimeError:
-        return asyncio.run(coro)
 
 
 class RELAdapter:
@@ -31,6 +19,16 @@ class RELAdapter:
     def __init__(self, dry_run: bool = True) -> None:
         self._dry_run = dry_run
         self._rel = RecursiveEvolutionLoop()
+
+    def _reset(self) -> None:
+        from maref.recursive.recursive_evolution_loop import RELState
+        self._rel.state_machine.reset()
+        self._rel._current_round = 0
+        self._rel._rounds.clear()
+        self._rel._current_snapshot = None
+        self._rel._current_report = None
+        self._rel._current_proposal = None
+        self._rel._current_code = None
 
     def run_once(self, day: str | None = None) -> DailyEvolutionResult | None:
         current_day = day or time.strftime("%Y-%m-%d")
@@ -47,7 +45,8 @@ class RELAdapter:
             )
 
         try:
-            result = _run_async(self._rel.run_session())
+            self._reset()
+            result = run_async(self._rel.run_session())
             return DailyEvolutionResult(
                 day=current_day,
                 phases=["rel_session"],

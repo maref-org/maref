@@ -1,0 +1,15 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+
+def run_async(coro: Any) -> Any:
+    """Safely await a coroutine from a sync context, even inside a running loop."""
+    try:
+        asyncio.get_running_loop()
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+    except RuntimeError:
+        return asyncio.run(coro)
