@@ -112,8 +112,8 @@ importers:
         specifier: ^7.1.1
         version: 7.1.1(eslint@10.3.0(jiti@2.7.0))
       eslint-plugin-react-refresh:
-        specifier: ^0.5.2
-        version: 0.5.2(eslint@10.3.0(jiti@2.7.0))
+        specifier: ^0.5.3
+        version: 0.5.3(eslint@10.3.0(jiti@2.7.0))
       globals:
         specifier: ^17.5.0
         version: 17.6.0
@@ -1717,8 +1717,8 @@ packages:
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0 || ^10.0.0
 
-  eslint-plugin-react-refresh@0.5.2:
-    resolution: {integrity: sha512-hmgTH57GfzoTFjVN0yBwTggnsVUF2tcqi7RJZHqi9lIezSs4eFyAMktA68YD4r5kNw1mxyY4dmkyoFDb3FIqrA==}
+  eslint-plugin-react-refresh@0.5.3:
+    resolution: {integrity: sha512-5EMmLCV98Pi4o/f/3DP/v/tNqLHMIc9I8LKClNDWhZ9JTho89/kQcitCXQBMG7sAfVRK0Ie3T2EDOzp1YXYiVA==}
     peerDependencies:
       eslint: ^9 || ^10
 
@@ -1890,6 +1890,10 @@ packages:
 
   fs-extra@11.3.5:
     resolution: {integrity: sha512-eKpRKAovdpZtR1WopLHxlBWvAgPny3c4gX1G5Jhwmmw4XJj0ifSD5qB5TOo8hmA0wlRKDAOAhEE1yVPgs6Fgcg==}
+    engines: {node: '>=14.14'}
+
+  fs-extra@11.3.6:
+    resolution: {integrity: sha512-w8ZNZr2mKIc7qeNaQ9AVPT1+iFaI+Avd4xudVOvdDJ8VytREi1Ft5Ih7hd9jjehod8vAM5GMsfQ/TpPf4EyoEA==}
     engines: {node: '>=14.14'}
 
   fs-extra@7.0.1:
@@ -4094,7 +4098,7 @@ snapshots:
     dependencies:
       cross-dirname: 0.1.0
       debug: 4.4.3(supports-color@10.2.2)
-      fs-extra: 11.3.5
+      fs-extra: 11.3.6
       minimist: 1.2.8
       postject: 1.0.0-alpha.6
     transitivePeerDependencies:
@@ -5589,7 +5593,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-react-refresh@0.5.2(eslint@10.3.0(jiti@2.7.0)):
+  eslint-plugin-react-refresh@0.5.3(eslint@10.3.0(jiti@2.7.0)):
     dependencies:
       eslint: 10.3.0(jiti@2.7.0)
 
@@ -5818,6 +5822,13 @@ snapshots:
       graceful-fs: 4.2.11
       jsonfile: 6.2.1
       universalify: 2.0.1
+
+  fs-extra@11.3.6:
+    dependencies:
+      graceful-fs: 4.2.11
+      jsonfile: 6.2.1
+      universalify: 2.0.1
+    optional: true
 
   fs-extra@7.0.1:
     dependencies:
