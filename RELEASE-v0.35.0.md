@@ -1,4 +1,4 @@
-# MAREF v0.35.0-rc Release Notes
+# MAREF v0.35.0-beta Release Notes
 
 > **双轨并行**: 独立递归（工程质量） × Loop Engineering 集成（叙事 + 差异化）
 
@@ -46,7 +46,7 @@
 | 覆盖率 (侧车) | obs_bridge 94%, server 63.59% |
 | 安全 P0 阻塞 | 0 (与 v0.34.0 同) |
 | OSS 文档 | oss-todo.md + oss-execution-norm-v1.0.md ✅ |
-| 版本一致性 | 全部统一到 0.35.0-rc ✅ |
+| 版本一致性 | 全部统一到 0.35.0-beta ✅ |
 
 ---
 
