@@ -137,7 +137,7 @@ class SidecarJSONRPCBridge:
 
     def _make_default_handler(self, method: SidecarMethod) -> Any:
         def handler(params: dict[str, Any] | None = None) -> dict[str, Any]:
-            return {"method": method.value, "sidecar_version": "0.32.0-rc"}
+            return {"method": method.value, "sidecar_version": "0.35.0-beta"}
         return handler
 
     @property

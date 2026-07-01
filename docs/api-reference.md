@@ -1,6 +1,6 @@
 # MAREF API Reference
 
-> Version: v0.34.0-rc | Sidecar: v0.34.0-rc | GaaS: v0.34.0-rc
+> Version: v0.35.0-beta | Sidecar: v0.35.0-beta | GaaS: v0.35.0-beta
 
 This document covers all public APIs: Sidecar REST API, Governance-as-a-Service (GaaS) API, A2A Python API, and MCP Python API.
 

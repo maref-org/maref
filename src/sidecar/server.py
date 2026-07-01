@@ -423,7 +423,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
     @app.get("/api/version")
     def version() -> dict[str, str]:
-        return {"version": "0.33.0-rc"}
+        return {"version": "0.35.0-beta"}
 
     @app.websocket("/ws/events")
     async def ws_events(websocket: WebSocket) -> None:
@@ -719,7 +719,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
 class SidecarFastAPI(FastAPI):
     def __init__(self, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, **kwargs: Any) -> None:
-        super().__init__(title="MAREF Sidecar", version="0.33.0-rc")
+        super().__init__(title="MAREF Sidecar", version="0.35.0-beta")
         self.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -736,7 +736,7 @@ class SidecarFastAPI(FastAPI):
 
 
 def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None) -> FastAPI:
-    app = FastAPI(title="MAREF Sidecar", version="0.33.0-rc")
+    app = FastAPI(title="MAREF Sidecar", version="0.35.0-beta")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],

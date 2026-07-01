@@ -7,6 +7,8 @@
 - [DriftGuard 漂移检测](#driftguard-漂移检测)
 - [治理覆盖层](#治理覆盖层)
 - [混沌工程](#混沌工程)
+- [MCP 协议端点](#mcp-协议端点)
+- [A2A 协议端点](#a2a-协议端点)
 
 ---
 
@@ -488,4 +490,82 @@ response = httpx.post("http://localhost:8000/api/mcp", json={
     },
 })
 result = response.json()["result"]
+```
+
+---
+
+## A2A 协议端点
+
+MAREF Sidecar 提供 A2A (Agent-to-Agent) 协议端点，支持 Agent 间任务提交和状态追踪。
+
+### A2A 端点
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/a2a/task/send` | POST | 提交任务到 MAREF Agent |
+| `/api/a2a/task/{task_id}` | GET | 查询任务状态 |
+| `/api/a2a/task/cancel` | POST | 取消运行中的任务 |
+| `/api/a2a/task/state` | POST | 推送任务状态更新 |
+| `/api/a2a/task/{task_id}/stream` | GET | SSE 流式任务进度 |
+| `/.well-known/agent-card.json` | GET | Agent 卡片发现 |
+
+### 提交任务
+
+```json
+POST /api/a2a/task/send
+{
+  "jsonrpc": "2.0",
+  "id": "req-001",
+  "method": "tasks.send",
+  "params": {
+    "id": "req-001",
+    "message": { "parts": [{ "text": "Analyze the quarterly report" }] },
+    "metadata": { "skills": ["maref-governance"] }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-001",
+  "result": {
+    "id": "maref-task-a1b2c3d4e5f6",
+    "status": { "state": "submitted" }
+  }
+}
+```
+
+### 查询任务状态
+
+```
+GET /api/a2a/task/maref-task-a1b2c3d4e5f6
+```
+
+**Response:**
+```json
+{
+  "id": "maref-task-a1b2c3d4e5f6",
+  "status": { "state": "working" },
+  "maref_state": "ACT",
+  "history": [{ "state": "working", "timestamp": 1718612350.12 }]
+}
+```
+
+### Agent 卡片发现
+
+```
+GET /.well-known/agent-card.json
+```
+
+**Response:**
+```json
+{
+  "agentCard": {
+    "name": "maref-agent",
+    "protocolVersion": "1.0",
+    "capabilities": { "streaming": true, "pushNotifications": true }
+  }
+}
 ```
