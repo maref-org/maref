@@ -17,6 +17,7 @@ import { WelcomeFlow } from "@/components/onboarding/WelcomeFlow";
 import { SkillsPanel } from "@/components/views/SkillsPanel";
 import { AutomationView } from "@/components/views/AutomationView";
 import TaskPanelView from "@/components/views/TaskPanelView";
+import { ToolPanelView } from "@/components/tools";
 import { HITLView } from "@/components/views/HITLView";
 import {
   DesktopAgentView,
@@ -55,6 +56,7 @@ const SECTION_VIEWS: Record<MarefSection, React.ComponentType> = {
   skills: SkillsPanel,
   automation: AutomationView,
   tasks: TaskPanelView,
+  tools: ToolPanelView,
   settings: SettingsView,
 };
 

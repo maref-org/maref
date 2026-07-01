@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { api } from "@/api/client";
-import type { GuardrailEvent, GuardrailStats } from "@/types";
 
 interface GuardrailsState {
   totalChecks: number;
