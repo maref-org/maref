@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## [v0.36.0-rc] - 2026-07-01 (Release Candidate — RSI三位一体 + 压力测试 + 执行层 + 知识引擎)
+
+### Added
+- **RSI 三位一体**: MultiTargetRatchet / MetaRatchet / CrossDimensionalAnalyzer / OnlineLearningEngine / MAS-TS 桥接
+- **压力测试框架**: NvidiaCodeAgent / VolcArkCodeAgent / ChaosEngine / CodeServiceHarness / SQI / ExtremeStressTest
+- **执行层**: WorkflowEngine / LocalModelAdapter / 编排模式（顺序/并行/回退/验证）
+- **知识引擎**: EntityGraph / TruthStore / SkillLoader
+- **MCP 扩展**: HITL Bridge / Runtime Integration / Security Gate
+- **UnifiedToolRegistry**: 统一工具注册和管理
+- **PERCV CLI 扩展**: cross-analyze / meta-diagnose / meta-sandbox / rsi-report
+- **RSI 宪法红线**: configs/rsi_redlines.yaml + run_rsi_loop.sh
+
+### Fixed
+- mypy 89→0 errors (stress/, execution/, recursive/, desktop/)
+- ruff 14→0 errors
+- browser_session_pool/bridge 单例模式类型声明
+- full_chain_test / recursive_evolution_loop 变量命名冲突
+- PERCV cli 未使用导入清理
+
+### Changed
+- `scripts/run_daily.sh`: 新增 RSI 循环触发
+- `src/maref/governance/circuit_breaker.py`: RSI 专用熔断条件扩展
+- `src/maref/recursive/recursive_evolution_loop.py`: REL 事务管理器重构
+- `src/maref/integration/percv/ratchet_bridge.py`: 多目标 Ratchet 集成
+- `src/maref_lite/percv_cli.py`: 6 个新子命令
+
+### Quality Gate
+- Ruff: 0 errors ✅
+- Mypy: 0 errors (536 files) ✅
+- PERCV 集成测试: 190 passed ✅
+- Version consistency: tracking
+
 ## [v0.35.0-beta] - 2026-06-26 (Beta — Phase 1 清理 + 覆盖提升 + 门禁硬化)
 
 ### Added
