@@ -54,13 +54,19 @@ class EvolutionDaemon:
         self._shutdown = False
         if config.engine == "rel":
             from maref.evolution.rel_adapter import RELAdapter
-            self._loop: DailyEvolutionLoop = RELAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+            self._loop = RELAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
         elif config.engine == "multi":
             from maref.evolution.multi_adapter import MultiAdapter
             self._loop = MultiAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
         elif config.engine == "continuous":
             from maref.evolution.continuous_adapter import ContinuousAdapter
             self._loop = ContinuousAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+        elif config.engine == "saeb":
+            from maref.evolution.saeb_adapter import SAEBAdapter
+            self._loop = SAEBAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
+        elif config.engine == "tla":
+            from maref.evolution.tla_adapter import TLAAdapter
+            self._loop = TLAAdapter(dry_run=config.dry_run)  # type: ignore[assignment]
         else:
             self._loop = DailyEvolutionLoop(
                 vault_dir=config.vault_dir,
@@ -305,9 +311,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--engine",
-        choices=["daily", "rel", "multi", "continuous"],
+        choices=["daily", "rel", "multi", "continuous", "saeb", "tla"],
         default="daily",
-        help="Evolution engine: daily, rel, multi, or continuous",
+        help="Evolution engine: daily, rel, multi, continuous, saeb, tla",
     )
     parser.add_argument(
         "--daemon",
