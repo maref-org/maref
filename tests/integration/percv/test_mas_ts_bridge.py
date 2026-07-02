@@ -32,7 +32,20 @@ class TestMasTSBridge:
 
     def test_check_availability_false_when_no_module(self) -> None:
         bridge = MasTSBridge(mas_ts_root="/nonexistent")
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            assert bridge.check_availability() is False
+
+    def test_check_availability_false_when_fallback_active(self) -> None:
+        bridge = MasTSBridge(mas_ts_root="/nonexistent")
+        bridge._fallback_active = True
         assert bridge.check_availability() is False
+
+    def test_check_availability_true_when_module_available(self) -> None:
+        bridge = MasTSBridge(mas_ts_root="/nonexistent")
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        with patch("subprocess.run", return_value=mock_result):
+            assert bridge.check_availability() is True
 
     def test_parse_json_from_subprocess(self) -> None:
         bridge = MasTSBridge(mas_ts_root="/tmp")
@@ -41,9 +54,11 @@ class TestMasTSBridge:
         mock_result.stdout = '{"overall_score": 92.5, "level": "L0", "details": {}}'
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result):
-            with patch.object(bridge, "_resolve_default_card", return_value="/tmp/card.json"):
-                result = bridge.run_fast_screen()
+        with (
+            patch("subprocess.run", return_value=mock_result),
+            patch.object(bridge, "_resolve_default_card", return_value="/tmp/card.json"),
+        ):
+            result = bridge.run_fast_screen()
 
         assert result["overall_score"] == 92.5
         assert result["level"] == "L0"
