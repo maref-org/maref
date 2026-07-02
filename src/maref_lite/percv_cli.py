@@ -817,6 +817,26 @@ def rsi_report_command(
     console.print(f"[green]Report saved to:[/green] {out}")
 
 
+@percv_app.command(name="vault-dashboard")
+def vault_dashboard_command(
+    vault: str = typer.Option("vault", "--vault", "-v", help="Evolution vault 路径"),
+    output: str = typer.Option("", "--output", "-o", help="输出 HTML 路径 (默认 vault/reports/dashboard.html)"),
+) -> None:
+    """生成 EvolutionVault Chart.js HTML 仪表板。"""
+    from maref.vault.evolution_vault import EvolutionVault
+
+    ev = EvolutionVault(vault_path=vault)
+    records = ev.load_all()
+    if not records:
+        console.print("[yellow]Evolution vault is empty — run RSI ratchet first.[/yellow]")
+        raise typer.Exit(code=0)
+
+    out_path = Path(output) if output else None
+    ev.generate_dashboard_html(output_path=out_path)
+    console.print(f"[green]Dashboard generated:[/green] {out_path or ev.reports_dir / 'dashboard.html'}")
+    console.print(f"[dim]{len(records)} records, {len(ev.all_targets())} targets[/dim]")
+
+
 @percv_app.command(name="redlines")
 def redlines_command() -> None:
     """显示当前 RSI 宪法红线配置。"""

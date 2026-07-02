@@ -41,4 +41,8 @@ fi
 # Phase 3: 生成 RSI 报告
 uv run maref percv rsi-report --output "reports/rsi-$(date +%Y%m%d).md"
 
+# Phase 4: 生成 EvolutionVault 仪表板
+echo "[RSI] Generating EvolutionVault dashboard..."
+uv run maref percv vault-dashboard --vault "vault" --output "reports/dashboard-$(date +%Y%m%d).html" || true
+
 echo "[RSI] Daily loop complete: $TAG"
