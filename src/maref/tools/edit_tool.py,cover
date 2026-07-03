@@ -1,0 +1,196 @@
+! from __future__ import annotations
+  
+! import ast
+! import difflib
+! from pathlib import Path
+! from typing import Any
+  
+! from pydantic import BaseModel, Field
+  
+! from maref.codegen.tool import (
+!     Tool,
+!     ToolContext,
+!     ToolResult,
+!     ToolResultStatus,
+!     ValidationResult,
+! )
+  
+  
+! class EditInput(BaseModel):
+!     file_path: str = Field(..., description="Path to the file to edit")
+!     old_string: str = Field(..., description="Exact text to replace")
+!     new_string: str = Field(..., description="Replacement text")
+!     replace_all: bool = Field(False, description="Replace all occurrences")
+!     use_ast: bool = Field(True, description="Use AST-based node matching for disambiguation")
+  
+  
+! class EditOutput(BaseModel):
+!     file_path: str
+!     replaced: bool
+!     occurrences_found: int = 0
+!     occurrences_replaced: int = 0
+!     structured_patch: str = ""
+  
+  
+! class EditTool(Tool[EditInput, EditOutput]):
+!     name = "Edit"
+!     description: str = "Precise string replacement in files with AST-based disambiguation"
+!     requires_user_interaction: bool = True
+  
+!     _quotes_pairs: list[tuple[str, str]] = [
+!         ('"', '"'),
+!         ("'", "'"),
+!         ('"""', '"""'),
+!         ("'''", "'''"),
+!         ('"', '"'),
+!         ("'", "'"),
+!     ]
+  
+!     def is_read_only(self, input: EditInput) -> bool:
+!         return False
+  
+!     def is_concurrency_safe(self, input: EditInput) -> bool:
+!         return False
+  
+!     async def validate(self, input: EditInput) -> ValidationResult:
+!         path = Path(input.file_path)
+!         if not path.exists():
+!             return ValidationResult(is_valid=False, message=f"File not found: {input.file_path}")
+  
+!         if not path.is_file():
+!             return ValidationResult(is_valid=False, message=f"Not a file: {input.file_path}")
+  
+!         if not input.old_string.strip():
+!             return ValidationResult(is_valid=False, message="old_string must not be empty")
+  
+!         return ValidationResult(is_valid=True)
+  
+!     async def call(self, input: EditInput, ctx: ToolContext) -> ToolResult[EditOutput]:
+!         path = Path(input.file_path)
+!         try:
+!             original = path.read_text(encoding="utf-8")
+!         except Exception as e:
+!             return ToolResult(status=ToolResultStatus.ERROR, error=f"Failed to read file: {e}")
+  
+!         if input.replace_all:
+!             occurrences = original.count(input.old_string)
+!             if occurrences == 0:
+!                 normalized = self._normalize_quotes(input.old_string)
+!                 occurrences = original.count(normalized)
+!                 if occurrences > 0:
+!                     new_content = original.replace(normalized, input.new_string)
+!                     return ToolResult(
+!                         data=EditOutput(
+!                             file_path=input.file_path,
+!                             replaced=True,
+!                             occurrences_found=occurrences,
+!                             occurrences_replaced=occurrences,
+!                             structured_patch=self._generate_patch(original, new_content),
+!                         )
+!                     )
+!                 return ToolResult(
+!                     data=EditOutput(
+!                         file_path=input.file_path,
+!                         replaced=False,
+!                         occurrences_found=0,
+!                         occurrences_replaced=0,
+!                     )
+!                 )
+!             new_content = original.replace(input.old_string, input.new_string)
+!             return ToolResult(
+!                 data=EditOutput(
+!                     file_path=input.file_path,
+!                     replaced=True,
+!                     occurrences_found=occurrences,
+!                     occurrences_replaced=occurrences,
+!                     structured_patch=self._generate_patch(original, new_content),
+!                 )
+!             )
+  
+!         try:
+!             tree = ast.parse(original)
+!         except SyntaxError:
+!             tree = None
+  
+!         if input.use_ast and tree is not None:
+!             matched_node: Any = self._find_ast_node(tree, input.old_string, original)
+!             if matched_node is not None:
+!                 start_line = matched_node.lineno
+!                 end_line = matched_node.end_lineno
+!                 lines = original.split("\n")
+!                 if start_line and end_line and start_line <= len(lines) and end_line <= len(lines):
+!                     lines[start_line - 1 : end_line] = input.new_string.split("\n")
+!                     new_content = "\n".join(lines)
+!                     return ToolResult(
+!                         data=EditOutput(
+!                             replaced=True,
+!                             file_path=input.file_path,
+!                             occurrences_found=1,
+!                             occurrences_replaced=1,
+!                             structured_patch=self._generate_patch(original, new_content),
+!                         )
+!                     )
+  
+!         occurrences = original.count(input.old_string)
+!         if occurrences == 0:
+!             normalized = self._normalize_quotes(input.old_string)
+!             occurrences = original.count(normalized)
+!             if occurrences == 0:
+!                 normalized2 = input.old_string.replace("'", '"')
+!                 occurrences = original.count(normalized2)
+!                 if occurrences == 0:
+!                     return ToolResult(
+!                         data=EditOutput(
+!                             file_path=input.file_path,
+!                             replaced=False,
+!                             occurrences_found=0,
+!                             occurrences_replaced=0,
+!                         )
+!                     )
+!                 new_content = original.replace(normalized2, input.new_string, 1)
+!             else:
+!                 new_content = original.replace(normalized, input.new_string, 1)
+!         else:
+!             new_content = original.replace(input.old_string, input.new_string, 1)
+  
+!         return ToolResult(
+!             data=EditOutput(
+!                 file_path=input.file_path,
+!                 replaced=True,
+!                 occurrences_found=occurrences or 1,
+!                 occurrences_replaced=1,
+!                 structured_patch=self._generate_patch(original, new_content),
+!             )
+!         )
+  
+!     def _normalize_quotes(self, text: str) -> str:
+!         result = text
+!         for a, b in self._quotes_pairs:
+!             result = result.replace(a, b)
+!         return result
+  
+!     def _find_ast_node(self, tree: ast.AST, target: str, source: str) -> ast.AST | None:
+!         target_normalized = "".join(target.strip().split())
+!         source_lines = source.split("\n")
+!         for node in ast.walk(tree):
+!             if not (hasattr(node, "end_lineno") and hasattr(node, "lineno")):
+!                 continue
+!             if not node.end_lineno or not node.lineno:
+!                 continue
+!             start = node.lineno - 1
+!             end = node.end_lineno
+!             if start < 0 or end > len(source_lines):
+!                 continue
+!             node_text = "\n".join(source_lines[start:end])
+!             node_normalized = "".join(node_text.strip().split())
+!             if node_normalized == target_normalized:
+!                 return node
+!         return None
+  
+!     def _generate_patch(self, original: str, modified: str) -> str:
+!         diff = difflib.unified_diff(
+!             original.split("\n"),
+!             modified.split("\n"),
+!             lineterm="",
+!         )
+!         return "\n".join(diff)

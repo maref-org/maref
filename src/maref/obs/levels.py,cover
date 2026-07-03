@@ -1,0 +1,42 @@
+> """Telemetry privacy levels for MAREF Obs."""
+  
+! from __future__ import annotations
+  
+! from enum import Enum
+  
+  
+! class TelemetryLevel(str, Enum):
+!     """Privacy-respecting telemetry consent levels.
+  
+!     Levels ordered by data volume:
+!       off < basic < standard < detailed
+  
+!     - off:       No telemetry. Local `.maref/obs/` directory is not created.
+!     - basic:     Event type names + counts + MAREF version only.
+!                  No agent IDs, no state values, no hashes.
+!                  Default level — opt-out, zero PII.
+!     - standard:  + Anonymized state transitions (hashed state names).
+!                  + Anonymized breaker reason patterns.
+!                  + Anonymized oscillation detection types.
+!     - detailed:  + Full metadata (but still hashed agent-identifying fields).
+!                  Useful for debugging and tuning.
+!     """
+  
+!     OFF = "off"
+!     BASIC = "basic"
+!     STANDARD = "standard"
+!     DETAILED = "detailed"
+  
+!     @classmethod
+!     def from_env(cls, value: str | None) -> TelemetryLevel:
+!         if not value:
+!             return cls.BASIC
+!         normalized = value.strip().lower()
+!         for level in cls:
+!             if level.value == normalized:
+!                 return level
+!         return cls.BASIC
+  
+!     def allows(self, required: TelemetryLevel) -> bool:
+!         levels = list(TelemetryLevel)
+!         return levels.index(self) >= levels.index(required)

@@ -1,0 +1,478 @@
+> """
+> MAREF Knowledge Graph — Enhanced
+  
+> Upgrades the research-prototype KnowledgeGraph with:
+> - Structured relation types (supports, contradicts, causes, suggests, observes)
+> - Dual-channel relation extraction (rule + LLM)
+> - Connectivity analysis (orphaned node detection, component count)
+> - Graph traversal queries
+> - Snapshot/versioning with diff support
+> - autoDream bridge for hypothesis export
+> """
+  
+> from __future__ import annotations
+  
+> import json
+> import time
+> import uuid
+> from collections import deque
+> from dataclasses import dataclass, field
+> from pathlib import Path
+> from typing import Any
+  
+> from maref.knowledge.relations import (
+>     RelationType,
+>     RuleBasedExtractor,
+> )
+  
+  
+> @dataclass
+> class RelationEdge:
+>     """A directed, typed edge between two knowledge nodes."""
+  
+>     relation: RelationType
+>     target_id: str
+>     confidence: float
+>     method: str
+  
+  
+> @dataclass
+> class KnowledgeNode:
+>     """A node in the knowledge graph."""
+  
+>     id: str
+>     type: str
+>     content: str
+>     confidence: float
+>     source: str
+>     timestamp: float
+>     related_nodes: list[str] = field(default_factory=list)
+>     metadata: dict[str, Any] = field(default_factory=dict)
+      # M3: structured edges
+>     out_edges: list[RelationEdge] = field(default_factory=list)
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "id": self.id,
+!             "type": self.type,
+!             "content": self.content,
+!             "confidence": self.confidence,
+!             "source": self.source,
+!             "timestamp": self.timestamp,
+!             "related_nodes": self.related_nodes,
+!             "metadata": self.metadata,
+!             "out_edges": [
+!                 {
+!                     "relation": e.relation.value,
+!                     "target_id": e.target_id,
+!                     "confidence": e.confidence,
+!                     "method": e.method,
+!                 }
+!                 for e in self.out_edges
+!             ],
+!         }
+  
+>     @classmethod
+>     def from_dict(cls, data: dict[str, Any]) -> KnowledgeNode:
+!         edges = [
+!             RelationEdge(
+!                 relation=RelationType(e["relation"]),
+!                 target_id=e["target_id"],
+!                 confidence=e.get("confidence", 0.5),
+!                 method=e.get("method", "unknown"),
+!             )
+!             for e in data.get("out_edges", [])
+!         ]
+!         return cls(
+!             id=data["id"],
+!             type=data["type"],
+!             content=data["content"],
+!             confidence=data["confidence"],
+!             source=data["source"],
+!             timestamp=data["timestamp"],
+!             related_nodes=data.get("related_nodes", []),
+!             metadata=data.get("metadata", {}),
+!             out_edges=edges,
+!         )
+  
+  
+> @dataclass
+> class GraphSnapshot:
+>     """A point-in-time snapshot of the knowledge graph."""
+  
+>     timestamp: float
+>     node_count: int
+>     edge_count: int
+>     nodes: dict[str, KnowledgeNode]
+  
+  
+> class KnowledgeGraph:
+>     """Enhanced knowledge graph with structured edges and traversal."""
+  
+>     def __init__(self, storage_path: Path | None = None) -> None:
+!         self._storage = storage_path
+!         self._nodes: dict[str, KnowledgeNode] = {}
+!         self._rule_extractor = RuleBasedExtractor()
+!         self._snapshots: list[GraphSnapshot] = []
+!         if self._storage is not None:
+!             self._load()
+  
+      # --- IO ---
+  
+>     def _load(self) -> None:
+!         if self._storage is not None and self._storage.exists():
+!             try:
+!                 with open(self._storage) as f:
+!                     data = json.load(f)
+!                     for node_data in data.get("nodes", []):
+!                         node = KnowledgeNode.from_dict(node_data)
+!                         self._nodes[node.id] = node
+!             except (json.JSONDecodeError, KeyError):
+-                 pass
+  
+>     def save(self) -> None:
+!         if self._storage is None:
+!             return
+!         data = {
+!             "version": "2.0",
+!             "updated_at": time.time(),
+!             "node_count": len(self._nodes),
+!             "edge_count": sum(len(n.out_edges) for n in self._nodes.values()),
+!             "nodes": [node.to_dict() for node in self._nodes.values()],
+!         }
+!         with open(self._storage, "w") as f:
+!             json.dump(data, f, indent=2, default=str)
+  
+      # --- Node Operations ---
+  
+>     def add_node(self, node: KnowledgeNode) -> str:
+!         self._nodes[node.id] = node
+!         self.save()
+!         return node.id
+  
+>     def get_node(self, node_id: str) -> KnowledgeNode | None:
+!         return self._nodes.get(node_id)
+  
+>     def get_nodes_by_type(self, node_type: str) -> list[KnowledgeNode]:
+!         return [n for n in self._nodes.values() if n.type == node_type]
+  
+>     def add_relation(self, from_id: str, to_id: str, relation_type: str) -> bool:
+!         from_node = self._nodes.get(from_id)
+!         if from_node is None or to_id not in self._nodes:
+!             return False
+!         from_node.out_edges.append(
+!             RelationEdge(
+!                 relation=RelationType(relation_type),
+!                 target_id=to_id,
+!                 confidence=0.8,
+!                 method="manual",
+!             )
+!         )
+!         self.save()
+!         return True
+  
+>     @property
+>     def nodes(self) -> list[KnowledgeNode]:
+!         return list(self._nodes.values())
+  
+>     def add_finding(
+>         self,
+>         content: str,
+>         source: str,
+>         confidence: float = 0.8,
+>         metadata: dict[str, Any] | None = None,
+>     ) -> str:
+!         node_id = f"finding_{uuid.uuid4().hex[:8]}"
+!         node = KnowledgeNode(
+!             id=node_id,
+!             type="finding",
+!             content=content,
+!             confidence=confidence,
+!             source=source,
+!             timestamp=time.time(),
+!             metadata=metadata or {},
+!         )
+  
+          # Extract relations
+!         node.related_nodes = self._find_related_node_ids(content)
+!         node.out_edges = self._extract_edges(content, node_id)
+  
+!         self._nodes[node_id] = node
+!         self.save()
+!         return node_id
+  
+>     def add_hypothesis(
+>         self,
+>         content: str,
+>         source: str,
+>         confidence: float = 0.5,
+>     ) -> str:
+!         node_id = f"hypothesis_{uuid.uuid4().hex[:8]}"
+!         node = KnowledgeNode(
+!             id=node_id,
+!             type="hypothesis",
+!             content=content,
+!             confidence=confidence,
+!             source=source,
+!             timestamp=time.time(),
+!         )
+!         node.out_edges = self._extract_edges(content, node_id)
+!         self._nodes[node_id] = node
+!         self.save()
+!         return node_id
+  
+      # --- Relation Extraction ---
+  
+>     def _find_related_node_ids(self, content: str) -> list[str]:
+!         content_lower = content.lower()
+!         candidates: list[tuple[str, float]] = []
+  
+!         for node in self._nodes.values():
+!             node_text_lower = node.content.lower()
+!             shared = len(set(content_lower.split()) & set(node_text_lower.split()))
+!             if shared >= 2:
+!                 candidates.append((node.id, shared))
+  
+!         candidates.sort(key=lambda x: x[1], reverse=True)
+!         return [cid for cid, _ in candidates[:5]]
+  
+>     def _extract_edges(
+>         self,
+>         content: str,
+>         source_id: str,
+>     ) -> list[RelationEdge]:
+!         candidate_texts: list[str] = [
+!             self._nodes[cid].content for cid in self._find_related_node_ids(content)[:10]
+!         ]
+!         candidate_texts = [t for t in candidate_texts if t]
+  
+!         relations = self._rule_extractor.extract(content, candidate_texts)
+!         edges: list[RelationEdge] = []
+!         for rel in relations:
+!             for nid, node in self._nodes.items():
+!                 if nid == source_id:
+!                     continue
+!                 if rel.object_text[:30] in node.content or node.content[:80] in rel.object_text:
+!                     edges.append(
+!                         RelationEdge(
+!                             relation=rel.relation,
+!                             target_id=nid,
+!                             confidence=rel.confidence,
+!                             method=rel.method,
+!                         )
+!                     )
+!                     break
+!         return edges
+  
+      # --- Connectivity Analysis ---
+  
+>     def get_connectivity_stats(self) -> dict[str, Any]:
+>         """Compute connectivity metrics: orphaned nodes, component count."""
+!         if not self._nodes:
+!             return {
+!                 "total_nodes": 0,
+!                 "orphaned_nodes": 0,
+!                 "orphan_ratio": 0.0,
+!                 "connected_components": 0,
+!                 "max_component_size": 0,
+!                 "edge_count": 0,
+!                 "avg_degree": 0.0,
+!             }
+  
+!         adjacency: dict[str, set[str]] = {nid: set() for nid in self._nodes}
+!         for nid, node in self._nodes.items():
+!             for edge in node.out_edges:
+!                 if edge.target_id in self._nodes:
+!                     adjacency[nid].add(edge.target_id)
+!                     adjacency[edge.target_id].add(nid)
+  
+!         orphaned = sum(1 for nid, neighbors in adjacency.items() if not neighbors)
+!         total = len(self._nodes)
+!         edge_count = sum(len(node.out_edges) for node in self._nodes.values())
+!         degree_sum = sum(len(n) for n in adjacency.values())
+  
+          # Connected components via BFS
+!         visited: set[str] = set()
+!         components: list[int] = []
+  
+!         for nid in self._nodes:
+!             if nid not in visited:
+!                 size = 0
+!                 queue = deque([nid])
+!                 while queue:
+!                     current = queue.popleft()
+!                     if current in visited:
+!                         continue
+!                     visited.add(current)
+!                     size += 1
+!                     for neighbor in adjacency.get(current, set()):
+!                         if neighbor not in visited:
+!                             queue.append(neighbor)
+!                 components.append(size)
+  
+!         return {
+!             "total_nodes": total,
+!             "orphaned_nodes": orphaned,
+!             "orphan_ratio": orphaned / total,
+!             "connected_components": len(components),
+!             "max_component_size": max(components) if components else 0,
+!             "edge_count": edge_count,
+!             "avg_degree": degree_sum / total if total > 0 else 0.0,
+!         }
+  
+      # --- Graph Traversal ---
+  
+>     def traverse(
+>         self,
+>         start_id: str,
+>         relation_type: RelationType | None = None,
+>         max_depth: int = 3,
+>     ) -> list[dict[str, Any]]:
+>         """
+>         BFS traversal from a starting node, following edges.
+  
+>         Returns list of {node_id, content, depth, relation_path}.
+>         """
+!         if start_id not in self._nodes:
+!             return []
+  
+!         visited: set[str] = {start_id}
+!         results: list[dict[str, Any]] = []
+!         queue = deque([(start_id, 0, [])])
+  
+!         while queue:
+!             current_id, depth, path = queue.popleft()
+!             if depth > max_depth:
+!                 continue
+  
+!             node = self._nodes[current_id]
+!             if depth > 0:
+!                 results.append(
+!                     {
+!                         "node_id": current_id,
+!                         "content": node.content[:120],
+!                         "depth": depth,
+!                         "relation_path": path,
+!                     }
+!                 )
+  
+!             for edge in node.out_edges:
+!                 if relation_type and edge.relation != relation_type:
+!                     continue
+!                 if edge.target_id not in visited and edge.target_id in self._nodes:
+!                     visited.add(edge.target_id)
+!                     queue.append(
+!                         (
+!                             edge.target_id,
+!                             depth + 1,
+!                             path + [edge.relation.value],
+!                         )
+!                     )
+  
+!         return results
+  
+>     def query_graph(self, query_text: str) -> list[KnowledgeNode]:
+>         """Query the graph with keyword + graph-aware ranking."""
+!         query_lower = query_text.lower()
+!         scores: dict[str, float] = {}
+  
+!         for nid, node in self._nodes.items():
+!             score = 0.0
+!             if query_lower in node.content.lower():
+!                 score += 2.0
+!             score += node.confidence
+              # Boost nodes with connections
+!             score += min(len(node.out_edges) * 0.1, 1.0)
+              # Boost recency
+!             age_days = (time.time() - node.timestamp) / 86400.0
+!             score += max(0.0, 1.0 - age_days / 30.0)
+!             scores[nid] = score
+  
+!         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+!         return [self._nodes[nid] for nid, _ in ranked[:10]]
+  
+      # --- Snapshot & Versioning ---
+  
+>     def snapshot(self) -> GraphSnapshot:
+!         snap = GraphSnapshot(
+!             timestamp=time.time(),
+!             node_count=len(self._nodes),
+!             edge_count=sum(len(n.out_edges) for n in self._nodes.values()),
+!             nodes=dict(self._nodes.items()),
+!         )
+!         self._snapshots.append(snap)
+!         return snap
+  
+>     def diff(
+>         self,
+>         snap_a: GraphSnapshot,
+>         snap_b: GraphSnapshot,
+>     ) -> dict[str, Any]:
+>         """Compute diff between two snapshots."""
+!         ids_a = set(snap_a.nodes.keys())
+!         ids_b = set(snap_b.nodes.keys())
+  
+!         return {
+!             "added_nodes": list(ids_b - ids_a),
+!             "removed_nodes": list(ids_a - ids_b),
+!             "added_count": len(ids_b - ids_a),
+!             "removed_count": len(ids_a - ids_b),
+!             "node_count_before": len(ids_a),
+!             "node_count_after": len(ids_b),
+!             "edge_count_before": snap_a.edge_count,
+!             "edge_count_after": snap_b.edge_count,
+!         }
+  
+      # --- autoDream Bridge ---
+  
+>     def get_exportable_hypotheses(
+>         self,
+>         min_confidence: float = 0.7,
+>     ) -> list[dict[str, Any]]:
+>         """Return high-confidence hypotheses suitable for autoDream export."""
+!         hypotheses = [
+!             n
+!             for n in self._nodes.values()
+!             if n.type == "hypothesis" and n.confidence >= min_confidence
+!         ]
+!         hypotheses.sort(key=lambda n: n.confidence, reverse=True)
+  
+!         return [
+!             {
+!                 "hypothesis_id": h.id,
+!                 "content": h.content,
+!                 "confidence": h.confidence,
+!                 "source": h.source,
+!                 "timestamp": h.timestamp,
+!                 "supporting_evidence": [
+!                     self._nodes[nid].content[:80]
+!                     for edge in h.out_edges
+!                     if edge.relation == RelationType.SUPPORTS
+!                     and (nid := edge.target_id) in self._nodes
+!                 ],
+!             }
+!             for h in hypotheses
+!         ]
+  
+      # --- Stats (backward compat) ---
+  
+>     def get_stats(self) -> dict[str, Any]:
+!         types: dict[str, int] = {}
+!         for node in self._nodes.values():
+!             types[node.type] = types.get(node.type, 0) + 1
+!         connectivity = self.get_connectivity_stats()
+!         return {
+!             "total_nodes": len(self._nodes),
+!             "by_type": types,
+!             "open_questions": len(
+!                 [n for n in self._nodes.values() if n.type == "hypothesis" and n.confidence < 0.7]
+!             ),
+!             "orphaned_nodes": connectivity["orphaned_nodes"],
+!             "edge_count": connectivity["edge_count"],
+!         }
+  
+>     def get_open_questions(self) -> list[KnowledgeNode]:
+!         return [n for n in self._nodes.values() if n.type == "hypothesis" and n.confidence < 0.7]
+  
+>     def query(self, query_str: str) -> list[KnowledgeNode]:
+!         return self.query_graph(query_str)

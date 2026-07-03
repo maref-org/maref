@@ -129,26 +129,63 @@ class RatchetBridge:
         try:
             import yaml
             text = self._program_path.read_text(encoding="utf-8")
+            # Handle YAML inside ```yaml ... ``` code blocks (PERCV format)
+            yaml_match = self._extract_yaml_block(text)
+            if yaml_match:
+                data = yaml.safe_load(yaml_match)
+                if isinstance(data, dict):
+                    return data
+            # Handle --- delimited frontmatter
             if text.startswith("---"):
                 parts = text.split("---", 2)
                 if len(parts) >= 3:
                     return dict(yaml.safe_load(parts[1]) or {})
+            # Handle raw YAML
             return dict(yaml.safe_load(text) or {})
         except Exception as exc:
             logger.warning("Failed to read program config: %s", exc)
             return {}
 
+    @staticmethod
+    def _extract_yaml_block(text: str) -> str | None:
+        """Extract YAML from the first ```yaml ... ``` block."""
+        lines = text.splitlines()
+        in_block = False
+        yaml_lines: list[str] = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped in ("```yaml", "```yml"):
+                in_block = True
+                yaml_lines = []
+                continue
+            if in_block and stripped == "```":
+                return "\n".join(yaml_lines)
+            if in_block:
+                yaml_lines.append(line)
+        return "\n".join(yaml_lines) if yaml_lines else None
+
     def _run_single_ratchet_iteration(
         self,
         target_file: str,
+        use_mas_ts: bool = False,
+        mas_ts_card: str = "",
     ) -> dict[str, Any]:
+        import shlex
         import subprocess
         import time
 
         t0 = time.perf_counter()
+        # Use the evaluation command from program.md config (includes --mas-ts flags).
+        # Fall back to --mock when no config is available.
+        program_config = self._read_program_config()
+        eval_cmd_str = program_config.get(
+            "evaluation_command", "uv run percv evaluate --mock"
+        )
+        eval_cmd = shlex.split(eval_cmd_str)
+
         try:
             result = subprocess.run(
-                ["uv", "run", "percv", "evaluate", "--mock"],
+                eval_cmd,
                 capture_output=True,
                 text=True,
                 timeout=300,
@@ -164,9 +201,9 @@ class RatchetBridge:
                 "duration_s": round(elapsed, 2),
                 "git_diff": self._get_git_diff(target_file),
             }
-            if self._mas_ts_bridge:
+            if self._mas_ts_bridge and use_mas_ts and mas_ts_card:
                 try:
-                    mas_ts_result = self._mas_ts_bridge.run_fast_screen()
+                    mas_ts_result = self._mas_ts_bridge.run_fast_screen(mas_ts_card)
                     raw["mas_ts_score"] = mas_ts_result.get("overall_score", 0)
                     raw["mas_ts_level"] = mas_ts_result.get("level", "L0")
                 except Exception as exc:
@@ -206,9 +243,12 @@ class RatchetBridge:
         budget: int = 20,
         human_gate: bool = True,
         use_mas_ts: bool = False,
+        mas_ts_card: str = "",
     ) -> list[RatchetIterationRecord]:
         program_config = self._read_program_config()
         effective_budget = budget or program_config.get("budget", {}).get("max_iterations", 20)
+        # human_gate=False (from program.md) is valid; the broken YAML parser
+        # would return True here, but _read_program_config now handles ```yaml.
         effective_human_gate = human_gate if human_gate else program_config.get("human_gate", True)
 
         logger.info(
@@ -223,7 +263,11 @@ class RatchetBridge:
         self._cross_dimensional_triggered = False
 
         for i in range(effective_budget):
-            result = self._run_single_ratchet_iteration(target_file)
+            result = self._run_single_ratchet_iteration(
+                target_file,
+                use_mas_ts=use_mas_ts,
+                mas_ts_card=mas_ts_card,
+            )
             score = result.get("score", 0.0)
             delta = score - previous_best if i > 0 else 0.0
             mas_ts_score = result.get("mas_ts_score", 0.0)

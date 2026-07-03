@@ -1,0 +1,123 @@
+> from __future__ import annotations
+  
+> import time
+> from dataclasses import dataclass, field
+> from typing import Any
+  
+  
+> @dataclass
+> class AlertRule:
+>     name: str
+>     severity: str
+>     condition: str
+>     description: str
+>     duration: str
+  
+  
+> @dataclass
+> class Alert:
+>     name: str
+>     severity: str
+>     message: str
+>     triggered_at: float = field(default_factory=time.time)
+>     value: float = 0.0
+>     labels: dict[str, str] = field(default_factory=dict)
+  
+  
+> DEFAULT_RULES: list[AlertRule] = [
+>     AlertRule(
+>         name="high_deny_rate",
+>         severity="critical",
+>         condition="deny_rate > 30",
+>         description="Deny rate exceeds 30% over 5 minutes",
+>         duration="5m",
+>     ),
+>     AlertRule(
+>         name="elevated_risk_score",
+>         severity="critical",
+>         condition="any agent risk_score > 80",
+>         description="Agent risk score exceeds 80",
+>         duration="1m",
+>     ),
+>     AlertRule(
+>         name="circuit_breaker_open",
+>         severity="warning",
+>         condition="any circuit_breaker open > 1m",
+>         description="Circuit breaker has been open for more than 1 minute",
+>         duration="1m",
+>     ),
+>     AlertRule(
+>         name="high_latency",
+>         severity="warning",
+>         condition="guardrail P99 latency > 100ms",
+>         description="Guardrail P99 latency exceeds 100ms",
+>         duration="5m",
+>     ),
+>     AlertRule(
+>         name="low_check_volume",
+>         severity="info",
+>         condition="total_checks < 10 over 5m",
+>         description="Fewer than 10 guardrail checks in the last 5 minutes, suggests agent inactivity",
+>         duration="5m",
+>     ),
+> ]
+  
+  
+> def evaluate(metrics: dict[str, Any], rules: list[AlertRule] | None = None) -> list[Alert]:
+!     rules = rules or DEFAULT_RULES
+!     alerts: list[Alert] = []
+  
+!     for rule in rules:
+!         if rule.name == "high_deny_rate":
+!             deny_rate = metrics.get("deny_rate", 0.0)
+!             if deny_rate > 30.0:
+!                 alerts.append(Alert(
+!                     name=rule.name,
+!                     severity=rule.severity,
+!                     message=f"Deny rate is {deny_rate:.1f}%, exceeds threshold of 30%",
+!                     value=deny_rate,
+!                 ))
+  
+!         elif rule.name == "elevated_risk_score":
+!             for rs in metrics.get("risk_scores", []):
+!                 score = rs.get("score", 0)
+!                 if score > 80:
+!                     alerts.append(Alert(
+!                         name=rule.name,
+!                         severity=rule.severity,
+!                         message=f"Agent {rs.get('agent_id', 'unknown')} has risk score {score}",
+!                         value=float(score),
+!                         labels={"agent_id": rs.get("agent_id", "unknown")},
+!                     ))
+  
+!         elif rule.name == "circuit_breaker_open":
+!             open_cbs = metrics.get("open_circuit_breakers", 0)
+!             if open_cbs > 0:
+!                 alerts.append(Alert(
+!                     name=rule.name,
+!                     severity=rule.severity,
+!                     message=f"{open_cbs} circuit breaker(s) are open",
+!                     value=float(open_cbs),
+!                 ))
+  
+!         elif rule.name == "high_latency":
+!             p99 = metrics.get("p99_latency_ms", 0.0)
+!             if p99 > 100.0:
+!                 alerts.append(Alert(
+!                     name=rule.name,
+!                     severity=rule.severity,
+!                     message=f"Guardrail P99 latency is {p99:.1f}ms, exceeds 100ms",
+!                     value=p99,
+!                 ))
+  
+!         elif rule.name == "low_check_volume":
+!             total = metrics.get("total_checks", 0)
+!             if total < 10:
+!                 alerts.append(Alert(
+!                     name=rule.name,
+!                     severity=rule.severity,
+!                     message=f"Only {total} guardrail checks in the window, below threshold of 10",
+!                     value=float(total),
+!                 ))
+  
+!     return alerts

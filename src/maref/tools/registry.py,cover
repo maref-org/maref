@@ -1,0 +1,248 @@
+! from __future__ import annotations
+  
+! from typing import Any
+  
+! from maref.integration.mcp_server import MCPServer
+! from maref.integration.mcp_transport import InProcessTransport
+  
+! TOOL_REGISTRY: dict[str, dict[str, Any]] = {}
+  
+  
+! def _create_codedepth_server(**kwargs: object) -> Any:
+!     from maref.codedepth.server import create_code_depth_server
+  
+!     repo_path = kwargs.get("repo_path")
+!     return create_code_depth_server(repo_path=str(repo_path) if repo_path is not None else None)
+  
+  
+! def _register_builtin_tools() -> None:
+!     from maref.tools.browser_server import create_browser_server
+!     from maref.tools.email_server import create_email_server
+!     from maref.tools.file_server import create_file_server
+!     from maref.tools.git_server import create_git_server
+!     from maref.tools.github_server import create_github_server
+!     from maref.tools.jira_server import create_jira_server
+!     from maref.tools.notion_server import create_notion_server
+!     from maref.tools.shell_server import create_shell_server
+!     from maref.tools.slack_server import create_slack_server
+!     from maref.tools.web_search_server import create_web_search_server
+  
+!     TOOL_REGISTRY["file"] = {
+!         "name": "file",
+!         "description": "File system operations with path sandbox",
+!         "factory": create_file_server,
+!         "version": "0.27.0",
+!         "default_config": {"max_read_size": 10485760},
+!         "tools": [
+!             "read_file",
+!             "write_file",
+!             "list_directory",
+!             "delete_file",
+!             "copy_file",
+!             "move_file",
+!             "get_file_info",
+!         ],
+!         "security_controls": ["PathSandbox", "FileSizeLimit"],
+!     }
+!     TOOL_REGISTRY["shell"] = {
+!         "name": "shell",
+!         "description": "Shell command execution with command whitelist and timeout",
+!         "factory": create_shell_server,
+!         "version": "0.27.0",
+!         "default_config": {},
+!         "tools": ["run_command", "get_shell_help"],
+!         "security_controls": ["CommandWhitelist", "Timeout", "OutputLimit", "MetacharacterBlock"],
+!     }
+!     TOOL_REGISTRY["git"] = {
+!         "name": "git",
+!         "description": "Git repository operations with repo whitelist and write mode gate",
+!         "factory": create_git_server,
+!         "version": "0.27.0",
+!         "default_config": {"repo_whitelist": [], "write_mode": False},
+!         "tools": ["git_status", "git_log", "git_diff", "git_branch", "git_commit", "git_push"],
+!         "security_controls": ["RepoWhitelist", "WriteModeGate"],
+!     }
+!     TOOL_REGISTRY["browser"] = {
+!         "name": "browser",
+!         "description": "Web page fetching and link extraction with domain whitelist",
+!         "factory": create_browser_server,
+!         "version": "0.27.0",
+!         "default_config": {"domain_whitelist": None, "max_content_size": 5242880},
+!         "tools": ["browser_open", "browser_screenshot", "browser_get_html", "browser_get_links"],
+!         "security_controls": ["DomainWhitelist", "URLValidation", "ContentSizeLimit"],
+!     }
+!     TOOL_REGISTRY["email"] = {
+!         "name": "email",
+!         "description": "Email sending and listing with recipient whitelist and sensitive word filter",
+!         "factory": create_email_server,
+!         "version": "0.27.0",
+!         "default_config": {"write_mode": False},
+!         "tools": ["email_send", "email_list", "email_read", "email_search"],
+!         "security_controls": ["RecipientWhitelist", "SensitiveWordFilter", "WriteModeGate"],
+!     }
+!     TOOL_REGISTRY["web_search"] = {
+!         "name": "web_search",
+!         "description": "Web search and news search with query sanitization and domain blacklist",
+!         "factory": create_web_search_server,
+!         "version": "0.28.0",
+!         "default_config": {"max_results": 10},
+!         "tools": ["web_search", "web_search_news"],
+!         "security_controls": ["QuerySanitizer", "ResultLimit", "DomainBlacklist"],
+!     }
+!     TOOL_REGISTRY["github"] = {
+!         "name": "github",
+!         "description": "GitHub API tools for repository and issue management",
+!         "factory": create_github_server,
+!         "version": "0.33.0",
+!         "default_config": {},
+!         "tools": ["github_list_repos", "github_get_issue", "github_create_issue", "github_search_code"],
+!         "security_controls": ["EnvVarCheck"],
+!     }
+!     TOOL_REGISTRY["notion"] = {
+!         "name": "notion",
+!         "description": "Notion-like content management tools",
+!         "factory": create_notion_server,
+!         "version": "0.33.0",
+!         "default_config": {},
+!         "tools": ["notion_query_database", "notion_create_page", "notion_search"],
+!         "security_controls": ["EnvVarCheck"],
+!     }
+!     TOOL_REGISTRY["slack"] = {
+!         "name": "slack",
+!         "description": "Slack messaging and channel management tools",
+!         "factory": create_slack_server,
+!         "version": "0.33.0",
+!         "default_config": {},
+!         "tools": ["slack_send_message", "slack_list_channels", "slack_search_messages"],
+!         "security_controls": ["EnvVarCheck"],
+!     }
+!     TOOL_REGISTRY["jira"] = {
+!         "name": "jira",
+!         "description": "Jira issue tracking and project management tools",
+!         "factory": create_jira_server,
+!         "version": "0.33.0",
+!         "default_config": {},
+!         "tools": ["jira_get_issue", "jira_search_issues", "jira_create_issue"],
+!         "security_controls": ["EnvVarCheck"],
+!     }
+!     TOOL_REGISTRY["codedepth"] = {
+!         "name": "codedepth",
+!         "description": "Code depth indexer — AST-based symbol search, call graph, import chain, file outline",
+!         "factory": _create_codedepth_server,
+!         "version": "0.1.0",
+!         "default_config": {},
+!         "tools": [
+!             "depth_rebuild",
+!             "depth_stats",
+!             "depth_symbol_search",
+!             "depth_file_outline",
+!             "depth_call_graph",
+!             "depth_imports",
+!             "depth_references",
+!         ],
+!         "security_controls": ["IndexSandbox"],
+!     }
+  
+  
+! _register_builtin_tools()
+  
+  
+! def get_tool_info(name: str) -> dict[str, Any] | None:
+!     info = TOOL_REGISTRY.get(name)
+!     if info is None:
+!         return None
+!     return {k: v for k, v in info.items() if k != "factory"}
+  
+  
+! def list_tools() -> list[dict[str, Any]]:
+!     return [{k: v for k, v in info.items() if k != "factory"} for info in TOOL_REGISTRY.values()]
+  
+  
+! class ToolRegistry:
+!     def __init__(self) -> None:
+!         self._instances: dict[str, MCPServer] = {}
+!         self._configs: dict[str, dict[str, Any]] = {}
+  
+!     def discover(self) -> list[dict[str, Any]]:
+!         return list_tools()
+  
+!     def install(self, name: str, config: dict[str, Any] | None = None) -> MCPServer:
+!         entry = TOOL_REGISTRY.get(name)
+!         if entry is None:
+!             raise ValueError(f"Unknown tool: {name}. Available: {list(TOOL_REGISTRY.keys())}")
+!         merged_config = dict(entry["default_config"])
+!         if config:
+!             merged_config.update(config)
+!         factory_kwargs = dict(merged_config.items())
+!         server = entry["factory"](**factory_kwargs)
+!         self._instances[name] = server
+!         self._configs[name] = merged_config
+!         return server
+  
+!     def get_server(self, name: str) -> MCPServer | None:
+!         return self._instances.get(name)
+  
+!     def list_installed(self) -> list[dict[str, Any]]:
+!         return [
+!             {"name": name, "tools": info["tools"], "config": self._configs.get(name, {})}
+!             for name, info in TOOL_REGISTRY.items()
+!             if name in self._instances
+!         ]
+  
+!     def info(self, name: str) -> dict[str, Any] | None:
+!         return get_tool_info(name)
+  
+!     def policy(self, name: str) -> dict[str, Any]:
+!         info = TOOL_REGISTRY.get(name)
+!         if info is None:
+!             raise ValueError(f"Unknown tool: {name}")
+!         return {
+!             "name": name,
+!             "tools": info["tools"],
+!             "security_controls": info["security_controls"],
+!             "default_governance_rules": [
+!                 {
+!                     "tool": tool,
+!                     "recommended_rule": "mcp-rule-002"
+!                     if tool
+!                     in (
+!                         "read_file",
+!                         "list_directory",
+!                         "get_file_info",
+!                         "git_status",
+!                         "git_log",
+!                         "git_diff",
+!                         "git_branch",
+!                         "browser_open",
+!                         "browser_screenshot",
+!                         "browser_get_html",
+!                         "browser_get_links",
+!                         "web_search",
+!                         "web_search_news",
+!                         "email_list",
+!                         "email_read",
+!                         "email_search",
+!                         "get_shell_help",
+!                     )
+!                     else "mcp-rule-005"
+!                     if tool
+!                     in (
+!                         "write_file",
+!                         "delete_file",
+!                         "copy_file",
+!                         "move_file",
+!                         "git_commit",
+!                         "git_push",
+!                         "email_send",
+!                     )
+!                     else "mcp-rule-003",
+!                 }
+!                 for tool in info["tools"]
+!             ],
+!         }
+  
+!     def get_transport(self, name: str) -> InProcessTransport | None:
+!         server = self._instances.get(name)
+!         if server is None:
+!             return None
+!         return server.get_inprocess_transport()

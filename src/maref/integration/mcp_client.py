@@ -19,6 +19,14 @@ from maref.integration.mcp_transport import (
 MAX_RETRIES = 1
 
 
+class FailMode(str, Enum):
+    """宪法第七条: 跨边界 MCP 调用降级策略"""
+    OPEN = "open"
+    """MCP 服务不可用时降级到快速通道，标记 governance_bypassed=true"""
+    CLOSED = "closed"
+    """MCP 服务不可用时阻断请求"""
+
+
 class ConnectionState(str, Enum):
     DISCONNECTED = "disconnected"
     CAPABILITY_NEGOTIATE = "capability_negotiate"
@@ -145,6 +153,7 @@ class MCPClient:
         chain_id: str | None = None,
         delegation_depth: int = 0,
         request_id: str = "",
+        fail_mode: str | FailMode = FailMode.CLOSED,
     ) -> JSONRPCResponse:
         if self._governance is not None:
             # E1.2: Check CB state before calling
@@ -197,7 +206,33 @@ class MCPClient:
         import time as _time
 
         _start = _time.time()
-        resp = conn.transport.send_tool_call(tool_name, args)
+        try:
+            resp = conn.transport.send_tool_call(tool_name, args)
+        except Exception as exc:
+            # 宪法第七条: FAIL_MODE 降级处理
+            fail = str(fail_mode) if not isinstance(fail_mode, str) else fail_mode
+            if fail == FailMode.OPEN or fail == "open":
+                return JSONRPCResponse(
+                    jsonrpc="2.0",
+                    result={
+                        "degraded": True,
+                        "governance_bypassed": True,
+                        "fail_mode": "open",
+                        "reason": f"MCP transport error: {exc}",
+                    },
+                    error=None,
+                    id=request_id or "",
+                )
+            return JSONRPCResponse(
+                jsonrpc="2.0",
+                result=None,
+                error={
+                    "code": -32003,
+                    "message": f"FAIL_MODE=closed: MCP transport failed: {exc}",
+                },
+                id=request_id or "",
+            )
+
         _elapsed = _time.time() - _start
 
         if self._governance is not None:

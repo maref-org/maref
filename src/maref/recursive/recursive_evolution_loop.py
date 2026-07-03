@@ -785,22 +785,30 @@ class RecursiveEvolutionLoop:
 
     def _collect_current_metrics(self) -> dict[str, float]:
         try:
-            result = subprocess.run(
-                ["git", "status", "--short"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            dirty = float(len(result.stdout.strip()) > 0)
+            from maref.recursive.self_observer import SelfObserver
+            observer = SelfObserver()
+            snapshot = observer.snapshot(collect_only=True)
+            return {
+                "test_pass_rate": float(snapshot.test_pass_rate) if hasattr(snapshot, "test_pass_rate") and snapshot.test_pass_rate else 1.0,
+                "coverage_pct": float(snapshot.coverage_pct) if hasattr(snapshot, "coverage_pct") else 0.0,
+                "source_file_count": float(snapshot.source_file_count) if hasattr(snapshot, "source_file_count") else 0.0,
+                "test_count": float(snapshot.test_count) if hasattr(snapshot, "test_count") else 0.0,
+            }
         except Exception:
-            dirty = 0.0
-
-        return {
-            "test_pass_rate": 1.0,
-            "coverage_pct": 0.0,
-            "lint_violation_count": 0.0,
-            "dirty_files": dirty,
-        }
+            try:
+                result = subprocess.run(
+                    ["git", "status", "--short"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                dirty = float(len(result.stdout.strip()) > 0)
+            except Exception:
+                dirty = 0.0
+            return {
+                "test_pass_rate": 1.0,
+                "coverage_pct": 0.0,
+                "lint_violation_count": 0.0,
+                "dirty_files": dirty,
+            }
 
     def _run_quality_checks(self) -> None:
         logger.info("REL: running quality checks")

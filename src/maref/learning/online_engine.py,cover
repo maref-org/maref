@@ -1,0 +1,95 @@
+> from __future__ import annotations
+  
+> import logging
+> from dataclasses import dataclass, field
+> from typing import Any
+  
+> logger = logging.getLogger(__name__)
+  
+  
+> @dataclass
+> class OnlineWeightRecord:
+>     current_weight: float
+>     hit_count: int = 0
+>     sample_count: int = 0
+>     history: list[float] = field(default_factory=list)
+  
+>     @property
+>     def alpha(self) -> float:
+!         return float(self.hit_count + 1)
+  
+>     @property
+>     def beta(self) -> float:
+!         return float(self.sample_count - self.hit_count + 1)
+  
+>     @property
+>     def confidence(self) -> float:
+!         n = self.sample_count
+!         if n < 2:
+!             return 0.0
+!         std = (self.alpha * self.beta) / ((self.alpha + self.beta) ** 2 * (self.alpha + self.beta + 1))
+!         return 1.0 / (1.0 + std ** 0.5)
+  
+  
+> class OnlineLearningEngine:
+>     """在线学习引擎 — 每次验证后立即贝叶斯更新，无需等待 MIN_SAMPLES。
+  
+>     与 SimpleWeightRegistry 的区别：
+>     - OnlineLearningEngine: Beta-Binomial 在线更新，可插拔 hook
+>     - SimpleWeightRegistry: 无状态权重存储，无 hook 机制
+  
+>     使用方式:
+>         engine = OnlineLearningEngine()
+>         engine.ingest_online({"correctness": True, "testing": False})
+>         weight = engine.get_weight("correctness")
+>     """
+  
+>     BAYESIAN_PRIOR: dict[str, float] = {}
+  
+>     def __init__(self, prior: dict[str, float] | None = None):
+!         self._weights: dict[str, OnlineWeightRecord] = {}
+!         self._prior = {**self.BAYESIAN_PRIOR, **(prior or {})}
+  
+>     def _ensure_dim(self, dim: str) -> OnlineWeightRecord:
+!         if dim not in self._weights:
+!             prior = self._prior.get(dim, 0.5)
+!             self._weights[dim] = OnlineWeightRecord(current_weight=prior)
+!         return self._weights[dim]
+  
+>     def ingest_record(self, dim: str, hit: bool) -> None:
+>         """单维度单次更新 — 在线学习核心"""
+!         record = self._ensure_dim(dim)
+!         record.sample_count += 1
+!         if hit:
+!             record.hit_count += 1
+!         new_weight = record.alpha / (record.alpha + record.beta)
+!         record.current_weight = new_weight
+!         record.history.append(new_weight)
+  
+>     def ingest_online(self, dimensions: dict[str, bool]) -> dict[str, float]:
+>         """批量在线更新 — 接受 {dimension: was_hit} 字典，返回更新后的权重"""
+!         updated = {}
+!         for dim, hit in dimensions.items():
+!             self.ingest_record(dim, hit)
+!             updated[dim] = self.get_weight(dim)
+!         return updated
+  
+>     def get_weight(self, dim: str) -> float:
+>         """获取某维度的当前权重（无需等待样本积累）"""
+!         record = self._weights.get(dim)
+!         return record.current_weight if record else self._prior.get(dim, 0.5)
+  
+>     def get_all_weights(self) -> dict[str, dict[str, Any]]:
+!         return {
+!             name: {
+!                 "current_weight": record.current_weight,
+!                 "hit_count": record.hit_count,
+!                 "sample_count": record.sample_count,
+!                 "confidence": record.confidence,
+!             }
+!             for name, record in self._weights.items()
+!         }
+  
+>     def reset(self, prior: dict[str, float] | None = None) -> None:
+!         self._weights = {}
+!         self._prior = {**self.BAYESIAN_PRIOR, **(prior or {})}

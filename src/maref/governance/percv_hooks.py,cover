@@ -1,0 +1,150 @@
+> """PERCV governance hooks — event-driven state transitions.
+  
+> Maps PERCV lifecycle events to MAREF governance state machine transitions,
+> creating a bidirectional bridge between research operations and governance.
+  
+> Event flow:
+>   RESEARCH_START   → ANALYZE (begin governance oversight)
+>   RESEARCH_COMPLETE → REPORT (log results)
+>   RESEARCH_FAIL    → HALT (emergency stop)
+>   BUDGET_WARNING   → STABILIZE (reduce activity)
+>   BUDGET_CRITICAL  → HALT + circuit breaker trip
+>   CARD_SYNC        → log only (no state change needed)
+>   VERIFICATION_FAIL → VERIFY (increase scrutiny)
+> """
+  
+> from __future__ import annotations
+  
+> import logging
+> from collections.abc import Callable
+> from enum import Enum
+> from typing import Any
+  
+> from maref.governance.types import GovernanceState
+  
+> logger = logging.getLogger(__name__)
+  
+  
+> class PERCVEventType(str, Enum):
+>     RESEARCH_START = "research_start"
+>     RESEARCH_COMPLETE = "research_complete"
+>     RESEARCH_FAIL = "research_fail"
+>     BUDGET_WARNING = "budget_warning"
+>     BUDGET_CRITICAL = "budget_critical"
+>     CARD_SYNC = "card_sync"
+>     VERIFICATION_FAIL = "verification_fail"
+  
+  
+> _EVENT_STATE_MAP: dict[PERCVEventType, tuple[GovernanceState | None, str]] = {
+>     PERCVEventType.RESEARCH_START: (GovernanceState.ANALYZE, "transition"),
+>     PERCVEventType.RESEARCH_COMPLETE: (GovernanceState.REPORT, "transition"),
+>     PERCVEventType.RESEARCH_FAIL: (GovernanceState.HALT, "force_halt"),
+>     PERCVEventType.BUDGET_WARNING: (GovernanceState.STABILIZE, "force_stabilize"),
+>     PERCVEventType.BUDGET_CRITICAL: (GovernanceState.HALT, "force_halt"),
+>     PERCVEventType.CARD_SYNC: (None, "log"),
+>     PERCVEventType.VERIFICATION_FAIL: (GovernanceState.VERIFY, "transition"),
+> }
+  
+  
+> class PERCVGovernanceHook:
+>     def __init__(
+>         self,
+>         state_machine: Any,
+>         circuit_breaker: Any | None = None,
+>     ):
+!         self.state_machine = state_machine
+!         self.circuit_breaker = circuit_breaker
+!         self._handlers: dict[PERCVEventType, list[Callable]] = {e: [] for e in PERCVEventType}
+!         self._event_count = 0
+!         self._event_history: list[dict[str, Any]] = []
+  
+>     @property
+>     def event_count(self) -> int:
+!         return self._event_count
+  
+>     def register_handler(
+>         self,
+>         event_type: PERCVEventType,
+>         handler: Callable[[dict[str, Any]], dict[str, Any]],
+>     ) -> None:
+!         self._handlers.setdefault(event_type, []).append(handler)
+  
+>     def handle_event(
+>         self,
+>         event_type: PERCVEventType,
+>         payload: dict[str, Any],
+>     ) -> dict[str, Any]:
+!         self._event_count += 1
+!         logger.info("PERCV event: %s payload=%s", event_type.value, payload)
+  
+!         for handler in self._handlers.get(event_type, []):
+!             try:
+!                 result = handler(payload)
+!                 if result.get("handled"):
+!                     self._record_event(event_type, payload, result)
+!                     return result
+!             except Exception as exc:
+!                 logger.warning("Custom handler failed: %s", exc)
+  
+!         result = self._default_handle(event_type, payload)
+!         self._record_event(event_type, payload, result)
+!         return result
+  
+>     def _default_handle(
+>         self,
+>         event_type: PERCVEventType,
+>         payload: dict[str, Any],
+>     ) -> dict[str, Any]:
+!         target_state, action = _EVENT_STATE_MAP.get(event_type, (None, "log"))
+  
+!         if action == "force_halt" and target_state:
+!             reason = f"{event_type.value}:{next(iter(payload.values()), '')}"
+!             self.state_machine.force_halt(reason)
+!             if event_type == PERCVEventType.BUDGET_CRITICAL and self.circuit_breaker:
+!                 self.circuit_breaker.trip(reason=f"budget_critical:{payload}")
+!             return {"handled": True, "event_type": event_type.value, "action": "force_halt"}
+  
+!         if action == "force_stabilize" and target_state:
+!             reason = f"{event_type.value}:{next(iter(payload.values()), '')}"
+!             self.state_machine.force_stabilize(reason)
+!             return {"handled": True, "event_type": event_type.value, "action": "force_stabilize"}
+  
+!         if action == "transition" and target_state:
+!             if self.state_machine.can_transition(target_state):
+!                 reason = f"{event_type.value}:{next(iter(payload.values()), '')}"
+!                 self.state_machine.transition(target_state, reason)
+!                 return {"handled": True, "event_type": event_type.value, "action": "transition"}
+!             reason_str = f"{event_type.value}:{next(iter(payload.values()), '')}"
+!             self.state_machine.force_stabilize(reason_str)
+!             return {"handled": True, "event_type": event_type.value, "action": "force_stabilize"}
+  
+!         return {"handled": True, "event_type": event_type.value, "action": "log"}
+  
+>     def _record_event(
+>         self,
+>         event_type: PERCVEventType,
+>         payload: dict[str, Any],
+>         result: dict[str, Any],
+>     ) -> None:
+!         import time
+  
+!         self._event_history.append(
+!             {
+!                 "event_type": event_type.value,
+!                 "payload": payload,
+!                 "result": result,
+!                 "timestamp": time.time(),
+!             }
+!         )
+  
+>     def get_event_history(self) -> list[dict[str, Any]]:
+!         return list(self._event_history)
+  
+  
+> def handle_percv_event(
+>     state_machine: Any,
+>     event_type: PERCVEventType,
+>     payload: dict[str, Any],
+> ) -> dict[str, Any]:
+!     hook = PERCVGovernanceHook(state_machine=state_machine)
+!     return hook.handle_event(event_type, payload)

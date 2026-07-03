@@ -1,0 +1,378 @@
+> from __future__ import annotations
+  
+> import copy
+> import time
+> import uuid
+> from dataclasses import dataclass, field
+> from enum import Enum
+> from typing import Any
+  
+  
+> class CloneStatus(Enum):
+>     PLANNED = "planned"
+>     CLONING = "cloning"
+>     VERIFIED = "verified"
+>     ACTIVE = "active"
+>     FAILED = "failed"
+>     RETIRED = "retired"
+  
+  
+> class EvolutionPath(Enum):
+>     CONSERVATIVE = "conservative"
+>     EXPLORATORY = "exploratory"
+>     SPECIALIZED = "specialized"
+>     AGGRESSIVE = "aggressive"
+>     DEFENSIVE = "defensive"
+  
+  
+> EVOLUTION_PATH_PARAMS: dict[EvolutionPath, dict[str, Any]] = {
+>     EvolutionPath.CONSERVATIVE: {
+>         "mutation_rate": 0.01,
+>         "risk_tolerance": 0.2,
+>         "innovation_bias": 0.1,
+>         "trust_decay_rate": 0.01,
+>     },
+>     EvolutionPath.EXPLORATORY: {
+>         "mutation_rate": 0.15,
+>         "risk_tolerance": 0.8,
+>         "innovation_bias": 0.7,
+>         "trust_decay_rate": 0.05,
+>     },
+>     EvolutionPath.SPECIALIZED: {
+>         "mutation_rate": 0.03,
+>         "risk_tolerance": 0.3,
+>         "innovation_bias": 0.4,
+>         "trust_decay_rate": 0.02,
+>     },
+>     EvolutionPath.AGGRESSIVE: {
+>         "mutation_rate": 0.20,
+>         "risk_tolerance": 0.9,
+>         "innovation_bias": 0.8,
+>         "trust_decay_rate": 0.08,
+>     },
+>     EvolutionPath.DEFENSIVE: {
+>         "mutation_rate": 0.005,
+>         "risk_tolerance": 0.1,
+>         "innovation_bias": 0.05,
+>         "trust_decay_rate": 0.005,
+>     },
+> }
+  
+  
+> @dataclass
+> class CloneLineage:
+>     parent_id: str
+>     child_id: str
+>     generation: int
+>     evolution_path: EvolutionPath
+>     cloned_at: float = field(default_factory=time.time)
+>     trust_baseline: float = 0.75
+>     specialization: str = ""
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "parent_id": self.parent_id,
+!             "child_id": self.child_id,
+!             "generation": self.generation,
+!             "evolution_path": self.evolution_path.value,
+!             "cloned_at": self.timestamp if hasattr(self, "timestamp") else self.cloned_at,
+!             "trust_baseline": round(self.trust_baseline, 4),
+!             "specialization": self.specialization,
+!         }
+  
+>     @property
+>     def timestamp(self) -> float:
+!         return self.cloned_at
+  
+  
+> @dataclass
+> class ClonedKnowledgeGraph:
+>     nodes: list[dict[str, Any]] = field(default_factory=list)
+>     relations: list[dict[str, Any]] = field(default_factory=list)
+>     metadata: dict[str, Any] = field(default_factory=dict)
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "node_count": len(self.nodes),
+!             "relation_count": len(self.relations),
+!             "metadata": self.metadata,
+!         }
+  
+>     def apply_mutations(self, config: dict[str, Any]) -> ClonedKnowledgeGraph:
+!         mutation_rate = config.get("mutation_rate", 0.01)
+!         mutated_nodes = []
+!         for node in self.nodes:
+!             new_node = copy.deepcopy(node)
+!             if node.get("mutable", True):
+!                 new_node["_mutation_round"] = 1
+!                 new_node["_parent_node_id"] = node.get("id", "")
+!             mutated_nodes.append(new_node)
+!         if mutation_rate > 0.05:
+!             for i in range(int(len(mutated_nodes) * mutation_rate)):
+!                 if mutated_nodes:
+!                     mutated_nodes[i % len(mutated_nodes)]["_mutated"] = True
+!         return ClonedKnowledgeGraph(
+!             nodes=mutated_nodes,
+!             relations=[copy.deepcopy(r) for r in self.relations],
+!             metadata=self.metadata,
+!         )
+  
+  
+> @dataclass
+> class ClonedExperiencePool:
+>     entries: list[dict[str, Any]] = field(default_factory=list)
+>     contexts: dict[str, Any] = field(default_factory=dict)
+>     total_entries: int = 0
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "entry_count": len(self.entries),
+!             "total_entries": self.total_entries,
+!             "context_count": len(self.contexts),
+!         }
+  
+>     def apply_specialization(
+>         self, specialization: str, config: dict[str, Any]
+>     ) -> ClonedKnowledgeGraph:
+!         filtered = [e for e in self.entries if specialization.lower() in str(e).lower()]
+!         if len(filtered) < len(self.entries) * config.get("innovation_bias", 0.3):
+!             filtered = self.entries
+!         return ClonedKnowledgeGraph()
+  
+  
+> @dataclass
+> class AuditSnapshot:
+>     records: list[dict[str, Any]] = field(default_factory=list)
+>     total_events: int = 0
+>     snapshot_range: tuple[int, int] = (0, 0)
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "record_count": len(self.records),
+!             "total_events": self.total_events,
+!             "range": self.snapshot_range,
+!         }
+  
+  
+> @dataclass
+> class CloneManifest:
+>     clone_id: str
+>     parent_id: str
+>     generation: int
+>     evolution_path: EvolutionPath
+>     trust_baseline: float
+>     created_at: float
+>     lineage: CloneLineage
+>     kg_snapshot: ClonedKnowledgeGraph
+>     experience_snapshot: ClonedExperiencePool
+>     audit_snapshot: AuditSnapshot
+>     specialization: str
+>     divergence_score: float
+>     status: CloneStatus = CloneStatus.PLANNED
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "clone_id": self.clone_id,
+!             "parent_id": self.parent_id,
+!             "generation": self.generation,
+!             "evolution_path": self.evolution_path.value,
+!             "trust_baseline": round(self.trust_baseline, 4),
+!             "created_at": self.created_at,
+!             "lineage": self.lineage.to_dict(),
+!             "kg": self.kg_snapshot.to_dict(),
+!             "experience": self.experience_snapshot.to_dict(),
+!             "audit": self.audit_snapshot.to_dict(),
+!             "specialization": self.specialization,
+!             "divergence_score": round(self.divergence_score, 3),
+!             "status": self.status.value,
+!         }
+  
+  
+> class MAREFInstanceCloner:
+>     MAX_GENERATIONS = 10
+>     MIN_CLONE_INTERVAL_SECONDS = 5.0
+>     TRUST_INHERITANCE_RATIO = 0.8
+  
+>     def __init__(self, parent_id: str, trust_baseline: float = 0.75):
+!         self.parent_id = parent_id
+!         self._trust_baseline = trust_baseline
+!         self._clones: dict[str, CloneManifest] = {}
+!         self._lineage_tree: dict[str, list[str]] = {parent_id: []}
+!         self._generation: int = 0
+!         self._last_clone_at: float = 0.0
+  
+>     @property
+>     def generation(self) -> int:
+!         return self._generation
+  
+>     @property
+>     def clone_count(self) -> int:
+!         return len(self._clones)
+  
+>     def snapshot_knowledge_graph(self) -> ClonedKnowledgeGraph:
+!         return ClonedKnowledgeGraph(
+!             nodes=[
+!                 {
+!                     "id": f"kg_node_{i}",
+!                     "type": "concept",
+!                     "confidence": 0.9 - i * 0.05,
+!                     "mutable": True,
+!                 }
+!                 for i in range(10)
+!             ],
+!             relations=[
+!                 {
+!                     "from": f"kg_node_{i}",
+!                     "to": f"kg_node_{i+1}",
+!                     "type": "depends_on",
+!                     "strength": 0.8,
+!                 }
+!                 for i in range(9)
+!             ],
+!             metadata={"source": "runtime_kg", "version": "v3"},
+!         )
+  
+>     def snapshot_experience_pool(self) -> ClonedExperiencePool:
+!         entries = [
+!             {
+!                 "id": f"exp_{i}",
+!                 "pattern": f"pattern_{i}",
+!                 "outcome": "success" if i % 3 != 0 else "failure",
+!                 "domain": ["healing", "optimization", "evolution"][i % 3],
+!             }
+!             for i in range(30)
+!         ]
+!         return ClonedExperiencePool(
+!             entries=entries,
+!             contexts={"default": {"temperature": "warm", "confidence": 0.7}},
+!             total_entries=len(entries),
+!         )
+  
+>     def snapshot_audit_chain(self) -> AuditSnapshot:
+!         records = [
+!             {"rid": f"audit_{i}", "event": f"evolution_step_{i}", "outcome": "success"}
+!             for i in range(50)
+!         ]
+!         return AuditSnapshot(
+!             records=records,
+!             total_events=len(records),
+!             snapshot_range=(0, len(records) - 1),
+!         )
+  
+>     def clone(
+>         self,
+>         evolution_path: EvolutionPath = EvolutionPath.EXPLORATORY,
+>         specialization: str = "",
+>         mutation_config: dict[str, Any] | None = None,
+>     ) -> CloneManifest | None:
+!         if self._generation >= self.MAX_GENERATIONS:
+!             return None
+  
+!         now = time.time()
+!         if now - self._last_clone_at < self.MIN_CLONE_INTERVAL_SECONDS:
+!             return None
+  
+!         clone_id = f"{self.parent_id}_clone_{uuid.uuid4().hex[:8]}"
+!         self._generation += 1
+  
+!         config = mutation_config or EVOLUTION_PATH_PARAMS[evolution_path]
+  
+!         kg = self.snapshot_knowledge_graph()
+!         mutated_kg = kg.apply_mutations(config)
+  
+!         experience = self.snapshot_experience_pool()
+  
+!         audit = self.snapshot_audit_chain()
+  
+!         child_trust = self._trust_baseline * self.TRUST_INHERITANCE_RATIO
+!         divergence = config.get("mutation_rate", 0.01) * 10
+  
+!         lineage = CloneLineage(
+!             parent_id=self.parent_id,
+!             child_id=clone_id,
+!             generation=self._generation,
+!             evolution_path=evolution_path,
+!             trust_baseline=child_trust,
+!             specialization=specialization,
+!         )
+  
+!         manifest = CloneManifest(
+!             clone_id=clone_id,
+!             parent_id=self.parent_id,
+!             generation=self._generation,
+!             evolution_path=evolution_path,
+!             trust_baseline=child_trust,
+!             created_at=now,
+!             lineage=lineage,
+!             kg_snapshot=mutated_kg,
+!             experience_snapshot=experience,
+!             audit_snapshot=audit,
+!             specialization=specialization,
+!             divergence_score=divergence,
+!             status=CloneStatus.CLONING,
+!         )
+  
+!         manifest.status = CloneStatus.VERIFIED
+!         manifest.status = CloneStatus.ACTIVE
+  
+!         self._clones[clone_id] = manifest
+!         self._lineage_tree.setdefault(self.parent_id, []).append(clone_id)
+!         self._lineage_tree[clone_id] = []
+!         self._last_clone_at = now
+  
+!         return manifest
+  
+>     def clone_multiple(
+>         self, paths: list[EvolutionPath], specializations: list[str] | None = None
+>     ) -> list[CloneManifest]:
+!         results: list[CloneManifest] = []
+!         specs = specializations or [""] * len(paths)
+!         saved_last_clone = self._last_clone_at
+!         for path, spec in zip(paths, specs, strict=False):
+!             self._last_clone_at = 0.0
+!             clone = self.clone(evolution_path=path, specialization=spec)
+!             if clone:
+!                 results.append(clone)
+!         self._last_clone_at = saved_last_clone
+!         return results
+  
+>     def differentiate_clones(self) -> dict[str, dict[str, Any]]:
+!         return {
+!             cid: {
+!                 "path": m.evolution_path.value,
+!                 "divergence": m.divergence_score,
+!                 "trust": m.trust_baseline,
+!             }
+!             for cid, m in self._clones.items()
+!         }
+  
+>     def get_lineage_tree(self) -> dict[str, list[str]]:
+!         return {k: v.copy() for k, v in self._lineage_tree.items()}
+  
+>     def verify_clone_health(self, clone_id: str) -> dict[str, Any]:
+!         manifest = self._clones.get(clone_id)
+!         if not manifest:
+!             return {"exists": False}
+!         return {
+!             "exists": True,
+!             "status": manifest.status.value,
+!             "trust_baseline": manifest.trust_baseline,
+!             "kg_nodes": len(manifest.kg_snapshot.nodes),
+!             "kg_relations": len(manifest.kg_snapshot.relations),
+!             "experience_entries": len(manifest.experience_snapshot.entries),
+!             "audit_records": len(manifest.audit_snapshot.records),
+!             "divergence": manifest.divergence_score,
+!         }
+  
+>     def get_all_clones(self) -> list[CloneManifest]:
+!         return list(self._clones.values())
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "parent_id": self.parent_id,
+!             "trust_baseline": round(self._trust_baseline, 4),
+!             "generation": self._generation,
+!             "clone_count": self.clone_count,
+!             "clones": [m.to_dict() for m in self._clones.values()],
+!             "lineage_tree": self.get_lineage_tree(),
+!         }

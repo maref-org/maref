@@ -1,0 +1,50 @@
+! from __future__ import annotations
+  
+! from pathlib import Path
+  
+! from pydantic import BaseModel, Field
+  
+! from maref.codegen.tool import (
+!     Tool,
+!     ToolContext,
+!     ToolResult,
+!     ValidationResult,
+! )
+  
+  
+! class GlobInput(BaseModel):
+!     pattern: str = Field(..., description="Glob pattern to search for")
+!     path: str | None = Field(None, description="Root directory to search from")
+  
+  
+! class GlobOutput(BaseModel):
+!     files: list[str]
+!     count: int
+  
+  
+! class GlobTool(Tool[GlobInput, GlobOutput]):
+!     name = "Glob"
+!     description: str = "Search for files by filename pattern"
+  
+!     def is_read_only(self, input: GlobInput) -> bool:
+!         return True
+  
+!     def is_concurrency_safe(self, input: GlobInput) -> bool:
+!         return True
+  
+!     async def validate(self, input: GlobInput) -> ValidationResult:
+!         if not input.pattern.strip():
+!             return ValidationResult(is_valid=False, message="Pattern must not be empty")
+!         return ValidationResult(is_valid=True)
+  
+!     async def call(self, input: GlobInput, ctx: ToolContext) -> ToolResult[GlobOutput]:
+!         search_root = Path(input.path) if input.path else Path.cwd()
+!         if not search_root.exists():
+!             search_root = Path(ctx.workspace_root) if ctx.workspace_root else Path.cwd()
+  
+!         matches = sorted(search_root.rglob(input.pattern))
+!         files = [str(m.relative_to(search_root)) for m in matches if m.is_file()]
+  
+!         return ToolResult(
+!             data=GlobOutput(files=files, count=len(files)),
+!         )

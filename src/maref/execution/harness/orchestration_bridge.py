@@ -4,7 +4,6 @@ from collections.abc import Callable
 from typing import Any
 
 from maref.execution.harness.types import HarnessResult, HarnessStatus
-
 from maref.orchestration.plan_executor import (
     ActionHandler,
     GovernanceCheck,

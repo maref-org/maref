@@ -1,0 +1,292 @@
+! from __future__ import annotations
+  
+! from abc import ABC, abstractmethod
+! from collections.abc import Callable
+! from dataclasses import dataclass
+! from typing import Any
+  
+! from maref.integration.mcp_transport import (
+!     InProcessTransport,
+!     JSONRPCRequest,
+!     JSONRPCResponse,
+! )
+  
+  
+! @dataclass
+! class MCPTool:
+!     name: str
+!     description: str
+!     input_schema: dict[str, Any]
+!     handler: Callable[[dict[str, Any]], dict[str, Any]]
+  
+  
+! @dataclass
+! class MCPResource:
+!     uri: str
+!     name: str
+!     mime_type: str
+!     handler: Callable[[str], dict[str, Any]]
+  
+  
+! @dataclass
+! class MCPPrompt:
+!     name: str
+!     description: str
+!     arguments: list[dict[str, Any]]
+!     handler: Callable[[dict[str, Any]], dict[str, Any]]
+  
+  
+! class SamplingHandler(ABC):
+!     @abstractmethod
+!     def create_message(
+!         self,
+!         messages: list[dict[str, Any]],
+!         model_preferences: dict[str, Any] | None = None,
+!         system_prompt: str | None = None,
+!         max_tokens: int | None = None,
+!     ) -> dict[str, Any]: ...
+  
+  
+! class MCPServer:
+!     def __init__(
+!         self,
+!         name: str = "maref-mcp-server",
+!         version: str = "0.25.0",
+!         security_gate: Any | None = None,
+!         sampling_handler: SamplingHandler | None = None,
+!         roots: list[dict[str, Any]] | None = None,
+!     ) -> None:
+!         self.name = name
+!         self.version = version
+!         self.security_gate = security_gate
+!         self.sampling_handler = sampling_handler
+!         self._roots = roots or []
+!         self._tools: dict[str, MCPTool] = {}
+!         self._resources: dict[str, MCPResource] = {}
+!         self._prompts: dict[str, MCPPrompt] = {}
+!         self._inprocess_transport: InProcessTransport | None = None
+  
+!     def register_tool(
+!         self,
+!         name: str,
+!         description: str,
+!         input_schema: dict[str, Any],
+!         handler: Callable[[dict[str, Any]], dict[str, Any]],
+!     ) -> None:
+!         self._tools[name] = MCPTool(
+!             name=name,
+!             description=description,
+!             input_schema=input_schema,
+!             handler=handler,
+!         )
+  
+!     def register_resource(
+!         self,
+!         uri: str,
+!         name: str,
+!         mime_type: str,
+!         handler: Callable[[str], dict[str, Any]],
+!     ) -> None:
+!         self._resources[uri] = MCPResource(
+!             uri=uri,
+!             name=name,
+!             mime_type=mime_type,
+!             handler=handler,
+!         )
+  
+!     def register_prompt(
+!         self,
+!         name: str,
+!         description: str,
+!         arguments: list[dict[str, Any]],
+!         handler: Callable[[dict[str, Any]], dict[str, Any]],
+!     ) -> None:
+!         self._prompts[name] = MCPPrompt(
+!             name=name,
+!             description=description,
+!             arguments=arguments,
+!             handler=handler,
+!         )
+  
+!     def handle_request(
+!         self,
+!         request: JSONRPCRequest,
+!         trust_level: Any | None = None,
+!     ) -> JSONRPCResponse:
+!         method = request.method
+!         params = request.params or {}
+  
+!         if method == "initialize":
+!             return self._handle_initialize(request.id, params)
+!         elif method == "tools/list":
+!             return self._handle_tools_list(request.id)
+!         elif method == "tools/call":
+!             return self._handle_tools_call(request.id, params, trust_level)
+!         elif method == "resources/list":
+!             return self._handle_resources_list(request.id)
+!         elif method == "resources/read":
+!             return self._handle_resources_read(request.id, params)
+!         elif method == "prompts/list":
+!             return self._handle_prompts_list(request.id)
+!         elif method == "prompts/get":
+!             return self._handle_prompts_get(request.id, params)
+!         elif method == "sampling/createMessage":
+!             return self._handle_sampling_create_message(request.id, params)
+!         elif method == "roots/list":
+!             return self._handle_roots_list(request.id)
+!         else:
+!             return JSONRPCResponse(
+!                 error={"code": -32601, "message": f"Method not found: {method}"},
+!                 id=request.id,
+!             )
+  
+!     def _handle_initialize(self, req_id: int | str, params: dict[str, Any]) -> JSONRPCResponse:
+!         params.get("clientInfo", {})
+!         protocol_version = params.get("protocolVersion", "2024-11-05")
+!         return JSONRPCResponse(
+!             result={
+!                 "protocolVersion": protocol_version,
+!                 "capabilities": {},
+!                 "serverInfo": {"name": self.name, "version": self.version},
+!             },
+!             id=req_id,
+!         )
+  
+!     def _handle_tools_list(self, req_id: int | str) -> JSONRPCResponse:
+!         tools = [
+!             {
+!                 "name": tool.name,
+!                 "description": tool.description,
+!                 "inputSchema": tool.input_schema,
+!             }
+!             for tool in self._tools.values()
+!         ]
+!         return JSONRPCResponse(result={"tools": tools}, id=req_id)
+  
+!     def _handle_tools_call(
+!         self,
+!         req_id: int | str,
+!         params: dict[str, Any],
+!         trust_level: Any | None,
+!     ) -> JSONRPCResponse:
+!         tool_name = params.get("name", "")
+!         arguments = params.get("arguments", {})
+  
+!         if tool_name not in self._tools:
+!             return JSONRPCResponse(
+!                 error={"code": -32602, "message": f"Unknown tool: {tool_name}"},
+!                 id=req_id,
+!             )
+  
+          # 安全门检查
+!         if self.security_gate is not None and trust_level is not None:
+!             verdict = self.security_gate.check(tool_name, trust_level, arguments)
+!             if verdict.value == "DENY":
+!                 return JSONRPCResponse(
+!                     error={
+!                         "code": -32000,
+!                         "message": f"Tool blocked by security gate: {tool_name}",
+!                     },
+!                     id=req_id,
+!                 )
+  
+!         try:
+!             result = self._tools[tool_name].handler(arguments)
+!             return JSONRPCResponse(result=result, id=req_id)
+!         except Exception as e:
+!             return JSONRPCResponse(
+!                 error={"code": -32603, "message": f"Tool execution error: {e}"},
+!                 id=req_id,
+!             )
+  
+!     def _handle_resources_list(self, req_id: int | str) -> JSONRPCResponse:
+!         resources = [
+!             {
+!                 "uri": res.uri,
+!                 "name": res.name,
+!                 "mimeType": res.mime_type,
+!             }
+!             for res in self._resources.values()
+!         ]
+!         return JSONRPCResponse(result={"resources": resources}, id=req_id)
+  
+!     def _handle_resources_read(self, req_id: int | str, params: dict[str, Any]) -> JSONRPCResponse:
+!         uri = params.get("uri", "")
+!         if uri not in self._resources:
+!             return JSONRPCResponse(
+!                 error={"code": -32602, "message": f"Unknown resource: {uri}"},
+!                 id=req_id,
+!             )
+!         try:
+!             result = self._resources[uri].handler(uri)
+!             return JSONRPCResponse(result=result, id=req_id)
+!         except Exception as e:
+!             return JSONRPCResponse(
+!                 error={"code": -32603, "message": f"Resource read error: {e}"},
+!                 id=req_id,
+!             )
+  
+!     def _handle_prompts_list(self, req_id: int | str) -> JSONRPCResponse:
+!         prompts = [
+!             {
+!                 "name": prompt.name,
+!                 "description": prompt.description,
+!                 "arguments": prompt.arguments,
+!             }
+!             for prompt in self._prompts.values()
+!         ]
+!         return JSONRPCResponse(result={"prompts": prompts}, id=req_id)
+  
+!     def _handle_prompts_get(self, req_id: int | str, params: dict[str, Any]) -> JSONRPCResponse:
+!         name = params.get("name", "")
+!         arguments = params.get("arguments", {})
+!         if name not in self._prompts:
+!             return JSONRPCResponse(
+!                 error={"code": -32602, "message": f"Unknown prompt: {name}"},
+!                 id=req_id,
+!             )
+!         try:
+!             result = self._prompts[name].handler(arguments)
+!             return JSONRPCResponse(result=result, id=req_id)
+!         except Exception as e:
+!             return JSONRPCResponse(
+!                 error={"code": -32603, "message": f"Prompt execution error: {e}"},
+!                 id=req_id,
+!             )
+  
+!     def _handle_sampling_create_message(
+!         self, req_id: int | str, params: dict[str, Any]
+!     ) -> JSONRPCResponse:
+!         if self.sampling_handler is None:
+!             return JSONRPCResponse(
+!                 error={
+!                     "code": -32000,
+!                     "message": "Sampling not supported — no handler configured",
+!                 },
+!                 id=req_id,
+!             )
+!         try:
+!             messages = params.get("messages", [])
+!             model_preferences = params.get("modelPreferences")
+!             system_prompt = params.get("systemPrompt")
+!             max_tokens = params.get("maxTokens")
+!             result = self.sampling_handler.create_message(
+!                 messages=messages,
+!                 model_preferences=model_preferences,
+!                 system_prompt=system_prompt,
+!                 max_tokens=max_tokens,
+!             )
+!             return JSONRPCResponse(result=result, id=req_id)
+!         except Exception as e:
+!             return JSONRPCResponse(
+!                 error={"code": -32603, "message": f"Sampling error: {e}"},
+!                 id=req_id,
+!             )
+  
+!     def _handle_roots_list(self, req_id: int | str) -> JSONRPCResponse:
+!         return JSONRPCResponse(result={"roots": self._roots}, id=req_id)
+  
+!     def get_inprocess_transport(self) -> InProcessTransport:
+!         if self._inprocess_transport is None:
+!             self._inprocess_transport = InProcessTransport(message_handler=self.handle_request)
+!         return self._inprocess_transport

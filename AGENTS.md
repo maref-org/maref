@@ -12,6 +12,7 @@
 - **架构**: 概念语义层 天极→人极→地极→经卦→别卦→爻变（I Ching 治理语义）映射到代码实现层叠 元层→治理层→编排层→执行层→基础设施层（详见 docs/architecture.md）
 - **代码风格**: PEP 8 + ruff + mypy strict mode
 - **安全级别**: 最高（不可降级安全断言）
+- **RSI Level**: L2 (Conditional Pass)
 - **开源协议**: Apache-2.0
 
 ## Repository Structure
@@ -24,7 +25,7 @@ maref/
 │   ├── drift_guard/    # Distribution shift detection
 │   └── formal/         # TLA+ formal specifications
 ├── gui/                # Electron + React GUI + Immunity Dashboard
-├── tests/              # Test suites (14 SAEB benchmark tests)
+├── tests/              # Test suites (14 SAEB benchmark tests, 220+ L2 release tests)
 ├── .missions/          # Factory Missions workspace
 ├── vault/              # Knowledge vault (signals, kdps, patterns)
 ├── scripts/            # Build and automation scripts
@@ -134,15 +135,15 @@ kubectl apply -f k8s/production/
 ## Knowledge Vault
 - **路径**: `vault/`
 - **格式**: YAML with frontmatter
-- **Signals**: 12 market/technology signals (S-20260511-001 ~ 012)
-- **KDPs**: 9 key decision points (K-20260511-001 ~ 009)
+- **Signals**: 13 market/technology signals (S-20260511-001 ~ 013)
+- **KDPs**: 10 key decision points (K-20260511-001 ~ 010)
 - **Patterns**: 1 competitive positioning pattern
 
 ## Mission Workspace
 - **路径**: `.missions/v0.25.0-security-enhancement/`
-- **特性**: 22/22 completed, 9327 tests collected (5968 passed in standard suite)
+- **特性**: 35/35 completed (22 v0.25.0 + 13 L2), 9547+ tests collected (5968 passed in standard suite, 220+ L2 release tests)
 - **验证**: 7 validator rounds, 4 issues found and resolved
-- **里程碑**: m0-m6 all completed
+- **里程碑**: m0-m7 all completed
 
 ## Quick Reference
 - MAREF Lite CLI: `maref-lite --help`
@@ -155,6 +156,7 @@ kubectl apply -f k8s/production/
 - Gene audit trail: `GET /api/immunity/genes`
 - Error codes: `maref.exceptions.MAREFError` (20 codes E0000–E4002)
 - SAEB comparison: `from maref.evaluation.saeb import run_comparison`
+- L2 acceptance report: `docs/rsi/l2-acceptance-report-20260702.md`
 
 ## Open Source Execution Norm
 > **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](docs/oss-execution-norm-v1.0.md) 约束。

@@ -1,0 +1,96 @@
+> """
+> Trust Visualizer — 信任可视化
+  
+> T6: 信任可视化
+> - 图谱数据导出（节点、边）
+> - Cytoscape.js 兼容格式
+> - 实时状态摘要
+> """
+  
+! from __future__ import annotations
+  
+! from typing import Any
+  
+! from maref.security.trust_graph import TrustGraph
+  
+  
+! class TrustVisualizer:
+!     """信任图谱可视化器"""
+  
+!     def __init__(self, graph: TrustGraph) -> None:
+!         self.graph = graph
+  
+!     def get_nodes(self) -> list[dict[str, Any]]:
+!         """获取所有节点（用于可视化）"""
+!         return [
+!             {
+!                 "id": aid,
+!                 "label": aid,
+!                 "trust_score": agent.trust_score,
+!                 "trust_tier": self._tier(agent.trust_score),
+!             }
+!             for aid, agent in self.graph.agents.items()
+!         ]
+  
+!     def get_edges(self) -> list[dict[str, Any]]:
+!         """获取所有边（用于可视化）"""
+!         return [
+!             {
+!                 "source": edge.source,
+!                 "target": edge.target,
+!                 "trust_score": edge.trust_score,
+!                 "weight": edge.weight,
+!             }
+!             for edge in self.graph._edges.values()
+!         ]
+  
+!     def to_cytoscape_format(self) -> dict[str, Any]:
+!         """导出为 Cytoscape.js 兼容格式"""
+!         return {
+!             "nodes": [
+!                 {
+!                     "data": {
+!                         "id": n["id"],
+!                         "label": n["label"],
+!                         "trust_score": n["trust_score"],
+!                         "trust_tier": n["trust_tier"],
+!                     }
+!                 }
+!                 for n in self.get_nodes()
+!             ],
+!             "edges": [
+!                 {
+!                     "data": {
+!                         "source": e["source"],
+!                         "target": e["target"],
+!                         "trust_score": e["trust_score"],
+!                         "weight": e["weight"],
+!                     }
+!                 }
+!                 for e in self.get_edges()
+!             ],
+!         }
+  
+!     def get_status_summary(self) -> dict[str, Any]:
+!         """获取实时状态摘要"""
+!         agents = list(self.graph.agents.values())
+!         edges = list(self.graph._edges.values())
+  
+!         avg_trust = sum(a.trust_score for a in agents) / len(agents) if agents else 0.0
+  
+!         return {
+!             "total_agents": len(agents),
+!             "total_edges": len(edges),
+!             "avg_trust": round(avg_trust, 2),
+!             "high_trust_agents": sum(1 for a in agents if a.trust_score >= 80),
+!             "low_trust_agents": sum(1 for a in agents if a.trust_score < 50),
+!         }
+  
+!     @staticmethod
+!     def _tier(score: float) -> str:
+!         if score >= 80:
+!             return "high"
+!         elif score >= 50:
+!             return "medium"
+!         else:
+!             return "low"

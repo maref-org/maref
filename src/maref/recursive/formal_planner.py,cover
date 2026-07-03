@@ -1,0 +1,435 @@
+> from __future__ import annotations
+  
+> import time
+> from collections import deque
+> from dataclasses import dataclass, field
+> from heapq import heappop, heappush
+  
+  
+> @dataclass
+> class Predicate:
+>     name: str
+>     args: list[str] = field(default_factory=list)
+  
+>     def __hash__(self) -> int:
+!         return hash((self.name, tuple(self.args)))
+  
+>     def __eq__(self, other: object) -> bool:
+!         if not isinstance(other, Predicate):
+!             return NotImplemented
+!         return self.name == other.name and self.args == other.args
+  
+>     def evaluate(self, state: frozenset[Predicate]) -> bool:
+!         return self in state
+  
+>     def to_string(self) -> str:
+!         if self.args:
+!             return f"{self.name}({', '.join(self.args)})"
+!         return self.name
+  
+  
+> @dataclass
+> class Action:
+>     name: str
+>     parameters: list[str] = field(default_factory=list)
+>     preconditions: list[Predicate] = field(default_factory=list)
+>     add_effects: list[Predicate] = field(default_factory=list)
+>     del_effects: list[Predicate] = field(default_factory=list)
+>     cost: float = 1.0
+>     description: str = ""
+  
+>     def applicable(self, state: frozenset[Predicate]) -> bool:
+!         return all(pre.evaluate(state) for pre in self.preconditions)
+  
+>     def apply(self, state: frozenset[Predicate]) -> frozenset[Predicate]:
+!         new_state = set(state)
+!         for eff in self.add_effects:
+!             new_state.add(eff)
+!         for eff in self.del_effects:
+!             new_state.discard(eff)
+!         return frozenset(new_state)
+  
+  
+> @dataclass
+> class PlanningDomain:
+>     name: str = ""
+>     predicates: list[Predicate] = field(default_factory=list)
+>     actions: list[Action] = field(default_factory=list)
+>     initial_state: frozenset[Predicate] = field(default_factory=frozenset)
+>     goal_state: frozenset[Predicate] = field(default_factory=frozenset)
+  
+>     @property
+>     def predicate_count(self) -> int:
+!         return len(self.predicates)
+  
+>     @property
+>     def action_count(self) -> int:
+!         return len(self.actions)
+  
+>     def get_action(self, name: str) -> Action | None:
+!         for a in self.actions:
+!             if a.name == name:
+!                 return a
+!         return None
+  
+  
+> @dataclass
+> class Plan:
+>     actions: list[Action] = field(default_factory=list)
+>     estimated_cost: float = 0.0
+>     verified: bool = False
+>     node_count: int = 0
+>     duration_ms: float = 0.0
+  
+>     @property
+>     def step_count(self) -> int:
+!         return len(self.actions)
+  
+>     def describe(self) -> list[str]:
+!         return [f"{i + 1}. {a.name}: {a.description}" for i, a in enumerate(self.actions)]
+  
+>     def action_names(self) -> list[str]:
+!         return [a.name for a in self.actions]
+  
+  
+> @dataclass
+> class ValidationResult:
+>     valid: bool
+>     errors: list[str] = field(default_factory=list)
+>     precond_check_log: list[str] = field(default_factory=list)
+>     postcond_check_log: list[str] = field(default_factory=list)
+>     resource_conflicts: list[str] = field(default_factory=list)
+>     deadlocks: list[str] = field(default_factory=list)
+  
+  
+> class ForwardChainingPlanner:
+>     def __init__(self, max_depth: int = 50, max_nodes: int = 100000) -> None:
+!         self._max_depth = max_depth
+!         self._max_nodes = max_nodes
+  
+>     def plan(self, domain: PlanningDomain) -> Plan | None:
+!         start_time = time.time()
+!         initial = domain.initial_state
+!         goal = domain.goal_state
+  
+!         if goal.issubset(initial):
+!             return Plan(
+!                 actions=[],
+!                 estimated_cost=0.0,
+!                 verified=False,
+!                 duration_ms=(time.time() - start_time) * 1000,
+!             )
+  
+!         from collections import deque
+  
+!         visited: set[frozenset[Predicate]] = {initial}
+!         queue: deque[tuple[frozenset[Predicate], list[Action], float]] = deque()
+!         queue.append((initial, [], 0.0))
+!         nodes_expanded = 0
+  
+!         while queue and nodes_expanded < self._max_nodes:
+!             state, action_seq, cost = queue.popleft()
+!             depth = len(action_seq)
+  
+!             if depth > self._max_depth:
+!                 continue
+  
+!             nodes_expanded += 1
+  
+!             for action in domain.actions:
+!                 if not action.applicable(state):
+!                     continue
+!                 new_state = action.apply(state)
+  
+!                 if new_state in visited:
+!                     continue
+  
+!                 new_actions = list(action_seq) + [action]
+!                 new_cost = cost + action.cost
+  
+!                 if goal.issubset(new_state):
+!                     return Plan(
+!                         actions=new_actions,
+!                         estimated_cost=new_cost,
+!                         verified=False,
+!                         node_count=nodes_expanded,
+!                         duration_ms=(time.time() - start_time) * 1000,
+!                     )
+  
+!                 visited.add(new_state)
+!                 queue.append((new_state, new_actions, new_cost))
+  
+!         return None
+  
+  
+> class CostBasedPlanner:
+>     def __init__(
+>         self, max_cost: float = float("inf"), max_depth: int = 50, max_nodes: int = 100000
+>     ) -> None:
+!         self._max_cost = max_cost
+!         self._max_depth = max_depth
+!         self._max_nodes = max_nodes
+  
+>     def plan_with_budget(self, domain: PlanningDomain) -> Plan | None:
+!         start_time = time.time()
+!         initial = domain.initial_state
+!         goal = domain.goal_state
+  
+!         if goal.issubset(initial):
+!             return Plan(
+!                 actions=[],
+!                 estimated_cost=0.0,
+!                 verified=False,
+!                 duration_ms=(time.time() - start_time) * 1000,
+!             )
+  
+!         visited: set[frozenset[Predicate]] = {initial}
+!         pq: list[tuple[float, int, frozenset[Predicate], list[Action]]] = []
+!         heappush(pq, (0.0, 0, initial, []))
+!         nodes_expanded = 0
+!         tie_breaker = 0
+  
+!         while pq and nodes_expanded < self._max_nodes:
+!             cost, _, state, action_seq = heappop(pq)
+!             depth = len(action_seq)
+  
+!             if cost > self._max_cost:
+!                 continue
+!             if depth > self._max_depth:
+!                 continue
+  
+!             if goal.issubset(state):
+!                 return Plan(
+!                     actions=action_seq,
+!                     estimated_cost=cost,
+!                     verified=False,
+!                     node_count=nodes_expanded,
+!                     duration_ms=(time.time() - start_time) * 1000,
+!                 )
+  
+!             nodes_expanded += 1
+  
+!             for action in domain.actions:
+!                 if not action.applicable(state):
+!                     continue
+!                 new_state = action.apply(state)
+  
+!                 if new_state in visited:
+!                     continue
+  
+!                 new_cost = cost + action.cost
+!                 if new_cost > self._max_cost:
+!                     continue
+  
+!                 visited.add(new_state)
+!                 tie_breaker += 1
+!                 new_actions = list(action_seq) + [action]
+!                 heappush(pq, (new_cost, tie_breaker, new_state, new_actions))
+  
+!         return None
+  
+  
+> class PlanValidator:
+>     def validate(self, plan: Plan, domain: PlanningDomain) -> ValidationResult:
+!         errors: list[str] = []
+!         precond_log: list[str] = []
+!         postcond_log: list[str] = []
+!         resource_conflicts: list[str] = []
+!         deadlocks: list[str] = []
+  
+!         state = domain.initial_state
+  
+!         for i, action in enumerate(plan.actions):
+!             if not action.applicable(state):
+!                 msg = f"Step {i + 1}: action '{action.name}' preconditions not met at state {[p.to_string() for p in state]}"
+!                 errors.append(msg)
+!                 precond_log.append(f"FAIL: {msg}")
+!             else:
+!                 precond_log.append(f"OK: step {i + 1} '{action.name}' preconditions satisfied")
+  
+!             action_names_seen = {a.name for a in plan.actions[:i]}
+!             for pre in action.preconditions:
+!                 matching_del_by_prev = any(
+!                     pre in a.del_effects and a.name in action_names_seen for a in plan.actions[:i]
+!                 )
+!                 if matching_del_by_prev:
+!                     resource_conflicts.append(
+!                         f"Step {i + 1}: '{action.name}' depends on '{pre.to_string()}' "
+!                         f"which was deleted by a previous action"
+!                     )
+  
+!             state = action.apply(state)
+  
+!         for goal_pred in domain.goal_state:
+!             if not goal_pred.evaluate(state):
+!                 errors.append(
+!                     f"Goal predicate '{goal_pred.to_string()}' not satisfied in final state"
+!                 )
+!                 postcond_log.append(f"FAIL: goal {goal_pred.to_string()} not achieved")
+!             else:
+!                 postcond_log.append(f"OK: goal {goal_pred.to_string()} achieved")
+  
+!         valid = len(errors) == 0
+!         return ValidationResult(
+!             valid=valid,
+!             errors=errors,
+!             precond_check_log=precond_log,
+!             postcond_check_log=postcond_log,
+!             resource_conflicts=resource_conflicts,
+!             deadlocks=deadlocks,
+!         )
+  
+  
+> def build_agent_task_domain() -> PlanningDomain:
+!     def p(name, *args):
+!         return Predicate(name=name, args=list(args))
+  
+!     idle = p("agent_idle")
+!     observing = p("agent_observing")
+!     diagnosed = p("diagnosed")
+!     risk_evaluated = p("risk_evaluated")
+!     action_decided = p("action_decided")
+!     action_executed = p("action_executed")
+!     verified = p("verified")
+  
+!     performance_observed = p("performance_observed")
+!     bottleneck_analyzed = p("bottleneck_analyzed")
+!     fix_proposed = p("fix_proposed")
+!     trust_verified = p("trust_verified")
+  
+!     probes_run = p("probes_run")
+!     risk_assessed = p("risk_assessed")
+  
+!     dids_audited = p("dids_audited")
+!     trust_cross_checked = p("trust_cross_checked")
+  
+!     actions: list[Action] = [
+!         Action(
+!             name="observe_perf",
+!             parameters=[],
+!             preconditions=[idle],
+!             add_effects=[performance_observed],
+!             del_effects=[idle],
+!             cost=1.0,
+!             description="Observe current system performance metrics",
+!         ),
+!         Action(
+!             name="analyze_bottlenecks",
+!             parameters=[],
+!             preconditions=[performance_observed],
+!             add_effects=[bottleneck_analyzed],
+!             del_effects=[],
+!             cost=1.0,
+!             description="Analyze performance bottlenecks",
+!         ),
+!         Action(
+!             name="propose_fixes",
+!             parameters=[],
+!             preconditions=[bottleneck_analyzed],
+!             add_effects=[fix_proposed],
+!             del_effects=[],
+!             cost=1.0,
+!             description="Propose optimization fixes",
+!         ),
+!         Action(
+!             name="verify_trust",
+!             parameters=[],
+!             preconditions=[fix_proposed],
+!             add_effects=[trust_verified],
+!             del_effects=[],
+!             cost=1.0,
+!             description="Verify trust of proposed fixes",
+!         ),
+!         Action(
+!             name="run_probes",
+!             parameters=[],
+!             preconditions=[idle],
+!             add_effects=[probes_run],
+!             del_effects=[idle],
+!             cost=1.0,
+!             description="Run all diagnostic probes",
+!         ),
+!         Action(
+!             name="evaluate_risk",
+!             parameters=[],
+!             preconditions=[probes_run],
+!             add_effects=[risk_assessed],
+!             del_effects=[],
+!             cost=1.0,
+!             description="Evaluate risk level from probe data",
+!         ),
+!         Action(
+!             name="decide_action",
+!             parameters=[],
+!             preconditions=[risk_assessed],
+!             add_effects=[action_decided],
+!             del_effects=[],
+!             cost=1.0,
+!             description="Decide governance action based on risk",
+!         ),
+!         Action(
+!             name="audit_dids",
+!             parameters=[],
+!             preconditions=[idle],
+!             add_effects=[dids_audited],
+!             del_effects=[idle],
+!             cost=1.0,
+!             description="Audit DID registry entries",
+!         ),
+!         Action(
+!             name="cross_check_trust",
+!             parameters=[],
+!             preconditions=[dids_audited],
+!             add_effects=[trust_cross_checked],
+!             del_effects=[],
+!             cost=1.0,
+!             description="Cross-check trust scores",
+!         ),
+!     ]
+  
+!     return PlanningDomain(
+!         name="agent_task_domain",
+!         predicates=[
+!             idle,
+!             performance_observed,
+!             bottleneck_analyzed,
+!             fix_proposed,
+!             trust_verified,
+!             probes_run,
+!             risk_assessed,
+!             action_decided,
+!             dids_audited,
+!             trust_cross_checked,
+!             observing,
+!             diagnosed,
+!             risk_evaluated,
+!             action_executed,
+!             verified,
+!         ],
+!         actions=actions,
+!         initial_state=frozenset([idle]),
+!     )
+  
+  
+> def plan_to_taskdag(plan: Plan, domain: PlanningDomain) -> tuple:
+!     from maref.recursive.task_decomposer import SubTask, TaskDAG
+  
+!     nodes: dict[str, SubTask] = {}
+!     edges: list[tuple[str, str]] = []
+  
+!     for i, action in enumerate(plan.actions):
+!         task_id = f"planned_{action.name}_{i + 1}"
+!         sub = SubTask(
+!             task_id=task_id,
+!             description=action.description or action.name,
+!             required_capabilities=[action.name],
+!             dependencies=[],
+!         )
+!         nodes[task_id] = sub
+!         if i > 0:
+!             prev_id = f"planned_{plan.actions[i - 1].name}_{i}"
+!             sub.dependencies = [prev_id]
+!             edges.append((prev_id, task_id))
+  
+!     root_id = f"planned_{plan.actions[0].name}_1" if plan.actions else "planned_root"
+!     return TaskDAG(root_task=root_id, nodes=nodes, edges=edges), plan_to_taskdag

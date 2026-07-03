@@ -1,0 +1,175 @@
+> """
+> MAREF Dual-Threshold FNR/FPR Tracker
+  
+> Implements the two-tier detection system that fixes the 66.7% FNR:
+> - Primary threshold: triggers actual governance responses (current behavior)
+> - Shadow threshold: lower sensitivity, records silently for FNR calculation
+  
+> Also tracks:
+> - Trend detection: 3-cycle sliding window for early warning
+> - Oscillation detection: auto-stabilize when change rate exceeds limit
+> """
+  
+> from __future__ import annotations
+  
+> import time
+> from dataclasses import dataclass
+> from typing import Any
+  
+  
+> @dataclass
+> class FNRFPRSnapshot:
+>     """Snapshot of FNR/FPR metrics at a point in time."""
+  
+>     true_positives: int = 0
+>     false_positives: int = 0
+>     true_negatives: int = 0
+>     false_negatives: int = 0
+  
+>     @property
+>     def fnr(self) -> float:
+!         denom = self.false_negatives + self.true_positives
+!         return self.false_negatives / denom if denom > 0 else 0.0
+  
+>     @property
+>     def fpr(self) -> float:
+!         denom = self.false_positives + self.true_negatives
+!         return self.false_positives / denom if denom > 0 else 0.0
+  
+>     @property
+>     def precision(self) -> float:
+!         denom = self.true_positives + self.false_positives
+!         return self.true_positives / denom if denom > 0 else 0.0
+  
+>     @property
+>     def recall(self) -> float:
+!         denom = self.true_positives + self.false_negatives
+!         return self.true_positives / denom if denom > 0 else 0.0
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "fnr": self.fnr,
+!             "fpr": self.fpr,
+!             "precision": self.precision,
+!             "recall": self.recall,
+!             "true_positives": self.true_positives,
+!             "false_positives": self.false_positives,
+!             "true_negatives": self.true_negatives,
+!             "false_negatives": self.false_negatives,
+!         }
+  
+  
+> @dataclass
+> class DualThresholdConfig:
+>     """Configuration for dual-threshold anomaly detection."""
+  
+>     primary_threshold: float = 4.0
+>     shadow_threshold: float = 1.5
+>     trend_window: int = 3
+>     oscillation_max_rate: float = 15.0
+>     oscillation_window: float = 60.0
+  
+  
+> class DualThresholdDetector:
+>     """
+>     Two-tier anomaly detector with FNR/FPR tracking.
+  
+>     Primary threshold → triggers governance action.
+>     Shadow threshold → silent recording for FNR calculation.
+>     """
+  
+>     def __init__(self, config: DualThresholdConfig | None = None) -> None:
+!         self._config = config or DualThresholdConfig()
+!         self._snapshot = FNRFPRSnapshot()
+!         self._trend_history: list[float] = []
+!         self._change_times: list[float] = []
+  
+>     def evaluate(
+>         self,
+>         value: float,
+>         ground_truth_is_anomaly: bool | None = None,
+>     ) -> dict[str, Any]:
+>         """
+>         Evaluate a value through both thresholds.
+  
+>         Returns a dict with:
+>         - primary_triggered: should trigger governance action
+>         - shadow_triggered: detected by shadow but not primary
+>         - fnr_snapshot: current FNR/FPR stats
+>         - trend_rising: true if 3-cycle upward trend detected
+>         - oscillating: true if change rate exceeds limit
+>         """
+!         primary = value >= self._config.primary_threshold
+!         shadow = value >= self._config.shadow_threshold
+  
+!         result: dict[str, Any] = {
+!             "primary_triggered": primary,
+!             "shadow_triggered": shadow and not primary,
+!             "value": value,
+!             "primary_threshold": self._config.primary_threshold,
+!             "shadow_threshold": self._config.shadow_threshold,
+!         }
+  
+          # Update confusion matrix if ground truth available
+!         if ground_truth_is_anomaly is not None:
+!             if primary and ground_truth_is_anomaly:
+!                 self._snapshot.true_positives += 1
+!             elif primary and not ground_truth_is_anomaly:
+!                 self._snapshot.false_positives += 1
+!             elif not primary and not ground_truth_is_anomaly:
+!                 self._snapshot.true_negatives += 1
+!             elif not primary and ground_truth_is_anomaly:
+!                 self._snapshot.false_negatives += 1
+  
+!         result["fnr_snapshot"] = self._snapshot.to_dict()
+  
+          # Trend detection
+!         self._trend_history.append(value)
+!         if len(self._trend_history) > self._config.trend_window:
+!             self._trend_history.pop(0)
+!         result["trend_rising"] = self._detect_trend()
+  
+          # Oscillation detection
+!         result["oscillating"] = self._detect_oscillation()
+  
+!         return result
+  
+>     def _detect_trend(self) -> bool:
+!         if len(self._trend_history) < self._config.trend_window:
+!             return False
+!         return all(
+!             self._trend_history[i] < self._trend_history[i + 1]
+!             for i in range(len(self._trend_history) - 1)
+!         )
+  
+>     def record_change(self) -> None:
+!         self._change_times.append(time.time())
+!         self._prune_changes()
+  
+>     def _prune_changes(self) -> None:
+!         cutoff = time.time() - self._config.oscillation_window
+!         self._change_times = [t for t in self._change_times if t > cutoff]
+  
+>     def _detect_oscillation(self) -> bool:
+!         self._prune_changes()
+!         return len(self._change_times) > self._config.oscillation_max_rate
+  
+>     def get_stats(self) -> dict[str, Any]:
+!         return {
+!             "config": {
+!                 "primary_threshold": self._config.primary_threshold,
+!                 "shadow_threshold": self._config.shadow_threshold,
+!                 "trend_window": self._config.trend_window,
+!                 "oscillation_max_rate": self._config.oscillation_max_rate,
+!             },
+!             "fnr_fpr": self._snapshot.to_dict(),
+!             "trend_rising": self._detect_trend(),
+!             "oscillating": self._detect_oscillation(),
+!             "trend_history": list(self._trend_history),
+!             "change_rate": len(self._change_times),
+!         }
+  
+>     def reset(self) -> None:
+!         self._snapshot = FNRFPRSnapshot()
+!         self._trend_history.clear()
+!         self._change_times.clear()

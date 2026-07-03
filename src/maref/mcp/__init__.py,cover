@@ -1,0 +1,25 @@
+> """MCP protocol integration — expose Tool interface as MCP tools."""
+  
+! from maref.mcp.evolution_tools import (
+!     ArchitectTool,
+!     CodegenTool,
+!     DeployTool,
+!     DiagnoseTool,
+!     ObserveTool,
+!     VerifyTool,
+! )
+! from maref.mcp.router import (
+!     MCPServerAdapter,
+!     tool_to_mcp_definition,
+! )
+  
+! __all__ = [
+!     "MCPServerAdapter",
+!     "tool_to_mcp_definition",
+!     "ObserveTool",
+!     "DiagnoseTool",
+!     "ArchitectTool",
+!     "CodegenTool",
+!     "DeployTool",
+!     "VerifyTool",
+! ]

@@ -1,0 +1,139 @@
+> """
+> MAREF Cross-Instance Sync Policy
+  
+> Defines synchronization policies between MAREF instances:
+> which data types can sync, conflict resolution strategies,
+> and security constraints on cross-instance operations.
+> """
+  
+> from __future__ import annotations
+  
+> from dataclasses import dataclass, field
+> from enum import Enum
+> from typing import Any
+  
+  
+> class SyncDataType(Enum):
+>     TRUST_SCORES = "trust_scores"
+>     AUDIT_LOGS = "audit_logs"
+>     VERIFIER_STATE = "verifier_state"
+>     CIRCUIT_BREAKER = "circuit_breaker"
+>     ENTROPY = "entropy"
+>     OBSERVATIONS = "observations"
+>     ANOMALIES = "anomalies"
+>     CONFIG = "config"
+  
+  
+> class ConflictStrategy(Enum):
+>     LAST_WRITE_WINS = "last_write_wins"
+>     HIGHEST_ENTROPY_WINS = "highest_entropy_wins"
+>     MERGE = "merge"
+>     BLOCK = "block"
+  
+  
+> class SyncDirection(Enum):
+>     BIDIRECTIONAL = "bidirectional"
+>     PUSH_ONLY = "push_only"
+>     PULL_ONLY = "pull_only"
+  
+  
+> @dataclass
+> class SyncPolicy:
+>     data_type: SyncDataType
+>     direction: SyncDirection = SyncDirection.BIDIRECTIONAL
+>     conflict_strategy: ConflictStrategy = ConflictStrategy.LAST_WRITE_WINS
+>     requires_consensus: bool = False
+>     min_confirmations: int = 1
+>     encryption_required: bool = True
+>     max_frequency_seconds: float = 60.0
+>     enabled: bool = True
+>     metadata: dict[str, Any] = field(default_factory=dict)
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "data_type": self.data_type.value,
+!             "direction": self.direction.value,
+!             "conflict_strategy": self.conflict_strategy.value,
+!             "requires_consensus": self.requires_consensus,
+!             "min_confirmations": self.min_confirmations,
+!             "encryption_required": self.encryption_required,
+!             "enabled": self.enabled,
+!         }
+  
+  
+> _DEFAULT_POLICIES: dict[SyncDataType, SyncPolicy] = {
+>     SyncDataType.TRUST_SCORES: SyncPolicy(
+>         data_type=SyncDataType.TRUST_SCORES,
+>         direction=SyncDirection.BIDIRECTIONAL,
+>         conflict_strategy=ConflictStrategy.MERGE,
+>         requires_consensus=True,
+>         min_confirmations=3,
+>     ),
+>     SyncDataType.AUDIT_LOGS: SyncPolicy(
+>         data_type=SyncDataType.AUDIT_LOGS,
+>         direction=SyncDirection.PUSH_ONLY,
+>         conflict_strategy=ConflictStrategy.LAST_WRITE_WINS,
+>         requires_consensus=False,
+>         encryption_required=True,
+>     ),
+>     SyncDataType.VERIFIER_STATE: SyncPolicy(
+>         data_type=SyncDataType.VERIFIER_STATE,
+>         direction=SyncDirection.BIDIRECTIONAL,
+>         conflict_strategy=ConflictStrategy.HIGHEST_ENTROPY_WINS,
+>         requires_consensus=True,
+>         min_confirmations=2,
+>     ),
+>     SyncDataType.CIRCUIT_BREAKER: SyncPolicy(
+>         data_type=SyncDataType.CIRCUIT_BREAKER,
+>         direction=SyncDirection.PULL_ONLY,
+>         conflict_strategy=ConflictStrategy.BLOCK,
+>         requires_consensus=True,
+>         min_confirmations=3,
+>     ),
+>     SyncDataType.ENTROPY: SyncPolicy(
+>         data_type=SyncDataType.ENTROPY,
+>         direction=SyncDirection.PUSH_ONLY,
+>         conflict_strategy=ConflictStrategy.LAST_WRITE_WINS,
+>         encryption_required=False,
+>     ),
+>     SyncDataType.OBSERVATIONS: SyncPolicy(
+>         data_type=SyncDataType.OBSERVATIONS,
+>         direction=SyncDirection.PUSH_ONLY,
+>         conflict_strategy=ConflictStrategy.LAST_WRITE_WINS,
+>         encryption_required=True,
+>     ),
+>     SyncDataType.ANOMALIES: SyncPolicy(
+>         data_type=SyncDataType.ANOMALIES,
+>         direction=SyncDirection.PUSH_ONLY,
+>         conflict_strategy=ConflictStrategy.LAST_WRITE_WINS,
+>         encryption_required=True,
+>     ),
+>     SyncDataType.CONFIG: SyncPolicy(
+>         data_type=SyncDataType.CONFIG,
+>         direction=SyncDirection.BIDIRECTIONAL,
+>         conflict_strategy=ConflictStrategy.MERGE,
+>         requires_consensus=True,
+>         min_confirmations=2,
+>     ),
+> }
+  
+  
+> class SyncPolicyRegistry:
+>     def __init__(self) -> None:
+!         self._policies: dict[SyncDataType, SyncPolicy] = dict(_DEFAULT_POLICIES)
+  
+>     def get_policy(self, data_type: SyncDataType) -> SyncPolicy | None:
+!         return self._policies.get(data_type)
+  
+>     def set_policy(self, policy: SyncPolicy) -> None:
+!         self._policies[policy.data_type] = policy
+  
+>     def allow_sync(self, data_type: SyncDataType) -> bool:
+!         policy = self._policies.get(data_type)
+!         return policy is not None and policy.enabled
+  
+>     def list_policies(self) -> list[SyncPolicy]:
+!         return list(self._policies.values())
+  
+>     def reset_to_defaults(self) -> None:
+!         self._policies = dict(_DEFAULT_POLICIES)

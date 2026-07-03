@@ -5,6 +5,8 @@ from maref.redblue.attack_vector import (
     PHASE3_ATTACKS,
     PHASE4_ATTACKS,
     PHASE5_ATTACKS,
+    PHASE6_ATTACKS,
+    ALL_ATTACKS,
     AttackCategory,
     AttackDefinition,
     BlueLevel,
@@ -24,6 +26,8 @@ __all__ = [
     "PHASE3_ATTACKS",
     "PHASE4_ATTACKS",
     "PHASE5_ATTACKS",
+    "PHASE6_ATTACKS",
+    "ALL_ATTACKS",
     "RedBlueEngine",
     "RedBlueResult",
 ]

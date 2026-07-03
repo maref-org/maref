@@ -1,0 +1,147 @@
+> from __future__ import annotations
+  
+> import json
+> import time
+> from collections import defaultdict, deque
+> from dataclasses import dataclass, field
+> from typing import Any
+  
+  
+> @dataclass
+> class DashboardEvent:
+>     event_type: str
+>     payload: dict[str, Any]
+>     timestamp: float = field(default_factory=time.time)
+  
+>     def to_json(self) -> str:
+!         return json.dumps(
+!             {
+!                 "type": self.event_type,
+!                 "payload": self.payload,
+!                 "timestamp": self.timestamp,
+!             }
+!         )
+  
+  
+> @dataclass
+> class DashboardPanel:
+>     panel_id: str
+>     title: str
+>     metric_type: str
+>     current_value: Any = None
+>     history: deque = field(default_factory=lambda: deque(maxlen=100))
+>     alert_threshold: float | None = None
+>     alert_active: bool = False
+  
+>     def update(self, value: Any) -> DashboardEvent | None:
+!         self.current_value = value
+!         self.history.append(
+!             {
+!                 "value": value,
+!                 "timestamp": time.time(),
+!             }
+!         )
+!         if (
+!             self.alert_threshold is not None
+!             and isinstance(value, (int, float))
+!             and value > self.alert_threshold
+!         ):
+!             self.alert_active = True
+!             return DashboardEvent(
+!                 event_type=f"alert_{self.panel_id}",
+!                 payload={
+!                     "panel": self.panel_id,
+!                     "value": value,
+!                     "threshold": self.alert_threshold,
+!                 },
+!             )
+!         return None
+  
+  
+> class DashboardV3:
+>     MAX_PANELS = 10
+  
+>     def __init__(self) -> None:
+!         self._panels: dict[str, DashboardPanel] = {}
+!         self._event_stream: list[DashboardEvent] = []
+!         self._subscribers: dict[str, list[str]] = defaultdict(list)
+!         self._last_event_id: int = 0
+  
+>     def create_panel(
+>         self, panel_id: str, title: str, metric_type: str, alert_threshold: float | None = None
+>     ) -> DashboardPanel:
+!         panel = DashboardPanel(
+!             panel_id=panel_id,
+!             title=title,
+!             metric_type=metric_type,
+!             alert_threshold=alert_threshold,
+!         )
+!         self._panels[panel_id] = panel
+!         return panel
+  
+>     def update_panel(self, panel_id: str, value: Any) -> DashboardEvent | None:
+!         panel = self._panels.get(panel_id)
+!         if panel is None:
+!             return None
+  
+!         event = panel.update(value)
+!         if event is not None:
+!             self._event_stream.append(event)
+!             self._push_event(event)
+!         return event
+  
+>     def get_panel(self, panel_id: str) -> DashboardPanel | None:
+!         return self._panels.get(panel_id)
+  
+>     def get_snapshot(self) -> dict[str, Any]:
+!         return {
+!             "panels": {
+!                 pid: {
+!                     "title": p.title,
+!                     "metric": p.metric_type,
+!                     "value": p.current_value,
+!                     "alert": p.alert_active,
+!                 }
+!                 for pid, p in self._panels.items()
+!             },
+!             "timestamp": time.time(),
+!             "last_event_id": self._last_event_id,
+!         }
+  
+>     def get_events_since(self, event_index: int = 0) -> list[DashboardEvent]:
+!         return self._event_stream[event_index:]
+  
+>     def subscribe(self, channel: str, subscriber_id: str) -> None:
+!         self._subscribers[channel].append(subscriber_id)
+  
+>     def unsubscribe(self, channel: str, subscriber_id: str) -> bool:
+!         if channel in self._subscribers:
+!             subs = self._subscribers[channel]
+!             if subscriber_id in subs:
+!                 subs.remove(subscriber_id)
+!                 return True
+!         return False
+  
+>     def get_subscribers(self, channel: str) -> list[str]:
+!         return self._subscribers.get(channel, [])
+  
+>     def _push_event(self, event: DashboardEvent) -> None:
+!         self._last_event_id += 1
+!         for _subs in self._subscribers.values():
+-             pass
+  
+>     def broadcast_event(self, event_type: str, payload: dict[str, Any]) -> DashboardEvent:
+!         event = DashboardEvent(event_type=event_type, payload=payload)
+!         self._event_stream.append(event)
+!         self._push_event(event)
+!         return event
+  
+>     @property
+>     def panel_count(self) -> int:
+!         return len(self._panels)
+  
+>     def clear(self) -> None:
+!         self._panels.clear()
+!         self._event_stream.clear()
+!         self._subscribers.clear()
+!         self._last_event_id = 0

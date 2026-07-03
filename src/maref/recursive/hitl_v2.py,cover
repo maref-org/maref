@@ -1,0 +1,275 @@
+> from __future__ import annotations
+  
+> import random
+> import time
+> from dataclasses import dataclass, field
+> from typing import Any
+  
+  
+> @dataclass
+> class AuditWindow:
+>     window_id: str
+>     target: str
+>     scheduled_at: float
+>     duration_seconds: float = 60.0
+>     completed: bool = False
+>     findings: list[str] = field(default_factory=list)
+  
+  
+> @dataclass
+> class AuditScope:
+>     target: str
+>     dimensions: list[str] = field(default_factory=list)
+>     injection_vector_count: int = 3
+>     observation_window_s: float = 60.0
+  
+  
+> @dataclass
+> class AuditReport:
+>     window_id: str
+>     target: str
+>     score: float = 0.0
+>     findings: list[str] = field(default_factory=list)
+>     injection_results: dict[str, bool] = field(default_factory=dict)
+-     passed: bool = False
+>     timestamp: float = field(default_factory=time.time)
+  
+  
+> class AdversarialAuditor:
+>     def __init__(self) -> None:
+!         self._windows: list[AuditWindow] = []
+!         self._reports: list[AuditReport] = []
+!         self._vectors: list[str] = [
+!             "prompt_injection_direct",
+!             "prompt_injection_indirect",
+!             "context_pollution",
+!             "permission_relay",
+!             "budget_exhaustion",
+!             "timeout_exploit",
+!             "capability_spoofing",
+!             "trust_misrepresentation",
+!         ]
+  
+>     def schedule_unannounced_audit(
+>         self, target: str, min_delay_s: float = 0, max_delay_s: float = 3600
+>     ) -> AuditWindow:
+!         delay = random.uniform(min_delay_s, max_delay_s)
+!         scheduled = time.time() + delay
+!         window = AuditWindow(
+!             window_id=f"audit_{int(time.time())}_{random.randint(1000, 9999)}",
+!             target=target,
+!             scheduled_at=scheduled,
+!         )
+!         self._windows.append(window)
+!         return window
+  
+>     def execute_audit(self, target: str, scope: AuditScope | None = None) -> AuditReport:
+!         scope = scope or AuditScope(target=target)
+!         window = AuditWindow(
+!             window_id=f"audit_exec_{int(time.time())}_{random.randint(1000, 9999)}",
+!             target=target,
+!             scheduled_at=time.time(),
+!             completed=True,
+!         )
+  
+!         selected_vectors = random.sample(
+!             self._vectors,
+!             min(scope.injection_vector_count, len(self._vectors)),
+!         )
+!         injection_results: dict[str, bool] = {}
+!         findings: list[str] = []
+!         for vec in selected_vectors:
+!             detected = random.choice([True, False])
+!             injection_results[vec] = detected
+!             if not detected:
+!                 findings.append(f"Injection vector '{vec}' NOT detected by {target}")
+  
+!         score = sum(1 for v in injection_results.values() if v) / max(len(injection_results), 1)
+!         window.findings = findings
+-         report = AuditReport(
+!             window_id=window.window_id,
+!             target=target,
+!             score=score,
+!             findings=findings,
+!             injection_results=injection_results,
+!             passed=score >= 0.7,
+!         )
+!         self._reports.append(report)
+!         return report
+  
+>     def adversarial_coverage(self) -> float:
+!         if not self._vectors:
+!             return 0.0
+!         covered: set[str] = set()
+!         for report in self._reports:
+!             for vec, detected in report.injection_results.items():
+!                 if detected:
+!                     covered.add(vec)
+!         return len(covered) / len(self._vectors)
+  
+>     def pending_audits(self) -> list[AuditWindow]:
+!         now = time.time()
+!         return [w for w in self._windows if not w.completed and w.scheduled_at <= now]
+  
+>     def all_reports(self) -> list[AuditReport]:
+!         return list(self._reports)
+  
+  
+> class FrequencyMatcher:
+>     def __init__(self, base_interval_s: float = 3600.0) -> None:
+!         self._base_interval = base_interval_s
+!         self._agent_risk: dict[str, float] = {}
+!         self._task_criticality: dict[str, float] = {}
+  
+>     def optimal_frequency(
+>         self, agent_risk: float, task_criticality: float, human_bandwidth: float = 1.0
+>     ) -> float:
+!         risk_weight = max(0.2, agent_risk)
+!         criticality_weight = max(0.2, task_criticality)
+!         combined = risk_weight * criticality_weight
+!         base = self._base_interval / max(human_bandwidth, 0.1)
+!         return base / max(combined, 0.01)
+  
+>     def adaptive_interval(self, trust_trend: str, error_rate: float) -> float:
+!         interval = self._base_interval
+!         if trust_trend == "improving":
+!             interval *= 1.5
+!         elif trust_trend == "declining":
+!             interval *= 0.5
+!         if error_rate > 0.1:
+!             interval *= 0.5
+!         elif error_rate < 0.01:
+!             interval *= 1.2
+!         return max(60.0, min(86400.0, interval))
+  
+>     def set_agent_risk(self, agent_id: str, risk: float) -> None:
+!         self._agent_risk[agent_id] = risk
+  
+>     def set_task_criticality(self, task_id: str, criticality: float) -> None:
+!         self._task_criticality[task_id] = criticality
+  
+  
+> @dataclass
+> class DecisionNode:
+>     step: int
+>     decision: str
+>     inputs: list[str] = field(default_factory=list)
+>     alternatives: list[str] = field(default_factory=list)
+>     chosen: str = ""
+>     confidence: float = 0.5
+  
+  
+> @dataclass
+> class ProcessTelemetry:
+>     process_id: str
+>     decisions: list[DecisionNode] = field(default_factory=list)
+>     input_tokens: int = 0
+>     output_tokens: int = 0
+>     tool_calls: int = 0
+>     duration_ms: float = 0.0
+  
+  
+> @dataclass
+> class ProcessReplay:
+>     process_id: str
+>     steps: list[str] = field(default_factory=list)
+>     decision_tree: dict[str, Any] = field(default_factory=dict)
+  
+  
+> class ObservableProcess:
+>     def __init__(self) -> None:
+!         self._telemetry: dict[str, ProcessTelemetry] = {}
+!         self._replays: dict[str, ProcessReplay] = {}
+  
+>     def instrument(self, process_id: str) -> ProcessTelemetry:
+!         telemetry = ProcessTelemetry(process_id=process_id)
+!         self._telemetry[process_id] = telemetry
+!         return telemetry
+  
+>     def record_decision(self, process_id: str, node: DecisionNode) -> None:
+!         telemetry = self._telemetry.get(process_id)
+!         if telemetry:
+!             telemetry.decisions.append(node)
+  
+>     def replay(self, process_id: str) -> ProcessReplay | None:
+!         telemetry = self._telemetry.get(process_id)
+!         if telemetry is None:
+!             return None
+!         if process_id not in self._replays:
+!             steps = [f"Step {d.step}: {d.decision}" for d in telemetry.decisions]
+!             decision_tree = {
+!                 "process_id": process_id,
+!                 "tool_calls": telemetry.tool_calls,
+!                 "duration_ms": telemetry.duration_ms,
+!                 "decision_count": len(telemetry.decisions),
+!             }
+!             self._replays[process_id] = ProcessReplay(
+!                 process_id=process_id,
+!                 steps=steps,
+!                 decision_tree=decision_tree,
+!             )
+!         return self._replays[process_id]
+  
+>     def get_telemetry(self, process_id: str) -> ProcessTelemetry | None:
+!         return self._telemetry.get(process_id)
+  
+>     def list_processes(self) -> list[str]:
+!         return list(self._telemetry.keys())
+  
+  
+> @dataclass
+> class ChainEvent:
+>     event_id: str
+>     chain_id: str
+>     agent_id: str
+>     event_type: str
+>     timestamp: float = field(default_factory=time.time)
+  
+  
+> class ChainReactionBreaker:
+>     def __init__(self, max_chain_length: int = 5, window_seconds: float = 60.0) -> None:
+!         self._max_chain_length = max_chain_length
+!         self._window_seconds = window_seconds
+!         self._events: dict[str, list[ChainEvent]] = {}
+!         self._broken_chains: set[str] = set()
+  
+>     def record_event(self, chain_id: str, agent_id: str, event_type: str) -> None:
+!         event = ChainEvent(
+!             event_id=f"{chain_id}_{len(self._events.get(chain_id, []))}",
+!             chain_id=chain_id,
+!             agent_id=agent_id,
+!             event_type=event_type,
+!         )
+!         if chain_id not in self._events:
+!             self._events[chain_id] = []
+!         self._events[chain_id].append(event)
+  
+>     def detect_chain(self, chain_id: str) -> bool:
+!         events = self._events.get(chain_id, [])
+!         if len(events) >= self._max_chain_length:
+!             recent = [e for e in events if time.time() - e.timestamp <= self._window_seconds]
+!             return len(recent) >= self._max_chain_length
+!         return False
+  
+>     def break_chain(self, chain_id: str, break_point: int) -> bool:
+!         if chain_id in self._broken_chains:
+!             return False
+!         events = self._events.get(chain_id, [])
+!         if break_point < 0 or break_point >= len(events):
+!             return False
+!         self._broken_chains.add(chain_id)
+!         self._events[chain_id] = events[:break_point]
+!         return True
+  
+>     def chain_length(self, chain_id: str) -> int:
+!         return len(self._events.get(chain_id, []))
+  
+>     def is_broken(self, chain_id: str) -> bool:
+!         return chain_id in self._broken_chains
+  
+>     def active_chains(self) -> dict[str, int]:
+!         return {
+!             cid: len(events)
+!             for cid, events in self._events.items()
+!             if cid not in self._broken_chains
+!         }

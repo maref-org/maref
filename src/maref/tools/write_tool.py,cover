@@ -1,0 +1,75 @@
+! from __future__ import annotations
+  
+! from pathlib import Path
+  
+! from pydantic import BaseModel, Field
+  
+! from maref.codegen.tool import (
+!     Tool,
+!     ToolContext,
+!     ToolResult,
+!     ToolResultStatus,
+!     ValidationResult,
+! )
+  
+  
+! class WriteInput(BaseModel):
+!     file_path: str = Field(..., description="Path to write the file")
+!     content: str = Field(..., description="Full content to write")
+!     create_dirs: bool = Field(True, description="Create parent directories if they don't exist")
+  
+  
+! class WriteOutput(BaseModel):
+!     file_path: str
+!     size_bytes: int
+!     created: bool
+  
+  
+! class WriteTool(Tool[WriteInput, WriteOutput]):
+!     name = "Write"
+!     description: str = "Write full content to a file"
+!     requires_user_interaction: bool = True
+  
+!     def is_read_only(self, input: WriteInput) -> bool:
+!         return False
+  
+!     def is_concurrency_safe(self, input: WriteInput) -> bool:
+!         return False
+  
+!     async def validate(self, input: WriteInput) -> ValidationResult:
+!         path = Path(input.file_path)
+  
+!         existing = path.exists()
+!         if existing and not path.is_file():
+!             return ValidationResult(is_valid=False, message=f"Path exists but is not a file: {input.file_path}")
+  
+!         return ValidationResult(is_valid=True)
+  
+!     async def call(self, input: WriteInput, ctx: ToolContext) -> ToolResult[WriteOutput]:
+!         path = Path(input.file_path)
+!         exists_before = path.exists()
+  
+!         try:
+!             if input.create_dirs:
+!                 path.parent.mkdir(parents=True, exist_ok=True)
+  
+!             path.write_text(input.content, encoding="utf-8")
+  
+!             if not path.exists():
+!                 return ToolResult(
+!                     status=ToolResultStatus.ERROR,
+!                     error=f"File was not created: {input.file_path}",
+!                 )
+  
+!             return ToolResult(
+!                 data=WriteOutput(
+!                     file_path=input.file_path,
+!                     size_bytes=len(input.content),
+!                     created=not exists_before,
+!                 )
+!             )
+!         except Exception as e:
+!             return ToolResult(
+!                 status=ToolResultStatus.ERROR,
+!                 error=f"Write failed: {e}",
+!             )

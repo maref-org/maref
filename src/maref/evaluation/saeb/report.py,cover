@@ -1,0 +1,197 @@
+! from __future__ import annotations
+  
+! import json
+! from pathlib import Path
+! from typing import Any
+  
+! from maref.evaluation.saeb.runner import SAEBResult
+  
+  
+! def generate_comparison_report(results: list[SAEBResult], output_path: str | Path | None = None) -> str:
+!     lines = []
+!     lines.append("# SAEB Cross-Agent Comparison Report")
+!     lines.append(f"\nAgents compared: {len(results)}")
+!     lines.append("")
+  
+      # Summary table
+!     lines.append("## Summary")
+!     lines.append("")
+!     header = (
+!         f"{'Agent':<20} {'Rounds':>6} {'Converge@':>9} {'Oscillate':>9} "
+!         f"{'Time(s)':>8} {'FNR min':>7} {'FNR max':>7} {'Defects':>8} {'Fixes':>8}"
+!     )
+!     lines.append(header)
+!     lines.append("-" * len(header))
+  
+!     for r in results:
+!         fnrs = r.fnr_trajectory()
+!         fnr_min = min(fnrs) if fnrs else 0
+!         fnr_max = max(fnrs) if fnrs else 0
+!         defects_ok = "✅" if r.acceptance.get("defects_detected") else "❌"
+!         fixes_ok = "✅" if r.acceptance.get("fixes_confirmed") else "❌"
+!         conv = str(r.convergence_round) if r.convergence_round >= 0 else "N/A"
+  
+!         lines.append(
+!             f"{r.agent_name:<20} {r.rounds_completed:>6} {conv:>9} "
+!             f"{r.oscillation_count:>9} {r.total_time_s:>8.1f} "
+!             f"{fnr_min:>7.4f} {fnr_max:>7.4f} {defects_ok:>8} {fixes_ok:>8}"
+!         )
+!     lines.append("")
+  
+      # Per-agent details
+!     lines.append("## Per-Agent Details")
+!     lines.append("")
+!     for r in results:
+!         lines.append(f"### {r.agent_name}")
+!         lines.append("")
+!         lines.append(r.summary())
+!         lines.append("")
+  
+          # FNR trajectory
+!         fnrs = r.fnr_trajectory()
+!         if fnrs:
+!             chart = _sparkline(fnrs)
+!             lines.append(f"FNR trajectory: {chart}")
+!             lines.append("")
+  
+          # Coverage trajectory
+!         covs = r.coverage_trajectory()
+!         if covs:
+!             chart = _sparkline(covs)
+!             lines.append(f"Coverage trajectory: {chart}")
+!             lines.append("")
+  
+          # Key events
+!         events = []
+!         for m in r.metrics:
+!             if m.fnr > 0:
+!                 events.append(f"  R{m.round} ({m.label}): FNR={m.fnr}")
+!             if m.errors > 0:
+!                 events.append(f"  R{m.round} ({m.label}): compilation_error_rate={m.compilation_error_rate}")
+!             if m.lint_violation_count > 3:
+!                 events.append(f"  R{m.round} ({m.label}): {m.lint_violation_count} lint violations")
+!         if events:
+!             lines.append("Notable events:")
+!             lines.extend(events)
+!             lines.append("")
+  
+      # Comparative analysis
+!     lines.append("## Comparative Analysis")
+!     lines.append("")
+  
+!     if len(results) >= 2:
+          # Best convergence
+!         best_conv = min(results, key=lambda r: (
+!             r.convergence_round if r.convergence_round >= 0 else 999
+!         ))
+!         lines.append(f"- **Best convergence**: {best_conv.agent_name} "
+!                      f"(round {best_conv.convergence_round})")
+  
+          # Lowest oscillation
+!         best_osc = min(results, key=lambda r: r.oscillation_count)
+!         lines.append(f"- **Most stable (fewest oscillations)**: {best_osc.agent_name} "
+!                      f"({best_osc.oscillation_count} oscillations)")
+  
+          # Fastest
+!         fastest = min(results, key=lambda r: r.total_time_s)
+!         lines.append(f"- **Fastest**: {fastest.agent_name} ({fastest.total_time_s:.1f}s)")
+  
+          # Best defect detection
+!         best_detect = max(results, key=lambda r: sum(
+!             1 for v in r.acceptance.values() if v
+!         ))
+!         lines.append(f"- **Best overall acceptance**: {best_detect.agent_name}")
+  
+!     lines.append("")
+  
+!     text = "\n".join(lines)
+  
+!     if output_path:
+!         path = Path(output_path)
+!         path.parent.mkdir(parents=True, exist_ok=True)
+!         path.write_text(text)
+  
+!     return text
+  
+  
+! def generate_json_report(results: list[SAEBResult], output_path: str | Path | None = None) -> str:
+!     data = {
+!         "comparison_date": __import__("time").time(),
+!         "agent_count": len(results),
+!         "agents": [r.to_dict() for r in results],
+!     }
+!     text = json.dumps(data, indent=2)
+  
+!     if output_path:
+!         path = Path(output_path)
+!         path.parent.mkdir(parents=True, exist_ok=True)
+!         path.write_text(text)
+  
+!     return text
+  
+  
+! def check_degradation(
+!     previous: SAEBResult,
+!     current: SAEBResult,
+!     std_threshold: float = 2.0,
+! ) -> dict[str, Any]:
+!     alerts: list[str] = []
+!     metrics: dict[str, str] = {}
+!     degraded = False
+  
+!     conv_diff = current.convergence_round - previous.convergence_round
+!     if conv_diff > 2:
+!         metrics['convergence_round'] = 'regressed'
+!         alerts.append(f"Convergence round increased by {conv_diff} (previous: {previous.convergence_round}, current: {current.convergence_round})")
+!         degraded = True
+!     elif conv_diff < -1:
+!         metrics['convergence_round'] = 'improved'
+!     else:
+!         metrics['convergence_round'] = 'unchanged'
+  
+!     if current.oscillation_count > previous.oscillation_count:
+!         metrics['oscillation_count'] = 'regressed'
+!         alerts.append(f"Oscillation count increased from {previous.oscillation_count} to {current.oscillation_count}")
+!         degraded = True
+!     elif current.oscillation_count < previous.oscillation_count:
+!         metrics['oscillation_count'] = 'improved'
+!     else:
+!         metrics['oscillation_count'] = 'unchanged'
+  
+!     if current.total_time_s > previous.total_time_s * 1.5 and previous.total_time_s > 0:
+!         metrics['total_time'] = 'regressed'
+!         alerts.append(f"Total time increased by {((current.total_time_s / previous.total_time_s) - 1) * 100:.0f}%")
+!         degraded = True
+!     else:
+!         metrics['total_time'] = 'unchanged'
+  
+!     for key in current.acceptance:
+!         prev_val = previous.acceptance.get(key, True)
+!         curr_val = current.acceptance.get(key, True)
+!         if prev_val and not curr_val:
+!             metrics[f'acceptance.{key}'] = 'regressed'
+!             alerts.append(f"Acceptance metric '{key}' regressed from {prev_val} to {curr_val}")
+!             degraded = True
+  
+!     return {
+!         'degraded': degraded,
+!         'metrics': metrics,
+!         'alerts': alerts,
+!         'previous_convergence': previous.convergence_round,
+!         'current_convergence': current.convergence_round,
+!     }
+  
+  
+! def _sparkline(values: list[float], width: int = 20) -> str:
+!     if not values:
+!         return ""
+!     mn, mx = min(values), max(values)
+!     if mx == mn:
+!         return "▁" * min(len(values), width)
+  
+!     chars = "▁▂▃▄▅▆▇█"
+!     result = ""
+!     for v in values[-width:]:
+!         idx = int((v - mn) / (mx - mn) * (len(chars) - 1))
+!         result += chars[min(idx, len(chars) - 1)]
+!     return f"{result} [min={mn:.3f}, max={mx:.3f}]"

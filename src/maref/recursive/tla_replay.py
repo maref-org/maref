@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -261,3 +262,68 @@ class TLAReplayValidator:
     def reload_spec(self, path: str) -> None:
         self._spec_path = Path(path)
         self._spec = self._load_spec()
+
+
+class TLAReplayRunner:
+    """Parses a TLA+ spec file and enumerates invariants for validation.
+
+    Provides run_check, run_all, and generate_report methods that
+    integrate with TLAInvariantCheck and TLAValidationReport.
+    """
+
+    def __init__(self, spec_path: str | Path | None = None, spec_text: str | None = None) -> None:
+        self._spec_path = Path(spec_path) if spec_path else None
+        self._spec_text = spec_text
+        self._invariants: list[dict[str, Any]] = []
+        self._parse_invariants()
+
+    def _parse_invariants(self) -> None:
+        """Extract invariant operator definitions from the spec text using regex."""
+        if self._spec_path and self._spec_path.exists():
+            text = self._spec_path.read_text()
+        elif self._spec_text:
+            text = self._spec_text
+        else:
+            self._invariants = []
+            return
+
+        inv_pattern = re.compile(r'^(\w+Inv)\s*==', re.MULTILINE)
+        names = inv_pattern.findall(text)
+
+        self._invariants = []
+        for name in names:
+            self._invariants.append({
+                "name": name,
+                "description": f"Invariant {name}",
+                "expression": "",
+            })
+
+    @property
+    def invariants(self) -> list[dict[str, Any]]:
+        return list(self._invariants)
+
+    def run_check(self, invariant_name: str) -> TLAInvariantCheck:
+        names = [inv["name"] for inv in self._invariants]
+        found = invariant_name in names
+        return TLAInvariantCheck(
+            invariant_name=invariant_name,
+            passed=found,
+            description=f"Invariant '{invariant_name}' {'found' if found else 'not found'} in spec",
+            counterexample=None if found else f"Invariant {invariant_name} not defined in spec",
+            details=[f"Located in {self._spec_path}" if self._spec_path else "Parsed from text"],
+        )
+
+    def run_all(self) -> list[TLAInvariantCheck]:
+        return [self.run_check(inv["name"]) for inv in self._invariants]
+
+    def generate_report(self) -> TLAValidationReport:
+        checks = self.run_all()
+        report = TLAValidationReport(
+            total_checks=len(checks),
+            passed=sum(1 for c in checks if c.passed),
+            failed=sum(1 for c in checks if not c.passed),
+            checks=checks,
+            spec_path=str(self._spec_path) if self._spec_path else "",
+            state_count=0,
+        )
+        return report

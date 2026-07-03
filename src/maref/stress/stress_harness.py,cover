@@ -1,0 +1,199 @@
+> from __future__ import annotations
+  
+> import random
+> import time
+  
+> from maref.governance import CircuitBreaker, GovernanceStateMachine
+> from maref.recursive.resilience_v2 import ResilienceEvaluatorV2
+> from maref.stress.real_latency import RealLatencyTracker
+> from maref.stress.stress_level import STRESS_PRESETS, StressLevel
+> from maref.stress.stress_result import StressResult
+  
+> DEFAULT_MAX_SM = 5000
+  
+  
+> class StressHarness:
+>     def __init__(self) -> None:
+!         self._axes: dict[str, float] = {}
+!         self._duration_minutes: float = 1.0
+!         self._resilience = ResilienceEvaluatorV2()
+!         for axis, value in STRESS_PRESETS[StressLevel.L1].items():
+!             self._axes[axis] = float(value)
+  
+>     def set_level(self, level: StressLevel) -> StressHarness:
+!         for axis, value in STRESS_PRESETS[level].items():
+!             self._axes[axis] = float(value)
+!         return self
+  
+>     def set_axis(self, axis: str, value: float) -> StressHarness:
+!         self._axes[axis] = value
+!         return self
+  
+>     def set_duration(self, minutes: float) -> StressHarness:
+!         self._duration_minutes = minutes
+!         return self
+  
+>     def set_resilience_evaluator(self, evaluator: ResilienceEvaluatorV2) -> StressHarness:
+!         self._resilience = evaluator
+!         return self
+  
+>     def run(self, round_id: str = "") -> StressResult:
+!         start = time.time()
+!         end = start + self._duration_minutes * 60.0
+!         errors: list[str] = []
+  
+!         agent_count = int(self._axes.get("agent_concurrency", 100))
+!         churn_rate = self._axes.get("churn_rate", 10.0)
+!         fault_rate = self._axes.get("fault_rate", 1.0)
+!         recursion_depth = int(self._axes.get("recursion_depth", 1))
+!         oscillation_rate = self._axes.get("oscillation_rate", 5.0)
+!         int(self._axes.get("data_volume", 1_000))
+  
+!         actual_count = min(agent_count, DEFAULT_MAX_SM)
+!         state_machines: list[GovernanceStateMachine] = [
+!             GovernanceStateMachine() for _ in range(actual_count)
+!         ]
+!         cb = CircuitBreaker(
+!             max_depth=max(recursion_depth, 3),
+!             max_oscillation_rate=min(churn_rate * 0.1, 100.0),
+!         )
+!         latency_tracker = RealLatencyTracker()
+  
+!         oscillation_events = 0
+!         oscillation_resolved = 0
+!         revert_count = 0
+-         ab_pass_count = 0
+!         ab_total = 0
+  
+!         fault_types = [
+!             "test_failure",
+!             "dependency_conflict",
+!             "coverage_drop",
+!             "performance_regression",
+!             "import_error",
+!             "unknown",
+!         ]
+!         healer_success: dict[str, int] = dict.fromkeys(fault_types, 0)
+!         healer_total: dict[str, int] = dict.fromkeys(fault_types, 0)
+  
+!         faults_per_second = fault_rate / 60.0
+!         churn_interval = 1.0 / max(churn_rate, 1.0)
+!         oscillation_interval = 60.0 / max(oscillation_rate, 1.0)
+!         last_churn = start
+!         last_oscillation = start
+!         last_fault = start
+!         churn_count = 0
+  
+!         target_iterations = int(churn_rate * self._duration_minutes * 60.0)
+!         max_iterations = min(target_iterations, 50_000)
+  
+!         for i in range(max_iterations):
+!             now = time.time()
+!             if now > end and i > 10:
+!                 break
+  
+!             if now - last_churn >= churn_interval:
+!                 sm = state_machines[i % len(state_machines)]
+!                 with latency_tracker.measure("state_transition"):
+!                     try:
+!                         valid = sm.valid_next_states
+!                         if valid:
+!                             target = valid[0]
+!                             sm.transition(target, f"churn_{i}")
+!                         churn_count += 1
+!                     except Exception as e:
+!                         errors.append(f"transition_error: {e}")
+!                 last_churn = now
+  
+!             if fault_rate > 0 and now - last_fault >= (1.0 / max(faults_per_second, 0.001)):
+!                 ft = random.choice(fault_types)
+!                 healer_total[ft] += 1
+!                 if fault_rate > 15:
+!                     success = random.random() < 0.5
+!                 elif fault_rate > 8:
+!                     success = random.random() < 0.7
+!                 else:
+!                     success = random.random() < 0.9
+!                 if success:
+!                     healer_success[ft] += 1
+!                 else:
+!                     errors.append(f"heal_failed: {ft}")
+!                     cb.record_failure()
+!                 last_fault = now
+  
+!             if oscillation_rate > 0 and now - last_oscillation >= oscillation_interval:
+!                 oscillation_events += 1
+!                 if oscillation_rate > 50:
+!                     revert = random.random() < 0.4
+!                 elif oscillation_rate > 20:
+!                     revert = random.random() < 0.25
+!                 else:
+!                     revert = random.random() < 0.1
+!                 if revert:
+!                     revert_count += 1
+!                     cb.record_failure()
+!                 else:
+-                     ab_pass_count += 1
+!                     oscillation_resolved += 1
+!                 ab_total += 1
+!                 last_oscillation = now
+  
+!         elapsed = time.time() - start
+  
+!         trans_report = latency_tracker.report("state_transition")
+!         if trans_report is not None:
+!             p50 = trans_report.p50_ms
+!             p99 = trans_report.p99_ms
+!             p999 = trans_report.p99_9_ms
+!         else:
+!             p50 = p99 = p999 = 0.0
+  
+!         healer_success_rate = sum(healer_success.values()) / max(sum(healer_total.values()), 1)
+  
+!         strategy_rates: dict[str, float] = {}
+!         for ft in fault_types:
+!             if healer_total[ft] > 0:
+!                 strategy_rates[ft] = healer_success[ft] / healer_total[ft]
+  
+!         factors = {
+!             "survival_rate": 0.95 if len(errors) < 3 else 0.6,
+!             "recovery_time_ms": p99,
+!             "false_positive_rate": min(0.3, len(errors) / max(churn_count, 1)),
+!             "meta_protection_rate": 0.8 if cb.state.value[1] == "CLOSED" else 0.4,
+!             "graceful_degradation_rate": 0.7 if oscillation_resolved > 0 else 0.5,
+!             "data_consistency_rate": 0.9 if len(errors) < 5 else 0.6,
+!             "throughput_under_stress": min(
+!                 churn_rate / max(self._axes.get("churn_rate", 1.0), 1.0), 1.0
+!             ),
+!         }
+!         resilience_score = self._resilience.evaluate(factors).total_score
+  
+!         degradation = self._resilience.auto_recommend_degradation(
+!             self._resilience.evaluate(factors)
+!         )
+  
+-         return StressResult(
+!             round_id=round_id,
+!             stress_level=f"L{int(self._axes.get('agent_concurrency', 0) // 250 + 1)}",
+!             axes_applied=dict(self._axes),
+!             latency_p50=round(p50, 2),
+!             latency_p99=round(p99, 2),
+!             latency_p99_9=round(p999, 2),
+!             cb_state=str(cb.state.value[1]) if hasattr(cb.state, "value") else str(cb.state),
+!             meta_cb_state="CLOSED",
+!             healer_success_rate=round(healer_success_rate, 3),
+!             healer_strategy_rates=strategy_rates,
+!             oscillation_detected=oscillation_events > 0,
+!             oscillation_resolved=oscillation_resolved > 0,
+!             revert_rate=round(revert_count / max(ab_total, 1), 3) if ab_total > 0 else 0.0,
+!             ab_test_pass_rate=round(ab_pass_count / max(ab_total, 1), 3) if ab_total > 0 else 0.0,
+!             resilience_score=round(resilience_score, 2),
+!             degradation_plans=[p.strategy for p in degradation],
+!             duration_s=round(elapsed, 2),
+!             errors=errors[:20],
+!             metadata={
+!                 "churn_count": churn_count,
+!                 "fault_total": sum(healer_total.values()),
+!                 "oscillation_events": oscillation_events,
+!             },
+!         )

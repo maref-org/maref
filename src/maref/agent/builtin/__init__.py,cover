@@ -1,0 +1,55 @@
+! from __future__ import annotations
+  
+! from maref.agent.base import AgentDefinition
+  
+! DIAGNOSE_AGENT = AgentDefinition(
+!     agent_type="DiagnoseAgent",
+!     description="Read-only diagnostics: observe system, diagnose issues, search for context",
+!     when_to_use="When the system needs health assessment or root cause analysis",
+!     allowed_tools=["ObserveTool", "DiagnoseTool", "SearchTool"],
+!     max_turns=30,
+!     permission_mode="read_only",
+! )
+  
+! CODEGEN_AGENT = AgentDefinition(
+!     agent_type="CodegenAgent",
+!     description="Code generation and modification: architect solutions, generate code, edit files",
+!     when_to_use="When the system needs code changes or new features",
+!     allowed_tools=["ArchitectTool", "CodegenTool", "ReadFileTool", "EditFileTool"],
+!     max_turns=50,
+!     permission_mode="default",
+! )
+  
+! VERIFY_AGENT = AgentDefinition(
+!     agent_type="VerifyAgent",
+!     description="Adversarial verification: run tests, check quality gates, search for regressions",
+!     when_to_use="After code changes to verify correctness and quality",
+!     allowed_tools=["VerifyTool", "SearchTool"],
+!     disallowed_tools=["EditFileTool", "WriteFileTool"],
+!     max_turns=30,
+!     permission_mode="read_only",
+! )
+  
+! OPTIMIZE_AGENT = AgentDefinition(
+!     agent_type="OptimizeAgent",
+!     description="Performance optimization: diagnose bottlenecks, propose improvements, benchmark",
+!     when_to_use="When the system needs performance improvements or resource optimization",
+!     allowed_tools=["DiagnoseTool", "ArchitectTool", "BenchmarkTool"],
+!     max_turns=40,
+!     permission_mode="default",
+! )
+  
+! BUILTIN_AGENTS: list[AgentDefinition] = [
+!     DIAGNOSE_AGENT,
+!     CODEGEN_AGENT,
+!     VERIFY_AGENT,
+!     OPTIMIZE_AGENT,
+! ]
+  
+! __all__ = [
+!     "DIAGNOSE_AGENT",
+!     "CODEGEN_AGENT",
+!     "VERIFY_AGENT",
+!     "OPTIMIZE_AGENT",
+!     "BUILTIN_AGENTS",
+! ]

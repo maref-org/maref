@@ -1,0 +1,330 @@
+> """
+> MAREF Experience Replay Buffer — SQLite-Persisted
+  
+> M5.1: Replaces in-memory list with SQLite-backed persistent storage.
+> Cross-batch experience reuse, target >1000 samples.
+  
+> Key features:
+> - Append-only insert with auto-trimming
+> - Stratified sampling (by reward sign and entropy delta)
+> - Recency-weighted sampling
+> - Persistence across sessions
+> """
+  
+> from __future__ import annotations
+  
+> import json
+> import sqlite3
+> import time
+> from dataclasses import dataclass, field
+> from typing import Any
+  
+  
+> @dataclass
+> class DecisionOutcome:
+>     """Record of a governance decision and its effect."""
+  
+>     timestamp: float
+>     decision_type: str
+>     state_before: str
+>     state_after: str
+>     entropy_before: int
+>     entropy_after: int
+>     reward: float
+>     context: dict[str, Any] = field(default_factory=dict)
+>     role_id: str | None = None
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "timestamp": self.timestamp,
+!             "decision_type": self.decision_type,
+!             "state_before": self.state_before,
+!             "state_after": self.state_after,
+!             "entropy_before": self.entropy_before,
+!             "entropy_after": self.entropy_after,
+!             "reward": self.reward,
+!             "context": json.dumps(self.context, default=str),
+!             "role_id": self.role_id,
+!         }
+  
+>     @classmethod
+>     def from_row(cls, row: tuple[Any, ...]) -> DecisionOutcome:
+!         if len(row) == 10:
+!             _id, ts, dt, sb, sa, eb, ea, reward, ctx_json, role = row
+!         else:
+!             _id, ts, dt, sb, sa, eb, ea, reward, ctx_json = row
+!             role = None
+!         return cls(
+!             timestamp=float(ts),
+!             decision_type=str(dt),
+!             state_before=str(sb),
+!             state_after=str(sa),
+!             entropy_before=int(eb),
+!             entropy_after=int(ea),
+!             reward=float(reward),
+!             context=json.loads(ctx_json) if ctx_json else {},
+!             role_id=str(role) if role is not None else None,
+!         )
+  
+>     @classmethod
+>     def from_dict(cls, d: dict[str, Any]) -> DecisionOutcome:
+!         ctx = d.get("context", {})
+!         if isinstance(ctx, str):
+!             ctx = json.loads(ctx)
+!         return cls(
+!             timestamp=float(d["timestamp"]),
+!             decision_type=str(d["decision_type"]),
+!             state_before=str(d["state_before"]),
+!             state_after=str(d["state_after"]),
+!             entropy_before=int(d["entropy_before"]),
+!             entropy_after=int(d["entropy_after"]),
+!             reward=float(d["reward"]),
+!             context=ctx,
+!             role_id=d.get("role_id"),
+!         )
+  
+  
+> class ExperienceStore:
+>     """
+>     SQLite-backed experience replay buffer.
+  
+>     Persists DecisionOutcome records across sessions for
+>     cumulative meta-learning with >1000 sample target.
+>     """
+  
+>     def __init__(self, db_path: str = ":memory:", max_size: int = 10000) -> None:
+!         self._db_path = db_path
+!         self._max_size = max_size
+!         self._conn = sqlite3.connect(db_path, check_same_thread=False)
+!         self._conn.row_factory = sqlite3.Row
+!         self._create_tables()
+  
+>     def _create_tables(self) -> None:
+!         self._conn.execute("""
+!             CREATE TABLE IF NOT EXISTS experience (
+!                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+!                 timestamp REAL NOT NULL,
+!                 decision_type TEXT NOT NULL,
+!                 state_before TEXT NOT NULL,
+!                 state_after TEXT NOT NULL,
+!                 entropy_before INTEGER NOT NULL,
+!                 entropy_after INTEGER NOT NULL,
+!                 reward REAL NOT NULL,
+!                 context TEXT DEFAULT '{}',
+!                 role_id TEXT
+!             )
+!         """)
+!         self._conn.execute("""
+!             CREATE INDEX IF NOT EXISTS idx_experience_reward
+!             ON experience(reward)
+!         """)
+!         self._conn.execute("""
+!             CREATE INDEX IF NOT EXISTS idx_experience_timestamp
+!             ON experience(timestamp)
+!         """)
+!         self._conn.commit()
+  
+>     def insert(self, outcome: DecisionOutcome) -> int:
+!         d = outcome.to_dict()
+!         cursor = self._conn.execute(
+!             """INSERT INTO experience
+!                (timestamp, decision_type, state_before, state_after,
+!                 entropy_before, entropy_after, reward, context, role_id)
+!                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+!             (
+!                 d["timestamp"],
+!                 d["decision_type"],
+!                 d["state_before"],
+!                 d["state_after"],
+!                 d["entropy_before"],
+!                 d["entropy_after"],
+!                 d["reward"],
+!                 d["context"],
+!                 d["role_id"],
+!             ),
+!         )
+!         self._conn.commit()
+!         row_id = cursor.lastrowid
+!         self._trim()
+!         return row_id if row_id is not None else 0
+  
+>     def insert_batch(self, outcomes: list[DecisionOutcome]) -> int:
+!         d_list = [o.to_dict() for o in outcomes]
+!         self._conn.executemany(
+!             """INSERT INTO experience
+!                (timestamp, decision_type, state_before, state_after,
+!                 entropy_before, entropy_after, reward, context, role_id)
+!                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+!             [
+!                 (
+!                     d["timestamp"],
+!                     d["decision_type"],
+!                     d["state_before"],
+!                     d["state_after"],
+!                     d["entropy_before"],
+!                     d["entropy_after"],
+!                     d["reward"],
+!                     d["context"],
+!                     d["role_id"],
+!                 )
+!                 for d in d_list
+!             ],
+!         )
+!         self._conn.commit()
+!         self._trim()
+!         return len(outcomes)
+  
+>     def _trim(self) -> None:
+!         current = self.count()
+!         if current > self._max_size:
+!             excess = current - self._max_size
+!             self._conn.execute(
+!                 "DELETE FROM experience WHERE id IN "
+!                 "(SELECT id FROM experience ORDER BY timestamp ASC LIMIT ?)",
+!                 (excess,),
+!             )
+!             self._conn.commit()
+  
+>     def sample(
+>         self,
+>         batch_size: int = 100,
+>         recency_weight: float = 0.7,
+>         stratified: bool = True,
+>     ) -> list[DecisionOutcome]:
+!         total = self.count()
+!         if total == 0:
+!             return []
+  
+!         if not stratified:
+!             rows = self._conn.execute(
+!                 "SELECT * FROM experience ORDER BY RANDOM() LIMIT ?",
+!                 (min(batch_size, total),),
+!             ).fetchall()
+!         else:
+!             rows = self._stratified_sample(batch_size, recency_weight)
+  
+!         return [DecisionOutcome.from_row(tuple(r)) for r in rows]
+  
+>     def _stratified_sample(self, batch_size: int, recency_weight: float) -> list[sqlite3.Row]:
+!         positive_count = self._conn.execute(
+!             "SELECT COUNT(*) FROM experience WHERE reward > 0"
+!         ).fetchone()[0]
+!         negative_count = self._conn.execute(
+!             "SELECT COUNT(*) FROM experience WHERE reward <= 0"
+!         ).fetchone()[0]
+!         total = self.count()
+  
+!         if total == 0:
+!             return []
+  
+!         pos_ratio = positive_count / total if total > 0 else 0.5
+!         pos_sample = max(1, int(batch_size * pos_ratio))
+!         neg_sample = batch_size - pos_sample
+  
+!         rows: list[sqlite3.Row] = []
+  
+!         if positive_count > 0:
+!             p_rows = self._conn.execute(
+!                 "SELECT * FROM experience WHERE reward > 0 " "ORDER BY RANDOM() LIMIT ?",
+!                 (min(pos_sample, positive_count),),
+!             ).fetchall()
+!             rows.extend(p_rows)
+  
+!         if negative_count > 0:
+!             n_rows = self._conn.execute(
+!                 "SELECT * FROM experience WHERE reward <= 0 " "ORDER BY RANDOM() LIMIT ?",
+!                 (min(neg_sample, negative_count),),
+!             ).fetchall()
+!             rows.extend(n_rows)
+  
+!         if recency_weight > 0 and total > batch_size:
+!             recent_cutoff = time.time() - 86400
+!             recent = self._conn.execute(
+!                 "SELECT * FROM experience WHERE timestamp > ? " "ORDER BY RANDOM() LIMIT ?",
+!                 (recent_cutoff, max(1, int(batch_size * recency_weight))),
+!             ).fetchall()
+!             for r in recent:
+!                 if r not in rows:
+!                     rows.append(r)
+  
+!         return rows[:batch_size]
+  
+>     def get_recent(self, n: int = 100) -> list[DecisionOutcome]:
+!         rows = self._conn.execute(
+!             "SELECT * FROM experience ORDER BY timestamp DESC LIMIT ?",
+!             (n,),
+!         ).fetchall()
+!         return [DecisionOutcome.from_row(tuple(r)) for r in rows]
+  
+>     def get_all(self) -> list[DecisionOutcome]:
+!         rows = self._conn.execute("SELECT * FROM experience ORDER BY timestamp ASC").fetchall()
+!         return [DecisionOutcome.from_row(tuple(r)) for r in rows]
+  
+>     def count(self) -> int:
+!         return self._conn.execute("SELECT COUNT(*) FROM experience").fetchone()[0]
+  
+>     def avg_reward(self, last_n: int = 0) -> float:
+!         if last_n > 0:
+!             row = self._conn.execute(
+!                 "SELECT AVG(reward) FROM "
+!                 "(SELECT reward FROM experience ORDER BY timestamp DESC LIMIT ?)",
+!                 (last_n,),
+!             ).fetchone()
+!         else:
+!             row = self._conn.execute("SELECT AVG(reward) FROM experience").fetchone()
+!         return float(row[0]) if row[0] is not None else 0.0
+  
+>     def get_stats(self) -> dict[str, Any]:
+!         total = self.count()
+!         avg = self.avg_reward()
+!         pos = self._conn.execute("SELECT COUNT(*) FROM experience WHERE reward > 0").fetchone()[0]
+!         neg = self._conn.execute("SELECT COUNT(*) FROM experience WHERE reward < 0").fetchone()[0]
+!         zero = total - pos - neg
+  
+!         row = self._conn.execute(
+!             "SELECT AVG(entropy_before - entropy_after) FROM experience"
+!         ).fetchone()
+!         avg_entropy_delta = float(row[0]) if row[0] is not None else 0.0
+  
+!         return {
+!             "total_samples": total,
+!             "max_capacity": self._max_size,
+!             "buffer_utilization": total / self._max_size if self._max_size > 0 else 0.0,
+!             "avg_reward": avg,
+!             "positive_count": pos,
+!             "negative_count": neg,
+!             "zero_count": zero,
+!             "positive_ratio": pos / total if total > 0 else 0.0,
+!             "avg_entropy_delta": avg_entropy_delta,
+!         }
+  
+>     def get_by_role(self, role_id: str) -> list[DecisionOutcome]:
+!         rows = self._conn.execute(
+!             "SELECT * FROM experience WHERE role_id = ? ORDER BY timestamp DESC",
+!             (role_id,),
+!         ).fetchall()
+!         return [DecisionOutcome.from_row(tuple(r)) for r in rows]
+  
+>     def get_role_stats(self, role_id: str) -> dict[str, Any]:
+!         row = self._conn.execute(
+!             """SELECT COUNT(*) AS total, AVG(reward) AS avg_reward
+!                FROM experience WHERE role_id = ?""",
+!             (role_id,),
+!         ).fetchone()
+!         return {
+!             "total_samples": row[0] if row[0] is not None else 0,
+!             "avg_reward": float(row[1]) if row[1] is not None else 0.0,
+!         }
+  
+>     def get_role_ids(self) -> list[str]:
+!         rows = self._conn.execute(
+!             "SELECT DISTINCT role_id FROM experience WHERE role_id IS NOT NULL"
+!         ).fetchall()
+!         return [r[0] for r in rows]
+  
+>     def clear(self) -> None:
+!         self._conn.execute("DELETE FROM experience")
+!         self._conn.commit()
+  
+>     def close(self) -> None:
+!         self._conn.close()

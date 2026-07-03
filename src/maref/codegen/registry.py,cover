@@ -1,0 +1,68 @@
+> from __future__ import annotations
+  
+> from typing import Any
+  
+> from maref.codegen.tool import Tool
+  
+  
+> class ToolNotFoundError(LookupError):
+-     pass
+  
+  
+> class ToolRegistrationError(RuntimeError):
+-     pass
+  
+  
+> class ToolRegistry:
+>     def __init__(self) -> None:
+!         self._tools: dict[str, Tool[Any, Any]] = {}
+  
+>     def register(self, tool: Tool[Any, Any], name: str | None = None) -> None:
+!         tool_name = name or tool.name
+!         if not tool_name:
+!             raise ToolRegistrationError("Tool must have a name")
+!         if tool_name in self._tools:
+!             raise ToolRegistrationError(f"Tool '{tool_name}' is already registered")
+!         self._tools[tool_name] = tool
+  
+>     def register_all(self, *tools: Tool[Any, Any]) -> None:
+!         for tool in tools:
+!             if tool.name in self._tools:
+!                 continue
+!             self.register(tool)
+  
+>     def get(self, name: str) -> Tool[Any, Any]:
+!         tool = self._tools.get(name)
+!         if tool is None:
+!             raise ToolNotFoundError(f"Tool '{name}' not found")
+!         return tool
+  
+>     def list_tools(self) -> list[str]:
+!         return list(self._tools.keys())
+  
+>     def list_tool_info(self) -> list[dict[str, Any]]:
+!         return [
+!             {
+!                 "name": tool.name,
+!                 "description": getattr(tool, "description", ""),
+!                 "read_only": tool.is_read_only(None),
+!                 "concurrency_safe": tool.is_concurrency_safe(None),
+!                 "requires_user_interaction": tool.requires_user_interaction,
+!             }
+!             for tool in self._tools.values()
+!         ]
+  
+>     def has(self, name: str) -> bool:
+!         return name in self._tools
+  
+>     def unregister(self, name: str) -> None:
+!         self._tools.pop(name, None)
+  
+>     def clear(self) -> None:
+!         self._tools.clear()
+  
+>     def __contains__(self, name: str) -> bool:
+!         return name in self._tools
+  
+>     def __len__(self) -> int:
+!         return len(self._tools)

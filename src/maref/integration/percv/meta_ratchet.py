@@ -44,6 +44,7 @@ class ProtocolChange:
     approved: bool = False
     hitl_approved: bool = False
     redline_violations: list[str] = field(default_factory=list)
+    self_modification_protected: bool = field(default=True)
 
 
 @dataclass
@@ -87,6 +88,26 @@ class MetaRatchet:
     }
 
     CONSTITUTIONAL_IMMUTABLES = ["branch_prefix", "human_gate"]
+
+    CONFIGURATIONAL_IMMUTABLES: frozenset[str] = frozenset({
+        "CONSTITUTIONAL_IMMUTABLES",
+        "CONFIGURATIONAL_IMMUTABLES",
+        "CONFIG_KEYS",
+        "TRIGGER_CONDITIONS",
+        "is_production",
+        "check_triggers",
+        "diagnose_stagnation",
+        "propose_protocol_change",
+        "sandbox_test",
+        "_check_redlines",
+        "_check_self_modification",
+        "_run_sandbox_with_real_evaluator",
+        "_run_sandbox_simulated",
+        "_run_sandbox_with_external_evaluator",
+        "get_audit_summary",
+        "get_production_safety_report",
+        "_write_audit",
+    })
 
     CONFIG_KEYS: dict[str, dict[str, Any]] = {
         "metric_direction": {"type": str, "options": ["higher_is_better", "lower_is_better"]},
@@ -154,6 +175,14 @@ class MetaRatchet:
             logger.warning("Redline check failed: %s", exc)
             
         return violations
+
+    def _check_self_modification(self, target_method: str) -> bool:
+        """Check if a modification targets MetaRatchet's own protocol methods.
+
+        Returns True if the modification targets an immutable protocol method
+        (self-recursion protection for L3).
+        """
+        return target_method in self.CONFIGURATIONAL_IMMUTABLES
 
     def check_triggers(self, target: ImprovementTarget) -> list[str]:
         """检测触发条件"""
@@ -248,6 +277,27 @@ class MetaRatchet:
         
         return diag
 
+    def _validate_config_key(self, config_key: str) -> bool:
+        """Centralized config key validation.
+
+        Checks both constitutional immutables and configurational immutables.
+        Returns True if the key is valid (modification allowed).
+        All config-key-modifying methods MUST call this before creating a change.
+        """
+        if config_key in self.CONSTITUTIONAL_IMMUTABLES:
+            logger.warning(
+                "Self-modification blocked: '%s' is a constitutional immutable",
+                config_key,
+            )
+            return False
+        if self._check_self_modification(config_key):
+            logger.warning(
+                "Self-modification blocked: '%s' is a configurational immutable",
+                config_key,
+            )
+            return False
+        return True
+
     def propose_protocol_change(self, diagnosis: StagnationDiagnosis) -> ProtocolChange | None:
         """生成协议变更提案"""
         if diagnosis.severity == "low":
@@ -280,7 +330,11 @@ class MetaRatchet:
 
         if change is None:
             return None
-            
+
+        # Centralized self-modification protection
+        if not self._validate_config_key(change.config_key):
+            return None
+
         # 生产化：强制红线检查
         redlines = self._check_redlines(change, diagnosis.affected_target)
         change.redline_violations = redlines

@@ -1,0 +1,208 @@
+! from __future__ import annotations
+  
+! import ast
+! import json
+! import re
+! import subprocess
+! import sys
+! import time
+! from dataclasses import dataclass, field
+! from pathlib import Path
+! from typing import Any
+  
+  
+! @dataclass
+! class SAEBMetrics:
+!     round: int = 0
+!     label: str = ""
+!     timestamp: float = 0.0
+-     passed: int = 0
+!     failed: int = 0
+!     errors: int = 0
+!     total_collected: int = 0
+!     fnr: float = 0.0
+!     compilation_error_rate: float = 0.0
+!     aggregate_fnr: float = 0.0
+-     test_pass_rate: float = 1.0
+!     line_coverage_pct: float = 0.0
+!     unused_import_count: int = 0
+!     unused_function_count: int = 0
+!     lint_violation_count: int = 0
+!     lint_violations: list[dict[str, Any]] = field(default_factory=list)
+!     dead_functions: list[str] = field(default_factory=list)
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {k: v for k, v in self.__dict__.items() if k != "lint_violations"}
+  
+  
+! class SAEBMetricsCollector:
+!     def __init__(self, project_root: str | Path, src_dir: str = "calculator") -> None:
+!         self._root = Path(project_root)
+!         self._src_dir = src_dir
+  
+!     def collect(self, round_num: int, label: str = "") -> SAEBMetrics:
+!         m = SAEBMetrics(round=round_num, label=label, timestamp=time.time())
+!         self._collect_pytest(m)
+!         self._collect_coverage(m)
+!         self._collect_lint(m)
+!         self._detect_dead_code(m)
+!         return m
+  
+!     def _collect_pytest(self, m: SAEBMetrics) -> None:
+!         env = {**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1"}
+!         cmd = [
+!             sys.executable, "-m", "pytest", "tests/",
+!             "--tb=no", "-q", "--no-header",
+!         ]
+!         result = subprocess.run(
+!             cmd, capture_output=True, text=True, timeout=60,
+!             cwd=self._root, env=env,
+!         )
+!         output = result.stdout + result.stderr
+!         for line in output.split("\n"):
+-             if m.passed == 0:
+-                 m.passed = _extract(line, "passed") or 0
+!             if m.failed == 0:
+!                 m.failed = _extract(line, "failed") or 0
+!             if m.errors == 0:
+!                 m.errors = _extract(line, "error") or 0
+  
+-         m.total_collected = m.passed + m.failed + m.errors
+-         logic_total = m.passed + m.failed
+!         m.fnr = round(m.failed / max(logic_total, 1), 4)
+!         m.compilation_error_rate = round(m.errors / max(m.total_collected, 1), 4)
+!         m.aggregate_fnr = round((m.failed + m.errors) / max(m.total_collected, 1), 4)
+-         m.test_pass_rate = round(m.passed / max(m.total_collected, 1), 4)
+  
+!     def _collect_coverage(self, m: SAEBMetrics) -> None:
+!         try:
+!             result = subprocess.run(
+!                 [sys.executable, "-m", "coverage", "report", "-m", "--fail-under=0"],
+!                 capture_output=True, text=True, timeout=30, cwd=self._root,
+!             )
+!             for line in result.stdout.split("\n"):
+!                 if "TOTAL" in line:
+!                     parts = line.split()
+!                     for p in parts:
+!                         if p.endswith("%"):
+!                             m.line_coverage_pct = float(p.replace("%", ""))
+!                             return
+!         except Exception:
+-             pass
+  
+!     def _detect_dead_code(self, m: SAEBMetrics) -> None:
+!         src_dir = self._root / self._src_dir
+!         if not src_dir.exists():
+!             return
+  
+          # Use ruff for unused import detection (more reliable than custom AST)
+!         unused_imports: set[str] = set()
+!         for v in m.lint_violations:
+!             if v.get("code", "").startswith("F401"):
+                  # "`os` imported but unused" -> extract "os"
+!                 msg = v.get("message", "")
+!                 name = msg.split("`")[1] if "`" in msg else ""
+                  # Skip dotted names (e.g. "calculator.calc.add") from __init__.py re-exports
+!                 if name and "." not in name:
+!                     unused_imports.add(name)
+  
+          # Fallback: AST-based detection if ruff didn't run
+!         if m.lint_violation_count < 0:
+!             for py_file in sorted(src_dir.rglob("*.py")):
+!                 if "__pycache__" in str(py_file):
+!                     continue
+!                 try:
+!                     tree = ast.parse(py_file.read_text())
+!                 except SyntaxError:
+!                     continue
+!                 imports: set[str] = set()
+!                 for node in ast.walk(tree):
+!                     if isinstance(node, ast.Import):
+!                         for alias in node.names:
+!                             imports.add(alias.name.split(".")[0])
+!                     elif isinstance(node, ast.ImportFrom):
+!                         if node.module:
+!                             imports.add(node.module.split(".")[0])
+!                 file_text = py_file.read_text()
+!                 for imp in imports:
+!                     if imp in {"os", "sys"}:
+!                         continue
+!                     if imp not in file_text:
+!                         unused_imports.add(imp)
+  
+!         m.unused_import_count = len(unused_imports)
+  
+          # AST-based dead function detection
+!         all_functions: set[str] = set()
+!         for py_file in sorted(src_dir.rglob("*.py")):
+!             if "__pycache__" in str(py_file):
+!                 continue
+!             try:
+!                 tree = ast.parse(py_file.read_text())
+!                 for node in ast.walk(tree):
+!                     if isinstance(node, ast.FunctionDef):
+!                         all_functions.add(node.name)
+!             except SyntaxError:
+!                 continue
+  
+!         dead = []
+!         for fn in all_functions:
+!             if fn.startswith("test_") or fn.startswith("_"):
+!                 continue
+!             ref_count = 0
+!             for py_file in src_dir.rglob("*.py"):
+!                 if "__pycache__" in str(py_file):
+!                     continue
+!                 try:
+!                     if fn in py_file.read_text():
+!                         ref_count += 1
+!                 except Exception:
+-                     pass
+!             if ref_count <= 1:
+!                 dead.append(fn)
+!         m.dead_functions = dead
+!         m.unused_function_count = len(dead)
+  
+!     def _collect_lint(self, m: SAEBMetrics) -> None:
+!         try:
+!             result = subprocess.run(
+!                 ["ruff", "check", self._src_dir, "--output-format=json"],
+!                 capture_output=True, text=True, timeout=30, cwd=self._root,
+!             )
+!             if result.returncode <= 1 and result.stdout.strip():
+!                 m.lint_violations = [
+!                     {"code": v.get("code", ""), "message": v.get("message", "")}
+!                     for v in json.loads(result.stdout)
+!                 ]
+!                 m.lint_violation_count = len(m.lint_violations)
+!             elif result.returncode == 0:
+!                 m.lint_violation_count = 0
+!             else:
+!                 m.lint_violation_count = -1
+!         except FileNotFoundError:
+!             m.lint_violation_count = -1
+  
+  
+! def _extract(line: str, keyword: str) -> int | None:
+!     match = re.search(rf"(\d+)\s+{keyword}", line)
+!     return int(match.group(1)) if match else None
+  
+  
+! def format_metrics_table(metrics_list: list[SAEBMetrics]) -> str:
+!     header = (
+!         f"{'R':>3} {'Label':<24} {'P':>3} {'F':>3} {'E':>3} "
+!         f"{'FNR':>6} {'CErr':>5} {'Cov%':>5} {'DImp':>4} {'DFn':>4}"
+!     )
+!     sep = "-" * len(header)
+!     lines = [header, sep]
+!     for m in metrics_list:
+!         lint = f"{m.lint_violation_count:>4}" if m.lint_violation_count >= 0 else " N/A"
+-         lines.append(
+!             f"{m.round:>3} {m.label:<24} "
+!             f"{m.passed:>3} {m.failed:>3} {m.errors:>3} "
+!             f"{m.fnr:>6.4f} {m.compilation_error_rate:>5.4f} "
+!             f"{m.line_coverage_pct:>5.1f} {m.unused_import_count:>4} "
+!             f"{m.unused_function_count:>4} {lint}"
+!         )
+!     lines.append(sep)
+!     return "\n".join(lines)

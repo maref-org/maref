@@ -1,0 +1,325 @@
+> """
+> TLA+ Theorem Verifier for MAREF + MAS-TS-001 Integration
+  
+> Bridges formal TLA+ specifications with runtime Python implementation.
+> Verifies that the actual code behavior matches the formally proven properties.
+  
+> Theorems verified:
+>   1. CrossBorderConsistency - Cross-border data transfer marking
+>   2. PromptRotDetection - Prompt rot detectability for all capabilities
+>   3. ScorePhaseMonotonicity - Higher scores grant equal/greater permissions
+>   4. ComplianceQuarantineSafety - CRITICAL findings force HALT
+> """
+  
+! from __future__ import annotations
+  
+! from dataclasses import dataclass
+! from typing import Any
+  
+! from maref.integration.test_platform import (
+!     AgentCardAdapter,
+!     EvalStatus,
+!     EvaluationReport,
+!     FindingSeverity,
+!     MASAgentCard,
+!     Phase,
+!     ScoreToPhaseMapper,
+! )
+! from maref.integration.test_platform.state_trigger import (
+!     FullRunTrigger,
+!     UnifiedTrigger,
+! )
+  
+  
+! @dataclass
+! class TheoremResult:
+!     """Result of a theorem verification."""
+  
+!     theorem_name: str
+-     passed: bool
+!     details: str
+!     counterexample: dict[str, Any] | None = None
+  
+  
+! class TLATheoremVerifier:
+!     """
+!     Runtime verifier for TLA+ theorems defined in MAREF_TestIntegration.tla.
+  
+!     These verify that the Python implementation matches the formal specification.
+!     """
+  
+      # =========================================================================
+      # THEOREM 1: CrossBorderConsistency
+      # =========================================================================
+      # If data_residency != model_backend_location, cross_border must be true.
+  
+!     @classmethod
+!     def verify_cross_border_consistency(cls, card: MASAgentCard) -> TheoremResult:
+!         """
+!         Verify Theorem 1: Cross-Border Consistency.
+  
+!         Formal: \\A card : data_residency != model_backend_location => cross_border = TRUE
+!         """
+!         is_valid, message = AgentCardAdapter.validate_cross_border_consistency(card)
+  
+-         return TheoremResult(
+!             theorem_name="CrossBorderConsistency",
+!             passed=is_valid,
+!             details=message,
+!             counterexample=None if is_valid else card.to_dict(),
+!         )
+  
+!     @classmethod
+!     def verify_cross_border_batch(cls, cards: list[MASAgentCard]) -> list[TheoremResult]:
+!         """Verify Theorem 1 for a batch of agent cards."""
+!         return [cls.verify_cross_border_consistency(card) for card in cards]
+  
+      # =========================================================================
+      # THEOREM 2: PromptRotDetectionCompleteness
+      # =========================================================================
+      # Any capability without business_rule_version triggers an alert.
+  
+!     @classmethod
+!     def verify_prompt_rot_detection(cls, card: MASAgentCard) -> TheoremResult:
+!         """
+!         Verify Theorem 2: Prompt Rot Detection Completeness.
+  
+!         Formal: \\A skill \\in capabilities : business_rule_version = Nil => Alert
+!         """
+!         is_valid, message = AgentCardAdapter.validate_prompt_rot_detectability(card)
+  
+-         return TheoremResult(
+!             theorem_name="PromptRotDetectionCompleteness",
+!             passed=is_valid,
+!             details=message,
+!             counterexample=None if is_valid else card.to_dict(),
+!         )
+  
+      # =========================================================================
+      # THEOREM 3: ScorePhaseMonotonicity
+      # =========================================================================
+      # Higher scores always grant equal or greater permissions.
+  
+!     @classmethod
+!     def verify_score_phase_monotonicity(cls) -> TheoremResult:
+!         """
+!         Verify Theorem 3: Score-Phase Monotonicity.
+  
+!         Formal: score1 >= score2 => permissions(score1) >= permissions(score2)
+!         """
+!         test_scores = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+!         phases = [ScoreToPhaseMapper.map_score(s) for s in test_scores]
+  
+!         phase_order = {
+!             Phase.OLD_YANG: 4,
+!             Phase.LESSER_YANG: 3,
+!             Phase.LESSER_YIN: 2,
+!             Phase.OLD_YIN: 1,
+!         }
+  
+          # Check monotonicity: as score increases, phase order should not decrease
+!         violations = []
+!         for i in range(1, len(test_scores)):
+!             if phase_order[phases[i]] < phase_order[phases[i - 1]]:
+!                 violations.append(
+!                     {
+!                         "score_prev": test_scores[i - 1],
+!                         "phase_prev": phases[i - 1].value,
+!                         "score_curr": test_scores[i],
+!                         "phase_curr": phases[i].value,
+!                     }
+!                 )
+  
+-         passed = len(violations) == 0
+-         return TheoremResult(
+!             theorem_name="ScorePhaseMonotonicity",
+!             passed=passed,
+!             details="Monotonicity holds across all score levels"
+!             if passed
+!             else f"Found {len(violations)} violations",
+!             counterexample={"violations": violations} if violations else None,
+!         )
+  
+      # =========================================================================
+      # THEOREM 4: ComplianceQuarantineSafety
+      # =========================================================================
+      # Any CRITICAL finding in Layer 1 forces HALT state.
+  
+!     @classmethod
+!     def verify_compliance_quarantine_safety(cls, report: EvaluationReport) -> TheoremResult:
+!         """
+!         Verify Theorem 4: Compliance Quarantine Safety.
+  
+!         Formal: HasCriticalFinding(agent) => GovernanceState(agent) = HALT
+!         """
+!         layer1 = next((l for l in report.layers if l.layer_number == 1), None)
+!         has_critical = layer1 is not None and any(
+!             f.severity == FindingSeverity.CRITICAL for f in (layer1.findings if layer1 else [])
+!         )
+  
+!         if not has_critical:
+-             return TheoremResult(
+!                 theorem_name="ComplianceQuarantineSafety",
+!                 passed=True,
+!                 details="No CRITICAL findings — theorem not triggered",
+!             )
+  
+          # Use UnifiedTrigger which has priority: Layer 1 critical → HALT
+!         from maref.governance.state_machine import GovernanceStateMachine
+!         from maref.governance.types import GovernanceState
+  
+!         fsm = GovernanceStateMachine()
+!         UnifiedTrigger.apply(report, fsm)
+  
+-         passed = fsm.current_state == GovernanceState.HALT
+-         return TheoremResult(
+!             theorem_name="ComplianceQuarantineSafety",
+!             passed=passed,
+!             details=f"State after CRITICAL finding: {fsm.current_state.name}",
+!             counterexample={"expected": "HALT", "actual": fsm.current_state.name}
+!             if not passed
+!             else None,
+!         )
+  
+      # =========================================================================
+      # THEOREM 5: EvalToGovernanceLiveness (simplified runtime check)
+      # =========================================================================
+      # Fast-Screen FAIL leads to HALT state.
+  
+!     @classmethod
+!     def verify_eval_to_governance(cls, report: EvaluationReport) -> TheoremResult:
+!         """
+!         Verify Theorem 5: Evaluation-to-Governance Liveness.
+  
+!         Formal: EvalScore < 60 ~> GovernanceState = HALT
+!         """
+!         from maref.governance.state_machine import GovernanceStateMachine
+!         from maref.governance.types import GovernanceState
+  
+!         fsm = GovernanceStateMachine()
+  
+!         if report.overall_status == EvalStatus.FAIL or report.overall_score < 60:
+              # Should trigger HALT
+!             if report.overall_status == EvalStatus.FAIL:
+!                 from maref.integration.test_platform import FastScreenTrigger
+  
+!                 if report.test_mode.value == "fast_screen":
+!                     FastScreenTrigger.apply(report, fsm)
+!                 else:
+!                     FullRunTrigger.apply(report, fsm)
+!             else:
+!                 FullRunTrigger.apply(report, fsm)
+  
+-             passed = fsm.current_state == GovernanceState.HALT
+-             return TheoremResult(
+!                 theorem_name="EvalToGovernanceLiveness",
+!                 passed=passed,
+!                 details=f"Eval score {report.overall_score} → state {fsm.current_state.name}",
+!                 counterexample={"expected": "HALT", "actual": fsm.current_state.name}
+!                 if not passed
+!                 else None,
+!             )
+  
+-         return TheoremResult(
+!             theorem_name="EvalToGovernanceLiveness",
+!             passed=True,
+!             details=f"Eval score {report.overall_score} >= 60 — theorem not triggered",
+!         )
+  
+      # =========================================================================
+      # THEOREM 6: GovernanceConfigExport
+      # =========================================================================
+      # Circuit breaker and state machine must expose complete configuration.
+  
+!     @classmethod
+!     def verify_governance_config_export(
+!         cls,
+!         circuit_breaker: Any | None = None,
+!         state_machine: Any | None = None,
+!     ) -> TheoremResult:
+!         """
+!         Verify Theorem 6: Governance Config Export Completeness.
+  
+!         Formal: CircuitBreaker.get_config() AND StateMachine.health_check()
+!                 return all required keys.
+!         """
+!         from maref.governance.circuit_breaker import CircuitBreaker
+!         from maref.governance.state_machine import GovernanceStateMachine
+  
+!         cb = circuit_breaker or CircuitBreaker()
+!         sm = state_machine or GovernanceStateMachine()
+  
+!         cb_config = cb.get_config()
+!         required_cb_keys = [
+!             "max_depth", "max_oscillation_rate", "max_consecutive_failures",
+!             "cooldown_seconds", "state",
+!         ]
+!         missing_cb = [k for k in required_cb_keys if k not in cb_config]
+  
+!         sm_health = sm.health_check()
+!         required_sm_keys = [
+!             "current_state", "current_entropy", "transition_count",
+!             "is_terminal", "valid_next_states",
+!         ]
+!         missing_sm = [k for k in required_sm_keys if k not in sm_health]
+  
+!         all_issues = missing_cb + missing_sm
+-         passed = len(all_issues) == 0
+-         return TheoremResult(
+!             theorem_name="GovernanceConfigExport",
+!             passed=passed,
+!             details="All governance config exports are complete"
+!             if passed
+!             else f"Missing keys: {', '.join(all_issues)}",
+!             counterexample={"missing_cb_keys": missing_cb, "missing_sm_keys": missing_sm}
+!             if not passed
+!             else None,
+!         )
+  
+      # =========================================================================
+      # Full Verification Suite
+      # =========================================================================
+  
+!     @classmethod
+!     def verify_all(
+!         cls,
+!         card: MASAgentCard,
+!         report: EvaluationReport,
+!         circuit_breaker: Any | None = None,
+!         state_machine: Any | None = None,
+!     ) -> dict[str, TheoremResult]:
+!         """Run all theorem verifications and return results."""
+!         results = {
+!             "CrossBorderConsistency": cls.verify_cross_border_consistency(card),
+!             "PromptRotDetectionCompleteness": cls.verify_prompt_rot_detection(card),
+!             "ScorePhaseMonotonicity": cls.verify_score_phase_monotonicity(),
+!             "ComplianceQuarantineSafety": cls.verify_compliance_quarantine_safety(report),
+!             "EvalToGovernanceLiveness": cls.verify_eval_to_governance(report),
+!         }
+!         results["GovernanceConfigExport"] = cls.verify_governance_config_export(
+!             circuit_breaker, state_machine
+!         )
+!         return results
+  
+!     @classmethod
+!     def summary(cls, results: dict[str, TheoremResult]) -> dict[str, Any]:
+!         """Generate a verification summary."""
+!         total = len(results)
+-         passed = sum(1 for r in results.values() if r.passed)
+-         failed = total - passed
+  
+-         return {
+!             "total_theorems": total,
+!             "passed": passed,
+!             "failed": failed,
+!             "all_passed": failed == 0,
+!             "details": {
+!                 name: {"passed": r.passed, "details": r.details} for name, r in results.items()
+!             },
+!         }
+  
+  
+! __all__ = [
+!     "TheoremResult",
+!     "TLATheoremVerifier",
+! ]

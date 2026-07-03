@@ -1,0 +1,97 @@
+! from __future__ import annotations
+  
+! import statistics
+! import time
+! from dataclasses import dataclass, field
+! from typing import Any
+  
+  
+! @dataclass
+! class CoverageSnapshot:
+!     snapshot_id: str
+!     timestamp: float
+!     coverage_pct: float
+!     per_module: dict[str, float] = field(default_factory=dict)
+!     test_count: int = 0
+!     notes: str = ""
+  
+  
+! class CoverageTracker:
+!     def __init__(self, max_history: int = 100) -> None:
+!         self._snapshots: list[CoverageSnapshot] = []
+!         self._max_history = max_history
+  
+!     def record(
+!         self,
+!         snapshot_id: str,
+!         coverage_pct: float,
+!         per_module: dict[str, float] | None = None,
+!         test_count: int = 0,
+!         notes: str = "",
+!     ) -> CoverageSnapshot:
+!         snapshot = CoverageSnapshot(
+!             snapshot_id=snapshot_id,
+!             timestamp=time.time(),
+!             coverage_pct=coverage_pct,
+!             per_module=per_module or {},
+!             test_count=test_count,
+!             notes=notes,
+!         )
+!         self._snapshots.append(snapshot)
+!         if len(self._snapshots) > self._max_history:
+!             self._snapshots = self._snapshots[-self._max_history :]
+!         return snapshot
+  
+!     def trend(self, window: int = 5) -> dict[str, float]:
+!         if len(self._snapshots) < 2:
+!             return {"slope": 0.0, "mean": 0.0, "std": 0.0}
+!         recent = [s.coverage_pct for s in self._snapshots[-window:]]
+!         if len(recent) < 2:
+!             return {"slope": 0.0, "mean": statistics.mean(recent), "std": 0.0}
+!         n = len(recent)
+!         x_mean = (n - 1) / 2.0
+!         y_mean = statistics.mean(recent)
+!         num = sum((i - x_mean) * (recent[i] - y_mean) for i in range(n))
+!         den = sum((i - x_mean) ** 2 for i in range(n))
+!         slope = num / den if den > 0 else 0.0
+!         return {
+!             "slope": round(slope, 4),
+!             "mean": round(y_mean, 2),
+!             "std": round(statistics.stdev(recent) if len(recent) >= 2 else 0.0, 2),
+!         }
+  
+!     def low_coverage_modules(self, threshold: float = 80.0) -> list[tuple[str, float]]:
+!         if not self._snapshots:
+!             return []
+!         latest = self._snapshots[-1]
+!         result = [(mod, pct) for mod, pct in latest.per_module.items() if pct < threshold]
+!         return sorted(result, key=lambda x: x[1])
+  
+!     def compare(self, snapshot_a: str, snapshot_b: str) -> dict[str, Any]:
+!         a = next((s for s in self._snapshots if s.snapshot_id == snapshot_a), None)
+!         b = next((s for s in self._snapshots if s.snapshot_id == snapshot_b), None)
+!         if a is None or b is None:
+!             return {"error": "snapshot not found"}
+!         delta = b.coverage_pct - a.coverage_pct
+!         per_module_deltas: dict[str, float] = {}
+!         for mod in set(a.per_module) | set(b.per_module):
+!             delta_mod = b.per_module.get(mod, 0.0) - a.per_module.get(mod, 0.0)
+!             if abs(delta_mod) > 0.01:
+!                 per_module_deltas[mod] = round(delta_mod, 2)
+!         return {
+!             "from_snapshot": snapshot_a,
+!             "to_snapshot": snapshot_b,
+!             "coverage_delta": round(delta, 2),
+!             "per_module_deltas": per_module_deltas,
+!         }
+  
+!     def latest(self) -> CoverageSnapshot | None:
+!         return self._snapshots[-1] if self._snapshots else None
+  
+!     @property
+!     def snapshots(self) -> list[CoverageSnapshot]:
+!         return list(self._snapshots)
+  
+!     @property
+!     def count(self) -> int:
+!         return len(self._snapshots)

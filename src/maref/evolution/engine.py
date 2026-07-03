@@ -87,7 +87,7 @@ class EvolutionConfig:
     dry_run_rounds: int = 1
     resume_from_cycle: str | None = None
     resume_from_round: int = 0
-    metrics_mode: str = "simulated"
+    metrics_mode: str = "real"
 
     def to_dict(self) -> dict[str, Any]:
         return {

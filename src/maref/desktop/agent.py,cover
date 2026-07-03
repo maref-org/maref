@@ -1,0 +1,634 @@
+> from __future__ import annotations
+  
+> import time
+> from dataclasses import dataclass, field
+> from enum import Enum
+> from typing import Any
+  
+> from maref.desktop.action_recorder import (
+>     ActionRecorder,
+>     ActionRecording,
+>     RecordedActionType,
+> )
+> from maref.desktop.clipboard import ClipboardController
+> from maref.desktop.file_ops import FileOperator
+> from maref.desktop.input_controller import InputController, OperationResult
+> from maref.desktop.screen_capture import ScreenCapture, ScreenshotResult
+> from maref.desktop.screen_parser import (
+>     OmniParserInterface,
+>     ParsedUIElement,
+>     ScreenParseResult,
+> )
+> from maref.desktop.verification import ScreenshotVerifier
+> from maref.desktop.window_manager import WindowManager
+  
+  
+> class DesktopAgentState(str, Enum):
+>     IDLE = "idle"
+>     CAPTURING = "capturing"
+>     PARSING = "parsing"
+>     DECIDING = "deciding"
+>     EXECUTING = "executing"
+>     VERIFYING = "verifying"
+>     WAITING = "waiting"
+>     ERROR = "error"
+>     PAUSED = "paused"
+  
+  
+> class DesktopOperation(str, Enum):
+>     CLICK = "click"
+>     DOUBLE_CLICK = "double_click"
+>     RIGHT_CLICK = "right_click"
+>     TYPE = "type"
+>     HOTKEY = "hotkey"
+>     SCROLL = "scroll"
+>     DRAG = "drag"
+>     WAIT = "wait"
+>     SCREENSHOT = "screenshot"
+  
+  
+> @dataclass
+> class DesktopStep:
+>     operation: DesktopOperation
+>     target_element_id: str = ""
+>     target_text: str = ""
+>     target_position: tuple[int, int] | None = None
+>     value: str = ""
+>     wait_seconds: float = 0.5
+>     description: str = ""
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "operation": self.operation.value,
+!             "target_element_id": self.target_element_id,
+!             "target_text": self.target_text,
+!             "target_position": self.target_position,
+!             "value": self.value,
+!             "wait_seconds": self.wait_seconds,
+!             "description": self.description,
+!         }
+  
+  
+> @dataclass
+> class DesktopTask:
+>     task_id: str
+>     description: str
+>     steps: list[DesktopStep] = field(default_factory=list)
+>     safe_apps: list[str] = field(default_factory=list)
+>     max_retries: int = 3
+  
+>     def add_step(self, step: DesktopStep) -> None:
+!         self.steps.append(step)
+  
+  
+> @dataclass
+> class DesktopTaskResult:
+>     task_id: str
+>     success: bool
+>     steps_executed: int = 0
+>     steps_failed: int = 0
+>     total_duration_ms: float = 0.0
+>     error_message: str = ""
+>     screenshot_history: list[ScreenshotResult] = field(default_factory=list)
+>     operation_log: list[OperationResult] = field(default_factory=list)
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "task_id": self.task_id,
+!             "success": self.success,
+!             "steps_executed": self.steps_executed,
+!             "steps_failed": self.steps_failed,
+!             "total_duration_ms": self.total_duration_ms,
+!             "error_message": self.error_message,
+!         }
+  
+  
+> class SelfHealingExecutor:
+>     """Wraps DesktopAgent.execute_step with automatic recovery strategies.
+  
+>     Three retry strategies applied in order:
+>     1. retry_same — Re-run the same step (transient failures)
+>     2. reparse_screen — Re-capture and re-parse screen, then retry
+>     3. fallback_safe_mode — Revert to dry-run safety for the failing step
+>     """
+  
+>     def __init__(
+>         self,
+>         agent: DesktopAgent,
+>         max_consecutive_failures: int = 5,
+>         strategies: list[str] | None = None,
+>     ) -> None:
+!         self._agent = agent
+!         self._max_consecutive_failures = max_consecutive_failures
+!         self._strategies = strategies or ["retry_same", "reparse_screen", "fallback_safe_mode"]
+!         self._consecutive_failures = 0
+!         self._circuit_open = False
+!         self._recovery_attempts = 0
+  
+>     @property
+>     def consecutive_failures(self) -> int:
+!         return self._consecutive_failures
+  
+>     @property
+>     def circuit_open(self) -> bool:
+!         return self._circuit_open
+  
+>     def execute_step(
+>         self,
+>         step: DesktopStep,
+>         parse_result: ScreenParseResult | None = None,
+>     ) -> OperationResult:
+!         if self._circuit_open:
+!             return OperationResult(
+!                 success=False,
+!                 action_type=step.operation.value if step.operation else "unknown",
+!                 details="Circuit breaker open — healing in progress",
+!             )
+  
+!         last_result: OperationResult | None = None
+!         for strategy in self._strategies:
+!             last_result = self._apply_strategy(step, parse_result, strategy)
+!             if last_result.success:
+!                 self._consecutive_failures = 0
+!                 return last_result
+  
+!         self._consecutive_failures += 1
+!         if self._consecutive_failures >= self._max_consecutive_failures:
+!             self._circuit_open = True
+  
+!         return last_result or OperationResult(
+!             success=False,
+!             action_type=step.operation.value if step.operation else "unknown",
+!             details="All healing strategies exhausted",
+!         )
+  
+>     def _apply_strategy(
+>         self,
+>         step: DesktopStep,
+>         parse_result: ScreenParseResult | None,
+>         strategy: str,
+>     ) -> OperationResult:
+!         if strategy == "retry_same":
+!             return self._agent.execute_step(step, parse_result)
+!         elif strategy == "reparse_screen":
+!             new_parse = self._agent.parse_screen()
+!             return self._agent.execute_step(step, new_parse)
+!         elif strategy == "fallback_safe_mode":
+!             prev_dry_run = self._agent._dry_run
+!             self._agent._dry_run = True
+!             self._agent.input.dry_run = True
+!             result = self._agent.execute_step(step, parse_result)
+!             self._agent._dry_run = prev_dry_run
+!             self._agent.input.dry_run = prev_dry_run
+!             return result
+!         return OperationResult(
+!             success=False,
+!             action_type="unknown",
+!             details=f"Unknown healing strategy: {strategy}",
+!         )
+  
+>     def reset_circuit(self) -> None:
+!         self._circuit_open = False
+!         self._consecutive_failures = 0
+!         self._recovery_attempts += 1
+  
+>     def execute_task(self, task: DesktopTask) -> DesktopTaskResult:
+!         import time
+  
+!         task_start = time.time()
+!         result = DesktopTaskResult(task_id=task.task_id, success=True)
+  
+!         for i, step in enumerate(task.steps):
+!             capture = self._agent.capture_screen()
+!             parse = self._agent.parse_screen(capture)
+  
+!             op_result = self.execute_step(step, parse)
+!             result.operation_log.append(op_result)
+  
+!             if not op_result.success:
+!                 result.steps_failed += 1
+!                 if task.max_retries > 0 and i < len(task.steps):
+!                     continue
+!             else:
+!                 result.steps_executed += 1
+  
+!             if step.wait_seconds > 0:
+!                 time.sleep(step.wait_seconds)
+  
+!             if capture.image:
+!                 result.screenshot_history.append(capture)
+  
+!             if self._circuit_open:
+!                 result.success = False
+!                 result.error_message = "Circuit breaker triggered"
+!                 break
+  
+!         result.total_duration_ms = (time.time() - task_start) * 1000
+!         if result.steps_failed > 0 and result.steps_executed == 0:
+!             result.success = False
+!             result.error_message = f"All {len(task.steps)} steps failed after healing"
+  
+!         self._agent._task_history.append(result)
+!         return result
+  
+  
+> class DesktopAgent:
+-     """M1 MVP: Minimal closed-loop desktop agent.
+  
+>     Orchestrates: Screenshot → Parse UI → Decide Action → Execute → Verify.
+  
+>     Features:
+>     - Only operates on pre-approved safe applications
+>     - All operations pass through safety gates
+>     - Dry-run mode for safe testing
+>     - Configurable retry and verification
+>     """
+  
+>     def __init__(
+>         self,
+>         screen_capture: ScreenCapture | None = None,
+>         screen_parser: OmniParserInterface | None = None,
+>         input_controller: InputController | None = None,
+>         window_manager: WindowManager | None = None,
+>         verifier: ScreenshotVerifier | None = None,
+>         file_operator: FileOperator | None = None,
+>         clipboard_controller: ClipboardController | None = None,
+>         dry_run: bool = True,
+>         safe_apps: set[str] | None = None,
+>         self_healing_config: dict[str, Any] | None = None,
+>     ) -> None:
+!         self.screen = screen_capture or ScreenCapture()
+!         self.parser = screen_parser or OmniParserInterface(backend="auto")
+!         self.input = input_controller or InputController(dry_run=dry_run)
+!         self.windows = window_manager or WindowManager(safe_apps=safe_apps)
+!         self.verifier = verifier or ScreenshotVerifier()
+!         self.files = file_operator or FileOperator(dry_run=dry_run)
+!         self.clipboard = clipboard_controller or ClipboardController(dry_run=dry_run)
+!         self._dry_run = dry_run
+!         self._state = DesktopAgentState.IDLE
+!         self._task_history: list[DesktopTaskResult] = []
+!         self._last_screenshot: ScreenshotResult | None = None
+!         self._last_parse: ScreenParseResult | None = None
+!         self._self_healing_config = {
+!             "max_retries": 3,
+!             "healing_strategies": ["retry_same", "reparse_screen", "fallback_safe_mode"],
+!             **(self_healing_config or {}),
+!         }
+!         self._recorder = ActionRecorder()
+!         self._recording_active = False
+  
+!         if not self.parser.initialized:
+!             self.parser.initialize()
+  
+>     @property
+>     def state(self) -> DesktopAgentState:
+!         return self._state
+  
+>     @property
+>     def dry_run(self) -> bool:
+!         return self._dry_run
+  
+>     @property
+>     def last_screenshot(self) -> ScreenshotResult | None:
+!         return self._last_screenshot
+  
+>     @property
+>     def last_parse_result(self) -> ScreenParseResult | None:
+!         return self._last_parse
+  
+>     def capture_screen(self) -> ScreenshotResult:
+!         self._state = DesktopAgentState.CAPTURING
+!         result = self.screen.capture_fullscreen()
+!         self._last_screenshot = result
+!         return result
+  
+>     def parse_screen(self, screenshot: ScreenshotResult | None = None) -> ScreenParseResult:
+!         self._state = DesktopAgentState.PARSING
+!         if screenshot is None:
+!             screenshot = self._last_screenshot
+!         if screenshot is None:
+!             screenshot = self.capture_screen()
+  
+!         file_path = screenshot.file_path or "/tmp/maref_screenshot_tmp.png"
+!         if screenshot.image and not screenshot.file_path:
+!             screenshot.save(file_path)
+  
+!         result = self.parser.parse(file_path, screenshot.width, screenshot.height)
+!         self._last_parse = result
+!         return result
+  
+>     def find_element(
+>         self,
+>         parse_result: ScreenParseResult,
+>         text: str | None = None,
+>         element_id: str | None = None,
+>     ) -> ParsedUIElement | None:
+!         if element_id:
+!             return parse_result.find_element_by_id(element_id)
+!         if text:
+!             matches = parse_result.find_elements_by_text(text)
+!             if matches:
+!                 usable = [m for m in matches if m.is_interactive]
+!                 return usable[0] if usable else matches[0]
+!         return None
+  
+>     def execute_step(
+>         self, step: DesktopStep, parse_result: ScreenParseResult | None = None
+>     ) -> OperationResult:
+!         self._state = DesktopAgentState.DECIDING
+  
+!         target_x, target_y = 0, 0
+!         if step.target_position:
+!             target_x, target_y = step.target_position
+!         elif (step.target_element_id or step.target_text) and parse_result:
+!             element = self.find_element(
+!                 parse_result, text=step.target_text, element_id=step.target_element_id
+!             )
+!             if element:
+!                 target_x, target_y = element.bbox.center
+!             elif step.operation not in (
+!                 DesktopOperation.WAIT,
+!                 DesktopOperation.HOTKEY,
+!                 DesktopOperation.TYPE,
+!             ):
+!                 return OperationResult(
+!                     success=False,
+!                     action_type=step.operation.value,
+!                     details=f"Target element not found: {step.target_text or step.target_element_id}",
+!                 )
+  
+!         self._state = DesktopAgentState.EXECUTING
+!         operation = step.operation
+!         if operation == DesktopOperation.CLICK:
+!             result = self.input.click(target_x, target_y)
+!         elif operation == DesktopOperation.DOUBLE_CLICK:
+!             result = self.input.double_click(target_x, target_y)
+!         elif operation == DesktopOperation.RIGHT_CLICK:
+!             result = self.input.right_click(target_x, target_y)
+!         elif operation == DesktopOperation.TYPE:
+!             result = self.input.type_text(step.value)
+!         elif operation == DesktopOperation.HOTKEY:
+!             result = self.input.hotkey(*step.value.split("+"))
+!         elif operation == DesktopOperation.SCROLL:
+!             amount = int(step.value) if step.value else 3
+!             result = self.input.scroll(amount)
+!         elif operation == DesktopOperation.DRAG:
+!             if step.target_position and len(step.target_position) == 4:
+!                 x1, y1, x2, y2 = step.target_position
+!                 result = self.input.drag(x1, y1, x2, y2)
+!             else:
+!                 result = OperationResult(
+!                     success=False, action_type="drag", details="Invalid drag coordinates"
+!                 )
+!         elif operation == DesktopOperation.WAIT:
+!             time.sleep(step.wait_seconds)
+!             result = OperationResult(
+!                 success=True, action_type="wait", details=f"Waited {step.wait_seconds}s"
+!             )
+!         else:
+!             result = OperationResult(
+!                 success=False, action_type=step.operation.value, details="Unknown operation"
+!             )
+  
+!         if self._recording_active:
+!             self._record_step(step, result, target_x, target_y)
+  
+!         return result
+  
+>     def execute_task(self, task: DesktopTask) -> DesktopTaskResult:
+!         self._state = DesktopAgentState.IDLE
+!         task_start = time.time()
+!         result = DesktopTaskResult(task_id=task.task_id, success=True)
+  
+!         if task.safe_apps:
+!             active = self.windows.get_active_window()
+!             if active and active.app_name not in task.safe_apps:
+-                 pass
+  
+!         for i, step in enumerate(task.steps):
+!             before = self.capture_screen()
+!             parse = self.parse_screen(before)
+  
+!             op_result = self.execute_step(step, parse)
+!             result.operation_log.append(op_result)
+  
+!             if not op_result.success:
+!                 result.steps_failed += 1
+!                 if task.max_retries > 0 and i < len(task.steps):
+!                     continue
+  
+!             result.steps_executed += 1
+!             if step.wait_seconds > 0 and step.operation != DesktopOperation.WAIT:
+!                 time.sleep(step.wait_seconds)
+  
+!             if before.image:
+!                 result.screenshot_history.append(before)
+  
+!         result.total_duration_ms = (time.time() - task_start) * 1000
+!         if result.steps_failed > 0 and result.steps_executed == 0:
+!             result.success = False
+!             result.error_message = f"All {len(task.steps)} steps failed"
+  
+!         self._task_history.append(result)
+!         self._state = DesktopAgentState.IDLE
+!         return result
+  
+>     def run_demo_task(self, dry_run: bool = True) -> DesktopTaskResult:
+!         task = DesktopTask(
+!             task_id="demo-m1-001",
+!             description="M1 Demo: Open Finder, take screenshot, verify",
+!             safe_apps=["Finder"],
+!             steps=[
+!                 DesktopStep(
+!                     operation=DesktopOperation.HOTKEY,
+!                     value="command+space",
+!                     description="Spotlight search",
+!                     wait_seconds=1.0,
+!                 ),
+!                 DesktopStep(
+!                     operation=DesktopOperation.TYPE,
+!                     value="Finder",
+!                     description="Type Finder",
+!                     wait_seconds=0.5,
+!                 ),
+!                 DesktopStep(
+!                     operation=DesktopOperation.HOTKEY,
+!                     value="enter",
+!                     description="Open Finder",
+!                     wait_seconds=2.0,
+!                 ),
+!                 DesktopStep(
+!                     operation=DesktopOperation.SCREENSHOT,
+!                     description="Capture final state",
+!                     wait_seconds=0.5,
+!                 ),
+!             ],
+!         )
+!         if not dry_run:
+!             self._dry_run = False
+!             self.input.dry_run = False
+!         return self.execute_task(task)
+  
+>     def get_task_history(self) -> list[DesktopTaskResult]:
+!         return list(self._task_history)
+  
+>     def enable_real(self) -> bool:
+!         ok = self.input.enable_real_mode()
+!         self.input.calibrate()
+!         perms = self.input.check_permissions()
+!         self._dry_run = False
+!         return ok and perms.get("pyautogui", False)
+  
+>     def check_environment(self) -> dict[str, Any]:
+!         import platform as _platform
+  
+!         env: dict[str, Any] = {
+!             "platform": _platform.system(),
+!             "python_version": _platform.python_version(),
+!         }
+!         env["permissions"] = self.input.check_permissions()
+!         env["pyautogui_available"] = self.input.pyautogui_available
+!         env["parser_backend"] = self.parser.backend
+!         env["parser_actual_backend"] = self.parser.actual_backend
+!         env["parser_initialized"] = self.parser.initialized
+!         env["parser_info"] = self.parser.backend_info
+!         return env
+  
+>     def execute_task_real(
+>         self,
+>         task: DesktopTask,
+>         permission_callback: Any = None,
+>     ) -> DesktopTaskResult:
+!         if not self.enable_real():
+!             raise PermissionError(
+!                 "Real mode requires PyAutoGUI. "
+!                 "Install: pip install PyAutoGUI. "
+!                 "On macOS grant Accessibility and Screen Recording permissions."
+!             )
+!         env = self.check_environment()
+!         perms = env.get("permissions", {})
+!         if not perms.get("pyautogui", False):
+!             raise PermissionError("PyAutoGUI not available. Install with: pip install PyAutoGUI.")
+!         if permission_callback is not None:
+!             permission_callback(perms)
+!         before = self.capture_screen()
+!         result = self.execute_task(task)
+!         after = self.capture_screen()
+!         if before.image and after.image:
+!             verification = self.verifier.compare(before.image, after.image)
+-             if not verification.passed:
+-                 result.error_message += f" | Verification: {verification.details}"
+!         return result
+  
+>     def shutdown(self) -> None:
+!         self._state = DesktopAgentState.IDLE
+!         self._task_history.clear()
+!         self._last_screenshot = None
+!         self._last_parse = None
+  
+>     def _record_step(
+>         self,
+>         step: DesktopStep,
+>         _result: OperationResult,
+>         x: int = 0,
+>         y: int = 0,
+>     ) -> None:
+!         op_to_type = {
+!             DesktopOperation.CLICK: RecordedActionType.MOUSE_CLICK,
+!             DesktopOperation.DOUBLE_CLICK: RecordedActionType.MOUSE_DOUBLE_CLICK,
+!             DesktopOperation.RIGHT_CLICK: RecordedActionType.MOUSE_RIGHT_CLICK,
+!             DesktopOperation.DRAG: RecordedActionType.MOUSE_DRAG,
+!             DesktopOperation.SCROLL: RecordedActionType.MOUSE_SCROLL,
+!             DesktopOperation.TYPE: RecordedActionType.KEYBOARD_TYPE,
+!             DesktopOperation.HOTKEY: RecordedActionType.KEYBOARD_HOTKEY,
+!             DesktopOperation.WAIT: RecordedActionType.WAIT,
+!         }
+!         action_type = op_to_type.get(step.operation, RecordedActionType.WAIT)
+!         self._recorder.record_step(
+!             action_type=action_type,
+!             x=x,
+!             y=y,
+!             text=step.value,
+!             keys=step.value.split("+") if step.operation == DesktopOperation.HOTKEY else [],
+!             duration=step.wait_seconds,
+!             description=step.description,
+!         )
+  
+>     def start_recording(
+>         self,
+>         recording_id: str = "",
+>         name: str = "",
+>         application: str = "",
+>         description: str = "",
+>     ) -> ActionRecording:
+!         if not recording_id:
+!             recording_id = f"rec-{int(time.time())}"
+!         recording = self._recorder.start_recording(
+!             recording_id=recording_id,
+!             name=name or f"Recording {recording_id}",
+!             application=application,
+!             description=description,
+!         )
+!         self._recording_active = True
+!         return recording
+  
+>     def stop_recording(self) -> ActionRecording | None:
+!         if not self._recording_active:
+!             return None
+!         self._recording_active = False
+!         return self._recorder.stop_recording()
+  
+>     def replay_recording(self, recording_id: str, dry_run: bool = True) -> DesktopTaskResult:
+!         recording = self._recorder.load(recording_id)
+!         if recording is None:
+!             return DesktopTaskResult(
+!                 task_id=recording_id,
+!                 success=False,
+!                 error_message=f"Recording {recording_id} not found",
+!             )
+  
+!         steps: list[DesktopStep] = []
+!         op_map = {
+!             RecordedActionType.MOUSE_CLICK: DesktopOperation.CLICK,
+!             RecordedActionType.MOUSE_DOUBLE_CLICK: DesktopOperation.DOUBLE_CLICK,
+!             RecordedActionType.MOUSE_RIGHT_CLICK: DesktopOperation.RIGHT_CLICK,
+!             RecordedActionType.MOUSE_DRAG: DesktopOperation.DRAG,
+!             RecordedActionType.MOUSE_SCROLL: DesktopOperation.SCROLL,
+!             RecordedActionType.KEYBOARD_TYPE: DesktopOperation.TYPE,
+!             RecordedActionType.KEYBOARD_HOTKEY: DesktopOperation.HOTKEY,
+!             RecordedActionType.WAIT: DesktopOperation.WAIT,
+!         }
+  
+!         for rs in recording.steps:
+!             op = op_map.get(rs.action_type, DesktopOperation.WAIT)
+!             step = DesktopStep(
+!                 operation=op,
+!                 target_position=(rs.x, rs.y) if rs.x > 0 or rs.y > 0 else None,
+!                 value=rs.text or "+".join(rs.keys),
+!                 wait_seconds=max(rs.duration, 0.1),
+!                 description=rs.description,
+!             )
+!             steps.append(step)
+  
+!         task = DesktopTask(
+!             task_id=f"replay-{recording_id}",
+!             description=f"Replay: {recording.name}",
+!             steps=steps,
+!         )
+!         prev_dry = self._dry_run
+!         if not dry_run:
+!             self._dry_run = False
+!             self.input.dry_run = False
+!         result = self.execute_task(task)
+!         if not dry_run:
+!             self._dry_run = prev_dry
+!             self.input.dry_run = prev_dry
+!         return result
+  
+>     @property
+>     def recording_active(self) -> bool:
+!         return self._recording_active
+  
+>     @property
+>     def recorder(self) -> ActionRecorder:
+!         return self._recorder

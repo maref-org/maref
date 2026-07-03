@@ -64,14 +64,34 @@
         {"id": "7.1", "name": "SafetyGate", "description": "安全门控 v2 验证器", "dependencies": ["6.1"], "test_coverage_threshold": 85, "status": "completed"},
         {"id": "7.2", "name": "CertificationChecklist", "description": "发布前合规检查清单", "dependencies": ["7.1", "5.2"], "test_coverage_threshold": 80, "status": "completed"}
       ]
+    },
+    {
+      "id": "m7",
+      "name": "L2 RSI Release",
+      "description": "L2 conditional pass features (Phases 1-4)",
+      "features": [
+        {"id": "P1.1", "name": "StressHarness L3", "description": "StressHarness L3", "dependencies": [], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P1.2", "name": "EmergenceHarness", "description": "EmergenceHarness", "dependencies": ["P1.1"], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P2.1", "name": "AutoDimensionDiscoverer", "description": "AutoDimensionDiscoverer", "dependencies": [], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P2.2", "name": "Conflict Detection", "description": "Cross-dimensional conflict detection", "dependencies": ["P2.1"], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P2.3", "name": "CrossImpactCircuitBreaker", "description": "Cross-dimensional circuit breaker", "dependencies": ["P2.2"], "test_coverage_threshold": 85, "status": "completed"},
+        {"id": "P2.4", "name": "RSI Redlines RL-006/007", "description": "Redline extensions RL-006/007", "dependencies": ["P2.3"], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P2.5", "name": "Cross-Dim Adversarial Testing", "description": "Cross-dimensional adversarial attack vectors", "dependencies": ["P2.4"], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P3.1", "name": "TLA+ Cross-Dim Invariants", "description": "TLA+ cross-dimension invariants", "dependencies": [], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "P3.2", "name": "EvolutionQualityGate L2", "description": "EvolutionQualityGate L2", "dependencies": ["P2.5"], "test_coverage_threshold": 85, "status": "completed"},
+        {"id": "P3.3", "name": "Pareto Dashboard", "description": "Pareto dashboard for RSI visualization", "dependencies": [], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "P3.4", "name": "24h Longevity Test Framework", "description": "24-hour longevity test framework", "dependencies": ["P3.2"], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P4.1", "name": "Human-AI Correlation Analysis", "description": "Human-AI correlation analysis", "dependencies": [], "test_coverage_threshold": 80, "status": "completed"},
+        {"id": "P4.4", "name": "L2 Release", "description": "L2 release metadata and acceptance report", "dependencies": ["P3.4", "P4.1"], "test_coverage_threshold": 0, "status": "completed"}
+      ]
     }
   ],
-  "current_milestone": "m6",
-  "completed_milestones": ["m0", "m1", "m2", "m3", "m4", "m5", "m6"],
+  "current_milestone": "m7",
+  "completed_milestones": ["m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7"],
   "total_estimated_tokens": "5M",
   "budget_usd": 0,
   "risk_level": "high",
   "validator_rounds": 7,
-  "features_total": 14,
-  "features_completed": 14
+  "features_total": 27,
+  "features_completed": 27
 }

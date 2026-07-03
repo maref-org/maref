@@ -1,0 +1,515 @@
+> from __future__ import annotations
+  
+> import platform
+> import subprocess
+> import time
+> from dataclasses import dataclass, field
+> from enum import Enum
+> from typing import Any
+  
+  
+> class MouseAction(str, Enum):
+>     CLICK = "click"
+>     DOUBLE_CLICK = "double_click"
+>     RIGHT_CLICK = "right_click"
+>     DRAG = "drag"
+>     MOVE = "move"
+>     SCROLL_UP = "scroll_up"
+>     SCROLL_DOWN = "scroll_down"
+  
+  
+> class KeyboardAction(str, Enum):
+>     TYPE = "type"
+>     PRESS = "press"
+>     HOTKEY = "hotkey"
+  
+  
+> class SafetyDecision(str, Enum):
+>     ALLOW = "allow"
+>     BLOCK = "block"
+>     ASK_USER = "ask_user"
+  
+  
+> _SENSITIVE_HOTKEYS = {
+>     "command+shift+q": "system_logout",
+>     "command+option+esc": "force_quit",
+>     "command+shift+delete": "empty_trash",
+>     "ctrl+alt+delete": "system_lock",
+> }
+  
+> _RESTRICTED_APPS = {
+>     "System Preferences",
+>     "System Settings",
+>     "Security & Privacy",
+>     "Keychain Access",
+>     "Activity Monitor",
+>     "Terminal",
+> }
+  
+> _BLOCKED_TEXT_PATTERNS = [
+>     "rm -rf",
+>     "sudo ",
+>     "chmod 777",
+>     "DROP TABLE",
+>     "DELETE FROM",
+>     "shutdown",
+> ]
+  
+  
+> @dataclass
+> class MouseEvent:
+>     action: MouseAction
+>     x: int = 0
+>     y: int = 0
+>     button: str = "left"
+>     dx: int = 0
+>     dy: int = 0
+>     clicks: int = 1
+>     duration: float = 0.0
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "action": self.action.value,
+!             "x": self.x,
+!             "y": self.y,
+!             "button": self.button,
+!             "dx": self.dx,
+!             "dy": self.dy,
+!             "clicks": self.clicks,
+!             "duration": self.duration,
+!         }
+  
+  
+> @dataclass
+> class KeyboardEvent:
+>     action: KeyboardAction
+>     text: str = ""
+>     keys: list[str] = field(default_factory=list)
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "action": self.action.value,
+!             "text": self.text,
+!             "keys": self.keys,
+!         }
+  
+  
+> @dataclass
+> class OperationResult:
+>     success: bool
+>     action_type: str
+>     details: str = ""
+>     duration_ms: float = 0.0
+>     safety_decision: SafetyDecision = SafetyDecision.ALLOW
+>     error_message: str = ""
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "success": self.success,
+!             "action_type": self.action_type,
+!             "details": self.details,
+!             "duration_ms": self.duration_ms,
+!             "safety_decision": self.safety_decision.value,
+!             "error_message": self.error_message,
+!         }
+  
+  
+> class InputSafetyGate:
+>     """Pre-execution safety gate for desktop input operations.
+  
+>     Intercepts mouse/keyboard events before PyAutoGUI execution and decides:
+>     ALLOW (safe) | BLOCK (dangerous) | ASK_USER (needs human confirmation).
+>     """
+  
+>     def __init__(
+>         self,
+>         current_app: str = "",
+>         allow_list_apps: set[str] | None = None,
+>         block_list_apps: set[str] | None = None,
+>     ) -> None:
+!         self.current_app = current_app
+!         self.allow_list_apps = allow_list_apps or set()
+!         self.block_list_apps = block_list_apps or _RESTRICTED_APPS
+!         self._operation_count: dict[str, int] = {}
+!         self._last_operation_time: dict[str, float] = {}
+!         self._max_ops_per_second = 10
+!         self.safe_region: tuple[int, int, int, int] | None = None
+  
+>     def check_mouse(self, event: MouseEvent) -> SafetyDecision:
+!         if self.current_app in self.block_list_apps:
+!             return SafetyDecision.BLOCK
+!         if self._is_rate_limited("mouse"):
+!             return SafetyDecision.BLOCK
+!         self._consume_rate_limit("mouse")
+!         if self.safe_region is not None:
+!             sx1, sy1, sx2, sy2 = self.safe_region
+!             if not (sx1 <= event.x <= sx2 and sy1 <= event.y <= sy2):
+!                 return SafetyDecision.BLOCK
+!         return SafetyDecision.ALLOW
+  
+>     def check_keyboard(self, event: KeyboardEvent) -> SafetyDecision:
+!         if self.current_app in self.block_list_apps:
+!             return SafetyDecision.BLOCK
+!         if event.action == KeyboardAction.HOTKEY:
+!             keys_set = {k.lower() for k in event.keys}
+!             for hotkey_str in _SENSITIVE_HOTKEYS:
+!                 if set(hotkey_str.split("+")) == keys_set:
+!                     return SafetyDecision.ASK_USER
+!         if event.action == KeyboardAction.TYPE:
+!             for pattern in _BLOCKED_TEXT_PATTERNS:
+!                 if pattern.lower() in event.text.lower():
+!                     return SafetyDecision.BLOCK
+!         if self._is_rate_limited("keyboard"):
+!             return SafetyDecision.BLOCK
+!         return SafetyDecision.ALLOW
+  
+>     def update_current_app(self, app_name: str) -> None:
+!         self.current_app = app_name
+  
+>     def _is_rate_limited(self, op_type: str) -> bool:
+>         """Read-only rate limit check — does NOT consume quota."""
+!         now = time.time()
+!         last_time = self._last_operation_time.get(op_type, 0.0)
+!         return (now - last_time) < (1.0 / self._max_ops_per_second)
+  
+>     def _consume_rate_limit(self, op_type: str) -> None:
+>         """Consume rate limit quota — call only before actual execution."""
+!         now = time.time()
+!         self._last_operation_time[op_type] = now
+!         self._operation_count[op_type] = self._operation_count.get(op_type, 0) + 1
+  
+  
+> class InputController:
+>     """Safe input controller wrapping PyAutoGUI with MAREF SafetyGateV2 integration.
+  
+>     All desktop manipulation goes through this controller. No raw PyAutoGUI
+>     calls should exist outside this module.
+  
+>     Two modes:
+>     - dry_run=True (default): Logs operations without executing. Safe for testing.
+>     - dry_run=False: Executes real mouse/keyboard events via PyAutoGUI.
+>     """
+  
+>     def __init__(
+>         self,
+>         safety_gate: InputSafetyGate | None = None,
+>         dry_run: bool = True,
+>         max_retries: int = 3,
+>         retry_delay_ms: float = 500,
+>     ) -> None:
+!         self._safety_gate = safety_gate or InputSafetyGate()
+!         self._dry_run = dry_run
+!         self._operation_log: list[OperationResult] = []
+!         self._pyautogui_available = False
+!         self._pyautogui_configured = False
+!         self._safe_region: tuple[int, int, int, int] | None = None
+!         self._screen_info: dict[str, Any] = {}
+!         self._max_retries = max_retries
+!         self._retry_delay = retry_delay_ms / 1000.0
+!         try:
+!             import pyautogui  # noqa: F401
+  
+!             self._pyautogui_available = True
+!         except ImportError:
+-             pass
+!         if self._pyautogui_available and not self._dry_run:
+!             self._configure_pyautogui()
+  
+>     @property
+>     def dry_run(self) -> bool:
+!         return self._dry_run
+  
+>     @dry_run.setter
+>     def dry_run(self, value: bool) -> None:
+!         self._dry_run = value
+!         if not value and self._pyautogui_available:
+!             self._configure_pyautogui()
+  
+>     @property
+>     def operation_log(self) -> list[OperationResult]:
+!         return list(self._operation_log)
+  
+>     @property
+>     def pyautogui_available(self) -> bool:
+!         return self._pyautogui_available
+  
+>     def calibrate(self) -> dict[str, Any]:
+>         """Auto-detect screen dimensions and input configuration.
+  
+>         Returns dict with screen_width, screen_height, scale_factor, and is_retina.
+>         """
+!         info: dict[str, Any] = {
+!             "screen_width": 0,
+!             "screen_height": 0,
+!             "scale_factor": 1.0,
+!             "is_retina": False,
+!         }
+!         try:
+!             import pyautogui
+  
+!             w, h = pyautogui.size()
+!             info["screen_width"] = w
+!             info["screen_height"] = h
+!         except ImportError:
+-             pass
+  
+!         system = platform.system()
+!         if system == "Darwin":
+!             try:
+!                 result = subprocess.run(
+!                     ["system_profiler", "SPDisplaysDataType"],
+!                     capture_output=True,
+!                     text=True,
+!                     timeout=10,
+!                 )
+!                 if "Retina" in result.stdout:
+!                     info["is_retina"] = True
+!                     info["scale_factor"] = 2.0
+!             except (FileNotFoundError, subprocess.TimeoutExpired):
+-                 pass
+  
+!         self._screen_info = info
+!         return info
+  
+>     def set_safe_region(self, x: int, y: int, width: int, height: int) -> None:
+>         """Restrict all mouse/keyboard operations to a bounding region.
+  
+>         Coordinates outside this region will be blocked by the safety gate.
+>         Pass (0, 0, 0, 0) to clear the restriction.
+>         """
+!         if width <= 0 or height <= 0:
+!             self._safe_region = None
+!             self._safety_gate.safe_region = None
+!             return
+!         self._safe_region = (x, y, x + width, y + height)
+!         self._safety_gate.safe_region = self._safe_region
+  
+>     def enable_real_mode(self) -> bool:
+>         """Switch from dry-run to real execution mode.
+  
+>         Configures PyAutoGUI with FAILSAFE (corner abort) and PAUSE (inter-action delay).
+>         Returns True if real mode is successfully activated.
+>         """
+!         if not self._pyautogui_available:
+!             return False
+!         self._dry_run = False
+!         self._configure_pyautogui()
+!         return True
+  
+>     def check_permissions(self) -> dict[str, bool]:
+>         """Check OS-level permissions required for real input control.
+  
+>         Returns a dict of permission name → granted status.
+>         """
+!         perms: dict[str, bool] = {}
+!         system = platform.system()
+!         if system == "Darwin":
+!             perms["accessibility"] = self._check_macos_accessibility()
+!             perms["screen_recording"] = self._check_macos_screen_recording()
+!         perms["pyautogui"] = self._pyautogui_available
+!         return perms
+  
+>     def _configure_pyautogui(self) -> None:
+!         if self._pyautogui_configured:
+!             return
+!         import pyautogui
+  
+!         pyautogui.FAILSAFE = True
+!         pyautogui.PAUSE = 0.1
+!         self._pyautogui_configured = True
+  
+>     @staticmethod
+>     def _check_macos_accessibility() -> bool:
+!         try:
+!             result = subprocess.run(
+!                 [
+!                     "osascript",
+!                     "-e",
+!                     'tell application "System Events" to return count of every process',
+!                 ],
+!                 capture_output=True,
+!                 text=True,
+!                 timeout=5,
+!             )
+!             return result.returncode == 0 and result.stdout.strip().isdigit()
+!         except (FileNotFoundError, subprocess.TimeoutExpired):
+!             return False
+  
+>     @staticmethod
+>     def _check_macos_screen_recording() -> bool:
+!         try:
+!             script = """
+!             tell application "System Events"
+!                 try
+!                     get name of every process
+!                     return "true"
+!                 on error
+!                     return "false"
+!                 end try
+!             end tell
+!             """
+!             result = subprocess.run(
+!                 ["osascript", "-e", script],
+!                 capture_output=True,
+!                 text=True,
+!                 timeout=5,
+!             )
+!             return result.stdout.strip() == "true"
+!         except (FileNotFoundError, subprocess.TimeoutExpired):
+!             return False
+  
+>     def click(self, x: int, y: int, button: str = "left", clicks: int = 1) -> OperationResult:
+!         event = MouseEvent(action=MouseAction.CLICK, x=x, y=y, button=button, clicks=clicks)
+!         return self._execute_mouse(event)
+  
+>     def double_click(self, x: int, y: int, button: str = "left") -> OperationResult:
+!         event = MouseEvent(action=MouseAction.DOUBLE_CLICK, x=x, y=y, button=button, clicks=2)
+!         return self._execute_mouse(event)
+  
+>     def right_click(self, x: int, y: int) -> OperationResult:
+!         event = MouseEvent(action=MouseAction.RIGHT_CLICK, x=x, y=y, button="right")
+!         return self._execute_mouse(event)
+  
+>     def drag(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> OperationResult:
+!         event = MouseEvent(
+!             action=MouseAction.DRAG, x=x1, y=y1, dx=x2 - x1, dy=y2 - y1, duration=duration
+!         )
+!         return self._execute_mouse(event)
+  
+>     def move_to(self, x: int, y: int) -> OperationResult:
+!         event = MouseEvent(action=MouseAction.MOVE, x=x, y=y)
+!         return self._execute_mouse(event)
+  
+>     def scroll(self, clicks: int) -> OperationResult:
+!         action = MouseAction.SCROLL_UP if clicks > 0 else MouseAction.SCROLL_DOWN
+!         event = MouseEvent(action=action, clicks=abs(clicks))
+!         return self._execute_mouse(event)
+  
+>     def type_text(self, text: str) -> OperationResult:
+!         event = KeyboardEvent(action=KeyboardAction.TYPE, text=text)
+!         return self._execute_keyboard(event)
+  
+>     def press_key(self, key: str) -> OperationResult:
+!         event = KeyboardEvent(action=KeyboardAction.PRESS, keys=[key])
+!         return self._execute_keyboard(event)
+  
+>     def hotkey(self, *keys: str) -> OperationResult:
+!         event = KeyboardEvent(action=KeyboardAction.HOTKEY, keys=list(keys))
+!         return self._execute_keyboard(event)
+  
+>     def _execute_mouse(self, event: MouseEvent) -> OperationResult:
+!         decision = self._safety_gate.check_mouse(event)
+!         if decision == SafetyDecision.BLOCK:
+!             result = OperationResult(
+!                 success=False,
+!                 action_type=event.action.value,
+!                 details=f"Blocked by safety gate: {event.to_dict()}",
+!                 safety_decision=decision,
+!             )
+!             self._operation_log.append(result)
+!             return result
+  
+!         last_error = ""
+!         for attempt in range(self._max_retries):
+!             start = time.time()
+!             try:
+!                 self._safety_gate._consume_rate_limit("mouse")
+!                 if not self._dry_run and self._pyautogui_available:
+!                     self._do_mouse(event)
+!                 result = OperationResult(
+!                     success=True,
+!                     action_type=event.action.value,
+!                     details=str(event.to_dict()),
+!                     duration_ms=(time.time() - start) * 1000,
+!                     safety_decision=decision,
+!                 )
+!                 self._operation_log.append(result)
+!                 return result
+!             except Exception as e:
+!                 last_error = str(e)
+!                 if attempt < self._max_retries - 1:
+!                     time.sleep(self._retry_delay)
+  
+!         result = OperationResult(
+!             success=False,
+!             action_type=event.action.value,
+!             details=str(event.to_dict()),
+!             duration_ms=(time.time() - start) * 1000,
+!             safety_decision=decision,
+!             error_message=f"Failed after {self._max_retries} retries: {last_error}",
+!         )
+!         self._operation_log.append(result)
+!         return result
+  
+>     def _execute_keyboard(self, event: KeyboardEvent) -> OperationResult:
+!         decision = self._safety_gate.check_keyboard(event)
+!         if decision == SafetyDecision.BLOCK:
+!             result = OperationResult(
+!                 success=False,
+!                 action_type=event.action.value,
+!                 details=f"Blocked by safety gate: {event.to_dict()}",
+!                 safety_decision=decision,
+!             )
+!             self._operation_log.append(result)
+!             return result
+  
+!         last_error = ""
+!         for attempt in range(self._max_retries):
+!             start = time.time()
+!             try:
+!                 self._safety_gate._consume_rate_limit("keyboard")
+!                 if not self._dry_run and self._pyautogui_available:
+!                     self._do_keyboard(event)
+!                 result = OperationResult(
+!                     success=True,
+!                     action_type=event.action.value,
+!                     details=str(event.to_dict()),
+!                     duration_ms=(time.time() - start) * 1000,
+!                     safety_decision=decision,
+!                 )
+!                 self._operation_log.append(result)
+!                 return result
+!             except Exception as e:
+!                 last_error = str(e)
+!                 if attempt < self._max_retries - 1:
+!                     time.sleep(self._retry_delay)
+  
+!         result = OperationResult(
+!             success=False,
+!             action_type=event.action.value,
+!             details=str(event.to_dict()),
+!             duration_ms=(time.time() - start) * 1000,
+!             safety_decision=decision,
+!             error_message=f"Failed after {self._max_retries} retries: {last_error}",
+!         )
+!         self._operation_log.append(result)
+!         return result
+  
+>     def _do_mouse(self, event: MouseEvent) -> None:
+!         import pyautogui
+  
+!         pyautogui.moveTo(event.x, event.y)
+!         if event.action == MouseAction.CLICK:
+!             pyautogui.click(x=event.x, y=event.y, button=event.button, clicks=event.clicks)
+!         elif event.action == MouseAction.DOUBLE_CLICK:
+!             pyautogui.doubleClick(x=event.x, y=event.y, button=event.button)
+!         elif event.action == MouseAction.RIGHT_CLICK:
+!             pyautogui.rightClick(x=event.x, y=event.y)
+!         elif event.action == MouseAction.DRAG:
+!             pyautogui.drag(event.dx, event.dy, duration=event.duration)
+!         elif event.action == MouseAction.MOVE:
+!             pyautogui.moveTo(event.x, event.y)
+!         elif event.action == MouseAction.SCROLL_UP:
+!             pyautogui.scroll(event.clicks)
+!         elif event.action == MouseAction.SCROLL_DOWN:
+!             pyautogui.scroll(-event.clicks)
+  
+>     def _do_keyboard(self, event: KeyboardEvent) -> None:
+!         import pyautogui
+  
+!         if event.action == KeyboardAction.TYPE:
+!             pyautogui.write(event.text)
+!         elif event.action == KeyboardAction.PRESS:
+!             pyautogui.press(event.keys[0])
+!         elif event.action == KeyboardAction.HOTKEY:
+!             pyautogui.hotkey(*event.keys)

@@ -1,0 +1,48 @@
+! from __future__ import annotations
+  
+! import logging
+! from collections.abc import Callable
+! from pathlib import Path
+! from typing import Any
+  
+! from maref.integration.percv.mas_ts_bridge import MasTSBridge
+! from maref.integration.percv.multi_target_ratchet import ExperimentResult
+  
+! logger = logging.getLogger(__name__)
+  
+  
+! def evaluate_with_masts(
+!     evaluate_fn: Callable[[], dict[str, Any]],
+!     mas_ts: MasTSBridge,
+!     agent_card_path: str | Path | None = None,
+! ) -> dict[str, Any]:
+!     percv_result = evaluate_fn()
+!     mas_ts_result = mas_ts.run_fast_screen(agent_card_path)
+  
+!     percv_score = percv_result.get("consistency_score") or percv_result.get("score", 0)
+!     if isinstance(percv_score, str):
+!         percv_score = float(percv_score)
+  
+!     mas_ts_score = mas_ts_result.get("overall_score", 0)
+!     if isinstance(mas_ts_score, str):
+!         mas_ts_score = float(mas_ts_score)
+  
+!     normalized_mas_ts = mas_ts_score / 100.0 if mas_ts_score > 1 else mas_ts_score
+!     combined_score = (percv_score + normalized_mas_ts) / 2.0
+  
+!     return {
+!         "percv_score": percv_score,
+!         "mas_ts_score": mas_ts_score,
+!         "mas_ts_level": mas_ts_result.get("level", "L0"),
+!         "mas_ts_details": mas_ts_result.get("details", {}),
+!         "combined_score": combined_score,
+!     }
+  
+  
+! def enrich_experiment_result(
+!     result: ExperimentResult,
+!     eval_result: dict[str, Any],
+! ) -> ExperimentResult:
+!     result.mas_ts_score = eval_result.get("mas_ts_score", 0.0)
+!     result.mas_ts_level = eval_result.get("mas_ts_level", "")
+!     return result

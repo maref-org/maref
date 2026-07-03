@@ -1,0 +1,143 @@
+> """Life State Registry — registration and discovery mechanism.
+  
+> C32: Enables life state entities to register, unregister, and be discovered.
+> """
+  
+! from __future__ import annotations
+  
+! import time
+! from collections.abc import Callable
+! from dataclasses import dataclass, field
+! from typing import Any
+  
+! from maref.life_state.metadata import LifeStateCapability, LifeStateMetadata, LifeStateType
+  
+  
+! class RegistryError(Exception):
+-     pass
+  
+  
+! class DuplicateRegistrationError(RegistryError):
+-     pass
+  
+  
+! class NotRegisteredError(RegistryError):
+-     pass
+  
+  
+! @dataclass
+! class RegistryEvent:
+!     event_type: str
+!     state_id: str
+!     timestamp: float
+!     metadata: dict[str, Any] = field(default_factory=dict)
+  
+  
+! class LifeStateRegistry:
+!     """Central registry for life state entities.
+  
+!     Supports:
+!       - Register / unregister lifecycle
+!       - Query by type, capability, health status
+!       - Subscribe to change events
+!     """
+  
+!     def __init__(self) -> None:
+!         self._entities: dict[str, LifeStateMetadata] = {}
+!         self._subscribers: list[Callable[[RegistryEvent], None]] = []
+!         self._event_log: list[RegistryEvent] = []
+  
+!     def register(self, metadata: LifeStateMetadata) -> None:
+!         if metadata.state_id in self._entities:
+!             raise DuplicateRegistrationError(f"State {metadata.state_id} already registered")
+!         self._entities[metadata.state_id] = metadata
+!         event = RegistryEvent(
+!             event_type="registered",
+!             state_id=metadata.state_id,
+!             timestamp=time.time(),
+!             metadata={"type": metadata.state_type.value},
+!         )
+!         self._emit(event)
+  
+!     def unregister(self, state_id: str) -> LifeStateMetadata:
+!         if state_id not in self._entities:
+!             raise NotRegisteredError(f"State {state_id} not registered")
+!         meta = self._entities.pop(state_id)
+!         event = RegistryEvent(
+!             event_type="unregistered",
+!             state_id=state_id,
+!             timestamp=time.time(),
+!         )
+!         self._emit(event)
+!         return meta
+  
+!     def get(self, state_id: str) -> LifeStateMetadata | None:
+!         return self._entities.get(state_id)
+  
+!     def has(self, state_id: str) -> bool:
+!         return state_id in self._entities
+  
+!     def list_all(self) -> list[LifeStateMetadata]:
+!         return list(self._entities.values())
+  
+!     def count(self) -> int:
+!         return len(self._entities)
+  
+!     def find_by_type(self, state_type: LifeStateType) -> list[LifeStateMetadata]:
+!         return [m for m in self._entities.values() if m.state_type == state_type]
+  
+!     def find_by_capability(self, capability: LifeStateCapability) -> list[LifeStateMetadata]:
+!         return [m for m in self._entities.values() if m.has_capability(capability)]
+  
+!     def find_by_label(self, key: str, value: str) -> list[LifeStateMetadata]:
+!         return [m for m in self._entities.values() if m.labels.get(key) == value]
+  
+!     def find_healthy(self, threshold: float = 80.0) -> list[LifeStateMetadata]:
+!         return [m for m in self._entities.values() if m.health_score >= threshold]
+  
+!     def find_unhealthy(self, threshold: float = 50.0) -> list[LifeStateMetadata]:
+!         return [m for m in self._entities.values() if m.health_score < threshold]
+  
+!     def update_metadata(self, state_id: str, **kwargs: Any) -> None:
+!         meta = self._entities.get(state_id)
+!         if meta is None:
+!             raise NotRegisteredError(f"State {state_id} not registered")
+!         for key, value in kwargs.items():
+!             if hasattr(meta, key):
+!                 setattr(meta, key, value)
+!         event = RegistryEvent(
+!             event_type="updated",
+!             state_id=state_id,
+!             timestamp=time.time(),
+!             metadata=kwargs,
+!         )
+!         self._emit(event)
+  
+!     def subscribe(self, callback: Callable[[RegistryEvent], None]) -> None:
+!         self._subscribers.append(callback)
+  
+!     def unsubscribe(self, callback: Callable[[RegistryEvent], None]) -> None:
+!         if callback in self._subscribers:
+!             self._subscribers.remove(callback)
+  
+!     def _emit(self, event: RegistryEvent) -> None:
+!         self._event_log.append(event)
+!         for cb in list(self._subscribers):
+!             try:
+!                 cb(event)
+!             except Exception:
+-                 pass
+  
+!     def get_event_log(self) -> list[RegistryEvent]:
+!         return list(self._event_log)
+  
+!     def clear(self) -> None:
+!         self._entities.clear()
+!         self._event_log.clear()
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "count": self.count(),
+!             "entities": [m.to_dict() for m in self.list_all()],
+!             "event_count": len(self._event_log),
+!         }

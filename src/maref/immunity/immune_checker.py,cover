@@ -1,0 +1,207 @@
+> from __future__ import annotations
+  
+> import ast
+> import os
+> import re
+> from dataclasses import dataclass
+> from typing import TYPE_CHECKING
+  
+> from maref.security.decorators import security_critical
+  
+- if TYPE_CHECKING:
+-     from maref.immunity.negative_gene_bank import NegativeGeneBank
+  
+  
+> @dataclass
+> class ImmuneHit:
+>     gene_id: str
+>     gene_title: str
+>     risk_level: str
+>     severity: int
+>     blocked: bool
+>     match_type: str
+>     match_location: tuple[int, int]
+>     match_snippet: str
+>     fix_suggestion: str | None = None
+  
+  
+> class ImmuneChecker:
+>     """Scans code against the NegativeGeneBank for known harmful patterns."""
+  
+>     def __init__(self, gene_bank: NegativeGeneBank) -> None:
+!         self._bank = gene_bank
+!         self._compiled: dict[str, re.Pattern] = {}
+  
+>     def _get_regex(self, pattern: str) -> re.Pattern:
+!         if pattern not in self._compiled:
+!             self._compiled[pattern] = re.compile(pattern)
+!         return self._compiled[pattern]
+  
+      # ── Public API ────────────────────────────────────────────────────────
+  
+>     def scan(self, code: str, language: str = "python") -> list[ImmuneHit]:
+!         hits: list[ImmuneHit] = []
+!         for gene in self._bank.query_all():
+!             for pat in gene.patterns:
+!                 hit = self._match_pattern(gene, pat, code)
+!                 if hit is not None:
+!                     hits.append(hit)
+!             for variant in gene.variants:
+!                 if variant.language != language and variant.language != "any":
+!                     continue
+!                 if variant.variant_code in code:
+!                     idx = code.index(variant.variant_code)
+!                     line = code[:idx].count("\n") + 1
+!                     col = idx - code.rfind("\n", 0, idx) - 1
+!                     hits.append(
+!                         ImmuneHit(
+!                             gene_id=gene.gene_id,
+!                             gene_title=gene.title,
+!                             risk_level=gene.risk_level,
+!                             severity=gene.severity,
+!                             blocked=gene.blocked,
+!                             match_type="variant",
+!                             match_location=(line, max(col, 0)),
+!                             match_snippet=variant.variant_code,
+!                             fix_suggestion=self._default_fix(pat) if gene.blocked else None,
+!                         )
+!                     )
+          # deduplicate by (gene_id, match_location)
+!         seen: set[tuple[str, int, int]] = set()
+!         deduped: list[ImmuneHit] = []
+!         for h in hits:
+!             key = (h.gene_id, h.match_location[0], h.match_location[1])
+!             if key not in seen:
+!                 seen.add(key)
+!                 deduped.append(h)
+!         return deduped
+  
+>     def scan_ast(self, code: str, language: str = "python") -> list[ImmuneHit]:
+>         """AST-level scan for import and function-call patterns."""
+!         hits: list[ImmuneHit] = []
+!         try:
+!             tree = ast.parse(code)
+!         except SyntaxError:
+!             return hits
+!         for node in ast.walk(tree):
+!             if isinstance(node, ast.Call):
+!                 func_name = _resolve_call_name(node)
+!                 if func_name:
+!                     for gene in self._bank.query_by_pattern(func_name):
+!                         for pat in gene.patterns:
+!                             if pat.pattern_type in ("ast_call", "function_name"):
+!                                 hits.append(
+!                                     ImmuneHit(
+!                                         gene_id=gene.gene_id,
+!                                         gene_title=gene.title,
+!                                         risk_level=gene.risk_level,
+!                                         severity=gene.severity,
+!                                         blocked=gene.blocked,
+!                                         match_type="ast_call",
+!                                         match_location=(node.lineno or 0, node.col_offset or 0),
+!                                         match_snippet=func_name,
+!                                         fix_suggestion=self._default_fix(pat)
+!                                         if gene.blocked
+!                                         else None,
+!                                     )
+!                                 )
+!             elif isinstance(node, (ast.Import, ast.ImportFrom)):
+!                 names = [a.name for a in node.names]
+!                 if isinstance(node, ast.ImportFrom) and node.module:
+!                     names = [node.module + "." + n for n in names]
+!                 for name in names:
+!                     for gene in self._bank.query_by_pattern(name):
+!                         for pat in gene.patterns:
+!                             if pat.pattern_type == "import_name":
+!                                 hits.append(
+!                                     ImmuneHit(
+!                                         gene_id=gene.gene_id,
+!                                         gene_title=gene.title,
+!                                         risk_level=gene.risk_level,
+!                                         severity=gene.severity,
+!                                         blocked=gene.blocked,
+!                                         match_type="import_name",
+!                                         match_location=(node.lineno or 0, node.col_offset or 0),
+!                                         match_snippet=name,
+!                                         fix_suggestion=self._default_fix(pat)
+!                                         if gene.blocked
+!                                         else None,
+!                                     )
+!                                 )
+!         return hits
+  
+>     @security_critical
+>     def scan_file(self, file_path: str, language: str = "python") -> list[ImmuneHit]:
+!         abspath = os.path.abspath(file_path)
+!         if ".." in file_path.split(os.sep):
+!             raise ValueError(f"Path traversal detected: {file_path}")
+!         with open(abspath) as f:
+!             code = f.read()
+!         if len(code) > 1_000_000:
+!             raise ValueError("File too large (>1MB)")
+!         return self.scan(code, language) + self.scan_ast(code, language)
+  
+      # ── Internal ──────────────────────────────────────────────────────────
+  
+>     def _match_pattern(self, gene, pat, code: str) -> ImmuneHit | None:
+!         if pat.pattern_type == "regex":
+!             m = self._get_regex(pat.pattern_value).search(code)
+!             if m:
+!                 line = code[: m.start()].count("\n") + 1
+!                 col = m.start() - code.rfind("\n", 0, m.start()) - 1
+!                 return ImmuneHit(
+!                     gene_id=gene.gene_id,
+!                     gene_title=gene.title,
+!                     risk_level=gene.risk_level,
+!                     severity=gene.severity,
+!                     blocked=gene.blocked,
+!                     match_type="regex",
+!                     match_location=(line, max(col, 0)),
+!                     match_snippet=code[m.start() : m.end()][:120],
+!                     fix_suggestion=self._default_fix(pat) if gene.blocked else None,
+!                 )
+!         elif pat.pattern_type == "string_content":
+!             if pat.pattern_value in code:
+!                 idx = code.index(pat.pattern_value)
+!                 line = code[:idx].count("\n") + 1
+!                 col = idx - code.rfind("\n", 0, idx) - 1
+!                 return ImmuneHit(
+!                     gene_id=gene.gene_id,
+!                     gene_title=gene.title,
+!                     risk_level=gene.risk_level,
+!                     severity=gene.severity,
+!                     blocked=gene.blocked,
+!                     match_type="string_content",
+!                     match_location=(line, max(col, 0)),
+!                     match_snippet=pat.pattern_value,
+!                 )
+!         return None
+  
+>     @staticmethod
+>     def _default_fix(pat) -> str | None:
+!         if pat.pattern_type == "import_name" and pat.pattern_value == "pickle":
+!             return "import json  # pickle is unsafe; use json or a safe serialiser"
+!         if pat.pattern_type == "ast_call" and "eval(" in pat.pattern_value:
+!             return "ast.literal_eval(...)  # instead of eval()"
+!         if pat.pattern_type == "ast_call" and "exec(" in pat.pattern_value:
+!             return "Avoid exec() — use a dedicated function or subprocess instead"
+!         return None
+  
+  
+> def _resolve_call_name(node: ast.Call) -> str | None:
+!     if isinstance(node.func, ast.Attribute):
+!         parts: list[str] = []
+!         current: ast.expr = node.func
+!         while isinstance(current, ast.Attribute):
+!             parts.append(current.attr)
+!             current = current.value
+!         if isinstance(current, ast.Name):
+!             parts.append(current.id)
+!         elif isinstance(current, ast.Call):
+!             return None
+!         else:
+!             return None
+!         return ".".join(reversed(parts))
+!     elif isinstance(node.func, ast.Name):
+!         return node.func.id
+!     return None

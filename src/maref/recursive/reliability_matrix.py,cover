@@ -1,0 +1,168 @@
+- """ReliabilityMatrix: per-task-type historical success tracker.
+  
+> Agent A maintains a matrix of Agent B's success rates per task category.
+> After 3 consecutive failures on the same task type, Agent A automatically
+> bypasses Agent B for that category.
+> """
+  
+! from __future__ import annotations
+  
+! import time
+! from dataclasses import dataclass, field
+! from typing import Any
+  
+  
+! @dataclass
+! class TaskOutcome:
+!     task_type: str
+!     success: bool
+!     latency_ms: float
+!     timestamp: float = field(default_factory=time.time)
+  
+  
+! @dataclass
+! class ReliabilityCell:
+!     """Success statistics for a single (observer, target, task_type) tuple."""
+  
+!     task_type: str
+!     total: int = 0
+!     successes: int = 0
+!     failures: int = 0
+!     consecutive_failures: int = 0
+!     last_latency_ms: float = 0.0
+!     last_updated: float = field(default_factory=time.time)
+  
+!     @property
+!     def success_rate(self) -> float:
+!         if self.total == 0:
+!             return 0.5  # neutral prior
+!         return self.successes / self.total
+  
+!     @property
+!     def is_unreliable(self) -> bool:
+!         """True when the target has failed 3+ times in a row on this task type."""
+!         return self.consecutive_failures >= 3
+  
+!     def record(self, success: bool, latency_ms: float = 0.0) -> None:
+!         self.total += 1
+!         self.last_latency_ms = latency_ms
+!         self.last_updated = time.time()
+!         if success:
+!             self.successes += 1
+!             self.consecutive_failures = 0
+!         else:
+!             self.failures += 1
+!             self.consecutive_failures += 1
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "task_type": self.task_type,
+!             "total": self.total,
+!             "successes": self.successes,
+!             "failures": self.failures,
+!             "success_rate": round(self.success_rate, 3),
+!             "consecutive_failures": self.consecutive_failures,
+!             "is_unreliable": self.is_unreliable,
+!             "last_latency_ms": round(self.last_latency_ms, 1),
+!         }
+  
+  
+! class ReliabilityMatrix:
+!     """Sparse matrix: observer -> target -> task_type -> ReliabilityCell."""
+  
+-     BYPASS_THRESHOLD = 3  # consecutive failures before bypass
+!     HISTORY_WINDOW = 20  # keep last N outcomes per cell
+  
+!     def __init__(self) -> None:
+          # _data[observer_id][target_id][task_type] = ReliabilityCell
+!         self._data: dict[str, dict[str, dict[str, ReliabilityCell]]] = {}
+!         self._history: dict[str, list[TaskOutcome]] = {}
+  
+      # ------------------------------------------------------------------ #
+      # Recording
+      # ------------------------------------------------------------------ #
+!     def record(
+!         self,
+!         observer_id: str,
+!         target_id: str,
+!         task_type: str,
+!         success: bool,
+!         latency_ms: float = 0.0,
+!     ) -> ReliabilityCell:
+!         cell = self._ensure_cell(observer_id, target_id, task_type)
+!         cell.record(success, latency_ms)
+  
+          # Append to rolling history
+!         key = f"{observer_id}:{target_id}:{task_type}"
+!         hist = self._history.setdefault(key, [])
+!         hist.append(TaskOutcome(task_type, success, latency_ms))
+!         if len(hist) > self.HISTORY_WINDOW:
+!             hist.pop(0)
+  
+!         return cell
+  
+      # ------------------------------------------------------------------ #
+      # Queries
+      # ------------------------------------------------------------------ #
+!     def get_cell(self, observer_id: str, target_id: str, task_type: str) -> ReliabilityCell | None:
+!         return self._data.get(observer_id, {}).get(target_id, {}).get(task_type)
+  
+!     def success_rate(self, observer_id: str, target_id: str, task_type: str) -> float:
+!         cell = self.get_cell(observer_id, target_id, task_type)
+!         if cell is None:
+!             return 0.5
+!         return cell.success_rate
+  
+-     def should_bypass(self, observer_id: str, target_id: str, task_type: str) -> bool:
+-         """Return True if the target is currently bypassed for this task type."""
+-         cell = self.get_cell(observer_id, target_id, task_type)
+-         if cell is None:
+-             return False
+-         return cell.is_unreliable
+  
+-     def list_bypassed(self, observer_id: str, task_type: str) -> list[str]:
+-         """Return all target_ids that are currently bypassed from *observer_id*'s
+-         perspective for the given task type."""
+-         bypassed: list[str] = []
+-         for target_id, cells in self._data.get(observer_id, {}).items():
+-             cell = cells.get(task_type)
+-             if cell and cell.is_unreliable:
+-                 bypassed.append(target_id)
+-         return bypassed
+  
+!     def best_target(
+!         self,
+!         observer_id: str,
+!         task_type: str,
+!         candidates: list[str],
+!     ) -> str | None:
+-         """Select the candidate with the highest success rate, excluding
+!         bypassed targets.  Returns None if every candidate is bypassed."""
+-         valid = [
+!             (tid, self.success_rate(observer_id, tid, task_type))
+!             for tid in candidates
+!             if not self.should_bypass(observer_id, tid, task_type)
+!         ]
+!         if not valid:
+!             return None
+!         return max(valid, key=lambda x: x[1])[0]
+  
+      # ------------------------------------------------------------------ #
+      # Internal
+      # ------------------------------------------------------------------ #
+!     def _ensure_cell(self, observer_id: str, target_id: str, task_type: str) -> ReliabilityCell:
+!         obs = self._data.setdefault(observer_id, {})
+!         tgt = obs.setdefault(target_id, {})
+!         if task_type not in tgt:
+!             tgt[task_type] = ReliabilityCell(task_type=task_type)
+!         return tgt[task_type]
+  
+!     def summary(self, observer_id: str) -> dict[str, Any]:
+!         obs = self._data.get(observer_id, {})
+!         return {
+!             "observer": observer_id,
+!             "targets": {
+!                 tid: {tt: cell.to_dict() for tt, cell in cells.items()}
+!                 for tid, cells in obs.items()
+!             },
+!         }

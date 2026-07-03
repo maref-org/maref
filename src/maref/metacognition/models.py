@@ -54,6 +54,12 @@ class SessionRecord:
     capabilities_demonstrated: set[str]
     refusal_count: int
     refusal_topics: list[str]
+    # ── M4: sentinel 观测维度 ──
+    syscall_trace: list[dict[str, Any]] = field(default_factory=list)
+    network_egress: list[dict[str, Any]] = field(default_factory=list)
+    env_access_log: list[dict[str, Any]] = field(default_factory=list)
+    file_io_log: list[dict[str, Any]] = field(default_factory=list)
+    prompt_hash: str = ""
 
 
 @dataclass

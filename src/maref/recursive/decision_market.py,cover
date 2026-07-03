@@ -1,0 +1,585 @@
+! from __future__ import annotations
+  
+! import time
+! import uuid
+! from dataclasses import dataclass, field
+! from typing import TYPE_CHECKING, Any
+  
+! from maref.cross_validator.consensus_algorithm import (
+!     ConsensusStatus,
+!     VoteValue,
+!     WeightedConsensusEngine,
+! )
+  
+- if TYPE_CHECKING:
+-     from maref.recursive.evolution_dsl import EvolutionDSL
+-     from maref.recursive.rule_freeze_zone import RuleFreezeZone
+-     from maref.recursive.unified_audit import UnifiedAuditRecord
+  
+  
+! class DecisionMarketError(Exception):
+-     pass
+  
+  
+! class InsufficientStakeError(DecisionMarketError):
+-     pass
+  
+  
+! class ProposalFrozenError(DecisionMarketError):
+-     pass
+  
+  
+! @dataclass
+! class MarketParticipant:
+!     participant_id: str
+!     stake_balance: float = 0.0
+!     total_staked: float = 0.0
+!     total_rewards: float = 0.0
+!     total_penalties: float = 0.0
+!     vote_count: int = 0
+!     is_active: bool = True
+  
+!     def deposit(self, amount: float) -> None:
+!         if amount < 0:
+!             raise ValueError("Deposit amount must be non-negative")
+!         self.stake_balance += amount
+  
+!     def withdraw(self, amount: float) -> float:
+!         if amount < 0:
+!             raise ValueError("Withdraw amount must be non-negative")
+!         actual = min(amount, self.stake_balance)
+!         self.stake_balance -= actual
+!         return actual
+  
+!     def lock_stake(self, amount: float) -> bool:
+!         if amount < 0:
+!             return False
+!         if self.stake_balance < amount:
+!             return False
+!         self.stake_balance -= amount
+!         self.total_staked += amount
+!         self.vote_count += 1
+!         return True
+  
+!     def reward(self, amount: float) -> None:
+!         self.stake_balance += amount
+!         self.total_rewards += amount
+  
+!     def penalize(self, amount: float) -> None:
+!         self.total_penalties += amount
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "participant_id": self.participant_id,
+!             "stake_balance": round(self.stake_balance, 4),
+!             "total_staked": round(self.total_staked, 4),
+!             "total_rewards": round(self.total_rewards, 4),
+!             "total_penalties": round(self.total_penalties, 4),
+!             "vote_count": self.vote_count,
+!             "is_active": self.is_active,
+!         }
+  
+  
+! @dataclass
+! class MarketProposal:
+!     proposal_id: str
+!     target: str
+!     current_value: Any
+!     proposed_value: Any
+!     justification: str
+!     proposer_id: str
+!     timestamp: float
+!     min_stake: float = 1.0
+!     quorum_threshold: float = 0.67
+!     consensus_deadline: float = 0.0
+!     status: str = "open"
+!     evolution_rule_id: str = ""
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "proposal_id": self.proposal_id,
+!             "target": self.target,
+!             "justification": self.justification,
+!             "proposer_id": self.proposer_id,
+!             "timestamp": self.timestamp,
+!             "min_stake": self.min_stake,
+!             "quorum_threshold": self.quorum_threshold,
+!             "consensus_deadline": self.consensus_deadline,
+!             "status": self.status,
+!             "evolution_rule_id": self.evolution_rule_id,
+!         }
+  
+  
+! @dataclass
+! class MarketVote:
+!     vote_id: str
+!     proposal_id: str
+!     participant_id: str
+!     vote_value: VoteValue
+!     stake_amount: float
+!     timestamp: float
+!     justification: str = ""
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "vote_id": self.vote_id,
+!             "proposal_id": self.proposal_id,
+!             "participant_id": self.participant_id,
+!             "vote": self.vote_value.value,
+!             "stake_amount": round(self.stake_amount, 4),
+!             "timestamp": self.timestamp,
+!             "justification": self.justification,
+!         }
+  
+  
+! @dataclass
+! class MarketConsensusResult:
+!     proposal_id: str
+!     consensus_reached: bool
+!     winning_vote: VoteValue | None
+!     approve_stake: float
+!     reject_stake: float
+!     abstain_stake: float
+!     total_stake: float
+!     participation_rate: float
+!     confidence: float
+!     reward_pool: float
+!     status: str
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "proposal_id": self.proposal_id,
+!             "consensus_reached": self.consensus_reached,
+!             "winning_vote": self.winning_vote.value if self.winning_vote else None,
+!             "approve_stake": round(self.approve_stake, 4),
+!             "reject_stake": round(self.reject_stake, 4),
+!             "abstain_stake": round(self.abstain_stake, 4),
+!             "total_stake": round(self.total_stake, 4),
+!             "participation_rate": round(self.participation_rate, 4),
+!             "confidence": round(self.confidence, 4),
+!             "reward_pool": round(self.reward_pool, 4),
+!             "status": self.status,
+!         }
+  
+  
+! @dataclass
+! class DecisionMarketAuditEntry:
+!     entry_id: str
+!     timestamp: float
+!     proposal_id: str
+!     event_type: str
+!     participant_id: str
+!     details: dict[str, Any] = field(default_factory=dict)
+  
+!     def to_unified(self, round_num: int = 10) -> UnifiedAuditRecord:
+!         from maref.recursive.unified_audit import UnifiedAuditRecord
+  
+!         decision = self.details.get("vote", "unknown")
+!         outcome = self.details.get("consensus_status", "unknown")
+!         return UnifiedAuditRecord(
+!             record_id=self.entry_id,
+!             timestamp=self.timestamp,
+!             layer="decision_market",
+!             round=round_num,
+!             event_type=self.event_type,
+!             source_module="DecisionMarket",
+!             target_module=self.details.get("target", ""),
+!             decision=decision,
+!             justification=self.details.get("justification", ""),
+!             outcome=outcome,
+!             context_refs=[self.proposal_id],
+!         )
+  
+  
+! class DecisionMarket:
+!     def __init__(
+!         self,
+!         evolution_dsl: EvolutionDSL | None = None,
+!         freeze_zone: RuleFreezeZone | None = None,
+!         min_participants: int = 3,
+!         default_min_stake: float = 1.0,
+!         consensus_timeout_s: float = 300.0,
+!     ) -> None:
+!         self._engine = WeightedConsensusEngine()
+!         self._participants: dict[str, MarketParticipant] = {}
+!         self._proposals: dict[str, MarketProposal] = {}
+!         self._votes: dict[str, list[MarketVote]] = {}
+!         self._consensus_results: dict[str, MarketConsensusResult] = {}
+!         self._audit: list[DecisionMarketAuditEntry] = []
+!         self._min_participants = min_participants
+!         self._default_min_stake = default_min_stake
+!         self._consensus_timeout_s = consensus_timeout_s
+  
+!         self._evolution_dsl = evolution_dsl
+!         self._freeze_zone = freeze_zone
+  
+!     @property
+!     def evolution_dsl(self) -> EvolutionDSL | None:
+!         return self._evolution_dsl
+  
+!     @property
+!     def freeze_zone(self) -> RuleFreezeZone | None:
+!         return self._freeze_zone
+  
+!     def register_participant(
+!         self, participant_id: str, initial_stake: float = 0.0
+!     ) -> MarketParticipant:
+!         if participant_id in self._participants:
+!             return self._participants[participant_id]
+!         participant = MarketParticipant(
+!             participant_id=participant_id,
+!             stake_balance=initial_stake,
+!         )
+!         self._participants[participant_id] = participant
+!         self._engine.register_validator(participant_id, initial_weight=max(1.0, initial_stake))
+!         self._audit_log(
+!             "participant_registered", "", participant_id, {"initial_stake": initial_stake}
+!         )
+!         return participant
+  
+!     def deposit_stake(self, participant_id: str, amount: float) -> float:
+!         participant = self._participants.get(participant_id)
+!         if not participant:
+!             raise DecisionMarketError(f"Participant '{participant_id}' not found")
+!         participant.deposit(amount)
+!         validator = self._engine._validators.get(participant_id)
+!         if validator:
+!             validator.update_weight(participant.stake_balance + 1.0)
+!         self._audit_log(
+!             "stake_deposited",
+!             "",
+!             participant_id,
+!             {"amount": amount, "balance": participant.stake_balance},
+!         )
+!         return participant.stake_balance
+  
+!     def propose(
+!         self,
+!         target: str,
+!         current_value: Any,
+!         proposed_value: Any,
+!         proposer_id: str,
+!         justification: str = "",
+!         min_stake: float | None = None,
+!         quorum_threshold: float = 0.67,
+!     ) -> MarketProposal:
+!         if self._freeze_zone is not None:
+!             check = self._freeze_zone.check(target, proposed_value)
+!             if not check.allowed:
+!                 raise ProposalFrozenError(
+!                     f"Proposal for target '{target}' blocked by freeze zone: {check.frozen_reason}"
+!                 )
+  
+!         proposer = self._participants.get(proposer_id)
+!         if not proposer:
+!             raise DecisionMarketError(f"Proposer '{proposer_id}' not found")
+  
+!         actual_min_stake = min_stake if min_stake is not None else self._default_min_stake
+!         if proposer.stake_balance < actual_min_stake:
+!             raise InsufficientStakeError(
+!                 f"Proposer '{proposer_id}' has insufficient stake: {proposer.stake_balance} < {actual_min_stake}"
+!             )
+  
+!         proposal_id = f"mkt_{uuid.uuid4().hex[:8]}"
+!         now = time.time()
+!         proposal = MarketProposal(
+!             proposal_id=proposal_id,
+!             target=target,
+!             current_value=current_value,
+!             proposed_value=proposed_value,
+!             justification=justification,
+!             proposer_id=proposer_id,
+!             timestamp=now,
+!             min_stake=actual_min_stake,
+!             quorum_threshold=quorum_threshold,
+!             consensus_deadline=now + self._consensus_timeout_s,
+!         )
+  
+!         if self._evolution_dsl is not None:
+!             try:
+!                 rule = self._evolution_dsl.propose(
+!                     target=target,
+!                     current_value=current_value,
+!                     proposed_value=proposed_value,
+!                     justification=justification,
+!                 )
+!                 proposal.evolution_rule_id = rule.rule_id
+!             except Exception:
+-                 pass
+  
+!         self._proposals[proposal_id] = proposal
+!         self._votes[proposal_id] = []
+  
+!         self._engine.create_proposal(
+!             proposal_id=proposal_id,
+!             content=proposal.to_dict(),
+!             proposer_id=proposer_id,
+!             quorum_threshold=quorum_threshold,
+!         )
+  
+!         self._audit_log(
+!             "proposal_created",
+!             proposal_id,
+!             proposer_id,
+!             {
+!                 "target": target,
+!                 "justification": justification,
+!                 "min_stake": actual_min_stake,
+!                 "quorum_threshold": quorum_threshold,
+!             },
+!         )
+!         return proposal
+  
+!     def vote(
+!         self,
+!         proposal_id: str,
+!         participant_id: str,
+!         vote_value: VoteValue,
+!         stake_amount: float | None = None,
+!         justification: str = "",
+!     ) -> MarketVote:
+!         proposal = self._proposals.get(proposal_id)
+!         if not proposal:
+!             raise DecisionMarketError(f"Proposal '{proposal_id}' not found")
+!         if proposal.status != "open":
+!             raise DecisionMarketError(f"Proposal '{proposal_id}' is not open for voting")
+  
+!         participant = self._participants.get(participant_id)
+!         if not participant or not participant.is_active:
+!             raise DecisionMarketError(f"Participant '{participant_id}' not found or inactive")
+  
+!         actual_stake = stake_amount if stake_amount is not None else proposal.min_stake
+!         if actual_stake < proposal.min_stake:
+!             raise InsufficientStakeError(
+!                 f"Stake {actual_stake} < minimum required {proposal.min_stake}"
+!             )
+  
+!         if not participant.lock_stake(actual_stake):
+!             raise InsufficientStakeError(
+!                 f"Participant '{participant_id}' has insufficient balance to stake {actual_stake}"
+!             )
+  
+!         validator = self._engine._validators.get(participant_id)
+!         if validator:
+!             validator.update_weight(participant.stake_balance + participant.total_staked + 1.0)
+  
+!         vote = MarketVote(
+!             vote_id=f"vote_{uuid.uuid4().hex[:6]}",
+!             proposal_id=proposal_id,
+!             participant_id=participant_id,
+!             vote_value=vote_value,
+!             stake_amount=actual_stake,
+!             timestamp=time.time(),
+!             justification=justification,
+!         )
+!         self._votes[proposal_id].append(vote)
+  
+!         self._engine.cast_vote(
+!             proposal_id=proposal_id,
+!             validator_id=participant_id,
+!             vote_value=vote_value,
+!             justification=justification,
+!         )
+  
+!         self._audit_log(
+!             "vote_cast",
+!             proposal_id,
+!             participant_id,
+!             {
+!                 "vote": vote_value.value,
+!                 "stake": actual_stake,
+!                 "target": proposal.target,
+!                 "justification": justification,
+!             },
+!         )
+!         return vote
+  
+!     def evaluate_consensus(self, proposal_id: str) -> MarketConsensusResult:
+!         proposal = self._proposals.get(proposal_id)
+!         if not proposal:
+!             raise DecisionMarketError(f"Proposal '{proposal_id}' not found")
+  
+!         engine_result = self._engine.evaluate_consensus(proposal_id)
+  
+!         votes = self._votes.get(proposal_id, [])
+!         approve_stake = 0.0
+!         reject_stake = 0.0
+!         abstain_stake = 0.0
+!         total_stake = 0.0
+!         voted_participants: set[str] = set()
+  
+!         for vote in votes:
+!             participant = self._participants.get(vote.participant_id)
+!             if not participant or not participant.is_active:
+!                 continue
+!             voted_participants.add(vote.participant_id)
+!             total_stake += vote.stake_amount
+!             if vote.vote_value == VoteValue.APPROVE:
+!                 approve_stake += vote.stake_amount
+!             elif vote.vote_value == VoteValue.REJECT:
+!                 reject_stake += vote.stake_amount
+!             elif vote.vote_value == VoteValue.ABSTAIN:
+!                 abstain_stake += vote.stake_amount
+  
+!         active_total_stake = sum(p.total_staked for p in self._participants.values() if p.is_active)
+!         participation_rate = total_stake / active_total_stake if active_total_stake > 0 else 0.0
+  
+!         consensus_reached = engine_result.status == ConsensusStatus.REACHED
+!         reward_pool = total_stake * 0.05
+  
+!         result = MarketConsensusResult(
+!             proposal_id=proposal_id,
+!             consensus_reached=consensus_reached,
+!             winning_vote=engine_result.winning_vote,
+!             approve_stake=approve_stake,
+!             reject_stake=reject_stake,
+!             abstain_stake=abstain_stake,
+!             total_stake=total_stake,
+!             participation_rate=participation_rate,
+!             confidence=engine_result.confidence,
+!             reward_pool=reward_pool,
+!             status=engine_result.status.value,
+!         )
+!         self._consensus_results[proposal_id] = result
+  
+!         if consensus_reached:
+!             proposal.status = "consensus_reached"
+!             self._distribute_rewards(proposal_id, engine_result.winning_vote)
+!             if (
+!                 engine_result.winning_vote == VoteValue.APPROVE
+!                 and self._evolution_dsl is not None
+!                 and proposal.evolution_rule_id
+!             ):
+!                 self._apply_to_evolution(proposal)
+!         elif engine_result.status in (ConsensusStatus.FAILED, ConsensusStatus.BYZANTINE_DETECTED):
+!             proposal.status = "consensus_failed"
+!         else:
+!             proposal.status = "inconclusive"
+  
+!         self._audit_log(
+!             "consensus_evaluated",
+!             proposal_id,
+!             "",
+!             {
+!                 "target": proposal.target,
+!                 "consensus_reached": consensus_reached,
+!                 "winning_vote": engine_result.winning_vote.value
+!                 if engine_result.winning_vote
+!                 else None,
+!                 "confidence": engine_result.confidence,
+!                 "status": engine_result.status.value,
+!             },
+!         )
+!         return result
+  
+!     def _distribute_rewards(self, proposal_id: str, winning_vote: VoteValue | None) -> None:
+!         if winning_vote is None:
+!             return
+!         result = self._consensus_results.get(proposal_id)
+!         if not result:
+!             return
+!         reward_pool = result.reward_pool
+!         votes = self._votes.get(proposal_id, [])
+!         winning_stake = 0.0
+!         for vote in votes:
+!             if vote.vote_value == winning_vote:
+!                 winning_stake += vote.stake_amount
+!         if winning_stake <= 0:
+!             return
+!         for vote in votes:
+!             participant = self._participants.get(vote.participant_id)
+!             if not participant:
+!                 continue
+!             if vote.vote_value == winning_vote:
+!                 share = (vote.stake_amount / winning_stake) * reward_pool
+!                 participant.reward(share)
+!             elif vote.vote_value != VoteValue.ABSTAIN:
+!                 participant.penalize(vote.stake_amount * 0.1)
+  
+!     def _apply_to_evolution(self, proposal: MarketProposal) -> None:
+!         if self._evolution_dsl is None:
+!             return
+!         rule = self._evolution_dsl.rules.get(proposal.evolution_rule_id)
+!         if rule is None:
+!             return
+!         apply_result = self._evolution_dsl.apply(rule)
+!         self._audit_log(
+!             "evolution_applied",
+!             proposal.proposal_id,
+!             proposal.proposer_id,
+!             {
+!                 "target": proposal.target,
+!                 "rule_id": proposal.evolution_rule_id,
+!                 "applied": apply_result.applied,
+!             },
+!         )
+  
+!     def get_proposal(self, proposal_id: str) -> MarketProposal | None:
+!         return self._proposals.get(proposal_id)
+  
+!     def list_proposals(self, status: str | None = None) -> list[MarketProposal]:
+!         proposals = list(self._proposals.values())
+!         if status:
+!             proposals = [p for p in proposals if p.status == status]
+!         return proposals
+  
+!     def get_participant(self, participant_id: str) -> MarketParticipant | None:
+!         return self._participants.get(participant_id)
+  
+!     def list_participants(self) -> list[MarketParticipant]:
+!         return list(self._participants.values())
+  
+!     def get_votes(self, proposal_id: str) -> list[MarketVote]:
+!         return list(self._votes.get(proposal_id, []))
+  
+!     def get_consensus_result(self, proposal_id: str) -> MarketConsensusResult | None:
+!         return self._consensus_results.get(proposal_id)
+  
+!     def audit_trail(self) -> list[DecisionMarketAuditEntry]:
+!         return list(self._audit)
+  
+!     def stats(self) -> dict[str, Any]:
+!         total_proposals = len(self._proposals)
+!         consensus_reached = sum(
+!             1 for p in self._proposals.values() if p.status == "consensus_reached"
+!         )
+!         total_participants = len(self._participants)
+!         active_participants = sum(1 for p in self._participants.values() if p.is_active)
+!         total_staked = sum(p.total_staked for p in self._participants.values())
+!         total_rewards = sum(p.total_rewards for p in self._participants.values())
+!         return {
+!             "total_proposals": total_proposals,
+!             "consensus_reached": consensus_reached,
+!             "consensus_rate": round(consensus_reached / total_proposals, 4)
+!             if total_proposals > 0
+!             else 0.0,
+!             "total_participants": total_participants,
+!             "active_participants": active_participants,
+!             "total_staked": round(total_staked, 4),
+!             "total_rewards_distributed": round(total_rewards, 4),
+!         }
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "stats": self.stats(),
+!             "participants": [p.to_dict() for p in self._participants.values()],
+!             "proposals": [p.to_dict() for p in self._proposals.values()],
+!             "consensus_results": [r.to_dict() for r in self._consensus_results.values()],
+!         }
+  
+!     def _audit_log(
+!         self,
+!         event_type: str,
+!         proposal_id: str,
+!         participant_id: str,
+!         details: dict[str, Any],
+!     ) -> None:
+!         entry = DecisionMarketAuditEntry(
+!             entry_id=f"dm_{uuid.uuid4().hex[:8]}",
+!             timestamp=time.time(),
+!             proposal_id=proposal_id,
+!             event_type=event_type,
+!             participant_id=participant_id,
+!             details=details,
+!         )
+!         self._audit.append(entry)

@@ -1,0 +1,150 @@
+> """Entity-level knowledge graph with typed nodes and entity relations.
+  
+> Extends the generic KnowledgeGraph with:
+> - EntityType enum (PERSON, ORGANIZATION, PROJECT, CONCEPT, CODE_MODULE, DOCUMENT)
+> - EntityRelationType enum (works_at, founded, invested_in, etc.)
+> - EntityNode with canonical name, aliases, and typed entity edges
+> - Zero-LLM entity extraction via RuleBasedEntityExtractor
+> """
+  
+! from __future__ import annotations
+  
+! import time
+! from dataclasses import dataclass, field
+! from enum import Enum
+! from typing import Any
+  
+  
+! class EntityType(Enum):
+!     PERSON = "person"
+!     ORGANIZATION = "organization"
+!     PROJECT = "project"
+!     CONCEPT = "concept"
+!     CODE_MODULE = "code_module"
+!     DOCUMENT = "document"
+!     EVENT = "event"
+!     LOCATION = "location"
+  
+  
+! class EntityRelationType(Enum):
+!     WORKS_AT = "works_at"
+!     FOUNDED = "founded"
+!     INVESTED_IN = "invested_in"
+!     ATTENDED = "attended"
+!     ADVISES = "advises"
+!     DEPENDS_ON = "depends_on"
+!     IMPLEMENTS = "implements"
+!     OWNS = "owns"
+!     REPORTS_TO = "reports_to"
+!     LOCATED_IN = "located_in"
+!     PART_OF = "part_of"
+!     COLLABORATES_WITH = "collaborates_with"
+!     MENTIONS = "mentions"
+!     PRODUCES = "produces"
+!     FUNDED_BY = "funded_by"
+  
+  
+! @dataclass
+! class EntityEdge:
+!     """A typed, directed edge between two entity nodes."""
+  
+!     relation: EntityRelationType
+!     target_id: str
+!     confidence: float
+!     method: str  # "rule", "llm", "manual"
+!     context: str = ""  # snippet from source text that triggered this edge
+  
+  
+! @dataclass
+! class EntityNode:
+!     """An entity node in the knowledge graph."""
+  
+!     id: str
+!     entity_type: EntityType
+!     canonical_name: str
+!     content: str
+!     confidence: float
+!     source: str
+!     timestamp: float
+!     aliases: list[str] = field(default_factory=list)
+!     metadata: dict[str, Any] = field(default_factory=dict)
+!     entity_relations: list[EntityEdge] = field(default_factory=list)
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "id": self.id,
+!             "entity_type": self.entity_type.value,
+!             "canonical_name": self.canonical_name,
+!             "content": self.content,
+!             "confidence": self.confidence,
+!             "source": self.source,
+!             "timestamp": self.timestamp,
+!             "aliases": self.aliases,
+!             "metadata": self.metadata,
+!             "entity_relations": [
+!                 {
+!                     "relation": e.relation.value,
+!                     "target_id": e.target_id,
+!                     "confidence": e.confidence,
+!                     "method": e.method,
+!                     "context": e.context,
+!                 }
+!                 for e in self.entity_relations
+!             ],
+!         }
+  
+!     @classmethod
+!     def from_dict(cls, data: dict[str, Any]) -> EntityNode:
+!         edges = [
+!             EntityEdge(
+!                 relation=EntityRelationType(e["relation"]),
+!                 target_id=e["target_id"],
+!                 confidence=e.get("confidence", 0.5),
+!                 method=e.get("method", "unknown"),
+!                 context=e.get("context", ""),
+!             )
+!             for e in data.get("entity_relations", [])
+!         ]
+!         return cls(
+!             id=data["id"],
+!             entity_type=EntityType(data["entity_type"]),
+!             canonical_name=data["canonical_name"],
+!             content=data.get("content", ""),
+!             confidence=data.get("confidence", 0.5),
+!             source=data.get("source", ""),
+!             timestamp=data.get("timestamp", time.time()),
+!             aliases=data.get("aliases", []),
+!             metadata=data.get("metadata", {}),
+!             entity_relations=edges,
+!         )
+  
+  
+! def make_entity_id(entity_type: EntityType, name: str) -> str:
+!     """Deterministic entity ID from type and canonical name."""
+!     safe = name.lower().replace(" ", "_").replace("/", "_")[:48]
+!     return f"entity_{entity_type.value}_{safe}"
+  
+  
+! _NODE_TYPES_META = {
+!     "person": EntityType.PERSON,
+!     "人物": EntityType.PERSON,
+!     "company": EntityType.ORGANIZATION,
+!     "组织": EntityType.ORGANIZATION,
+!     "organization": EntityType.ORGANIZATION,
+!     "项目": EntityType.PROJECT,
+!     "project": EntityType.PROJECT,
+!     "concept": EntityType.CONCEPT,
+!     "概念": EntityType.CONCEPT,
+!     "module": EntityType.CODE_MODULE,
+!     "模块": EntityType.CODE_MODULE,
+!     "document": EntityType.DOCUMENT,
+!     "文档": EntityType.DOCUMENT,
+! }
+  
+  
+! def infer_entity_type(meta_type: str | None) -> EntityType:
+!     if meta_type:
+!         lowered = meta_type.lower().strip()
+!         if lowered in _NODE_TYPES_META:
+!             return _NODE_TYPES_META[lowered]
+!     return EntityType.CONCEPT

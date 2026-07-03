@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  MAREF 系统扩展 Entitlements — ESF client + Network Extension
+
+  使用方式:
+    codesign -s "Developer ID Application" \
+      --entitlements esf_entitlements.plist \
+      -o runtime \
+      maref-esf-client
+
+    codesign -s "Developer ID Application" \
+      --entitlements esf_entitlements.plist \
+      -o runtime \
+      maref-network-extension
+
+  必需条件:
+    - Apple Developer 账号 (付费)
+    - com.apple.developer.endpoint-security.client — 需 Extra 权限申请
+    - com.apple.developer.networking.networkextension — 需 Extra 权限申请
+    - com.apple.developer.system-extension.install — 安装系统扩展
+
+  部署文档: docs/platform/macos-deployment-checklist.md (TODO: M2.2)
+-->
+<plist version="1.0">
+<dict>
+    <!-- ESF client — 订阅 Endpoint Security Framework 内核事件 -->
+    <key>com.apple.developer.endpoint-security.client</key>
+    <true/>
+
+    <!-- Network Extension — Packet Tunnel Provider 拦截出站流量 -->
+    <key>com.apple.developer.networking.networkextension</key>
+    <array>
+        <string>packet-tunnel-provider</string>
+    </array>
+
+    <!-- 系统扩展安装权限 -->
+    <key>com.apple.developer.system-extension.install</key>
+    <true/>
+
+    <!-- 安全/沙箱 — JIT + 禁用库验证 (加载未签名库) -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- 网络访问 — 出站连接 (NE 和 ESF client 均需) -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- 文件访问 — 用户选择文件读写 (隔离分析用) -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+</dict>
+</plist>

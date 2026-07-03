@@ -129,6 +129,17 @@ class ThreatGovernanceBridge:
             "current_state": self._sm.current_state.name,
         }
 
+    def batch_alerts(self, alerts: list[ThreatAlert]) -> list[dict[str, Any]]:
+        """批量处理告警（sentinel 短时间可能产生大量 ProbeReading）。
+
+        Args:
+            alerts: 威胁告警列表
+
+        Returns:
+            每个告警的处理结果列表
+        """
+        return [self.on_threat_alert(a) for a in alerts]
+
     def get_recent_alerts(self, limit: int = 10) -> list[ThreatAlert]:
         """获取最近的威胁告警。"""
         return self._alert_history[-limit:]

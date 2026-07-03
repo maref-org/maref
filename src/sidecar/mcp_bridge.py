@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -341,6 +342,8 @@ class SidecarMCPBridge:
                 "isError": True,
                 "content": [{"type": "text", "text": f"Unknown tool: {name}"}],
             }
+        elif name == "maref_observe_agent":
+            result = self._handle_observe_agent(args)
         elif name == "maref_run_evolution":
             result = self._handle_evolution_run(args)
         elif name == "maref_get_evolution_status":
@@ -357,8 +360,6 @@ class SidecarMCPBridge:
 
     def _route_cd(self, name: str, args: dict[str, Any]) -> str:
         """路由 codedepth 工具调用，返回 JSON 字符串。"""
-        import json
-
         idx = self._cd_indexer
         if not idx:
             return json.dumps({"error": "Indexer not available"})
@@ -384,7 +385,6 @@ class SidecarMCPBridge:
             return json.dumps({"error": str(e)})
 
     def _handle_evolution_run(self, args: dict[str, Any]) -> dict[str, Any]:
-        import json
         try:
             from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
             engine = args.get("engine", "daily")
@@ -399,7 +399,6 @@ class SidecarMCPBridge:
             return {"isError": True, "content": [{"type": "text", "text": f"Evolution run failed: {e}"}]}
 
     def _handle_evolution_status(self, args: dict[str, Any]) -> dict[str, Any]:
-        import json
         try:
             state_path = ".evolution_daemon_state.json"
             import os
@@ -415,7 +414,6 @@ class SidecarMCPBridge:
             return {"isError": True, "content": [{"type": "text", "text": f"Status check failed: {e}"}]}
 
     def _handle_evolution_results(self, args: dict[str, Any]) -> dict[str, Any]:
-        import json
         import os
         try:
             limit = args.get("limit", 10)
@@ -428,6 +426,42 @@ class SidecarMCPBridge:
             }
         except Exception as e:
             return {"isError": True, "content": [{"type": "text", "text": f"List results failed: {e}"}]}
+
+    def _handle_observe_agent(self, args: dict[str, Any]) -> dict[str, Any]:
+        """处理 maref_observe_agent 工具调用 — 若 probe 可用则检查外泄。
+
+        M4-A2: 内部调用 self._probe.check_exfiltration(data, pid)。
+        """
+        agent_id = args.get("agent_id", "")
+        data = args.get("data", b"")
+        pid = args.get("pid")
+
+        if isinstance(data, str):
+            data = data.encode()
+
+        exfil_detected = False
+        if self._probe is not None:
+            try:
+                exfil_detected = self._probe.check_exfiltration(data, pid)
+            except Exception:
+                # 不向调用方泄露内部异常详情
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Probe check failed"}],
+                }
+
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({
+                        "agent_id": agent_id,
+                        "exfiltration_detected": exfil_detected,
+                        "probe_available": self._probe is not None,
+                    }),
+                }
+            ],
+        }
 
     def close(self) -> None:
         """释放后端资源。"""

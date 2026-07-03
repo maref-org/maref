@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import time
 
+from maref.execution.harness.adapters.stress_adapter import _parse_level
 from maref.execution.harness.base import BaseHarness
 from maref.execution.harness.types import HarnessConfig, HarnessResult, HarnessStatus
-
-from maref.execution.harness.adapters.stress_adapter import _parse_level
 from maref.stress.distributed_harness import DistributedStressHarness
 
 

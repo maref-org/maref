@@ -1,0 +1,103 @@
+! from __future__ import annotations
+  
+! import asyncio
+! import os
+! import shlex
+  
+! from pydantic import BaseModel, Field
+  
+! from maref.codegen.permissions import BashValidator
+! from maref.codegen.tool import (
+!     Tool,
+!     ToolContext,
+!     ToolResult,
+!     ToolResultStatus,
+!     ValidationResult,
+! )
+  
+  
+! class BashInput(BaseModel):
+!     command: str = Field(..., description="Shell command to execute")
+!     timeout: int = Field(30, description="Timeout in seconds")
+!     workdir: str | None = Field(None, description="Working directory for the command")
+  
+  
+! class BashOutput(BaseModel):
+!     exit_code: int
+!     stdout: str
+!     stderr: str
+!     timed_out: bool = False
+!     duration_ms: float = 0.0
+  
+  
+! class BashTool(Tool[BashInput, BashOutput]):
+!     name = "Bash"
+!     description: str = "Execute shell commands with safety validation"
+!     requires_user_interaction: bool = True
+  
+!     def __init__(self, validator: BashValidator | None = None) -> None:
+!         self._validator = validator or BashValidator()
+  
+!     def is_read_only(self, input: BashInput) -> bool:
+!         tokens = shlex.split(input.command)
+!         read_only_commands = {"ls", "cat", "head", "tail", "echo", "pwd", "which", "type", "printenv"}
+!         return bool(tokens and tokens[0] in read_only_commands)
+  
+!     def is_concurrency_safe(self, input: BashInput) -> bool:
+!         return False
+  
+!     async def validate(self, input: BashInput) -> ValidationResult:
+!         is_valid, error, warnings = self._validator.validate(input.command)
+!         if not is_valid:
+!             return ValidationResult(is_valid=False, message=error, details={"warnings": warnings})
+!         return ValidationResult(is_valid=True)
+  
+!     async def call(self, input: BashInput, ctx: ToolContext) -> ToolResult[BashOutput]:
+!         import time
+  
+!         cwd = input.workdir or ctx.workspace_root or os.getcwd()
+!         start = time.monotonic()
+  
+!         try:
+!             process = await asyncio.create_subprocess_shell(
+!                 input.command,
+!                 stdout=asyncio.subprocess.PIPE,
+!                 stderr=asyncio.subprocess.PIPE,
+!                 cwd=cwd,
+!             )
+  
+!             try:
+!                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
+!                     process.communicate(), timeout=input.timeout
+!                 )
+!                 duration_ms = (time.monotonic() - start) * 1000
+!                 stdout = stdout_bytes.decode("utf-8", errors="replace")
+!                 stderr = stderr_bytes.decode("utf-8", errors="replace")
+  
+!                 return ToolResult(
+!                     data=BashOutput(
+!                         exit_code=process.returncode or 0,
+!                         stdout=stdout,
+!                         stderr=stderr,
+!                         timed_out=False,
+!                         duration_ms=duration_ms,
+!                     )
+!                 )
+!             except asyncio.TimeoutError:
+!                 process.kill()
+!                 await process.wait()
+!                 duration_ms = (time.monotonic() - start) * 1000
+!                 return ToolResult(
+!                     data=BashOutput(
+!                         exit_code=-1,
+!                         stdout="",
+!                         stderr=f"Command timed out after {input.timeout}s",
+!                         timed_out=True,
+!                         duration_ms=duration_ms,
+!                     )
+!                 )
+!         except Exception as e:
+!             return ToolResult(
+!                 status=ToolResultStatus.ERROR,
+!                 error=f"Bash execution failed: {e}",
+!             )

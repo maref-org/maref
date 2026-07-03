@@ -1,0 +1,103 @@
+> from __future__ import annotations
+  
+> import asyncio
+> from collections.abc import AsyncGenerator
+> from typing import Any
+  
+> from maref.codegen.registry import ToolRegistry
+> from maref.codegen.tool import ToolContext, ToolResult
+  
+  
+> class ToolExecutionError(RuntimeError):
+-     pass
+  
+  
+> class ToolExecutor:
+>     MAX_CONCURRENCY: int = 10
+  
+>     def __init__(self, registry: ToolRegistry) -> None:
+!         self._registry = registry
+  
+>     async def execute_all(
+>         self,
+>         tool_calls: list[tuple[str, Any, ToolContext]],
+>     ) -> AsyncGenerator[tuple[int, ToolResult[Any]], None]:
+!         batches = self._partition(tool_calls)
+!         for is_concurrent, batch in batches:
+!             if is_concurrent:
+!                 async for result in self._run_parallel(batch):
+!                     yield result
+!             else:
+!                 async for result in self._run_serial(batch):
+!                     yield result
+  
+>     def _partition(
+>         self,
+>         calls: list[tuple[str, Any, ToolContext]],
+>     ) -> list[tuple[bool, list[tuple[int, str, Any, ToolContext]]]]:
+!         indexed: list[tuple[int, str, Any, ToolContext]] = [
+!             (i, name, inp, ctx) for i, (name, inp, ctx) in enumerate(calls)
+!         ]
+!         if not indexed:
+!             return []
+  
+!         batches: list[tuple[bool, list[tuple[int, str, Any, ToolContext]]]] = []
+!         current_batch: list[tuple[int, str, Any, ToolContext]] = []
+!         current_is_concurrent: bool | None = None
+  
+!         for item in indexed:
+!             idx, name, inp, ctx = item
+!             try:
+!                 tool = self._registry.get(name)
+!             except LookupError:
+!                 current_batch.append(item)
+!                 if current_is_concurrent is None:
+!                     current_is_concurrent = False
+!                 continue
+  
+!             is_concurrent = tool.is_read_only(inp) and tool.is_concurrency_safe(inp)
+!             if current_is_concurrent is None:
+!                 current_is_concurrent = is_concurrent
+!                 current_batch.append(item)
+!             elif is_concurrent == current_is_concurrent:
+!                 current_batch.append(item)
+!             else:
+!                 batches.append((current_is_concurrent, current_batch))
+!                 current_batch = [item]
+!                 current_is_concurrent = is_concurrent
+  
+!         if current_batch:
+!             batches.append((current_is_concurrent or False, current_batch))
+  
+!         return batches
+  
+>     async def _run_parallel(
+>         self,
+>         batch: list[tuple[int, str, Any, ToolContext]],
+>     ) -> AsyncGenerator[tuple[int, ToolResult[Any]], None]:
+!         sem = asyncio.Semaphore(self.MAX_CONCURRENCY)
+  
+!         async def _run_one(idx: int, name: str, inp: Any, ctx: ToolContext) -> tuple[int, ToolResult[Any]]:
+!             async with sem:
+!                 try:
+!                     tool = self._registry.get(name)
+!                     result = await tool.execute(inp, ctx)
+!                     return idx, result
+!                 except Exception as e:
+!                     return idx, ToolResult(error=str(e))
+  
+!         tasks = [_run_one(idx, name, inp, ctx) for idx, name, inp, ctx in batch]
+!         for coro in asyncio.as_completed(tasks):
+!             yield await coro
+  
+>     async def _run_serial(
+>         self,
+>         batch: list[tuple[int, str, Any, ToolContext]],
+>     ) -> AsyncGenerator[tuple[int, ToolResult[Any]], None]:
+!         for idx, name, inp, ctx in batch:
+!             try:
+!                 tool = self._registry.get(name)
+!                 result = await tool.execute(inp, ctx)
+!                 yield idx, result
+!             except Exception as e:
+!                 yield idx, ToolResult(error=str(e))

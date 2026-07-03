@@ -1,0 +1,49 @@
+> from __future__ import annotations
+  
+> from dataclasses import dataclass
+> from typing import Any
+  
+  
+> @dataclass
+> class MetricsDashboard:
+>     timestamp: float
+>     metrics: dict[str, Any]
+>     health_status: str
+  
+>     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "timestamp": self.timestamp,
+!             "metrics": {
+!                 "cb_trips_total": self.metrics.get("cb_trips_total", 0),
+!                 "cb_trips_last_hour": self.metrics.get("cb_trips_last_hour", 0),
+!                 "meta_cb_interventions": self.metrics.get("meta_cb_interventions", 0),
+!                 "heal_attempts": self.metrics.get("heal_attempts", 0),
+!                 "heal_success_rate": self.metrics.get("heal_success_rate", 0.0),
+!                 "optimization_proposals": self.metrics.get("optimization_proposals", 0),
+!                 "optimization_adoptions": self.metrics.get("optimization_adoptions", 0),
+!                 "adoption_rate": self.metrics.get("adoption_rate", 0.0),
+!                 "chaos_injections_total": self.metrics.get("chaos_injections_total", 0),
+!                 "survival_rate": self.metrics.get("survival_rate", 1.0),
+!                 "avg_recovery_time_ms": self.metrics.get("avg_recovery_time_ms", 0.0),
+!                 "federation_sync_latency_ms": self.metrics.get("federation_sync_latency_ms", 0.0),
+!                 "cross_framework_task_success_rate": self.metrics.get(
+!                     "cross_framework_task_success_rate", 1.0
+!                 ),
+!             },
+!             "health_status": self.health_status,
+!         }
+  
+>     def to_json(self) -> str:
+!         import json
+  
+!         return json.dumps(self.to_dict(), indent=2, default=str)
+  
+  
+> def build_dashboard(metrics: dict[str, Any], status: str = "HEALTHY") -> MetricsDashboard:
+!     import time
+  
+!     return MetricsDashboard(
+!         timestamp=time.time(),
+!         metrics=metrics,
+!         health_status=status,
+!     )

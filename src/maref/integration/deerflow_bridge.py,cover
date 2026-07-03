@@ -1,0 +1,207 @@
+> """
+> MAREF ↔ DeerFlow DAG Bridge
+  
+> M6.1: Exposes each governance state as a DeerFlow DAG node type.
+> Allows Athena's DeerFlow workflow engine to incorporate MAREF state
+> transitions as first-class DAG nodes.
+  
+> Node types exposed:
+> - maref.state.INIT
+> - maref.state.OBSERVE
+> - maref.state.ANALYZE
+> - maref.state.EVALUATE
+> - maref.state.DECIDE
+> - maref.state.ACT
+> - maref.state.VERIFY
+> - maref.state.STABILIZE
+> - maref.state.REPORT
+> - maref.state.HALT
+> """
+  
+! from __future__ import annotations
+  
+! import json
+! from dataclasses import dataclass, field
+! from typing import Any
+  
+! from maref.governance.constants import ENTROPY_LEVELS, GRAY_CODE
+! from maref.governance.types import GovernanceState
+  
+  
+! @dataclass
+! class DeerFlowNode:
+!     id: str
+!     node_type: str
+!     config: dict[str, Any] = field(default_factory=dict)
+!     depends_on: list[str] = field(default_factory=list)
+!     metadata: dict[str, Any] = field(default_factory=dict)
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "id": self.id,
+!             "type": self.node_type,
+!             "config": self.config,
+!             "depends_on": self.depends_on,
+!             "metadata": self.metadata,
+!         }
+  
+  
+! @dataclass
+! class DeerFlowDAG:
+!     name: str
+!     nodes: list[DeerFlowNode] = field(default_factory=list)
+!     version: str = "1.0"
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "name": self.name,
+!             "version": self.version,
+!             "nodes": [n.to_dict() for n in self.nodes],
+!         }
+  
+!     def to_yaml(self) -> str:
+!         lines = [f"# DeerFlow DAG: {self.name}", ""]
+!         lines.append("nodes:")
+!         for node in self.nodes:
+!             lines.append(f"  - id: {node.id}")
+!             lines.append(f"    type: {node.node_type}")
+!             if node.config:
+!                 lines.append("    config:")
+!                 for k, v in node.config.items():
+!                     lines.append(f"      {k}: {json.dumps(v)}")
+!             if node.depends_on:
+!                 deps = ", ".join(node.depends_on)
+!                 lines.append(f"    depends_on: [{deps}]")
+!             lines.append("")
+!         return "\n".join(lines)
+  
+  
+! class DeerFlowBridge:
+!     """
+!     Bridge between MAREF governance states and DeerFlow DAG engine.
+  
+!     Generates DAG node definitions for all 10 governance states,
+!     allowing Athena to schedule and orchestrate governance transitions
+!     as part of its workflow execution.
+  
+!     Usage (Athena side):
+!         bridge = DeerFlowBridge()
+!         dag = bridge.build_governance_dag()
+!         deerflow.load_dag(dag.to_dict())  # register all nodes
+!     """
+  
+!     GOVERNANCE_NODE_PREFIX = "maref.state"
+  
+!     DEFAULT_CONFIGS: dict[GovernanceState, dict[str, Any]] = {
+!         GovernanceState.INIT: {"auto_advance": True, "timeout_seconds": 30},
+!         GovernanceState.OBSERVE: {"entropy_threshold": 3, "on_high_entropy": "force_stabilize"},
+!         GovernanceState.ANALYZE: {"max_analysis_depth": 5, "require_anomaly_context": True},
+!         GovernanceState.EVALUATE: {"min_confidence": 0.7, "comparison_window": 10},
+!         GovernanceState.DECIDE: {"require_quorum": False, "fallback_action": "stabilize"},
+!         GovernanceState.ACT: {"max_entropy": 4, "require_sandbox": True},
+!         GovernanceState.VERIFY: {"verification_rounds": 2, "rollback_on_failure": True},
+!         GovernanceState.STABILIZE: {"cooldown_seconds": 30, "observation_window": 60},
+!         GovernanceState.REPORT: {"include_audit_trail": True, "format": "jsonl"},
+!         GovernanceState.HALT: {"reason_required": True, "terminal": True},
+!     }
+  
+!     def build_governance_dag(
+!         self,
+!         dag_name: str = "maref_governance",
+!         custom_configs: dict[GovernanceState, dict[str, Any]] | None = None,
+!     ) -> DeerFlowDAG:
+!         configs = {**self.DEFAULT_CONFIGS}
+!         if custom_configs:
+!             configs.update(custom_configs)
+  
+!         nodes: list[DeerFlowNode] = []
+!         for state in GovernanceState:
+!             node = DeerFlowNode(
+!                 id=f"governance_{state.name.lower()}",
+!                 node_type=f"{self.GOVERNANCE_NODE_PREFIX}.{state.name}",
+!                 config=configs.get(state, {}),
+!                 metadata={
+!                     "gray_code": GRAY_CODE[state.value],
+!                     "entropy": ENTROPY_LEVELS[state.value],
+!                     "is_terminal": state == GovernanceState.HALT,
+!                 },
+!             )
+!             nodes.append(node)
+  
+!         return DeerFlowDAG(name=dag_name, nodes=nodes)
+  
+!     def build_observation_pipeline_dag(self) -> DeerFlowDAG:
+!         nodes = [
+!             DeerFlowNode(
+!                 id="observation_collect",
+!                 node_type="maref.observation.collect",
+!                 config={"poll_interval": 1.0, "batch_size": 100},
+!                 depends_on=[],
+!             ),
+!             DeerFlowNode(
+!                 id="probe_read",
+!                 node_type="maref.observation.probe",
+!                 config={"all_probes": True},
+!                 depends_on=["observation_collect"],
+!             ),
+!             DeerFlowNode(
+!                 id="anomaly_detect",
+!                 node_type="maref.detection.pipeline",
+!                 config={
+!                     "fnr_target": 0.05,
+!                     "fpr_target": 0.05,
+!                     "dual_threshold": True,
+!                 },
+!                 depends_on=["probe_read"],
+!             ),
+!             DeerFlowNode(
+!                 id="governance_decide",
+!                 node_type="maref.state.DECIDE",
+!                 config={"require_quorum": False},
+!                 depends_on=["anomaly_detect"],
+!             ),
+!             DeerFlowNode(
+!                 id="knowledge_sink",
+!                 node_type="maref.knowledge.graph",
+!                 config={"auto_extract_relations": True},
+!                 depends_on=["governance_decide"],
+!             ),
+!         ]
+!         return DeerFlowDAG(name="maref_observation_pipeline", nodes=nodes)
+  
+!     def validate_dag(self, dag: DeerFlowDAG) -> dict[str, Any]:
+!         errors: list[str] = []
+!         warnings: list[str] = []
+!         node_ids = {n.id for n in dag.nodes}
+  
+!         for node in dag.nodes:
+!             if not node.node_type.startswith(self.GOVERNANCE_NODE_PREFIX):
+!                 continue
+!             state_name = node.node_type.split(".")[-1]
+!             try:
+!                 GovernanceState[state_name]
+!             except KeyError:
+!                 errors.append(f"Invalid state type: {node.node_type}")
+  
+!         for node in dag.nodes:
+!             for dep in node.depends_on:
+!                 if dep not in node_ids:
+!                     errors.append(f"Node '{node.id}' depends on unknown node '{dep}'")
+  
+!         if any(n for n in dag.nodes if n.id.endswith("halt")):
+!             halt_node = next(n for n in dag.nodes if n.id.endswith("halt"))
+!             has_dep = any(halt_node.id in other.depends_on for other in dag.nodes)
+!             if not has_dep and len(dag.nodes) > 1:
+!                 warnings.append("HALT node has no downstream dependents (expected for terminal)")
+  
+!         return {
+!             "valid": len(errors) == 0,
+!             "error_count": len(errors),
+!             "warning_count": len(warnings),
+!             "errors": errors,
+!             "warnings": warnings,
+!             "node_count": len(dag.nodes),
+!         }
+  
+!     def export_dag(self, dag: DeerFlowDAG) -> str:
+!         return json.dumps(dag.to_dict(), indent=2, default=str)

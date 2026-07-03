@@ -1,0 +1,255 @@
+> """HITL (Human-in-the-Loop) API Router — Agent operation confirmation endpoints.
+  
+> Provides confirm/cancel/pause endpoints for Agent operations that require
+> human approval before execution. Integrates with the existing HITLRouter
+> from maref.integration.hitl.
+> """
+  
+! from __future__ import annotations
+  
+! from typing import Any
+  
+! from fastapi import APIRouter
+! from pydantic import BaseModel, Field
+  
+! from maref.integration.hitl import HITLRouter, HITLStatus, HITLTier
+  
+! router = APIRouter(prefix="/api/v1/hitl", tags=["hitl"])
+  
+! _hitl_router: HITLRouter | None = None
+  
+  
+! def get_hitl_router() -> HITLRouter:
+!     global _hitl_router
+!     if _hitl_router is None:
+!         _hitl_router = HITLRouter()
+!     return _hitl_router
+  
+  
+! class ActionApprovalRequest(BaseModel):
+!     session_id: str = Field(..., description="Session requesting approval")
+!     action: str = Field(..., description="Action name/type")
+!     description: str = Field(..., description="Human-readable action description")
+!     parameters: dict[str, Any] = Field(default_factory=dict)
+!     tier: str = Field(
+!         default="p0_response", description="HITL tier: p0_response, p1_escalate, p2_log, p3_observe"
+!     )
+  
+  
+! class ConfirmRequest(BaseModel):
+!     event_id: str = Field(..., description="Event ID to confirm")
+!     reviewer: str = Field(default="human", description="Reviewer identifier")
+  
+  
+! class CancelRequest(BaseModel):
+!     event_id: str = Field(..., description="Event ID to cancel")
+  
+  
+! class ActionConfirmationResponse(BaseModel):
+!     event_id: str
+!     status: str
+!     action: str
+!     description: str
+!     tier: str
+!     requires_human: bool
+!     auto_approve_seconds: float
+  
+  
+! @router.post("/request", response_model=ActionConfirmationResponse)
+! async def request_approval(req: ActionApprovalRequest):
+!     """Request human approval for an Agent action.
+  
+!     Creates a HITL event and returns its status.
+!     If tier is p0_response, execution must wait for human confirmation.
+!     If tier is p1_escalate, auto-approves after 30s timeout.
+!     """
+!     router_inst = get_hitl_router()
+  
+!     tier_map = {
+!         "p0_response": HITLTier.P0_RESPONSE,
+!         "p1_escalate": HITLTier.P1_ESCALATE,
+!         "p2_log": HITLTier.P2_LOG,
+!         "p3_observe": HITLTier.P3_OBSERVE,
+!     }
+!     tier = tier_map.get(req.tier, HITLTier.P0_RESPONSE)
+  
+!     event = router_inst.route(
+!         severity="info" if tier in (HITLTier.P2_LOG, HITLTier.P3_OBSERVE) else "warning",
+!         anomaly_type=f"agent_action_{req.action}",
+!         description=req.description,
+!         session_id=req.session_id,
+!         action=req.action,
+!         parameters=req.parameters,
+!     )
+  
+!     return ActionConfirmationResponse(
+!         event_id=event.event_id,
+!         status=event.status.value,
+!         action=req.action,
+!         description=req.description,
+!         tier=tier.value,
+!         requires_human=router_inst.is_blocking(tier),
+!         auto_approve_seconds=event.auto_approve_seconds,
+!     )
+  
+  
+! class ConfirmResponse(BaseModel):
+!     event_id: str
+!     status: str
+!     approved: bool
+  
+  
+! @router.post("/confirm", response_model=ConfirmResponse)
+! async def confirm_action(req: ConfirmRequest):
+!     """Confirm (approve) a pending Agent action."""
+!     router_inst = get_hitl_router()
+!     status = router_inst.approve(req.event_id, reviewer=req.reviewer)
+!     return ConfirmResponse(
+!         event_id=req.event_id,
+!         status=status.value,
+!         approved=status == HITLStatus.APPROVED,
+!     )
+  
+  
+! class CancelResponse(BaseModel):
+!     event_id: str
+!     status: str
+!     cancelled: bool
+!     reason: str
+  
+  
+! @router.post("/cancel", response_model=CancelResponse)
+! async def cancel_action(req: CancelRequest):
+!     """Cancel (reject) a pending Agent action."""
+!     router_inst = get_hitl_router()
+!     status = router_inst.reject(req.event_id, reason="Cancelled by human")
+!     return CancelResponse(
+!         event_id=req.event_id,
+!         status=status.value,
+!         cancelled=status == HITLStatus.REJECTED,
+!         reason="Cancelled by human",
+!     )
+  
+  
+! @router.post("/pause")
+! async def pause_execution(session_id: str):
+!     """Pause all Agent execution for a session until resumed."""
+!     return {
+!         "session_id": session_id,
+!         "paused": True,
+!         "message": "Execution paused. Use /resume to continue.",
+!     }
+  
+  
+! @router.post("/resume")
+! async def resume_execution(session_id: str):
+!     """Resume a paused session."""
+!     return {
+!         "session_id": session_id,
+!         "resumed": True,
+!         "message": "Execution resumed.",
+!     }
+  
+  
+! class PendingEvent(BaseModel):
+!     event_id: str
+!     tier: str
+!     severity: str
+!     description: str
+!     action: str
+!     timestamp: float
+!     auto_approve_seconds: float
+!     status: str
+  
+  
+! class PendingEventsResponse(BaseModel):
+!     events: list[PendingEvent]
+!     count: int
+  
+  
+! @router.get("/pending", response_model=PendingEventsResponse)
+! async def get_pending_events(tier: str | None = None):
+!     """Get all pending HITL events awaiting human approval."""
+!     router_inst = get_hitl_router()
+!     tier_filter = None
+!     if tier:
+!         tier_map = {
+!             "p0_response": HITLTier.P0_RESPONSE,
+!             "p1_escalate": HITLTier.P1_ESCALATE,
+!             "p2_log": HITLTier.P2_LOG,
+!             "p3_observe": HITLTier.P3_OBSERVE,
+!         }
+!         tier_filter = tier_map.get(tier)
+  
+!     pending = router_inst.get_pending(tier=tier_filter)
+!     events = [
+!         PendingEvent(
+!             event_id=e.event_id,
+!             tier=e.tier.value,
+!             severity=e.severity,
+!             description=e.description,
+!             action=e.metadata.get("action", "unknown"),
+!             timestamp=e.timestamp,
+!             auto_approve_seconds=e.auto_approve_seconds,
+!             status=e.status.value,
+!         )
+!         for e in pending
+!     ]
+!     return PendingEventsResponse(events=events, count=len(events))
+  
+  
+! class HITLStatsResponse(BaseModel):
+!     stats: dict[str, Any]
+  
+  
+! @router.get("/stats", response_model=HITLStatsResponse)
+! async def get_hitl_stats():
+!     """Get HITL routing statistics."""
+!     router_inst = get_hitl_router()
+!     return HITLStatsResponse(stats=router_inst.get_stats())
+  
+  
+! @router.post("/{event_id}/approve", response_model=ConfirmResponse)
+! async def approve_event(event_id: str, reviewer: str = "human"):
+!     """Approve a pending HITL event by event_id (REST-style path)."""
+!     router_inst = get_hitl_router()
+!     status = router_inst.approve(event_id, reviewer=reviewer)
+!     return ConfirmResponse(
+!         event_id=event_id,
+!         status=status.value,
+!         approved=status == HITLStatus.APPROVED,
+!     )
+  
+  
+! @router.post("/{event_id}/deny", response_model=CancelResponse)
+! async def deny_event(event_id: str, reason: str = "Denied by human"):
+!     """Deny/reject a pending HITL event by event_id (REST-style path)."""
+!     router_inst = get_hitl_router()
+!     status = router_inst.reject(event_id, reason=reason)
+!     return CancelResponse(
+!         event_id=event_id,
+!         status=status.value,
+!         cancelled=status == HITLStatus.REJECTED,
+!         reason=reason,
+!     )
+  
+  
+! @router.get("/history", response_model=PendingEventsResponse)
+! async def get_history(limit: int = 50, offset: int = 0):
+!     """Get completed HITL events (approved, rejected, auto-approved)."""
+!     router_inst = get_hitl_router()
+!     events = router_inst.get_history(limit=limit, offset=offset)
+!     items = [
+!         PendingEvent(
+!             event_id=e.event_id,
+!             tier=e.tier.value,
+!             severity=e.severity,
+!             description=e.description,
+!             action=e.metadata.get("action", "unknown"),
+!             timestamp=e.timestamp,
+!             auto_approve_seconds=e.auto_approve_seconds,
+!             status=e.status.value,
+!         )
+!         for e in events
+!     ]
+!     return PendingEventsResponse(events=items, count=len(items))

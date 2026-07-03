@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from maref.evolution.constitution_guard import (
     ConstitutionGuard,
     InvariantCode,
@@ -410,3 +412,118 @@ class TestEdgeCases:
         log = guard.violation_log
         log.clear()  # Should not affect internal log
         assert len(guard.violation_log) >= 1
+
+
+class TestRl006CrossDimSafety:
+    """RL-006: Cross-dimension improvements must not modify safety-related dimensions."""
+
+    def test_security_dimension_blocked(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["security", "performance"],
+            target_files=["file1.py"],
+        )
+        assert result.allowed is False
+        assert InvariantCode.RL_006_CROSS_DIM_SAFETY in result.invariant_codes
+        assert any("protected dimensions" in v for v in result.violations)
+
+    def test_non_safety_dimension_allowed(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["performance", "memory", "latency"],
+            target_files=["file1.py"],
+        )
+        assert result.allowed is True
+        assert result.violations == []
+
+    def test_partial_safety_dimensions_blocked(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["security", "latency"],
+            target_files=["file1.py"],
+        )
+        assert result.allowed is False
+        assert InvariantCode.RL_006_CROSS_DIM_SAFETY in result.invariant_codes
+
+    def test_empty_dimensions_allowed(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=[],
+            target_files=["file1.py"],
+        )
+        assert result.allowed is True
+
+
+class TestRl007MaxFilesPerRound:
+    """RL-007: No more than 3 target files per round."""
+
+    def test_three_files_allowed_boundary(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["performance"],
+            target_files=["f1.py", "f2.py", "f3.py"],
+        )
+        assert result.allowed is True
+
+    def test_four_files_blocked(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["performance"],
+            target_files=["f1.py", "f2.py", "f3.py", "f4.py"],
+        )
+        assert result.allowed is False
+        assert InvariantCode.RL_007_MAX_FILES_PER_ROUND in result.invariant_codes
+        assert any("exceeds maximum" in v for v in result.violations)
+
+    def test_empty_files_allowed(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["performance"],
+            target_files=[],
+        )
+        assert result.allowed is True
+
+
+class TestRl006Rl007Combined:
+    """Combined RL-006 and RL-007 violations."""
+
+    def test_both_violations_detected(self) -> None:
+        guard = ConstitutionGuard()
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["security", "performance"],
+            target_files=["f1.py", "f2.py", "f3.py", "f4.py"],
+        )
+        assert result.allowed is False
+        assert InvariantCode.RL_006_CROSS_DIM_SAFETY in result.invariant_codes
+        assert InvariantCode.RL_007_MAX_FILES_PER_ROUND in result.invariant_codes
+        assert len(result.violations) == 2
+
+    def test_disabled_guard_allows_all(self) -> None:
+        guard = ConstitutionGuard(enabled=False)
+        result = guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["security", "safety_gate"],
+            target_files=["f1.py", "f2.py", "f3.py", "f4.py", "f5.py"],
+        )
+        assert result.allowed is True
+
+    def test_violation_logged_properly(self) -> None:
+        guard = ConstitutionGuard()
+        guard.validate_cross_dimension(
+            "agent_1",
+            target_dimensions=["circuit_breaker"],
+            target_files=["f1.py", "f2.py", "f3.py", "f4.py"],
+        )
+        assert guard.violation_count == 2
+        assert len(guard.violation_log) == 2
+        codes = [v.invariant for v in guard.violation_log]
+        assert InvariantCode.RL_006_CROSS_DIM_SAFETY in codes
+        assert InvariantCode.RL_007_MAX_FILES_PER_ROUND in codes

@@ -1,0 +1,314 @@
+! from __future__ import annotations
+  
+! import subprocess
+! from pathlib import Path
+! from typing import Any
+  
+! from maref.integration.mcp_server import MCPServer
+  
+  
+! class RepoWhitelist:
+!     def __init__(self, allowed_paths: list[str] | None = None) -> None:
+!         self._allowed: list[str] = [str(Path(p).resolve()) for p in (allowed_paths or [])]
+  
+!     def is_allowed(self, path: str) -> bool:
+!         resolved = str(Path(path).resolve())
+!         return resolved in self._allowed
+  
+!     @property
+!     def allowed_paths(self) -> list[str]:
+!         return list(self._allowed)
+  
+  
+! def _is_git_repo(path: str) -> bool:
+!     return (Path(path) / ".git").is_dir()
+  
+  
+! def _validate_repo_access(path: str, whitelist: RepoWhitelist) -> None:
+!     if not whitelist.is_allowed(path):
+!         raise PermissionError(f"Path not in repo whitelist: {path}")
+!     if not _is_git_repo(path):
+!         raise ValueError(f"Not a git repository: {path}")
+  
+  
+! def _run_git(path: str, args: list[str]) -> str:
+!     result = subprocess.run(
+!         ["git"] + args,
+!         cwd=path,
+!         capture_output=True,
+!         text=True,
+!         timeout=30,
+!     )
+!     if result.returncode != 0:
+!         raise RuntimeError(f"Git error: {result.stderr.strip()}")
+!     return result.stdout.strip()
+  
+  
+! class GitServer(MCPServer):
+!     def __init__(
+!         self,
+!         name: str = "maref-git-server",
+!         version: str = "0.25.0",
+!         security_gate: Any | None = None,
+!         repo_whitelist: RepoWhitelist | None = None,
+!         write_mode: bool = False,
+!     ) -> None:
+!         super().__init__(name=name, version=version, security_gate=security_gate)
+!         self._whitelist = repo_whitelist or RepoWhitelist()
+!         self._write_mode = write_mode
+!         self._register_tools()
+  
+!     def _register_tools(self) -> None:
+!         self.register_tool(
+!             name="git_status",
+!             description="Get git repository status: branch, changes, ahead/behind counts",
+!             input_schema={
+!                 "type": "object",
+!                 "properties": {
+!                     "path": {"type": "string", "description": "Path to git repository"},
+!                 },
+!                 "required": ["path"],
+!             },
+!             handler=self._handle_git_status,
+!         )
+!         self.register_tool(
+!             name="git_log",
+!             description="Get git commit log",
+!             input_schema={
+!                 "type": "object",
+!                 "properties": {
+!                     "path": {"type": "string", "description": "Path to git repository"},
+!                     "max_count": {
+!                         "type": "integer",
+!                         "description": "Maximum number of commits",
+!                         "default": 10,
+!                     },
+!                     "branch": {
+!                         "type": "string",
+!                         "description": "Branch name (default: current branch)",
+!                         "default": None,
+!                     },
+!                 },
+!                 "required": ["path"],
+!             },
+!             handler=self._handle_git_log,
+!         )
+!         self.register_tool(
+!             name="git_diff",
+!             description="Get git diff between commits",
+!             input_schema={
+!                 "type": "object",
+!                 "properties": {
+!                     "path": {"type": "string", "description": "Path to git repository"},
+!                     "target": {
+!                         "type": "string",
+!                         "description": "Target ref (default: HEAD)",
+!                         "default": "HEAD",
+!                     },
+!                     "base": {
+!                         "type": "string",
+!                         "description": "Base ref (default: empty tree or parent)",
+!                         "default": None,
+!                     },
+!                 },
+!                 "required": ["path"],
+!             },
+!             handler=self._handle_git_diff,
+!         )
+!         self.register_tool(
+!             name="git_branch",
+!             description="List git branches",
+!             input_schema={
+!                 "type": "object",
+!                 "properties": {
+!                     "path": {"type": "string", "description": "Path to git repository"},
+!                 },
+!                 "required": ["path"],
+!             },
+!             handler=self._handle_git_branch,
+!         )
+!         self.register_tool(
+!             name="git_commit",
+!             description="Commit staged changes to git repository (requires write mode)",
+!             input_schema={
+!                 "type": "object",
+!                 "properties": {
+!                     "path": {"type": "string", "description": "Path to git repository"},
+!                     "message": {"type": "string", "description": "Commit message"},
+!                     "files": {
+!                         "type": "array",
+!                         "items": {"type": "string"},
+!                         "description": "Files to commit (default: all changes)",
+!                         "default": None,
+!                     },
+!                 },
+!                 "required": ["path", "message"],
+!             },
+!             handler=self._handle_git_commit,
+!         )
+!         self.register_tool(
+!             name="git_push",
+!             description="Push commits to remote repository (requires write mode)",
+!             input_schema={
+!                 "type": "object",
+!                 "properties": {
+!                     "path": {"type": "string", "description": "Path to git repository"},
+!                     "remote": {
+!                         "type": "string",
+!                         "description": "Remote name (default: origin)",
+!                         "default": "origin",
+!                     },
+!                     "branch": {
+!                         "type": "string",
+!                         "description": "Branch to push (default: current branch)",
+!                         "default": None,
+!                     },
+!                 },
+!                 "required": ["path"],
+!             },
+!             handler=self._handle_git_push,
+!         )
+  
+!     def _enforce_write_mode(self) -> None:
+!         if not self._write_mode:
+!             raise PermissionError(
+!                 "Write mode is disabled. Set write_mode=True to allow write operations."
+!             )
+  
+!     def _handle_git_status(self, args: dict[str, Any]) -> dict[str, Any]:
+!         path = args["path"]
+!         _validate_repo_access(path, self._whitelist)
+  
+!         branch = _run_git(path, ["branch", "--show-current"])
+  
+!         status_output = _run_git(path, ["status", "--porcelain"])
+!         changes = []
+!         for line in status_output.split("\n"):
+!             if line.strip():
+!                 status_code = line[:2].strip()
+!                 file_path = line[3:]
+!                 changes.append({"path": file_path, "status": status_code})
+  
+!         ahead = 0
+!         behind = 0
+!         try:
+!             output = _run_git(path, ["rev-list", "--left-right", "--count", "HEAD...@{u}"])
+!             parts = output.split()
+!             if len(parts) >= 2:
+!                 ahead = int(parts[0])
+!                 behind = int(parts[1])
+!         except (RuntimeError, ValueError):
+-             pass
+  
+!         return {"branch": branch, "changes": changes, "ahead": ahead, "behind": behind}
+  
+!     def _handle_git_log(self, args: dict[str, Any]) -> dict[str, Any]:
+!         path = args["path"]
+!         _validate_repo_access(path, self._whitelist)
+  
+!         max_count = args.get("max_count", 10)
+!         branch = args.get("branch")
+  
+!         cmd = ["log", f"--max-count={max_count}", "--format=%H|%an|%ai|%s"]
+!         if branch:
+!             cmd.append(branch)
+  
+!         log_output = _run_git(path, cmd)
+!         commits = []
+!         for line in log_output.split("\n"):
+!             if line.strip():
+!                 parts = line.split("|", 3)
+!                 if len(parts) == 4:
+!                     commits.append(
+!                         {
+!                             "hash": parts[0],
+!                             "author": parts[1],
+!                             "date": parts[2],
+!                             "message": parts[3],
+!                         }
+!                     )
+  
+!         return {"commits": commits}
+  
+!     def _handle_git_diff(self, args: dict[str, Any]) -> dict[str, Any]:
+!         path = args["path"]
+!         _validate_repo_access(path, self._whitelist)
+  
+!         target = args.get("target", "HEAD")
+!         base = args.get("base")
+  
+!         if base:
+!             diff_output = _run_git(path, ["diff", f"{base}..{target}"])
+!         else:
+!             diff_output = _run_git(path, ["diff", target])
+  
+!         files_changed = 0
+!         for line in diff_output.split("\n"):
+!             if line.startswith("diff --git"):
+!                 files_changed += 1
+  
+!         return {"diff": diff_output, "files_changed": files_changed}
+  
+!     def _handle_git_branch(self, args: dict[str, Any]) -> dict[str, Any]:
+!         path = args["path"]
+!         _validate_repo_access(path, self._whitelist)
+  
+!         branch_output = _run_git(path, ["branch"])
+!         branches = []
+!         current = ""
+!         for line in branch_output.split("\n"):
+!             line = line.strip()
+!             if line:
+!                 is_current = line.startswith("* ")
+!                 name = line[2:] if is_current else line
+!                 if is_current:
+!                     current = name
+!                 branches.append({"name": name, "current": is_current})
+  
+!         return {"branches": branches, "current": current}
+  
+!     def _handle_git_commit(self, args: dict[str, Any]) -> dict[str, Any]:
+!         self._enforce_write_mode()
+!         path = args["path"]
+!         _validate_repo_access(path, self._whitelist)
+  
+!         message = args["message"]
+!         files = args.get("files")
+  
+!         if files:
+!             for f in files:
+!                 _run_git(path, ["add", f])
+!         else:
+!             _run_git(path, ["add", "-A"])
+  
+!         _run_git(path, ["commit", "-m", message])
+!         commit_hash = _run_git(path, ["rev-parse", "HEAD"])
+  
+!         return {"success": True, "commit_hash": commit_hash, "message": message}
+  
+!     def _handle_git_push(self, args: dict[str, Any]) -> dict[str, Any]:
+!         self._enforce_write_mode()
+!         path = args["path"]
+!         _validate_repo_access(path, self._whitelist)
+  
+!         remote = args.get("remote", "origin")
+!         branch = args.get("branch")
+  
+!         cmd = ["push", remote]
+!         if branch:
+!             cmd.append(branch)
+  
+!         _run_git(path, cmd)
+  
+!         if not branch:
+!             branch = _run_git(path, ["rev-parse", "--abbrev-ref", "HEAD"])
+  
+!         return {"success": True, "remote": remote, "branch": branch}
+  
+  
+! def create_git_server(
+!     repo_whitelist: list[str] | None = None,
+!     write_mode: bool = False,
+! ) -> GitServer:
+!     whitelist = RepoWhitelist(repo_whitelist)
+!     return GitServer(repo_whitelist=whitelist, write_mode=write_mode)

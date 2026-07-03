@@ -75,6 +75,19 @@ class SignedAgentCard:
         )
 
 
+@dataclass
+class CapabilityDriftReport:
+    """声明 vs 实际能力偏离报告"""
+    agent_id: str
+    drift_detected: bool
+    declared_capabilities: set[str]
+    observed_capabilities: set[str]
+    unauthorized_syscalls: set[str]
+    unauthorized_domains: set[str]
+    severity: str  # CRITICAL | HIGH | MEDIUM | LOW
+    reason: str
+
+
 class AgentCardSigner:
     def __init__(self) -> None:
         self._key_registry: dict[str, str] = {}
@@ -181,6 +194,113 @@ class SignedAgentCardStore:
     @property
     def valid_count(self) -> int:
         return len(self.get_valid_cards())
+
+    def compare_declared_vs_observed(
+        self,
+        agent_id: str,
+        observed_syscalls: set[str],
+        observed_domains: set[str],
+    ) -> CapabilityDriftReport:
+        """对比 agent card 声明的 capabilities 与实际观测行为。
+
+        检测闭源 agent 声明 'read_only' 但实际执行网络连接等偏离行为。
+
+        Args:
+            agent_id: 目标 agent ID
+            observed_syscalls: 观测到的 syscall 名称集合
+            observed_domains: 观测到的网络域名集合
+
+        Returns:
+            CapabilityDriftReport 包含偏离详情
+        """
+        cards = self.get_agent_cards(agent_id)
+        if not cards:
+            return CapabilityDriftReport(
+                agent_id=agent_id,
+                drift_detected=False,
+                declared_capabilities=set(),
+                observed_capabilities=set(),
+                unauthorized_syscalls=set(),
+                unauthorized_domains=set(),
+                severity="LOW",
+                reason="no agent card on record — unable to compare",
+            )
+
+        # 取最新一张有效 card (按 issued_at 降序排序)
+        valid = sorted(
+            [c for c in cards if c.is_valid()],
+            key=lambda c: c.issued_at,
+            reverse=True,
+        )
+        if not valid:
+            return CapabilityDriftReport(
+                agent_id=agent_id,
+                drift_detected=False,
+                declared_capabilities=set(),
+                observed_capabilities=set(),
+                unauthorized_syscalls=set(),
+                unauthorized_domains=set(),
+                severity="LOW",
+                reason="no valid agent card — all expired or revoked",
+            )
+
+        card = valid[-1]
+        declared = set(card.capabilities)
+
+        # 能力语义映射 (简化的启发式映射)
+        syscall_to_cap: dict[str, str] = {
+            "connect": "network",
+            "sendto": "network",
+            "recvfrom": "network",
+            "open": "filesystem",
+            "openat": "filesystem",
+            "read": "filesystem",
+            "write": "filesystem",
+            "execve": "execute",
+            "fork": "process",
+            "clone": "process",
+            "ptrace": "debug",
+            "bind": "network_server",
+            "listen": "network_server",
+        }
+
+        observed_caps: set[str] = set()
+        for sc in observed_syscalls:
+            cap = syscall_to_cap.get(sc)
+            if cap:
+                observed_caps.add(cap)
+        if observed_domains:
+            observed_caps.add("network")
+
+        # 检测偏离：观测到但未声明的能力
+        unauthorized = observed_caps - declared
+        unauthorized_syscalls = {
+            sc for sc in observed_syscalls
+            if sc in syscall_to_cap and syscall_to_cap[sc] in unauthorized
+        }
+        unauthorized_domains = (
+            observed_domains if "network" in unauthorized else set()
+        )
+
+        drift = bool(unauthorized)
+        if drift:
+            severity = "CRITICAL" if "execute" in unauthorized or "debug" in unauthorized else "HIGH"
+        else:
+            severity = "LOW"
+
+        return CapabilityDriftReport(
+            agent_id=agent_id,
+            drift_detected=drift,
+            declared_capabilities=declared,
+            observed_capabilities=observed_caps,
+            unauthorized_syscalls=unauthorized_syscalls,
+            unauthorized_domains=unauthorized_domains,
+            severity=severity,
+            reason=(
+                f"observed capabilities {observed_caps} exceed declared {declared}"
+                if drift else "all observed capabilities match declared"
+            ),
+        )
 
     def clear(self) -> None:
         self._cards.clear()

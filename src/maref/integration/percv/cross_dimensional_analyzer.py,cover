@@ -1,0 +1,115 @@
+! from __future__ import annotations
+  
+! import logging
+! from dataclasses import dataclass
+! from typing import Any
+  
+! logger = logging.getLogger(__name__)
+  
+  
+! @dataclass
+! class CrossEffect:
+!     source_dim: str
+!     target_dim: str
+!     effect_size: float
+!     confidence: float
+!     samples: int
+  
+  
+! @dataclass
+! class ParetoFront:
+!     dimensions: list[str]
+!     current_scores: dict[str, float]
+!     recommended_weights: dict[str, float]
+  
+  
+! class CrossDimensionalAnalyzer:
+!     INTERACTION_MATRIX: dict[str, dict[str, float]] = {
+!         "correctness": {"testing": 0.3, "code_quality": 0.2},
+!         "testing": {"correctness": 0.3, "security": 0.4},
+!         "performance": {"code_quality": -0.1},
+!     }
+  
+!     def __init__(self, history: list[Any] | None = None):
+!         self.history = history or []
+!         self.interaction_matrix = {
+!             k: dict(v) for k, v in self.INTERACTION_MATRIX.items()
+!         }
+  
+!     def detect_cross_effects(self, window: int = 20) -> list[CrossEffect]:
+!         recent = self.history[-window:] if len(self.history) > window else self.history
+!         effects: list[CrossEffect] = []
+  
+!         if len(recent) < 3:
+!             return effects
+  
+!         for source, targets in self.interaction_matrix.items():
+!             for target, _expected in targets.items():
+!                 actual = self._correlate(recent, source, target)
+!                 if abs(actual) > 0.1:
+!                     effects.append(CrossEffect(
+!                         source_dim=source,
+!                         target_dim=target,
+!                         effect_size=actual,
+!                         confidence=min(abs(actual), 1.0),
+!                         samples=len(recent),
+!                     ))
+  
+!         return effects
+  
+!     def recommend_multi_objective(
+!         self,
+!         current_weights: dict[str, float],
+!         constraints: dict[str, float] | None = None,
+!     ) -> ParetoFront | None:
+!         if not current_weights:
+!             return None
+  
+!         effects = self.detect_cross_effects()
+!         adjusted = dict(current_weights)
+  
+!         for effect in effects:
+!             if effect.effect_size > 0:
+!                 continue
+!             reduction = min(abs(effect.effect_size) * 0.1, 0.3)
+!             source_val = adjusted.get(effect.source_dim, 0.5)
+!             adjusted[effect.source_dim] = source_val * (1 - reduction)
+  
+!         return ParetoFront(
+!             dimensions=list(adjusted.keys()),
+!             current_scores=dict(current_weights),
+!             recommended_weights=adjusted,
+!         )
+  
+!     def _correlate(self, history: list[Any], dim_a: str, dim_b: str) -> float:
+!         a_scores: list[float] = []
+!         b_scores: list[float] = []
+!         for exp in history:
+!             dim_scores = getattr(exp, "dimension_scores", None)
+!             if dim_scores and isinstance(dim_scores, dict):
+!                 a = dim_scores.get(dim_a)
+!                 b = dim_scores.get(dim_b)
+!                 if a is not None and b is not None:
+!                     a_scores.append(float(a))
+!                     b_scores.append(float(b))
+!         if len(a_scores) < 3:
+!             return 0.0
+!         try:
+!             import numpy as np
+!             return float(np.corrcoef(a_scores, b_scores)[0, 1])
+!         except ImportError:
+!             return self._pearson(a_scores, b_scores)
+  
+!     def _pearson(self, xs: list[float], ys: list[float]) -> float:
+!         n = len(xs)
+!         if n < 2:
+!             return 0.0
+!         sum_x = sum(xs)
+!         sum_y = sum(ys)
+!         sum_xy = sum(a * b for a, b in zip(xs, ys, strict=False))
+!         sum_x2 = sum(a * a for a in xs)
+!         sum_y2 = sum(b * b for b in ys)
+!         denom = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+!         if denom == 0:
+!             return 0.0
+!         return (n * sum_xy - sum_x * sum_y) / denom

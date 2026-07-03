@@ -1,0 +1,187 @@
+> """Life State Health — health monitoring and self-healing.
+  
+> C35: Health checks, anomaly detection, and automatic recovery.
+> """
+  
+! from __future__ import annotations
+  
+! import time
+! from collections.abc import Callable
+! from dataclasses import dataclass, field
+! from enum import Enum
+! from typing import Any
+  
+  
+! class HealthStatus(str, Enum):
+!     HEALTHY = "healthy"
+!     WARNING = "warning"
+!     CRITICAL = "critical"
+!     UNKNOWN = "unknown"
+  
+  
+! class HealAction(str, Enum):
+!     RESTART = "restart"
+!     DEGRADE = "degrade"
+!     ISOLATE = "isolate"
+!     NOTIFY = "notify"
+  
+  
+! @dataclass
+! class HealthCheck:
+!     check_id: str
+!     state_id: str
+!     metric_name: str
+!     metric_value: float
+!     threshold: float
+-     passed: bool
+!     timestamp: float = field(default_factory=time.time)
+  
+!     def to_dict(self) -> dict[str, Any]:
+-         return {
+!             "check_id": self.check_id,
+!             "state_id": self.state_id,
+!             "metric_name": self.metric_name,
+!             "metric_value": self.metric_value,
+!             "threshold": self.threshold,
+!             "passed": self.passed,
+!             "timestamp": self.timestamp,
+!         }
+  
+  
+! @dataclass
+! class HealResult:
+!     action: HealAction
+!     state_id: str
+!     success: bool
+!     reason: str = ""
+!     timestamp: float = field(default_factory=time.time)
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "action": self.action.value,
+!             "state_id": self.state_id,
+!             "success": self.success,
+!             "reason": self.reason,
+!             "timestamp": self.timestamp,
+!         }
+  
+  
+! class HealthMonitor:
+!     """Monitors health of life state entities.
+  
+!     Computes a health score (0-100) based on configurable checks.
+!     """
+  
+!     def __init__(self) -> None:
+!         self._checks: list[HealthCheck] = []
+!         self._thresholds: dict[str, float] = {
+!             "latency_ms": 100.0,
+!             "error_rate": 0.05,
+!             "cpu_percent": 80.0,
+!             "memory_percent": 85.0,
+!         }
+!         self._subscribers: list[Callable[[HealthCheck], None]] = []
+  
+!     def set_threshold(self, metric: str, value: float) -> None:
+!         self._thresholds[metric] = value
+  
+!     def check(self, state_id: str, metric: str, value: float) -> HealthCheck:
+!         threshold = self._thresholds.get(metric, 0.0)
+-         passed = value <= threshold
+-         check = HealthCheck(
+!             check_id=f"{state_id}-{metric}-{int(time.time() * 1000)}",
+!             state_id=state_id,
+!             metric_name=metric,
+!             metric_value=value,
+!             threshold=threshold,
+!             passed=passed,
+!         )
+!         self._checks.append(check)
+!         for cb in self._subscribers:
+!             try:
+!                 cb(check)
+!             except Exception:
+-                 pass
+!         return check
+  
+!     def compute_health_score(self, state_id: str) -> float:
+!         checks = [c for c in self._checks if c.state_id == state_id]
+!         if not checks:
+!             return 100.0
+-         passed = sum(1 for c in checks if c.passed)
+-         return (passed / len(checks)) * 100.0
+  
+!     def get_status(self, state_id: str) -> HealthStatus:
+!         score = self.compute_health_score(state_id)
+!         if score >= 90.0:
+!             return HealthStatus.HEALTHY
+!         if score >= 60.0:
+!             return HealthStatus.WARNING
+!         if score >= 0.0:
+!             return HealthStatus.CRITICAL
+!         return HealthStatus.UNKNOWN
+  
+!     def get_checks(self, state_id: str | None = None) -> list[HealthCheck]:
+!         if state_id is None:
+!             return list(self._checks)
+!         return [c for c in self._checks if c.state_id == state_id]
+  
+!     def subscribe(self, callback: Callable[[HealthCheck], None]) -> None:
+!         self._subscribers.append(callback)
+  
+!     def clear(self) -> None:
+!         self._checks.clear()
+  
+  
+! class SelfHealer:
+!     """Self-healing engine for life state entities.
+  
+!     Triggers recovery actions based on health status.
+!     """
+  
+!     def __init__(self) -> None:
+!         self._actions: dict[HealAction, Callable[[str], HealResult]] = {}
+!         self._history: list[HealResult] = []
+  
+!     def register_action(
+!         self,
+!         action: HealAction,
+!         handler: Callable[[str], HealResult],
+!     ) -> None:
+!         self._actions[action] = handler
+  
+!     def heal(self, state_id: str, action: HealAction) -> HealResult:
+!         handler = self._actions.get(action)
+!         if handler is None:
+!             result = HealResult(
+!                 action=action,
+!                 state_id=state_id,
+!                 success=False,
+!                 reason="no_handler_registered",
+!             )
+!         else:
+!             result = handler(state_id)
+!         self._history.append(result)
+!         return result
+  
+!     def auto_heal(self, state_id: str, status: HealthStatus) -> list[HealResult]:
+!         results: list[HealResult] = []
+!         if status == HealthStatus.CRITICAL:
+!             for action in (HealAction.ISOLATE, HealAction.RESTART):
+!                 if action in self._actions:
+!                     results.append(self.heal(state_id, action))
+!         elif status == HealthStatus.WARNING:
+!             if HealAction.DEGRADE in self._actions:
+!                 results.append(self.heal(state_id, HealAction.DEGRADE))
+!             if HealAction.NOTIFY in self._actions:
+!                 results.append(self.heal(state_id, HealAction.NOTIFY))
+!         return results
+  
+!     def get_history(self) -> list[HealResult]:
+!         return list(self._history)
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "registered_actions": [a.value for a in self._actions],
+!             "history_count": len(self._history),
+!         }

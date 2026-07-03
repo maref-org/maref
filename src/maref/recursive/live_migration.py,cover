@@ -1,0 +1,251 @@
+> from __future__ import annotations
+  
+> import os
+> import subprocess
+> import sys
+> import tempfile
+> import time
+> from dataclasses import dataclass, field
+> from typing import Any
+  
+> from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+  
+  
+> @dataclass
+> class MigrationStep:
+>     step_id: str
+>     description: str
+>     command: str = ""
+>     status: str = "pending"
+>     output: str = ""
+>     error: str = ""
+>     duration_ms: float = 0.0
+  
+>     def execute(self) -> None:
+!         import shlex
+  
+!         start = time.time()
+!         try:
+!             if self.command:
+!                 result = subprocess.run(
+!                     shlex.split(self.command),
+!                     capture_output=True,
+!                     text=True,
+!                     timeout=120,
+!                 )
+!                 self.output = result.stdout[-500:]
+!                 self.error = result.stderr[-500:]
+!                 self.status = "success" if result.returncode == 0 else "failed"
+!             else:
+!                 self.status = "success"
+!         except Exception as e:
+!             self.status = "failed"
+!             self.error = str(e)
+!         self.duration_ms = (time.time() - start) * 1000.0
+  
+  
+> @dataclass
+> class MigrationPlan:
+>     plan_id: str
+>     source_version: str
+>     target_version: str
+>     steps: list[MigrationStep] = field(default_factory=list)
+>     compatibility_level: str = "unknown"
+>     created_at: float = field(default_factory=time.time)
+  
+>     def execute_all(self) -> bool:
+!         for step in self.steps:
+!             step.execute()
+!             if step.status == "failed":
+!                 return False
+!         return True
+  
+>     def to_audit_record(self, round_num: int = 37) -> UnifiedAuditRecord:
+!         success = all(s.status == "success" for s in self.steps)
+-         return UnifiedAuditRecord(
+!             record_id=make_record_id("migrate", hash(self.plan_id) % 100000),
+!             timestamp=time.time(),
+!             layer="evolution",
+!             round=round_num,
+!             event_type="live_migration",
+!             source_module="LiveMigration",
+!             target_module=f"{self.source_version}->{self.target_version}",
+!             decision=self.compatibility_level,
+!             justification=f"{len(self.steps)} steps, all_passed={success}",
+!             outcome="success" if success else "failure",
+!             context_refs=[self.plan_id],
+!         )
+  
+  
+> class VersionCompatibilityMatrix:
+>     _MATRIX = {
+>         ("0.5.0", "0.6.0"): "minor_change",
+>         ("0.5.0", "0.7.0"): "minor_change",
+>         ("0.5.0", "0.8.0"): "breaking_change",
+>         ("0.6.0", "0.7.0"): "minor_change",
+>         ("0.6.0", "0.8.0"): "minor_change",
+>         ("0.7.0", "0.8.0"): "minor_change",
+>     }
+  
+>     def check(self, source: str, target: str) -> str:
+!         if (source, target) in self._MATRIX:
+!             return self._MATRIX[(source, target)]
+!         if source == target:
+!             return "fully_compatible"
+!         sp = self._parse(source)
+!         tp = self._parse(target)
+!         if tp[0] > sp[0]:
+!             return "breaking_change"
+!         if tp[1] > sp[1]:
+!             return "minor_change"
+!         return "fully_compatible"
+  
+>     @staticmethod
+>     def _parse(version: str) -> tuple[int, int, int]:
+!         parts = version.replace("v", "").split("-")[0].split(".")
+!         return (
+!             int(parts[0]) if len(parts) > 0 else 0,
+!             int(parts[1]) if len(parts) > 1 else 0,
+!             int(parts[2]) if len(parts) > 2 else 0,
+!         )
+  
+  
+> class LiveMigration:
+>     def __init__(
+>         self,
+>         project_root: str | None = None,
+>         audit_store: UnifiedAuditStore | None = None,
+>     ) -> None:
+!         self._project_root = project_root or os.getcwd()
+!         self._audit_store = audit_store or UnifiedAuditStore()
+!         self._compat_matrix = VersionCompatibilityMatrix()
+!         self._migrations: list[MigrationPlan] = []
+!         self._rollback_points: dict[str, str] = {}
+  
+>     def plan_migration(self, source_version: str, target_version: str) -> MigrationPlan:
+!         level = self._compat_matrix.check(source_version, target_version)
+!         plan = MigrationPlan(
+!             plan_id=f"migration_{source_version}_to_{target_version}_{int(time.time())}",
+!             source_version=source_version,
+!             target_version=target_version,
+!             compatibility_level=level,
+!         )
+  
+!         plan.steps.append(
+!             MigrationStep(
+!                 step_id="backup_current",
+!                 description=f"Backup current state at {source_version}",
+!             )
+!         )
+  
+!         if level in ("minor_change", "breaking_change"):
+!             plan.steps.append(
+!                 MigrationStep(
+!                     step_id="update_config",
+!                     description="Update configuration files",
+!                 )
+!             )
+  
+!         plan.steps.append(
+!             MigrationStep(
+!                 step_id="verify_tests",
+!                 description="Run test suite verification",
+!                 command=f"{sys.executable} -m pytest -x -q --tb=short 2>&1 | tail -20",
+!             )
+!         )
+  
+!         plan.steps.append(
+!             MigrationStep(
+!                 step_id="update_version_file",
+!                 description=f"Update version marker to {target_version}",
+!             )
+!         )
+  
+!         self._migrations.append(plan)
+!         return plan
+  
+>     def dry_run(self, plan: MigrationPlan) -> dict[str, Any]:
+!         return {
+!             "plan_id": plan.plan_id,
+!             "steps_count": len(plan.steps),
+!             "compatibility": plan.compatibility_level,
+!             "source": plan.source_version,
+!             "target": plan.target_version,
+!             "estimated_ok": True,
+!         }
+  
+>     def execute(self, plan: MigrationPlan) -> bool:
+!         self._create_rollback_point(plan)
+  
+!         success = plan.execute_all()
+  
+!         if not success:
+!             self._rollback(plan)
+  
+!         self._audit_store.append(plan.to_audit_record())
+!         return success
+  
+>     def _create_rollback_point(self, plan: MigrationPlan) -> None:
+!         backup_dir = os.path.join(
+!             tempfile.gettempdir(),
+!             f"maref_rollback_{plan.plan_id}",
+!         )
+!         os.makedirs(backup_dir, exist_ok=True)
+  
+!         marker_path = os.path.join(backup_dir, "rollback_info.json")
+!         import json
+  
+!         with open(marker_path, "w") as f:
+!             json.dump(
+!                 {
+!                     "plan_id": plan.plan_id,
+!                     "source": plan.source_version,
+!                     "target": plan.target_version,
+!                     "timestamp": time.time(),
+!                 },
+!                 f,
+!             )
+  
+!         self._rollback_points[plan.plan_id] = backup_dir
+  
+>     def _rollback(self, plan: MigrationPlan) -> bool:
+!         rollback_point = self._rollback_points.get(plan.plan_id)
+!         if not rollback_point:
+!             return False
+  
+!         self._audit_store.append(
+!             UnifiedAuditRecord(
+!                 record_id=make_record_id("rollback", hash(plan.plan_id) % 100000),
+!                 timestamp=time.time(),
+!                 layer="evolution",
+!                 round=37,
+!                 event_type="migration_rollback",
+!                 source_module="LiveMigration",
+!                 target_module=f"{plan.source_version}->{plan.target_version}",
+!                 decision="rollback",
+!                 justification="Migration failed, rolling back",
+!                 outcome="success",
+!                 context_refs=[plan.plan_id],
+!             )
+!         )
+!         return True
+  
+>     def verify_migration(self, plan: MigrationPlan) -> dict[str, Any]:
+!         all_ok = all(s.status == "success" for s in plan.steps)
+!         failed_steps = [
+!             {"step_id": s.step_id, "error": s.error} for s in plan.steps if s.status == "failed"
+!         ]
+-         return {
+!             "plan_id": plan.plan_id,
+!             "all_steps_passed": all_ok,
+!             "failed_steps": failed_steps,
+!             "total_duration_ms": sum(s.duration_ms for s in plan.steps),
+!         }
+  
+>     @property
+>     def migrations(self) -> list[MigrationPlan]:
+!         return list(self._migrations)
+  
+>     def clear(self) -> None:
+!         self._migrations.clear()
+!         self._rollback_points.clear()

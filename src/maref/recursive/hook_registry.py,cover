@@ -1,0 +1,75 @@
+! from __future__ import annotations
+  
+! import uuid
+! from collections.abc import Callable
+! from dataclasses import dataclass
+! from enum import Enum
+! from typing import Any
+  
+  
+! class HookVerdict(str, Enum):
+-     PASS = "pass"
+!     BLOCK = "block"
+!     FATAL = "fatal"
+!     AUDIT = "audit"
+!     NOTIFY = "notify"
+  
+  
+! @dataclass
+! class HookResult:
+!     verdict: HookVerdict
+!     handler_id: str = ""
+!     message: str = ""
+!     duration_ms: float = 0.0
+  
+!     @property
+!     def should_stop_chain(self) -> bool:
+!         return self.verdict in (HookVerdict.BLOCK, HookVerdict.FATAL)
+  
+  
+! HookHandler = Callable[[dict[str, Any]], HookResult]
+  
+  
+! @dataclass
+! class HookEntry:
+!     handler_id: str
+!     handler: HookHandler
+!     priority: int = 0
+!     topic: str = ""
+  
+!     def execute(self, event_data: dict[str, Any]) -> HookResult:
+!         return self.handler(event_data)
+  
+  
+! class HookRegistry:
+!     def __init__(self) -> None:
+!         self._hooks: dict[str, list[HookEntry]] = {}
+  
+!     def register(
+!         self,
+!         topic: str,
+!         handler: HookHandler,
+!         priority: int = 0,
+!         handler_id: str | None = None,
+!     ) -> str:
+!         hid = handler_id or f"hook-{uuid.uuid4().hex[:8]}"
+!         entry = HookEntry(handler_id=hid, handler=handler, priority=priority, topic=topic)
+!         self._hooks.setdefault(topic, []).append(entry)
+!         return hid
+  
+!     def unregister(self, topic: str, handler_id: str) -> bool:
+!         entries = self._hooks.get(topic, [])
+!         for i, entry in enumerate(entries):
+!             if entry.handler_id == handler_id:
+!                 entries.pop(i)
+!                 if not entries:
+!                     del self._hooks[topic]
+!                 return True
+!         return False
+  
+!     def get_chain(self, topic: str) -> list[HookEntry]:
+!         entries = self._hooks.get(topic, [])
+!         return sorted(entries, key=lambda e: -e.priority)
+  
+!     def clear(self) -> None:
+!         self._hooks.clear()

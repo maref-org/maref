@@ -1,0 +1,181 @@
+! from __future__ import annotations
+  
+! import json
+! from dataclasses import dataclass, field
+! from enum import Enum
+! from pathlib import Path
+! from typing import Any
+  
+  
+! class WorkflowCategory(str, Enum):
+!     OFFICE = "office"
+!     BROWSER = "browser"
+!     FILE = "file"
+!     TERMINAL = "terminal"
+!     EMAIL = "email"
+  
+  
+! @dataclass
+! class WorkflowStep:
+!     action_type: str
+!     action_value: str = ""
+!     wait_seconds: float = 0.5
+!     expected_app: str = ""
+!     skip_on_error: bool = False
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "action_type": self.action_type,
+!             "action_value": self.action_value,
+!             "wait_seconds": self.wait_seconds,
+!             "expected_app": self.expected_app,
+!             "skip_on_error": self.skip_on_error,
+!         }
+  
+  
+! @dataclass
+! class WorkflowTemplate:
+!     name: str
+!     category: WorkflowCategory
+!     description: str
+!     steps: list[WorkflowStep] = field(default_factory=list)
+!     safe_apps: list[str] = field(default_factory=list)
+!     tags: list[str] = field(default_factory=list)
+  
+!     def to_dict(self) -> dict[str, Any]:
+!         return {
+!             "name": self.name,
+!             "category": self.category.value,
+!             "description": self.description,
+!             "steps": [s.to_dict() for s in self.steps],
+!             "safe_apps": self.safe_apps,
+!             "tags": self.tags,
+!         }
+  
+  
+! WORKFLOW_TEMPLATES: dict[str, WorkflowTemplate] = {
+!     "compose_email": WorkflowTemplate(
+!         name="compose_email",
+!         category=WorkflowCategory.EMAIL,
+!         description="Compose a new email in Mail app",
+!         safe_apps=["Mail"],
+!         steps=[
+!             WorkflowStep("hotkey", "command+space", wait_seconds=0.5),
+!             WorkflowStep("type", "Mail", wait_seconds=0.5),
+!             WorkflowStep("hotkey", "enter", wait_seconds=1.0),
+!             WorkflowStep("hotkey", "command+n", wait_seconds=0.5, expected_app="Mail"),
+!         ],
+!         tags=["email", "productivity"],
+!     ),
+!     "edit_spreadsheet": WorkflowTemplate(
+!         name="edit_spreadsheet",
+!         category=WorkflowCategory.OFFICE,
+!         description="Open Numbers and create a new spreadsheet",
+!         safe_apps=["Numbers"],
+!         steps=[
+!             WorkflowStep("hotkey", "command+space", wait_seconds=0.5),
+!             WorkflowStep("type", "Numbers", wait_seconds=0.5),
+!             WorkflowStep("hotkey", "enter", wait_seconds=1.0),
+!             WorkflowStep("hotkey", "command+n", wait_seconds=0.5, expected_app="Numbers"),
+!         ],
+!         tags=["office", "spreadsheet"],
+!     ),
+!     "browser_form": WorkflowTemplate(
+!         name="browser_form",
+!         category=WorkflowCategory.BROWSER,
+!         description="Open browser and navigate to a URL",
+!         safe_apps=["Safari", "Google Chrome"],
+!         steps=[
+!             WorkflowStep("hotkey", "command+space", wait_seconds=0.5),
+!             WorkflowStep("type", "Safari", wait_seconds=0.5),
+!             WorkflowStep("hotkey", "enter", wait_seconds=1.0),
+!             WorkflowStep("hotkey", "command+l", wait_seconds=0.3, expected_app="Safari"),
+!         ],
+!         tags=["browser", "web"],
+!     ),
+!     "file_organize": WorkflowTemplate(
+!         name="file_organize",
+!         category=WorkflowCategory.FILE,
+!         description="Open two Finder windows for drag-drop organization",
+!         safe_apps=["Finder"],
+!         steps=[
+!             WorkflowStep("hotkey", "command+space", wait_seconds=0.5),
+!             WorkflowStep("type", "Finder", wait_seconds=0.5),
+!             WorkflowStep("hotkey", "enter", wait_seconds=1.0),
+!             WorkflowStep("hotkey", "command+n", wait_seconds=0.5, expected_app="Finder"),
+!         ],
+!         tags=["file", "organization"],
+!     ),
+!     "terminal_command": WorkflowTemplate(
+!         name="terminal_command",
+!         category=WorkflowCategory.TERMINAL,
+!         description="Open Terminal for command execution",
+!         safe_apps=["Terminal"],
+!         steps=[
+!             WorkflowStep("hotkey", "command+space", wait_seconds=0.5),
+!             WorkflowStep("type", "Terminal", wait_seconds=0.5),
+!             WorkflowStep("hotkey", "enter", wait_seconds=1.0),
+!         ],
+!         tags=["terminal", "cli"],
+!     ),
+! }
+  
+  
+! class WorkflowExecutor:
+!     """Execute workflow templates through the desktop agent."""
+  
+!     def __init__(self, agent: Any | None = None) -> None:
+!         self._agent = agent
+  
+!     def list_templates(self) -> list[dict[str, Any]]:
+!         return [
+!             {"name": t.name, "category": t.category.value, "description": t.description}
+!             for t in WORKFLOW_TEMPLATES.values()
+!         ]
+  
+!     def get_template(self, name: str) -> WorkflowTemplate | None:
+!         return WORKFLOW_TEMPLATES.get(name)
+  
+!     def execute(self, template_name: str) -> dict[str, Any]:
+!         template = self.get_template(template_name)
+!         if template is None:
+!             return {"success": False, "error": f"Template '{template_name}' not found"}
+  
+!         step_results = []
+!         for step in template.steps:
+!             try:
+!                 if self._agent is not None:
+!                     self._agent.execute_operation(step.action_type, step.action_value)
+!                 step_results.append({"step": step.action_type, "success": True})
+!             except Exception as e:
+!                 step_results.append({"step": step.action_type, "success": False, "error": str(e)})
+!                 if not step.skip_on_error:
+!                     break
+  
+!         all_ok = all(r["success"] for r in step_results)
+!         return {
+!             "success": all_ok,
+!             "template": template_name,
+!             "total_steps": len(template.steps),
+!             "steps_completed": len(step_results),
+!             "step_results": step_results,
+!         }
+  
+!     def save_template(self, template: WorkflowTemplate, path: str) -> None:
+!         p = Path(path)
+!         p.parent.mkdir(parents=True, exist_ok=True)
+!         p.write_text(json.dumps(template.to_dict(), indent=2))
+  
+!     def load_template(self, path: str) -> WorkflowTemplate | None:
+!         try:
+!             data = json.loads(Path(path).read_text())
+!             return WorkflowTemplate(
+!                 name=data["name"],
+!                 category=WorkflowCategory(data["category"]),
+!                 description=data["description"],
+!                 steps=[WorkflowStep(**s) for s in data.get("steps", [])],
+!                 safe_apps=data.get("safe_apps", []),
+!                 tags=data.get("tags", []),
+!             )
+!         except (json.JSONDecodeError, KeyError, FileNotFoundError):
+!             return None

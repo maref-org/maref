@@ -1,0 +1,88 @@
+! from __future__ import annotations
+  
+! import logging
+! from dataclasses import dataclass, field
+! from typing import Any
+  
+! logger = logging.getLogger(__name__)
+  
+  
+! @dataclass
+! class WeightRecord:
+!     current_weight: float
+!     hit_count: int = 0
+!     sample_count: int = 0
+!     history: list[float] = field(default_factory=list)
+  
+  
+! class SimpleWeightRegistry:
+!     DIMENSION_TARGET_MAP: dict[str, str] = {
+!         "correctness": "prompts/distill_v1.yaml",
+!         "testing": "prompts/project_v1.yaml",
+!         "code_quality": "config/quality_config.yaml",
+!         "security": "governance_rules.yaml",
+!     }
+  
+!     def __init__(self):
+!         self.weights: dict[str, WeightRecord] = {
+!             "correctness": WeightRecord(current_weight=0.5, history=[0.5]),
+!             "testing": WeightRecord(current_weight=0.5, history=[0.5]),
+!             "code_quality": WeightRecord(current_weight=0.5, history=[0.5]),
+!             "security": WeightRecord(current_weight=0.5, history=[0.5]),
+!             "performance": WeightRecord(current_weight=0.5, history=[0.5]),
+!             "governance": WeightRecord(current_weight=0.5, history=[0.5]),
+!         }
+  
+!     def set(self, dim: str, weight: float) -> None:
+!         if dim not in self.weights:
+!             self.weights[dim] = WeightRecord(current_weight=weight, history=[weight])
+!         else:
+!             self.weights[dim].current_weight = max(0.0, min(1.0, weight))
+!             self.weights[dim].history.append(self.weights[dim].current_weight)
+  
+!     def record_hit(self, dim: str, hit: bool) -> None:
+!         if dim not in self.weights:
+!             self.weights[dim] = WeightRecord(current_weight=0.5, history=[0.5])
+!         record = self.weights[dim]
+!         record.sample_count += 1
+!         if hit:
+!             record.hit_count += 1
+!         alpha = record.hit_count + 1
+!         beta = record.sample_count - record.hit_count + 1
+!         new_weight = alpha / (alpha + beta)
+!         record.current_weight = new_weight
+!         record.history.append(new_weight)
+  
+!     def get_all_weights(self) -> dict[str, dict[str, Any]]:
+!         return {
+!             name: {
+!                 "current_weight": record.current_weight,
+!                 "hit_count": record.hit_count,
+!                 "sample_count": record.sample_count,
+!                 "trend": self._compute_trend(record),
+!             }
+!             for name, record in self.weights.items()
+!         }
+  
+!     def get_weight(self, dim: str) -> float:
+!         record = self.weights.get(dim)
+!         return record.current_weight if record else 0.5
+  
+!     def _compute_trend(self, record: WeightRecord) -> str:
+!         if len(record.history) < 2:
+!             return "stable"
+!         recent = record.history[-3:]
+!         deltas = [recent[i + 1] - recent[i] for i in range(len(recent) - 1)]
+!         avg_delta = sum(deltas) / len(deltas) if deltas else 0
+!         if avg_delta > 0.02:
+!             return "improving"
+!         elif avg_delta < -0.02:
+!             return "declining"
+!         return "stable"
+  
+!     def get_target_for_dimension(self, dim: str) -> str | None:
+!         return self.DIMENSION_TARGET_MAP.get(dim)
+  
+!     def reset_weights(self, default: float = 0.5) -> None:
+!         for name in self.weights:
+!             self.weights[name] = WeightRecord(current_weight=default, history=[default])
