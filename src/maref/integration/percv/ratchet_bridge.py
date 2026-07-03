@@ -57,10 +57,12 @@ class RatchetBridge:
         mas_ts_bridge: Any | None = None,
         redlines_path: str | Path | None = None,
         cross_dimensional_analyzer: Any | None = None,
+        evaluation_command: str = "",
     ):
         self._meta_learner = meta_learner
         self._vault_path = Path(vault_path)
         self._program_path = Path(program_path) if program_path else self._vault_path / "program.md"
+        self._evaluation_command = evaluation_command  # overrides program.md
         self._cycle_history: list[RatchetIterationRecord] = []
         self._mas_ts_bridge = mas_ts_bridge
         self._redlines = self._load_redlines(redlines_path or Path("configs/rsi_redlines.yaml"))
@@ -175,11 +177,12 @@ class RatchetBridge:
         import time
 
         t0 = time.perf_counter()
-        # Use the evaluation command from program.md config (includes --mas-ts flags).
-        # Fall back to --mock when no config is available.
-        program_config = self._read_program_config()
-        eval_cmd_str = program_config.get(
-            "evaluation_command", "uv run percv evaluate --mock"
+        # Use the explicit evaluation_command (set by caller, includes --mas-ts),
+        # falling back to program.md config, then a safe --mock default.
+        eval_cmd_str = (
+            self._evaluation_command
+            or self._read_program_config().get("evaluation_command", "")
+            or "uv run percv evaluate --mock"
         )
         eval_cmd = shlex.split(eval_cmd_str)
 
@@ -247,9 +250,14 @@ class RatchetBridge:
     ) -> list[RatchetIterationRecord]:
         program_config = self._read_program_config()
         effective_budget = budget or program_config.get("budget", {}).get("max_iterations", 20)
-        # human_gate=False (from program.md) is valid; the broken YAML parser
-        # would return True here, but _read_program_config now handles ```yaml.
-        effective_human_gate = human_gate if human_gate else program_config.get("human_gate", True)
+        # human_gate=False is a valid explicit value from the caller.
+        # Only fall back to vault/program.md when caller's value is True (the default).
+        # This ensures the root program.md (human_gate: false) takes precedence
+        # over the vault's copy when the caller explicitly passes False.
+        if human_gate is False:
+            effective_human_gate = False
+        else:
+            effective_human_gate = program_config.get("human_gate", True)
 
         logger.info(
             "Starting ratchet cycle: target=%s budget=%d human_gate=%s mas_ts=%s",
