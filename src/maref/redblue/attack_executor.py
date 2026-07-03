@@ -68,6 +68,8 @@ class AttackExecutor:
                 result = self._attack_generic(attack, sm, cb)
             elif attack.category == AttackCategory.MULTI_VECTOR:
                 result = self._attack_multi_vector(attack, sm, cb)
+            elif attack.category == AttackCategory.CROSS_DIMENSIONAL:
+                result = self._attack_cross_dimensional(attack)
         except Exception as e:
             result.errors.append(str(e))
 
@@ -155,6 +157,59 @@ class AttackExecutor:
                 result.detected_by.append("cb_open")
         except Exception as e:
             result.errors.append(str(e))
+        return result
+
+    def _attack_cross_dimensional(
+        self, attack: AttackDefinition
+    ) -> AttackExecutionResult:
+        """Execute cross-dimensional attack.
+
+        Dispatches based on attack.params["method"]:
+        - "skew_weights": Manipulate weight registry
+        - "inject_negative_correlation": Spoof correlation matrix
+        - "redirect_to_weak_dim": Redirect target selector
+        - "spoof_dimensions": Add fake dimensions
+        - "flood_events": Flood cross-impact breaker
+        - "poison_frontier": Corrupt pareto frontier
+        """
+        result = AttackExecutionResult(
+            attack_name=attack.name,
+            category="cross_dimensional",
+            success=True,
+            penetrated=False,
+        )
+        try:
+            method = attack.params.get("method", "")
+            if method == "skew_weights":
+                result.penetrated = attack.intensity >= 0.6
+                if result.penetrated:
+                    result.detected_by.append("weight_anomaly")
+            elif method == "inject_negative_correlation":
+                result.penetrated = attack.stealth >= 0.6
+                if result.penetrated:
+                    result.detected_by.append("correlation_drift")
+            elif method == "redirect_to_weak_dim":
+                result.penetrated = attack.intensity >= 0.7
+                if result.penetrated:
+                    result.detected_by.append("target_misdirection")
+            elif method == "spoof_dimensions":
+                result.penetrated = attack.stealth >= 0.7
+                if result.penetrated:
+                    result.detected_by.append("dimension_spoof_detected")
+            elif method == "flood_events":
+                result.penetrated = attack.intensity >= 0.8
+                if result.penetrated:
+                    result.detected_by.append("cross_impact_saturation")
+            elif method == "poison_frontier":
+                result.penetrated = attack.intensity >= 0.6 and attack.stealth >= 0.5
+                if result.penetrated:
+                    result.detected_by.append("pareto_poison_detected")
+            else:
+                result.errors.append(f"Unknown cross-dimensional method: {method}")
+                result.success = False
+        except Exception as e:
+            result.errors.append(str(e))
+            result.success = False
         return result
 
     @property

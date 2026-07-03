@@ -15,32 +15,31 @@
 - [x] **v0.32.0 — Code Immune System** — 6 层主动免疫架构交付
 - [x] **v0.33.0 — Zero Debt + M7 + SAEB 递归深化** — 技术债清零、M7 免疫加固、SAEB 扩展
 - [x] **v0.34.0-rc 全量补强** — MCP 接通 / 测试修复 / 安全 P0 清零 / AuditBus / Sidecar 打包
-
-## 进行中
-
-- [ ] **Phase 0 生态清理收尾** — `.gitignore` 更新、ops 文件清理、构建产物分离
-- [ ] **docs/oss-execution-norm-v1.0.md** — 本仓库的 Agent 执行规范（从 KB 裁剪适配到 Track B）
+- [x] **v0.36.0-rc 发布** — GitHub Release + 版本标签 (2026-07-01)
+- [x] **README 升级** — 添加 Loop Engineering 叙事、5 行集成示例、治理对比矩阵
+- [x] **README 国际化** — 英文主版 `README.md` + 中文保留版 `README.zh-CN.md`
+- [x] **GitHub Wiki 补全** — 架构说明、快速开始、API 参考链接 (`.wiki/`)
+- [x] **CONTRIBUTING.md** — PR 流程、CLA 签署、开发环境搭建
+- [x] **Issue 模板** — bug / feature / question / good-first-issue 四类
+- [x] **版本一致性锁** — 8 个版本文件一致 (v0.36.0-rc)
+- [x] **MCP/A2A 端点公开文档化** — `docs/api.md` 已有 MCP + A2A 端点说明
+- [x] **Phase 0 生态清理收尾** — `.gitignore` 完备 (.gaas_api_key, build/, __pycache__/, .env, .DS_Store)；ops 文件已清理；构建产物在 `build/` (已 gitignore)
+- [x] **docs/oss-execution-norm-v1.0.md** — Agent 执行规范已就绪
+- [x] **execution/ 覆盖率攻坚** — 0% → 67.9% (目标 40%)
 
 ## 待执行（S0 剩余）
 
 ### P0 — 开源基础设施就绪
 
-- [ ] **GitHub Wiki 补全** — 架构说明、快速开始、API 参考链接
-- [ ] **GitHub Projects 补全** — Roadmap / Milestone / Issue 模板
-- [ ] **Release v0.35.0-rc 发布** — 首次 GitHub Release + 版本标签
-- [ ] **版本一致性锁** — Dockerfile / pyproject.toml / Cargo.toml / package.json 版本统一
-- [ ] **MCP/A2A 端点公开文档化** — `docs/api.md` 补充 MCP 端点
+- [ ] **GitHub Projects 补全** — Roadmap / Milestone / Issue 模板（需 GitHub 连通后操作）
+- [ ] **SSH 签名密钥配** — 维护者签名验证
 
 ### P1 — 社区生态
 
-- [x] **README 升级** — 添加 Loop Engineering 叙事、5 行集成示例、治理对比矩阵
-- [ ] **CONTRIBUTING.md** — PR 流程、CLA 签署、开发环境搭建
-- [ ] **Issue 模板** — bug / feature / question 三类模板
-- [ ] **SSH 签名密钥配** — 维护者签名验证
+- [ ] **两阶段开源路线图** — 发布 `ROADMAP.md`，说明 MAREF-Lite (Apache-2.0) → MAREF-Full (AGPL)
 
 ### P2 — 长期演进
 
-- [ ] **两阶段开源路线图** — MAREF-Lite (Apache-2.0) → MAREF-Full (AGPL) 分层发布
 - [ ] **arXiv 去 AI 味版论文** — 第二版提交
 - [ ] **AIP 申请** — 安全审计版申请材料准备
 - [ ] **联合声明发布** — 治理层开源宣言
@@ -66,7 +65,7 @@
 
 - [x] `ruff check src/maref/loop/` = 0 errors
 - [x] `mypy src/maref/loop/` — strict mode 0 errors
-- [ ] `src/maref/loop/` 覆盖率 ≥ 85%（待补充测试）
+- [x] `src/maref/loop/` 覆盖率 ≥ 85%（94.6%，已移除 pyproject.toml omit）
 
 ---
 

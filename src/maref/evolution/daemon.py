@@ -26,6 +26,7 @@ class DaemonConfig:
     state_file: str | Path = ".evolution_daemon_state.json"
     pid_file: str | Path = "/tmp/maref-evolution-daemon.pid"
     dry_run: bool = True
+    real_writes: bool = False
     engine: str = "daily"
 
 
@@ -71,6 +72,7 @@ class EvolutionDaemon:
             self._loop = DailyEvolutionLoop(
                 vault_dir=config.vault_dir,
                 dry_run=config.dry_run,
+                real_writes=config.real_writes,
             )
 
     # ── Core loop ────────────────────────────────────────────────────
@@ -297,6 +299,12 @@ def main() -> None:
         dest="dry_run",
         help="Enable real file writes (dangerous!)",
     )
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        default=False,
+        help="Production mode: --no-dry-run + real_writes enabled",
+    )
     parser.add_argument("--state-file", default=".evolution_daemon_state.json", help="Daemon state file")
     parser.add_argument(
         "--pid-file",
@@ -337,15 +345,19 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    is_production = args.production
     config = DaemonConfig(
         interval_hours=args.interval,
         max_runs=args.max_runs,
         vault_dir=args.vault,
         state_file=args.state_file,
         pid_file=args.pid_file,
-        dry_run=args.dry_run,
+        dry_run=False if is_production else args.dry_run,
+        real_writes=is_production,
         engine=args.engine,
     )
+    if is_production:
+        logger.info("PRODUCTION MODE: dry_run=False, real_writes=True")
 
     # Service file generation (non-daemon mode, just generate and exit)
     if args.install_launchd:

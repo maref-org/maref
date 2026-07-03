@@ -138,6 +138,20 @@ class CodeContextBuilder:
         "- All async functions must be wrapped in try/except\n"
     )
 
+    TS_SYSTEM_PROMPT_TEMPLATE = (
+        "You are a MAREF recursive evolution code generator for TypeScript/React.\n"
+        "Constraints:\n"
+        "- TypeScript strict mode + ESLint compliance\n"
+        "- Never modify core governance components (circuit_breaker, state_machine, "
+        "audit_logger, meta_governance, evolution_dsl)\n"
+        "- Never bypass safety assertions or downgrade security levels\n"
+        "- Output a single complete TypeScript/TSX file\n"
+        "- Output raw code only — NO markdown fences, NO backticks, NO explanation\n"
+        "- Keep generated code under 200 lines — concise, focused, no boilerplate\n"
+        "- Preserve existing imports unless removing unused ones\n"
+        "- React 19+ hooks patterns, functional components only\n"
+    )
+
     @staticmethod
     def build_prompt(
         proposal: ArchitectureProposal,
@@ -160,30 +174,48 @@ class CodeContextBuilder:
             for sym in proposal.affected_symbols:
                 user_lines.append(f"#   - {sym}")
 
+        # Detect TypeScript targets to pick the right system prompt
+        is_ts = bool(
+            affected_files
+            and any(f.endswith((".ts", ".tsx")) for f in affected_files)
+        )
+
         if affected_files:
             for fp in affected_files:
-                import ast as _ast
-                try:
-                    with open(fp) as f:
-                        content = f.read()
-                    tree = _ast.parse(content)
-                    classes = [
-                        n.name for n in _ast.walk(tree) if isinstance(n, _ast.ClassDef)
-                    ]
-                    functions = [
-                        n.name for n in _ast.walk(tree) if isinstance(n, _ast.FunctionDef)
-                    ]
-                    imports = [
-                        (n.names[0].name if isinstance(n, _ast.Import) else n.module)
-                        for n in _ast.walk(tree)
-                        if isinstance(n, (_ast.Import, _ast.ImportFrom))
-                    ][:30]
-                    user_lines.append(f"\n# AST summary for {fp}:")
-                    user_lines.append(f"#   classes: {classes}")
-                    user_lines.append(f"#   functions: {functions}")
-                    user_lines.append(f"#   imports: {imports}")
-                except (SyntaxError, OSError):
-                    user_lines.append(f"\n# Could not parse {fp}")
+                if fp.endswith((".ts", ".tsx")):
+                    # TS files: read raw content (ast.parse cannot handle TypeScript)
+                    try:
+                        with open(fp) as f:
+                            lines = f.readlines()
+                        user_lines.append(f"\n# Current content of {fp} (first 80 lines):")
+                        for line in lines[:80]:
+                            user_lines.append(line.rstrip("\n"))
+                    except OSError:
+                        user_lines.append(f"\n# Could not read {fp}")
+                else:
+                    # Python files: AST summary
+                    import ast as _ast
+                    try:
+                        with open(fp) as f:
+                            content = f.read()
+                        tree = _ast.parse(content)
+                        classes = [
+                            n.name for n in _ast.walk(tree) if isinstance(n, _ast.ClassDef)
+                        ]
+                        functions = [
+                            n.name for n in _ast.walk(tree) if isinstance(n, _ast.FunctionDef)
+                        ]
+                        imports = [
+                            (n.names[0].name if isinstance(n, _ast.Import) else n.module)
+                            for n in _ast.walk(tree)
+                            if isinstance(n, (_ast.Import, _ast.ImportFrom))
+                        ][:30]
+                        user_lines.append(f"\n# AST summary for {fp}:")
+                        user_lines.append(f"#   classes: {classes}")
+                        user_lines.append(f"#   functions: {functions}")
+                        user_lines.append(f"#   imports: {imports}")
+                    except (SyntaxError, OSError):
+                        user_lines.append(f"\n# Could not parse {fp}")
 
         if feedback:
             user_lines.append(f"\n# Feedback from previous attempt:\n{feedback}")
@@ -191,7 +223,12 @@ class CodeContextBuilder:
         user_lines.append("\n# Generate the complete file below:")
         user_prompt = "\n".join(user_lines)
 
-        return CodeContextBuilder.SYSTEM_PROMPT_TEMPLATE, user_prompt
+        system_prompt = (
+            CodeContextBuilder.TS_SYSTEM_PROMPT_TEMPLATE
+            if is_ts
+            else CodeContextBuilder.SYSTEM_PROMPT_TEMPLATE
+        )
+        return system_prompt, user_prompt
 
 
 class MockProvider:
@@ -275,10 +312,13 @@ class LLMCodeGenerator:
 
         validation_errors: list[str] = []
         output = self._strip_markdown_fences(output)
-        try:
-            ast.parse(output)
-        except SyntaxError as e:
-            validation_errors.append(f"Syntax error in generated code: {e}")
+        # Skip ast.parse for TypeScript — it only validates Python syntax
+        is_ts = any(f.endswith((".ts", ".tsx")) for f in affected_files)
+        if not is_ts:
+            try:
+                ast.parse(output)
+            except SyntaxError as e:
+                validation_errors.append(f"Syntax error in generated code: {e}")
 
         gen = self._create_generated_code(output, proposal)
         if validation_errors:
@@ -323,9 +363,10 @@ class LLMCodeGenerator:
             if getattr(proposal, "target_files", None)
             else f"rel_gen_{uuid.uuid4().hex[:8]}.py"
         )
+        language = "typescript" if target.endswith((".ts", ".tsx")) else "python"
         return GeneratedCode(
             file_path=target,
             content=content,
             target_module=getattr(proposal, "proposed_arch", target),
-            language="python",
+            language=language,
         )

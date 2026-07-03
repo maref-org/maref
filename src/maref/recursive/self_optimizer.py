@@ -106,12 +106,14 @@ class SelfOptimizer:
         self,
         adopt_threshold: float = 0.05,
         benchmark_fn: Callable[[], dict[str, float]] | None = None,
+        apply_fn: Callable[[], None] | None = None,
     ) -> None:
         self._adopt_threshold = adopt_threshold
         self._hypotheses: list[OptimizationHypothesis] = []
         self._adopted: list[OptimizationHypothesis] = []
         self._reverted: list[OptimizationHypothesis] = []
         self._benchmark_fn = benchmark_fn or _run_real_benchmark
+        self._apply_fn = apply_fn
 
     def propose_optimizations(self, snapshot: SystemSnapshot) -> list[OptimizationHypothesis]:
         import uuid
@@ -161,11 +163,12 @@ class SelfOptimizer:
     ) -> BenchmarkResult:
         before = self._benchmark_fn()
 
-        if apply_fn is not None:
+        effective_apply = apply_fn or self._apply_fn
+        if effective_apply is not None:
             with contextlib.suppress(Exception):
-                apply_fn()
+                effective_apply()
 
-        after = self._benchmark_fn() if apply_fn is not None else dict(before)
+        after = self._benchmark_fn() if effective_apply is not None else dict(before)
 
         hypothesis.experiment_result = {"before": before, "after": after}  # type: ignore[dict-item]
 

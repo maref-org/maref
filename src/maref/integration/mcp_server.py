@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from maref.integration.mcp_envelope import validate_envelope
 from maref.integration.mcp_transport import (
     InProcessTransport,
     JSONRPCRequest,
@@ -115,6 +116,15 @@ class MCPServer:
     ) -> JSONRPCResponse:
         method = request.method
         params = request.params or {}
+
+        # 宪法第十五-A条: 工具调用需要 MCP 消息信封 — trace_id, source_agent, timestamp
+        if method == "tools/call":
+            is_valid, error_msg = validate_envelope(params)
+            if not is_valid:
+                return JSONRPCResponse(
+                    error={"code": -32000, "message": error_msg},
+                    id=request.id,
+                )
 
         if method == "initialize":
             return self._handle_initialize(request.id, params)

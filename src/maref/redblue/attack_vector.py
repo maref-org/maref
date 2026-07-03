@@ -61,6 +61,7 @@ class AttackCategory(Enum):
     META_LEARNING = ("meta_learning", "元学习攻击")
     OSCILLATION = ("oscillation", "振荡修复攻击")
     MULTI_VECTOR = ("multi_vector", "多向量复合攻击")
+    CROSS_DIMENSIONAL = ("cross_dimensional", "跨维度操纵攻击")
 
 
 @dataclass
@@ -574,3 +575,59 @@ PHASE5_ATTACKS: list[AttackDefinition] = [
         {"summary": True},
     ),
 ]
+
+# Phase 6 attack definitions (cross-dimensional attacks)
+PHASE6_ATTACKS: list[AttackDefinition] = [
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "dimension_weight_manipulation",
+        "操纵维度权重使非安全维度获得过高优先级",
+        intensity=0.6, stealth=0.7,
+        params={"target": "weight_registry", "method": "skew_weights"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "negative_correlation_exploit",
+        "利用维度间负相关制造退化陷阱（改进A→B退化）",
+        intensity=0.7, stealth=0.6,
+        params={"target": "cross_dimensional_analyzer", "method": "inject_negative_correlation"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "dimension_hijack",
+        "劫持改进目标将资源导向低价值维度",
+        intensity=0.8, stealth=0.5,
+        params={"target": "target_selector", "method": "redirect_to_weak_dim"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "dimensional_blindness",
+        "注入假维度使分析器忽略真实退化",
+        intensity=0.5, stealth=0.8,
+        params={"target": "cross_dimensional_analyzer", "method": "spoof_dimensions"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "cross_impact_flood",
+        "同时操纵多个维度关系使熔断器饱和",
+        intensity=0.9, stealth=0.4,
+        params={"target": "cross_impact_circuit_breaker", "method": "flood_events"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "pareto_front_poison",
+        "污染帕累托前沿推荐使改进方向偏移",
+        intensity=0.7, stealth=0.6,
+        params={"target": "pareto_optimizer", "method": "poison_frontier"},
+    ),
+]
+
+# All attacks combined
+ALL_ATTACKS: list[AttackDefinition] = (
+    PHASE1_ATTACKS
+    + PHASE2_ATTACKS
+    + PHASE3_ATTACKS
+    + PHASE4_ATTACKS
+    + PHASE5_ATTACKS
+    + PHASE6_ATTACKS
+)

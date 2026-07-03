@@ -15,6 +15,7 @@ from maref.evolution.evolution_vault import EvolutionVault
 from maref.evolution.iteration_analyzer import IterationAnalyzer
 from maref.evolution.optimizer_bridge import OptimizerEvolutionBridge
 from maref.evolution.real_metrics import RealMetricsCollector
+from maref.recursive.eight_trigrams_governance import EightTrigramsGovernance
 from maref.recursive.self_diagnostician import SelfDiagnostician
 from maref.recursive.self_observer import SelfObserver
 
@@ -70,13 +71,16 @@ class DailyEvolutionLoop:
         self,
         vault_dir: str | Path = ".evolution_vault",
         dry_run: bool = True,
+        real_writes: bool = False,
         metrics_collector: Any | None = None,
     ) -> None:
         self._vault = EvolutionVault(vault_dir)
         self._dry_run = dry_run
+        self._real_writes = real_writes
         self._metrics_collector = metrics_collector or RealMetricsCollector()
         self._analyzer = IterationAnalyzer()
         self._constitution = ConstitutionHarness()
+        self._trigrams = EightTrigramsGovernance(agent_id="self_executor")
 
     def run_once(self, day: str | None = None) -> DailyEvolutionResult | None:
         current_day = day or time.strftime("%Y-%m-%d")
@@ -89,6 +93,23 @@ class DailyEvolutionLoop:
         }
         previous_snapshot = self._load_previous_metrics(current_day)
         analysis = self._analyzer.compare_snapshots(previous_snapshot, current_snapshot)
+
+        # ── Eight Trigrams trust check ──
+        if self._real_writes:
+            trust_score = self._trigrams.trust_score
+            if trust_score < 0.7:
+                logger.warning(
+                    "Trigrams trust too low for autonomous write: %.2f (need >= 0.70)",
+                    trust_score,
+                )
+                return DailyEvolutionResult(
+                    day=current_day,
+                    phases=list(self.PHASES),
+                    dry_run=self._dry_run,
+                    real_writes_enabled=False,
+                    priority="blocked",
+                    stop_reason="trust_blocked",
+                )
 
         # ── Self-diagnosis: observe system, diagnose risks, generate hypotheses ──
         try:
@@ -153,7 +174,7 @@ class DailyEvolutionLoop:
             day=current_day,
             phases=list(self.PHASES),
             dry_run=self._dry_run,
-            real_writes_enabled=False,
+            real_writes_enabled=self._real_writes,
             priority=analysis.priority,
             stop_reason=evolution_result.stop_reason,
             artifacts={"vault_dir": str(day_dir)},

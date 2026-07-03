@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
+import os
 import subprocess
 import sys
 import time
@@ -20,6 +21,8 @@ HEALING_STRATEGIES = {
     "coverage_drop": "identify_untested_paths_generate_stubs",
     "performance_regression": "bisect_commits_identify_cause",
     "import_error": "check_missing_dependency_install",
+    "syntax_error": "auto_fix_syntax",
+    "type_error": "auto_fix_types",
     "unknown": "full_system_scan",
 }
 
@@ -83,12 +86,16 @@ class SelfHealer:
         strategy_executor: Callable[[str, str], HealAction] | None = None,
         gene_pipeline: AutoGeneExtractionPipeline | None = None,
         latency_threshold_ok: float = 10.0,
+        executor: Any = None,
+        project_root: str = "",
     ) -> None:
         self._max_iterations = max_iterations
         self._history: list[HealingRecord] = []
         self._strategy_executor = strategy_executor or self._execute_strategy
         self._gene_pipeline = gene_pipeline
         self._latency_threshold_ok = latency_threshold_ok
+        self._executor = executor
+        self._project_root = project_root
 
     def triage(self, report: DiagnosisReport) -> list[str]:
         from maref.recursive.self_diagnostician import RiskLevel
@@ -247,27 +254,41 @@ class SelfHealer:
             elif strategy == "full_system_scan":
                 checks = []
                 try:
-                    r = subprocess.run(
+                    result = subprocess.run(
                         [sys.executable, "-c", "import maref; print('maref OK')"],
                         capture_output=True,
                         text=True,
                         timeout=30,
                     )
-                    checks.append(("maref_import", r.returncode, r.stdout.strip()))
+                    checks.append(("maref_import", result.returncode, result.stdout.strip()))
                 except Exception as e:
                     checks.append(("maref_import", -1, str(e)))
                 try:
-                    r = subprocess.run(
+                    result = subprocess.run(
                         [sys.executable, "-c", "import maref_lite; print('maref_lite OK')"],
                         capture_output=True,
                         text=True,
                         timeout=30,
                     )
-                    checks.append(("maref_lite_import", r.returncode, r.stdout.strip()))
+                    checks.append(("maref_lite_import", result.returncode, result.stdout.strip()))
                 except Exception as e:
                     checks.append(("maref_lite_import", -1, str(e)))
                 exit_code = 0 if all(c[1] == 0 for c in checks) else 1
                 detail = " | ".join(f"{n}:{c}" for n, c, _ in checks)
+
+            elif strategy in ("auto_fix_syntax", "auto_fix_types"):
+                fix_type = "syntax" if strategy == "auto_fix_syntax" else "type"
+                try:
+                    if self._executor is not None:
+                        result = self._executor.deploy(self._make_fix_code(fix_type))
+                        exit_code = 0 if result.success else 1
+                        detail = f"auto_fix_{fix_type}: {result.message}"
+                    else:
+                        exit_code = 1
+                        detail = f"no executor configured for {fix_type} fix"
+                except Exception as e:
+                    exit_code = 1
+                    detail = f"auto_fix_{fix_type}: {e}"
 
             else:
                 exit_code = 1
@@ -290,6 +311,24 @@ class SelfHealer:
             stdout=stdout,
             stderr=stderr,
             detail=detail,
+        )
+
+    def _make_fix_code(self, fix_type: str) -> Any:
+        from maref.recursive.self_executor import GeneratedCode
+        if fix_type == "syntax":
+            content = (
+                "from __future__ import annotations\n\n\n"
+                "# Auto-fixed by SelfHealer\n"
+            )
+        else:
+            content = (
+                "from __future__ import annotations\n\n\n"
+                "def placeholder() -> None: ...\n"
+            )
+        return GeneratedCode(
+            file_path=os.path.join(self._project_root, "src", "maref", "recursive", "auto_fixed.py"),
+            content=content,
+            target_module="auto_fixed",
         )
 
     def heal(

@@ -17,6 +17,7 @@ best candidate is used as fallback.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -40,12 +41,16 @@ class QualityGateResult:
 
     cycle_id: str
     candidate_id: str
-    eval_report: EvaluationReport
-    verdict: EvolutionVerdict
-    score: float
-    reason: str
+    eval_report: EvaluationReport | None = None
+    verdict: EvolutionVerdict = EvolutionVerdict.REJECTED
+    score: float = 0.0
+    reason: str = ""
     regression_found: bool = False
     previous_best_score: float = 0.0
+    passed: bool = True
+    details: dict[str, Any] | None = None
+    scores: dict[str, float] | None = None
+    timestamp: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -56,7 +61,7 @@ class QualityGateResult:
             "reason": self.reason,
             "regression_found": self.regression_found,
             "previous_best_score": self.previous_best_score,
-            "critical_count": self.eval_report.critical_count,
+            "critical_count": self.eval_report.critical_count if self.eval_report else 0,
         }
 
 
@@ -74,6 +79,10 @@ class QualityGateConfig:
     c3_max_critical: int = 0
     c3_fnr_std_max: float = 0.05
     c3_fpr_std_max: float = 0.03
+    # L2 cross-dimension thresholds
+    l2_dim_count: int = 5
+    l2_min_dim_score: float = 70.0
+    l2_cross_impact_threshold: float = -0.3
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -85,6 +94,9 @@ class QualityGateConfig:
             "c2_max_score_drop_pp": self.c2_max_score_drop_pp,
             "c3_min_score": self.c3_min_score,
             "c3_max_critical": self.c3_max_critical,
+            "l2_dim_count": self.l2_dim_count,
+            "l2_min_dim_score": self.l2_min_dim_score,
+            "l2_cross_impact_threshold": self.l2_cross_impact_threshold,
         }
 
 
@@ -233,6 +245,145 @@ class EvolutionQualityGate:
         if not self._history:
             return 0.0
         return max(r.score for r in self._history)
+
+    # --- L2 cross-dimension evaluation ---
+
+    L2_DIM_WEIGHTS: dict[str, float] = {
+        "correctness": 0.30,
+        "testing": 0.20,
+        "code_quality": 0.20,
+        "security": 0.20,
+        "performance": 0.10,
+    }
+
+    def evaluate_l2(
+        self,
+        candidate: str,
+        dimension_scores: dict[str, float],
+        cross_impacts: list[dict] | None = None,
+    ) -> QualityGateResult:
+        """L2 quality gate: cross-dimension scoring.
+
+        Checks:
+        1. Dimension count >= l2_dim_count
+        2. Each dimension score >= l2_min_dim_score
+        3. Optional: cross-impact check - no correlation below threshold
+        4. Overall: weighted average of dimension scores
+        """
+        details: dict[str, Any] = {}
+        passed = True
+
+        # Check 1: Dimension count
+        dim_count = len(dimension_scores)
+        count_ok = dim_count >= self._config.l2_dim_count
+        details["dimension_count"] = {
+            "value": dim_count,
+            "threshold": self._config.l2_dim_count,
+            "passed": count_ok,
+        }
+        if not count_ok:
+            passed = False
+
+        # Check 2: Per-dimension scores
+        dim_results: dict[str, float] = {}
+        for dim, score in dimension_scores.items():
+            dim_results[dim] = score
+            dim_ok = score >= self._config.l2_min_dim_score
+            details[dim] = {
+                "score": score,
+                "threshold": self._config.l2_min_dim_score,
+                "passed": dim_ok,
+            }
+            if not dim_ok:
+                passed = False
+
+        # Check 3: Cross-impact
+        cross_ok = True
+        if cross_impacts:
+            for entry in cross_impacts:
+                corr = entry.get("correlation", 0.0)
+                if not isinstance(corr, (int, float)):
+                    continue
+                if corr < self._config.l2_cross_impact_threshold:
+                    cross_ok = False
+                    break
+            details["cross_impact"] = {
+                "threshold": self._config.l2_cross_impact_threshold,
+                "passed": cross_ok,
+            }
+            if not cross_ok:
+                passed = False
+
+        # Check 4: Weighted average score
+        total_weight = 0.0
+        weighted_sum = 0.0
+        for dim, weight in self.L2_DIM_WEIGHTS.items():
+            if dim in dimension_scores:
+                weighted_sum += dimension_scores[dim] * weight
+                total_weight += weight
+        score = weighted_sum / total_weight if total_weight > 0 else 0.0
+
+        if passed:
+            verdict = EvolutionVerdict.APPROVED
+            reason = (
+                f"L2 APPROVED: score={score:.1f}, "
+                f"dims={dim_count}/{self._config.l2_dim_count}"
+            )
+        else:
+            verdict = EvolutionVerdict.REJECTED
+            reason = (
+                f"L2 REJECTED: score={score:.1f}, "
+                f"dims={dim_count}/{self._config.l2_dim_count}"
+            )
+
+        result = QualityGateResult(
+            cycle_id="l2",
+            candidate_id=candidate,
+            eval_report=None,
+            verdict=verdict,
+            score=round(score, 2),
+            reason=reason,
+            passed=passed,
+            details=details,
+            scores=dim_results,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+        self._history.append(result)
+        return result
+
+    def evaluate_all_l2(
+        self,
+        candidate: str,
+        dimension_scores: dict[str, float],
+        cross_impacts: list[dict] | None = None,
+    ) -> dict[str, QualityGateResult]:
+        """Evaluate all applicable gates for L2.
+
+        Runs c1-c4 standard dimension gates plus l2 composite gate.
+        Returns dict keyed by gate name.
+        """
+        dim_names = ["correctness", "testing", "code_quality", "security", "performance"]
+        gate_names = ["c1", "c2", "c3", "c4", "c5"]
+        results: dict[str, QualityGateResult] = {}
+
+        for dim, gate in zip(dim_names, gate_names, strict=True):
+            dim_score = dimension_scores.get(dim, 0.0)
+            dim_ok = dim_score >= self._config.l2_min_dim_score
+            results[gate] = QualityGateResult(
+                cycle_id=gate,
+                candidate_id=candidate,
+                eval_report=None,
+                verdict=EvolutionVerdict.APPROVED if dim_ok else EvolutionVerdict.REJECTED,
+                score=dim_score,
+                reason=f"{dim}: {'PASS' if dim_ok else 'FAIL'} (score={dim_score})",
+                passed=dim_ok,
+                details={dim: {"score": dim_score, "threshold": self._config.l2_min_dim_score, "passed": dim_ok}},
+                scores={dim: dim_score},
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+
+        results["l2"] = self.evaluate_l2(candidate, dimension_scores, cross_impacts)
+        return results
 
     # --- Simulated evaluation (for integration with existing engine) ---
 

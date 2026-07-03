@@ -7,7 +7,7 @@ Provides:
 - ScheduleSpec: schedule specification for recurring loops
 """
 
-from maref.execution.harness import Harness
+from maref.execution.scheduler import Harness
 from maref.execution.types import LoopTask, LoopTaskStatus, ScheduleSpec, ScheduleType
 
 __all__ = [

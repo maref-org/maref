@@ -290,6 +290,40 @@ export const api = {
   getCostByTeam: () =>
     request<Record<string, number>>("/v1/observability/cost-by-team"),
 
+  // ── RSI (Pareto) API ─────────────────────────────────
+
+  getParetoFront: () =>
+    request<{ dimensions: string[]; current_scores: Record<string, number>; recommended_weights: Record<string, number>; rationale: string }>(
+      "/v1/rsi/pareto-front"),
+
+  getCrossEffects: () =>
+    request<{ source_dim: string; target_dim: string; effect_size: number; direction: string; confidence: number }[]>(
+      "/v1/rsi/cross-effects"),
+
+  getAdaptiveAllocation: () =>
+    request<{ target: string; rounds_allocated: number; success_rate: number; current_weight: number }[]>(
+      "/v1/rsi/adaptive-allocation"),
+
+  // ── Evolution Timeline API ──────────────────────────
+
+  getEvolutionTimeline: () =>
+    request<{
+      day: number;
+      date: string;
+      avgScore: number;
+      adoptionRate: number;
+      dimensions: Record<string, number>;
+      events: Array<{
+        type: "version" | "gate" | "conflict" | "heal" | "alert";
+        label: string;
+        detail: string;
+        timestamp: string;
+      }>;
+      selfHealCount: number;
+      selfHealSuccesses: number;
+      version?: string;
+    }[]>("/v1/rsi/evolution-timeline"),
+
   // ── Audit API ────────────────────────────────────────
 
   getAuditLogs: (params?: { type?: string; search?: string; limit?: number; offset?: number }) => {

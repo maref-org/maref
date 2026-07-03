@@ -37,6 +37,8 @@ class InvariantCode(str, Enum):
     RL_003_AUDIT_TRACE_REQUIRED = "audit_trace_required"
     RL_004_NO_BYPASS_CIRCUIT_BREAKER = "no_bypass_circuit_breaker"
     RL_005_NO_PRIVILEGE_ESCALATION = "no_privilege_escalation"
+    RL_006_CROSS_DIM_SAFETY = "cross_dim_safety_violation"
+    RL_007_MAX_FILES_PER_ROUND = "max_files_per_round_exceeded"
 
 
 # Safe bounds for policy weight features
@@ -56,6 +58,7 @@ IMMUTABLE_FEATURES = frozenset(
         "circuit_breaker_enabled",
         "max_privilege_level",
         "audit_log_enabled",
+        "cross_dim_safety_dimensions",
     }
 )
 
@@ -130,6 +133,12 @@ class ConstitutionGuard:
     # Global weight magnitude bound (prevents gradient explosion)
     MAX_WEIGHT_MAGNITUDE = 2.0
 
+    # Security-related dimensions protected by RL-006
+    SECURITY_DIMENSIONS = frozenset({"security", "safety_gate", "circuit_breaker"})
+
+    # Maximum files per round enforced by RL-007
+    MAX_FILES_PER_ROUND = 3
+
     def __init__(self, enabled: bool = True) -> None:
         self._enabled = enabled
         self._registered_agents: set[str] = set()
@@ -156,6 +165,59 @@ class ConstitutionGuard:
 
     def unregister_agent(self, agent_id: str) -> None:
         self._registered_agents.discard(agent_id)
+
+    def validate_cross_dimension(
+        self,
+        agent_id: str,
+        target_dimensions: list[str],
+        target_files: list[str],
+    ) -> ValidationResult:
+        """Validate cross-dimension improvement action.
+
+        Checks:
+        - RL-006: No modification to security-related dimensions
+          (security, safety_gate, circuit_breaker dimensions are protected)
+        - RL-007: No more than 3 target files per round
+        """
+        if not self._enabled:
+            return ValidationResult(allowed=True)
+
+        violations: list[str] = []
+        invariant_codes: list[InvariantCode] = []
+
+        # RL-006: Cross-dim safety — block if any target dimension is protected
+        protected_dims = self.SECURITY_DIMENSIONS & set(target_dimensions)
+        if protected_dims:
+            violations.append(
+                f"Cross-dimension improvement targets protected dimensions: {sorted(protected_dims)}"
+            )
+            invariant_codes.append(InvariantCode.RL_006_CROSS_DIM_SAFETY)
+
+        # RL-007: Max files per round
+        if len(target_files) > self.MAX_FILES_PER_ROUND:
+            violations.append(
+                f"Cross-dimension improvement targets {len(target_files)} files, "
+                f"exceeds maximum of {self.MAX_FILES_PER_ROUND}"
+            )
+            invariant_codes.append(InvariantCode.RL_007_MAX_FILES_PER_ROUND)
+
+        if violations:
+            self._violation_count += len(violations)
+            for inv_code in invariant_codes:
+                self._violation_log.append(
+                    InvariantViolation(
+                        invariant=inv_code,
+                        agent_id=agent_id,
+                        details="; ".join(violations),
+                    )
+                )
+            return ValidationResult(
+                allowed=False,
+                violations=violations,
+                invariant_codes=invariant_codes,
+            )
+
+        return ValidationResult(allowed=True)
 
     def reset(self) -> None:
         """Reset violation counters and logs."""

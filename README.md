@@ -10,96 +10,98 @@
   <a href="https://github.com/maref-org/maref/releases"><img src="https://img.shields.io/github/v/release/maref-org/maref?style=for-the-badge&logo=github&color=red" alt="Release"></a>
 </p>
 
-> **全球唯一以"Agent 治理"为核心产品定位的框架。** 在治理深度上碾压所有竞品（10/10 vs 0-3），将 Agent 治理作为独立的价值主张而非安全 feature。
+> **The world's only framework positioning "Agent Governance" as its core product value.** Outperforms all competitors in governance depth (10/10 vs 0-3), treating agent governance as an independent value proposition rather than a security feature.
 
-MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周期、安全边界、状态健康和进化方向。
+MAREF is the operating system kernel for the Agent world — managing the lifecycle, security boundaries, health, and evolutionary direction of agent clusters.
+
+[中文版](README.zh-CN.md)
 
 ---
 
-## 趋势
+## Star History
 
 ![Star History](https://api.star-history.com/svg?repos=maref-org/maref&type=Date)
 
 ---
 
-## 核心能力
+## Core Capabilities
 
-### 治理层 (世界领先)
-- **三种 Loop 元模式** — 收敛型/探索型/交互型 模板库 🚧 (v0.36.0-rc)
-- **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (6bit, 汉明距离=1)
-- **TLA+ 形式化验证** — 5 定理证明 (Lyapunov收敛 + Sperner完备性)
-- **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
-- **四级安全决策树** — Rule→Mode→SafetyGate→User, 97% 自动化率
-- **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
-- **Verifier 交叉验证** — VerifierRegistry + VerifierConsensus (加权多数/一致通过)
-- **MAREFLoop 适配器** — 5 行代码为任意 Loop 接入 MAREF 治理
+### Governance Layer (World-Leading)
+- **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library 🚧 (v0.36.0-rc)
+- **10-State Gray Code Governance State Machine** — Mathematically provable convergence (6-bit, Hamming distance=1)
+- **TLA+ Formal Verification** — 5 theorem proofs (Lyapunov convergence + Sperner completeness)
+- **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
+- **Four-Tier Security Decision Tree** — Rule→Mode→SafetyGate→User, 97% automation rate
+- **LoRA/Ontology Dual Drift Detection** — KL/JS/Hellinger triple divergence + human arbitration
+- **Verifier Cross-Validation** — VerifierRegistry + VerifierConsensus (weighted majority / unanimous)
+- **MAREFLoop Adapter** — Connect any Loop to MAREF governance in 5 lines of code
 
 <p align="center">
   <img src="docs/assets/gray-code-fsm.svg" alt="Gray Code Governance State Machine — 10-state cyclic FSM with Hamming distance=1" width="800">
 </p>
 
-### 操作层
-- **桌面 Agent 操控** — 截图→解析→键鼠→验证 完整闭环 (macOS/Linux/Windows)
-- **多 Agent 任务编排** — TaskDAG 分解 + 5维 Agent 分发 + Saga 补偿事务
-- **SubAgent 上下文隔离** — Git Worktree 式, 96% Token 节省
-- **移动→桌面任务桥接** — mDNS 发现 + 幂等任务队列 + SSE 推送
-- **浏览器安全操控** — Playwright + 安全域名白名单 + 认证会话管理
+### Operations Layer
+- **Desktop Agent Control** — Screenshot→Parse→Keyboard/Mouse→Verify full闭环 (macOS/Linux/Windows)
+- **Multi-Agent Task Orchestration** — TaskDAG decomposition + 5D agent distribution + Saga compensation transactions
+- **SubAgent Context Isolation** — Git Worktree-style, 96% token savings
+- **Mobile→Desktop Task Bridging** — mDNS discovery + idempotent task queue + SSE push
+- **Secure Browser Control** — Playwright + secure domain whitelist + authenticated session management
 
-### 进化层
-- **递归自演进引擎** — C1(观测)→C2(优化)→C3(收敛) 三循环
-- **红蓝对抗** — 200 轮 5 阶段, 攻击强度 2.47→18.98 (7.7×)
-- **混沌工程** — 5 类 LLM 故障注入 (延迟/错误/截断/幻觉/超时)
-- **记忆三温框架** — Hot/Warm/Cold 三层记忆架构
-- **Trust Engine v2** — 5 因子加权 + Goodhart 抗策略操纵检测
+### Evolution Layer
+- **Recursive Self-Evolution Engine** — C1(Observe)→C2(Optimize)→C3(Converge) triple loop
+- **Red-Blue Teaming** — 200 rounds, 5 phases, attack intensity 2.47→18.98 (7.7×)
+- **Chaos Engineering** — 5 types of LLM fault injection (latency/error/truncation/hallucination/timeout)
+- **Three-Temperature Memory Framework** — Hot/Warm/Cold three-tier memory architecture
+- **Trust Engine v2** — 5-factor weighting + Goodhart anti-strategic manipulation detection
 
-### 生态层
-- **A2A/MCP 双协议** — A2A v0.3 + MCP 6 种传输
-- **跨框架适配器** — AutoGen/CrewAI/LangGraph/Dify/Coze 生产级
-- **OpenTelemetry** — Prometheus + Grafana + OTLP 全链路可观测
-- **Serverless 运行时** — Lambda / Cloud Run 适配
-- **TypeScript SDK** — `@maref/sdk` npm 包
+### Ecosystem Layer
+- **A2A/MCP Dual Protocol** — A2A v0.3 + MCP 6 transports
+- **Cross-Framework Adapters** — AutoGen/CrewAI/LangGraph/Dify/Coze production-grade
+- **OpenTelemetry** — Prometheus + Grafana + OTLP full-link observability
+- **Serverless Runtime** — Lambda / Cloud Run ready
+- **TypeScript SDK** — `@maref/sdk` npm package
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 5 分钟上手指南
+### 5-Minute Guide
 
 ```bash
-# 1. 安装 MAREF
+# 1. Install MAREF
 pip install maref
 
-# 2. 运行环境诊断 (15项检查)
+# 2. Run environment diagnostics (15 checks)
 python scripts/check_desktop_env.py
 
-# 3. 启动桌面 Agent 演示 (安全 dry-run 模式)
+# 3. Launch desktop agent demo (safe dry-run mode)
 maref desktop demo
 
-# 4. 启动 Sidecar 服务
+# 4. Start Sidecar service
 maref serve --port 8000
 
-# 5. 访问 GUI
+# 5. Open GUI
 open http://localhost:8000
 ```
 
-### 快速启动示例
+### Quick Start Examples
 
-**方式一：命令行模式**
+**Option 1: CLI Mode**
 ```bash
-# 一键安装
+# One-click install
 pip install maref
 
-# 治理状态查询
+# Query governance state
 maref status
 
-# 桌面 Agent 演示
+# Desktop agent demo
 maref desktop demo
 
-# 启动服务
+# Start service
 maref serve --port 8000 --gui
 ```
 
-**方式二：Python API**
+**Option 2: Python API**
 ```python
 from maref_lite.governance import GovernanceOverlay
 from maref_lite.state_machine import GovernanceState
@@ -126,72 +128,73 @@ async def example():
     print(result.stop_reason, result.rounds_completed)
 ```
 
-**方式三：完整项目示例**
+**Option 3: Full Project Example**
 ```bash
-# 克隆仓库
+# Clone repository
 git clone https://github.com/maref-org/maref.git
 cd maref
 
-# 使用 uv 创建虚拟环境 (推荐)
+# Create virtual environment with uv (recommended)
 uv venv
 source .venv/bin/activate
 
-# 安装依赖
+# Install dependencies
 uv pip install -e ".[all]"
 
-# 运行测试
+# Run tests
 pytest tests/ -v --tb=short
 
-# 启动完整演示
+# Launch full demo
 python examples/simple_integration_demo.py
 ```
 
-### 常见问题
+### FAQ
 
-| 问题 | 解决方案 |
-|------|----------|
-| 安装失败 | `pip install --upgrade pip` 后重试 |
-| 桌面操控权限问题 | 在系统设置中授予辅助功能权限 |
-| 端口被占用 | 使用 `--port` 指定其他端口 |
-| 依赖冲突 | 使用 `uv venv` 创建隔离环境 |
+| Issue | Solution |
+|-------|----------|
+| Installation fails | Run `pip install --upgrade pip` and retry |
+| Desktop control permission denied | Grant accessibility permissions in system settings |
+| Port already in use | Use `--port` to specify an alternative port |
+| Dependency conflict | Use `uv venv` to create an isolated environment |
 
 ---
 
-## 架构
+## Architecture
 
 ```
-                    MAREF: Agent 治理操作系统
+                  MAREF: Agent Governance OS
     ┌─────────────────────────────────────────────────────────┐
-    │  应用层 ─── LangGraph / CrewAI / AutoGen / Anthropic    │
-    │             (编排/操控/开发框架)                          │
+    │  Application Layer ─── LangGraph / CrewAI / AutoGen     │
+    │              / Anthropic (Orchestration/Control/Dev)     │
     │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
-    │  治理层 ─── MAREF (本框架)                               │
-    │             · 状态机 · 熔断器 · 四级决策树               │
-    │             · 身份/信任 · 漂移检测 · 形式化验证           │
+    │  Governance Layer ─── MAREF (This Framework)             │
+    │             · State Machine · Circuit Breaker            │
+    │             · 4-Tier Decision Tree · Identity/Trust      │
+    │             · Drift Detection · Formal Verification       │
     │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
-    │  通信层 ─── A2A / MCP (Google/Anthropic 标准)            │
+    │  Communication Layer ─── A2A / MCP (Google/Anthropic)    │
     └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 竞品对比
+## Competitive Analysis
 
-| 维度 | **MAREF** | Anthropic | OpenAI | LangGraph | CrewAI | AutoGen |
-|------|----------|-----------|--------|-----------|--------|---------|
-| 治理/安全 | **10** | 4 | 3 | 2 | 1 | 1 |
-| Loop 集成 (Verifier×Governance) | **10** | 6 | 0 | 0 | 0 | 0 |
-| Loop 元模式模板 (收/探/交) | ✅ v36 | 0 | 0 | 0 | 0 | 0 |
-| 形式化验证 | **10** | 0 | 0 | 0 | 0 | 0 |
-| 漂移检测 | **9** | 0 | 0 | 0 | 0 | 0 |
-| 桌面操控 | 8 | **9** | 7 | 0 | 0 | 0 |
-| 编排 | 7 | 8 | 8 | **9** | 8 | 8 |
-| 身份/信任 | **7** | 0 | 0 | 0 | 0 | 0 |
-| 社区/生态 | 3 | 8 | **9** | 8 | **9** | 8 |
+| Dimension | **MAREF** | Anthropic | OpenAI | LangGraph | CrewAI | AutoGen |
+|-----------|-----------|-----------|--------|-----------|--------|---------|
+| Governance/Security | **10** | 4 | 3 | 2 | 1 | 1 |
+| Loop Integration (Verifier×Governance) | **10** | 6 | 0 | 0 | 0 | 0 |
+| Loop Meta-Pattern Templates | ✅ v36 | 0 | 0 | 0 | 0 | 0 |
+| Formal Verification | **10** | 0 | 0 | 0 | 0 | 0 |
+| Drift Detection | **9** | 0 | 0 | 0 | 0 | 0 |
+| Desktop Control | 8 | **9** | 7 | 0 | 0 | 0 |
+| Orchestration | 7 | 8 | 8 | **9** | 8 | 8 |
+| Identity/Trust | **7** | 0 | 0 | 0 | 0 | 0 |
+| Community/Ecosystem | 3 | 8 | **9** | 8 | **9** | 8 |
 
 ---
 
-## 贡献者
+## Contributors
 
 <a href="https://github.com/maref-org/maref/graphs/contributors">
   <img src="https://contributors-img.web.app/image?repo=maref-org/maref" alt="Contributors" width="600">
@@ -199,17 +202,17 @@ python examples/simple_integration_demo.py
 
 ---
 
-## 最新 Release
+## Latest Release
 
 <!-- MAREF_RELEASE_START -->
 <!-- MAREF_RELEASE_END -->
 
 ---
 
-## 健康度
+## Health
 
-| 指标 | 状态 |
-|------|------|
+| Metric | Status |
+|--------|--------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
 | **Tests** | 4,300+ — [![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]() |
 | **Coverage** | 82% — [![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]() |
@@ -222,18 +225,18 @@ python examples/simple_integration_demo.py
 
 ---
 
-## 路线图
+## Roadmap
 
-- [x] v0.1.0-v0.20.0: 工程基础设施 + 形式化验证 + Sidecar + 漂移 + 混沌 + A2A + Identity + 编排 + Desktop Agent → GA
-- [x] Phase Ω (R101-R150): 50 轮自主递归演进全量补强 → v0.21.0 Final
-- [x] v0.30.0-GA: 人机协同层 + 记忆层 + 技能市场层 + 国密 SM2/SM3/SM4-GCM + 技术白皮书
-- [x] v0.35.0-rc: Loop Engineering 叙事层 + 三种元模式架构设计 + Verifier 交叉验证 + 覆盖率 60%+ 模块达标
-- [x] v0.36.0-rc: `maref.loop` 模块实现 — ConvergentLoop / ExploratoryLoop / InteractiveLoop + LoopGovernanceBridge + TrustBoundary 集成
-- [ ] v1.0: 递归进化全栈 + Agent 信用评级 + 四象治理模型
-- [ ] v2.0: 元 Agent 闭包 + 碳硅共生 + 八卦治理
+- [x] v0.1.0-v0.20.0: Engineering infrastructure + Formal verification + Sidecar + Drift detection + Chaos engineering + A2A + Identity + Orchestration + Desktop Agent → GA
+- [x] Phase Ω (R101-R150): 50 rounds of autonomous recursive evolution full reinforcement → v0.21.0 Final
+- [x] v0.30.0-GA: Human-agent collaboration layer + Memory layer + Skill marketplace + National crypto SM2/SM3/SM4-GCM + Technical whitepaper
+- [x] v0.35.0-rc: Loop Engineering narrative layer + Three meta-pattern architecture design + Verifier cross-validation + 60%+ module coverage
+- [x] v0.36.0-rc: `maref.loop` module implementation — ConvergentLoop / ExploratoryLoop / InteractiveLoop + LoopGovernanceBridge + TrustBoundary integration
+- [ ] v1.0: Full recursive evolution stack + Agent credit rating + Four-phase governance model
+- [ ] v2.0: Meta-agent closure + Carbon-silicon symbiosis + Eight-trigram governance
 
 ---
 
-## 许可证
+## License
 
 Apache License 2.0 — [LICENSE](LICENSE)

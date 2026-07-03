@@ -4,6 +4,7 @@ from typing import Any
 
 from maref.integration.a2a_bridge import A2ABridge
 from maref.integration.a2a_types import A2ASkillDefinition
+from maref.integration.mcp_envelope import inject_envelope  # trace_id, timestamp, source_agent
 from maref.integration.mcp_server import MCPServer
 
 
@@ -75,10 +76,10 @@ class MCPToA2ABridge:
             context={"mcp_tool": tool_name, "arguments": arguments},
         )
 
-        # 2. 调用 MCP Tool
+        # 2. 调用 MCP Tool — 宪法第十五-A条: 注入 MCP 消息信封
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": tool_name, "arguments": arguments},
+            params=inject_envelope({"name": tool_name, "arguments": arguments}, source_agent="protocol-bridge"),
             id=1,
         )
         resp = self.mcp_server.handle_request(req)

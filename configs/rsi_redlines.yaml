@@ -29,3 +29,15 @@ rsi_immutables:
     severity: CRITICAL
     auto_action: HALT
     applies_to: ["meta_ratchet"]
+
+  - rule_id: RSI-RL-006
+    description: "跨维度改进不得修改安全相关维度的权重 (security, safety_gate, circuit_breaker)"
+    severity: CRITICAL
+    auto_action: HALT
+    applies_to: ["ratchet"]
+
+  - rule_id: RSI-RL-007
+    description: "单轮跨维改进不得同时修改 3 个以上的目标文件"
+    severity: HIGH
+    auto_action: BLOCK
+    applies_to: ["ratchet"]

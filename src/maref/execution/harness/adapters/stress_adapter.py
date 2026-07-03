@@ -4,7 +4,6 @@ import time
 
 from maref.execution.harness.base import BaseHarness
 from maref.execution.harness.types import HarnessConfig, HarnessResult, HarnessStatus
-
 from maref.stress.stress_harness import StressHarness
 from maref.stress.stress_level import STRESS_PRESETS, StressLevel
 

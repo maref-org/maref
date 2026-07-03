@@ -7,3 +7,5 @@ export { ErrorBudgetView } from "./ErrorBudgetView";
 export { GovernanceView } from "./GovernanceView";
 export { GuardrailsView } from "./GuardrailsView";
 export { TrustScoreView } from "./TrustScoreView";
+export { default as RsiDashboard } from "./RsiDashboard";
+export { default as EvolutionTimeline } from "./EvolutionTimeline";

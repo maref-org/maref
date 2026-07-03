@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from maref.immunity.ai_stench_detector import AIStenchDetector
+    from maref.immunity.intent_drift_detector import IntentDriftDetector
 
 
 @dataclass
@@ -52,6 +53,8 @@ class SafetyGateV2:
         self._change_history: dict[str, list[ChangeRecord]] = {}
         self._audit_trail: list[dict[str, Any]] = []
         self._stench_detector: AIStenchDetector | None = None
+        self._intent_drift_detector: IntentDriftDetector | None = None  # M4
+        self._sentinel_observer: Any | None = None  # M4
 
     def detect_core_removal(self, target: str) -> ThreatAssessment:
         for core in self._CORE_COMPONENTS:
@@ -392,4 +395,67 @@ class SafetyGateV2:
             severity="NONE",
             reason="",
             blocked=False,
+        )
+
+    # ── M4: IntentDriftDetector 集成 ──
+
+    def attach_intent_drift_detector(self, detector: IntentDriftDetector) -> None:
+        """附加意图漂移检测器。"""
+        self._intent_drift_detector = detector
+
+    def attach_sentinel_observer(self, observer: Any) -> None:
+        """附加 sentinel 观测器。"""
+        self._sentinel_observer = observer
+
+    def validate_runtime_behavior(
+        self, agent_id: str, session: Any = None
+    ) -> ThreatAssessment:
+        """运行时行为验证 — M4 综合评估。
+
+        Args:
+            agent_id: 目标 agent ID
+            session: SessionRecord (可选,包含 sentinel 观测数据)
+
+        Returns:
+            ThreatAssessment 评估结果
+        """
+        reasons: list[str] = []
+        blocked = False
+
+        # 1. Intent drift 检查 (仅当 detector 和 session 都可用时)
+        if self._intent_drift_detector is not None and session is not None:
+            try:
+                code = getattr(session, "last_code", "")
+                if code:  # 仅当有实际代码可评估时才调用
+                    drift = self._intent_drift_detector.evaluate_code(
+                        code=code,
+                        criteria=getattr(session, "intent_criteria", []),
+                        expected_hash=getattr(session, "prompt_hash", ""),
+                    )
+                    if not drift.passed:
+                        reasons.append(f"intent_drift:{len(drift.test_results)}_failures")
+                        blocked = blocked or drift.blocked
+            except Exception:
+                pass  # intent_drift 评估失败不应阻断主流程
+
+        # 2. Sentinel 观测数据检查
+        if session is not None:
+            syscall_count = len(getattr(session, "syscall_trace", []))
+            network_count = len(getattr(session, "network_egress", []))
+            if network_count > 10:
+                reasons.append(f"excessive_network_egress:{network_count}")
+                blocked = True
+            if syscall_count > 100:
+                reasons.append(f"excessive_syscalls:{syscall_count}")
+
+        if reasons:
+            return ThreatAssessment(
+                threat_detected=True,
+                threat_type="runtime_behavior_anomaly",
+                severity="HIGH" if blocked else "MEDIUM",
+                reason="; ".join(reasons),
+                blocked=blocked,
+            )
+        return ThreatAssessment(
+            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
         )
