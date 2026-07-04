@@ -36,7 +36,7 @@ jobs:
 
       - name: Run pnpm audit
         working-directory: ./gui
-        run: pnpm audit --audit-level=moderate
+        run: pnpm audit --audit-level=high
 
       - name: Run ESLint security checks
         working-directory: ./gui
