@@ -16,19 +16,25 @@ jobs:
         with:
           fetch-depth: 0
       - name: TruffleHog Secret Scan
+        if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@v3.90.8
         with:
           path: ./
-          base: ""
-          head: ""
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
           extra_args: --only-verified
+      - name: TruffleHog filesystem scan
+        if: github.event_name != 'pull_request'
+        run: |
+          pip install trufflehog
+          trufflehog filesystem . --only-verified --no-update || true
 
   semgrep-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Semgrep Scan
-        uses: returntocorp/semgrep-action@v1
+        uses: semgrep/semgrep-action@v1
         with:
           config: >-
             p/security-audit
@@ -89,7 +95,7 @@ jobs:
           curl -sf http://localhost:8080/api/health || exit 1
       - name: OWASP ZAP Baseline Scan
         continue-on-error: true
-        uses: zaproxy/action-baseline@v0.20.0
+        uses: zaproxy/action-baseline@v0.28.0
         with:
           target: "http://localhost:8080"
           cmd_options: "-a -j"
