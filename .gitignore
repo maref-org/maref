@@ -180,3 +180,12 @@ rel_gen_*.py
 # Evolution runtime artifacts (regenerated on each run)
 evolution_results/
 .evolution_vault/
+
+# Governance runtime data (sidecar state)
+.governance/
+
+# Internal backup workspaces
+.maref_backups/
+
+# Experiments (ad-hoc, not source code)
+experiments/
