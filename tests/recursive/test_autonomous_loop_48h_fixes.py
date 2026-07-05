@@ -575,3 +575,330 @@ class TestRiskDrivenApplyFn:
             runner._executor.execute_async = _fake_exec
             runner._default_apply_fn()
             MockArch.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Fix 8: GUI error capture — pnpm banner / ELIFECYCLE trailer parsing
+# ---------------------------------------------------------------------------
+
+
+class TestGUIErrorCapturePnpmWrapper:
+    """Verify _capture_gui_errors extracts JSON from pnpm-wrapped output.
+
+    pnpm prepends banner lines ("> gui@... lint", "> eslint ...") and appends
+    an ELIFECYCLE trailer, so json.loads(raw_stdout) raises JSONDecodeError.
+    Fix 8 slices from first '[' to last ']' to extract the ESLint JSON array.
+    """
+
+    ESLINT_JSON_ARRAY = [
+        {
+            "filePath": "/abs/gui/src/Broken.tsx",
+            "messages": [
+                {"ruleId": "react-hooks/set-state-in-effect",
+                 "message": "setState in effect", "line": 10, "severity": 2},
+            ],
+            "errorCount": 1,
+            "warningCount": 0,
+        },
+        {
+            "filePath": "/abs/gui/src/Other.tsx",
+            "messages": [],
+            "errorCount": 0,
+            "warningCount": 0,
+        },
+    ]
+
+    def test_strips_pnpm_banner_and_lifecycle_trailer(self, tmp_path: Path) -> None:
+        """Real pnpm output: banner + JSON + ELIFECYCLE trailer."""
+        runner = _make_runner(tmp_path)
+        raw_stdout = (
+            "\n> gui@0.36.0-rc lint /Volumes/.../gui\n"
+            "> eslint . --format json\n\n"
+            + json.dumps(self.ESLINT_JSON_ARRAY)
+            + "\n\u2009ELIFECYCLE\u2009 Command failed with exit code 1.\n"
+        )
+        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout=raw_stdout, stderr="", returncode=1
+            )
+            errors = runner._capture_gui_errors()
+
+        assert len(errors) == 1  # only Broken.tsx has severity>=2
+        assert "Broken.tsx" in errors[0]["file"]
+        assert errors[0]["error_count"] == 1
+
+    def test_uses_filePath_field(self, tmp_path: Path) -> None:
+        """ESLint JSON uses 'filePath' (absolute path), not 'file'."""
+        runner = _make_runner(tmp_path)
+        raw_stdout = json.dumps([
+            {"filePath": "/abs/gui/PathTest.tsx",
+             "messages": [{"severity": 2, "message": "err", "line": 1}],
+             "errorCount": 1, "warningCount": 0},
+        ])
+        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout=raw_stdout, stderr="", returncode=1
+            )
+            errors = runner._capture_gui_errors()
+
+        assert len(errors) == 1
+        assert errors[0]["file"] == "/abs/gui/PathTest.tsx"
+
+    def test_no_json_array_returns_empty(self, tmp_path: Path) -> None:
+        """If output has no '[' or ']', return []."""
+        runner = _make_runner(tmp_path)
+        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="pnpm: command not found\n", stderr="", returncode=127
+            )
+            errors = runner._capture_gui_errors()
+        assert errors == []
+
+    def test_reversed_brackets_returns_empty(self, tmp_path: Path) -> None:
+        """If ']' appears before '[' (malformed), return []."""
+        runner = _make_runner(tmp_path)
+        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="]not json[", stderr="", returncode=1
+            )
+            errors = runner._capture_gui_errors()
+        assert errors == []
+
+
+# ---------------------------------------------------------------------------
+# Fix 9: healing re_diagnose callback prevents false RECOVERED
+# ---------------------------------------------------------------------------
+
+
+class TestHealingReDiagnoseCallback:
+    """Verify heal_cycle is called with a re_diagnose callback so healing
+    verifies the fix actually reduced risk instead of assuming action
+    success == problem fixed (which caused 187 cycles of false RECOVERED
+    while gui_build stayed critical)."""
+
+    def test_heal_cycle_receives_re_diagnose(self, tmp_path: Path) -> None:
+        """In production mode, heal_cycle must be called with re_diagnose."""
+        from scripts.run_autonomous_loop import AutonomousLoopRunner
+
+        runner = AutonomousLoopRunner(
+            duration_hours=0.01,
+            loop_interval_minutes=1,
+            dry_run=False,
+            real_writes=True,
+            vault_dir=str(tmp_path / "vault"),
+            output_dir=str(tmp_path / "reports"),
+        )
+        runner._observer = MagicMock()
+        runner._observer.snapshot.return_value = _make_snapshot()
+        runner._diagnostician = MagicMock()
+        runner._diagnostician.diagnose.return_value = _make_report()
+        runner._healer = MagicMock()
+        runner._healer.heal_cycle.return_value = MagicMock(
+            converged=True, final_state="RECOVERED", iterations=1, actions=[]
+        )
+        runner._daily_loop = MagicMock()
+        runner._daily_loop.run_once.return_value = MagicMock(
+            stop_reason="normal_completion", priority="low",
+            real_writes_enabled=True, trust_score=0.75,
+        )
+        runner._bridge = MagicMock()
+        runner._bridge.diagnose_to_hypotheses.return_value = []
+        runner._optimizer = MagicMock()
+
+        runner.run_one_cycle()
+
+        # The critical assertion: heal_cycle was called with a re_diagnose
+        # keyword argument that is callable (not None).
+        call_kwargs = runner._healer.heal_cycle.call_args
+        assert "re_diagnose" in call_kwargs.kwargs, (
+            "heal_cycle must be called with re_diagnose callback (Fix 9)"
+        )
+        re_diag = call_kwargs.kwargs["re_diagnose"]
+        assert callable(re_diag), "re_diagnose must be callable"
+
+    def test_re_diagnose_callback_runs_snapshot_and_diagnose(
+        self, tmp_path: Path
+    ) -> None:
+        """The re_diagnose callback should invoke observer + diagnostician."""
+        from scripts.run_autonomous_loop import AutonomousLoopRunner
+
+        runner = AutonomousLoopRunner(
+            duration_hours=0.01,
+            loop_interval_minutes=1,
+            dry_run=False,
+            real_writes=True,
+            vault_dir=str(tmp_path / "vault"),
+            output_dir=str(tmp_path / "reports"),
+        )
+        snap = _make_snapshot()
+        runner._observer = MagicMock()
+        runner._observer.snapshot.return_value = snap
+        runner._diagnostician = MagicMock()
+        runner._diagnostician.diagnose.return_value = _make_report()
+        runner._healer = MagicMock()
+
+        # Simulate heal_cycle invoking the re_diagnose callback internally.
+        def _heal_cycle_side_effect(report, re_diagnose=None, **kwargs):
+            # Call the callback to verify it works
+            if re_diagnose is not None:
+                re_diagnose()
+            return MagicMock(
+                converged=True, final_state="RECOVERED",
+                iterations=1, actions=[],
+            )
+        runner._healer.heal_cycle.side_effect = _heal_cycle_side_effect
+        runner._daily_loop = MagicMock()
+        runner._daily_loop.run_once.return_value = MagicMock(
+            stop_reason="normal_completion", priority="low",
+            real_writes_enabled=True, trust_score=0.75,
+        )
+        runner._bridge = MagicMock()
+        runner._bridge.diagnose_to_hypotheses.return_value = []
+        runner._optimizer = MagicMock()
+
+        runner.run_one_cycle()
+
+        # re_diagnose callback should have triggered snapshot + diagnose
+        # (at least the calls from the callback itself).
+        assert runner._observer.snapshot.called
+        assert runner._diagnostician.diagnose.called
+
+
+# ---------------------------------------------------------------------------
+# Fix 10: SelfObserver uses sys.executable + continue-on-collection-errors
+# ---------------------------------------------------------------------------
+
+
+class TestSelfObserverTestExecution:
+    """Verify observe_tests uses sys.executable (not 'python3') and
+    --continue-on-collection-errors so a single collection error doesn't
+    interrupt the whole run (which caused total=1 errors=1)."""
+
+    def test_observe_tests_uses_sys_executable(self) -> None:
+        """observe_tests command must use sys.executable, not 'python3'."""
+        from maref.recursive.self_observer import SelfObserver
+        import sys
+
+        obs = SelfObserver()
+        with patch("maref.recursive.self_observer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="1 test collected", stderr="", returncode=0
+            )
+            obs.observe_tests(collect_only=True)
+
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == sys.executable, (
+            f"observe_tests must use sys.executable ({sys.executable}), "
+            f"got {cmd[0]}"
+        )
+
+    def test_observe_tests_has_continue_on_collection_errors(self) -> None:
+        """Both collect_only modes must pass --continue-on-collection-errors."""
+        from maref.recursive.self_observer import SelfObserver
+
+        obs = SelfObserver()
+        with patch("maref.recursive.self_observer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="1 test collected", stderr="", returncode=0
+            )
+            obs.observe_tests(collect_only=True)
+
+        cmd = mock_run.call_args[0][0]
+        assert "--continue-on-collection-errors" in cmd, (
+            "observe_tests must pass --continue-on-collection-errors"
+        )
+
+    def test_observe_tests_run_mode_excludes_slow_markers(self) -> None:
+        """collect_only=False must filter integration/chaos/benchmark."""
+        from maref.recursive.self_observer import SelfObserver
+
+        obs = SelfObserver()
+        with patch("maref.recursive.self_observer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="100 passed in 5.0s", stderr="", returncode=0
+            )
+            obs.observe_tests(collect_only=False)
+
+        cmd = mock_run.call_args[0][0]
+        # Find pytest's -m flag (not Python's "-m pytest" which is at index 1).
+        # pytest's -m comes after "pytest" in the command list.
+        pytest_idx = cmd.index("pytest")
+        m_indices_after_pytest = [
+            i for i, arg in enumerate(cmd) if arg == "-m" and i > pytest_idx
+        ]
+        assert m_indices_after_pytest, (
+            f"expected pytest -m marker filter after 'pytest' in {cmd}"
+        )
+        marker_expr = cmd[m_indices_after_pytest[0] + 1]
+        assert "integration" in marker_expr
+        assert "chaos" in marker_expr
+        assert "benchmark" in marker_expr
+
+    def test_observe_tests_collect_only_mode_no_marker_filter(self) -> None:
+        """collect_only=True should NOT add pytest -m filter (just count)."""
+        from maref.recursive.self_observer import SelfObserver
+
+        obs = SelfObserver()
+        with patch("maref.recursive.self_observer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="100 tests collected", stderr="", returncode=0
+            )
+            obs.observe_tests(collect_only=True)
+
+        cmd = mock_run.call_args[0][0]
+        assert "--co" in cmd
+        # Python's "-m pytest" uses -m at index 1; that's fine. We only care
+        # that pytest's own -m marker filter is NOT present. Look for -m
+        # occurrences after "pytest" in the command list.
+        pytest_idx = cmd.index("pytest")
+        m_after_pytest = [
+            i for i, arg in enumerate(cmd) if arg == "-m" and i > pytest_idx
+        ]
+        assert not m_after_pytest, (
+            "collect_only mode should not add pytest -m marker filter, "
+            f"but found at indices {m_after_pytest} in {cmd}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Fix 10: metrics phase uses collect_only=False
+# ---------------------------------------------------------------------------
+
+
+class TestMetricsPhaseRunsTests:
+    """Verify the metrics phase calls snapshot(collect_only=False) so tests
+    actually run and we get real pass/fail/coverage numbers instead of
+    total=0 coverage_pct=0."""
+
+    def test_metrics_phase_uses_collect_only_false(self, tmp_path: Path) -> None:
+        """snapshot in metrics phase must be called with collect_only=False."""
+        runner = _make_runner(tmp_path)
+        runner._observer = MagicMock()
+        runner._observer.snapshot.return_value = _make_snapshot(
+            test_stats={"total": 50, "passed": 48, "failed": 2, "errors": 0}
+        )
+        runner._daily_loop = MagicMock()
+        runner._daily_loop.run_once.return_value = MagicMock(
+            stop_reason="none", priority="low", real_writes_enabled=False
+        )
+        runner._diagnostician = MagicMock()
+        runner._diagnostician.diagnose.return_value = _make_report()
+        runner._diagnostician.check_and_trip.return_value = True
+        runner._bridge = MagicMock()
+        runner._bridge.diagnose_to_hypotheses.return_value = []
+        runner._optimizer = MagicMock()
+
+        runner.run_one_cycle()
+
+        # The metrics phase is the LAST snapshot call. In dry_run mode
+        # (real_writes=False) the healing phase is skipped, so there are
+        # only 2 snapshot calls (diagnosis + metrics). Either way, the last
+        # call must be collect_only=False.
+        snapshot_calls = runner._observer.snapshot.call_args_list
+        assert len(snapshot_calls) >= 2, (
+            f"expected >=2 snapshot calls, got {len(snapshot_calls)}"
+        )
+        metrics_call = snapshot_calls[-1]
+        assert metrics_call.kwargs.get("collect_only") is False, (
+            "metrics phase must call snapshot(collect_only=False) (Fix 10)"
+        )
