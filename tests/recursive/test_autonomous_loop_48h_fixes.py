@@ -902,3 +902,65 @@ class TestMetricsPhaseRunsTests:
         assert metrics_call.kwargs.get("collect_only") is False, (
             "metrics phase must call snapshot(collect_only=False) (Fix 10)"
         )
+
+
+# ---------------------------------------------------------------------------
+# Fix 10b: metrics phase subprocess timeout must accommodate full suite
+# ---------------------------------------------------------------------------
+
+
+class TestObserveTestsTimeout:
+    """Verify observe_tests uses a subprocess timeout large enough for the
+    full filtered test suite (~10922 tests). Cycle 1 of the 48h v2 run timed
+    out at 300s with test_count=0 — the suite needs >300s. Fix 10b raises
+    the collect_only=False timeout to 600s."""
+
+    def test_run_mode_timeout_is_600s(self) -> None:
+        """collect_only=False must use timeout=600 (not 300)."""
+        from maref.recursive.self_observer import SelfObserver
+
+        obs = SelfObserver()
+        with patch("maref.recursive.self_observer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="100 passed in 5.0s", stderr="", returncode=0
+            )
+            obs.observe_tests(collect_only=False)
+
+        timeout = mock_run.call_args.kwargs.get("timeout")
+        assert timeout == 600, (
+            f"collect_only=False must use timeout=600 (Fix 10b), got {timeout}"
+        )
+
+    def test_collect_only_timeout_is_60s(self) -> None:
+        """collect_only=True keeps the fast 60s timeout (collection only)."""
+        from maref.recursive.self_observer import SelfObserver
+
+        obs = SelfObserver()
+        with patch("maref.recursive.self_observer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="100 tests collected", stderr="", returncode=0
+            )
+            obs.observe_tests(collect_only=True)
+
+        timeout = mock_run.call_args.kwargs.get("timeout")
+        assert timeout == 60, (
+            f"collect_only=True must use timeout=60, got {timeout}"
+        )
+
+    def test_timeout_600_exceeds_old_300(self) -> None:
+        """Regression guard: 600s must be strictly greater than the old 300s
+        that caused cycle 1 of the 48h v2 run to report test_count=0."""
+        from maref.recursive.self_observer import SelfObserver
+
+        obs = SelfObserver()
+        with patch("maref.recursive.self_observer.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                stdout="100 passed in 5.0s", stderr="", returncode=0
+            )
+            obs.observe_tests(collect_only=False)
+
+        timeout = mock_run.call_args.kwargs.get("timeout")
+        assert timeout > 300, (
+            f"timeout must exceed 300s (the v2 cycle-1 failure threshold), "
+            f"got {timeout}"
+        )
