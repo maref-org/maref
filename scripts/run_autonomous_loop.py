@@ -128,7 +128,7 @@ class AutonomousLoopRunner:
             self._healer = SelfHealer()
 
     def _capture_gui_errors(self) -> list[dict]:
-        """Fix 3b: capture concrete ESLint errors when gui_build is critical."""
+        """Fix 3b/8: capture concrete ESLint errors when gui_build is critical."""
         try:
             r = subprocess.run(
                 ["pnpm", "lint", "--format", "json"],
@@ -137,18 +137,30 @@ class AutonomousLoopRunner:
                 text=True,
                 timeout=60,
             )
-            data = json.loads(r.stdout or r.stderr or "[]")
+            # Fix 8: pnpm prepends banner lines ("> gui@... lint", "> eslint ...")
+            # before the JSON payload AND appends a trailing ELIFECYCLE line
+            # after it, so json.loads(raw_stdout) raises JSONDecodeError and
+            # returns []. Extract the JSON by slicing from the first '[' to the
+            # last ']' which brackets the ESLint JSON array.
+            raw = r.stdout or r.stderr or ""
+            json_start = raw.find("[")
+            json_end = raw.rfind("]")
+            if json_start < 0 or json_end < 0 or json_end <= json_start:
+                return []
+            data = json.loads(raw[json_start:json_end + 1])
             if not isinstance(data, list):
                 return []
             errors: list[dict] = []
             for f in data:
+                # ESLint JSON uses "filePath" (absolute path); fall back to "file".
+                file_path = f.get("filePath", f.get("file", ""))
                 msgs = [
                     m for m in f.get("messages", [])
                     if m.get("severity", 0) >= 2
                 ]
                 if msgs:
                     errors.append({
-                        "file": f.get("file", ""),
+                        "file": file_path,
                         "error_count": len(msgs),
                         "messages": msgs[:5],
                     })
@@ -254,6 +266,7 @@ class AutonomousLoopRunner:
                 "stop_reason": daily_result.stop_reason if daily_result else "none",
                 "priority": daily_result.priority if daily_result else "unknown",
                 "real_writes": daily_result.real_writes_enabled if daily_result else False,
+                "trust_score": daily_result.trust_score if daily_result else 0.0,
             }
             if daily_result and daily_result.stop_reason == "trust_blocked":
                 logger.warning("Cycle %s: trust blocked, skipping write phases", cycle_id)
@@ -349,7 +362,16 @@ class AutonomousLoopRunner:
             try:
                 snapshot2 = self._observer.snapshot()
                 report2 = self._diagnostician.diagnose(snapshot2)
-                healing_record = self._healer.heal_cycle(report2)
+                # Fix 9: pass a re_diagnose callback so heal_cycle verifies
+                # the fix actually reduced risk instead of assuming that
+                # action success == problem fixed (which produced 187 cycles
+                # of false RECOVERED while gui_build stayed critical).
+                def _re_diagnose() -> Any:
+                    snap = self._observer.snapshot()
+                    return self._diagnostician.diagnose(snap)
+                healing_record = self._healer.heal_cycle(
+                    report2, re_diagnose=_re_diagnose
+                )
                 result["phases"]["healing"] = {
                     "success": healing_record.converged,
                     "final_state": healing_record.final_state,
@@ -367,7 +389,9 @@ class AutonomousLoopRunner:
 
         # Phase 4: Metrics collection
         try:
-            snapshot3 = self._observer.snapshot()
+            # Fix 10: collect_only=False so tests actually run and we get real
+            # pass/fail/coverage numbers instead of total=0 coverage_pct=0.
+            snapshot3 = self._observer.snapshot(collect_only=False)
             # Fix 1: read from test_stats dict (SystemSnapshot has no test_count attr)
             test_stats = getattr(snapshot3, "test_stats", None) or {}
             total = test_stats.get("total", 0)
