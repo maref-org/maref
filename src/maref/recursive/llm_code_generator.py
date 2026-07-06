@@ -31,6 +31,10 @@ class OpenAIProvider:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
+        # Fix 11b: explicitly read OPENAI_BASE_URL so OpenAI-compatible
+        # providers (DeepSeek, SiliconFlow, etc.) work without relying on
+        # the openai library's implicit env-var fallback.
+        self._base_url = os.environ.get("OPENAI_BASE_URL", "")
         self._client: Any = None
 
     async def generate(
@@ -42,7 +46,10 @@ class OpenAIProvider:
     ) -> str:
         if self._client is None:
             from openai import AsyncOpenAI
-            self._client = AsyncOpenAI(api_key=self._api_key)
+            kwargs: dict[str, Any] = {"api_key": self._api_key}
+            if self._base_url:
+                kwargs["base_url"] = self._base_url
+            self._client = AsyncOpenAI(**kwargs)
         kwargs: dict[str, Any] = {
             "model": self._model,
             "messages": [
