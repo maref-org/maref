@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import logging
 import os
 import shutil
 import subprocess
@@ -13,6 +14,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 from maref.evolution.constitution_harness import ConstitutionHarness, EvolutionChange
 from maref.recursive.safety_gate_v2 import SafetyGateV2
@@ -217,20 +220,29 @@ import {{ describe, it, expect }} from 'vitest';
             return None
         try:
             import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                result = loop.run_until_complete(
-                    self._llm_generator.generate(proposal)
-                )
-            finally:
-                loop.close()
+            import concurrent.futures
+
+            async def _generate():
+                return await self._llm_generator.generate(proposal)
+
+            # Fix 11: run asyncio.run() in a separate thread to avoid
+            # "RuntimeError: This event loop is already running" when
+            # _generate_with_llm is called from within an already-running
+            # event loop (e.g. the codegen loop via execute_async →
+            # CodeGenerator.generate → _generate_with_llm). The old code
+            # used loop.run_until_complete() which fails silently when a
+            # loop is already running, leaving the coroutine un-awaited
+            # and returning None — so the LLM was never actually called.
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                result = pool.submit(asyncio.run, _generate()).result()
+
             if result.success and result.generated:
                 gen = result.generated[0]
                 gen.file_path = str(target_path)
                 return gen
             return None
-        except Exception:
+        except Exception as exc:
+            logger.warning("LLM generation failed: %s", exc)
             return None
 
     def _classify_proposal(self, proposal) -> str:
