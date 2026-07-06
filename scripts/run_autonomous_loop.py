@@ -248,8 +248,33 @@ class AutonomousLoopRunner:
         result["execution_time_ms"] = (time.time() - start) * 1000.0
         return result
 
+    # Fix 17: priority map for ESLint rule difficulty. Lower = easier to fix.
+    # no-unused-vars is trivial (delete/rename a token); react-hooks/* errors
+    # are structural (require understanding component lifecycle). The LLM
+    # repeatedly failed on react-hooks/set-state-in-effect in CooldownDashboard
+    # while 5+ easy no-unused-vars files sat unfixed. Sorting by difficulty
+    # lets the loop accumulate easy wins instead of deadlocking on hard ones.
+    _ESLINT_DIFFICULTY = {
+        "no-unused-vars": 0,
+        "@typescript-eslint/no-unused-vars": 0,
+        "no-empty": 1,
+        "no-explicit-any": 1,
+        "@typescript-eslint/no-explicit-any": 1,
+        "react-hooks/rules-of-hooks": 2,
+        "react-hooks/exhaustive-deps": 2,
+        "react-hooks/set-state-in-effect": 3,
+        "react-hooks/static-components": 3,
+    }
+    _ESLINT_DEFAULT_DIFFICULTY = 1
+
+    @classmethod
+    def _rule_difficulty(cls, rule_id: str) -> int:
+        return cls._ESLINT_DIFFICULTY.get(
+            rule_id, cls._ESLINT_DEFAULT_DIFFICULTY
+        )
+
     def _build_gui_proposal(self, gui_errors: list[dict]) -> Any:
-        """Fix 3b/14b/15: build an ArchitectureProposal targeting the worst GUI file."""
+        """Fix 3b/14b/15/17: build an ArchitectureProposal targeting the worst GUI file."""
         if not gui_errors:
             return None
         from maref.recursive.self_architect import ArchitectureProposal, ChangeType
@@ -274,7 +299,25 @@ class AutonomousLoopRunner:
         if not filtered:
             return None
 
-        target = max(filtered, key=lambda e: e["error_count"])
+        # Fix 17: smart file selection. Previously `max(error_count)` always
+        # returned the first file when counts were tied, deadlocking the loop
+        # on CooldownDashboard.tsx (react-hooks/set-state-in-effect) while 5
+        # easy no-unused-vars files sat unfixed. Now sort by:
+        #   1. error_count DESC (more errors = higher ROI per LLM call)
+        #   2. min rule difficulty ASC (easier errors first)
+        #   3. file path ASC (stable tiebreak for reproducibility)
+        # This lets the LLM rack up easy wins (no-unused-vars) before
+        # attempting structural react-hooks/* errors.
+        def _sort_key(e: dict) -> tuple:
+            msgs = e.get("messages", []) or []
+            min_difficulty = (
+                min((self._rule_difficulty(m.get("ruleId", "")) for m in msgs), default=self._ESLINT_DEFAULT_DIFFICULTY)
+                if msgs else self._ESLINT_DEFAULT_DIFFICULTY
+            )
+            return (-e.get("error_count", 0), min_difficulty, e.get("file", ""))
+
+        filtered.sort(key=_sort_key)
+        target = filtered[0]
         target_file = target["file"]
         # Fix 14b: include full ESLint error details (line numbers + messages)
         # in the rationale and affected_symbols. Previously only rule IDs were
