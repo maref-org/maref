@@ -249,12 +249,32 @@ class AutonomousLoopRunner:
         return result
 
     def _build_gui_proposal(self, gui_errors: list[dict]) -> Any:
-        """Fix 3b/14b: build an ArchitectureProposal targeting the worst GUI file."""
+        """Fix 3b/14b/15: build an ArchitectureProposal targeting the worst GUI file."""
         if not gui_errors:
             return None
         from maref.recursive.self_architect import ArchitectureProposal, ChangeType
 
-        target = max(gui_errors, key=lambda e: e["error_count"])
+        # Fix 15: filter out build artifacts and non-source files.
+        # ESLint may report errors in src-tauri/target/ (compiled .js files),
+        # node_modules/, or other generated directories. These can't be fixed
+        # by the LLM (binary files, UTF-8 decode errors) and waste API calls.
+        _SOURCE_EXTS = {".ts", ".tsx", ".js", ".jsx"}
+        _IGNORE_SUBSTRS = (
+            "src-tauri/target", "node_modules", "/dist/", "/build/",
+            "/.next/", "/coverage/",
+        )
+        filtered = []
+        for e in gui_errors:
+            f = e.get("file", "")
+            if any(ig in f for ig in _IGNORE_SUBSTRS):
+                continue
+            if not any(f.endswith(ext) for ext in _SOURCE_EXTS):
+                continue
+            filtered.append(e)
+        if not filtered:
+            return None
+
+        target = max(filtered, key=lambda e: e["error_count"])
         target_file = target["file"]
         # Fix 14b: include full ESLint error details (line numbers + messages)
         # in the rationale and affected_symbols. Previously only rule IDs were
