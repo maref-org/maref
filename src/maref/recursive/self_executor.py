@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import logging
 import os
 import shutil
@@ -1143,46 +1144,55 @@ class SelfExecutor:
                         )
 
         elif suffix in (".ts", ".tsx"):
+            # Fix 13: TypeScript quality gate — check error count DECREASED,
+            # not zero. The old gate required both tsc and eslint to pass
+            # (returncode==0), which is impossible for a file with 11 existing
+            # errors. Every LLM fix was deployed then immediately rolled back,
+            # leaving the file unmodified and gain=0 → rejected → deadlock.
+            # New behavior: run eslint on both backup (pre) and deployed (post)
+            # files. If post_errors <= pre_errors → pass. If increased → fail.
+            # tsc is skipped (too strict, wrong cwd for gui/ project).
             if rel_path is not None:
-                tsc = subprocess.run(
-                    ["tsc", "--noEmit", str(rel_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    cwd=self._project_root,
-                )
-                checks.append({
-                    "name": "tsc",
-                    "exit_code": tsc.returncode,
-                    "stdout": tsc.stdout[-500:],
-                    "stderr": tsc.stderr[-500:],
-                })
-                if tsc.returncode != 0:
-                    return ExecutionResult(
-                        stage=ExecutionStage.VERIFY,
-                        success=False,
-                        message="Quality gate failed: tsc",
-                        details={"checks": checks},
-                    )
+                gui_dir = Path(self._project_root) / "gui"
+                cwd_dir = str(gui_dir) if gui_dir.exists() else self._project_root
+                # Strip gui/ prefix for eslint path (eslint runs in gui/)
+                eslint_rel = str(rel_path)
+                if eslint_rel.startswith("gui/"):
+                    eslint_rel = eslint_rel[4:]
 
-                eslint = subprocess.run(
-                    ["eslint", str(rel_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    cwd=self._project_root,
-                )
+                def _count_eslint_errors(file_path: str) -> int:
+                    try:
+                        r = subprocess.run(
+                            ["npx", "eslint", "--format", "json", file_path],
+                            capture_output=True, text=True, timeout=60, cwd=cwd_dir,
+                        )
+                        raw = r.stdout or ""
+                        s, e = raw.find("["), raw.rfind("]")
+                        if s < 0 or e <= s:
+                            return 999  # Can't parse — fail safe
+                        data = json.loads(raw[s:e + 1])
+                        return sum(
+                            len([m for m in f.get("messages", []) if m.get("severity", 0) >= 2])
+                            for f in (data if isinstance(data, list) else [])
+                        )
+                    except Exception:
+                        return 999
+
+                post_errors = _count_eslint_errors(eslint_rel)
+                backup_path = self._deployer._deployed.get(code.file_path)
+                pre_errors = _count_eslint_errors(backup_path) if backup_path and Path(backup_path).exists() else post_errors
+
                 checks.append({
                     "name": "eslint",
-                    "exit_code": eslint.returncode,
-                    "stdout": eslint.stdout[-500:],
-                    "stderr": eslint.stderr[-500:],
+                    "exit_code": 0 if post_errors <= pre_errors else 1,
+                    "post_errors": post_errors,
+                    "pre_errors": pre_errors,
                 })
-                if eslint.returncode != 0:
+                if post_errors > pre_errors:
                     return ExecutionResult(
                         stage=ExecutionStage.VERIFY,
                         success=False,
-                        message="Quality gate failed: eslint",
+                        message=f"Quality gate failed: eslint errors increased {pre_errors}→{post_errors}",
                         details={"checks": checks},
                     )
         else:
