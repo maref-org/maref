@@ -232,40 +232,61 @@ class AutonomousLoopRunner:
         try:
             gui_errors = self._capture_gui_errors()
             total_errors = sum(e.get("error_count", 0) for e in gui_errors)
-            # Map: 0 errors=100%, 11 errors=45%, 20+ errors=0%
-            result["coverage_pct"] = max(0.0, 100.0 - total_errors * 5.0)
+            # Fix 14a: use max(1.0, ...) not max(0.0, ...) so coverage_pct
+            # never bottoms out at 0. When the project has 20+ ESLint errors,
+            # the old mapping produced coverage_pct=0 for both before and
+            # after benchmarks, making gain always 0 (the primary gain formula
+            # requires before.coverage_pct > 0). With max(1.0, ...) the gain
+            # formula can detect improvements even from a high-error baseline.
+            result["coverage_pct"] = max(1.0, 100.0 - total_errors * 5.0)
             result["gui_error_count"] = float(total_errors)
         except Exception:
-            # If GUI lint fails, fall back to a low coverage_pct
-            result["coverage_pct"] = 0.0
+            # If GUI lint fails, fall back to a minimal coverage_pct
+            result["coverage_pct"] = 1.0
             result["gui_error_count"] = 0.0
 
         result["execution_time_ms"] = (time.time() - start) * 1000.0
         return result
 
     def _build_gui_proposal(self, gui_errors: list[dict]) -> Any:
-        """Fix 3b: build an ArchitectureProposal targeting the worst GUI file."""
+        """Fix 3b/14b: build an ArchitectureProposal targeting the worst GUI file."""
         if not gui_errors:
             return None
         from maref.recursive.self_architect import ArchitectureProposal, ChangeType
 
         target = max(gui_errors, key=lambda e: e["error_count"])
         target_file = target["file"]
+        # Fix 14b: include full ESLint error details (line numbers + messages)
+        # in the rationale and affected_symbols. Previously only rule IDs were
+        # passed (e.g., "@typescript-eslint/no-unused-vars"), so the LLM knew
+        # WHICH rules were violated but not WHERE or WHAT the specific errors
+        # were. This caused the LLM to make generic refactors instead of
+        # fixing the actual errors (e.g., it changed component props but
+        # didn't remove unused imports).
+        short_file = target_file.split("/")[-1]
+        error_details = "\n".join(
+            f"  - Line {m.get('line', '?')}: {m.get('ruleId', 'unknown')} — {m.get('message', '')[:120]}"
+            for m in target["messages"]
+        )
         return ArchitectureProposal(
             proposal_id=f"gui_fix_{int(time.time())}",
             timestamp=time.time(),
             current_arch=target_file,
             proposed_arch=target_file,
             rationale=(
-                f"Fix GUI build critical: {target['error_count']} "
-                f"TypeScript/ESLint errors in {target_file}"
+                f"Fix {target['error_count']} ESLint errors in {short_file}:\n"
+                f"{error_details}\n"
+                f"Remove unused imports/variables, fix type errors, and ensure "
+                f"ESLint compliance. Do NOT change component logic unless required "
+                f"to fix an error."
             ),
             risk_assessment="low",
             confidence=0.6,
             target_files=[target_file],
             change_type=ChangeType.GENERAL_REFACTOR,
             affected_symbols=[
-                m.get("ruleId", "unknown") for m in target["messages"]
+                f"L{m.get('line', '?')}:{m.get('ruleId', 'unknown')} — {m.get('message', '')[:80]}"
+                for m in target["messages"]
             ],
             preconditions=["gui_build probe must be critical"],
         )
