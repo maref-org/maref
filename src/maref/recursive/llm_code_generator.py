@@ -157,6 +157,19 @@ class CodeContextBuilder:
         "- Keep generated code under 200 lines — concise, focused, no boilerplate\n"
         "- Preserve existing imports unless removing unused ones\n"
         "- React 19+ hooks patterns, functional components only\n"
+        "\n"
+        "React 19 ESLint rule fix patterns (use these EXACT patterns):\n"
+        "- react-hooks/static-components: NEVER assign a component to a variable\n"
+        "  then render it as <Var />. The rule forbids dynamic component lookup\n"
+        "  during render. Instead use static conditional rendering:\n"
+        "    // BAD: const Icon = map[ext]; return <Icon className=\"x\" />;\n"
+        "    // GOOD: if (ext === '.ts') return <FileCode className=\"x\" />;\n"
+        "    //        if (ext === '.json') return <FileJson className=\"x\" />;\n"
+        "    //        return <File className=\"x\" />;\n"
+        "- react-hooks/set-state-in-effect: NEVER call setState unconditionally\n"
+        "  inside useEffect. Guard with a ref or condition to avoid infinite loop.\n"
+        "- react-hooks/exhaustive-deps: list ALL reactive dependencies in the\n"
+        "  dependency array, or wrap unstable values in useCallback/useMemo.\n"
     )
 
     @staticmethod
