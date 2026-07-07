@@ -191,11 +191,29 @@ class CodeContextBuilder:
             for fp in affected_files:
                 if fp.endswith((".ts", ".tsx")):
                     # TS files: read raw content (ast.parse cannot handle TypeScript)
+                    # Fix 19: include enough lines to cover all error locations.
+                    # The old limit of 80 lines meant errors past line 80 (e.g.,
+                    # FileTreeItem.tsx L109 react-hooks/static-components) were
+                    # invisible to the LLM, causing repeated failed fixes.
                     try:
                         with open(fp) as f:
                             lines = f.readlines()
-                        user_lines.append(f"\n# Current content of {fp} (first 80 lines):")
-                        for line in lines[:80]:
+                        # Determine the last error line for this file from
+                        # affected_symbols (format: "L{n}:rule — msg").
+                        max_err_line = 0
+                        for sym in (affected_symbols or []):
+                            try:
+                                prefix = sym.split(":", 1)[0]  # e.g. "L109"
+                                if prefix.startswith("L"):
+                                    max_err_line = max(max_err_line, int(prefix[1:]))
+                            except (ValueError, IndexError):
+                                pass
+                        # Read up to max(80, max_err_line + 20), capped at 250.
+                        read_limit = min(250, max(80, max_err_line + 20))
+                        user_lines.append(
+                            f"\n# Current content of {fp} (first {read_limit} lines):"
+                        )
+                        for line in lines[:read_limit]:
                             user_lines.append(line.rstrip("\n"))
                     except OSError:
                         user_lines.append(f"\n# Could not read {fp}")
