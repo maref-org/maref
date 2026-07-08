@@ -25,7 +25,6 @@ from typing import Any
 
 from maref.recursive.trust_engine_v2 import TrustEngineV2
 
-
 # Default local sovereignty weight: 60% local, 40% federated.
 DEFAULT_LOCAL_WEIGHT = 0.6
 

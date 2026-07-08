@@ -15,11 +15,11 @@ Reference: AIP-ACPs-Technical-Analysis.md section 2.4 (ADP v2.00).
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from maref.federation.gateway import FederatedAgent, FederationGateway
-
 
 # ADP protocol version (matches ACPs v2.00).
 ADP_PROTOCOL_VERSION = "2.00"

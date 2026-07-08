@@ -19,12 +19,11 @@ Reference: AIP-ACPs-Technical-Analysis.md section 4.6 (Agent Catalog).
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from maref.federation.gateway import FederatedAgent
-from maref.identity.aic_adapter import AIC
-from maref.integration.acs_parser import AgentCapabilitySpec
 
 
 @dataclass

@@ -22,6 +22,8 @@ from maref.evolution.constitution_harness import ConstitutionHarness, EvolutionC
 from maref.recursive.safety_gate_v2 import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
     from maref.immunity.intent_drift_detector import IntentDriftDetector
