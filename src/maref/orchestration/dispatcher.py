@@ -44,6 +44,20 @@ class AgentDispatcher:
         if self._health_monitor is not None:
             self._health_monitor.register(did.did_string)
 
+    def unregister_agent(self, did: AgentDID) -> bool:
+        """Remove an agent's capability registration.
+
+        Args:
+            did: The MAREF DID to unregister.
+
+        Returns:
+            True if the agent was found and removed, False otherwise.
+        """
+        found = did in self._agent_capabilities
+        self._agent_capabilities.pop(did, None)
+        self._agent_performance.pop(did, None)
+        return found
+
     def update_performance(self, did: AgentDID, score: float) -> None:
         self._agent_performance[did] = score
 
