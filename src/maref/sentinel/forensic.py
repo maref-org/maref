@@ -422,8 +422,7 @@ class ForensicSnapshot:
                 proc = psutil.Process(pid)
                 environ = _safe_call_attr(proc, "environ", {}) or {}
                 redacted: dict[str, str] = {}
-                count = 0
-                for key, value in environ.items():
+                for count, (key, value) in enumerate(environ.items()):
                     if count >= self._max_env_vars:
                         redacted["_truncated"] = (
                             f"env vars truncated at {self._max_env_vars}"
@@ -433,7 +432,6 @@ class ForensicSnapshot:
                         redacted[key] = _REDACTED_VALUE
                     else:
                         redacted[key] = str(value)
-                    count += 1
                 return redacted
             except (psutil.NoSuchProcess, psutil.AccessDenied, PermissionError):
                 return {}

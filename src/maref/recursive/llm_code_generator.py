@@ -214,7 +214,7 @@ class CodeContextBuilder:
                         # Determine the last error line for this file from
                         # affected_symbols (format: "L{n}:rule — msg").
                         max_err_line = 0
-                        for sym in (affected_symbols or []):
+                        for sym in (proposal.affected_symbols or []):
                             try:
                                 prefix = sym.split(":", 1)[0]  # e.g. "L109"
                                 if prefix.startswith("L"):

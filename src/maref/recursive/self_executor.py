@@ -16,11 +16,11 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-logger = logging.getLogger(__name__)
-
 from maref.evolution.constitution_harness import ConstitutionHarness, EvolutionChange
 from maref.recursive.safety_gate_v2 import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
