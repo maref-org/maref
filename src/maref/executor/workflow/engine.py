@@ -7,6 +7,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from maref.executor.types import Task, TaskPriority
+from maref.executor.worker import WorkerPool
 from maref.executor.workflow.types import (
     StepResult,
     StepStatus,
@@ -16,9 +18,6 @@ from maref.executor.workflow.types import (
     WorkflowStatus,
     _now,
 )
-
-from maref.executor.types import Task, TaskPriority
-from maref.executor.worker import WorkerPool
 
 # 可选的 governance bridge 类型（避免硬依赖）
 GovernanceBridgeLike = Any  # 只要实现了 .check(stage) -> bool 即可

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 from typing import Any
 
 import psutil
@@ -152,7 +153,7 @@ class ProcessProbe(Probe):
         if os.path.exists(status_path):
             try:
                 content = await asyncio.to_thread(
-                    lambda: open(status_path, encoding="utf-8").read()
+                    lambda: Path(status_path).read_text(encoding="utf-8")
                 )
                 for line in content.splitlines():
                     if line.startswith("TracerPid:"):
@@ -193,7 +194,7 @@ class ProcessProbe(Probe):
             if child.pid not in new_children:
                 continue  # 只检查新增的子进程
             try:
-                child_name = await asyncio.to_thread(lambda: child.name().lower())
+                child_name = await asyncio.to_thread(lambda c=child: c.name().lower())
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 

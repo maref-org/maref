@@ -219,9 +219,7 @@ def _is_timezone_file(file_path: str) -> bool:
     if "/zoneinfo/" in path_lower:
         return True
     # /etc/localtime 和 /etc/timezone
-    if path_lower in ("/etc/localtime", "/etc/timezone"):
-        return True
-    return False
+    return path_lower in ("/etc/localtime", "/etc/timezone")
 
 
 def _is_asian_timezone(tz_value: str) -> bool:
