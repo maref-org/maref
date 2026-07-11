@@ -68,6 +68,13 @@ from maref.compliance.eu_ai_act_v2.human_oversight import (
     OversightCapabilityStatus,
     OversightMode,
 )
+from maref.compliance.eu_ai_act_v2.incident_reporting import (
+    CorrectiveAction,
+    IncidentManager,
+    IncidentRecord,
+    IncidentSeverity,
+    IncidentStatus,
+)
 from maref.compliance.eu_ai_act_v2.record_keeping import (
     AIActLogEntry,
     AIActLogger,
@@ -147,6 +154,11 @@ __all__ = [
     "SystemArchitecture",
     "TechnicalDocumentation",
     "ValidationProcedure",
+    "CorrectiveAction",
+    "IncidentManager",
+    "IncidentRecord",
+    "IncidentSeverity",
+    "IncidentStatus",
     "InstructionForUse",
     "ChatbotDisclosure",
     "DeepfakeDisclosure",
