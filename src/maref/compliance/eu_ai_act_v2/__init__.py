@@ -12,3 +12,129 @@ Implements full compliance with Regulation (EU) 2024/1689:
 """
 
 from __future__ import annotations
+
+from maref.compliance.eu_ai_act_v2.conformity_assessment import (
+    CEMarking,
+    ConformityAssessmentManager,
+    ConformityAssessmentRecord,
+    ConformityRoute,
+    DeclarationStatus,
+    EUDatabaseRegistration,
+    EUDeclarationOfConformity,
+    SubstantialModificationType,
+)
+from maref.compliance.eu_ai_act_v2.engine import (
+    EUAIComplianceEngineV2,
+    EUAIComplianceSummary,
+)
+from maref.compliance.eu_ai_act_v2.gpai import (
+    CopyrightPolicy,
+    DownstreamTransparency,
+    EnergyEfficiencyReport,
+    EvalType,
+    GPAIComplianceManager,
+    GPAIStatus,
+    ModelEvaluation,
+    PostMarketMonitoringGPAI,
+    SystemicRiskAssessment,
+    TrainingDataSummary,
+)
+from maref.compliance.eu_ai_act_v2.gpai import (
+    TechnicalDocumentation as GPAITechnicalDocumentation,
+)
+from maref.compliance.eu_ai_act_v2.human_oversight import (
+    HumanOversightAssessment,
+    HumanOversightBridge,
+    OversightCapability,
+    OversightCapabilityStatus,
+    OversightMode,
+)
+from maref.compliance.eu_ai_act_v2.risk_classifier import (
+    AnnexIIICategory,
+    ClassificationDetail,
+    ExemptionReason,
+    GPAIThreshold,
+    RiskClassifier,
+    RiskLevel,
+)
+from maref.compliance.eu_ai_act_v2.risk_management import (
+    RiskAssessment,
+    RiskLikelihood,
+    RiskManagementLifecycleState,
+    RiskManagementSystem,
+    RiskMitigationMeasure,
+    RiskSeverity,
+)
+from maref.compliance.eu_ai_act_v2.technical_docs import (
+    DataGovernance,
+    DevelopmentMethodology,
+    PostMarketMonitoringPlan,
+    SystemArchitecture,
+    TechnicalDocumentation,
+    ValidationProcedure,
+)
+from maref.compliance.eu_ai_act_v2.transparency import (
+    AIContentWatermark,
+    ChatbotDisclosure,
+    DeepfakeDisclosure,
+    EmotionalRecognitionDisclosure,
+    EndUserTransparency,
+    InstructionForUse,
+    TransparencyDeclaration,
+    TransparencyManager,
+)
+
+__all__ = [
+    "AnnexIIICategory",
+    "ClassificationDetail",
+    "ExemptionReason",
+    "GPAIThreshold",
+    "RiskClassifier",
+    "RiskLevel",
+    "RiskSeverity",
+    "RiskLikelihood",
+    "RiskManagementLifecycleState",
+    "RiskManagementSystem",
+    "RiskAssessment",
+    "RiskMitigationMeasure",
+    "DataGovernance",
+    "DevelopmentMethodology",
+    "PostMarketMonitoringPlan",
+    "SystemArchitecture",
+    "TechnicalDocumentation",
+    "ValidationProcedure",
+    "InstructionForUse",
+    "ChatbotDisclosure",
+    "DeepfakeDisclosure",
+    "EmotionalRecognitionDisclosure",
+    "AIContentWatermark",
+    "TransparencyDeclaration",
+    "EndUserTransparency",
+    "TransparencyManager",
+    "OversightCapability",
+    "OversightMode",
+    "OversightCapabilityStatus",
+    "HumanOversightAssessment",
+    "HumanOversightBridge",
+    "ConformityRoute",
+    "DeclarationStatus",
+    "SubstantialModificationType",
+    "ConformityAssessmentRecord",
+    "EUDeclarationOfConformity",
+    "CEMarking",
+    "EUDatabaseRegistration",
+    "ConformityAssessmentManager",
+    "GPAIStatus",
+    "EvalType",
+    "CopyrightPolicy",
+    "TrainingDataSummary",
+    "DownstreamTransparency",
+    "GPAITechnicalDocumentation",
+    "SystemicRiskAssessment",
+    "ModelEvaluation",
+    "PostMarketMonitoringGPAI",
+    "EnergyEfficiencyReport",
+    "GPAIComplianceManager",
+    "EUAIComplianceEngineV2",
+    "EUAIComplianceSummary",
+]

@@ -68,6 +68,33 @@ def __getattr__(name: str) -> Any:
         )
 
         return locals()[name]
+    if name in (
+        "EUAIComplianceEngineV2",
+        "EUAIComplianceSummary",
+        "RiskClassifier",
+        "RiskLevel",
+        "AnnexIIICategory",
+        "RiskManagementSystem",
+        "TechnicalDocumentation",
+        "TransparencyManager",
+        "HumanOversightBridge",
+        "ConformityAssessmentManager",
+        "GPAIComplianceManager",
+    ):
+        from maref.compliance.eu_ai_act_v2 import (  # noqa: F401
+            AnnexIIICategory,
+            ConformityAssessmentManager,
+            EUAIComplianceEngineV2,
+            EUAIComplianceSummary,
+            GPAIComplianceManager,
+            HumanOversightBridge,
+            RiskClassifier,
+            RiskLevel,
+            RiskManagementSystem,
+            TechnicalDocumentation,
+            TransparencyManager,
+        )
+        return locals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -94,4 +121,16 @@ __all__ = [
     "MonitorState",
     "MonitoringRule",
     "create_compliance_monitor",
+    # V2 EU AI Act engine
+    "EUAIComplianceEngineV2",
+    "EUAIComplianceSummary",
+    "RiskClassifier",
+    "RiskLevel",
+    "AnnexIIICategory",
+    "RiskManagementSystem",
+    "TechnicalDocumentation",
+    "TransparencyManager",
+    "HumanOversightBridge",
+    "ConformityAssessmentManager",
+    "GPAIComplianceManager",
 ]

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 
 class RiskLevel(str, Enum):
@@ -177,9 +176,7 @@ class RiskClassifier:
             return detail
 
         # GPAI (Art.53)
-        if compute_threshold == GPAIThreshold.ABOVE_10_23 or (
-            compute_threshold == GPAIThreshold.ABOVE_10_25 and not is_generative
-        ):
+        if compute_threshold == GPAIThreshold.ABOVE_10_23:
             detail.risk_level = RiskLevel.GPAI
             detail.is_gpai = True
             detail.reasons.append("GPAI model (>=10^23 FLOPs)")
