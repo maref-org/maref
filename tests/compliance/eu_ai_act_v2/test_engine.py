@@ -6,6 +6,14 @@ from maref.compliance.eu_ai_act_v2.engine import (
     EUAIComplianceEngineV2,
     EUAIComplianceSummary,
 )
+from maref.compliance.eu_ai_act_v2.fria import (
+    FRIAScope,
+    FundamentalRight,
+    RiskRating,
+)
+from maref.compliance.eu_ai_act_v2.incident_reporting import (
+    IncidentSeverity,
+)
 from maref.compliance.eu_ai_act_v2.risk_classifier import (
     AnnexIIICategory,
     ClassificationDetail,
@@ -396,3 +404,124 @@ class TestEngineM2Integration:
         )
         summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
         assert summary.accuracy_robustness_complete is not None
+
+
+class TestEngineM3Integration:
+    """Integration tests for M3 (Art.17, 20, 27, 61, 73) in the engine."""
+
+    def test_qms_in_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert hasattr(summary, "qms_established")
+        assert hasattr(summary, "qms_doc_count")
+        assert hasattr(summary, "qms_audit_status")
+        assert isinstance(summary.qms_established, bool)
+        assert isinstance(summary.qms_doc_count, int)
+
+    def test_incident_reporting_in_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert hasattr(summary, "incidents_open")
+        assert hasattr(summary, "incidents_total")
+        assert isinstance(summary.incidents_open, int)
+        assert isinstance(summary.incidents_total, int)
+
+    def test_fria_in_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert hasattr(summary, "fria_complete")
+        assert hasattr(summary, "fria_high_risk_rights")
+        assert isinstance(summary.fria_complete, bool)
+
+    def test_pmm_in_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert hasattr(summary, "pmm_active")
+        assert hasattr(summary, "pmm_observations")
+        assert hasattr(summary, "pmm_review_due")
+        assert isinstance(summary.pmm_active, bool)
+
+    def test_report_includes_m3_sections(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        report = engine.generate_report(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert "qms" in report
+        assert "incident_reporting" in report
+        assert "fria" in report
+        assert "post_market_monitoring" in report
+        assert "established" in report["qms"]
+        assert "open_incidents" in report["incident_reporting"]
+        assert "complete" in report["fria"]
+        assert "active" in report["post_market_monitoring"]
+
+    def test_qms_create_document_and_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        engine.qms.create_document(
+            title="QMS Policy",
+            section="compliance_strategy",
+            content="MAREF compliance strategy v1",
+        )
+        engine.qms.create_document(
+            title="Risk Management Procedure",
+            section="risk_management",
+            content="Risk management process v1",
+        )
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert summary.qms_established
+        assert summary.qms_doc_count >= 2
+
+    def test_incident_lifecycle_in_engine(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        inc = engine.incident_mgr.report_incident(
+            system_name="TestSystem",
+            description="Unexpected output detected",
+            severity=IncidentSeverity.MINOR,
+        )
+        assert inc.incident_id is not None
+        # Add corrective action and close
+        engine.incident_mgr.add_corrective_action(
+            incident_id=inc.incident_id,
+            description="Fix model threshold",
+            deadline="2026-08-01",
+            assigned_to="team-a",
+        )
+        engine.incident_mgr.close_incident(inc.incident_id)
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert summary.incidents_total >= 1
+
+    def test_fria_in_engine(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        engine.fria.set_scope(FRIAScope(
+            system_name="TestSystem",
+            system_version="1.0",
+            deployment_context="HR screening",
+            affected_population_description="Job applicants",
+            estimated_affected_count=10000,
+        ))
+        engine.fria.assess_right(
+            right=FundamentalRight.NON_DISCRIMINATION,
+            rating=RiskRating.LOW,
+            rationale="Model tested for demographic parity",
+        )
+        report = engine.fria.generate_report(reviewed_by="auditor-1")
+        assert report.report_id is not None
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert summary.fria_complete is True
+
+    def test_pmm_in_engine(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        plan = engine.pmm.create_plan(
+            system_name="TestSystem",
+            objectives=["Monitor accuracy drift"],
+            data_sources=["live_logs"],
+            kpis=[{"name": "accuracy", "target": 0.95, "threshold": 0.90, "source": "eval"}],
+        )
+        assert plan.plan_id is not None
+        engine.pmm.record_observation(
+            plan_id=plan.plan_id,
+            source="eval",
+            metric="accuracy",
+            value=0.94,
+        )
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert summary.pmm_active is True
+        assert summary.pmm_observations >= 1
