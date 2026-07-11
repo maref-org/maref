@@ -9,6 +9,7 @@ Implements full compliance with Regulation (EU) 2024/1689:
 - Art.14: Human oversight
 - Art.43 + Annex VI/VII: Conformity assessment
 - Art.53-55 + Annex XI: GPAI obligations
+- Art.61: Post-market monitoring
 """
 
 from __future__ import annotations
@@ -74,6 +75,13 @@ from maref.compliance.eu_ai_act_v2.incident_reporting import (
     IncidentRecord,
     IncidentSeverity,
     IncidentStatus,
+)
+from maref.compliance.eu_ai_act_v2.post_market_monitoring import (
+    PMMManager,
+    PMMObservation,
+    PMMPlan,
+    PMMTrendAnalysis,
+    PeriodicReport,
 )
 from maref.compliance.eu_ai_act_v2.record_keeping import (
     AIActLogEntry,
@@ -193,4 +201,9 @@ __all__ = [
     "GPAIComplianceManager",
     "EUAIComplianceEngineV2",
     "EUAIComplianceSummary",
+    "PeriodicReport",
+    "PMMManager",
+    "PMMObservation",
+    "PMMPlan",
+    "PMMTrendAnalysis",
 ]
