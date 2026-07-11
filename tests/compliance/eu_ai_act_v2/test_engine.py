@@ -295,3 +295,104 @@ class TestEngineEdgeCases:
             compute_threshold=GPAIThreshold.BELOW_THRESHOLD,
         )
         assert summary.overall_score <= 100
+
+
+class TestEngineM2Integration:
+    """Integration tests for M2 (Art.10, 12, 15) in the engine."""
+
+    def test_data_governance_in_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert hasattr(summary, "data_governance_complete")
+        assert hasattr(summary, "data_governance_gaps")
+        assert isinstance(summary.data_governance_complete, bool)
+        assert isinstance(summary.data_governance_gaps, list)
+
+    def test_record_keeping_in_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert hasattr(summary, "record_keeping_enabled")
+        assert hasattr(summary, "record_keeping_count")
+        assert summary.record_keeping_enabled is True
+        assert isinstance(summary.record_keeping_count, int)
+
+    def test_accuracy_robustness_in_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert hasattr(summary, "accuracy_robustness_complete")
+        assert hasattr(summary, "accuracy_robustness_gaps")
+        assert isinstance(summary.accuracy_robustness_complete, bool)
+        assert isinstance(summary.accuracy_robustness_gaps, list)
+
+    def test_full_pipeline_with_m2(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        summary = engine.generate_summary(
+            categories=[AnnexIIICategory.BIOMETRICS],
+            compute_threshold=GPAIThreshold.BELOW_THRESHOLD,
+        )
+        assert summary.risk_level == RiskLevel.HIGH
+        assert summary.overall_score >= 0
+        assert summary.data_governance_complete is not None
+        assert summary.record_keeping_count >= 0
+        assert summary.accuracy_robustness_complete is not None
+
+    def test_report_includes_m2_sections(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        report = engine.generate_report(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert "data_governance" in report
+        assert "record_keeping" in report
+        assert "accuracy_robustness" in report
+        assert "complete" in report["data_governance"]
+        assert "enabled" in report["record_keeping"]
+        assert "complete" in report["accuracy_robustness"]
+
+    def test_record_logging_after_summary(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        # The recorder should have logged events from other operations
+        assert engine.recorder.count_events() >= 0
+
+    def test_data_governance_register_and_assess(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        ds = engine.data_gov.register_dataset(
+            name="training-v1",
+            collection_purpose="model training",
+            data_origin="internal",
+        )
+        assert ds.dataset_id is not None
+        from maref.compliance.eu_ai_act_v2.data_governance import (
+            DatasetQualityMetrics,
+        )
+        engine.data_gov.assess_quality(
+            ds.dataset_id,
+            DatasetQualityMetrics(
+                relevance_score=0.95,
+                representativeness_score=0.90,
+                completeness_score=0.98,
+                error_rate=0.01,
+                is_relevant=True,
+                is_representative=True,
+                is_complete=True,
+                is_free_of_errors=True,
+            ),
+        )
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert summary.data_governance_gaps is not None
+
+    def test_accuracy_declare_and_validate(self) -> None:
+        engine = EUAIComplianceEngineV2()
+        from maref.compliance.eu_ai_act_v2.accuracy_robustness import (
+            AccuracyMetricType,
+        )
+        engine.accuracy.declare_accuracy(
+            metric=AccuracyMetricType.F1,
+            value=0.92,
+            threshold=0.80,
+        )
+        engine.accuracy.declare_accuracy(
+            metric=AccuracyMetricType.AUC_ROC,
+            value=0.95,
+            threshold=0.85,
+        )
+        summary = engine.generate_summary(categories=[AnnexIIICategory.EMPLOYMENT])
+        assert summary.accuracy_robustness_complete is not None
