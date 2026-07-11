@@ -7,6 +7,7 @@ bias detection, and special category data processing conditions.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -23,13 +24,21 @@ class DatasetGovernanceRecord:
     preparation_operations: list[str] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
     bias_assessment: BiasDetectionReport | None = None
+    quality_metrics: DatasetQualityMetrics | None = None
     gaps: list[str] = field(default_factory=list)
-    created_at: str = ""
+    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
 @dataclass
 class DatasetQualityMetrics:
-    """Art.10(3): quality dimensions for dataset evaluation."""
+    """Art.10(3): quality dimensions for dataset evaluation.
+
+    Boolean flags are auto-computed from numerical scores during __post_init__:
+    - is_relevant: relevance_score >= 0.7
+    - is_representative: representativeness_score >= 0.7
+    - is_complete: completeness_score >= 0.8
+    - is_free_of_errors: error_rate <= 0.05
+    """
 
     relevance_score: float = 0.0
     representativeness_score: float = 0.0
@@ -39,6 +48,12 @@ class DatasetQualityMetrics:
     is_representative: bool = False
     is_complete: bool = False
     is_free_of_errors: bool = False
+
+    def __post_init__(self) -> None:
+        self.is_relevant = self.relevance_score >= 0.7
+        self.is_representative = self.representativeness_score >= 0.7
+        self.is_complete = self.completeness_score >= 0.8
+        self.is_free_of_errors = self.error_rate <= 0.05
 
     @property
     def passed(self) -> bool:
@@ -158,6 +173,7 @@ class DataGovernanceManager:
         """
         if dataset_id not in self._datasets:
             raise KeyError(f"Dataset not found: {dataset_id}")
+        self._datasets[dataset_id].quality_metrics = metrics
         return metrics
 
     def run_bias_detection(
@@ -243,11 +259,22 @@ class DataGovernanceManager:
             else False
         )
 
+        quality_passed_count = sum(
+            1 for ds in self._datasets.values()
+            if ds.quality_metrics is not None and ds.quality_metrics.passed
+        )
+        total_with_metrics = sum(
+            1 for ds in self._datasets.values()
+            if ds.quality_metrics is not None
+        )
+
         return {
             "dataset_count": len(self._datasets),
             "bias_risk_level": bias_risk_level,
             "has_special_category_assessment": has_sca,
             "special_category_compliant": sc_compliant,
+            "quality_metrics_count": total_with_metrics,
+            "quality_passed_count": quality_passed_count,
         }
 
     def get_all_datasets(self) -> list[DatasetGovernanceRecord]:
