@@ -12,10 +12,18 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
+from maref.compliance.eu_ai_act_v2.accuracy_robustness import (
+    AccuracyManager,
+    CybersecurityManager,
+    RobustnessManager,
+)
 from maref.compliance.eu_ai_act_v2.conformity_assessment import (
     ConformityAssessmentManager,
     ConformityRoute,
     DeclarationStatus,
+)
+from maref.compliance.eu_ai_act_v2.data_governance import (
+    DataGovernanceManager,
 )
 from maref.compliance.eu_ai_act_v2.gpai import (
     GPAIComplianceManager,
@@ -24,6 +32,9 @@ from maref.compliance.eu_ai_act_v2.gpai import (
 from maref.compliance.eu_ai_act_v2.human_oversight import (
     HumanOversightAssessment,
     HumanOversightBridge,
+)
+from maref.compliance.eu_ai_act_v2.record_keeping import (
+    AIActLogger,
 )
 from maref.compliance.eu_ai_act_v2.risk_classifier import (
     AnnexIIICategory,
@@ -74,6 +85,12 @@ class EUAIComplianceSummary:
     overall_score: float
     gaps: list[str]
     recommendations: list[str]
+    data_governance_complete: bool = False
+    data_governance_gaps: list[str] = field(default_factory=list)
+    record_keeping_enabled: bool = False
+    record_keeping_count: int = 0
+    accuracy_robustness_complete: bool = False
+    accuracy_robustness_gaps: list[str] = field(default_factory=list)
     assessed_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -105,6 +122,11 @@ class EUAIComplianceEngineV2:
         self.oversight: HumanOversightBridge | None = None
         self.conformity = ConformityAssessmentManager()
         self.gpai_mgr = GPAIComplianceManager()
+        self.data_gov = DataGovernanceManager()
+        self.recorder = AIActLogger(system_name, version)
+        self.accuracy = AccuracyManager()
+        self.robustness = RobustnessManager()
+        self.cybersecurity = CybersecurityManager()
 
     def classify(self, **kwargs: Any) -> ClassificationDetail:
         """Classify the AI system risk level.
@@ -192,13 +214,16 @@ class EUAIComplianceEngineV2:
 
         # Base weight by compliance areas
         weights = {
-            "risk_classification": 0.10,
-            "risk_management": 0.20,
-            "documentation": 0.15,
-            "transparency": 0.10,
-            "human_oversight": 0.20,
-            "conformity": 0.15,
-            "gpai": 0.10,
+            "risk_classification": 0.08,
+            "risk_management": 0.15,
+            "documentation": 0.10,
+            "transparency": 0.08,
+            "human_oversight": 0.15,
+            "conformity": 0.12,
+            "gpai": 0.08,
+            "data_governance": 0.08,
+            "record_keeping": 0.04,
+            "accuracy_robustness": 0.12,
         }
         score = 0.0
 
@@ -243,6 +268,24 @@ class EUAIComplianceEngineV2:
         else:
             ratio = 1.0 - (len(summary.gpai_missing_obligations) / 6.0)
             score += weights["gpai"] * max(0, ratio * 100)
+
+        # Data Governance (Art.10)
+        if summary.data_governance_complete:
+            score += weights["data_governance"] * 100.0
+        elif summary.data_governance_gaps:
+            ratio = 1.0 - (len(summary.data_governance_gaps) / 8.0)
+            score += weights["data_governance"] * max(0, ratio * 100)
+
+        # Record-Keeping (Art.12)
+        if summary.record_keeping_enabled and summary.record_keeping_count > 0:
+            score += weights["record_keeping"] * 100.0
+
+        # Accuracy & Robustness (Art.15)
+        if summary.accuracy_robustness_complete:
+            score += weights["accuracy_robustness"] * 100.0
+        elif summary.accuracy_robustness_gaps:
+            ratio = 1.0 - (len(summary.accuracy_robustness_gaps) / 5.0)
+            score += weights["accuracy_robustness"] * max(0, ratio * 100)
 
         return round(score, 1)
 
@@ -328,6 +371,61 @@ class EUAIComplianceEngineV2:
             )
             recommendations.append("Complete GPAI compliance obligations")
 
+        # M2: Data Governance (Art.10)
+        gov_summary = self.data_gov.get_governance_summary()
+        data_gov_complete = gov_summary["dataset_count"] > 0 and (
+            gov_summary["bias_risk_level"] in ("low", "none")
+        )
+        data_gov_gaps: list[str] = []
+        if gov_summary["dataset_count"] == 0:
+            data_gov_gaps.append("No datasets registered for governance review")
+        if gov_summary["bias_risk_level"] == "high":
+            data_gov_gaps.append("High bias risk detected in datasets")
+        if gov_summary.get("quality_metrics_count", 0) == 0:
+            data_gov_gaps.append("No datasets have completed quality assessment")
+        elif gov_summary["quality_passed_count"] < gov_summary["quality_metrics_count"]:
+            data_gov_gaps.append("Some datasets failed quality assessment")
+
+        # M2: Record-Keeping (Art.12)
+        record_count = self.recorder.count_events()
+
+        # M2: Accuracy & Robustness (Art.15)
+        accuracy_decls = self.accuracy.get_declarations()
+        all_accuracy_passed = all(d.passed for d in accuracy_decls)
+        robustness_report = self.robustness.run_all()
+        cyber_gaps = self.cybersecurity.gap_analysis()
+        high_risk_cyber = any(
+            a.risk_score > 0.7
+            for a in self.cybersecurity.assess_all()
+        )
+        accuracy_robustness_complete = (
+            len(accuracy_decls) > 0
+            and all_accuracy_passed
+            and robustness_report.overall_robust
+            and not high_risk_cyber
+        )
+        ar_gaps: list[str] = []
+        if not accuracy_decls:
+            ar_gaps.append("No accuracy metrics declared")
+        elif not all_accuracy_passed:
+            ar_gaps.append("Some accuracy metrics below threshold")
+        if not robustness_report.overall_robust:
+            ar_gaps.append("Robustness tests not all passing")
+        if high_risk_cyber:
+            ar_gaps.append(f"High-risk cybersecurity gaps: {list(cyber_gaps.keys())}")
+
+        if data_gov_gaps:
+            gaps.extend(f"Data governance: {g}" for g in data_gov_gaps)
+        if ar_gaps:
+            gaps.extend(f"Art.15: {g}" for g in ar_gaps)
+
+        if not all_accuracy_passed:
+            recommendations.append("Improve accuracy metrics or raise thresholds")
+        if not robustness_report.overall_robust:
+            recommendations.append("Address robustness gaps (reproducibility/OOD/PSI/failsafe)")
+        if high_risk_cyber:
+            recommendations.append("Close high-risk cybersecurity gaps")
+
         summary = EUAIComplianceSummary(
             system_name=self.system_name,
             version=self.version,
@@ -344,6 +442,12 @@ class EUAIComplianceEngineV2:
             conformity_status=conformity_status,
             gpai_status=gpai_status_enum,
             gpai_missing_obligations=gpai_result["missing_obligations"],
+            data_governance_complete=data_gov_complete,
+            data_governance_gaps=data_gov_gaps,
+            record_keeping_enabled=True,
+            record_keeping_count=record_count,
+            accuracy_robustness_complete=accuracy_robustness_complete,
+            accuracy_robustness_gaps=ar_gaps,
             overall_compliant=False,
             overall_score=0.0,
             gaps=gaps,
@@ -461,6 +565,18 @@ class EUAIComplianceEngineV2:
             "gpai": {
                 "status": summary.gpai_status.value if summary.gpai_status else None,
                 "missing_obligations": summary.gpai_missing_obligations,
+            },
+            "data_governance": {
+                "complete": summary.data_governance_complete,
+                "gaps": summary.data_governance_gaps,
+            },
+            "record_keeping": {
+                "enabled": summary.record_keeping_enabled,
+                "event_count": summary.record_keeping_count,
+            },
+            "accuracy_robustness": {
+                "complete": summary.accuracy_robustness_complete,
+                "gaps": summary.accuracy_robustness_gaps,
             },
             "overall": {
                 "compliant": summary.overall_compliant,
