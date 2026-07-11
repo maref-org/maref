@@ -43,8 +43,9 @@ class TestDatasetGovernanceRecord:
         assert record.preparation_operations == []
         assert record.assumptions == []
         assert record.bias_assessment is None
+        assert record.quality_metrics is None
         assert record.gaps == []
-        assert record.created_at == ""
+        assert record.created_at != ""
 
     def test_auto_generated_dataset_id_via_manager(self) -> None:
         manager = DataGovernanceManager()
@@ -79,7 +80,7 @@ class TestDatasetQualityMetrics:
         assert not metrics.is_relevant
         assert not metrics.is_representative
         assert not metrics.is_complete
-        assert not metrics.is_free_of_errors
+        assert metrics.is_free_of_errors
 
     def test_custom_values(self) -> None:
         metrics = DatasetQualityMetrics(
@@ -87,10 +88,6 @@ class TestDatasetQualityMetrics:
             representativeness_score=0.88,
             completeness_score=0.75,
             error_rate=0.02,
-            is_relevant=True,
-            is_representative=True,
-            is_complete=False,
-            is_free_of_errors=True,
         )
         assert metrics.relevance_score == 0.95
         assert metrics.representativeness_score == 0.88
@@ -103,30 +100,30 @@ class TestDatasetQualityMetrics:
 
     def test_passed_all_true(self) -> None:
         metrics = DatasetQualityMetrics(
-            is_relevant=True,
-            is_representative=True,
-            is_complete=True,
-            is_free_of_errors=True,
+            relevance_score=0.9,
+            representativeness_score=0.8,
+            completeness_score=0.9,
+            error_rate=0.01,
         )
         assert metrics.passed
 
     def test_passed_any_false(self) -> None:
         cases = [
             DatasetQualityMetrics(
-                is_relevant=False, is_representative=True, is_complete=True,
-                is_free_of_errors=True,
+                relevance_score=0.5, representativeness_score=0.8, completeness_score=0.9,
+                error_rate=0.01,
             ),
             DatasetQualityMetrics(
-                is_relevant=True, is_representative=False, is_complete=True,
-                is_free_of_errors=True,
+                relevance_score=0.9, representativeness_score=0.5, completeness_score=0.9,
+                error_rate=0.01,
             ),
             DatasetQualityMetrics(
-                is_relevant=True, is_representative=True, is_complete=False,
-                is_free_of_errors=True,
+                relevance_score=0.9, representativeness_score=0.8, completeness_score=0.5,
+                error_rate=0.01,
             ),
             DatasetQualityMetrics(
-                is_relevant=True, is_representative=True, is_complete=True,
-                is_free_of_errors=False,
+                relevance_score=0.9, representativeness_score=0.8, completeness_score=0.9,
+                error_rate=0.1,
             ),
         ]
         for metrics in cases:
@@ -261,14 +258,12 @@ class TestDataGovernanceManager:
             representativeness_score=0.85,
             completeness_score=0.95,
             error_rate=0.01,
-            is_relevant=True,
-            is_representative=True,
-            is_complete=True,
-            is_free_of_errors=True,
         )
         result = manager.assess_quality(record.dataset_id, metrics)
         assert result.relevance_score == 0.9
         assert result.passed
+        assert record.quality_metrics is not None
+        assert record.quality_metrics.passed
 
     def test_assess_quality_updates_dataset_record(self) -> None:
         manager = DataGovernanceManager()
@@ -282,14 +277,11 @@ class TestDataGovernanceManager:
             representativeness_score=0.6,
             completeness_score=0.5,
             error_rate=0.1,
-            is_relevant=True,
-            is_representative=False,
-            is_complete=False,
-            is_free_of_errors=False,
         )
         manager.assess_quality(record.dataset_id, metrics)
-        updated = manager.get_all_datasets()
-        assert any(d.dataset_id == record.dataset_id for d in updated)
+        assert record.quality_metrics is not None
+        assert not record.quality_metrics.passed
+        assert record.quality_metrics.relevance_score == 0.7
 
     def test_assess_quality_missing_dataset_raises(self) -> None:
         manager = DataGovernanceManager()
@@ -561,19 +553,21 @@ class TestDataGovernanceEdgeCases:
 
         summary = manager.get_governance_summary()
         assert summary["dataset_count"] == 3
-        assert summary["bias_risk_level"] in ("low", "medium", "high")
+        assert summary["bias_risk_level"] == "high"
 
     def test_assess_quality_only_updates_target(self) -> None:
         manager = DataGovernanceManager()
         r1 = manager.register_dataset(name="D1", collection_purpose="T", data_origin="O")
         r2 = manager.register_dataset(name="D2", collection_purpose="T", data_origin="O")
 
-        m1 = DatasetQualityMetrics(is_relevant=True, is_representative=True, is_complete=True, is_free_of_errors=True)
-        m2 = DatasetQualityMetrics(is_relevant=False, is_representative=False, is_complete=False, is_free_of_errors=False)
+        m1 = DatasetQualityMetrics(relevance_score=0.9, representativeness_score=0.9, completeness_score=0.9, error_rate=0.01)
+        m2 = DatasetQualityMetrics(relevance_score=0.3, representativeness_score=0.3, completeness_score=0.3, error_rate=0.3)
 
         manager.assess_quality(r1.dataset_id, m1)
         manager.assess_quality(r2.dataset_id, m2)
 
         datasets = {d.dataset_id: d for d in manager.get_all_datasets()}
-        assert datasets[r1.dataset_id].bias_assessment is None
-        assert datasets[r2.dataset_id].bias_assessment is None
+        assert datasets[r1.dataset_id].quality_metrics is not None
+        assert datasets[r1.dataset_id].quality_metrics.passed
+        assert datasets[r2.dataset_id].quality_metrics is not None
+        assert not datasets[r2.dataset_id].quality_metrics.passed
