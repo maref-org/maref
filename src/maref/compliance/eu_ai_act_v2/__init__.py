@@ -9,6 +9,9 @@ Implements full compliance with Regulation (EU) 2024/1689:
 - Art.14: Human oversight
 - Art.43 + Annex VI/VII: Conformity assessment
 - Art.53-55 + Annex XI: GPAI obligations
+- Art.17: Quality management system
+- Art.20 + Art.73: Incident reporting
+- Art.27: Fundamental Rights Impact Assessment
 - Art.61: Post-market monitoring
 """
 
@@ -47,6 +50,14 @@ from maref.compliance.eu_ai_act_v2.engine import (
     EUAIComplianceEngineV2,
     EUAIComplianceSummary,
 )
+from maref.compliance.eu_ai_act_v2.fria import (
+    FRIAManager,
+    FRIAReport,
+    FRIAScope,
+    FundamentalRight,
+    FundamentalRightAssessment,
+    RiskRating,
+)
 from maref.compliance.eu_ai_act_v2.gpai import (
     CopyrightPolicy,
     DownstreamTransparency,
@@ -61,6 +72,12 @@ from maref.compliance.eu_ai_act_v2.gpai import (
 )
 from maref.compliance.eu_ai_act_v2.gpai import (
     TechnicalDocumentation as GPAITechnicalDocumentation,
+)
+from maref.compliance.eu_ai_act_v2.qms import (
+    QMSAuditRecord,
+    QMSDocument,
+    QMSManager,
+    QualityPolicy,
 )
 from maref.compliance.eu_ai_act_v2.human_oversight import (
     HumanOversightAssessment,
@@ -199,6 +216,16 @@ __all__ = [
     "PostMarketMonitoringGPAI",
     "EnergyEfficiencyReport",
     "GPAIComplianceManager",
+    "QMSAuditRecord",
+    "QMSDocument",
+    "QMSManager",
+    "QualityPolicy",
+    "FRIAManager",
+    "FRIAReport",
+    "FRIAScope",
+    "FundamentalRight",
+    "FundamentalRightAssessment",
+    "RiskRating",
     "EUAIComplianceEngineV2",
     "EUAIComplianceSummary",
     "PeriodicReport",
