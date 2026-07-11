@@ -13,6 +13,18 @@ Implements full compliance with Regulation (EU) 2024/1689:
 
 from __future__ import annotations
 
+from maref.compliance.eu_ai_act_v2.accuracy_robustness import (
+    AccuracyDeclaration,
+    AccuracyManager,
+    AccuracyMetricType,
+    Art15ComplianceReport,
+    CybersecurityAssessment,
+    CybersecurityManager,
+    FeedbackLoopDetector,
+    FeedbackLoopReport,
+    RobustnessManager,
+    RobustnessReport,
+)
 from maref.compliance.eu_ai_act_v2.conformity_assessment import (
     CEMarking,
     ConformityAssessmentManager,
@@ -56,6 +68,12 @@ from maref.compliance.eu_ai_act_v2.human_oversight import (
     OversightCapabilityStatus,
     OversightMode,
 )
+from maref.compliance.eu_ai_act_v2.record_keeping import (
+    AIActLogEntry,
+    AIActLogger,
+    RegulatoryLogExporter,
+    RetentionPolicy,
+)
 from maref.compliance.eu_ai_act_v2.risk_classifier import (
     AnnexIIICategory,
     ClassificationDetail,
@@ -92,11 +110,25 @@ from maref.compliance.eu_ai_act_v2.transparency import (
 )
 
 __all__ = [
+    "AccuracyDeclaration",
+    "AccuracyManager",
+    "AccuracyMetricType",
+    "Art15ComplianceReport",
+    "CybersecurityAssessment",
+    "CybersecurityManager",
+    "FeedbackLoopDetector",
+    "FeedbackLoopReport",
+    "RobustnessManager",
+    "RobustnessReport",
     "BiasDetectionReport",
     "DataGovernanceManager",
     "DatasetGovernanceRecord",
     "DatasetQualityMetrics",
     "SpecialCategoryAssessment",
+    "AIActLogEntry",
+    "AIActLogger",
+    "RegulatoryLogExporter",
+    "RetentionPolicy",
     "AnnexIIICategory",
     "ClassificationDetail",
     "ExemptionReason",
