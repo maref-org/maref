@@ -96,6 +96,17 @@ class AIActLogger:
         Returns:
             The newly created AIActLogEntry.
         """
+        valid_fields = {f.name for f in fields(AIActLogEntry)} - {
+            "entry_id", "system_id", "system_version", "session_id",
+            "event_timestamp_utc", "use_period_start", "use_period_end",
+            "input_data_hash",
+        }
+        unknown = set(kwargs) - valid_fields
+        if unknown:
+            raise ValueError(f"Unknown log_event kwargs: {unknown}")
+        if not session_id or not use_period_start or not use_period_end:
+            raise ValueError("session_id, use_period_start, and use_period_end are required")
+
         input_hash = hashlib.sha256(input_data.encode()).hexdigest()
         now = datetime.now(timezone.utc).isoformat()
 
@@ -147,7 +158,10 @@ class AIActLogger:
         if system_id is not None:
             results = [e for e in results if e.system_id == system_id]
 
+        valid_query_fields = {"risk_event", "anomaly_flag", "session_id", "entry_id", "decision_type"}
         for key, value in filters.items():
+            if key not in valid_query_fields:
+                raise ValueError(f"Unknown query filter field: {key}")
             results = [e for e in results if getattr(e, key, None) == value]
 
         return results
