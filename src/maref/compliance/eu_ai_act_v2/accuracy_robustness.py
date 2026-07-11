@@ -13,7 +13,7 @@ from enum import Enum
 from typing import Any
 
 
-class AccuracyMetricType(Enum):
+class AccuracyMetricType(str, Enum):
     """Accuracy metric types for Art.15(1)-(3) declarations."""
 
     FAR = "false_accept_rate"
@@ -29,6 +29,17 @@ class AccuracyMetricType(Enum):
     DISPARATE_IMPACT = "disparate_impact_ratio"
     PSI = "population_stability_index"
 
+    @property
+    def higher_is_better(self) -> bool:
+        """Higher values indicate better accuracy for these metrics."""
+        return self in {
+            AccuracyMetricType.AUC_ROC,
+            AccuracyMetricType.PRECISION,
+            AccuracyMetricType.RECALL,
+            AccuracyMetricType.F1,
+            AccuracyMetricType.PREDICTIVE_PARITY,
+        }
+
 
 @dataclass
 class AccuracyDeclaration:
@@ -42,8 +53,11 @@ class AccuracyDeclaration:
     known_limitations: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        """Auto-compute passed: value >= threshold means the metric passes."""
-        self.passed = self.value >= self.threshold
+        """Auto-compute passed based on metric direction."""
+        if self.metric.higher_is_better:
+            self.passed = self.value >= self.threshold
+        else:
+            self.passed = self.value <= self.threshold
 
 
 class AccuracyManager:
@@ -68,10 +82,6 @@ class AccuracyManager:
         )
         self._declarations.append(declaration)
         return declaration
-
-    def validate_all(self) -> list[AccuracyDeclaration]:
-        """Return all declarations with computed passed values."""
-        return list(self._declarations)
 
     def get_declarations(self) -> list[AccuracyDeclaration]:
         """Return all stored declarations."""
@@ -107,7 +117,7 @@ class RobustnessManager:
         self._psi_value: float = 0.0
         self._failsafe_verified: bool = False
 
-    def test_reproducibility(self, score: float) -> float:
+    def record_reproducibility(self, score: float) -> float:
         """Accept and store a reproducibility score.
 
         Args:
@@ -119,7 +129,7 @@ class RobustnessManager:
         self._reproducibility_score = score
         return score
 
-    def test_ood_robustness(self, degradation: float) -> float:
+    def record_ood_robustness(self, degradation: float) -> float:
         """Accept and store an OOD degradation value.
 
         Args:
@@ -131,7 +141,7 @@ class RobustnessManager:
         self._ood_degradation = degradation
         return degradation
 
-    def test_temporal_stability(self, psi_value: float) -> float:
+    def record_temporal_stability(self, psi_value: float) -> float:
         """Accept and store a PSI value.
 
         Args:
@@ -143,7 +153,7 @@ class RobustnessManager:
         self._psi_value = psi_value
         return psi_value
 
-    def test_failsafe_behavior(self, verified: bool) -> bool:
+    def record_failsafe_behavior(self, verified: bool) -> bool:
         """Accept and store a failsafe verification flag.
 
         Args:
@@ -247,17 +257,8 @@ class CybersecurityManager:
         return assessment
 
     def assess_all(self) -> list[CybersecurityAssessment]:
-        """Return assessments for all 5 known vectors.
-
-        Vectors not yet assessed will be assessed with empty controls.
-        """
-        results: list[CybersecurityAssessment] = []
-        for vector in _DEFAULT_MISSING_CONTROLS:
-            if vector in self._assessments:
-                results.append(self._assessments[vector])
-            else:
-                results.append(self.assess_vector(vector, []))
-        return results
+        """Return assessments for all assessed vectors."""
+        return list(self._assessments.values())
 
     def gap_analysis(self) -> dict[str, list[str]]:
         """Return a dict mapping each vector to its missing controls."""
@@ -295,6 +296,8 @@ class FeedbackLoopDetector:
         Returns:
             A FeedbackLoopReport with detection results.
         """
+        if not 0.0 <= score <= 1.0:
+            raise ValueError(f"contamination_score must be in [0.0, 1.0], got {score}")
         contamination_detected = score > 0.3
         recommendations: list[str] = []
         if contamination_detected:

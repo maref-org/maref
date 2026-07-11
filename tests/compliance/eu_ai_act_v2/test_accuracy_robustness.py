@@ -121,19 +121,19 @@ class TestAccuracyManager:
         assert d.metric == AccuracyMetricType.F1
         assert d.passed is True
 
-    def test_validate_all_returns_all_declarations(self) -> None:
+    def test_get_declarations_returns_all_declarations(self) -> None:
         mgr = AccuracyManager()
         mgr.declare_accuracy(AccuracyMetricType.F1, 0.95, 0.8)
         mgr.declare_accuracy(AccuracyMetricType.MSE, 0.05, 0.1)
-        results = mgr.validate_all()
+        results = mgr.get_declarations()
         assert len(results) == 2
         assert all(isinstance(r, AccuracyDeclaration) for r in results)
 
-    def test_validate_all_computes_passed(self) -> None:
+    def test_get_declarations_computes_passed(self) -> None:
         mgr = AccuracyManager()
         mgr.declare_accuracy(AccuracyMetricType.F1, 0.95, 0.8)
         mgr.declare_accuracy(AccuracyMetricType.F1, 0.7, 0.8)
-        results = mgr.validate_all()
+        results = mgr.get_declarations()
         assert results[0].passed is True
         assert results[1].passed is False
 
@@ -231,32 +231,32 @@ class TestRobustnessReport:
 
 
 class TestRobustnessManager:
-    def test_test_reproducibility(self) -> None:
+    def test_record_reproducibility(self) -> None:
         mgr = RobustnessManager()
-        result = mgr.test_reproducibility(0.97)
+        result = mgr.record_reproducibility(0.97)
         assert result == 0.97
 
-    def test_test_ood_robustness(self) -> None:
+    def test_record_ood_robustness(self) -> None:
         mgr = RobustnessManager()
-        result = mgr.test_ood_robustness(12.5)
+        result = mgr.record_ood_robustness(12.5)
         assert result == 12.5
 
-    def test_test_temporal_stability(self) -> None:
+    def test_record_temporal_stability(self) -> None:
         mgr = RobustnessManager()
-        result = mgr.test_temporal_stability(0.15)
+        result = mgr.record_temporal_stability(0.15)
         assert result == 0.15
 
-    def test_test_failsafe_behaviour(self) -> None:
+    def test_record_failsafe_behaviour(self) -> None:
         mgr = RobustnessManager()
-        result = mgr.test_failsafe_behavior(True)
+        result = mgr.record_failsafe_behavior(True)
         assert result is True
 
     def test_run_all_returns_report(self) -> None:
         mgr = RobustnessManager()
-        mgr.test_reproducibility(0.96)
-        mgr.test_ood_robustness(10.0)
-        mgr.test_temporal_stability(0.1)
-        mgr.test_failsafe_behavior(True)
+        mgr.record_reproducibility(0.96)
+        mgr.record_ood_robustness(10.0)
+        mgr.record_temporal_stability(0.1)
+        mgr.record_failsafe_behavior(True)
         report = mgr.run_all()
         assert isinstance(report, RobustnessReport)
         assert report.reproducibility_score == 0.96
@@ -266,19 +266,19 @@ class TestRobustnessManager:
 
     def test_run_all_overall_robust_computed(self) -> None:
         mgr = RobustnessManager()
-        mgr.test_reproducibility(0.95)
-        mgr.test_ood_robustness(15.0)
-        mgr.test_temporal_stability(0.2)
-        mgr.test_failsafe_behavior(True)
+        mgr.record_reproducibility(0.95)
+        mgr.record_ood_robustness(15.0)
+        mgr.record_temporal_stability(0.2)
+        mgr.record_failsafe_behavior(True)
         report = mgr.run_all()
         assert report.overall_robust is True
 
     def test_run_all_overall_not_robust(self) -> None:
         mgr = RobustnessManager()
-        mgr.test_reproducibility(0.50)
-        mgr.test_ood_robustness(50.0)
-        mgr.test_temporal_stability(0.5)
-        mgr.test_failsafe_behavior(False)
+        mgr.record_reproducibility(0.50)
+        mgr.record_ood_robustness(50.0)
+        mgr.record_temporal_stability(0.5)
+        mgr.record_failsafe_behavior(False)
         report = mgr.run_all()
         assert report.overall_robust is False
 
@@ -348,8 +348,10 @@ class TestCybersecurityManager:
         assert isinstance(a, CybersecurityAssessment)
         assert a.vector == "data_poisoning"
 
-    def test_assess_all_returns_five_assessments(self) -> None:
+    def test_assess_all_returns_assessed_vectors(self) -> None:
         mgr = CybersecurityManager()
+        for vector in ["data_poisoning", "model_poisoning", "adversarial_examples", "confidentiality", "model_flaws"]:
+            mgr.assess_vector(vector, [])
         assessments = mgr.assess_all()
         assert len(assessments) == 5
         vectors = [a.vector for a in assessments]
@@ -363,15 +365,15 @@ class TestCybersecurityManager:
         mgr = CybersecurityManager()
         mgr.assess_vector("data_poisoning", ["input_validation"])
         assessments = mgr.assess_all()
+        assert len(assessments) == 1
         data_poisoning = [a for a in assessments if a.vector == "data_poisoning"]
         assert len(data_poisoning) == 1
         assert data_poisoning[0].controls_in_place == ["input_validation"]
 
-    def test_assess_all_unregistered_have_empty_controls(self) -> None:
+    def test_assess_all_only_assessed(self) -> None:
         mgr = CybersecurityManager()
         assessments = mgr.assess_all()
-        for a in assessments:
-            assert a.controls_in_place == []
+        assert len(assessments) == 0
 
     def test_gap_analysis_returns_dict(self) -> None:
         mgr = CybersecurityManager()
@@ -385,18 +387,20 @@ class TestCybersecurityManager:
         mgr.assess_vector("data_poisoning", ["input_validation"])
         gaps = mgr.gap_analysis()
         assert len(gaps["data_poisoning"]) > 0
-
     def test_gap_analysis_all_five_vectors(self) -> None:
         mgr = CybersecurityManager()
+        for vector in ["data_poisoning", "model_poisoning", "adversarial_examples", "confidentiality", "model_flaws"]:
+            mgr.assess_vector(vector, [])
         gaps = mgr.gap_analysis()
         assert len(gaps) == 5
         expected_vectors = {
-            "data_poisoning", "model_poisoning", "adversarial_examples",
-            "confidentiality", "model_flaws",
+            "data_poisoning",
+            "model_poisoning",
+            "adversarial_examples",
+            "confidentiality",
+            "model_flaws",
         }
         assert set(gaps.keys()) == expected_vectors
-
-
 class TestFeedbackLoopReport:
     def test_construction(self) -> None:
         r = FeedbackLoopReport(
@@ -602,10 +606,10 @@ class TestArt15ComplianceReport:
         mgr.declare_accuracy(AccuracyMetricType.AUC_ROC, 0.92, 0.7)
 
         robust_mgr = RobustnessManager()
-        robust_mgr.test_reproducibility(0.96)
-        robust_mgr.test_ood_robustness(12.0)
-        robust_mgr.test_temporal_stability(0.15)
-        robust_mgr.test_failsafe_behavior(True)
+        robust_mgr.record_reproducibility(0.96)
+        robust_mgr.record_ood_robustness(12.0)
+        robust_mgr.record_temporal_stability(0.15)
+        robust_mgr.record_failsafe_behavior(True)
 
         cyber_mgr = CybersecurityManager()
         cyber_mgr.assess_vector("data_poisoning", ["input_validation", "anomaly_detection"])
@@ -618,7 +622,7 @@ class TestArt15ComplianceReport:
         feedback = detector.check_feedback_contamination(score=0.2)
 
         report = Art15ComplianceReport(
-            accuracy_declarations=mgr.validate_all(),
+            accuracy_declarations=mgr.get_declarations(),
             robustness_report=robust_mgr.run_all(),
             cybersecurity_assessments=cyber_mgr.assess_all(),
             feedback_loop_report=feedback,
@@ -627,13 +631,19 @@ class TestArt15ComplianceReport:
 
 
 class TestEdgeCases:
-    def test_accuracy_declaration_mse_value_above_threshold_passes(self) -> None:
+    def test_accuracy_declaration_mse_lower_is_better(self) -> None:
         d = AccuracyDeclaration(
+            metric=AccuracyMetricType.MSE,
+            value=0.05,
+            threshold=0.1,
+        )
+        assert d.passed is True
+        d2 = AccuracyDeclaration(
             metric=AccuracyMetricType.MSE,
             value=0.15,
             threshold=0.1,
         )
-        assert d.passed is True
+        assert d2.passed is False
 
     def test_robustness_report_all_zeros_not_robust(self) -> None:
         r = RobustnessReport(
