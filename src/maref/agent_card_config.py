@@ -1,97 +1,55 @@
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Dict, List, Optional
 
-_URN_PATTERN = re.compile(r"^urn:agent:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9_-]+$")
+@dataclass
+class AgentCardConfig:
+    agent_urn: str
+    agent_name: str
+    agent_version: str
+    agent_description: str
+    agent_endpoints: List[Dict[str, Any]] = field(default_factory=list)
+    agent_capabilities: List[str] = field(default_factory=list)
+    agent_authentication: Optional[Dict[str, Any]] = None
+    agent_metadata: Optional[Dict[str, Any]] = None
+    agent_ttl: int = 3600
+    agent_max_retries: int = 3
+    agent_timeout: int = 30
 
-AGENT_ID = "urn:agent:maref:0-36-0-rc:main"
+    def validate(self) -> bool:
+        try:
+            validate_agent_urn(self.agent_urn)
+            validate_endpoint_consistency(self.agent_endpoints)
+            validate_capabilities_completeness(self.agent_capabilities)
+            return True
+        except (ValueError, TypeError):
+            return False
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {'agent_urn': self.agent_urn, 'agent_name': self.agent_name, 'agent_version': self.agent_version, 'agent_description': self.agent_description, 'agent_endpoints': self.agent_endpoints, 'agent_capabilities': self.agent_capabilities, 'agent_authentication': self.agent_authentication, 'agent_metadata': self.agent_metadata, 'agent_ttl': self.agent_ttl, 'agent_max_retries': self.agent_max_retries, 'agent_timeout': self.agent_timeout}
 
-def validate_agent_urn(agent_id: str) -> bool:
-    """Validate agent_id matches `urn:agent:{ns}:{ver}:{variant}` per MAS-TS-001 D1."""
-    return bool(_URN_PATTERN.match(agent_id))
+def validate_agent_urn(urn: str) -> None:
+    if not re.match('^urn:[a-zA-Z0-9\\-]+:[a-zA-Z0-9\\-]+$', urn):
+        raise ValueError(f'Invalid URN format: {urn}')
 
+def get_default_card_config() -> AgentCardConfig:
+    return AgentCardConfig(agent_urn='urn:maref:default', agent_name='default', agent_version='1.0.0', agent_description='Default agent card configuration')
 
-AGENT_NAME = "MAREF"
-AGENT_VERSION = "0.36.0-rc"
-AGENT_DESCRIPTION = (
-    "Multi-Agent Recursive Engineering Framework — "
-    "six-layer governance architecture with tool orchestration, "
-    "session management, and self-healing execution"
-)
+def validate_endpoint_consistency(endpoints: List[Dict[str, Any]]) -> None:
+    for endpoint in endpoints:
+        if 'url' not in endpoint:
+            raise ValueError("Endpoint missing required 'url' field")
+        if 'protocol' not in endpoint:
+            raise ValueError("Endpoint missing required 'protocol' field")
 
-CAPABILITIES = [
-    "file_operations",
-    "shell_execution",
-    "git_operations",
-    "web_browsing",
-    "web_fetch",
-    "web_search",
-    "email_handling",
-    "scheduling",
-    "remote_control",
-    "session_isolation",
-    "state_persistence",
-    "governance",
-    "audit_logging",
-    "self_healing",
-]
+def validate_capabilities_completeness(capabilities: List[str]) -> None:
+    if not capabilities:
+        raise ValueError('At least one capability is required')
+    for cap in capabilities:
+        if not isinstance(cap, str) or not cap.strip():
+            raise ValueError(f'Invalid capability: {cap}')
 
-ENDPOINTS = [
-    "https://dashscope.aliyuncs.com/api/v1",
-]
-
-DATA_RESIDENCY = "CN"
-MODEL_BACKEND_LOCATION = "CN"
-CROSS_BORDER = False
-
-COMPLIANCE_LABELS = [
-    "data_residency_CN",
-    "mas_ts_001",
-    "mcp_governance",
-    "zero_trust",
-]
-
-MODEL_CONFIG: dict[str, Any] = {
-    "backend": "dashscope",
-    "endpoint": "https://dashscope.aliyuncs.com/api/v1",
-    "context_window": 65536,
-    "data_residency": "CN",
-    "model_backend_location": "CN",
-    "cross_border": False,
-}
-
-TOOL_REGISTRY_META: dict[str, dict[str, Any]] = {
-    "file": {
-        "version": "0.27.0",
-        "security_controls": ["PathSandbox", "FileSizeLimit"],
-    },
-    "shell": {
-        "version": "0.27.0",
-        "security_controls": ["CommandWhitelist", "Timeout", "OutputLimit", "MetacharacterBlock"],
-    },
-    "git": {
-        "version": "0.27.0",
-        "security_controls": ["RepoWhitelist", "WriteModeGate"],
-    },
-    "browser": {
-        "version": "0.27.0",
-        "security_controls": ["DomainWhitelist", "URLValidation", "ContentSizeLimit"],
-        "provides": ["web_browsing", "web_fetch"],
-    },
-    "email": {
-        "version": "0.27.0",
-        "security_controls": ["RecipientWhitelist", "SensitiveWordFilter", "WriteModeGate"],
-    },
-    "web_search": {
-        "version": "0.28.0",
-        "security_controls": ["QuerySanitizer", "ResultLimit", "DomainBlacklist"],
-    },
-}
-
-MAS_CAPABILITIES = [
+MAS_CAPABILITIES: List[Dict[str, Any]] = [
     {
         "skill_id": "skill_agent_spawn",
         "name": "agent_spawn",
@@ -198,82 +156,3 @@ MAS_CAPABILITIES = [
         },
     },
 ]
-
-
-@dataclass
-class AgentCardConfig:
-    agent_id: str = AGENT_ID
-    agent_name: str = AGENT_NAME
-    version: str = AGENT_VERSION
-    description: str = AGENT_DESCRIPTION
-    capabilities: list[str] = field(default_factory=lambda: list(CAPABILITIES))
-    endpoints: list[str] = field(default_factory=lambda: list(ENDPOINTS))
-    data_residency: str = DATA_RESIDENCY
-    model_backend_location: str = MODEL_BACKEND_LOCATION
-    cross_border: bool = CROSS_BORDER
-    compliance_labels: list[str] = field(default_factory=lambda: list(COMPLIANCE_LABELS))
-    model_config: dict[str, Any] = field(default_factory=lambda: dict(MODEL_CONFIG))
-    tool_registry_meta: dict[str, dict[str, Any]] = field(
-        default_factory=lambda: dict(TOOL_REGISTRY_META)
-    )
-    mas_capabilities: list[dict[str, Any]] = field(default_factory=lambda: list(MAS_CAPABILITIES))
-    trust_score: float = 0.85
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "agent_id": self.agent_id,
-            "agent_name": self.agent_name,
-            "version": self.version,
-            "description": self.description,
-            "capabilities": self.capabilities,
-            "endpoints": self.endpoints,
-            "data_residency": self.data_residency,
-            "model_backend_location": self.model_backend_location,
-            "cross_border": self.cross_border,
-            "compliance_labels": self.compliance_labels,
-            "model_config": self.model_config,
-            "tool_registry_meta": self.tool_registry_meta,
-            "mas_capabilities": self.mas_capabilities,
-            "trust_score": self.trust_score,
-        }
-
-    def validate_endpoint_consistency(self) -> tuple[bool, str]:
-        if self.data_residency == self.model_backend_location and not self.cross_border:
-            return True, "Endpoint consistent: data_residency == model_backend_location == CN"
-        if self.cross_border:
-            return True, "Endpoint consistent: cross_border explicitly enabled"
-        return (
-            False,
-            f"Endpoint mismatch: data_residency={self.data_residency}, "
-            f"model_backend_location={self.model_backend_location}, cross_border={self.cross_border}",
-        )
-
-    def validate_capabilities_completeness(self) -> tuple[bool, list[str]]:
-        missing: list[str] = []
-        required_capabilities = [
-            "session_isolation",
-            "state_persistence",
-            "scheduling",
-            "remote_control",
-            "web_search",
-            "web_fetch",
-        ]
-        for cap in required_capabilities:
-            if cap not in self.capabilities:
-                missing.append(cap)
-        return len(missing) == 0, missing
-
-    def validate(self) -> dict[str, Any]:
-        endpoint_ok, endpoint_msg = self.validate_endpoint_consistency()
-        caps_ok, missing_caps = self.validate_capabilities_completeness()
-        return {
-            "endpoint_consistency": endpoint_ok,
-            "endpoint_detail": endpoint_msg,
-            "capabilities_complete": caps_ok,
-            "missing_capabilities": missing_caps,
-            "overall_pass": endpoint_ok and caps_ok,
-        }
-
-
-def get_default_card_config() -> AgentCardConfig:
-    return AgentCardConfig()

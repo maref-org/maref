@@ -22,9 +22,6 @@ export default function RsiDashboard() {
     adaptiveAllocation,
     loading,
     error,
-    fetchParetoFront,
-    fetchCrossEffects,
-    fetchAdaptiveAllocation,
     refreshAll,
   } = useRsiStore();
 
@@ -78,22 +75,23 @@ export default function RsiDashboard() {
         </section>
 
         <section>
-          <SectionHeader icon={BarChart3} title="Cross-Impact Heatmap" />
+          <SectionHeader icon={Target} title="Cross-Impact Effects" />
           <div className="mt-3">
             <CrossImpactHeatmap
-              effects={crossEffects}
-              loading={loading && crossEffects.length === 0}
+              effects={crossEffects?.effects ?? []}
+              loading={loading && !crossEffects}
               error={null}
             />
           </div>
         </section>
 
         <section>
-          <SectionHeader icon={Target} title="Adaptive Allocation" />
+          <SectionHeader icon={TrendingUp} title="Adaptive Allocation" />
           <div className="mt-3">
             <AdaptiveAllocationReport
-              allocations={adaptiveAllocation}
-              loading={loading && adaptiveAllocation.length === 0}
+              allocation={adaptiveAllocation?.allocation ?? {}}
+              rationale={adaptiveAllocation?.rationale ?? ""}
+              loading={loading && !adaptiveAllocation}
               error={null}
             />
           </div>

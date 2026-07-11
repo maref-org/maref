@@ -1,0 +1,104 @@
+# MAREF SkillManifest — Brand Positioning
+# Generates brand positioning statement using April Dunford's 5+1 framework
+
+name: maref-brand-positioning
+version: "1.0.0"
+description: >
+  Generates a brand positioning statement using April Dunford's 5+1 component
+  framework: (1) competitive alternatives, (2) unique attributes, (3) value proof,
+  (4) character, (5) market category, +1 target audience. Depends on
+  maref-competitor-branding for competitive landscape data.
+
+input_schema:
+  type: object
+  properties:
+    brand_id:
+      type: string
+      description: "Your brand identifier"
+    competitive_alternatives:
+      type: string
+      description: "What would customers do without your product? (e.g., 'use LangGraph without governance')"
+    unique_attributes:
+      type: array
+      items: {type: string}
+      description: "Attributes only your product has (e.g., 'TLA+ formal verification')"
+    value_proof:
+      type: array
+      items:
+        type: object
+        properties:
+          attribute: {type: string}
+          value: {type: string, description: "How the attribute delivers value"}
+    character:
+      type: string
+      description: "Brand character (e.g., 'the safety engineer of the agent world')"
+    market_category:
+      type: string
+      description: "Market frame (e.g., 'agent governance operating system')"
+    target_audience:
+      type: string
+      description: "Who cares most (e.g., 'platform architects deploying agents in production')"
+  required: [brand_id, competitive_alternatives, unique_attributes, market_category]
+
+output_schema:
+  type: object
+  properties:
+    positioning_statement:
+      type: string
+      description: "Full positioning statement following April Dunford's template"
+    one_liner:
+      type: string
+      description: "One-line positioning (for README/tagline)"
+    elevator_pitch:
+      type: string
+      description: "30-second elevator pitch"
+    differentiators:
+      type: array
+      items:
+        type: object
+        properties:
+          attribute: {type: string}
+          proof: {type: string}
+          competitor_gap: {type: string, description: "How far ahead of competitors"}
+    support_points:
+      type: array
+      items: {type: string}
+      description: "Factual support points for the positioning"
+
+dependencies:
+  - "skill://maref-competitor-branding@1.0.0"
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.brand_building.brand_positioning:generate
+
+sandbox_config:
+  cpu_limit: "50%"
+  memory_mb: 256
+  timeout_s: 30
+  network: false
+  filesystem:
+    read: ["brand_dna/", "competitive_analysis/"]
+    write: ["positioning/"]
+
+test_cases:
+  - name: "generate MAREF positioning"
+    input:
+      brand_id: maref
+      competitive_alternatives: "use LangGraph/CrewAI/AutoGen without governance, or build custom safety middleware"
+      unique_attributes:
+        - "TLA+ formal verification with 5 proven theorems"
+        - "10-state Gray Code governance state machine"
+        - "three-gate skill marketplace admission"
+        - "10/10 OWASP Agentic Top 10 coverage"
+      value_proof:
+        - {attribute: "TLA+ verification", value: "mathematically provable safety, not just tested"}
+        - {attribute: "three-gate marketplace", value: "trusted skill supply chain, not vulnerable to malicious skills"}
+      character: "the safety engineer of the agent world"
+      market_category: "agent governance and skill marketplace operating system"
+      target_audience: "platform architects deploying agents in regulated production environments"
+    expected:
+      one_liner: "MAREF is the agent governance and skill marketplace OS — use LangGraph to build, use MAREF to govern and ship skills."
+      differentiators:
+        - attribute: "TLA+ formal verification"
+          competitor_gap: "10/10 vs 0/10 for all competitors"

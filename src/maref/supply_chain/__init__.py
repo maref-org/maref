@@ -21,6 +21,11 @@ from maref.supply_chain.vulnerability_scanner import (
     VulnerabilityScanner,
     VulnerabilitySource,
 )
+from maref.supply_chain.trust_verifier import (
+    SupplyChainTrustReport,
+    SupplyChainVerifier,
+    register_supply_chain_verifier,
+)
 
 __all__ = [
     # SBOM生成器
@@ -38,4 +43,8 @@ __all__ = [
     "VulnerabilitySource",
     "VulnerabilityMatch",
     "VulnerabilityDatabase",
+    # 供应链信任验证器
+    "SupplyChainVerifier",
+    "SupplyChainTrustReport",
+    "register_supply_chain_verifier",
 ]

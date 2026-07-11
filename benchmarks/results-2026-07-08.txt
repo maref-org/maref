@@ -1,0 +1,64 @@
+Running MAREF governance benchmark (1000 iterations/primitive)...
+
+============================================================================================
+MAREF Governance Layer Overhead Benchmark
+============================================================================================
+Primitive                                         mean (μs)   p50 (μs)   p99 (μs)   max (μs)
+--------------------------------------------------------------------------------------------
+StateMachine.transition()                           1537.29    1953.96    2729.79    3264.71
+StateMachine.force_stabilize()                         3.13       3.12       3.96      13.33
+StateMachine.force_halt()                           9791.79    9045.38   20997.25   76039.75
+CircuitBreaker.record_failure()+check_depth()          0.33       0.33       0.42       6.17
+SubgoalInterceptor.intercept() [benign]               10.75      10.33      22.67      65.58
+SafetyGateV2.validate_decomposition()                  0.39       0.38       0.46       6.38
+BehaviorMonitor.record+detect()                       55.84      53.67     118.75     197.08
+--------------------------------------------------------------------------------------------
+TOTAL (full governance pipeline, mean)             11399.51                                 
+TOTAL (full governance pipeline, p99)                                    23873.29           
+============================================================================================
+
+Comparison: governance layer availability
+--------------------------------------------------------------------------------------------
+Framework        Native governance?     Governance overhead      Governance coverage
+--------------------------------------------------------------------------------------------
+MAREF            YES (G1-G5 + TLA+)     23873.3 μs (p99)         10/10 OWASP Agentic
+LangGraph        No                     0 ms (none)              0/10 (build your own)
+CrewAI           No                     0 ms (none)              0/10 (build your own)
+AutoGen          No                     0 ms (none)              0/10 (build your own)
+--------------------------------------------------------------------------------------------
+Note: LangGraph adds ~1-3 ms/node for state checkpointing (persistence),
+but this is execution-state persistence, NOT governance (no FSM, no
+circuit breaker, no HITL, no subgoal interception, no behavior monitor).
+============================================================================================
+
+# JSON summary (for regression tracking):
+{
+  "StateMachine.transition()": {
+    "mean_us": 1537.29,
+    "p99_us": 2729.79
+  },
+  "StateMachine.force_stabilize()": {
+    "mean_us": 3.13,
+    "p99_us": 3.96
+  },
+  "StateMachine.force_halt()": {
+    "mean_us": 9791.79,
+    "p99_us": 20997.25
+  },
+  "CircuitBreaker.record_failure()+check_depth()": {
+    "mean_us": 0.33,
+    "p99_us": 0.42
+  },
+  "SubgoalInterceptor.intercept() [benign]": {
+    "mean_us": 10.75,
+    "p99_us": 22.67
+  },
+  "SafetyGateV2.validate_decomposition()": {
+    "mean_us": 0.39,
+    "p99_us": 0.46
+  },
+  "BehaviorMonitor.record+detect()": {
+    "mean_us": 55.84,
+    "p99_us": 118.75
+  }
+}

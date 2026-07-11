@@ -2,16 +2,10 @@
 
 基于 gmssl 的纯 Python 实现，提供与 hashlib 风格一致的 API。
 """
-
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
-
 from gmssl import sm3 as _sm3
-
 if TYPE_CHECKING:
     pass
-
 
 def sm3_hash(data: bytes) -> str:
     """SM3 哈希计算.
@@ -24,7 +18,6 @@ def sm3_hash(data: bytes) -> str:
     """
     return _sm3.sm3_hash(list(data))
 
-
 def sm3_hmac(key: bytes, data: bytes) -> str:
     """SM3-HMAC 消息认证码.
 
@@ -35,17 +28,13 @@ def sm3_hmac(key: bytes, data: bytes) -> str:
     Returns:
         64 字符 hex 字符串
     """
-    # gmssl 未直接提供 HMAC-SM3，使用标准 hmac + sm3_hash 组合
-    # 按照 HMAC 标准实现
-    block_size = 64  # SM3 块大小为 512 位 = 64 字节
+    block_size = 64
     if len(key) > block_size:
         key = bytes.fromhex(sm3_hash(key))
     if len(key) < block_size:
-        key = key + b"\x00" * (block_size - len(key))
-
-    ipad = bytes([b ^ 0x36 for b in key])
-    opad = bytes([b ^ 0x5C for b in key])
-
+        key = key + b'\x00' * (block_size - len(key))
+    ipad = bytes([b ^ 54 for b in key])
+    opad = bytes([b ^ 92 for b in key])
     inner = sm3_hash(ipad + data)
     outer = sm3_hash(opad + bytes.fromhex(inner))
     return outer

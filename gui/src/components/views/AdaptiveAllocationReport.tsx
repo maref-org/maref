@@ -60,7 +60,7 @@ export default function AdaptiveAllocationReport({ allocations, loading, error }
           </tr>
         </thead>
         <tbody>
-          {allocations.map((alloc, i) => (
+          {allocations.map((alloc) => (
             <tr
               key={alloc.target}
               className={cn(
@@ -81,25 +81,15 @@ export default function AdaptiveAllocationReport({ allocations, loading, error }
                 >
                   <span
                     className={cn(
-                      "inline-block h-1.5 w-1.5 rounded-full",
-                      successRateColor(alloc.success_rate).replace("text-", "bg-"),
+                      "h-1.5 w-1.5 rounded-full",
+                      alloc.success_rate > 0.7 ? "bg-maref-success" : alloc.success_rate > 0.4 ? "bg-maref-warning" : "bg-maref-danger",
                     )}
                   />
                   {(alloc.success_rate * 100).toFixed(0)}%
                 </span>
               </td>
-              <td className="px-4 py-2.5 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <div className="h-1.5 w-16 rounded-full bg-maref-surface-alt">
-                    <div
-                      className="h-1.5 rounded-full bg-maref-accent"
-                      style={{ width: `${Math.min(alloc.current_weight * 100, 100)}%` }}
-                    />
-                  </div>
-                  <span className="w-10 text-right font-mono text-maref-text-muted">
-                    {(alloc.current_weight * 100).toFixed(1)}%
-                  </span>
-                </div>
+              <td className="px-4 py-2.5 text-right font-mono text-maref-text">
+                {(alloc.current_weight * 100).toFixed(1)}%
               </td>
             </tr>
           ))}

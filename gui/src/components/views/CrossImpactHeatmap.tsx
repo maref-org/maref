@@ -78,7 +78,7 @@ export default function CrossImpactHeatmap({ effects, loading, error }: CrossImp
             </div>
           ))}
 
-          {dims.map((rowDim, ri) => (
+          {dims.map((rowDim) => (
             <>
               <div
                 key={`row-${rowDim}`}
@@ -108,7 +108,7 @@ export default function CrossImpactHeatmap({ effects, loading, error }: CrossImp
                       key={`${rowDim}→${colDim}`}
                       className="flex items-center justify-center rounded bg-maref-surface-alt/20"
                     >
-                      <span className="text-[10px] text-maref-text-muted">–</span>
+                      <span className="text-[10px] text-maref-text-muted">·</span>
                     </div>
                   );
                 }
@@ -117,51 +117,20 @@ export default function CrossImpactHeatmap({ effects, loading, error }: CrossImp
                   <div
                     key={`${rowDim}→${colDim}`}
                     className={cn(
-                      "group relative flex items-center justify-center rounded cursor-default",
-                      getEffectColor(effect.effect_size),
+                      "flex items-center justify-center rounded cursor-default",
+                      getEffectColor(effect.effect_size)
                     )}
+                    title={`${effect.source_dim} → ${effect.target_dim}: ${effect.effect_size.toFixed(3)} (${effect.direction}, conf: ${effect.confidence.toFixed(2)})`}
                   >
-                    <span className={cn("text-[11px] font-mono font-medium", getEffectTextColor(effect.effect_size))}>
+                    <span className={cn("text-[10px] font-medium", getEffectTextColor(effect.effect_size))}>
                       {effect.effect_size.toFixed(2)}
                     </span>
-
-                    <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 group-hover:block z-10">
-                      <div className="whitespace-nowrap rounded-md border border-maref-border bg-maref-surface px-2.5 py-1.5 text-[11px] shadow-lg">
-                        <div className="font-medium text-maref-text">
-                          {effect.source_dim} → {effect.target_dim}
-                        </div>
-                        <div className="text-maref-text-muted">
-                          Effect: {effect.effect_size.toFixed(3)} ({effect.direction})
-                        </div>
-                        <div className="text-maref-text-muted">
-                          Confidence: {(effect.confidence * 100).toFixed(0)}%
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 );
               })}
             </>
           ))}
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center gap-4 text-[10px] text-maref-text-muted">
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-maref-success/60" /> Strong positive
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-maref-success/30" /> Weak positive
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-maref-surface-alt" /> Neutral
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-maref-danger/30" /> Weak negative
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-maref-danger/60" /> Strong negative
-        </span>
       </div>
     </div>
   );

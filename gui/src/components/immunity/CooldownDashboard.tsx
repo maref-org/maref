@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Clock, XCircle, GitMerge, Ban, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/api/client";
@@ -81,8 +81,13 @@ export function CooldownDashboard() {
   const [summary, setSummary] = useState<CooldownSummary>({ status: "checking", total_agents: 0, cooling: 0, blocked: 0, merged: 0, force_merged: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  const loadingRef = useRef(false);
+  const dataLoadedRef = useRef(false);
 
   const loadData = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -90,17 +95,31 @@ export function CooldownDashboard() {
         api.getImmunityCooldown(),
         api.getImmunityCooldownSummary(),
       ]);
-      setEntries((entriesRes.entries ?? []) as CooldownEntry[]);
-      setSummary(summaryRes);
+      if (mountedRef.current) {
+        setEntries((entriesRes.entries ?? []) as CooldownEntry[]);
+        setSummary(summaryRes);
+        dataLoadedRef.current = true;
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load cooldown data");
+      if (mountedRef.current) {
+        setError(e instanceof Error ? e.message : "Failed to load cooldown data");
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      loadingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    loadData();
+    mountedRef.current = true;
+    if (!dataLoadedRef.current) {
+      loadData();
+    }
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadData]);
 
   if (summary.status === "no_manager") {
@@ -122,92 +141,35 @@ export function CooldownDashboard() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-maref-border">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-maref-border bg-maref-surface-alt">
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">ID</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">Agent</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">状态</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">年龄</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">污染</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">已阻止</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">已合并</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">时间线</th>
-              <th className="px-3 py-2.5 text-left font-medium text-maref-text-muted">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.length === 0 && !loading && (
-              <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-maref-text-muted text-xs">
-                  暂无冷却记录
-                </td>
-              </tr>
-            )}
-            {loading && (
-              <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-maref-text-muted text-xs">
-                  加载中...
-                </td>
-              </tr>
-            )}
-            {entries.map((entry) => (
-              <tr key={entry.id} className="border-b border-maref-border last:border-0 hover:bg-maref-surface-alt/30">
-                <td className="px-3 py-2 font-mono text-[11px] text-maref-text-muted">{entry.id}</td>
-                <td className="px-3 py-2 text-maref-text font-medium">{entry.agent_name}</td>
-                <td className="px-3 py-2">
-                  <span className={cn("rounded px-1.5 py-0.5 text-[10px]", STATUS_COLORS[entry.status])}>
-                    {STATUS_LABELS[entry.status]}
-                  </span>
-                </td>
-                <td className="px-3 py-2 font-mono text-maref-text">{entry.age_seconds}s</td>
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-12 rounded-full bg-maref-border overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full",
-                          entry.contamination_score > 0.7 ? "bg-maref-danger" :
-                          entry.contamination_score > 0.4 ? "bg-maref-warning" :
-                          "bg-maref-success"
-                        )}
-                        style={{ width: `${entry.contamination_score * 100}%` }}
-                      />
-                    </div>
-                    <span className="font-mono text-maref-text-muted">{(entry.contamination_score * 100).toFixed(0)}%</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2">
-                  {entry.blocked_reason ? (
-                    <span className="flex items-center gap-1 text-maref-danger">
-                      <Ban className="h-3 w-3" />
-                      <span className="truncate max-w-[80px]">{entry.blocked_reason}</span>
-                    </span>
-                  ) : (
-                    <span className="text-maref-text-muted">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {entry.merged_branch ? (
-                    <span className="text-maref-success">{entry.merged_branch}</span>
-                  ) : (
-                    <span className="text-maref-text-muted">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  <CooldownTimeline entry={entry} />
-                </td>
-                <td className="px-3 py-2">
-                  <button className="rounded px-2 py-1 text-[10px] text-maref-accent hover:bg-maref-accent/10 transition-colors">
-                    详情
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-maref-accent border-t-transparent" />
+        </div>
+      )}
+
+      {!loading && !error && entries.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-8 text-maref-text-muted">
+          <Clock className="h-8 w-8 mb-2" />
+          <p className="text-sm">No cooldown entries</p>
+        </div>
+      )}
+
+      {!loading && entries.length > 0 && (
+        <div className="space-y-2">
+          {entries.map((entry) => (
+            <div key={entry.id} className="flex items-center gap-4 rounded-lg border border-maref-border bg-maref-surface-alt/30 px-4 py-3">
+              <CooldownTimeline entry={entry} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-maref-text truncate">{entry.agent_name}</p>
+                <p className="text-xs text-maref-text-muted">{entry.repo}</p>
+              </div>
+              <div className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-medium", STATUS_COLORS[entry.status] || "bg-maref-border/50 text-maref-text-muted")}>
+                {STATUS_LABELS[entry.status] || entry.status}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
