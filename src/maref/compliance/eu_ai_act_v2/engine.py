@@ -25,6 +25,9 @@ from maref.compliance.eu_ai_act_v2.conformity_assessment import (
 from maref.compliance.eu_ai_act_v2.data_governance import (
     DataGovernanceManager,
 )
+from maref.compliance.eu_ai_act_v2.fria import (
+    FRIAManager,
+)
 from maref.compliance.eu_ai_act_v2.gpai import (
     GPAIComplianceManager,
     GPAIStatus,
@@ -32,6 +35,15 @@ from maref.compliance.eu_ai_act_v2.gpai import (
 from maref.compliance.eu_ai_act_v2.human_oversight import (
     HumanOversightAssessment,
     HumanOversightBridge,
+)
+from maref.compliance.eu_ai_act_v2.incident_reporting import (
+    IncidentManager,
+)
+from maref.compliance.eu_ai_act_v2.post_market_monitoring import (
+    PMMManager,
+)
+from maref.compliance.eu_ai_act_v2.qms import (
+    QMSManager,
 )
 from maref.compliance.eu_ai_act_v2.record_keeping import (
     AIActLogger,
@@ -91,6 +103,16 @@ class EUAIComplianceSummary:
     record_keeping_count: int = 0
     accuracy_robustness_complete: bool = False
     accuracy_robustness_gaps: list[str] = field(default_factory=list)
+    qms_established: bool = False
+    qms_doc_count: int = 0
+    qms_audit_status: str = ""
+    incidents_open: int = 0
+    incidents_total: int = 0
+    fria_complete: bool = False
+    fria_high_risk_rights: list[str] = field(default_factory=list)
+    pmm_active: bool = False
+    pmm_observations: int = 0
+    pmm_review_due: bool = False
     assessed_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -127,6 +149,10 @@ class EUAIComplianceEngineV2:
         self.accuracy = AccuracyManager()
         self.robustness = RobustnessManager()
         self.cybersecurity = CybersecurityManager()
+        self.qms = QMSManager()
+        self.incident_mgr = IncidentManager()
+        self.fria = FRIAManager()
+        self.pmm = PMMManager()
 
     def classify(self, **kwargs: Any) -> ClassificationDetail:
         """Classify the AI system risk level.
@@ -214,16 +240,20 @@ class EUAIComplianceEngineV2:
 
         # Base weight by compliance areas
         weights = {
-            "risk_classification": 0.08,
-            "risk_management": 0.15,
-            "documentation": 0.10,
-            "transparency": 0.08,
-            "human_oversight": 0.15,
-            "conformity": 0.12,
-            "gpai": 0.08,
-            "data_governance": 0.08,
+            "risk_classification": 0.06,
+            "risk_management": 0.12,
+            "documentation": 0.08,
+            "transparency": 0.06,
+            "human_oversight": 0.12,
+            "conformity": 0.10,
+            "gpai": 0.06,
+            "data_governance": 0.06,
             "record_keeping": 0.04,
-            "accuracy_robustness": 0.12,
+            "accuracy_robustness": 0.10,
+            "qms": 0.06,
+            "incident_reporting": 0.04,
+            "fria": 0.04,
+            "pmm": 0.06,
         }
         score = 0.0
 
@@ -286,6 +316,32 @@ class EUAIComplianceEngineV2:
         elif summary.accuracy_robustness_gaps:
             ratio = 1.0 - (len(summary.accuracy_robustness_gaps) / 5.0)
             score += weights["accuracy_robustness"] * max(0, ratio * 100)
+
+        # QMS (Art.17)
+        if summary.qms_established and summary.qms_audit_status == "compliant":
+            score += weights["qms"] * 100.0
+        elif summary.qms_established:
+            score += weights["qms"] * 50.0
+
+        # Incident Reporting (Art.20 + Art.73)
+        if summary.incidents_total > 0 and summary.incidents_open == 0:
+            score += weights["incident_reporting"] * 100.0
+        elif summary.incidents_open > 0:
+            ratio = 1.0 - (summary.incidents_open / max(summary.incidents_total, 1))
+            score += weights["incident_reporting"] * max(0, ratio * 100)
+
+        # FRIA (Art.27)
+        if summary.fria_complete and not summary.fria_high_risk_rights:
+            score += weights["fria"] * 100.0
+        elif summary.fria_complete:
+            ratio = 1.0 - (len(summary.fria_high_risk_rights) / 12.0)
+            score += weights["fria"] * max(0, ratio * 100)
+
+        # Post-Market Monitoring (Art.61)
+        if summary.pmm_active and not summary.pmm_review_due:
+            score += weights["pmm"] * 100.0
+        elif summary.pmm_active:
+            score += weights["pmm"] * 50.0
 
         return round(score, 1)
 
@@ -426,6 +482,51 @@ class EUAIComplianceEngineV2:
         if high_risk_cyber:
             recommendations.append("Close high-risk cybersecurity gaps")
 
+        # M3: QMS (Art.17)
+        qms_summary = self.qms.get_qms_summary()
+        qms_established = qms_summary["document_count"] > 0
+        qms_doc_count = qms_summary["document_count"]
+        audits = self.qms.get_kpi_dashboard()
+        qms_audit_status = "compliant"
+        if audits.get("open_findings", 0) > 0:
+            qms_audit_status = "non_compliant" if audits["open_findings"] > 3 else "conditional"
+
+        # M3: Incident Reporting (Art.20 + Art.73)
+        inc_summary = self.incident_mgr.get_incident_summary()
+        incidents_open = inc_summary.get("open_count", 0)
+        incidents_total = inc_summary.get("total", 0)
+
+        # M3: FRIA (Art.27)
+        fria_summary = self.fria.get_fria_summary()
+        fria_complete = fria_summary.get("generated_at", "") != "" and fria_summary.get("total_assessments", 0) > 0
+        high_risk_assessments = self.fria.get_high_risk_rights()
+        fria_high_risk_rights = [a.right.value for a in high_risk_assessments]
+
+        # M3: PMM (Art.61)
+        pmm_summary = self.pmm.get_pmm_summary()
+        pmm_active = pmm_summary.get("total_plans", 0) > 0
+        pmm_observations = pmm_summary.get("total_observations", 0)
+        pmm_review_due = any(
+            self.pmm.check_review_due(p["plan_id"])
+            for p in pmm_summary.get("plans", [])
+        )
+
+        if not qms_established:
+            gaps.append("QMS: No quality management documents established")
+            recommendations.append("Establish Art.17 quality management system")
+        if qms_audit_status == "non_compliant":
+            gaps.append("QMS: Audit findings unresolved, quality system non-compliant")
+        if incidents_open > 0:
+            gaps.append(f"Incident reporting: {incidents_open} open incidents require correction")
+        if not fria_complete:
+            gaps.append("FRIA: No Fundamental Rights Impact Assessment completed")
+            recommendations.append("Complete Art.27 Fundamental Rights Impact Assessment")
+        elif fria_high_risk_rights:
+            gaps.append(f"FRIA: High risk to rights: {fria_high_risk_rights}")
+        if not pmm_active:
+            gaps.append("PMM: No post-market monitoring plan established")
+            recommendations.append("Establish Art.61 post-market monitoring plan")
+
         summary = EUAIComplianceSummary(
             system_name=self.system_name,
             version=self.version,
@@ -448,6 +549,16 @@ class EUAIComplianceEngineV2:
             record_keeping_count=record_count,
             accuracy_robustness_complete=accuracy_robustness_complete,
             accuracy_robustness_gaps=ar_gaps,
+            qms_established=qms_established,
+            qms_doc_count=qms_doc_count,
+            qms_audit_status=qms_audit_status,
+            incidents_open=incidents_open,
+            incidents_total=incidents_total,
+            fria_complete=fria_complete,
+            fria_high_risk_rights=fria_high_risk_rights,
+            pmm_active=pmm_active,
+            pmm_observations=pmm_observations,
+            pmm_review_due=pmm_review_due,
             overall_compliant=False,
             overall_score=0.0,
             gaps=gaps,
@@ -577,6 +688,24 @@ class EUAIComplianceEngineV2:
             "accuracy_robustness": {
                 "complete": summary.accuracy_robustness_complete,
                 "gaps": summary.accuracy_robustness_gaps,
+            },
+            "qms": {
+                "established": summary.qms_established,
+                "doc_count": summary.qms_doc_count,
+                "audit_status": summary.qms_audit_status,
+            },
+            "incident_reporting": {
+                "open_incidents": summary.incidents_open,
+                "total_incidents": summary.incidents_total,
+            },
+            "fria": {
+                "complete": summary.fria_complete,
+                "high_risk_rights": summary.fria_high_risk_rights,
+            },
+            "post_market_monitoring": {
+                "active": summary.pmm_active,
+                "observations": summary.pmm_observations,
+                "review_due": summary.pmm_review_due,
             },
             "overall": {
                 "compliant": summary.overall_compliant,

@@ -73,12 +73,6 @@ from maref.compliance.eu_ai_act_v2.gpai import (
 from maref.compliance.eu_ai_act_v2.gpai import (
     TechnicalDocumentation as GPAITechnicalDocumentation,
 )
-from maref.compliance.eu_ai_act_v2.qms import (
-    QMSAuditRecord,
-    QMSDocument,
-    QMSManager,
-    QualityPolicy,
-)
 from maref.compliance.eu_ai_act_v2.human_oversight import (
     HumanOversightAssessment,
     HumanOversightBridge,
@@ -94,11 +88,17 @@ from maref.compliance.eu_ai_act_v2.incident_reporting import (
     IncidentStatus,
 )
 from maref.compliance.eu_ai_act_v2.post_market_monitoring import (
+    PeriodicReport,
     PMMManager,
     PMMObservation,
     PMMPlan,
     PMMTrendAnalysis,
-    PeriodicReport,
+)
+from maref.compliance.eu_ai_act_v2.qms import (
+    QMSAuditRecord,
+    QMSDocument,
+    QMSManager,
+    QualityPolicy,
 )
 from maref.compliance.eu_ai_act_v2.record_keeping import (
     AIActLogEntry,
