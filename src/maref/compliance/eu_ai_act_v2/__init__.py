@@ -23,6 +23,13 @@ from maref.compliance.eu_ai_act_v2.conformity_assessment import (
     EUDeclarationOfConformity,
     SubstantialModificationType,
 )
+from maref.compliance.eu_ai_act_v2.data_governance import (
+    BiasDetectionReport,
+    DataGovernanceManager,
+    DatasetGovernanceRecord,
+    DatasetQualityMetrics,
+    SpecialCategoryAssessment,
+)
 from maref.compliance.eu_ai_act_v2.engine import (
     EUAIComplianceEngineV2,
     EUAIComplianceSummary,
@@ -85,6 +92,11 @@ from maref.compliance.eu_ai_act_v2.transparency import (
 )
 
 __all__ = [
+    "BiasDetectionReport",
+    "DataGovernanceManager",
+    "DatasetGovernanceRecord",
+    "DatasetQualityMetrics",
+    "SpecialCategoryAssessment",
     "AnnexIIICategory",
     "ClassificationDetail",
     "ExemptionReason",
