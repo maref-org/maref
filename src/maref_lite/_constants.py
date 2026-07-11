@@ -1,26 +1,21 @@
-"""Backward-compatible re-exports from maref.governance.constants.
+from __future__ import annotations
 
-This module is kept for backward compatibility.
-New code should import from maref.governance.constants directly.
-"""
+from enum import Enum, auto
+from typing import Final
 
-from maref.governance.constants import (
-    ENTROPY_LEVELS,
-    GRAY_CODE,
-    MAX_ENTROPY,
-    STATE_NAMES,
-    compute_valid_transitions,
-    hamming_distance,
-)
 
-VALID_TRANSITIONS = compute_valid_transitions()
+class EvolutionState(Enum):
+    IDLE = auto()
+    EVOLVING = auto()
+    STABLE = auto()
+    DEGRADED = auto()
+    RECOVERING = auto()
+    EMERGENCY = auto()
 
-__all__ = [
-    "ENTROPY_LEVELS",
-    "GRAY_CODE",
-    "MAX_ENTROPY",
-    "STATE_NAMES",
-    "VALID_TRANSITIONS",
-    "hamming_distance",
-    "compute_valid_transitions",
-]
+
+class SafetyLevel(Enum):
+    CRITICAL = auto()
+    HIGH = auto()
+    MEDIUM = auto()
+    LOW = auto()
+    NONE = auto()

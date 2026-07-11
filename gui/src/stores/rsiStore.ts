@@ -36,7 +36,7 @@ interface RsiState {
   refreshAll: () => Promise<void>;
 }
 
-export const useRsiStore = create<RsiState>((set, get) => ({
+export const useRsiStore = create<RsiState>((set) => ({
   paretoFront: null,
   crossEffects: [],
   adaptiveAllocation: [],
@@ -81,23 +81,21 @@ export const useRsiStore = create<RsiState>((set, get) => ({
 
   refreshAll: async () => {
     set({ loading: true, error: null });
-    const errors: string[] = [];
     try {
-      const results = await Promise.allSettled([
+      const [pareto, effects, allocation] = await Promise.all([
         api.getParetoFront(),
         api.getCrossEffects(),
         api.getAdaptiveAllocation(),
       ]);
-      results.forEach((r, i) => {
-        if (r.status === "fulfilled") {
-          const key = ["paretoFront", "crossEffects", "adaptiveAllocation"][i] as keyof RsiState;
-          set({ [key]: r.value } as Partial<RsiState>);
-        } else {
-          errors.push(r.reason?.message ?? `Request ${i} failed`);
-        }
+      set({
+        paretoFront: pareto,
+        crossEffects: effects,
+        adaptiveAllocation: allocation,
       });
+    } catch (err) {
+      set({ error: (err as Error).message });
     } finally {
-      set({ loading: false, error: errors.length > 0 ? errors.join("; ") : null });
+      set({ loading: false });
     }
   },
 }));

@@ -96,10 +96,11 @@ VARIABLES
   governanceStates, (* [AgentIds -> GovernanceState] current governance state *)
   governancePhases, (* [AgentIds -> GovernancePhase] current autonomy phase *)
   alerts,           (* Set of alert records *)
-  quarantineList    (* Set of quarantined agent IDs *)
+  quarantineList,   (* Set of quarantined agent IDs *)
+  outputSanitized   (* [AgentIds -> BOOLEAN] whether output passed steg sanitization *)
 
 vars == <<agentCards, evalReports, evalScores, governanceStates,
-          governancePhases, alerts, quarantineList>>
+          governancePhases, alerts, quarantineList, outputSanitized>>
 
 (* ============================================================================ *)
 (* --- Initial State --- *)
@@ -117,6 +118,7 @@ Init ==
   /\ governancePhases = [a \in AgentIds |-> "OLD_YIN"]
   /\ alerts = {}
   /\ quarantineList = {}
+  /\ outputSanitized = [a \in AgentIds |-> TRUE]
 
 (* ============================================================================ *)
 (* --- Helper Functions --- *)
@@ -257,6 +259,29 @@ ScorePhaseMonotonicityInvariant ==
 ComplianceQuarantineSafetyInvariant ==
   \A a \in AgentIds :
     HasCriticalFindings(a)
+      => governanceStates[a] = "HALT"
+
+(* ============================================================================ *)
+(* --- THEOREM 6: StenoDetectionComplete --- *)
+(* ============================================================================ *)
+(*
+  THEOREM StenoDetectionComplete:
+    Any agent whose output has not passed Unicode steganography
+    sanitization (outputSanitized[a] = FALSE) MUST be in HALT state.
+    This ensures that steganography detection always drives governance
+    decisions — no agent with unsanitized output can remain active.
+
+  This models the StegSanitizer → ThreatGovernanceBridge → force_halt
+  pathway at the formal specification level.
+
+  Formal statement:
+    \A a \in AgentIds :
+      outputSanitized[a] = FALSE => governanceStates[a] = "HALT"
+*)
+
+StenoDetectionCompleteInvariant ==
+  \A a \in AgentIds :
+    outputSanitized[a] = FALSE
       => governanceStates[a] = "HALT"
 
 (* ============================================================================ *)
@@ -559,7 +584,28 @@ UpdateCrossBorder(a, isCrossBorder) ==
   /\ a \in AgentIds
   /\ agentCards' = [agentCards EXCEPT ![a].cross_border = isCrossBorder]
   /\ UNCHANGED <<evalReports, evalScores, governanceStates, governancePhases,
-                alerts, quarantineList>>
+                alerts, quarantineList, outputSanitized>>
+
+(* ============================================================================ *)
+(* --- Action: EmitOutput (steganography sanitization gate) --- *)
+(* ============================================================================ *)
+(*
+  EmitOutput(a, sanitized):
+    Agent a emits output. If sanitized=FALSE (steganography detected),
+    the agent is forced into HALT state. This action models the
+    StegSanitizer → ThreatGovernanceBridge → force_halt pathway.
+*)
+
+EmitOutput(a, sanitized) ==
+  /\ a \in AgentIds
+  /\ sanitized \in BOOLEAN
+  /\ outputSanitized' = [outputSanitized EXCEPT ![a] = sanitized]
+  /\ IF sanitized
+       THEN UNCHANGED <<agentCards, evalReports, evalScores, governanceStates,
+                       governancePhases, alerts, quarantineList>>
+       ELSE /\ governanceStates' = [governanceStates EXCEPT ![a] = "HALT"]
+            /\ quarantineList' = quarantineList \cup {a}
+            /\ UNCHANGED <<agentCards, evalReports, evalScores, governancePhases, alerts>>
 
 (* ============================================================================ *)
 (* --- Next-State Relation --- *)
@@ -573,6 +619,7 @@ Next ==
        RunFullRun(a, score, findings)
   \/ \E a \in AgentIds, skillName \in STRING : GeneratePromptRotAlert(a, skillName)
   \/ \E a \in AgentIds, isCrossBorder \in BOOLEAN : UpdateCrossBorder(a, isCrossBorder)
+  \/ \E a \in AgentIds, sanitized \in BOOLEAN : EmitOutput(a, sanitized)
 
 (* ============================================================================ *)
 (* --- Specification --- *)
@@ -588,6 +635,7 @@ SafetyInvariant ==
   /\ CrossBorderConsistencyInvariant
   /\ ComplianceQuarantineSafetyInvariant
   /\ ScorePhaseMonotonicityInvariant
+  /\ StenoDetectionCompleteInvariant
   /\ DecisionSafetyInvariant
   /\ DecisionPriorityInvariant
   /\ DecisionConsistencyInvariant
@@ -619,6 +667,10 @@ THEOREM ScorePhaseMonotonicity ==
 (* THEOREM 5: Compliance violations force quarantine *)
 THEOREM ComplianceQuarantineSafety ==
   Spec => []ComplianceQuarantineSafetyInvariant
+
+(* THEOREM 6: Steganography detection forces HALT (output sanitization safety) *)
+THEOREM StenoDetectionComplete ==
+  Spec => []StenoDetectionCompleteInvariant
 
 (* ============================================================================ *)
 (* --- Type Invariant --- *)

@@ -1,0 +1,96 @@
+# MAREF SkillManifest — Competitor Branding
+# Maps competitive landscape: who competes, on what dimensions, where are gaps
+
+name: maref-competitor-branding
+version: "1.0.0"
+description: >
+  Maps the competitive landscape for a brand: identifies competitors, their
+  positioning dimensions, strengths/weaknesses, and white-space opportunities.
+  Outputs a 2-axis competitive positioning map with gap analysis. Depends on
+  maref-brand-context for brand voice consistency.
+
+input_schema:
+  type: object
+  properties:
+    brand_id:
+      type: string
+      description: "Your brand identifier"
+    competitors:
+      type: array
+      items: {type: string}
+      description: "List of competitor names to analyze"
+    dimensions:
+      type: array
+      items:
+        type: object
+        properties:
+          name: {type: string, description: "e.g., 'governance depth'"}
+          scale: {type: string, description: "e.g., '0-10'"}
+      description: "2-4 dimensions for the positioning map (2 recommended)"
+    market_context:
+      type: string
+      description: "Market category context (e.g., 'open-source agent frameworks')"
+  required: [brand_id, competitors, dimensions]
+
+output_schema:
+  type: object
+  properties:
+    positioning_map:
+      type: object
+      description: "2-axis competitive positioning map"
+      properties:
+        x_axis: {type: string}
+        y_axis: {type: string}
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              name: {type: string}
+              x: {type: number}
+              y: {type: number}
+              quadrant: {type: string, enum: [leader, challenger, follower, nicher]}
+    white_spaces:
+      type: array
+      items:
+        type: object
+        properties:
+          description: {type: string, description: "e.g., 'governance + skill marketplace (no competitor)"}
+          opportunity_score: {type: number, minimum: 0, maximum: 100}
+    differentiation_opportunities:
+      type: array
+      items: {type: string}
+
+dependencies:
+  - "skill://maref-brand-context@1.0.0"
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.brand_building.competitor_branding:map
+
+sandbox_config:
+  cpu_limit: "40%"
+  memory_mb: 256
+  timeout_s: 30
+  network: false
+  filesystem:
+    read: ["brand_dna/"]
+    write: ["competitive_analysis/"]
+
+test_cases:
+  - name: "map agent framework competition"
+    input:
+      brand_id: maref
+      competitors: ["LangGraph", "CrewAI", "AutoGen", "Anthropic MCP"]
+      dimensions:
+        - {name: "governance depth", scale: "0-10"}
+        - {name: "orchestration capability", scale: "0-10"}
+      market_context: "open-source agent frameworks"
+    expected:
+      positioning_map:
+        points:
+          - {name: "MAREF", x: 10, y: 7, quadrant: "leader"}
+          - {name: "LangGraph", x: 2, y: 9, quadrant: "leader"}
+      white_spaces:
+        - description: "governance + skill marketplace intersection"
+          opportunity_score: 95

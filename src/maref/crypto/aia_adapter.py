@@ -5,18 +5,12 @@
 - CAI（智能体身份证书）的 SM2 签名验证 + SM3 哈希
 - CertificateVerify 的 SM2 签名验证
 """
-
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-
 from .sm2 import sm2_sign, sm2_verify
 from .sm3 import sm3_hash
-
 if TYPE_CHECKING:
     pass
-
 
 @dataclass(frozen=True)
 class AgentIdentityCertificate:
@@ -24,13 +18,11 @@ class AgentIdentityCertificate:
 
     对应 ACPs AIA 协议中的 CAI 数据结构。
     """
-
-    agent_id: str  # AIC 智能体身份码
-    public_key: str  # SM2 公钥 (hex, 130字符)
-    signature: str  # CASP 对 CAI 的 SM2 签名
-    casp_id: str  # 证书签发机构标识
-    validity_period: tuple[int, int]  # (not_before, not_after) Unix timestamp
-
+    agent_id: str
+    public_key: str
+    signature: str
+    casp_id: str
+    validity_period: tuple[int, int]
 
 @dataclass(frozen=True)
 class AIAHandshakeContext:
@@ -38,17 +30,12 @@ class AIAHandshakeContext:
 
     保存 mTLS 握手过程中的关键参数，用于 CertificateVerify 验证。
     """
-
     client_random: bytes
     server_random: bytes
-    cipher_suite: str  # 如 "TLS_SM4_GCM_SM3"
-    handshake_messages: bytes  # 所有握手消息的串联
+    cipher_suite: str
+    handshake_messages: bytes
 
-
-def verify_cai_certificate(
-    cai: AgentIdentityCertificate,
-    casp_public_key: str,
-) -> bool:
+def verify_cai_certificate(cai: AgentIdentityCertificate, casp_public_key: str) -> bool:
     """验证 CAI 证书合法性.
 
     对应 AIA 协议 §3(7) 步骤 ①-③：
@@ -64,37 +51,15 @@ def verify_cai_certificate(
     Returns:
         验证是否通过
     """
-    # 构造 CAI 明文（排除 signature 字段）
-    cai_plaintext = (
-        f"{cai.agent_id}:{cai.public_key}:{cai.casp_id}:"
-        f"{cai.validity_period[0]}:{cai.validity_period[1]}"
-    ).encode()
-
-    # SM3 哈希明文
+    cai_plaintext = f'{cai.agent_id}:{cai.public_key}:{cai.casp_id}:{cai.validity_period[0]}:{cai.validity_period[1]}'.encode()
     sm3_hash(cai_plaintext)
-
-    # SM2 验证签名（签名内容应为 Hash1 的 hex）
-    # 注意：实际协议中签名的是 SM3 哈希值，这里假设 signature 是对 hash1 的签名
     try:
-        # 如果 signature 是签名值，验证它是否匹配 hash1
-        # 但通常 CAI 签名是对整个 CAI 结构的签名，不是对 hash 的签名
-        # 这里采用更直接的方式：验证 signature 是否由 casp_public_key 签发
-        verified = sm2_verify(
-            casp_public_key,
-            cai_plaintext,
-            cai.signature,
-            use_sm3=True,
-        )
+        verified = sm2_verify(casp_public_key, cai_plaintext, cai.signature, use_sm3=True)
         return verified
     except Exception:
         return False
 
-
-def verify_certificate_verify(
-    public_key: str,
-    handshake_messages: bytes,
-    signature: str,
-) -> bool:
+def verify_certificate_verify(public_key: str, handshake_messages: bytes, signature: str) -> bool:
     """验证 CertificateVerify 消息.
 
     对应 AIA 协议 §3(7) 步骤：
@@ -110,24 +75,10 @@ def verify_certificate_verify(
     Returns:
         验证是否通过
     """
-    # 计算握手消息的 SM3 哈希
     sm3_hash(handshake_messages)
+    return sm2_verify(public_key, handshake_messages, signature, use_sm3=True)
 
-    # SM2 验证签名
-    # 签名数据应为 handshake_messages（或 hash）
-    return sm2_verify(
-        public_key,
-        handshake_messages,
-        signature,
-        use_sm3=True,
-    )
-
-
-def generate_certificate_verify(
-    private_key: str,
-    public_key: str,
-    handshake_messages: bytes,
-) -> str:
+def generate_certificate_verify(private_key: str, public_key: str, handshake_messages: bytes) -> str:
     """生成 CertificateVerify 签名.
 
     Args:
@@ -138,18 +89,9 @@ def generate_certificate_verify(
     Returns:
         hex 格式的签名值
     """
-    return sm2_sign(
-        private_key,
-        handshake_messages,
-        public_key=public_key,
-        use_sm3=True,
-    )
+    return sm2_sign(private_key, handshake_messages, public_key=public_key, use_sm3=True)
 
-
-def check_agent_identity(
-    received_aic: str,
-    cai: AgentIdentityCertificate,
-) -> bool:
+def check_agent_identity(received_aic: str, cai: AgentIdentityCertificate) -> bool:
     """比对对方 AIC 与 CAI 中的 AIC 是否一致.
 
     对应 AIA 协议 §3(7)：验证 CAI 明文中的 AIC 与收到的 AIC 是否匹配。

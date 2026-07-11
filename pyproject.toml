@@ -84,8 +84,11 @@ sentinel = [
     "psutil>=5.9",
     "mitmproxy>=10.2",
 ]
+audit = [
+    "transformer_lens>=0.2",
+]
 all = [
-    "maref[ml,sidecar,dev,desktop,sentinel]",
+    "maref[ml,sidecar,dev,desktop,sentinel,audit]",
 ]
 
 [project.scripts]

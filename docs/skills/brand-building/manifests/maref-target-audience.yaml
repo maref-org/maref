@@ -1,0 +1,102 @@
+# MAREF SkillManifest — Target Audience Segmentation
+# Segments audience by pain point, decision power, and conversion path
+
+name: maref-target-audience
+version: "1.0.0"
+description: >
+  Segments the target audience for a brand based on positioning. Identifies
+  audience tiers (P0 core / P1 secondary / P2 tertiary), their pain points,
+  decision chains, and conversion paths. Depends on maref-brand-positioning
+  for positioning context.
+
+input_schema:
+  type: object
+  properties:
+    brand_id:
+      type: string
+    positioning_statement:
+      type: string
+      description: "Positioning statement from maref-brand-positioning skill"
+    audience_hypotheses:
+      type: array
+      items:
+        type: object
+        properties:
+          name: {type: string, description: "Audience name (e.g., 'platform architect')"}
+          pain_points: {type: array, items: {type: string}}
+          decision_power: {type: string, enum: [decision_maker, influencer, end_user]}
+          current_alternative: {type: string}
+    market_research:
+      type: object
+      description: "Optional market research data"
+      properties:
+        segment_sizes: {type: object}
+        willingness_to_pay: {type: object}
+  required: [brand_id, positioning_statement, audience_hypotheses]
+
+output_schema:
+  type: object
+  properties:
+    segments:
+      type: array
+      items:
+        type: object
+        properties:
+          tier: {type: string, enum: [P0, P1, P2, P3]}
+          name: {type: string}
+          description: {type: string}
+          pain_points: {type: array, items: {type: string}}
+          value_prop: {type: string, description: "Audience-specific value proposition"}
+          decision_chain:
+            type: array
+            items:
+              type: object
+              properties:
+                role: {type: string}
+                concern: {type: string}
+                influence: {type: string, enum: [high, medium, low]}
+          conversion_path: {type: string, description: "How this audience converts"}
+          messaging_angle: {type: string}
+    prioritization:
+      type: array
+      items:
+        type: object
+        properties:
+          tier: {type: string}
+          audience: {type: string}
+          rationale: {type: string}
+
+dependencies:
+  - "skill://maref-brand-positioning@1.0.0"
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.brand_building.target_audience:segment
+
+sandbox_config:
+  cpu_limit: "40%"
+  memory_mb: 256
+  timeout_s: 30
+  network: false
+  filesystem:
+    read: ["positioning/"]
+    write: ["audience/"]
+
+test_cases:
+  - name: "segment MAREF audience"
+    input:
+      brand_id: maref
+      positioning_statement: "MAREF is the agent governance and skill marketplace OS"
+      audience_hypotheses:
+        - name: "Platform Architect"
+          pain_points: ["LangGraph has no governance", "production agents unsafe"]
+          decision_power: decision_maker
+          current_alternative: "custom safety middleware"
+        - name: "IP Operations Director"
+          pain_points: ["need agent marketplace for monetization"]
+          decision_power: influencer
+          current_alternative: "none"
+    expected:
+      segments:
+        - tier: P0
+          name: "Platform Architect"

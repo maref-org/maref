@@ -1,0 +1,148 @@
+# MAREF SkillManifest — Creative Automation Pipeline
+# Adapted from alexbeattie/creative-automation-pipeline as a MAREF Skill
+# marketplace reference case. Architecture ideas extracted; no direct code
+# integration (FastAPI+Vue stack is too heavy for a Skill).
+
+name: maref-creative-automation
+version: "1.0.0"
+description: >
+  Deterministic image-prompt composer for branded creative-automation pipelines.
+  Loads a brand_profile.yaml (config-as-code), composes a versioned prompt for
+  each (product, channel) pair, and gates every composition through MAREF
+  governance primitives: SafetyGateV2 (deny-rule enforcement), CircuitBreaker
+  (drift protection), and tamper-evident audit trail. Adapted from
+  alexbeattie/creative-automation-pipeline's prompt composer, refactored as a
+  MAREF Skill marketplace reference case.
+
+input_schema:
+  type: object
+  properties:
+    brand_profile_path:
+      type: string
+      description: "Path to brand_profile.yaml (config-as-code)"
+    brief:
+      type: object
+      properties:
+        campaign_name: {type: string}
+        target_audience: {type: string}
+        campaign_message: {type: string}
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {type: string}
+              name: {type: string}
+              description: {type: string}
+      required: [campaign_name, target_audience, products]
+    locale:
+      type: object
+      properties:
+        id: {type: string}
+        display_language: {type: string}
+        cultural_cues: {type: string}
+        forbidden_imagery:
+          type: array
+          items: {type: string}
+    channel:
+      type: string
+      enum: [social_feed_square, social_feed_portrait, story_vertical,
+             display_landscape, display_banner]
+      default: social_feed_square
+    product_index:
+      type: integer
+      default: 0
+      description: "Index into brief.products for multi-product campaigns"
+  required: [brand_profile_path, brief, locale]
+
+output_schema:
+  type: object
+  properties:
+    prompt:
+      type: string
+      description: "Composed deterministic prompt (empty if blocked)"
+    blocked:
+      type: boolean
+      description: "True if SafetyGate or CircuitBreaker blocked the composition"
+    block_reason:
+      type: string
+      description: "Human-readable explanation when blocked=True"
+    profile_id: {type: string}
+    profile_version:
+      type: string
+      description: "Pinned brand_profile version for reproducibility"
+    brief_hash:
+      type: string
+      description: "SHA-256 of the campaign brief (for audit dedup)"
+    prompt_hash:
+      type: string
+      description: "SHA-256 of the composed prompt (audit trail chain link)"
+    template_version:
+      type: string
+      description: "Prompt template version (default: skeleton_v1)"
+
+dependencies: []
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.creative_automation.prompt_composer:compose
+
+sandbox_config:
+  cpu_limit: "25%"
+  memory_mb: 128
+  timeout_s: 10
+  network: false
+  filesystem:
+    read: ["brand_profiles/", "prompt_templates/", "prompt_config.yaml"]
+    write: [".governance/creative_automation_audit.jsonl"]
+
+test_cases:
+  - name: "compose benign tech-brand prompt"
+    input:
+      brand_profile_path: "brand_profiles/maref_demo_tech.yaml"
+      brief:
+        campaign_name: "MAREF v0.36 Launch"
+        target_audience: "platform architects deploying agents in production"
+        campaign_message: "Build with LangGraph. Govern with MAREF."
+        products:
+          - id: maref-cli
+            name: "MAREF CLI"
+            description: "Command-line interface for agent governance."
+      locale:
+        id: en-US
+        display_language: en
+        cultural_cues: "San Francisco developer culture; engineering credibility over hype"
+      channel: social_feed_square
+    expected:
+      blocked: false
+      profile_id: maref_demo_tech
+      template_version: skeleton_v1
+
+  - name: "block prompt containing restricted phrase 'revolutionary'"
+    input:
+      brand_profile_path: "brand_profiles/maref_demo_tech.yaml"
+      brief:
+        campaign_name: "Hype Test"
+        target_audience: "easily impressed buyers"
+        campaign_message: "revolutionary agent governance"
+        products:
+          - id: hype-product
+            name: "Revolutionary MAREF"
+            description: "revolutionary game-changing world-class agent governance"
+      locale:
+        id: en-US
+        display_language: en
+        cultural_cues: "test locale"
+      channel: social_feed_square
+    expected:
+      blocked: true
+      block_reason: "matched deny-rule: 'revolutionary'"
+
+governance:
+  safety_gate: true
+  circuit_breaker:
+    max_consecutive_blocks: 3
+    cooldown_s: 300
+  audit_trail: true
+  state_machine_binding: true
+  version_pinning: true

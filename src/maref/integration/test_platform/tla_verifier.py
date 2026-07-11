@@ -9,6 +9,9 @@ Theorems verified:
   2. PromptRotDetection - Prompt rot detectability for all capabilities
   3. ScorePhaseMonotonicity - Higher scores grant equal/greater permissions
   4. ComplianceQuarantineSafety - CRITICAL findings force HALT
+  5. EvalToGovernanceLiveness - Fast-Screen FAIL leads to HALT
+  6. GovernanceConfigExport - Config export completeness
+  7. StenoDetectionComplete - Steganography markers force HALT
 """
 
 from __future__ import annotations
@@ -277,6 +280,63 @@ class TLATheoremVerifier:
         )
 
     # =========================================================================
+    # THEOREM 7: StenoDetectionComplete
+    # =========================================================================
+    # Any output with steganography markers must force HALT state.
+
+    @classmethod
+    def verify_steno_detection_complete(
+        cls,
+        output_text: str = "",
+        state_machine: Any | None = None,
+    ) -> TheoremResult:
+        """
+        Verify Theorem 7: Steganography Detection Completeness.
+
+        Formal: \\A a \\in AgentIds : outputSanitized[a] = FALSE => GovernanceState(a) = "HALT"
+
+        If the output_text contains known steganography characters (U+02B9,
+        zero-width chars, BOM), the governance state machine MUST be in HALT.
+        """
+        from maref.security.steg_sanitizer import UnicodeAnomalyDetector
+
+        detector = UnicodeAnomalyDetector()
+        anomalies = detector.detect(output_text)
+        has_stego = len(anomalies) > 0
+
+        if not has_stego:
+            return TheoremResult(
+                theorem_name="StenoDetectionComplete",
+                passed=True,
+                details="No steganography markers detected — theorem not triggered",
+            )
+
+        # Steganography detected: state machine must be in HALT
+        if state_machine is None:
+            from maref.governance.state_machine import GovernanceStateMachine
+
+            state_machine = GovernanceStateMachine()
+
+        from maref.governance.types import GovernanceState
+
+        current = state_machine.current_state
+        passed = current == GovernanceState.HALT
+        return TheoremResult(
+            theorem_name="StenoDetectionComplete",
+            passed=passed,
+            details=(
+                f"Detected {len(anomalies)} stego markers; "
+                f"expected HALT, got {current.name}"
+            ),
+            counterexample=None if passed else {
+                "stego_count": len(anomalies),
+                "sample": [a.to_dict() for a in anomalies[:5]],
+                "expected_state": "HALT",
+                "actual_state": current.name,
+            },
+        )
+
+    # =========================================================================
     # Full Verification Suite
     # =========================================================================
 
@@ -287,6 +347,7 @@ class TLATheoremVerifier:
         report: EvaluationReport,
         circuit_breaker: Any | None = None,
         state_machine: Any | None = None,
+        output_text: str = "",
     ) -> dict[str, TheoremResult]:
         """Run all theorem verifications and return results."""
         results = {
@@ -298,6 +359,9 @@ class TLATheoremVerifier:
         }
         results["GovernanceConfigExport"] = cls.verify_governance_config_export(
             circuit_breaker, state_machine
+        )
+        results["StenoDetectionComplete"] = cls.verify_steno_detection_complete(
+            output_text, state_machine
         )
         return results
 

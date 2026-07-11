@@ -5,10 +5,14 @@ on:
     paths:
       - 'src/formal/**'
       - 'src/maref/governance/**'
+      - 'src/maref/integration/test_platform/**'
+      - 'src/maref/security/steg_sanitizer.py'
   pull_request:
     paths:
       - 'src/formal/**'
       - 'src/maref/governance/**'
+      - 'src/maref/integration/test_platform/**'
+      - 'src/maref/security/steg_sanitizer.py'
   workflow_dispatch:
 
 jobs:
@@ -32,3 +36,6 @@ jobs:
       - name: Verify Constitutional Red Lines (RL-001 ~ RL-005)
         run: |
           java -cp /tmp/tla2tools.jar tlc2.TLC -config src/formal/MAREF_ConstitutionalRedLinesMC.cfg src/formal/MAREF_ConstitutionalRedLines.tla
+      - name: Verify Test Integration Theorems (含 StenoDetectionComplete)
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MAREF_TestIntegration.tla -config src/formal/MAREF_TestIntegrationMC.cfg

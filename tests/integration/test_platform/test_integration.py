@@ -466,7 +466,7 @@ class TestTLAVerifier:
         )
         results = TLATheoremVerifier.verify_all(card, report)
         summary = TLATheoremVerifier.summary(results)
-        assert summary["total_theorems"] == 6  # includes GovernanceConfigExport
+        assert summary["total_theorems"] == 7  # includes GovernanceConfigExport + StenoDetectionComplete
         assert isinstance(summary["all_passed"], bool)
 
 
@@ -988,7 +988,7 @@ class TestTLAVerifierEdgeCases:
         )
         results = TLATheoremVerifier.verify_all(card, report)
         summary = TLATheoremVerifier.summary(results)
-        assert summary["total_theorems"] == 6  # includes GovernanceConfigExport
+        assert summary["total_theorems"] == 7  # includes GovernanceConfigExport + StenoDetectionComplete
         assert isinstance(summary["all_passed"], bool)
 
     def test_verify_all_with_custom_objects(self):

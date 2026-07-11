@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dna, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/api/client";
@@ -24,13 +24,11 @@ const RISK_LABELS: Record<string, string> = {
 function SortableHeader({
   field,
   sortField,
-  sortDir: _sortDir,
   onSort,
   children,
 }: {
   field: SortField;
   sortField: SortField;
-  sortDir: SortDir;
   onSort: (field: SortField) => void;
   children: string;
 }) {
@@ -53,6 +51,7 @@ export function GeneAuditTrail() {
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<SortField>("last_seen");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const loadedRef = useRef(false);
 
   const loadGenes = useCallback(async () => {
     try {
@@ -67,8 +66,10 @@ export function GeneAuditTrail() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadGenes();
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      loadGenes();
+    }
   }, [loadGenes]);
 
   const handleSort = (field: SortField) => {
@@ -80,84 +81,61 @@ export function GeneAuditTrail() {
     }
   };
 
-  const sorted = [...genes].sort((a, b) => {
-    const cmp = sortField === "risk_level"
-      ? ["low", "medium", "high", "critical"].indexOf(a.risk_level) - ["low", "medium", "high", "critical"].indexOf(b.risk_level)
-      : String(a[sortField]).localeCompare(String(b[sortField]));
-    return sortDir === "asc" ? cmp : -cmp;
+  const sortedGenes = [...genes].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    if (sortField === "cwe") return a.cwe.localeCompare(b.cwe) * dir;
+    if (sortField === "risk_level") return a.risk_level.localeCompare(b.risk_level) * dir;
+    if (sortField === "severity") return (a.severity - b.severity) * dir;
+    if (sortField === "occurrences") return (a.occurrences - b.occurrences) * dir;
+    return (new Date(a.last_seen).getTime() - new Date(b.last_seen).getTime()) * dir;
   });
 
-  if (!loading && genes.length === 0) {
+  if (loading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center py-16">
-        <Dna className="h-10 w-10 text-maref-text-muted mb-3" />
-        <p className="text-sm text-maref-text-muted">Gene bank not yet connected</p>
+      <div className="flex items-center justify-center p-8">
+        <Dna className="h-6 w-6 animate-pulse text-maref-accent" />
+        <span className="ml-2 text-maref-text-muted">加载免疫基因数据...</span>
+      </div>
+    );
+  }
+
+  if (genes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-maref-text-muted">
+        <Dna className="h-10 w-10 mb-2 opacity-50" />
+        <p>暂无免疫基因记录</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border border-maref-border">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-maref-border bg-maref-surface-alt">
-              <SortableHeader field="cwe" sortField={sortField} sortDir={sortDir} onSort={handleSort}>CWE</SortableHeader>
-              <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">来源</th>
-              <SortableHeader field="risk_level" sortField={sortField} sortDir={sortDir} onSort={handleSort}>风险</SortableHeader>
-              <SortableHeader field="severity" sortField={sortField} sortDir={sortDir} onSort={handleSort}>严重度</SortableHeader>
-              <SortableHeader field="occurrences" sortField={sortField} sortDir={sortDir} onSort={handleSort}>出现次数</SortableHeader>
-              <SortableHeader field="last_seen" sortField={sortField} sortDir={sortDir} onSort={handleSort}>最近</SortableHeader>
-              <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">描述</th>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-maref-border/50">
+            <SortableHeader field="cwe" sortField={sortField} onSort={handleSort}>CWE</SortableHeader>
+            <th className="px-4 py-2.5 text-left font-medium text-maref-text-muted">风险等级</th>
+            <SortableHeader field="severity" sortField={sortField} onSort={handleSort}>严重程度</SortableHeader>
+            <SortableHeader field="occurrences" sortField={sortField} onSort={handleSort}>出现次数</SortableHeader>
+            <SortableHeader field="last_seen" sortField={sortField} onSort={handleSort}>最后出现</SortableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedGenes.map((gene, idx) => (
+            <tr key={idx} className="border-b border-maref-border/20 hover:bg-maref-surface/50 transition-colors">
+              <td className="px-4 py-2.5 font-mono text-maref-accent">{gene.cwe}</td>
+              <td className="px-4 py-2.5">
+                <span className={cn("inline-block px-2 py-0.5 rounded text-xs", RISK_COLORS[gene.risk_level] ?? "")}>
+                  {RISK_LABELS[gene.risk_level] ?? gene.risk_level}
+                </span>
+              </td>
+              <td className="px-4 py-2.5">{gene.severity}</td>
+              <td className="px-4 py-2.5">{gene.occurrences}</td>
+              <td className="px-4 py-2.5 text-maref-text-muted">{new Date(gene.last_seen).toLocaleString()}</td>
             </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-maref-text-muted text-xs">
-                  加载中...
-                </td>
-              </tr>
-            )}
-            {sorted.map((gene) => (
-              <tr key={gene.id} className="border-b border-maref-border last:border-0 hover:bg-maref-surface-alt/30">
-                <td className="px-4 py-2 font-mono text-[11px] text-maref-text">{gene.cwe}</td>
-                <td className="px-4 py-2 text-maref-text-muted">{gene.source}</td>
-                <td className="px-4 py-2">
-                  <span className={cn("rounded px-1.5 py-0.5 text-[10px]", RISK_COLORS[gene.risk_level])}>
-                    {RISK_LABELS[gene.risk_level]}
-                  </span>
-                </td>
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-12 rounded-full bg-maref-border overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full",
-                          gene.severity > 7 ? "bg-maref-danger" :
-                          gene.severity > 4 ? "bg-maref-warning" :
-                          "bg-maref-success"
-                        )}
-                        style={{ width: `${(gene.severity / 10) * 100}%` }}
-                      />
-                    </div>
-                    <span className="font-mono text-maref-text-muted">{gene.severity}/10</span>
-                  </div>
-                </td>
-                <td className="px-4 py-2">
-                  <span className="font-mono text-maref-text">{gene.occurrences}</span>
-                </td>
-                <td className="px-4 py-2 text-maref-text-muted whitespace-nowrap">
-                  {gene.last_seen}
-                </td>
-                <td className="px-4 py-2 text-maref-text-muted max-w-[200px] truncate">
-                  {gene.description}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

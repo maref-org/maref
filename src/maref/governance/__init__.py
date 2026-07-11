@@ -18,6 +18,17 @@ from maref.governance.economic import (
     SafetyInvestmentAuditor,
     VulnerabilityBountyBoard,
 )
+from maref.governance.geopolitical_risk import (
+    JURISDICTION_REGISTRY,
+    DataFlowRisk,
+    GeoPoliticalRiskAssessor,
+    Jurisdiction,
+    JurisdictionMapper,
+    RiskAssessment,
+    RiskLevel,
+    SovereignAIValidationResult,
+    SovereignAIValidator,
+)
 from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
 from maref.governance.percv_hooks import (
     PERCVEventType,
@@ -100,4 +111,14 @@ __all__ = [
     "InstanceStatus",
     "SyncResult",
     "WeightPoisonDetector",
+    # Geopolitical Risk Assessment
+    "RiskLevel",
+    "Jurisdiction",
+    "DataFlowRisk",
+    "RiskAssessment",
+    "SovereignAIValidationResult",
+    "JURISDICTION_REGISTRY",
+    "JurisdictionMapper",
+    "GeoPoliticalRiskAssessor",
+    "SovereignAIValidator",
 ]

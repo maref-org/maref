@@ -39,6 +39,11 @@ class InvariantCode(str, Enum):
     RL_005_NO_PRIVILEGE_ESCALATION = "no_privilege_escalation"
     RL_006_CROSS_DIM_SAFETY = "cross_dim_safety_violation"
     RL_007_MAX_FILES_PER_ROUND = "max_files_per_round_exceeded"
+    RL_008_OUTPUT_SANITIZATION_REQUIRED = "output_sanitization_required"
+    RL_009_DATA_LOCALIZATION = "data_localization_violation"
+    RL_010_IDENTITY_VERIFICATION = "identity_verification_required"
+    RL_011_SUPPLY_CHAIN_ATTESTATION = "supply_chain_attestation_required"
+    RL_012_JURISDICTION_COMPLIANCE = "jurisdiction_compliance_violation"
 
 
 # Safe bounds for policy weight features
@@ -217,6 +222,187 @@ class ConstitutionGuard:
                 invariant_codes=invariant_codes,
             )
 
+        return ValidationResult(allowed=True)
+
+    def validate_output(self, actor: str, output_text: str) -> ValidationResult:
+        """
+        Validate model output for Unicode steganography (RL-008).
+
+        Args:
+            actor: The agent producing the output.
+            output_text: The model output text to check.
+
+        Returns:
+            ValidationResult. allowed=False if steganography markers detected.
+        """
+        if not self._enabled:
+            return ValidationResult(allowed=True)
+
+        from maref.security.steg_sanitizer import UnicodeAnomalyDetector
+
+        detector = UnicodeAnomalyDetector()
+        anomalies = detector.detect(output_text)
+        if anomalies:
+            violations = [f"RL-008: output contains {len(anomalies)} Unicode anomalies"]
+            invariant_codes = [InvariantCode.RL_008_OUTPUT_SANITIZATION_REQUIRED]
+            self._violation_count += len(violations)
+            for inv_code in invariant_codes:
+                self._violation_log.append(
+                    InvariantViolation(
+                        invariant=inv_code,
+                        agent_id=actor,
+                        details=violations[0],
+                    )
+                )
+            return ValidationResult(
+                allowed=False,
+                violations=violations,
+                invariant_codes=invariant_codes,
+            )
+        return ValidationResult(allowed=True)
+
+    def validate_deployment(
+        self,
+        actor: str,
+        jurisdiction: str,
+        data_residency: str,
+    ) -> ValidationResult:
+        """
+        Validate deployment for data localization and jurisdiction compliance (RL-009, RL-012).
+
+        Uses JURISDICTION_REGISTRY from governance.geopolitical_risk to check
+        real jurisdiction codes (e.g., "RU", "IR", "KP" for sanctioned;
+        "EU", "CN" for data sovereignty required).
+
+        Args:
+            actor: The agent requesting deployment.
+            jurisdiction: Deployment jurisdiction code (e.g., "US", "EU", "CN", "RU").
+            data_residency: Where data actually resides.
+
+        Returns:
+            ValidationResult with RL-009 and/or RL-012 violations if applicable.
+        """
+        if not self._enabled:
+            return ValidationResult(allowed=True)
+
+        from maref.governance.geopolitical_risk import JURISDICTION_REGISTRY
+
+        violations: list[str] = []
+        invariant_codes: list[InvariantCode] = []
+
+        juris = JURISDICTION_REGISTRY.get(jurisdiction)
+
+        # RL-012: Jurisdiction compliance — sanctioned jurisdictions blocked
+        if juris is not None and juris.sanctions_active:
+            violations.append(
+                f"RL-012: jurisdiction {jurisdiction} is under sanctions"
+            )
+            invariant_codes.append(InvariantCode.RL_012_JURISDICTION_COMPLIANCE)
+
+        # RL-009: Data localization — data sovereignty jurisdictions require local residency
+        if juris is not None and juris.data_sovereignty_required and data_residency != jurisdiction:
+            violations.append(
+                "RL-009: data must reside in deployment jurisdiction "
+                f"({jurisdiction}), got {data_residency}"
+            )
+            invariant_codes.append(InvariantCode.RL_009_DATA_LOCALIZATION)
+
+        if violations:
+            self._violation_count += len(violations)
+            for inv_code in invariant_codes:
+                self._violation_log.append(
+                    InvariantViolation(
+                        invariant=inv_code,
+                        agent_id=actor,
+                        details="; ".join(violations),
+                    )
+                )
+            return ValidationResult(
+                allowed=False,
+                violations=violations,
+                invariant_codes=invariant_codes,
+            )
+        return ValidationResult(allowed=True)
+
+    def validate_identity(
+        self,
+        actor: str,
+        identity_proven: bool,
+    ) -> ValidationResult:
+        """
+        Validate agent identity verification (RL-010).
+
+        Ensures that an agent's identity has been cryptographically verified
+        before performing privileged operations.
+
+        Args:
+            actor: The agent requesting the privileged operation.
+            identity_proven: Whether the agent's identity has been verified
+                (e.g., via signature, attestation, or credential check).
+
+        Returns:
+            ValidationResult. allowed=False if identity not proven.
+        """
+        if not self._enabled:
+            return ValidationResult(allowed=True)
+
+        if not identity_proven:
+            violations = [f"RL-010: agent '{actor}' identity not verified"]
+            invariant_codes = [InvariantCode.RL_010_IDENTITY_VERIFICATION]
+            self._violation_count += len(violations)
+            for inv_code in invariant_codes:
+                self._violation_log.append(
+                    InvariantViolation(
+                        invariant=inv_code,
+                        agent_id=actor,
+                        details=violations[0],
+                    )
+                )
+            return ValidationResult(
+                allowed=False,
+                violations=violations,
+                invariant_codes=invariant_codes,
+            )
+        return ValidationResult(allowed=True)
+
+    def validate_supply_chain(self, actor: str, sbom: Any) -> ValidationResult:
+        """
+        Validate supply chain attestation (RL-011).
+
+        Args:
+            actor: The agent requesting supply chain verification.
+            sbom: SBOM object to verify.
+
+        Returns:
+            ValidationResult. allowed=False if untrusted components found.
+        """
+        if not self._enabled:
+            return ValidationResult(allowed=True)
+
+        from maref.supply_chain.trust_verifier import SupplyChainVerifier
+
+        verifier = SupplyChainVerifier()
+        report = verifier.verify(sbom)
+        if not report.attestation_valid:
+            untrusted_sample = ", ".join(report.untrusted[:5])
+            violations = [
+                f"RL-011: {len(report.untrusted)} untrusted components: {untrusted_sample}"
+            ]
+            invariant_codes = [InvariantCode.RL_011_SUPPLY_CHAIN_ATTESTATION]
+            self._violation_count += len(violations)
+            for inv_code in invariant_codes:
+                self._violation_log.append(
+                    InvariantViolation(
+                        invariant=inv_code,
+                        agent_id=actor,
+                        details=violations[0],
+                    )
+                )
+            return ValidationResult(
+                allowed=False,
+                violations=violations,
+                invariant_codes=invariant_codes,
+            )
         return ValidationResult(allowed=True)
 
     def reset(self) -> None:
