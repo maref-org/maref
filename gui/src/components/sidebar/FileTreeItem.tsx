@@ -36,13 +36,6 @@ const EXTENSION_ICONS: Record<string, React.ElementType> = {
   ".yml": FileJson,
 };
 
-function getFileIcon(extension?: string) {
-  if (extension && EXTENSION_ICONS[extension]) {
-    return EXTENSION_ICONS[extension];
-  }
-  return File;
-}
-
 function matchesFilter(node: FileNode, query: string): boolean {
   const q = query.toLowerCase();
   if (node.name.toLowerCase().includes(q)) return true;
@@ -80,50 +73,46 @@ export function FileTreeItem({
     }
   };
 
-  const IconComponent = isDirectory
-    ? (expanded ? FolderOpen : Folder)
-    : getFileIcon(node.extension);
+  const extension = isDirectory ? undefined : node.name.split(".").pop();
+  const IconComponent = extension && EXTENSION_ICONS[`.${extension}`] ? EXTENSION_ICONS[`.${extension}`] : File;
 
   return (
-    <div>
-      <button
-        onClick={handleClick}
-        className={cn(
-          "flex w-full items-center gap-1.5 py-1 text-xs transition-colors rounded-sm",
-          isSelected
-            ? "bg-maref-accent/20 text-maref-accent"
-            : "text-maref-text-muted hover:bg-maref-surface-alt/50 hover:text-maref-text",
-          isFiltered && "opacity-30"
-        )}
-        style={{ paddingLeft: `${depth * 12 + 8}px`, paddingRight: "8px" }}
-      >
-        {isDirectory && (
-          <span className="flex-shrink-0">
+    <div
+      className={cn(
+        "flex items-center gap-1 px-2 py-1 cursor-pointer rounded-md text-sm transition-colors",
+        isSelected
+          ? "bg-accent text-accent-foreground"
+          : "hover:bg-accent/50 text-foreground",
+        isFiltered && "opacity-40"
+      )}
+      style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      onClick={handleClick}
+      role="treeitem"
+      aria-expanded={isDirectory ? expanded : undefined}
+      aria-selected={isSelected}
+    >
+      {isDirectory ? (
+        <>
+          <span className="w-4 h-4 flex items-center justify-center">
             {expanded ? (
-              <ChevronDown className="h-3 w-3" />
+              <ChevronDown className="w-3.5 h-3.5" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <ChevronRight className="w-3.5 h-3.5" />
             )}
           </span>
-        )}
-        <IconComponent className="h-3.5 w-3.5 flex-shrink-0 text-maref-info" />
-        <span className="truncate">{node.name}</span>
-      </button>
-
-      {isDirectory && expanded && node.children && (
-        <div>
-          {node.children.map((child) => (
-            <FileTreeItem
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              selectedPath={selectedPath}
-              onSelect={onSelect}
-              filterQuery={filterQuery}
-            />
-          ))}
-        </div>
+          {expanded ? (
+            <FolderOpen className="w-4 h-4 text-blue-500" />
+          ) : (
+            <Folder className="w-4 h-4 text-blue-500" />
+          )}
+        </>
+      ) : (
+        <>
+          <span className="w-4 h-4" />
+          <IconComponent className="w-4 h-4 text-muted-foreground" />
+        </>
       )}
+      <span className="truncate">{node.name}</span>
     </div>
   );
 }
