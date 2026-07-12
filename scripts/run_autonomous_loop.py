@@ -247,6 +247,34 @@ class AutonomousLoopRunner:
             result["coverage_pct"] = 1.0
             result["gui_error_count"] = 0.0
 
+        # Phase 3 (Fix 22): ruff lint count — when GUI is clean, Python
+        # lint errors become the next improvement target. Each ruff error
+        # reduces coverage_pct by 0.5, so the optimizer can detect gains
+        # when the LLM fixes Python lint issues.
+        try:
+            ruff_proc = subprocess.run(
+                [_sys.executable, "-m", "ruff", "check", "src/", "--statistics", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            ruff_errors = 0
+            for line in ruff_proc.stdout.strip().split("\n"):
+                line = line.strip()
+                if line and line[0].isdigit():
+                    parts = line.split()
+                    if parts:
+                        with contextlib.suppress(ValueError):
+                            ruff_errors += int(parts[0])
+            result["ruff_error_count"] = float(ruff_errors)
+            # Blend GUI + ruff: weight ruff at 0.5 per error (less severe than GUI's 5.0)
+            result["coverage_pct"] = max(
+                1.0,
+                result["coverage_pct"] - ruff_errors * 0.5,
+            )
+        except Exception:
+            result["ruff_error_count"] = 0.0
+
         result["execution_time_ms"] = (time.time() - start) * 1000.0
         return result
 
