@@ -132,8 +132,10 @@ telemetry-server/data/
 # OpenCode config
 .opencode/
 
-# Website (maref.cc)
+# Website (maref.cc) — ignore build output only
 website/
+!docs/website/blog/
+!docs/website/blog/**
 
 # Policy versions (runtime generated)
 policy_versions/
