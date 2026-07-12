@@ -1,0 +1,158 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "Blog";
+const description = "Thoughts on agent governance, multi-agent security, formal verification, and building trustworthy AI systems.";
+const canonical = "/en/blog";
+
+const posts = [
+  {
+    title: "88% of Companies Already Had an AI Agent Incident — 7 Numbers That Explain the Crisis",
+    description: "Gartner says 40% of enterprise apps will have AI agents. 88% already had an incident. 17x more spent on AI-powered security than securing AI itself. Only 6% have a mature strategy. 7 numbers, one message: incidents are catching up to scale.",
+    href: "/en/blog/88-percent-incidents/",
+    date: "2026-06-13",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "GitHub Is Becoming a Giant AI Code Dump",
+    description: "630M repos, half of new code is AI-written, trust dropped from 77% to 60%. CMU found 6M fake stars. AI code has 1.7x more critical bugs. AI users are 19% slower but think they're 20% faster.",
+    href: "/en/blog/vibe-coding-crisis/",
+    date: "2026-06-13",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "Why Agent Governance Matters in 2026",
+    description: "Multi-agent systems are entering production. Without governance, every agent is an unmonitored vector for data leaks, hallucination propagation, and adversarial exploitation.",
+    href: "/en/blog/why-agent-governance-matters-2026/",
+    date: "2026-06-13",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "Not 'Tested.' Proved. — Why MAREF Uses TLA+ Formal Verification",
+    description: "Most security tools are 'tested.' MAREF is proved — using TLA+ model checking, Lyapunov stability analysis, and mathematical convergence guarantees.",
+    href: "/en/blog/tla-plus-formal-verification/",
+    date: "2026-06-16",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "OWASP Agentic Top 10: How MAREF Covers All 10 Critical Risks",
+    description: "OWASP published the Agentic Top 10 — the definitive threat model for multi-agent systems. MAREF is the first open-source framework to cover all 10.",
+    href: "/en/blog/owasp-agentic-top-10/",
+    date: "2026-06-16",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "How to Choose an Agent Governance Framework — 2026 Comparison",
+    description: "LangGraph vs CrewAI vs AutoGen vs MAREF: a buyer's guide to agent governance frameworks. Compare runtime safety, formal verification, state machines, and production readiness.",
+    href: "/en/blog/choose-agent-governance-framework/",
+    date: "2026-06-23",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "Why Multi-Agent Systems Need Runtime Safety Guarantees",
+    description: "Runtime safety for multi-agent AI systems: identity isolation, circuit breakers, drift detection, and blast radius control. Production patterns for preventing agent runaway.",
+    href: "/en/blog/multi-agent-runtime-safety/",
+    date: "2026-06-23",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "Autonomous Agent Evolution — Safe Recursive Self-Improvement",
+    description: "Lyapunov-proven convergence, red-blue adversarial training, and constitutional safety constraints that enable autonomous AI improvement without runaway risk.",
+    href: "/en/blog/autonomous-agent-evolution/",
+    date: "2026-06-23",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "I Shot Films for 30 Years. Now I'm Building Safety Systems for AI Agents",
+    description: "After three decades as a steadicam operator on Hollywood sets, I walked away to build safety systems for AI agents. Film sets taught me something Silicon Valley hasn't learned: when things go fast, safety isn't optional.",
+    href: "/en/blog/from-steadicam-to-agent-governance/",
+    date: "2026-06-23",
+    author: "Frankie",
+  },
+  {
+    title: "MAREF vs LangGraph vs CrewAI vs AutoGen — Governance Benchmark (2026)",
+    description: "A 10-dimension governance benchmark comparing MAREF, LangGraph, CrewAI, and AutoGen. Includes reproducible microbenchmarks for overhead, circuit breaker performance, and safety coverage scores.",
+    href: "/en/blog/maref-vs-langgraph-governance-benchmark/",
+    date: "2026-07-22",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "Governing CrewAI Workflows with MAREF — A Practical Guide",
+    description: "Step-by-step guide to wrapping CrewAI crews with MAREF governance: subgoal interception, circuit breaker, behavior monitoring, safety gate, and audit trail — without modifying CrewAI internals.",
+    href: "/en/blog/governing-crewai-with-maref/",
+    date: "2026-07-29",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "Three Gates, Not Two — Why Agent Skill Marketplaces Need Three-Gate Admission",
+    description: "Agent skill marketplaces face a supply chain threat worse than npm. Three gates (static scan, sandbox test, human review) are the minimum viable defense against autonomous code execution attacks.",
+    href: "/en/blog/three-gate-skill-marketplace-design/",
+    date: "2026-08-05",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "TLA+ 5 Theorems Explained — Formal Verification for Agent Governance",
+    description: "MAREF's TLA+ formal verification explained in plain language: 5 theorems (Lyapunov Convergence, HALT Absorbing, Gray Code Transition, Safety Gate Integrity, Red Line Immutability) with code examples and honest limitations.",
+    href: "/en/blog/tla-plus-5-theorems-explained/",
+    date: "2026-08-12",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "MAREF Q3 2026 Operations Report — 10 Weeks of Brand-Building",
+    description: "11 blog posts, 18K+ words, 12 case study files, 15 skill manifests, 9 P0 engineering fixes, and a submit-ready arXiv paper. The full account of MAREF's Q3 brand-building campaign.",
+    href: "/en/blog/maref-q3-operations-report/",
+    date: "2026-09-01",
+    author: "MAREF Engineering",
+  },
+];
+---
+
+<BaseLayout {title} {description} {canonical}>
+  <Fragment slot="head">
+    <link rel="alternate" type="application/rss+xml" title="MAREF Blog — Agent Governance" href="https://maref.cc/en/feed.xml" />
+  </Fragment>
+<NavBar locale="en" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+      Thoughts on<br />
+      <span class="text-brand-accent-blue">agent governance.</span>
+    </h1>
+    <p class="text-lg text-brand-text-secondary mb-16">Engineering, security, formal methods, and building trustworthy multi-agent systems.</p>
+
+    <div class="space-y-12">
+      {posts.map(post => (
+        <article>
+          <time class="text-sm text-brand-text-muted" datetime={post.date}>{post.date}</time>
+          <h2 class="mt-1 text-2xl font-bold tracking-tight">
+            <a href={post.href} class="text-brand-text-primary hover:text-brand-accent-blue transition-colors">
+              {post.title}
+            </a>
+          </h2>
+          <p class="mt-2 text-sm text-brand-text-muted">{post.author}</p>
+          <p class="mt-2 text-base text-brand-text-secondary leading-relaxed">{post.description}</p>
+          <a href={post.href} class="mt-3 inline-block text-sm text-brand-accent-blue hover:underline">
+            Read more →
+          </a>
+        </article>
+      ))}
+    </div>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/en/privacy/" class="hover:text-snow-sheet transition-colors">Privacy</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">Contact</a>
+        </p>
+        <p>Apache-2.0 License</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

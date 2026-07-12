@@ -1,0 +1,123 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "博客";
+const description = "关于智能体治理、多智能体安全、形式化验证和构建可信 AI 系统的思考。";
+const canonical = "/zh/blog";
+
+const posts = [
+  {
+    title: "88% 的公司已经翻车了——关于 AI Agent 安全的 7 个数字真相",
+    description: "Gartner 说 40% 企业将有 Agent，但 88% 已出过事。花在'用 AI 做安全'上是'保护 AI 本身'的 17 倍。仅 6% 有成熟策略。AI 代码缺陷将暴增 2,500%。7 个数字，每一个都在说同一件事：事故正在追赶规模。",
+    href: "/zh/blog/88-percent-incidents/",
+    date: "2026-06-13",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "GitHub 正在变成一个巨型 AI 代码垃圾场",
+    description: "6.3 亿仓库，一半新代码是 AI 写的，信任度从 77% 跌到 60%。CMU 挖出 600 万假 star，CodeRabbit 发现 AI 代码严重问题是人工的 1.7 倍。你用 AI 变慢了 19%，但你觉得自己快了 20%。",
+    href: "/zh/blog/vibe-coding-crisis/",
+    date: "2026-06-13",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "为什么智能体治理在 2026 年至关重要",
+    description: "多智能体系统正在进入生产环境。没有治理，每个智能体都是数据泄露、幻觉传播和对抗性利用的未监控向量。",
+    href: "/zh/blog/why-agent-governance-matters-2026/",
+    date: "2026-06-13",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "不是「测过」，是「证过」——为什么 MAREF 用 TLA+ 形式化验证",
+    description: "大多数安全工具是「测过」的。MAREF 是「证过」的——使用 TLA+ 模型检验、Lyapunov 稳定性分析和数学收敛性保证。",
+    href: "/zh/blog/tla-plus-formal-verification/",
+    date: "2026-06-16",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "OWASP Agentic Top 10：MAREF 如何覆盖全部 10 项关键风险",
+    description: "OWASP 发布了 Agentic Top 10——多智能体系统的权威威胁模型。MAREF 是首个覆盖全部 10 项风险的开源框架。",
+    href: "/zh/blog/owasp-agentic-top-10/",
+    date: "2026-06-16",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "我拍了 30 年电影，现在我在给 AI Agent 造安全系统",
+    description: "从 30 年 steadicam 摄影师到 AI 安全基础设施。片场教会我的事，恰恰是 AI 行业最缺的：安全不是速度的敌人，安全是你敢加速的前提。",
+    href: "/zh/blog/from-steadicam-to-agent-governance/",
+    date: "2026-06-23",
+    author: "Frankie",
+  },
+  {
+    title: "10 态 Gray Code 治理状态机数学证明",
+    description: "基于 TLA+ 形式化规约，对 MAREF 八卦治理状态机进行数学证明：11 条命题覆盖单比特跃迁唯一性、HALT 吸收态、Gray Code 完备性和不可逆性。",
+    href: "/zh/blog/gray-code-10-state-fsm-proof/",
+    date: "2026-07-15",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "TLA+ 5 定理详解——Agent 治理的形式化验证",
+    description: "MAREF 的 TLA+ 形式化验证五个定理的中文详解：Lyapunov 收敛、HALT 吸收态、Gray Code 跃迁、安全门完整性和红色基线不可变性。附代码示例与诚实局限。",
+    href: "/zh/blog/tla-plus-5-theorems-explained-zh/",
+    date: "2026-08-12",
+    author: "MAREF Engineering",
+  },
+  {
+    title: "AI-Native IP 公司如何用 MAREF 输出基础设施",
+    description: "基于 5 家头部 MCN 公司的行业研究，将 MCN 五大痛点映射到 MAREF 的技术能力：Skill 市场、断路器、三闸门准入、声誉追踪和协议桥接。",
+    href: "/zh/blog/ai-native-ip-company-maref-infrastructure/",
+    date: "2026-08-19",
+    author: "MAREF Engineering",
+  },
+];
+---
+
+<BaseLayout {title} {description} {canonical}>
+  <Fragment slot="head">
+    <link rel="alternate" type="application/rss+xml" title="MAREF 博客 — 智能体治理" href="https://maref.cc/zh/feed.xml" />
+  </Fragment>
+  <NavBar locale="zh" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+      关于<br />
+      <span class="text-brand-accent-blue">智能体治理的思考。</span>
+    </h1>
+    <p class="text-lg text-brand-text-secondary mb-16">工程、安全、形式化方法和构建可信多智能体系统。</p>
+
+    <div class="space-y-12">
+      {posts.map(post => (
+        <article>
+          <time class="text-sm text-brand-text-muted" datetime={post.date}>{post.date}</time>
+          <h2 class="mt-1 text-2xl font-bold tracking-tight">
+            <a href={post.href} class="text-brand-text-primary hover:text-brand-accent-blue transition-colors">
+              {post.title}
+            </a>
+          </h2>
+          <p class="mt-2 text-sm text-brand-text-muted">{post.author}</p>
+          <p class="mt-2 text-base text-brand-text-secondary leading-relaxed">{post.description}</p>
+          <a href={post.href} class="mt-3 inline-block text-sm text-brand-accent-blue hover:underline">
+            阅读全文 →
+          </a>
+        </article>
+      ))}
+    </div>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/zh/privacy/" class="hover:text-snow-sheet transition-colors">隐私</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">联系</a>
+        </p>
+        <p>Apache-2.0 许可证</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>
