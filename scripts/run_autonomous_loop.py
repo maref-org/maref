@@ -76,6 +76,8 @@ class AutonomousLoopRunner:
 
         # Fix 3c: last diagnosis report for risk-driven apply_fn
         self._last_report: Any = None
+        # Fix 16: track files modified by apply_fn for negative-gain rollback
+        self._last_modified_files: list[str] = []
 
         self._daily_loop: Any = None
         self._executor: Any = None
@@ -358,6 +360,8 @@ class AutonomousLoopRunner:
         """Default optimization apply function — risk-driven (Fix 3c)."""
         if self._executor is None:
             return
+        # Fix 16: reset modified-files tracker before each apply
+        self._last_modified_files = []
         try:
             from maref.recursive.self_diagnostician import RiskLevel
 
@@ -395,8 +399,32 @@ class AutonomousLoopRunner:
                     )
                 finally:
                     loop.close()
+                # Fix 16: record files modified by this apply for rollback
+                if hasattr(proposal, "target_files"):
+                    self._last_modified_files = list(proposal.target_files)
+                deployer = getattr(self._executor, "_deployer", None)
+                if deployer is not None and hasattr(deployer, "_deployed"):
+                    self._last_modified_files.extend(deployer._deployed.keys())
         except Exception as exc:
             logger.warning("Default apply fn failed: %s", exc)
+
+    def _rollback_modified_files(self) -> int:
+        """Fix 16: roll back files modified by the last apply_fn via AtomicDeployer."""
+        if not self._last_modified_files or self._executor is None:
+            return 0
+        deployer = getattr(self._executor, "_deployer", None)
+        if deployer is None:
+            return 0
+        rolled_back = 0
+        for file_path in self._last_modified_files:
+            try:
+                result = deployer.rollback(file_path)
+                if result.success:
+                    rolled_back += 1
+            except Exception as e:
+                logger.warning("Fix 16: rollback failed for %s: %s", file_path, e)
+        self._last_modified_files = []
+        return rolled_back
 
     def run_one_cycle(self) -> dict[str, Any]:
         """Run one complete RSI cycle."""
@@ -499,6 +527,16 @@ class AutonomousLoopRunner:
                     self._success_count += 1
                 else:
                     logger.info("Rejected hypothesis %s: gain=%.2f%%", hypothesis.hypothesis_id, hypothesis.gain_pct * 100)
+                    # Fix 16: auto-rollback on negative gain to prevent regression accumulation
+                    if hypothesis.gain_pct < 0:
+                        self._optimizer.revert_if_regression(hypothesis)
+                        rolled_back = self._rollback_modified_files()
+                        logger.warning(
+                            "Fix 16: negative gain %.2f%% — rolled back %d file(s): %s",
+                            hypothesis.gain_pct * 100,
+                            rolled_back,
+                            self._last_modified_files[:3],
+                        )
 
             # Fix 3c: record GUI fix attempt when gui_build is critical
             if report.risk_matrix.get("gui_build") == _RL.CRITICAL:
