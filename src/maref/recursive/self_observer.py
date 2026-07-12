@@ -90,7 +90,11 @@ class SelfObserver:
         # test_count=0. Increase to 600s (10 min) so the suite can complete.
         # Cycle budget is 15 min; diagnosis+healing take ~5 min, leaving
         # ~10 min for metrics — 600s fits exactly.
-        timeout = 60 if collect_only else 600
+        # Fix 21: reduce to 300s — v12 showed GUI-zero-error state reaches
+        # risk=normal regardless of test metrics, so the full 600s run adds
+        # latency without changing diagnosis outcomes. 300s is enough for
+        # the fast subset (tests/recursive/ + tests/unit/) to complete.
+        timeout = 60 if collect_only else 300
         try:
             result = subprocess.run(
                 cmd,
