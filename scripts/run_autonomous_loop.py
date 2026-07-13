@@ -19,7 +19,6 @@ import json
 import logging
 import shutil
 import subprocess
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -78,6 +77,8 @@ class AutonomousLoopRunner:
         self._last_report: Any = None
         # Fix 16: track files modified by apply_fn for negative-gain rollback
         self._last_modified_files: list[str] = []
+        # Fix 22c: original content of ruff-autofixed files for rollback
+        self._ruff_backups: dict[str, str] = {}
 
         self._daily_loop: Any = None
         self._executor: Any = None
@@ -390,6 +391,7 @@ class AutonomousLoopRunner:
             return
         # Fix 16: reset modified-files tracker before each apply
         self._last_modified_files = []
+        self._ruff_backups = {}  # Fix 22c: reset ruff backups
         try:
             from maref.recursive.self_diagnostician import RiskLevel
 
@@ -407,6 +409,19 @@ class AutonomousLoopRunner:
                         proposal.target_files[0],
                         len(gui_errors),
                     )
+
+            # Fix 22c: when GUI is clean, run ruff --fix to auto-fix
+            # Python lint errors. This is a deterministic, safe operation
+            # (ruff only applies "safe" fixes by default) that produces
+            # measurable gain via the Fix 22 ruff_error_count benchmark
+            # dimension. The LLM is not involved — ruff fixes are rules-
+            # based and well-tested.
+            if proposal is None:
+                ruff_fixed = self._apply_ruff_autofix()
+                if ruff_fixed > 0:
+                    # ruff --fix already modified files; skip LLM proposal
+                    # so the optimizer can measure gain immediately.
+                    return
 
             # Fallback: architect Python proposal
             if proposal is None:
@@ -436,21 +451,168 @@ class AutonomousLoopRunner:
         except Exception as exc:
             logger.warning("Default apply fn failed: %s", exc)
 
+    def _build_ruff_hypothesis(self, snapshot: Any) -> Any:
+        """Fix 22b: build a ruff-lint hypothesis when diagnosis finds nothing.
+
+        Runs `ruff check src/ --statistics` and if there are errors, creates
+        an OptimizationHypothesis targeting Python lint cleanup. The LLM
+        will then fix ruff errors via _default_apply_fn → SelfArchitect.
+        """
+        try:
+            import sys as _sys
+            proc = subprocess.run(
+                [_sys.executable, "-m", "ruff", "check", "src/",
+                 "--statistics", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            ruff_errors = 0
+            top_rules: list[str] = []
+            for line in proc.stdout.strip().split("\n"):
+                line = line.strip()
+                if line and line[0].isdigit():
+                    parts = line.split()
+                    if parts:
+                        with contextlib.suppress(ValueError):
+                            count = int(parts[0])
+                            ruff_errors += count
+                            if len(top_rules) < 3:
+                                top_rules.append(
+                                    f"{parts[-1]}({count})"
+                                )
+            if ruff_errors == 0:
+                return None
+            from maref.recursive.self_optimizer import OptimizationHypothesis
+            return OptimizationHypothesis(
+                hypothesis_id=f"ruff_{snapshot.timestamp}",
+                description=(
+                    f"Python lint: {ruff_errors} ruff errors "
+                    f"({', '.join(top_rules)}) — fix auto-fixable rules"
+                ),
+                target_module="python_lint",
+                experiment_result={"ruff_error_count": float(ruff_errors)},
+            )
+        except Exception as exc:
+            logger.warning("Fix 22b: ruff hypothesis build failed: %s", exc)
+            return None
+
+    def _apply_ruff_autofix(self) -> int:
+        """Fix 22c: run `ruff check src/ --fix` to auto-fix Python lint errors.
+
+        Ruff's safe fixes (applicability="safe") are deterministic and
+        well-tested — they include import sorting (I001), PEP-585 annotations
+        (UP006), trailing newlines (W292), etc. This avoids spending an LLM
+        call on mechanical lint fixes the LLM repeatedly gets wrong.
+
+        Backs up original file content in ``self._ruff_backups`` so Fix 16's
+        ``_rollback_modified_files`` can restore it on negative gain.
+        Returns the number of files actually modified.
+        """
+        import json as _json
+        import sys as _sys
+
+        try:
+            # Phase 1: enumerate files with ruff errors (before fix)
+            proc = subprocess.run(
+                [_sys.executable, "-m", "ruff", "check", "src/",
+                 "--output-format", "json", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if not proc.stdout.strip():
+                return 0
+            errors = _json.loads(proc.stdout)
+            if not isinstance(errors, list) or not errors:
+                return 0
+            error_files = sorted({e["filename"] for e in errors if "filename" in e})
+            if not error_files:
+                return 0
+
+            # Phase 2: back up original content of every file with errors
+            backups: dict[str, str] = {}
+            for fpath in error_files:
+                try:
+                    with open(fpath) as f:
+                        backups[fpath] = f.read()
+                except OSError:
+                    pass
+
+            # Phase 3: run ruff --fix (safe fixes only, the default)
+            subprocess.run(
+                [_sys.executable, "-m", "ruff", "check", "src/", "--fix", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            # Phase 4: detect which files actually changed
+            modified: list[str] = []
+            for fpath in error_files:
+                original = backups.get(fpath)
+                if original is None:
+                    continue
+                try:
+                    with open(fpath) as f:
+                        if f.read() != original:
+                            modified.append(fpath)
+                except OSError:
+                    pass
+
+            if not modified:
+                return 0
+
+            # Phase 5: store backups for Fix 16 rollback
+            for fpath in modified:
+                self._ruff_backups[fpath] = backups[fpath]
+            self._last_modified_files.extend(modified)
+            logger.info(
+                "Fix 22c: ruff --fix modified %d file(s) (%d ruff errors were fixable)",
+                len(modified),
+                len(errors),
+            )
+            return len(modified)
+        except Exception as exc:
+            logger.warning("Fix 22c: ruff autofix failed: %s", exc)
+            return 0
+
     def _rollback_modified_files(self) -> int:
-        """Fix 16: roll back files modified by the last apply_fn via AtomicDeployer."""
-        if not self._last_modified_files or self._executor is None:
-            return 0
-        deployer = getattr(self._executor, "_deployer", None)
-        if deployer is None:
-            return 0
+        """Fix 16: roll back files modified by the last apply_fn.
+
+        Two rollback mechanisms:
+        - Fix 22c: ruff-autofixed files restored from ``_ruff_backups``
+        - Fix 16: LLM-modified files restored via ``AtomicDeployer.rollback``
+        """
         rolled_back = 0
-        for file_path in self._last_modified_files:
-            try:
-                result = deployer.rollback(file_path)
-                if result.success:
+
+        # Fix 22c: restore ruff-autofixed files first (deterministic restore)
+        ruff_restored: set[str] = set()
+        if self._ruff_backups:
+            ruff_restored = set(self._ruff_backups.keys())
+            for fpath, content in self._ruff_backups.items():
+                try:
+                    with open(fpath, "w") as f:
+                        f.write(content)
                     rolled_back += 1
-            except Exception as e:
-                logger.warning("Fix 16: rollback failed for %s: %s", file_path, e)
+                except OSError as e:
+                    logger.warning("Fix 16: ruff rollback failed for %s: %s", fpath, e)
+            self._ruff_backups = {}
+
+        # Fix 16: AtomicDeployer rollback for LLM-modified files
+        if self._last_modified_files and self._executor is not None:
+            deployer = getattr(self._executor, "_deployer", None)
+            if deployer is not None:
+                for file_path in self._last_modified_files:
+                    if file_path in ruff_restored:
+                        continue  # already restored by ruff backup path
+                    try:
+                        result = deployer.rollback(file_path)
+                        if result.success:
+                            rolled_back += 1
+                    except Exception as e:
+                        logger.warning("Fix 16: rollback failed for %s: %s", file_path, e)
+
         self._last_modified_files = []
         return rolled_back
 
@@ -499,6 +661,17 @@ class AutonomousLoopRunner:
             report = self._diagnostician.diagnose(snapshot)
             self._last_report = report  # Fix 3c: expose to risk-driven apply_fn
             hypotheses = self._bridge.diagnose_to_hypotheses(report, snapshot)
+            # Fix 22b: when diagnosis finds no critical risks (GUI clean,
+            # latency normal), inject a ruff-lint hypothesis so the LLM
+            # can continue improving Python code quality.
+            if not hypotheses:
+                ruff_h = self._build_ruff_hypothesis(snapshot)
+                if ruff_h is not None:
+                    hypotheses.append(ruff_h)
+                    logger.info(
+                        "Fix 22b: injected ruff hypothesis (%d errors)",
+                        ruff_h.experiment_result.get("ruff_error_count", 0),
+                    )
             # Fix 2: persist full diagnostic context for post-run analysis
             result["phases"]["diagnosis"] = {
                 "success": True,
