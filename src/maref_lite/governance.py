@@ -397,3 +397,23 @@ class GovernanceOverlay:
                 from_state=state,
                 to_state=GovernanceState.OBSERVE,
             )
+
+
+class GovernanceConfig:
+    def __init__(self, **kwargs: Any) -> None:
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
+class RecursiveGovernanceConfig:
+    def __init__(
+        self,
+        max_recursion_depth: int = 5,
+        max_oscillation_rate: float = 0.3,
+        enable_meta_learning: bool = True,
+        enable_policy_sandbox: bool = True,
+    ) -> None:
+        self.max_recursion_depth = max_recursion_depth
+        self.max_oscillation_rate = max_oscillation_rate
+        self.enable_meta_learning = enable_meta_learning
+        self.enable_policy_sandbox = enable_policy_sandbox

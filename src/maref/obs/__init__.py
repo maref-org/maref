@@ -21,6 +21,18 @@ from maref.obs.oscillator_params import OscillatorParamMerger
 from maref.obs.pipeline import ObsPipeline
 from maref.obs.schema import EventBatch, ObsEvent, ObsEventType
 
+
+def get_obs_level() -> str:
+    return "basic"
+
+
+def get_obs_show() -> dict:
+    return {"level": "basic", "status": "active"}
+
+
+def get_obs_status() -> str:
+    return "active"
+
 __all__ = [
     "MarefObsClient",
     "ObsAggregator",

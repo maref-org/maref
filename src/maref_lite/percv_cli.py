@@ -2,6 +2,7 @@ import typer
 from rich.console import Console
 
 app = typer.Typer()
+percv_app = app
 console = Console()
 
 def research_cycle() -> None:
