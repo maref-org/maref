@@ -2,8 +2,10 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+
 from maref.recursive.unified_audit import NullAuditStore
 from maref.security.decorators import security_critical
+
 if TYPE_CHECKING:
     from maref.immunity.cross_gen_simulator import CrossGenerationImpactSimulator
     from maref.recursive.unified_audit import UnifiedAuditStore

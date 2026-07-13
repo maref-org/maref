@@ -1,8 +1,10 @@
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+
 from maref.immunity.red_contamination_probe import ContaminationFinding, RedContaminationProbe
 from maref.recursive.unified_audit import NullAuditStore
+
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditStore
 _BASE_WEIGHTS: dict[str, float] = {'deprecated_pickle': 0.35, 'wrong_comment': 0.4, 'missing_dangerous_pattern': 0.25}

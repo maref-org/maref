@@ -313,18 +313,18 @@ SECCOMP_RET_ALLOW: int = 0x7FFF0000
 class SockFilter(ctypes.Structure):
     """struct sock_filter — BPF 指令"""
 
-    _fields_: list[tuple[str, Any]] = [
-        ("code", ctypes.c_uint16),  # BPF 指令码
-        ("jt", ctypes.c_uint8),  # jump true 偏移
-        ("jf", ctypes.c_uint8),  # jump false 偏移
-        ("k", ctypes.c_uint32),  # 通用字段
+    _fields_: list[tuple[str, Any]] = [  # type: ignore[misc]
+        ("code", ctypes.c_uint16),
+        ("jt", ctypes.c_uint8),
+        ("jf", ctypes.c_uint8),
+        ("k", ctypes.c_uint32),
     ]
 
 
 class SockFProg(ctypes.Structure):
     """struct sock_fprog — BPF 程序"""
 
-    _fields_: list[tuple[str, Any]] = [
+    _fields_: list[tuple[str, Any]] = [  # type: ignore[misc]
         ("len", ctypes.c_ushort),  # filter 数量
         ("filter", ctypes.POINTER(SockFilter)),  # filter 数组指针
     ]

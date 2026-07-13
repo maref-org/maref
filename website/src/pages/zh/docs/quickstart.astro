@@ -1,0 +1,102 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="zh" title="快速开始 — 5 分钟上手你的第一个被治理智能体" description="安装 MAREF，诊断系统，启动演示，观察治理引擎实时运行。不需要 GPU。" section="docs">
+
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+    你的第一个被治理智能体。<br />
+    <span class="text-brand-accent-blue">只需 5 分钟。</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-8">不需要 GPU，不需要云账号。只需要一个终端和 <code class="text-brand-accent-blue">pip install maref</code>。</p>
+
+  <div class="my-12 space-y-16">
+    <!-- Step 1 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">1</span>
+        <h2 class="text-2xl font-bold tracking-tight">安装</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        MAREF 是纯 Python 包。零本地依赖，不需要 GPU。支持任何 Python 3.11+ 环境——macOS、Linux、Windows 或容器。
+      </p>
+      <CodeBlock lang="bash" title="安装 MAREF" code={`pip install maref`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        一条命令，~2 MB 下载量。
+      </p>
+    </div>
+
+    <!-- Step 2 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">2</span>
+        <h2 class="text-2xl font-bold tracking-tight">诊断</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        运行内置诊断命令，验证你的环境是否就绪。它会检查 Python 版本、检测操作系统、测试 SM4-GCM 密码学功能，并确认所有子系统运行正常。
+      </p>
+      <CodeBlock lang="bash" title="运行诊断" code={`maref diagnose`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        所有检查项都应显示绿色 ✅。如果有任何缺失，诊断结果会明确告诉你需要修复什么。
+      </p>
+    </div>
+
+    <!-- Step 3 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">3</span>
+        <h2 class="text-2xl font-bold tracking-tight">启动演示</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        演示模式启动一个本地 Web 界面，让你实时观察治理决策过程。无需配置——它使用合理的默认值和一个示例智能体运行，让你在接入自己的智能体之前看到每一层的工作方式。
+      </p>
+      <CodeBlock lang="bash" title="启动演示" code={`maref demo --port 8080`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        在浏览器中打开 <code class="text-brand-accent-blue">http://localhost:8080</code>。仪表盘显示 8 层防御流水线、信任分数和审计日志——全部实时更新。
+      </p>
+    </div>
+
+    <!-- Step 4 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">4</span>
+        <h2 class="text-2xl font-bold tracking-tight">查看治理状态</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        查看 MAREF 如何保护你的系统——哪些防御层已激活、当前信任分数以及最近的治理决策。
+      </p>
+      <CodeBlock lang="bash" title="查看治理状态" code={`maref status`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        输出显示每个防御层的状态、最近的 BLOCK/ALLOW 决策以及当前的 Lyapunov 收敛指标。
+      </p>
+    </div>
+  </div>
+
+  <div class="my-16 p-6 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <h3 class="font-semibold text-brand-text-primary mb-2">下一步</h3>
+    <ul class="text-sm text-brand-text-secondary space-y-2">
+      <li>→ <a href="/zh/features/governance/" class="text-brand-accent-blue hover:underline">阅读治理深度解析</a></li>
+      <li>→ <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="text-brand-accent-blue hover:underline">在 GitHub 上探索源码</a></li>
+      <li>→ <a href="/zh/faq/" class="text-brand-accent-blue hover:underline">常见问题</a></li>
+    </ul>
+  </div>
+
+  <div class="my-16 p-6 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-4">系统要求</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">Python</div>
+      <div class="text-brand-text-primary">3.11+</div>
+      <div class="text-brand-text-muted">操作系统</div>
+      <div class="text-brand-text-primary">macOS 13+ · Linux · Windows 11</div>
+      <div class="text-brand-text-muted">内存</div>
+      <div class="text-brand-text-primary">512 MB（空闲）· 2 GB（生产）</div>
+      <div class="text-brand-text-muted">磁盘</div>
+      <div class="text-brand-text-primary">~15 MB（包体积）</div>
+      <div class="text-brand-text-muted">GPU</div>
+      <div class="text-brand-text-primary">不需要</div>
+      <div class="text-brand-text-muted">依赖</div>
+      <div class="text-brand-text-primary">零本地依赖——纯 Python</div>
+    </div>
+  </div>
+</DocLayout>

@@ -1,0 +1,130 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "永久免费";
+const description = "MAREF 采用 Apache 2.0 许可证，100% 免费开源。无隐藏费用，无企业版本限制——治理属于每个人，永远免费。";
+const canonical = "/zh/free";
+---
+
+<BaseLayout {title} {description} {canonical}>
+<NavBar locale="zh" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">MAREF <span class="text-brand-accent-green">永久免费</span></h1>
+    <p class="text-lg text-brand-text-secondary mb-12">无隐藏费用，无企业版本限制——治理属于每个人，永远免费。</p>
+
+    <div class="mb-12 p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="p-3 rounded-lg" style="background-color: var(--color-brand-accent-green);">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div>
+          <h2 class="text-2xl font-bold tracking-tight">Apache 2.0 许可证</h2>
+          <p class="text-brand-text-secondary">与 Kubernetes、TensorFlow、React 使用相同的开源许可证</p>
+        </div>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed">
+        MAREF 采用 Apache 2.0 许可证——最宽松的开源许可证之一。您可以免费使用、修改、分发甚至销售包含 MAREF 的产品，无需向我们支付任何费用。唯一的要求是包含许可证声明和归属。
+      </p>
+    </div>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">MAREF 免费版</h2>
+      
+      <div class="p-6 rounded-2xl mb-8" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold">MAREF 免费版</h3>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold" style="background-color: var(--color-brand-accent-green); color: #0a0a0b;">免费</span>
+        </div>
+        <p class="text-brand-text-secondary mb-6">
+          治理您的 Agent 所需的一切。无限制，无时间限制。
+        </p>
+        <ul class="space-y-3 mb-6">
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">完整治理框架 (Gray Code 状态机、8层防御)</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">TLA+ 形式化验证证明</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">国密 SM2/SM3/SM4-GCM 算法</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">递归自演进引擎</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">不可变审计日志 (HMAC-SHA256)</span>
+          </li>
+        </ul>
+        <a href="/zh/docs/quickstart/" class="block w-full text-center py-3 px-6 rounded-lg font-medium transition-colors" style="background-color: var(--color-brand-accent-blue); color: white;">免费开始使用</a>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">常见问题</h2>
+      
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-lg font-semibold mb-2">MAREF 真的 100% 免费吗？</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            是的。整个 MAREF 框架采用 Apache 2.0 许可证发布。您可以免费下载、使用、修改和分发。源代码可在 GitHub 上获取：<a href="https://github.com/maref-org/maref" class="text-brand-accent-blue hover:underline">github.com/maref-org/maref</a>。
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">我需要为更新或新版本付费吗？</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            不需要。MAREF 的所有更新都是免费的。我们遵循语义化版本控制，所有补丁、次要更新和主要版本都包含在您的免费许可证中。
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">我可以在商业产品中使用 MAREF 吗？</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            可以。Apache 2.0 允许商业使用。您可以将 MAREF 集成到您的产品、服务或内部工具中，甚至可以销售这些产品，而无需向我们支付版税或许可费。
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">如果我需要帮助或有疑问怎么办？</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            我们通过 <a href="https://github.com/maref-org/maref/issues" class="text-brand-accent-blue hover:underline">GitHub Issues</a> 和社区论坛提供支持。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12 p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">准备开始了？</h2>
+      <p class="text-brand-text-secondary mb-6">
+        5 分钟内安装 MAREF。无需信用卡，无需账户。
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <a href="/zh/docs/quickstart/" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="background-color: var(--color-brand-accent-blue); color: white;">免费开始使用</a>
+        <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="border: 1px solid var(--color-brand-border);">在 GitHub 上查看</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — 多智能体递归演进框架</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/zh/privacy/" class="hover:text-snow-sheet transition-colors">隐私</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">联系</a>
+        </p>
+        <p>Apache-2.0 许可证</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

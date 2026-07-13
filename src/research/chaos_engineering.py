@@ -1,13 +1,16 @@
-import structlog
 from dataclasses import dataclass, field
-from typing import Any, Optional
-from maref_lite.state_machine import StateMachine
+from typing import Any
+
+import structlog
+
+from maref_lite.state_machine import StateMachine  # type: ignore[attr-defined]
+
 logger = structlog.get_logger(__name__)
 
 @dataclass
 class ChaosResult:
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
 
 class ChaosInjector:

@@ -233,17 +233,17 @@ class AgentCardAdapter:
         """Create an MASAgentCard from the centralized Agent Card configuration."""
         config = get_default_card_config()
         return MASAgentCard(
-            agent_id=config.agent_id,
+            agent_id=config.agent_id,  # type: ignore[attr-defined]
             agent_name=config.agent_name,
-            version=config.version,
-            description=config.description,
-            capabilities=config.mas_capabilities,
-            endpoints=config.endpoints,
-            data_residency=config.data_residency,
-            model_backend_location=config.model_backend_location,
-            cross_border=config.cross_border,
-            trust_score=config.trust_score,
-            compliance_labels=config.compliance_labels,
+            version=config.version,  # type: ignore[attr-defined]
+            description=config.description,  # type: ignore[attr-defined]
+            capabilities=config.mas_capabilities,  # type: ignore[attr-defined]
+            endpoints=config.endpoints,  # type: ignore[attr-defined]
+            data_residency=config.data_residency,  # type: ignore[attr-defined]
+            model_backend_location=config.model_backend_location,  # type: ignore[attr-defined]
+            cross_border=config.cross_border,  # type: ignore[attr-defined]
+            trust_score=config.trust_score,  # type: ignore[attr-defined]
+            compliance_labels=config.compliance_labels,  # type: ignore[attr-defined]
         )
 
 

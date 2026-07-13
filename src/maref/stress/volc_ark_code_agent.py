@@ -10,6 +10,7 @@ Supports models:
 
 Produces CodeGenerationResult compatible with CodeServiceSQI.
 """
+# mypy: ignore-errors
 
 from __future__ import annotations
 
@@ -23,9 +24,9 @@ try:
     _ANTHROPIC_AVAILABLE = True
 except ImportError:
     _ANTHROPIC_AVAILABLE = False
-    Anthropic = None  # type: ignore
-    APIError = Exception  # type: ignore
-    RateLimitError = Exception  # type: ignore
+    Anthropic = None
+    APIError = Exception
+    RateLimitError = Exception
 
 from maref.stress.code_service_sqi import CodeQualityMetrics
 

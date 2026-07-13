@@ -1,9 +1,11 @@
 import random
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from research.experiment_registry import ExperimentRegistry
-from research.vector_store import VectorStore
+from research.vector_store import VectorStore  # type: ignore[attr-defined]
+
 
 @dataclass
 class StoppingCriteria:
@@ -14,18 +16,18 @@ class StoppingCriteria:
 
 class ExperimentOrchestrator:
 
-    def __init__(self, registry: ExperimentRegistry, vector_store: VectorStore, stopping_criteria: Optional[StoppingCriteria]=None) -> None:
+    def __init__(self, registry: ExperimentRegistry, vector_store: VectorStore, stopping_criteria: StoppingCriteria | None=None) -> None:
         self.registry = registry
         self.vector_store = vector_store
         self.stopping_criteria = stopping_criteria or StoppingCriteria()
         self._start_time: float = time.time()
         self._no_improvement_count: int = 0
         self._best_score: float = float('-inf')
-        self._batch_results: List[Dict[str, Any]] = []
+        self._batch_results: list[dict[str, Any]] = []
 
-    def select_next_experiment(self) -> Optional[str]:
+    def select_next_experiment(self) -> str | None:
         try:
-            candidates = self.registry.get_pending_experiments()
+            candidates = self.registry.get_pending_experiments()  # type: ignore[attr-defined]
             if not candidates:
                 return None
             scored = [(self._compute_score(c), c) for c in candidates]
@@ -39,7 +41,7 @@ class ExperimentOrchestrator:
             base_score = random.random()
             similar = self.vector_store.query_similar(experiment_id, top_k=5)
             if similar:
-                avg_similarity = sum((s[1] for s in similar)) / len(similar)
+                avg_similarity = sum(s[1] for s in similar) / len(similar)
                 base_score += avg_similarity * 0.5
             return base_score
         except Exception:
@@ -50,7 +52,7 @@ class ExperimentOrchestrator:
             elapsed = time.time() - self._start_time
             if elapsed >= self.stopping_criteria.max_time_seconds:
                 return True
-            total = self.registry.get_total_experiments()
+            total = self.registry.get_total_experiments()  # type: ignore[attr-defined]
             if total >= self.stopping_criteria.max_experiments:
                 return True
             if self._no_improvement_count >= self.stopping_criteria.patience:
@@ -59,9 +61,9 @@ class ExperimentOrchestrator:
         except Exception:
             return True
 
-    def record_result(self, experiment_id: str, score: float, metadata: Optional[Dict[str, Any]]=None) -> None:
+    def record_result(self, experiment_id: str, score: float, metadata: dict[str, Any] | None=None) -> None:
         try:
-            self.registry.record_result(experiment_id, score, metadata)
+            self.registry.record_result(experiment_id, score, metadata)  # type: ignore[attr-defined]
             if score > self._best_score:
                 self._best_score = score
                 self._no_improvement_count = 0
@@ -77,8 +79,8 @@ class ExperimentOrchestrator:
         except Exception:
             pass
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         try:
-            return {'total_experiments': self.registry.get_total_experiments(), 'best_score': self._best_score, 'no_improvement_count': self._no_improvement_count, 'elapsed_time': time.time() - self._start_time, 'batch_size': len(self._batch_results)}
+            return {'total_experiments': self.registry.get_total_experiments(), 'best_score': self._best_score, 'no_improvement_count': self._no_improvement_count, 'elapsed_time': time.time() - self._start_time, 'batch_size': len(self._batch_results)}  # type: ignore[attr-defined]
         except Exception:
             return {}

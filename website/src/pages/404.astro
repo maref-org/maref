@@ -1,0 +1,50 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const pathname = Astro.url.pathname;
+const locale = pathname.startsWith("/zh") ? "zh" : "en";
+const opp = locale === "zh" ? "en" : "zh";
+
+const nav = {
+  en: { features: "Features", docs: "Docs", blog: "Blog", faq: "FAQ", about: "About", langLabel: "中文", langHref: "/zh/" },
+  zh: { features: "功能", docs: "文档", blog: "博客", faq: "FAQ", about: "关于", langLabel: "EN", langHref: "/en/" },
+}[locale];
+---
+
+<BaseLayout
+  title={locale === "zh" ? "页面未找到" : "Page Not Found"}
+  description={locale === "zh" ? "你寻找的页面不存在——它可能已被移动或网址不正确。" : "The page you're looking for doesn't exist — it may have moved or the URL may be incorrect."}
+  canonical="/"
+>
+<NavBar locale={locale} />
+
+  <div class="flex min-h-screen flex-col items-center justify-center px-6 text-center">
+    <h1 class="text-8xl font-bold tracking-tight mb-4" style="color: var(--color-brand-accent-blue);">404</h1>
+
+    <!-- English (default) -->
+    <div id="msg-en" class={locale === "zh" ? "hidden" : ""}>
+      <p class="text-xl text-brand-text-secondary mb-2">This page doesn't exist.</p>
+      <p class="text-sm text-brand-text-muted mb-8 max-w-md">
+        The page you're looking for may have been moved, renamed, or is temporarily unavailable.
+        Check the URL or head back to the homepage.
+      </p>
+      <div class="flex items-center gap-4">
+        <a href="/en/" class="inline-flex items-center gap-2 rounded-lg px-6 py-3 font-medium transition-all hover:opacity-90" style="background-color: var(--color-brand-accent-blue); color: #fff;">← Home</a>
+        <a href="/en/docs/quickstart/" class="inline-flex items-center gap-2 rounded-lg px-6 py-3 font-medium transition-all hover:opacity-90 border" style="border-color: var(--color-brand-border);">Quickstart →</a>
+      </div>
+    </div>
+
+    <!-- Chinese -->
+    <div id="msg-zh" class={locale === "zh" ? "" : "hidden"}>
+      <p class="text-xl text-brand-text-secondary mb-2">这个页面不存在。</p>
+      <p class="text-sm text-brand-text-muted mb-8 max-w-md">
+        你寻找的页面可能已被移动、重命名或暂时不可用。请检查网址或返回首页。
+      </p>
+      <div class="flex items-center gap-4">
+        <a href="/zh/" class="inline-flex items-center gap-2 rounded-lg px-6 py-3 font-medium transition-all hover:opacity-90" style="background-color: var(--color-brand-accent-blue); color: #fff;">← 首页</a>
+        <a href="/zh/docs/quickstart/" class="inline-flex items-center gap-2 rounded-lg px-6 py-3 font-medium transition-all hover:opacity-90 border" style="border-color: var(--color-brand-border);">快速开始 →</a>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

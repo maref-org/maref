@@ -2,8 +2,11 @@ import ast
 import re
 from pathlib import Path
 from typing import Any
+
 from pydantic import BaseModel, Field
+
 from maref.codegen.tool import Tool, ToolContext, ToolResult, ValidationResult
+
 _IMMUNE_PATTERNS: list[tuple[str, str, int, str]] = [('hardcoded_secret', 'Hardcoded password or API key', 5, '(?x)\n        (password|secret|api_key|token|credential)\\s*=\\s*[\'\\"][^\'\\"]{4,}[\'\\"]\n    '), ('insecure_hash', 'Insecure hash algorithm (MD5/SHA1)', 4, '\\b(hashlib\\.md5|hashlib\\.sha1|import\\s+md5)\\b'), ('eval_exec', 'Use of eval/exec on untrusted input', 5, '\\b(eval|exec)\\s*\\('), ('sql_injection', 'Possible SQL injection (string formatting in query)', 5, '(?x)\n        (execute|executemany)\\s*\\(\\s*[\'\\"](?:.|\\n)*?\\{.*?\\}\n    '), ('pickle_load', 'Unsafe pickle deserialization', 4, '\\b(pickle\\.load|pickle\\.loads|cPickle\\.load|cPickle\\.loads)\\s*\\('), ('assert', 'assert statement used in production path', 3, '^\\s*assert\\s+'), ('print_to_stdout', 'print statement in production code', 2, '^\\s*print\\s*\\('), ('bare_except', 'Bare except clause', 3, '^\\s*except\\s*:'), ('shell_injection', 'os.system/subprocess with shell=True', 4, '(?x)\n        (os\\.system|subprocess\\.call|subprocess\\.Popen|subprocess\\.run)\\s*\\(\n        (?:.|\\n)*?shell\\s*=\\s*True\n    '), ('mutable_default_arg', 'Mutable default argument', 2, '(?x)\n        def\\s+\\w+\\s*\\([^)]*=\\s*(\\[\\s*\\]|\\{\\s*\\}|set\\(\\s*\\))\n    ')]
 
 class ImmuneScanInput(BaseModel):
@@ -59,7 +62,7 @@ class ImmuneScanTool(Tool[ImmuneScanInput, ImmuneScanOutput]):
                 else:
                     hits_raw = self._immune_checker.scan(code, input.language)
                 hits = [ImmuneHit(gene_id=getattr(h, 'gene_id', ''), gene_title=getattr(h, 'gene_title', ''), risk_level=getattr(h, 'risk_level', 'info'), severity=getattr(h, 'severity', 0), blocked=getattr(h, 'blocked', False), match_type=getattr(h, 'match_type', ''), match_location=getattr(h, 'match_location', (0, 0)), match_snippet=getattr(h, 'match_snippet', ''), fix_suggestion=getattr(h, 'fix_suggestion', None)) for h in hits_raw]
-                blocked = any((h.blocked for h in hits))
+                blocked = any(h.blocked for h in hits)
                 return ToolResult(data=ImmuneScanOutput(hits=hits, blocked=blocked, scan_count=len(hits)))
             except Exception as e:
                 return ToolResult(data=ImmuneScanOutput(hits=[], blocked=False, scan_count=0), metadata={'fallback': 'Checker failed, using built-in patterns', 'error': str(e)})
@@ -80,7 +83,7 @@ class ImmuneScanTool(Tool[ImmuneScanInput, ImmuneScanOutput]):
         ast_hits = self._scan_ast(code)
         hits.extend(ast_hits)
         hits.sort(key=lambda h: (-h.severity, h.match_location[0]))
-        blocked = any((h.blocked for h in hits))
+        blocked = any(h.blocked for h in hits)
         return ToolResult(data=ImmuneScanOutput(hits=hits, blocked=blocked, scan_count=len(hits)))
 
     def _scan_ast(self, code: str) -> list[ImmuneHit]:

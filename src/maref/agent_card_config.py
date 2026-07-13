@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 
 @dataclass
 class AgentCardConfig:
@@ -8,10 +9,10 @@ class AgentCardConfig:
     agent_name: str
     agent_version: str
     agent_description: str
-    agent_endpoints: List[Dict[str, Any]] = field(default_factory=list)
-    agent_capabilities: List[str] = field(default_factory=list)
-    agent_authentication: Optional[Dict[str, Any]] = None
-    agent_metadata: Optional[Dict[str, Any]] = None
+    agent_endpoints: list[dict[str, Any]] = field(default_factory=list)
+    agent_capabilities: list[str] = field(default_factory=list)
+    agent_authentication: dict[str, Any] | None = None
+    agent_metadata: dict[str, Any] | None = None
     agent_ttl: int = 3600
     agent_max_retries: int = 3
     agent_timeout: int = 30
@@ -25,7 +26,7 @@ class AgentCardConfig:
         except (ValueError, TypeError):
             return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {'agent_urn': self.agent_urn, 'agent_name': self.agent_name, 'agent_version': self.agent_version, 'agent_description': self.agent_description, 'agent_endpoints': self.agent_endpoints, 'agent_capabilities': self.agent_capabilities, 'agent_authentication': self.agent_authentication, 'agent_metadata': self.agent_metadata, 'agent_ttl': self.agent_ttl, 'agent_max_retries': self.agent_max_retries, 'agent_timeout': self.agent_timeout}
 
 def validate_agent_urn(urn: str) -> None:
@@ -35,21 +36,21 @@ def validate_agent_urn(urn: str) -> None:
 def get_default_card_config() -> AgentCardConfig:
     return AgentCardConfig(agent_urn='urn:maref:default', agent_name='default', agent_version='1.0.0', agent_description='Default agent card configuration')
 
-def validate_endpoint_consistency(endpoints: List[Dict[str, Any]]) -> None:
+def validate_endpoint_consistency(endpoints: list[dict[str, Any]]) -> None:
     for endpoint in endpoints:
         if 'url' not in endpoint:
             raise ValueError("Endpoint missing required 'url' field")
         if 'protocol' not in endpoint:
             raise ValueError("Endpoint missing required 'protocol' field")
 
-def validate_capabilities_completeness(capabilities: List[str]) -> None:
+def validate_capabilities_completeness(capabilities: list[str]) -> None:
     if not capabilities:
         raise ValueError('At least one capability is required')
     for cap in capabilities:
         if not isinstance(cap, str) or not cap.strip():
             raise ValueError(f'Invalid capability: {cap}')
 
-MAS_CAPABILITIES: List[Dict[str, Any]] = [
+MAS_CAPABILITIES: list[dict[str, Any]] = [
     {
         "skill_id": "skill_agent_spawn",
         "name": "agent_spawn",

@@ -1,7 +1,9 @@
 import time
 from typing import TYPE_CHECKING, Any
+
 from maref.recursive.agent_credit_rating import RatingDimension
 from maref.security.decorators import security_critical
+
 if TYPE_CHECKING:
     from maref.recursive.agent_credit_rating import AgentCreditRatingSystem
     from maref.recursive.agent_economy import AgentEconomy

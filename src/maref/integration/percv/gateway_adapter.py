@@ -118,7 +118,7 @@ class PERCVGatewayAdapter:
         if self._router is not None:
             return self._router
         try:
-            from percv.gateway.router import (
+            from percv.gateway.router import (  # type: ignore[import-not-found]
                 CostTracker as _CostTracker,
             )
             from percv.gateway.router import LLMRouter

@@ -4,6 +4,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass
+
 AC_CATEGORIES = frozenset({'happy_path', 'error', 'boundary'})
 
 @dataclass
@@ -35,13 +36,13 @@ class AcceptanceExtractor:
     def extract_ac(self, description: str) -> list[AcceptanceCriterion]:
         desc_lower = description.lower()
         criteria: list[AcceptanceCriterion] = []
-        if any((kw in desc_lower for kw in ('登录', 'login', 'sign in', 'signin'))):
+        if any(kw in desc_lower for kw in ('登录', 'login', 'sign in', 'signin')):
             criteria.extend(self._login_criteria(description))
-        elif any((kw in desc_lower for kw in ('注册', 'register', 'sign up', 'signup'))):
+        elif any(kw in desc_lower for kw in ('注册', 'register', 'sign up', 'signup')):
             criteria.extend(self._register_criteria(description))
-        elif any((kw in desc_lower for kw in ('搜索', 'search', '查询', 'query'))):
+        elif any(kw in desc_lower for kw in ('搜索', 'search', '查询', 'query')):
             criteria.extend(self._search_criteria(description))
-        elif any((kw in desc_lower for kw in ('上传', 'upload', '导入', 'import'))):
+        elif any(kw in desc_lower for kw in ('上传', 'upload', '导入', 'import')):
             criteria.extend(self._upload_criteria(description))
         else:
             criteria.extend(self._generic_criteria(description))

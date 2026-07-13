@@ -62,12 +62,12 @@ def _run_real_benchmark(
             if "passed" in stripped and ("failed" in stripped or "error" in stripped):
                 parts = stripped.split()
                 for i, p in enumerate(parts):
-                    if p.endswith("passed") and i > 0:
+                    if "passed" in p and i > 0:
                         with contextlib.suppress(ValueError):
                             result["tests_passed"] = float(parts[i - 1])
                         with contextlib.suppress(ValueError):
                             result["test_count"] = float(parts[i - 1])
-                    elif p.endswith("failed") and i > 0:
+                    elif "failed" in p and i > 0:
                         with contextlib.suppress(ValueError):
                             result["tests_failed"] = float(parts[i - 1])
                         with contextlib.suppress(ValueError):

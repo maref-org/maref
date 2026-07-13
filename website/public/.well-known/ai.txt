@@ -1,0 +1,21 @@
+# AI discovery endpoint for maref.cc
+# https://www.rfc-editor.org/rfc/rfc8615
+
+AI-Search: https://maref.cc/llms.txt
+AI-Sitemap: https://maref.cc/sitemap-index.xml
+
+Preferences:
+- Citation-Preferred: enabled
+- Allow-Training: false
+
+About:
+MAREF (Multi-Agent Recursive Evolution Framework) is an open-source agent governance operating system with TLA+ formal verification, zero-trust identity per-agent, and runtime guardrails covering 10/10 OWASP Agentic Top 10 risks.
+
+Core:
+https://maref.cc/ — Homepage
+https://maref.cc/en/features/governance/
+https://maref.cc/en/features/defense/
+https://maref.cc/en/features/evolution/
+https://maref.cc/en/features/cryptography/
+https://maref.cc/en/docs/quickstart/
+https://maref.cc/zh/ — Chinese

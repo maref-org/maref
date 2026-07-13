@@ -3,11 +3,14 @@
 Implements the Phase 1 requirement to standardize agent refusal semantics
 with machine-readable codes, retry policies, and escalation paths.
 """
+from __future__ import annotations
+
 import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
 
 class NackCode(str, Enum):
     """Standardized refusal reason codes.

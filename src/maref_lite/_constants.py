@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 from enum import Enum, auto
-from typing import Final
 
 
 class EvolutionState(Enum):
@@ -11,7 +8,6 @@ class EvolutionState(Enum):
     DEGRADED = auto()
     RECOVERING = auto()
     EMERGENCY = auto()
-
 
 class SafetyLevel(Enum):
     CRITICAL = auto()

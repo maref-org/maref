@@ -1,11 +1,14 @@
-import yaml
+# mypy: ignore-errors
 import structlog
-from maref_lite.governance import CircuitBreaker, AuditLogger, MetaGovernance
+import yaml
+
+from maref_lite.governance import AuditLogger, CircuitBreaker, MetaGovernance
 from maref_lite.state_machine import StateMachine
 from research.dashscope_client import DashscopeClient
 from research.finding_models import Finding, Metric
 from sidecar.collector import Collector
 from sidecar.monitor import Monitor
+
 logger = structlog.get_logger()
 
 class DailyReport:

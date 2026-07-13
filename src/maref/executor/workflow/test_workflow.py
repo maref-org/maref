@@ -113,7 +113,7 @@ class TestWorkflowScript:
             ],
         )
         assert script.get_step("find") is not None
-        assert script.get_step("find").description == "寻找"
+        assert script.get_step("find").description == "寻找"  # type: ignore[union-attr]
         assert script.get_step("nonexistent") is None
 
     def test_parallel_groups(self):
@@ -185,7 +185,7 @@ class TestWorkflowResult:
         result.step_results = [
             StepResult(step_name="step_x", status=StepStatus.COMPLETED),
         ]
-        assert result.get_step_result("step_x").status == StepStatus.COMPLETED
+        assert result.get_step_result("step_x").status == StepStatus.COMPLETED  # type: ignore[union-attr]
         assert result.get_step_result("nonexistent") is None
 
 

@@ -86,7 +86,7 @@ class WeightAuditorAdapter:
 
     def __init__(self) -> None:
         try:
-            import transformer_lens  # noqa: F401
+            import transformer_lens  # type: ignore[import-not-found]  # noqa: F401
             self._available = True
             self._tl_module = transformer_lens
         except ImportError:
@@ -180,7 +180,6 @@ class WeightAuditorAdapter:
         def hook_fn(name: str) -> Any:
             def hook(activation: Any, hook: Any) -> Any:
                 # 检测激活值是否超出 3σ（简化版）
-                import torch
                 if hasattr(activation, "mean") and hasattr(activation, "std"):
                     mean = activation.mean().item()
                     std = activation.std().item()

@@ -1,3 +1,12 @@
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from maref.recursive.federated_saga_orchestrator import (
+        FederatedSagaOrchestrator,
+        FederatedSagaResult,
+        SagaPolicyDecision,
+    )
+
 from maref.recursive.admission_testing import (
     AdmissionGate,
     AdmissionResult,
@@ -479,6 +488,9 @@ __all__ = [
     "FederatedAgent",
     "FederationReport",
     "FrameworkType",
+    "FederatedSagaOrchestrator",
+    "FederatedSagaResult",
+    "SagaPolicyDecision",
     "EvolutionDSL",
     "EvolutionRule",
     "SafetyGate",
@@ -799,3 +811,24 @@ __all__ = [
     "ASTModuleSummary",
     "MockProvider",
 ]
+
+
+# Lazy-loaded symbols from federated_saga_orchestrator. Importing at
+# module load time would create a circular dependency:
+#   maref.federation -> maref.orchestration -> maref.recursive -> federated_saga_orchestrator
+_LAZY_FEDERATED_SAGA_EXPORTS = {
+    "FederatedSagaOrchestrator",
+    "FederatedSagaResult",
+    "SagaPolicyDecision",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily import federated_saga_orchestrator symbols on first use."""
+    if name in _LAZY_FEDERATED_SAGA_EXPORTS:
+        from maref.recursive import federated_saga_orchestrator as _module
+
+        value = getattr(_module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module 'maref.recursive' has no attribute {name!r}")

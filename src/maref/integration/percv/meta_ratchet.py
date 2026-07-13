@@ -336,7 +336,7 @@ class MetaRatchet:
             return None
 
         # 生产化：强制红线检查
-        redlines = self._check_redlines(change, diagnosis.affected_target)
+        redlines = self._check_redlines(change, diagnosis.affected_target)  # type: ignore[arg-type]
         change.redline_violations = redlines
 
         if redlines:

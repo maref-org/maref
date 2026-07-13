@@ -1,0 +1,79 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = {
+  en: {
+    tagline: "Your agents are already working for you.<br />MAREF ensures they don't work against you.",
+    pip: "pip install maref",
+    btnScan: "Take the 3-min Risk Scan",
+    btnWhitePaper: "Download Governance Whitepaper",
+    btnGitHub: "Star on GitHub",
+    footer: "Open source · Recursive evolution · Production ready · Apache 2.0 · 4,300+ tests · 82% coverage",
+  },
+  zh: {
+    tagline: "Agent 已经在替你干活了。<br />MAREF 确保它不会替你闯祸。",
+    pip: "pip install maref",
+    btnScan: "3分钟体检",
+    btnWhitePaper: "下载治理白皮书",
+    btnGitHub: "Star on GitHub",
+    footer: "开源 · 递归演进 · 生产就绪 · Apache 2.0 · 4,300+ 测试 · 82% 覆盖率",
+  },
+};
+
+type Lang = keyof typeof content;
+const t = content[(locale as Lang) || "en"];
+const docsPath = locale === "zh" ? "/zh/docs/quickstart/" : "/en/docs/quickstart/";
+const scanPath = locale === "zh" ? "/zh/features/governance/" : "/en/features/governance/";
+---
+
+<div class="py-24 px-6">
+  <div class="mx-auto max-w-(--content-max) text-center">
+
+    <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-8 leading-[1.2]" set:html={t.tagline}></h2>
+
+    <!-- pip install -->
+    <div class="inline-flex items-center gap-2 rounded-cards px-6 py-3 mb-10 font-code text-sm" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+      <span class="text-brand-accent-green">$</span>
+      <span>{t.pip}</span>
+    </div>
+
+    <!-- 3 buttons -->
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
+      <a
+        href={scanPath}
+        class="inline-flex items-center gap-2 rounded-buttons px-6 py-3 font-semibold text-xs uppercase tracking-wider transition-all hover:opacity-90 text-surface-trench"
+        style="background: var(--gradient-current);"
+      >
+        {t.btnScan}
+      </a>
+      <a
+        href="https://github.com/maref-org/maref/releases"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2 rounded-buttons px-6 py-3 font-medium text-base transition-all hover:opacity-90 border text-brand-text-primary"
+        style="border-color: var(--color-brand-border);"
+      >
+        {t.btnWhitePaper}
+      </a>
+      <a
+        href="https://github.com/maref-org/maref"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2 rounded-buttons px-6 py-3 font-medium text-base transition-all hover:opacity-90 border text-brand-text-primary"
+        style="border-color: var(--color-brand-border);"
+      >
+        ★ {t.btnGitHub}
+      </a>
+    </div>
+
+    <!-- Footer line -->
+    <p class="text-sm text-brand-text-muted">
+      {t.footer}
+    </p>
+
+  </div>
+</div>

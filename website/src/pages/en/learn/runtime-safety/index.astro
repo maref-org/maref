@@ -1,0 +1,175 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout
+  locale="en"
+  title="Multi-Agent Runtime Safety — Guardrails for Production AI Agents"
+  description="Runtime safety for multi-agent systems requires identity isolation, tool call verification, circuit breakers, and drift detection. MAREF provides production-grade runtime guardrails that enforce safety boundaries without blocking legitimate agent work."
+  section="features"
+>
+
+<h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+  Runtime Safety for Multi-Agent Deployments
+</h1>
+<p class="text-lg text-brand-text-secondary mb-10">
+  Runtime guardrails that enforce safety boundaries without blocking legitimate agent activity. MAREF provides the only open-source runtime governance system with formal verification.
+</p>
+
+<div class="my-16 space-y-16">
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What is multi-agent runtime safety?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Multi-agent runtime safety is the set of controls that govern agent behavior during execution — not just at deployment time. While static safety measures (prompt engineering, tool whitelists, capability registries) set initial boundaries, runtime safety enforces those boundaries dynamically as agents interact with tools, data, and each other.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Runtime safety must handle scenarios that static analysis cannot predict: an agent receiving a cleverly crafted input that causes it to attempt an unauthorized action, one agent's compromised state spreading to others through inter-agent messages, or a model update that subtly changes decision-making boundaries.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  MAREF's runtime safety system addresses all of these with identity isolation, real-time decision gates, circuit breakers, and continuous drift monitoring.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">How does MAREF prevent agents from exceeding their authority?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF enforces a zero-trust permission model at the agent level. Every agent has a cryptographically signed agent card that declares its capabilities, permitted tools, trust level, and communication boundaries. Before any action is executed, the runtime safety gate verifies:
+</p>
+<ul class="list-disc pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
+  <li>Does the action match the agent's declared capabilities?</li>
+  <li>Is the target tool in the agent's permission matrix?</li>
+  <li>Is the agent's trust state above the minimum required for this action type?</li>
+  <li>Does this action trigger any active safety rules or governance policies?</li>
+  <li>Has the circuit breaker been tripped for this agent or action type?</li>
+</ul>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  This multi-layer check happens in under 50ms per action, with 97% of decisions automated through the four-level safety decision tree (Rule → Mode → SafetyGate → Human-in-the-loop escalation).
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What happens when an agent fails a safety check?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Failure handling follows a graduated escalation model:
+</p>
+<ol class="list-decimal pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
+  <li><strong class="text-brand-text-primary">Warning</strong> — First failure logs the event and alerts the agent. No action taken.</li>
+  <li><strong class="text-brand-text-primary">Sanction</strong> — Second failure within the time window downgrades the agent's trust state, reducing its autonomous capabilities.</li>
+  <li><strong class="text-brand-text-primary">Isolation</strong> — Third failure triggers agent isolation. The agent can no longer communicate with other agents or execute tool calls. Only human intervention can release it.</li>
+  <li><strong class="text-brand-text-primary">HALT</strong> — Three consecutive failures of the same type trigger the HALT absorbing state. The governance engine locks, requiring authenticated human override to resume.</li>
+</ol>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  This four-phase governance model (warning → sanction → isolation → recovery) is configurable per deployment, including custom phase durations and escalation criteria.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">How does MAREF isolate agents from each other?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF implements SubAgent isolation, inspired by Git Worktree architecture. Each agent operates in an isolated context with its own memory space, capability registry, and trust state. Cross-agent communication requires explicit handoff through the <a href="https://github.com/maref-org/maref" class="text-brand-accent-cyan hover:underline" rel="external">AgentHandoffProtocol</a>, which verifies the sender's identity, the receiver's permission to accept messages, and the chain of custody for the entire conversation history.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  This isolation model prevents prompt injection from spreading across agents. Even if one agent is compromised, the blast radius is limited to that agent's isolated context — neighboring agents remain unaffected.
+</p>
+<CodeBlock
+  lang="python"
+  title="SubAgent isolation example"
+  code={`from maref import SubAgent, AgentHandoffProtocol
+
+research_agent = SubAgent(
+    id="researcher-01",
+    context_isolation=True,
+    max_handoffs=3
+)
+code_agent = SubAgent(
+    id="coder-01",
+    context_isolation=True
+)
+
+# Each agent has its own memory, capabilities, and trust state
+# Cross-agent calls require signed handoff protocol
+result = await research_agent.handoff(
+    target=code_agent,
+    task="Implement the verification function",
+    handoff_chain=[research_agent.id]
+)`}
+/>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">How does MAREF detect model drift at runtime?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF implements dual-mode drift detection: LoRA weight analysis and ontology embedding comparison. Both run continuously during agent operation.
+</p>
+<ul class="list-disc pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
+  <li><strong class="text-brand-text-primary">LoRA drift detection</strong> — Monitors the distribution of LoRA adapter weights during inference. Shifts in weight distribution can indicate model degradation, concept drift, or adversarial manipulation.</li>
+  <li><strong class="text-brand-text-primary">Ontology drift detection</strong> — Embedds agent outputs into a semantic ontology space and tracks the distribution over time. Changes in output semantics can indicate that the model's understanding has shifted.</li>
+  <li><strong class="text-brand-text-primary">Triple divergence metrics</strong> — Both modes use KL divergence, JS divergence, and Hellinger distance as independent measurements. Only when at least two metrics agree on a significant shift is drift reported.</li>
+</ul>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  When drift is detected, the system escalates to a human operator with a detailed report including the divergence values, affected agent IDs, and recommended actions (re-calibrate, rollback model version, or quarantine).
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What is the blast radius control system?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The Blast Radius Controller monitors and limits the impact of any single agent failure. It tracks: which agents can influence which other agents, which capabilities are shared vs isolated, the dependency graph of agent-to-agent trust relationships, and the cumulative risk score of each agent based on its access level and recent behavior.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  If an agent's blast radius exceeds its configured threshold, the controller automatically tightens constraints — reducing the agent's communication scope, requiring HITL approval for its actions, or isolating it entirely. This prevents failures from cascading through the multi-agent system.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">How do I add runtime safety to an existing agent deployment?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF's runtime safety gate integrates as a middleware layer. Add it to your existing LangGraph, CrewAI, or AutoGen deployment without modifying agent logic:
+</p>
+<CodeBlock
+  lang="python"
+  title="Safety gate middleware integration"
+  code={`from maref import SafetyGateV2
+
+# Wrap your existing orchestrator
+safety = SafetyGateV2(
+    permission_matrix=my_permissions,
+    circuit_breaker=CircuitBreaker(threshold=3),
+    drift_detector=DriftDetector()
+)
+
+# Intercept agent actions before they reach tools
+for action in agent_actions:
+    decision = await safety.check(action)
+    if decision.allowed:
+        await execute(action)
+    else:
+        await safety.escalate(
+            action,
+            reason=decision.reason,
+            severity=decision.severity
+        )`}
+/>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  For a complete walkthrough, see the <a href="/en/docs/quickstart/" class="text-brand-accent-cyan hover:underline">Quickstart guide</a>. For governance fundamentals, see <a href="/en/learn/agent-governance/" class="text-brand-accent-cyan hover:underline">Agent Governance</a>.
+</p>
+</div>
+
+</div>
+
+<div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+  <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">Runtime Safety Specifications</h3>
+  <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+    <div class="text-brand-text-muted">Safety model</div><div class="text-brand-text-primary">Zero-trust per-agent with capability isolation</div>
+    <div class="text-brand-text-muted">Decision latency</div><div class="text-brand-text-primary">&#x3C;50ms per action (97% automated)</div>
+    <div class="text-brand-text-muted">Escalation phases</div><div class="text-brand-text-primary">4: Warning → Sanction → Isolation → HALT</div>
+    <div class="text-brand-text-muted">Drift detection</div><div class="text-brand-text-primary">LoRA weight + Ontology embedding, triple divergence metrics</div>
+    <div class="text-brand-text-muted">Agent isolation</div><div class="text-brand-text-primary">SubAgent context isolation (Git Worktree-style)</div>
+    <div class="text-brand-text-muted">Cross-framework</div><div class="text-brand-text-primary">LangGraph, CrewAI, AutoGen, Dify, Coze</div>
+    <div class="text-brand-text-muted">Communication</div><div class="text-brand-text-primary">A2A v0.3 + MCP dual protocol, signed handoff chain</div>
+  </div>
+</div>
+
+</DocLayout>

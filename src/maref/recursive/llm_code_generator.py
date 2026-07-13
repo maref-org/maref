@@ -50,7 +50,7 @@ class OpenAIProvider:
             if self._base_url:
                 kwargs["base_url"] = self._base_url
             self._client = AsyncOpenAI(**kwargs)
-        kwargs: dict[str, Any] = {
+        kwargs: dict[str, Any] = {  # type: ignore[no-redef]
             "model": self._model,
             "messages": [
                 {"role": "user", "content": prompt},
@@ -88,7 +88,7 @@ class AnthropicProvider:
         max_tokens: int = 8192,
     ) -> str:
         if self._client is None:
-            from anthropic import AsyncAnthropic
+            from anthropic import AsyncAnthropic  # type: ignore[import-not-found]
             self._client = AsyncAnthropic(api_key=self._api_key)
         kwargs: dict[str, Any] = {
             "model": self._model,

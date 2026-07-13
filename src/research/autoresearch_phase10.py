@@ -1,8 +1,11 @@
 import datetime
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import structlog
-from research.dashscope_client import DashscopeClient
+
+from research.dashscope_client import DashscopeClient  # type: ignore[attr-defined]
+
 logger = structlog.get_logger()
 
 @dataclass
@@ -10,12 +13,12 @@ class Phase10ExperimentResult:
     experiment_id: str
     status: str
     start_time: datetime.datetime
-    end_time: Optional[datetime.datetime] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
-    artifacts: List[str] = field(default_factory=list)
-    error: Optional[str] = None
+    end_time: datetime.datetime | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
+    artifacts: list[str] = field(default_factory=list)
+    error: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {'experiment_id': self.experiment_id, 'status': self.status, 'start_time': self.start_time.isoformat(), 'metrics': self.metrics, 'artifacts': self.artifacts}
         if self.end_time:
             result['end_time'] = self.end_time.isoformat()
@@ -25,7 +28,7 @@ class Phase10ExperimentResult:
 
 class Phase10AutoResearch:
 
-    def __init__(self, client: DashscopeClient, config: Optional[Dict[str, Any]]=None) -> None:
+    def __init__(self, client: DashscopeClient, config: dict[str, Any] | None=None) -> None:
         self.client = client
         self.config = config or {}
         self._setup_logging()
@@ -37,9 +40,7 @@ class Phase10AutoResearch:
         lines = content.strip().split('\n')
         formatted = []
         for line in lines:
-            if line.startswith('#'):
-                formatted.append(line)
-            elif line.startswith('-'):
+            if line.startswith('#') or line.startswith('-'):
                 formatted.append(line)
             elif line.strip():
                 formatted.append(f'{line}\n')

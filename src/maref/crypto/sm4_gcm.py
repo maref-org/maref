@@ -6,7 +6,9 @@
 import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
 from .sm4 import sm4_encrypt_cbc
+
 if TYPE_CHECKING:
     pass
 
@@ -87,10 +89,10 @@ def sm4_encrypt_gcm(key: bytes, nonce: bytes, plaintext: bytes, aad: bytes=b'') 
         ctr_block = nonce + struct.pack('>I', counter + i // 16 + 1)
         keystream = _sm4_ecb_encrypt_block(key, ctr_block)
         block = plaintext[i:i + 16]
-        ciphertext.extend(bytes((b ^ k for (b, k) in zip(block, keystream, strict=False))))
+        ciphertext.extend(bytes(b ^ k for (b, k) in zip(block, keystream, strict=False)))
     s = _ghash(h, aad, bytes(ciphertext))
     j0_enc = _sm4_ecb_encrypt_block(key, j0)
-    tag = bytes((a ^ b for (a, b) in zip(s, j0_enc, strict=False)))
+    tag = bytes(a ^ b for (a, b) in zip(s, j0_enc, strict=False))
     return SM4GCMResult(ciphertext=bytes(ciphertext), tag=tag[:16], nonce=nonce)
 
 def sm4_decrypt_gcm(key: bytes, nonce: bytes, ciphertext: bytes, tag: bytes, aad: bytes=b'') -> bytes:
@@ -117,7 +119,7 @@ def sm4_decrypt_gcm(key: bytes, nonce: bytes, ciphertext: bytes, tag: bytes, aad
     s = _ghash(h, aad, ciphertext)
     j0 = nonce + b'\x00\x00\x00\x01'
     j0_enc = _sm4_ecb_encrypt_block(key, j0)
-    computed_tag = bytes((a ^ b for (a, b) in zip(s, j0_enc, strict=False)))[:16]
+    computed_tag = bytes(a ^ b for (a, b) in zip(s, j0_enc, strict=False))[:16]
     if not _constant_time_compare(computed_tag, tag):
         raise ValueError('Authentication tag verification failed')
     counter = struct.unpack('>I', nonce[8:12])[0]
@@ -126,7 +128,7 @@ def sm4_decrypt_gcm(key: bytes, nonce: bytes, ciphertext: bytes, tag: bytes, aad
         ctr_block = nonce + struct.pack('>I', counter + i // 16 + 1)
         keystream = _sm4_ecb_encrypt_block(key, ctr_block)
         block = ciphertext[i:i + 16]
-        plaintext.extend(bytes((b ^ k for (b, k) in zip(block, keystream, strict=False))))
+        plaintext.extend(bytes(b ^ k for (b, k) in zip(block, keystream, strict=False)))
     return bytes(plaintext)
 
 def _constant_time_compare(a: bytes, b: bytes) -> bool:

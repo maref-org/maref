@@ -1,0 +1,129 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout
+  locale="en"
+  title="Recursive Self-Evolution for AI Agents — Autonomous Improvement"
+  description="Recursive self-evolution lets AI systems improve their own safety, efficiency, and capabilities through autonomous observation, optimization, and convergence cycles. MAREF implements the first production-grade recursive evolution engine with Lyapunov-validated convergence."
+  section="features"
+>
+
+<h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+  Recursive Self-Evolution for Autonomous AI Systems
+</h1>
+<p class="text-lg text-brand-text-secondary mb-10">
+  A system that protects itself — and gets empirically better at it. MAREF's recursive evolution engine is the first with Lyapunov-validated convergence.
+</p>
+
+<div class="my-16 space-y-16">
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What is recursive self-evolution for AI agents?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Recursive self-evolution is a closed-loop process where an AI system observes its own performance, identifies improvement opportunities, generates and validates changes, deploys them, and repeats. Unlike traditional MLOps (where humans initiate retraining), recursive evolution is autonomous — the system continuously adapts without requiring human intervention for each cycle.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  MAREF implements this as the Self-* pipeline: <strong class="text-brand-text-primary">Self-Observer → Self-Diagnostician → Self-Architect → Self-Executor → Self-Healer → Self-Optimizer</strong>. Each component has a distinct role, and the pipeline is governed by the same safety constraints that apply to all agent activity.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">How does MAREF's evolution engine guarantee safety during self-modification?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Self-modification is inherently dangerous. MAREF addresses this with a multi-layer safety architecture:
+</p>
+<ul class="list-disc pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
+  <li><strong class="text-brand-text-primary">Constitutional Red Lines</strong> — Immutable safety constraints that no evolution cycle can override. These are enforced at the meta-governance layer.</li>
+  <li><strong class="text-brand-text-primary">Rule Freeze Zone</strong> — Critical governance rules require HMAC-signed approval from a qualified human to change.</li>
+  <li><strong class="text-brand-text-primary">AST Sandbox</strong> — All generated code is parsed, validated, and sandbox-tested before deployment. Malformed or unsafe ASTs are rejected.</li>
+  <li><strong class="text-brand-text-primary">Atomic deployment + rollback</strong> — Changes are deployed atomically. If validation tests fail after deployment, the system automatically rolls back to the previous known-good state.</li>
+  <li><strong class="text-brand-text-primary">Saturation detection</strong> — The optimizer detects when improvements have plateaued and halts the evolution cycle, preventing overfitting or degradation.</li>
+</ul>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What is Lyapunov convergence and why does it matter?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Lyapunov stability is a mathematical framework for analyzing whether a dynamic system converges toward a desired state over time. In MAREF, the Lyapunov function V(x) = xᵀPx is used to empirically validate that the governance error rate decreases monotonically across 200+ adversarial evolution rounds.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The Lyapunov framework provides a theoretical stability lens, and MAREF validates it empirically through red-blue adversarial testing. Over 200 rounds, the error rate consistently descends — validated by measurement, not assumed by proof. For safety-critical agent deployments, this empirical validation combined with TLA+ model checking of the state machine provides production-grade confidence.
+</p>
+<p class="text-sm text-brand-accent-cyan font-code">
+  Lyapunov function: V(x) = xᵀPx, empirically validated over 200 adversarial evolution rounds
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">How does red-blue adversarial evolution work?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Red-blue evolution pits adversarial attack agents (red) against defensive agents (blue) in structured rounds. Each round has five stages: reconnaissance, exploitation, escalation, persistence, and exfiltration. The red team's attack intensity escalates over 200 rounds, while the blue team learns from each attack and strengthens its defenses.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  In MAREF's production runs, attack intensity escalated from 2.47 to 18.98 (7.7× increase). The false negative rate (FNR) dropped by 60%. The false positive rate (FPR) dropped by 82%. Every attack made the system statistically stronger.
+</p>
+<CodeBlock
+  lang="python"
+  title="Running adversarial evolution"
+  code={`from maref import RedBlueEvolution
+
+evolution = RedBlueEvolution(
+    rounds=200,
+    attack_escalation="adaptive",
+    blue_team_strategy="lyapunov"
+)
+result = evolution.run()
+print(f"FNR: {result.fnr_delta}%")   # -60%
+print(f"FPR: {result.fpr_delta}%")   # -82%
+print(f"Attack peak: {result.attack_peak}")  # 18.98`}
+/>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What is the Self-* architecture?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The Self-* (Self-star) architecture is MAREF's implementation of recursive evolution, organized as eight autonomous components:
+</p>
+<ul class="list-disc pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
+  <li><strong class="text-brand-text-primary">Self-Observer</strong> — Continuously monitors codebase changes, test success rates, and system metrics.</li>
+  <li><strong class="text-brand-text-primary">Self-Knowledge</strong> — Maintains structured knowledge of the codebase, test suite, and architecture.</li>
+  <li><strong class="text-brand-text-primary">Self-Diagnostician</strong> — Runs full-system health diagnostics and identifies improvement areas.</li>
+  <li><strong class="text-brand-text-primary">Self-Architect</strong> — Generates architecture proposals for identified improvements.</li>
+  <li><strong class="text-brand-text-primary">Self-Executor</strong> — Implements changes: generates code → AST validation → security check → atomic deploy → verify → rollback on failure.</li>
+  <li><strong class="text-brand-text-primary">Self-Healer</strong> — Detects and recovers from failures using partition recovery strategies.</li>
+  <li><strong class="text-brand-text-primary">Self-Optimizer</strong> — Runs mutation → sandbox → accept/revert optimization cycles with saturation detection.</li>
+  <li><strong class="text-brand-text-primary">Self-Version</strong> — Manages dependency version pinning and API compatibility matrices.</li>
+</ul>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  Each Self-* component runs within the governance layer's safety constraints — no component can modify constitutional rules, cross its declared trust boundary, or operate without audit logging.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">Can recursive evolution be used without MAREF's governance layer?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Technically yes — the Self-* modules can be imported individually. However, running autonomous self-modification <em>without</em> MAREF's governance layer is strongly discouraged for production use. The governance layer provides the circuit breaker, drift detection, constitutional red lines, and audit trail that make self-evolution safe rather than reckless.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  For a deeper look at the Self-* implementation, see the <a href="/en/features/evolution/" class="text-brand-accent-cyan hover:underline">Evolution feature page</a>. For governance fundamentals, see <a href="/en/learn/agent-governance/" class="text-brand-accent-cyan hover:underline">Agent Governance</a>.
+</p>
+</div>
+
+</div>
+
+<div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+  <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">Evolution Engine Specifications</h3>
+  <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+    <div class="text-brand-text-muted">Type</div><div class="text-brand-text-primary">Recursive Self-Evolution with Red-Blue adversarial training</div>
+    <div class="text-brand-text-muted">Self-* components</div><div class="text-brand-text-primary">8 (Observer, Knowledge, Diagnostician, Architect, Executor, Healer, Optimizer, Version)</div>
+    <div class="text-brand-text-muted">Convergence validation</div><div class="text-brand-text-primary">Lyapunov stability analysis (empirical), 5 TLA+ model-checked invariants</div>
+    <div class="text-brand-text-muted">Adversarial rounds</div><div class="text-brand-text-primary">200 (5-stage, escalating intensity)</div>
+    <div class="text-brand-text-muted">FNR reduction</div><div class="text-brand-text-primary">-60%</div>
+    <div class="text-brand-text-muted">FPR reduction</div><div class="text-brand-text-primary">-82%</div>
+    <div class="text-brand-text-muted">Safety constraints</div><div class="text-brand-text-primary">Constitutional Red Lines, Rule Freeze Zone, AST Sandbox, Atomic rollback</div>
+  </div>
+</div>
+
+</DocLayout>

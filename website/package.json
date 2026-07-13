@@ -1,0 +1,51 @@
+{
+  "name": "maref-cc",
+  "version": "0.3.0",
+  "description": "MAREF official website — Agent Governance OS",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro build && astro preview",
+    "astro": "astro",
+    "geo:audit": "bash scripts/geo-audit.sh",
+    "deploy": "pnpm build && wrangler pages deploy dist --project-name=maref-cc"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@astrojs/mdx": "^6.0.0",
+    "@astrojs/react": "^5.0.7",
+    "@astrojs/sitemap": "^3.0.0",
+    "@fontsource/inter": "^5.0.0",
+    "@fontsource/jetbrains-mono": "^5.0.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "astro": "^6.0.0",
+    "d3": "^7.9.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "playwright": "^1.60.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8"
+}

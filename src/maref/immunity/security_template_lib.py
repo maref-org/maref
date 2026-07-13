@@ -5,7 +5,9 @@ import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any
+
 from maref.security.decorators import security_critical
+
 logger = logging.getLogger(__name__)
 _HMAC_KEY_ENV = 'MAREF_TEMPLATE_HMAC_KEY'
 _EPHEMERAL_KEY: bytes | None = None
@@ -55,7 +57,7 @@ class SecurityTemplateLib:
         self._templates[template.domain] = template
 
     def verify_integrity(self) -> bool:
-        return all((t.hmac == _compute_hmac(t.template_code) for t in self._templates.values()))
+        return all(t.hmac == _compute_hmac(t.template_code) for t in self._templates.values())
 
     def get_template(self, domain: str) -> str | None:
         t = self._templates.get(domain)
@@ -92,7 +94,7 @@ class SecurityTemplateLib:
     def _check_password_usage(self, code: str, template: SecurityTemplate) -> list[dict[str, Any]]:
         violations: list[dict[str, Any]] = []
         code_lower = code.lower()
-        if not any((kw in code_lower for kw in ('password', 'passwd', 'hash_password', 'verify_password'))):
+        if not any(kw in code_lower for kw in ('password', 'passwd', 'hash_password', 'verify_password')):
             return violations
         try:
             tree = ast.parse(code)
@@ -104,12 +106,12 @@ class SecurityTemplateLib:
                 names = [n.name for n in node.names]
                 if isinstance(node, ast.ImportFrom) and node.module:
                     names.append(node.module)
-                if any(('bcrypt' in n for n in names)):
+                if any('bcrypt' in n for n in names):
                     uses_bcrypt = True
                     break
             if isinstance(node, ast.Call):
                 name = ast.unparse(node.func)
-                if any((f in name for f in ('hashpw', 'checkpw', 'gensalt'))):
+                if any(f in name for f in ('hashpw', 'checkpw', 'gensalt')):
                     uses_bcrypt = True
                     break
         if not uses_bcrypt:
@@ -135,7 +137,7 @@ class SecurityTemplateLib:
                     violations.append({'domain': 'sql_query', 'message': 'SQL query constructed via f-string or concatenation — use parameterized query', 'suggestion': f'Use parameterized template:\n{template.template_code}', 'line': getattr(sql_arg, 'lineno', 0)})
             if isinstance(node, (ast.BinOp, ast.JoinedStr)):
                 snippet = ast.unparse(node)
-                is_sql_construction = any((kw in snippet.upper() for kw in _SQL_KEYWORDS))
+                is_sql_construction = any(kw in snippet.upper() for kw in _SQL_KEYWORDS)
                 if is_sql_construction and isinstance(node, ast.BinOp):
                     violations.append({'domain': 'sql_query', 'message': 'SQL query constructed via string concatenation — use parameterized query', 'suggestion': f'Use parameterized template:\n{template.template_code}', 'line': getattr(node, 'lineno', 0)})
                 elif is_sql_construction and isinstance(node, ast.JoinedStr):

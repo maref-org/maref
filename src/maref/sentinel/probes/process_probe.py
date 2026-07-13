@@ -194,7 +194,7 @@ class ProcessProbe(Probe):
             if child.pid not in new_children:
                 continue  # 只检查新增的子进程
             try:
-                child_name = await asyncio.to_thread(lambda c=child: c.name().lower())
+                child_name = await asyncio.to_thread(lambda c=child: c.name().lower())  # type: ignore[misc]
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 

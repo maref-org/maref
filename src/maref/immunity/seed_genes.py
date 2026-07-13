@@ -1,6 +1,8 @@
 import time
 from typing import TYPE_CHECKING
+
 from maref.immunity.negative_gene_bank import GenePattern, GeneVariant, NegativeGene
+
 if TYPE_CHECKING:
     from maref.immunity.negative_gene_bank import NegativeGeneBank
 BUILTIN_SEED_SOURCES = {'veracode': 'Veracode 2025 GenAI Code Security Report — OWASP Top 10 failure patterns', 'coderabbit': 'CodeRabbit State of AI vs Human Code Generation Report Dec 2025', 'cwe': 'MITRE CWE Top 25 Most Dangerous Software Weaknesses 2025', 'curl': 'Daniel Stenberg / curl bug bounty AI slop report patterns 2026', 'stackoverflow': 'Stack Overflow 2025 Developer Survey — common AI error patterns', 'owasp': 'OWASP Top 10 2025 — AI-specific vulnerability patterns'}

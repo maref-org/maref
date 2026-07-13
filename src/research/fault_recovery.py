@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass
 class RecoveryResult:
     success: bool
@@ -35,7 +36,7 @@ class FaultRecovery:
 
     async def get_stats(self) -> dict[str, Any]:
         try:
-            return {'total_failures': self._failure_count, 'total_recoveries': len(self._recovery_history), 'success_rate': sum((1 for r in self._recovery_history if r.success)) / max(len(self._recovery_history), 1)}
+            return {'total_failures': self._failure_count, 'total_recoveries': len(self._recovery_history), 'success_rate': sum(1 for r in self._recovery_history if r.success) / max(len(self._recovery_history), 1)}
         except Exception as e:
             self._logger.error(f'Stats retrieval failed: {e}')
             return {'error': str(e)}

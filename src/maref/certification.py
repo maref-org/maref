@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
+
 @dataclass
 class ControlEvidence:
     """控制证据"""
@@ -110,10 +111,10 @@ class ISO27001Preparation:
     def get_readiness_assessment(self) -> dict[str, Any]:
         """获取认证就绪评估"""
         total = len(self._compliance_status)
-        compliant = sum((1 for s in self._compliance_status.values() if s == 'compliant'))
-        partially = sum((1 for s in self._compliance_status.values() if s == 'partially_compliant'))
-        evidence = sum((1 for s in self._compliance_status.values() if s == 'evidence_collected'))
-        not_assessed = sum((1 for s in self._compliance_status.values() if s == 'not_assessed'))
+        compliant = sum(1 for s in self._compliance_status.values() if s == 'compliant')
+        partially = sum(1 for s in self._compliance_status.values() if s == 'partially_compliant')
+        evidence = sum(1 for s in self._compliance_status.values() if s == 'evidence_collected')
+        not_assessed = sum(1 for s in self._compliance_status.values() if s == 'not_assessed')
         readiness = (compliant + partially * 0.5 + evidence * 0.3) / total if total > 0 else 0.0
         return {'assessed_at': datetime.now().isoformat(), 'total_controls': total, 'compliant': compliant, 'partially_compliant': partially, 'evidence_collected': evidence, 'not_assessed': not_assessed, 'readiness_percentage': round(readiness * 100, 1), 'ready_for_audit': readiness >= 0.8, 'findings_count': len(self._findings)}
 
@@ -176,7 +177,7 @@ class SelfBootstrapVerifier:
             except Exception as e:
                 results.append({'check': check.__name__, 'passed': False, 'error': str(e)})
                 all_passed = False
-        verification_record = {'timestamp': time.time(), 'module_name': module_name, 'source_hash': source_hash[:16], 'checks_run': len(security_checks), 'checks_passed': sum((1 for r in results if r.get('passed', False))), 'all_passed': all_passed, 'results': results}
+        verification_record = {'timestamp': time.time(), 'module_name': module_name, 'source_hash': source_hash[:16], 'checks_run': len(security_checks), 'checks_passed': sum(1 for r in results if r.get('passed', False)), 'all_passed': all_passed, 'results': results}
         self._verification_history.append(verification_record)
         return verification_record
 
@@ -198,7 +199,7 @@ class SelfBootstrapVerifier:
         allowed_prefixes = ('maref.', 'typing', 'dataclasses', 'datetime', 'enum', 'hashlib', 'json', 'time', 'asyncio', 'collections')
         violations = []
         for imp in imports:
-            if not any((imp.startswith(prefix) or prefix in imp for prefix in allowed_prefixes)):
+            if not any(imp.startswith(prefix) or prefix in imp for prefix in allowed_prefixes):
                 if 'typing' not in imp and 'dataclasses' not in imp:
                     violations.append(imp)
         return {'check': 'import_integrity', 'passed': len(violations) == 0, 'imports_found': len(imports), 'violations': violations}
@@ -220,7 +221,7 @@ class SelfBootstrapVerifier:
         """
         if not self._verification_history:
             return {'closure_achieved': False, 'reason': 'No self-verification history'}
-        all_passed = all((v['all_passed'] for v in self._verification_history))
+        all_passed = all(v['all_passed'] for v in self._verification_history)
         modules_verified = len(self._verification_history)
         self._trust_closure_achieved = all_passed and modules_verified >= 3
         return {'closure_achieved': self._trust_closure_achieved, 'modules_verified': modules_verified, 'all_checks_passed': all_passed, 'verification_history': [{'module': v['module_name'], 'passed': v['all_passed'], 'timestamp': v['timestamp']} for v in self._verification_history], 'implications': ['System can validate its own security modules' if self._trust_closure_achieved else 'Additional verification needed', 'Trust is bootstrapped from verified components' if self._trust_closure_achieved else 'Trust chain incomplete']}

@@ -1,8 +1,10 @@
-import aiohttp
-import structlog
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
+
+import aiohttp
+import structlog
+
 logger = structlog.get_logger()
 
 class LLMResponse(Enum):
@@ -16,20 +18,20 @@ class FindingAnalysis:
     summary: str
     severity: str
     confidence: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class BatchAnalysis:
-    findings: List[FindingAnalysis] = field(default_factory=list)
+    findings: list[FindingAnalysis] = field(default_factory=list)
     total_confidence: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 class DashScopeClient:
 
     def __init__(self, api_key: str, base_url: str='https://dashscope.aliyuncs.com') -> None:
         self.api_key = api_key
         self.base_url = base_url
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
 
     async def __aenter__(self) -> DashScopeClient:
         self.session = aiohttp.ClientSession(headers={'Authorization': f'Bearer {self.api_key}'})
@@ -51,13 +53,13 @@ class DashScopeClient:
             logger.error('analysis_failed', finding_id=finding_id, error=str(e))
             raise
 
-    async def batch_analyze(self, findings: Dict[str, str]) -> BatchAnalysis:
+    async def batch_analyze(self, findings: dict[str, str]) -> BatchAnalysis:
         try:
             results = []
             for (finding_id, content) in findings.items():
                 analysis = await self.analyze_finding(finding_id, content)
                 results.append(analysis)
-            total_confidence = sum((r.confidence for r in results)) / len(results) if results else 0.0
+            total_confidence = sum(r.confidence for r in results) / len(results) if results else 0.0
             return BatchAnalysis(findings=results, total_confidence=total_confidence)
         except Exception as e:
             logger.error('batch_analysis_failed', error=str(e))

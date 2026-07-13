@@ -218,6 +218,46 @@ Manages agent lifecycle, skill execution, and multi-agent coordination.
 - `StigmergySwarm` -- pheromone-based swarm intelligence
 - `DecisionMarket` -- prediction market for agent decisions
 
+#### Federation Aggregation Platform (`src/maref/federation/`)
+A 9-module platform for cross-organization agent aggregation, identity
+translation, and economic settlement. Wired up by
+`create_default_federation()`:
+
+| Module | Purpose |
+|--------|---------|
+| `gateway.py` | `FederationGateway` — unified entry point: AIC↔DID translation, ACS parsing, dispatch |
+| `discovery.py` | `FederatedDiscovery` — ADP v2.00 cross-org discovery, peer forwarding |
+| `catalog.py` | `FederatedCatalog` — searchable inverted index of federated agents |
+| `trust.py` | `FederatedTrustEngine` — `effective = α·local + (1−α)·federated` with peer-report decay |
+| `policy.py` | `FederationPolicyEngine` — 3 layers, 4 conflict strategies (FEDERATION_WINS, LOCAL_WINS, DENY_IF_CONFLICT, MOST_RESTRICTIVE) |
+| `hitl.py` | `CrossOrgHITL` — cross-org human approval with auto-approve intra-org and escalation |
+| `marketplace.py` | `AgentMarketplace` — listings, pricing models, reviews, capability search |
+| `metering.py` | `TaskMeteringEngine` — per-task metrics + contribution scores |
+| `settlement.py` | `FederatedSettlement` — cross-org billing, proposals, ledger |
+
+**Integration to mainline** (v0.36+):
+- `FederatedPlanExecutor` (`orchestration/federated_plan_executor.py`) — wraps
+  `PlanExecutor`; routes `federation_dispatch` steps through the gateway with
+  automatic task metering.
+- `FederatedSagaOrchestrator` (`recursive/federated_saga_orchestrator.py`) —
+  wraps `SagaOrchestrator`; evaluates policy per step, routes `DEFER`
+  decisions to `CrossOrgHITL`, tracks trust per agent.
+
+```python
+from maref.federation import create_default_federation
+from maref.orchestration import FederatedPlanExecutor, Plan, PlanStep
+
+platform = create_default_federation(server_id="maref-prod-01")
+executor = FederatedPlanExecutor(platform=platform)
+plan = Plan(plan_id="p1", steps=[
+    PlanStep(task_id="t1", action="federation_dispatch",
+             params={"required_capability": "research",
+                     "consumer_org": "GammaCorp", "provider_org": "Acme",
+                     "token_count": 1000, "complexity_score": 0.5}),
+])
+report = executor.execute(plan)  # routes via gateway, meters, bills
+```
+
 #### Hooks
 - `HookChain` -- ordered hook execution pipeline
 - `HookRegistry` -- centralized hook registration

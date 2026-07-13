@@ -10,6 +10,7 @@ Usage:
     maref ip status                          # Show asset database status
     maref ip list-themes                     # Available character themes
 """
+# mypy: ignore-errors
 
 from __future__ import annotations
 

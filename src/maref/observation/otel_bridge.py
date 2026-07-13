@@ -14,10 +14,10 @@ from maref.governance.types import GovernanceState
 _OTEL_AVAILABLE = False
 try:
     from opentelemetry import metrics, trace  # noqa: F401
-    from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import (  # type: ignore[import-not-found]
         OTLPMetricExporter,
     )
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore[import-not-found]
         OTLPSpanExporter,
     )
     from opentelemetry.sdk.metrics import MeterProvider
