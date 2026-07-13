@@ -192,6 +192,19 @@ class UnifiedAuditStore:
         self._by_event_type.clear()
         self._by_round.clear()
 
+    def query(self, **kwargs: Any) -> list[UnifiedAuditRecord]:
+        """Generic query — filters records by arbitrary field values."""
+        results: list[UnifiedAuditRecord] = []
+        for record in self._records:
+            match = True
+            for key, value in kwargs.items():
+                if not hasattr(record, key) or getattr(record, key) != value:
+                    match = False
+                    break
+            if match:
+                results.append(record)
+        return results
+
     @property
     def persist_path(self) -> Path | None:
         return self._persist_path
@@ -220,3 +233,16 @@ class UnifiedAuditStore:
 
 def make_record_id(prefix: str, counter: int) -> str:
     return f"{prefix}_{counter:06d}_{int(time.time() * 1000)}"
+
+
+class UnifiedAudit:
+    """Stub for backward compatibility — delegates to UnifiedAuditStore."""
+
+    def __init__(self) -> None:
+        self.store = UnifiedAuditStore()
+
+    def log(self, record: UnifiedAuditRecord) -> None:
+        self.store.append(record)
+
+    def query(self, **kwargs: Any) -> list[UnifiedAuditRecord]:
+        return self.store.query(**kwargs)

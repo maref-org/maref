@@ -2,13 +2,13 @@ import dataclasses
 import typing
 
 from drift_guard.policy_sandbox import PolicySandbox
-from maref_lite.governance import (  # type: ignore[attr-defined]
+from maref_lite.governance import (
     GovernanceConfig,
     GovernanceStateMachine,
 )
 from maref_lite.meta_learning import MetaLearner
 from maref_lite.self_healing_loop import SelfHealingLoop
-from sidecar.protocol import SidecarProtocol  # type: ignore[attr-defined]
+from sidecar.protocol import SidecarProtocol
 
 
 @dataclasses.dataclass

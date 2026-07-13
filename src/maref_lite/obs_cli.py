@@ -2,9 +2,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from maref.obs import get_obs_level, get_obs_show, get_obs_status  # type: ignore[attr-defined]
+from maref.obs import get_obs_level, get_obs_show, get_obs_status
 
 app = typer.Typer()
+obs_app = app
 console = Console()
 
 def _fmt_size(size: int) -> str:
@@ -51,7 +52,7 @@ def obs_show():
 @app.command()
 def obs_level(level: str):
     try:
-        result = get_obs_level(level)
+        result = get_obs_level()
         console.print(f'Level {level}: {result}')
     except Exception as e:
         console.print(f'Error: {e}')

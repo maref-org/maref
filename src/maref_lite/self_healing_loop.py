@@ -8,7 +8,7 @@ from maref.recursive.self_diagnostician import SelfDiagnostician
 from maref.recursive.self_executor import SelfExecutor
 from maref.recursive.self_healer import SelfHealer
 from maref.recursive.self_observer import SelfObserver
-from maref.recursive.unified_audit import UnifiedAudit  # type: ignore[attr-defined]
+from maref.recursive.unified_audit import UnifiedAudit
 
 logger = logging.getLogger(__name__)
 

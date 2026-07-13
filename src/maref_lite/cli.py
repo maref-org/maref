@@ -39,8 +39,8 @@ from maref.production.ip_cli import ip_app
 from maref_lite.commands.demo import app as demo_app
 from maref_lite.commands.loop_cli import loop_app as loop_cli_app
 from maref_lite.governance import GovernanceOverlay
-from maref_lite.obs_cli import obs_app  # type: ignore[attr-defined]
-from maref_lite.percv_cli import percv_app  # type: ignore[attr-defined]
+from maref_lite.obs_cli import obs_app
+from maref_lite.percv_cli import percv_app
 from maref_lite.state_machine import (
     ENTROPY_LEVELS,
     GRAY_CODE,

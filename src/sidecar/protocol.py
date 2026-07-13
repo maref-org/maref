@@ -125,3 +125,16 @@ class GovernanceDecision:
             "priority": self.priority,
             "timestamp": self.timestamp,
         }
+
+
+class SidecarProtocol:
+    """Sidecar protocol handler stub."""
+
+    def __init__(self) -> None:
+        self.agent_id = AgentId(name="sidecar")
+
+    def serialize(self, message: Any) -> dict[str, Any]:
+        return {"agent_id": str(self.agent_id), "payload": message}
+
+    def deserialize(self, data: dict[str, Any]) -> Any:
+        return data.get("payload")
