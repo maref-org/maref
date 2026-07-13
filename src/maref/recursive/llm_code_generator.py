@@ -231,29 +231,55 @@ class CodeContextBuilder:
                     except OSError:
                         user_lines.append(f"\n# Could not read {fp}")
                 else:
-                    # Python files: AST summary
-                    import ast as _ast
+                    # Python files: full content + AST summary
+                    # Fix 24: provide full file content (like TS files) so the
+                    # LLM can resolve cross-module references for F821 (undefined
+                    # name) and other context-dependent ruff errors. The AST
+                    # summary alone (class/function names) doesn't give the LLM
+                    # enough information to add missing imports or define
+                    # variables that ruff cannot auto-fix.
                     try:
                         with open(fp) as f:
-                            content = f.read()
-                        tree = _ast.parse(content)
-                        classes = [
-                            n.name for n in _ast.walk(tree) if isinstance(n, _ast.ClassDef)
-                        ]
-                        functions = [
-                            n.name for n in _ast.walk(tree) if isinstance(n, _ast.FunctionDef)
-                        ]
-                        imports = [
-                            (n.names[0].name if isinstance(n, _ast.Import) else n.module)
-                            for n in _ast.walk(tree)
-                            if isinstance(n, (_ast.Import, _ast.ImportFrom))
-                        ][:30]
-                        user_lines.append(f"\n# AST summary for {fp}:")
-                        user_lines.append(f"#   classes: {classes}")
-                        user_lines.append(f"#   functions: {functions}")
-                        user_lines.append(f"#   imports: {imports}")
-                    except (SyntaxError, OSError):
-                        user_lines.append(f"\n# Could not parse {fp}")
+                            lines = f.readlines()
+                        # Same max_err_line logic as TS files (Fix 19)
+                        max_err_line = 0
+                        for sym in (proposal.affected_symbols or []):
+                            try:
+                                prefix = sym.split(":", 1)[0]  # e.g. "L109"
+                                if prefix.startswith("L"):
+                                    max_err_line = max(max_err_line, int(prefix[1:]))
+                            except (ValueError, IndexError):
+                                pass
+                        read_limit = min(250, max(80, max_err_line + 20))
+                        user_lines.append(
+                            f"\n# Current content of {fp} (first {read_limit} lines):"
+                        )
+                        for line in lines[:read_limit]:
+                            user_lines.append(line.rstrip("\n"))
+                        # AST summary as structured overview (bonus context)
+                        import ast as _ast
+                        try:
+                            content = "".join(lines)
+                            tree = _ast.parse(content)
+                            classes = [
+                                n.name for n in _ast.walk(tree) if isinstance(n, _ast.ClassDef)
+                            ]
+                            functions = [
+                                n.name for n in _ast.walk(tree) if isinstance(n, _ast.FunctionDef)
+                            ]
+                            imports = [
+                                (n.names[0].name if isinstance(n, _ast.Import) else n.module)
+                                for n in _ast.walk(tree)
+                                if isinstance(n, (_ast.Import, _ast.ImportFrom))
+                            ][:30]
+                            user_lines.append(f"\n# AST summary for {fp}:")
+                            user_lines.append(f"#   classes: {classes}")
+                            user_lines.append(f"#   functions: {functions}")
+                            user_lines.append(f"#   imports: {imports}")
+                        except SyntaxError:
+                            pass
+                    except OSError:
+                        user_lines.append(f"\n# Could not read {fp}")
 
         if feedback:
             user_lines.append(f"\n# Feedback from previous attempt:\n{feedback}")
