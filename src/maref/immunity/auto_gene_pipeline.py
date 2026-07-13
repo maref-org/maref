@@ -2,7 +2,9 @@ import os
 import time
 import uuid
 from typing import TYPE_CHECKING, Any
+
 from maref.security.decorators import security_critical
+
 if TYPE_CHECKING:
     from maref.immunity.negative_gene_bank import NegativeGeneBank
     from maref.recursive.experience_pool import ExperiencePool

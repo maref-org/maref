@@ -9,11 +9,14 @@ Merkle 审计链
 3. 与现有 UnifiedAuditStore 集成
 4. 支持批量证据提交和验证
 """
+from __future__ import annotations
+
 import hashlib
 import json
 import time
 from dataclasses import dataclass
 from typing import Any
+
 
 @dataclass
 class MerkleNode:

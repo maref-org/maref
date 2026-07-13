@@ -1,0 +1,108 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = {
+  en: {
+    badge: "Governance OS",
+    title: "Install MAREF. It's like 8 security gates for your agents.",
+    subtitle: "Every action your agent takes passes through MAREF automatically.",
+    rows: [
+      {
+        worry: "Agent suddenly deletes files",
+        solution: "3 consecutive anomalies trigger auto-circuit-break + 30s cooldown",
+        feeling: '"It tried. The brakes stopped it before I noticed."',
+      },
+      {
+        worry: "Agent calls wrong APIs",
+        solution: "Identity → Permission → Audit, 0.3s per call",
+        feeling: '"I don\'t even feel it checking."',
+      },
+      {
+        worry: "No idea what your agents are doing",
+        solution: "Immutable log: every operation signed and traceable",
+        feeling: '"Open the log. Everything it did is right there."',
+      },
+      {
+        worry: "Compliance audit coming up",
+        solution: "SM2/SM3/SM4 cryptography, ISO-ready out of the box",
+        feeling: '"Auditor shows up. Export the report. Done."',
+      },
+    ],
+    punchline: "Before: watch your agent for 10 hours afraid it will break something.<br />After: go to sleep.",
+  },
+  zh: {
+    badge: "治理操作系统",
+    title: "装一个 MAREF，就像给 Agent 装了 8 道安检门。",
+    subtitle: "你的 Agent 每做一个动作，MAREF 自动过检。",
+    rows: [
+      {
+        worry: "Agent 突然删文件",
+        solution: "连续 3 次异常自动熔断 + 30 秒冷却",
+        feeling: "「它刚想动手，就被按住了」",
+      },
+      {
+        worry: "Agent 乱调用 API",
+        solution: "身份验明 → 权限核对 → 行为审计，0.3 秒",
+        feeling: "「我甚至感觉不到它在检查」",
+      },
+      {
+        worry: "不知道 Agent 在干什么",
+        solution: "不可变日志：每一步操作签名留痕",
+        feeling: "「翻开日志，它干过什么一清二楚」",
+      },
+      {
+        worry: "合规检查过不了",
+        solution: "国密 SM2/SM3/SM4，等保 2.0 就绪",
+        feeling: "「审计来了，报告直接导出」",
+      },
+    ],
+    punchline: "以前你盯着 Agent 10 小时怕它闯祸。<br />现在你可以去睡觉。",
+  },
+};
+
+type Lang = keyof typeof content;
+const t = content[(locale as Lang) || "en"];
+---
+
+<div class="py-24 px-6">
+  <div class="mx-auto max-w-(--content-max)">
+
+    <div class="text-center mb-16">
+      <span class="inline-block text-xs font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border); color: var(--color-brand-accent-cyan);">
+        {t.badge}
+      </span>
+      <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4" set:html={t.title}></h2>
+      <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <div class="overflow-hidden rounded-xl border" style="border-color: var(--color-brand-border);">
+      <table class="w-full text-left">
+        <thead>
+          <tr style="background-color: var(--color-brand-bg-code);">
+            <th class="px-6 py-4 text-sm font-semibold text-brand-accent-red w-1/4">{locale === "zh" ? "你担心的事" : "What you worry about"}</th>
+            <th class="px-6 py-4 text-sm font-semibold text-brand-accent-green w-2/5">{locale === "zh" ? "MAREF 怎么解决" : "How MAREF solves it"}</th>
+            <th class="px-6 py-4 text-sm font-semibold text-brand-accent-cyan w-1/3">{locale === "zh" ? "你的感受" : "How it feels"}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {t.rows.map((row, i) => (
+            <tr class="border-t" style="border-color: var(--color-brand-border); background-color: var(--color-brand-bg-secondary);">
+              <td class="px-6 py-5 text-sm font-medium">{row.worry}</td>
+              <td class="px-6 py-5 text-sm text-brand-text-secondary">{row.solution}</td>
+              <td class="px-6 py-5 text-sm italic" style="color: var(--color-brand-accent-cyan);" set:html={row.feeling}></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="text-center mt-12">
+      <p class="text-xl font-bold leading-relaxed" style="color: var(--color-brand-accent-green);" set:html={t.punchline}></p>
+    </div>
+
+  </div>
+</div>

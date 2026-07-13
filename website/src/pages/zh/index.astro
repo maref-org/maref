@@ -1,0 +1,76 @@
+---
+import LandingLayout from "@/layouts/LandingLayout.astro";
+import Hero from "@/components/sections/Hero.astro";
+import ProblemStatement from "@/components/sections/ProblemStatement.astro";
+import VideoShowcase from "@/components/sections/VideoShowcase.astro";
+import SolutionTable from "@/components/sections/SolutionTable.astro";
+import AspirationSection from "@/components/sections/AspirationSection.astro";
+import MarefLiteSection from "@/components/sections/MarefLiteSection.astro";
+import ArchitectureShowcase from "@/components/sections/ArchitectureShowcase.astro";
+import CompetitiveTable from "@/components/sections/CompetitiveTable.astro";
+import GrayCodeFSM from "@/components/animations/GrayCodeFSM/GrayCodeFSM.astro";
+import ConvergenceChart from "@/components/animations/ConvergenceChart/ConvergenceChart.astro";
+import CtaSection from "@/components/sections/CtaSection.astro";
+import DefenseLayers from "@/components/animations/DefenseLayers/DefenseLayers.astro";
+import FeatureCardGrid from "@/components/sections/FeatureCardGrid.astro";
+import GovernanceShowcase from "@/components/animations/GovernanceShowcase/GovernanceShowcase.astro";
+---
+
+<LandingLayout locale="zh" title="MAREF" description="MAREF 是开源智能体治理 OS，TLA+ 形式化验证、零信任身份、运行时护栏。给你的 AI 智能体装上刹车。" showFAQ={true}>
+
+  <!-- 1. Hero — 痛点头 + 用户分流 + 隐私信任 -->
+  <Hero locale="zh" />
+
+
+  <!-- 2. 痛点场景 — 真实事故 -->
+  <ProblemStatement locale="zh" />
+
+  <!-- 3. 解决方案表 — 场景对照 -->
+  <SolutionTable locale="zh" />
+
+  <!-- 4. 话语权 — 不是买工具，是买话语权 -->
+  <AspirationSection locale="zh" />
+
+  <!-- 5. MAREF Lite — 降低门槛 -->
+  <MarefLiteSection locale="zh" />
+
+  <!-- 6. 产品深度 — 架构 + 动画（面向技术用户） -->
+  <ArchitectureShowcase locale="zh" />
+
+  <div class="pb-8 px-6">
+    <div class="mx-auto max-w-(--content-max)">
+      <div class="text-center mb-12">
+        <span class="inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider mb-4" style="background-color: var(--color-brand-accent-blue); color: #fff; opacity: 0.9;">实时：治理生产智能体</span>
+        <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4" style="line-height: 1.8">每个工具调用。<br class="hidden md:block" /><span class="text-brand-accent-blue">每个决策。签名验证。</span></h2>
+        <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto">
+          MAREF 位于你的智能体和它们接触的一切之间——
+          拦截威胁、密码学签名每个决策、实时演进防御策略。
+        </p>
+      </div>
+      <GovernanceShowcase locale="zh" />
+    </div>
+  </div>
+
+  <DefenseLayers locale="zh" />
+
+  <div class="pb-24 px-6">
+    <div class="mx-auto max-w-(--content-max) text-center">
+      <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">四项技术。一个保障：你的智能体安全。</h2>
+      <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto mb-12">
+        Gray Code 状态机、8 层防御、自演进治理、国密级密码学。
+        随便选三个。第四个你不需要——因为已经覆盖了。
+      </p>
+      <FeatureCardGrid locale="zh" />
+    </div>
+  </div>
+
+  <GrayCodeFSM locale="zh" />
+
+  <CompetitiveTable locale="zh" />
+
+  <ConvergenceChart locale="zh" />
+
+  <!-- 底部 CTA — 3 按钮 -->
+  <CtaSection locale="zh" />
+
+</LandingLayout>

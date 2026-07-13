@@ -1,0 +1,89 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import GrayCodeFSM from "@/components/animations/GrayCodeFSM/GrayCodeFSM.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="zh" title="智能体治理 — Gray Code 状态机" description="数学可证明的治理状态机 — TLA+ 验证、汉明距离=1、10 状态、HALT 吸收态。" section="features">
+
+  <!-- Zone 1: Hook -->
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+    安全，可以证明。<br />
+    <span class="text-brand-accent-blue">不只是承诺。</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-10">
+    基于 TLA+ 形式化方法验证的治理状态机。十个状态、六位编码、零歧义。每一次状态转换都可以数学证明。
+  </p>
+
+  <GrayCodeFSM locale="zh" />
+
+  <!-- Zone 2: Why -->
+  <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <p class="text-base text-brand-text-secondary leading-relaxed">
+      每个智能体框架都有一个"安全"复选框，但没人能证明它有效。MAREF 的治理状态机是第一个通过 TLA+ 数学证明的：
+      <strong class="text-brand-text-primary">五大定理已验证、零不可达状态、每次转换都是确定性的。</strong>
+    </p>
+  </div>
+
+  <!-- Zone 3: Columns -->
+  <div class="grid md:grid-cols-3 gap-8 my-20">
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-cyan mb-2">状态，永远明确。</h3>
+      <p class="text-sm text-brand-text-secondary">六位 Gray Code 编码保证相邻状态间汉明距离恒为 1。任何转换都不会落入模糊地带。</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-green mb-2">HALT。无法撤销。</h3>
+      <p class="text-sm text-brand-text-secondary">连续三次失败触发吸收态 HALT。任何智能体、进程或竞态条件都无法覆盖它。</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-purple mb-2">已验证，非假设。</h3>
+      <p class="text-sm text-brand-text-secondary">五大 TLA+ 不变量已通过模型检查验证：状态可达性、转换确定性、HALT 吸收、安全门完整性、红线不可变性。</p>
+    </div>
+  </div>
+
+  <!-- Zone 4: Deep dives -->
+  <div class="my-20 space-y-20">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">数学家也会信任的状态机。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        十个状态，每个状态使用 6 位 Gray Code 编码。相邻状态间仅变化一位，任何转换都不会落在歧义的中间地带。
+        TLA+ 模型检查在所有可能路径上验证了这一点。状态空间有限、完备、全探索。
+      </p>
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">三次。锁定。没有例外。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        断路器监控每次安全决策。任意时间窗口内三次失败触发 HALT。这不是一个软警告。
+        HALT 是吸收态——一旦进入，需要明确的、经过验证的人工覆盖才能退出。
+      </p>
+      <CodeBlock lang="python" title="CircuitBreaker 转入 HALT" code={`from maref import CircuitBreaker, HALT\n\nbreaker = CircuitBreaker(\n    threshold=3,\n    window_seconds=300,\n    on_halt=HALT  # 吸收态，无自动恢复\n)\n\n# 3 次失败后: state → HALT\n# 需要人工覆盖才能退出`} />
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">经 200 轮验证的收敛性。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Lyapunov 稳定性分析经 200+ 轮红蓝对抗验证，实证表明治理引擎随时间向更安全的状态收敛。
+        实验数据显示错误率单调递减——不振荡、不发散。Lyapunov 函数 V(x) = xᵀPx 提供了一个经对抗测试验证的稳定性分析框架。
+      </p>
+    </div>
+  </div>
+
+  <!-- Zone 5: Spec sheet -->
+  <div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">技术规格</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">状态机</div>
+      <div class="text-brand-text-primary">10 个工作状态 + HALT 吸收态</div>
+      <div class="text-brand-text-muted">编码</div>
+      <div class="text-brand-text-primary">6 位 Gray Code，汉明距离 = 1</div>
+      <div class="text-brand-text-muted">形式化方法</div>
+      <div class="text-brand-text-primary">TLA+ 模型检查</div>
+      <div class="text-brand-text-muted">验证的不变量</div>
+      <div class="text-brand-text-primary">5 — 状态可达性、转换确定性、HALT 吸收、安全门完整性、红线不可变性</div>
+      <div class="text-brand-text-muted">集成</div>
+      <div class="text-brand-text-primary">GovernanceOverlay 类，pip install maref</div>
+    </div>
+  </div>
+
+</DocLayout>

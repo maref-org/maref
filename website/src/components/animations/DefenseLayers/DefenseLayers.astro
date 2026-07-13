@@ -1,0 +1,45 @@
+---
+import DefenseLayers from "./DefenseLayers";
+
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = locale === "zh" ? {
+  badge: "纵深防御",
+  title: "8 层纵深防御架构",
+  subtitle: "红色攻击箭头从左进入，逐层穿透 — 在第 5 层安全门控被拦截",
+  attackLabel: "恶意攻击",
+  blockedLabel: "攻击已被拦截",
+  layers: [
+    { name: "输入净化", color: "var(--color-brand-accent-cyan)" },
+    { name: "工具调用审计", color: "var(--color-brand-accent-cyan)" },
+    { name: "权限检查", color: "var(--color-brand-accent-blue)" },
+    { name: "沙箱隔离", color: "var(--color-brand-accent-blue)" },
+    { name: "安全门控", color: "var(--color-brand-accent-green)", interceptable: true },
+    { name: "策略决策树", color: "var(--color-brand-accent-green)" },
+    { name: "威胁检测", color: "var(--color-brand-accent-purple)" },
+    { name: "遥测审计", color: "var(--color-brand-text-muted)" },
+  ],
+} : {
+  badge: "Defense-in-Depth",
+  title: "8-Layer Defense Architecture",
+  subtitle: "Red attack arrows enter from left, penetrating layer by layer — intercepted at Layer 5 Safety Gate",
+  attackLabel: "MALICIOUS ATTACK",
+  blockedLabel: "ATTACK BLOCKED",
+  layers: [
+    { name: "Input Sanitization", color: "var(--color-brand-accent-cyan)" },
+    { name: "Tool Call Audit", color: "var(--color-brand-accent-cyan)" },
+    { name: "Permission Check", color: "var(--color-brand-accent-blue)" },
+    { name: "Sandbox Isolation", color: "var(--color-brand-accent-blue)" },
+    { name: "Safety Gate", color: "var(--color-brand-accent-green)", interceptable: true },
+    { name: "Policy Decision Tree", color: "var(--color-brand-accent-green)" },
+    { name: "Threat Detection", color: "var(--color-brand-accent-purple)" },
+    { name: "Telemetry & Audit", color: "var(--color-brand-text-muted)" },
+  ],
+};
+---
+
+<DefenseLayers client:visible content={content} />

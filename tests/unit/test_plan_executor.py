@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from maref.orchestration.plan_executor import (
     Plan,
+    PlanExecutionReport,
     PlanExecutor,
     PlanStatus,
     PlanStep,
+    StepExecutionRecord,
     StepResult,
 )
+from maref.orchestration.task_graph import RiskLevel
 
 
 def _always_allow(action: str, params: dict) -> tuple[bool, str | None]:
@@ -259,3 +262,148 @@ class TestPlanExecutor:
         assert len(d["steps"]) == 1
         assert d["steps"][0]["action"] == "test"
         assert d["steps"][0]["result"] == "success"
+
+    def test_retry_penalty_score_no_retries(self) -> None:
+        score = PlanExecutor._retry_penalty_score(
+            PlanStep(task_id="s1", action="test"), retries=0
+        )
+        assert score == 1.0
+
+    def test_retry_penalty_score_with_retries(self) -> None:
+        score = PlanExecutor._retry_penalty_score(
+            PlanStep(task_id="s1", action="test"), retries=2
+        )
+        assert score < 1.0
+        assert score > 0.5
+
+    def test_retry_penalty_score_with_error(self) -> None:
+        score = PlanExecutor._retry_penalty_score(
+            PlanStep(task_id="s1", action="test"), retries=0, error=RuntimeError("fail")
+        )
+        assert score == 0.0
+
+    def test_convergence_empty(self) -> None:
+        report = PlanExecutionReport(plan_id="test", status=PlanStatus.COMPLETED)
+        assert report.convergence == []
+        assert report.quality_score == 1.0
+
+    def test_convergence_single_step(self) -> None:
+        report = PlanExecutionReport(
+            plan_id="test",
+            status=PlanStatus.COMPLETED,
+            steps=[StepExecutionRecord(task_id="s1", action="test", quality_score=0.9)],
+        )
+        assert report.convergence == [0.9]
+        assert report.quality_score == 0.9
+
+    def test_convergence_multi_step(self) -> None:
+        report = PlanExecutionReport(
+            plan_id="test",
+            status=PlanStatus.COMPLETED,
+            steps=[
+                StepExecutionRecord(task_id="s1", action="a", quality_score=0.9),
+                StepExecutionRecord(task_id="s2", action="b", quality_score=0.8),
+                StepExecutionRecord(task_id="s3", action="c", quality_score=0.85),
+            ],
+        )
+        assert report.convergence == [0.9, 0.8, 0.85]
+        assert report.quality_score == 0.85
+
+    def test_is_converged_fewer_than_window(self) -> None:
+        report = PlanExecutionReport(
+            plan_id="test",
+            status=PlanStatus.FAILED,
+            steps=[StepExecutionRecord(task_id="s1", action="a")],
+        )
+        assert report.is_converged is False
+
+    def test_is_converged_true_when_stable(self) -> None:
+        report = PlanExecutionReport(
+            plan_id="test",
+            status=PlanStatus.COMPLETED,
+            steps=[
+                StepExecutionRecord(task_id="s1", action="a", quality_score=0.9),
+                StepExecutionRecord(task_id="s2", action="b", quality_score=0.88),
+                StepExecutionRecord(task_id="s3", action="c", quality_score=0.89),
+            ],
+        )
+        assert report.is_converged is True
+
+    def test_is_converged_false_when_volatile(self) -> None:
+        report = PlanExecutionReport(
+            plan_id="test",
+            status=PlanStatus.COMPLETED,
+            steps=[
+                StepExecutionRecord(task_id="s1", action="a", quality_score=0.9),
+                StepExecutionRecord(task_id="s2", action="b", quality_score=0.5),
+                StepExecutionRecord(task_id="s3", action="c", quality_score=0.4),
+            ],
+        )
+        assert report.is_converged is False
+
+    def test_high_risk_triggers_governance_with_risk_param(self) -> None:
+        called_with: dict | None = None
+
+        def _check(action: str, params: dict) -> tuple[bool, str | None]:
+            nonlocal called_with
+            called_with = params
+            return True, None
+
+        exe = PlanExecutor(governance_check=_check)
+        plan = Plan(
+            plan_id="high-risk",
+            steps=[
+                PlanStep(
+                    task_id="s1", action="deploy",
+                    risk_level=RiskLevel.CRITICAL,
+                ),
+            ],
+        )
+        exe.register_handler("deploy", lambda a, p: None)
+        exe.execute(plan)
+        assert called_with is not None
+        assert called_with.get("_risk_level") == "critical"
+        assert called_with.get("_hitl_required") is True
+
+    def test_low_risk_governance_no_extra_params(self) -> None:
+        called_with: dict | None = None
+
+        def _check(action: str, params: dict) -> tuple[bool, str | None]:
+            nonlocal called_with
+            called_with = params
+            return True, None
+
+        exe = PlanExecutor(governance_check=_check)
+        plan = Plan(
+            plan_id="low-risk",
+            steps=[
+                PlanStep(task_id="s1", action="read", risk_level=RiskLevel.LOW),
+            ],
+        )
+        exe.register_handler("read", lambda a, p: None)
+        exe.execute(plan)
+        assert called_with is not None
+        assert called_with.get("_hitl_required") is None
+
+    def test_high_risk_blocked_by_governance(self) -> None:
+        def _deny_high(action: str, params: dict) -> tuple[bool, str | None]:
+            if params.get("_hitl_required"):
+                return False, "High-risk not approved"
+            return True, None
+
+        exe = PlanExecutor(
+            governance_check=_deny_high,
+            action_handlers={"deploy": lambda a, p: None},
+        )
+        plan = Plan(
+            plan_id="high-blocked",
+            steps=[
+                PlanStep(
+                    task_id="s1", action="deploy",
+                    risk_level=RiskLevel.CRITICAL,
+                ),
+            ],
+        )
+        report = exe.execute(plan)
+        assert report.steps[0].result == StepResult.BLOCKED
+        assert "Governance denied" in (report.steps[0].error or "")

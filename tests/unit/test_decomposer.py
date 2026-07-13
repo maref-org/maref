@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from maref.orchestration.decomposer import SubTask, TaskDAG, TaskDecomposer
+from maref.orchestration.decomposer import (
+    ParallelStrategy,
+    SubTask,
+    TaskDAG,
+    TaskDecomposer,
+)
+from maref.orchestration.task_graph import NodeType, RiskLevel
 
 
 class TestTaskDAG:
@@ -77,7 +83,7 @@ class TestTaskDecomposer:
         dag, conf = decomposer.decompose(
             "analyze the data and write a report", ["general", "analysis"]
         )
-        assert dag.node_count == 3
+        assert dag.node_count == 5
         assert conf > 0.7
 
     def test_decompose_research(self, decomposer: TaskDecomposer) -> None:
@@ -100,3 +106,78 @@ class TestTaskDecomposer:
             phrase = random.choice(test_phrases)
             dag, _ = decomposer.decompose(f"Please {phrase} the given information", ["general"])
             assert dag.node_count >= 1
+
+    def test_decompose_to_graph_returns_task_graph(self) -> None:
+        d = TaskDecomposer()
+        graph, conf = d.decompose_to_graph("analyze the data and write a report", ["general"])
+        assert conf > 0.7
+        assert graph.node_count > 0
+        fork_nodes = [n for n in graph.node_ids
+                      if graph.get_node(n) and graph.get_node(n).node_type == NodeType.FORK]
+        join_nodes = [n for n in graph.node_ids
+                      if graph.get_node(n) and graph.get_node(n).node_type == NodeType.JOIN]
+        assert len(fork_nodes) >= 1
+        assert len(join_nodes) >= 1
+
+    def test_decompose_to_graph_single_task_no_fork(self) -> None:
+        d = TaskDecomposer()
+        graph, conf = d.decompose_to_graph("do something simple", [])
+        assert graph.node_count >= 1
+
+    def test_decompose_with_llm_falls_back_when_no_llm(self) -> None:
+        d = TaskDecomposer()
+        graph, conf = d.decompose_with_llm("analyze the data", ["general"])
+        assert graph.node_count > 0
+
+    def test_force_serial_strategy_removes_forks(self) -> None:
+        d = TaskDecomposer(parallel_strategy=ParallelStrategy.FORCE_SERIAL)
+        graph, conf = d.decompose_to_graph("analyze the data and write a report", ["general"])
+        for nid in graph.node_ids:
+            node = graph.get_node(nid)
+            if node:
+                assert node.node_type != NodeType.FORK
+                assert node.node_type != NodeType.JOIN
+
+    def test_force_parallel_strategy_adds_fork(self) -> None:
+        d = TaskDecomposer(parallel_strategy=ParallelStrategy.FORCE_PARALLEL)
+        graph, conf = d.decompose_to_graph("analyze the data and write a report", ["general"])
+        fork_nodes = [n for n in graph.node_ids
+                      if graph.get_node(n) and graph.get_node(n).node_type == NodeType.FORK]
+        assert len(fork_nodes) >= 1
+
+    def test_classify_risk_by_keyword(self) -> None:
+        d = TaskDecomposer()
+        # "deploy" is a CRITICAL keyword
+        risk = d._classify_risk({"description": "Deploy to production"})
+        assert risk == RiskLevel.CRITICAL
+        # "audit" is HIGH
+        risk = d._classify_risk({"description": "Perform security audit"})
+        assert risk == RiskLevel.HIGH
+        # Unknown keyword → MEDIUM
+        risk = d._classify_risk({"description": "Write documentation"})
+        assert risk == RiskLevel.MEDIUM
+
+    def test_classify_risk_by_explicit_label(self) -> None:
+        d = TaskDecomposer()
+        risk = d._classify_risk({"description": "Some task", "risk": "low"})
+        assert risk == RiskLevel.LOW
+        risk = d._classify_risk({"description": "Some task", "risk": "critical"})
+        assert risk == RiskLevel.CRITICAL
+
+    def test_to_task_graph_parallel_layers(self) -> None:
+        dag = TaskDAG()
+        dag.add_node(SubTask("a", "Task A", 0.3, ["general"], [], risk_level=RiskLevel.LOW))
+        dag.add_node(SubTask("b", "Task B", 0.4, ["general"], [], risk_level=RiskLevel.LOW))
+        dag.add_node(SubTask("c", "Task C", 0.5, ["general"], ["a", "b"], risk_level=RiskLevel.MEDIUM))
+        graph = dag.to_task_graph()
+        fork_nodes = [n for n in graph.node_ids
+                      if graph.get_node(n) and graph.get_node(n).node_type == NodeType.FORK]
+        join_nodes = [n for n in graph.node_ids
+                      if graph.get_node(n) and graph.get_node(n).node_type == NodeType.JOIN]
+        assert len(fork_nodes) >= 1
+        assert len(join_nodes) >= 1
+
+    def test_template_matching_word_boundary_no_false_positive(self) -> None:
+        d = TaskDecomposer()
+        dag, _ = d.decompose("writing a research paper about security audit tools", ["general"])
+        assert dag.node_count >= 1

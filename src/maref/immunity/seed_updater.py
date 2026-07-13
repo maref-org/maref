@@ -1,7 +1,9 @@
 import json
 import time
 from typing import TYPE_CHECKING, Any
+
 from maref.immunity.negative_gene_bank import GenePattern, GeneVariant, NegativeGene, _new_id
+
 if TYPE_CHECKING:
     from maref.immunity.negative_gene_bank import NegativeGeneBank
 SUPPORTED_SOURCES = frozenset({'mitre_cwe', 'maraf_cwe', 'owasp', 'veracode', 'custom'})

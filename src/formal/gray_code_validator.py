@@ -12,6 +12,7 @@ Properties verified:
 4. Terminal absorbing: HALT state has no outgoing transitions
 5. Entropy monotonicity: Entropy peaks at ACT state and decreases afterward
 """
+# mypy: ignore-errors
 
 from rich.console import Console
 

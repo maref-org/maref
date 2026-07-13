@@ -1,0 +1,72 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = {
+  en: {
+    badge: "See MAREF in action",
+    subtitle: "21-second intro: what MAREF does and why it matters.",
+    src: "/videos/maref-english-v1.mp4",
+    label: "MAREF Intro",
+    desc: "MAREF — Governance for every agent",
+  },
+  zh: {
+    badge: "看 MAREF 如何工作",
+    subtitle: "19 秒了解 MAREF 做什么、为什么重要。",
+    src: "/videos/maref-v9-final.mp4",
+    label: "MAREF 介绍",
+    desc: "MAREF — 给每个 Agent 装上治理系统",
+  },
+};
+
+type Lang = keyof typeof content;
+const t = content[(locale as Lang) || "en"];
+---
+
+<div class="py-16 px-6">
+  <div class="mx-auto max-w-(--content-max)">
+    <div class="text-center mb-12">
+      <span class="inline-block text-xs font-semibold tracking-widest uppercase px-3 py-1 rounded-tags mb-4" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border); color: var(--color-brand-accent-cyan);">
+        {t.badge}
+      </span>
+      <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <div class="max-w-2xl mx-auto">
+      <div
+        class="rounded-cards overflow-hidden border"
+        style="border-color: var(--color-brand-border); background-color: var(--color-brand-bg-secondary);"
+      >
+        <video
+          src={t.src}
+          controls
+          preload="metadata"
+          playsinline
+          class="w-full aspect-video"
+          style="background: #000;"
+        >
+          Your browser does not support the video tag.
+        </video>
+        <div class="px-4 py-3">
+          <p class="text-sm font-semibold text-brand-text" style="font-family: var(--font-mono);">{t.label}</p>
+          <p class="text-xs mt-1" style="color: var(--color-fog-veil);">{t.desc}</p>
+        </div>
+        <div class="text-center mt-6">
+          <a
+            href="https://github.com/maref-org/maref/discussions"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 text-xs font-medium tracking-wider uppercase px-4 py-2 rounded-full transition-all hover:opacity-80"
+            style="color: var(--color-brand-accent-cyan); border: 1px solid var(--color-brand-border);"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Join the Discussion
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

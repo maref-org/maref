@@ -48,19 +48,19 @@ class RiskLevel(str, Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
-    def __ge__(self, other: RiskLevel) -> bool:
+    def __ge__(self, other: RiskLevel) -> bool:  # type: ignore[override]
         order = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 1, RiskLevel.HIGH: 2, RiskLevel.CRITICAL: 3}
         return order[self] >= order[other]
 
-    def __gt__(self, other: RiskLevel) -> bool:
+    def __gt__(self, other: RiskLevel) -> bool:  # type: ignore[override]
         order = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 1, RiskLevel.HIGH: 2, RiskLevel.CRITICAL: 3}
         return order[self] > order[other]
 
-    def __le__(self, other: RiskLevel) -> bool:
+    def __le__(self, other: RiskLevel) -> bool:  # type: ignore[override]
         order = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 1, RiskLevel.HIGH: 2, RiskLevel.CRITICAL: 3}
         return order[self] <= order[other]
 
-    def __lt__(self, other: RiskLevel) -> bool:
+    def __lt__(self, other: RiskLevel) -> bool:  # type: ignore[override]
         order = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 1, RiskLevel.HIGH: 2, RiskLevel.CRITICAL: 3}
         return order[self] < order[other]
 

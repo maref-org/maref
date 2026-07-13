@@ -1,0 +1,193 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "Community";
+const description = "Join the MAREF community — contribute code, improve documentation, report issues, and help shape the future of agent governance.";
+const canonical = "/en/community";
+---
+
+<BaseLayout {title} {description} {canonical}>
+<NavBar locale="en" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">Join the <span class="text-brand-accent-blue">MAREF Community</span></h1>
+    <p class="text-lg text-brand-text-secondary mb-12">Agent governance is a collective effort. Here's how you can contribute.</p>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Ways to Contribute</h2>
+      
+      <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-blue);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">Code</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            Contribute to the core framework, adapters, or tools. All contributions go through PR review on GitHub.
+          </p>
+          <a href="https://github.com/maref-org/maref/pulls" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">Open a PR →</a>
+        </div>
+
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-cyan);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">Documentation</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            Improve tutorials, fix typos, translate content, or write new guides for the community.
+          </p>
+          <a href="https://github.com/maref-org/maref/tree/main/docs" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">Improve docs →</a>
+        </div>
+
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-amber);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">Report Issues</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            Found a bug? Have a feature request? Open an issue on GitHub with a clear description.
+          </p>
+          <a href="https://github.com/maref-org/maref/issues" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">Open an issue →</a>
+        </div>
+
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-green);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">Discuss</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            Join the conversation on GitHub Discussions. Share ideas, ask questions, or help others.
+          </p>
+          <a href="https://github.com/maref-org/maref/discussions" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">Join discussions →</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Development Setup</h2>
+      
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-lg font-semibold mb-3">1. Clone the Repository</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>git clone https://github.com/maref-org/maref.git
+cd maref</code></pre>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">2. Install Dependencies</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>pip install -e ".[dev]"</code></pre>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">3. Run Tests</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>pytest tests/ -v --cov=src/maref</code></pre>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">4. Code Quality</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>ruff check src/          # Linting
+mypy src/                 # Type checking
+pytest tests/             # Run all tests</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Contribution Guidelines</h2>
+      
+      <div class="space-y-4 text-base text-brand-text-secondary leading-relaxed">
+        <div class="p-4 rounded-xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <h3 class="font-semibold text-brand-text-primary mb-2">Coding Standards</h3>
+          <ul class="space-y-1 text-sm">
+            <li>• Python: PEP 8 + ruff + mypy strict mode</li>
+            <li>• TypeScript: ESLint + strict mode</li>
+            <li>• All security-critical functions must use <code class="text-brand-accent-blue">@security_critical</code></li>
+          </ul>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <h3 class="font-semibold text-brand-text-primary mb-2">Commit Messages</h3>
+          <p class="text-sm">
+            Use conventional commits: <code class="text-brand-accent-blue">feat(module): description</code>, <code class="text-brand-accent-blue">fix(security): description</code>, <code class="text-brand-accent-blue">docs(readme): description</code>
+          </p>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <h3 class="font-semibold text-brand-text-primary mb-2">PR Requirements</h3>
+          <ul class="space-y-1 text-sm">
+            <li>• All tests must pass</li>
+            <li>• Code coverage should not decrease</li>
+            <li>• New features must include tests</li>
+            <li>• Documentation updates for public APIs</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Project Governance</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        MAREF is governed by the core maintainer team. Major decisions are made through RFCs and community discussion.
+      </p>
+
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl text-center" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="text-3xl font-bold mb-1" style="color: var(--color-brand-accent-blue);">100+</div>
+          <div class="text-sm text-brand-text-secondary">GitHub Stars</div>
+        </div>
+        <div class="p-4 rounded-xl text-center" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="text-3xl font-bold mb-1" style="color: var(--color-brand-accent-cyan);">4,300+</div>
+          <div class="text-sm text-brand-text-secondary">Tests Passing</div>
+        </div>
+        <div class="p-4 rounded-xl text-center" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="text-3xl font-bold mb-1" style="color: var(--color-brand-accent-green);">82%</div>
+          <div class="text-sm text-brand-text-secondary">Code Coverage</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12 p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">Stay Connected</h2>
+      <p class="text-brand-text-secondary mb-6">
+        Follow MAREF on GitHub to stay updated on releases, RFCs, and community news.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="background-color: var(--color-brand-accent-blue); color: white;">★ Star on GitHub</a>
+        <a href="https://github.com/maref-org/maref/discussions" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="border: 1px solid var(--color-brand-border);">Join Discussions</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/en/privacy/" class="hover:text-snow-sheet transition-colors">Privacy</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">Contact</a>
+        </p>
+        <p>Apache-2.0 License</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

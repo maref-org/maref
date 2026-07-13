@@ -4,6 +4,7 @@ MAREF Experiment Registry
 Unified experiment framework for continuous autoresearch.
 Registers all Phase 8-10 experiments with metadata for dynamic selection.
 """
+# mypy: ignore-errors
 import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass

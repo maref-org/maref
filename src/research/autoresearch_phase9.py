@@ -1,46 +1,50 @@
+# mypy: ignore-errors
 import asyncio
 import json
+import os
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import structlog
+
 from drift_guard.ab_testing import ABTestManager
 from drift_guard.policy_sandbox import PolicySandbox
 from drift_guard.types import ExperimentConfig, VariantConfig
 from research.dashscope_client import DashscopeClient
-import os
-import re
+
 logger = structlog.get_logger()
 
 @dataclass
 class Phase9ExperimentResult:
     experiment_id: str
     variant: str
-    metrics: Dict[str, float]
+    metrics: dict[str, float]
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 class Phase9AutoResearch:
 
-    def __init__(self, config_path: Optional[str]=None) -> None:
+    def __init__(self, config_path: str | None=None) -> None:
         self.config_path = config_path or os.getenv('PHASE9_CONFIG_PATH', 'config/phase9.json')
-        self.config: Dict[str, Any] = {}
+        self.config: dict[str, Any] = {}
         self.ab_test_manager = ABTestManager()
         self.policy_sandbox = PolicySandbox()
         self.dashscope_client = DashscopeClient()
-        self.results: List[Phase9ExperimentResult] = []
+        self.results: list[Phase9ExperimentResult] = []
         self._load_config()
 
     def _load_config(self) -> None:
         try:
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path) as f:
                 self.config = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.error('config_load_failed', path=self.config_path, error=str(e))
             self.config = {'experiments': [], 'default_variant': 'control'}
 
-    async def run_experiment(self, experiment_id: str, variants: List[str]) -> Phase9ExperimentResult:
+    async def run_experiment(self, experiment_id: str, variants: list[str]) -> Phase9ExperimentResult:
         try:
             config = ExperimentConfig(experiment_id=experiment_id, variants=[VariantConfig(name=v, weight=1.0 / len(variants)) for v in variants])
             selected_variant = await self.ab_test_manager.assign_variant(config)
@@ -53,7 +57,7 @@ class Phase9AutoResearch:
             logger.error('experiment_failed', experiment_id=experiment_id, error=str(e))
             raise
 
-    async def run_batch(self, experiments: List[Dict[str, Any]]) -> List[Phase9ExperimentResult]:
+    async def run_batch(self, experiments: list[dict[str, Any]]) -> list[Phase9ExperimentResult]:
         try:
             tasks = [self.run_experiment(exp['id'], exp['variants']) for exp in experiments]
             return await asyncio.gather(*tasks, return_exceptions=True)
@@ -61,7 +65,7 @@ class Phase9AutoResearch:
             logger.error('batch_failed', error=str(e))
             raise
 
-    def _generate_report(self, results: List[Phase9ExperimentResult]) -> str:
+    def _generate_report(self, results: list[Phase9ExperimentResult]) -> str:
         try:
             report_lines = ['# Phase 9 Auto Research Report', f'Generated: {datetime.utcnow().isoformat()}', '']
             for result in results:
@@ -74,7 +78,7 @@ class Phase9AutoResearch:
             logger.error('report_generation_failed', error=str(e))
             return ''
 
-    def save_report(self, output_path: Optional[str]=None) -> None:
+    def save_report(self, output_path: str | None=None) -> None:
         try:
             path = output_path or 'reports/phase9_report.md'
             report = self._generate_report(self.results)

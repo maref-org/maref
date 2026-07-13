@@ -156,7 +156,6 @@ module = [
     "percv.schemas",
     "psutil",
     "mitmproxy",
-    "mitmproxy.http",
     "mitmproxy.addonmanager",
 ]
 ignore_missing_imports = true

@@ -1,0 +1,119 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="en" title="National Cryptography — SM2/SM3/SM4" description="Full GB/T 32918 compliance. SM2/SM3/SM4-GCM. Enterprise security with sovereign cryptography." section="features">
+
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+    Enterprise security.<br />
+    <span class="text-brand-accent-blue">Sovereign cryptography.</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-10">
+    SM2/SM3/SM4-GCM. Full GB/T 32918 compliance.
+    Your keys, your rules.
+  </p>
+
+  <!-- Hero visual — simplified crypto flow diagram as SVG -->
+  <div class="my-8 p-8 rounded-xl text-center" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <svg viewBox="0 0 600 120" class="w-full max-h-[140px]" role="img" aria-label="SM4-GCM encrypt-decrypt flow">
+      <rect x="10" y="35" width="100" height="40" rx="8" fill="var(--color-brand-accent-blue)" opacity="0.2" stroke="var(--color-brand-accent-blue)" stroke-width="1.5"/>
+      <text x="60" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-accent-blue)" font-size="12" font-weight="600">Plaintext</text>
+
+      <text x="130" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+
+      <rect x="150" y="28" width="100" height="54" rx="8" fill="var(--color-brand-accent-cyan)" opacity="0.15" stroke="var(--color-brand-accent-cyan)" stroke-width="1.5"/>
+      <text x="200" y="52" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-accent-cyan)" font-size="10" font-weight="600">SM4-GCM</text>
+      <text x="200" y="66" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-text-muted)" font-size="9">Encrypt</text>
+
+      <text x="270" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+
+      <rect x="290" y="35" width="100" height="40" rx="8" fill="var(--color-brand-accent-green)" opacity="0.2" stroke="var(--color-brand-accent-green)" stroke-width="1.5"/>
+      <text x="340" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-accent-green)" font-size="12" font-weight="600">Ciphertext</text>
+
+      <text x="410" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+
+      <rect x="430" y="28" width="100" height="54" rx="8" fill="var(--color-brand-accent-green)" opacity="0.15" stroke="var(--color-brand-accent-green)" stroke-width="1.5"/>
+      <text x="480" y="52" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-accent-green)" font-size="10" font-weight="600">SM4-GCM</text>
+      <text x="480" y="66" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-text-muted)" font-size="9">Decrypt</text>
+
+      <text x="550" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+
+      <rect x="570" y="35" width="20" height="40" rx="8" fill="var(--color-brand-accent-blue)" opacity="0.3" stroke="var(--color-brand-accent-blue)" stroke-width="1.5"/>
+      <text x="580" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-text-primary)" font-size="10">✓</text>
+    </svg>
+  </div>
+
+  <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <p class="text-base text-brand-text-secondary leading-relaxed">
+      Most agent frameworks use foreign cipher suites by default. MAREF gives you
+      <strong class="text-brand-text-primary">full Chinese national cryptography compliance</strong> —
+      SM2 for signatures, SM3 for hashing, SM4-GCM for authenticated encryption.
+      Your data sovereignty, your choice.
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-8 my-20">
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-blue mb-2">Your geography. Your standards.</h3>
+      <p class="text-sm text-brand-text-secondary">Full Chinese national cryptography standard compliance. No foreign cipher dependency.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-cyan mb-2">Encrypt + authenticate. One pass.</h3>
+      <p class="text-sm text-brand-text-secondary">SM4-GCM with Galois/Counter Mode — encrypt AND authenticate in a single pass. Tampering detected before decryption.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-green mb-2">Compliance ready. Day one.</h3>
+      <p class="text-sm text-brand-text-secondary">GB/T 32918 certified. SM2/SM3/SM4-GCM verified. Submit with confidence. No rework needed.</p>
+    </div>
+  </div>
+
+  <div class="my-20 space-y-20">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Cryptography that answers to you. Not a vendor.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Full GB/T 32918 compliance means your encryption meets Chinese national standards.
+        SM2 for digital signatures and key exchange. SM3 for cryptographic hashing.
+        SM4-GCM for authenticated symmetric encryption. No reliance on foreign cipher suites.
+        Your security infrastructure answers to your regulatory environment.
+      </p>
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">SM4-GCM: encrypt AND authenticate. Simultaneously.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        SM4-GCM implements Galois/Counter Mode on top of the SM4 block cipher.
+        A single pass encrypts your data AND generates an authentication tag.
+        Tampering is detected before decryption even begins.
+        Pure Python implementation — no native dependencies, fully auditable source.
+      </p>
+      <CodeBlock
+        lang="python"
+        title="SM4-GCM encrypt / decrypt"
+        code={`from maref import SM4GCM\n\nkey = SM4GCM.generate_key()\ncipher = SM4GCM(key)\n\n# Encrypt + authenticate in one pass\nciphertext, tag = cipher.encrypt(\n    b"agent communication data",\n    aad=b"associated metadata"\n)\n\n# Decrypt + verify in one pass\nplaintext = cipher.decrypt(\n    ciphertext, tag,\n    aad=b"associated metadata"\n)\n# If tampered → raises AuthenticationError`}
+      />
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Proven at 29 tests. Ready for production.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Full algorithm suite verified: SM2 key generation, signing, and verification.
+        SM3 hashing with known-answer tests. SM4-GCM encryption/decryption and authentication tag validation.
+        29 tests. 29 passes. Ready for deployment.
+      </p>
+    </div>
+  </div>
+
+  <div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">Technical Specifications</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">SM2</div><div class="text-brand-text-primary">256-bit ECC, digital signatures and key exchange, GB/T 32918</div>
+      <div class="text-brand-text-muted">SM3</div><div class="text-brand-text-primary">256-bit cryptographic hash, known-answer tested</div>
+      <div class="text-brand-text-muted">SM4-GCM</div><div class="text-brand-text-primary">128-bit block cipher, Galois/Counter Mode AEAD</div>
+      <div class="text-brand-text-muted">Compliance</div><div class="text-brand-text-primary">GB/T 32918-1 through 32918-5</div>
+      <div class="text-brand-text-muted">Tests</div><div class="text-brand-text-primary">29 known-answer and KAT tests, 100% pass</div>
+      <div class="text-brand-text-muted">Implementation</div><div class="text-brand-text-primary">Pure Python, zero native dependencies, fully auditable</div>
+    </div>
+  </div>
+
+</DocLayout>

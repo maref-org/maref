@@ -1,0 +1,127 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="Autonomous Agent Evolution — Safe Recursive Self-Improvement for AI Systems"
+  description="Recursive self-evolution for AI agents: how Lyapunov-validated convergence, red-blue adversarial training, and constitutional safety constraints enable autonomous improvement without runaway risk."
+  date="2026-06-23"
+  author="MAREF Engineering"
+  tags={["recursive self-evolution", "autonomous AI", "red-blue training", "adversarial robustness"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  Autonomous self-improvement is the holy grail of AI operations — a system that gets better at its job
+  without human intervention for every cycle. But self-modifying AI code is also the most dangerous
+  capability you can give an agent. MAREF's recursive evolution engine solves this tension with
+  Lyapunov-validated convergence guarantees and multi-layer safety constraints.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">What is recursive self-evolution for AI agents?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Recursive self-evolution is a closed-loop process where an AI system continuously observes its own
+  performance, identifies improvement opportunities, generates and validates changes, deploys them,
+  and repeats the cycle. Unlike traditional MLOps where humans initiate retraining, recursive evolution
+  is autonomous — the system adapts continuously without requiring human initiation for each cycle.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF implements this as the Self-* pipeline: eight autonomous components (Self-Observer,
+  Self-Knowledge, Self-Diagnostician, Self-Architect, Self-Executor, Self-Healer, Self-Optimizer,
+  Self-Version) that operate within strict governance constraints. The
+  <a href="/en/learn/recursive-evolution/" class="text-brand-accent-cyan hover:underline">Recursive Evolution explainer</a>
+  covers the full architecture.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">How does Lyapunov convergence guarantee safe evolution?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The fundamental challenge with autonomous self-improvement is proving that the system is actually
+  getting better — not just changing. MAREF uses Lyapunov stability analysis, a mathematical framework
+  from control theory, to prove that the governance error rate decreases monotonically toward a provable
+  minimum.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The Lyapunov function V(x) = xᵀPx guarantees that V̇(x) ≤ -α‖x‖² — meaning the system converges
+  exponentially toward a safer state. This is not "empirically better" (a chart trending downward
+  that could reverse). It is a <strong class="text-brand-text-primary">mathematical guarantee</strong>
+  that the system is converging, not oscillating or diverging.
+</p>
+
+<p class="text-sm text-brand-accent-cyan font-code mb-4">
+  Lyapunov function: V(x) = xᵀPx, V̇(x) ≤ -α‖x‖² → exponential convergence proven
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">How does red-blue adversarial evolution make agents stronger?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Red-blue evolution pits adversarial attack agents (red team) against defensive agents (blue team)
+  in structured rounds. Each round has five stages: reconnaissance, exploitation, escalation, persistence,
+  and exfiltration. The red team's attack intensity escalates adaptively, while the blue team learns
+  from each attack and strengthens its defenses.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  In production runs, attack intensity escalated from 2.47 to 18.98 (a 7.7× increase) over 200 rounds.
+  The false negative rate dropped by 60%. The false positive rate dropped by 82%. Every attack made
+  the system statistically stronger — a property verified by the Lyapunov framework.
+</p>
+
+<div class="my-8 p-4 rounded-lg" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+<pre class="text-sm font-code text-brand-text-secondary"><code>from maref import RedBlueEvolution
+
+evolution = RedBlueEvolution(
+    rounds=200,
+    attack_escalation="adaptive",
+    blue_team_strategy="lyapunov"
+)
+result = evolution.run()
+print("FNR delta:", result.fnr_delta, "%")   # -60%
+print("FPR delta:", result.fpr_delta, "%")   # -82%</code></pre>
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">What safety constraints prevent runaway self-improvement?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Self-modification is inherently the most dangerous capability in an autonomous system. MAREF enforces
+  five layers of safety constraints that no evolution cycle can bypass:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong class="text-brand-text-primary">Constitutional Red Lines</strong> — Immutable safety rules. No evolution cycle can modify constitutional constraints.</li>
+  <li><strong class="text-brand-text-primary">Rule Freeze Zone</strong> — Governance rules require HMAC-signed human approval to change.</li>
+  <li><strong class="text-brand-text-primary">AST Sandbox</strong> — All generated code is parsed, validated, and sandbox-tested before deployment. Malformed ASTs are rejected.</li>
+  <li><strong class="text-brand-text-primary">Atomic deployment + rollback</strong> — Changes deploy atomically. If post-deployment validation fails, the system rolls back automatically.</li>
+  <li><strong class="text-brand-text-primary">Saturation detection</strong> — The optimizer detects when improvements plateau and halts the cycle, preventing overfitting.</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  These constraints are enforced at the meta-governance layer — the system cannot modify its own safety
+  rules even if the evolution engine "decides" to. This is the difference between controlled evolution
+  and uncontrolled emergence.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Can I deploy recursive evolution without full governance?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Technically yes — the Self-* modules can be imported individually from the MAREF package. However,
+  running autonomous self-modification without the governance layer is strongly discouraged for
+  production deployments. The governance layer provides the circuit breaker, drift detection,
+  constitutional red lines, and audit trail that make self-evolution safe rather than reckless.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  See the <a href="/en/features/evolution/" class="text-brand-accent-cyan hover:underline">Evolution feature page</a>
+  for deployment details. For governance fundamentals, read the
+  <a href="/en/learn/agent-governance/" class="text-brand-accent-cyan hover:underline">Agent Governance explainer</a>.
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>MAREF is an open-source agent governance operating system. <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Get started in 5 minutes</a> with <code class="font-code">pip install maref</code>.</em>
+</p>
+</BlogLayout>

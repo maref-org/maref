@@ -3,6 +3,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass
 class ServerlessEvent:
     """Generic serverless event envelope."""

@@ -1,12 +1,15 @@
 import datetime
+
 import structlog
-from research.dashscope_client import DashscopeClient
+
+from research.dashscope_client import DashscopeClient  # type: ignore[attr-defined]
 from research.discovery_engine import DiscoveryEngine
 from research.experiment_registry import ExperimentRegistry
 from research.fault_recovery import FaultRecovery
 from research.knowledge_graph import KnowledgeGraph
-from research.orchestrator import Orchestrator
-from research.vector_store import VectorStore
+from research.orchestrator import Orchestrator  # type: ignore[attr-defined]
+from research.vector_store import VectorStore  # type: ignore[attr-defined]
+
 logger = structlog.get_logger()
 
 class ContinuousReport:

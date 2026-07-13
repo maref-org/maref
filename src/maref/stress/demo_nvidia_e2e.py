@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from maref.stress.code_service_harness import CodeServiceHarness
 from maref.stress.code_service_sqi import WEIGHT_PROFILES, CodeServiceSQI
 from maref.stress.nvidia_code_agent import NvidiaCodeAgent
-from maref.stress.sqi_convergence import SQIConvergenceTracker
+from maref.stress.sqi_convergence import SQIConvergenceTracker  # type: ignore[import-not-found]
 
 # ─── NVIDIA API Configuration ────────────────────────────────────────────
 # 密钥从环境变量读取，使用 macOS Keychain 管理: maref-nvidia-api-key

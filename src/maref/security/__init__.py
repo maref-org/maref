@@ -10,8 +10,8 @@ from maref.security.steg_sanitizer import (
 )
 from maref.security.trust_graph import TrustGraph
 from maref.security.weight_auditor import (
-    WeightAuditReport,
     WeightAuditorAdapter,
+    WeightAuditReport,
     register_weight_auditor_verifier,
 )
 

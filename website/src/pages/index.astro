@@ -1,0 +1,75 @@
+---
+import LandingLayout from "@/layouts/LandingLayout.astro";
+import Hero from "@/components/sections/Hero.astro";
+import ProblemStatement from "@/components/sections/ProblemStatement.astro";
+import SolutionTable from "@/components/sections/SolutionTable.astro";
+import AspirationSection from "@/components/sections/AspirationSection.astro";
+import MarefLiteSection from "@/components/sections/MarefLiteSection.astro";
+import ArchitectureShowcase from "@/components/sections/ArchitectureShowcase.astro";
+import CompetitiveTable from "@/components/sections/CompetitiveTable.astro";
+import GrayCodeFSM from "@/components/animations/GrayCodeFSM/GrayCodeFSM.astro";
+import ConvergenceChart from "@/components/animations/ConvergenceChart/ConvergenceChart.astro";
+import CtaSection from "@/components/sections/CtaSection.astro";
+import DefenseLayers from "@/components/animations/DefenseLayers/DefenseLayers.astro";
+import FeatureCardGrid from "@/components/sections/FeatureCardGrid.astro";
+import GovernanceShowcase from "@/components/animations/GovernanceShowcase/GovernanceShowcase.astro";
+---
+
+<LandingLayout locale="en" title="MAREF" description="MAREF is the open-source agent governance OS with TLA+ formal model checking, zero-trust identity, and runtime guardrails. Put brakes on your AI agents before they break things." showFAQ={true}>
+
+  <!-- 1. Hero — Pain-focused + user split + privacy trust -->
+  <Hero locale="en" />
+
+
+  <!-- 2. Pain Point — Real incidents -->
+  <ProblemStatement locale="en" />
+
+  <!-- 3. Solution Table — Scenario comparison -->
+  <SolutionTable locale="en" />
+
+  <!-- 4. Aspiration — Discourse power -->
+  <AspirationSection locale="en" />
+
+  <!-- 5. MAREF Lite — Lower barrier -->
+  <MarefLiteSection locale="en" />
+
+  <!-- 6. Product Depth — Architecture + animations (for technical audience) -->
+  <ArchitectureShowcase locale="en" />
+
+  <div class="pb-8 px-6">
+    <div class="mx-auto max-w-(--content-max)">
+      <div class="text-center mb-12">
+        <span class="inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider mb-4" style="background-color: var(--color-brand-accent-blue); color: #fff; opacity: 0.9;">Live: Governing Production Agents</span>
+        <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4" style="line-height: 1.8">Every tool call. <br class="hidden md:block" /><span class="text-brand-accent-blue">Every decision. Signed and verified.</span></h2>
+        <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto">
+          MAREF sits between your agents and everything they touch — intercepting threats,
+          cryptographically signing every decision, and evolving defenses in real time.
+        </p>
+      </div>
+      <GovernanceShowcase locale="en" />
+    </div>
+  </div>
+
+  <DefenseLayers locale="en" />
+
+  <div class="pb-24 px-6">
+    <div class="mx-auto max-w-(--content-max) text-center">
+      <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">Four technologies. One guarantee: your agents stay safe.</h2>
+      <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto mb-12">
+        Gray Code state machines, 8-layer defense, self-evolving governance, and national-grade cryptography.
+        Pick any three. You won't need the fourth — you'll already be covered.
+      </p>
+      <FeatureCardGrid locale="en" />
+    </div>
+  </div>
+
+  <GrayCodeFSM locale="en" />
+
+  <CompetitiveTable locale="en" />
+
+  <ConvergenceChart locale="en" />
+
+  <!-- Bottom CTA — 3 buttons -->
+  <CtaSection locale="en" />
+
+</LandingLayout>

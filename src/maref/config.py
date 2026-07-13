@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
 _DEFAULT_HOME = Path.home() / '.maref'
 
 @dataclass
@@ -25,4 +28,4 @@ class MAREFConfig:
     @classmethod
     def from_env(cls) -> MAREFConfig:
         home = Path(os.environ.get('MAREF_HOME', _DEFAULT_HOME))
-        return cls(home_dir=home, log_dir=Path(p) if (p := os.environ.get('MAREF_LOG_DIR', '')) else None, data_dir=Path(p) if (p := os.environ.get('MAREF_DATA_DIR', '')) else None, audit_path=Path(p) if (p := os.environ.get('MAREF_AUDIT_PATH')) else None, kg_storage_path=Path(p) if (p := os.environ.get('MAREF_KG_PATH')) else None, max_depth=int(os.environ.get('MAREF_MAX_DEPTH', '5')), max_trips=int(os.environ.get('MAREF_MAX_TRIPS', '10')), governance_enabled=os.environ.get('MAREF_GOVERNANCE', 'true').lower() != 'false')
+        return cls(home_dir=home, log_dir=Path(p) if (p := os.environ.get('MAREF_LOG_DIR', '')) else None, data_dir=Path(p) if (p := os.environ.get('MAREF_DATA_DIR', '')) else None, audit_path=Path(p) if (p := os.environ.get('MAREF_AUDIT_PATH')) else None, kg_storage_path=Path(p) if (p := os.environ.get('MAREF_KG_PATH')) else None, max_depth=int(os.environ.get('MAREF_MAX_DEPTH', '5')), max_trips=int(os.environ.get('MAREF_MAX_TRIPS', '10')), governance_enabled=os.environ.get('MAREF_GOVERNANCE', 'true').lower() != 'false')  # type: ignore[assignment]

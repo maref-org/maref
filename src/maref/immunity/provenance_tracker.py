@@ -1,8 +1,18 @@
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
 if TYPE_CHECKING:
     from maref.knowledge.graph import KnowledgeGraph, KnowledgeNode
+else:
+    # P0-A fix: TYPE_CHECKING is import-time only. The `kg: KnowledgeGraph | None`
+    # annotation on ProvenanceTracker.__init__ is evaluated at runtime when the
+    # module is imported (no `from __future__ import annotations`), so we need
+    # a runtime placeholder to avoid NameError in downstream consumers (e.g.
+    # PERCV's `percv.governance` import chain). `Any` keeps the optional hint
+    # semantically equivalent for tooling.
+    KnowledgeGraph = Any  # type: ignore[misc,assignment]
+    KnowledgeNode = Any  # type: ignore[misc,assignment]
 PRE_2023_CUTOFF = 1672531200.0
 
 @dataclass

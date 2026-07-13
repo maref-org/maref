@@ -2,6 +2,7 @@ import ast
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from maref.immunity.security_template_lib import SecurityTemplateLib
     from maref.knowledge.graph import KnowledgeGraph

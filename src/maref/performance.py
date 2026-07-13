@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+
 @dataclass
 class CachedTrustScore:
     """缓存的信任评分"""
@@ -193,7 +194,7 @@ class BatchSecurityProcessor:
         """提交批量操作"""
         operation = BatchOperation(operation_id=f'batch-{int(time.time() * 1000)}-{len(self._pending)}', operation_type=operation_type, items=items, created_at=time.time(), priority=priority)
         self._pending.append(operation)
-        total_items = sum((len(op.items) for op in self._pending))
+        total_items = sum(len(op.items) for op in self._pending)
         if total_items >= self.batch_size:
             self.flush()
         return operation.operation_id
@@ -254,7 +255,7 @@ class BatchSecurityProcessor:
 
     def get_stats(self) -> dict[str, Any]:
         """获取批量处理统计"""
-        return {'batch_count': self._batch_count, 'total_items_processed': self._total_items_processed, 'pending_operations': len(self._pending), 'pending_items': sum((len(op.items) for op in self._pending)), 'batch_size': self.batch_size}
+        return {'batch_count': self._batch_count, 'total_items_processed': self._total_items_processed, 'pending_operations': len(self._pending), 'pending_items': sum(len(op.items) for op in self._pending), 'batch_size': self.batch_size}
 
 class DistributedTrustOptimizer:
     """
@@ -311,7 +312,7 @@ class DistributedTrustOptimizer:
 
     def get_stats(self) -> dict[str, Any]:
         """获取优化器统计"""
-        return {'agents_tracked': len(self._trust_vectors), 'total_trust_relationships': sum((len(v) for v in self._trust_vectors.values())), 'update_log_size': len(self._update_log), 'active_partitions': sum((1 for v in self._partition_state.values() if v)), 'failed_partitions': sum((1 for v in self._partition_state.values() if not v))}
+        return {'agents_tracked': len(self._trust_vectors), 'total_trust_relationships': sum(len(v) for v in self._trust_vectors.values()), 'update_log_size': len(self._update_log), 'active_partitions': sum(1 for v in self._partition_state.values() if v), 'failed_partitions': sum(1 for v in self._partition_state.values() if not v)}
 
 def create_trust_score_cache(ttl_seconds: float=300.0, max_size: int=10000) -> TrustScoreCache:
     """创建信任评分缓存"""

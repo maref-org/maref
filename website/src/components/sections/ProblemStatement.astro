@@ -1,0 +1,66 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = {
+  en: {
+    badge: "Not future risk. Happening now.",
+    title: "Your agents are already out of control.",
+    subtitle: "This isn't hypothetical. It's what agents are doing to real companies right now.",
+    incidents: [
+      { emoji: "📧", image: "/images/incident-email-deletion-en.svg", title: "Meta's alignment director: 'My agent deleted my inbox'", desc: "Summer Yue's agent suffered context compaction, lost its 'don't act' instruction, deleted hundreds of emails, and ignored three 'STOP' commands. She had to physically unplug the computer.", color: "var(--color-brand-accent-red)" },
+      { emoji: "🐛", image: "/images/incident-bug-bounty-spam-en.svg", title: "Curl killed its 7-year bug bounty — AI spam drowned real signals", desc: "Only 5% of AI-generated vulnerability reports were real. The maintainer shut down the entire program rather than filter the noise.", color: "var(--color-brand-accent-amber)" },
+      { emoji: "🔓", image: "/images/incident-code-vulnerability-en.svg", title: "GitHub: 45% of AI code ships with OWASP vulnerabilities", desc: "CodeRabbit scanned 470 PRs. AI code has 1.7× more critical bugs. 63% of devs say fixing AI code takes longer than writing from scratch.", color: "var(--color-brand-accent-orange)" },
+    ],
+    question: "The question isn't 'will AI be safe?'. It's 'when your agent breaks something, who stops it?'.",
+  },
+  zh: {
+    badge: "不是未来风险。是正在发生的事故。",
+    title: "你的 Agent 已经在失控。",
+    subtitle: "这不是假设。这是正在发生在真实公司的事。",
+    incidents: [
+      { emoji: "📧", image: "/images/incident-email-deletion.svg", title: "Meta 对齐总监：我的 Agent 删了整箱邮件", desc: "Summer Yue 明确要求 Agent '等我确认再执行'。Agent 上下文压缩丢失指令，批量删除数百封邮件，无视三次 'STOP' 命令。她最后跑着去拔了网线。", color: "var(--color-brand-accent-red)" },
+      { emoji: "🐛", image: "/images/incident-bug-bounty-spam.svg", title: "curl 关闭 7 年漏洞悬赏——AI 垃圾淹没了真实信号", desc: "AI 生成的漏洞报告中只有 5% 是真实的。维护者直接砍掉整个项目而不是筛选 AI 垃圾。", color: "var(--color-brand-accent-amber)" },
+      { emoji: "🔓", image: "/images/incident-code-vulnerability.svg", title: "GitHub：45% 的 AI 代码带着漏洞上线", desc: "CodeRabbit 扫描 470 个 PR：AI 代码严重缺陷是人工的 1.7 倍。63% 的开发者说修 AI 代码比自己写还慢。", color: "var(--color-brand-accent-orange)" },
+    ],
+    question: "问题不是 'AI 会不会安全'。是 '当你的 Agent 闯祸的时候，谁拦得住它？'。",
+  },
+};
+
+type Lang = keyof typeof content;
+const t = content[(locale as Lang) || "en"];
+---
+
+<div class="py-24 px-6">
+  <div class="mx-auto max-w-(--content-max)">
+
+    <div class="text-center mb-16">
+      <span class="inline-block text-xs font-semibold tracking-widest uppercase px-3 py-1 rounded-tags mb-4" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border); color: var(--color-brand-accent-orange);">
+        {t.badge}
+      </span>
+      <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">{t.title}</h2>
+      <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 max-w-5xl mx-auto">
+      {t.incidents.map((inc) => (
+        <div
+          class="rounded-cards overflow-hidden border transition-all hover:opacity-95 hover:scale-[1.02]"
+          style="border-color: var(--color-brand-border);"
+        >
+          <img src={inc.image} alt={inc.title} width="1024" height="1024" loading="lazy" class="w-full h-auto" />
+        </div>
+      ))}
+    </div>
+
+    <div class="text-center max-w-2xl mx-auto">
+      <p class="text-xl font-bold leading-relaxed" style="color: var(--color-brand-accent-cyan);">
+        {t.question}
+      </p>
+    </div>
+
+  </div>
+</div>

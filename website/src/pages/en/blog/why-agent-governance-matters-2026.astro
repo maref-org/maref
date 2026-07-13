@@ -1,0 +1,121 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="Why Agent Governance Matters in 2026"
+  description="Multi-agent systems are entering production. Without governance, every agent is an unmonitored vector for data leaks, hallucination propagation, and adversarial exploitation."
+  date="2026-06-13"
+  author="MAREF Engineering"
+  tags={["agent governance", "multi-agent systems", "security"]}
+>
+
+  <p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+    Multi-agent systems are entering production at an accelerating pace. Teams are deploying
+    agent swarms for customer support, code generation, data pipelines, and internal tooling.
+    And most of them have no governance layer at all.
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">The ungoverned agent problem</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    A single LLM call is well-understood: you send a prompt, you get a response. The attack surface
+    is limited to prompt injection and output validation. But an <em>agent</em> is not a single LLM call.
+    An agent observes its environment, plans, calls tools, reads files, writes to databases, and
+    acts on the results. Each of those actions is a potential vulnerability.
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    Now multiply that by ten agents. Or a hundred. Each agent can call tools that other agents
+    depend on. One compromised agent can cascade failures across the entire system. A tool call
+    that reads a customer database isn't just a data access — it's a potential data exfiltration
+    vector if the agent has been jailbroken.
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">What governance actually means</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    Governance is not "block bad things." Any security engineer can write a deny list. Governance is:
+  </p>
+
+  <ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+    <li><strong>Prevention</strong> — stopping harmful actions before they execute, not after.</li>
+    <li><strong>Detection</strong> — identifying when an agent is behaving outside its expected parameters.</li>
+    <li><strong>Audit</strong> — producing cryptographically signed records of every decision, every tool call, every state transition.</li>
+    <li><strong>Adaptation</strong> — learning from attacks and mistakes to get better over time.</li>
+    <li><strong>Verification</strong> — mathematically proving that the system converges toward safety, not just hoping it does.</li>
+  </ul>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    Without all five, you don't have governance. You have monitoring at best, wishful thinking at worst.
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Why 2026 is the inflection point</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    Three things changed this year:
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    <strong>First, agent frameworks matured.</strong> LangGraph, CrewAI, AutoGen, and others have made
+    it trivial to build multi-agent systems. The barrier to entry dropped from "needs a dedicated
+    infrastructure team" to "one engineer in an afternoon." More agents means more attack surface.
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    <strong>Second, agents got real capabilities.</strong> Modern agents don't just read and write text.
+    They execute code, query databases, deploy infrastructure, manage API keys, and interact with
+    production systems. Each capability is a tool that can be misused.
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    <strong>Third, regulatory attention is intensifying.</strong> AI regulations in the EU, China, and
+    elsewhere are starting to require audit trails, explainability, and human oversight for
+    autonomous systems. Governance isn't just good engineering — it's becoming a compliance requirement.
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">The cost of waiting</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    Every day without governance is technical debt with compounding interest. An ungoverned agent
+    system that runs for six months has accumulated:
+  </p>
+
+  <ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+    <li>Thousands of un-audited tool calls with no provenance</li>
+    <li>Untracked data flows that may violate compliance requirements</li>
+    <li>Agent trust baselines that have never been challenged</li>
+    <li>A surface area that has grown faster than your understanding of it</li>
+  </ul>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    The right time to add governance was when you deployed your first agent. The second-best time is now.
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Governance as infrastructure</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    We built MAREF because we believe agent governance should be infrastructure, not an afterthought.
+    It should be:
+  </p>
+
+  <ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+    <li><strong>Framework-agnostic</strong> — it works with whatever agent stack you use.</li>
+    <li><strong>Verifiable</strong> — formal methods prove the system behaves correctly.</li>
+    <li><strong>Evolving</strong> — adversarial training makes it stronger over time.</li>
+    <li><strong>Auditable</strong> — every decision is signed and cannot be tampered with.</li>
+    <li><strong>Open source</strong> — you can see exactly what it does and audit every line.</li>
+  </ul>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    The multi-agent future is not optional. It's coming whether we prepare for it or not.
+    Governance is how we make sure that future is safe.
+  </p>
+
+  <hr class="my-12 border-brand-border" />
+
+  <p class="text-sm text-brand-text-muted">
+    <em>MAREF is an open-source agent governance operating system. <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Get started in 5 minutes</a>.</em>
+  </p>
+</BlogLayout>

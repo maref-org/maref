@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import hmac
 import os
@@ -6,7 +8,9 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
+
 from maref.security.decorators import security_critical
+
 
 def _new_id(prefix: str='NEG') -> str:
     return f'{prefix}-{uuid.uuid4().hex[:8].upper()}'

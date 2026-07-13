@@ -1,0 +1,128 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="OWASP Agentic Top 10: How MAREF Covers All 10 Critical Risks"
+  description="OWASP published the Agentic Top 10 in 2025 — the definitive threat model for multi-agent systems. MAREF is the first open-source framework to cover all 10. Here's how each risk is addressed."
+  date="2026-06-16"
+  author="MAREF Engineering"
+  tags={["OWASP", "Agentic Top 10", "security", "threat model", "agent governance"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  In 2025, OWASP published the <strong>Agentic Top 10</strong> — the first industry-standard threat model specifically for multi-agent AI systems. These aren't theoretical risks. Every one has been observed in production.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  We built MAREF against this list from day one. Not as a compliance checkbox — as an engineering requirement. Here's the coverage map, risk by risk.
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<!-- AGENTIC-01 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-01: Goal Hijacking</h2>
+<p class="text-sm text-brand-text-accent-cyan mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Runtime Goal Validation + Behavioral Bounds</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  An agent receives a prompt that subtly rewrites its objective. The classic example: "Clean up my inbox" → an agent that deletes everything because "clean" was interpreted as "remove all."
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  MAREF's governance state machine evaluates every action against the agent's defined behavioral bounds — not just the current LLM context. If an action would violate the agent's constitutional red lines, it's blocked regardless of what the model "thinks" it should do. The 4-tier decision tree (Rule → Mode → SafetyGate → User) catches goal drift before it becomes damage.
+</p>
+
+<!-- AGENTIC-02 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-02: Tool Misuse</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Per-Tool Permission Policies + Least Privilege</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  An agent with filesystem access can read, write, or delete anything. MAREF assigns per-tool, per-scope permissions at agent registration time. A support agent gets read-only access to specific tables. A code review agent can read PRs but never push. If an agent tries to call a tool outside its permission envelope, MAREF blocks the call before it reaches the tool.
+</p>
+
+<!-- AGENTIC-03 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-03: Identity Abuse</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Per-Agent Ed25519 Identity + Time-Scoped Credentials</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Every agent in MAREF gets a unique Ed25519 key pair at registration. Every tool call is signed. Every decision has a cryptographic audit trail. If an agent goes rogue, its credential can be revoked instantly — and all actions it took are irrefutably attributable. No "which agent did this?" ambiguity.
+</p>
+
+<!-- AGENTIC-04 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-04: Supply Chain</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Signed Skill Packages + Bootstrap Integrity</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Agent skills and tools are code. Malicious packages can compromise agents at load time. MAREF requires all skill packages to be cryptographically signed. The bootstrap process verifies integrity before any agent loads a skill. The trust chain starts from a hardware root of trust and extends through every loaded module.
+</p>
+
+<!-- AGENTIC-05 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-05: Code Execution</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Execution Sandboxing + Ring-Level Isolation</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Agents that execute code can escape sandboxes. MAREF uses ring-level isolation: agent code runs in the least-privileged execution context, with filesystem, network, and process-level restrictions enforced at the OS level. Even if an agent's code is compromised, the blast radius is contained.
+</p>
+
+<!-- AGENTIC-06 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-06: Memory Poisoning</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Write-Time Anomaly Detection + Cross-Model Verification</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  An agent's long-term memory can be poisoned by adversarial inputs. MAREF detects anomalous memory writes at write time, flagging content that deviates from expected patterns. For critical memory operations, cross-model verification confirms consistency before committing. This prevents the "inbox full of poisoned memories" attack pattern documented in recent research.
+</p>
+
+<!-- AGENTIC-07 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-07: Insecure Communication</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: End-to-End Signed Inter-Agent Channels</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Agents talking to each other without encryption or signing can have their messages intercepted or tampered with. MAREF establishes end-to-end encrypted channels between agents, with every message signed by the sender's Ed25519 key. No man-in-the-middle. No replay attacks. No forged messages.
+</p>
+
+<!-- AGENTIC-08 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-08: Cascading Failures</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Circuit Breakers + Bulkhead Isolation + Saga Orchestration</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  One misbehaving agent can bring down an entire system. MAREF implements circuit breakers per-agent (if error rate exceeds threshold, the agent is isolated), bulkhead isolation (failure in one domain doesn't propagate), and saga orchestration (distributed transactions across agents have rollback procedures). The 2025 Meta inbox deletion incident is a textbook cascading failure that MAREF's architecture prevents.
+</p>
+
+<!-- AGENTIC-09 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-09: Human Trust Exploitation</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Human-in-the-Loop Escalation + Named Kill-Switch</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Humans rubber-stamp agent requests because they trust the system. MAREF requires explicit human escalation for high-risk actions, with named authorization (not a shared "admin" account). The kill-switch is a single, well-known command that any authorized human can issue. It's tested regularly. It doesn't require searching for the right flag in a documentation page.
+</p>
+
+<!-- AGENTIC-10 -->
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-10: Rogue Agents</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF: Agent Registration + Behavioral Anomaly Detection</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  An agent that was never authorized — or was compromised and now acts outside its profile — is a rogue agent. MAREF maintains a registry of all authorized agents and monitors behavior against established baselines. Deviations trigger alerts, automatic restriction, or halt, depending on severity. No agent operates outside governance.
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">Not Just Coverage — Depth</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Covering all 10 risks isn't hard if you have a shallow check for each one. What makes MAREF different is <strong>depth</strong>:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-6 space-y-2">
+  <li>Each risk is addressed by <strong>multiple defensive layers</strong>, not a single control</li>
+  <li>Controls are <strong>formally verified</strong> (TLA+) or <strong>provably convergent</strong> (Lyapunov)</li>
+  <li>Defenses <strong>evolve over time</strong> — the system learns from adversarial attacks and gets stronger</li>
+  <li><strong>Zero-trust identity</strong> per agent makes every action attributable and auditable</li>
+</ul>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">Why This Matters Now</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The CISA/Five Eyes joint guidance on agentic AI (May 2026) explicitly recommends addressing the OWASP Agentic Top 10. Regulators are watching. Legal liability for agent actions is an open question — but the answer will depend on whether you can demonstrate due diligence.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF's coverage of all 10 risks, with formal verification and cryptographic audit trails, gives you that demonstration. Not as a marketing slide. As an engineering fact.
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>🛡️ Sources: OWASP Agentic Top 10 (2025). CISA/Five Eyes — "Securing Agentic AI Systems" joint guidance (May 2026). MAREF Technical Whitepaper — Section 4 (8-Layer Defense Architecture). MAREF Security Whitepaper — OWASP Coverage Matrix. <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Deploy MAREF in 5 minutes</a>.</em>
+</p>
+
+</BlogLayout>

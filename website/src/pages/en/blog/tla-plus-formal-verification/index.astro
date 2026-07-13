@@ -1,0 +1,100 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="Not 'Tested.' Proved. — Why MAREF Uses TLA+ Formal Verification"
+  description="Most security tools are 'tested.' MAREF is proved — using TLA+ model checking, Lyapunov stability analysis, and mathematical convergence guarantees. Here's what that means and why it matters for agent governance."
+  date="2026-06-16"
+  author="MAREF Engineering"
+  tags={["TLA+", "formal verification", "formal methods", "agent governance", "Lyapunov"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  "Tested in production" is not a security strategy. Not when your agents can delete databases, sign contracts, and call APIs with real-world consequences.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Testing tells you one thing: <em>the system didn't fail in the specific scenarios you tested.</em> It doesn't tell you it won't fail in the one scenario you didn't think of. And with multi-agent systems, the state space is infinite — you can't test your way to safety.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  That's why MAREF doesn't rely on testing alone. Every governance state transition, every safety invariant, and every convergence guarantee is <strong>formally verified using TLA+</strong> — the same model checking language used to verify Amazon Web Services, consensus protocols like Raft, and real-time systems where failure means loss of life.
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">What is TLA+?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  TLA+ (Temporal Logic of Actions) is a formal specification language created by Leslie Lamport — winner of the 2013 Turing Award. It's designed to model and verify concurrent, distributed, and stateful systems.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The key insight: instead of testing individual scenarios, TLA+ <strong>exhaustively checks all possible states</strong> of a system against invariants you define. If the model checker says no counterexample exists, the system <em>provably</em> satisfies the invariant — not for the 100 cases you tested, but for every possible execution path.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Amazon used TLA+ to find subtle bugs in S3, DynamoDB, and EBS that would have caused multi-hour outages. If it's good enough for AWS infrastructure, it's good enough for agent governance.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">What MAREF Verifies in TLA+</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF's governance state machine — a 10-state Gray Code FSM — is fully specified in TLA+. The model checker verifies:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>HALTAbsorbing invariant</strong>: <code>□(s = HALT ⇒ ∀k &gt; 0: s{'{t+k}'} = HALT)</code> — once halted, always halted. No agent can un-halt itself.</li>
+  <li><strong>LyapunovConvergence</strong>: the governance engine provably converges to a minimum-error state over time. Every self-evolution round makes the system safer, not just different.</li>
+  <li><strong>Safety state reachability</strong>: every safety-critical state (HALT, RESTRICT, AUDIT) is reachable from any operational state within finite steps.</li>
+  <li><strong>No deadlock</strong>: the system never gets stuck in a state where no valid transition exists.</li>
+</ul>
+
+<hr class="my-8 border-brand-border" />
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">The Practical Difference: Proof vs. Testing</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Here's what formal verification buys you that testing doesn't:
+</p>
+
+<div class="border rounded-xl p-5 mb-4" style="background-color: var(--color-brand-bg-secondary); border-color: var(--color-brand-border);">
+  <p class="text-base font-semibold mb-1">Testing: "We checked 100 attack scenarios"</p>
+  <p class="text-sm text-brand-text-muted">→ The 101st attack might work. The test suite only covers what you thought of.</p>
+</div>
+
+<div class="border rounded-xl p-5 mb-4" style="background-color: var(--color-brand-bg-secondary); border-color: var(--color-brand-border);">
+  <p class="text-base font-semibold mb-1">TLA+ Verification: "No counterexample exists across all possible state transitions"</p>
+  <p class="text-sm text-brand-text-muted">→ The invariant holds for every execution path, including ones you never considered.</p>
+</div>
+
+<div class="border rounded-xl p-5 mb-6" style="background-color: var(--color-brand-bg-secondary); border-color: var(--color-brand-border);">
+  <p class="text-base font-semibold mb-1">Lyapunov Proof: "The system provably converges to a safer state"</p>
+  <p class="text-sm text-brand-text-muted">→ Not "we hope the evolution helps." It's mathematically guaranteed to monotonically decrease error.</p>
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">What About the Five Eyes / CISA Guidance (May 2026)?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The May 2026 joint guidance from CISA and the Five Eyes specifically recommends formal methods for securing agentic AI systems. The reasoning: agents operate in high-dimensional state spaces where empirical testing is provably insufficient. MAREF's TLA+ verification directly satisfies this recommendation.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">Limitations</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  To be clear: TLA+ verification is not a silver bullet. It verifies the <strong>specification</strong> — not the implementation. Bugs in the code that implements the TLA+ spec can still exist. That's why MAREF also uses 4,300+ unit and integration tests, runtime monitoring, adversarial evolution, and formal runtime verification.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  But the spec is the foundation. If the foundation is proved mathematically, the scope for implementation bugs is dramatically reduced — and any that slip through are caught by the lower layers of defense.
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>📐 Sources: Lamport, L. (2002). <strong>Specifying Systems: The TLA+ Language and Tools</strong>. Addison-Wesley. Amazon Web Services — "Use of Formal Methods at Amazon" (2014). CISA/Five Eyes — "Securing Agentic AI Systems" joint guidance (May 2026). MAREF Technical Whitepaper, Section 4.5 (TLA+ Verification Results). <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Deploy MAREF in 5 minutes</a>.</em>
+</p>
+
+</BlogLayout>

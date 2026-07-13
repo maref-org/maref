@@ -4,10 +4,13 @@ Provides partial-order tracking of events across distributed agents,
 enabling detection of concurrency, causality, and happens-before relations
 without centralized coordination.
 """
+from __future__ import annotations
+
 import copy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
 
 @dataclass(frozen=True)
 class VectorClock:
@@ -68,13 +71,13 @@ class VectorClock:
 
     def dominates(self, other: VectorClock) -> bool:
         """Return True iff *self* >= *other* in every dimension."""
-        return all((self.clocks.get(aid, 0) >= ts for (aid, ts) in other.clocks.items()))
+        return all(self.clocks.get(aid, 0) >= ts for (aid, ts) in other.clocks.items())
 
     def to_dict(self) -> dict[str, int]:
         return dict(self.clocks)
 
     def __repr__(self) -> str:
-        items = ', '.join((f'{k}={v}' for (k, v) in sorted(self.clocks.items())))
+        items = ', '.join(f'{k}={v}' for (k, v) in sorted(self.clocks.items()))
         return f'VectorClock({items})'
 
 class CausalRelation(str, Enum):

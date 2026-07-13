@@ -3,7 +3,9 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+
 from maref.immunity.acceptance_extractor import AcceptanceCriterion, AcceptanceExtractor
+
 if TYPE_CHECKING:
     from maref.immunity.immune_checker import ImmuneChecker, ImmuneHit
     from maref.immunity.negative_gene_bank import NegativeGeneBank
@@ -72,7 +74,7 @@ class IntentDriftDetector:
         for c in criteria:
             desc_words = set(c.description.lower().split())
             code_lower = code.lower()
-            passed = any((w in code_lower for w in desc_words if len(w) > 2))
+            passed = any(w in code_lower for w in desc_words if len(w) > 2)
             results.append(FuzzTestResult(criterion_id=c.criterion_id, description=c.description, category=c.category, passed=passed))
         return results
 
@@ -80,7 +82,7 @@ class IntentDriftDetector:
         desc = criterion.description
         if criterion.category == 'happy_path':
             for word in self._extract_keywords(desc):
-                if any((word in fn for fn in func_names)):
+                if any(word in fn for fn in func_names):
                     return FuzzTestResult(criterion_id=criterion.criterion_id, description=desc, category=criterion.category, passed=True)
             return FuzzTestResult(criterion_id=criterion.criterion_id, description=desc, category=criterion.category, passed=False, error=f'No function matches: {desc}')
         if criterion.category == 'error':

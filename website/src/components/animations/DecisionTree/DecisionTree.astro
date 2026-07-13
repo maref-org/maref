@@ -1,0 +1,41 @@
+---
+import DecisionTree from "./DecisionTree";
+
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = locale === "zh" ? {
+  badge: "决策树",
+  title: "四级治理决策树",
+  subtitle: "每个智能体动作流经四级决策节点 — 97% 自动判定，3% 人工升级",
+  rootLabel: "智能体动作请求",
+  rootDesc: "每个智能体动作都流经决策树",
+  nodes: [
+    { label: "身份认证", desc: "零信任身份验证", decision: "allow" as const, weight: 40 },
+    { label: "权限范围检查", desc: "权限边界执行", decision: "allow" as const, weight: 20 },
+    { label: "策略引擎", desc: "97% 自动，3% 人工升级", decision: "pending" as const, weight: 37 },
+    { label: "人工升级", desc: "高风险边缘案例升级", decision: "block" as const, weight: 3 },
+  ],
+  allowLabel: "ALLOW",
+  blockLabel: "BLOCK",
+} : {
+  badge: "Decision Tree",
+  title: "4-Level Governance Decision Tree",
+  subtitle: "Every agent action flows through 4 decision levels — 97% automated, 3% human escalation",
+  rootLabel: "Agent Action Request",
+  rootDesc: "Every agent action flows through the decision tree",
+  nodes: [
+    { label: "Identity & Auth", desc: "Zero-trust identity verification", decision: "allow" as const, weight: 40 },
+    { label: "Scope Check", desc: "Permission boundary enforcement", decision: "allow" as const, weight: 20 },
+    { label: "Policy Engine", desc: "97% automated, 3% human escalation", decision: "pending" as const, weight: 37 },
+    { label: "Human Escalation", desc: "Escalation for high-risk edge cases", decision: "block" as const, weight: 3 },
+  ],
+  allowLabel: "ALLOW",
+  blockLabel: "BLOCK",
+};
+---
+
+<DecisionTree client:visible content={content} />

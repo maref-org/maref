@@ -24,6 +24,15 @@ class NodeType(Enum):
     DYNAMIC_ROUTE = "dynamic_route"  # runtime conditional routing
 
 
+class RiskLevel(Enum):
+    """Loop Engineering risk classification for serial/parallel decision."""
+
+    LOW = "low"  # parallel-safe, can be dispatched to sub-agents
+    MEDIUM = "medium"  # parallel-safe with monitoring
+    HIGH = "high"  # must be serial, requires HITL gate
+    CRITICAL = "critical"  # must be serial, requires human approval
+
+
 @dataclass
 class TaskNode:
     task_id: str
@@ -32,12 +41,18 @@ class TaskNode:
     metadata: dict[str, Any] = field(default_factory=dict)
     depends_on: list[str] = field(default_factory=list)
     node_type: NodeType = NodeType.SEQUENCE
+    risk_level: RiskLevel = RiskLevel.MEDIUM
     # FORK: list of branch entry task_ids
     fork_branches: list[str] = field(default_factory=list)
     # JOIN: list of task_ids to wait for
     join_targets: list[str] = field(default_factory=list)
     # DYNAMIC_ROUTE: callable name or rule id for runtime routing
     route_rule: str = ""
+
+    @property
+    def is_parallelizable(self) -> bool:
+        """Low/medium risk tasks can run in parallel; high/critical must be serial."""
+        return self.risk_level in (RiskLevel.LOW, RiskLevel.MEDIUM)
 
 
 class TaskGraph:
@@ -225,8 +240,8 @@ class TaskGraph:
     def from_dict(cls, data: dict[str, Any]) -> TaskGraph:
         g = cls()
         for n_data in data.get("nodes", []):
-            status_val = n_data.pop("status", "pending")
-            node_type_val = n_data.pop("node_type", "sequence")
+            status_val = n_data.get("status", "pending")
+            node_type_val = n_data.get("node_type", "sequence")
             node = TaskNode(**n_data)
             node.status = TaskStatus(status_val)
             node.node_type = NodeType(node_type_val)

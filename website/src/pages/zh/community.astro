@@ -1,0 +1,193 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "社区";
+const description = "加入 MAREF 社区——贡献代码、改进文档、报告问题，共同塑造 Agent 治理的未来。";
+const canonical = "/zh/community";
+---
+
+<BaseLayout {title} {description} {canonical}>
+<NavBar locale="zh" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">加入 <span class="text-brand-accent-blue">MAREF 社区</span></h1>
+    <p class="text-lg text-brand-text-secondary mb-12">Agent 治理是集体努力的结果。以下是你参与的方式。</p>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">参与方式</h2>
+      
+      <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-blue);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">代码贡献</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            为核心框架、适配器或工具贡献代码。所有贡献通过 GitHub PR 审查后合并。
+          </p>
+          <a href="https://github.com/maref-org/maref/pulls" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">提交 PR →</a>
+        </div>
+
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-cyan);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">文档改进</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            改进教程、修复错别字、翻译内容或为社区撰写新的指南。
+          </p>
+          <a href="https://github.com/maref-org/maref/tree/main/docs" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">改进文档 →</a>
+        </div>
+
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-amber);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">报告问题</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            发现了 Bug？有功能请求？在 GitHub 上提交 Issue，附上清晰的描述。
+          </p>
+          <a href="https://github.com/maref-org/maref/issues" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">提交 Issue →</a>
+        </div>
+
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-green);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">社区讨论</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            加入 GitHub Discussions 的讨论。分享想法、提出问题或帮助他人。
+          </p>
+          <a href="https://github.com/maref-org/maref/discussions" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-brand-accent-blue hover:underline">加入讨论 →</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">开发环境搭建</h2>
+      
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-lg font-semibold mb-3">1. 克隆仓库</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>git clone https://github.com/maref-org/maref.git
+cd maref</code></pre>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">2. 安装依赖</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>pip install -e ".[dev]"</code></pre>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">3. 运行测试</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>pytest tests/ -v --cov=src/maref</code></pre>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">4. 代码质量</h3>
+          <div class="p-4 rounded-lg" style="background-color: var(--surface-trench);">
+            <pre class="text-sm" style="color: var(--color-brand-text-secondary);"><code>ruff check src/          # 代码检查
+mypy src/                 # 类型检查
+pytest tests/             # 运行所有测试</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">贡献指南</h2>
+      
+      <div class="space-y-4 text-base text-brand-text-secondary leading-relaxed">
+        <div class="p-4 rounded-xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <h3 class="font-semibold text-brand-text-primary mb-2">编码规范</h3>
+          <ul class="space-y-1 text-sm">
+            <li>• Python: PEP 8 + ruff + mypy strict mode</li>
+            <li>• TypeScript: ESLint + strict mode</li>
+            <li>• 所有安全关键函数必须使用 <code class="text-brand-accent-blue">@security_critical</code></li>
+          </ul>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <h3 class="font-semibold text-brand-text-primary mb-2">提交信息格式</h3>
+          <p class="text-sm">
+            使用 conventional commits：<code class="text-brand-accent-blue">feat(module): description</code>、<code class="text-brand-accent-blue">fix(security): description</code>、<code class="text-brand-accent-blue">docs(readme): description</code>
+          </p>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <h3 class="font-semibold text-brand-text-primary mb-2">PR 要求</h3>
+          <ul class="space-y-1 text-sm">
+            <li>• 所有测试必须通过</li>
+            <li>• 代码覆盖率不能降低</li>
+            <li>• 新功能必须包含测试</li>
+            <li>• 公共 API 需要更新文档</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">项目治理</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        MAREF 由核心维护者团队治理。重大决策通过 RFC 和社区讨论做出。
+      </p>
+
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl text-center" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="text-3xl font-bold mb-1" style="color: var(--color-brand-accent-blue);">100+</div>
+          <div class="text-sm text-brand-text-secondary">GitHub Stars</div>
+        </div>
+        <div class="p-4 rounded-xl text-center" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="text-3xl font-bold mb-1" style="color: var(--color-brand-accent-cyan);">4,300+</div>
+          <div class="text-sm text-brand-text-secondary">测试通过</div>
+        </div>
+        <div class="p-4 rounded-xl text-center" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="text-3xl font-bold mb-1" style="color: var(--color-brand-accent-green);">82%</div>
+          <div class="text-sm text-brand-text-secondary">代码覆盖率</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12 p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">保持联系</h2>
+      <p class="text-brand-text-secondary mb-6">
+        在 GitHub 上关注 MAREF，及时了解版本发布、RFC 和社区新闻。
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="background-color: var(--color-brand-accent-blue); color: white;">★ Star on GitHub</a>
+        <a href="https://github.com/maref-org/maref/discussions" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="border: 1px solid var(--color-brand-border);">加入讨论</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — 多智能体递归演进框架</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/zh/privacy/" class="hover:text-snow-sheet transition-colors">隐私</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">联系</a>
+        </p>
+        <p>Apache-2.0 许可证</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>
