@@ -423,6 +423,19 @@ class AutonomousLoopRunner:
                     # so the optimizer can measure gain immediately.
                     return
 
+            # Fix 23: when ruff --fix produces no auto-fixable changes
+            # but errors remain (F821 undefined-name, F841 unused-variable,
+            # E402 import-order, SIM103 needless-bool), feed the errors to
+            # the LLM via ArchitectureProposal for targeted fixes.
+            if proposal is None:
+                proposal = self._build_ruff_proposal()
+                if proposal is not None:
+                    logger.info(
+                        "Fix 23: LLM ruff fix for %s (%d errors)",
+                        proposal.target_files[0],
+                        len(proposal.affected_symbols or []),
+                    )
+
             # Fallback: architect Python proposal
             if proposal is None:
                 from maref.recursive.self_architect import SelfArchitect
@@ -576,6 +589,84 @@ class AutonomousLoopRunner:
         except Exception as exc:
             logger.warning("Fix 22c: ruff autofix failed: %s", exc)
             return 0
+
+    def _build_ruff_proposal(self) -> Any:
+        """Fix 23: build ArchitectureProposal for non-auto-fixable ruff errors.
+
+        Feeds ruff error details to the LLM via SelfArchitect, targeting
+        F821 (undefined-name), F841 (unused-variable), E402 (import-not-at-top),
+        and SIM103 (needless-bool) errors that ``ruff --fix`` cannot handle
+        with safe applicability.
+        """
+        import json as _json
+        import sys as _sys
+
+        try:
+            proc = subprocess.run(
+                [_sys.executable, "-m", "ruff", "check", "src/",
+                 "--output-format", "json", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if not proc.stdout.strip():
+                return None
+            errors = _json.loads(proc.stdout)
+            if not isinstance(errors, list) or not errors:
+                return None
+
+            # Group errors by file
+            by_file: dict[str, list[dict]] = {}
+            for e in errors:
+                fname = e.get("filename", "")
+                if not fname:
+                    continue
+                by_file.setdefault(fname, []).append(e)
+
+            if not by_file:
+                return None
+
+            # Pick the worst file (most errors, then alphabetical tiebreak)
+            target_file, file_errors = sorted(
+                by_file.items(), key=lambda x: (-len(x[1]), x[0])
+            )[0]
+
+            error_details = "\n".join(
+                f"  - Line {e.get('location', {}).get('row', '?')}: "
+                f"{e.get('code', 'unknown')} — {e.get('message', '')[:120]}"
+                for e in file_errors
+            )
+
+            from maref.recursive.self_architect import ArchitectureProposal, ChangeType
+            return ArchitectureProposal(
+                proposal_id=f"ruff_fix_{int(time.time())}",
+                timestamp=time.time(),
+                current_arch=target_file,
+                proposed_arch=target_file,
+                rationale=(
+                    f"Fix {len(file_errors)} ruff errors in "
+                    f"{target_file.split('/')[-1]}:\n"
+                    f"{error_details}\n"
+                    f"Fix undefined names (F821 — variable not defined in "
+                    f"scope), unused variables (F841), module-level import "
+                    f"order (E402 — move to top of file), and simplify "
+                    f"needless boolean returns (SIM103 — return x directly). "
+                    f"Do NOT change runtime logic."
+                ),
+                risk_assessment="low",
+                confidence=0.5,
+                target_files=[target_file],
+                change_type=ChangeType.GENERAL_REFACTOR,
+                affected_symbols=[
+                    f"L{e.get('location', {}).get('row', '?')}:"
+                    f"{e.get('code', 'unknown')} — {e.get('message', '')[:80]}"
+                    for e in file_errors
+                ],
+                preconditions=[],
+            )
+        except Exception as exc:
+            logger.warning("Fix 23: ruff proposal build failed: %s", exc)
+            return None
 
     def _rollback_modified_files(self) -> int:
         """Fix 16: roll back files modified by the last apply_fn.
