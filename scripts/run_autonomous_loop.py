@@ -756,13 +756,25 @@ class AutonomousLoopRunner:
             # latency normal), inject a ruff-lint hypothesis so the LLM
             # can continue improving Python code quality.
             if not hypotheses:
+                # Fix 26: skip ruff hypothesis when error count is too low
+                # (< 3). v17 saturated at 2 non-auto-fixable errors that even
+                # the LLM cannot resolve (F821 forward reference, SIM103 unsafe
+                # fix). Continuing to inject ruff hypotheses at this point
+                # wastes ~19 minutes/cycle on guaranteed 0% gain attempts.
                 ruff_h = self._build_ruff_hypothesis(snapshot)
                 if ruff_h is not None:
-                    hypotheses.append(ruff_h)
-                    logger.info(
-                        "Fix 22b: injected ruff hypothesis (%d errors)",
-                        ruff_h.experiment_result.get("ruff_error_count", 0),
-                    )
+                    ruff_count = ruff_h.experiment_result.get("ruff_error_count", 0)
+                    if ruff_count < 3:
+                        logger.info(
+                            "Fix 26: skipping ruff hypothesis — only %d "
+                            "errors remain (saturated, < 3)", ruff_count,
+                        )
+                    else:
+                        hypotheses.append(ruff_h)
+                        logger.info(
+                            "Fix 22b: injected ruff hypothesis (%d errors)",
+                            ruff_count,
+                        )
             # Fix 2: persist full diagnostic context for post-run analysis
             result["phases"]["diagnosis"] = {
                 "success": True,
