@@ -17,6 +17,7 @@ import argparse
 import contextlib
 import json
 import logging
+import os
 import shutil
 import subprocess
 import time
@@ -79,6 +80,21 @@ class AutonomousLoopRunner:
         self._last_modified_files: list[str] = []
         # Fix 22c: original content of ruff-autofixed files for rollback
         self._ruff_backups: dict[str, str] = {}
+
+        # Fix 27: suppress MallocStackLogging (inherited by subprocesses,
+        # accumulates memory until OS kills the parent — the #1 cause of
+        # premature death across v11→v19). Set early so all subprocess
+        # calls inherit a clean environment.
+        os.environ.pop("MallocStackLogging", None)
+        os.environ["MallocStackLogging"] = "0"
+        self._MIN_FREE_MEM_MB = 200  # halt if < 200 MB free
+
+        # Fix 28: checkpoint path for resume-after-crash
+        self._checkpoint_path: Path | None = None
+
+        # Fix 29: adaptive convergence interval
+        self._consecutive_noop = 0  # cycles with 0 hypotheses
+        self._current_interval = loop_interval_minutes * 60
 
         self._daily_loop: Any = None
         self._executor: Any = None
@@ -935,10 +951,13 @@ class AutonomousLoopRunner:
         start_time = time.time()
         end_time = start_time + self._duration_hours * 3600
 
+        # Fix 28: try to restore state from previous run
+        self._load_checkpoint()
+
         logger.info("=" * 60)
         logger.info("AUTONOMOUS LOOP START")
         logger.info("  Duration:     %.1f hours", self._duration_hours)
-        logger.info("  Interval:     %.0f minutes", self._loop_interval / 60)
+        logger.info("  Interval:     %.0f minutes (base)", self._loop_interval / 60)
         logger.info("  Mode:         %s", "PRODUCTION" if self._real_writes else "dry-run")
         logger.info("  Output:       %s", self._output_dir)
         logger.info("=" * 60)
@@ -966,6 +985,11 @@ class AutonomousLoopRunner:
                 logger.critical("HALT: %s", self._halt_reason)
                 break
 
+            # Fix 27: halt check 4 — memory pressure (prevents OS-induced death)
+            if not self._check_memory_pressure():
+                self._halt_reason = "memory_pressure"
+                break
+
             cycle_start = time.time()
             result = self.run_one_cycle()
 
@@ -974,6 +998,35 @@ class AutonomousLoopRunner:
             with open(report_path, "w") as f:
                 json.dump(result, f, indent=2, default=str)
 
+            # Fix 28: persist checkpoint for resume-after-crash
+            self._save_checkpoint()
+
+            # Fix 29: adaptive convergence interval
+            hypothesis_count = result.get("phases", {}).get("diagnosis", {}).get("hypothesis_count", 0)
+            adopted = any(
+                h.get("gain_pct", 0) >= 0.05
+                for h in result.get("phases", {}).get("hypotheses", [])
+            ) if "hypotheses" in result.get("phases", {}).get("diagnosis", {}) else False
+            if hypothesis_count == 0:
+                self._consecutive_noop += 1
+                if self._consecutive_noop >= 3 and self._current_interval < 3600:
+                    self._current_interval = min(3600, self._current_interval * 2)
+                    logger.info(
+                        "Fix 29: %d consecutive noop cycles — "
+                        "extended interval to %.0f min",
+                        self._consecutive_noop,
+                        self._current_interval / 60,
+                    )
+            else:
+                if self._consecutive_noop >= 3:
+                    logger.info(
+                        "Fix 29: hypothesis detected after %d noop cycles — "
+                        "resuming base interval",
+                        self._consecutive_noop,
+                    )
+                self._consecutive_noop = 0
+                self._current_interval = self._loop_interval
+
             # Check if we should stop early due to wall clock
             elapsed = time.time() - cycle_start
             remaining = end_time - time.time()
@@ -981,7 +1034,7 @@ class AutonomousLoopRunner:
                 break
 
             # Sleep if we finished faster than the interval
-            sleep_time = min(self._loop_interval - elapsed, remaining)
+            sleep_time = min(self._current_interval - elapsed, remaining)
             if sleep_time > 5:
                 logger.info("Sleeping %.0fs until next cycle...", sleep_time)
                 time.sleep(sleep_time)
@@ -1016,6 +1069,89 @@ class AutonomousLoopRunner:
             logger.info("  HALT reason:  %s", self._halt_reason)
         logger.info("  Report:       %s", report_path)
         logger.info("=" * 60)
+
+
+    def _check_memory_pressure(self) -> bool:
+        """Fix 27: check available memory. Returns True if OK to continue."""
+        try:
+            proc = subprocess.run(
+                ["vm_stat"],
+                capture_output=True, text=True, timeout=5,
+            )
+            free_pages = 0
+            for line in proc.stdout.split("\n"):
+                if "pages free" in line.lower():
+                    try:
+                        free_pages = int(
+                            line.split(":")[1].strip().rstrip(".")
+                        )
+                    except (ValueError, IndexError):
+                        pass
+            # macOS Apple Silicon page size = 16384 bytes
+            free_mb = free_pages * 16384 / 1024 / 1024
+            if free_mb < self._MIN_FREE_MEM_MB:
+                logger.critical(
+                    "Fix 27: low memory — %.0f MB free "
+                    "(threshold: %d MB). Halting to avoid OS kill.",
+                    free_mb, self._MIN_FREE_MEM_MB,
+                )
+                return False
+            if free_mb < self._MIN_FREE_MEM_MB * 2:
+                logger.warning(
+                    "Fix 27: memory pressure — only %.0f MB free "
+                    "(threshold: %d MB). Continuing with caution.",
+                    free_mb, self._MIN_FREE_MEM_MB,
+                )
+            return True
+        except Exception as exc:
+            logger.debug("Fix 27: memory check failed (fail open): %s", exc)
+            return True  # fail open — don't halt on check error
+
+    def _save_checkpoint(self) -> None:
+        """Fix 28: persist cycle state so crashed runs can resume."""
+        if self._checkpoint_path is None:
+            self._checkpoint_path = self._output_dir / ".checkpoint.json"
+        try:
+            data = {
+                "cycle_count": self._cycle_count,
+                "success_count": self._success_count,
+                "failure_count": self._failure_count,
+                "consecutive_noop": self._consecutive_noop,
+                "consecutive_failures": self._consecutive_failures,
+                "system_critical_streak": self._system_critical_streak,
+            }
+            with open(self._checkpoint_path, "w") as f:
+                json.dump(data, f)
+        except OSError as exc:
+            logger.warning("Fix 28: checkpoint save failed: %s", exc)
+
+    def _load_checkpoint(self) -> None:
+        """Fix 28: restore state from checkpoint on restart."""
+        if self._checkpoint_path is None:
+            self._checkpoint_path = self._output_dir / ".checkpoint.json"
+        if not self._checkpoint_path.exists():
+            return  # no checkpoint — fresh start
+        try:
+            with open(self._checkpoint_path) as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                return
+            for key, default in [
+                ("cycle_count", 0),
+                ("success_count", 0),
+                ("failure_count", 0),
+                ("consecutive_noop", 0),
+                ("consecutive_failures", 0),
+                ("system_critical_streak", 0),
+            ]:
+                setattr(self, f"_{key}", data.get(key, default))
+            logger.info(
+                "Fix 28: restored checkpoint — resuming at cycle-%04d "
+                "(cumulative: %d ok / %d fail)",
+                self._cycle_count, self._success_count, self._failure_count,
+            )
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Fix 28: checkpoint load failed: %s", exc)
 
 
 def main() -> None:
