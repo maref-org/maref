@@ -27,12 +27,19 @@ class MAREFConfig:
 
     @classmethod
     def from_env(cls) -> MAREFConfig:
-        home = Path(str(_DEFAULT_HOME) if (h := os.environ.get('MAREF_HOME')) is None else h)
+        home_raw = os.environ.get('MAREF_HOME')
+        home = Path(home_raw) if home_raw else _DEFAULT_HOME
         log_dir = Path(p) if (p := os.environ.get('MAREF_LOG_DIR')) else None
         data_dir = Path(p) if (p := os.environ.get('MAREF_DATA_DIR')) else None
         audit_path = Path(p) if (p := os.environ.get('MAREF_AUDIT_PATH')) else None
         kg_storage_path = Path(p) if (p := os.environ.get('MAREF_KG_PATH')) else None
-        max_depth = int(os.environ.get('MAREF_MAX_DEPTH', '5'))
-        max_trips = int(os.environ.get('MAREF_MAX_TRIPS', '10'))
+        try:
+            max_depth = int(os.environ.get('MAREF_MAX_DEPTH', '5'))
+        except ValueError:
+            max_depth = 5
+        try:
+            max_trips = int(os.environ.get('MAREF_MAX_TRIPS', '10'))
+        except ValueError:
+            max_trips = 10
         governance_enabled = os.environ.get('MAREF_GOVERNANCE', 'true').lower() != 'false'
         return cls(home_dir=home, log_dir=log_dir, data_dir=data_dir, audit_path=audit_path, kg_storage_path=kg_storage_path, max_depth=max_depth, max_trips=max_trips, governance_enabled=governance_enabled)
