@@ -26,8 +26,8 @@ def get_obs_level() -> str:
     return "basic"
 
 
-def get_obs_show() -> dict:
-    return {"level": "basic", "status": "active"}
+def get_obs_show() -> list[dict]:
+    return [{"id": "obs-0", "size": 0, "meta": {"level": "basic", "status": "active"}}]
 
 
 def get_obs_status() -> str:
