@@ -11,15 +11,6 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from maref.executor.workflow.types import (
-    StepResult,
-    StepStatus,
-    WorkflowCheckpoint,
-    WorkflowResult,
-    WorkflowScript,
-    WorkflowStatus,
-    WorkflowStep,
-)
 
 from maref.executor.types import Task
 from maref.executor.worker import WorkerPool
@@ -31,6 +22,15 @@ from maref.executor.workflow.engine import (
     _topological_sort,
 )
 from maref.executor.workflow.generator import WorkflowScriptGenerator, _parse_json
+from maref.executor.workflow.types import (
+    StepResult,
+    StepStatus,
+    WorkflowCheckpoint,
+    WorkflowResult,
+    WorkflowScript,
+    WorkflowStatus,
+    WorkflowStep,
+)
 
 # ── Fake GovernanceBridge ────────────────────────────────────────────
 
