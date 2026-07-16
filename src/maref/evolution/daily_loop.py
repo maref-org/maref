@@ -54,6 +54,8 @@ class DailyEvolutionResult:
     priority: str
     stop_reason: str
     artifacts: dict[str, str] = field(default_factory=dict)
+    trust_score: float = 0.0
+    metrics: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,6 +66,8 @@ class DailyEvolutionResult:
             "priority": self.priority,
             "stop_reason": self.stop_reason,
             "artifacts": dict(self.artifacts),
+            "trust_score": self.trust_score,
+            "metrics": dict(self.metrics),
         }
 
 
@@ -205,6 +209,8 @@ class DailyEvolutionLoop:
             priority=analysis.priority,
             stop_reason=evolution_result.stop_reason,
             artifacts={"vault_dir": str(day_dir)},
+            trust_score=self._trigrams.trust_score,
+            metrics=current_snapshot,
         )
 
     # ── Fix 7: trust persistence helpers ──
