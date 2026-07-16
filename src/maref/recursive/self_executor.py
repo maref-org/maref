@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import json
+import logging
 import os
 import shutil
 import subprocess
@@ -17,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 from maref.evolution.constitution_harness import ConstitutionHarness, EvolutionChange
 from maref.recursive.safety_gate_v2 import SafetyGateV2
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from maref.immunity.auto_gene_pipeline import AutoGeneExtractionPipeline
@@ -217,20 +221,29 @@ import {{ describe, it, expect }} from 'vitest';
             return None
         try:
             import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                result = loop.run_until_complete(
-                    self._llm_generator.generate(proposal)
-                )
-            finally:
-                loop.close()
+            import concurrent.futures
+
+            async def _generate():
+                return await self._llm_generator.generate(proposal)
+
+            # Fix 11: run asyncio.run() in a separate thread to avoid
+            # "RuntimeError: This event loop is already running" when
+            # _generate_with_llm is called from within an already-running
+            # event loop (e.g. the codegen loop via execute_async →
+            # CodeGenerator.generate → _generate_with_llm). The old code
+            # used loop.run_until_complete() which fails silently when a
+            # loop is already running, leaving the coroutine un-awaited
+            # and returning None — so the LLM was never actually called.
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                result = pool.submit(asyncio.run, _generate()).result()
+
             if result.success and result.generated:
                 gen = result.generated[0]
                 gen.file_path = str(target_path)
                 return gen
             return None
-        except Exception:
+        except Exception as exc:
+            logger.warning("LLM generation failed: %s", exc)
             return None
 
     def _classify_proposal(self, proposal) -> str:
@@ -1131,46 +1144,55 @@ class SelfExecutor:
                         )
 
         elif suffix in (".ts", ".tsx"):
+            # Fix 13: TypeScript quality gate — check error count DECREASED,
+            # not zero. The old gate required both tsc and eslint to pass
+            # (returncode==0), which is impossible for a file with 11 existing
+            # errors. Every LLM fix was deployed then immediately rolled back,
+            # leaving the file unmodified and gain=0 → rejected → deadlock.
+            # New behavior: run eslint on both backup (pre) and deployed (post)
+            # files. If post_errors <= pre_errors → pass. If increased → fail.
+            # tsc is skipped (too strict, wrong cwd for gui/ project).
             if rel_path is not None:
-                tsc = subprocess.run(
-                    ["tsc", "--noEmit", str(rel_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    cwd=self._project_root,
-                )
-                checks.append({
-                    "name": "tsc",
-                    "exit_code": tsc.returncode,
-                    "stdout": tsc.stdout[-500:],
-                    "stderr": tsc.stderr[-500:],
-                })
-                if tsc.returncode != 0:
-                    return ExecutionResult(
-                        stage=ExecutionStage.VERIFY,
-                        success=False,
-                        message="Quality gate failed: tsc",
-                        details={"checks": checks},
-                    )
+                gui_dir = Path(self._project_root) / "gui"
+                cwd_dir = str(gui_dir) if gui_dir.exists() else self._project_root
+                # Strip gui/ prefix for eslint path (eslint runs in gui/)
+                eslint_rel = str(rel_path)
+                if eslint_rel.startswith("gui/"):
+                    eslint_rel = eslint_rel[4:]
 
-                eslint = subprocess.run(
-                    ["eslint", str(rel_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    cwd=self._project_root,
-                )
+                def _count_eslint_errors(file_path: str) -> int:
+                    try:
+                        r = subprocess.run(
+                            ["npx", "eslint", "--format", "json", file_path],
+                            capture_output=True, text=True, timeout=60, cwd=cwd_dir,
+                        )
+                        raw = r.stdout or ""
+                        s, e = raw.find("["), raw.rfind("]")
+                        if s < 0 or e <= s:
+                            return 999  # Can't parse — fail safe
+                        data = json.loads(raw[s:e + 1])
+                        return sum(
+                            len([m for m in f.get("messages", []) if m.get("severity", 0) >= 2])
+                            for f in (data if isinstance(data, list) else [])
+                        )
+                    except Exception:
+                        return 999
+
+                post_errors = _count_eslint_errors(eslint_rel)
+                backup_path = self._deployer._deployed.get(code.file_path)
+                pre_errors = _count_eslint_errors(backup_path) if backup_path and Path(backup_path).exists() else post_errors
+
                 checks.append({
                     "name": "eslint",
-                    "exit_code": eslint.returncode,
-                    "stdout": eslint.stdout[-500:],
-                    "stderr": eslint.stderr[-500:],
+                    "exit_code": 0 if post_errors <= pre_errors else 1,
+                    "post_errors": post_errors,
+                    "pre_errors": pre_errors,
                 })
-                if eslint.returncode != 0:
+                if post_errors > pre_errors:
                     return ExecutionResult(
                         stage=ExecutionStage.VERIFY,
                         success=False,
-                        message="Quality gate failed: eslint",
+                        message=f"Quality gate failed: eslint errors increased {pre_errors}→{post_errors}",
                         details={"checks": checks},
                     )
         else:

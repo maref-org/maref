@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import re
 import subprocess
+import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -69,11 +70,27 @@ class SelfObserver:
                           False 时实际运行测试（默认，提供真实失败信号）。
         """
         t0 = time.monotonic()
-        cmd = ["python3", "-m", "pytest", "tests/", "-q", "--no-header"]
+        # Fix 10: use sys.executable instead of "python3" — the latter
+        # resolves to /usr/bin/python3 (system Python) which has no pytest
+        # installed, causing observe_tests to silently return total=0.
+        cmd = [sys.executable, "-m", "pytest", "tests/", "-q", "--no-header"]
+        # Fix 10: a single collection error (e.g. duplicate test module name
+        # across tests/execution and tests/executor) interrupts the whole
+        # run and reports total=1 errors=1. Continue so we still get real
+        # pass/fail counts for the rest of the suite.
+        cmd.append("--continue-on-collection-errors")
         if collect_only:
             cmd.append("--co")
-        # 实际运行测试需要更长超时（与巡检间隔 300s 匹配）
-        timeout = 60 if collect_only else 300
+        else:
+            # Fix 10: exclude slow integration/chaos/benchmark tests so the
+            # metrics phase stays within the 15-min cycle budget (matches CI).
+            cmd.extend(["-m", "not integration and not chaos and not benchmark"])
+        # Fix 10b: 300s was insufficient for the full filtered suite (10922
+        # tests) — cycle 1 of the 48h v2 run timed out at 300s with
+        # test_count=0. Increase to 600s (10 min) so the suite can complete.
+        # Cycle budget is 15 min; diagnosis+healing take ~5 min, leaving
+        # ~10 min for metrics — 600s fits exactly.
+        timeout = 60 if collect_only else 600
         try:
             result = subprocess.run(
                 cmd,
