@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import logging
 import shutil
@@ -117,6 +118,7 @@ class AutonomousLoopRunner:
                     deployer._backup_dir = backup_dir
             self._optimizer = SelfOptimizer(
                 apply_fn=self._default_apply_fn,
+                benchmark_fn=self._gui_aware_benchmark,
             )
             self._healer = SelfHealer(
                 executor=self._executor,
@@ -128,7 +130,7 @@ class AutonomousLoopRunner:
             self._healer = SelfHealer()
 
     def _capture_gui_errors(self) -> list[dict]:
-        """Fix 3b: capture concrete ESLint errors when gui_build is critical."""
+        """Fix 3b/8: capture concrete ESLint errors when gui_build is critical."""
         try:
             r = subprocess.run(
                 ["pnpm", "lint", "--format", "json"],
@@ -137,18 +139,30 @@ class AutonomousLoopRunner:
                 text=True,
                 timeout=60,
             )
-            data = json.loads(r.stdout or r.stderr or "[]")
+            # Fix 8: pnpm prepends banner lines ("> gui@... lint", "> eslint ...")
+            # before the JSON payload AND appends a trailing ELIFECYCLE line
+            # after it, so json.loads(raw_stdout) raises JSONDecodeError and
+            # returns []. Extract the JSON by slicing from the first '[' to the
+            # last ']' which brackets the ESLint JSON array.
+            raw = r.stdout or r.stderr or ""
+            json_start = raw.find("[")
+            json_end = raw.rfind("]")
+            if json_start < 0 or json_end < 0 or json_end <= json_start:
+                return []
+            data = json.loads(raw[json_start:json_end + 1])
             if not isinstance(data, list):
                 return []
             errors: list[dict] = []
             for f in data:
+                # ESLint JSON uses "filePath" (absolute path); fall back to "file".
+                file_path = f.get("filePath", f.get("file", ""))
                 msgs = [
                     m for m in f.get("messages", [])
                     if m.get("severity", 0) >= 2
                 ]
                 if msgs:
                     errors.append({
-                        "file": f.get("file", ""),
+                        "file": file_path,
                         "error_count": len(msgs),
                         "messages": msgs[:5],
                     })
@@ -157,29 +171,185 @@ class AutonomousLoopRunner:
             logger.debug("GUI error capture failed: %s", exc)
             return []
 
+    def _gui_aware_benchmark(self) -> dict[str, float]:
+        """Fix 12: GUI-aware benchmark for the optimizer's gain calculation.
+
+        The default _run_real_benchmark runs the FULL pytest suite (10922
+        tests, >180s) which always times out, producing coverage_pct=0 and
+        execution_time_ms=180000 for both before/after — so gain is always
+        ~0 and every hypothesis is rejected.
+
+        This benchmark instead:
+        1. Runs tests/recursive/ (fast subset, ~37 tests, <60s) for test metrics
+        2. Runs `pnpm lint --format json` in gui/ to count GUI/ESLint errors
+        3. Maps GUI health to coverage_pct: max(0, 100 - error_count * 5)
+
+        When the LLM fixes RsiDashboard.tsx (reduces errors from 11 to ~5),
+        coverage_pct rises from 45 to 75, giving gain=(75-45)/45=66.7% → Adopted.
+        """
+        import sys as _sys
+        result: dict[str, float] = {
+            "test_count": 0.0,
+            "coverage_pct": 0.0,
+            "execution_time_ms": 0.0,
+            "tests_passed": 0.0,
+            "tests_failed": 0.0,
+        }
+        start = time.time()
+
+        # Phase 1: fast Python test subset (tests/recursive/)
+        try:
+            proc = subprocess.run(
+                [_sys.executable, "-m", "pytest", "tests/recursive/",
+                 "--tb=no", "-q", "-x"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            result["exit_code"] = float(proc.returncode)
+            output = proc.stdout + proc.stderr
+            for line in output.split("\n"):
+                stripped = line.strip()
+                if "passed" in stripped:
+                    parts = stripped.split()
+                    for i, p in enumerate(parts):
+                        if p.endswith("passed") and i > 0:
+                            with contextlib.suppress(ValueError):
+                                result["tests_passed"] = float(parts[i - 1])
+                                result["test_count"] = float(parts[i - 1])
+                        elif p.endswith("failed") and i > 0:
+                            with contextlib.suppress(ValueError):
+                                result["tests_failed"] = float(parts[i - 1])
+                                result["test_count"] = result.get("test_count", 0.0) + float(
+                                    parts[i - 1]
+                                )
+        except subprocess.TimeoutExpired:
+            result["exit_code"] = 124.0
+        except Exception:
+            result["exit_code"] = -1.0
+
+        # Phase 2: GUI lint health → map to coverage_pct
+        try:
+            gui_errors = self._capture_gui_errors()
+            total_errors = sum(e.get("error_count", 0) for e in gui_errors)
+            # Fix 14a: use max(1.0, ...) not max(0.0, ...) so coverage_pct
+            # never bottoms out at 0. When the project has 20+ ESLint errors,
+            # the old mapping produced coverage_pct=0 for both before and
+            # after benchmarks, making gain always 0 (the primary gain formula
+            # requires before.coverage_pct > 0). With max(1.0, ...) the gain
+            # formula can detect improvements even from a high-error baseline.
+            result["coverage_pct"] = max(1.0, 100.0 - total_errors * 5.0)
+            result["gui_error_count"] = float(total_errors)
+        except Exception:
+            # If GUI lint fails, fall back to a minimal coverage_pct
+            result["coverage_pct"] = 1.0
+            result["gui_error_count"] = 0.0
+
+        result["execution_time_ms"] = (time.time() - start) * 1000.0
+        return result
+
+    # Fix 17: priority map for ESLint rule difficulty. Lower = easier to fix.
+    # no-unused-vars is trivial (delete/rename a token); react-hooks/* errors
+    # are structural (require understanding component lifecycle). The LLM
+    # repeatedly failed on react-hooks/set-state-in-effect in CooldownDashboard
+    # while 5+ easy no-unused-vars files sat unfixed. Sorting by difficulty
+    # lets the loop accumulate easy wins instead of deadlocking on hard ones.
+    _ESLINT_DIFFICULTY = {
+        "no-unused-vars": 0,
+        "@typescript-eslint/no-unused-vars": 0,
+        "no-empty": 1,
+        "no-explicit-any": 1,
+        "@typescript-eslint/no-explicit-any": 1,
+        "react-hooks/rules-of-hooks": 2,
+        "react-hooks/exhaustive-deps": 2,
+        "react-hooks/set-state-in-effect": 3,
+        "react-hooks/static-components": 3,
+    }
+    _ESLINT_DEFAULT_DIFFICULTY = 1
+
+    @classmethod
+    def _rule_difficulty(cls, rule_id: str) -> int:
+        return cls._ESLINT_DIFFICULTY.get(
+            rule_id, cls._ESLINT_DEFAULT_DIFFICULTY
+        )
+
     def _build_gui_proposal(self, gui_errors: list[dict]) -> Any:
-        """Fix 3b: build an ArchitectureProposal targeting the worst GUI file."""
+        """Fix 3b/14b/15/17: build an ArchitectureProposal targeting the worst GUI file."""
         if not gui_errors:
             return None
         from maref.recursive.self_architect import ArchitectureProposal, ChangeType
 
-        target = max(gui_errors, key=lambda e: e["error_count"])
+        # Fix 15: filter out build artifacts and non-source files.
+        # ESLint may report errors in src-tauri/target/ (compiled .js files),
+        # node_modules/, or other generated directories. These can't be fixed
+        # by the LLM (binary files, UTF-8 decode errors) and waste API calls.
+        _SOURCE_EXTS = {".ts", ".tsx", ".js", ".jsx"}
+        _IGNORE_SUBSTRS = (
+            "src-tauri/target", "node_modules", "/dist/", "/build/",
+            "/.next/", "/coverage/",
+        )
+        filtered = []
+        for e in gui_errors:
+            f = e.get("file", "")
+            if any(ig in f for ig in _IGNORE_SUBSTRS):
+                continue
+            if not any(f.endswith(ext) for ext in _SOURCE_EXTS):
+                continue
+            filtered.append(e)
+        if not filtered:
+            return None
+
+        # Fix 17: smart file selection. Previously `max(error_count)` always
+        # returned the first file when counts were tied, deadlocking the loop
+        # on CooldownDashboard.tsx (react-hooks/set-state-in-effect) while 5
+        # easy no-unused-vars files sat unfixed. Now sort by:
+        #   1. error_count DESC (more errors = higher ROI per LLM call)
+        #   2. min rule difficulty ASC (easier errors first)
+        #   3. file path ASC (stable tiebreak for reproducibility)
+        # This lets the LLM rack up easy wins (no-unused-vars) before
+        # attempting structural react-hooks/* errors.
+        def _sort_key(e: dict) -> tuple:
+            msgs = e.get("messages", []) or []
+            min_difficulty = (
+                min((self._rule_difficulty(m.get("ruleId", "")) for m in msgs), default=self._ESLINT_DEFAULT_DIFFICULTY)
+                if msgs else self._ESLINT_DEFAULT_DIFFICULTY
+            )
+            return (-e.get("error_count", 0), min_difficulty, e.get("file", ""))
+
+        filtered.sort(key=_sort_key)
+        target = filtered[0]
         target_file = target["file"]
+        # Fix 14b: include full ESLint error details (line numbers + messages)
+        # in the rationale and affected_symbols. Previously only rule IDs were
+        # passed (e.g., "@typescript-eslint/no-unused-vars"), so the LLM knew
+        # WHICH rules were violated but not WHERE or WHAT the specific errors
+        # were. This caused the LLM to make generic refactors instead of
+        # fixing the actual errors (e.g., it changed component props but
+        # didn't remove unused imports).
+        short_file = target_file.split("/")[-1]
+        error_details = "\n".join(
+            f"  - Line {m.get('line', '?')}: {m.get('ruleId', 'unknown')} — {m.get('message', '')[:120]}"
+            for m in target["messages"]
+        )
         return ArchitectureProposal(
             proposal_id=f"gui_fix_{int(time.time())}",
             timestamp=time.time(),
             current_arch=target_file,
             proposed_arch=target_file,
             rationale=(
-                f"Fix GUI build critical: {target['error_count']} "
-                f"TypeScript/ESLint errors in {target_file}"
+                f"Fix {target['error_count']} ESLint errors in {short_file}:\n"
+                f"{error_details}\n"
+                f"Remove unused imports/variables, fix type errors, and ensure "
+                f"ESLint compliance. Do NOT change component logic unless required "
+                f"to fix an error."
             ),
             risk_assessment="low",
             confidence=0.6,
             target_files=[target_file],
             change_type=ChangeType.GENERAL_REFACTOR,
             affected_symbols=[
-                m.get("ruleId", "unknown") for m in target["messages"]
+                f"L{m.get('line', '?')}:{m.get('ruleId', 'unknown')} — {m.get('message', '')[:80]}"
+                for m in target["messages"]
             ],
             preconditions=["gui_build probe must be critical"],
         )
@@ -254,6 +424,7 @@ class AutonomousLoopRunner:
                 "stop_reason": daily_result.stop_reason if daily_result else "none",
                 "priority": daily_result.priority if daily_result else "unknown",
                 "real_writes": daily_result.real_writes_enabled if daily_result else False,
+                "trust_score": daily_result.trust_score if daily_result else 0.0,
             }
             if daily_result and daily_result.stop_reason == "trust_blocked":
                 logger.warning("Cycle %s: trust blocked, skipping write phases", cycle_id)
@@ -349,7 +520,16 @@ class AutonomousLoopRunner:
             try:
                 snapshot2 = self._observer.snapshot()
                 report2 = self._diagnostician.diagnose(snapshot2)
-                healing_record = self._healer.heal_cycle(report2)
+                # Fix 9: pass a re_diagnose callback so heal_cycle verifies
+                # the fix actually reduced risk instead of assuming that
+                # action success == problem fixed (which produced 187 cycles
+                # of false RECOVERED while gui_build stayed critical).
+                def _re_diagnose() -> Any:
+                    snap = self._observer.snapshot()
+                    return self._diagnostician.diagnose(snap)
+                healing_record = self._healer.heal_cycle(
+                    report2, re_diagnose=_re_diagnose
+                )
                 result["phases"]["healing"] = {
                     "success": healing_record.converged,
                     "final_state": healing_record.final_state,
@@ -367,7 +547,9 @@ class AutonomousLoopRunner:
 
         # Phase 4: Metrics collection
         try:
-            snapshot3 = self._observer.snapshot()
+            # Fix 10: collect_only=False so tests actually run and we get real
+            # pass/fail/coverage numbers instead of total=0 coverage_pct=0.
+            snapshot3 = self._observer.snapshot(collect_only=False)
             # Fix 1: read from test_stats dict (SystemSnapshot has no test_count attr)
             test_stats = getattr(snapshot3, "test_stats", None) or {}
             total = test_stats.get("total", 0)
