@@ -1,16 +1,16 @@
 """MAREF Learning — meta-learning optimization, replay buffer, A/B comparison, adaptive goal discovery."""
 
-from maref.learning.adaptive_goal_discovery import (
-    AdaptiveGoalDiscoverer,
-    GoalDiscoveryReport,
-    ImprovementGoal,
-)
 from maref.learning.ab_test import (
     ABDecision,
     ABResult,
     ABWinner,
     MetricSnapshot,
     StrategyComparator,
+)
+from maref.learning.adaptive_goal_discovery import (
+    AdaptiveGoalDiscoverer,
+    GoalDiscoveryReport,
+    ImprovementGoal,
 )
 from maref.learning.online_engine import OnlineLearningEngine, OnlineWeightRecord
 from maref.learning.replay import DecisionOutcome, ExperienceStore
