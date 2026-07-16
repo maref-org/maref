@@ -8,11 +8,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from maref.executor.workflow.patterns.base import PatternResult
-from maref.executor.workflow.types import WorkflowScript, WorkflowStep
-
 from maref.executor.types import Task, TaskPriority
 from maref.executor.worker import WorkerPool
+from maref.executor.workflow.patterns.base import PatternResult
+from maref.executor.workflow.types import WorkflowScript, WorkflowStep
 
 
 @dataclass
