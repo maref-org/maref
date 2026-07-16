@@ -1,4 +1,8 @@
-"""MAREF Governance — state machine + audit + circuit breaker + oscillation fix."""
+"""MAREF Governance — state machine + audit + circuit breaker + oscillation fix.
+
+v0.36.0+: Unified governance pipeline (@governed decorator, GovernancePipeline,
+GovernedPipeline) is available for auto-injection governance.
+"""
 
 from maref.governance.audit import AuditEntry, AuditLogger
 from maref.governance.audit_bus import AuditBus
@@ -58,6 +62,17 @@ from maref.governance.verifier_consensus import (
 from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry, VerifierStatus
 from maref.metacognition import MetaCognitiveAuditor
 
+# v0.36.0+: Unified governance pipeline
+from maref.governance.core_pipeline import GovernancePipeline, GovernanceRequest, GovernanceResult, Verdict
+from maref.governance.decorators import (
+    GovernanceDenied,
+    get_default_pipeline,
+    governed,
+    set_default_pipeline,
+)
+from maref.governance.governed_pipeline import GovernedPipeline
+from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
+
 __all__ = [
     "GovernanceState",
     "GovernanceStateMachine",
@@ -111,6 +126,23 @@ __all__ = [
     "InstanceStatus",
     "SyncResult",
     "WeightPoisonDetector",
+    # Core Pipeline
+    "GovernancePipeline",
+    "GovernanceRequest",
+    "GovernanceResult",
+    "Verdict",
+    # @governed decorator
+    "governed",
+    "GovernanceDenied",
+    "set_default_pipeline",
+    "get_default_pipeline",
+    # Batteries-included assembly
+    "GovernedPipeline",
+    # HITL (from integration)
+    "HITLRouter",
+    "HITLEvent",
+    "HITLTier",
+    "HITLStatus",
     # Geopolitical Risk Assessment
     "RiskLevel",
     "Jurisdiction",

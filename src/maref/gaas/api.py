@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from maref.gaas.audit_service import AuditLogService
 from maref.gaas.cb_pool import CircuitBreakerPool
 from maref.gaas.governance_router import GovernanceRouter
-from maref.gaas.hitl_service import HITLService
+from maref.integration.hitl import HITLRouter
 from maref.gaas.models import (
     AuditEntry,
     AuditQueryRequest,
@@ -56,7 +56,7 @@ router = APIRouter(prefix="/api/v1/gaas", tags=["gaas"])
 # Global service instances (singleton pattern)
 _tenant_manager = TenantManager()
 _cb_pool = CircuitBreakerPool()
-_hitl_service = HITLService()
+_hitl_service = HITLRouter()
 _audit_service = AuditLogService()
 _trust_service = TrustScoreService()
 _governance_router = GovernanceRouter(
@@ -141,7 +141,6 @@ async def hitl_request(
         action=req.action,
         description=req.description,
         parameters=req.parameters,
-        tier=getattr(svc, "_map_tier_str", lambda x: x)(req.tier.value),
         auto_approve_seconds=req.auto_approve_seconds,
     )
     return HITLResponse(
@@ -156,7 +155,7 @@ async def hitl_approve(
     tenant_id: str = Depends(require_api_key),
 ) -> HITLResponse:
     """Approve a pending HITL event."""
-    result = get_hitl_service().approve(tenant_id, event_id)
+    result = get_hitl_service().gaas_approve(tenant_id, event_id)
     return HITLResponse(
         event_id=event_id,
         status=result.value,
@@ -170,7 +169,7 @@ async def hitl_deny(
     tenant_id: str = Depends(require_api_key),
 ) -> HITLResponse:
     """Deny a pending HITL event."""
-    result = get_hitl_service().reject(tenant_id, event_id)
+    result = get_hitl_service().gaas_reject(tenant_id, event_id)
     return HITLResponse(
         event_id=event_id,
         status=result.value,
@@ -183,7 +182,7 @@ async def hitl_pending(
     tenant_id: str = Depends(require_api_key),
 ) -> dict[str, Any]:
     """List pending HITL events for the tenant."""
-    events = get_hitl_service().get_pending(tenant_id)
+    events = get_hitl_service().get_tenant_pending(tenant_id)
     return {
         "events": [
             {

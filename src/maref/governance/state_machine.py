@@ -13,11 +13,13 @@ Key properties:
 
 from __future__ import annotations
 
-import contextlib
 import fcntl
 import hashlib
 import json
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 import time
 import uuid
 from collections.abc import Callable
@@ -124,7 +126,9 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
         with open(shard_path, "a") as f:
             _append_record_locked(f, record)
     except Exception:
-        pass
+        logger.exception("Audit write failed, falling back to stdout")
+        import sys
+        _append_record_locked(sys.stdout, record)
 
 _ENTROPY_LEVELS: dict[GovernanceState, int] = {
     GovernanceState(s): e for s, e in _ENTROPY_LEVELS_INT.items()
@@ -341,8 +345,10 @@ class GovernanceStateMachine:
 
     def _notify_callbacks(self, event: StateTransition) -> None:
         for cb in self._callbacks:
-            with contextlib.suppress(Exception):
+            try:
                 cb(event)
+            except Exception:
+                logger.exception("Callback %s failed, isolating", getattr(cb, '__name__', str(cb)))
 
     def __repr__(self) -> str:
         return (

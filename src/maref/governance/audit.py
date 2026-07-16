@@ -18,6 +18,8 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -131,16 +133,17 @@ class AuditLogger:
         else:
             self._path = Path(log_path) if not isinstance(log_path, Path) else log_path
             self._memory_entries = []
-        self._counter: int = 0
         self._write_lock: Any = __import__("threading").Lock()
         self._max_file_size = max_file_size_mb * 1024 * 1024
         env_key = os.environ.get(_HMAC_KEY_ENV)
         resolved_key = hmac_key if hmac_key is not None else env_key
-        self._hmac_key: bytes | None = (
-            (resolved_key.encode("utf-8") if isinstance(resolved_key, str) else resolved_key)
-            if resolved_key
-            else None
-        )
+        if resolved_key:
+            self._hmac_key: bytes | None = (
+                resolved_key.encode("utf-8") if isinstance(resolved_key, str) else resolved_key
+            )
+        else:
+            self._hmac_key = None
+            logger.warning("No HMAC key configured — audit trail tamper protection disabled")
 
     def _sign_entry(self, entry: AuditEntry) -> str:
         if self._hmac_key is None:
@@ -229,15 +232,17 @@ class AuditLogger:
         details: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> AuditEntry:
-        self._counter += 1
+        import uuid
+
+        now = time.time()
         previous_hash = self._memory_entries[-1].chain_hash if self._memory_entries else ""
         if self._path is not None and self._path.exists() and not self._memory_entries:
             existing = self.read_all(max_entries=None)
             if existing:
                 previous_hash = existing[-1].chain_hash
         entry = AuditEntry(
-            id=f"audit_{self._counter:06d}",
-            timestamp=time.time(),
+            id=uuid.uuid4().hex[:8],
+            timestamp=now,
             event_type=event_type,
             actor=actor,
             action=action,
@@ -453,4 +458,4 @@ class AuditLogger:
         return self.read_all(max_entries=max_entries)
 
     def count(self) -> int:
-        return self._counter
+        return len(self._memory_entries)
