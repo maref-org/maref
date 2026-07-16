@@ -73,14 +73,14 @@ class MetaRatchetAuditRecord:
 
 class MetaRatchet:
     """MetaRatchet 生产化实现
-    
+
     关键安全特性：
     - 生产环境检测：自动识别生产/沙箱环境
     - HITL 门控：生产环境强制人工确认
     - 宪法红线：每次变更前强制检查
     - 审计追踪：所有操作持久化记录
     """
-    
+
     TRIGGER_CONDITIONS: dict[str, dict[str, Any]] = {
         "consecutive_discards": {"threshold": 5, "cooldown_rounds": 20},
         "diminishing_returns": {"window": 10, "improvement_threshold": 0.01},
@@ -131,7 +131,7 @@ class MetaRatchet:
         self.audit_log_path = Path(audit_log_path)
         self.require_hitl_in_production = require_hitl_in_production
         self._audit_buffer: list[MetaRatchetAuditRecord] = []
-        
+
         # 确保审计目录存在
         self.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -153,14 +153,14 @@ class MetaRatchet:
     def _check_redlines(self, change: ProtocolChange, target: ImprovementTarget) -> list[str]:
         """宪法红线检查 — 生产化强制检查"""
         violations = []
-        
+
         if self._ratchet_bridge is None:
             return violations
-            
+
         # 检查不可变配置键
         if change.config_key in self.CONSTITUTIONAL_IMMUTABLES:
             violations.append(f"RL-005: HALT - '{change.config_key}' 是宪法不可变项")
-            
+
         # 通过 RatchetBridge 检查完整红线
         try:
             bridge_violations = self._ratchet_bridge.check_redlines(
@@ -173,7 +173,7 @@ class MetaRatchet:
             violations.extend(bridge_violations)
         except Exception as exc:
             logger.warning("Redline check failed: %s", exc)
-            
+
         return violations
 
     def _check_self_modification(self, target_method: str) -> bool:
@@ -260,7 +260,7 @@ class MetaRatchet:
             )
 
         self.diagnosis_history.append(diag)
-        
+
         # 审计记录：诊断阶段
         self._write_audit(MetaRatchetAuditRecord(
             timestamp=datetime.now().isoformat(),
@@ -274,7 +274,7 @@ class MetaRatchet:
             redline_violations=[],
             production_safe=not self.is_production,
         ))
-        
+
         return diag
 
     def _validate_config_key(self, config_key: str) -> bool:
@@ -309,7 +309,7 @@ class MetaRatchet:
         condition = self.TRIGGER_CONDITIONS.get(diagnosis.diagnosis_type, {})
 
         change: ProtocolChange | None = None
-        
+
         if diagnosis.diagnosis_type == "consecutive_discards":
             current = condition.get("threshold", 5)
             min_val = self.CONFIG_KEYS.get("max_consecutive_discards", {}).get("min", 3)
@@ -338,11 +338,11 @@ class MetaRatchet:
         # 生产化：强制红线检查
         redlines = self._check_redlines(change, diagnosis.affected_target)
         change.redline_violations = redlines
-        
+
         if redlines:
             logger.warning("Protocol change blocked by redlines: %s", redlines)
             return None
-            
+
         # 审计记录：提议阶段
         self._write_audit(MetaRatchetAuditRecord(
             timestamp=datetime.now().isoformat(),
@@ -368,10 +368,10 @@ class MetaRatchet:
         if self._ratchet_bridge is None:
             # 降级到模拟模式
             return self._run_sandbox_simulated(change, n_rounds)
-            
+
         old_scores: list[float] = []
         new_scores: list[float] = []
-        
+
         # 运行旧配置 n_rounds 次
         for _ in range(n_rounds):
             try:
@@ -382,7 +382,7 @@ class MetaRatchet:
             except Exception as exc:
                 logger.warning("Sandbox old config iteration failed: %s", exc)
                 old_scores.append(0.0)
-                
+
         # 应用新配置，运行 n_rounds 次
         # 注意：实际实现需要临时修改配置并恢复
         for _ in range(n_rounds):
