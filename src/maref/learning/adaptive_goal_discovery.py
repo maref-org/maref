@@ -4,9 +4,8 @@ targets from RSI results and validation records.
 L3 feature: PERCV-RSI-ACCEPT-L3-004 / P5.5
 """
 
-from dataclasses import dataclass, field, asdict
-from typing import Any
 import datetime
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -120,7 +119,7 @@ class AdaptiveGoalDiscoverer:
         if trends:
             all_goals.extend(self.discover_from_trends(trends))
 
-        dims = list(set(g.dimension for g in all_goals))
+        dims = list({g.dimension for g in all_goals})
 
         return GoalDiscoveryReport(
             goals=all_goals,
