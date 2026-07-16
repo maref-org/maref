@@ -11,6 +11,7 @@ States: CLOSED → OPEN → HALF_OPEN → CLOSED
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -67,6 +68,7 @@ class CircuitBreaker:
         self._rsi_max_flip_flops = rsi_max_flip_flops
         self._rsi_quality_window = rsi_quality_window
         self._rsi_min_quality = rsi_min_quality
+        self._lock = threading.RLock()
         self._state = BreakerState.CLOSED
         self._failure_count = 0
         self._last_trip_time = 0.0
@@ -75,88 +77,96 @@ class CircuitBreaker:
 
     @property
     def state(self) -> BreakerState:
-        return self._state
+        with self._lock:
+            return self._state
 
     @property
     def is_open(self) -> bool:
-        return self._state == BreakerState.OPEN
+        with self._lock:
+            return self._state == BreakerState.OPEN
 
     def check_depth(self, depth: int) -> bool:
         """Check recursion depth. Returns True if allowed."""
-        if self._state == BreakerState.OPEN:
-            if self._should_try_half_open():
-                self._state = BreakerState.HALF_OPEN
-                return True
-            return False
+        with self._lock:
+            if self._state == BreakerState.OPEN:
+                if self._should_try_half_open():
+                    self._state = BreakerState.HALF_OPEN
+                    return True
+                return False
 
-        if depth > self._max_depth:
-            self._trip(f"recursion_depth:{depth}>{self._max_depth}", depth, 0, "")
-            return False
+            if depth > self._max_depth:
+                self._trip(f"recursion_depth:{depth}>{self._max_depth}", depth, 0, "")
+                return False
 
-        return True
+            return True
 
     def check_oscillation(self, rate: float, current_entropy: int, current_state: str) -> bool:
-        if self.is_open:
-            return False
+        with self._lock:
+            if self._state == BreakerState.OPEN:
+                return False
 
-        if rate > self._max_oscillation:
-            self._trip(
-                f"oscillation_rate:{rate:.1f}>{self._max_oscillation}",
-                0,
-                current_entropy,
-                current_state,
-            )
-            return False
+            if rate > self._max_oscillation:
+                self._trip(
+                    f"oscillation_rate:{rate:.1f}>{self._max_oscillation}",
+                    0,
+                    current_entropy,
+                    current_state,
+                )
+                return False
 
-        return True
+            return True
 
     def record_failure(self) -> None:
-        self._failure_count += 1
-        if self._failure_count >= self._max_failures:
-            self._trip(f"consecutive_failures:{self._failure_count}", 0, 0, "")
-            self._failure_count = 0
+        with self._lock:
+            self._failure_count += 1
+            if self._failure_count >= self._max_failures:
+                self._trip(f"consecutive_failures:{self._failure_count}", 0, 0, "")
+                self._failure_count = 0
 
     def record_success(self) -> None:
-        if self._state == BreakerState.HALF_OPEN:
-            self._state = BreakerState.CLOSED
-            self._failure_count = 0
-        else:
-            self._failure_count = 0
+        with self._lock:
+            if self._state == BreakerState.HALF_OPEN:
+                self._state = BreakerState.CLOSED
+                self._failure_count = 0
+            else:
+                self._failure_count = 0
 
     def check_rsi_oscillation(self, statuses: list[str]) -> bool:
         """RSI-specific: detect keep/discard oscillation.
         Trips if flip-flops >= threshold in the full provided window.
         Returns True if allowed, False if tripped."""
-        if self.is_open:
-            return False
-        if len(statuses) < 2:
+        with self._lock:
+            if self._state == BreakerState.OPEN:
+                return False
+            if len(statuses) < 2:
+                return True
+            flips = sum(1 for i in range(1, len(statuses)) if statuses[i] != statuses[i - 1])
+            if flips >= self._rsi_max_flip_flops:
+                self._trip(
+                    f"rsi_oscillation:{flips}>={self._rsi_max_flip_flops}",
+                    0, 0, "",
+                )
+                return False
             return True
-        flips = sum(1 for i in range(1, len(statuses)) if statuses[i] != statuses[i - 1])
-        if flips >= self._rsi_max_flip_flops:
-            self._trip(
-                f"rsi_oscillation:{flips}>={self._rsi_max_flip_flops}",
-                0, 0, "",
-            )
-            return False
-        return True
 
     def check_rsi_quality(self, scores: list[float]) -> bool:
         """RSI-specific: detect sustained quality degradation.
         Trips if avg of last N scores drops below min_quality.
         Returns True if allowed, False if tripped."""
-        if self.is_open:
-            return False
-        if len(scores) < self._rsi_quality_window:
+        with self._lock:
+            if self._state == BreakerState.OPEN:
+                return False
+            if len(scores) < self._rsi_quality_window:
+                return True
+            recent = scores[-self._rsi_quality_window:]
+            avg = sum(recent) / len(recent)
+            if avg < self._rsi_min_quality:
+                self._trip(
+                    f"rsi_quality_degradation:avg={avg:.2f}<{self._rsi_min_quality}",
+                    0, 0, "",
+                )
+                return False
             return True
-        recent = scores[-self._rsi_quality_window:]
-        avg = sum(recent) / len(recent)
-        if avg < self._rsi_min_quality:
-            self._trip(
-                f"rsi_quality_degradation:avg={avg:.2f}<{self._rsi_min_quality}",
-                0, 0, "",
-            )
-            return False
-        return True
 
     def _trip(self, reason: str, depth: int, entropy: int, state_before: str) -> None:
         self._state = BreakerState.OPEN
@@ -182,33 +192,36 @@ class CircuitBreaker:
         return (time.time() - self._last_trip_time) > (self._cooldown + jitter)
 
     def reset(self) -> None:
-        self._state = BreakerState.CLOSED
-        self._failure_count = 0
-        if len(self._trips) > 100:
-            self._trips = self._trips[-50:]
+        with self._lock:
+            self._state = BreakerState.CLOSED
+            self._failure_count = 0
+            if len(self._trips) > 100:
+                self._trips = self._trips[-50:]
 
     def get_stats(self) -> dict[str, Any]:
-        return {
-            "state": self._state.value,
-            "failure_count": self._failure_count,
-            "trip_count": len(self._trips),
-            "last_trip": self._trips[-1].reason if self._trips else None,
-        }
+        with self._lock:
+            return {
+                "state": self._state.value,
+                "failure_count": self._failure_count,
+                "trip_count": len(self._trips),
+                "last_trip": self._trips[-1].reason if self._trips else None,
+            }
 
     def get_config(self) -> dict[str, Any]:
         """Export all configuration thresholds for MAS-TS-001 D4 auditing."""
-        return {
-            "max_depth": self._max_depth,
-            "max_oscillation_rate": self._max_oscillation,
-            "max_consecutive_failures": self._max_failures,
-            "cooldown_seconds": self._cooldown,
-            "rsi_max_flip_flops": self._rsi_max_flip_flops,
-            "rsi_quality_window": self._rsi_quality_window,
-            "rsi_min_quality": self._rsi_min_quality,
-            "state": self._state.value,
-            "trip_count": len(self._trips),
-            "recent_trips": [
-                {"timestamp": t.timestamp, "reason": t.reason, "depth": t.depth, "entropy": t.entropy}
-                for t in self._trips[-5:]
-            ],
-        }
+        with self._lock:
+            return {
+                "max_depth": self._max_depth,
+                "max_oscillation_rate": self._max_oscillation,
+                "max_consecutive_failures": self._max_failures,
+                "cooldown_seconds": self._cooldown,
+                "rsi_max_flip_flops": self._rsi_max_flip_flops,
+                "rsi_quality_window": self._rsi_quality_window,
+                "rsi_min_quality": self._rsi_min_quality,
+                "state": self._state.value,
+                "trip_count": len(self._trips),
+                "recent_trips": [
+                    {"timestamp": t.timestamp, "reason": t.reason, "depth": t.depth, "entropy": t.entropy}
+                    for t in self._trips[-5:]
+                ],
+            }

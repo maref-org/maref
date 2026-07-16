@@ -6,14 +6,14 @@ org B's data is involved, or the action affects org B's agents), the
 cross-org HITL engine manages the approval lifecycle with timeout and
 escalation support.
 
-Extends the tenant-scoped :class:`maref.gaas.hitl_service.HITLService`
+Extends the tenant-scoped :class:`maref.integration.hitl.HITLRouter`
 pattern to the federation layer, where the requester and reviewer may
 belong to different organisations.
 
 References:
     - Plan §7 Phase 3: CrossOrgHITL ``hitl.py``
     - Plan §4.2 workflow step 11: 联邦审计链记录
-    - Existing pattern: :mod:`maref.gaas.hitl_service`
+    - Existing pattern: :mod:`maref.integration.hitl`
 """
 
 from __future__ import annotations

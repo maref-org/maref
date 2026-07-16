@@ -16,7 +16,10 @@ Stages:
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -159,6 +162,7 @@ class OscillationFixLoop:
             state = self._get_state_fn()
             current = state.get("state", "") if isinstance(state, dict) else str(state)
         except Exception:
+            logger.error("get_state_fn raised, marking state UNKNOWN", exc_info=True)
             current = "UNKNOWN"
 
         after = time.time()
@@ -168,6 +172,7 @@ class OscillationFixLoop:
                 state2 = self._get_state_fn()
                 current2 = state2.get("state", "") if isinstance(state2, dict) else str(state2)
             except Exception:
+                logger.error("Second get_state_fn call failed, using previous state", exc_info=True)
                 current2 = current
 
             if current2 != "STABILIZE":

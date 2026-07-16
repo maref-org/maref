@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -64,7 +65,15 @@ class AuditLogService:
     """
 
     def __init__(self, secret: bytes | None = None) -> None:
-        self._secret = secret or b"maref-gaas-audit-v0.28.0"
+        if secret is None:
+            env_key = os.environ.get("MAREF_HMAC_SECRET_KEY")
+            if env_key is None:
+                raise ValueError(
+                    "AuditLogService requires HMAC secret — set MAREF_HMAC_SECRET_KEY env var"
+                )
+            self._secret = env_key.encode("utf-8")
+        else:
+            self._secret = secret
         self._logs: list[GaaSAuditEntry] = []
         self._tenant_index: dict[str, list[int]] = {}
 

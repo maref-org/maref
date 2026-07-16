@@ -6,6 +6,7 @@ HITLService, GovernanceRouter, BillingService.
 
 from __future__ import annotations
 
+import os
 import time
 
 import pytest
@@ -14,7 +15,7 @@ from maref.gaas.audit_service import AuditLogService
 from maref.gaas.billing import BillingService
 from maref.gaas.cb_pool import CircuitBreakerPool
 from maref.gaas.governance_router import GovernanceRouter
-from maref.gaas.hitl_service import HITLService, HITLStatus
+from maref.integration.hitl import HITLRouter, HITLStatus
 from maref.gaas.models import (
     CircuitBreakerState,
     GovernanceContext,
@@ -101,6 +102,14 @@ class TestCircuitBreakerPool:
 # ------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _set_env_secret():
+    """Set HMAC secret for AuditLogService in all tests."""
+    os.environ["MAREF_HMAC_SECRET_KEY"] = "test-secret-for-testing"
+    yield
+    os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+
+
 class TestAuditLogService:
     def test_log_and_query(self) -> None:
         svc = AuditLogService()
@@ -127,6 +136,15 @@ class TestAuditLogService:
         svc.log("t1", "a1", "act", "ALLOW")
         assert svc.verify_integrity("t1") is True
         assert svc.verify_integrity("t2") is True  # No entries = vacuously true
+
+    def test_no_secret_raises(self) -> None:
+        saved = os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+        try:
+            with pytest.raises(ValueError):
+                AuditLogService()
+        finally:
+            if saved:
+                os.environ["MAREF_HMAC_SECRET_KEY"] = saved
 
 
 # ------------------------------------------------------------------
@@ -169,40 +187,40 @@ class TestTrustScoreService:
 
 class TestHITLService:
     def test_request_and_approve(self) -> None:
-        svc = HITLService()
+        svc = HITLRouter()
         event = svc.request("t1", "a1", "file.delete", "Delete file?")
         assert event.status == HITLStatus.PENDING
-        result = svc.approve("t1", event.event_id)
+        result = svc.gaas_approve("t1", event.event_id)
         assert result == HITLStatus.APPROVED
-        assert svc.get_pending("t1") == []
+        assert svc.get_tenant_pending("t1") == []
 
     def test_reject(self) -> None:
-        svc = HITLService()
+        svc = HITLRouter()
         event = svc.request("t1", "a1", "file.delete", "Delete file?")
-        result = svc.reject("t1", event.event_id, "No")
+        result = svc.gaas_reject("t1", event.event_id, "No")
         assert result == HITLStatus.REJECTED
 
     def test_tenant_isolation(self) -> None:
-        svc = HITLService()
+        svc = HITLRouter()
         e1 = svc.request("t1", "a1", "act", "desc")
         svc.request("t2", "a1", "act", "desc")
-        assert len(svc.get_pending("t1")) == 1
-        assert len(svc.get_pending("t2")) == 1
-        svc.approve("t1", e1.event_id)
-        assert len(svc.get_pending("t1")) == 0
-        assert len(svc.get_pending("t2")) == 1
+        assert len(svc.get_tenant_pending("t1")) == 1
+        assert len(svc.get_tenant_pending("t2")) == 1
+        svc.gaas_approve("t1", e1.event_id)
+        assert len(svc.get_tenant_pending("t1")) == 0
+        assert len(svc.get_tenant_pending("t2")) == 1
 
     def test_auto_approve(self) -> None:
-        svc = HITLService()
+        svc = HITLRouter()
         event = svc.request("t1", "a1", "act", "desc", auto_approve_seconds=0.0)
         auto_approved = svc.process_auto_approvals()
         assert event.event_id in auto_approved
         assert event.status == HITLStatus.AUTO_APPROVED
 
     def test_cross_tenant_approve_denied(self) -> None:
-        svc = HITLService()
+        svc = HITLRouter()
         event = svc.request("t1", "a1", "act", "desc")
-        result = svc.approve("t2", event.event_id)
+        result = svc.gaas_approve("t2", event.event_id)
         assert result == HITLStatus.REJECTED
 
 
@@ -245,7 +263,7 @@ class TestGovernanceRouter:
         req = GovernRequest(
             tenant_id="t1",
             agent_id="a1",
-            action="file.delete",
+            action="shell.exec",
             context=GovernanceContext(trust_score=50.0),
         )
         resp = router.govern(req)

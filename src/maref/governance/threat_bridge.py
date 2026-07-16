@@ -8,7 +8,10 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from typing import Any
 
@@ -102,7 +105,7 @@ class ThreatGovernanceBridge:
             try:
                 handler(alert, action)
             except Exception:
-                pass
+                logger.critical("Threat handler %s failed, alerting", getattr(handler, '__name__', str(handler)))
 
         return result
 

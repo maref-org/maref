@@ -10,7 +10,10 @@ Governance ↔ Recursive 桥接模块
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -125,8 +128,7 @@ class GovernanceBridge:
             try:
                 hook(event)
             except Exception:
-                # 钩子失败不应影响主流程
-                pass
+                logger.exception("Governance hook %s failed, isolating", getattr(hook, '__name__', str(hook)))
 
         return handled
 

@@ -15,6 +15,7 @@ Integrates with:
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -65,6 +66,7 @@ class BudgetBreaker:
         self._max_per_task = max_per_task
         self._max_burn_rate = max_burn_rate
         self._cooldown = cooldown_seconds
+        self._lock = threading.RLock()
         self._state: dict[str, BudgetBreakerState] = {}
         self._trips: dict[str, list[BudgetBreakerTrip]] = {}
         self._last_trip_time: dict[str, float] = {}
@@ -79,78 +81,86 @@ class BudgetBreaker:
         self._state[agent_id] = state
 
     def is_open(self, agent_id: str) -> bool:
-        return self._get_state(agent_id) == BudgetBreakerState.OPEN
+        with self._lock:
+            return self._get_state(agent_id) == BudgetBreakerState.OPEN
 
     def check_agent_budget(self, agent_id: str, total_cost: float) -> bool:
-        state = self._get_state(agent_id)
-        if state == BudgetBreakerState.OPEN:
-            if self._should_try_half_open(agent_id):
-                self._set_state(agent_id, BudgetBreakerState.HALF_OPEN)
-                return True
-            return False
-        if total_cost > self._max_per_agent:
-            self._trip(
-                agent_id, "agent_budget",
-                self._max_per_agent, total_cost,
-                f"Agent {agent_id} cost {total_cost:.1f} exceeds limit {self._max_per_agent}",
-            )
-            return False
-        return True
+        with self._lock:
+            state = self._get_state(agent_id)
+            if state == BudgetBreakerState.OPEN:
+                if self._should_try_half_open(agent_id):
+                    self._set_state(agent_id, BudgetBreakerState.HALF_OPEN)
+                    return True
+                return False
+            if total_cost > self._max_per_agent:
+                self._trip(
+                    agent_id, "agent_budget",
+                    self._max_per_agent, total_cost,
+                    f"Agent {agent_id} cost {total_cost:.1f} exceeds limit {self._max_per_agent}",
+                )
+                return False
+            return True
 
     def check_task_budget(self, agent_id: str, task_id: str, task_cost: float) -> bool:
-        state = self._get_state(agent_id)
-        if state == BudgetBreakerState.OPEN:
-            return False
-        if task_cost > self._max_per_task:
-            self._trip(
-                agent_id, "task_budget",
-                self._max_per_task, task_cost,
-                f"Task {task_id} cost {task_cost:.1f} exceeds limit {self._max_per_task}",
-            )
-            return False
-        return True
+        with self._lock:
+            state = self._get_state(agent_id)
+            if state == BudgetBreakerState.OPEN:
+                return False
+            if task_cost > self._max_per_task:
+                self._trip(
+                    agent_id, "task_budget",
+                    self._max_per_task, task_cost,
+                    f"Task {task_id} cost {task_cost:.1f} exceeds limit {self._max_per_task}",
+                )
+                return False
+            return True
 
     def check_burn_rate(self, agent_id: str, window_hours: float = 1.0) -> bool:
-        state = self._get_state(agent_id)
-        if state == BudgetBreakerState.OPEN:
-            return False
-        now = time.time()
-        window = self._agent_window.get(agent_id, [])
-        cutoff = now - window_hours * 3600
-        recent = [(t, c) for t, c in window if t >= cutoff]
-        if not recent:
+        with self._lock:
+            state = self._get_state(agent_id)
+            if state == BudgetBreakerState.OPEN:
+                return False
+            now = time.time()
+            window = self._agent_window.get(agent_id, [])
+            cutoff = now - window_hours * 3600
+            recent = [(t, c) for t, c in window if t >= cutoff]
+            if not recent:
+                return True
+            total = sum(c for _, c in recent)
+            rate = total / window_hours
+            if rate > self._max_burn_rate:
+                self._trip(
+                    agent_id, "burn_rate",
+                    self._max_burn_rate, rate,
+                    f"Agent {agent_id} burn rate {rate:.1f}/hr exceeds limit {self._max_burn_rate}",
+                )
+                return False
             return True
-        total = sum(c for _, c in recent)
-        rate = total / window_hours
-        if rate > self._max_burn_rate:
-            self._trip(
-                agent_id, "burn_rate",
-                self._max_burn_rate, rate,
-                f"Agent {agent_id} burn rate {rate:.1f}/hr exceeds limit {self._max_burn_rate}",
-            )
-            return False
-        return True
 
     def record_spend(self, agent_id: str, task_id: str, amount: float) -> None:
-        self._agent_spend[agent_id] = self._agent_spend.get(agent_id, 0.0) + amount
-        self._task_spend[task_id] = self._task_spend.get(task_id, 0.0) + amount
-        if agent_id not in self._agent_window:
-            self._agent_window[agent_id] = []
-        self._agent_window[agent_id].append((time.time(), amount))
-        max_window = 1000
-        if len(self._agent_window[agent_id]) > max_window:
-            self._agent_window[agent_id] = self._agent_window[agent_id][-max_window:]
+        with self._lock:
+            self._agent_spend[agent_id] = self._agent_spend.get(agent_id, 0.0) + amount
+            self._task_spend[task_id] = self._task_spend.get(task_id, 0.0) + amount
+            if agent_id not in self._agent_window:
+                self._agent_window[agent_id] = []
+            self._agent_window[agent_id].append((time.time(), amount))
+            max_window = 1000
+            if len(self._agent_window[agent_id]) > max_window:
+                self._agent_window[agent_id] = self._agent_window[agent_id][-max_window:]
 
     def get_agent_spend(self, agent_id: str) -> float:
-        return self._agent_spend.get(agent_id, 0.0)
+        with self._lock:
+            return self._agent_spend.get(agent_id, 0.0)
 
     def get_task_spend(self, task_id: str) -> float:
-        return self._task_spend.get(task_id, 0.0)
+        with self._lock:
+            return self._task_spend.get(task_id, 0.0)
 
     def record_success(self, agent_id: str) -> None:
-        if self._get_state(agent_id) == BudgetBreakerState.HALF_OPEN:
-            self._set_state(agent_id, BudgetBreakerState.CLOSED)
-            logger.info("BudgetBreaker recovered agent=%s", agent_id)
+        with self._lock:
+            if self._get_state(agent_id) == BudgetBreakerState.HALF_OPEN:
+                self._set_state(agent_id, BudgetBreakerState.CLOSED)
+                logger.info("BudgetBreaker recovered agent=%s", agent_id)
 
     def _trip(
         self, agent_id: str, budget_type: str,
@@ -182,37 +192,39 @@ class BudgetBreaker:
         return (time.time() - last) > (self._cooldown + jitter)
 
     def reset(self, agent_id: str | None = None) -> None:
-        if agent_id:
-            self._state.pop(agent_id, None)
-            self._last_trip_time.pop(agent_id, None)
-            self._agent_spend.pop(agent_id, None)
-        else:
-            self._state.clear()
-            self._last_trip_time.clear()
-            self._agent_spend.clear()
-            self._task_spend.clear()
-            self._agent_window.clear()
+        with self._lock:
+            if agent_id:
+                self._state.pop(agent_id, None)
+                self._last_trip_time.pop(agent_id, None)
+                self._agent_spend.pop(agent_id, None)
+            else:
+                self._state.clear()
+                self._last_trip_time.clear()
+                self._agent_spend.clear()
+                self._task_spend.clear()
+                self._agent_window.clear()
 
     def get_stats(self, agent_id: str | None = None) -> dict[str, Any]:
-        if agent_id:
-            trips = self._trips.get(agent_id, [])
+        with self._lock:
+            if agent_id:
+                trips = self._trips.get(agent_id, [])
+                return {
+                    "agent_id": agent_id,
+                    "state": self._get_state(agent_id).value,
+                    "total_spend": self._agent_spend.get(agent_id, 0.0),
+                    "trip_count": len(trips),
+                    "last_trip": trips[-1].reason if trips else None,
+                    "max_per_agent": self._max_per_agent,
+                    "max_burn_rate": self._max_burn_rate,
+                }
             return {
-                "agent_id": agent_id,
-                "state": self._get_state(agent_id).value,
-                "total_spend": self._agent_spend.get(agent_id, 0.0),
-                "trip_count": len(trips),
-                "last_trip": trips[-1].reason if trips else None,
+                "agents": len(self._state),
+                "open_count": sum(
+                    1 for s in self._state.values()
+                    if s == BudgetBreakerState.OPEN
+                ),
+                "total_trips": sum(len(t) for t in self._trips.values()),
                 "max_per_agent": self._max_per_agent,
+                "max_per_task": self._max_per_task,
                 "max_burn_rate": self._max_burn_rate,
             }
-        return {
-            "agents": len(self._state),
-            "open_count": sum(
-                1 for s in self._state.values()
-                if s == BudgetBreakerState.OPEN
-            ),
-            "total_trips": sum(len(t) for t in self._trips.values()),
-            "max_per_agent": self._max_per_agent,
-            "max_per_task": self._max_per_task,
-            "max_burn_rate": self._max_burn_rate,
-        }
