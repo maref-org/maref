@@ -17,9 +17,9 @@ from maref.sentinel.platform.linux.bpf_probe import (
 )
 from maref.sentinel.platform.linux.seccomp_filter import (
     SECCOMP_MODE_FILTER,
-    X8664Syscalls,
     SeccompFilter,
     SeccompPolicy,
+    X8664Syscalls,
 )
 
 __all__: list[str] = [

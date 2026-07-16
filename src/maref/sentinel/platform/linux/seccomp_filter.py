@@ -531,10 +531,7 @@ class SeccompFilter:
         """
         policy.validate()
 
-        if pid <= 0:
-            effective_pid = os.getpid()
-        else:
-            effective_pid = pid
+        effective_pid = os.getpid() if pid <= 0 else pid
 
         # 验证目标进程存在
         if pid > 0:
