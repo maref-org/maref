@@ -63,6 +63,17 @@ class DIDRegistry:
     def resolve(self, did: AgentDID) -> AgentIdentityRecord | None:
         return self._agents.get(did)
 
+    def unregister(self, did: AgentDID) -> AgentIdentityRecord | None:
+        """Remove a DID record from the registry.
+
+        Args:
+            did: The MAREF DID to unregister.
+
+        Returns:
+            The removed record if found, None otherwise.
+        """
+        return self._agents.pop(did, None)
+
     def list_all(self) -> list[AgentIdentityRecord]:
         return list(self._agents.values())
 
