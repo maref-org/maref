@@ -31,6 +31,10 @@ class OpenAIProvider:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
+        # Fix 11b: explicitly read OPENAI_BASE_URL so OpenAI-compatible
+        # providers (DeepSeek, SiliconFlow, etc.) work without relying on
+        # the openai library's implicit env-var fallback.
+        self._base_url = os.environ.get("OPENAI_BASE_URL", "")
         self._client: Any = None
 
     async def generate(
@@ -42,7 +46,10 @@ class OpenAIProvider:
     ) -> str:
         if self._client is None:
             from openai import AsyncOpenAI
-            self._client = AsyncOpenAI(api_key=self._api_key)
+            kwargs: dict[str, Any] = {"api_key": self._api_key}
+            if self._base_url:
+                kwargs["base_url"] = self._base_url
+            self._client = AsyncOpenAI(**kwargs)
         kwargs: dict[str, Any] = {
             "model": self._model,
             "messages": [
@@ -150,6 +157,19 @@ class CodeContextBuilder:
         "- Keep generated code under 200 lines — concise, focused, no boilerplate\n"
         "- Preserve existing imports unless removing unused ones\n"
         "- React 19+ hooks patterns, functional components only\n"
+        "\n"
+        "React 19 ESLint rule fix patterns (use these EXACT patterns):\n"
+        "- react-hooks/static-components: NEVER assign a component to a variable\n"
+        "  then render it as <Var />. The rule forbids dynamic component lookup\n"
+        "  during render. Instead use static conditional rendering:\n"
+        "    // BAD: const Icon = map[ext]; return <Icon className=\"x\" />;\n"
+        "    // GOOD: if (ext === '.ts') return <FileCode className=\"x\" />;\n"
+        "    //        if (ext === '.json') return <FileJson className=\"x\" />;\n"
+        "    //        return <File className=\"x\" />;\n"
+        "- react-hooks/set-state-in-effect: NEVER call setState unconditionally\n"
+        "  inside useEffect. Guard with a ref or condition to avoid infinite loop.\n"
+        "- react-hooks/exhaustive-deps: list ALL reactive dependencies in the\n"
+        "  dependency array, or wrap unstable values in useCallback/useMemo.\n"
     )
 
     @staticmethod
@@ -184,11 +204,29 @@ class CodeContextBuilder:
             for fp in affected_files:
                 if fp.endswith((".ts", ".tsx")):
                     # TS files: read raw content (ast.parse cannot handle TypeScript)
+                    # Fix 19: include enough lines to cover all error locations.
+                    # The old limit of 80 lines meant errors past line 80 (e.g.,
+                    # FileTreeItem.tsx L109 react-hooks/static-components) were
+                    # invisible to the LLM, causing repeated failed fixes.
                     try:
                         with open(fp) as f:
                             lines = f.readlines()
-                        user_lines.append(f"\n# Current content of {fp} (first 80 lines):")
-                        for line in lines[:80]:
+                        # Determine the last error line for this file from
+                        # affected_symbols (format: "L{n}:rule — msg").
+                        max_err_line = 0
+                        for sym in (proposal.affected_symbols or []):
+                            try:
+                                prefix = sym.split(":", 1)[0]  # e.g. "L109"
+                                if prefix.startswith("L"):
+                                    max_err_line = max(max_err_line, int(prefix[1:]))
+                            except (ValueError, IndexError):
+                                pass
+                        # Read up to max(80, max_err_line + 20), capped at 250.
+                        read_limit = min(250, max(80, max_err_line + 20))
+                        user_lines.append(
+                            f"\n# Current content of {fp} (first {read_limit} lines):"
+                        )
+                        for line in lines[:read_limit]:
                             user_lines.append(line.rstrip("\n"))
                     except OSError:
                         user_lines.append(f"\n# Could not read {fp}")
