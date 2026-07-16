@@ -6,7 +6,11 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Fix 15: ignore build artifacts that produce false ESLint errors.
+  // src-tauri/target/ contains compiled .js files (tauri-codegen-assets)
+  // that can't be parsed as UTF-8, causing "Parsing error: Unexpected
+  // character" and wasting LLM calls trying to fix binary files.
+  globalIgnores(['dist', 'src-tauri/target', 'node_modules', 'build']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

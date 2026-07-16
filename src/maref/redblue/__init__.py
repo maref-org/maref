@@ -1,12 +1,12 @@
 from maref.redblue.attack_executor import AttackExecutionResult, AttackExecutor
 from maref.redblue.attack_vector import (
+    ALL_ATTACKS,
     PHASE1_ATTACKS,
     PHASE2_ATTACKS,
     PHASE3_ATTACKS,
     PHASE4_ATTACKS,
     PHASE5_ATTACKS,
     PHASE6_ATTACKS,
-    ALL_ATTACKS,
     AttackCategory,
     AttackDefinition,
     BlueLevel,
