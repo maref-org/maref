@@ -6,7 +6,6 @@ import os
 import tempfile
 from collections.abc import Callable
 
-from maref.executor.workflow.patterns.base import PatternResult
 from maref.executor.workflow.patterns.tournament import (
     TournamentConfig,
     TournamentPattern,
@@ -15,6 +14,7 @@ from maref.executor.workflow.patterns.tournament import (
 from maref.executor.queue import TaskQueue
 from maref.executor.types import Task
 from maref.executor.worker import WorkerPool
+from maref.executor.workflow.patterns.base import PatternResult
 from maref.executor.workflow.patterns.fan_out import FanOutConfig, FanOutPattern
 from maref.executor.workflow.patterns.generate_filter import (
     GenerateFilterConfig,
