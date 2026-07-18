@@ -1,0 +1,50 @@
+name: Publish @maref-org/mcp-governance to npm
+
+on:
+  push:
+    tags:
+      - "mcp-governance-v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp/governance-server
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Check package content
+        run: |
+          echo "=== Package content ==="
+          npx pkgfiles --list 2>/dev/null || ls -la dist/
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "@maref-org/mcp-governance ${{ github.ref_name }}"
+          body_path: mcp/governance-server/CHANGELOG.md
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
+        continue-on-error: true
