@@ -26,6 +26,7 @@ from maref.recursive.llm_code_generator import (
 from maref.recursive.self_architect import ArchitectureProposal, ChangeType
 from maref.recursive.self_diagnostician import DiagnosisReport, RiskLevel
 from maref.recursive.self_observer import SystemSnapshot
+from scripts.run_autonomous_loop import AutonomousLoopRunner
 
 
 # ---------------------------------------------------------------------------
@@ -332,7 +333,7 @@ class TestGUIErrorCapture:
 
     def test_capture_gui_errors(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
-        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+        with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
             mock_run.return_value = MagicMock(
                 stdout=self.ESLINT_JSON, stderr="", returncode=1
             )
@@ -346,14 +347,14 @@ class TestGUIErrorCapture:
 
     def test_capture_gui_errors_empty(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
-        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+        with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
             mock_run.return_value = MagicMock(stdout="[]", stderr="", returncode=0)
             errors = runner._capture_gui_errors()
         assert errors == []
 
     def test_capture_gui_errors_exception(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
-        with patch("scripts.run_autonomous_loop.subprocess.run", side_effect=TimeoutError("timeout")):
+        with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated', side_effect=TimeoutError("timeout")):
             errors = runner._capture_gui_errors()
         assert errors == []
 
@@ -566,6 +567,9 @@ class TestRiskDrivenApplyFn:
         runner._executor = MagicMock()
         # No critical gui_build → should fall back to architect
         runner._last_report = _make_report(risk_matrix={"gui_build": RiskLevel.NORMAL})
+        # Mock ruff paths to return 0/None so code falls through to architect
+        runner._apply_ruff_autofix = MagicMock(return_value=0)
+        runner._build_ruff_proposal = MagicMock(return_value=None)
 
         with patch("maref.recursive.self_architect.SelfArchitect") as MockArch:
             mock_instance = MockArch.return_value
@@ -617,7 +621,7 @@ class TestGUIErrorCapturePnpmWrapper:
             + json.dumps(self.ESLINT_JSON_ARRAY)
             + "\n\u2009ELIFECYCLE\u2009 Command failed with exit code 1.\n"
         )
-        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+        with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
             mock_run.return_value = MagicMock(
                 stdout=raw_stdout, stderr="", returncode=1
             )
@@ -635,7 +639,7 @@ class TestGUIErrorCapturePnpmWrapper:
              "messages": [{"severity": 2, "message": "err", "line": 1}],
              "errorCount": 1, "warningCount": 0},
         ])
-        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+        with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
             mock_run.return_value = MagicMock(
                 stdout=raw_stdout, stderr="", returncode=1
             )
@@ -647,7 +651,7 @@ class TestGUIErrorCapturePnpmWrapper:
     def test_no_json_array_returns_empty(self, tmp_path: Path) -> None:
         """If output has no '[' or ']', return []."""
         runner = _make_runner(tmp_path)
-        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+        with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
             mock_run.return_value = MagicMock(
                 stdout="pnpm: command not found\n", stderr="", returncode=127
             )
@@ -657,7 +661,7 @@ class TestGUIErrorCapturePnpmWrapper:
     def test_reversed_brackets_returns_empty(self, tmp_path: Path) -> None:
         """If ']' appears before '[' (malformed), return []."""
         runner = _make_runner(tmp_path)
-        with patch("scripts.run_autonomous_loop.subprocess.run") as mock_run:
+        with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
             mock_run.return_value = MagicMock(
                 stdout="]not json[", stderr="", returncode=1
             )

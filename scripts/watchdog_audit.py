@@ -9,7 +9,7 @@ import subprocess
 import time
 from pathlib import Path
 
-AUDIT_SCRIPT = Path("/Volumes/1TB-M2/public/maref/scripts/audit_v17.sh")
+AUDIT_SCRIPT = Path("/Volumes/1TB-M2/public/maref/scripts/audit_v20.sh")
 PID_FILE = Path("/Volumes/1TB-M2/public/maref/reports/watchdog_audit.pid")
 INTERVAL = 300  # 5 minutes
 

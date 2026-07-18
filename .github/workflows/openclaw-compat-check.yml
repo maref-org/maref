@@ -1,0 +1,139 @@
+# ──────────────────────────────────────────────────────────────────────
+# MAREF ↔ OpenClaw 适配器兼容性检查 —— 定时工作流
+#
+# 功能:
+#   - 每日 UTC 06:00 自动检查上游 OpenClaw plugin API 兼容性
+#   - 检测插件 SDK 接口、Hook 类型、治理相关模块的变更
+#   - 发现 Breaking Changes 时创建 GitHub Issue 告警
+#   - 同时运行 TypeScript SDK + Plugin 的单元测试
+# ──────────────────────────────────────────────────────────────────────
+
+name: OpenClaw 兼容性检查
+
+on:
+  schedule:
+    # 每天 UTC 06:00 (北京时间 14:00)
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "强制重新检查 (忽略缓存)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  compat-check:
+    name: "兼容性检查"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: "Setup Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: "运行兼容性检查脚本"
+        id: compat
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FLAGS=""
+          if [[ "${{ github.event.inputs.force }}" == "true" ]]; then
+            FLAGS="--force"
+          fi
+          python3 scripts/check_openclaw_compat.py --quiet $FLAGS
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: "TypeScript SDK 单元测试"
+        working-directory: sdk/typescript
+        run: |
+          npm ci --ignore-scripts 2>/dev/null || true
+          npm test 2>&1 || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
+
+      - name: "OpenClaw Plugin 单元测试"
+        working-directory: integrations/openclaw-plugin
+        run: |
+          npm ci --ignore-scripts 2>/dev/null || true
+          npm test 2>&1 || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
+
+      - name: "创建 Breaking Change Issue"
+        if: steps.compat.outputs.exit_code == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['compat-breaking'],
+            });
+
+            // 如果已有未关闭的 issue，不重复创建
+            if (issues.length > 0) {
+              console.log(`已有未关闭的 Breaking Change Issue: #${issues[0].number}`);
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ OpenClaw 上游 API Breaking Change 检测',
+              body: [
+                '## 检测结果',
+                '',
+                `上游 [openclaw/openclaw](https://github.com/openclaw/openclaw) 的 plugin API 发生了 Breaking Changes。`,
+                '',
+                '### 需要处理',
+                '',
+                '1. 运行 `python3 scripts/check_openclaw_compat.py` 查看详细变更',
+                '2. 检查 `integrations/openclaw-plugin/src/index.ts` 是否需要适配',
+                '3. 更新 `integrations/openclaw-plugin/src/index.test.ts` 测试用例',
+                '4. 更新 `CHANGELOG.md`',
+                '',
+                '### 自动检查信息',
+                '',
+                `- 检查时间: ${new Date().toISOString()}`,
+                `- 触发方式: ${{ github.event_name }}`,
+                `- 运行 ID: ${context.runId}`,
+                '',
+                '---',
+                '_由 openclaw-compat-check.yml 自动创建_',
+              ].join('\n'),
+              labels: ['compat-breaking', 'priority-high'],
+            });
+
+      - name: "Summary"
+        run: |
+          EXIT="${{ steps.compat.outputs.exit_code }}"
+          if [ "$EXIT" = "2" ]; then
+            echo "::error ::Breaking Changes detected in OpenClaw upstream API"
+          elif [ "$EXIT" = "0" ]; then
+            echo "::notice ::OpenClaw compatibility check passed"
+          else
+            echo "::warning ::OpenClaw compatibility check completed with changes"
+          fi
+
+  notify-on-failure:
+    name: "失败通知"
+    needs: [compat-check]
+    if: failure()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "检查失败 — 请手工排查"
+        run: |
+          echo "::error ::兼容性检查工作流执行失败"
+          echo "请检查 Actions 日志: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from maref.governance.core_pipeline import (
     GovernancePipeline,
     GovernanceRequest,
-    GovernanceResult,
     Verdict,
 )
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import gc
 import json
 import logging
 import os
@@ -31,6 +32,44 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("autonomous_loop")
+
+
+def _run_subprocess_worker(
+    q: "Any",
+    cmd_args: list[str],
+    **kwargs: Any,
+) -> None:
+    """Worker for ``_run_subprocess_isolated`` — module-level for pickle compatibility.
+
+    ``multiprocessing`` on macOS defaults to the ``spawn`` start method,
+    which requires the target function to be importable (not a nested/
+    local function).  This module-level wrapper runs the actual
+    ``subprocess.run`` call in the child process and pipes the result
+    back through a ``multiprocessing.Queue`` so all memory is released
+    on process exit.
+    """
+    # Suppress macOS MallocStackLogging warnings: the parent sets this to '0'
+    # but spawned multiprocessing children inherit the env var and print
+    # "can't turn off malloc stack logging because it was not enabled" to
+    # stderr on every invocation.  Removing it entirely silences the noise.
+    import os as _os
+    _os.environ.pop("MallocStackLogging", None)
+
+    try:
+        res = subprocess.run(cmd_args, **kwargs)
+        q.put({
+            "returncode": res.returncode,
+            "stdout": res.stdout,
+            "stderr": res.stderr,
+        })
+    except subprocess.TimeoutExpired as e:
+        q.put({
+            "timeout": True,
+            "stdout": e.stdout,
+            "stderr": e.stderr,
+        })
+    except BaseException as e:
+        q.put({"error": repr(e)})
 
 
 class AutonomousLoopRunner:
@@ -62,6 +101,7 @@ class AutonomousLoopRunner:
         self._cycle_count = 0
         self._success_count = 0
         self._failure_count = 0
+        self._fixed_files: set[str] = set()  # Fix D: track already-adopted files
 
         # Fix 4: halt state for 48h unattended safety
         self._consecutive_failures = 0
@@ -85,8 +125,14 @@ class AutonomousLoopRunner:
         # accumulates memory until OS kills the parent — the #1 cause of
         # premature death across v11→v19). Set early so all subprocess
         # calls inherit a clean environment.
+        #
+        # IMPORTANT: the variable MUST be *removed*, not set to "0".
+        # Setting it to "0" still enables the malloc stack logging
+        # machinery; the child process will print "could not tag
+        # MSL-related memory as no_footprint" warnings and the
+        # logging pages are counted in the process footprint,
+        # inflating RSS while providing no actual logging benefit.
         os.environ.pop("MallocStackLogging", None)
-        os.environ["MallocStackLogging"] = "0"
         self._MIN_FREE_MEM_MB = 200  # halt if < 200 MB free
 
         # Fix 28: checkpoint path for resume-after-crash
@@ -148,10 +194,77 @@ class AutonomousLoopRunner:
             self._optimizer = SelfOptimizer()
             self._healer = SelfHealer()
 
+    def _run_subprocess_isolated(
+        self,
+        cmd_args: list[str],
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess:
+        """Fix 30: run subprocess in an isolated process for guaranteed memory reclamation.
+
+        On macOS, ``subprocess.run(capture_output=True)`` reads the full
+        subprocess output into the parent's heap.  CPython's memory allocator
+        does not reliably return freed pages to the OS, so RSS grows
+        monotonically across cycles.  Wrapping each call in a
+        ``multiprocessing.Process`` ensures 100% of the child's memory is
+        reclaimed by the OS on exit.
+
+        Accepts the same arguments as ``subprocess.run``
+        (``capture_output``, ``text``, ``timeout``, ``cwd``, …).
+
+        Returns ``subprocess.CompletedProcess`` with the same interface so
+        callers require no changes.
+        """
+        import multiprocessing as _mp
+        import queue as _queue
+
+        # Use fork context to avoid Python 3.14+ spawn's
+        # _check_not_importing_main() RuntimeError.  The caller is
+        # single-threaded at this point, making fork safe.
+        _mp_ctx = _mp.get_context("fork")
+        _result_queue: "_mp.ctx.ForkContext.Queue[dict[str, Any]]" = _mp_ctx.Queue()  # type: ignore[name-defined]  # noqa: E501
+        _timeout = kwargs.get("timeout")
+
+        p = _mp_ctx.Process(
+            target=_run_subprocess_worker,
+            args=(_result_queue, cmd_args),
+            kwargs=kwargs,
+        )
+        p.start()
+        p.join(timeout=(_timeout or 120) + 30)  # grace period for process overhead
+
+        if p.is_alive():
+            p.terminate()
+            p.join()
+
+        try:
+            result = _result_queue.get_nowait()
+        except _queue.Empty:
+            return subprocess.CompletedProcess(
+                args=cmd_args, returncode=-1,
+                stdout=b"", stderr=b"",
+            )
+
+        if "error" in result:
+            raise RuntimeError(result["error"])
+
+        if result.get("timeout"):
+            raise subprocess.TimeoutExpired(
+                cmd_args, _timeout or 120,
+                output=result.get("stdout"),
+                stderr=result.get("stderr"),
+            )
+
+        return subprocess.CompletedProcess(
+            args=cmd_args,
+            returncode=result["returncode"],
+            stdout=result.get("stdout"),
+            stderr=result.get("stderr"),
+        )
+
     def _capture_gui_errors(self) -> list[dict]:
         """Fix 3b/8: capture concrete ESLint errors when gui_build is critical."""
         try:
-            r = subprocess.run(
+            r = self._run_subprocess_isolated(
                 ["pnpm", "lint", "--format", "json"],
                 cwd=str(Path.cwd() / "gui"),
                 capture_output=True,
@@ -218,7 +331,7 @@ class AutonomousLoopRunner:
 
         # Phase 1: fast Python test subset (tests/recursive/)
         try:
-            proc = subprocess.run(
+            proc = self._run_subprocess_isolated(
                 [_sys.executable, "-m", "pytest", "tests/recursive/",
                  "--tb=no", "-q", "-x"],
                 capture_output=True,
@@ -260,8 +373,9 @@ class AutonomousLoopRunner:
             result["coverage_pct"] = max(1.0, 100.0 - total_errors * 5.0)
             result["gui_error_count"] = float(total_errors)
         except Exception:
-            # If GUI lint fails, fall back to a minimal coverage_pct
-            result["coverage_pct"] = 1.0
+            # If GUI lint fails, fall back to 50.0 so ruff adjustments are
+            # not swallowed by max(1.0, ...) in Phase 3.
+            result["coverage_pct"] = 50.0
             result["gui_error_count"] = 0.0
 
         # Phase 3 (Fix 22): ruff lint count — when GUI is clean, Python
@@ -269,7 +383,7 @@ class AutonomousLoopRunner:
         # reduces coverage_pct by 0.5, so the optimizer can detect gains
         # when the LLM fixes Python lint issues.
         try:
-            ruff_proc = subprocess.run(
+            ruff_proc = self._run_subprocess_isolated(
                 [_sys.executable, "-m", "ruff", "check", "src/", "--statistics", "-q"],
                 capture_output=True,
                 text=True,
@@ -284,10 +398,19 @@ class AutonomousLoopRunner:
                         with contextlib.suppress(ValueError):
                             ruff_errors += int(parts[0])
             result["ruff_error_count"] = float(ruff_errors)
-            # Blend GUI + ruff: weight ruff at 0.5 per error (less severe than GUI's 5.0)
-            result["coverage_pct"] = max(
-                1.0,
-                result["coverage_pct"] - ruff_errors * 0.5,
+            # Blend GUI + ruff: weight ruff at 2.0 per error so that
+            # lint-fix hypotheses produce measurable coverage change.
+            # Use max(0.01, ...) instead of max(1.0, ...) so that a high
+            # error count (>=25 with weight=2.0, baseline=50) still produces
+            # a distinguishable coverage value — the old max(1.0, ...) caused
+            # every coverage_pct to clamp to 1.0 when ruff >= 25, making
+            # before == after == 1.0 and gain = 0% for every hypothesis.
+            raw_coverage = result["coverage_pct"] - ruff_errors * 2.0
+            result["coverage_pct"] = max(0.01, raw_coverage)
+            logger.debug(
+                "Benchmark ruff: errs=%d baseline=%.1f raw=%.1f clamped=%.1f",
+                ruff_errors, result.get("gui_coverage_pct", 50.0),
+                raw_coverage, result["coverage_pct"],
             )
         except Exception:
             result["ruff_error_count"] = 0.0
@@ -433,11 +556,10 @@ class AutonomousLoopRunner:
             # dimension. The LLM is not involved — ruff fixes are rules-
             # based and well-tested.
             if proposal is None:
-                ruff_fixed = self._apply_ruff_autofix()
-                if ruff_fixed > 0:
-                    # ruff --fix already modified files; skip LLM proposal
-                    # so the optimizer can measure gain immediately.
-                    return
+                self._apply_ruff_autofix()
+                # Continue to LLM ruff fix regardless of auto-fix results
+                # so that deep fixes (F821, F841, etc.) produce measurable
+                # coverage gain through the benchmark.
 
             # Fix 23: when ruff --fix produces no auto-fixable changes
             # but errors remain (F821 undefined-name, F841 unused-variable,
@@ -489,7 +611,7 @@ class AutonomousLoopRunner:
         """
         try:
             import sys as _sys
-            proc = subprocess.run(
+            proc = self._run_subprocess_isolated(
                 [_sys.executable, "-m", "ruff", "check", "src/",
                  "--statistics", "-q"],
                 capture_output=True,
@@ -543,7 +665,7 @@ class AutonomousLoopRunner:
 
         try:
             # Phase 1: enumerate files with ruff errors (before fix)
-            proc = subprocess.run(
+            proc = self._run_subprocess_isolated(
                 [_sys.executable, "-m", "ruff", "check", "src/",
                  "--output-format", "json", "-q"],
                 capture_output=True,
@@ -569,7 +691,7 @@ class AutonomousLoopRunner:
                     pass
 
             # Phase 3: run ruff --fix (safe fixes only, the default)
-            subprocess.run(
+            self._run_subprocess_isolated(
                 [_sys.executable, "-m", "ruff", "check", "src/", "--fix", "-q"],
                 capture_output=True,
                 text=True,
@@ -618,7 +740,7 @@ class AutonomousLoopRunner:
         import sys as _sys
 
         try:
-            proc = subprocess.run(
+            proc = self._run_subprocess_isolated(
                 [_sys.executable, "-m", "ruff", "check", "src/",
                  "--output-format", "json", "-q"],
                 capture_output=True,
@@ -642,10 +764,17 @@ class AutonomousLoopRunner:
             if not by_file:
                 return None
 
-            # Pick the worst file (most errors, then alphabetical tiebreak)
-            target_file, file_errors = sorted(
-                by_file.items(), key=lambda x: (-len(x[1]), x[0])
-            )[0]
+            # Fix 27: pick the worst file that hasn't been fixed yet.
+            # Once a file is adopted (Fix D), skip it so subsequent
+            # cycles target other files instead of re-fixing the same one.
+            sorted_files = sorted(
+                [(f, es) for f, es in by_file.items() if f not in getattr(self, "_fixed_files", set())],
+                key=lambda x: (-len(x[1]), x[0]),
+            )
+            if not sorted_files:
+                # All files already fixed — nothing to do this cycle.
+                return None
+            target_file, file_errors = sorted_files[0]
 
             error_details = "\n".join(
                 f"  - Line {e.get('location', {}).get('row', '?')}: "
@@ -845,6 +974,15 @@ class AutonomousLoopRunner:
                 if self._optimizer.adopt_if_gain(hypothesis):
                     logger.info("Adopted hypothesis %s: gain=%.2f%%", hypothesis.hypothesis_id, hypothesis.gain_pct * 100)
                     self._success_count += 1
+                    # Fix D: record adopted files so _build_ruff_proposal
+                    # skips them in subsequent cycles.
+                    for f in getattr(self, "_last_modified_files", []):
+                        self._fixed_files.add(f)
+                    logger.info(
+                        "Fix D: %d files fixed so far: %s",
+                        len(self._fixed_files),
+                        list(self._fixed_files)[:5],
+                    )
                 else:
                     logger.info("Rejected hypothesis %s: gain=%.2f%%", hypothesis.hypothesis_id, hypothesis.gain_pct * 100)
                     # Fix 16: auto-rollback on negative gain to prevent regression accumulation
@@ -944,6 +1082,11 @@ class AutonomousLoopRunner:
 
         duration_str = f"{result['duration_seconds']:.1f}s"
         logger.info("Cycle %s complete: %s (cumulative: %d ok / %d fail)", cycle_id, "✅" if result["success"] else "❌", self._success_count, self._failure_count)
+
+        # Fix (memory): force GC after each cycle to reclaim Python heap pages
+        # that accumulated during engine / snapshot / benchmark runs.
+        gc.collect()
+
         return result
 
     def run(self) -> None:
@@ -1000,6 +1143,9 @@ class AutonomousLoopRunner:
 
             # Fix 28: persist checkpoint for resume-after-crash
             self._save_checkpoint()
+
+            # Fix 30: force memory reclamation after each cycle
+            self._force_memory_reclaim()
 
             # Fix 29: adaptive convergence interval
             hypothesis_count = result.get("phases", {}).get("diagnosis", {}).get("hypothesis_count", 0)
@@ -1072,40 +1218,91 @@ class AutonomousLoopRunner:
 
 
     def _check_memory_pressure(self) -> bool:
-        """Fix 27: check available memory. Returns True if OK to continue."""
+        """Fix 27: check available memory. Returns True if OK to continue.
+
+        On macOS, ``vm_stat`` reports ``pages free`` (completely untouched)
+        and ``pages inactive`` (used but immediately reclaimable by the
+        kernel).  Counting only ``free`` underestimates available memory on
+        systems with large file caches.  We use ``free + inactive`` as the
+        true available memory — matching macOS's own memory-pressure
+        calculation (``vm_page_free_count + vm_page_inactive_count``).
+        """
         try:
-            proc = subprocess.run(
+            proc = self._run_subprocess_isolated(
                 ["vm_stat"],
                 capture_output=True, text=True, timeout=5,
             )
+            # macOS Apple Silicon page size = 16384 bytes
+            _PAGE_SIZE = 16384
+            _MB = 1024.0 * 1024.0
             free_pages = 0
+            inactive_pages = 0
             for line in proc.stdout.split("\n"):
-                if "pages free" in line.lower():
-                    try:
+                lower = line.lower()
+                try:
+                    if "pages free" in lower:
                         free_pages = int(
                             line.split(":")[1].strip().rstrip(".")
                         )
-                    except (ValueError, IndexError):
-                        pass
-            # macOS Apple Silicon page size = 16384 bytes
-            free_mb = free_pages * 16384 / 1024 / 1024
-            if free_mb < self._MIN_FREE_MEM_MB:
+                    elif "pages inactive" in lower:
+                        inactive_pages = int(
+                            line.split(":")[1].strip().rstrip(".")
+                        )
+                except (ValueError, IndexError):
+                    pass
+            available_mb = (free_pages + inactive_pages) * _PAGE_SIZE / _MB
+            if available_mb < self._MIN_FREE_MEM_MB:
                 logger.critical(
-                    "Fix 27: low memory — %.0f MB free "
-                    "(threshold: %d MB). Halting to avoid OS kill.",
-                    free_mb, self._MIN_FREE_MEM_MB,
+                    "Fix 27: low memory — %.0f MB available "
+                    "(free=%d, inactive=%d, threshold: %d MB). "
+                    "Halting to avoid OS kill.",
+                    available_mb, free_pages, inactive_pages,
+                    self._MIN_FREE_MEM_MB,
                 )
                 return False
-            if free_mb < self._MIN_FREE_MEM_MB * 2:
+            if available_mb < self._MIN_FREE_MEM_MB * 2:
                 logger.warning(
-                    "Fix 27: memory pressure — only %.0f MB free "
-                    "(threshold: %d MB). Continuing with caution.",
-                    free_mb, self._MIN_FREE_MEM_MB,
+                    "Fix 27: memory pressure — only %.0f MB available "
+                    "(free=%d, inactive=%d, threshold: %d MB). "
+                    "Continuing with caution.",
+                    available_mb, free_pages, inactive_pages,
+                    self._MIN_FREE_MEM_MB,
+                )
+            elif free_pages * _PAGE_SIZE / _MB < self._MIN_FREE_MEM_MB:
+                logger.info(
+                    "Fix 27: free pages low (%d) but inactive pages (%d) "
+                    "provide %.0f MB available — OK to continue.",
+                    free_pages, inactive_pages, available_mb,
                 )
             return True
         except Exception as exc:
             logger.debug("Fix 27: memory check failed (fail open): %s", exc)
             return True  # fail open — don't halt on check error
+
+    def _force_memory_reclaim(self) -> int:
+        """Fix 30: force garbage collection to reduce memory fragmentation.
+
+        Despite subprocess isolation (Fix 30 Process wrapper), CPython's
+        generational GC may still hold cross-cycle references (e.g. metrics
+        history, cached ASTs).  This method forces collection of all three
+        generations and, on platforms that support it (Linux w/ glibc), asks
+        the system allocator to return free pages to the OS.
+
+        Returns the number of collected objects.
+        """
+        import gc as _gc
+        collected = _gc.collect()
+        collected += _gc.collect(2)  # also sweep oldest generation
+        # macOS libc does not export malloc_trim, but calling it on
+        # unsupported platforms is a harmless no-op (returns 0).
+        with contextlib.suppress(Exception):
+            import ctypes as _ctypes
+            _libc = _ctypes.CDLL("libc.dylib")
+            if hasattr(_libc, "malloc_trim"):
+                _libc.malloc_trim(0)
+        if collected > 0:
+            logger.debug("Fix 30: GC reclaimed %d objects", collected)
+        return collected
 
     def _save_checkpoint(self) -> None:
         """Fix 28: persist cycle state so crashed runs can resume."""

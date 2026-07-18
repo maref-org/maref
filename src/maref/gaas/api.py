@@ -21,7 +21,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from maref.gaas.audit_service import AuditLogService
 from maref.gaas.cb_pool import CircuitBreakerPool
 from maref.gaas.governance_router import GovernanceRouter
-from maref.integration.hitl import HITLRouter
 from maref.gaas.models import (
     AuditEntry,
     AuditQueryRequest,
@@ -50,6 +49,7 @@ from maref.gaas.session_manager import (
 )
 from maref.gaas.tenant import TenantManager
 from maref.gaas.trust_service import TrustScoreService
+from maref.integration.hitl import HITLRouter
 
 router = APIRouter(prefix="/api/v1/gaas", tags=["gaas"])
 

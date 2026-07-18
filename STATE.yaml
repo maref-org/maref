@@ -1,11 +1,46 @@
-version: 13
-last_updated: '2026-07-04T12:00:00+08:00'
+version: 14
+last_updated: '2026-07-17T20:30:00+08:00'
 project:
   name: MAREF
-  current_release: 0.36.0-rc
+  current_release: 0.36.1-beta
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   stage: S0 (学术借力) → P0 (开源启动) → S1 (开源运营启动)
+  constitution_version: v1.8
+  phase_gate_enforcement:
+    enabled: true
+    constitution_article: 第三十四-E条
+    local_hook: ~/.claude/hooks/file_write_intercept.py
+    state_file: ~/.claude/current_phase.json
+    manager_cli: python3 ~/.claude/hooks/phase_manager.py status|set|reset|history
+    coverage:
+      claude_code: enabled
+      opencode: pending
+      cursor: pending
+      trae: pending
+      github_copilot: not_applicable
+    sidecar_mcp_tool:
+      name: gov_check_phase_gate
+      status: implemented
+      implemented_at: '2026-07-17'
+      target_article: 第三十四-C条 34g
+      test_coverage: 5 scenarios / 9 sub-cases passed
+  output_verification_protocol:
+    enabled: true
+    constitution_article: 第三十四-F条
+    enforcement_level: advisory
+    sidecar_mcp_tool:
+      name: gov_verify_output
+      status: implemented_mvp
+      implemented_at: '2026-07-17'
+      target_article: 第三十四-C条 34h
+      test_coverage: 3 scenarios passed (pass/attention/rework)
+      note: MVP heuristic scoring — production requires LLM API integration
+    stop_hook_upgrade:
+      status: implemented
+      implemented_at: '2026-07-17'
+      target_article: 第三十四-C条 34i
+      test_coverage: 5 scenarios passed (advisory 1-2 / block on 3rd)
 track_b:
   remote: git@github.com:maref-org/maref.git
   pre_push_hook: present
