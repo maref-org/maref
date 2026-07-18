@@ -106,6 +106,7 @@ knowledge_graph.json
 # IDE workspace metadata
 .trae/
 node_modules
+*.tsbuildinfo
 .worktrees/
 
 # Runtime generated large files

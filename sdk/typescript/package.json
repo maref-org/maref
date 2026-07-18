@@ -1,19 +1,39 @@
 {
-  "name": "@maref/sdk",
-  "version": "0.1.0",
-  "description": "MAREF Agent Governance OS TypeScript SDK",
+  "name": "@maref-org/sdk",
+  "version": "0.2.0",
+  "description": "MAREF Agent Governance OS TypeScript SDK — governance enforcement client with fail-closed safety",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": ["dist"],
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
-    "lint": "eslint src/"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build && npm run test"
   },
-  "keywords": ["agent", "governance", "MAREF", "multi-agent"],
+  "keywords": [
+    "agent",
+    "governance",
+    "MAREF",
+    "multi-agent",
+    "ai-safety",
+    "guardrails",
+    "openclaw",
+    "state-machine"
+  ],
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maref-org/maref.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maref-org/maref/issues"
+  },
+  "homepage": "https://maref.cc",
   "devDependencies": {
     "typescript": "^5.5",
-    "vitest": "^2.0"
+    "vitest": "^2.0",
+    "eslint": "^9.0"
   }
 }

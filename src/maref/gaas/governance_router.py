@@ -18,15 +18,21 @@ from maref.gaas.models import (
     CircuitBreakerState,
     GovernRequest,
     GovernResponse,
-    HITLTier as ModelHITLTier,
     Verdict,
 )
-from maref.gaas.session_manager import is_session_active, increment_step
+from maref.gaas.models import (
+    HITLTier as ModelHITLTier,
+)
+from maref.gaas.session_manager import increment_step
 from maref.gaas.tenant import TenantManager
 from maref.gaas.trust_service import TrustScoreService
 from maref.governance.core_pipeline import (
     GovernancePipeline,
+)
+from maref.governance.core_pipeline import (
     GovernanceRequest as CoreRequest,
+)
+from maref.governance.core_pipeline import (
     GovernanceResult as CoreResult,
 )
 from maref.integration.hitl import HITLRouter

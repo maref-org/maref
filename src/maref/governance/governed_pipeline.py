@@ -17,17 +17,15 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any
 
 from maref.gaas.cb_pool import CircuitBreakerPool
+from maref.governance.audit import AuditLogger
 from maref.governance.core_pipeline import (
     GovernancePipeline,
     GovernanceRequest,
     GovernanceResult,
-    Verdict,
 )
 from maref.governance.decorators import set_default_pipeline
-from maref.governance.audit import AuditLogger
 from maref.integration.hitl import HITLRouter
 from maref.recursive.permission_matrix import PermissionMatrix
 

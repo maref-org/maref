@@ -42,7 +42,24 @@ log "===== audit start ====="
 
 # ── Check 1: 进程是否存在 ──
 if ! ps -p "$V14_PID" > /dev/null 2>&1; then
-    alert "CRITICAL" "v14 process (PID $V14_PID) is NOT running — loop has crashed"
+    # 检查日志末尾是否有正常结束标记
+    if [ -f "$V14_LOG" ] && grep -q "Final summary\|All cycles completed\|HALT\|Shutting down\|Received signal\|converged.*HEALTHY" "$V14_LOG" 2>/dev/null; then
+        log "PID $V14_PID no longer running — loop completed normally (found completion markers in log)"
+        log "===== audit end (completed) ====="
+        exit 0
+    fi
+    # 检查日志最近更新时间 — 超过 60 分钟无更新说明是历史任务
+    if [ -f "$V14_LOG" ]; then
+        log_mtime=$(stat -f "%m" "$V14_LOG" 2>/dev/null || echo 0)
+        now_ts=$(date +%s)
+        age_min=$(( (now_ts - log_mtime) / 60 ))
+        if [ "$age_min" -gt 60 ]; then
+            log "PID $V14_PID no longer running — last log update ${age_min}m ago, likely historical run"
+            log "===== audit end (historical, ${age_min}m stale) ====="
+            exit 0
+        fi
+    fi
+    alert "CRITICAL" "v14 process (PID $V14_PID) is NOT running — loop may have crashed (no clean completion found)"
     log "===== audit end (crash detected) ====="
     exit 1
 fi

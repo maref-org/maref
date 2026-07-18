@@ -9,11 +9,12 @@ regardless of entry point.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
-from maref.integration.hitl import HITLRouter, HITLTier, HITLStatus
+from maref.integration.hitl import HITLRouter, HITLTier
 from maref.recursive.permission_matrix import PermissionMatrix
 
 

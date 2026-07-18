@@ -8,11 +8,25 @@ from maref.governance.audit import AuditEntry, AuditLogger
 from maref.governance.audit_bus import AuditBus
 from maref.governance.budget_breaker import BudgetBreaker, BudgetBreakerState, BudgetBreakerTrip
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
+
+# v0.36.0+: Unified governance pipeline
+from maref.governance.core_pipeline import (
+    GovernancePipeline,
+    GovernanceRequest,
+    GovernanceResult,
+    Verdict,
+)
 from maref.governance.cross_instance import (
     CrossInstanceGovernor,
     InstanceStatus,
     SyncResult,
     WeightPoisonDetector,
+)
+from maref.governance.decorators import (
+    GovernanceDenied,
+    get_default_pipeline,
+    governed,
+    set_default_pipeline,
 )
 from maref.governance.economic import (
     AgentInsurancePricing,
@@ -33,6 +47,7 @@ from maref.governance.geopolitical_risk import (
     SovereignAIValidationResult,
     SovereignAIValidator,
 )
+from maref.governance.governed_pipeline import GovernedPipeline
 from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
 from maref.governance.percv_hooks import (
     PERCVEventType,
@@ -60,18 +75,8 @@ from maref.governance.verifier_consensus import (
     VerifierConsensus,
 )
 from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry, VerifierStatus
-from maref.metacognition import MetaCognitiveAuditor
-
-# v0.36.0+: Unified governance pipeline
-from maref.governance.core_pipeline import GovernancePipeline, GovernanceRequest, GovernanceResult, Verdict
-from maref.governance.decorators import (
-    GovernanceDenied,
-    get_default_pipeline,
-    governed,
-    set_default_pipeline,
-)
-from maref.governance.governed_pipeline import GovernedPipeline
 from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
+from maref.metacognition import MetaCognitiveAuditor
 
 __all__ = [
     "GovernanceState",
