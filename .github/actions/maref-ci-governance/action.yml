@@ -1,0 +1,127 @@
+name: "MAREF CI Governance"
+description: >
+  Enforce MAREF governance policies in CI pipelines. Scans PR changes and
+  workflow commands against the MAREF sidecar to detect policy violations
+  before they reach production.
+
+inputs:
+  sidecar-url:
+    description: "MAREF sidecar URL"
+    required: false
+    default: "http://localhost:8000"
+
+  mode:
+    description: "Governance mode: enforcing (fail on violation), advisory (warn only), logging (skip)"
+    required: false
+    default: "advisory"
+
+  fail-closed:
+    description: "Fail closed when sidecar is unreachable"
+    required: false
+    default: "true"
+
+  github-token:
+    description: "GitHub token for PR API access"
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: setup-node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+
+    - id: install
+      shell: bash
+      run: |
+        npm install -g @maref-org/sdk
+
+    - id: scan-pr
+      shell: bash
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "🔍 Scanning PR changes for MAREF policy violations..."
+        echo "Mode: ${{ inputs.mode }}"
+        echo "Sidecar: ${{ inputs.sidecar-url }}"
+
+        PR_FILES=$(gh pr view ${{ github.event.pull_request.number }} \
+          --json files --jq '.files[].path' 2>/dev/null || echo "")
+
+        if [ -z "$PR_FILES" ]; then
+          echo "✅ No file changes detected in PR"
+          exit 0
+        fi
+
+        VIOLATIONS=0
+        for file in $PR_FILES; do
+          echo "  Checking: $file"
+
+          # Skip safe file patterns
+          case "$file" in
+            *.md|*.txt|*.json|*.yml|*.yaml|*.svg|*.png|*.jpg|*.jpeg|*.gif|*.lock)
+              echo "    ⏭️  Skipped (non-executable)"
+              continue
+              ;;
+          esac
+
+          # Check with MAREF sidecar
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ inputs.sidecar-url }}/api/v1/check-before-write" \
+            -H "Content-Type: application/json" \
+            -d "{\"file_path\": \"$file\", \"actor\": \"ci-governance\", \"session_id\": \"${{ github.run_id }}\"}" 2>/dev/null)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            if [ "${{ inputs.fail-closed }}" = "true" ] && [ "${{ inputs.mode }}" = "enforcing" ]; then
+              echo "    ❌ Sidecar unreachable (fail-closed)"
+              VIOLATIONS=$((VIOLATIONS + 1))
+            else
+              echo "    ⚠️  Sidecar unreachable (fail-open, skipping)"
+            fi
+            continue
+          fi
+
+          VERDICT=$(echo "$BODY" | jq -r '.verdict // "allow"')
+          if [ "$VERDICT" = "block" ]; then
+            REASON=$(echo "$BODY" | jq -r '.reason // "Policy violation"')
+            echo "    ❌ BLOCKED: $REASON"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          else
+            echo "    ✅ Allowed"
+          fi
+        done
+
+        echo ""
+        if [ $VIOLATIONS -gt 0 ]; then
+          echo "❌ Found $VIOLATIONS policy violation(s)"
+          if [ "${{ inputs.mode }}" = "enforcing" ]; then
+            exit 1
+          else
+            echo "⚠️  Advisory mode — not failing CI"
+          fi
+        else
+          echo "✅ No policy violations detected"
+        fi
+
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+
+    - id: summary
+      shell: bash
+      run: |
+        echo "### MAREF CI Governance Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Mode | ${{ inputs.mode }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Sidecar | ${{ inputs.sidecar-url }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Fail-closed | ${{ inputs.fail-closed }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "_MAREF CI Governance scan complete._" >> $GITHUB_STEP_SUMMARY
+
+branding:
+  icon: "shield"
+  color: "blue"
