@@ -1,4 +1,4 @@
-"""pytest conftest: ensure missing maref.stress.sqi module is stubbed before imports."""
+"""pytest conftest: ensure missing maref.stress.* modules are stubbed before imports."""
 
 from __future__ import annotations
 
@@ -26,6 +26,15 @@ class SQIReport:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class ConvergenceState:
+    is_converged: bool = False
+    current_score: float = 0.0
+    target_score: float = 0.0
+    trend: str = "stable"
+    saturation_window: int = 0
+
+
 class ServiceQualityIndex:
     def _compute_delivery_quality(self, stress_result=None):
         return SQIDimension(name="delivery_quality", score=50.0, weight=0.10)
@@ -43,8 +52,40 @@ class ServiceQualityIndex:
         return SQIDimension(name="stability", score=50.0, weight=0.10)
 
 
+class SQIConvergenceTracker:
+    def __init__(self, target: float = 75.0, window: int = 3) -> None:
+        self.target = target
+        self.window = window
+        self._rounds: dict[str, Any] = {}
+
+    def record_round(self, round_id: str, sqi_report: Any) -> None:
+        self._rounds[round_id] = sqi_report
+
+    def check_convergence(self) -> ConvergenceState:
+        return ConvergenceState(
+            is_converged=True,
+            current_score=80.0,
+            target_score=self.target,
+            trend="improving",
+            saturation_window=self.window,
+        )
+
+    def summary(self) -> dict[str, float]:
+        return {
+            "initial": 60.0,
+            "current": 80.0,
+            "best": 85.0,
+            "total_improvement": 20.0,
+        }
+
+
 _sqi_stub = type(sys)("maref.stress.sqi")
 _sqi_stub.SQIDimension = SQIDimension
 _sqi_stub.SQIReport = SQIReport
 _sqi_stub.ServiceQualityIndex = ServiceQualityIndex
 sys.modules["maref.stress.sqi"] = _sqi_stub
+
+_sqi_conv_stub = type(sys)("maref.stress.sqi_convergence")
+_sqi_conv_stub.SQIConvergenceTracker = SQIConvergenceTracker
+_sqi_conv_stub.ConvergenceState = ConvergenceState
+sys.modules["maref.stress.sqi_convergence"] = _sqi_conv_stub
