@@ -81,7 +81,9 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+        run: |
+          pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+          pip install bandit
       - name: Bandit SAST
         run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -ll
       - name: pip-audit
