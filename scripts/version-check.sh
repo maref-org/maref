@@ -30,7 +30,7 @@ check_file() {
         return
     fi
 
-    version=$(grep -E "$pattern" "$file" | grep -Eo '["\x27]?[0-9]+\.[0-9]+\.[0-9]+[-a-zA-Z0-9]*' | head -1 | sed 's/["\x27]//g' || echo "")
+    version=$(grep -E "$pattern" "$file" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9._-]*' | head -1 || echo "")
     if [ -z "$version" ]; then
         echo "  [SKIP] $desc — no version pattern found"
         return

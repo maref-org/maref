@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [v0.37.0-dev] - 2026-07-19 (质量修复迭代 — G2恢复 + 覆盖提升 + 测试修复)
+
+### Changed
+- **G2 门禁恢复**: Ruff 29→0, Mypy 27→0
+- **版本统一**: 8 配置文件统一至 0.36.0-rc (→0.37.0-dev)
+- **测试收集**: 13410 tests + 3 errors (down from 13287+13)
+- **覆盖提升**: +11 测试文件, ~379 新测试
+
+### Fixed
+- governance E402 × 23 (import order)
+- F821 × 4 (undefined names), N818 × 1 (exception suffix), SIM103 × 1
+- mypy unused-ignore × 26 + name-defined × 1 + attr-defined × 1
+- crypto/__init__.py missing exports
+- Test file naming conflicts (executor, integration, feature_dev)
+- governance_router.py git.push/git.commit policy markers
+
 ## [v0.36.0-rc] - 2026-07-01 (Release Candidate — RSI三位一体 + 压力测试 + 执行层 + 知识引擎)
 
 ### Added
