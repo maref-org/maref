@@ -221,26 +221,26 @@ import {{ describe, it, expect }} from 'vitest';
             return None
         try:
             import asyncio
-            import concurrent.futures
-
-            async def _generate():
-                return await self._llm_generator.generate(proposal)
-
-            # Fix 11: run asyncio.run() in a separate thread to avoid
-            # "RuntimeError: This event loop is already running" when
-            # _generate_with_llm is called from within an already-running
-            # event loop (e.g. the codegen loop via execute_async →
-            # CodeGenerator.generate → _generate_with_llm). The old code
-            # used loop.run_until_complete() which fails silently when a
-            # loop is already running, leaving the coroutine un-awaited
-            # and returning None — so the LLM was never actually called.
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                result = pool.submit(asyncio.run, _generate()).result()
+            # Use ``asyncio.run()`` which creates a fresh event loop,
+            # runs the coroutine to completion, and shuts down the loop.
+            # The old code used ``loop.run_until_complete()`` on a new
+            # loop, but when this method is called from a thread spawned
+            # by ``_default_apply_fn``'s ``loop.run_until_complete()``
+            # (executor uses ``run_in_executor`` internally), the new
+            # loop's ``run_until_complete()`` sees the parent loop as
+            # running and raises "Cannot run the event loop while
+            # another loop is running".
+            result = asyncio.run(self._llm_generator.generate(proposal))
 
             if result.success and result.generated:
                 gen = result.generated[0]
                 gen.file_path = str(target_path)
                 return gen
+            logger.warning(
+                "LLM generation returned no code for %s: success=%s",
+                getattr(proposal, "proposal_id", "unknown"),
+                result.success,
+            )
             return None
         except Exception as exc:
             logger.warning("LLM generation failed: %s", exc)

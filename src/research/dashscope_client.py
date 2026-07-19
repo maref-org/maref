@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -58,7 +56,7 @@ class DashScopeClient:
     async def batch_analyze(self, findings: dict[str, str]) -> BatchAnalysis:
         try:
             results = []
-            for (finding_id, content) in findings.items():
+            for finding_id, content in findings.items():
                 analysis = await self.analyze_finding(finding_id, content)
                 results.append(analysis)
             total_confidence = sum(r.confidence for r in results) / len(results) if results else 0.0
