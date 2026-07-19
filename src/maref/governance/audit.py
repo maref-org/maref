@@ -18,10 +18,10 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-
-logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditRecord

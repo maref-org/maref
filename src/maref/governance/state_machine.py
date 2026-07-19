@@ -18,8 +18,6 @@ import hashlib
 import json
 import logging
 import os
-
-logger = logging.getLogger(__name__)
 import time
 import uuid
 from collections.abc import Callable
@@ -38,6 +36,8 @@ from maref.governance.types import (
     StateMachineSnapshot,
     StateTransition,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _default_audit_log_path() -> Path:

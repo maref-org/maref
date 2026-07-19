@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from maref.governance.decorators import get_default_pipeline, governed, GovernanceDenied
+from maref.governance.decorators import get_default_pipeline, governed, GovernanceDeniedError
 from maref.governance.governed_pipeline import GovernedPipeline
 
 
@@ -72,5 +72,5 @@ def test_governed_pipeline_decorator_blocks():
     def do_something():
         return "done"
 
-    with pytest.raises(GovernanceDenied):
+    with pytest.raises(GovernanceDeniedError):
         do_something()
