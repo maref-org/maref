@@ -55,7 +55,7 @@ class RealMetricsCollector:
         return self._baseline
 
     def collect_incremental(self) -> RealMetrics:
-        return self._run_quick_checks()
+        return self._run_all_checks()
 
     def _run_all_checks(self) -> RealMetrics:
         errors: list[str] = []

@@ -137,6 +137,15 @@ class AuditLogger:
         self._max_file_size = max_file_size_mb * 1024 * 1024
         env_key = os.environ.get(_HMAC_KEY_ENV)
         resolved_key = hmac_key if hmac_key is not None else env_key
+        if resolved_key is None:
+            for key_path in (".maraf_hmac_key", ".gaas_api_key"):
+                try:
+                    with open(key_path) as f:
+                        resolved_key = f.read().strip()
+                        logger.info("HMAC key loaded from %s", key_path)
+                        break
+                except (FileNotFoundError, OSError):
+                    continue
         if resolved_key:
             self._hmac_key: bytes | None = (
                 resolved_key.encode("utf-8") if isinstance(resolved_key, str) else resolved_key
