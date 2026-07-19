@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from maref.governance.decorators import get_default_pipeline, governed, GovernanceDenied
+from maref.governance.decorators import get_default_pipeline, governed, GovernanceDeniedError
 from maref.governance.governed_pipeline import GovernedPipeline
 
 
