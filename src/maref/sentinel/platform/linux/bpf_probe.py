@@ -378,7 +378,7 @@ class BPFProbe:
     def _import_bcc(self) -> Any:
         """尝试导入 bcc 模块,失败返回 None"""
         try:
-            import bcc  # type: ignore[import-not-found]
+            import bcc
             return bcc
         except ImportError:
             return None

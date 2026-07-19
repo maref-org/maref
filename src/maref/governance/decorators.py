@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-class GovernanceDenied(Exception):
+class GovernanceDeniedError(Exception):
     """Raised when @governed decorator blocks an action."""
 
     def __init__(self, reason: str = "") -> None:
@@ -99,7 +99,7 @@ def governed(
             result = pipeline.govern(request)
 
             if result.verdict == Verdict.DENY:
-                raise GovernanceDenied(result.reason)
+                raise GovernanceDeniedError(result.reason)
 
             if result.verdict == Verdict.ASK_USER:
                 event = result.hitl_event_id

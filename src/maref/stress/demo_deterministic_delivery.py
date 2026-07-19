@@ -18,7 +18,7 @@ from typing import Any
 
 from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 from maref.stress.code_service_sqi import CodeServiceSQI
-from maref.stress.sqi_convergence import SQIConvergenceTracker  # type: ignore[import-not-found]
+from maref.stress.sqi_convergence import SQIConvergenceTracker
 
 
 def demo_baseline_vs_governed() -> dict[str, Any]:

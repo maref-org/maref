@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-
-logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.types import GovernanceState, StateTransition
+
+logger = logging.getLogger(__name__)
 
 
 class RecursiveEventType(Enum):

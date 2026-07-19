@@ -76,7 +76,7 @@ def get_governance_router() -> GovernanceRouter:
     return _governance_router
 
 
-def get_hitl_service() -> HITLService:
+def get_hitl_service() -> HITLRouter:
     return _hitl_service
 
 
@@ -191,7 +191,7 @@ async def hitl_pending(
                 "action": e.action,
                 "description": e.description,
                 "tier": e.tier.value,
-                "created_at": e.created_at,
+                "created_at": e.timestamp,
             }
             for e in events
         ],

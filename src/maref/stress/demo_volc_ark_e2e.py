@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 from maref.stress.code_service_sqi import WEIGHT_PROFILES, CodeQualityMetrics, CodeServiceSQI
-from maref.stress.sqi_convergence import SQIConvergenceTracker  # type: ignore[import-not-found]
+from maref.stress.sqi_convergence import SQIConvergenceTracker
 from maref.stress.volc_ark_code_agent import VolcArkCodeAgent
 
 # ─── Volcengine Ark Configuration ────────────────────────────────────────

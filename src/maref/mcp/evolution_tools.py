@@ -87,7 +87,7 @@ class ArchitectTool(Tool[str]):
         return {"type": "object", "properties": {}}
 
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
-        from maref.recursive.audit_store import UnifiedAuditStore  # type: ignore[import-not-found]
+        from maref.recursive.audit_store import UnifiedAuditStore
         from maref.recursive.self_architect import SelfArchitect
         store = UnifiedAuditStore()
         arch = SelfArchitect(audit_store=store)

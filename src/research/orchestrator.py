@@ -50,14 +50,12 @@ class ExperimentOrchestrator:
     def should_stop(self) -> bool:
         try:
             elapsed = time.time() - self._start_time
-            if elapsed >= self.stopping_criteria.max_time_seconds:
-                return True
             total = self.registry.get_total_experiments()  # type: ignore[attr-defined]
-            if total >= self.stopping_criteria.max_experiments:
-                return True
-            if self._no_improvement_count >= self.stopping_criteria.patience:
-                return True
-            return False
+            return (
+                elapsed >= self.stopping_criteria.max_time_seconds
+                or total >= self.stopping_criteria.max_experiments
+                or self._no_improvement_count >= self.stopping_criteria.patience
+            )
         except Exception:
             return True
 

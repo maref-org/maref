@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from maref.knowledge.compiled_truth import TruthPage  # type: ignore[import-not-found]
+from maref.knowledge.compiled_truth import TruthPage
 
 
 class TruthStore:

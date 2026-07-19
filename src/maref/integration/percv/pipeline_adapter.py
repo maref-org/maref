@@ -75,8 +75,7 @@ class PERCVPipelineAdapter:
 
     def _create_pipeline(self) -> Any:
         try:
-            from percv.pipeline import ErrorPolicy, Pipeline  # type: ignore[import-not-found]
-
+            from percv.pipeline import ErrorPolicy, Pipeline
             policy_map = {
                 "fail_fast": ErrorPolicy.FAIL_FAST,
                 "fail_safe": ErrorPolicy.FAIL_SAFE,
@@ -206,7 +205,7 @@ class PERCVPipelineAdapter:
         if harvester_fn:
             return harvester_fn()
         try:
-            from percv.agents.scout import ScoutAgent  # type: ignore[import-not-found]
+            from percv.agents.scout import ScoutAgent
 
             scout = ScoutAgent()
             return scout.harvest()

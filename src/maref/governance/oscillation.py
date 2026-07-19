@@ -18,11 +18,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-
-logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class OscillationStage(Enum):

@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from maref.stress.sqi import (  # type: ignore[import-not-found]
+from maref.stress.sqi import (
     ServiceQualityIndex,
     SQIDimension,
     SQIReport,

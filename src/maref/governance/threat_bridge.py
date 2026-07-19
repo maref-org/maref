@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-
-logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from typing import Any
 
@@ -20,6 +18,8 @@ from maref.monitoring.threat_intelligence import (
     ThreatAlert,
     ThreatSeverity,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
