@@ -86,7 +86,7 @@ class WeightAuditorAdapter:
 
     def __init__(self) -> None:
         try:
-            import transformer_lens  # type: ignore[import-not-found]  # noqa: F401
+            import transformer_lens  # noqa: F401
             self._available = True
             self._tl_module = transformer_lens
         except ImportError:

@@ -31,8 +31,7 @@ console = Console()
 def validate_single_bit_transitions() -> tuple[bool, list[str]]:
     """Verify that all adjacent states in the sequence differ by exactly one bit."""
     errors: list[str] = []
-    # The canonical Gray code sequence: 0->1->2->3->4->5->6->7->8->9
-    sequence = list(range(10))
+    sequence = list(range(len(STATE_NAMES)))
     for i in range(len(sequence) - 1):
         s, t = sequence[i], sequence[i + 1]
         dist = hamming_distance(GRAY_CODE[s], GRAY_CODE[t])

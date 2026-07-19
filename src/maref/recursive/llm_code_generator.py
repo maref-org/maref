@@ -88,7 +88,7 @@ class AnthropicProvider:
         max_tokens: int = 8192,
     ) -> str:
         if self._client is None:
-            from anthropic import AsyncAnthropic  # type: ignore[import-not-found]
+            from anthropic import AsyncAnthropic
             self._client = AsyncAnthropic(api_key=self._api_key)
         kwargs: dict[str, Any] = {
             "model": self._model,

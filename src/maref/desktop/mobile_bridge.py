@@ -215,8 +215,7 @@ class DeviceDiscovery:
 
     def start_mdns_advertisement(self) -> bool:
         try:
-            from zeroconf import ServiceInfo, Zeroconf  # type: ignore[import-not-found]
-
+            from zeroconf import ServiceInfo, Zeroconf
             self._zeroconf = Zeroconf()
             service_type = "_maref._tcp.local."
             service_name = f"{self.device_id}.{service_type}"

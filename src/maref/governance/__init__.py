@@ -23,7 +23,7 @@ from maref.governance.cross_instance import (
     WeightPoisonDetector,
 )
 from maref.governance.decorators import (
-    GovernanceDenied,
+    GovernanceDeniedError,
     get_default_pipeline,
     governed,
     set_default_pipeline,
@@ -138,7 +138,7 @@ __all__ = [
     "Verdict",
     # @governed decorator
     "governed",
-    "GovernanceDenied",
+    "GovernanceDeniedError",
     "set_default_pipeline",
     "get_default_pipeline",
     # Batteries-included assembly

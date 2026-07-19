@@ -2,7 +2,7 @@ version: 14
 last_updated: '2026-07-17T20:30:00+08:00'
 project:
   name: MAREF
-  current_release: 0.36.1-beta
+  current_release: 0.37.0-dev
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   stage: S0 (学术借力) → P0 (开源启动) → S1 (开源运营启动)

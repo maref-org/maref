@@ -30,7 +30,7 @@ from maref.stress.demo_volc_ark_e2e import (
     demo_q2_dynamic_sqi_weights,
     demo_q3_aggressive_convergence,
 )
-from maref.stress.sqi_convergence import SQIConvergenceTracker  # type: ignore[import-not-found]
+from maref.stress.sqi_convergence import SQIConvergenceTracker
 from maref.stress.volc_ark_benchmark import run_benchmark
 
 
