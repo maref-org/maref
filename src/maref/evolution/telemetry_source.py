@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -122,7 +121,7 @@ class TelemetryAggregator:
                 global_fnr=0.0, global_fpr=0.0, global_avg_entropy=0.0,
             )
 
-        deployments = len(set(b.deployment_id for b in self._batches))
+        deployments = len({b.deployment_id for b in self._batches})
         total_events = sum(b.total_entries for b in self._batches)
         max_window = max(b.window_hours for b in self._batches)
 

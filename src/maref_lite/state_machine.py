@@ -22,6 +22,8 @@ from maref.governance.constants import (
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.types import GovernanceState, StateMachineSnapshot, StateTransition
 
+StateMachine = GovernanceStateMachine
+
 MAX_ENTROPY: int = _MAX_ENTROPY
 STATE_NAMES: dict[int, str] = dict(_STATE_NAMES)
 

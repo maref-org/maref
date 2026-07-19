@@ -42,7 +42,6 @@ _STUB_MODULES = [
     "maref.integration.test_platform.tla_verifier",
     "maref.integration.test_platform.state_trigger",
     "maref.integration.test_platform.eval_observer",
-    "maref.integration.feature_dev",
     "maref.integration.feature_dev.feature_cycle",
 ]
 

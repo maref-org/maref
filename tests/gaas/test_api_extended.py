@@ -10,8 +10,9 @@ from fastapi.testclient import TestClient
 
 os.environ.setdefault("MAREF_HMAC_SECRET_KEY", "test-hmac-secret-for-testing")
 
-# ── break circular imports: mock governance package before it gets imported ──
-for _mod in [
+# ── break circular imports: mock governance before importing maref.gaas.api ──
+# Save originals & put mocks, then restore afterward to avoid polluting other suites.
+_GOV_MOCK_MODULES = [
     "maref.governance",
     "maref.governance.audit",
     "maref.governance.audit_bus",
@@ -34,10 +35,20 @@ for _mod in [
     "maref.governance.verifier_registry",
     "maref.governance.constants",
     "maref.metacognition",
-]:
+]
+_GOV_ORIG = {}
+for _mod in _GOV_MOCK_MODULES:
+    _GOV_ORIG[_mod] = sys.modules.get(_mod)
     sys.modules[_mod] = MagicMock()
 
 from maref.gaas import api
+
+for _mod in _GOV_MOCK_MODULES:
+    _saved = _GOV_ORIG[_mod]
+    if _saved is not None:
+        sys.modules[_mod] = _saved
+    else:
+        sys.modules.pop(_mod, None)
 
 _app = FastAPI()
 _app.include_router(api.router)

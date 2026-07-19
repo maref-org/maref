@@ -468,14 +468,13 @@ class TestByzantineIsolationEnhancer:
         with patch(
             "maref.security.byzantine_enhancer.ConsensusStatus",
             FakeConsensusStatus,
-        ):
-            with patch(
-                "maref.security.byzantine_enhancer.VoteValue",
-            ) as mock_vv:
-                mock_vv.APPROVE = "approve"
-                mock_vv.REJECT = "reject"
-                mock_vv.ABSTAIN = "abstain"
+        ), patch(
+            "maref.security.byzantine_enhancer.VoteValue",
+        ) as mock_vv:
+            mock_vv.APPROVE = "approve"
+            mock_vv.REJECT = "reject"
+            mock_vv.ABSTAIN = "abstain"
 
-                result = enhancer.evaluate_proposal("prop-1")
+            result = enhancer.evaluate_proposal("prop-1")
 
         assert result.status == FakeConsensusStatus.BYZANTINE_DETECTED

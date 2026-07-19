@@ -2,7 +2,7 @@ import datetime
 
 import structlog
 
-from research.dashscope_client import DashscopeClient  # type: ignore[attr-defined]
+from research.dashscope_client import DashScopeClient as DashscopeClient  # type: ignore[attr-defined]
 from research.discovery_engine import DiscoveryEngine
 from research.experiment_registry import ExperimentRegistry
 from research.fault_recovery import FaultRecovery

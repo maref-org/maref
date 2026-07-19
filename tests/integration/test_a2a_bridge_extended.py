@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ── break circular imports: mock maref.governance.* before any maref import ──
 # Uses the same integer values as the real GovernanceState enum.
 
@@ -38,13 +37,15 @@ _gov_cb.BreakerState = MagicMock
 _gov_sm = MagicMock()
 _gov_sm.GovernanceStateMachine = MagicMock
 
-_gov = MagicMock()
+_gov = MagicMock(spec=['__path__', '__package__', 'audit', 'circuit_breaker', 'state_machine', 'types'])
+_gov.__path__ = ['/placeholder/maref/governance']
+_gov.__package__ = 'maref.governance'
 _gov.audit = _gov_audit
 _gov.circuit_breaker = _gov_cb
 _gov.state_machine = _gov_sm
 _gov.types = _gov_types
 
-for _mod, _val in {
+_STUBS: dict[str, MagicMock] = {
     "maref.governance": _gov,
     "maref.governance.audit": _gov_audit,
     "maref.governance.circuit_breaker": _gov_cb,
@@ -66,11 +67,11 @@ for _mod, _val in {
     "maref.governance.verifier_consensus": MagicMock(),
     "maref.governance.verifier_registry": MagicMock(),
     "maref.metacognition": MagicMock(),
-}.items():
-    sys.modules[_mod] = _val
+}
 
-from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
-from maref.integration.a2a_types import A2ASkillDefinition, A2ATaskState
+with patch.dict(sys.modules, _STUBS, clear=False):
+    from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
+    from maref.integration.a2a_types import A2ASkillDefinition, A2ATaskState
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ import yaml
 
 from maref_lite.governance import AuditLogger, CircuitBreaker, MetaGovernance
 from maref_lite.state_machine import StateMachine
-from research.dashscope_client import DashscopeClient
+from research.dashscope_client import DashScopeClient as DashscopeClient
 from research.finding_models import Finding, Metric
 from sidecar.collector import Collector
 from sidecar.monitor import Monitor

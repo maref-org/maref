@@ -12,10 +12,12 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from maref.integration.hitl import HITLRouter, HITLTier
 from maref.recursive.permission_matrix import PermissionMatrix
+
+if TYPE_CHECKING:
+    from maref.integration.hitl import HITLRouter, HITLTier
 
 
 class Verdict(str, Enum):
@@ -80,7 +82,9 @@ class GovernancePipeline:
         cb_record_callback: Callable[[str, str, str, bool], None] | None = None,
         policy_rules: list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]] | None = None,
     ):
-        self._hitl = hitl or HITLRouter()
+        from maref.integration.hitl import HITLRouter as _HITLRouter
+
+        self._hitl = hitl or _HITLRouter()
         self._permission = permission or PermissionMatrix()
         self._audit_callback = audit_callback
         self._trust_callback = trust_callback
@@ -92,34 +96,36 @@ class GovernancePipeline:
     def _default_policy_rules() -> list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]]:
         """Default policy rules, highest priority first."""
 
+        from maref.integration.hitl import HITLTier as _HITLTier
+
         def p0_dangerous_actions(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             dangerous = {"file.delete", "shell.exec", "system.shutdown", "registry.modify"}
             if req.action in dangerous:
                 if req.trust_score < 70:
-                    return Verdict.ASK_USER, "Dangerous action requires approval", HITLTier.P0_RESPONSE
+                    return Verdict.ASK_USER, "Dangerous action requires approval", _HITLTier.P0_RESPONSE
                 return Verdict.ALLOW, "Dangerous action allowed for trusted agent", None
             return Verdict.ALLOW, "", None
 
         def p0_git_push(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.action == "git.push":
-                return Verdict.ASK_USER, "git.push requires human approval", HITLTier.P0_RESPONSE
+                return Verdict.ASK_USER, "git.push requires human approval", _HITLTier.P0_RESPONSE
             return Verdict.ALLOW, "", None
 
         def p1_git_commit(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.action == "git.commit":
                 if req.trust_score < 80:
-                    return Verdict.ASK_USER, "git.commit requires approval for untrusted agents", HITLTier.P1_ESCALATE
+                    return Verdict.ASK_USER, "git.commit requires approval for untrusted agents", _HITLTier.P1_ESCALATE
                 return Verdict.ALLOW, "git.commit allowed for trusted agent", None
             return Verdict.ALLOW, "", None
 
         def p1_recursion_depth(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.recursion_depth > 2:
-                return Verdict.ASK_USER, f"High recursion depth ({req.recursion_depth})", HITLTier.P1_ESCALATE
+                return Verdict.ASK_USER, f"High recursion depth ({req.recursion_depth})", _HITLTier.P1_ESCALATE
             return Verdict.ALLOW, "", None
 
         def p2_low_trust(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.trust_score < 30:
-                return Verdict.DENY, f"Trust score too low ({req.trust_score:.0f})", HITLTier.P2_LOG
+                return Verdict.DENY, f"Trust score too low ({req.trust_score:.0f})", _HITLTier.P2_LOG
             return Verdict.ALLOW, "", None
 
         def p3_default_allow(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:

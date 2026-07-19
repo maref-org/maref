@@ -4,7 +4,7 @@ from typing import Any
 
 import structlog
 
-from research.dashscope_client import DashscopeClient  # type: ignore[attr-defined]
+from research.dashscope_client import DashScopeClient as DashscopeClient  # type: ignore[attr-defined]
 
 logger = structlog.get_logger()
 

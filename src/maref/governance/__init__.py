@@ -75,7 +75,6 @@ from maref.governance.verifier_consensus import (
     VerifierConsensus,
 )
 from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry, VerifierStatus
-from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
 from maref.metacognition import MetaCognitiveAuditor
 
 __all__ = [
@@ -143,11 +142,6 @@ __all__ = [
     "get_default_pipeline",
     # Batteries-included assembly
     "GovernedPipeline",
-    # HITL (from integration)
-    "HITLRouter",
-    "HITLEvent",
-    "HITLTier",
-    "HITLStatus",
     # Geopolitical Risk Assessment
     "RiskLevel",
     "Jurisdiction",

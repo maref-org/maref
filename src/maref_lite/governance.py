@@ -30,6 +30,7 @@ from maref.governance import (
     GovernanceStateMachine,
     OscillationFixLoop,
 )
+from maref.governance.circuit_breaker import CircuitBreaker
 from maref.observation.detector import DualThresholdConfig, DualThresholdDetector
 from maref.observation.probes import (
     AnomalyProbe,
