@@ -128,10 +128,12 @@ class RecursiveEvolutionEngine:
         seed: int | None = None,
         quality_gate: Any | None = None,
         metrics_collector: Any | None = None,
+        telemetry_source: Any | None = None,
     ) -> None:
         self._config = config or EvolutionConfig()
         self._quality_gate = quality_gate
         self._metrics_collector = metrics_collector
+        self._telemetry_source = telemetry_source
         self._output_base = Path(self._config.output_dir)
         self._rng = random.Random(seed if seed is not None else ROUND_SEED)
         self._running = False
@@ -360,7 +362,14 @@ class RecursiveEvolutionEngine:
         return fnr, fpr
 
     def _run_meta_learning_step(self, round_num: int, fnr: float) -> None:
-        reward = 1.0 - (fnr * 2.0)
+        telemetry_reward = 0.0
+        if self._telemetry_source is not None:
+            try:
+                telemetry_reward = self._telemetry_source.compute_reward()
+            except Exception:
+                pass
+        local_reward = 1.0 - (fnr * 2.0)
+        reward = max(0.0, min(1.0, local_reward * 0.7 + telemetry_reward * 0.3))
         outcome = DecisionOutcome(
             timestamp=time.time(),
             decision_type="evolution_round",
