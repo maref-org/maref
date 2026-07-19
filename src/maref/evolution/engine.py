@@ -29,29 +29,12 @@ from maref.evolution.reporter import (
     generate_cycle_report,
     generate_final_report,
 )
-from maref.governance import (
-    BreakerState,
-    CircuitBreaker,
-    GovernanceState,
-    GovernanceStateMachine,
-    OscillationFixLoop,
-)
 from maref.learning.replay import DecisionOutcome
 from maref_lite.meta_learning import MetaLearner
 
 ROUND_SEED = 42
 
-CANONICAL_PATH = [
-    GovernanceState.OBSERVE,
-    GovernanceState.ANALYZE,
-    GovernanceState.EVALUATE,
-    GovernanceState.DECIDE,
-    GovernanceState.ACT,
-    GovernanceState.VERIFY,
-    GovernanceState.STABILIZE,
-    GovernanceState.REPORT,
-    GovernanceState.HALT,
-]
+CANONICAL_PATH = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 GRADIENT_DISASTER_FNR_THRESHOLD = 0.50
 BREAKER_FAIL_CONSECUTIVE_LIMIT = 3
@@ -138,6 +121,8 @@ class RecursiveEvolutionEngine:
         self._rng = random.Random(seed if seed is not None else ROUND_SEED)
         self._running = False
         self._total_rounds = 0
+
+        from maref.governance import CircuitBreaker, OscillationFixLoop
 
         self._breaker = CircuitBreaker(
             max_depth=3,
@@ -284,13 +269,17 @@ class RecursiveEvolutionEngine:
         round_num: int,
         cycle_spec: CycleSpec,
     ) -> dict[str, Any]:
+        from maref.governance import GovernanceState, GovernanceStateMachine
+
+        path = [GovernanceState(v) for v in CANONICAL_PATH]
+
         sm = GovernanceStateMachine()
         failed_transitions = 0
         total_attempts = 0
         entropy_sequence: list[int] = []
         halt_reason = ""
 
-        for target in CANONICAL_PATH:
+        for target in path:
             if not self._running:
                 break
 
@@ -412,6 +401,8 @@ class RecursiveEvolutionEngine:
         metrics: EvolutionMetrics,
         cycle_id: str,
     ) -> str | None:
+        from maref.governance import BreakerState
+
         cb_stats = self._breaker.get_stats()
         if cb_stats.get("state") == BreakerState.OPEN.value:
             trip_count = cb_stats.get("trip_count", 0)

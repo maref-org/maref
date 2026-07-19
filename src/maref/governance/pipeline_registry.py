@@ -16,11 +16,13 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from maref.governance.core_pipeline import Verdict
-from maref.integration.hitl import HITLTier
 from maref.security.decorators import security_critical
+
+if TYPE_CHECKING:
+    from maref.integration.hitl import HITLTier
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +172,8 @@ class PipelineGovernor:
           - DEPRECATED tier       -> DENY (must use replacement)
           - OFFICIAL/STABLE tier  -> ALLOW
         """
+        from maref.integration.hitl import HITLTier as _HITLTier
+
         reg = self._registry.get(selected_id)
 
         if reg is None:
@@ -178,7 +182,7 @@ class PipelineGovernor:
                 f"Use a registered pipeline or register '{selected_id}' first."
             )
             self._audit("pipeline.unregistered", agent_id, msg, selected_id)
-            return Verdict.ASK_USER, msg, HITLTier.P1_ESCALATE
+            return Verdict.ASK_USER, msg, _HITLTier.P1_ESCALATE
 
         if reg.quality_tier == QualityTier.DEPRECATED:
             msg = (
@@ -186,7 +190,7 @@ class PipelineGovernor:
                 f"Do not use. Check the registry for the replacement."
             )
             self._audit("pipeline.deprecated", agent_id, msg, selected_id)
-            return Verdict.DENY, msg, HITLTier.P2_LOG
+            return Verdict.DENY, msg, _HITLTier.P2_LOG
 
         if reg.quality_tier == QualityTier.EXPERIMENTAL:
             msg = (
@@ -194,7 +198,7 @@ class PipelineGovernor:
                 f"It has not been verified. Prefer an OFFICIAL pipeline."
             )
             self._audit("pipeline.experimental", agent_id, msg, selected_id)
-            return Verdict.ASK_USER, msg, HITLTier.P1_ESCALATE
+            return Verdict.ASK_USER, msg, _HITLTier.P1_ESCALATE
 
         if not reg.verified and reg.quality_tier == QualityTier.STABLE:
             msg = (
@@ -202,7 +206,7 @@ class PipelineGovernor:
                 f"Proceed with caution."
             )
             self._audit("pipeline.unverified", agent_id, msg, selected_id)
-            return Verdict.ASK_USER, msg, HITLTier.P2_LOG
+            return Verdict.ASK_USER, msg, _HITLTier.P2_LOG
 
         self._audit("pipeline.allowed", agent_id, f"Pipeline '{selected_id}' allowed", selected_id)
         return Verdict.ALLOW, "", None

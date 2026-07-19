@@ -10,10 +10,10 @@ from typing import Any
 
 import structlog
 
-from drift_guard.ab_testing import ABTestManager
+from drift_guard.ab_testing import ABTestFramework
 from drift_guard.policy_sandbox import PolicySandbox
 from drift_guard.types import ExperimentConfig, VariantConfig
-from research.dashscope_client import DashscopeClient
+from research.dashscope_client import DashScopeClient as DashscopeClient
 
 logger = structlog.get_logger()
 
@@ -30,7 +30,7 @@ class Phase9AutoResearch:
     def __init__(self, config_path: str | None=None) -> None:
         self.config_path = config_path or os.getenv('PHASE9_CONFIG_PATH', 'config/phase9.json')
         self.config: dict[str, Any] = {}
-        self.ab_test_manager = ABTestManager()
+        self.ab_test_manager = ABTestFramework()
         self.policy_sandbox = PolicySandbox()
         self.dashscope_client = DashscopeClient()
         self.results: list[Phase9ExperimentResult] = []

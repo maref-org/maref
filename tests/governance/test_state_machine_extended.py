@@ -11,8 +11,6 @@ from __future__ import annotations
 import threading
 from unittest.mock import patch
 
-import pytest
-
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.types import GovernanceState
 
