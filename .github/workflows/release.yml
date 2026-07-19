@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run release check
         run: bash scripts/release-check.sh
 
