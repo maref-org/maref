@@ -12,8 +12,6 @@ from __future__ import annotations
 import time as time_module
 from unittest.mock import patch
 
-import pytest
-
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
 
 

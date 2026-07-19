@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+from maref.recursive.self_observer import SystemSnapshot
 from maref.recursive.self_optimizer import (
-    BenchmarkResult,
     OptimizationHypothesis,
     SelfOptimizer,
 )
-from maref.recursive.self_observer import SystemSnapshot
 
 
 class TestSelfOptimizerExtended:

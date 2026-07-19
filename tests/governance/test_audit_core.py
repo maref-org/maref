@@ -13,9 +13,6 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from maref.governance.audit import AuditEntry, AuditLogger
 

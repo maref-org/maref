@@ -13,7 +13,6 @@ from maref.recursive.self_executor import (
     GeneratedCode,
     SelfExecutor,
 )
-from maref.recursive.unified_audit import UnifiedAuditStore
 
 
 class MockProposal:

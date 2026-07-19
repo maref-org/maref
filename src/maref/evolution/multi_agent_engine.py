@@ -54,8 +54,6 @@ from maref.evolution.registry import AgentRegistry
 from maref.governance import (
     BreakerState,
     CircuitBreaker,
-    GovernanceState,
-    GovernanceStateMachine,
 )
 from maref.learning.group_optimizer import GroupPolicyOptimizer, OptimizerConfig
 from maref.learning.replay import DecisionOutcome, ExperienceStore
@@ -363,11 +361,14 @@ class MultiAgentEvolutionEngine:
         cycle_spec: CycleSpec,
     ) -> MultiAgentRoundSnapshot:
         """Execute a single evolution round with multi-agent support."""
+        from maref.governance import GovernanceState, GovernanceStateMachine
+
+        path = [GovernanceState(v) for v in CANONICAL_PATH]
         sm = GovernanceStateMachine()
         failed_transitions = 0
         halt_reason = ""
 
-        for target in CANONICAL_PATH:
+        for target in path:
             if not self._running:
                 break
 

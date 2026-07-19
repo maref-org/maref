@@ -5,10 +5,10 @@ import logging
 import sys
 from typing import Any
 
-from maref.integration.mcp_security import MCPSecurityManager  # type: ignore[attr-defined]
+from maref.integration.mcp_security import MCPSecurityGate
 from maref.integration.mcp_server import MCPServer
 from maref.integration.mcp_transport import MCPTransport
-from sidecar.exfiltration_probe import ExfiltrationProbe  # type: ignore[attr-defined]
+from sidecar.exfiltration_probe import DataExfiltrationProbe
 from sidecar.mcp_bridge import MCPBridge
 
 logger = logging.getLogger(__name__)
@@ -21,11 +21,19 @@ class MCPHTTPHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         try:
+            from maref.integration.mcp_transport import JSONRPCRequest
+
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length)
-            data = json.loads(body)
-            response = self.server.mcp_server.handle_request(data)  # type: ignore[attr-defined]
-            self._send_json(response)
+            raw = json.loads(body)
+            request = JSONRPCRequest(
+                jsonrpc=raw.get("jsonrpc", "2.0"),
+                method=raw.get("method", ""),
+                params=raw.get("params"),
+                id=raw.get("id", 0),
+            )
+            response = self.server.mcp_server.handle_request(request)  # type: ignore[attr-defined]
+            self._send_json(response.__dict__)
         except Exception as e:
             logger.error(f'POST error: {e}')
             self._send_error(500, str(e))
@@ -38,9 +46,11 @@ class MCPHTTPHandler(http.server.BaseHTTPRequestHandler):
             logger.error(f'GET error: {e}')
             self._send_error(500, str(e))
 
-    def _send_json(self, data: dict[str, Any]) -> None:
+    def _send_json(self, data: Any) -> None:
         try:
-            body = json.dumps(data).encode('utf-8')
+            if hasattr(data, '__dict__'):
+                data = data.__dict__
+            body = json.dumps(data, default=str).encode('utf-8')
             self._send_response(200, body, 'application/json')
         except Exception as e:
             logger.error(f'JSON send error: {e}')
@@ -70,8 +80,8 @@ def create_server(host: str='localhost', port: int=8080) -> http.server.HTTPServ
     try:
         mcp_server = MCPServer()
         mcp_transport = MCPTransport()  # type: ignore[abstract]
-        security_manager = MCPSecurityManager()
-        exfiltration_probe = ExfiltrationProbe()
+        security_manager = MCPSecurityGate()
+        exfiltration_probe = DataExfiltrationProbe()
         mcp_bridge = MCPBridge()
 
         class Handler(MCPHTTPHandler):
@@ -100,12 +110,23 @@ def run_http_server(host: str='localhost', port: int=8080) -> None:
 
 def run_stdio_server() -> None:
     try:
+        from maref.integration.mcp_transport import JSONRPCRequest
+
         mcp_server = MCPServer()
         for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
             try:
-                data = json.loads(line.strip())
-                response = mcp_server.handle_request(data)
-                print(json.dumps(response), flush=True)
+                raw = json.loads(line)
+                request = JSONRPCRequest(
+                    jsonrpc=raw.get("jsonrpc", "2.0"),
+                    method=raw.get("method", ""),
+                    params=raw.get("params"),
+                    id=raw.get("id", 0),
+                )
+                response = mcp_server.handle_request(request)
+                print(json.dumps(response.__dict__, default=str), flush=True)
             except Exception as e:
                 logger.error(f'STDIO processing error: {e}')
                 error_response = {'error': str(e)}
