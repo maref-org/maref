@@ -388,7 +388,7 @@ class MultiAgentEvolutionEngine:
             sm.force_halt("round_end")
             halt_reason = "round_end_force"
 
-        fnr, fpr = self._simulate_detector_metrics(round_num)
+        fnr, fpr = self._collect_detector_metrics(round_num)
 
         snapshot = MultiAgentRoundSnapshot(
             round_num=round_num,
@@ -406,6 +406,17 @@ class MultiAgentEvolutionEngine:
             self._compute_and_store_rewards(snapshot)
 
         return snapshot
+
+    def _collect_detector_metrics(self, round_num: int) -> tuple[float, float]:
+        if self._config.base_config.metrics_mode == "real":
+            try:
+                from maref.evolution.real_metrics import RealMetricsCollector
+                collector = RealMetricsCollector()
+                metrics = collector.collect_incremental()
+                return metrics.fnr, metrics.fpr
+            except Exception:
+                pass
+        return self._simulate_detector_metrics(round_num)
 
     def _simulate_detector_metrics(self, round_num: int) -> tuple[float, float]:
         base_fnr = 0.10 + self._rng.uniform(-0.05, 0.03)
