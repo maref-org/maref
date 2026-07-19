@@ -221,16 +221,31 @@ import {{ describe, it, expect }} from 'vitest';
             return None
         try:
             import asyncio
-            # Use ``asyncio.run()`` which creates a fresh event loop,
-            # runs the coroutine to completion, and shuts down the loop.
-            # The old code used ``loop.run_until_complete()`` on a new
-            # loop, but when this method is called from a thread spawned
-            # by ``_default_apply_fn``'s ``loop.run_until_complete()``
-            # (executor uses ``run_in_executor`` internally), the new
-            # loop's ``run_until_complete()`` sees the parent loop as
-            # running and raises "Cannot run the event loop while
-            # another loop is running".
-            result = asyncio.run(self._llm_generator.generate(proposal))
+            import concurrent.futures
+
+            # Fix 33: handle the running event loop case.
+            # ``_generate_with_llm`` is called synchronously from
+            # ``CodeGenerator.generate()``, which is called by the executor
+            # pipeline running inside ``_default_apply_fn``'s
+            # ``loop.run_until_complete(execute_async(...))``.  When there
+            # IS a running event loop on this thread, ``asyncio.run()``
+            # raises "Cannot run the event loop while another loop is
+            # running".  Solution: detect the running loop and, if present,
+            # offload the actual LLM call to a separate daemon thread where
+            # ``asyncio.run()`` can create a fresh loop without conflict.
+            try:
+                asyncio.get_running_loop()
+                # Running loop detected — offload to a thread
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+                    _future = _pool.submit(
+                        lambda: asyncio.run(
+                            self._llm_generator.generate(proposal)
+                        )
+                    )
+                    result = _future.result(timeout=120)
+            except RuntimeError:
+                # No running loop — direct asyncio.run() is safe
+                result = asyncio.run(self._llm_generator.generate(proposal))
 
             if result.success and result.generated:
                 gen = result.generated[0]

@@ -152,6 +152,10 @@ policy_versions/
 .venv2/
 .venv3/
 
+# External project directories
+agent-constitution-framework/
+maref-governance/
+
 # Cache
 cache/
 

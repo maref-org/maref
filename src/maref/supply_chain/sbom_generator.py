@@ -597,7 +597,7 @@ class SBOMGenerator:
 
         try:
             try:
-                import tomllib  # type: ignore[import-not-found]
+                import tomllib
             except ImportError:
                 import tomli as tomllib  # tomli fallback for Python<3.11
             with open(project_path / "pyproject.toml", "rb") as f:

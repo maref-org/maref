@@ -10,7 +10,7 @@ from maref.governance.core_pipeline import (
     Verdict,
 )
 from maref.governance.decorators import (
-    GovernanceDenied,
+    GovernanceDeniedError,
     governed,
     set_default_pipeline,
     get_default_pipeline,
@@ -49,7 +49,7 @@ def test_governed_decorator_blocks():
     def do_something():
         return "done"
 
-    with pytest.raises(GovernanceDenied) as exc:
+    with pytest.raises(GovernanceDeniedError) as exc:
         do_something()
     assert "denied" in str(exc.value).lower()
 
@@ -66,7 +66,7 @@ def test_governed_decorator_with_custom_pipeline():
     def delete_file(path):
         return "deleted"
 
-    with pytest.raises(GovernanceDenied):
+    with pytest.raises(GovernanceDeniedError):
         delete_file("/tmp/test.txt")
 
 

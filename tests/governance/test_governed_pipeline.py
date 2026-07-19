@@ -72,5 +72,5 @@ def test_governed_pipeline_decorator_blocks():
     def do_something():
         return "done"
 
-    with pytest.raises(GovernanceDenied):
+    with pytest.raises(GovernanceDeniedError):
         do_something()

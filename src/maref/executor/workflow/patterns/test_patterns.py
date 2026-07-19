@@ -6,7 +6,7 @@ import os
 import tempfile
 from collections.abc import Callable
 
-from maref.executor.workflow.patterns.tournament import (  # type: ignore[import-not-found]
+from maref.executor.workflow.patterns.tournament import (
     TournamentConfig,
     TournamentPattern,
 )
