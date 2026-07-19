@@ -77,7 +77,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run cryptography tests
         run: |
           pytest tests/test_crypto.py -v
