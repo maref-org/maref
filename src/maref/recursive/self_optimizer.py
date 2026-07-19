@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import subprocess
 import sys
 import time
@@ -10,6 +11,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from maref.recursive.self_observer import SystemSnapshot
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -165,8 +168,18 @@ class SelfOptimizer:
 
         effective_apply = apply_fn or self._apply_fn
         if effective_apply is not None:
-            with contextlib.suppress(Exception):
+            try:
                 effective_apply()
+            except Exception as exc:
+                # Fix 31: do not suppress apply failures — if the executor
+                # silently fails, the after-benchmark sees identical metrics
+                # and gain=0% is indistinguishable from "no improvement to
+                # make". Log the failure so we can diagnose executor health.
+                logger.warning(
+                    "Apply failed for %s: %s",
+                    getattr(hypothesis, "hypothesis_id", "unknown"),
+                    exc,
+                )
 
         after = self._benchmark_fn() if effective_apply is not None else dict(before)
 

@@ -1,4 +1,4 @@
-# Agent Operating Manual: MAREF v0.35.0-beta
+# Agent Operating Manual: MAREF v0.36.0-rc
 
 > **上位法**: 本文件受 [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步。
@@ -6,7 +6,7 @@
 
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
-- **版本**: v0.35.0-beta
+- **版本**: v0.36.0-rc
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
 - **架构**: 概念语义层 天极→人极→地极→经卦→别卦→爻变（I Ching 治理语义）映射到代码实现层叠 元层→治理层→编排层→执行层→基础设施层（详见 docs/architecture.md）

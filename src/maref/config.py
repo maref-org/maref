@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -9,7 +7,7 @@ _DEFAULT_HOME = Path.home() / '.maref'
 
 @dataclass
 class MAREFConfig:
-    home_dir: Path = field(default_factory=lambda : _DEFAULT_HOME)
+    home_dir: Path = field(default_factory=lambda: _DEFAULT_HOME)
     log_dir: Path | None = None
     data_dir: Path | None = None
     audit_path: Path | None = None
