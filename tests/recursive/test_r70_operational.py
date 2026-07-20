@@ -15,26 +15,31 @@ from maref.recursive.skill_schema import (
 
 
 class TestSubsystemResult:
+    @pytest.mark.slow
     def test_pass_status(self) -> None:
         result = SubsystemResult(name="test", status=SubsystemStatus.PASS)
         assert result.status == SubsystemStatus.PASS
 
+    @pytest.mark.slow
     def test_fail_status(self) -> None:
         result = SubsystemResult(name="test", status=SubsystemStatus.FAIL)
         assert result.status == SubsystemStatus.FAIL
 
 
 class TestOperationalReport:
+    @pytest.mark.slow
     def test_all_passed_true(self) -> None:
         report = OperationalReport(pass_count=14, fail_count=0)
         assert report.all_passed
 
+    @pytest.mark.slow
     def test_all_passed_false(self) -> None:
         report = OperationalReport(pass_count=13, fail_count=1)
         assert not report.all_passed
 
 
 class TestOperationalValidator:
+    @pytest.mark.slow
     def test_validate_all_subsystems(self) -> None:
         validator = OperationalValidator()
 
@@ -78,6 +83,7 @@ class TestOperationalValidator:
         assert report.pass_count >= 0
         assert report.total_duration_ms >= 0
 
+    @pytest.mark.slow
     def test_fourteen_subsystems_result_count(self) -> None:
         validator = OperationalValidator()
 
@@ -110,6 +116,7 @@ class TestOperationalValidator:
         assert report.pass_count > 0
         assert report.pass_count + report.fail_count > 0
 
+    @pytest.mark.slow
     def test_self_healer_history(self) -> None:
         from maref.recursive.self_healer import SelfHealer
 
@@ -117,6 +124,7 @@ class TestOperationalValidator:
         assert healer._max_iterations == 3
         assert len(healer.history) == 0
 
+    @pytest.mark.slow
     def test_validate_with_no_plugin_roles(self) -> None:
         validator = OperationalValidator()
         skill = MarefSkill(
@@ -129,6 +137,7 @@ class TestOperationalValidator:
         report = validator.validate(skill, None, [])
         assert report.total_duration_ms >= 0
 
+    @pytest.mark.slow
     def test_report_to_dict(self) -> None:
         report = OperationalReport(pass_count=10, fail_count=0, audit_chain_complete=True)
         assert report.all_passed

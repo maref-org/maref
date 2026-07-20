@@ -13,7 +13,7 @@ updates:
       - dependency-type: "all"
     # Auto-approve patch and minor updates
     reviewers:
-      - "frankiehot-tech"
+      - "maref-org/maintainers"
 
   - package-ecosystem: "npm"
     directory: "/gui"
@@ -27,7 +27,7 @@ updates:
     allow:
       - dependency-type: "all"
     reviewers:
-      - "frankiehot-tech"
+      - "maref-org/maintainers"
 
   - package-ecosystem: "cargo"
     directory: "/gui/src-tauri"
@@ -41,7 +41,7 @@ updates:
     allow:
       - dependency-type: "all"
     reviewers:
-      - "frankiehot-tech"
+      - "maref-org/maintainers"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -54,4 +54,4 @@ updates:
     allow:
       - dependency-type: "all"
     reviewers:
-      - "frankiehot-tech"
+      - "maref-org/maintainers"

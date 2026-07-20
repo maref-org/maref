@@ -84,6 +84,7 @@ def _make_runner(tmp_path: Path) -> object:
 class TestMetricsExtraction:
     """Verify test_count / test_pass_rate come from test_stats dict."""
 
+    @pytest.mark.slow
     def test_reads_test_stats_dict(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         snapshot = _make_snapshot(
@@ -109,6 +110,7 @@ class TestMetricsExtraction:
         assert metrics["test_pass_rate"] == 0.95
         assert metrics["test_fail_count"] == 5
 
+    @pytest.mark.slow
     def test_empty_test_stats(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         snapshot = _make_snapshot(test_stats={})
@@ -140,6 +142,7 @@ class TestMetricsExtraction:
 class TestDiagnosticContextPersistence:
     """Verify recommendations, risk_matrix, diagnostic_context stored in cycle JSON."""
 
+    @pytest.mark.slow
     def test_full_diagnostic_context_persisted(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         snapshot = _make_snapshot()
@@ -181,6 +184,7 @@ class TestDiagnosticContextPersistence:
 class TestLLMTypeScriptSupport:
     """Verify TS system prompt, ast.parse skip, and language field."""
 
+    @pytest.mark.slow
     def test_ts_system_prompt_selected_for_tsx(self, tmp_path: Path) -> None:
         tsx_file = tmp_path / "component.tsx"
         tsx_file.write_text("export const Foo = () => null;\n")
@@ -200,6 +204,7 @@ class TestLLMTypeScriptSupport:
         )
         assert "TypeScript/React" in system_prompt
 
+    @pytest.mark.slow
     def test_python_system_prompt_for_py(self, tmp_path: Path) -> None:
         py_file = tmp_path / "module.py"
         py_file.write_text("def foo():\n    pass\n")
@@ -220,6 +225,7 @@ class TestLLMTypeScriptSupport:
         assert "PEP 8" in system_prompt
         assert "TypeScript" not in system_prompt
 
+    @pytest.mark.slow
     def test_ts_file_content_included_in_prompt(self, tmp_path: Path) -> None:
         tsx_file = tmp_path / "widget.tsx"
         tsx_file.write_text("export const Widget = () => <div />;\n")
@@ -240,6 +246,7 @@ class TestLLMTypeScriptSupport:
         assert "export const Widget" in user_prompt
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_ts_skips_ast_parse(self, tmp_path: Path) -> None:
         """TS output (not valid Python) should NOT trigger ast validation error."""
         tsx_file = tmp_path / "comp.tsx"
@@ -264,6 +271,7 @@ class TestLLMTypeScriptSupport:
         assert result.validation_errors == []
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_ts_language_field(self, tmp_path: Path) -> None:
         tsx_file = tmp_path / "comp.tsx"
         tsx_file.write_text("export const C = () => null;\n")
@@ -285,6 +293,7 @@ class TestLLMTypeScriptSupport:
         assert result.generated[0].language == "typescript"
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_python_language_field(self, tmp_path: Path) -> None:
         proposal = ArchitectureProposal(
             proposal_id="p6",
@@ -331,6 +340,7 @@ class TestGUIErrorCapture:
         },
     ])
 
+    @pytest.mark.slow
     def test_capture_gui_errors(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
@@ -345,6 +355,7 @@ class TestGUIErrorCapture:
         assert button["error_count"] == 2
         assert len(button["messages"]) == 2
 
+    @pytest.mark.slow
     def test_capture_gui_errors_empty(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated') as mock_run:
@@ -352,12 +363,14 @@ class TestGUIErrorCapture:
             errors = runner._capture_gui_errors()
         assert errors == []
 
+    @pytest.mark.slow
     def test_capture_gui_errors_exception(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         with patch.object(AutonomousLoopRunner, '_run_subprocess_isolated', side_effect=TimeoutError("timeout")):
             errors = runner._capture_gui_errors()
         assert errors == []
 
+    @pytest.mark.slow
     def test_build_gui_proposal(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         gui_errors = [
@@ -375,6 +388,7 @@ class TestGUIErrorCapture:
         assert proposal.change_type == ChangeType.GENERAL_REFACTOR
         assert "5" in proposal.rationale
 
+    @pytest.mark.slow
     def test_build_gui_proposal_empty(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         proposal = runner._build_gui_proposal([])
@@ -389,6 +403,7 @@ class TestGUIErrorCapture:
 class TestHaltConditions:
     """Verify halt on consecutive failures, low disk, and circuit breaker."""
 
+    @pytest.mark.slow
     def test_halt_on_consecutive_failures(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         runner._MAX_CONSECUTIVE_FAILURES = 3
@@ -401,6 +416,7 @@ class TestHaltConditions:
         assert runner._halt_reason is not None
         assert "consecutive_failures" in runner._halt_reason
 
+    @pytest.mark.slow
     def test_halt_on_low_disk(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         # Mock disk_usage to return very low free space
@@ -411,6 +427,7 @@ class TestHaltConditions:
         assert runner._halt_reason is not None
         assert "disk_low" in runner._halt_reason
 
+    @pytest.mark.slow
     def test_no_halt_when_healthy(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         runner.run_one_cycle = MagicMock(return_value={"success": True, "phases": {}})
@@ -419,6 +436,7 @@ class TestHaltConditions:
             runner.run()
         assert runner._halt_reason is None
 
+    @pytest.mark.slow
     def test_system_health_critical_sets_halt(self, tmp_path: Path) -> None:
         """System-health criticals (entropy) for N consecutive cycles → halt."""
         runner = _make_runner(tmp_path)
@@ -451,6 +469,7 @@ class TestHaltConditions:
         assert "system_health_critical" in runner._halt_reason
         assert "entropy" in runner._halt_reason
 
+    @pytest.mark.slow
     def test_gui_build_critical_does_not_halt(self, tmp_path: Path) -> None:
         """Regression: gui_build CRITICAL must NOT trigger halt (it's the target
         the loop is actively fixing). 12h test confirmed it's critical every cycle."""
@@ -480,6 +499,7 @@ class TestHaltConditions:
         assert runner._halt_reason is None
         assert runner._system_critical_streak == 0
 
+    @pytest.mark.slow
     def test_system_critical_streak_resets_on_recovery(self, tmp_path: Path) -> None:
         """After 2 system-critical cycles, a normal cycle resets the streak."""
         runner = _make_runner(tmp_path)
@@ -515,6 +535,7 @@ class TestHaltConditions:
         assert runner._system_critical_streak == 0
         assert runner._halt_reason is None
 
+    @pytest.mark.slow
     def test_consecutive_failures_reset_on_success(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         runner._consecutive_failures = 4
@@ -544,6 +565,7 @@ class TestHaltConditions:
 class TestRiskDrivenApplyFn:
     """Verify _default_apply_fn uses GUI proposal when gui_build is critical."""
 
+    @pytest.mark.slow
     def test_apply_fn_uses_gui_proposal_when_critical(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         runner._executor = MagicMock()
@@ -562,6 +584,7 @@ class TestRiskDrivenApplyFn:
         # execute_async should have been called (the fake async function ran)
         # No exception means the GUI path was taken
 
+    @pytest.mark.slow
     def test_apply_fn_falls_back_to_architect(self, tmp_path: Path) -> None:
         runner = _make_runner(tmp_path)
         runner._executor = MagicMock()
@@ -612,6 +635,7 @@ class TestGUIErrorCapturePnpmWrapper:
         },
     ]
 
+    @pytest.mark.slow
     def test_strips_pnpm_banner_and_lifecycle_trailer(self, tmp_path: Path) -> None:
         """Real pnpm output: banner + JSON + ELIFECYCLE trailer."""
         runner = _make_runner(tmp_path)
@@ -631,6 +655,7 @@ class TestGUIErrorCapturePnpmWrapper:
         assert "Broken.tsx" in errors[0]["file"]
         assert errors[0]["error_count"] == 1
 
+    @pytest.mark.slow
     def test_uses_filePath_field(self, tmp_path: Path) -> None:
         """ESLint JSON uses 'filePath' (absolute path), not 'file'."""
         runner = _make_runner(tmp_path)
@@ -648,6 +673,7 @@ class TestGUIErrorCapturePnpmWrapper:
         assert len(errors) == 1
         assert errors[0]["file"] == "/abs/gui/PathTest.tsx"
 
+    @pytest.mark.slow
     def test_no_json_array_returns_empty(self, tmp_path: Path) -> None:
         """If output has no '[' or ']', return []."""
         runner = _make_runner(tmp_path)
@@ -658,6 +684,7 @@ class TestGUIErrorCapturePnpmWrapper:
             errors = runner._capture_gui_errors()
         assert errors == []
 
+    @pytest.mark.slow
     def test_reversed_brackets_returns_empty(self, tmp_path: Path) -> None:
         """If ']' appears before '[' (malformed), return []."""
         runner = _make_runner(tmp_path)
@@ -680,6 +707,7 @@ class TestHealingReDiagnoseCallback:
     success == problem fixed (which caused 187 cycles of false RECOVERED
     while gui_build stayed critical)."""
 
+    @pytest.mark.slow
     def test_heal_cycle_receives_re_diagnose(self, tmp_path: Path) -> None:
         """In production mode, heal_cycle must be called with re_diagnose."""
         from scripts.run_autonomous_loop import AutonomousLoopRunner
@@ -720,6 +748,7 @@ class TestHealingReDiagnoseCallback:
         re_diag = call_kwargs.kwargs["re_diagnose"]
         assert callable(re_diag), "re_diagnose must be callable"
 
+    @pytest.mark.slow
     def test_re_diagnose_callback_runs_snapshot_and_diagnose(
         self, tmp_path: Path
     ) -> None:
@@ -778,6 +807,7 @@ class TestSelfObserverTestExecution:
     --continue-on-collection-errors so a single collection error doesn't
     interrupt the whole run (which caused total=1 errors=1)."""
 
+    @pytest.mark.slow
     def test_observe_tests_uses_sys_executable(self) -> None:
         """observe_tests command must use sys.executable, not 'python3'."""
         from maref.recursive.self_observer import SelfObserver
@@ -796,6 +826,7 @@ class TestSelfObserverTestExecution:
             f"got {cmd[0]}"
         )
 
+    @pytest.mark.slow
     def test_observe_tests_has_continue_on_collection_errors(self) -> None:
         """Both collect_only modes must pass --continue-on-collection-errors."""
         from maref.recursive.self_observer import SelfObserver
@@ -812,6 +843,7 @@ class TestSelfObserverTestExecution:
             "observe_tests must pass --continue-on-collection-errors"
         )
 
+    @pytest.mark.slow
     def test_observe_tests_run_mode_excludes_slow_markers(self) -> None:
         """collect_only=False must filter integration/chaos/benchmark."""
         from maref.recursive.self_observer import SelfObserver
@@ -838,6 +870,7 @@ class TestSelfObserverTestExecution:
         assert "chaos" in marker_expr
         assert "benchmark" in marker_expr
 
+    @pytest.mark.slow
     def test_observe_tests_collect_only_mode_no_marker_filter(self) -> None:
         """collect_only=True should NOT add pytest -m filter (just count)."""
         from maref.recursive.self_observer import SelfObserver
@@ -874,6 +907,7 @@ class TestMetricsPhaseRunsTests:
     actually run and we get real pass/fail/coverage numbers instead of
     total=0 coverage_pct=0."""
 
+    @pytest.mark.slow
     def test_metrics_phase_uses_collect_only_false(self, tmp_path: Path) -> None:
         """snapshot in metrics phase must be called with collect_only=False."""
         runner = _make_runner(tmp_path)
@@ -919,6 +953,7 @@ class TestObserveTestsTimeout:
     out at 300s with test_count=0 — the suite needs >300s. Fix 10b raises
     the collect_only=False timeout to 600s."""
 
+    @pytest.mark.slow
     def test_run_mode_timeout_is_600s(self) -> None:
         """collect_only=False must use timeout=600 (not 300)."""
         from maref.recursive.self_observer import SelfObserver
@@ -935,6 +970,7 @@ class TestObserveTestsTimeout:
             f"collect_only=False must use timeout=600 (Fix 10b), got {timeout}"
         )
 
+    @pytest.mark.slow
     def test_collect_only_timeout_is_60s(self) -> None:
         """collect_only=True keeps the fast 60s timeout (collection only)."""
         from maref.recursive.self_observer import SelfObserver
@@ -951,6 +987,7 @@ class TestObserveTestsTimeout:
             f"collect_only=True must use timeout=60, got {timeout}"
         )
 
+    @pytest.mark.slow
     def test_timeout_600_exceeds_old_300(self) -> None:
         """Regression guard: 600s must be strictly greater than the old 300s
         that caused cycle 1 of the 48h v2 run to report test_count=0."""

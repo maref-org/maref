@@ -235,7 +235,7 @@ Trae/OpenCode → MCP Guard → 修复版 Sidecar → GaaS 治理端点
 
 #### 1. 启动修复版 Sidecar
 ```bash
-cd /Volumes/1TB-M2/public/maref
+cd $PROJECT_ROOT
 python3 scripts/maref_lite_fixed.py serve --port 8010
 ```
 

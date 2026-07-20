@@ -200,3 +200,9 @@ evolution_results/
 
 # Experiments (ad-hoc, not source code)
 experiments/
+
+# Auto-generated logs
+.self_healing_logs/
+
+# Coverage reports
+coverage.xml

@@ -18,6 +18,7 @@ from maref.recursive.unified_audit import UnifiedAuditStore
 
 
 class TestExecutionStage:
+    @pytest.mark.slow
     def test_all_stages_defined(self) -> None:
         stages = list(ExecutionStage)
         assert len(stages) == 7
@@ -31,6 +32,7 @@ class TestExecutionStage:
 
 
 class TestGeneratedCode:
+    @pytest.mark.slow
     def test_create_generated_code(self) -> None:
         code = GeneratedCode(
             file_path="/tmp/test.py",
@@ -44,12 +46,14 @@ class TestGeneratedCode:
 
 
 class TestASTValidationResult:
+    @pytest.mark.slow
     def test_default_valid(self) -> None:
         result = ASTValidationResult(is_valid=True)
         assert result.is_valid is True
         assert result.errors == []
         assert result.warnings == []
 
+    @pytest.mark.slow
     def test_invalid_with_errors(self) -> None:
         result = ASTValidationResult(is_valid=False, errors=["SyntaxError: bad"])
         assert result.is_valid is False
@@ -57,6 +61,7 @@ class TestASTValidationResult:
 
 
 class TestExecutionResult:
+    @pytest.mark.slow
     def test_success_result(self) -> None:
         result = ExecutionResult(
             stage=ExecutionStage.CODE_GEN,
@@ -67,6 +72,7 @@ class TestExecutionResult:
         assert result.is_failure is False
         assert result.stage == ExecutionStage.CODE_GEN
 
+    @pytest.mark.slow
     def test_failure_result(self) -> None:
         result = ExecutionResult(
             stage=ExecutionStage.DEPLOY,
@@ -81,6 +87,7 @@ class TestASTSandbox:
     def setup_method(self) -> None:
         self.sandbox = ASTSandbox()
 
+    @pytest.mark.slow
     def test_valid_python_code(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -90,6 +97,7 @@ class TestASTSandbox:
         result = self.sandbox.validate(code)
         assert result.is_valid is True
 
+    @pytest.mark.slow
     def test_syntax_error(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -100,6 +108,7 @@ class TestASTSandbox:
         assert result.is_valid is False
         assert len(result.errors) > 0
 
+    @pytest.mark.slow
     def test_valid_dataclass(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -110,6 +119,7 @@ class TestASTSandbox:
         assert result.is_valid is True
         assert "Foo" in result.classes_found
 
+    @pytest.mark.slow
     def test_detects_imports(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -121,6 +131,7 @@ class TestASTSandbox:
         assert "pathlib" in result.imports
         assert "time" in result.imports
 
+    @pytest.mark.slow
     def test_detects_dangerous_eval(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -130,6 +141,7 @@ class TestASTSandbox:
         result = self.sandbox.validate(code)
         assert result.is_valid is False
 
+    @pytest.mark.slow
     def test_detects_dangerous_exec(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -139,6 +151,7 @@ class TestASTSandbox:
         result = self.sandbox.validate(code)
         assert result.is_valid is False
 
+    @pytest.mark.slow
     def test_allows_safe_imports(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -148,6 +161,7 @@ class TestASTSandbox:
         result = self.sandbox.validate(code)
         assert result.is_valid is True
 
+    @pytest.mark.slow
     def test_warns_unknown_import(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -157,6 +171,7 @@ class TestASTSandbox:
         result = self.sandbox.validate(code)
         assert len(result.warnings) > 0
 
+    @pytest.mark.slow
     def test_extract_functions(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -167,6 +182,7 @@ class TestASTSandbox:
         assert "foo" in result.functions_found
         assert "bar" in result.functions_found
 
+    @pytest.mark.slow
     def test_empty_code_valid(self) -> None:
         code = GeneratedCode(
             file_path="test.py",
@@ -182,6 +198,7 @@ class TestAtomicDeployer:
         self.tmpdir = tempfile.mkdtemp()
         self.deployer = AtomicDeployer(backup_dir=os.path.join(self.tmpdir, "backups"))
 
+    @pytest.mark.slow
     def test_deploy_new_file(self) -> None:
         file_path = os.path.join(self.tmpdir, "new_file.py")
         code = GeneratedCode(
@@ -193,6 +210,7 @@ class TestAtomicDeployer:
         assert result.success is True
         assert os.path.exists(file_path)
 
+    @pytest.mark.slow
     def test_deploy_overwrites_existing(self) -> None:
         file_path = os.path.join(self.tmpdir, "existing.py")
         with open(file_path, "w") as f:
@@ -207,6 +225,7 @@ class TestAtomicDeployer:
         with open(file_path) as f:
             assert f.read() == "new content"
 
+    @pytest.mark.slow
     def test_verify_deployed_correct(self) -> None:
         file_path = os.path.join(self.tmpdir, "verify.py")
         content = "verify content"
@@ -219,6 +238,7 @@ class TestAtomicDeployer:
         result = self.deployer.verify_deployed(file_path, content)
         assert result.success is True
 
+    @pytest.mark.slow
     def test_verify_deployed_mismatch(self) -> None:
         file_path = os.path.join(self.tmpdir, "mismatch.py")
         code = GeneratedCode(
@@ -230,6 +250,7 @@ class TestAtomicDeployer:
         result = self.deployer.verify_deployed(file_path, "different content")
         assert result.success is False
 
+    @pytest.mark.slow
     def test_rollback_after_deploy(self) -> None:
         file_path = os.path.join(self.tmpdir, "rollback_test.py")
         with open(file_path, "w") as f:
@@ -245,10 +266,12 @@ class TestAtomicDeployer:
         with open(file_path) as f:
             assert f.read() == "original"
 
+    @pytest.mark.slow
     def test_rollback_without_backup_fails(self) -> None:
         result = self.deployer.rollback("/nonexistent/file.py")
         assert result.success is False
 
+    @pytest.mark.slow
     def test_deployed_files_tracking(self) -> None:
         file_path = os.path.join(self.tmpdir, "tracked.py")
         code = GeneratedCode(
@@ -264,6 +287,7 @@ class TestCodeGenerator:
     def setup_method(self) -> None:
         self.generator = CodeGenerator()
 
+    @pytest.mark.slow
     def test_generate_generic_code(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -280,6 +304,7 @@ class TestCodeGenerator:
         assert len(generated) == 1
         assert generated[0].target_module == "v0.6.0"
 
+    @pytest.mark.slow
     def test_generate_refactor_code(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -296,6 +321,7 @@ class TestCodeGenerator:
         assert len(generated) == 1
         assert "class R31AutoGenerated" in generated[0].content
 
+    @pytest.mark.slow
     def test_generate_test_code(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -318,12 +344,15 @@ class TestSelfExecutor:
         self.tmpdir = tempfile.mkdtemp()
         self.executor = SelfExecutor(max_rounds=3, project_root=self.tmpdir)
 
+    @pytest.mark.slow
     def test_max_rounds(self) -> None:
         assert self.executor.max_rounds == 3
 
+    @pytest.mark.slow
     def test_empty_history(self) -> None:
         assert len(self.executor.history) == 0
 
+    @pytest.mark.slow
     def test_execute_success_pipeline(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -340,6 +369,7 @@ class TestSelfExecutor:
         assert pipeline.final_state in ("SUCCESS", "FAILED_VERIFY_ROLLED_BACK")
         assert len(self.executor.history) >= 1
 
+    @pytest.mark.slow
     def test_dry_run(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -355,6 +385,7 @@ class TestSelfExecutor:
         pipeline = self.executor.dry_run(proposal)
         assert pipeline.final_state.startswith("DRY_RUN")
 
+    @pytest.mark.slow
     def test_health_check(self) -> None:
         health = self.executor.health_check()
         assert "max_rounds" in health
@@ -362,9 +393,11 @@ class TestSelfExecutor:
         assert "audit_records" in health
         assert health["rollback_count"] >= 0
 
+    @pytest.mark.slow
     def test_deployed_files_empty(self) -> None:
         assert len(self.executor.deployed_files) == 0
 
+    @pytest.mark.slow
     def test_custom_audit_store(self) -> None:
         audit = UnifiedAuditStore()
         executor = SelfExecutor(max_rounds=2, project_root=self.tmpdir, audit_store=audit)
@@ -382,6 +415,7 @@ class TestSelfExecutor:
         executor.execute(proposal)
         assert audit.count() >= 1
 
+    @pytest.mark.slow
     def test_multiple_executions(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -400,6 +434,7 @@ class TestSelfExecutor:
 
 
 class TestCodeGeneratorEdgeCases:
+    @pytest.mark.slow
     def test_classify_coverage_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -417,6 +452,7 @@ class TestCodeGeneratorEdgeCases:
         assert len(result) == 1
         assert "pytest" in result[0].content
 
+    @pytest.mark.slow
     def test_classify_refactor_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -440,6 +476,7 @@ class TestAtomicDeployerEdgeCases:
         self.tmpdir = tempfile.mkdtemp()
         self.deployer = AtomicDeployer(backup_dir=os.path.join(self.tmpdir, "backups"))
 
+    @pytest.mark.slow
     def test_deploy_failure_nonexistent_dir(self) -> None:
         code = GeneratedCode(
             file_path="/dev/null/invalid/test.py",
@@ -449,14 +486,17 @@ class TestAtomicDeployerEdgeCases:
         result = self.deployer.deploy(code)
         assert result.success is False
 
+    @pytest.mark.slow
     def test_verify_file_not_found(self) -> None:
         result = self.deployer.verify_deployed("/nonexistent/file_xyz.py", "content")
         assert result.success is False
 
+    @pytest.mark.slow
     def test_rollback_failure_no_backup(self) -> None:
         result = self.deployer.rollback("/some/never/deployed.py")
         assert result.success is False
 
+    @pytest.mark.slow
     def test_multiple_deploy_and_rollback(self) -> None:
         f1 = os.path.join(self.tmpdir, "f1.py")
         with open(f1, "w") as f:
@@ -467,6 +507,7 @@ class TestAtomicDeployerEdgeCases:
         with open(f1) as f:
             assert f.read() == "original1"
 
+    @pytest.mark.slow
     def test_deploy_without_existing_file(self) -> None:
         fnew = os.path.join(self.tmpdir, "brand_new.py")
         code = GeneratedCode(file_path=fnew, content="hello", target_module="t")
@@ -480,6 +521,7 @@ class TestSelfExecutorEdgeCases:
         self.tmpdir = tempfile.mkdtemp()
         self.executor = SelfExecutor(max_rounds=5, project_root=self.tmpdir)
 
+    @pytest.mark.slow
     def test_execute_code_gen_failure_path(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -501,6 +543,7 @@ class TestSelfExecutorEdgeCases:
             "FAILED_DEPLOY_ROLLED_BACK",
         )
 
+    @pytest.mark.slow
     def test_health_check_after_failure(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -518,6 +561,7 @@ class TestSelfExecutorEdgeCases:
         assert health["history_length"] >= 1
         assert isinstance(health["successful_pipelines"], int)
 
+    @pytest.mark.slow
     def test_deployed_files_after_deploy(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -534,6 +578,7 @@ class TestSelfExecutorEdgeCases:
         files = self.executor.deployed_files
         assert isinstance(files, list)
 
+    @pytest.mark.slow
     def test_execute_with_confidence_low(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -549,6 +594,7 @@ class TestSelfExecutorEdgeCases:
         pipeline = self.executor.execute(proposal)
         assert pipeline.final_state != ""
 
+    @pytest.mark.slow
     def test_execute_safety_gate_blocked(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -569,6 +615,7 @@ class TestSelfExecutorEdgeCases:
             "SUCCESS",
         )
 
+    @pytest.mark.slow
     def test_execute_deploy_to_readonly(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -595,6 +642,7 @@ class TestSelfExecutorEdgeCases:
         )
         os.chmod(read_only_dir, 0o755)
 
+    @pytest.mark.slow
     def test_admin_health_check_after_multiple(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -613,6 +661,7 @@ class TestSelfExecutorEdgeCases:
         assert health["history_length"] == 3
         assert health["successful_pipelines"] + health["failed_pipelines"] == 3
 
+    @pytest.mark.slow
     def test_dry_run_with_valid_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -633,6 +682,7 @@ class TestSelfExecutorEdgeCases:
             "DRY_RUN_ERROR",
         )
 
+    @pytest.mark.slow
     def test_dry_run_empty_proposal(self) -> None:
         from maref.recursive.self_architect import ArchitectureProposal
 
@@ -648,13 +698,16 @@ class TestSelfExecutorEdgeCases:
         pipeline = self.executor.dry_run(proposal)
         assert pipeline.final_state != ""
 
+    @pytest.mark.slow
     def test_history_property(self) -> None:
         history = self.executor.history
         assert isinstance(history, list)
 
+    @pytest.mark.slow
     def test_max_rounds_property(self) -> None:
         assert self.executor.max_rounds == 5
 
+    @pytest.mark.slow
     def test_attach_intent_drift_detector(self) -> None:
         from unittest.mock import MagicMock
 
@@ -662,6 +715,7 @@ class TestSelfExecutorEdgeCases:
         self.executor.attach_intent_drift_detector(detector)
         assert self.executor._intent_drift_detector is detector
 
+    @pytest.mark.slow
     def test_attach_gene_pipeline(self) -> None:
         from unittest.mock import MagicMock
 
@@ -671,6 +725,7 @@ class TestSelfExecutorEdgeCases:
 
 
 class TestExecutionPipelineRecord:
+    @pytest.mark.slow
     def test_to_audit_records(self) -> None:
         pipeline = ExecutionPipelineRecord(
             pipeline_id="test_pipeline",
@@ -687,6 +742,7 @@ class TestExecutionPipelineRecord:
         assert len(records) == 1
         assert records[0].source_module == "SelfExecutor"
 
+    @pytest.mark.slow
     def test_duration_calculated(self) -> None:
         pipeline = ExecutionPipelineRecord(
             pipeline_id="test_pipeline",
@@ -696,6 +752,7 @@ class TestExecutionPipelineRecord:
         assert pipeline.end_time > 0
         assert pipeline.duration_ms >= 0
 
+    @pytest.mark.slow
     def test_finish_state(self) -> None:
         pipeline = ExecutionPipelineRecord(
             pipeline_id="p1",
@@ -705,6 +762,7 @@ class TestExecutionPipelineRecord:
         pipeline.finish()
         assert pipeline.final_state == "SUCCESS"
 
+    @pytest.mark.slow
     def test_to_audit_records_with_failure(self) -> None:
         pipeline = ExecutionPipelineRecord(
             pipeline_id="fail_pipe",
@@ -717,6 +775,7 @@ class TestExecutionPipelineRecord:
         assert len(records) == 1
         assert records[0].outcome == "failure"
 
+    @pytest.mark.slow
     def test_pipeline_rollback_flag(self) -> None:
         pipeline = ExecutionPipelineRecord(
             pipeline_id="rb_pipe",

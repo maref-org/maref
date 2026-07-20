@@ -11,7 +11,7 @@
 ## 立即执行（推荐首次运行）
 
 ```bash
-cd /Volumes/1TB-M2/maref-experiments
+cd $MAREF_EXP_ROOT
 bash scripts/git_gc_optimize.sh
 ```
 
@@ -38,14 +38,14 @@ bash scripts/git_gc_optimize.sh
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Volumes/1TB-M2/maref-experiments/scripts/git_gc_optimize.sh</string>
+        <string>$MAREF_EXP_ROOT/scripts/git_gc_optimize.sh</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Volumes/1TB-M2/maref-experiments</string>
+    <string>$MAREF_EXP_ROOT</string>
     <key>StandardOutPath</key>
-    <string>/Volumes/1TB-M2/maref-experiments/scripts/git_gc.log</string>
+    <string>$MAREF_EXP_ROOT/scripts/git_gc.log</string>
     <key>StandardErrorPath</key>
-    <string>/Volumes/1TB-M2/maref-experiments/scripts/git_gc.log</string>
+    <string>$MAREF_EXP_ROOT/scripts/git_gc.log</string>
     <!-- 每周执行一次（604800秒） -->
     <key>StartInterval</key>
     <integer>604800</integer>
@@ -65,7 +65,7 @@ launchctl load ~/Library/LaunchAgents/com.maref.git-gc.plist
 
 添加到你的 crontab（如果已授权）：
 ```bash
-0 3 * * 0 bash /Volumes/1TB-M2/maref-experiments/scripts/git_gc_optimize.sh
+0 3 * * 0 bash $MAREF_EXP_ROOT/scripts/git_gc_optimize.sh
 ```
 
 ## 预防性配置

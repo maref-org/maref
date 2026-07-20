@@ -3,7 +3,7 @@
 # 启动修复版 sidecar，展示 IDE 配置状态
 
 SIDECAR_PORT=${1:-8010}
-MAREF_DIR="/Volumes/1TB-M2/public/maref"
+MAREF_DIR="$PROJECT_ROOT"
 
 echo "=============================="
 echo " MAREF 治理补强 - 一键部署"

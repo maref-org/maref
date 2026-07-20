@@ -12,6 +12,7 @@ from maref.recursive.task_decomposer import TaskDAG, SubTask
 
 
 class TestOrchestrationResult:
+    @pytest.mark.slow
     def test_default_construction(self) -> None:
         dag = TaskDAG(root_task="test")
         r = OrchestrationResult(task_description="test", dag=dag)
@@ -27,6 +28,7 @@ class TestOrchestrationResult:
 
 
 class TestSelfOrchestrator:
+    @pytest.mark.slow
     def test_default_construction(self) -> None:
         o = SelfOrchestrator()
         assert o.registry is not None
@@ -34,12 +36,14 @@ class TestSelfOrchestrator:
         assert o.decomposer is not None
         assert o.is_hybrid is False
 
+    @pytest.mark.slow
     def test_hybrid_construction(self) -> None:
         hybrid = MagicMock()
         o = SelfOrchestrator(use_hybrid=True, hybrid_decomposer=hybrid)
         assert o.is_hybrid is True
         assert o.decomposer is hybrid
 
+    @pytest.mark.slow
     def test_initialize(self) -> None:
         o = SelfOrchestrator()
         with (
@@ -50,6 +54,7 @@ class TestSelfOrchestrator:
             mock_load.assert_called_once()
             mock_list.assert_called_once()
 
+    @pytest.mark.slow
     def test_initialize_registers_agents(self) -> None:
         o = SelfOrchestrator()
         agent_a = MagicMock()
@@ -67,6 +72,7 @@ class TestSelfOrchestrator:
             mock_register.assert_any_call("agent_a")
             mock_register.assert_any_call("agent_b")
 
+    @pytest.mark.slow
     def test_orchestrate_basic(self) -> None:
         o = SelfOrchestrator()
 
@@ -97,6 +103,7 @@ class TestSelfOrchestrator:
             assert result.decomposition_source == "template"
             assert result.timed_out is False
 
+    @pytest.mark.slow
     def test_orchestrate_single_agent_no_sync(self) -> None:
         o = SelfOrchestrator()
 
@@ -111,6 +118,7 @@ class TestSelfOrchestrator:
             result = o.orchestrate("task")
             assert result.sync_log == []
 
+    @pytest.mark.slow
     def test_orchestrate_with_hybrid_decomposer(self) -> None:
         # Create a mock that will pass isinstance check
         from maref.recursive.hybrid_decomposer import HybridDecomposer
@@ -128,6 +136,7 @@ class TestSelfOrchestrator:
             result = o.orchestrate("task")
             assert result.decomposition_source == "hybrid"
 
+    @pytest.mark.slow
     def test_orchestrate_without_saga(self) -> None:
         o = SelfOrchestrator()
         dag = TaskDAG(root_task="task")
@@ -141,6 +150,7 @@ class TestSelfOrchestrator:
             result = o.orchestrate_with_saga("task")
             assert result.task_description == "task"
 
+    @pytest.mark.slow
     def test_orchestrate_with_saga_success(self) -> None:
         saga_orch = MagicMock()
         saga_result = MagicMock()
@@ -161,6 +171,7 @@ class TestSelfOrchestrator:
             assert result.saga_result is saga_result
             assert result.timed_out is False
 
+    @pytest.mark.slow
     def test_orchestrate_with_saga_timeout(self) -> None:
         saga_orch = MagicMock()
         saga_result = MagicMock()
@@ -180,6 +191,7 @@ class TestSelfOrchestrator:
             result = o.orchestrate_with_saga("task")
             assert result.timed_out is True
 
+    @pytest.mark.slow
     def test_orchestrate_with_saga_no_saga_orch(self) -> None:
         o = SelfOrchestrator()
         dag = TaskDAG(root_task="task")
@@ -194,12 +206,14 @@ class TestSelfOrchestrator:
             assert result.task_description == "task"
             assert result.saga_result is None
 
+    @pytest.mark.slow
     def test_resolve_conflict(self) -> None:
         o = SelfOrchestrator()
         with patch.object(o._jsm, "arbitrate", return_value="agent_a wins"):
             result = o.resolve_conflict("agent_a", "agent_b", "resource conflict")
             assert result == "agent_a wins"
 
+    @pytest.mark.slow
     def test_reset(self) -> None:
         o = SelfOrchestrator()
         with (

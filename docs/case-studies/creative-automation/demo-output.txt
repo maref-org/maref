@@ -1,5 +1,5 @@
 MAREF Creative-Automation Skill — Governance Demo
-brand_profile: /Volumes/1TB-M2/public/maref/docs/case-studies/creative-automation/brand_profile.yaml
+brand_profile: ./docs/case-studies/creative-automation/brand_profile.yaml
 
 ======================================================================
 SCENARIO 1: Benign brief — should compose successfully

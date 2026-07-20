@@ -226,7 +226,7 @@
 |------|-----|
 | OS | macOS (Darwin) |
 | Python | 3.14.3 |
-| 工作目录 | `/Volumes/1TB-M2/public/maref` |
+| 工作目录 | `$PROJECT_ROOT` |
 | 分支 | `main` |
 | HEAD | `4995fce fix(audit): resolve all 5 P0-P1 blocking audit issues` |
 | 未跟踪文件 | `MARKET_STRATEGY.md` |

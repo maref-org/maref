@@ -113,4 +113,4 @@ GPTBot:          Disallow  # Training crawler (not search)
 - [vibetags/vibetags-spec](https://github.com/vibetags/vibetags-spec) — The standard MAREF implements
 - [llms.txt proposal](https://llmstxt.org/) — The llms.txt standard
 - [MAREF SEO/GEO Audit](../../.seo-geo-audit.md) — 2026-07-04 baseline audit
-- [MAREF Brand Strategy v1.0](file:///Volumes/1TB-M2/Athena知识库/OPC工作区/2-战略/创意内容制作/01-战略/MAREF品牌定位与混合补强实施方案-v1.0.md) — §3.4 GEO strategy
+- [MAREF Brand Strategy v1.0](file://$ATHENA_KB_ROOT/OPC工作区/2-战略/创意内容制作/01-战略/MAREF品牌定位与混合补强实施方案-v1.0.md) — §3.4 GEO strategy

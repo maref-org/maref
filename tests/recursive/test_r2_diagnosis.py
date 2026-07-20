@@ -26,6 +26,7 @@ class TestSelfDiagnostician:
             total_lines=1000,
         )
 
+    @pytest.mark.slow
     def test_diagnose_returns_report(
         self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
     ) -> None:
@@ -33,6 +34,7 @@ class TestSelfDiagnostician:
         assert isinstance(report, DiagnosisReport)
         assert report.overall_risk == RiskLevel.NORMAL
 
+    @pytest.mark.slow
     def test_diagnose_runs_all_five_probes(
         self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
     ) -> None:
@@ -42,6 +44,7 @@ class TestSelfDiagnostician:
             set(report.probe_results.keys()) == expected_probes
         ), f"Expected {expected_probes}, got {set(report.probe_results.keys())}"
 
+    @pytest.mark.slow
     def test_normal_state_all_risk_normal(
         self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
     ) -> None:
@@ -49,6 +52,7 @@ class TestSelfDiagnostician:
         for probe_name, level in report.risk_matrix.items():
             assert level == RiskLevel.NORMAL, f"Probe {probe_name} expected NORMAL, got {level}"
 
+    @pytest.mark.slow
     def test_diagnose_recommendations_normal(
         self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
     ) -> None:
@@ -56,6 +60,7 @@ class TestSelfDiagnostician:
         assert len(report.recommendations) >= 1
         assert any("正常" in r or "无异常" in r for r in report.recommendations)
 
+    @pytest.mark.slow
     def test_high_entropy_triggers_warning(self, diagnostician: SelfDiagnostician) -> None:
         snapshot = SystemSnapshot(
             test_stats={"total": 100, "passed": 80, "failed": 20},
@@ -67,10 +72,12 @@ class TestSelfDiagnostician:
         report = diagnostician.diagnose(snapshot)
         assert report.overall_risk != RiskLevel.NORMAL
 
+    @pytest.mark.slow
     def test_circuit_breaker_closed_initially(self, diagnostician: SelfDiagnostician) -> None:
         assert diagnostician.cb_state == "CLOSED"
         assert not diagnostician.is_blocked()
 
+    @pytest.mark.slow
     def test_circuit_breaker_opens_on_critical(self, diagnostician: SelfDiagnostician) -> None:
         snapshot = SystemSnapshot(
             test_stats={"total": 100, "passed": 0, "failed": 100},
@@ -84,6 +91,7 @@ class TestSelfDiagnostician:
         assert diagnostician.cb_state == "OPEN"
         assert diagnostician.is_blocked()
 
+    @pytest.mark.slow
     def test_circuit_breaker_blocked_blocks_snapshot(
         self, diagnostician: SelfDiagnostician
     ) -> None:
@@ -99,6 +107,7 @@ class TestSelfDiagnostician:
         result = diagnostician.check_and_trip(report)
         assert result is False
 
+    @pytest.mark.slow
     def test_half_open_allows_probe(self, diagnostician: SelfDiagnostician) -> None:
         snapshot = SystemSnapshot(
             test_stats={"total": 100, "passed": 0, "failed": 100},
@@ -113,6 +122,7 @@ class TestSelfDiagnostician:
         assert diagnostician.cb_state == "HALF_OPEN"
         assert not diagnostician.is_blocked()
 
+    @pytest.mark.slow
     def test_close_resets_trip_count(self, diagnostician: SelfDiagnostician) -> None:
         snapshot = SystemSnapshot(
             test_stats={"total": 100, "passed": 0, "failed": 100},
@@ -127,11 +137,13 @@ class TestSelfDiagnostician:
         assert diagnostician.cb_state == "CLOSED"
         assert not diagnostician.is_blocked()
 
+    @pytest.mark.slow
     def test_risk_level_enum_values(self) -> None:
         assert RiskLevel.NORMAL.value == "normal"
         assert RiskLevel.WARNING.value == "warning"
         assert RiskLevel.CRITICAL.value == "critical"
 
+    @pytest.mark.slow
     def test_diagnosis_report_defaults(self) -> None:
         report = DiagnosisReport(snapshot_ref="test")
         assert report.probe_results == {}

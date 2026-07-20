@@ -4,7 +4,7 @@
 
 1. **修复版 sidecar 已启动**
    ```bash
-   cd /Volumes/1TB-M2/public/maref
+   cd $PROJECT_ROOT
    python3 scripts/maref_lite_fixed.py serve --port 8010
    ```
 
@@ -19,7 +19,7 @@
 ### 1. 复制配置文件
 
 ```bash
-cp /Volumes/1TB-M2/public/maref/scripts/trae_mcp_config.json ~/.trae/mcp_config.json
+cp $PROJECT_ROOT/scripts/trae_mcp_config.json ~/.trae/mcp_config.json
 ```
 
 ### 2. 验证配置
@@ -31,7 +31,7 @@ cp /Volumes/1TB-M2/public/maref/scripts/trae_mcp_config.json ~/.trae/mcp_config.
     "maref-governance": {
       "command": "python3",
       "args": [
-        "/Volumes/1TB-M2/public/maref/scripts/simple_mcp_guard.py"
+        "$PROJECT_ROOT/scripts/simple_mcp_guard.py"
       ],
       "env": {
         "MAREF_AGENT_ID": "trae-cn",
@@ -65,11 +65,11 @@ cp /Volumes/1TB-M2/public/maref/scripts/trae_mcp_config.json ~/.trae/mcp_config.
 
 OpenCode 会自动发现项目根目录的 `opencode.json`。
 
-文件已创建在：`/Volumes/1TB-M2/public/maref/opencode.json`
+文件已创建在：`$PROJECT_ROOT/opencode.json`
 
 ### 2. 验证配置
 
-配置文件内容 (`/Volumes/1TB-M2/public/maref/opencode.json`):
+配置文件内容 (`$PROJECT_ROOT/opencode.json`):
 ```json
 {
   "mcpServers": {
@@ -91,7 +91,7 @@ OpenCode 会自动发现项目根目录的 `opencode.json`。
 
 ### 3. 重启 OpenCode
 
-在项目目录 (`/Volumes/1TB-M2/public/maref`) 中重启 OpenCode。
+在项目目录 (`$PROJECT_ROOT`) 中重启 OpenCode。
 
 ### 4. 验证集成
 
@@ -108,7 +108,7 @@ mkdir -p ~/.cursor
 ### 2. 复制配置文件
 
 ```bash
-cp /Volumes/1TB-M2/public/maref/scripts/trae_mcp_config.json ~/.cursor/mcp_config.json
+cp $PROJECT_ROOT/scripts/trae_mcp_config.json ~/.cursor/mcp_config.json
 ```
 
 ### 3. 修改配置
@@ -275,7 +275,7 @@ export MAREF_CACHE_TTL=300
 ### 更新 MCP Guard
 
 ```bash
-cd /Volumes/1TB-M2/public/maref
+cd $PROJECT_ROOT
 git pull
 pip install -e . --break-system-packages
 ```
@@ -297,7 +297,7 @@ python3 scripts/maref_lite_fixed.py serve --port 8010
 如有问题，请检查:
 1. 审计日志: `~/.maref_mcp_guard_audit.log`
 2. sidecar 日志: `/tmp/maref_sidecar.log`
-3. 项目文档: `/Volumes/1TB-M2/public/maref/docs/`
+3. 项目文档: `$PROJECT_ROOT/docs/`
 
 ---
 

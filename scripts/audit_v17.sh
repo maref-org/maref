@@ -2,7 +2,7 @@
 # MAREF v17 Autonomous Loop Auditor
 set -u
 
-PROJECT_DIR="/Volumes/1TB-M2/public/maref"
+PROJECT_DIR="$PROJECT_ROOT"
 LOG_FILE="$PROJECT_DIR/reports/audit_v17.log"
 ALERT_LOG="$PROJECT_DIR/reports/audit_v17_alerts.log"
 V17_LOG="$PROJECT_DIR/reports/autonomous_48h_v17.log"
