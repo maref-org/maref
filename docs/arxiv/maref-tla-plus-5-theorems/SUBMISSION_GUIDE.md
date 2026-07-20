@@ -34,7 +34,7 @@ Before submitting to arXiv, the human submitter must:
 ### 2.1 Build the PDF
 
 ```bash
-cd /Volumes/1TB-M2/public/maref/docs/arxiv/maref-tla-plus-5-theorems/
+cd $PROJECT_ROOT/docs/arxiv/maref-tla-plus-5-theorems/
 
 # Option A: pdflatex (standard)
 pdflatex main.tex
@@ -61,7 +61,7 @@ ls -la main.pdf
 ### 2.3 Run TLC (optional but recommended for evidence)
 
 ```bash
-cd /Volumes/1TB-M2/public/maref/src/formal/
+cd $PROJECT_ROOT/src/formal/
 
 # Run TLC on the configured .cfg files
 java -cp tla2tools.jar tlc2.TLC MarefLiteModel.cfg
@@ -80,7 +80,7 @@ arXiv requires a single .tar.gz or .zip archive containing:
 - `main.pdf` (optional but speeds up arXiv processing)
 
 ```bash
-cd /Volumes/1TB-M2/public/maref/docs/arxiv/maref-tla-plus-5-theorems/
+cd $PROJECT_ROOT/docs/arxiv/maref-tla-plus-5-theorems/
 tar -czf maref-tla-plus-5-theorems.tar.gz main.tex references.bib main.pdf
 ```
 
@@ -126,7 +126,7 @@ After obtaining the arXiv ID, update `STATE.yaml` to unblock the D1 G1 gate:
 
 ### 4.1 Update STATE.yaml
 
-**File**: `/Volumes/1TB-M2/public/maref/STATE.yaml`
+**File**: `$PROJECT_ROOT/STATE.yaml`
 
 ```yaml
 # Before (current state):
@@ -158,7 +158,7 @@ d1_gate:
 ### 4.2 Run D1 Pre-Flight Check
 
 ```bash
-cd /Volumes/1TB-M2/public/maref/
+cd $PROJECT_ROOT/
 python3 scripts/d1_preflight_check.py
 ```
 
@@ -170,7 +170,7 @@ the check script may need updating to read the `G1_arxiv_id_value` field.
 Once all gates pass, the repository can be pushed without the override:
 
 ```bash
-cd /Volumes/1TB-M2/public/maref/
+cd $PROJECT_ROOT/
 # The .push_allow sentinel file is no longer needed:
 rm -f .push_allow
 git push origin main

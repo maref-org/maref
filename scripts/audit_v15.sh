@@ -14,7 +14,7 @@
 
 set -u
 
-PROJECT_DIR="/Volumes/1TB-M2/public/maref"
+PROJECT_DIR="$PROJECT_ROOT"
 LOG_FILE="$PROJECT_DIR/reports/audit_v15.log"
 ALERT_LOG="$PROJECT_DIR/reports/audit_v15_alerts.log"
 V15_LOG="$PROJECT_DIR/reports/autonomous_48h_v15.log"

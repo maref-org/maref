@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 MAREF v17 watchdog — runs audit_v17.sh every 5 minutes in a loop.
-Kill with: kill $(cat /Volumes/1TB-M2/public/maref/reports/watchdog_audit.pid)
+Kill with: kill $(cat $PROJECT_ROOT/reports/watchdog_audit.pid)
 """
 
 import os
@@ -9,8 +9,8 @@ import subprocess
 import time
 from pathlib import Path
 
-AUDIT_SCRIPT = Path("/Volumes/1TB-M2/public/maref/scripts/audit_v20.sh")
-PID_FILE = Path("/Volumes/1TB-M2/public/maref/reports/watchdog_audit.pid")
+AUDIT_SCRIPT = Path("$PROJECT_ROOT/scripts/audit_v20.sh")
+PID_FILE = Path("$PROJECT_ROOT/reports/watchdog_audit.pid")
 INTERVAL = 300  # 5 minutes
 
 

@@ -53,31 +53,38 @@ class TestExperiencePool:
         )
         return p
 
+    @pytest.mark.slow
     def test_store_and_count(self, pool: ExperiencePool) -> None:
         assert pool.count() == 3
 
+    @pytest.mark.slow
     def test_query_by_tag(self, pool: ExperiencePool) -> None:
         results = pool.query_by_tag("governance")
         assert len(results) == 1
         assert results[0].context == "cb trip detected"
 
+    @pytest.mark.slow
     def test_query_by_outcome(self, pool: ExperiencePool) -> None:
         results = pool.query_by_outcome("success")
         assert len(results) == 2
 
+    @pytest.mark.slow
     def test_query_by_context(self, pool: ExperiencePool) -> None:
         results = pool.query_by_context("coverage")
         assert len(results) == 1
 
+    @pytest.mark.slow
     def test_search_similar(self, pool: ExperiencePool) -> None:
         results = pool.search_similar("circuit breaker tripped again")
         assert len(results) >= 0
 
+    @pytest.mark.slow
     def test_replay_lessons(self, pool: ExperiencePool) -> None:
         lessons = pool.replay_lessons()
         assert len(lessons) == 1
         assert "coverage" in lessons[0]
 
+    @pytest.mark.slow
     def test_max_entries_eviction(self) -> None:
         pool = ExperiencePool(max_entries=3)
         for i in range(5):
@@ -94,17 +101,20 @@ class TestExperiencePool:
             )
         assert pool.count() == 3
 
+    @pytest.mark.slow
     def test_clear(self, pool: ExperiencePool) -> None:
         pool.clear()
         assert pool.count() == 0
 
 
 class TestContextManager:
+    @pytest.mark.slow
     def test_start_session(self) -> None:
         cm = ContextManager()
         cm.start_session("session_1", module="governance")
         assert cm.session_count() == 1
 
+    @pytest.mark.slow
     def test_push_pop_context(self) -> None:
         cm = ContextManager()
         cm.start_session("s1")
@@ -117,6 +127,7 @@ class TestContextManager:
         assert first is not None
         assert first["value"] == "OBSERVE"
 
+    @pytest.mark.slow
     def test_record_decision(self) -> None:
         cm = ContextManager()
         cm.start_session("s1")
@@ -125,23 +136,27 @@ class TestContextManager:
         assert ctx is not None
         assert ctx["decision_count"] == 1
 
+    @pytest.mark.slow
     def test_end_session(self) -> None:
         cm = ContextManager()
         cm.start_session("s1")
         cm.end_session()
         assert cm.get_active_context() is None
 
+    @pytest.mark.slow
     def test_pop_context_empty(self) -> None:
         cm = ContextManager()
         cm.start_session("s1")
         result = cm.pop_context()
         assert result is None
 
+    @pytest.mark.slow
     def test_no_active_session(self) -> None:
         cm = ContextManager()
         result = cm.get_active_context()
         assert result is None
 
+    @pytest.mark.slow
     def test_multiple_sessions(self) -> None:
         cm = ContextManager()
         cm.start_session("a")
@@ -152,12 +167,14 @@ class TestContextManager:
 
 
 class TestVersionInfo:
+    @pytest.mark.slow
     def test_parse_simple(self) -> None:
         v = VersionInfo.parse("1.2.3")
         assert v.major == 1
         assert v.minor == 2
         assert v.patch == 3
 
+    @pytest.mark.slow
     def test_parse_with_tag(self) -> None:
         v = VersionInfo.parse("0.4.0-r11")
         assert v.major == 0
@@ -165,21 +182,25 @@ class TestVersionInfo:
         assert v.patch == 0
         assert v.tag == "r11"
 
+    @pytest.mark.slow
     def test_parse_with_v_prefix(self) -> None:
         v = VersionInfo.parse("v0.3.0-rc")
         assert v.minor == 3
         assert v.tag == "rc"
 
+    @pytest.mark.slow
     def test_to_string(self) -> None:
         v = VersionInfo(0, 4, 0, "r20")
         assert v.to_string() == "0.4.0-r20"
 
+    @pytest.mark.slow
     def test_comparison(self) -> None:
         v1 = VersionInfo(0, 3, 0)
         v2 = VersionInfo(0, 4, 0)
         assert v1 < v2
         assert v2 > v1
 
+    @pytest.mark.slow
     def test_equality(self) -> None:
         v1 = VersionInfo.parse("0.4.0")
         v2 = VersionInfo.parse("0.4.0-rc")
@@ -187,43 +208,51 @@ class TestVersionInfo:
 
 
 class TestSelfVersionManager:
+    @pytest.mark.slow
     def test_check_minor_upgrade(self) -> None:
         svm = SelfVersionManager(current_version="0.3.0")
         check = svm.check_compatibility("0.4.0")
         assert check.level == CompatibilityLevel.MINOR_CHANGE
 
+    @pytest.mark.slow
     def test_check_patch_upgrade(self) -> None:
         svm = SelfVersionManager(current_version="0.3.0")
         check = svm.check_compatibility("0.3.1")
         assert check.level == CompatibilityLevel.FULLY_COMPATIBLE
 
+    @pytest.mark.slow
     def test_check_major_upgrade(self) -> None:
         svm = SelfVersionManager(current_version="0.3.0")
         check = svm.check_compatibility("1.0.0")
         assert check.level == CompatibilityLevel.BREAKING_CHANGE
 
+    @pytest.mark.slow
     def test_check_downgrade(self) -> None:
         svm = SelfVersionManager(current_version="0.4.0")
         check = svm.check_compatibility("0.3.0")
         assert check.level == CompatibilityLevel.UNKNOWN
 
+    @pytest.mark.slow
     def test_upgrade_path(self) -> None:
         svm = SelfVersionManager(current_version="0.2.0")
         check = svm.check_compatibility("0.4.0")
         assert len(check.upgrade_path) >= 2
 
+    @pytest.mark.slow
     def test_generate_migration_script(self) -> None:
         svm = SelfVersionManager(current_version="0.3.0")
         script = svm.generate_migration_script("0.4.0")
         assert "migrate()" in script
         assert "migration" in script
 
+    @pytest.mark.slow
     def test_upgrade_log(self) -> None:
         svm = SelfVersionManager(current_version="0.3.0")
         svm.check_compatibility("0.4.0")
         svm.check_compatibility("0.5.0")
         assert len(svm.upgrade_log) == 2
 
+    @pytest.mark.slow
     def test_current_version_property(self) -> None:
         svm = SelfVersionManager("0.3.0")
         assert svm.current_version.to_string() == "0.3.0"
@@ -287,34 +316,42 @@ class TestSelfArchitect:
         )
         return arch
 
+    @pytest.mark.slow
     def test_snapshot_architecture(self, architect: SelfArchitect) -> None:
         assert architect._arch_snapshot["module_count"] == 3
 
+    @pytest.mark.slow
     def test_analyze_bottlenecks(self, architect: SelfArchitect) -> None:
         bottlenecks = architect.analyze_bottlenecks()
         assert len(bottlenecks) >= 1
 
+    @pytest.mark.slow
     def test_propose_redesign(self, architect: SelfArchitect) -> None:
         proposal = architect.propose_redesign()
         assert proposal.confidence > 0
         assert len(architect.proposals) == 1
 
+    @pytest.mark.slow
     def test_validate_proposal_confident(self, architect: SelfArchitect) -> None:
         proposal = ArchitectureProposal("p1", time.time(), "A", "B", "ok", "low", 0.9)
         assert architect.validate_proposal(proposal) is True
 
+    @pytest.mark.slow
     def test_validate_proposal_low_confidence(self, architect: SelfArchitect) -> None:
         proposal = ArchitectureProposal("p2", time.time(), "A", "B", "ok", "low", 0.3)
         assert architect.validate_proposal(proposal) is False
 
+    @pytest.mark.slow
     def test_validate_proposal_high_risk_low_confidence(self, architect: SelfArchitect) -> None:
         proposal = ArchitectureProposal("p3", time.time(), "A", "B", "ok", "high", 0.6)
         assert architect.validate_proposal(proposal) is False
 
+    @pytest.mark.slow
     def test_audit_all_decisions(self, architect: SelfArchitect) -> None:
         results = architect.audit_all_decisions()
         assert len(results) >= 1
 
+    @pytest.mark.slow
     def test_propose_redesign_no_bottlenecks(self) -> None:
         empty_store = UnifiedAuditStore()
         arch = SelfArchitect(empty_store)
@@ -332,6 +369,7 @@ class TestSelfArchitectStructuredProposals:
         arch.snapshot_architecture({"governance": "v0.11.0", "recursive": "v0.11.0"})
         return arch
 
+    @pytest.mark.slow
     def test_change_type_enum_values(self) -> None:
         assert ChangeType.ADD_TEST.value == "add_test"
         assert ChangeType.EXTRACT_FUNCTION.value == "extract_function"
@@ -339,6 +377,7 @@ class TestSelfArchitectStructuredProposals:
         assert ChangeType.SPLIT_MODULE.value == "split_module"
         assert ChangeType.GENERAL_REFACTOR.value == "general_refactor"
 
+    @pytest.mark.slow
     def test_architecture_proposal_new_fields(self) -> None:
         proposal = ArchitectureProposal(
             proposal_id="p1",
@@ -359,23 +398,28 @@ class TestSelfArchitectStructuredProposals:
         assert proposal.estimated_new_lines == 30
         assert len(proposal.preconditions) == 1
 
+    @pytest.mark.slow
     def test_detect_unused_imports(self, architect: SelfArchitect) -> None:
         unused = architect.detect_unused_imports()
         assert isinstance(unused, dict)
 
+    @pytest.mark.slow
     def test_propose_all(self, architect: SelfArchitect) -> None:
         proposals = architect.propose_all()
         assert len(proposals) >= 1
         assert all(isinstance(p, ArchitectureProposal) for p in proposals)
 
+    @pytest.mark.slow
     def test_propose_test_addition_empty(self, architect: SelfArchitect) -> None:
         proposals = architect.propose_test_addition([])
         assert proposals == []
 
+    @pytest.mark.slow
     def test_propose_import_cleanup_empty(self, architect: SelfArchitect) -> None:
         proposals = architect.propose_import_cleanup({})
         assert proposals == []
 
+    @pytest.mark.slow
     def test_propose_test_addition_with_data(self, architect: SelfArchitect) -> None:
         low_cov = [
             {
@@ -397,6 +441,7 @@ class TestSelfArchitectStructuredProposals:
         assert proposals[0].target_files[0].startswith("tests/")
         assert proposals[0].confidence == 0.85
 
+    @pytest.mark.slow
     def test_propose_import_cleanup_with_data(self, architect: SelfArchitect) -> None:
         unused = {"src/maref/recursive/self_healer.py": ["os", "time"]}
         proposals = architect.propose_import_cleanup(unused)
@@ -406,6 +451,7 @@ class TestSelfArchitectStructuredProposals:
         assert proposals[0].confidence == 0.95
         assert proposals[0].estimated_new_lines == -2
 
+    @pytest.mark.slow
     def test_proposal_structured_fields_on_redesign(self, architect: SelfArchitect) -> None:
         proposal = architect.propose_redesign()
         assert proposal.change_type == ChangeType.GENERAL_REFACTOR

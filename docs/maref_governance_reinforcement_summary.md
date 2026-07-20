@@ -75,7 +75,7 @@ Trae、OpenCode、Cursor 等 IDE 在 MAREF 中处于"配置已注册、拦截未
 ### 1. 启动修复版 Sidecar
 ```bash
 # 启动修复版 sidecar
-cd /Volumes/1TB-M2/public/maref
+cd $PROJECT_ROOT
 python3 scripts/start_fixed_sidecar.py
 
 # 或直接使用
@@ -106,7 +106,7 @@ cp scripts/trae_mcp_config.json ~/.trae/mcp_config.json
 ### 3. 配置 OpenCode
 ```bash
 # opencode.json 会自动在项目根目录被发现
-# 文件已创建在: /Volumes/1TB-M2/public/maref/opencode.json
+# 文件已创建在: $PROJECT_ROOT/opencode.json
 ```
 
 ### 4. 配置 Cursor (类似 Trae)

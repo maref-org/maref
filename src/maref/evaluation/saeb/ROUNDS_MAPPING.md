@@ -1,6 +1,6 @@
 # rounds.jsonl → SAEB Metrics Mapping
 
-## Source: `/Volumes/1TB-M2/openclaw/vault/evolution/2026-06-07/rounds.jsonl`
+## Source: `$OPENCLAW_ROOT/vault/evolution/2026-06-07/rounds.jsonl`
 - 601 rounds across 3 cycles (c1: 50, c2: 100, c3: ~451)
 - Round 0 of each cycle has real data; subsequent rounds are zero-filled ticks
 - `test_pass_rate`, `coverage_pct`, `entropy`, `transition_count`, `meta_stats`, `real_metrics` all null/empty

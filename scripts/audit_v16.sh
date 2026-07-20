@@ -6,7 +6,7 @@
 
 set -u
 
-PROJECT_DIR="/Volumes/1TB-M2/public/maref"
+PROJECT_DIR="$PROJECT_ROOT"
 LOG_FILE="$PROJECT_DIR/reports/audit_v16.log"
 ALERT_LOG="$PROJECT_DIR/reports/audit_v16_alerts.log"
 V16_LOG="$PROJECT_DIR/reports/autonomous_48h_v16.log"

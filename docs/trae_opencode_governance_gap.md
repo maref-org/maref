@@ -72,7 +72,7 @@ Implement MCP (Model Context Protocol) servers for each IDE that:
 
 ### 1. Test Current Endpoints
 ```bash
-cd /Volumes/1TB-M2/public/maref
+cd $PROJECT_ROOT
 python3 scripts/test_governance_endpoint.py
 ```
 

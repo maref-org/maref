@@ -4,7 +4,7 @@
 
 set -e
 
-PROJECT_ROOT="/Volumes/1TB-M2/public/maref"
+PROJECT_ROOT="$PROJECT_ROOT"
 MISSION_DIR=".missions/v0.28.0-operational-layer"
 
 # 颜色定义
