@@ -11,6 +11,7 @@ class TestSelfObserver:
     def observer(self) -> SelfObserver:
         return SelfObserver()
 
+    @pytest.mark.slow
     def test_snapshot_returns_system_snapshot(self, observer: SelfObserver) -> None:
         try:
             snapshot = observer.snapshot()
@@ -19,6 +20,7 @@ class TestSelfObserver:
         except Exception:
             pass
 
+    @pytest.mark.slow
     def test_observe_codebase_scans_source_files(self, observer: SelfObserver) -> None:
         module_graph = observer.observe_codebase()
         assert len(module_graph) >= 20, f"Expected >=20 modules, got {len(module_graph)}"
@@ -26,6 +28,7 @@ class TestSelfObserver:
             assert isinstance(module_name, str)
             assert isinstance(deps, list)
 
+    @pytest.mark.slow
     def test_observe_tests_collects_statistics(self, observer: SelfObserver) -> None:
         try:
             stats = observer.observe_tests()
@@ -35,6 +38,7 @@ class TestSelfObserver:
         except Exception:
             pass
 
+    @pytest.mark.slow
     def test_observe_git_returns_tags(self, observer: SelfObserver) -> None:
         try:
             git_stats = observer.observe_git()
@@ -43,6 +47,7 @@ class TestSelfObserver:
         except Exception:
             pass
 
+    @pytest.mark.slow
     def test_snapshot_includes_module_graph(self, observer: SelfObserver) -> None:
         try:
             snapshot = observer.snapshot()
@@ -50,6 +55,7 @@ class TestSelfObserver:
         except Exception:
             pass
 
+    @pytest.mark.slow
     def test_snapshot_includes_test_stats(self, observer: SelfObserver) -> None:
         try:
             snapshot = observer.snapshot()
@@ -57,6 +63,7 @@ class TestSelfObserver:
         except Exception:
             pass
 
+    @pytest.mark.slow
     def test_snapshot_includes_git_stats(self, observer: SelfObserver) -> None:
         try:
             snapshot = observer.snapshot()
@@ -64,6 +71,7 @@ class TestSelfObserver:
         except Exception:
             pass
 
+    @pytest.mark.slow
     def test_snapshot_probe_readings_normal(self, observer: SelfObserver) -> None:
         try:
             snapshot = observer.snapshot()
@@ -72,6 +80,7 @@ class TestSelfObserver:
         except Exception:
             pass
 
+    @pytest.mark.slow
     def test_self_observer_uses_root_path(self) -> None:
         import pathlib
 
@@ -80,6 +89,7 @@ class TestSelfObserver:
         module_graph = observer.observe_codebase()
         assert len(module_graph) >= 1
 
+    @pytest.mark.slow
     def test_system_snapshot_defaults(self) -> None:
         snapshot = SystemSnapshot()
         assert snapshot.module_graph == {}

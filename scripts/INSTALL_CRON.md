@@ -6,7 +6,7 @@
 
 ```bash
 # 1. 复制配置文件到 launchd 目录
-cp /Volumes/1TB-M2/maref-experiments/scripts/com.maref.memory-monitor.plist ~/Library/LaunchAgents/
+cp $MAREF_EXP_ROOT/scripts/com.maref.memory-monitor.plist ~/Library/LaunchAgents/
 
 # 2. 加载配置
 launchctl load ~/Library/LaunchAgents/com.maref.memory-monitor.plist
@@ -15,14 +15,14 @@ launchctl load ~/Library/LaunchAgents/com.maref.memory-monitor.plist
 launchctl list | grep maref
 
 # 4. 查看日志（可选）
-tail -f /Volumes/1TB-M2/maref-experiments/scripts/memory_monitor_cron.log
+tail -f $MAREF_EXP_ROOT/scripts/memory_monitor_cron.log
 ```
 
 ## 配置说明
 
 - **监控频率**：每小时执行一次（3600秒）
 - **自动清理**：内存使用率 ≥ 90% 时自动执行紧急清理
-- **日志位置**：`/Volumes/1TB-M2/maref-experiments/scripts/memory_monitor_cron.log`
+- **日志位置**：`$MAREF_EXP_ROOT/scripts/memory_monitor_cron.log`
 
 ## 卸载方式
 
@@ -39,6 +39,6 @@ rm ~/Library/LaunchAgents/com.maref.memory-monitor.plist
 在加载前，可以先手动测试脚本：
 
 ```bash
-bash /Volumes/1TB-M2/maref-experiments/scripts/cron_memory_monitor.sh
-cat /Volumes/1TB-M2/maref-experiments/scripts/memory_monitor_cron.log
+bash $MAREF_EXP_ROOT/scripts/cron_memory_monitor.sh
+cat $MAREF_EXP_ROOT/scripts/memory_monitor_cron.log
 ```

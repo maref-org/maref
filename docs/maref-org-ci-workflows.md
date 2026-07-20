@@ -1,8 +1,8 @@
 # MAREF-ORG CI/CD 工作流配置方案
 
 > **目标**: 将 OpenClaw 的 CI 基础设施适配到 maref-org/maref 独立开源仓库
-> **代码库**: `/Volumes/1TB-M2/public/maref` → GitHub: `maref-org/maref`
-> **文档库**: `/Volumes/1TB-M2/Athena知识库/.../MAREF递归演进框架/`（独立，不进入代码库）
+> **代码库**: `$PROJECT_ROOT` → GitHub: `maref-org/maref`
+> **文档库**: `$ATHENA_KB_ROOT/.../MAREF递归演进框架/`（独立，不进入代码库）
 > **生成日期**: 2026-05-25
 
 ---
@@ -12,7 +12,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  代码库 (Code Repository)                                        │
-│  本地: /Volumes/1TB-M2/public/maref                             │
+│  本地: $PROJECT_ROOT                             │
 │  GitHub: https://github.com/maref-org/maref                     │
 │                                                                  │
 │  包含: src/, tests/, docs/ (技术文档), .github/workflows/       │
@@ -21,20 +21,20 @@
                               ↕ 隔离边界
 ┌─────────────────────────────────────────────────────────────────┐
 │  文档库 (Document Repository)                                    │
-│  本地: /Volumes/1TB-M2/Athena知识库/.../MAREF递归演进框架/       │
+│  本地: $ATHENA_KB_ROOT/.../MAREF递归演进框架/       │
 │                                                                  │
 │  包含: 策略文档, PERCV研究报告, 申报材料, 待执行, 归档/          │
 │  不包含: 源代码, 测试代码, CI配置                                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**红线规则**: 任何策略文档、申报材料、PERCV 研究报告**不得**进入 `/Volumes/1TB-M2/public/maref` 代码库。
+**红线规则**: 任何策略文档、申报材料、PERCV 研究报告**不得**进入 `$PROJECT_ROOT` 代码库。
 
 ---
 
 ## 二、工作流文件清单
 
-将以下文件创建到 `/Volumes/1TB-M2/public/maref/.github/workflows/`：
+将以下文件创建到 `$PROJECT_ROOT/.github/workflows/`：
 
 ### 2.1 核心 CI 工作流
 
@@ -322,7 +322,7 @@ jobs:
 ### Step 1: 创建工作流目录
 
 ```bash
-cd /Volumes/1TB-M2/public/maref
+cd $PROJECT_ROOT
 mkdir -p .github/workflows
 ```
 

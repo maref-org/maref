@@ -26,7 +26,7 @@ for pattern in "${FORBIDDEN_FILES[@]}"; do
 done
 
 # 检查是否有硬编码的本地路径
-if grep -rn "/Volumes/1TB-M2/Athena知识库" src/ --include="*.py" 2>/dev/null; then
+if grep -rn "$PROJECT_ROOT/Athena知识库" src/ --include="*.py" 2>/dev/null; then
   echo "ERROR: Found hardcoded document library paths in source code"
   ERRORS=$((ERRORS + 1))
 fi

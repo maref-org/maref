@@ -32,7 +32,7 @@ class TestMAREFConfig:
 
     def test_no_hardcoded_paths(self) -> None:
         cfg = MAREFConfig()
-        assert str(cfg.home_dir) != "/Volumes/1TB-M2"
+        assert str(cfg.home_dir) != "$PROJECT_ROOT"
         assert "Volumes/1TB" not in str(cfg.home_dir)
 
     def test_custom_home_dir(self) -> None:

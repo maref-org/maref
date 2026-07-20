@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['/Volumes/1TB-M2/public/maref/packaging/sidecar_boot.py'],
-    pathex=['/Volumes/1TB-M2/public/maref/src'],
+    ['./packaging/sidecar_boot.py'],
+    pathex=['./src'],
     binaries=[],
-    datas=[('/Volumes/1TB-M2/public/maref/packaging/sidecar_boot.py', 'packaging')],
+    datas=[('./packaging/sidecar_boot.py', 'packaging')],
     hiddenimports=['cryptography', 'cryptography.x509', 'uvicorn', 'uvicorn.logging', 'uvicorn.loops.auto', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.websockets.auto', 'uvicorn.middleware.wsgi', 'fastapi', 'fastapi.routing', 'pydantic', 'pydantic.deprecated', 'starlette', 'starlette.middleware.cors', 'starlette.routing', 'starlette.websockets', 'sse_starlette', 'websockets', 'websockets.legacy.server', 'maref', 'maref.governance', 'maref.integration', 'maref.integration.a2a_bridge', 'maref.integration.a2a_server', 'maref.integration.mcp_security', 'maref.integration.mcp_server', 'maref.integration.mcp_transport', 'maref.observability', 'maref.observability.guardrail_metrics', 'maref.observability.metric_store', 'maref.observability.security_headers_middleware', 'maref.recursive', 'maref.recursive.cost_tracker', 'maref.obs', 'sidecar', 'sidecar.collector', 'sidecar.exfiltration_probe', 'sidecar.gaas_router', 'sidecar.mcp_bridge', 'sidecar.mcp_gateway', 'sidecar.monitor', 'sidecar.obs_bridge', 'sidecar.server'],
     hookspath=[],
     hooksconfig={},

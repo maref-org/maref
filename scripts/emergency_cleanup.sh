@@ -31,14 +31,14 @@ done
 
 # 4. 清理 Python 缓存
 echo "🧹 清理 Python 缓存..."
-find /Volumes/1TB-M2/maref-experiments -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-find /Volumes/1TB-M2/maref-experiments -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-find /Volumes/1TB-M2/maref-experiments -name "*.pyc" -delete 2>/dev/null || true
+find $PROJECT_ROOT/maref-experiments -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find $PROJECT_ROOT/maref-experiments -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+find $PROJECT_ROOT/maref-experiments -name "*.pyc" -delete 2>/dev/null || true
 
 # 5. 清理测试覆盖率报告
 echo "🧹 清理测试覆盖率报告..."
-rm -rf /Volumes/1TB-M2/maref-experiments/htmlcov 2>/dev/null || true
-rm -f /Volumes/1TB-M2/maref-experiments/.coverage* 2>/dev/null || true
+rm -rf $PROJECT_ROOT/maref-experiments/htmlcov 2>/dev/null || true
+rm -f $PROJECT_ROOT/maref-experiments/.coverage* 2>/dev/null || true
 
 # 6. 显示清理后的内存状况
 echo ""

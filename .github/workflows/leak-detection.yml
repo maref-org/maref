@@ -1,0 +1,48 @@
+name: Leak Detection
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for internal paths
+        run: |
+          echo "=== 检查内部卷路径 ==="
+          ! grep -r "/Volumes/1TB-M2" --include="*.py" --include="*.sh" \
+            --include="*.md" --include="*.yaml" --include="*.yml" \
+            --include="*.json" --include="*.toml" . 2>/dev/null || \
+            (echo "❌ 发现内部路径泄露" && exit 1)
+          echo "✅ 通过"
+
+      - name: Scan for API keys
+        run: |
+          echo "=== 检查 API 密钥 ==="
+          ! grep -rE "(sk-[a-zA-Z0-9]{32,}|nvapi-[a-zA-Z0-9_-]+|ark-[a-zA-Z0-9-]{20,})" \
+            --include="*.py" --include="*.sh" --include="*.env" --include="*.json" \
+            --include="*.yaml" . 2>/dev/null || \
+            (echo "❌ 发现 API 密钥泄露" && exit 1)
+          echo "✅ 通过"
+
+      - name: Scan for proprietary filenames
+        run: |
+          echo "=== 检查专有文件名 ==="
+          ! git ls-files | grep -E "(SOUL\.md|IDENTITY\.md|HEARTBEAT\.md|TOOLS\.md|USER\.md)$" || \
+            (echo "❌ 发现专有文件被追踪" && exit 1)
+          echo "✅ 通过"
+
+      - name: Scan for private org references
+        run: |
+          echo "=== 检查私有组织引用 ==="
+          ! grep -r "frankiehot-tech" --include="*.py" --include="*.sh" \
+            --include="*.md" --include="*.yaml" --include="*.yml" \
+            --include="*.json" . 2>/dev/null || \
+            (echo "❌ 发现私有组织名引用" && exit 1)
+          echo "✅ 通过"

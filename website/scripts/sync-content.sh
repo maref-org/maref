@@ -7,8 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 WEBSITE_CONTENT="$PROJECT_DIR/src/content"
-PUBLIC_MAREF="/Volumes/1TB-M2/public/maref"
-KNOWLEDGE_BASE="/Volumes/1TB-M2/Athena知识库/执行项目/2026/003-open human（碳硅基共生）/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架"
+PUBLIC_MAREF="$PROJECT_ROOT"
+KNOWLEDGE_BASE="$PROJECT_ROOT/Athena知识库/执行项目/2026/003-open human（碳硅基共生）/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架"
 
 DRY_RUN=false
 SYNC_BLOG=false

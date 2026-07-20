@@ -3,7 +3,7 @@ MAREF Governance for CrewAI — Demo
 ======================================================================
 This demo shows MAREF governance primitives wrapping CrewAI crews.
 No LLM API key required — governance runs locally.
-MAREF source: /Volumes/1TB-M2/public/maref/src
+MAREF source: ./src
 Audit path:   /tmp/maref_crewai_demo_audit
 
 ======================================================================

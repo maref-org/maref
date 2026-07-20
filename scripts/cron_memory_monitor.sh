@@ -1,7 +1,7 @@
 #!/bin/bash
 # MAREF 定期内存监控脚本 - 由 launchd 调用
 
-PROJECT_DIR="/Volumes/1TB-M2/maref-experiments"
+PROJECT_DIR="$PROJECT_ROOT/maref-experiments"
 MONITOR_SCRIPT="$PROJECT_DIR/scripts/memory_monitor.py"
 LOG_FILE="$PROJECT_DIR/scripts/memory_monitor_cron.log"
 

@@ -76,16 +76,19 @@ class TestSelfHealer:
         d = SelfDiagnostician()
         return d.diagnose(snapshot)
 
+    @pytest.mark.slow
     def test_triage_test_failure(
         self, healer: SelfHealer, critical_report: DiagnosisReport
     ) -> None:
         problem_types = healer.triage(critical_report)
         assert "test_failure" in problem_types
 
+    @pytest.mark.slow
     def test_triage_normal_report(self, healer: SelfHealer, normal_report: DiagnosisReport) -> None:
         problem_types = healer.triage(normal_report)
         assert "unknown" in problem_types
 
+    @pytest.mark.slow
     def test_heal_returns_actions(self, healer: SelfHealer) -> None:
         actions = healer.heal(["test_failure", "coverage_drop"])
         assert len(actions) == 2
@@ -94,16 +97,19 @@ class TestSelfHealer:
         assert actions[0].applied is True
         assert actions[0].success is True
 
+    @pytest.mark.slow
     def test_heal_actions_have_exit_code(self, healer: SelfHealer) -> None:
         actions = healer.heal(["test_failure"])
         assert actions[0].exit_code == 0
 
+    @pytest.mark.slow
     def test_heal_cycle_converges(self, healer: SelfHealer, normal_report: DiagnosisReport) -> None:
         healing = healer.heal_cycle(normal_report)
         assert healing.converged is True
         assert healing.final_state == "HEALTHY"
         assert healing.iterations == 0
 
+    @pytest.mark.slow
     def test_heal_cycle_critical_max_iterations(
         self, healer: SelfHealer, critical_report: DiagnosisReport
     ) -> None:
@@ -111,12 +117,14 @@ class TestSelfHealer:
         assert healing.iterations >= 1
         assert len(healing.actions) >= 1
 
+    @pytest.mark.slow
     def test_heal_cycle_stores_history(
         self, healer: SelfHealer, critical_report: DiagnosisReport
     ) -> None:
         healer.heal_cycle(critical_report)
         assert len(healer.history) == 1
 
+    @pytest.mark.slow
     def test_heal_cycle_with_re_diagnose(
         self, healer: SelfHealer, critical_report: DiagnosisReport
     ) -> None:
@@ -139,6 +147,7 @@ class TestSelfHealer:
         assert healing.converged is True
         assert healing.final_state == "RECOVERED"
 
+    @pytest.mark.slow
     def test_heal_cycle_failing_all_strategies(
         self, healer_failing: SelfHealer, critical_report: DiagnosisReport
     ) -> None:
@@ -146,6 +155,7 @@ class TestSelfHealer:
         assert healing.converged is False
         assert healing.final_state == "DEGRADED"
 
+    @pytest.mark.slow
     def test_healing_strategies_complete(self) -> None:
         assert len(HEALING_STRATEGIES) >= 6
         assert "test_failure" in HEALING_STRATEGIES
@@ -154,6 +164,7 @@ class TestSelfHealer:
         assert "performance_regression" in HEALING_STRATEGIES
         assert "import_error" in HEALING_STRATEGIES
 
+    @pytest.mark.slow
     def test_heal_action_dataclass(self) -> None:
         action = HealAction(
             problem_type="test_failure", strategy="rerun", applied=True, result="passed"
@@ -161,12 +172,14 @@ class TestSelfHealer:
         assert action.problem_type == "test_failure"
         assert action.applied is True
 
+    @pytest.mark.slow
     def test_heal_action_success_property(self) -> None:
         good = HealAction(problem_type="t", strategy="s", exit_code=0)
         assert good.success is True
         bad = HealAction(problem_type="t", strategy="s", exit_code=1)
         assert bad.success is False
 
+    @pytest.mark.slow
     def test_healing_record_to_unified(self) -> None:
         record = HealingRecord(
             actions=[
@@ -184,22 +197,26 @@ class TestSelfHealer:
         assert unified[0].outcome == "success"
         assert unified[1].outcome == "failure"
 
+    @pytest.mark.slow
     def test_real_executor_rerun_tests(self, healer_real: SelfHealer) -> None:
         actions = healer_real.heal(["test_failure"])
         assert len(actions) == 1
         assert actions[0].applied is True
         assert isinstance(actions[0].exit_code, int)
 
+    @pytest.mark.slow
     def test_real_executor_pip_check(self, healer_real: SelfHealer) -> None:
         actions = healer_real.heal(["dependency_conflict"])
         assert len(actions) == 1
         assert isinstance(actions[0].exit_code, int)
 
+    @pytest.mark.slow
     def test_real_executor_full_scan(self, healer_real: SelfHealer) -> None:
         actions = healer_real.heal(["unknown"])
         assert len(actions) == 1
         assert actions[0].applied is True
 
+    @pytest.mark.slow
     def test_real_executor_missing_dependency(self, healer_real: SelfHealer) -> None:
         actions = healer_real.heal(["import_error"])
         assert len(actions) == 1

@@ -279,7 +279,7 @@ def main():
         print(f"审计数据: 从 0 条到 >0 条")
         print(f"\n下一步: 重启 IDE 使配置生效:")
         print(f"  • Trae: 完全退出并重启")
-        print(f"  • OpenCode: 在项目目录 '/Volumes/1TB-M2/public/maref' 中重启")
+        print(f"  • OpenCode: 在项目目录 '$PROJECT_ROOT' 中重启")
         print(f"  • 检查审计日志: tail -f ~/.maref_mcp_guard_audit.log")
     else:
         print(f"\n⚠️  部分测试未通过")

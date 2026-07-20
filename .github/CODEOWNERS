@@ -3,28 +3,28 @@
 # NOTE: @maref-org/maintainers team must be created in GitHub organization settings
 
 # Default owners for everything in the repo
-* @frankiehot-tech @maref-org/maintainers
+* @maref-org @maref-org/maintainers
 
 # Python / backend
-*.py @frankiehot-tech @maref-org/maintainers
-src/ @frankiehot-tech @maref-org/maintainers
+*.py @maref-org @maref-org/maintainers
+src/ @maref-org @maref-org/maintainers
 
 # Frontend / GUI
-gui/ @frankiehot-tech @maref-org/maintainers
-gui/**/*.ts @frankiehot-tech @maref-org/maintainers
-gui/**/*.tsx @frankiehot-tech @maref-org/maintainers
+gui/ @maref-org @maref-org/maintainers
+gui/**/*.ts @maref-org @maref-org/maintainers
+gui/**/*.tsx @maref-org @maref-org/maintainers
 
 # Rust / Tauri
-gui/src-tauri/ @frankiehot-tech @maref-org/maintainers
+gui/src-tauri/ @maref-org @maref-org/maintainers
 
 # CI/CD
-.github/workflows/ @frankiehot-tech @maref-org/maintainers
-.github/dependabot.yml @frankiehot-tech @maref-org/maintainers
+.github/workflows/ @maref-org @maref-org/maintainers
+.github/dependabot.yml @maref-org @maref-org/maintainers
 
 # Documentation
-docs/ @frankiehot-tech @maref-org/maintainers
-*.md @frankiehot-tech @maref-org/maintainers
+docs/ @maref-org @maref-org/maintainers
+*.md @maref-org @maref-org/maintainers
 
 # Security
-security/ @frankiehot-tech @maref-org/maintainers
-DEPENDENCIES @frankiehot-tech @maref-org/maintainers
+security/ @maref-org @maref-org/maintainers
+DEPENDENCIES @maref-org @maref-org/maintainers

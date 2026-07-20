@@ -208,7 +208,7 @@ class EvolutionDaemon:
     <string>com.maref.evolution-daemon</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/frankie/bin/drive-wait.sh</string>
+        <string>/usr/local/bin/drive-wait.sh</string>
         <string>{executable}</string>
         <string>-m</string>
         <string>maref.evolution.daemon</string>
@@ -240,7 +240,7 @@ class EvolutionDaemon:
         <key>PATH</key>
         <string>{os.environ.get("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")}</string>
         <key>HOME</key>
-        <string>/Users/frankie</string>
+        <string>/home/developer</string>
     </dict>
 </dict>
 </plist>

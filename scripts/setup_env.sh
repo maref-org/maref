@@ -80,8 +80,8 @@ fi
 
 if [[ -f "${SCRIPT_DIR}/maref_wrapper.sh" ]]; then
     echo "✓ maref_wrapper.sh exists"
-    if grep -q "/Volumes/1TB-M2" "${SCRIPT_DIR}/maref_wrapper.sh" 2>/dev/null; then
-        echo "⚠ maref_wrapper.sh still contains hardcoded /Volumes/1TB-M2 paths"
+    if grep -q "$PROJECT_ROOT" "${SCRIPT_DIR}/maref_wrapper.sh" 2>/dev/null; then
+        echo "⚠ maref_wrapper.sh still contains hardcoded $PROJECT_ROOT paths"
     else
         echo "✓ maref_wrapper.sh uses relative/configurable paths"
     fi

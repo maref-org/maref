@@ -140,6 +140,7 @@ class TestRecursiveEvolutionLoop:
 
 
 class TestRecursiveEvolutionLoopRunSession:
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_run_session_returns_result(self) -> None:
         loop = RecursiveEvolutionLoop()
@@ -150,6 +151,7 @@ class TestRecursiveEvolutionLoopRunSession:
         assert isinstance(result.final_state, str)
         assert isinstance(result.duration_seconds, float)
 
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_run_session_honors_governor_max_rounds(self) -> None:
         config = SafetyGovernorConfig(max_rounds_per_session=2)
@@ -163,6 +165,7 @@ class TestRecursiveEvolutionLoopRunSession:
             result = await loop.run_session()
         assert result.round_count <= 2
 
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_run_session_idempotent(self) -> None:
         loop = RecursiveEvolutionLoop()

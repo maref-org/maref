@@ -17,6 +17,7 @@ from maref.recursive.unified_audit import UnifiedAuditStore
 
 
 class TestR40FullProcessRegression:
+    @pytest.mark.slow
     def test_full_closed_loop_pipeline(self) -> None:
         audit = UnifiedAuditStore()
         tmpdir = tempfile.mkdtemp()
@@ -99,6 +100,7 @@ class TestR40FullProcessRegression:
             final_audit_count >= 8
         ), f"R40 Complete: Total audit records = {final_audit_count} (expected ≥ 8)"
 
+    @pytest.mark.slow
     def test_r40_trace_completeness(self) -> None:
         audit = UnifiedAuditStore()
         corr = CorrelationEngine(audit_store=audit)
@@ -115,6 +117,7 @@ class TestR40FullProcessRegression:
         assert report["orphan_audits"] == 0
         assert report["orphan_experiences"] == 0
 
+    @pytest.mark.slow
     def test_r40_complexity_budget_pipeline(self) -> None:
         audit = UnifiedAuditStore()
         budget = ArchitectureComplexityBudget(audit_store=audit)

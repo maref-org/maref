@@ -1,7 +1,7 @@
 # maref.cc 网站规范
 
-> **上位法**: [宪法第四-A条](/Volumes/1TB-M2/openclaw/CLAUDE.md) → [双仓库操作规范](/Volumes/1TB-M2/openclaw/AGENT_ARCHITECTURE.md)
-> **设计素材源**: `/Volumes/1TB-M2/Athena知识库/执行项目/2026/003-open human（碳硅基共生）/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架/22-maref.cc网站/maref.cc-网站素材研究报告.md`
+> **上位法**: [宪法第四-A条]($OPENCLAW_ROOT/CLAUDE.md) → [双仓库操作规范]($OPENCLAW_ROOT/AGENT_ARCHITECTURE.md)
+> **设计素材源**: `$ATHENA_KB_ROOT/执行项目/2026/003-open human（碳硅基共生）/018-v0.2.0-活跃/021-架构设计/MAREF递归演进框架/22-maref.cc网站/maref.cc-网站素材研究报告.md`
 > **版本**: v1.0 | **生效**: 2026-06-13 | **维护者**: 所有 Code Agent
 
 ---
@@ -22,7 +22,7 @@
 ### 1.2 治理归属（重要）
 
 ```
-源仓库: openclaw/ (Track A — frankiehot-tech/Athena 私仓)
+源仓库: openclaw (Track A — maref-org/maref 私仓)
 部署目标: Cloudflare Pages (基础设施，非 git push to public)
 
 不可向 maref-org/maref 推送网站代码（违反宪法第四-A条）
@@ -31,7 +31,7 @@
 
 **预检清单（每次操作前）**:
 ```bash
-pwd                                    # 必须在 /Volumes/1TB-M2/openclaw/apps/maref-cc/
+pwd                                    # 必须在 $OPENCLAW_ROOT/apps/maref-cc/
 ls .git/hooks/pre-push .git/hooks/pre-commit  # hook 必须存在
 ```
 
@@ -132,7 +132,7 @@ openclaw/apps/maref-cc/
 
 ### 2.4 Logo 使用
 
-- Logo 文件: `/Volumes/1TB-M2/openclaw/assets/brand/maref-logo-400.png`
+- Logo 文件: `$OPENCLAW_ROOT/assets/brand/maref-logo-400.png`
 - 始终使用原始 Logo，不重新绘制
 - 深色背景上用白色/青色 Logo
 - 最小尺寸: 32px（favicon）/ 120px（导航）
@@ -459,18 +459,18 @@ npm run deploy          # 部署到 Cloudflare Pages
 
 ```bash
 # 1. 确认在正确目录
-cd /Volumes/1TB-M2/openclaw/apps/maref-cc/
+cd $OPENCLAW_ROOT/apps/maref-cc/
 pwd
 
 # 2. 确认仓库合规
-git remote -v | grep frankiehot-tech/Athena
+git remote -v | grep maref-org/maref
 
 # 3. 确认 hook 存在
 ls .git/hooks/pre-push .git/hooks/pre-commit
 
 # 4. 读一遍本规范（WEBSITE_SPEC.md）
 # 5. 读当前 STATE.yaml
-cat /Volumes/1TB-M2/public/maref/STATE.yaml
+cat $PROJECT_ROOT/STATE.yaml
 ```
 
 ### 10.2 禁止的操作

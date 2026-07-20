@@ -32,7 +32,7 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _read_state() -> dict | None:
     """Parse STATE.yaml."""
     if not os.path.isfile(_STATE_PATH):
-        alt = "/Volumes/1TB-M2/public/maref/STATE.yaml"
+        alt = "$PROJECT_ROOT/STATE.yaml"
         if os.path.isfile(alt):
             with open(alt) as f:
                 return _parse_yaml(f.read())

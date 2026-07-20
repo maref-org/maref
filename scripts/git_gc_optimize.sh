@@ -4,7 +4,7 @@
 
 set -e
 
-PROJECT_DIR="/Volumes/1TB-M2/maref-experiments"
+PROJECT_DIR="$PROJECT_ROOT/maref-experiments"
 LOG_FILE="$PROJECT_DIR/scripts/git_gc.log"
 
 echo "========================================" >> "$LOG_FILE"
