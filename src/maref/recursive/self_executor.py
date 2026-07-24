@@ -244,8 +244,14 @@ import {{ describe, it, expect }} from 'vitest';
                     )
                     result = _future.result(timeout=120)
             except RuntimeError:
-                # No running loop — direct asyncio.run() is safe
-                result = asyncio.run(self._llm_generator.generate(proposal))
+                # Fix 36: direct asyncio.run() with timeout to prevent infinite hang
+                # when the LLM HTTP call has no timeout configured.
+                async def _run_llm_with_timeout() -> Any:
+                    return await asyncio.wait_for(
+                        self._llm_generator.generate(proposal),
+                        timeout=120.0,
+                    )
+                result = asyncio.run(_run_llm_with_timeout())
 
             if result.success and result.generated:
                 gen = result.generated[0]
@@ -814,7 +820,28 @@ class SelfExecutor:
         if not self._use_new_loop or self._codegen_loop is None:
             import asyncio
             loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(None, self.execute, proposal, round_num)
+            try:
+                # Fix 36: global 300s timeout on execute() to prevent infinite
+                # hang.  Without this, if any pipeline stage (LLM code gen,
+                # safety gate, verification) blocks the thread indefinitely,
+                # run_until_complete never unblocks and the cycle hangs.
+                return await asyncio.wait_for(
+                    loop.run_in_executor(None, self.execute, proposal, round_num),
+                    timeout=300.0,
+                )
+            except asyncio.TimeoutError:
+                record = ExecutionPipelineRecord(
+                    pipeline_id=f"exec_pipeline_{int(time.time())}_timedout",
+                    proposal_id=getattr(proposal, "proposal_id", "unknown"),
+                )
+                record.final_state = "FAILED_TIMEOUT"
+                record.finish()
+                self._history.append(record)
+                logger.error(
+                    "Fix 36: execute() timed out after 300s for %s",
+                    getattr(proposal, "proposal_id", "unknown"),
+                )
+                return record
         from maref.codegen.tool import ToolContext
         from maref.tools.edit_tool import EditInput
         from maref.tools.lint_tool import LintInput
