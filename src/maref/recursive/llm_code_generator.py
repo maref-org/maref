@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import ast
+import logging
 import os
 import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from maref.recursive.self_architect import ArchitectureProposal
@@ -49,7 +52,8 @@ class OpenAIProvider:
             kwargs: dict[str, Any] = {"api_key": self._api_key}
             if self._base_url:
                 kwargs["base_url"] = self._base_url
-            self._client = AsyncOpenAI(**kwargs)
+            import httpx
+            self._client = AsyncOpenAI(**kwargs, timeout=httpx.Timeout(120.0, connect=30.0))
         kwargs: dict[str, Any] = {  # type: ignore[no-redef]
             "model": self._model,
             "messages": [
@@ -88,8 +92,9 @@ class AnthropicProvider:
         max_tokens: int = 8192,
     ) -> str:
         if self._client is None:
+            import httpx
             from anthropic import AsyncAnthropic
-            self._client = AsyncAnthropic(api_key=self._api_key)
+            self._client = AsyncAnthropic(api_key=self._api_key, timeout=httpx.Timeout(120.0, connect=30.0))
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": max_tokens,
@@ -295,6 +300,58 @@ class CodeContextBuilder:
         return system_prompt, user_prompt
 
 
+class FallbackProvider:
+    """Wraps multiple LLM providers, tries each in order on failure.
+
+    If a provider raises an exception or returns an empty response,
+    the next provider in the list is tried automatically.
+    This solves the single-provider timeout/empty-response problem
+    in the autonomous loop's hypothesis execution phase.
+    """
+
+    def __init__(self, providers: list[LLMProvider]) -> None:
+        if not providers:
+            raise ValueError("FallbackProvider requires at least one provider")
+        self._providers = providers
+
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 4096,
+    ) -> str:
+        errors: list[str] = []
+        for i, provider in enumerate(self._providers):
+            try:
+                result = await provider.generate(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                if result and result.strip():
+                    return result
+                msg = f"{provider.name} returned empty response"
+                errors.append(msg)
+                logger.warning("FallbackProvider: %s (attempt %d/%d)", msg, i + 1, len(self._providers))
+            except Exception as e:
+                msg = f"{provider.name} error: {e}"
+                errors.append(msg)
+                logger.warning("FallbackProvider: %s (attempt %d/%d)", msg, i + 1, len(self._providers))
+        raise RuntimeError(
+            f"All {len(self._providers)} providers failed: {'; '.join(errors)}"
+        )
+
+    @property
+    def name(self) -> str:
+        return "+".join(p.name for p in self._providers)
+
+    @property
+    def cost_per_token(self) -> tuple[float, float]:
+        return self._providers[0].cost_per_token
+
+
 class MockProvider:
     def __init__(self, stub_content: str = "") -> None:
         self._stub = stub_content or (
@@ -334,19 +391,28 @@ class LLMCodeGenerator:
 
     @staticmethod
     def _detect_provider() -> LLMProvider | None:
+        providers: list[LLMProvider] = []
         if os.environ.get("OPENAI_API_KEY"):
             try:
                 import openai  # noqa: F401
-                return OpenAIProvider()
+                providers.append(OpenAIProvider())
             except ImportError:
                 pass
         if os.environ.get("ANTHROPIC_API_KEY"):
             try:
                 import anthropic  # noqa: F401
-                return AnthropicProvider()
+                providers.append(AnthropicProvider())
             except ImportError:
                 pass
-        return None
+        if not providers:
+            return None
+        if len(providers) == 1:
+            return providers[0]
+        logger.info(
+            "LLMCodeGenerator: using FallbackProvider with %d providers: %s",
+            len(providers), [p.name for p in providers],
+        )
+        return FallbackProvider(providers)
 
     async def generate(
         self,
