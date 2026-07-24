@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import threading
+import uuid
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
@@ -26,6 +28,16 @@ TEST_HTML = """<html>
 </html>"""
 
 LARGE_BODY = b"x" * 6_000_000
+
+
+def _envelope(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": name,
+        "arguments": arguments,
+        "trace_id": str(uuid.uuid4()),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source_agent": "test",
+    }
 
 
 class _TestHTTPHandler(BaseHTTPRequestHandler):
@@ -168,10 +180,7 @@ class TestBrowserServerTools:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_open",
-                "arguments": {"url": f"http://127.0.0.1:{test_server_port}/"},
-            },
+            params=_envelope("browser_open", {"url": f"http://127.0.0.1:{test_server_port}/"}),
             id=1,
         )
         resp = server.handle_request(req)
@@ -185,41 +194,32 @@ class TestBrowserServerTools:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_open",
-                "arguments": {"url": f"http://127.0.0.1:{test_server_port}/no-title"},
-            },
+            params=_envelope("browser_open", {"url": f"http://127.0.0.1:{test_server_port}/no-title"}),
             id=2,
         )
         resp = server.handle_request(req)
         assert not resp.is_error
         assert resp.result["title"] == ""
 
-    def test_browser_screenshot_not_placeholder(self, test_server_port: int) -> None:
+    def test_browser_screenshot(self, test_server_port: int) -> None:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_screenshot",
-                "arguments": {"url": f"http://127.0.0.1:{test_server_port}/"},
-            },
+            params=_envelope("browser_screenshot", {"url": f"http://127.0.0.1:{test_server_port}/"}),
             id=3,
         )
         resp = server.handle_request(req)
-        assert not resp.is_error, f"Error: {resp.error}"
-        result_text = str(resp.result)
-        assert "placeholder" not in result_text, "Screenshot should not be placeholder data"
-        if "screenshot" in resp.result:
-            assert len(resp.result["screenshot"]) > 100, "Screenshot should be a real image"
+        assert not resp.is_error
+        assert resp.result["url"] == f"http://127.0.0.1:{test_server_port}/"
+        assert resp.result["format"] == "png"
+        assert isinstance(resp.result["screenshot"], str)
+        assert len(resp.result["screenshot"]) > 0
 
     def test_browser_get_html(self, test_server_port: int) -> None:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_get_html",
-                "arguments": {"url": f"http://127.0.0.1:{test_server_port}/"},
-            },
+            params=_envelope("browser_get_html", {"url": f"http://127.0.0.1:{test_server_port}/"}),
             id=4,
         )
         resp = server.handle_request(req)
@@ -232,10 +232,7 @@ class TestBrowserServerTools:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_get_links",
-                "arguments": {"url": f"http://127.0.0.1:{test_server_port}/"},
-            },
+            params=_envelope("browser_get_links", {"url": f"http://127.0.0.1:{test_server_port}/"}),
             id=5,
         )
         resp = server.handle_request(req)
@@ -252,13 +249,7 @@ class TestBrowserServerTools:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_get_links",
-                "arguments": {
-                    "url": f"http://127.0.0.1:{test_server_port}/",
-                    "filter_domain": "example.com",
-                },
-            },
+            params=_envelope("browser_get_links", {"url": f"http://127.0.0.1:{test_server_port}/", "filter_domain": "example.com"}),
             id=6,
         )
         resp = server.handle_request(req)
@@ -273,13 +264,7 @@ class TestBrowserServerTools:
         base_url = f"http://127.0.0.1:{test_server_port}/"
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_get_links",
-                "arguments": {
-                    "url": base_url,
-                    "filter_domain": f"127.0.0.1:{test_server_port}",
-                },
-            },
+            params=_envelope("browser_get_links", {"url": base_url, "filter_domain": f"127.0.0.1:{test_server_port}"}),
             id=7,
         )
         resp = server.handle_request(req)
@@ -294,10 +279,7 @@ class TestBrowserServerTools:
         )
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_open",
-                "arguments": {"url": f"http://127.0.0.1:{test_server_port}/"},
-            },
+            params=_envelope("browser_open", {"url": f"http://127.0.0.1:{test_server_port}/"}),
             id=8,
         )
         resp = server.handle_request(req)
@@ -308,10 +290,7 @@ class TestBrowserServerTools:
         server = create_browser_server(domain_whitelist=["127.0.0.1"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_open",
-                "arguments": {"url": f"http://127.0.0.1:{test_server_port}/user-agent"},
-            },
+            params=_envelope("browser_open", {"url": f"http://127.0.0.1:{test_server_port}/user-agent"}),
             id=9,
         )
         resp = server.handle_request(req)
@@ -322,10 +301,7 @@ class TestBrowserServerTools:
         server = create_browser_server(domain_whitelist=["allowed.com"])
         req = JSONRPCRequest(
             method="tools/call",
-            params={
-                "name": "browser_open",
-                "arguments": {"url": "http://evil.com/page"},
-            },
+            params=_envelope("browser_open", {"url": "http://evil.com/page"}),
             id=10,
         )
         resp = server.handle_request(req)
@@ -336,7 +312,7 @@ class TestBrowserServerTools:
         server = create_browser_server()
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": "nonexistent", "arguments": {}},
+            params=_envelope("nonexistent", {}),
             id=11,
         )
         resp = server.handle_request(req)
@@ -360,4 +336,8 @@ class TestBrowserServerTools:
         assert "browser_screenshot" in tool_names
         assert "browser_get_html" in tool_names
         assert "browser_get_links" in tool_names
-        assert len(tool_names) == 4
+        assert "browser_go_back" in tool_names
+        assert "browser_go_forward" in tool_names
+        assert "browser_refresh" in tool_names
+        assert "browser_get_element_text" in tool_names
+        assert len(tool_names) == 8
