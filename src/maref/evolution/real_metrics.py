@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -51,6 +52,10 @@ class RealMetricsCollector:
             return self._baseline
 
         self._baseline = self._run_all_checks()
+        # 如果 coverage 数据为空或过期，生成一次
+        if self._baseline.coverage_pct == 0.0:
+            cov = self.generate_coverage(timeout=180)
+            self._baseline.coverage_pct = cov
         self._last_baseline_time = now
         return self._baseline
 
@@ -110,14 +115,30 @@ class RealMetricsCollector:
             errors=errors,
         )
 
+    # 快速基准子集 — 从 SelfObserver._FAST_TEST_FILES 同步
+    _FAST_TESTS: list[str] = [
+        "tests/recursive/test_r12_audit.py",
+        "tests/recursive/test_r14_r17.py",
+        "tests/recursive/test_r7_kg.py",
+        "tests/recursive/test_r35_live_migration.py",
+        "tests/recursive/test_r47_orchestration_perf.py",
+        "tests/recursive/test_r80_hitl_v2.py",
+        "tests/recursive/test_self_optimizer.py",
+        "tests/recursive/test_self_diagnostician.py",
+        "tests/recursive/test_skill_schema.py",
+        "tests/recursive/test_r61_skill_schema_loader.py",
+    ]
+
     @staticmethod
     def _run_pytest(quick: bool = False) -> tuple[float, int, int]:
         try:
-            test_dirs = ["tests/cli/", "tests/unit/", "tests/governance/", "tests/redblue/"]
             if quick:
-                test_dirs = test_dirs[:2]
-            cmd = ["pytest", "--tb=no", "-q", "--no-header"] + test_dirs
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+                paths = RealMetricsCollector._FAST_TESTS[:3]
+            else:
+                paths = RealMetricsCollector._FAST_TESTS
+            cmd = [sys.executable, "-m", "pytest", "--tb=no", "-q", "--no-header",
+                   "--continue-on-collection-errors"] + paths
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             output = result.stdout + result.stderr
             import re
 
@@ -133,17 +154,37 @@ class RealMetricsCollector:
 
     @staticmethod
     def _run_coverage() -> float:
+        """读取已有 .coverage 数据（快速，不重新生成）。"""
         try:
             result = subprocess.run(
                 ["coverage", "report", "-m"],
-                capture_output=True,
-                text=True,
-                timeout=30,
+                capture_output=True, text=True, timeout=30,
             )
             output = result.stdout
             import re
-
             match = re.search(r"TOTAL.*?(\d+)%", output)
+            if match:
+                return float(match.group(1))
+        except Exception:
+            pass
+        return 0.0
+
+    @staticmethod
+    def generate_coverage(timeout: int = 180) -> float:
+        """用快速基准子集生成新的 coverage 数据（慢 — 仅在基线收集时调用）。"""
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "coverage", "run", "-m", "pytest",
+                 "--tb=no", "-q", "--no-header",
+                 "--continue-on-collection-errors"] + RealMetricsCollector._FAST_TESTS,
+                capture_output=True, text=True, timeout=timeout,
+            )
+            report = subprocess.run(
+                ["coverage", "report", "-m"],
+                capture_output=True, text=True, timeout=30,
+            )
+            import re
+            match = re.search(r"TOTAL.*?(\d+)%", report.stdout)
             if match:
                 return float(match.group(1))
         except Exception:

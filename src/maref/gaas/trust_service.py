@@ -60,6 +60,51 @@ class TrustScoreService:
         api = self._get_or_create(tenant_id)
         return api.get_trust_history(agent_id)
 
+    def fuse_from_mapping(self, mapping_path: str, tenant_id: str = "default") -> int:
+        """Import trust scores from external_agent_mapping.json into TrustGraph.
+
+        Reads the mapping file and updates or creates trust score entries
+        for each agent. Only updates if the mapping's computed_at is newer.
+
+        Returns:
+            Number of agents imported/updated.
+        """
+        import json
+        from pathlib import Path
+
+        mapping_file = Path(mapping_path)
+        if not mapping_file.exists():
+            return 0
+
+        try:
+            data = json.loads(mapping_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            return 0
+
+        agents = data.get("external_agents", {})
+        updated_at = data.get("updated_at", "")
+        api = self._get_or_create(tenant_id)
+        count = 0
+
+        for agent_id, info in agents.items():
+            # 取最高可用评分
+            score = info.get("dynamic_trust_score") or info.get("trust_score", 0.5)
+            trust_level = info.get("trust_level", "UNTRUSTED")
+
+            # 归一化到 TrustGraph 的 0-100 范围（如果 mapping 是 0-1）
+            if isinstance(score, float) and score <= 1.0:
+                score = score * 100
+
+            current = api.trust_score(agent_id)
+            if current is not None and current >= score:
+                continue  # 已有更高评分，不降级
+
+            reason = f"fuse_from_mapping (level={trust_level}, source_updated={updated_at})"
+            api.set_trust(agent_id, min(100.0, max(0.0, score)), reason)
+            count += 1
+
+        return count
+
     def decay_scores(self, tenant_id: str, decay_factor: float = 0.99) -> None:
         """Apply time-based decay to all scores in a tenant."""
         api = self._get_or_create(tenant_id)

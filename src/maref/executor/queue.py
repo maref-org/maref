@@ -8,6 +8,9 @@ from typing import Any
 
 from maref.executor.types import Task, TaskPriority, TaskStatus
 
+# Feature flag: TaskStateMachine transition validation
+_FEATURE_STATE_MACHINE_VALIDATION = True
+
 
 class TaskQueueError(RuntimeError):
     pass
@@ -205,6 +208,20 @@ class TaskQueue:
             return [self._row_to_task(r) for r in rows]
 
     def update_status(self, task_id: str, status: TaskStatus, **updates: Any) -> bool:
+        if _FEATURE_STATE_MACHINE_VALIDATION:
+            from maref.executor.task_state_machine import TaskStateMachine
+
+            task = self.get(task_id)
+            if task is not None:
+                from_state = TaskStateMachine.from_executor_status(task.status.value)
+                to_state = TaskStateMachine.from_executor_status(status.value)
+                # 允许自转换（同一状态更新，不视为状态机转换）
+                if from_state != to_state and not TaskStateMachine.is_valid_transition(from_state, to_state):
+                    raise ValueError(
+                        f"Invalid status transition: {task.status.value} → {status.value} "
+                        f"(TaskState: {from_state.value} → {to_state.value})"
+                    )
+
         now = _now()
         fields = ["status = ?", "updated_at = ?"]
         values: list[Any] = [status.value, now]
