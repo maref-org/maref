@@ -19,6 +19,7 @@ class ConvergenceSnapshot:
     perf_score: float
     gain_pct: float
     saturated: bool
+    breakthrough_score: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
     @classmethod
@@ -32,6 +33,7 @@ class ConvergenceSnapshot:
             perf_score=data.get("perf_score", 1.0),
             gain_pct=data.get("gain_pct", 0.0),
             saturated=data.get("saturated", False),
+            breakthrough_score=data.get("breakthrough_score", 0.0),
             timestamp=data.get("timestamp", time.time()),
         )
 
@@ -45,6 +47,7 @@ class ConvergenceSnapshot:
             "perf_score": self.perf_score,
             "gain_pct": self.gain_pct,
             "saturated": self.saturated,
+            "breakthrough_score": self.breakthrough_score,
             "timestamp": self.timestamp,
         }
 
@@ -86,6 +89,7 @@ class ConvergenceDashboard:
                 "kl_drift": [s.kl_drift for s in snaps_sorted],
                 "perf_score": [s.perf_score for s in snaps_sorted],
                 "gain_pct": [s.gain_pct for s in snaps_sorted],
+                "breakthrough_score": [s.breakthrough_score for s in snaps_sorted],
             }
         return curves
 
@@ -200,6 +204,9 @@ class ConvergenceDashboard:
             lines.append(f"- Final FPR: {fpr_last:.4f}")
             lines.append(f"- Final KL-drift: {kl_last:.4f}")
             lines.append(f"- Final Perf Score: {perf_last:.4f}")
+            bt_data = data.get("breakthrough_score", [])
+            bt_last = bt_data[-1] if bt_data else float("nan")
+            lines.append(f"- Final Breakthrough Score: {bt_last:.4f}")
 
         lines.append("\n## Saturation Analysis")
         lines.append(f"Overall saturated: {saturation['overall_saturated']}")
@@ -235,6 +242,7 @@ class ConvergenceDashboard:
                 ("kl_drift", "K"),
                 ("perf_score", "S"),
                 ("gain_pct", "G"),
+                ("breakthrough_score", "B"),
             ]:
                 values = data.get(metric_name, [])
                 if len(values) < 2:
