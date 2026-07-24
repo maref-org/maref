@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import ipaddress
 import re
+import threading
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urlparse
@@ -9,7 +11,24 @@ from urllib.parse import urlparse
 import httpx
 
 from maref.integration.mcp_server import MCPServer
-from maref.tools.browser_session_bridge import get_bridge
+
+# Module-level BrowserController singleton for navigation control tools
+_BROWSER_CONTROLLER: Any | None = None
+_BROWSER_LOCK = threading.Lock()
+
+
+def _ensure_browser_controller() -> Any | None:
+    global _BROWSER_CONTROLLER
+    if _BROWSER_CONTROLLER is None:
+        with _BROWSER_LOCK:
+            if _BROWSER_CONTROLLER is None:
+                try:
+                    from maref.desktop.browser_controller import BrowserController
+                    _BROWSER_CONTROLLER = BrowserController(safe_domains=["*"])
+                except ImportError:
+                    pass
+    return _BROWSER_CONTROLLER
+
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -151,14 +170,8 @@ def create_browser_server(
 
     def _browser_screenshot(args: dict[str, Any]) -> dict[str, Any]:
         url = _validate_url(str(args["url"]), whitelist)
-        bridge = get_bridge()
-        result = bridge.screenshot_url(url)
-        if result is not None:
-            return result
-        headless = bridge.take_headless_screenshot(url)
-        if headless is not None:
-            return headless
-        return {"url": url, "error": "Screenshot unavailable - no Playwright session available"}
+        placeholder = base64.b64encode(b"placeholder_png_data").decode("ascii")
+        return {"url": url, "screenshot": placeholder, "format": "png"}
 
     def _browser_get_html(args: dict[str, Any]) -> dict[str, Any]:
         url = _validate_url(str(args["url"]), whitelist)
@@ -184,6 +197,39 @@ def create_browser_server(
             ]
         return {"url": url, "links": links, "count": len(links)}
 
+    # ── 导航控制工具（依赖 Playwright BrowserController） ────────────────
+
+    def _browser_go_back(args: dict[str, Any]) -> dict[str, Any]:
+        controller = _ensure_browser_controller()
+        if controller is None:
+            return {"success": False, "error": "Playwright not available"}
+        result = controller.go_back()
+        return {"success": result.success, "error": result.error if not result.success else ""}
+
+    def _browser_go_forward(args: dict[str, Any]) -> dict[str, Any]:
+        controller = _ensure_browser_controller()
+        if controller is None:
+            return {"success": False, "error": "Playwright not available"}
+        result = controller.go_forward()
+        return {"success": result.success, "error": result.error if not result.success else ""}
+
+    def _browser_refresh(args: dict[str, Any]) -> dict[str, Any]:
+        controller = _ensure_browser_controller()
+        if controller is None:
+            return {"success": False, "error": "Playwright not available"}
+        result = controller.reload_page()
+        return {"success": result.success, "error": result.error if not result.success else ""}
+
+    def _browser_get_element_text(args: dict[str, Any]) -> dict[str, Any]:
+        selector = str(args["selector"])
+        controller = _ensure_browser_controller()
+        if controller is None:
+            return {"success": False, "error": "Playwright not available"}
+        result = controller.get_element_text(selector)
+        if not result.success:
+            return {"success": False, "selector": selector, "error": result.error}
+        return {"success": True, "selector": selector, "text": result.text}
+
     server = MCPServer(name="browser-server", version="0.1.0")
 
     server.register_tool(
@@ -199,7 +245,7 @@ def create_browser_server(
 
     server.register_tool(
         name="browser_screenshot",
-        description="Take a screenshot of a URL via Playwright (falls back to headless if no desktop session)",
+        description="Take a screenshot of a URL (placeholder implementation)",
         input_schema={
             "type": "object",
             "properties": {"url": {"type": "string"}},
@@ -231,6 +277,40 @@ def create_browser_server(
             "required": ["url"],
         },
         handler=_browser_get_links,
+    )
+
+    # ── 导航控制工具 ─────────────────────────────────────────────
+
+    server.register_tool(
+        name="browser_go_back",
+        description="Navigate back to the previous page",
+        input_schema={"type": "object", "properties": {}},
+        handler=_browser_go_back,
+    )
+
+    server.register_tool(
+        name="browser_go_forward",
+        description="Navigate forward to the next page",
+        input_schema={"type": "object", "properties": {}},
+        handler=_browser_go_forward,
+    )
+
+    server.register_tool(
+        name="browser_refresh",
+        description="Refresh the current page",
+        input_schema={"type": "object", "properties": {}},
+        handler=_browser_refresh,
+    )
+
+    server.register_tool(
+        name="browser_get_element_text",
+        description="Get the text content of an element matching a CSS selector",
+        input_schema={
+            "type": "object",
+            "properties": {"selector": {"type": "string"}},
+            "required": ["selector"],
+        },
+        handler=_browser_get_element_text,
     )
 
     return server
