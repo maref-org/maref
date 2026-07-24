@@ -11,11 +11,32 @@ States: CLOSED → OPEN → HALF_OPEN → CLOSED
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# AlertManager 延迟加载 — 避免 circular import (recursive → governance → recursive)
+_alert_manager: Any = None
+
+
+def _get_alert_manager():
+    global _alert_manager
+    if _alert_manager is None:
+        try:
+            from maref.recursive.alert_manager import AlertManager
+            _alert_manager = AlertManager(min_severity="error")
+        except (ImportError, ModuleNotFoundError):
+            logger.warning("AlertManager not available — alerting disabled")
+            # No-op stub when AlertManager is not installed (e.g. in MAREf public)
+            class _NoopAlertManager:
+                def emit_now(self, **kwargs): pass
+            _alert_manager = _NoopAlertManager()
+    return _alert_manager
 
 
 class BreakerState(Enum):
@@ -84,6 +105,27 @@ class CircuitBreaker:
     def is_open(self) -> bool:
         with self._lock:
             return self._state == BreakerState.OPEN
+
+    def allow_probe(self) -> bool:
+        """显式探针 — 允许一次探测调用。
+
+        如果处于 OPEN 且冷却时间已过 → 转 HALF_OPEN → 返回 True
+        如果处于 HALF_OPEN → 返回 True
+        否则 → 返回 False
+
+        Returns:
+            True if probe is allowed, False if blocked.
+        """
+        with self._lock:
+            if self._state == BreakerState.CLOSED:
+                return True
+            if self._state == BreakerState.HALF_OPEN:
+                return True
+            # OPEN: 检查冷却
+            if self._should_try_half_open():
+                self._state = BreakerState.HALF_OPEN
+                return True
+            return False
 
     def check_depth(self, depth: int) -> bool:
         """Check recursion depth. Returns True if allowed."""
@@ -181,6 +223,17 @@ class CircuitBreaker:
                 action_taken="force_degrade_to_primary",
             )
         )
+
+        # M6: EMERGENCY alert on trip
+        _get_alert_manager().emit_now(
+            severity="emergency",
+            title="Circuit breaker tripped",
+            message=f"Reason: {reason}",
+            dedup_key=f"circuit-breaker:trip:{reason[:50]}",
+            source="CircuitBreaker",
+            metadata={"depth": depth, "entropy": entropy, "state_before": state_before},
+        )
+
         # Trim old trips to prevent unbounded memory growth
         if len(self._trips) > self._max_trips:
             self._trips = self._trips[-self._max_trips :]

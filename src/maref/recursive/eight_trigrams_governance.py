@@ -208,9 +208,9 @@ class TrigramTransition:
 
 
 class EightTrigramsGovernance:
-    def __init__(self, agent_id: str, initial_trust: float = 0.65):
+    def __init__(self, agent_id: str, initial_trust: float = 0.80):
         self.agent_id = agent_id
-        self._current_trigram = TrigramsGovernance.DUI
+        self._current_trigram = self.get_trigram_for_trust(initial_trust)
         self._state = TrigramState(
             trigram=self._current_trigram,
             trust_score=initial_trust,
