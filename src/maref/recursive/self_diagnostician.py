@@ -138,6 +138,17 @@ class SelfDiagnostician:
         diagnostic_context["gui_build_success"] = gui_reading.context.get("build_success", False)
         diagnostic_context["gui_ts_errors"] = gui_reading.context.get("ts_errors", 0)
 
+        # ── Breakthrough: 7-priority progress ──────────────
+        bt = snapshot.breakthrough or {}
+        bt_agg = bt.get("aggregate_score", 0.0)
+        diagnostic_context["breakthrough_aggregate"] = round(bt_agg, 4)
+        diagnostic_context["breakthrough_priority_count"] = bt.get("priority_count", 0)
+        diagnostic_context["breakthrough_avg_progress_pct"] = bt.get("avg_progress_pct", 0.0)
+        for p in bt.get("priorities", []):
+            pid = p.get("priority_id", "")
+            diagnostic_context[f"breakthrough_{pid}_score"] = p.get("score", 0.0)
+            diagnostic_context[f"breakthrough_{pid}_progress"] = p.get("progress_pct", 0.0)
+
         risk_matrix = self._build_risk_matrix(probe_results)
 
         return DiagnosisReport(
