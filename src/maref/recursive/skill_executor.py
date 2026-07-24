@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -7,6 +9,8 @@ from enum import Enum
 from typing import Any
 
 from maref.recursive.skill_schema import MarefSkill
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionStatus(str, Enum):
@@ -37,6 +41,91 @@ class ExecutionResult:
 DEFAULT_DEGRADATION_CHAIN = [DegradationStep(condition="error", fallback="default_fallback")]
 
 
+class LLMGuidedHandler:
+    def __init__(
+        self,
+        anthropic_api_key: str | None = None,
+        anthropic_model: str = "claude-sonnet-4-20250514",
+        openai_api_key: str | None = None,
+        openai_model: str | None = None,
+        openai_base_url: str | None = None,
+    ) -> None:
+        self._anthropic_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self._anthropic_model = anthropic_model
+        self._openai_key = openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        self._openai_model = openai_model or os.environ.get("OPENAI_MODEL", "gpt-4o")
+        self._openai_base_url = openai_base_url or os.environ.get("OPENAI_BASE_URL", "")
+
+    def __call__(self, context: dict[str, Any]) -> dict[str, Any]:
+        prompt = context.get("skill_prompt", "")
+        if not prompt:
+            raise RuntimeError("No skill_prompt in context")
+        model_override = context.get("model")
+        temperature = context.get("effort", 0.7)
+        if isinstance(temperature, str):
+            temperature = float(temperature)
+        result = self._try_anthropic(prompt, model_override, temperature)
+        if result is not None:
+            return result
+        result = self._try_openai(prompt, model_override, temperature)
+        if result is not None:
+            return result
+        raise RuntimeError("All LLM providers failed")
+
+    def _try_anthropic(self, prompt: str, model: str | None, temperature: float) -> dict[str, Any] | None:
+        if not self._anthropic_key:
+            return None
+        try:
+            from anthropic import Anthropic
+            client = Anthropic(api_key=self._anthropic_key)
+            response = client.messages.create(
+                model=model or self._anthropic_model,
+                max_tokens=4096,
+                temperature=temperature,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = self._extract_text(response.content) if response.content else ""
+            if not text:
+                logger.warning("LLMGuidedHandler: Anthropic returned empty response")
+                return None
+            return {"content": text, "provider": f"anthropic/{model or self._anthropic_model}", "success": True}
+        except Exception as e:
+            logger.warning("LLMGuidedHandler: Anthropic failed: %s", e)
+            return None
+
+    def _try_openai(self, prompt: str, model: str | None, temperature: float) -> dict[str, Any] | None:
+        if not self._openai_key:
+            return None
+        try:
+            from openai import OpenAI
+            kwargs: dict[str, Any] = {"api_key": self._openai_key}
+            if self._openai_base_url:
+                kwargs["base_url"] = self._openai_base_url
+            client = OpenAI(**kwargs)
+            response = client.chat.completions.create(
+                model=model or self._openai_model,
+                temperature=temperature,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.choices[0].message.content or ""
+            if not text:
+                logger.warning("LLMGuidedHandler: OpenAI returned empty response")
+                return None
+            return {"content": text, "provider": f"openai/{model or self._openai_model}", "success": True}
+        except Exception as e:
+            logger.warning("LLMGuidedHandler: OpenAI failed: %s", e)
+            return None
+
+    @staticmethod
+    def _extract_text(content: list[Any]) -> str:
+        for block in content:
+            if hasattr(block, "text") and block.text:
+                return block.text
+            if hasattr(block, "thinking") and block.thinking:
+                continue
+        return ""
+
+
 class SkillExecutor:
     def __init__(
         self,
@@ -45,12 +134,16 @@ class SkillExecutor:
     ) -> None:
         self._default_timeout_ms = default_timeout_ms
         self._handlers: dict[str, Any] = handlers or {}
+        if "llm_guided" not in self._handlers:
+            self._handlers["llm_guided"] = LLMGuidedHandler()
 
     def register_handler(self, name: str, handler: Any) -> None:
         self._handlers[name] = handler
 
     def execute(self, skill: MarefSkill, context: dict[str, Any] | None = None) -> ExecutionResult:
         ctx = context or {}
+        if skill.behavior and skill.behavior.get("prompt"):
+            ctx["skill_prompt"] = skill.behavior["prompt"]
         timeout_ms = self._resolve_timeout(skill)
         degradation_path: list[str] = []
         start_time = time.time()
