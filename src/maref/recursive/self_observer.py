@@ -26,6 +26,23 @@ class SystemSnapshot:
     probe_readings: list[ProbeReading] = field(default_factory=list)
     source_file_count: int = 0
     total_lines: int = 0
+    breakthrough: dict[str, Any] = field(default_factory=dict)
+
+
+_BREAKTHROUGH_OBSERVATORY: Any = None
+
+
+def _get_breakthrough() -> dict[str, Any]:
+    global _BREAKTHROUGH_OBSERVATORY
+    try:
+        if _BREAKTHROUGH_OBSERVATORY is None:
+            from maref.observation.breakthrough_observatory import BreakthroughObservatory
+
+            _BREAKTHROUGH_OBSERVATORY = BreakthroughObservatory()
+        snap = _BREAKTHROUGH_OBSERVATORY.snapshot()
+        return snap.to_dict()
+    except Exception as exc:
+        return {"error": str(exc), "aggregate_score": 0.0}
 
 
 class SelfObserver:
@@ -101,8 +118,10 @@ class SelfObserver:
         """
         t0 = time.monotonic()
         paths = test_paths if test_paths is not None else self._test_paths
-        # Collect-only mode: scan all of ``tests/`` for an accurate total
-        # count (fast since --co only collects, doesn't execute).
+        # Filter to only existing files — dual-repo environments (openclaw/public)
+        # may have different test file sets. Missing files cause pytest to error
+        # and collect 0 tests even with --continue-on-collection-errors.
+        paths = [p for p in paths if (self._root / p).exists()]
         if collect_only and test_paths is None:
             paths = ["tests/"]
         # Fix 10: use sys.executable instead of "python3" — the latter
@@ -240,11 +259,16 @@ class SelfObserver:
         except Exception:
             return {"error": "failed_to_create_state_machine"}
 
+    def observe(self, collect_only: bool = False) -> SystemSnapshot:
+        """观察系统状态 — snapshot 别名。"""
+        return self.snapshot(collect_only=collect_only)
+
     def snapshot(self, collect_only: bool = False) -> SystemSnapshot:
         module_graph = self.observe_codebase()
         test_stats = self.observe_tests(collect_only=collect_only)
         git_stats = self.observe_git()
         state_machine_status = self._build_state_machine_status()
+        breakthrough = _get_breakthrough()
 
         entropy_probe = EntropyProbe(primary_threshold=3.0, shadow_threshold=1.5)
         failed = test_stats.get("failed", 0)
@@ -260,4 +284,5 @@ class SelfObserver:
             probe_readings=readings,
             source_file_count=getattr(self, "_source_file_count", 0),
             total_lines=getattr(self, "_total_lines", 0),
+            breakthrough=breakthrough,
         )
