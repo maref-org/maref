@@ -45,12 +45,21 @@ class SkillExecutor:
     ) -> None:
         self._default_timeout_ms = default_timeout_ms
         self._handlers: dict[str, Any] = handlers or {}
+        if "llm_guided" not in self._handlers:
+            try:
+                from maref.recursive.skill_llm_handler import LLMGuidedHandler
+                self._handlers["llm_guided"] = LLMGuidedHandler()
+            except ImportError:
+                pass
 
     def register_handler(self, name: str, handler: Any) -> None:
         self._handlers[name] = handler
 
     def execute(self, skill: MarefSkill, context: dict[str, Any] | None = None) -> ExecutionResult:
         ctx = context or {}
+        # Inject skill prompt for LLM-based handlers (llm_guided, etc.)
+        if skill.behavior and skill.behavior.get("prompt"):
+            ctx["skill_prompt"] = skill.behavior["prompt"]
         timeout_ms = self._resolve_timeout(skill)
         degradation_path: list[str] = []
         start_time = time.time()
