@@ -128,6 +128,41 @@ class OptimizerEvolutionBridge:
                 )
             )
 
+        # ── Breakthrough → RSI 目标驱动 hypothesis ─────────────────
+        bt = snapshot.breakthrough or {}
+        bt_agg = bt.get("aggregate_score", 1.0)
+        if bt_agg < 0.50:
+            priorities = bt.get("priorities", [])
+            # 按 progress_pct 升序排列，优先处理进度最低的突破口
+            sorted_p = sorted(priorities, key=lambda p: p.get("progress_pct", 100))
+            top_gap = sorted_p[0] if sorted_p else None
+            if top_gap and top_gap.get("progress_pct", 100) < 80:
+                hypotheses.append(
+                    OptimizationHypothesis(
+                        hypothesis_id=f"breakthrough_{snapshot.timestamp}",
+                        description=(
+                            f"突破口中 '{top_gap['title']}' 进度仅 {top_gap['progress_pct']:.0f}% "
+                            f"(目标 {top_gap['target_score']:.0%}, 当前 {top_gap['score']:.2f}) — "
+                            f"aggregate {bt_agg:.1%} < 50%, 需要 RSI 驱动提升"
+                        ),
+                        target_module=top_gap.get("module", "maref.recursive"),
+                    )
+                )
+
+            # 若所有优先级都低于 50% 进度，追加一条全局突破 hypothesis
+            low_count = sum(1 for p in sorted_p if p.get("progress_pct", 100) < 50)
+            if low_count >= 3:
+                hypotheses.append(
+                    OptimizationHypothesis(
+                        hypothesis_id=f"breakthrough_global_{snapshot.timestamp}",
+                        description=(
+                            f"{low_count}/7 突破口进度 < 50% (aggregate {bt_agg:.1%}) — "
+                            f"需要全局 RSI 策略提升突破口整体水平"
+                        ),
+                        target_module="maref.recursive",
+                    )
+                )
+
         return hypotheses
 
     def adopt_to_policy_change(
