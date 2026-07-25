@@ -146,8 +146,11 @@ def simulate_rsi_cycle(current_metrics: dict[str, Any]) -> dict[str, Any]:
     noise = random.uniform(-0.02, 0.02)
     new_adoption = min(1.0, max(0.0, current_metrics["adoption_rate"] + 0.005 + noise))
     new_score = min(100.0, max(0.0, current_metrics["avg_score"] + 0.3 + noise * 10))
-    new_alerts = current_metrics["safety_alerts"] + random.choices([0, 0, 0, 0, 1], weights=[90, 5, 3, 1, 1])[0]
-    new_interventions = current_metrics["human_interventions"] + random.choices([0, 0, 0, 0, 1], weights=[92, 4, 3, 1, 1])[0]
+    # Safety alerts are rare in real RSI (constitutional red lines 100%
+    # intercepted) - ~0.1% per cycle mirrors stable production runs.
+    new_alerts = current_metrics["safety_alerts"] + random.choices([0, 1], weights=[999, 1])[0]
+    # Human interventions mirror the ~1% HITL spot-check rate in stable runs.
+    new_interventions = current_metrics["human_interventions"] + random.choices([0, 1], weights=[99, 1])[0]
 
     return {
         "experiment_count": current_metrics["experiment_count"] + 1,

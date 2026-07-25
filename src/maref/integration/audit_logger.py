@@ -76,9 +76,23 @@ class AuditLogger:
         repo_root = self._find_repo_root()
         self.log_dir = log_dir or repo_root / "data" / "audit"
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.hmac_secret = hmac_secret or os.environb.get(
-            b"MAREF_HMAC_SECRET_KEY", b"maref-mcp-audit-v0.30.0"
-        )
+        _hmac_secret = hmac_secret or os.environb.get(b"MAREF_HMAC_SECRET_KEY")
+        if _hmac_secret is None:
+            # Try loading from key file (same fallback as governance/audit.py)
+            for _key_path in (".maraf_hmac_key", ".gaas_api_key"):
+                try:
+                    with open(_key_path) as _f:
+                        _hmac_secret = _f.read().strip().encode("utf-8")
+                        break
+                except (FileNotFoundError, OSError):
+                    continue
+        if _hmac_secret is None:
+            import logging
+            logging.getLogger(__name__).warning(
+                "No HMAC secret configured - MCP audit logging tamper protection disabled. "
+                "Set MAREF_HMAC_SECRET_KEY env var or create .maraf_hmac_key file."
+            )
+        self.hmac_secret = _hmac_secret
         self.max_file_size_bytes = max_file_size_mb * 1024 * 1024
         self._current_log_file = self.log_dir / "mcp_audit.jsonl"
 

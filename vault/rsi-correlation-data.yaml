@@ -1,0 +1,1260 @@
+round_R-7d-001:
+  round_id: R-7d-001
+  snapshot_index: 0
+  automated_scores:
+    correctness: 31.8
+    testing: 100.0
+    code_quality: 96.4
+    security: 100.0
+    efficiency: 70.0
+    adoption: 97.8
+  context_data:
+    experiment_count: 220
+    avg_score: 100.0
+    safety_alerts: 0
+    human_interventions: 3
+  reviewer_scores:
+    reviewer_1:
+      correctness: 31.5
+      testing: 99.7
+      code_quality: 96.2
+      security: 100
+      efficiency: 69.7
+      adoption: 94.8
+    reviewer_2:
+      correctness: 31.5
+      testing: 96.7
+      code_quality: 93.3
+      security: 98.6
+      efficiency: 69.2
+      adoption: 100
+round_R-7d-002:
+  round_id: R-7d-002
+  snapshot_index: 2
+  automated_scores:
+    correctness: 56.5
+    testing: 87.0
+    code_quality: 94.6
+    security: 78.3
+    efficiency: 100.0
+    adoption: 99.8
+  context_data:
+    experiment_count: 460
+    avg_score: 100.0
+    safety_alerts: 2
+    human_interventions: 4
+  reviewer_scores:
+    reviewer_1:
+      correctness: 57.8
+      testing: 87.2
+      code_quality: 93.1
+      security: 76.3
+      efficiency: 100
+      adoption: 100
+    reviewer_2:
+      correctness: 54.7
+      testing: 84.5
+      code_quality: 95.3
+      security: 69.0
+      efficiency: 96.4
+      adoption: 100
+round_R-7d-003:
+  round_id: R-7d-003
+  snapshot_index: 4
+  automated_scores:
+    correctness: 57.1
+    testing: 78.6
+    code_quality: 72.6
+    security: 64.3
+    efficiency: 100.0
+    adoption: 95.0
+  context_data:
+    experiment_count: 700
+    avg_score: 100.0
+    safety_alerts: 5
+    human_interventions: 6
+  reviewer_scores:
+    reviewer_1:
+      correctness: 58.8
+      testing: 78.1
+      code_quality: 73.4
+      security: 64.8
+      efficiency: 100
+      adoption: 92.8
+    reviewer_2:
+      correctness: 57.9
+      testing: 69.0
+      code_quality: 57.5
+      security: 59.3
+      efficiency: 93.4
+      adoption: 97.4
+round_R-7d-004:
+  round_id: R-7d-004
+  snapshot_index: 6
+  automated_scores:
+    correctness: 46.8
+    testing: 74.5
+    code_quality: 77.3
+    security: 57.4
+    efficiency: 94.0
+    adoption: 96.3
+  context_data:
+    experiment_count: 940
+    avg_score: 100.0
+    safety_alerts: 8
+    human_interventions: 10
+  reviewer_scores:
+    reviewer_1:
+      correctness: 48.1
+      testing: 72.1
+      code_quality: 79.0
+      security: 55.4
+      efficiency: 93.8
+      adoption: 95.7
+    reviewer_2:
+      correctness: 45.4
+      testing: 76.6
+      code_quality: 78.5
+      security: 57.1
+      efficiency: 95.2
+      adoption: 96.7
+round_R-7d-005:
+  round_id: R-7d-005
+  snapshot_index: 8
+  automated_scores:
+    correctness: 57.6
+    testing: 79.7
+    code_quality: 96.4
+    security: 66.1
+    efficiency: 87.9
+    adoption: 100.0
+  context_data:
+    experiment_count: 1180
+    avg_score: 100.0
+    safety_alerts: 8
+    human_interventions: 10
+  reviewer_scores:
+    reviewer_1:
+      correctness: 56.3
+      testing: 78.3
+      code_quality: 95.5
+      security: 67.1
+      efficiency: 87.4
+      adoption: 100
+    reviewer_2:
+      correctness: 51.5
+      testing: 72.2
+      code_quality: 98.2
+      security: 71.2
+      efficiency: 88.4
+      adoption: 100
+round_R-7d-006:
+  round_id: R-7d-006
+  snapshot_index: 10
+  automated_scores:
+    correctness: 54.2
+    testing: 76.8
+    code_quality: 97.0
+    security: 61.3
+    efficiency: 84.2
+    adoption: 99.0
+  context_data:
+    experiment_count: 1420
+    avg_score: 100.0
+    safety_alerts: 11
+    human_interventions: 13
+  reviewer_scores:
+    reviewer_1:
+      correctness: 57.1
+      testing: 76.6
+      code_quality: 94.2
+      security: 60.2
+      efficiency: 86.1
+      adoption: 96.1
+    reviewer_2:
+      correctness: 52.4
+      testing: 76.1
+      code_quality: 93.4
+      security: 62.9
+      efficiency: 85.1
+      adoption: 100
+round_R-7d-007:
+  round_id: R-7d-007
+  snapshot_index: 12
+  automated_scores:
+    correctness: 54.8
+    testing: 72.9
+    code_quality: 98.4
+    security: 54.8
+    efficiency: 81.8
+    adoption: 100.0
+  context_data:
+    experiment_count: 1660
+    avg_score: 100.0
+    safety_alerts: 15
+    human_interventions: 15
+  reviewer_scores:
+    reviewer_1:
+      correctness: 56.0
+      testing: 71.7
+      code_quality: 97.3
+      security: 53.1
+      efficiency: 83.7
+      adoption: 98.9
+    reviewer_2:
+      correctness: 52.4
+      testing: 74.6
+      code_quality: 92.8
+      security: 51.3
+      efficiency: 70.6
+      adoption: 92.6
+round_R-7d-008:
+  round_id: R-7d-008
+  snapshot_index: 14
+  automated_scores:
+    correctness: 42.1
+    testing: 73.2
+    code_quality: 95.0
+    security: 55.3
+    efficiency: 80.1
+    adoption: 99.3
+  context_data:
+    experiment_count: 1900
+    avg_score: 100.0
+    safety_alerts: 17
+    human_interventions: 22
+  reviewer_scores:
+    reviewer_1:
+      correctness: 41.0
+      testing: 74.0
+      code_quality: 97.4
+      security: 55.3
+      efficiency: 80.6
+      adoption: 99.6
+    reviewer_2:
+      correctness: 45.5
+      testing: 75.7
+      code_quality: 94.4
+      security: 48.2
+      efficiency: 82.6
+      adoption: 99.2
+round_R-7d-009:
+  round_id: R-7d-009
+  snapshot_index: 16
+  automated_scores:
+    correctness: 48.6
+    testing: 70.6
+    code_quality: 100.0
+    security: 50.9
+    efficiency: 78.8
+    adoption: 100.0
+  context_data:
+    experiment_count: 2140
+    avg_score: 100.0
+    safety_alerts: 21
+    human_interventions: 22
+  reviewer_scores:
+    reviewer_1:
+      correctness: 51.1
+      testing: 70.5
+      code_quality: 100
+      security: 50.2
+      efficiency: 82.0
+      adoption: 100
+    reviewer_2:
+      correctness: 44.0
+      testing: 63.0
+      code_quality: 97.2
+      security: 56.0
+      efficiency: 80.9
+      adoption: 100
+round_R-7d-010:
+  round_id: R-7d-010
+  snapshot_index: 18
+  automated_scores:
+    correctness: 51.7
+    testing: 68.5
+    code_quality: 100.0
+    security: 47.5
+    efficiency: 77.9
+    adoption: 100.0
+  context_data:
+    experiment_count: 2380
+    avg_score: 100.0
+    safety_alerts: 25
+    human_interventions: 23
+  reviewer_scores:
+    reviewer_1:
+      correctness: 46.9
+      testing: 69.9
+      code_quality: 100
+      security: 46.4
+      efficiency: 76.6
+      adoption: 100.0
+    reviewer_2:
+      correctness: 58.3
+      testing: 61.2
+      code_quality: 95.9
+      security: 52.3
+      efficiency: 73.7
+      adoption: 96.2
+round_R-7d-011:
+  round_id: R-7d-011
+  snapshot_index: 20
+  automated_scores:
+    correctness: 56.1
+    testing: 70.2
+    code_quality: 84.0
+    security: 50.4
+    efficiency: 77.1
+    adoption: 97.7
+  context_data:
+    experiment_count: 2620
+    avg_score: 100.0
+    safety_alerts: 26
+    human_interventions: 23
+  reviewer_scores:
+    reviewer_1:
+      correctness: 56.3
+      testing: 67.7
+      code_quality: 84.4
+      security: 48.0
+      efficiency: 78.9
+      adoption: 97.7
+    reviewer_2:
+      correctness: 65.5
+      testing: 69.6
+      code_quality: 88.8
+      security: 41.9
+      efficiency: 74.5
+      adoption: 97.3
+round_R-7d-012:
+  round_id: R-7d-012
+  snapshot_index: 22
+  automated_scores:
+    correctness: 58.0
+    testing: 70.6
+    code_quality: 79.8
+    security: 51.0
+    efficiency: 76.4
+    adoption: 97.1
+  context_data:
+    experiment_count: 2860
+    avg_score: 100.0
+    safety_alerts: 28
+    human_interventions: 24
+  reviewer_scores:
+    reviewer_1:
+      correctness: 61.5
+      testing: 67.2
+      code_quality: 81.8
+      security: 52.2
+      efficiency: 79.5
+      adoption: 98.5
+    reviewer_2:
+      correctness: 56.3
+      testing: 66.0
+      code_quality: 71.6
+      security: 50.0
+      efficiency: 73.4
+      adoption: 100
+round_R-7d-013:
+  round_id: R-7d-013
+  snapshot_index: 24
+  automated_scores:
+    correctness: 56.5
+    testing: 71.0
+    code_quality: 100.0
+    security: 51.6
+    efficiency: 75.9
+    adoption: 100.0
+  context_data:
+    experiment_count: 3100
+    avg_score: 100.0
+    safety_alerts: 30
+    human_interventions: 27
+  reviewer_scores:
+    reviewer_1:
+      correctness: 55.3
+      testing: 71.6
+      code_quality: 96.9
+      security: 50.8
+      efficiency: 76.4
+      adoption: 100
+    reviewer_2:
+      correctness: 61.7
+      testing: 68.8
+      code_quality: 92.4
+      security: 51.9
+      efficiency: 76.5
+      adoption: 100
+round_R-7d-014:
+  round_id: R-7d-014
+  snapshot_index: 26
+  automated_scores:
+    correctness: 56.6
+    testing: 71.3
+    code_quality: 100.0
+    security: 52.1
+    efficiency: 75.4
+    adoption: 100.0
+  context_data:
+    experiment_count: 3340
+    avg_score: 100.0
+    safety_alerts: 32
+    human_interventions: 29
+  reviewer_scores:
+    reviewer_1:
+      correctness: 55.2
+      testing: 73.6
+      code_quality: 100
+      security: 53.5
+      efficiency: 77.9
+      adoption: 100
+    reviewer_2:
+      correctness: 56.0
+      testing: 80.1
+      code_quality: 99.2
+      security: 48.6
+      efficiency: 74.0
+      adoption: 100
+round_R-7d-015:
+  round_id: R-7d-015
+  snapshot_index: 28
+  automated_scores:
+    correctness: 58.1
+    testing: 70.7
+    code_quality: 48.6
+    security: 51.1
+    efficiency: 75.0
+    adoption: 92.7
+  context_data:
+    experiment_count: 3580
+    avg_score: 100.0
+    safety_alerts: 35
+    human_interventions: 30
+  reviewer_scores:
+    reviewer_1:
+      correctness: 58.3
+      testing: 71.7
+      code_quality: 51.0
+      security: 50.1
+      efficiency: 71.5
+      adoption: 93.3
+    reviewer_2:
+      correctness: 57.2
+      testing: 65.7
+      code_quality: 51.0
+      security: 52.1
+      efficiency: 68.0
+      adoption: 93.3
+round_R-7d-016:
+  round_id: R-7d-016
+  snapshot_index: 30
+  automated_scores:
+    correctness: 56.8
+    testing: 70.9
+    code_quality: 90.1
+    security: 51.6
+    efficiency: 74.7
+    adoption: 98.6
+  context_data:
+    experiment_count: 3820
+    avg_score: 100.0
+    safety_alerts: 37
+    human_interventions: 33
+  reviewer_scores:
+    reviewer_1:
+      correctness: 56.4
+      testing: 67.9
+      code_quality: 91.0
+      security: 51.5
+      efficiency: 73.2
+      adoption: 99.6
+    reviewer_2:
+      correctness: 57.2
+      testing: 66.0
+      code_quality: 90.1
+      security: 54.7
+      efficiency: 69.1
+      adoption: 98.5
+round_R-7d-017:
+  round_id: R-7d-017
+  snapshot_index: 32
+  automated_scores:
+    correctness: 56.9
+    testing: 69.0
+    code_quality: 85.9
+    security: 48.3
+    efficiency: 74.4
+    adoption: 98.0
+  context_data:
+    experiment_count: 4060
+    avg_score: 100.0
+    safety_alerts: 42
+    human_interventions: 35
+  reviewer_scores:
+    reviewer_1:
+      correctness: 56.9
+      testing: 73.5
+      code_quality: 82.2
+      security: 49.7
+      efficiency: 73.8
+      adoption: 97.8
+    reviewer_2:
+      correctness: 64.4
+      testing: 67.0
+      code_quality: 95.1
+      security: 44.1
+      efficiency: 74.2
+      adoption: 93.5
+round_R-7d-018:
+  round_id: R-7d-018
+  snapshot_index: 34
+  automated_scores:
+    correctness: 55.8
+    testing: 68.6
+    code_quality: 92.5
+    security: 47.7
+    efficiency: 74.1
+    adoption: 99.2
+  context_data:
+    experiment_count: 4300
+    avg_score: 100.0
+    safety_alerts: 45
+    human_interventions: 38
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.4
+      testing: 68.7
+      code_quality: 91.9
+      security: 48.1
+      efficiency: 69.9
+      adoption: 100
+    reviewer_2:
+      correctness: 53.0
+      testing: 75.3
+      code_quality: 85.5
+      security: 47.2
+      efficiency: 87.9
+      adoption: 92.9
+round_R-7d-019:
+  round_id: R-7d-019
+  snapshot_index: 36
+  automated_scores:
+    correctness: 52.6
+    testing: 67.6
+    code_quality: 83.7
+    security: 46.0
+    efficiency: 73.9
+    adoption: 100.0
+  context_data:
+    experiment_count: 4540
+    avg_score: 100.0
+    safety_alerts: 49
+    human_interventions: 43
+  reviewer_scores:
+    reviewer_1:
+      correctness: 49.6
+      testing: 66.5
+      code_quality: 84.6
+      security: 47.4
+      efficiency: 76.5
+      adoption: 99.5
+    reviewer_2:
+      correctness: 42.6
+      testing: 63.4
+      code_quality: 87.9
+      security: 46.3
+      efficiency: 62.1
+      adoption: 97.8
+round_R-7d-020:
+  round_id: R-7d-020
+  snapshot_index: 38
+  automated_scores:
+    correctness: 52.9
+    testing: 68.6
+    code_quality: 86.3
+    security: 47.7
+    efficiency: 73.7
+    adoption: 100.0
+  context_data:
+    experiment_count: 4780
+    avg_score: 100.0
+    safety_alerts: 50
+    human_interventions: 45
+  reviewer_scores:
+    reviewer_1:
+      correctness: 55.7
+      testing: 72.9
+      code_quality: 87.4
+      security: 48.3
+      efficiency: 71.2
+      adoption: 98.3
+    reviewer_2:
+      correctness: 51.1
+      testing: 69.1
+      code_quality: 87.2
+      security: 43.3
+      efficiency: 65.9
+      adoption: 94.1
+round_R-7d-021:
+  round_id: R-7d-021
+  snapshot_index: 40
+  automated_scores:
+    correctness: 54.2
+    testing: 70.1
+    code_quality: 95.3
+    security: 50.2
+    efficiency: 73.5
+    adoption: 99.5
+  context_data:
+    experiment_count: 5020
+    avg_score: 100.0
+    safety_alerts: 50
+    human_interventions: 46
+  reviewer_scores:
+    reviewer_1:
+      correctness: 51.9
+      testing: 71.4
+      code_quality: 90.7
+      security: 49.5
+      efficiency: 74.4
+      adoption: 100
+    reviewer_2:
+      correctness: 52.6
+      testing: 73.1
+      code_quality: 91.3
+      security: 44.5
+      efficiency: 68.1
+      adoption: 100
+round_R-7d-022:
+  round_id: R-7d-022
+  snapshot_index: 42
+  automated_scores:
+    correctness: 52.5
+    testing: 69.8
+    code_quality: 91.7
+    security: 49.6
+    efficiency: 73.3
+    adoption: 97.9
+  context_data:
+    experiment_count: 5260
+    avg_score: 100.0
+    safety_alerts: 53
+    human_interventions: 50
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.5
+      testing: 70.8
+      code_quality: 98.4
+      security: 49.5
+      efficiency: 74.5
+      adoption: 98.5
+    reviewer_2:
+      correctness: 49.4
+      testing: 79.4
+      code_quality: 97.2
+      security: 40.6
+      efficiency: 69.3
+      adoption: 98.0
+round_R-7d-023:
+  round_id: R-7d-023
+  snapshot_index: 44
+  automated_scores:
+    correctness: 53.6
+    testing: 67.3
+    code_quality: 78.9
+    security: 45.5
+    efficiency: 73.2
+    adoption: 100.0
+  context_data:
+    experiment_count: 5500
+    avg_score: 100.0
+    safety_alerts: 60
+    human_interventions: 51
+  reviewer_scores:
+    reviewer_1:
+      correctness: 55.2
+      testing: 64.6
+      code_quality: 74.4
+      security: 41.7
+      efficiency: 73.1
+      adoption: 99.8
+    reviewer_2:
+      correctness: 53.3
+      testing: 61.5
+      code_quality: 70.8
+      security: 33.4
+      efficiency: 72.8
+      adoption: 99.9
+round_R-7d-024:
+  round_id: R-7d-024
+  snapshot_index: 46
+  automated_scores:
+    correctness: 55.6
+    testing: 67.6
+    code_quality: 86.6
+    security: 46.0
+    efficiency: 73.1
+    adoption: 98.5
+  context_data:
+    experiment_count: 5740
+    avg_score: 100.0
+    safety_alerts: 62
+    human_interventions: 51
+  reviewer_scores:
+    reviewer_1:
+      correctness: 57.6
+      testing: 69.2
+      code_quality: 86.2
+      security: 48.7
+      efficiency: 72.8
+      adoption: 97.2
+    reviewer_2:
+      correctness: 51.0
+      testing: 62.7
+      code_quality: 73.8
+      security: 44.8
+      efficiency: 72.3
+      adoption: 94.7
+round_R-7d-025:
+  round_id: R-7d-025
+  snapshot_index: 48
+  automated_scores:
+    correctness: 55.7
+    testing: 67.9
+    code_quality: 100.0
+    security: 46.5
+    efficiency: 72.9
+    adoption: 100.0
+  context_data:
+    experiment_count: 5980
+    avg_score: 100.0
+    safety_alerts: 64
+    human_interventions: 53
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.3
+      testing: 68.6
+      code_quality: 100
+      security: 46.6
+      efficiency: 71.9
+      adoption: 98.8
+    reviewer_2:
+      correctness: 53.4
+      testing: 59.6
+      code_quality: 97.4
+      security: 44.8
+      efficiency: 80.1
+      adoption: 100
+round_R-7d-026:
+  round_id: R-7d-026
+  snapshot_index: 50
+  automated_scores:
+    correctness: 56.6
+    testing: 68.2
+    code_quality: 100.0
+    security: 46.9
+    efficiency: 72.8
+    adoption: 100.0
+  context_data:
+    experiment_count: 6220
+    avg_score: 100.0
+    safety_alerts: 66
+    human_interventions: 54
+  reviewer_scores:
+    reviewer_1:
+      correctness: 58.7
+      testing: 66.8
+      code_quality: 100
+      security: 44.6
+      efficiency: 73.4
+      adoption: 100
+    reviewer_2:
+      correctness: 50.8
+      testing: 76.2
+      code_quality: 100
+      security: 35.4
+      efficiency: 73.6
+      adoption: 96.0
+round_R-7d-027:
+  round_id: R-7d-027
+  snapshot_index: 52
+  automated_scores:
+    correctness: 56.7
+    testing: 67.5
+    code_quality: 99.3
+    security: 45.8
+    efficiency: 72.7
+    adoption: 100.0
+  context_data:
+    experiment_count: 6460
+    avg_score: 100.0
+    safety_alerts: 70
+    human_interventions: 56
+  reviewer_scores:
+    reviewer_1:
+      correctness: 56.7
+      testing: 68.4
+      code_quality: 100
+      security: 41.7
+      efficiency: 70.4
+      adoption: 100
+    reviewer_2:
+      correctness: 61.2
+      testing: 75.0
+      code_quality: 100
+      security: 33.5
+      efficiency: 74.5
+      adoption: 88.4
+round_R-7d-028:
+  round_id: R-7d-028
+  snapshot_index: 54
+  automated_scores:
+    correctness: 58.2
+    testing: 67.3
+    code_quality: 95.1
+    security: 45.5
+    efficiency: 72.6
+    adoption: 100.0
+  context_data:
+    experiment_count: 6700
+    avg_score: 100.0
+    safety_alerts: 73
+    human_interventions: 56
+  reviewer_scores:
+    reviewer_1:
+      correctness: 61.4
+      testing: 67.8
+      code_quality: 92.8
+      security: 49.5
+      efficiency: 73.9
+      adoption: 96.2
+    reviewer_2:
+      correctness: 57.7
+      testing: 61.6
+      code_quality: 93.7
+      security: 41.2
+      efficiency: 77.5
+      adoption: 90.9
+round_R-7d-029:
+  round_id: R-7d-029
+  snapshot_index: 56
+  automated_scores:
+    correctness: 58.2
+    testing: 66.3
+    code_quality: 95.7
+    security: 43.8
+    efficiency: 72.5
+    adoption: 99.9
+  context_data:
+    experiment_count: 6940
+    avg_score: 100.0
+    safety_alerts: 78
+    human_interventions: 58
+  reviewer_scores:
+    reviewer_1:
+      correctness: 58.8
+      testing: 69.9
+      code_quality: 94.0
+      security: 44.2
+      efficiency: 72.9
+      adoption: 98.5
+    reviewer_2:
+      correctness: 59.4
+      testing: 64.8
+      code_quality: 89.0
+      security: 50.6
+      efficiency: 74.5
+      adoption: 97.1
+round_R-7d-030:
+  round_id: R-7d-030
+  snapshot_index: 58
+  automated_scores:
+    correctness: 56.1
+    testing: 66.2
+    code_quality: 96.0
+    security: 43.6
+    efficiency: 72.4
+    adoption: 99.7
+  context_data:
+    experiment_count: 7180
+    avg_score: 100.0
+    safety_alerts: 81
+    human_interventions: 63
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.8
+      testing: 64.6
+      code_quality: 98.5
+      security: 43.3
+      efficiency: 73.3
+      adoption: 99.3
+    reviewer_2:
+      correctness: 57.2
+      testing: 63.6
+      code_quality: 97.8
+      security: 40.7
+      efficiency: 74.5
+      adoption: 100
+round_R-7d-031:
+  round_id: R-7d-031
+  snapshot_index: 60
+  automated_scores:
+    correctness: 56.9
+    testing: 66.8
+    code_quality: 92.9
+    security: 44.7
+    efficiency: 72.3
+    adoption: 100.0
+  context_data:
+    experiment_count: 7420
+    avg_score: 100.0
+    safety_alerts: 82
+    human_interventions: 64
+  reviewer_scores:
+    reviewer_1:
+      correctness: 56.7
+      testing: 65.1
+      code_quality: 91.0
+      security: 43.2
+      efficiency: 70.3
+      adoption: 100
+    reviewer_2:
+      correctness: 54.7
+      testing: 72.7
+      code_quality: 100
+      security: 42.8
+      efficiency: 62.6
+      adoption: 96.1
+round_R-7d-032:
+  round_id: R-7d-032
+  snapshot_index: 62
+  automated_scores:
+    correctness: 55.0
+    testing: 67.9
+    code_quality: 96.5
+    security: 46.5
+    efficiency: 72.3
+    adoption: 100.0
+  context_data:
+    experiment_count: 7660
+    avg_score: 100.0
+    safety_alerts: 82
+    human_interventions: 69
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.8
+      testing: 64.9
+      code_quality: 96.0
+      security: 47.1
+      efficiency: 71.4
+      adoption: 98.5
+    reviewer_2:
+      correctness: 49.2
+      testing: 74.8
+      code_quality: 93.7
+      security: 40.4
+      efficiency: 68.4
+      adoption: 100
+round_R-7d-033:
+  round_id: R-7d-033
+  snapshot_index: 64
+  automated_scores:
+    correctness: 54.4
+    testing: 68.1
+    code_quality: 86.3
+    security: 46.8
+    efficiency: 72.2
+    adoption: 97.9
+  context_data:
+    experiment_count: 7900
+    avg_score: 100.0
+    safety_alerts: 84
+    human_interventions: 72
+  reviewer_scores:
+    reviewer_1:
+      correctness: 53.0
+      testing: 69.1
+      code_quality: 87.8
+      security: 48.3
+      efficiency: 75.0
+      adoption: 96.8
+    reviewer_2:
+      correctness: 58.1
+      testing: 62.1
+      code_quality: 82.3
+      security: 50.8
+      efficiency: 74.3
+      adoption: 95.9
+round_R-7d-034:
+  round_id: R-7d-034
+  snapshot_index: 66
+  automated_scores:
+    correctness: 55.8
+    testing: 67.2
+    code_quality: 100.0
+    security: 45.3
+    efficiency: 72.1
+    adoption: 100.0
+  context_data:
+    experiment_count: 8140
+    avg_score: 100.0
+    safety_alerts: 89
+    human_interventions: 72
+  reviewer_scores:
+    reviewer_1:
+      correctness: 53.4
+      testing: 68.3
+      code_quality: 98.7
+      security: 43.5
+      efficiency: 70.8
+      adoption: 100
+    reviewer_2:
+      correctness: 43.2
+      testing: 67.0
+      code_quality: 98.9
+      security: 40.4
+      efficiency: 75.3
+      adoption: 100
+round_R-7d-035:
+  round_id: R-7d-035
+  snapshot_index: 68
+  automated_scores:
+    correctness: 55.3
+    testing: 67.8
+    code_quality: 96.1
+    security: 46.3
+    efficiency: 72.1
+    adoption: 99.6
+  context_data:
+    experiment_count: 8380
+    avg_score: 100.0
+    safety_alerts: 90
+    human_interventions: 75
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.1
+      testing: 66.5
+      code_quality: 97.5
+      security: 43.3
+      efficiency: 71.4
+      adoption: 98.3
+    reviewer_2:
+      correctness: 53.6
+      testing: 66.9
+      code_quality: 94.3
+      security: 50.0
+      efficiency: 71.2
+      adoption: 96.0
+round_R-7d-036:
+  round_id: R-7d-036
+  snapshot_index: 70
+  automated_scores:
+    correctness: 55.9
+    testing: 68.7
+    code_quality: 96.5
+    security: 47.8
+    efficiency: 72.0
+    adoption: 100.0
+  context_data:
+    experiment_count: 8620
+    avg_score: 100.0
+    safety_alerts: 90
+    human_interventions: 76
+  reviewer_scores:
+    reviewer_1:
+      correctness: 53.5
+      testing: 70.1
+      code_quality: 97.6
+      security: 50.7
+      efficiency: 70.5
+      adoption: 100
+    reviewer_2:
+      correctness: 53.6
+      testing: 66.3
+      code_quality: 94.6
+      security: 37.2
+      efficiency: 74.1
+      adoption: 100
+round_R-7d-037:
+  round_id: R-7d-037
+  snapshot_index: 72
+  automated_scores:
+    correctness: 56.0
+    testing: 68.8
+    code_quality: 92.4
+    security: 48.1
+    efficiency: 71.9
+    adoption: 100.0
+  context_data:
+    experiment_count: 8860
+    avg_score: 100.0
+    safety_alerts: 92
+    human_interventions: 78
+  reviewer_scores:
+    reviewer_1:
+      correctness: 58.3
+      testing: 73.3
+      code_quality: 91.8
+      security: 48.0
+      efficiency: 71.9
+      adoption: 100
+    reviewer_2:
+      correctness: 45.3
+      testing: 69.2
+      code_quality: 83.0
+      security: 33.2
+      efficiency: 59.8
+      adoption: 91.1
+round_R-7d-038:
+  round_id: R-7d-038
+  snapshot_index: 74
+  automated_scores:
+    correctness: 55.5
+    testing: 68.7
+    code_quality: 92.1
+    security: 47.8
+    efficiency: 71.9
+    adoption: 99.7
+  context_data:
+    experiment_count: 9100
+    avg_score: 100.0
+    safety_alerts: 95
+    human_interventions: 81
+  reviewer_scores:
+    reviewer_1:
+      correctness: 57.6
+      testing: 67.0
+      code_quality: 91.6
+      security: 45.5
+      efficiency: 73.1
+      adoption: 97.5
+    reviewer_2:
+      correctness: 60.1
+      testing: 61.7
+      code_quality: 86.3
+      security: 46.4
+      efficiency: 70.0
+      adoption: 100
+round_R-7d-039:
+  round_id: R-7d-039
+  snapshot_index: 76
+  automated_scores:
+    correctness: 54.5
+    testing: 68.8
+    code_quality: 91.7
+    security: 48.1
+    efficiency: 71.8
+    adoption: 98.8
+  context_data:
+    experiment_count: 9340
+    avg_score: 100.0
+    safety_alerts: 97
+    human_interventions: 85
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.7
+      testing: 66.4
+      code_quality: 90.6
+      security: 47.0
+      efficiency: 73.3
+      adoption: 99.6
+    reviewer_2:
+      correctness: 51.9
+      testing: 71.1
+      code_quality: 87.1
+      security: 45.4
+      efficiency: 70.7
+      adoption: 100
+round_R-7d-040:
+  round_id: R-7d-040
+  snapshot_index: 78
+  automated_scores:
+    correctness: 54.1
+    testing: 67.7
+    code_quality: 97.5
+    security: 46.2
+    efficiency: 71.8
+    adoption: 100.0
+  context_data:
+    experiment_count: 9580
+    avg_score: 100.0
+    safety_alerts: 103
+    human_interventions: 88
+  reviewer_scores:
+    reviewer_1:
+      correctness: 53.9
+      testing: 67.0
+      code_quality: 95.4
+      security: 47.6
+      efficiency: 70.6
+      adoption: 100
+    reviewer_2:
+      correctness: 42.6
+      testing: 70.9
+      code_quality: 88.8
+      security: 40.3
+      efficiency: 75.1
+      adoption: 91.3
+round_R-7d-041:
+  round_id: R-7d-041
+  snapshot_index: 80
+  automated_scores:
+    correctness: 54.7
+    testing: 67.9
+    code_quality: 97.5
+    security: 46.5
+    efficiency: 71.8
+    adoption: 100.0
+  context_data:
+    experiment_count: 9820
+    avg_score: 100.0
+    safety_alerts: 105
+    human_interventions: 89
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.5
+      testing: 68.0
+      code_quality: 95.5
+      security: 49.2
+      efficiency: 74.8
+      adoption: 96.1
+    reviewer_2:
+      correctness: 45.5
+      testing: 69.9
+      code_quality: 89.0
+      security: 42.6
+      efficiency: 70.4
+      adoption: 100
+round_R-7d-042:
+  round_id: R-7d-042
+  snapshot_index: 82
+  automated_scores:
+    correctness: 55.3
+    testing: 67.5
+    code_quality: 100.0
+    security: 45.8
+    efficiency: 71.7
+    adoption: 100.0
+  context_data:
+    experiment_count: 10060
+    avg_score: 100.0
+    safety_alerts: 109
+    human_interventions: 90
+  reviewer_scores:
+    reviewer_1:
+      correctness: 54.9
+      testing: 67.7
+      code_quality: 98.4
+      security: 48.4
+      efficiency: 70.7
+      adoption: 100
+    reviewer_2:
+      correctness: 50.7
+      testing: 66.0
+      code_quality: 97.2
+      security: 43.0
+      efficiency: 64.6
+      adoption: 100

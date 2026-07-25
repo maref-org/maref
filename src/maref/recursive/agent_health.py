@@ -7,8 +7,11 @@ are no longer hard-coded constants.
 
 from __future__ import annotations
 
+import json
+import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -127,4 +130,105 @@ class AgentHealthMonitor:
             "agent_count": len(self._snapshots),
             "overloaded": self.list_overloaded(),
             "agents": {sid: snap.to_dict() for sid, snap in self._snapshots.items()},
+        }
+
+
+class PulseWriter:
+    """Writes agent heartbeat pulse files for M0 survivability checks.
+
+    Each agent writes a pulse.json to .governance/pulses/<agent_id>.json.
+    The meta-monitor checks freshness: if mtime > interval * 3, the agent
+    is considered dead.
+    """
+
+    def __init__(
+        self,
+        agent_id: str,
+        pulses_dir: Path | str | None = None,
+        interval_seconds: float = 30.0,
+    ) -> None:
+        self._agent_id = agent_id
+        if pulses_dir is None:
+            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+            self._dir = base / "pulses"
+        else:
+            self._dir = Path(pulses_dir)
+        self._dir.mkdir(parents=True, exist_ok=True)
+        self._path = self._dir / f"{agent_id}.json"
+        self._interval = interval_seconds
+        self._cycle = 0
+        self._epoch = int(time.time())
+
+    def write_pulse(self, status: str = "alive") -> dict[str, Any]:
+        """Write a heartbeat pulse file. Returns the pulse data."""
+        self._cycle += 1
+        pulse: dict[str, Any] = {
+            "agent": self._agent_id,
+            "status": status,
+            "cycle": self._cycle,
+            "pid": os.getpid(),
+            "timestamp": time.time(),
+            "epoch": self._epoch,
+            "interval": self._interval,
+        }
+        tmp_path = self._path.with_suffix(".tmp")
+        with open(tmp_path, "w") as f:
+            json.dump(pulse, f)
+        os.replace(tmp_path, self._path)
+        return pulse
+
+    def is_alive(self, max_age_seconds: float | None = None) -> bool:
+        """Check if this agent's pulse is fresh."""
+        if max_age_seconds is None:
+            max_age_seconds = self._interval * 3
+        if not self._path.exists():
+            return False
+        age = time.time() - self._path.stat().st_mtime
+        return age <= max_age_seconds
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    @staticmethod
+    def check_pulse_staleness(
+        pulses_dir: Path | str | None = None,
+        max_stale_ratio: float = 0.30,
+    ) -> dict[str, Any]:
+        """Check all pulse files for staleness (M0.3 check)."""
+        if pulses_dir is None:
+            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+            pulses_dir = base / "pulses"
+        else:
+            pulses_dir = Path(pulses_dir)
+
+        if not pulses_dir.exists() or not any(pulses_dir.glob("*.json")):
+            return {"total": 0, "stale": 0, "stale_ratio": 0.0, "status": "no_pulses"}
+
+        now = time.time()
+        total = 0
+        stale = 0
+        stale_agents: list[str] = []
+
+        for pulse_file in pulses_dir.glob("*.json"):
+            total += 1
+            try:
+                with open(pulse_file) as f:
+                    data = json.load(f)
+                interval = data.get("interval", 30.0)
+                age = now - data.get("timestamp", 0)
+                if age > interval * 3:
+                    stale += 1
+                    stale_agents.append(data.get("agent", pulse_file.stem))
+            except (json.JSONDecodeError, OSError):
+                stale += 1
+                stale_agents.append(pulse_file.stem)
+
+        stale_ratio = stale / total if total > 0 else 0.0
+        return {
+            "total": total,
+            "stale": stale,
+            "stale_ratio": round(stale_ratio, 3),
+            "stale_agents": stale_agents,
+            "status": "healthy" if stale_ratio <= max_stale_ratio else "degraded",
         }
