@@ -1,0 +1,74 @@
+ACCEPT-003 Human Review Blind Worksheet - Instructions
+========================================================
+
+1. Review Purpose
+-----------------
+Validate the correlation between RSI (Recursive Self-Improvement) automated
+scoring and human expert judgment. This is the L2 acceptance criteria
+PERCV-RSI-ACCEPT-003.
+
+The automated scoring system must produce scores that correlate with human
+expert assessment to ensure the self-improvement loop is trustworthy.
+
+2. Scoring Dimensions (6 dimensions, 0-100 points each)
+--------------------------------------------------------
+Each round must be scored on the following six dimensions, using an integer
+or float in the range [0, 100]:
+
+  - correctness       : Correctness of the code improvements introduced in
+                        this round (logic correctness, edge cases, bug-free).
+  - testing           : Quality and coverage of tests added or modified in
+                        this round.
+  - code_quality      : Readability, maintainability, and adherence to style
+                        conventions of the changed code.
+  - security          : Safety of the changes (no injection, no privilege
+                        escalation, no secret leakage).
+  - efficiency        : Resource usage (CPU, memory, latency) of the changed
+                        code relative to prior state.
+  - adoption          : Success rate of integration (did the improvement
+                        land and stick without rollback).
+
+3. Review Requirements - Independent Blind Review
+-------------------------------------------------
+  - Reviewers MUST score independently. No discussion with other reviewers
+    until all scores are submitted.
+  - Reviewers MUST NOT view the automated_scores or reviewer_scores fields
+    in vault/rsi-correlation-data.yaml before completing this worksheet.
+  - Reviewers use ONLY the context_data columns (round_id, snapshot_index,
+    experiment_count, avg_score, safety_alerts, human_interventions) plus
+    the actual round artifacts (git log, diff, test output) as the basis
+    for scoring.
+  - Minimum 2 reviewers, target 3. Each reviewer fills one copy of the
+    worksheet.
+
+4. Pass Criteria
+----------------
+  - Primary metric : Spearman rank correlation between automated score and
+                      mean human score, computed per dimension and overall.
+  - Threshold      : Spearman >= 0.7 on all 6 dimensions AND overall.
+  - PASS              : Spearman >= 0.7 on all 6 dimensions + overall.
+  - CONDITIONAL PASS  : 5/6 dimensions >= 0.7, overall >= 0.7.
+  - FAIL              : Any dimension < 0.5, or overall < 0.7.
+  - Secondary metric : Cohen's kappa for inter-rater reliability >= 0.6.
+
+5. How to Fill In
+-----------------
+  - Open docs/rsi/accept-003-review-worksheet.csv in a spreadsheet editor
+    or text editor.
+  - The first 6 columns are pre-filled with context data for reference:
+      round_id, snapshot_index, experiment_count, avg_score,
+      safety_alerts, human_interventions
+  - Fill in the last 6 columns with your scores (0-100):
+      reviewer_correctness, reviewer_testing, reviewer_code_quality,
+      reviewer_security, reviewer_efficiency, reviewer_adoption
+  - Do NOT modify the first 6 columns.
+  - Do NOT look at automated_scores in the source YAML until done.
+  - Save the completed file as
+      docs/rsi/accept-003-review-worksheet-<your-name>.csv
+  - Submit to the Orchestrator for correlation analysis.
+
+6. Data Source
+--------------
+  - Source YAML : vault/rsi-correlation-data.yaml (42 rounds)
+  - Worksheet   : docs/rsi/accept-003-review-worksheet.csv (42 rows + header)
+  - Protocol    : docs/rsi/l2-human-correlation-protocol.md
