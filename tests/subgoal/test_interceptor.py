@@ -18,7 +18,7 @@ class TestSubgoalInterceptor:
                   "bypass", "all", "safety", "gates",
                   "replace", "human", "operator"]
         action, meta = si.intercept("s1", tokens)
-        assert action in (InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT)
+        assert action in (InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT, InterceptorAction.ROLLBACK)
 
     def test_slow_elevated_risk(self) -> None:
         si = SubgoalInterceptor()
@@ -57,7 +57,7 @@ class TestSubgoalInterceptor:
         si = SubgoalInterceptor()
         tokens = ["bypass", "all", "safety", "remove", "security", "disable", "guard"]
         action, _ = si.intercept("s1", tokens, task_description="security_critical")
-        assert action in (InterceptorAction.ALLOW, InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT)
+        assert action in (InterceptorAction.ALLOW, InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT, InterceptorAction.ROLLBACK)
 
     def test_block_with_governance(self) -> None:
         sm = GovernanceStateMachine()
@@ -83,7 +83,7 @@ class TestSubgoalInterceptor:
         si.intercept("active", ["perform", "task"])
         si.intercept("active", ["elevated", "access", "granted"])
         action, _ = si.intercept("active", ["request", "more", "permissions"])
-        assert action in (InterceptorAction.ALLOW, InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT)
+        assert action in (InterceptorAction.ALLOW, InterceptorAction.SLOW, InterceptorAction.BLOCK, InterceptorAction.HALT, InterceptorAction.ROLLBACK)
 
     def test_allow_low_risk(self) -> None:
         si = SubgoalInterceptor()

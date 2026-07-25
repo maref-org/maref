@@ -43,19 +43,19 @@ class CircuitBreaker:
     Trips on:
     - Recursion depth > max_depth (default 3)
     - Oscillation rate > max_oscillation (default 10/min)
-    - Consecutive failures > max_failures (default 5)
+    - Consecutive failures > max_failures (default 3)
 
     Recovery:
     - HALF_OPEN: allow 1 probe call to test
-    - If probe succeeds → CLOSED (reset)
-    - If probe fails → OPEN (extend cooldown)
+    - If probe succeeds -> CLOSED (reset)
+    - If probe fails -> OPEN (extend cooldown)
     """
 
     def __init__(
         self,
         max_depth: int = 3,
         max_oscillation_rate: float = 10.0,
-        max_consecutive_failures: int = 5,
+        max_consecutive_failures: int = 3,
         cooldown_seconds: float = 30.0,
         rsi_max_flip_flops: int = 7,
         rsi_quality_window: int = 5,

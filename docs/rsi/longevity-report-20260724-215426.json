@@ -1,0 +1,50 @@
+{
+  "duration_hours": 0.0008333333333333334,
+  "start_time": "2026-07-24T21:54:26.140250",
+  "end_time": "2026-07-24T21:54:29.140250",
+  "snapshot_count": 5,
+  "passed": true,
+  "degradations": [],
+  "snapshots": [
+    {
+      "timestamp": 1784901266.74025,
+      "experiment_count": 101,
+      "adoption_rate": 0.6709,
+      "avg_score": 75.46,
+      "safety_alerts": 0,
+      "human_interventions": 0
+    },
+    {
+      "timestamp": 1784901267.3402503,
+      "experiment_count": 102,
+      "adoption_rate": 0.6821,
+      "avg_score": 75.82,
+      "safety_alerts": 0,
+      "human_interventions": 0
+    },
+    {
+      "timestamp": 1784901267.9402502,
+      "experiment_count": 103,
+      "adoption_rate": 0.6884,
+      "avg_score": 76.13,
+      "safety_alerts": 0,
+      "human_interventions": 0
+    },
+    {
+      "timestamp": 1784901268.5402503,
+      "experiment_count": 104,
+      "adoption_rate": 0.6778,
+      "avg_score": 76.27,
+      "safety_alerts": 0,
+      "human_interventions": 0
+    },
+    {
+      "timestamp": 1784901269.1402502,
+      "experiment_count": 105,
+      "adoption_rate": 0.6652,
+      "avg_score": 76.39,
+      "safety_alerts": 0,
+      "human_interventions": 0
+    }
+  ]
+}

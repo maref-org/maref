@@ -19,13 +19,16 @@ References:
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from maref.federation.metering import TaskMeteringEngine
+from maref.governance.db import DatabaseManager
 
 
 class SettlementStatus(str, Enum):
@@ -151,6 +154,7 @@ class FederatedSettlement:
         self,
         metering: TaskMeteringEngine,
         pricing_rules: dict[str, float] | None = None,
+        db_path: str | Path | None = None,
     ) -> None:
         self._metering = metering
         self._pricing = dict(_DEFAULT_PRICING)
@@ -159,6 +163,150 @@ class FederatedSettlement:
         self._billing_entries: list[BillingEntry] = []
         self._proposals: dict[str, SettlementProposal] = {}
         self._ledger: dict[str, LedgerEntry] = {}
+        self._db: DatabaseManager | None = None
+        if db_path is not None:
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS billing_entries (
+                entry_id     TEXT PRIMARY KEY,
+                provider_org TEXT NOT NULL,
+                consumer_org TEXT NOT NULL,
+                task_id      TEXT NOT NULL,
+                agent_did    TEXT NOT NULL,
+                amount       REAL NOT NULL,
+                metric_id    TEXT NOT NULL,
+                timestamp    REAL NOT NULL,
+                description  TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS settlement_proposals (
+                proposal_id      TEXT PRIMARY KEY,
+                provider_org     TEXT NOT NULL,
+                consumer_org     TEXT NOT NULL,
+                period_start     REAL NOT NULL,
+                period_end       REAL NOT NULL,
+                entry_ids        TEXT NOT NULL,
+                total_amount     REAL NOT NULL,
+                status           TEXT NOT NULL,
+                created_at       REAL NOT NULL,
+                resolved_at      REAL,
+                rejection_reason TEXT NOT NULL DEFAULT '',
+                dispute_reason   TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE IF NOT EXISTS ledger_entries (
+                org_pair_key TEXT PRIMARY KEY,
+                provider_org TEXT NOT NULL,
+                consumer_org TEXT NOT NULL,
+                balance      REAL NOT NULL,
+                settled      REAL NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        # Billing entries
+        for row in self._db.fetchall("SELECT * FROM billing_entries ORDER BY timestamp"):
+            entry = BillingEntry(
+                entry_id=row["entry_id"],
+                provider_org=row["provider_org"],
+                consumer_org=row["consumer_org"],
+                task_id=row["task_id"],
+                agent_did=row["agent_did"],
+                amount=row["amount"],
+                metric_id=row["metric_id"],
+                timestamp=row["timestamp"],
+                description=row["description"],
+            )
+            self._billing_entries.append(entry)
+        # Proposals
+        for row in self._db.fetchall("SELECT * FROM settlement_proposals ORDER BY created_at"):
+            entry_ids = json.loads(row["entry_ids"])
+            entries = [e for e in self._billing_entries if e.entry_id in entry_ids]
+            proposal = SettlementProposal(
+                proposal_id=row["proposal_id"],
+                provider_org=row["provider_org"],
+                consumer_org=row["consumer_org"],
+                period_start=row["period_start"],
+                period_end=row["period_end"],
+                entries=entries,
+                total_amount=row["total_amount"],
+                status=SettlementStatus(row["status"]),
+                created_at=row["created_at"],
+                resolved_at=row["resolved_at"],
+                rejection_reason=row["rejection_reason"],
+                dispute_reason=row["dispute_reason"],
+            )
+            self._proposals[proposal.proposal_id] = proposal
+        # Ledger
+        for row in self._db.fetchall("SELECT * FROM ledger_entries"):
+            key = row["org_pair_key"]
+            self._ledger[key] = LedgerEntry(
+                provider_org=row["provider_org"],
+                consumer_org=row["consumer_org"],
+                balance=row["balance"],
+                settled=row["settled"],
+            )
+
+    def _persist_billing(self, entry: BillingEntry) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO billing_entries "
+            "(entry_id, provider_org, consumer_org, task_id, agent_did, "
+            "amount, metric_id, timestamp, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                entry.entry_id,
+                entry.provider_org,
+                entry.consumer_org,
+                entry.task_id,
+                entry.agent_did,
+                entry.amount,
+                entry.metric_id,
+                entry.timestamp,
+                entry.description,
+            ),
+        )
+
+    def _persist_proposal(self, proposal: SettlementProposal) -> None:
+        if self._db is None:
+            return
+        entry_ids = json.dumps([e.entry_id for e in proposal.entries])
+        self._db.execute(
+            "INSERT OR REPLACE INTO settlement_proposals "
+            "(proposal_id, provider_org, consumer_org, period_start, period_end, "
+            "entry_ids, total_amount, status, created_at, resolved_at, "
+            "rejection_reason, dispute_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                proposal.proposal_id,
+                proposal.provider_org,
+                proposal.consumer_org,
+                proposal.period_start,
+                proposal.period_end,
+                entry_ids,
+                proposal.total_amount,
+                proposal.status.value,
+                proposal.created_at,
+                proposal.resolved_at,
+                proposal.rejection_reason,
+                proposal.dispute_reason,
+            ),
+        )
+
+    def _persist_ledger(self, key: str, ledger: LedgerEntry) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO ledger_entries "
+            "(org_pair_key, provider_org, consumer_org, balance, settled) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (key, ledger.provider_org, ledger.consumer_org, ledger.balance, ledger.settled),
+        )
 
     # ------------------------------------------------------------------
     # Pricing
@@ -226,6 +374,7 @@ class FederatedSettlement:
         )
         self._billing_entries.append(entry)
         self._update_ledger(entry)
+        self._persist_billing(entry)
         return entry
 
     def generate_billing_from_metering(
@@ -286,6 +435,7 @@ class FederatedSettlement:
             total_amount=total,
         )
         self._proposals[proposal.proposal_id] = proposal
+        self._persist_proposal(proposal)
         return proposal
 
     def accept_proposal(self, proposal_id: str) -> bool:
@@ -295,6 +445,7 @@ class FederatedSettlement:
             return False
         proposal.status = SettlementStatus.ACCEPTED
         proposal.resolved_at = time.time()
+        self._persist_proposal(proposal)
         return True
 
     def reject_proposal(
@@ -307,6 +458,7 @@ class FederatedSettlement:
         proposal.status = SettlementStatus.REJECTED
         proposal.resolved_at = time.time()
         proposal.rejection_reason = reason
+        self._persist_proposal(proposal)
         return True
 
     def settle_proposal(self, proposal_id: str) -> bool:
@@ -320,12 +472,16 @@ class FederatedSettlement:
         proposal.status = SettlementStatus.SETTLED
         proposal.resolved_at = time.time()
 
+        # Persist proposal first (SETTLED) so a crash won't re-settle on restart.
+        self._persist_proposal(proposal)
+
         # Update ledger: reduce balance, increase settled.
         key = _org_pair_key(proposal.provider_org, proposal.consumer_org)
         ledger = self._ledger.get(key)
         if ledger is not None:
             ledger.balance -= proposal.total_amount
             ledger.settled += proposal.total_amount
+            self._persist_ledger(key, ledger)
         return True
 
     def dispute_proposal(
@@ -340,6 +496,7 @@ class FederatedSettlement:
         proposal.status = SettlementStatus.DISPUTED
         proposal.dispute_reason = reason
         proposal.resolved_at = time.time()
+        self._persist_proposal(proposal)
         return True
 
     def get_proposal(self, proposal_id: str) -> SettlementProposal | None:
@@ -397,6 +554,7 @@ class FederatedSettlement:
             ledger.balance += entry.amount
         else:
             ledger.balance -= entry.amount
+        self._persist_ledger(key, ledger)
 
     # ------------------------------------------------------------------
     # Summary

@@ -210,11 +210,11 @@ omit = [
     "*/__main__.py",
     "*/exceptions.py",
 ]
-branch = false
+branch = true
 
 [tool.coverage.report]
 precision = 2
-fail_under = 30
+fail_under = 50
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",

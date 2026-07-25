@@ -437,7 +437,6 @@ class TestCompliance:
         assert response.status_code == 200
         assert response.json()["allowed"] is False
 
-    @pytest.mark.skip(reason="BUG: compliance/unified.py asyncio.run() in sync method")
     def test_compliance_snapshot(self, client: TestClient) -> None:
         client.post(
             "/api/compliance/register",

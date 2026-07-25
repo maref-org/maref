@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from maref.governance import AuditLogger, CircuitBreaker, GovernanceStateMachine
+from maref.immunity.cooldown_manager import CooldownManager
+from maref.immunity.negative_gene_bank import NegativeGeneBank
 from maref.integration.a2a_bridge import A2ABridge
 from maref.integration.a2a_server import create_a2a_router
 from maref.mcp.evolution_tools import EVOLUTION_TOOLS
@@ -49,6 +51,10 @@ _tasks: dict[str, dict[str, Any]] = {
 }
 _compliance_agents: dict[str, dict[str, Any]] = {}
 _compliance_audit_logs: dict[str, list[dict[str, Any]]] = {}
+
+# Immunity system singletons
+_cooldown_manager = CooldownManager()
+_gene_bank = NegativeGeneBank()
 
 _governance_state: dict[str, Any] = {
     "state": "OBSERVE",
@@ -440,22 +446,57 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
     @app.get("/api/immunity/cooldown")
     def list_cooldown_entries() -> dict[str, Any]:
-        return {"entries": [], "total": 0, "status": "no_manager"}
+        entries = _cooldown_manager.get_all_entries()
+        return {
+            "entries": [
+                {
+                    "cooldown_id": e.cooldown_id,
+                    "agent_id": e.agent_id,
+                    "status": e.status,
+                    "submitted_at": e.submitted_at,
+                    "contamination_index": e.contamination_index,
+                    "blocked": e.blocked,
+                    "merged": e.merged,
+                    "force_merged": e.force_merged,
+                }
+                for e in entries
+            ],
+            "total": len(entries),
+            "status": "ok",
+        }
 
     @app.get("/api/immunity/cooldown/summary")
     def cooldown_summary() -> dict[str, Any]:
+        entries = _cooldown_manager.get_all_entries()
         return {
-            "total": 0,
-            "cooling": 0,
-            "blocked": 0,
-            "merged": 0,
-            "force_merged": 0,
-            "status": "no_manager",
+            "total": len(entries),
+            "cooling": sum(1 for e in entries if e.status == "cooling"),
+            "blocked": sum(1 for e in entries if e.status == "blocked"),
+            "merged": sum(1 for e in entries if e.merged),
+            "force_merged": sum(1 for e in entries if e.force_merged),
+            "status": "ok",
         }
 
     @app.get("/api/immunity/genes")
     def list_genes() -> dict[str, Any]:
-        return {"genes": [], "total": 0, "status": "no_bank"}
+        genes = _gene_bank.query_all()
+        return {
+            "genes": [
+                {
+                    "gene_id": g.gene_id,
+                    "cwe_id": g.cwe_id,
+                    "risk_level": g.risk_level,
+                    "severity": g.severity,
+                    "blocked": g.blocked,
+                    "title": g.title,
+                    "source": g.source,
+                    "occurrences": g.occurrences,
+                }
+                for g in genes
+            ],
+            "total": len(genes),
+            "status": "ok",
+        }
 
     @app.get("/api/v1/governance/state")
     def governance_state() -> dict[str, Any]:

@@ -63,6 +63,21 @@ FROZEN_TARGETS: dict[str, frozenset[str]] = {
             "frozen_targets",
         }
     ),
+    "ratchet_protection": frozenset(
+        {
+            "MetaRatchet",
+            "meta_ratchet",
+            "RatchetBridge",
+            "ratchet_bridge",
+            "MetaRatchetAuditor",
+            "meta_ratchet_auditor",
+            "CONSTITUTIONAL_IMMUTABLES",
+            "CONFIGURATIONAL_IMMUTABLES",
+            "TRIGGER_CONDITIONS",
+            "best_score",
+            "ratchet_baseline",
+        }
+    ),
 }
 
 ALL_FROZEN: frozenset[str] = frozenset().union(*FROZEN_TARGETS.values())

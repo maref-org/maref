@@ -84,13 +84,19 @@ class TestChainIntegrity:
         assert result["integrity_intact"] is False
 
     def test_chain_integrity_no_hmac_key(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
-            path = f.name
-        logger = AuditLogger(log_path=path)
-        logger.log("event", "actor", "action")
-        result = logger.verify_integrity()
-        assert result["signed_entries"] >= 0
-        assert result["integrity_intact"] is False
+        # Use temp dir as CWD to avoid loading .maraf_hmac_key from project root
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test_audit.jsonl")
+            old_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                logger = AuditLogger(log_path=path)
+                logger.log("event", "actor", "action")
+                result = logger.verify_integrity()
+                assert result["signed_entries"] >= 0
+                assert result["integrity_intact"] is False
+            finally:
+                os.chdir(old_cwd)
 
     def test_chain_integrity_previous_hash_break_detected(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
@@ -462,8 +468,15 @@ class TestHmacSigning:
         assert e1.hmac_signature != e2.hmac_signature
 
     def test_empty_hmac_key_warning(self, caplog):
-        logger = AuditLogger()
-        assert "No HMAC key configured" in caplog.text
+        # Use temp dir as CWD to avoid loading .maraf_hmac_key from project root
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                logger = AuditLogger()
+                assert "No HMAC key configured" in caplog.text
+            finally:
+                os.chdir(old_cwd)
 
 
 class TestAuditEntryExtended:

@@ -401,9 +401,14 @@ class ComplianceEngine:
                 findings=["Requirement not found in registry"],
             )
 
-        # 简化评估逻辑：有证据则视为合规
-        status = ComplianceStatus.COMPLIANT if evidence else ComplianceStatus.NON_COMPLIANT
-        score = 100.0 if evidence else 0.0
+        # 基于证据有效性评估：过滤空值与占位符，防止用 "n/a" 充当证据
+        _PLACEHOLDERS = {"", "none", "n/a", "na", "null", "todo", "tbd"}
+        valid_evidence = [
+            e for e in evidence
+            if isinstance(e, str) and e.strip().lower() not in _PLACEHOLDERS
+        ]
+        status = ComplianceStatus.COMPLIANT if valid_evidence else ComplianceStatus.NON_COMPLIANT
+        score = 100.0 if valid_evidence else 0.0
 
         result = ComplianceCheckResult(
             result_id=f"res-{requirement_id}-{int(datetime.now().timestamp())}",
@@ -412,7 +417,11 @@ class ComplianceEngine:
             checked_at=datetime.now(),
             checked_by=evaluator,
             findings=[
-                f"Evidence provided: {len(evidence)} items" if evidence else "No evidence provided"
+                f"Evidence provided: {len(valid_evidence)} valid items"
+                if valid_evidence
+                else f"No valid evidence ({len(evidence)} placeholders rejected)"
+                if evidence
+                else "No evidence provided"
             ],
             recommendations=[
                 "Ensure all required evidence is documented",

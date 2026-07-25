@@ -16,10 +16,14 @@ References:
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+from maref.governance.db import DatabaseManager
 
 
 @dataclass(frozen=True)
@@ -104,11 +108,67 @@ class TaskMeteringEngine:
     backend by subclassing and overriding :meth:`_persist`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, db_path: str | Path | None = None) -> None:
+        self._db: DatabaseManager | None = None
         self._metrics: list[TaskMetric] = []
         self._index_by_task: dict[str, list[int]] = {}
         self._index_by_org: dict[str, list[int]] = {}
         self._index_by_metric_id: dict[str, int] = {}
+        if db_path is not None:
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS task_metrics (
+                metric_id        TEXT PRIMARY KEY,
+                task_id          TEXT NOT NULL,
+                agent_did        TEXT NOT NULL,
+                agent_aic        TEXT NOT NULL,
+                provider_org     TEXT NOT NULL,
+                consumer_org     TEXT NOT NULL,
+                duration_ms      REAL NOT NULL,
+                token_count      INTEGER NOT NULL,
+                success          INTEGER NOT NULL,
+                complexity_score REAL NOT NULL,
+                timestamp        REAL NOT NULL,
+                metadata         TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_metrics_task
+                ON task_metrics(task_id);
+            CREATE INDEX IF NOT EXISTS idx_metrics_org
+                ON task_metrics(provider_org, consumer_org);
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        rows = self._db.fetchall("SELECT * FROM task_metrics ORDER BY timestamp")
+        for row in rows:
+            metric = TaskMetric(
+                metric_id=row["metric_id"],
+                task_id=row["task_id"],
+                agent_did=row["agent_did"],
+                agent_aic=row["agent_aic"],
+                provider_org=row["provider_org"],
+                consumer_org=row["consumer_org"],
+                duration_ms=row["duration_ms"],
+                token_count=row["token_count"],
+                success=bool(row["success"]),
+                complexity_score=row["complexity_score"],
+                timestamp=row["timestamp"],
+                metadata=json.loads(row["metadata"]),
+            )
+            idx = len(self._metrics)
+            self._metrics.append(metric)
+            self._index_by_task.setdefault(metric.task_id, []).append(idx)
+            self._index_by_org.setdefault(metric.provider_org, []).append(idx)
+            if metric.consumer_org != metric.provider_org:
+                self._index_by_org.setdefault(metric.consumer_org, []).append(idx)
+            self._index_by_metric_id[metric.metric_id] = idx
 
     # ------------------------------------------------------------------
     # Recording
@@ -153,6 +213,7 @@ class TaskMeteringEngine:
         if consumer_org != provider_org:
             self._index_by_org.setdefault(consumer_org, []).append(idx)
         self._index_by_metric_id[metric.metric_id] = idx
+        self._persist(metric)
         return metric
 
     # ------------------------------------------------------------------
@@ -331,5 +392,27 @@ class TaskMeteringEngine:
     # ------------------------------------------------------------------
 
     def _persist(self, metric: TaskMetric) -> None:
-        """Hook for persistent backends.  No-op by default."""
-        pass
+        """Persist a metric to the SQLite backend.  No-op in memory mode."""
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO task_metrics "
+            "(metric_id, task_id, agent_did, agent_aic, provider_org, "
+            "consumer_org, duration_ms, token_count, success, "
+            "complexity_score, timestamp, metadata) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                metric.metric_id,
+                metric.task_id,
+                metric.agent_did,
+                metric.agent_aic,
+                metric.provider_org,
+                metric.consumer_org,
+                metric.duration_ms,
+                metric.token_count,
+                int(metric.success),
+                metric.complexity_score,
+                metric.timestamp,
+                json.dumps(metric.metadata),
+            ),
+        )

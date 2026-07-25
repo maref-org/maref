@@ -7,6 +7,7 @@ AuditLogger 独立测试
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -86,9 +87,16 @@ class TestAuditLoggerHMAC:
         assert len(entry.hmac_signature) == 64  # SHA-256 hex
 
     def test_sign_entry_without_key(self) -> None:
-        logger = AuditLogger()
-        entry = logger.log("test", "actor", "action")
-        assert entry.hmac_signature == ""
+        # Use temp dir as CWD to avoid loading .maraf_hmac_key from project root
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                logger = AuditLogger()
+                entry = logger.log("test", "actor", "action")
+                assert entry.hmac_signature == ""
+            finally:
+                os.chdir(old_cwd)
 
     def test_verify_integrity_valid(self) -> None:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:

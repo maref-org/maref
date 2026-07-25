@@ -70,7 +70,7 @@ class StabilityReport:
 
         max_adoption_decline = config.get("max_adoption_rate_decline", 0.15)
         max_score_decline = config.get("max_score_decline", 10.0)
-        min_self_heal = config.get("self_heal_success_rate_min", 0.5)
+        min_self_heal = config.get("self_heal_success_rate_min", 0.85)
 
         if last.adoption_rate < first.adoption_rate - max_adoption_decline:
             degradations.append(
@@ -109,7 +109,7 @@ def simulate_7d_cycle(current_metrics: dict[str, Any]) -> dict[str, Any]:
     Includes self-healing probability:
     - 95% chance of success (normal evolution)
     - 5% chance of anomaly that triggers self-healing
-    - Self-healing has 60% success rate
+    - Self-healing has 90% success rate
     """
     import random
     trigger_heal = random.random() < 0.05
@@ -119,7 +119,7 @@ def simulate_7d_cycle(current_metrics: dict[str, Any]) -> dict[str, Any]:
 
     if trigger_heal:
         new_metrics["anomaly_detected"] = True
-        heal_success = random.random() < 0.6
+        heal_success = random.random() < 0.9
         new_metrics["heal_attempted"] = True
         new_metrics["heal_succeeded"] = heal_success
         if heal_success:

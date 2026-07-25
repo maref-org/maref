@@ -72,6 +72,7 @@ results/experiments/*
 *.secret
 credentials/
 .gaas_api_key
+.maraf_hmac_key
 
 # Generated LaunchAgent plists (machine-specific)
 scripts/*.plist

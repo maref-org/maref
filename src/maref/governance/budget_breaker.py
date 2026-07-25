@@ -48,6 +48,7 @@ class BudgetBreaker:
     - Agent-wide budget exceeded (total cost > max_per_agent)
     - Single-task budget exceeded (task cost > max_per_task)
     - Burn rate exceeded (cost/hour > max_burn_rate)
+    - Monthly budget threshold exceeded (usage >= critical_threshold of monthly_budget)
 
     Recovery:
     - HALF_OPEN: allow 1 probe allocation
@@ -61,11 +62,17 @@ class BudgetBreaker:
         max_per_task: float = 200.0,
         max_burn_rate: float = 100.0,
         cooldown_seconds: float = 60.0,
+        monthly_budget: float = 0.0,
+        warning_threshold: float = 0.80,
+        critical_threshold: float = 0.95,
     ) -> None:
         self._max_per_agent = max_per_agent
         self._max_per_task = max_per_task
         self._max_burn_rate = max_burn_rate
         self._cooldown = cooldown_seconds
+        self._monthly_budget = monthly_budget
+        self._warning_threshold = warning_threshold
+        self._critical_threshold = critical_threshold
         self._lock = threading.RLock()
         self._state: dict[str, BudgetBreakerState] = {}
         self._trips: dict[str, list[BudgetBreakerTrip]] = {}
@@ -73,6 +80,9 @@ class BudgetBreaker:
         self._agent_spend: dict[str, float] = {}
         self._task_spend: dict[str, float] = {}
         self._agent_window: dict[str, list[tuple[float, float]]] = {}
+        self._monthly_spend: dict[str, float] = {}
+        self._month_start: dict[str, float] = {}
+        self._warning_emitted: dict[str, bool] = {}
 
     def _get_state(self, agent_id: str) -> BudgetBreakerState:
         return self._state.get(agent_id, BudgetBreakerState.CLOSED)
@@ -147,6 +157,58 @@ class BudgetBreaker:
             max_window = 1000
             if len(self._agent_window[agent_id]) > max_window:
                 self._agent_window[agent_id] = self._agent_window[agent_id][-max_window:]
+            # Track monthly spend
+            self._update_monthly_spend(agent_id, amount)
+
+    def _update_monthly_spend(self, agent_id: str, amount: float) -> None:
+        """Update monthly spend tracking, resetting if a new month has started."""
+        import datetime
+        now = time.time()
+        if agent_id not in self._month_start:
+            self._month_start[agent_id] = now
+            self._monthly_spend[agent_id] = 0.0
+            self._warning_emitted[agent_id] = False
+        # Check if we've crossed into a new calendar month
+        import datetime
+        current = datetime.datetime.fromtimestamp(now)
+        start = datetime.datetime.fromtimestamp(self._month_start[agent_id])
+        if current.year != start.year or current.month != start.month:
+            self._month_start[agent_id] = now
+            self._monthly_spend[agent_id] = 0.0
+            self._warning_emitted[agent_id] = False
+        self._monthly_spend[agent_id] = self._monthly_spend.get(agent_id, 0.0) + amount
+
+    def check_monthly_budget(self, agent_id: str) -> bool:
+        """Check if agent's monthly budget usage is within thresholds.
+
+        Returns False (tripped) if usage >= critical_threshold (95%).
+        Emits a warning log when usage >= warning_threshold (80%).
+        """
+        if self._monthly_budget <= 0:
+            return True
+        with self._lock:
+            state = self._get_state(agent_id)
+            if state == BudgetBreakerState.OPEN:
+                return False
+            spend = self._monthly_spend.get(agent_id, 0.0)
+            usage = spend / self._monthly_budget
+            if usage >= self._critical_threshold:
+                self._trip(
+                    agent_id, "monthly_budget",
+                    self._monthly_budget, spend,
+                    f"Agent {agent_id} monthly spend {spend:.1f} reaches "
+                    f"{usage:.0%} of budget {self._monthly_budget:.1f} "
+                    f"(critical threshold {self._critical_threshold:.0%})",
+                )
+                return False
+            if usage >= self._warning_threshold and not self._warning_emitted.get(agent_id, False):
+                logger.warning(
+                    "BudgetBreaker monthly warning agent=%s usage=%.1f%% "
+                    "spend=%.1f budget=%.1f",
+                    agent_id, usage * 100, spend, self._monthly_budget,
+                )
+                self._warning_emitted[agent_id] = True
+            return True
 
     def get_agent_spend(self, agent_id: str) -> float:
         with self._lock:
@@ -197,12 +259,18 @@ class BudgetBreaker:
                 self._state.pop(agent_id, None)
                 self._last_trip_time.pop(agent_id, None)
                 self._agent_spend.pop(agent_id, None)
+                self._monthly_spend.pop(agent_id, None)
+                self._month_start.pop(agent_id, None)
+                self._warning_emitted.pop(agent_id, None)
             else:
                 self._state.clear()
                 self._last_trip_time.clear()
                 self._agent_spend.clear()
                 self._task_spend.clear()
                 self._agent_window.clear()
+                self._monthly_spend.clear()
+                self._month_start.clear()
+                self._warning_emitted.clear()
 
     def get_stats(self, agent_id: str | None = None) -> dict[str, Any]:
         with self._lock:
@@ -227,4 +295,6 @@ class BudgetBreaker:
                 "max_per_agent": self._max_per_agent,
                 "max_per_task": self._max_per_task,
                 "max_burn_rate": self._max_burn_rate,
+                "monthly_budget": self._monthly_budget,
+                "monthly_spend": dict(self._monthly_spend),
             }

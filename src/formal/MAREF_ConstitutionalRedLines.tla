@@ -25,6 +25,7 @@ DimensionID == {1, 2, 3, 4, 5}   (* 1=security, 2=correctness, 3=testing, 4=code
 ProtectedDim == {1}               (* security dimension is protected *)
 FileCountMax == 3
 MaxAdjustment == 15               (* 0.15 * 100 for integer TLC *)
+GrayCodeStates == {0, 1, 2, 3}    (* 2-bit Gray Code subset: 00, 01, 11, 10 *)
 
 (* ---- STATE VARIABLES ---- *)
 
@@ -36,13 +37,15 @@ VARIABLES
   safetyGateCount,       (* Nat *)
   auditLogCount,         (* Nat *)
   dimensionWeights,      (* [dim -> weight in 0..100] *)
-  fileModCount,          (* Nat — files modified in current round *)
+  fileModCount,           (* Nat - files modified in current round *)
   crossImpactMonitored,  (* BOOLEAN *)
-  weightAdjustmentTotal  (* Nat — sum of abs changes in a round *)
+  weightAdjustmentTotal, (* Nat - sum of abs changes in a round *)
+  agentState             (* GrayCodeStates - current agent FSM state *)
 
 vars == <<redLines, decisions, decisionTicket, safetyGateActive,
           safetyGateCount, auditLogCount, dimensionWeights,
-          fileModCount, crossImpactMonitored, weightAdjustmentTotal>>
+          fileModCount, crossImpactMonitored, weightAdjustmentTotal,
+          agentState>>
 
 (* ---- INIT ---- *)
 
@@ -57,6 +60,7 @@ Init ==
   /\ fileModCount = 0
   /\ crossImpactMonitored = TRUE
   /\ weightAdjustmentTotal = 0
+  /\ agentState = 0
 
 (* ---- ACTIONS ---- *)
 
@@ -153,6 +157,21 @@ TrackWeightAdjustment(dim, oldW, newW) ==
                  safetyGateCount, auditLogCount, dimensionWeights,
                  fileModCount, crossImpactMonitored>>
 
+(* ---- AGENT STATE TRANSITION (RSI-RL-002: Gray Code FSM) ---- *)
+
+(* Valid 2-bit Gray Code transition: Hamming distance = 1 (adjacent mod 4) *)
+ValidGrayCodeTransition(from, to) ==
+  (from + 1) % 4 = to \/ (from + 3) % 4 = to
+
+(* Agent transitions to a new state following the Gray Code FSM *)
+AgentStateTransition(newState) ==
+  /\ newState \in GrayCodeStates
+  /\ ValidGrayCodeTransition(agentState, newState)
+  /\ agentState' = newState
+  /\ UNCHANGED <<redLines, decisions, decisionTicket, safetyGateActive,
+                 safetyGateCount, auditLogCount, dimensionWeights,
+                 fileModCount, crossImpactMonitored, weightAdjustmentTotal>>
+
 (* ---- Next-state relation ---- *)
 Next ==
   \/ (\E a \in AgentID \ {99}, dt \in DecisionType :
@@ -166,6 +185,7 @@ Next ==
   \/ (\E n \in 0..FileCountMax : SetFileModCount(n))
   \/ (\E d \in DimensionID, o \in 0..100, n \in 0..100 :
        TrackWeightAdjustment(d, o, n))
+  \/ (\E ns \in GrayCodeStates : AgentStateTransition(ns))
 
 (* ---- SPECIFICATION ---- *)
 Spec == Init /\ [][Next]_vars
@@ -256,7 +276,14 @@ WeightAdjustmentBoundInv ==
    externally dictated. Agent state transitions must follow the
    64-state Gray Code FSM (Hamming distance = 1).
    NOTE: Full formalization requires the complete 64-state model in
-   MAREF_GrayCodeFSM.tla. Here we reference it as a constraint. *)
+   MAREF_GrayCodeFSM.tla. Formalized here as a bounded 2-bit Gray Code
+   subset (4 states) with Hamming-distance=1 transition constraint. *)
+
+(* RSI-RL-002: Agent state must always be a valid Gray Code state.
+   Transitions are constrained by ValidGrayCodeTransition in the
+   AgentStateTransition action, enforcing Hamming distance = 1. *)
+RSIRL002_AgentAutonomyInv ==
+  agentState \in GrayCodeStates
 
 (* RSI-RL-003: Safety gate — all improvements must pass C1-C4 gates
    before deployment. Represented as: if decision is 'approved', 
