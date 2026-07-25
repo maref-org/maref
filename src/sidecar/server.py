@@ -693,6 +693,51 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
             "proposal_execution": "dry_run_only",
         }
 
+    @app.get("/api/v1/rsi/evolution-timeline")
+    def rsi_evolution_timeline() -> list[dict[str, Any]]:
+        """P5.6: Return evolution timeline snapshots for GUI visualization."""
+        import json
+        from pathlib import Path
+
+        report_path = Path("docs/rsi/7d-stability-report.json")
+        if not report_path.exists():
+            return []
+        try:
+            data = json.loads(report_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return []
+        snapshots: list[dict[str, Any]] = []
+        for dr in data.get("daily_reports", []):
+            heal_count = dr.get("self_heal_count", 0)
+            heal_successes = dr.get("self_heal_successes", 0)
+            events: list[dict[str, str]] = []
+            if heal_count > 0:
+                events.append({
+                    "type": "heal",
+                    "label": f"自愈 {heal_successes}/{heal_count}",
+                    "detail": f"成功率 {heal_successes / max(heal_count, 1) * 100:.0f}%",
+                    "timestamp": f"Day {dr.get('day', 0)}",
+                })
+            if dr.get("safety_alerts", 0) > 0:
+                events.append({
+                    "type": "alert",
+                    "label": f"告警 {dr.get('safety_alerts', 0)}",
+                    "detail": "安全告警事件",
+                    "timestamp": f"Day {dr.get('day', 0)}",
+                })
+            snapshots.append({
+                "day": dr.get("day", 0),
+                "date": f"Day {dr.get('day', 0)}",
+                "avgScore": dr.get("avg_score", 0),
+                "adoptionRate": dr.get("adoption_rate", 0),
+                "selfHealCount": heal_count,
+                "selfHealSuccesses": heal_successes,
+                "dimensions": {},
+                "events": events,
+                "version": None,
+            })
+        return snapshots
+
     @app.post("/api/v1/evolution/dry-run")
     def evolution_dry_run() -> dict[str, Any]:
         import asyncio

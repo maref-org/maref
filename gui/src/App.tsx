@@ -28,6 +28,7 @@ import {
   FormalVerificationView,
   GuardrailsView,
   ErrorBudgetView,
+  EvolutionTimeline,
 } from "@/components/views/MarefViews";
 import { useUIStore } from "@/stores/uiStore";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -51,6 +52,7 @@ const SECTION_VIEWS: Record<MarefSection, React.ComponentType> = {
   anomaly: AnomalyMonitorView,
   trust: TrustScoreView,
   formal: FormalVerificationView,
+  rsi: EvolutionTimeline,
   guardrails: GuardrailsView,
   error_budget: ErrorBudgetView,
   skills: SkillsPanel,

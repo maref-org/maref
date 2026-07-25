@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   TrendingUp,
   GitBranch,
+  Activity,
   FolderOpen,
   Settings,
   Zap,
@@ -38,6 +39,7 @@ export type MarefSection =
   | "anomaly"
   | "trust"
   | "formal"
+  | "rsi"
   | "guardrails"
   | "error_budget"
   | "skills"
@@ -74,6 +76,7 @@ const MAREF_NAV_ITEMS: {
   { id: "anomaly", icon: AlertTriangle, label: "异常监控", shortcut: "⌃8" },
   { id: "trust", icon: TrendingUp, label: "信任评分", shortcut: "⌃9" },
   { id: "formal", icon: GitBranch, label: "形式验证", shortcut: "⌃0" },
+  { id: "rsi", icon: Activity, label: "RSI 演化", shortcut: "" },
   { id: "guardrails", icon: Shield, label: "护栏监控", shortcut: "" },
   { id: "error_budget", icon: BarChart3, label: "错误预算", shortcut: "" },
   { id: "tasks", icon: ListTodo, label: "任务面板", shortcut: "⌃-" },
