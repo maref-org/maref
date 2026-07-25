@@ -5,8 +5,8 @@ project:
   current_release: 0.37.0-dev
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
-  rsi_level: 'L2 (Conditional Pass)'
-  rsi_score: 79.5
+  rsi_level: 'L2 (Full Pass)'
+  rsi_score: 85.8
   rsi_report: docs/rsi/l2-acceptance-report-20260702.md
   stage: S0 (学术借力) -> P0 (开源启动) -> S1 (开源运营启动)
   constitution_version: v1.8
