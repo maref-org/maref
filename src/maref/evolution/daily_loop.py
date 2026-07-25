@@ -171,14 +171,14 @@ class DailyEvolutionLoop:
         except Exception:
             logger.exception("Self-diagnosis pipeline failed on day %s", current_day)
 
-        constitution_result = self._constitution.check_change(
-            EvolutionChange(
-                change_id=f"daily-{current_day}",
-                files=[],
-                description="daily dry-run evolution",
-                audit_planned=True,
-            )
-        )
+        # Record git state before evolution to detect actual file changes
+        try:
+            pre_evolution_head = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+            ).strip().decode()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pre_evolution_head = None
+
         config = EvolutionConfig(dry_run=self._dry_run, metrics_mode="real")
         try:
             evolution_result = _run_async(
@@ -187,6 +187,35 @@ class DailyEvolutionLoop:
         except Exception:
             logger.exception("Daily evolution failed on day %s", current_day)
             return None
+
+        # Collect actual changed files for constitution review
+        changed_files: list[str] = []
+        if pre_evolution_head is not None:
+            try:
+                diff_output = subprocess.check_output(
+                    ["git", "diff", "--name-only", pre_evolution_head],
+                    stderr=subprocess.DEVNULL,
+                ).strip().decode()
+                if diff_output:
+                    changed_files = [f for f in diff_output.splitlines() if f]
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass
+
+        if changed_files:
+            logger.info(
+                "Constitution review with %d changed files: %s",
+                len(changed_files),
+                changed_files[:5],
+            )
+
+        constitution_result = self._constitution.check_change(
+            EvolutionChange(
+                change_id=f"daily-{current_day}",
+                files=changed_files,
+                description="daily evolution" if changed_files else "daily dry-run evolution",
+                audit_planned=True,
+            )
+        )
         self._vault.write_experiment_result(
             current_day,
             {

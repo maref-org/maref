@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
 import os
+import secrets
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -106,6 +108,7 @@ class OAuthTokenData:
     token_type: str = "Bearer"
     issuer: str = ""
     subject: str = ""
+    code_verifier: str = ""  # PKCE verifier retained for refresh/re-auth
 
 
 class OAuthTokenProvider:
@@ -123,6 +126,7 @@ class OAuthTokenProvider:
         self.scopes = scopes or ["maref:mcp"]
         self.flow = flow
         self._tokens: dict[str, OAuthTokenData] = {}
+        self._pending_auth_codes: dict[str, tuple[str, str, str]] = {}
 
     def get_token(self, server_url: str) -> str:
         token_data = self._tokens.get(server_url)
@@ -144,12 +148,99 @@ class OAuthTokenProvider:
     def store_token(self, server_url: str, token_data: OAuthTokenData) -> None:
         self._tokens[server_url] = token_data
 
+    @staticmethod
+    def generate_pkce_pair() -> tuple[str, str]:
+        """Generate a PKCE code_verifier and S256 code_challenge (RFC 7636)."""
+        code_verifier = secrets.token_urlsafe(64)[:128]
+        digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+        code_challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+        return code_verifier, code_challenge
+
+    def build_authorization_url(
+        self,
+        authorization_endpoint: str,
+        redirect_uri: str,
+        code_challenge: str,
+        state: str | None = None,
+        code_challenge_method: str = "S256",
+    ) -> str:
+        """Build an authorization request URL carrying the PKCE challenge."""
+        from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+        params: dict[str, str] = {
+            "response_type": "code",
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "code_challenge": code_challenge,
+            "code_challenge_method": code_challenge_method,
+            "scope": " ".join(self.scopes),
+        }
+        if state:
+            params["state"] = state
+        parsed = urlparse(authorization_endpoint)
+        existing = dict(parse_qsl(parsed.query))
+        existing.update(params)
+        return urlunparse(parsed._replace(query=urlencode(existing)))
+
+    def store_authorization_code(
+        self,
+        server_url: str,
+        code: str,
+        code_verifier: str,
+        redirect_uri: str = "",
+    ) -> None:
+        """Store an authorization code + PKCE verifier for later exchange."""
+        self._pending_auth_codes[server_url] = (code, code_verifier, redirect_uri)
+
     def _acquire_token(self, server_url: str) -> str:
         if self.flow == "client_credentials":
             return self._client_credentials_grant(server_url)
         if self.flow == "authorization_code":
-            raise NotImplementedError("authorization_code flow requires an authorization code")
+            return self._authorization_code_grant(server_url)
         raise ValueError(f"Unsupported OAuth flow: {self.flow}")
+
+    def _authorization_code_grant(self, server_url: str) -> str:
+        """Exchange a stored authorization code + PKCE verifier for a token."""
+        pending = self._pending_auth_codes.get(server_url)
+        if pending is None:
+            raise RuntimeError(
+                "authorization_code flow requires a code: call "
+                "store_authorization_code() first"
+            )
+        code, code_verifier, redirect_uri = pending
+        token_endpoint = self.token_url or f"{server_url.rstrip('/')}/oauth/token"
+        payload: dict[str, str] = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "code_verifier": code_verifier,
+        }
+        if redirect_uri:
+            payload["redirect_uri"] = redirect_uri
+        try:
+            response = httpx.post(token_endpoint, data=payload, timeout=30.0)
+            response.raise_for_status()
+            data = response.json()
+            token_data = OAuthTokenData(
+                access_token=data.get("access_token", ""),
+                refresh_token=data.get("refresh_token", ""),
+                expires_at=time.time() + data.get("expires_in", 3600),
+                scopes=data.get("scope", " ".join(self.scopes)).split(),
+                token_type=data.get("token_type", "Bearer"),
+                issuer=server_url,
+                subject=self.client_id,
+                code_verifier="",
+            )
+            self._tokens[server_url] = token_data
+            self._pending_auth_codes.pop(server_url, None)
+            return token_data.access_token
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"OAuth authorization_code exchange failed: {exc.response.status_code}"
+            ) from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"OAuth authorization_code request failed: {exc}") from exc
 
     def _client_credentials_grant(self, server_url: str) -> str:
         token_endpoint = self.token_url or f"{server_url.rstrip('/')}/oauth/token"

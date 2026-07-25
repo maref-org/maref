@@ -206,6 +206,12 @@ except ImportError:
 
 from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
 from maref.integration.maref_loop_adapter import MAREFLoop
+try:
+    from maref.integration.mq_adapter import InMemoryMQ, MQAdapter
+except ImportError:
+    # mq_adapter.py may be absent in public/maref — conditional import
+    InMemoryMQ = None  # type: ignore[assignment]
+    MQAdapter = None  # type: ignore[assignment]
 from maref.integration.memory_bridge import (
     KnowledgeInsight,
     MemoryBridge,
@@ -307,6 +313,9 @@ __all__ = [
     "RemoteCommandResult",
     # MAREFLoop adapter
     "MAREFLoop",
+    # MQ Group Communication
+    "MQAdapter",
+    "InMemoryMQ",
     # Trajectory collection (MAS-TS-001 D2/D3)
     "TaskTrajectory",
     "TrajectoryCollector",

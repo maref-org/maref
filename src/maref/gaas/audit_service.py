@@ -1,7 +1,13 @@
-"""GaaS AuditLog Service — immutable, tenant-scoped audit trail.
+"""GaaS AuditLog Service - immutable, tenant-scoped audit trail.
 
 Every governance decision is logged with HMAC-SHA256 signature.
 Supports querying by tenant with time/action/agent filters.
+
+Optional append-only JSONL persistence: pass ``log_path`` to
+:class:`AuditLogService` to persist entries across process restarts.
+Each line is a self-contained signed JSON record (append-only, never
+mutated), matching the tamper-evident pattern of
+:class:`maref.governance.audit.AuditLogger`.
 """
 
 from __future__ import annotations
@@ -9,11 +15,15 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -57,25 +67,87 @@ class GaaSAuditEntry:
         ).hexdigest()
         return hmac.compare_digest(expected, self.hmac_signature)
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "log_id": self.log_id,
+            "timestamp": self.timestamp,
+            "tenant_id": self.tenant_id,
+            "agent_id": self.agent_id,
+            "action": self.action,
+            "verdict": self.verdict,
+            "parameters": self.parameters,
+            "context": self.context,
+            "hmac_signature": self.hmac_signature,
+        }
+
 
 class AuditLogService:
     """Tenant-scoped audit log service with HMAC signing.
 
-    Production should use append-only storage (S3, Glacier, or blockchain anchor).
+    By default operates in-memory.  Pass ``log_path`` to enable
+    append-only JSONL persistence; existing entries are loaded on
+    construction and new entries are appended atomically.
     """
 
-    def __init__(self, secret: bytes | None = None) -> None:
+    def __init__(
+        self,
+        secret: bytes | None = None,
+        log_path: str | Path | None = None,
+    ) -> None:
         if secret is None:
             env_key = os.environ.get("MAREF_HMAC_SECRET_KEY")
             if env_key is None:
                 raise ValueError(
-                    "AuditLogService requires HMAC secret — set MAREF_HMAC_SECRET_KEY env var"
+                    "AuditLogService requires HMAC secret - set MAREF_HMAC_SECRET_KEY env var"
                 )
             self._secret = env_key.encode("utf-8")
         else:
             self._secret = secret
         self._logs: list[GaaSAuditEntry] = []
         self._tenant_index: dict[str, list[int]] = {}
+        self._log_path: Path | None = Path(log_path) if log_path else None
+        if self._log_path is not None:
+            self._log_path.parent.mkdir(parents=True, exist_ok=True)
+            self._load_from_disk()
+
+    def _load_from_disk(self) -> None:
+        """Load existing entries from the JSONL log file (append-only)."""
+        assert self._log_path is not None
+        if not self._log_path.exists():
+            return
+        with open(self._log_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                data = json.loads(line)
+                entry = GaaSAuditEntry(
+                    log_id=data["log_id"],
+                    timestamp=data["timestamp"],
+                    tenant_id=data["tenant_id"],
+                    agent_id=data["agent_id"],
+                    action=data["action"],
+                    verdict=data["verdict"],
+                    parameters=data.get("parameters", {}),
+                    context=data.get("context", {}),
+                    hmac_signature=data.get("hmac_signature", ""),
+                )
+                if not entry.verify(self._secret):
+                    logger.warning(
+                        "HMAC verification failed for audit entry %s, skipping",
+                        entry.log_id,
+                    )
+                    continue
+                idx = len(self._logs)
+                self._logs.append(entry)
+                self._tenant_index.setdefault(entry.tenant_id, []).append(idx)
+
+    def _append_to_disk(self, entry: GaaSAuditEntry) -> None:
+        """Append a single signed entry to the JSONL log file."""
+        assert self._log_path is not None
+        record = entry.to_dict()
+        with open(self._log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
     def log(
         self,
@@ -102,6 +174,8 @@ class AuditLogService:
         signature = hmac.new(self._secret, payload.encode(), hashlib.sha256).hexdigest()
         object.__setattr__(entry, "hmac_signature", signature)
 
+        if self._log_path is not None:
+            self._append_to_disk(entry)
         idx = len(self._logs)
         self._logs.append(entry)
         self._tenant_index.setdefault(tenant_id, []).append(idx)

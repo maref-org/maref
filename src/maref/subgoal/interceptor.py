@@ -9,6 +9,7 @@ from maref.recursive.safety_gate_v2 import SafetyGateV2, ThreatAssessment
 from maref.subgoal.cot_monitor import CoTMonitor, CoTReport
 from maref.subgoal.delegation_graph import DelegationGraph
 from maref.subgoal.goal_inferencer import ControlRiskReport, GoalInferencer
+from maref.subgoal.rollback import SubgoalRollbackManager
 
 
 class InterceptorAction(Enum):
@@ -16,6 +17,7 @@ class InterceptorAction(Enum):
     SLOW = "slow"
     BLOCK = "block"
     HALT = "halt"
+    ROLLBACK = "rollback"
 
 
 class SubgoalInterceptor:
@@ -37,6 +39,7 @@ class SubgoalInterceptor:
         self._cot_monitor = cot_monitor or CoTMonitor()
         self._goal_inferencer = goal_inferencer or GoalInferencer()
         self._delegation_graph = delegation_graph or DelegationGraph()
+        self._rollback_manager = SubgoalRollbackManager()
         self._interception_history: list[dict[str, Any]] = []
 
     def intercept(self, session_id: str, token_stream: list[str],
@@ -44,6 +47,13 @@ class SubgoalInterceptor:
         cot_report = self._cot_monitor.monitor_stream(session_id, token_stream)
         goal_dag = self._goal_inferencer.expand_goals(cot_report)
         control_risk = self._goal_inferencer.detect_control_subgoal(goal_dag)
+
+        # P5.2: register DAG and snapshot each node for cascade rollback
+        self._rollback_manager.register_dag(goal_dag)
+        for node_id in goal_dag.nodes:
+            self._rollback_manager.snapshot(
+                node_id, self._circuit_breaker, self._state_machine
+            )
 
         sg_assessment: ThreatAssessment | None = None
         if self._safety_gate:
@@ -53,7 +63,16 @@ class SubgoalInterceptor:
                 capabilities=capabilities,
             )
 
-        action, metadata = self._decide_action(cot_report, control_risk, sg_assessment)
+        action, metadata = self._decide_action(
+            cot_report, control_risk, sg_assessment
+        )
+        # P5.2: escalate HALT to ROLLBACK when snapshots exist for cascade
+        if (
+            action == InterceptorAction.HALT
+            and self._rollback_manager.snapshot_count > 0
+        ):
+            action = InterceptorAction.ROLLBACK
+            metadata["escalated_from"] = "halt"
         self._apply_governance_action(action, control_risk, cot_report)
 
         record = {
@@ -120,6 +139,23 @@ class SubgoalInterceptor:
             if self._state_machine:
                 self._state_machine.force_halt(
                     f"subgoal_halt:cot_risk={cot.risk_score:.2f},"
+                    f"control_goals={control.control_goal_count}"
+                )
+            return
+
+        if action == InterceptorAction.ROLLBACK:
+            # P5.2: cascade rollback from the latest subgoal up the parent chain
+            target = self._rollback_manager.get_latest_snapshot_id()
+            if target is not None:
+                self._rollback_manager.cascade_rollback(
+                    target, self._circuit_breaker, self._state_machine
+                )
+            if self._circuit_breaker:
+                for _ in range(5):
+                    self._circuit_breaker.record_failure()
+            if self._state_machine:
+                self._state_machine.force_halt(
+                    f"subgoal_rollback:cot_risk={cot.risk_score:.2f},"
                     f"control_goals={control.control_goal_count}"
                 )
 

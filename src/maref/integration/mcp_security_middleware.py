@@ -163,10 +163,87 @@ class MCPAuditMiddleware:
             self.log_sink(log_entry)
 
 
+class DataSovereigntyMiddleware:
+    """P3.4: 数据主权拦截中间件。
+
+    在 MCP 请求处理链中强制执行跨境数据合规检查，使
+    :class:`~maref.compliance.data_sovereignty.DataSovereigntyManager`
+    从"声明式评估"升级为"执行式拦截"。
+
+    请求 ``params`` 携带 ``data_transfer`` 字段时触发评估；无标注
+    请求放行（向后兼容）。``data_transfer`` 结构::
+
+        {
+            "source_country": "CN",
+            "destination_country": "US",
+            "data_class_ids": ["personal_data"],
+            "purpose": "customer support",
+            "encrypted": true
+        }
+    """
+
+    def __init__(self, sovereignty_manager: Any | None = None) -> None:
+        self._manager = sovereignty_manager
+
+    def process(self, request: JSONRPCRequest, agent_id: str = "default") -> MiddlewareResult:
+        if self._manager is None:
+            return MiddlewareResult(is_allowed=True, verdict="ALLOW")
+        params = request.params
+        if not isinstance(params, dict):
+            return MiddlewareResult(is_allowed=True, verdict="ALLOW")
+        dt = params.get("data_transfer")
+        if not dt or not isinstance(dt, dict):
+            return MiddlewareResult(is_allowed=True, verdict="ALLOW")
+        # 延迟导入避免循环依赖
+        from maref.compliance.data_sovereignty import (
+            CountryCode,
+            DataTransferRequest,
+        )
+
+        try:
+            source = CountryCode(dt["source_country"])
+            dest = CountryCode(dt["destination_country"])
+        except (KeyError, ValueError) as exc:
+            return MiddlewareResult(
+                is_allowed=False,
+                verdict="DENY",
+                reason=f"invalid data_transfer context: {exc}",
+            )
+        requested_ids = dt.get("data_class_ids", [])
+        unknown_ids = [
+            dc_id for dc_id in requested_ids
+            if dc_id not in self._manager.data_classes
+        ]
+        if unknown_ids:
+            return MiddlewareResult(
+                is_allowed=False,
+                verdict="DENY",
+                reason=f"unknown data_class_ids: {unknown_ids}",
+            )
+        data_classes = [self._manager.data_classes[dc_id] for dc_id in requested_ids]
+        req = DataTransferRequest(
+            request_id=f"dt_{request.id}",
+            data_classes=data_classes,
+            source_country=source,
+            destination_country=dest,
+            transfer_purpose=dt.get("purpose", "unspecified"),
+            encrypted=dt.get("encrypted", False),
+        )
+        decision = self._manager.evaluate_data_transfer(req)
+        if not decision.allowed:
+            restrictions = "; ".join(decision.restrictions) or "no restrictions listed"
+            return MiddlewareResult(
+                is_allowed=False,
+                verdict="DENY",
+                reason=f"data sovereignty blocked: {decision.status.value}; {restrictions}",
+            )
+        return MiddlewareResult(is_allowed=True, verdict="ALLOW")
+
+
 class MCPSecurityMiddleware:
     """P3: MCP 安全中间件链。
 
-    组合协议验证、速率限制、审计日志，按顺序处理请求。
+    组合协议验证、速率限制、数据主权拦截、审计日志，按顺序处理请求。
 
     使用方式:
         middleware = MCPSecurityMiddleware()
@@ -181,6 +258,7 @@ class MCPSecurityMiddleware:
         rate_limit_max_calls: int = 100,
         rate_limit_window: int = 60,
         audit_log_sink: Callable[[dict[str, Any]], None] | None = None,
+        data_sovereignty_manager: Any | None = None,
     ) -> None:
         self.validator = MCPProtocolValidator(max_request_size=max_request_size)
         self.rate_limiter = MCPRateLimitMiddleware(
@@ -188,6 +266,11 @@ class MCPSecurityMiddleware:
             window_seconds=rate_limit_window,
         )
         self.audit = MCPAuditMiddleware(log_sink=audit_log_sink)
+        self.data_sovereignty = (
+            DataSovereigntyMiddleware(data_sovereignty_manager)
+            if data_sovereignty_manager is not None
+            else None
+        )
 
     def process(self, request: JSONRPCRequest, agent_id: str = "default") -> MiddlewareResult:
         # 1. 协议验证
@@ -207,6 +290,13 @@ class MCPSecurityMiddleware:
             self.audit.process(request, agent_id, verdict="DENY", reason=rate_result.reason)
             return rate_result
 
-        # 3. 通过 — 记录审计
+        # 3. 数据主权拦截（跨境数据合规强制执行）
+        if self.data_sovereignty is not None:
+            ds_result = self.data_sovereignty.process(request, agent_id)
+            if not ds_result.is_allowed:
+                self.audit.process(request, agent_id, verdict="DENY", reason=ds_result.reason)
+                return ds_result
+
+        # 4. 通过 - 记录审计
         self.audit.process(request, agent_id, verdict="ALLOW")
         return MiddlewareResult(is_allowed=True, verdict="ALLOW")

@@ -69,6 +69,8 @@ class MetaRatchetAuditRecord:
     hitl_approved: bool
     redline_violations: list[str]
     production_safe: bool
+    old_value: str | None = None
+    new_value: str | None = None
 
 
 class MetaRatchet:
@@ -123,10 +125,12 @@ class MetaRatchet:
         constitution_harness: Any | None = None,
         audit_log_path: str | Path = "vault/meta_ratchet_audit.jsonl",
         require_hitl_in_production: bool = True,
+        meta_cognitive_auditor: Any | None = None,
     ):
         self._ratchet_bridge = ratchet_bridge
         self._llm_client = llm_client
         self._constitution_harness = constitution_harness
+        self._meta_cognitive_auditor = meta_cognitive_auditor
         self.diagnosis_history: list[StagnationDiagnosis] = []
         self.audit_log_path = Path(audit_log_path)
         self.require_hitl_in_production = require_hitl_in_production
@@ -343,6 +347,24 @@ class MetaRatchet:
             logger.warning("Protocol change blocked by redlines: %s", redlines)
             return None
 
+        # MetaCognitiveAuditor 欺骗风险检查
+        if self._meta_cognitive_auditor is not None:
+            try:
+                history = self._meta_cognitive_auditor.get_history("meta_ratchet")
+                if history:
+                    recent = history[-1]
+                    deception_prob = getattr(recent, "deception_probability", 0.0)
+                    if deception_prob > 0.7:
+                        change.redline_violations.append(
+                            f"RL-META: Deception probability {deception_prob:.2f} exceeds 0.70 threshold"
+                        )
+                        logger.warning(
+                            "MetaCognitiveAuditor flagged high deception risk: %.2f",
+                            deception_prob,
+                        )
+            except Exception as exc:
+                logger.warning("MetaCognitiveAuditor assessment failed: %s", exc)
+
         # 审计记录：提议阶段
         self._write_audit(MetaRatchetAuditRecord(
             timestamp=datetime.now().isoformat(),
@@ -554,4 +576,84 @@ class MetaRatchet:
             "audit_records_count": len(self._audit_buffer),
             "last_diagnosis": self.diagnosis_history[-1].diagnosis_type if self.diagnosis_history else None,
             "constitutional_immutables": self.CONSTITUTIONAL_IMMUTABLES,
+        }
+
+    def rollback_protocol_change(self, config_key: str) -> dict[str, Any]:
+        """Roll back a previously adopted protocol change.
+
+        Searches the audit log for the last adopted change to the given
+        config_key and returns the old_value so the caller can restore it.
+
+        Returns:
+            dict with keys: success, config_key, old_value, new_value, message
+        """
+        # Search audit buffer (in-memory) first, then audit log file
+        adopted_records: list[MetaRatchetAuditRecord] = []
+
+        for record in reversed(self._audit_buffer):
+            if record.protocol_change_key == config_key and record.adopted:
+                adopted_records.append(record)
+                break
+
+        if not adopted_records:
+            # Search audit log file
+            audit_records = self.get_audit_summary(n=100)
+            for rec in reversed(audit_records):
+                if (
+                    rec.get("protocol_change_key") == config_key
+                    and rec.get("adopted")
+                ):
+                    adopted_records.append(MetaRatchetAuditRecord(
+                        timestamp=rec.get("timestamp", ""),
+                        phase=rec.get("phase", ""),
+                        target=rec.get("target", ""),
+                        diagnosis_type=rec.get("diagnosis_type", ""),
+                        protocol_change_key=rec.get("protocol_change_key", ""),
+                        sandbox_improvement=rec.get("sandbox_improvement", 0.0),
+                        adopted=True,
+                        hitl_approved=rec.get("hitl_approved", False),
+                        redline_violations=rec.get("redline_violations", []),
+                        production_safe=rec.get("production_safe", False),
+                        old_value=rec.get("old_value"),
+                        new_value=rec.get("new_value"),
+                    ))
+                    break
+
+        if not adopted_records:
+            return {
+                "success": False,
+                "config_key": config_key,
+                "message": f"No adopted change found for '{config_key}'",
+            }
+
+        record = adopted_records[0]
+        old_value = record.old_value
+
+        # Write rollback audit record
+        self._write_audit(MetaRatchetAuditRecord(
+            timestamp=datetime.now().isoformat(),
+            phase="rollback",
+            target="",
+            diagnosis_type="manual_rollback",
+            protocol_change_key=config_key,
+            sandbox_improvement=0.0,
+            adopted=False,
+            hitl_approved=True,
+            redline_violations=[],
+            production_safe=True,
+            old_value=record.new_value,
+            new_value=old_value,
+        ))
+
+        logger.info(
+            "Protocol change rolled back: key=%s old_value=%s new_value=%s",
+            config_key, old_value, record.new_value,
+        )
+
+        return {
+            "success": True,
+            "config_key": config_key,
+            "old_value": old_value,
+            "new_value": record.new_value,
+            "message": f"Rollback prepared for '{config_key}'. Restore old_value to apply.",
         }

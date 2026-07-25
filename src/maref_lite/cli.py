@@ -49,6 +49,7 @@ from maref_lite.state_machine import (
     GovernanceStateMachine,
     get_valid_transitions,
 )
+from maref.governance.state_machine import _default_audit_log_path
 
 app = typer.Typer(
     name="maref",
@@ -461,7 +462,7 @@ def audit_show(
     event_type: str = typer.Option("", "--type", "-t", help="Filter by event type"),
 ) -> None:
     """Show recent audit log entries."""
-    audit_path = Path("governance_audit.jsonl")
+    audit_path = _default_audit_log_path()
     if not audit_path.exists():
         console.print("[yellow]No audit log found.[/yellow]")
         return

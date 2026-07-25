@@ -20,6 +20,7 @@ Usage:
 import argparse
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 # Project root
@@ -138,7 +139,7 @@ def sync_version(target_version: str | None = None) -> bool:
         if name == "CHANGELOG.md":
             # Special handling for CHANGELOG - add new header if not exists
             if f"## [v{target_version}]" not in content and f"## [{target_version}]" not in content:
-                new_header = f"## [v{target_version}] - 2026-05-17\n\n### Added\n- TODO\n\n### Changed\n- TODO\n\n### Fixed\n- TODO\n\n"
+                new_header = f"## [v{target_version}] - {date.today().isoformat()}\n\n### Added\n- (describe new features)\n\n### Changed\n- (describe changes)\n\n### Fixed\n- (describe fixes)\n\n"
                 # Insert after first line
                 lines = content.split("\n", 1)
                 content = lines[0] + "\n\n" + new_header + (lines[1] if len(lines) > 1 else "")

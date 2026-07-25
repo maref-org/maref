@@ -25,6 +25,9 @@ class ConstitutionHarness:
     RED_LINE_FILES = (
         "src/maref/recursive/meta_agent_closure.py",
         "src/maref/recursive/rule_freeze_zone.py",
+        "src/maref/integration/percv/meta_ratchet.py",
+        "src/maref/integration/percv/ratchet_bridge.py",
+        "src/maref/integration/percv/meta_ratchet_auditor.py",
     )
     FORBIDDEN_FILES = (
         ".missions/v0.25.0-security-enhancement/validation-contract.md",

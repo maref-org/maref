@@ -5,6 +5,7 @@ import pytest
 from maref.recursive.llm_code_generator import (
     ASTModuleSummary,
     CodeContextBuilder,
+    FallbackProvider,
     LLMCodeGenerator,
     LLMCodeGenResult,
     MockProvider,
@@ -149,3 +150,86 @@ class TestLLMCodeGenerator:
         )
         cost = gen.estimate_cost(proposal)
         assert cost == 0.0
+
+
+class StubProvider:
+    """Simple test provider that returns a fixed response or raises an error."""
+
+    def __init__(self, response: str = "ok", name: str = "stub", should_raise: bool = False) -> None:
+        self._response = response
+        self._name = name
+        self._should_raise = should_raise
+
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 4096,
+    ) -> str:
+        if self._should_raise:
+            raise RuntimeError(f"{self._name} failed")
+        return self._response
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def cost_per_token(self) -> tuple[float, float]:
+        return (0.0, 0.0)
+
+
+class TestFallbackProvider:
+    @pytest.mark.asyncio
+    async def test_first_provider_succeeds(self) -> None:
+        fp = FallbackProvider([StubProvider(name="a"), StubProvider(name="b")])
+        result = await fp.generate("hello")
+        assert result == "ok"
+        assert "a" in fp.name
+
+    @pytest.mark.asyncio
+    async def test_fallback_on_empty_response(self) -> None:
+        fp = FallbackProvider([
+            StubProvider(response="", name="empty"),
+            StubProvider(response="fallback_ok", name="fallback"),
+        ])
+        result = await fp.generate("hello")
+        assert result == "fallback_ok"
+
+    @pytest.mark.asyncio
+    async def test_fallback_on_exception(self) -> None:
+        fp = FallbackProvider([
+            StubProvider(should_raise=True, name="bad"),
+            StubProvider(response="recovered", name="good"),
+        ])
+        result = await fp.generate("hello")
+        assert result == "recovered"
+
+    @pytest.mark.asyncio
+    async def test_all_fail_raises_error(self) -> None:
+        fp = FallbackProvider([
+            StubProvider(should_raise=True, name="a"),
+            StubProvider(should_raise=True, name="b"),
+        ])
+        with pytest.raises(RuntimeError, match="All 2 providers failed"):
+            await fp.generate("hello")
+
+    @pytest.mark.asyncio
+    async def test_empty_providers_raises(self) -> None:
+        with pytest.raises(ValueError, match="at least one provider"):
+            FallbackProvider([])
+
+    def test_name_combines_providers(self) -> None:
+        fp = FallbackProvider([
+            StubProvider(name="alpha"),
+            StubProvider(name="beta"),
+        ])
+        assert fp.name == "alpha+beta"
+
+    def test_cost_from_first_provider(self) -> None:
+        fp = FallbackProvider([
+            StubProvider(name="a"),
+            StubProvider(name="b"),
+        ])
+        assert fp.cost_per_token == (0.0, 0.0)
