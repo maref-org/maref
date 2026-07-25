@@ -1,4 +1,6 @@
 {
+  "_disclaimer": "SIMULATED DATA - NOT VALID ACCEPTANCE EVIDENCE. reviewer_3 is simulated, not a real human reviewer. ACCEPT-003 requires >=3 real human reviewers.",
+  "valid": false,
   "acceptance_id": "ACCEPT-003",
   "title": "人类评审员关联性评估",
   "reviewer_count": 3,

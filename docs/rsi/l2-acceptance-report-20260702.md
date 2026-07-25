@@ -16,11 +16,11 @@
 |------|------|------|------|
 | PERCV-RSI-ACCEPT-001 (Cross-dimension validation) | 20% | 85/100 | ✅ Pass |
 | PERCV-RSI-ACCEPT-002 (Conflict detection + alert) | 20% | 88/100 | ✅ Pass |
-| PERCV-RSI-ACCEPT-003 (Human correlation) | 25% | 85/100 | ✅ Pass |
+| PERCV-RSI-ACCEPT-003 (Human correlation) | 25% | 75/100 | ⚠️ Conditional |
 | PERCV-RSI-ACCEPT-004 (Adversarial robustness) | 15% | 82/100 | ✅ Pass |
-| PERCV-RSI-ACCEPT-005 (24h stability) | 20% | 88/100 | ✅ Pass |
+| PERCV-RSI-ACCEPT-005 (24h stability) | 20% | 70/100 | ⚠️ Conditional |
 
-**判定**: **✅ L2 Full Pass** - 5/5 维度全部通过（ACCEPT-003 关联性 0.833≥0.75，ACCEPT-005 24h+7d 稳定性通过）
+**判定**: **⚠️ L2 Conditional Pass** - 3/5 维度硬通过，2/5 条件通过（ACCEPT-003 需真实人类评审员，ACCEPT-005 需墙上时钟 24h 运行）
 
 ---
 
@@ -159,14 +159,16 @@
 
 ## 结论
 
-**L2 完全通过 (Full Pass: 85.8/100)**
+**L2 条件通过 (Conditional Pass: 79.5/100 ≥ 75)**
 
-5/5 验收维度全部通过 (001/002/003/004/005)。条件条款已全部满足：ACCEPT-003 完成 3 名评审员 42 轮关联性评估（0.833≥0.75），ACCEPT-005 完成 24h+7d 稳定性运行。L2 范围内的 17 项工程检查全部完成并通过验证。
+3/5 验收维度硬通过 (001/002/004)，2/5 条件通过 (003/005)。阻塞项均为程序性或时间性约束，非工程实现缺失。L2 范围内的 17 项工程检查全部完成并通过验证。
 
-**条件条款状态**:
-1. ✅ 已完成: ≥3 名人类评审员的 ACCEPT-003 关联性评估（42 轮，平均关联性 0.833）
-2. ✅ 已完成: 24h 无人监督稳定性运行 + 7d 扩展验证（报告: docs/rsi/longevity-report-*.json）
-3. ✅ 自动升级为 L2 Full Pass
+**条件条款（待满足）**:
+1. ⏳ 待完成: ≥3 名**真实**人类评审员的 ACCEPT-003 关联性评估（当前仅有模拟数据，不构成验收证据）
+2. ⏳ 待完成: **墙上时钟** 24h 无人监督稳定性运行（当前仅有模拟时间运行，duration_hours=0.24 非真实 24h）
+3. 条件满足后方可升级为 L2 Full Pass
+
+> **注**: L3 工程 P5.1~P5.6 代码实现已完成并测试通过，但 L2 条款未满足前不得升级为 Full Pass。
 
 ---
 
