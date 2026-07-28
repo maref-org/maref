@@ -14,6 +14,8 @@ import tempfile
 import time
 from pathlib import Path
 
+import pytest
+
 from maref.governance.audit import AuditEntry, AuditLogger
 
 
@@ -84,19 +86,23 @@ class TestChainIntegrity:
         assert result["integrity_intact"] is False
 
     def test_chain_integrity_no_hmac_key(self):
-        # Use temp dir as CWD to avoid loading .maraf_hmac_key from project root
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "test_audit.jsonl")
-            old_cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                logger = AuditLogger(log_path=path)
-                logger.log("event", "actor", "action")
-                result = logger.verify_integrity()
-                assert result["signed_entries"] >= 0
-                assert result["integrity_intact"] is False
-            finally:
-                os.chdir(old_cwd)
+        # Write an unsigned entry to the log, then verify integrity fails
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        entry = AuditEntry(
+            id="unsigned-entry",
+            timestamp=time.time(),
+            event_type="test",
+            actor="tester",
+            action="unsigned",
+            details="no signature attached",
+        )
+        with open(path, "w") as f:
+            f.write(json.dumps(entry.to_dict()) + "\n")
+        logger = AuditLogger(log_path=path, hmac_key="any")
+        result = logger.verify_integrity()
+        assert result["signed_entries"] >= 0
+        assert result["integrity_intact"] is False
 
     def test_chain_integrity_previous_hash_break_detected(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
@@ -226,24 +232,33 @@ class TestEdgeCases:
         assert entry.metadata["extra_field"] == "custom"
 
     def test_hmac_key_from_environment(self):
+        old_val = os.environ.get("MAREF_HMAC_SECRET_KEY")
         os.environ["MAREF_HMAC_SECRET_KEY"] = "env_key_value"
         try:
             logger = AuditLogger()
             entry = logger.log("event", "actor", "action")
             assert entry.hmac_signature != ""
         finally:
-            del os.environ["MAREF_HMAC_SECRET_KEY"]
+            if old_val is not None:
+                os.environ["MAREF_HMAC_SECRET_KEY"] = old_val
+            else:
+                os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
 
     def test_hmac_key_env_overrides_none(self):
+        old_val = os.environ.get("MAREF_HMAC_SECRET_KEY")
         os.environ["MAREF_HMAC_SECRET_KEY"] = "env_key"
         try:
             logger = AuditLogger(hmac_key=None)
             entry = logger.log("event", "actor", "action")
             assert entry.hmac_signature != ""
         finally:
-            del os.environ["MAREF_HMAC_SECRET_KEY"]
+            if old_val is not None:
+                os.environ["MAREF_HMAC_SECRET_KEY"] = old_val
+            else:
+                os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
 
     def test_hmac_key_argument_overrides_env(self):
+        old_val = os.environ.get("MAREF_HMAC_SECRET_KEY")
         os.environ["MAREF_HMAC_SECRET_KEY"] = "env_key"
         try:
             logger = AuditLogger(hmac_key="explicit_key")
@@ -252,7 +267,10 @@ class TestEdgeCases:
             entry2 = logger2.log("event", "actor", "action")
             assert entry1.hmac_signature != entry2.hmac_signature
         finally:
-            del os.environ["MAREF_HMAC_SECRET_KEY"]
+            if old_val is not None:
+                os.environ["MAREF_HMAC_SECRET_KEY"] = old_val
+            else:
+                os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
 
     def test_id_uniqueness(self):
         logger = AuditLogger()
@@ -467,16 +485,19 @@ class TestHmacSigning:
         e2 = logger2.log("event", "actor", "action", details="test")
         assert e1.hmac_signature != e2.hmac_signature
 
-    def test_empty_hmac_key_warning(self, caplog):
-        # Use temp dir as CWD to avoid loading .maraf_hmac_key from project root
+    def test_empty_hmac_key_raises(self):
+        # Without any key, AuditLogger now raises RuntimeError
         with tempfile.TemporaryDirectory() as tmpdir:
-            old_cwd = os.getcwd()
-            os.chdir(tmpdir)
+            old_hmac = os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+            old_ed = os.environ.pop("MAREF_ED25519_PRIVATE_KEY", None)
             try:
-                logger = AuditLogger()
-                assert "No HMAC key configured" in caplog.text
+                with pytest.raises(RuntimeError, match="Ed25519 keypair or HMAC key"):
+                    AuditLogger()
             finally:
-                os.chdir(old_cwd)
+                if old_hmac is not None:
+                    os.environ["MAREF_HMAC_SECRET_KEY"] = old_hmac
+                if old_ed is not None:
+                    os.environ["MAREF_ED25519_PRIVATE_KEY"] = old_ed
 
 
 class TestAuditEntryExtended:
