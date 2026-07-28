@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## [v0.39.0] - 2026-07-28 (自审计报告闭环 — Governance Report Pipeline)
+
+### Added
+- **GovernanceReport 数据模型**: `GovernanceReport` pydantic 模型 — 自包含治理审计报告：签名指纹、Merkle 根、审计事件摘要、系统状态快照、Ed25519 签名
+- **ReportGenerator**: 从 AuditLogger + MerkleAuditor 构建签名治理报告，支持全量/增量模式
+- **ReportVerifier**: 离线验证管线 — Ed25519 签名验证 + 公钥指纹比对 + 内容一致性检查 + 可选审计日志完整校验
+- **独立报告签名密钥**: `maref-report-signing` Ed25519 密钥（独立于审计链），支持密码加密 PEM 存储
+- **CLI 命令**: `maref report generate`、`maref report verify`、`maref report export [--format json|html]`、`maref report signing-key-init [--encrypt]`
+- **HTML 报告导出**: `string.Template` 自包含 HTML — 审计仪表盘 + JSON 下载按钮 + 历史报告索引页
+- **Sidecar Report API**: `GET /api/v1/report/latest`、`GET /api/v1/report/{id}`、`POST /api/v1/report/generate`
+- **CI 自动化**: GitHub Actions `report-deploy.yml` — 每日生成 + 验证 + 部署到 `maref.cc/verify`
+- **密钥轮换脚本**: `scripts/rotate-signing-key.sh` — 备份旧密钥 + 生成新密钥 + 更新指纹
+- **部署脚本**: `scripts/deploy-verify-site.sh` — 全自动生成→验证→HTML 导出→索引→指纹
+
+### Changed
+- `ReportSigningKey.fingerprint`: 委托为 `Ed25519KeyPair.fingerprint`，使用原始字节 SHA-256（16 字符），与审计链指纹算法一致
+
+### Fixed
+- 私钥文件 world-readable 拒绝（`_check_key_permissions`）
+- `GovernanceReport.payload_bytes()` 排除 `signature` 字段的规范序列化
+
+### Security
+- 报告签署密钥与审计链 Ed25519 密钥分离（红蓝分离）
+- 私钥可选密码加密存储（`cryptography.BestAvailableEncryption`）
+- 所有 CLI verify 路径离线可用，不依赖网络
+
 ## [v0.38.0] - 2026-07-28 (可验证审计链 — Ed25519 审计签名 + Merkle 审计器 + 联邦聚合 + 离线验证)
 
 ### Added

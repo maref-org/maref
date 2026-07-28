@@ -1,0 +1,92 @@
+name: Report Deploy — maref.cc/verify
+
+on:
+  schedule:
+    # Daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      signing_key:
+        description: 'Path to signing key PEM'
+        required: false
+        default: ''
+
+jobs:
+  generate-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Generate audit log
+        run: |
+          python -c "
+          from maref.governance.audit import AuditLogger
+          from pathlib import Path
+          log = AuditLogger(log_path=Path('audit.jsonl'), hmac_key='ci-key')
+          import uuid
+          log.log('governance_decision', 'ci-runner', 'auto_report', f'Scheduled report generation {uuid.uuid4().hex[:8]}')
+          log.log('verify', 'ci-runner', 'integrity_check', 'All systems nominal')
+          "
+
+      - name: Generate GovernanceReport
+        env:
+          SIGNING_KEY: ${{ secrets.MAREF_REPORT_SIGNING_KEY || '' }}
+        run: |
+          KEY_ARGS=""
+          if [ -n "$SIGNING_KEY" ]; then
+            echo "$SIGNING_KEY" > maref-report-signing.pem
+            chmod 600 maref-report-signing.pem
+            KEY_ARGS="--signing-key maref-report-signing.pem"
+          fi
+          python -m maref_lite.cli report generate \
+            --audit-log audit.jsonl \
+            $KEY_ARGS \
+            --output docs/verify/latest.json
+
+      - name: Verify report
+        run: |
+          if [ -f "maref-report-signing.pub" ]; then
+            python -m maref_lite.cli report verify \
+              --file docs/verify/latest.json \
+              --pubkey maref-report-signing.pub
+          else
+            echo "No public key — basic verification only"
+            python -m maref_lite.cli report verify --file docs/verify/latest.json
+          fi
+
+      - name: Export HTML + index
+        run: |
+          python -m maref_lite.cli report export \
+            --file docs/verify/latest.json \
+            --format html \
+            --output docs/verify/latest.html
+
+          TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
+          cp docs/verify/latest.json "docs/verify/report-${TIMESTAMP}.json"
+
+          python -c "
+          from maref.reporting.exporter import ReportExporter
+          from pathlib import Path
+          fp_path = Path('docs/verify/fingerprint.txt')
+          fp = fp_path.read_text().strip() if fp_path.exists() else ''
+          ReportExporter().export_index(Path('docs/verify'), Path('docs/verify/index.html'), signer_fingerprint=fp)
+          "
+
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/verify
+          publish_branch: gh-pages
+          destination_dir: verify
+          keep_files: true

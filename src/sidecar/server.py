@@ -28,6 +28,7 @@ from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
 from sidecar.monitor import CompositeMonitor
 from sidecar.obs_bridge import ObsBridge
+from sidecar.report_router import router as report_router
 
 _sessions: dict[str, dict[str, Any]] = {}
 _messages: dict[str, list[dict[str, Any]]] = {}
@@ -894,6 +895,7 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(gaas_router)
+    app.include_router(report_router)
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
     app.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))

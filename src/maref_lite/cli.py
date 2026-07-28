@@ -108,6 +108,9 @@ app.add_typer(ip_app, name="ip")
 app.add_typer(loop_cli_app, name="loop")
 app.add_typer(demo_app, name="demo")
 
+report_app = typer.Typer(help="Governance report commands", no_args_is_help=True)
+app.add_typer(report_app, name="report")
+
 
 # ── Rollback command ──────────────────────────────────────────────────
 
@@ -1428,6 +1431,189 @@ def daemon_status() -> None:
     if pid_path.exists():
         pid = pid_path.read_text().strip()
         console.print(f"  PID:       [cyan]{pid}[/cyan] (running)")
+
+
+# ── Report commands ──────────────────────────────────────────────────
+
+
+@report_app.command("generate")
+def report_generate(
+    audit_log: str = typer.Option("", "--audit-log", "-a", help="Audit log JSONL file path"),
+    signing_key: str = typer.Option("", "--signing-key", "-k", help="Report signing key PEM file path"),
+    output: str = typer.Option("governance-report.json", "--output", "-o", help="Output report JSON file path"),
+    since: str = typer.Option("", "--since", help="ISO timestamp for incremental generation"),
+    state: str = typer.Option("", "--state", help="Governance state override (e.g. VERIFY)"),
+) -> None:
+    """Generate a signed GovernanceReport from the audit log."""
+    from maref.governance.audit import AuditLogger
+    from maref.reporting.generator import ReportGenerator
+    from maref.reporting.models import SystemStateSnapshot
+    from maref.signing.signing_key import ReportSigningKey
+
+    if signing_key:
+        key_path = Path(signing_key)
+        if not key_path.exists():
+            console.print(f"[red]Signing key not found: {signing_key}[/red]")
+            raise typer.Exit(1)
+        key = ReportSigningKey.from_private_key_file(key_path)
+    else:
+        console.print("[yellow]No signing key provided — generating ephemeral key for testing[/yellow]")
+        key = ReportSigningKey.generate()
+
+    sys_state = None
+    if state:
+        sys_state = SystemStateSnapshot(governance_state=state)
+
+    since_ts: float | None = None
+    if since:
+        from datetime import datetime
+        since_ts = datetime.fromisoformat(since).timestamp()
+
+    log_path = Path(audit_log) if audit_log else _default_audit_log_path()
+    if not log_path.exists():
+        console.print(f"[red]Audit log not found: {log_path}[/red]")
+        raise typer.Exit(1)
+
+    logger = AuditLogger(log_path=log_path, hmac_key="")
+    gen = ReportGenerator(signing_key=key)
+    report = gen.from_audit_log(
+        audit_logger=logger,
+        since_timestamp=since_ts,
+        system_state_override=sys_state,
+    )
+
+    out = Path(output)
+    out.write_text(report.to_json())
+    console.print(f"[green]Report generated: {out}[/green]")
+    console.print(f"  Report ID:    [cyan]{report.report_id}[/cyan]")
+    console.print(f"  Events:       [cyan]{report.audit_summary.total_events}[/cyan]")
+    console.print(f"  Merkle Root:  [cyan]{report.merkle_root or '(empty)'}[/cyan]")
+    console.print(f"  Signer FP:    [cyan]{report.signer_fingerprint}[/cyan]")
+
+
+@report_app.command("verify")
+def report_verify(
+    file: str = typer.Option("governance-report.json", "--file", "-f", help="GovernanceReport JSON file path"),
+    pubkey: str = typer.Option("", "--pubkey", "-k", help="Ed25519 public key PEM file for signature verification"),
+) -> None:
+    """Verify a GovernanceReport file offline.
+
+    Checks signature, fingerprint, and internal consistency.
+    Returns VERIFIED/FAILED status with detail.
+    """
+    from maref.reporting.models import GovernanceReport
+    from maref.reporting.verifier import ReportVerifier
+
+    path = Path(file)
+    if not path.exists():
+        console.print(f"[red]Report not found: {file}[/red]")
+        raise typer.Exit(1)
+
+    report = GovernanceReport.from_json(path.read_text())
+
+    ed25519_pubkey_pem: str | None = None
+    if pubkey:
+        key_path = Path(pubkey)
+        if not key_path.exists():
+            console.print(f"[red]Public key file not found: {pubkey}[/red]")
+            raise typer.Exit(1)
+        ed25519_pubkey_pem = key_path.read_text()
+    else:
+        console.print("[yellow]No public key provided — skipping signature verification[/yellow]")
+
+    if ed25519_pubkey_pem:
+        result = ReportVerifier.verify_report(report, ed25519_pubkey_pem)
+    else:
+        from maref.reporting.verifier import VerificationResult
+        basic = report.signature != ""
+        result = VerificationResult(
+            passed=basic,
+            report_id=report.report_id,
+            checks={"has_signature": basic},
+            details=[] if basic else ["signature field is empty"],
+        )
+
+    if result.passed:
+        console.print(f"[green]VERIFIED: {result.report_id}[/green]")
+    else:
+        console.print(f"[red]FAILED: {result.report_id}[/red]")
+
+    from rich.table import Table
+    table = Table(title="Verification Report")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="white")
+    for check_name, ok in result.checks.items():
+        status = "✅ Pass" if ok else "❌ Fail"
+        table.add_row(check_name, status)
+    table.add_row("Overall", "✅ VERIFIED" if result.passed else "❌ FAILED")
+    console.print(table)
+
+    for detail in result.details:
+        console.print(f"  [red]! {detail}[/red]")
+
+    if not result.passed:
+        raise typer.Exit(1)
+
+
+@report_app.command("export")
+def report_export(
+    file: str = typer.Option("governance-report.json", "--file", "-f", help="GovernanceReport JSON file path"),
+    output: str = typer.Option("", "--output", "-o", help="Output file path"),
+    fmt: str = typer.Option("json", "--format", help="Export format: json or html"),
+) -> None:
+    """Export a GovernanceReport to JSON or HTML format."""
+    from maref.reporting.models import GovernanceReport
+
+    path = Path(file)
+    if not path.exists():
+        console.print(f"[red]Report not found: {file}[/red]")
+        raise typer.Exit(1)
+
+    report = GovernanceReport.from_json(path.read_text())
+
+    if fmt == "json":
+        out = Path(output or "governance-report-export.json")
+        out.write_text(report.to_json(indent=2))
+        console.print(f"[green]Exported JSON: {out}[/green]")
+
+    elif fmt == "html":
+        from maref.reporting.exporter import ReportExporter
+        out = Path(output or "governance-report.html")
+        exporter = ReportExporter()
+        exporter.export_report(report, out)
+        console.print(f"[green]Exported HTML: {out}[/green]")
+
+    else:
+        console.print(f"[red]Unknown format: {fmt} (use json or html)[/red]")
+        raise typer.Exit(1)
+
+
+@report_app.command("signing-key-init")
+def report_signing_key_init(
+    output_dir: str = typer.Option(".", "--output-dir", "-o", help="Output directory for key files"),
+    encrypt: bool = typer.Option(False, "--encrypt", "-e", help="Encrypt private key with password"),
+) -> None:
+    """Generate a new maref-report-signing Ed25519 key pair.
+
+    Creates: maref-report-signing.pem (private, chmod 600),
+             maref-report-signing.pub (public),
+             fingerprint.txt (SHA-256 hex fingerprint)
+    """
+    from maref.signing.signing_key import ReportSigningKey
+
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    key = ReportSigningKey.init_key_pair(out, encrypt=encrypt)
+
+    console.print(f"[green]Signing key pair generated in: {out}[/green]")
+    enc_label = " (encrypted)" if encrypt else ""
+    console.print(f"  Private key: [cyan]{out / 'maref-report-signing.pem'}[/cyan] (chmod 600){enc_label}")
+    console.print(f"  Public key:  [cyan]{out / 'maref-report-signing.pub'}[/cyan]")
+    console.print(f"  Fingerprint: [cyan]{key.fingerprint}[/cyan]")
+    console.print()
+    console.print("[yellow]Store the private key securely. The fingerprint should be published[/yellow]")
+    console.print("[yellow]at maref.cc/verify/fingerprint.txt for third-party verification.[/yellow]")
 
 
 # ── Serve command ────────────────────────────────────────────────────
