@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+_BROWSER_AUTH_KEY_ENV = "MAREF_BROWSER_AUTH_KEY"
+
 AUTH_STATE_DIR = Path.home() / ".cache" / "maref" / "browser_auth"
 AUTH_STATE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -39,10 +41,26 @@ class AuthSessionManager:
     for storing browser authentication state.
     """
 
-    def __init__(self, storage_dir: str | None = None) -> None:
+    def __init__(self, storage_dir: str | None = None, encryption_key: bytes | None = None) -> None:
         self._dir = Path(storage_dir) if storage_dir else AUTH_STATE_DIR
         self._dir.mkdir(parents=True, exist_ok=True)
         self._active_states: dict[str, AuthState] = {}
+        raw_key: bytes | None = encryption_key
+        if raw_key is None:
+            env_val = os.environ.get(_BROWSER_AUTH_KEY_ENV)
+            if env_val is not None:
+                raw_key = env_val.encode("utf-8")
+        if raw_key is not None:
+            self._encryption_key = hashlib.sha256(raw_key).digest()
+        else:
+            import warnings
+            warnings.warn(
+                "No MAREF_BROWSER_AUTH_KEY set — using hardcoded dev key. "
+                "Set the environment variable for production use.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            self._encryption_key = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
 
     def save_state(
         self,
@@ -109,7 +127,7 @@ class AuthSessionManager:
         return False
 
     def _encrypt(self, data: str) -> str:
-        key_bytes = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
+        key_bytes = self._encryption_key
         nonce = os.urandom(16)[:12]
         try:
             from cryptography.hazmat.primitives.ciphers.aead import (
@@ -139,13 +157,13 @@ class AuthSessionManager:
             ciphertext = raw[12:]
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-            key_bytes = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
+            key_bytes = self._encryption_key
             aesgcm = AESGCM(key_bytes)
             decrypted = aesgcm.decrypt(nonce, ciphertext, None)
             return decrypted.decode()
         except (ImportError, Exception):
             raw = bytes.fromhex(encrypted_hex)
-            key_bytes = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
+            key_bytes = self._encryption_key
             result = bytes(
                 a ^ b
                 for a, b in zip(

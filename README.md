@@ -46,7 +46,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 ## Core Capabilities
 
 ### Governance Layer (World-Leading)
-- **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library (v0.37.0-dev)
+- **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library (v0.38.0)
 - **10-State Gray Code Governance State Machine** — Mathematically provable convergence (4-bit, Hamming distance=1)
 - **TLA+ Formal Verification** — 5 model-checked invariants (state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability)
 - **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
