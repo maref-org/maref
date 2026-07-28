@@ -71,7 +71,7 @@ class TestMCPGatewayInit:
         gw = MCPGateway()
         assert gw._backends == {}
         assert gw._default_backend is None
-        assert gw._secret_key == b"maref-mcp-gateway-v0.33.0"
+        assert gw._secret_key == b"test-mcp-key-insecure-not-for-production"
         assert gw._audit_log == []
         assert gw._gate is None
         assert gw._policy_engine is None

@@ -70,7 +70,7 @@ def test_bft_rejects_tampered_vote():
 
 
 def test_audit_log_populated():
-    bft = DistributedBFT(total_nodes=5)
+    bft = DistributedBFT(total_nodes=5, secret_key=b"test-bft-key")
     bft.register_nodes(5)
     bft.run_consensus_cycle("value_x")
     assert len(bft._audit_log) == 1
