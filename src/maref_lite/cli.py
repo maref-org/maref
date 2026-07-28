@@ -35,6 +35,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from maref.governance.state_machine import _default_audit_log_path
 from maref.production.ip_cli import ip_app
 from maref_lite.commands.demo import app as demo_app
 from maref_lite.commands.loop_cli import loop_app as loop_cli_app
@@ -49,7 +50,6 @@ from maref_lite.state_machine import (
     GovernanceStateMachine,
     get_valid_transitions,
 )
-from maref.governance.state_machine import _default_audit_log_path
 
 app = typer.Typer(
     name="maref",
@@ -620,8 +620,9 @@ def federated_verify(
         maref federated verify \"proofs/*.json\" --batch
         maref federated verify \"proofs/*.json\" --batch --pubkey-dir keys/
     """
-    from maref.eivl.federated_merkle import FederatedProof
     from glob import glob as glob_glob
+
+    from maref.eivl.federated_merkle import FederatedProof
 
     files = glob_glob(proof) if batch else [proof]
     if not files:
@@ -737,12 +738,12 @@ def federated_reconcile_daemon(
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
 
-    console.print(f"[bold]Reconcile Daemon[/bold]")
+    console.print("[bold]Reconcile Daemon[/bold]")
     console.print(f"  Replicas: {len(replicas)}")
     console.print(f"  Interval: {interval}s")
     if webhook:
         console.print(f"  Webhook: {webhook}")
-    console.print(f"  Press Ctrl+C to stop\n")
+    console.print("  Press Ctrl+C to stop\n")
 
     report: Any = None
     while running:
@@ -769,7 +770,7 @@ def federated_reconcile_daemon(
                         )
                         urllib.request.urlopen(req, timeout=10)
                         last_webhook = time.time()
-                        console.print(f"[dim]Webhook alert sent[/dim]")
+                        console.print("[dim]Webhook alert sent[/dim]")
                     except Exception as exc:
                         console.print(f"[yellow]Webhook failed: {exc}[/yellow]")
 

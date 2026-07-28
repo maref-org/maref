@@ -41,15 +41,21 @@ from maref.integration.mcp_security import (
     ZeroTrustContext,
 )
 
-HMAC_SECRET_KEY = os.environb.get(
-    b"MAREF_HMAC_SECRET_KEY",
-    b"maref-mcp-governance-v0.27.0",
-)
-"""HMAC secret key for audit log signing.
+_hmac_key = os.environb.get(b"MAREF_HMAC_SECRET_KEY")
 
-In production, always set MAREF_HMAC_SECRET_KEY environment variable.
-The default value is for development/testing only and MUST NOT be used in production.
-"""
+
+def _require_hmac_key() -> bytes:
+    """Lazy HMAC key, raised only when actually used."""
+    if _hmac_key is None:
+        raise RuntimeError(
+            "MAREF_HMAC_SECRET_KEY environment variable must be set. "
+            "This is required for audit log integrity. "
+            "Generate a key with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    return _hmac_key
+
+
+HMAC_SECRET_KEY: bytes | None = _hmac_key
 
 
 @dataclass
@@ -559,8 +565,10 @@ class TrustLevelBasedGate(MCPPolicyRule):
         return None
 
 
-def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes = HMAC_SECRET_KEY) -> str:
+def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes | None = HMAC_SECRET_KEY) -> str:
     """Create HMAC-SHA256 signature for an audit log entry."""
+    if secret_key is None:
+        secret_key = _require_hmac_key()
     payload = json.dumps(
         {
             "timestamp": entry.timestamp.isoformat(),
@@ -580,9 +588,11 @@ def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes = HMAC_SECRET_KEY) 
 
 
 def verify_audit_signature(
-    entry: AuditLogEntry, signature: str, secret_key: bytes = HMAC_SECRET_KEY
+    entry: AuditLogEntry, signature: str, secret_key: bytes | None = HMAC_SECRET_KEY
 ) -> bool:
     """Verify HMAC-SHA256 signature of an audit log entry."""
+    if secret_key is None:
+        secret_key = _require_hmac_key()
     expected = sign_audit_entry(entry, secret_key)
     return hmac.compare_digest(expected, signature)
 
@@ -688,7 +698,7 @@ class MCPGovernance:
         self._cb_monitor = cb_monitor or MCPCircuitBreakerMonitor()
         self._audit_log: list[AuditLogEntry] = []
         self._decision_log: list[MCPGovernanceResult] = []
-        self._secret_key = HMAC_SECRET_KEY
+        self._secret_key: bytes | None = HMAC_SECRET_KEY
 
     @property
     def policy_engine(self) -> MCPPolicyEngine:
@@ -835,7 +845,8 @@ class MCPGovernance:
                 "matched_rule": result.matched_rule,
             },
         )
-        result.audit_signature = sign_audit_entry(entry, self._secret_key)
+        sk = self._secret_key if self._secret_key is not None else _require_hmac_key()
+        result.audit_signature = sign_audit_entry(entry, sk)
         result.metadata["audit_signature"] = result.audit_signature
         self._audit_log.append(entry)
 
@@ -958,7 +969,8 @@ class MCPGovernance:
                     {"index": i, "tool_name": entry.tool_name, "issue": "no_signature"}
                 )
                 continue
-            if not verify_audit_signature(entry, stored_sig, self._secret_key):
+            sk = self._secret_key if self._secret_key is not None else _require_hmac_key()
+            if not verify_audit_signature(entry, stored_sig, sk):
                 violations.append(
                     {"index": i, "tool_name": entry.tool_name, "issue": "signature_mismatch"}
                 )

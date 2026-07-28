@@ -53,42 +53,66 @@ from maref.integration.hitl import HITLRouter
 
 router = APIRouter(prefix="/api/v1/gaas", tags=["gaas"])
 
-# Global service instances (singleton pattern)
-_tenant_manager = TenantManager()
-_cb_pool = CircuitBreakerPool()
-_hitl_service = HITLRouter()
-_audit_service = AuditLogService()
-_trust_service = TrustScoreService()
-_governance_router = GovernanceRouter(
-    tenant_manager=_tenant_manager,
-    cb_pool=_cb_pool,
-    hitl_service=_hitl_service,
-    audit_service=_audit_service,
-    trust_service=_trust_service,
-)
+# Global service instances (singleton pattern) — lazy init
+_tenant_manager: TenantManager | None = None
+_cb_pool: CircuitBreakerPool | None = None
+_hitl_service: HITLRouter | None = None
+_audit_service: AuditLogService | None = None
+_trust_service: TrustScoreService | None = None
+_governance_router: GovernanceRouter | None = None
+
+
+def _ensure_services() -> None:
+    global _tenant_manager, _cb_pool, _hitl_service, _audit_service, _trust_service, _governance_router
+    if _governance_router is not None:
+        return
+    _tenant_manager = TenantManager()
+    _cb_pool = CircuitBreakerPool()
+    _hitl_service = HITLRouter()
+    _audit_service = AuditLogService()
+    _trust_service = TrustScoreService()
+    _governance_router = GovernanceRouter(
+        tenant_manager=_tenant_manager,
+        cb_pool=_cb_pool,
+        hitl_service=_hitl_service,
+        audit_service=_audit_service,
+        trust_service=_trust_service,
+    )
 
 
 def get_tenant_manager() -> TenantManager:
+    _ensure_services()
+    assert _tenant_manager is not None  # nosec
     return _tenant_manager
 
 
 def get_governance_router() -> GovernanceRouter:
+    _ensure_services()
+    assert _governance_router is not None  # nosec
     return _governance_router
 
 
 def get_hitl_service() -> HITLRouter:
+    _ensure_services()
+    assert _hitl_service is not None  # nosec
     return _hitl_service
 
 
 def get_audit_service() -> AuditLogService:
+    _ensure_services()
+    assert _audit_service is not None  # nosec
     return _audit_service
 
 
 def get_trust_service() -> TrustScoreService:
+    _ensure_services()
+    assert _trust_service is not None  # nosec
     return _trust_service
 
 
 def get_cb_pool() -> CircuitBreakerPool:
+    _ensure_services()
+    assert _cb_pool is not None  # nosec
     return _cb_pool
 
 

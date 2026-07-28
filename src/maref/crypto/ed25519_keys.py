@@ -16,7 +16,10 @@ Dependency: cryptography>=42.0 (in ``[identity]`` optional-dependencies).
 from __future__ import annotations
 
 import hashlib
+import os
+import stat
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -74,6 +77,44 @@ class Ed25519KeyPair:
         ).decode("utf-8")
 
         return cls(private_key_pem=private_pem, public_key_pem=public_pem)
+
+    @classmethod
+    def _check_key_permissions(cls, path: Path) -> None:
+        """Reject world-readable private key files (S3 security gate).
+
+        Raises:
+            PermissionError: if the key file has group/other read bits set.
+        """
+        try:
+            st = os.stat(path)
+        except FileNotFoundError as err:
+            raise PermissionError(f"Key file not found: {path}") from err
+        if st.st_mode & stat.S_IRWXO:
+            raise PermissionError(
+                f"Private key file {path} is world-readable ({oct(st.st_mode & 0o777)}). "
+                "Restrict permissions with: chmod 600"
+            ) from None
+
+    @classmethod
+    def from_private_key_file(cls, path: str | Path, check_permissions: bool = True) -> Ed25519KeyPair:
+        """Load a key pair from a PEM-encoded private key file.
+
+        Args:
+            path: Path to the PEM-encoded Ed25519 private key.
+            check_permissions: If True (default), reject world-readable files.
+
+        Returns:
+            A :class:`Ed25519KeyPair` with the corresponding public key.
+
+        Raises:
+            PermissionError: If the key file has group/other read bits set.
+            FileNotFoundError: If the key file does not exist.
+        """
+        key_path = Path(path)
+        if check_permissions:
+            cls._check_key_permissions(key_path)
+        pem = key_path.read_text("utf-8")
+        return cls.from_private_pem(pem)
 
     @classmethod
     def from_private_pem(cls, private_key_pem: str) -> Ed25519KeyPair:
