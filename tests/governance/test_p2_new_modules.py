@@ -186,6 +186,7 @@ class TestSecurityAuditChain:
         with tempfile.TemporaryDirectory() as td:
             old_cwd = os.getcwd()
             os.chdir(td)
+            old_hmac = os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
             try:
                 chain = SecurityAuditChain(chain_path=Path(td) / "chain.jsonl")
                 entry = chain.append("test", "actor", "action")
@@ -193,6 +194,8 @@ class TestSecurityAuditChain:
                 assert "No HMAC key" in caplog.text
             finally:
                 os.chdir(old_cwd)
+                if old_hmac is not None:
+                    os.environ["MAREF_HMAC_SECRET_KEY"] = old_hmac
 
     def test_empty_chain_verify(self, tmp_path: Path) -> None:
         chain = SecurityAuditChain(

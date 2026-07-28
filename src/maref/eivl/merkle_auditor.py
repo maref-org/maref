@@ -58,6 +58,35 @@ class AuditEvidence:
         data = {'evidence_id': self.evidence_id, 'timestamp': self.timestamp, 'evidence_type': self.evidence_type, 'source_agent': self.source_agent, 'target_agent': self.target_agent, 'action': self.action, 'result': self.result, 'previous_hash': self.previous_hash, 'nonce': self.nonce}
         return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
+    @classmethod
+    def from_audit_entry(
+        cls,
+        entry: Any,
+        chain_previous_hash: str = '0' * 64,
+        nonce: int = 0,
+    ) -> AuditEvidence:
+        """Create AuditEvidence from an AuditLogger AuditEntry.
+
+        Bridges the AuditLogger (governance) and MerkleAuditor (EIVL) subsystems.
+        The evidence_id, timestamps, actor/agent info are mapped from the entry.
+        """
+        return cls(
+            evidence_id=entry.id,
+            timestamp=entry.timestamp,
+            evidence_type=entry.event_type,
+            source_agent=entry.actor,
+            target_agent=entry.metadata.get("target_agent"),
+            action=entry.action,
+            result={
+                "details": entry.details,
+                "metadata": entry.metadata,
+                "chain_hash": entry.chain_hash,
+                "signature_type": entry.signature_type,
+            },
+            previous_hash=chain_previous_hash,
+            nonce=nonce,
+        )
+
 @dataclass
 class MerkleProof:
     """Merkle 证明 - 用于验证某个证据是否包含在树中"""
@@ -289,6 +318,26 @@ class AuditChainIntegrator:
     def record_delegation(self, delegator_id: str, delegatee_id: str, capabilities: list[str], chain_id: str | None=None) -> str:
         """记录委托行为到审计链"""
         evidence = AuditEvidence(evidence_id=f'delegate-{delegator_id}-{int(time.time() * 1000)}', timestamp=time.time(), evidence_type='delegation', source_agent=delegator_id, target_agent=delegatee_id, action='delegate_capabilities', result={'capabilities': capabilities, 'chain_id': chain_id}, previous_hash=self._previous_hash, nonce=0)
+        evidence_hash = self.merkle.add_evidence(evidence)
+        self._previous_hash = evidence_hash
+        return evidence_hash
+
+    def record_audit_entry(self, entry: Any) -> str:
+        """Record an AuditLogger entry into the Merkle audit chain.
+
+        Converts the AuditEntry to AuditEvidence and adds it to the Merkle tree.
+        Returns the Merkle leaf hash for proof generation.
+
+        Args:
+            entry: An AuditEntry from AuditLogger.
+
+        Returns:
+            str: Merkle leaf hash of the recorded evidence.
+        """
+        evidence = AuditEvidence.from_audit_entry(
+            entry,
+            chain_previous_hash=self._previous_hash,
+        )
         evidence_hash = self.merkle.add_evidence(evidence)
         self._previous_hash = evidence_hash
         return evidence_hash

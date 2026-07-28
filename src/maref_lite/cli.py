@@ -84,6 +84,9 @@ app.add_typer(desktop_app, name="desktop")
 audit_app = typer.Typer(help="Audit log commands", no_args_is_help=True)
 app.add_typer(audit_app, name="audit")
 
+federated_app = typer.Typer(help="Federated audit commands", no_args_is_help=True)
+app.add_typer(federated_app, name="federated")
+
 trust_app = typer.Typer(help="Trust engine commands", no_args_is_help=True)
 app.add_typer(trust_app, name="trust")
 
@@ -502,6 +505,462 @@ def audit_show(
     console.print(table)
     if not entries:
         console.print("[dim]No matching audit entries.[/dim]")
+
+
+@audit_app.command("verify")
+def audit_verify(
+    file: str = typer.Option("", "--file", "-f", help="Audit log file path"),
+    pubkey: str = typer.Option("", "--pubkey", "-k", help="Ed25519 public key PEM file for signature verification"),
+) -> None:
+    """Verify integrity of an audit log file.
+
+    Checks entry signatures (Ed25519 or HMAC-SHA256) and chain hash continuity.
+    Returns VERIFIED/FAILED status with detailed report.
+    """
+    from maref.governance.audit import AuditLogger
+
+    path = Path(file) if file else _default_audit_log_path()
+    if not path.exists():
+        console.print(f"[red]Audit log not found: {path}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[dim]Verifying: {path}[/dim]")
+
+    ed25519_pubkey_pem: str | None = None
+    if pubkey:
+        key_path = Path(pubkey)
+        if not key_path.exists():
+            console.print(f"[red]Public key file not found: {pubkey}[/red]")
+            raise typer.Exit(1)
+        ed25519_pubkey_pem = key_path.read_text()
+
+    logger = AuditLogger(log_path=path, hmac_key="")
+    result = logger.verify_integrity(ed25519_public_key_pem=ed25519_pubkey_pem)
+
+    total = result["total_entries"]
+    valid = result["valid_signatures"]
+    tampered = result["tampered_entries"]
+    intact = result["integrity_intact"]
+
+    if intact:
+        console.print(f"[green]VERIFIED: {valid}/{total} entries valid[/green]")
+    else:
+        console.print(f"[red]FAILED: {len(tampered)}/{total} entries tampered or unverifiable[/red]")
+        for eid in tampered[:10]:
+            console.print(f"  [red]✗ {eid}[/red]")
+        if len(tampered) > 10:
+            console.print(f"  [dim]... and {len(tampered) - 10} more[/dim]")
+
+    table = Table(title="Integrity Report")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("Total entries", str(total))
+    table.add_row("Valid signatures", str(valid))
+    table.add_row("Tampered entries", str(len(tampered)))
+    table.add_row("Integrity intact", "✅ Yes" if intact else "❌ No")
+    console.print(table)
+
+    if not intact:
+        raise typer.Exit(1)
+
+
+@audit_app.command("export")
+def audit_export(
+    file: str = typer.Option("", "--file", "-f", help="Audit log file path"),
+    output: str = typer.Option("audit-export.json", "--output", "-o", help="Output JSON file path"),
+    max_entries: int = typer.Option(0, "--max", "-n", help="Max entries to export (0 = all)"),
+) -> None:
+    """Export audit log as a self-contained verification package.
+
+    The export includes all entries with signatures and can be verified
+    offline with ``maref audit verify``. Useful for third-party audits.
+    """
+    from maref.governance.audit import AuditLogger
+
+    path = Path(file) if file else _default_audit_log_path()
+    if not path.exists():
+        console.print(f"[red]Audit log not found: {path}[/red]")
+        raise typer.Exit(1)
+
+    logger = AuditLogger(log_path=path, hmac_key="")
+    entries = logger.read_all(max_entries=None if max_entries == 0 else max_entries)
+
+    from maref_lite import __version__ as _ver
+
+    export = {
+        "maref_version": _ver,
+        "exported_at": time.time(),
+        "exported_at_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "source": str(path),
+        "entry_count": len(entries),
+        "entries": [e.to_dict() for e in entries],
+    }
+
+    out = Path(output)
+    out.write_text(json.dumps(export, indent=2, ensure_ascii=False, default=str))
+    console.print(f"[green]Exported {len(entries)} entries to {out}[/green]")
+
+
+@federated_app.command("verify")
+def federated_verify(
+    proof: str = typer.Argument(..., help="Path to FederatedProof JSON file"),
+    pubkey: str = typer.Option("", "--pubkey", "-k", help="Ed25519 public key PEM to verify proof signature"),
+    batch: bool = typer.Option(False, "--batch", help="Treat proof as glob pattern for batch verification"),
+    pubkey_dir: str = typer.Option("", "--pubkey-dir", help="Directory of .pem files matched by org_id"),
+) -> None:
+    """Verify a federated Merkle proof.
+
+    Checks the Merkle inclusion path and, if --pubkey is provided,
+    verifies the proof's Ed25519 signature.
+
+    Examples::
+
+        maref federated verify proof.json
+        maref federated verify proof.json --pubkey signer.pem
+        maref federated verify \"proofs/*.json\" --batch
+        maref federated verify \"proofs/*.json\" --batch --pubkey-dir keys/
+    """
+    from maref.eivl.federated_merkle import FederatedProof
+    from glob import glob as glob_glob
+
+    files = glob_glob(proof) if batch else [proof]
+    if not files:
+        console.print(f"[red]No proof files matched: {proof}[/red]")
+        raise typer.Exit(1)
+
+    if len(files) > 1 or batch:
+
+        passed = 0
+        failed = 0
+        for f in sorted(files):
+            fp = FederatedProof.from_file(f)
+            m_ok = fp.verify()
+
+            sig_ok: bool | None = None
+            if pubkey:
+                sig_ok = fp.verify_signature(Path(pubkey).read_text())
+            elif pubkey_dir:
+                org_key = Path(pubkey_dir) / f"{fp.org_id}.pem"
+                if org_key.exists():
+                    sig_ok = fp.verify_signature(org_key.read_text())
+
+            ok = m_ok and (sig_ok is None or sig_ok)
+            status = "✅" if ok else "❌"
+            sig_tag = f" sig={'✅' if sig_ok else ('❌' if sig_ok is False else '—')}" if pubkey or pubkey_dir else ""
+            console.print(f"  {status} {fp.org_id:20s} merkle={'✅' if m_ok else '❌'}{sig_tag}  ({f})")
+            if ok:
+                passed += 1
+            else:
+                failed += 1
+
+        console.print(f"\nBatch result: {passed} passed, {failed} failed out of {len(files)}")
+        if failed:
+            raise typer.Exit(1)
+        return
+
+    # Single proof mode
+    proof_path = Path(proof)
+    if not proof_path.exists():
+        console.print(f"[red]Proof file not found: {proof}[/red]")
+        raise typer.Exit(1)
+
+    fp = FederatedProof.from_file(proof_path)
+
+    console.print(f"[dim]Org: {fp.org_id}[/dim]")
+    console.print(f"[dim]Org root: {fp.org_root_hash[:16]}...[/dim]")
+    console.print(f"[dim]Federated root: {fp.federated_root_hash[:16]}...[/dim]")
+    console.print(f"[dim]Org count: {fp.org_count}[/dim]")
+
+    table = Table(title="Federated Proof Verification")
+    table.add_column("Check", style="cyan")
+    table.add_column("Result", style="white")
+
+    merkle_ok = fp.verify()
+    table.add_row("Merkle inclusion", "✅ Pass" if merkle_ok else "❌ Fail")
+
+    sig_ok = None
+    if pubkey:
+        key_path = Path(pubkey)
+        if not key_path.exists():
+            console.print(f"[red]Public key file not found: {pubkey}[/red]")
+            raise typer.Exit(1)
+        sig_ok = fp.verify_signature(key_path.read_text())
+        table.add_row("Ed25519 signature", "✅ Valid" if sig_ok else "❌ Invalid")
+    else:
+        table.add_row("Ed25519 signature", "[dim]— (no --pubkey)[/dim]")
+
+    console.print(table)
+
+    if not merkle_ok or (pubkey and not sig_ok):
+        raise typer.Exit(1)
+
+
+@federated_app.command("reconcile")
+def federated_reconcile(
+    replicas: list[str] = typer.Argument(..., help="Replica log files (format: replica_id=path)"),
+) -> None:
+    """Reconcile audit logs across replicas.
+
+    One-shot comparison::
+
+        maref federated reconcile node-a=/path/a.jsonl node-b=/path/b.jsonl
+    """
+    _run_reconcile(replicas)
+
+
+@federated_app.command("reconcile-daemon")
+def federated_reconcile_daemon(
+    replicas: list[str] = typer.Argument(..., help="Replica log files (format: replica_id=path)"),
+    interval: float = typer.Option(300.0, "--interval", "-i", help="Reconciliation interval in seconds"),
+    alert_on_discrepancy: bool = typer.Option(False, "--alert", help="Exit with code 1 on first discrepancy"),
+    webhook: str = typer.Option("", "--webhook", "-w", help="POST discrepancies to this webhook URL"),
+    webhook_interval: int = typer.Option(300, "--webhook-interval", help="Min seconds between webhook alerts"),
+) -> None:
+    """Continuously reconcile audit logs across replicas.
+
+    Runs in a loop, periodically comparing replicas::
+
+        maref federated reconcile-daemon node-a=/path/a.jsonl node-b=/path/b.jsonl -i 60
+        maref federated reconcile-daemon node-a=/path/a.jsonl node-b=/path/b.jsonl -w https://hooks.example.com/alert
+    """
+    import signal
+    import urllib.request
+
+    running = True
+    last_webhook: float = 0.0
+
+    def _stop(sig, frame) -> None:
+        nonlocal running
+        console.print("\n[dim]Shutting down reconcile daemon...[/dim]")
+        running = False
+
+    signal.signal(signal.SIGINT, _stop)
+    signal.signal(signal.SIGTERM, _stop)
+
+    console.print(f"[bold]Reconcile Daemon[/bold]")
+    console.print(f"  Replicas: {len(replicas)}")
+    console.print(f"  Interval: {interval}s")
+    if webhook:
+        console.print(f"  Webhook: {webhook}")
+    console.print(f"  Press Ctrl+C to stop\n")
+
+    report: Any = None
+    while running:
+        try:
+            report = _run_reconcile(replicas, quiet=not alert_on_discrepancy)
+
+            if webhook and report.discrepancies:
+                critical = [d for d in report.discrepancies if d.get("severity") != "info"]
+                if critical and time.time() - last_webhook > webhook_interval:
+                    payload = json.dumps({
+                        "event": "reconcile_discrepancy",
+                        "timestamp": time.time(),
+                        "timestmap_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "replicas": list(report.total_entries.keys()),
+                        "entry_counts": report.total_entries,
+                        "total_discrepancies": len(report.discrepancies),
+                        "critical_count": len(critical),
+                        "discrepancies": report.discrepancies,
+                    }).encode()
+                    try:
+                        req = urllib.request.Request(
+                            webhook, data=payload,
+                            headers={"Content-Type": "application/json"},
+                        )
+                        urllib.request.urlopen(req, timeout=10)
+                        last_webhook = time.time()
+                        console.print(f"[dim]Webhook alert sent[/dim]")
+                    except Exception as exc:
+                        console.print(f"[yellow]Webhook failed: {exc}[/yellow]")
+
+            if alert_on_discrepancy and not report.is_consistent:
+                console.print("[red]Discrepancy detected, exiting.[/red]")
+                break
+        except Exception as exc:
+            console.print(f"[red]Reconcile error: {exc}[/red]")
+
+        if running:
+            for remaining in range(int(interval), 0, -1):
+                if not running:
+                    break
+                console.print(f"\r  Next check in {remaining}s...  ", end="")
+                time.sleep(1)
+                if alert_on_discrepancy and report is not None and not report.is_consistent:
+                    break
+            console.print()
+    console.print("[dim]Daemon stopped.[/dim]")
+
+
+def _run_reconcile(
+    replicas: list[str],
+    quiet: bool = False,
+) -> Any:
+    """Shared reconcile logic used by both one-shot and daemon modes."""
+    from maref.eivl.audit_reconciler import AuditReconciler
+
+    reconciler = AuditReconciler()
+    for arg in replicas:
+        if "=" not in arg:
+            console.print(f"[red]Invalid format: {arg}. Use replica_id=path[/red]")
+            raise typer.Exit(1)
+        rid, path = arg.split("=", 1)
+        if not Path(path).exists():
+            console.print(f"[red]File not found: {path}[/red]")
+            raise typer.Exit(1)
+        reconciler.add_replica(rid.strip(), path.strip())
+
+    report = reconciler.reconcile()
+
+    if not quiet:
+        table = Table(title="Reconciliation Report")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="white")
+        table.add_row("Replicas", str(report.total_replicas))
+        for rid, count in report.total_entries.items():
+            table.add_row(f"  {rid}", f"{count} entries")
+        table.add_row("Consistent", "✅ Yes" if report.is_consistent else "❌ No")
+        table.add_row("Discrepancies", str(len(report.discrepancies)))
+        console.print(table)
+
+        if report.discrepancies:
+            for d in report.discrepancies:
+                eid = d.get("entry_id", "")
+                dtype = d["type"]
+                sev = d.get("severity", "critical")
+                tag = "⚠" if sev != "critical" else "❌"
+                detail = d.get("details", "")
+                console.print(f"  {tag} [{sev}/{dtype}] {eid} {detail}")
+
+    if not report.is_consistent and not quiet:
+        raise typer.Exit(1)
+
+    return report
+
+
+@federated_app.command("submit")
+def federated_submit(
+    org_id: str = typer.Option(..., "--org-id", "-o", help="Organization identifier"),
+    root_hash: str = typer.Option(..., "--root-hash", "-r", help="Merkle root hash"),
+    state_file: str = typer.Option(
+        ".maref/federated-state.json", "--state", "-s", help="Aggregator state file",
+    ),
+    tree_size: int = typer.Option(0, "--tree-size", "-n", help="Number of evidence leaves"),
+    metadata: str = typer.Option("", "--metadata", "-m", help="JSON metadata string"),
+) -> None:
+    """Submit an org's Merkle root to the federated aggregator.
+
+    The aggregator state is persisted in a JSON file and rebuilt
+    on each invocation::
+
+        maref federated submit --org-id org-1 --root-hash abc123 --state federated.json
+    """
+    from maref.eivl.federated_merkle import FederatedMerkleAggregator
+
+    state = Path(state_file)
+    if state.exists():
+        agg = FederatedMerkleAggregator.load_state(state_file)
+    else:
+        state.parent.mkdir(parents=True, exist_ok=True)
+        agg = FederatedMerkleAggregator()
+
+    parsed_meta: dict[str, Any] = {}
+    if metadata:
+        parsed_meta = json.loads(metadata)
+
+    agg.submit_root(org_id=org_id, root_hash=root_hash, tree_size=tree_size, metadata=parsed_meta)
+    agg.save_state(state_file)
+
+    summary = agg.summary()
+    console.print(f"[green]Submitted root for {org_id}[/green]")
+    console.print(f"  Federated root: {summary['federated_root'][:16] if summary['federated_root'] else '—'}...")
+    console.print(f"  Organizations: {summary['org_count']}")
+    console.print(f"  State saved to: {state_file}")
+
+
+@federated_app.command("status")
+def federated_status(
+    state_file: str = typer.Option(
+        ".maref/federated-state.json", "--state", "-s", help="Aggregator state file",
+    ),
+    proof_for: str = typer.Option("", "--proof", "-p", help="Generate proof for this org"),
+    sign: str = typer.Option("", "--sign", help="Sign proof with Ed25519 private key PEM"),
+    export_proof: str = typer.Option("", "--export-proof", help="Export proof to file"),
+) -> None:
+    """Show federated aggregator status and proofs.
+
+    Displays the federated Merkle root, registered organizations,
+    and optionally generates inclusion proofs::
+
+        maref federated status --state federated.json
+        maref federated status --proof org-1 --sign key.pem --export-proof proof.json
+    """
+    from maref.eivl.federated_merkle import FederatedMerkleAggregator
+
+    state = Path(state_file)
+    if not state.exists():
+        console.print(f"[red]State file not found: {state_file}[/red]")
+        raise typer.Exit(1)
+
+    agg = FederatedMerkleAggregator.load_state(state_file)
+    summary = agg.summary()
+
+    table = Table(title="Federated Aggregator Status")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("Organizations", str(summary["org_count"]))
+    table.add_row("Federated root", summary["federated_root"][:32] + "..." if summary["federated_root"] else "—")
+    table.add_row("Last aggregated", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(summary["last_aggregated"])) if summary["last_aggregated"] else "—")
+    table.add_row("Total evidence", str(summary["total_evidence_count"]))
+    console.print(table)
+
+    orgs = agg.list_orgs()
+    if orgs:
+        org_table = Table(title="Registered Organizations")
+        org_table.add_column("Org ID", style="green")
+        org_table.add_column("Root Hash", style="yellow")
+        org_table.add_column("Tree Size", style="white")
+        org_table.add_column("Updated", style="dim")
+        for org in orgs:
+            org_table.add_row(
+                org.org_id,
+                org.root_hash[:16] + "...",
+                str(org.tree_size),
+                time.strftime("%H:%M:%S", time.localtime(org.timestamp)),
+            )
+        console.print(org_table)
+
+    if proof_for:
+        proof = agg.generate_proof(proof_for)
+        if proof is None:
+            console.print(f"[red]Org not found: {proof_for}[/red]")
+            raise typer.Exit(1)
+
+        if sign:
+            key_path = Path(sign)
+            if not key_path.exists():
+                console.print(f"[red]Key file not found: {sign}[/red]")
+                raise typer.Exit(1)
+            from maref.crypto.ed25519_keys import Ed25519KeyPair
+            kp = Ed25519KeyPair.from_private_pem(key_path.read_text())
+            proof.sign(kp)
+            console.print(f"[green]Proof signed by {kp.fingerprint[:16]}...[/green]")
+
+        proof_table = Table(title=f"Inclusion Proof: {proof_for}")
+        proof_table.add_column("Check", style="cyan")
+        proof_table.add_column("Value", style="white")
+        proof_table.add_row("Org root hash", proof.org_root_hash[:16] + "...")
+        proof_table.add_row("Federated root", proof.federated_root_hash[:16] + "...")
+        proof_table.add_row("Org count", str(proof.org_count))
+        proof_table.add_row("Proof path length", str(len(proof.proof_path)))
+        proof_table.add_row("Merkle verify", "✅ Pass" if proof.verify() else "❌ Fail")
+        sig_fp = getattr(proof, "_signer_fingerprint", None)
+        if sig_fp:
+            proof_table.add_row("Signed by", sig_fp[:16] + "...")
+        console.print(proof_table)
+
+        if export_proof:
+            proof.to_file(export_proof)
+            console.print(f"[green]Proof exported to {export_proof}[/green]")
 
 
 # ── Trust commands ───────────────────────────────────────────────────

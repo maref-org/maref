@@ -86,17 +86,22 @@ class TestAuditLoggerHMAC:
         assert entry.hmac_signature != ""
         assert len(entry.hmac_signature) == 64  # SHA-256 hex
 
-    def test_sign_entry_without_key(self) -> None:
-        # Use temp dir as CWD to avoid loading .maraf_hmac_key from project root
+    def test_sign_entry_requires_key(self) -> None:
+        # AuditLogger now requires either an Ed25519 keypair or an HMAC key
         with tempfile.TemporaryDirectory() as tmpdir:
             old_cwd = os.getcwd()
             os.chdir(tmpdir)
+            old_hmac = os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+            old_ed = os.environ.pop("MAREF_ED25519_PRIVATE_KEY", None)
             try:
-                logger = AuditLogger()
-                entry = logger.log("test", "actor", "action")
-                assert entry.hmac_signature == ""
+                with pytest.raises(RuntimeError, match="Ed25519 keypair or HMAC key"):
+                    AuditLogger()
             finally:
                 os.chdir(old_cwd)
+                if old_hmac is not None:
+                    os.environ["MAREF_HMAC_SECRET_KEY"] = old_hmac
+                if old_ed is not None:
+                    os.environ["MAREF_ED25519_PRIVATE_KEY"] = old_ed
 
     def test_verify_integrity_valid(self) -> None:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
