@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -59,10 +60,21 @@ class MCPGateway:
         policy_engine: MCPPolicyEngine | None = None,
         governance: MCPGovernance | None = None,
         default_backend: BackendRegistration | None = None,
+        secret_key: bytes | None = None,
     ) -> None:
         self._backends: dict[str, BackendRegistration] = {}
         self._default_backend = default_backend
-        self._secret_key = b"maref-mcp-gateway-v0.33.0"
+        env_key = os.environb.get(b"MAREF_MCP_SECRET_KEY")
+        if secret_key is not None:
+            self._secret_key = secret_key
+        elif env_key is not None:
+            self._secret_key = env_key
+        else:
+            raise RuntimeError(
+                "MCPGateway requires a secret_key. "
+                "Set MAREF_MCP_SECRET_KEY environment variable "
+                "or pass secret_key to MCPGateway()."
+            )
         self._audit_log: list[dict[str, Any]] = []
         self._gate = security_gate
         self._policy_engine = policy_engine

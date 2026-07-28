@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -123,7 +124,17 @@ class DistributedBFT:
         self._consensus_history: list[ConsensusRound] = []
         self._byzantine_tolerance_violations: int = 0
         # Phase 3.1: HMAC-SHA256 key for vote signing
-        self._secret_key = secret_key or b"maref-bft-dev-key"
+        env_key = os.environb.get(b"MAREF_BFT_SECRET_KEY")
+        if secret_key is not None:
+            self._secret_key = secret_key
+        elif env_key is not None:
+            self._secret_key = env_key
+        else:
+            raise RuntimeError(
+                "DistributedBFT requires a secret_key. "
+                "Set MAREF_BFT_SECRET_KEY environment variable "
+                "or pass secret_key to DistributedBFT()."
+            )
         self._audit_log: list[dict[str, Any]] = []
 
     @property
