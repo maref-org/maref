@@ -146,6 +146,19 @@ class Ed25519KeyPair:
 
         return cls(private_key_pem=private_key_pem, public_key_pem=public_pem)
 
+    def _get_public_key(self) -> Any:
+        _, Ed25519PublicKey, serialization, _ = _load_cryptography()
+        private_key = self._get_private_key()
+        public_key = private_key.public_key()
+        if self._cached_public_key is None:
+            public_pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            ).decode("utf-8")
+            self._cached_public_key = public_key
+            self.public_key_pem = public_pem
+        return public_key
+
     def _get_private_key(self) -> Any:
         """Lazy-load and cache the Ed25519 private key from PEM."""
         if self._cached_private_key is not None:
@@ -208,11 +221,14 @@ class Ed25519KeyPair:
 
     @property
     def fingerprint(self) -> str:
-        """A 16-char hex fingerprint of the public key.
+        """A 16-char hex fingerprint of the raw public key bytes.
 
-        Used as a compact identifier in :class:`AgentCardSignature`.
+        Uses raw 32-byte Ed25519 public key bytes (not PEM) so that the
+        fingerprint is independent of PEM serialisation whitespace/headers.
         """
-        return hashlib.sha256(self.public_key_pem.encode("utf-8")).hexdigest()[:16]
+        pub = self._get_public_key()
+        raw = pub.public_bytes_raw()
+        return hashlib.sha256(raw).hexdigest()[:16]
 
 
 __all__ = ["Ed25519KeyPair"]

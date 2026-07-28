@@ -426,7 +426,7 @@ class AuditLogger:
 
     def read_all(self, max_entries: int | None = 1000) -> list[AuditEntry]:
         if max_entries is None:
-            logging.warning("read_all without limit — may cause OOM on large audit logs")
+            logger.warning("read_all without limit — may cause OOM on large audit logs")
         if self._path is None:
             return list(
                 self._memory_entries[-max_entries:] if max_entries else self._memory_entries
