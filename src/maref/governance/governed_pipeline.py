@@ -19,7 +19,6 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from maref.gaas.cb_pool import CircuitBreakerPool
 from maref.governance.audit import AuditLogger
 from maref.governance.core_pipeline import (
     GovernancePipeline,
@@ -30,6 +29,7 @@ from maref.governance.decorators import set_default_pipeline
 from maref.recursive.permission_matrix import PermissionMatrix
 
 if TYPE_CHECKING:
+    from maref.gaas.cb_pool import CircuitBreakerPool
     from maref.integration.hitl import HITLRouter
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,9 @@ class GovernedPipeline:
         self.permission = permission or PermissionMatrix()
 
         # 4. Circuit breaker pool (per-tenant/per-agent/per-action)
-        self.cb_pool = cb_pool or CircuitBreakerPool()
+        self.cb_pool = cb_pool or (lambda: (
+            __import__("maref.gaas.cb_pool", fromlist=["CircuitBreakerPool"]).CircuitBreakerPool()
+        ))()
 
         # 5. Unified governance pipeline with all components
         self.pipeline = GovernancePipeline(
