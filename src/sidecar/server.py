@@ -430,7 +430,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
     @app.get("/api/version")
     def version() -> dict[str, str]:
-        return {"version": "0.35.0-beta"}
+        return {"version": "0.38.0"}
 
     @app.websocket("/ws/events")
     async def ws_events(websocket: WebSocket) -> None:
@@ -864,8 +864,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
 
 class SidecarFastAPI(FastAPI):
-    def __init__(self, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, **kwargs: Any) -> None:
-        super().__init__(title="MAREF Sidecar", version="0.35.0-beta")
+    def __init__(self, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False, **kwargs: Any) -> None:
+        super().__init__(title="MAREF Sidecar", version="0.38.0")
         self.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -878,10 +878,12 @@ class SidecarFastAPI(FastAPI):
         a2a_bridge = create_a2a_bridge()
         _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
         self.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
+        if federated:
+            self.include_router(federation_router)
         _setup_routes(self, collector, monitor, obs_bridge)
 
 
-def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None) -> FastAPI:
+def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False) -> FastAPI:
     app = FastAPI(title="MAREF Sidecar", version="0.35.0-beta")
     app.add_middleware(
         CORSMiddleware,
@@ -895,6 +897,7 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
     app.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
-    app.include_router(federation_router)
+    if federated:
+        app.include_router(federation_router)
     _setup_routes(app, collector, monitor, obs_bridge)
     return app

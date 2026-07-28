@@ -10,7 +10,7 @@
   <a href="https://github.com/maref-org/maref/releases"><img src="https://img.shields.io/github/v/release/maref-org/maref?style=for-the-badge&logo=github&color=red" alt="Release"></a>
 </p>
 
-> The only open-source framework that treats **agent governance** as a first-class product, not a security feature. TLA+ formal verification, 10/10 OWASP Agentic Top 10 risk coverage, and per-agent cryptographic identity — production-ready, Apache 2.0.
+> The only open-source framework that treats **agent governance** as a first-class product, not a security feature. TLA+ formal model checking, 10/10 OWASP Agentic Top 10 risk coverage, and per-agent cryptographic identity — production-ready, Apache 2.0.
 
 **Website:** [maref.cc](https://maref.cc)
 
@@ -22,7 +22,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 |----------|--------|
 | **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails covering 10/10 OWASP Agentic Top 10 risks. |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
-| **Is it production-ready?** | Yes. 4,300+ tests, 82% coverage, Apache 2.0, v0.36.0-rc. |
+| **Is it production-ready?** | Yes. 11,000+ tests, Apache 2.0, v0.38.0. |
 | **Does it work with my stack?** | Python 3.10+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
@@ -33,7 +33,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 | **Desktop automation** | Screenshot→parse→keyboard/mouse→verify closed loop, cross-platform |
 | **Agent safety & compliance** | 10-state Gray Code governance FSM, circuit breaker with HALT absorbing state, 4-level safety decision tree |
 | **Drift detection** | LoRA weight drift + ontology concept drift (KL/JS/Hellinger triple divergence) |
-| **Formal verification** | TLA+ specs with 5 proven theorems (Lyapunov convergence + Sperner completeness) |
+| **Formal verification** | TLA+ specs with 5 model-checked invariants (state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability) |
 
 ---
 
@@ -46,15 +46,16 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 ## Core Capabilities
 
 ### Governance Layer (World-Leading)
-- **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library (v0.36.0-rc)
-- **10-State Gray Code Governance State Machine** — Mathematically provable convergence (6-bit, Hamming distance=1)
-- **TLA+ Formal Verification** — 5 theorem proofs (Lyapunov convergence + Sperner completeness)
+- **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library (v0.37.0-dev)
+- **10-State Gray Code Governance State Machine** — Mathematically provable convergence (4-bit, Hamming distance=1)
+- **TLA+ Formal Verification** — 5 model-checked invariants (state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability)
 - **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
 - **Four-Tier Security Decision Tree** — Rule→Mode→SafetyGate→User, 97% automation rate
 - **LoRA/Ontology Dual Drift Detection** — KL/JS/Hellinger triple divergence + human arbitration
 - **Verifier Cross-Validation** — VerifierRegistry + VerifierConsensus (weighted majority / unanimous)
 - **MAREFLoop Adapter** — Connect any Loop to MAREF governance in 5 lines of code
 - **Zero-Trust Identity** — Per-agent Ed25519 cryptographic identity, HMAC-signed decisions
+- **Verifiable Audit Chain** — Ed25519-signed audit log entries aggregated into Merkle trees, cross-organization federated Merkle root via HTTP API, offline-verifiable inclusion proofs ([VERIFY.md](VERIFY.md))
 
 <p align="center">
   <img src="docs/assets/gray-code-fsm.svg" alt="Gray Code Governance State Machine — 10-state cyclic FSM with Hamming distance=1" width="800">
@@ -235,14 +236,14 @@ python examples/simple_integration_demo.py
 | Metric | Status |
 |--------|--------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
-| **Tests** | 4,300+ — [![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]() |
-| **Coverage** | 82% — [![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]() |
+| **Tests** | 11,416 — [![Tests](https://img.shields.io/badge/tests-11416-brightgreen.svg)]() |
+| **Coverage** | 36.1% — [![Coverage](https://img.shields.io/badge/coverage-36.1%25-yellow.svg)]() (target: 85%) |
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
 | **Python** | ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg) |
 | **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
-| **Version** | ![v0.36.0-rc](https://img.shields.io/badge/version-v0.36.0--rc-blue) |
+| **Version** | ![v0.38.0](https://img.shields.io/badge/version-v0.38.0-blue) |
 
 ---
 
@@ -253,6 +254,7 @@ python examples/simple_integration_demo.py
 - [x] v0.30.0-GA: Human-agent collaboration layer + Memory layer + Skill marketplace + National crypto SM2/SM3/SM4-GCM + Technical whitepaper
 - [x] v0.35.0-rc: Loop Engineering narrative layer + Three meta-pattern architecture design + Verifier cross-validation + 60%+ module coverage
 - [x] v0.36.0-rc: `maref.loop` module implementation — ConvergentLoop / ExploratoryLoop / InteractiveLoop + LoopGovernanceBridge + TrustBoundary integration
+- [x] v0.38.0: Verifiable Audit Chain — Ed25519 audit log signing + Merkle auditor + Federated Merkle aggregation + offline verification CLI + HTTP API ([VERIFY.md](VERIFY.md))
 - [ ] v1.0: Full recursive evolution stack + Agent credit rating + Four-phase governance model
 - [ ] v2.0: Meta-agent closure + Carbon-silicon symbiosis + Eight-trigram governance
 
@@ -271,15 +273,15 @@ Apache License 2.0 — [LICENSE](LICENSE)
 
 **M**ulti-**A**gent **R**ecursive **E**volution **F**ramework
 
-> **全球唯一以"Agent 治理"为核心产品定位的框架。** 在治理深度上碾压所有竞品（10/10 vs 0-3），将 Agent 治理作为独立的价值主张而非安全 feature。
+> **全球首个以"Agent 治理"为核心产品定位的开源框架。** 将 Agent 治理作为独立的价值主张而非安全 feature。
 
 MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周期、安全边界、状态健康和进化方向。
 
 ### 核心能力
 
 #### 治理层（世界领先）
-- **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (6bit, 汉明距离=1)
-- **TLA+ 形式化验证** — 5 定理证明 (Lyapunov收敛 + Sperner完备性)
+- **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (4-bit, 汉明距离=1)
+- **TLA+ 形式化验证** — 5 模型检查不变量
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
 - **四级安全决策树** — Rule→Mode→SafetyGate→User, 97% 自动化率
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
@@ -308,6 +310,7 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 
 ### 路线图
 - [x] v0.30.0-GA: 人机协同层 + 记忆层 + 技能市场层 + 国密 SM2/SM3/SM4-GCM + 技术白皮书
+- [x] v0.38.0: 可验证审计链 — Ed25519 审计日志签名 + Merkle 审计器 + 联邦 Merkle 聚合 + 离线验证 CLI + HTTP API
 - [ ] v1.0: 递归进化全栈 + Agent 信用评级 + 四象治理模型
 - [ ] v2.0: 元 Agent 闭包 + 碳硅共生 + 八卦治理
 
