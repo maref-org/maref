@@ -16,7 +16,7 @@ Properties verified:
 
 from rich.console import Console
 
-from maref_lite._constants import (
+from maref.governance.constants import (
     ENTROPY_LEVELS,
     GRAY_CODE,
     MAX_ENTROPY,
