@@ -592,23 +592,40 @@ class MCPSecurityGate:
             raise ValueError(f"Unsupported format: {format}")
 
 
-DEFAULT_HMAC_SECRET_KEY = os.environb.get(
-    b"MAREF_HMAC_SECRET_KEY",
-    b"maref-mcp-governance-v0.27.0",
-)
-"""Default HMAC secret key for audit log signing.
+def _require_hmac_key() -> bytes:
+    """Lazy-load HMAC key from environment, raising on missing.
 
-In production, always set MAREF_HMAC_SECRET_KEY environment variable.
-The default value is for development/testing only and MUST NOT be used in production.
-"""
+    Module-level raise was too aggressive: importing ``mcp_security``
+    (transitively via ``browser_controller`` → ``browser_server`` → ``mcp_server``)
+    should not crash when the env var is unset.  Only callers that actually
+    *sign* audit entries need the key.
+    """
+    key = os.environb.get(b"MAREF_HMAC_SECRET_KEY")
+    if key is None:
+        raise RuntimeError(
+            "MAREF_HMAC_SECRET_KEY environment variable must be set. "
+            "This is required for audit log integrity. "
+            "Generate a key with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    return key
 
 
-def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes = DEFAULT_HMAC_SECRET_KEY) -> str:
+DEFAULT_HMAC_SECRET_KEY: bytes | None = os.environb.get(b"MAREF_HMAC_SECRET_KEY")
+
+
+def _resolve_key(secret_key: bytes | None) -> bytes:
+    if secret_key is not None:
+        return secret_key
+    return _require_hmac_key()
+
+
+def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes | None = DEFAULT_HMAC_SECRET_KEY) -> str:
     """Create HMAC-SHA256 signature for an audit log entry.
 
     The signature covers all immutable fields of the entry, providing
     tamper-evident audit logging. Store alongside the entry for verification.
     """
+    secret_key = _resolve_key(secret_key)
     payload = json.dumps(
         {
             "timestamp": entry.timestamp.isoformat(),
@@ -627,11 +644,12 @@ def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes = DEFAULT_HMAC_SECR
 
 
 def verify_audit_signature(
-    entry: AuditLogEntry, signature: str, secret_key: bytes = DEFAULT_HMAC_SECRET_KEY
+    entry: AuditLogEntry, signature: str, secret_key: bytes | None = DEFAULT_HMAC_SECRET_KEY
 ) -> bool:
-    """Verify HMAC-SHA256 signature of an audit log entry.
-
-    Returns True if the signature matches, False if the entry has been tampered with.
-    """
-    expected = sign_audit_entry(entry, secret_key)
-    return hmac.compare_digest(expected, signature)
+    """Verify HMAC-SHA256 signature of an audit log entry."""
+    secret_key_bytes = _resolve_key(secret_key)
+    try:
+        expected = sign_audit_entry(entry, secret_key=secret_key_bytes)
+        return hmac.compare_digest(expected, signature)
+    except Exception:
+        return False

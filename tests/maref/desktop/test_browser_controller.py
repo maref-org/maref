@@ -6,15 +6,15 @@ from maref.desktop.browser_controller import (
     BrowserAction,
     BrowserController,
     BrowserResult,
-    _DeprecatedBrowserType,
+    BrowserType,
 )
 
 
 class TestDeprecatedBrowserType:
     def test_values(self) -> None:
-        assert _DeprecatedBrowserType.CHROMIUM.value == "chromium"
-        assert _DeprecatedBrowserType.FIREFOX.value == "firefox"
-        assert _DeprecatedBrowserType.WEBKIT.value == "webkit"
+        assert BrowserType.CHROMIUM.value == "chromium"
+        assert BrowserType.FIREFOX.value == "firefox"
+        assert BrowserType.WEBKIT.value == "webkit"
 
 
 class TestBrowserAction:
