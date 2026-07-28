@@ -66,14 +66,14 @@ Every agent action, before execution, must pass through MAREF's 8 layers of defe
 
 **Field experience**: On take #156, I adjusted both the arm height and counterweight simultaneously. The shot shook for 3 seconds — ruined. I learned: **change one parameter at a time**, so you know which one caused the problem.
 
-10 governance states, 6-bit encoded, Hamming distance = 1 per transition. Only one dimension changes at a time.
+10 governance states, 4-bit encoded, Hamming distance = 1 per transition. Only one dimension changes at a time.
 
 State sequence:
 
 ```
-INIT(000000) → BOOTSTRAP(000001) → LOAD(000011) → VERIFY(000010) →
-ATTEST(000110) → OPERATE(000111) → MONITOR(000101) → EVOLVE(000100) →
-CHECKPOINT(001100) → HALT(100000)
+INIT(0000) → OBSERVE(0001) → ANALYZE(0011) → EVALUATE(0010) →
+DECIDE(0110) → ACT(0111) → VERIFY(0101) → STABILIZE(0100) →
+REPORT(1100) → HALT(1101)
 ```
 
 HALT isn't a "lockdown." It's the **system entering its natural limit state** — like the hard stop when the arm compresses to its maximum. External intervention (rebalance, safety confirmation) is required to recover.
@@ -171,8 +171,8 @@ These aren't "future plans" — they're "being uploaded." v0.31 will be released
 From v0.1.0 to v0.30.0-GA (March–June 2026, 6 months, 30 releases):
 
 - Tests: 4,300+
-- Coverage: 82%
-- Governance state machine: 10-state Gray Code FSM (6-bit, Hamming distance = 1)
+- Coverage: 36.1% (target 85%; see [Health section](https://github.com/maref-org/maref#health))
+- Governance state machine: 10-state Gray Code FSM (4-bit, Hamming distance = 1)
 - Red-blue adversarial testing: 200 rounds, 7.7x attack intensity scaling
 - Chinese national crypto: SM2/SM3/SM4-GCM (pure Python, zero native dependencies)
 - License: Apache-2.0

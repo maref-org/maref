@@ -10,7 +10,7 @@ description: MAREF 六层治理架构
 
 ## Overview
 
-MAREF provides six-layer governance, formal verification via TLA+, a 64-state Gray-code finite state machine, dual-protocol communication (A2A + MCP), and a full audit/security/compliance infrastructure.
+MAREF provides six-layer governance, formal model checking via TLA+, a 10-state 4-bit Gray-code governance FSM (with a 24-state 5-bit agent FSM), dual-protocol communication (A2A + MCP), and a full audit/security/compliance infrastructure.
 
 ## Six-Layer Governance
 

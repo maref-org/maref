@@ -10,7 +10,7 @@ description: MAREF six-layer governance architecture
 
 ## Overview
 
-MAREF (Multi-Agent Recursive Evolution Framework) is an Agent Governance Operating System. It provides six-layer governance, formal verification via TLA+, a 64-state Gray-code finite state machine, dual-protocol communication (A2A v0.3 + MCP 2025-03-26), and a full audit/security/compliance infrastructure.
+MAREF (Multi-Agent Recursive Evolution Framework) is an Agent Governance Operating System. It provides six-layer governance, formal model checking via TLA+, a 10-state 4-bit Gray-code governance FSM (with a 24-state 5-bit agent FSM), dual-protocol communication (A2A v0.3 + MCP 2025-03-26), and a full audit/security/compliance infrastructure.
 
 This document describes the architecture from four perspectives: the six-layer governance model, the runtime architecture layers, the protocol layer, and the security architecture.
 
@@ -133,7 +133,7 @@ Anthropic-standard MCP 2025-03-26 for tool discovery, resource access, and promp
 
 | Decision | Rationale |
 |----------|-----------|
-| 64-state Gray Code FSM | Hamming distance=1 transitions guarantee stability |
+| 10-state Gray Code FSM (4-bit) | Hamming distance=1 transitions guarantee stability |
 | TLA+ formal verification | Prove correctness before implementation |
 | 5 constitutional red lines | Immutable safety constraints enforced at meta layer |
 | 8-trigram trust states | Trust-aware autonomy scaling with smooth transitions |

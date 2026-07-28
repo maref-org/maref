@@ -8,7 +8,7 @@ const features = [
   {
     icon: '🔐',
     title: 'Formal Verification',
-    description: 'TLA+ proven invariants with 64-state Gray-code FSM ensuring Hamming distance=1 transition stability across all governance layers.',
+    description: 'TLA+ model-checked invariants with a 10-state 4-bit Gray-code governance FSM ensuring Hamming distance=1 transition stability.',
   },
   {
     icon: '⚖️',
