@@ -17,12 +17,13 @@ Usage::
 from __future__ import annotations
 
 import hashlib
-import time
+import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from maref.governance.audit import AuditEntry, AuditLogger
+from maref.governance.audit import AuditEntry
 
 
 def _content_fingerprint(entry: AuditEntry) -> str:
@@ -66,6 +67,21 @@ class AuditReconciler:
         self._entries: dict[str, list[AuditEntry]] = {}
         self._merkle_snapshots: dict[str, MerkleSnapshot] = {}
 
+    @staticmethod
+    def _read_log_file(path: Path) -> list[AuditEntry]:
+        entries: list[AuditEntry] = []
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                    entries.append(AuditEntry(**data))
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    continue
+        return entries
+
     def add_replica(
         self,
         replica_id: str,
@@ -74,8 +90,7 @@ class AuditReconciler:
         self._replicas[replica_id] = Path(log_path)
         if not self._replicas[replica_id].exists():
             raise FileNotFoundError(f"Audit log not found: {log_path}")
-        logger = AuditLogger(log_path=str(self._replicas[replica_id]), hmac_key="")
-        self._entries[replica_id] = logger.read_all()
+        self._entries[replica_id] = self._read_log_file(self._replicas[replica_id])
 
     def add_merkle_snapshot(
         self,
@@ -198,6 +213,14 @@ class AuditReconciler:
         if a_id in self._merkle_snapshots and b_id in self._merkle_snapshots:
             ms_a = self._merkle_snapshots[a_id]
             ms_b = self._merkle_snapshots[b_id]
+            if ms_a.root_hash != ms_b.root_hash:
+                report.discrepancies.append({
+                    "type": "merkle_root_hash_mismatch",
+                    "replica_a": a_id,
+                    "replica_b": b_id,
+                    "root_hash_a": ms_a.root_hash,
+                    "root_hash_b": ms_b.root_hash,
+                })
             if ms_a.tree_size != ms_b.tree_size:
                 report.discrepancies.append({
                     "type": "merkle_tree_size_mismatch",
@@ -209,7 +232,7 @@ class AuditReconciler:
 
     def print_report(self, report: ReconciliationReport) -> None:
         print(f"\n{'='*60}")
-        print(f"  Audit Reconciliation Report")
+        print("  Audit Reconciliation Report")
         print(f"{'='*60}")
         print(f"  Replicas: {report.total_replicas}")
         for rid, count in report.total_entries.items():

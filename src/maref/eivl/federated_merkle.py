@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -250,10 +249,15 @@ class FederatedMerkleAggregator:
 
         while len(current) > 1:
             next_level: list[str] = []
-            for i in range(0, len(current), 2):
+            i = 0
+            while i < len(current):
                 left = current[i]
-                right = current[i + 1] if i + 1 < len(current) else current[i]
-                next_level.append(self._hash_pair(left, right))
+                if i + 1 < len(current):
+                    right = current[i + 1]
+                    next_level.append(self._hash_pair(left, right))
+                else:
+                    next_level.append(left)
+                i += 2
             self._tree_levels.append(next_level)
             current = next_level
 
@@ -290,11 +294,12 @@ class FederatedMerkleAggregator:
                 sibling_idx = current_idx + 1
                 if sibling_idx < len(current_level):
                     proof_path.append((current_level[sibling_idx], "right"))
+                    current_idx //= 2
                 else:
-                    proof_path.append((current_level[current_idx], "right"))
+                    current_idx = len(current_level) // 2
             else:
                 proof_path.append((current_level[current_idx - 1], "left"))
-            current_idx //= 2
+                current_idx //= 2
 
         return FederatedProof(
             org_id=org_id,
