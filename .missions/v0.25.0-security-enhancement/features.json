@@ -84,14 +84,34 @@
         {"id": "P4.1", "name": "Human-AI Correlation Analysis", "description": "Human-AI correlation analysis", "dependencies": [], "test_coverage_threshold": 80, "status": "completed"},
         {"id": "P4.4", "name": "L2 Release", "description": "L2 release metadata and acceptance report", "dependencies": ["P3.4", "P4.1"], "test_coverage_threshold": 0, "status": "completed"}
       ]
+    },
+    {
+      "id": "m8",
+      "name": "v0.38.0 Verifiability",
+      "description": "Ed25519 audit chain integrity + federated audit + cross-replica reconciliation",
+      "features": [
+        {"id": "V1", "name": "AuditLogger Ed25519 Migration", "description": "AuditLogger dual-mode signing (Ed25519 primary, HMAC legacy)", "dependencies": [], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V2", "name": "MerkleAuditor↔AuditLogger", "description": "AuditEvidence.from_audit_entry() + AuditChainIntegrator.record_audit_entry()", "dependencies": ["V1"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V3", "name": "maref audit verify CLI", "description": "CLI command to verify audit log integrity (Ed25519+HMAC)", "dependencies": ["V1"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V4", "name": "maref audit export CLI", "description": "Self-contained JSON audit log export", "dependencies": ["V1"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V5", "name": "FederatedProof Serialization", "description": "FederatedProof to_dict/from_dict/to_json/from_json + Ed25519 sign/verify", "dependencies": ["V1"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V6", "name": "maref federated verify CLI", "description": "CLI for offline FederatedProof verification", "dependencies": ["V5"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V7", "name": "AuditReconciler", "description": "Cross-replica audit log comparison by content fingerprint", "dependencies": ["V1"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V8", "name": "maref federated submit CLI", "description": "CLI to submit org root to FederatedMerkleAggregator with state persistence", "dependencies": ["V5"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V9", "name": "maref federated status CLI", "description": "Aggregator status + inclusion proof generation with Ed25519 signing", "dependencies": ["V8"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V10", "name": "reconcile-daemon", "description": "Continuous cross-replica reconciliation loop with configurable interval", "dependencies": ["V7"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V11", "name": "Sidecar Federation REST API", "description": "/api/v1/federation/ endpoints (status/submit/proof)", "dependencies": ["V8"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V12", "name": "Webhook Alerting", "description": "reconcile-daemon webhook POST on critical discrepancies", "dependencies": ["V10"], "test_coverage_threshold": 0, "status": "completed"},
+        {"id": "V13", "name": "Batch Proof Verification", "description": "maref federated verify --batch with --pubkey-dir auto-matching", "dependencies": ["V6"], "test_coverage_threshold": 0, "status": "completed"}
+      ]
     }
   ],
-  "current_milestone": "m7",
-  "completed_milestones": ["m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7"],
+  "current_milestone": "m8",
+  "completed_milestones": ["m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"],
   "total_estimated_tokens": "5M",
   "budget_usd": 0,
   "risk_level": "high",
   "validator_rounds": 7,
-  "features_total": 27,
-  "features_completed": 27
+  "features_total": 40,
+  "features_completed": 40
 }

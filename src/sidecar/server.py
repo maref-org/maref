@@ -22,6 +22,7 @@ from maref.observability.security_headers_middleware import SecurityHeadersMiddl
 from maref.recursive.cost_tracker import CostTracker
 from maref.tool.registry import ToolRegistry
 from sidecar.collector import MockAgentAdapter, ObservationCollector
+from sidecar.federation_router import router as federation_router
 from sidecar.gaas_router import router as gaas_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
@@ -695,9 +696,68 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
     @app.get("/api/v1/rsi/evolution-timeline")
     def rsi_evolution_timeline() -> list[dict[str, Any]]:
-        """P5.6: Return evolution timeline snapshots for GUI visualization."""
+        """P5.6: Return evolution timeline snapshots for GUI visualization.
+
+        Reads from EvolutionVault TSV records (preferred) or falls back to
+        7d-stability-report.json when vault is empty.
+        """
         import json
         from pathlib import Path
+
+        from maref.vault.evolution_vault import EvolutionVault
+
+        vault = EvolutionVault()
+        records = vault.load_all()
+
+        if records:
+            snapshots: list[dict[str, Any]] = []
+            records_by_target: dict[str, list] = {}
+            for r in records:
+                records_by_target.setdefault(r.target, []).append(r)
+
+            for i, (target, recs) in enumerate(sorted(records_by_target.items())):
+                scores = [r.consistency_score for r in recs]
+                dims: dict[str, float] = {}
+                for r in recs:
+                    for k, v in r.dimensions.items():
+                        dims[k] = v
+
+                events: list[dict[str, str]] = []
+                for r in recs[-5:]:
+                    if r.action == "discard":
+                        events.append({
+                            "type": "alert",
+                            "label": f"Discard {r.target}",
+                            "detail": f"score={r.consistency_score:.3f}",
+                            "timestamp": r.timestamp,
+                        })
+                    elif r.notes:
+                        events.append({
+                            "type": "gate" if "gate" in r.notes.lower() else "version",
+                            "label": r.target,
+                            "detail": r.notes[:100],
+                            "timestamp": r.timestamp,
+                        })
+
+                heal_count = sum(1 for r in recs if r.action == "keep")
+                heal_successes = sum(
+                    1 for r in recs if r.action == "keep" and r.consistency_score > 0.7
+                )
+
+                snapshots.append({
+                    "day": i + 1,
+                    "date": recs[-1].timestamp.split("T")[0] if "T" in recs[-1].timestamp
+                            else recs[-1].timestamp[:10],
+                    "avgScore": (sum(scores) / len(scores)) if scores else 0,
+                    "adoptionRate": heal_count / max(len(recs), 1),
+                    "selfHealCount": heal_count,
+                    "selfHealSuccesses": heal_successes,
+                    "dimensions": dims,
+                    "events": events,
+                    "version": target,
+                })
+            if snapshots:
+                return snapshots
 
         report_path = Path("docs/rsi/7d-stability-report.json")
         if not report_path.exists():
@@ -706,20 +766,20 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
             data = json.loads(report_path.read_text())
         except (json.JSONDecodeError, OSError):
             return []
-        snapshots: list[dict[str, Any]] = []
+        snapshots = []
         for dr in data.get("daily_reports", []):
             heal_count = dr.get("self_heal_count", 0)
             heal_successes = dr.get("self_heal_successes", 0)
-            events: list[dict[str, str]] = []
+            report_events: list[dict[str, str]] = []
             if heal_count > 0:
-                events.append({
+                report_events.append({
                     "type": "heal",
                     "label": f"自愈 {heal_successes}/{heal_count}",
                     "detail": f"成功率 {heal_successes / max(heal_count, 1) * 100:.0f}%",
                     "timestamp": f"Day {dr.get('day', 0)}",
                 })
             if dr.get("safety_alerts", 0) > 0:
-                events.append({
+                report_events.append({
                     "type": "alert",
                     "label": f"告警 {dr.get('safety_alerts', 0)}",
                     "detail": "安全告警事件",
@@ -733,7 +793,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
                 "selfHealCount": heal_count,
                 "selfHealSuccesses": heal_successes,
                 "dimensions": {},
-                "events": events,
+                "events": report_events,
                 "version": None,
             })
         return snapshots
@@ -835,5 +895,6 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
     app.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
+    app.include_router(federation_router)
     _setup_routes(app, collector, monitor, obs_bridge)
     return app
