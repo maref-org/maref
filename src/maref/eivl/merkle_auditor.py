@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -87,6 +88,11 @@ class AuditEvidence:
             nonce=nonce,
         )
 
+def merkle_hash_pair(left: str, right: str) -> str:
+    """Hash two child hashes into a parent hash (module-level for offline verification)."""
+    return hashlib.sha256((left + right).encode()).hexdigest()
+
+
 @dataclass
 class MerkleProof:
     """Merkle 证明 - 用于验证某个证据是否包含在树中"""
@@ -100,9 +106,9 @@ class MerkleProof:
         current_hash = self.target_hash
         for (sibling_hash, direction) in self.proof_path:
             if direction == 'left':
-                current_hash = MerkleAuditor._hash_pair(sibling_hash, current_hash)
+                current_hash = merkle_hash_pair(sibling_hash, current_hash)
             else:
-                current_hash = MerkleAuditor._hash_pair(current_hash, sibling_hash)
+                current_hash = merkle_hash_pair(current_hash, sibling_hash)
         return current_hash == self.root_hash
 
     def to_dict(self) -> dict[str, Any]:
@@ -116,6 +122,7 @@ class MerkleAuditor:
     """
 
     def __init__(self):
+        self._lock = threading.Lock()
         self._leaves: list[MerkleNode] = []
         self._root: MerkleNode | None = None
         self._evidence_map: dict[str, AuditEvidence] = {}
@@ -125,9 +132,7 @@ class MerkleAuditor:
 
     @staticmethod
     def _hash_pair(left: str, right: str) -> str:
-        """对两个哈希值进行配对哈希"""
-        combined = left + right
-        return hashlib.sha256(combined.encode()).hexdigest()
+        return merkle_hash_pair(left, right)
 
     @staticmethod
     def _hash_data(data: str) -> str:
@@ -135,57 +140,48 @@ class MerkleAuditor:
         return hashlib.sha256(data.encode()).hexdigest()
 
     def add_evidence(self, evidence: AuditEvidence) -> str:
-        """
-        添加审计证据到 Merkle Tree
-
-        Args:
-            evidence: 审计证据
-
-        Returns:
-            str: 证据的哈希值
-        """
-        evidence_hash = evidence.compute_hash()
-        leaf = MerkleNode(hash=evidence_hash, data=evidence_hash, index=len(self._leaves))
-        self._leaves.append(leaf)
-        self._evidence_map[evidence.evidence_id] = evidence
-        self._hash_to_evidence[evidence_hash] = evidence.evidence_id
-        self._rebuild_tree()
-        return evidence_hash
-
-    def add_evidence_batch(self, evidences: list[AuditEvidence]) -> list[str]:
-        """
-        批量添加审计证据
-
-        Args:
-            evidences: 审计证据列表
-
-        Returns:
-            list[str]: 证据哈希列表
-        """
-        hashes = []
-        for evidence in evidences:
+        with self._lock:
             evidence_hash = evidence.compute_hash()
             leaf = MerkleNode(hash=evidence_hash, data=evidence_hash, index=len(self._leaves))
             self._leaves.append(leaf)
             self._evidence_map[evidence.evidence_id] = evidence
             self._hash_to_evidence[evidence_hash] = evidence.evidence_id
-            hashes.append(evidence_hash)
-        self._rebuild_tree()
-        return hashes
+            self._rebuild_tree()
+            return evidence_hash
+
+    def add_evidence_batch(self, evidences: list[AuditEvidence]) -> list[str]:
+        with self._lock:
+            hashes = []
+            for evidence in evidences:
+                evidence_hash = evidence.compute_hash()
+                leaf = MerkleNode(hash=evidence_hash, data=evidence_hash, index=len(self._leaves))
+                self._leaves.append(leaf)
+                self._evidence_map[evidence.evidence_id] = evidence
+                self._hash_to_evidence[evidence_hash] = evidence.evidence_id
+                hashes.append(evidence_hash)
+            self._rebuild_tree()
+            return hashes
 
     def _rebuild_tree(self) -> None:
         """重建 Merkle Tree"""
         if not self._leaves:
             self._root = None
             return
-        current_level = self._leaves.copy()
+        current_level: list[MerkleNode] = self._leaves.copy()
         while len(current_level) > 1:
             next_level: list[MerkleNode] = []
-            for i in range(0, len(current_level), 2):
+            i = 0
+            while i < len(current_level):
                 left = current_level[i]
-                right = current_level[i + 1] if i + 1 < len(current_level) else current_level[i]
-                parent = MerkleNode(hash=self._hash_pair(left.hash, right.hash), left=left, right=right)
-                next_level.append(parent)
+                if i + 1 < len(current_level):
+                    right = current_level[i + 1]
+                    parent = MerkleNode(
+                        hash=self._hash_pair(left.hash, right.hash), left=left, right=right
+                    )
+                    next_level.append(parent)
+                else:
+                    next_level.append(left)
+                i += 2
             current_level = next_level
         self._root = current_level[0]
         self._tree_version += 1
@@ -229,20 +225,29 @@ class MerkleAuditor:
             return None
         proof_path: list[tuple[str, str]] = []
         current_index = leaf_index
-        current_level = self._leaves.copy()
+        current_level: list[MerkleNode] = self._leaves.copy()
         while len(current_level) > 1:
             next_level: list[MerkleNode] = []
-            for i in range(0, len(current_level), 2):
+            i = 0
+            while i < len(current_level):
                 left = current_level[i]
-                right = current_level[i + 1] if i + 1 < len(current_level) else current_level[i]
-                if current_index == i:
-                    proof_path.append((right.hash, 'right'))
-                    current_index = len(next_level)
-                elif current_index == i + 1 or (current_index == i and i == len(current_level) - 1):
-                    proof_path.append((left.hash, 'left'))
-                    current_index = len(next_level)
-                parent = MerkleNode(hash=self._hash_pair(left.hash, right.hash), left=left, right=right)
-                next_level.append(parent)
+                if i + 1 < len(current_level):
+                    right = current_level[i + 1]
+                    if current_index == i:
+                        proof_path.append((right.hash, 'right'))
+                        current_index = len(next_level)
+                    elif current_index == i + 1:
+                        proof_path.append((left.hash, 'left'))
+                        current_index = len(next_level)
+                    parent = MerkleNode(
+                        hash=self._hash_pair(left.hash, right.hash), left=left, right=right
+                    )
+                    next_level.append(parent)
+                else:
+                    if current_index == i:
+                        current_index = len(next_level)
+                    next_level.append(left)
+                i += 2
             current_level = next_level
         return MerkleProof(target_hash=evidence_hash, proof_path=proof_path, root_hash=self._root.hash, tree_size=len(self._leaves))
 

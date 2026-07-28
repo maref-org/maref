@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from maref.eivl.federated_merkle import (
     FederatedMerkleAggregator,
     FederatedProof,
     OrgRootEntry,
 )
+
+
+def _fake_hash(tag: str) -> str:
+    return hashlib.sha256(tag.encode()).hexdigest()
+
+
+H1 = _fake_hash("org-1")
+H2 = _fake_hash("org-2")
+H3 = _fake_hash("org-3")
+HX = _fake_hash("org-1-updated")
 
 
 class TestFederatedMerkleAggregator:
@@ -17,9 +29,9 @@ class TestFederatedMerkleAggregator:
 
     def test_submit_and_aggregate(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8, tree_size=10)
-        agg.submit_root("org-2", "hash_b" * 8, tree_size=20)
-        agg.submit_root("org-3", "hash_c" * 8, tree_size=30)
+        agg.submit_root("org-1", H1, tree_size=10)
+        agg.submit_root("org-2", H2, tree_size=20)
+        agg.submit_root("org-3", H3, tree_size=30)
 
         root = agg.get_federated_root()
         assert root is not None
@@ -28,39 +40,35 @@ class TestFederatedMerkleAggregator:
 
     def test_generate_proof(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-        agg.submit_root("org-2", "hash_b" * 8)
+        agg.submit_root("org-1", H1)
+        agg.submit_root("org-2", H2)
 
         proof = agg.generate_proof("org-1")
         assert proof is not None
         assert proof.org_id == "org-1"
-        assert proof.org_root_hash == "hash_a" * 8
+        assert proof.org_root_hash == H1
         assert proof.federated_root_hash == agg.get_federated_root()
         assert proof.org_count == 2
 
     def test_verify_proof_offline(self) -> None:
-        """Proof is verifiable without the aggregator instance."""
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-        agg.submit_root("org-2", "hash_b" * 8)
-        agg.submit_root("org-3", "hash_c" * 8)
+        agg.submit_root("org-1", H1)
+        agg.submit_root("org-2", H2)
+        agg.submit_root("org-3", H3)
 
         proof = agg.generate_proof("org-2")
         assert proof is not None
-        # Verify offline -- only needs the proof object itself.
         assert proof.verify() is True
 
     def test_proof_detects_tampered_root(self) -> None:
-        """Tampering with the federated root invalidates the proof."""
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-        agg.submit_root("org-2", "hash_b" * 8)
+        agg.submit_root("org-1", H1)
+        agg.submit_root("org-2", H2)
 
         proof = agg.generate_proof("org-1")
         assert proof is not None
         assert proof.verify() is True
 
-        # Tamper with the federated root hash.
         tampered = FederatedProof(
             org_id=proof.org_id,
             org_root_hash=proof.org_root_hash,
@@ -73,8 +81,8 @@ class TestFederatedMerkleAggregator:
 
     def test_verify_org_inclusion(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-        agg.submit_root("org-2", "hash_b" * 8)
+        agg.submit_root("org-1", H1)
+        agg.submit_root("org-2", H2)
 
         result = agg.verify_org_inclusion("org-1")
         assert result["valid"] is True
@@ -83,15 +91,14 @@ class TestFederatedMerkleAggregator:
 
     def test_verify_unknown_org(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-
+        agg.submit_root("org-1", H1)
         result = agg.verify_org_inclusion("unknown")
         assert result["valid"] is False
 
     def test_remove_org_changes_root(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-        agg.submit_root("org-2", "hash_b" * 8)
+        agg.submit_root("org-1", H1)
+        agg.submit_root("org-2", H2)
 
         root_before = agg.get_federated_root()
         assert agg.remove_org("org-2") is True
@@ -102,23 +109,23 @@ class TestFederatedMerkleAggregator:
 
     def test_remove_unknown_org(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
+        agg.submit_root("org-1", H1)
         assert agg.remove_org("unknown") is False
 
     def test_update_root_changes_federated_root(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-        agg.submit_root("org-2", "hash_b" * 8)
+        agg.submit_root("org-1", H1)
+        agg.submit_root("org-2", H2)
 
         root_before = agg.get_federated_root()
-        agg.submit_root("org-1", "hash_x" * 8)  # Update org-1's root
+        agg.submit_root("org-1", HX)
         root_after = agg.get_federated_root()
         assert root_before != root_after
 
     def test_summary(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8, tree_size=10)
-        agg.submit_root("org-2", "hash_b" * 8, tree_size=20)
+        agg.submit_root("org-1", H1, tree_size=10)
+        agg.submit_root("org-2", H2, tree_size=20)
 
         s = agg.summary()
         assert s["org_count"] == 2
@@ -127,8 +134,8 @@ class TestFederatedMerkleAggregator:
 
     def test_list_orgs(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8, metadata={"name": "Acme"})
-        agg.submit_root("org-2", "hash_b" * 8)
+        agg.submit_root("org-1", H1, metadata={"name": "Acme"})
+        agg.submit_root("org-2", H2)
 
         orgs = agg.list_orgs()
         assert len(orgs) == 2
@@ -136,12 +143,10 @@ class TestFederatedMerkleAggregator:
         assert orgs[0].org_id == "org-1"
 
     def test_single_org(self) -> None:
-        """A single org's root IS the federated root."""
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-
+        agg.submit_root("org-1", H1)
         root = agg.get_federated_root()
-        assert root == "hash_a" * 8
+        assert root == H1
 
         proof = agg.generate_proof("org-1")
         assert proof is not None
@@ -149,12 +154,10 @@ class TestFederatedMerkleAggregator:
 
 
 class TestFederatedProofSerialization:
-    """V5: FederatedProof serialization (JSON/signing)."""
-
     def test_to_dict_roundtrip(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
-        agg.submit_root("org-2", "hash_b" * 8)
+        agg.submit_root("org-1", H1)
+        agg.submit_root("org-2", H2)
         proof = agg.generate_proof("org-1")
         assert proof is not None
 
@@ -170,7 +173,7 @@ class TestFederatedProofSerialization:
 
     def test_json_roundtrip(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
+        agg.submit_root("org-1", H1)
         proof = agg.generate_proof("org-1")
         assert proof is not None
 
@@ -181,7 +184,7 @@ class TestFederatedProofSerialization:
 
     def test_file_roundtrip(self, tmp_path) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
+        agg.submit_root("org-1", H1)
         proof = agg.generate_proof("org-1")
         assert proof is not None
 
@@ -189,14 +192,14 @@ class TestFederatedProofSerialization:
         proof.to_file(f)
         restored = FederatedProof.from_file(f)
         assert restored.verify() is True
-        assert restored.org_root_hash == "hash_a" * 8
+        assert restored.org_root_hash == H1
 
     def test_sign_and_verify(self) -> None:
         from maref.crypto.ed25519_keys import Ed25519KeyPair
 
         kp = Ed25519KeyPair.generate()
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
+        agg.submit_root("org-1", H1)
         proof = agg.generate_proof("org-1")
         assert proof is not None
 
@@ -204,7 +207,6 @@ class TestFederatedProofSerialization:
         d = proof.to_dict()
         assert d["ed25519_signature"] is not None
         assert d["signer_fingerprint"] == kp.fingerprint
-
         assert proof.verify_signature(kp.public_key_pem) is True
 
     def test_verify_signature_wrong_key(self) -> None:
@@ -213,7 +215,7 @@ class TestFederatedProofSerialization:
         kp = Ed25519KeyPair.generate()
         wrong_kp = Ed25519KeyPair.generate()
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
+        agg.submit_root("org-1", H1)
         proof = agg.generate_proof("org-1")
         assert proof is not None
 
@@ -222,8 +224,7 @@ class TestFederatedProofSerialization:
 
     def test_verify_signature_no_signature(self) -> None:
         agg = FederatedMerkleAggregator()
-        agg.submit_root("org-1", "hash_a" * 8)
+        agg.submit_root("org-1", H1)
         proof = agg.generate_proof("org-1")
         assert proof is not None
-
         assert proof.verify_signature("any_pem") is False
