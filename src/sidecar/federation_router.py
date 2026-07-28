@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import os
-import time
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -14,23 +13,31 @@ from maref.eivl.federated_merkle import FederatedMerkleAggregator
 
 router = APIRouter(prefix="/api/v1/federation")
 
-_DEFAULT_STATE_PATH = os.environ.get(
-    "MAREF_FEDERATED_STATE",
-    str(Path.cwd() / ".maref" / "federated-state.json"),
-)
+_DEFAULT_STATE_DIR = Path.home() / ".maref"
+
+_lock = threading.Lock()
+
+
+def _get_state_path() -> Path:
+    env_path = os.environ.get("MAREF_FEDERATED_STATE")
+    if env_path:
+        return Path(env_path)
+    return _DEFAULT_STATE_DIR / "federated-state.json"
 
 
 def _load_aggregator() -> FederatedMerkleAggregator:
-    path = Path(_DEFAULT_STATE_PATH)
-    if path.exists():
-        return FederatedMerkleAggregator.load_state(str(path))
-    return FederatedMerkleAggregator()
+    with _lock:
+        path = _get_state_path()
+        if path.exists():
+            return FederatedMerkleAggregator.load_state(str(path))
+        return FederatedMerkleAggregator()
 
 
 def _save_aggregator(agg: FederatedMerkleAggregator) -> None:
-    path = Path(_DEFAULT_STATE_PATH)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    agg.save_state(str(path))
+    with _lock:
+        path = _get_state_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        agg.save_state(str(path))
 
 
 @router.get("/status")
@@ -84,3 +91,22 @@ def federation_proof(org_id: str) -> dict[str, Any]:
     if proof is None:
         raise HTTPException(status_code=404, detail=f"Org not found: {org_id}")
     return proof.to_dict()
+
+
+@router.delete("/proof/{org_id}")
+def federation_delete_proof(org_id: str) -> dict[str, Any]:
+    agg = _load_aggregator()
+    if not agg.remove_org(org_id):
+        raise HTTPException(status_code=404, detail=f"Org not found: {org_id}")
+    _save_aggregator(agg)
+    return {"status": "removed", "org_id": org_id}
+
+
+@router.get("/root")
+def federation_root() -> dict[str, Any]:
+    agg = _load_aggregator()
+    root = agg.get_federated_root()
+    return {
+        "federated_root": root,
+        "org_count": agg.summary()["org_count"],
+    }

@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [v0.38.0] - 2026-07-28 (可验证审计链 — Ed25519 审计签名 + Merkle 审计器 + 联邦聚合 + 离线验证)
+
+### Added
+- **Ed25519 审计日志签名**: `AuditLogger._sign_entry()` 优先使用 Ed25519 签名，HMAC 作为后向兼容回退
+- **Merkle 审计器**: `MerkleAuditor` 从审计事件流构建 Merkle 树，支持线程安全证明生成
+- **联邦 Merkle 聚合**: `FederatedMerkleAggregator` 聚合多组织 Merkle 根为单一联邦根
+- **审计调和器**: `AuditReconciler` 跨节点审计日志调和 + Merkle 根哈希失配检测
+- **离线验证**: `MerkleProof.verify()` + `FederatedProof.verify()` 无需网络即可验证
+- **CLI 命令**: `maref verify`, `maref audit export`, `maref federated verify/submit/status`
+- **联邦 HTTP API**: `GET/POST /api/v1/federation/*` — `--federated` 模式下的 Sidecar REST 端点
+- **Ed25519KeyPair**: 密钥对生成/PEM 序列化/签名/验证 + 文件权限检查 (S3)
+- **端到端测试**: `tests/sidecar/test_federation_api.py` — 13 测试覆盖全部联邦 API 端点
+
+### Fixed
+- Merkle 奇数叶子自配对漏洞 (`_rebuild_tree` + `federated_merkle.py`)
+- Reconciler HMAC crash：绕过 `AuditLogger` 只读解析
+- `fingerprint` 从 PEM 字符串改为 `public_bytes_raw()`
+- `MerkleAuditor` + `threading.Lock` 线程安全
+- `logging.warning` → `logger.warning`
+- 缺失 `import json` 等多项修复
+
 ## [v0.37.0-dev] - 2026-07-19 (质量修复迭代 — G2恢复 + 覆盖提升 + 测试修复)
 
 ### Changed
