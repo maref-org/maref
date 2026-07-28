@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAREF Governance Report — ${short_id}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a2e; background: #f8f9fa; }
+  h1 { color: #16213e; border-bottom: 3px solid #0f3460; padding-bottom: 8px; }
+  h2 { color: #0f3460; margin-top: 28px; }
+  .meta { color: #555; font-size: 0.9em; margin-bottom: 24px; }
+  .summary { background: #e8f4f8; border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+  .summary .num { font-weight: 600; color: #0f3460; font-size: 1.2em; }
+  .fp { font-family: 'SF Mono', Monaco, monospace; background: #eee; padding: 2px 6px; border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #ddd; }
+  th { background: #0f3460; color: white; }
+  .merkle { font-family: 'SF Mono', Monaco, monospace; word-break: break-all; background: #f0f0f0; padding: 8px 12px; border-radius: 4px; }
+  .status { display: inline-block; background: #2e7d32; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; }
+  .btn { display: inline-block; margin-top: 16px; padding: 8px 16px; background: #0f3460; color: white; text-decoration: none; border-radius: 4px; cursor: pointer; border: none; font-size: 0.9em; }
+  .btn:hover { background: #16213e; }
+  .empty { color: #888; font-style: italic; }
+</style>
+</head>
+<body>
+<h1>MAREF Governance Report</h1>
+<div class="meta">
+  <strong>Report ID:</strong> ${report_id}<br>
+  <strong>Generated:</strong> ${generated_at}<br>
+  <strong>Version:</strong> ${report_version} — ${generated_by}
+</div>
+
+<div class="summary">
+  <span class="num">${total_events}</span> audit events
+  &middot; Signed by <span class="fp">${signer_fingerprint}</span>
+</div>
+
+<h2>Audit Summary</h2>
+<table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Total Events</td><td>${total_events}</td></tr>
+  <tr><td>Time Range Start</td><td>${time_start}</td></tr>
+  <tr><td>Time Range End</td><td>${time_end}</td></tr>
+</table>
+
+<h3>Event Types</h3>
+<table>
+  <tr><th>Type</th><th>Count</th></tr>
+  ${event_type_rows}
+</table>
+
+<h3>Actors</h3>
+<table>
+  <tr><th>Actor</th><th>Actions</th></tr>
+  ${actor_rows}
+</table>
+
+<h2>System State</h2>
+<table>
+  <tr><td>Governance State</td><td>${gov_state}</td></tr>
+  <tr><td>Active Agents</td><td>${active_agents}</td></tr>
+  <tr><td>Version</td><td>${sys_version}</td></tr>
+</table>
+
+<h2>Merkle Root</h2>
+<div class="merkle">${merkle_root_display}</div>
+
+<button class="btn" onclick="downloadJson()">Download JSON</button>
+
+<script>
+function downloadJson() {
+  var data = ${report_json};
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'governance-report-${short_id}.json';
+  a.click();
+}
+</script>
+</body>
+</html>
