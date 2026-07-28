@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import time
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -53,7 +54,6 @@ class AuthSessionManager:
         if raw_key is not None:
             self._encryption_key = hashlib.sha256(raw_key).digest()
         else:
-            import warnings
             warnings.warn(
                 "No MAREF_BROWSER_AUTH_KEY set — using hardcoded dev key. "
                 "Set the environment variable for production use.",
