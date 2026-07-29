@@ -112,11 +112,13 @@ class RecursiveEvolutionEngine:
         quality_gate: Any | None = None,
         metrics_collector: Any | None = None,
         telemetry_source: Any | None = None,
+        vault: Any | None = None,
     ) -> None:
         self._config = config or EvolutionConfig()
         self._quality_gate = quality_gate
         self._metrics_collector = metrics_collector
         self._telemetry_source = telemetry_source
+        self._vault = vault
         self._output_base = Path(self._config.output_dir)
         self._rng = random.Random(seed if seed is not None else ROUND_SEED)
         self._running = False
@@ -315,6 +317,7 @@ class RecursiveEvolutionEngine:
 
         return {
             "round": round_num,
+            "cycle_id": cycle_id,
             "fnr": fnr,
             "fpr": fpr,
             "final_entropy": sm.current_entropy,
@@ -395,6 +398,31 @@ class RecursiveEvolutionEngine:
         metrics.halt_reasons.append(snapshot["halt_reason"])
         metrics.policy_weights_series.append(dict(self._meta_learner._state.policy_weights))
         metrics.learning_rate_series.append(self._meta_learner._state.learning_rate)
+
+        # Persist to RoundVault if configured
+        if self._vault is not None:
+            try:
+                real_metrics = snapshot.get("real_metrics", {})
+                self._vault.record_round(
+                    round_num=snapshot.get("round", -1),
+                    cycle_id=snapshot.get("cycle_id", "unknown"),
+                    metrics=real_metrics if real_metrics else {
+                        "fnr": snapshot.get("fnr"),
+                        "fpr": snapshot.get("fpr"),
+                        "test_pass_rate": None,
+                        "coverage_pct": None,
+                        "total_tests": None,
+                        "source_file_count": None,
+                        "total_lines": None,
+                        "git_commit_count_30d": None,
+                        "module_count": None,
+                        "governance_state": snapshot.get("final_state", ""),
+                        "cb_state": "CLOSED",
+                    },
+                    stop_reason=snapshot.get("halt_reason", ""),
+                )
+            except Exception:
+                pass
 
     def _check_stop_conditions(
         self,

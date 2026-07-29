@@ -1,4 +1,8 @@
-"""Real metrics collection for recursive evolution — replaces simulated FNR/FPR."""
+"""Real metrics collection for recursive evolution — replaces simulated FNR/FPR.
+
+Integrates SelfObserver for comprehensive system snapshots and
+provides EvolutionMetrics-compatible output for the evolution engine.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +22,11 @@ class RealMetrics:
     total_tests: int
     import_time_ms: float
     cb_state: str
+    source_file_count: int = 0
+    total_lines: int = 0
+    git_commit_count_30d: int = 0
+    module_count: int = 0
+    governance_state: str = ""
     errors: list[str] = field(default_factory=list)
     raw_output: str = ""
 
@@ -30,6 +39,11 @@ class RealMetrics:
             "total_tests": self.total_tests,
             "import_time_ms": self.import_time_ms,
             "cb_state": self.cb_state,
+            "source_file_count": self.source_file_count,
+            "total_lines": self.total_lines,
+            "git_commit_count_30d": self.git_commit_count_30d,
+            "module_count": self.module_count,
+            "governance_state": self.governance_state,
         }
 
 
@@ -64,6 +78,26 @@ class RealMetricsCollector:
         cov_pct = self._run_coverage()
         import_ms = self._measure_import_time()
         cb_state = self._check_cb_state()
+
+        # SelfObserver integration — real system snapshot data
+        source_file_count = 0
+        total_lines = 0
+        git_commit_count = 0
+        module_count = 0
+        governance_state = ""
+        try:
+            from maref.recursive.self_observer import SelfObserver
+
+            observer = SelfObserver()
+            snapshot = observer.snapshot(collect_only=True)
+            source_file_count = snapshot.source_file_count
+            total_lines = snapshot.total_lines
+            git_commit_count = snapshot.git_stats.get("commit_count_30d", 0)
+            module_count = len(snapshot.module_graph)
+            governance_state = snapshot.state_machine_status.get("current_state", "")
+        except Exception:
+            pass
+
         if import_ms < 0:
             errors.append("import_time_failed")
         if cov_pct == 0.0:
@@ -90,6 +124,11 @@ class RealMetricsCollector:
             total_tests=total,
             import_time_ms=round(import_ms, 1),
             cb_state=cb_state,
+            source_file_count=source_file_count,
+            total_lines=total_lines,
+            git_commit_count_30d=git_commit_count,
+            module_count=module_count,
+            governance_state=governance_state,
             errors=errors,
         )
 
