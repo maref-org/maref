@@ -1,5 +1,71 @@
 # CHANGELOG
 
+## [v0.41.0] - 2026-07-29 (递归自演进 GA — 真实指标驱动闭环)
+
+### Added
+- **RealMetricsCollector**: 集成 SelfObserver 采集系统完整快照（source_file_count、total_lines、git_commits_30d、module_count、governance_state），替换演进引擎的模拟 FNR/FPR 数据
+- **RoundVault**: SQLite 跨轮次持久化，支持 record_round()、get_latest_round()、get_trend()、get_all_rounds() 趋势查询
+- **8 阶段闭环管道**: `run_daily.sh` 实现完整演进闭环（环境检查→数据采集→趋势分析→假设生成→宪法审查→实验执行→结果持久化→下一轮规划），可选 PERCV 研究/RSI 循环/MAS-TS 评估
+- **稳定性测试套件**: CircuitBreaker 熔断器测试（5 项）+ RoundVault 趋势退化检测测试（3 项）
+
+### Changed
+- `daily_loop.py`: RoundVault 注入 RecursiveEvolutionEngine，每轮自动记录到 SQLite
+- `real_metrics.py`: 扩展 RealMetrics 数据类，新增 6 个 SelfObserver 字段
+- `evolution_vault.py`: 新增 RoundVault 类（SQLite），保留 EvolutionVault（YAML）向后兼容
+
+### Compliance
+- **OWASP Agentic Top 10**: 覆盖矩阵 10/10（≥8/10 门禁 PASS），代码自动验证
+- **CAC 网信办**: `blockchain_traceability.py` — 8/8 区块链可追溯需求映射
+- **EU AI Act**: Art.12/13/14 V2 引擎完整实现（record_keeping / transparency / human_oversight）
+
+### Fixed
+- **RedBlueEngine**: _simulate_detection 接入真实 GovernanceStateMachine 状态和转换计数
+- **SelfBootstrapVerifier**: 新增 `verify_against_audit_chain()` — Merkle 审计链完整性验证
+
+## [v0.40.0] - 2026-07-29 (联邦审计 GA — 跨组织 Merkle 审计生产就绪)
+
+### Added
+- **FederatedMerkleAggregator 并发安全**: 9 个公开方法全部 threading.RLock 保护 + 5 项并发测试（50 线程 submit、读写交错、20 线程证明生成）
+- **FederatedAuditStore**: SQLite 持久化包装器，每 mutation 自动 snapshot，`assert_consistent()` 校验重启一致性
+- **Sidecar --federated 模式**: `maref serve --federated` 条件挂载联邦审计路由
+- **100 org / 10000 proof 压测**: 0.04s 完成（255,891 proofs/s）
+- **容器签名 CI**: cosign keyless 签名 + 验证集成到 docker.yml push job
+
+### Changed
+- `federation_router.py`: 从 JSON 文件迁移到 SQLite store，自动 JSON→SQLite 迁移
+- `cosign-verify.sh`: keyless 模式为主，--key 模式为备
+
+### Security
+- 全部 13 项 P0 阻塞项从 v0.30.0 PRR 审计已修复（13/13）
+- NetworkPolicy/HPA/TruffleHog/CSP/明文密钥/容器签名/加密模块/--no-sandbox 全部清零
+
+## [v0.39.2] - 2026-07-29 (容器签名 CI)
+
+### Added
+- **cosign keyless 容器签名**: docker.yml push job 新增 cosign sign + verify 步骤
+- **cosign-verify.sh 更新**: keyless 模式为主，支持 SLSA provenance + SBOM 验证
+
+## [v0.39.1] - 2026-07-28 (诚信修复 + 审计链强化)
+
+### Fixed
+- **tla_replay.py 硬编码 passed=True**: 6 处 `return AnalysisResult(..., passed=True, ...)` 改为真实检查：无 states 返回 `passed=None`，有 states 时运行 Lyapunov/HALT/GrayCode 验证
+- **tla_adapter.py 虚假验证调用**: 删除 `_validate_with_proofs()` 中跳过实际验证的路径
+- **README/docs 虚假声明修正**: 64-state→34-state（10 治理 + 24 Agent），移除 Sperner 完备性声明，"5 个 TLA+ 定理证明"→"5 个 TLA+ 不变量"，移除 82% 覆盖率声明
+- **arxiv_submit.py**: 64-state→34-state
+- **CI 新增 integrity job**: 自动检查硬编码 passed=True、64-state、Sperner、82% 覆盖率等已知诚信问题
+
+### Added
+- **Ed25519 兼容性测试**: 4 项新测试验证 Ed25519 签名/验证、HMAC+Ed25519 条目共存、篡改检测、内存模式
+- **独立审计链验证工具**: `scripts/verify_audit_chain.py` — 仅依赖 Python 标准库 + `cryptography` 包，无需 MAREF 框架即可验证链完整性 + Ed25519 签名
+- **审计链验证文档**: `docs/VERIFY.md` — 独立验证指南（链完整性、Ed25519 签名、Merkle 证明、联邦包含证明）
+
+### Changed
+- `src/maref/governance/security_audit_chain.py`, `src/maref/governance/federated_audit.py`: 添加弃用警告，引导用户使用 `AuditLogger` + `FederatedMerkleAggregator`
+
+### Security
+- HMAC→Ed25519 迁移脚本: `scripts/migrate_audit_hmac_to_ed25519.py` — 零停机迁移管线
+- 旧 HMAC 日志保持向后兼容可读
+
 ## [v0.39.0] - 2026-07-28 (自审计报告闭环 — Governance Report Pipeline)
 
 ### Added
