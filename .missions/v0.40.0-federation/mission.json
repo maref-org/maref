@@ -7,13 +7,15 @@
   "target_completion_date": "2026-09-09",
   "estimated_duration_days": 42,
   "parent": "TP-02",
-  "current_milestone": "g5",
+  "current_milestone": "g7",
   "milestones": [
     {"id": "g1", "name": "Concurrent FederatedMerkleAggregator", "status": "completed"},
     {"id": "g2", "name": "Federated Audit Persistence", "status": "completed"},
     {"id": "g3", "name": "Federated Audit HTTP API", "status": "completed"},
     {"id": "g4", "name": "Sidecar Federated Mode", "status": "completed"},
     {"id": "g5", "name": "Proof Distribution Mechanism", "status": "completed"},
+    {"id": "g6", "name": "Policy Compliance Mapping", "status": "pending"},
+    {"id": "g7", "name": "Red-Blue Real Pipeline Integration", "status": "pending"}
     {"id": "g6", "name": "Policy Compliance Mapping", "status": "pending"},
     {"id": "g7", "name": "Red-Blue Real Pipeline Integration", "status": "pending"}
   ],
