@@ -31,6 +31,28 @@ from maref.compliance.registry import (
 
 def __getattr__(name: str) -> Any:
     if name in (
+        "OWASPAgenticTop10",
+        "OWASPCoverageMatrix",
+        "OWASPControl",
+        "verify_owasp_coverage",
+    ):
+        from maref.compliance.owasp_agentic_top10 import (  # noqa: F401
+            OWASPAgenticTop10,
+            OWASPControl,
+            OWASPCoverageMatrix,
+            verify_owasp_coverage,
+        )
+
+        return locals()[name]
+    if name in (
+        "CACBlockchainTraceability",
+    ):
+        from maref.compliance.cac.blockchain_traceability import (  # noqa: F401
+            CACBlockchainTraceability,
+        )
+
+        return locals()[name]
+    if name in (
         "ReportGenerator",
         "ComplianceReport",
         "ReportSection",
@@ -121,6 +143,13 @@ __all__ = [
     "MonitorState",
     "MonitoringRule",
     "create_compliance_monitor",
+    # CAC 网信办区块链可追溯
+    "CACBlockchainTraceability",
+    # OWASP Agentic Top 10 coverage
+    "OWASPAgenticTop10",
+    "OWASPCoverageMatrix",
+    "OWASPControl",
+    "verify_owasp_coverage",
     # V2 EU AI Act engine
     "EUAIComplianceEngineV2",
     "EUAIComplianceSummary",
