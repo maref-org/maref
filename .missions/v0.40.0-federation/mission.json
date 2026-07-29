@@ -1,0 +1,58 @@
+{
+  "mission_id": "maref-v0.40.0-federation",
+  "version": "0.40.0",
+  "name": "Federation — 联邦审计 GA",
+  "status": "in_progress",
+  "start_date": "2026-07-29",
+  "target_completion_date": "2026-09-09",
+  "estimated_duration_days": 42,
+  "parent": "TP-02",
+  "current_milestone": "g1",
+  "milestones": [
+    {"id": "g1", "name": "Concurrent FederatedMerkleAggregator", "status": "pending"},
+    {"id": "g2", "name": "Federated Audit Persistence", "status": "pending"},
+    {"id": "g3", "name": "Federated Audit HTTP API", "status": "pending"},
+    {"id": "g4", "name": "Sidecar Federated Mode", "status": "pending"},
+    {"id": "g5", "name": "Proof Distribution Mechanism", "status": "pending"},
+    {"id": "g6", "name": "Policy Compliance Mapping", "status": "pending"},
+    {"id": "g7", "name": "Red-Blue Real Pipeline Integration", "status": "pending"}
+  ],
+  "all_milestones_completed": false,
+  "total_features": 10,
+  "completed_features": 0,
+  "fix_features_created": 0,
+  "validators_triggered": 0,
+  "issues_found": 0,
+  "all_issues_resolved": true,
+  "team": {
+    "primary_developer": "opencode-agent",
+    "backup_developer": "human-oversight",
+    "reviewer": "human"
+  },
+  "repository": {
+    "current_branch": "dev",
+    "base_branch": "main"
+  },
+  "quality_gates": {
+    "ruff_errors": 0,
+    "mypy_errors": 0,
+    "test_pass_rate": 100,
+    "collection_errors": 0,
+    "no_hardcoded_secrets": true
+  },
+  "governance_scope": {
+    "new_modules": [
+      "src/maref/eivl/federated_merkle.py",
+      "src/sidecar/federation_router.py"
+    ],
+    "cli_commands": [
+      "maref federated submit",
+      "maref federated proof",
+      "maref federated verify",
+      "marefd --federated"
+    ],
+    "third_party_verifiable": true,
+    "compliance_targets": ["EU AI Act Art.12/13/14", "网信办可追溯性"]
+  },
+  "last_updated": "2026-07-29T00:00:00+08:00"
+}
