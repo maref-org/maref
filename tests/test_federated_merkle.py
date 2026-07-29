@@ -228,3 +228,158 @@ class TestFederatedProofSerialization:
         proof = agg.generate_proof("org-1")
         assert proof is not None
         assert proof.verify_signature("any_pem") is False
+
+
+class TestFederatedMerkleConcurrency:
+    """Thread-safety tests for FederatedMerkleAggregator."""
+
+    def test_concurrent_submits(self) -> None:
+        import threading
+
+        agg = FederatedMerkleAggregator()
+        n_orgs = 50
+        results: list[Exception | None] = [None] * n_orgs
+
+        def _submit(i: int) -> None:
+            try:
+                agg.submit_root(f"org-{i}", _fake_hash(f"org-{i}"), tree_size=i * 10)
+            except Exception as e:
+                results[i] = e
+
+        threads = [threading.Thread(target=_submit, args=(i,)) for i in range(n_orgs)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        failures = [(i, r) for i, r in enumerate(results) if r is not None]
+        assert not failures, f"Concurrent submits failed: {failures}"
+        assert agg.summary()["org_count"] == n_orgs
+
+    def test_concurrent_read_write(self) -> None:
+        import random
+        import threading
+
+        agg = FederatedMerkleAggregator()
+        for i in range(10):
+            agg.submit_root(f"org-{i}", _fake_hash(f"org-{i}"))
+
+        errors: list[Exception] = []
+
+        def _writer() -> None:
+            for _ in range(20):
+                i = random.randint(0, 9)
+                try:
+                    agg.submit_root(f"org-{i}", _fake_hash(f"org-{i}-updated"), tree_size=random.randint(1, 100))
+                except Exception as e:
+                    errors.append(e)
+
+        def _reader() -> None:
+            for _ in range(20):
+                try:
+                    agg.get_federated_root()
+                    agg.summary()
+                    agg.generate_proof(f"org-{random.randint(0, 9)}")
+                except Exception as e:
+                    errors.append(e)
+
+        threads = [threading.Thread(target=_writer) for _ in range(5)]
+        threads += [threading.Thread(target=_reader) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors, f"Concurrent read-write errors: {errors}"
+        root = agg.get_federated_root()
+        assert root is not None
+
+    def test_concurrent_proof_generation(self) -> None:
+        import threading
+
+        agg = FederatedMerkleAggregator()
+        for i in range(20):
+            agg.submit_root(f"org-{i}", _fake_hash(f"org-{i}"), tree_size=i * 10)
+
+        results: list[bool | None] = [None] * 20
+
+        def _verify(i: int) -> None:
+            proof = agg.generate_proof(f"org-{i}")
+            if proof is not None:
+                results[i] = proof.verify()
+
+        threads = [threading.Thread(target=_verify, args=(i,)) for i in range(20)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert all(results), f"Concurrent proof verification failed: {results}"
+
+    def test_concurrent_remove_and_read(self) -> None:
+        import threading
+
+        agg = FederatedMerkleAggregator()
+        for i in range(30):
+            agg.submit_root(f"org-{i}", _fake_hash(f"org-{i}"))
+
+        errors: list[Exception] = []
+
+        def _remover() -> None:
+            for i in range(15):
+                try:
+                    agg.remove_org(f"org-{i}")
+                except Exception as e:
+                    errors.append(e)
+
+        def _reader() -> None:
+            for _ in range(30):
+                try:
+                    agg.get_federated_root()
+                    agg.summary()
+                except Exception as e:
+                    errors.append(e)
+
+        threads = [threading.Thread(target=_remover)]
+        threads += [threading.Thread(target=_reader) for _ in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors, f"Concurrent remove errors: {errors}"
+
+    def test_concurrent_save_load(self, tmp_path) -> None:
+        import threading
+
+        agg = FederatedMerkleAggregator()
+        for i in range(10):
+            agg.submit_root(f"org-{i}", _fake_hash(f"org-{i}"), tree_size=i)
+
+        path = tmp_path / "federated-state.json"
+        errors: list[Exception] = []
+
+        def _writer() -> None:
+            for _ in range(10):
+                try:
+                    agg.submit_root("org-0", _fake_hash("org-0-writer"), tree_size=99)
+                except Exception as e:
+                    errors.append(e)
+
+        def _saver() -> None:
+            for _ in range(10):
+                try:
+                    agg.save_state(str(path))
+                except Exception as e:
+                    errors.append(e)
+
+        threads = [threading.Thread(target=_writer) for _ in range(3)]
+        threads += [threading.Thread(target=_saver) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors, f"Concurrent save errors: {errors}"
+        loaded = FederatedMerkleAggregator.load_state(str(path))
+        assert loaded.summary()["org_count"] == 10

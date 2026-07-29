@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -191,6 +192,7 @@ class FederatedMerkleAggregator:
     """
 
     def __init__(self) -> None:
+        self._lock = threading.RLock()
         self._entries: list[OrgRootEntry] = []
         self._entry_index: dict[str, int] = {}
         self._federated_root: str | None = None
@@ -228,13 +230,14 @@ class FederatedMerkleAggregator:
             tree_size=tree_size,
             metadata=metadata or {},
         )
-        if org_id in self._entry_index:
-            idx = self._entry_index[org_id]
-            self._entries[idx] = entry
-        else:
-            self._entry_index[org_id] = len(self._entries)
-            self._entries.append(entry)
-        self._rebuild()
+        with self._lock:
+            if org_id in self._entry_index:
+                idx = self._entry_index[org_id]
+                self._entries[idx] = entry
+            else:
+                self._entry_index[org_id] = len(self._entries)
+                self._entries.append(entry)
+            self._rebuild()
 
     def _rebuild(self) -> None:
         """Rebuild the federated Merkle tree from submitted roots."""
@@ -266,7 +269,8 @@ class FederatedMerkleAggregator:
 
     def get_federated_root(self) -> str | None:
         """Return the current federated root hash, or None if empty."""
-        return self._federated_root
+        with self._lock:
+            return self._federated_root
 
     def generate_proof(self, org_id: str) -> FederatedProof | None:
         """Generate an inclusion proof for an organization.
@@ -278,37 +282,38 @@ class FederatedMerkleAggregator:
             A :class:`FederatedProof`, or None if the org is not
             registered or no federated root exists.
         """
-        if org_id not in self._entry_index:
-            return None
-        if self._federated_root is None or not self._tree_levels:
-            return None
+        with self._lock:
+            if org_id not in self._entry_index:
+                return None
+            if self._federated_root is None or not self._tree_levels:
+                return None
 
-        idx = self._entry_index[org_id]
-        org_root = self._entries[idx].root_hash
-        proof_path: list[tuple[str, str]] = []
+            idx = self._entry_index[org_id]
+            org_root = self._entries[idx].root_hash
+            proof_path: list[tuple[str, str]] = []
 
-        current_idx = idx
-        for level in range(len(self._tree_levels) - 1):
-            current_level = self._tree_levels[level]
-            if current_idx % 2 == 0:
-                sibling_idx = current_idx + 1
-                if sibling_idx < len(current_level):
-                    proof_path.append((current_level[sibling_idx], "right"))
-                    current_idx //= 2
+            current_idx = idx
+            for level in range(len(self._tree_levels) - 1):
+                current_level = self._tree_levels[level]
+                if current_idx % 2 == 0:
+                    sibling_idx = current_idx + 1
+                    if sibling_idx < len(current_level):
+                        proof_path.append((current_level[sibling_idx], "right"))
+                        current_idx //= 2
+                    else:
+                        current_idx = len(current_level) // 2
                 else:
-                    current_idx = len(current_level) // 2
-            else:
-                proof_path.append((current_level[current_idx - 1], "left"))
-                current_idx //= 2
+                    proof_path.append((current_level[current_idx - 1], "left"))
+                    current_idx //= 2
 
-        return FederatedProof(
-            org_id=org_id,
-            org_root_hash=org_root,
-            proof_path=proof_path,
-            federated_root_hash=self._federated_root,
-            org_count=len(self._entries),
-            timestamp=self._last_aggregated,
-        )
+            return FederatedProof(
+                org_id=org_id,
+                org_root_hash=org_root,
+                proof_path=proof_path,
+                federated_root_hash=self._federated_root,
+                org_count=len(self._entries),
+                timestamp=self._last_aggregated,
+            )
 
     def verify_org_inclusion(self, org_id: str) -> dict[str, Any]:
         """Verify that an org's root is included in the federated root.
@@ -317,24 +322,26 @@ class FederatedMerkleAggregator:
         in one call. For offline verification, use :meth:`generate_proof`
         and :meth:`FederatedProof.verify` separately.
         """
-        proof = self.generate_proof(org_id)
-        if proof is None:
+        with self._lock:
+            proof = self.generate_proof(org_id)
+            if proof is None:
+                return {
+                    "valid": False,
+                    "reason": "org not found or no federated root",
+                    "org_id": org_id,
+                }
             return {
-                "valid": False,
-                "reason": "org not found or no federated root",
+                "valid": proof.verify(),
                 "org_id": org_id,
+                "org_root_hash": proof.org_root_hash,
+                "federated_root_hash": proof.federated_root_hash,
+                "org_count": proof.org_count,
             }
-        return {
-            "valid": proof.verify(),
-            "org_id": org_id,
-            "org_root_hash": proof.org_root_hash,
-            "federated_root_hash": proof.federated_root_hash,
-            "org_count": proof.org_count,
-        }
 
     def list_orgs(self) -> list[OrgRootEntry]:
         """Return all registered organization entries."""
-        return list(self._entries)
+        with self._lock:
+            return list(self._entries)
 
     def remove_org(self, org_id: str) -> bool:
         """Remove an organization and rebuild the federated tree.
@@ -342,49 +349,52 @@ class FederatedMerkleAggregator:
         Returns:
             True if the org was found and removed, False otherwise.
         """
-        if org_id not in self._entry_index:
-            return False
-        idx = self._entry_index[org_id]
-        self._entries.pop(idx)
-        # Rebuild index
-        self._entry_index = {}
-        for i, entry in enumerate(self._entries):
-            self._entry_index[entry.org_id] = i
-        self._rebuild()
-        return True
+        with self._lock:
+            if org_id not in self._entry_index:
+                return False
+            idx = self._entry_index[org_id]
+            self._entries.pop(idx)
+            self._entry_index = {}
+            for i, entry in enumerate(self._entries):
+                self._entry_index[entry.org_id] = i
+            self._rebuild()
+            return True
 
     def summary(self) -> dict[str, Any]:
         """Return a summary of the federated aggregation state."""
-        return {
-            "org_count": len(self._entries),
-            "federated_root": self._federated_root,
-            "last_aggregated": self._last_aggregated,
-            "total_evidence_count": sum(e.tree_size for e in self._entries),
-        }
+        with self._lock:
+            return {
+                "org_count": len(self._entries),
+                "federated_root": self._federated_root,
+                "last_aggregated": self._last_aggregated,
+                "total_evidence_count": sum(e.tree_size for e in self._entries),
+            }
 
     def get_org_entry(self, org_id: str) -> OrgRootEntry | None:
         """Return an org's entry, or None if not found."""
-        idx = self._entry_index.get(org_id)
-        if idx is None:
-            return None
-        return self._entries[idx]
+        with self._lock:
+            idx = self._entry_index.get(org_id)
+            if idx is None:
+                return None
+            return self._entries[idx]
 
     def save_state(self, path: str | Path) -> None:
         """Persist aggregator state to a JSON file."""
-        data = {
-            "entries": [
-                {
-                    "org_id": e.org_id,
-                    "root_hash": e.root_hash,
-                    "timestamp": e.timestamp,
-                    "tree_size": e.tree_size,
-                    "metadata": e.metadata,
-                }
-                for e in self._entries
-            ],
-            "federated_root": self._federated_root,
-            "last_aggregated": self._last_aggregated,
-        }
+        with self._lock:
+            data = {
+                "entries": [
+                    {
+                        "org_id": e.org_id,
+                        "root_hash": e.root_hash,
+                        "timestamp": e.timestamp,
+                        "tree_size": e.tree_size,
+                        "metadata": e.metadata,
+                    }
+                    for e in self._entries
+                ],
+                "federated_root": self._federated_root,
+                "last_aggregated": self._last_aggregated,
+            }
         Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False))
 
     @classmethod
