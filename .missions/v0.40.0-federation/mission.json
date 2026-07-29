@@ -14,14 +14,12 @@
     {"id": "g3", "name": "Federated Audit HTTP API", "status": "completed"},
     {"id": "g4", "name": "Sidecar Federated Mode", "status": "completed"},
     {"id": "g5", "name": "Proof Distribution Mechanism", "status": "completed"},
-    {"id": "g6", "name": "Policy Compliance Mapping", "status": "pending"},
-    {"id": "g7", "name": "Red-Blue Real Pipeline Integration", "status": "pending"}
-    {"id": "g6", "name": "Policy Compliance Mapping", "status": "pending"},
-    {"id": "g7", "name": "Red-Blue Real Pipeline Integration", "status": "pending"}
+    {"id": "g6", "name": "Policy Compliance Mapping", "status": "completed"},
+    {"id": "g7", "name": "Red-Blue Real Pipeline Integration", "status": "completed"}
   ],
-  "all_milestones_completed": false,
+  "all_milestones_completed": true,
   "total_features": 10,
-  "completed_features": 5,
+  "completed_features": 10,
   "fix_features_created": 0,
   "validators_triggered": 0,
   "issues_found": 0,
