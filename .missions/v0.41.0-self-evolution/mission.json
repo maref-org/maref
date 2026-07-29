@@ -1,0 +1,36 @@
+{
+  "mission_id": "maref-v0.41.0-self-evolution",
+  "version": "0.41.0",
+  "name": "Recursive Self-Evolution GA — 真实指标驱动自演进",
+  "status": "in_progress",
+  "start_date": "2026-07-29",
+  "target_completion_date": "2026-08-26",
+  "estimated_duration_days": 28,
+  "parent": "TP-02",
+  "current_milestone": "e1",
+  "milestones": [
+    {"id": "e1", "name": "RealMetricsCollector — SelfObserver 接入演进引擎", "status": "pending"},
+    {"id": "e2", "name": "EvolutionVault — 跨轮次指标持久化", "status": "pending"},
+    {"id": "e3", "name": "DailyEvolutionLoop — 完整闭环自动化", "status": "pending"},
+    {"id": "e4", "name": "7 天连续自主演进验证", "status": "pending"}
+  ],
+  "all_milestones_completed": false,
+  "total_features": 8,
+  "completed_features": 0,
+  "team": {
+    "primary_developer": "opencode-agent",
+    "backup_developer": "human-oversight",
+    "reviewer": "human"
+  },
+  "repository": {
+    "current_branch": "dev",
+    "base_branch": "main"
+  },
+  "quality_gates": {
+    "ruff_errors": 0,
+    "mypy_errors": 0,
+    "test_pass_rate": 100,
+    "collection_errors": 0
+  },
+  "last_updated": "2026-07-29T00:00:00+08:00"
+}
