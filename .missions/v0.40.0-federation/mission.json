@@ -9,7 +9,7 @@
   "parent": "TP-02",
   "current_milestone": "g1",
   "milestones": [
-    {"id": "g1", "name": "Concurrent FederatedMerkleAggregator", "status": "pending"},
+    {"id": "g1", "name": "Concurrent FederatedMerkleAggregator", "status": "completed"},
     {"id": "g2", "name": "Federated Audit Persistence", "status": "pending"},
     {"id": "g3", "name": "Federated Audit HTTP API", "status": "pending"},
     {"id": "g4", "name": "Sidecar Federated Mode", "status": "pending"},
@@ -19,7 +19,7 @@
   ],
   "all_milestones_completed": false,
   "total_features": 10,
-  "completed_features": 0,
+  "completed_features": 1,
   "fix_features_created": 0,
   "validators_triggered": 0,
   "issues_found": 0,
