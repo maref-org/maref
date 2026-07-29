@@ -28,7 +28,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -701,7 +701,7 @@ def federated_verify(
 
 @federated_app.command("reconcile")
 def federated_reconcile(
-    replicas: list[str] = typer.Argument(..., help="Replica log files (format: replica_id=path)"),
+    replicas: Annotated[list[str], typer.Argument(help="Replica log files (format: replica_id=path)")],
 ) -> None:
     """Reconcile audit logs across replicas.
 
@@ -714,7 +714,7 @@ def federated_reconcile(
 
 @federated_app.command("reconcile-daemon")
 def federated_reconcile_daemon(
-    replicas: list[str] = typer.Argument(..., help="Replica log files (format: replica_id=path)"),
+    replicas: Annotated[list[str], typer.Argument(help="Replica log files (format: replica_id=path)")],
     interval: float = typer.Option(300.0, "--interval", "-i", help="Reconciliation interval in seconds"),
     alert_on_discrepancy: bool = typer.Option(False, "--alert", help="Exit with code 1 on first discrepancy"),
     webhook: str = typer.Option("", "--webhook", "-w", help="POST discrepancies to this webhook URL"),

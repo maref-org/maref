@@ -10,7 +10,7 @@ from typing import Any
 @dataclass
 class TLAInvariantCheck:
     invariant_name: str
-    passed: bool
+    passed: bool | None
     description: str
     counterexample: str | None = None
     details: list[str] = field(default_factory=list)
@@ -37,7 +37,7 @@ class TLAValidationReport:
 
     @property
     def all_passed(self) -> bool:
-        return self.failed == 0 and self.total_checks > 0
+        return self.passed == self.total_checks and self.total_checks > 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,16 +53,17 @@ class TLAValidationReport:
 
 
 class TLAReplayValidator:
-    """Validator for MAREF governance invariants.
+    """Validator for MAREF governance invariants from observed trajectories.
 
-    Four invariants are structurally satisfied by construction (verifiable
-    via TLA+ model checking of MarefLite.tla): HALTAbsorbing, GrayCodeTransition,
-    SafetyGateIntegrity, RedLineImmutability.
+    Performs runtime checks on evolution state data:
+    - LyapunovConvergence (empirical — monotonic decrease check)
+    - HALTAbsorbing (structural — no transitions after HALT)
+    - GrayCodeTransition (structural — single-bit transitions)
 
-    LyapunovConvergence is NOT a TLA+ invariant — it is an empirical check
-    on observed evolution trajectories via :meth:`check_lyapunov`. It is
-    included here as ``check_type=empirical`` for honest labeling (per the
-    v0.37.0 integrity repair plan).
+    SafetyGateIntegrity and RedLineImmutability are structural invariants
+    verified via TLA+ model checking (MAREF_ConstitutionalRedLines.tla).
+    They are not verifiable from trajectory data alone and are marked
+    ``passed=None`` in Python reports.
     """
 
     DEFAULT_TLA_SPEC: dict[str, Any] = {
@@ -213,110 +214,106 @@ class TLAReplayValidator:
         self,
         states: list[dict[str, Any]] | None = None,
     ) -> TLAValidationReport:
-        """Generate a structural validation report.
+        """Generate a validation report from observed state trajectories.
 
-        Structural invariants (HALTAbsorbing, GrayCodeTransition,
-        SafetyGateIntegrity, RedLineImmutability) are marked ``passed=True``
-        because they are satisfied by state machine construction (and
-        model-checked in ``src/formal/MarefLite.tla``).
+        When ``states`` is provided, real checks are run for:
+        - LyapunovConvergence (empirical check on trajectory)
+        - HALTAbsorbing (state machine check on trajectory)
+        - GrayCodeTransition (bit transition check on trajectory)
 
-        LyapunovConvergence is an empirical check: if ``states`` is provided,
-        it runs :meth:`check_lyapunov` on the observed trajectory; otherwise
-        it is marked ``passed=None`` (unknown, no trajectory to check).
+        SafetyGateIntegrity and RedLineImmutability are structural invariants
+        verified via TLA+ model checking in ``src/formal/MAREF_ConstitutionalRedLines.tla``.
+        They are marked ``passed=None`` (not verifiable from trajectory data alone).
+
+        When ``states`` is None, all invariants are marked ``passed=None``
+        with an explanation — no verification was performed.
 
         Args:
-            states: Optional observed trajectory for empirical checks.
+            states: Optional observed trajectory for empirical and structural checks.
         """
         report = TLAValidationReport(spec_path=str(self._spec_path))
 
         invariants = self._spec.get("invariants", self.DEFAULT_TLA_SPEC["invariants"])
         report.total_checks = len(invariants)
 
+        if states is not None:
+            report.state_count = len(states)
+
         for inv in invariants:
             name = inv["name"]
             desc = inv.get("description", "")
             check_type = inv.get("check_type", "tla_invariant")
 
-            if name == "LyapunovConvergence":
-                if states is not None and len(states) >= 2:
-                    passed = self.check_lyapunov(states)
-                    detail = (
-                        f"Empirical Lyapunov check on {len(states)} states: "
-                        f"{'monotonic decrease within tolerance' if passed else 'violations exceed tolerance'}"
-                    )
-                    check = TLAInvariantCheck(
-                        invariant_name=name,
-                        passed=passed,
-                        description=desc,
-                        details=[
-                            f"check_type={check_type} (not a TLA+ invariant)",
-                            detail,
-                        ],
-                    )
-                else:
-                    check = TLAInvariantCheck(
-                        invariant_name=name,
-                        passed=True,
-                        description=desc,
-                        details=[
-                            f"check_type={check_type} (not a TLA+ invariant)",
-                            "No trajectory provided; empirical check skipped (assumed pass by construction)",
-                        ],
-                    )
-            elif name == "HALTAbsorbing":
+            if states is None or len(states) < 2:
                 check = TLAInvariantCheck(
                     invariant_name=name,
-                    passed=True,
+                    passed=None,
                     description=desc,
                     details=[
                         f"check_type={check_type}",
-                        "HALT state has no outgoing transitions (by state machine definition)",
-                        "Model-checked in src/formal/MarefLite.tla",
+                        "No state data provided — verification requires evolution trajectory",
+                    ],
+                )
+            elif name == "LyapunovConvergence":
+                passed = self.check_lyapunov(states)
+                check = TLAInvariantCheck(
+                    invariant_name=name,
+                    passed=passed,
+                    description=desc,
+                    details=[
+                        f"check_type={check_type} (not a TLA+ invariant)",
+                        f"Empirical Lyapunov check on {len(states)} states: "
+                        f"{'monotonic decrease within tolerance' if passed else 'violations exceed tolerance'}",
+                    ],
+                )
+            elif name == "HALTAbsorbing":
+                passed = self.check_halt_absorption(states)
+                check = TLAInvariantCheck(
+                    invariant_name=name,
+                    passed=passed,
+                    description=desc,
+                    details=[
+                        f"check_type={check_type}",
+                        f"Runtime check on {len(states)} states: "
+                        f"{'halt absorption holds' if passed else 'violation detected'}",
+                        "Also model-checked in src/formal/MAREF_ConstitutionalRedLines.tla",
                     ],
                 )
             elif name == "GrayCodeTransition":
+                passed = self.check_gray_code_transitions(states)
                 check = TLAInvariantCheck(
                     invariant_name=name,
-                    passed=True,
+                    passed=passed,
                     description=desc,
                     details=[
                         f"check_type={check_type}",
-                        "Agent state transitions follow 4-bit Gray code pattern (10 governance states)",
-                        "Model-checked in src/formal/MarefLite.tla",
+                        f"Gray code transition check on {len(states)} states: "
+                        f"{'all single-bit' if passed else 'multi-bit violations detected'}",
                     ],
                 )
-            elif name == "SafetyGateIntegrity":
+            elif name in ("SafetyGateIntegrity", "RedLineImmutability"):
                 check = TLAInvariantCheck(
                     invariant_name=name,
-                    passed=True,
+                    passed=None,
                     description=desc,
                     details=[
                         f"check_type={check_type}",
-                        "SafetyGate.evaluate() cannot return None per code contract",
-                    ],
-                )
-            elif name == "RedLineImmutability":
-                check = TLAInvariantCheck(
-                    invariant_name=name,
-                    passed=True,
-                    description=desc,
-                    details=[
-                        f"check_type={check_type}",
-                        "Red lines immutable=True, only human_constitution_maker can modify",
+                        "Structural invariant — verified in TLA+ model checking",
+                        "See src/formal/MAREF_ConstitutionalRedLines.tla",
                     ],
                 )
             else:
                 check = TLAInvariantCheck(
                     invariant_name=name,
-                    passed=True,
+                    passed=None,
                     description=desc,
-                    details=[f"check_type={check_type}", "Invariant structurally satisfied"],
+                    details=[f"check_type={check_type}", "Unknown invariant — not verified"],
                 )
 
             report.checks.append(check)
-            if check.passed:
+            if check.passed is True:
                 report.passed += 1
-            else:
+            elif check.passed is False:
                 report.failed += 1
 
         return report
