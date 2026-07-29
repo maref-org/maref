@@ -203,6 +203,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker images
+        id: push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -210,6 +211,32 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Install cosign
+        if: github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Sign container images (keyless)
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes \
+            -a "repo=${{ github.repository }}" \
+            -a "workflow=${{ github.workflow }}" \
+            -a "ref=${{ github.ref }}" \
+            -a "commit=${{ github.sha }}" \
+            "${{ env.GHCR_IMAGE }}@${{ steps.push.outputs.digest }}"
+
+      - name: Verify signature
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${{ env.GHCR_IMAGE }}@${{ steps.push.outputs.digest }}"
 
       - name: Push summary
         run: |
