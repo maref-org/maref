@@ -1,0 +1,39 @@
+{
+  "mission_id": "maref-v0.42.0-dual-track",
+  "version": "0.42.0",
+  "name": "EU AI Act Compliance Engine + Federated Governance",
+  "status": "in_progress",
+  "start_date": "2026-07-29",
+  "target_completion_date": "2026-08-26",
+  "estimated_duration_days": 28,
+  "parent": "TP-02",
+  "current_milestone": "c1",
+  "milestones": [
+    {"id": "c1", "name": "EU AI Act Art.11 Technical Docs Generator", "status": "pending"},
+    {"id": "c2", "name": "EU AI Act Art.12-14 Compliance Bridge Wiring", "status": "pending"},
+    {"id": "c3", "name": "GPAI Art.53-55 Compliance Mapping", "status": "pending"},
+    {"id": "c4", "name": "EU AI Act Declaration + CE Pre-check", "status": "pending"},
+    {"id": "f1", "name": "Cross-Org Eight Trigrams State Sync", "status": "pending"},
+    {"id": "f2", "name": "Multi-Jurisdiction Policy Router", "status": "pending"},
+    {"id": "f3", "name": "Federated Policy Push/Subscribe", "status": "pending"}
+  ],
+  "all_milestones_completed": false,
+  "total_features": 14,
+  "completed_features": 0,
+  "team": {
+    "primary_developer": "opencode-agent",
+    "backup_developer": "human-oversight",
+    "reviewer": "human"
+  },
+  "repository": {
+    "current_branch": "dev",
+    "base_branch": "main"
+  },
+  "quality_gates": {
+    "ruff_errors": 0,
+    "mypy_errors": 0,
+    "test_pass_rate": 100,
+    "collection_errors": 0
+  },
+  "last_updated": "2026-07-29T00:00:00+08:00"
+}
