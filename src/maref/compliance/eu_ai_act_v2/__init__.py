@@ -46,6 +46,9 @@ from maref.compliance.eu_ai_act_v2.data_governance import (
     DatasetQualityMetrics,
     SpecialCategoryAssessment,
 )
+from maref.compliance.eu_ai_act_v2.annex_iv_exporter import (
+    AnnexIVExporter,
+)
 from maref.compliance.eu_ai_act_v2.engine import (
     EUAIComplianceEngineV2,
     EUAIComplianceSummary,
@@ -226,6 +229,7 @@ __all__ = [
     "FundamentalRight",
     "FundamentalRightAssessment",
     "RiskRating",
+    "AnnexIVExporter",
     "EUAIComplianceEngineV2",
     "EUAIComplianceSummary",
     "PeriodicReport",

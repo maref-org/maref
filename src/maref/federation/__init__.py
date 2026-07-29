@@ -56,6 +56,13 @@ from maref.federation.hitl import (
     CrossOrgApprovalStatus,
     CrossOrgHITL,
 )
+from maref.federation.jurisdiction_router import (
+    CrossJurisdictionResult,
+    JurisdictionConfig,
+    JurisdictionConflictStrategy,
+    JurisdictionEvaluation,
+    JurisdictionPolicyRouter,
+)
 from maref.federation.marketplace import (
     AgentMarketplace,
     AgentReview,
@@ -76,12 +83,24 @@ from maref.federation.policy import (
     PolicyRule,
     PolicyScope,
 )
+from maref.federation.policy_subscriber import (
+    FederatedPolicySubscriber,
+    PolicyChangeType,
+    PolicyPushEvent,
+    PolicySubscription,
+    SubscriptionStatus,
+)
 from maref.federation.settlement import (
     BillingEntry,
     FederatedSettlement,
     LedgerEntry,
     SettlementProposal,
     SettlementStatus,
+)
+from maref.federation.trigram_sync import (
+    AgentTrigramProof,
+    TrigramStateSnapshot,
+    TrigramStateSynchronizer,
 )
 from maref.federation.trust import (
     FederatedTrustEngine,
@@ -318,4 +337,20 @@ __all__ = [
     "SettlementProposal",
     "SettlementStatus",
     "LedgerEntry",
+    # Trigram Sync (F1)
+    "TrigramStateSnapshot",
+    "TrigramStateSynchronizer",
+    "AgentTrigramProof",
+    # Jurisdiction Router (F2)
+    "JurisdictionPolicyRouter",
+    "JurisdictionConfig",
+    "JurisdictionConflictStrategy",
+    "JurisdictionEvaluation",
+    "CrossJurisdictionResult",
+    # Policy Subscriber (F3)
+    "FederatedPolicySubscriber",
+    "PolicySubscription",
+    "PolicyPushEvent",
+    "PolicyChangeType",
+    "SubscriptionStatus",
 ]
