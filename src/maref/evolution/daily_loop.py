@@ -11,7 +11,7 @@ from typing import Any
 
 from maref.evolution.constitution_harness import ConstitutionHarness, EvolutionChange
 from maref.evolution.engine import EvolutionConfig, RecursiveEvolutionEngine
-from maref.evolution.evolution_vault import EvolutionVault
+from maref.evolution.evolution_vault import EvolutionVault, RoundVault
 from maref.evolution.iteration_analyzer import IterationAnalyzer
 from maref.evolution.optimizer_bridge import OptimizerEvolutionBridge
 from maref.evolution.real_metrics import RealMetricsCollector
@@ -89,16 +89,16 @@ class DailyEvolutionLoop:
         dry_run: bool = True,
         real_writes: bool = False,
         metrics_collector: Any | None = None,
+        round_vault: Any | None = None,
     ) -> None:
         self._vault = EvolutionVault(vault_dir)
+        self._round_vault = round_vault or RoundVault(Path(vault_dir) / "rounds.db")
         self._dry_run = dry_run
         self._real_writes = real_writes
         self._metrics_collector = metrics_collector or RealMetricsCollector()
         self._analyzer = IterationAnalyzer()
         self._constitution = ConstitutionHarness()
         self._trigrams = EightTrigramsGovernance(agent_id="self_executor")
-        # Fix 7: load persisted trust_score so it accumulates across cycles
-        # instead of resetting to 0.65 (DUI) on every instantiation.
         self._load_trust_state()
 
     def run_once(self, day: str | None = None) -> DailyEvolutionResult | None:
@@ -181,9 +181,12 @@ class DailyEvolutionLoop:
 
         config = EvolutionConfig(dry_run=self._dry_run, metrics_mode="real")
         try:
-            evolution_result = _run_async(
-                RecursiveEvolutionEngine(config, metrics_collector=self._metrics_collector).run()
+            engine = RecursiveEvolutionEngine(
+                config,
+                metrics_collector=self._metrics_collector,
+                vault=self._round_vault,
             )
+            evolution_result = _run_async(engine.run())
         except Exception:
             logger.exception("Daily evolution failed on day %s", current_day)
             return None
@@ -229,6 +232,30 @@ class DailyEvolutionLoop:
             current_day,
             {"priority": analysis.priority, "degradations": analysis.degradations},
         )
+
+        # Record day-level metrics in RoundVault
+        try:
+            self._round_vault.record_round(
+                round_num=0,
+                cycle_id=f"daily-{current_day}",
+                metrics={
+                    "fnr": metrics.fnr,
+                    "fpr": metrics.fpr,
+                    "test_pass_rate": metrics.test_pass_rate,
+                    "coverage_pct": metrics.coverage_pct,
+                    "total_tests": metrics.total_tests,
+                    "source_file_count": metrics.source_file_count,
+                    "total_lines": metrics.total_lines,
+                    "git_commit_count_30d": metrics.git_commit_count_30d,
+                    "module_count": metrics.module_count,
+                    "governance_state": metrics.governance_state,
+                    "cb_state": metrics.cb_state,
+                },
+                stop_reason=evolution_result.stop_reason,
+            )
+        except Exception:
+            logger.exception("Failed to record day metrics in RoundVault")
+
         day_dir = self._vault.start_day(current_day)
         return DailyEvolutionResult(
             day=current_day,
