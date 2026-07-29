@@ -1,17 +1,29 @@
 """EU AI Act Record-Keeping — Article 12.
 
 Implements Art.12 requirements for automatic event logging, retention
-policy configuration, and regulatory log export (JSON/Markdown).
+policy configuration, regulatory log export (JSON/Markdown),
+and Merkle audit chain integration for tamper-evident audit trails.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import time
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
+
+
+class AuditChainBridge(Protocol):
+    """Duck-typed protocol for AuditChainIntegrator.
+
+    Avoids hard cross-layer import from eivl/merkle_auditor.
+    """
+
+    def record_audit_entry(self, entry: Any) -> str:
+        ...
 
 
 @dataclass
@@ -57,12 +69,49 @@ class RetentionPolicy:
     apply_to_public_authority: bool = False
 
 
+class _AIActToAuditAdapter:
+    """Adapts AIActLogEntry to governance AuditEntry protocol.
+
+    Allows AIActLogEntry to be pushed through AuditChainIntegrator.
+    Satisfies field access required by AuditEvidence.from_audit_entry().
+    """
+
+    def __init__(self, entry: AIActLogEntry, system_id: str) -> None:
+        self.id = entry.entry_id
+        self.timestamp = time.mktime(
+            datetime.fromisoformat(entry.event_timestamp_utc).timetuple()
+        ) if "T" in entry.event_timestamp_utc else time.time()
+        self.event_type = "ai_act_log"
+        self.actor = system_id
+        self.action = entry.decision_type or "log_event"
+        self.details = (
+            f"Session {entry.session_id} | "
+            f"confidence={entry.confidence_score} | "
+            f"risk={entry.risk_event} | "
+            f"anomaly={entry.anomaly_flag}"
+        )
+        self.metadata: dict[str, Any] = {
+            "entry_id": entry.entry_id,
+            "session_id": entry.session_id,
+            "risk_event": entry.risk_event,
+            "anomaly_flag": entry.anomaly_flag,
+            "input_data_hash": entry.input_data_hash,
+            "system_id": system_id,
+        }
+        self.chain_hash: str = ""
+
+    @property
+    def signature_type(self) -> str:
+        return "unsigned"
+
+
 class AIActLogger:
     """Art.12 automatic event logger.
 
     Wraps the AIActLogEntry schema with in-memory storage.
     Provides log_event creation with SHA-256 input hashing,
-    query filtering, and retention status reporting.
+    query filtering, retention status reporting, and optional
+    Merkle audit chain anchoring for tamper-evident audit trails.
     """
 
     def __init__(
@@ -70,11 +119,14 @@ class AIActLogger:
         system_id: str,
         system_version: str = "1.0.0",
         retention: RetentionPolicy | None = None,
+        chain_integrator: Any | None = None,
     ) -> None:
         self.system_id = system_id
         self.system_version = system_version
         self.retention = retention if retention is not None else RetentionPolicy()
+        self._chain_integrator = chain_integrator
         self._entries: dict[str, AIActLogEntry] = {}
+        self._merkle_hashes: dict[str, str] = {}
 
     def log_event(
         self,
@@ -134,6 +186,13 @@ class AIActLogger:
             failsafe_triggered=kwargs.pop("failsafe_triggered", False),
         )
         self._entries[entry.entry_id] = entry
+        if self._chain_integrator is not None:
+            adapter = _AIActToAuditAdapter(entry, self.system_id)
+            try:
+                merkle_hash = self._chain_integrator.record_audit_entry(adapter)
+                self._merkle_hashes[entry.entry_id] = merkle_hash
+            except (TypeError, ValueError, AttributeError):
+                pass
         return entry
 
     def query(
@@ -171,15 +230,24 @@ class AIActLogger:
 
         Returns:
             Dict with retention_days, apply_to_public_authority,
-            total_events, system_id, and system_version.
+            total_events, system_id, system_version, and
+            merkle_chain status if chain_integrator is configured.
         """
-        return {
+        result: dict[str, Any] = {
             "retention_days": self.retention.duration_days,
             "apply_to_public_authority": self.retention.apply_to_public_authority,
             "total_events": len(self._entries),
             "system_id": self.system_id,
             "system_version": self.system_version,
         }
+        if self._chain_integrator is not None:
+            result["merkle_chain_enabled"] = True
+            result["merkle_anchored_events"] = len(self._merkle_hashes)
+        return result
+
+    def get_merkle_hash(self, entry_id: str) -> str | None:
+        """Return the Merkle leaf hash for a given entry, if anchored."""
+        return self._merkle_hashes.get(entry_id)
 
     def count_events(self) -> int:
         """Return the total number of stored events.

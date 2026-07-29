@@ -83,6 +83,9 @@ class TechnicalDocumentation:
         self._performance_metrics: dict[str, float | str] = {}
 
         self._risk_level: RiskLevel | None = None
+        self._merkle_anchor: str | None = None
+        self._evidence_ids: list[str] = []
+        self._doc_version: int = 1
 
     # ------------------------------------------------------------------ #
     # Section setters
@@ -135,13 +138,24 @@ class TechnicalDocumentation:
     def set_risk_classification(self, risk_level: RiskLevel) -> None:
         self._risk_level = risk_level
 
+    def set_audit_evidence(
+        self, merkle_root: str, evidence_ids: list[str] | None = None
+    ) -> None:
+        self._merkle_anchor = merkle_root
+        if evidence_ids is not None:
+            self._evidence_ids = evidence_ids
+
+    def set_version_info(self, doc_version: int) -> None:
+        self._doc_version = doc_version
+        self.last_updated = datetime.now()
+
     # ------------------------------------------------------------------ #
     # Generation
     # ------------------------------------------------------------------ #
 
     def generate(self) -> dict[str, Any]:
         """Generate the full Annex IV technical documentation as a dict."""
-        return {
+        result = {
             "document_metadata": {
                 "title": f"Technical Documentation — {self.system_name} v{self.version}",
                 "regulation": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
@@ -149,6 +163,7 @@ class TechnicalDocumentation:
                 "annex": "Annex IV",
                 "generated_at": self.created_at.isoformat(),
                 "last_updated": self.last_updated.isoformat(),
+                "doc_version": self._doc_version,
             },
             "system_information": {
                 "system_name": self.system_name,
@@ -170,6 +185,12 @@ class TechnicalDocumentation:
             "section_9_post_market_monitoring": self._build_section_9(),
             "section_10_accuracy_robustness_cybersecurity": self._build_section_10(),
         }
+        if self._merkle_anchor:
+            result["audit_evidence"] = {
+                "merkle_root": self._merkle_anchor,
+                "evidence_ids": self._evidence_ids,
+            }
+        return result
 
     def generate_markdown(self) -> str:
         """Generate the technical documentation in markdown format."""
@@ -233,6 +254,17 @@ class TechnicalDocumentation:
                     lines.append(f"- {item}")
             else:
                 lines.append(f"- {section_data}")
+            lines.append("")
+
+        if "audit_evidence" in data:
+            ae = data["audit_evidence"]
+            lines.append("## Audit Evidence (Merkle Anchor)")
+            lines.append("")
+            lines.append(f"- **Merkle Root:** `{ae['merkle_root']}`")
+            if ae["evidence_ids"]:
+                lines.append("- **Evidence IDs:**")
+                for eid in ae["evidence_ids"]:
+                    lines.append(f"  - `{eid}`")
             lines.append("")
 
         return "\n".join(lines)
@@ -307,6 +339,7 @@ class TechnicalDocumentation:
             "deployer": self.deployer,
             "created_at": self.created_at.isoformat(),
             "last_updated": self.last_updated.isoformat(),
+            "doc_version": self._doc_version,
             "general_description": self._general_description,
             "development_methodology": _serialize(self._development_methodology),
             "system_architecture": _serialize(self._system_architecture),
@@ -320,6 +353,8 @@ class TechnicalDocumentation:
             "risk_level": (
                 self._risk_level.value if self._risk_level else None
             ),
+            "merkle_anchor": self._merkle_anchor,
+            "evidence_ids": self._evidence_ids,
         }
 
     # ------------------------------------------------------------------ #
