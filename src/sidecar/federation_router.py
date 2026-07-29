@@ -1,54 +1,67 @@
-"""Federated audit API — Sidecar REST endpoints for cross-org Merkle aggregation."""
+"""Federated audit API — Sidecar REST endpoints for cross-org Merkle aggregation.
+
+Persistence is handled by :class:`FederatedAuditStore` (SQLite).
+A JSON fallback is provided for backward compatibility.
+
+Configure via environment variables:
+    MAREF_FEDERATED_DB:      Path to SQLite database (default: ~/.maref/federation.db)
+    MAREF_FEDERATED_STATE:   Path to JSON state file (legacy fallback)
+"""
 
 from __future__ import annotations
 
 import os
-import threading
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from maref.eivl.federated_merkle import FederatedMerkleAggregator
+from maref.eivl.federated_store import FederatedAuditStore
 
 router = APIRouter(prefix="/api/v1/federation")
 
 _DEFAULT_STATE_DIR = Path.home() / ".maref"
-
-_lock = threading.Lock()
-
-
-def _get_state_path() -> Path:
-    env_path = os.environ.get("MAREF_FEDERATED_STATE")
-    if env_path:
-        return Path(env_path)
-    return _DEFAULT_STATE_DIR / "federated-state.json"
+_store: FederatedAuditStore | None = None
 
 
-def _load_aggregator() -> FederatedMerkleAggregator:
-    with _lock:
-        path = _get_state_path()
-        if path.exists():
-            return FederatedMerkleAggregator.load_state(str(path))
-        return FederatedMerkleAggregator()
+def _get_db_path() -> Path:
+    env_db = os.environ.get("MAREF_FEDERATED_DB")
+    if env_db:
+        return Path(env_db)
+    return _DEFAULT_STATE_DIR / "federation.db"
 
 
-def _save_aggregator(agg: FederatedMerkleAggregator) -> None:
-    with _lock:
-        path = _get_state_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        agg.save_state(str(path))
+def _maybe_migrate_json(db_path: Path) -> None:
+    if db_path.exists():
+        return
+    json_path_str = os.environ.get("MAREF_FEDERATED_STATE")
+    json_path = Path(json_path_str) if json_path_str else _DEFAULT_STATE_DIR / "federated-state.json"
+    if json_path.exists():
+        FederatedAuditStore.import_json(json_path, db_path)
+        json_path.rename(json_path.with_suffix(".json.migrated"))
+
+
+def _get_store() -> FederatedAuditStore:
+    global _store
+    if _store is None:
+        db_path = _get_db_path()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _maybe_migrate_json(db_path)
+        _store = FederatedAuditStore(db_path)
+    return _store
 
 
 @router.get("/status")
 def federation_status() -> dict[str, Any]:
-    agg = _load_aggregator()
-    summary = agg.summary()
+    store = _get_store()
+    summary = store.summary()
     orgs = [
         {"org_id": e.org_id, "root_hash": e.root_hash, "tree_size": e.tree_size, "timestamp": e.timestamp}
-        for e in agg.list_orgs()
+        for e in store.list_orgs()
     ]
     return {
+        "storage": "sqlite",
+        "consistent": store.assert_consistent(),
         "federated_root": summary["federated_root"],
         "org_count": summary["org_count"],
         "last_aggregated": summary["last_aggregated"],
@@ -66,16 +79,15 @@ def federation_submit(body: dict[str, Any]) -> dict[str, Any]:
     if not root_hash:
         raise HTTPException(status_code=400, detail="root_hash is required")
 
-    agg = _load_aggregator()
-    agg.submit_root(
+    store = _get_store()
+    store.submit_root(
         org_id=org_id,
         root_hash=root_hash,
         tree_size=body.get("tree_size", 0),
         metadata=body.get("metadata", {}),
     )
-    _save_aggregator(agg)
 
-    summary = agg.summary()
+    summary = store.summary()
     return {
         "status": "submitted",
         "org_id": org_id,
@@ -86,8 +98,8 @@ def federation_submit(body: dict[str, Any]) -> dict[str, Any]:
 
 @router.get("/proof/{org_id}")
 def federation_proof(org_id: str) -> dict[str, Any]:
-    agg = _load_aggregator()
-    proof = agg.generate_proof(org_id)
+    store = _get_store()
+    proof = store.generate_proof(org_id)
     if proof is None:
         raise HTTPException(status_code=404, detail=f"Org not found: {org_id}")
     return proof.to_dict()
@@ -95,18 +107,18 @@ def federation_proof(org_id: str) -> dict[str, Any]:
 
 @router.delete("/proof/{org_id}")
 def federation_delete_proof(org_id: str) -> dict[str, Any]:
-    agg = _load_aggregator()
-    if not agg.remove_org(org_id):
+    store = _get_store()
+    if not store.remove_org(org_id):
         raise HTTPException(status_code=404, detail=f"Org not found: {org_id}")
-    _save_aggregator(agg)
     return {"status": "removed", "org_id": org_id}
 
 
 @router.get("/root")
 def federation_root() -> dict[str, Any]:
-    agg = _load_aggregator()
-    root = agg.get_federated_root()
+    store = _get_store()
+    root = store.get_federated_root()
     return {
         "federated_root": root,
-        "org_count": agg.summary()["org_count"],
+        "org_count": store.summary()["org_count"],
     }
+
