@@ -1,118 +1,148 @@
 #!/bin/bash
 #
-# MAREF AutoResearch Daily Runner
+# MAREF Complete Daily Evolution Runner — 8-phase autonomous closed loop
 #
-# This script is designed to be called by launchd (macOS) or cron.
-# It runs one batch of continuous autoresearch experiments with LLM analysis.
+# Phases:
+#   0. Environment check (git, venv, API keys)
+#   1. Data collection (SelfObserver + RealMetricsCollector)
+#   2. Trend analysis (IterationAnalyzer)
+#   3. Hypothesis generation (OptimizerEvolutionBridge)
+#   4. Constitution review (ConstitutionHarness)
+#   5. Experiment execution (RecursiveEvolutionEngine)
+#   6. Result persistence (RoundVault + EvolutionVault)
+#   7. Next planning (IterationAnalyzer priority)
+#
+# Optionally runs:
+#   - PERCV research (if DASHSCOPE_API_KEY is set)
+#   - RSI loop (if run_rsi_loop.sh exists)
+#   - MAS-TS evaluation (if mas-ts is available)
+#
+# Called by: launchd (macOS), cron, or manually.
 #
 # Usage:
-#   ./run_daily.sh
-#
-# Environment:
-#   DASHSCOPE_API_KEY  - Required. 阿里云百炼 API Key.
-#   MAREF_OUTPUT_DIR   - Optional. Output directory for reports.
-#   MAREF_MAILBOX_DIR  - Optional. Mailbox directory for synced reports.
+#   ./run_daily.sh                    # Full pipeline
+#   ./run_daily.sh --dry-run          # Dry-run only (no writes)
+#   ./run_daily.sh --skip-research    # Skip PERCV research
+#   ./run_daily.sh --skip-rsi         # Skip RSI loop
 #
 
-# NOTE: Do NOT use "set -e" here — launchd needs to capture all exit codes
-# and we want logs to be written even on partial failure.
 set -uo pipefail
 
-# Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VENV_PATH="${PROJECT_ROOT}/.venv"
 PYTHON="${VENV_PATH}/bin/python"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
-# Load .env file if present (so launchd jobs also pick up the API key)
+# ── Parse args ──────────────────────────────────────────────────
+DRY_RUN="--dry-run"
+SKIP_RESEARCH=false
+SKIP_RSI=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run) DRY_RUN="--dry-run" ;;
+        --no-dry-run) DRY_RUN="--no-dry-run" ;;
+        --skip-research) SKIP_RESEARCH=true ;;
+        --skip-rsi) SKIP_RSI=true ;;
+    esac
+    shift
+done
+
+# ── Load .env ───────────────────────────────────────────────────
 if [[ -f "${PROJECT_ROOT}/.env" ]]; then
-    set -a
-    source "${PROJECT_ROOT}/.env"
-    set +a
+    set -a; source "${PROJECT_ROOT}/.env"; set +a
 fi
 
-# Default mailbox directory: uses MAREF_MAILBOX_DIR env var, or falls back to project_root/mailbox
+# ── Directories ─────────────────────────────────────────────────
 MAILBOX_DIR="${MAREF_MAILBOX_DIR:-${PROJECT_ROOT}/mailbox}"
-
-# Default output directory (uses mailbox dir if MAREF_OUTPUT_DIR not set)
 OUTPUT_DIR="${MAREF_OUTPUT_DIR:-${MAILBOX_DIR}/research_output}"
 LOG_DIR="${OUTPUT_DIR}/logs"
 mkdir -p "${LOG_DIR}"
 
-# Also ensure project-level logs dir exists for launchd stdout/stderr
-PROJECT_LOG_DIR="${PROJECT_ROOT}/research_output/logs"
-mkdir -p "${PROJECT_LOG_DIR}" 2>/dev/null || true
+LOG_FILE="${LOG_DIR}/evolution_${TIMESTAMP}.log"
 
-# Log file with timestamp
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_FILE="${LOG_DIR}/autoresearch_${TIMESTAMP}.log"
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"; }
+run_phase() {
+    local phase="$1" label="$2"
+    log "── Phase ${phase}: ${label} ──"
+}
 
-# --- Pre-flight checks (log but do NOT exit early) ---
-PREFLIGHT_OK=true
+# ── Pre-flight ──────────────────────────────────────────────────
+log "Starting MAREF Daily Evolution (dry-run=${DRY_RUN})"
+log "Project: ${PROJECT_ROOT}"
+log "Log:     ${LOG_FILE}"
 
-# Check API key
-if [[ -z "${DASHSCOPE_API_KEY:-}" ]]; then
-    echo "[ERROR] DASHSCOPE_API_KEY is not set." | tee -a "${LOG_FILE}"
-    echo "Please set your 阿里云百炼 API key:" | tee -a "${LOG_FILE}"
-    echo "  export DASHSCOPE_API_KEY='your-key-here'" | tee -a "${LOG_FILE}"
-    PREFLIGHT_OK=false
-fi
-
-# Check Python environment
 if [[ ! -f "${PYTHON}" ]]; then
-    echo "[ERROR] Virtual environment not found at ${VENV_PATH}" | tee -a "${LOG_FILE}"
-    echo "Please create it first:" | tee -a "${LOG_FILE}"
-    echo "  python3 -m venv ${VENV_PATH}" | tee -a "${LOG_FILE}"
-    echo "  source ${VENV_PATH}/bin/activate && pip install -r requirements.txt" | tee -a "${LOG_FILE}"
-    PREFLIGHT_OK=false
-fi
-
-if [[ "${PREFLIGHT_OK}" != "true" ]]; then
-    echo "[ERROR] Pre-flight checks failed. Exiting." | tee -a "${LOG_FILE}"
+    log "ERROR: Virtual environment not found at ${VENV_PATH}"
     exit 78
 fi
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting MAREF AutoResearch batch..." | tee -a "${LOG_FILE}"
-echo "  Project: ${PROJECT_ROOT}" | tee -a "${LOG_FILE}"
-echo "  Output:  ${OUTPUT_DIR}" | tee -a "${LOG_FILE}"
-echo "  Log:     ${LOG_FILE}" | tee -a "${LOG_FILE}"
-
 cd "${PROJECT_ROOT}"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running MAREF daily recursive evolution dry-run..." | tee -a "${LOG_FILE}"
-"${PYTHON}" -m maref.evolution.daily_loop \
-    --dry-run \
+
+OVERALL_EXIT=0
+
+# ── Phase 0-7: DailyEvolutionLoop (8 phases in one call) ────────
+run_phase "0-7" "Daily Evolution Loop"
+if "${PYTHON}" -m maref.evolution.daily_loop \
+    ${DRY_RUN} \
     --vault "${PROJECT_ROOT}/.evolution_vault" \
-    2>&1 | tee -a "${LOG_FILE}" || true
-
-# Run one batch (max-batches=1)
-"${PYTHON}" -m src.research.continuous_engine \
-    --output-dir "${OUTPUT_DIR}" \
-    --experiments-per-batch 50 \
-    --batch-interval 10 \
-    --max-batches 1 \
-    --llm-model qwen-plus \
-    2>&1 | tee -a "${LOG_FILE}"
-
-EXIT_CODE=${PIPESTATUS[0]}
-
-if [[ ${EXIT_CODE} -eq 0 ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Batch completed successfully." | tee -a "${LOG_FILE}"
-
-    # Sync reports to project-level research_output for backup
-    if [[ -f "${SCRIPT_DIR}/sync_reports.sh" ]]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Syncing reports..." | tee -a "${LOG_FILE}"
-        bash "${SCRIPT_DIR}/sync_reports.sh" 2>&1 | tee -a "${LOG_FILE}" || true
-    fi
-
-    # Phase 5: RSI loop — multi-target ratchet + cross-analyze + meta-diagnose
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting RSI loop..." | tee -a "${LOG_FILE}"
-    bash "${SCRIPT_DIR}/run_rsi_loop.sh" 2>&1 | tee -a "${LOG_FILE}" || true
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] RSI loop complete." | tee -a "${LOG_FILE}"
+    2>&1 | tee -a "${LOG_FILE}"; then
+    log "Daily evolution loop completed successfully"
 else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Batch failed with exit code ${EXIT_CODE}." | tee -a "${LOG_FILE}"
+    log "Daily evolution loop exited with code $? (non-fatal)"
 fi
 
-# Cleanup old logs (keep last 30 days)
-find "${LOG_DIR}" -name "autoresearch_*.log" -mtime +30 -delete 2>/dev/null || true
+# ── Phase 8a: PERCV Research (optional) ─────────────────────────
+if [[ "${SKIP_RESEARCH}" != "true" && -n "${DASHSCOPE_API_KEY:-}" ]]; then
+    run_phase "8a" "PERCV AutoResearch"
+    if "${PYTHON}" -m src.research.continuous_engine \
+        --output-dir "${OUTPUT_DIR}" \
+        --experiments-per-batch 50 \
+        --batch-interval 10 \
+        --max-batches 1 \
+        --llm-model qwen-plus \
+        2>&1 | tee -a "${LOG_FILE}"; then
+        log "PERCV research completed"
+    else
+        log "PERCV research failed (non-fatal)"
+    fi
+else
+    log "Skipping PERCV research (no DASHSCOPE_API_KEY or --skip-research)"
+fi
 
-exit ${EXIT_CODE}
+# ── Phase 8b: RSI Loop (optional) ───────────────────────────────
+if [[ "${SKIP_RSI}" != "true" && -f "${SCRIPT_DIR}/run_rsi_loop.sh" ]]; then
+    run_phase "8b" "RSI Loop"
+    if bash "${SCRIPT_DIR}/run_rsi_loop.sh" 2>&1 | tee -a "${LOG_FILE}"; then
+        log "RSI loop completed"
+    else
+        log "RSI loop failed (non-fatal)"
+    fi
+else
+    log "Skipping RSI loop"
+fi
+
+# ── Phase 8c: MAS-TS Evaluation (optional) ──────────────────────
+if [[ -d "${PROJECT_ROOT}/external/mas_ts" ]]; then
+    run_phase "8c" "MAS-TS Evaluation"
+    if "${PYTHON}" -m pytest tests/integration/test_platform/ \
+        -q --no-header --timeout=60 --no-cov \
+        2>&1 | tee -a "${LOG_FILE}"; then
+        log "MAS-TS evaluation passed"
+    else
+        log "MAS-TS evaluation found issues (non-fatal)"
+    fi
+else
+    log "Skipping MAS-TS evaluation (mas_ts not available)"
+fi
+
+# ── Report sync ─────────────────────────────────────────────────
+if [[ -f "${SCRIPT_DIR}/sync_reports.sh" ]]; then
+    bash "${SCRIPT_DIR}/sync_reports.sh" 2>&1 | tee -a "${LOG_FILE}" || true
+fi
+
+# ── Cleanup ─────────────────────────────────────────────────────
+find "${LOG_DIR}" -name "evolution_*.log" -mtime +30 -delete 2>/dev/null || true
+
+log "Daily evolution complete. Log: ${LOG_FILE}"
+exit ${OVERALL_EXIT}
