@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from maref.governance import CircuitBreaker, GovernanceStateMachine
+from maref.governance.audit import AuditLogger
 from maref.redblue.attack_vector import (
     AttackDefinition,
     BlueLevel,
@@ -55,7 +56,7 @@ class RedBlueEngine:
     total = norm_detection + norm_mitigation + norm_recovery + norm_adaptation (max 100)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, audit_log_path: str | None = None) -> None:
         self._results: list[RedBlueResult] = []
         self._blue_memory: dict[str, float] = {}
         self._blue_hardening: dict[str, float] = {}
@@ -63,6 +64,10 @@ class RedBlueEngine:
         self._real_cb = CircuitBreaker(
             max_depth=3, max_consecutive_failures=3, cooldown_seconds=30.0
         )
+        self._audit_logger = AuditLogger(
+            log_path=audit_log_path,
+            hmac_key="redblue-internal",
+        ) if audit_log_path else None
 
     def run_round(
         self,
@@ -85,7 +90,7 @@ class RedBlueEngine:
             attack_stealth=attack.stealth,
         )
 
-        detection, detect_time, errors = self._simulate_detection(attack, blue_level)
+        detection, detect_time, errors = self._simulate_detection(attack, blue_level, result)
         result.detection_score = detection
         result.detection_time_ms = detect_time
         result.errors = errors
@@ -134,26 +139,66 @@ class RedBlueEngine:
         self,
         attack: AttackDefinition,
         blue: BlueLevel,
+        result: RedBlueResult,
     ) -> tuple[float, float, list[str]]:
         base = 0.0
         errors: list[str] = []
 
         if blue.numeric >= 1:
             base += 10
-
         if blue.numeric >= 2:
             base += 10
-
         if blue.numeric >= 3:
             base += 5
             if self._blue_memory.get(attack.category.value[0], 0) > 0:
                 base += 3
-
         if blue.numeric >= 4:
             base += 3
-
         if blue.numeric >= 5:
             base += 2
+
+        # ── Real governance pipeline integration ──────────────────────
+        real_state_bonus = 0.0
+        try:
+            sm = self._real_sm
+            state_idx = sm.current_state.value if hasattr(sm.current_state, 'value') else 0
+            t_count = getattr(sm, 'transition_count', 0)
+
+            # Higher governance states = better detection posture
+            state_bonus = min(state_idx * 1.5, 15.0)
+            transition_bonus = min(t_count * 0.5, 10.0)
+            real_state_bonus = state_bonus + transition_bonus
+
+            result.metadata["governance_state"] = str(sm.current_state)
+            result.metadata["governance_transitions"] = t_count
+        except Exception:
+            result.metadata["governance_state"] = "unavailable"
+
+        base += real_state_bonus
+
+        # ── Real audit signal (if logger configured) ──────────────────
+        audit_bonus = 0.0
+        if self._audit_logger:
+            try:
+                recent = self._audit_logger.read_filtered(
+                    event_type="governance_decision",
+                    max_entries=20,
+                )
+                audit_bonus = min(len(recent) * 0.3, 5.0)
+                result.metadata["audit_entries_queried"] = len(recent)
+
+                anomaly_entries = self._audit_logger.read_filtered(
+                    event_type="anomaly_detected",
+                    max_entries=10,
+                )
+                if anomaly_entries:
+                    audit_bonus += min(len(anomaly_entries) * 1.0, 5.0)
+                    result.metadata["anomaly_entries"] = len(anomaly_entries)
+            except Exception:
+                pass
+
+        base += audit_bonus
+        # ───────────────────────────────────────────────────────────────
 
         stealth_penalty = attack.stealth * 15
         score = max(0, base - stealth_penalty)
