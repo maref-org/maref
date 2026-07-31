@@ -95,14 +95,17 @@ class AuditLogService:
         log_path: str | Path | None = None,
         bus: AuditBus | None = None,
     ) -> None:
-        self._bus = bus or AuditBus(hmac_key=secret)
+        if bus is None:
+            from maref.governance.audit import AuditLogger
+            logger = AuditLogger(
+                log_path=Path(log_path) if log_path else None,
+                hmac_key=secret,
+            )
+            bus = AuditBus(logger=logger)
+        self._bus = bus
         # Keep an in-memory index for backward-compat queries.
         self._entries: list[GaaSAuditEntry] = []
         self._tenant_index: dict[str, list[int]] = {}
-        # If a JSONL path was provided, ensure the bus persists there.
-        # The underlying AuditLogger already handles HMAC-signed JSONL,
-        # so we don't duplicate file I/O.
-        self._log_path: Path | None = Path(log_path) if log_path else None
 
     def log(
         self,
