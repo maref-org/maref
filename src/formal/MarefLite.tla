@@ -68,7 +68,7 @@ ValidTransition(s, t) ==
       gt == GrayCode[t]
   IN
     (* Exactly one bit differs between adjacent states *)
-    \E i \in 1..4 : /
+    \E i \in 1..4 :
         gs[i] # gt[i]
       /\ \A j \in 1..4 : j # i => gs[j] = gt[j]
 
