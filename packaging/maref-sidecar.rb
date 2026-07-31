@@ -9,13 +9,13 @@
 class MarefSidecar < Formula
   desc "MAREF Sidecar — agent governance runtime (governance FSM, audit, MCP bridge)"
   homepage "https://github.com/maref-org/maref"
-  version "0.42.0"
+  version "0.43.0"
   license "Apache-2.0"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/maref-org/maref/releases/download/v#{version}/maref-sidecar-darwin-arm64"
-      sha256 "REPLACE_WITH_ARM64_SHA256"
+      sha256 "97c1ce5f45f4823fd22c42dc0ab32ed968ea36478b9d60f307664776d20fa4fc"
     else
       url "https://github.com/maref-org/maref/releases/download/v#{version}/maref-sidecar-darwin-x86_64"
       sha256 "REPLACE_WITH_X86_64_SHA256"
