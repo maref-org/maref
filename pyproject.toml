@@ -76,6 +76,7 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "nox>=2024.0",
+    "numpy>=1.26",
 ]
 desktop = [
     "Pillow>=10.0",
