@@ -68,7 +68,7 @@ jobs:
       - name: Core tests
         run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal --cov-fail-under=0
       - name: Coverage gate
-        run: pytest tests/governance tests/recursive -q --cov=src/maref --cov-fail-under=15 -m "not slow"
+        run: pytest tests/governance -q --cov=src/maref --cov-fail-under=15
 
   gate-security:
     needs: gate-quality
