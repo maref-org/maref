@@ -1,4 +1,4 @@
-"""Federation Gateway.
+"""Federation Gateway with ACS document Ed25519 signature verification.
 
 Unified entry point for external agents (ACPs/A2A/MCP) to attach to the
 MAREF governance framework. The gateway performs:
@@ -8,9 +8,12 @@ MAREF governance framework. The gateway performs:
 2. **Capability ingestion**: Parse external ACS documents into MAREF's
    internal capability registry via
    :class:`~maref.integration.acs_parser.ACSParser`.
-3. **Audit logging**: Every registration and dispatch is recorded in the
+3. **ACS integrity verification**: Optional Ed25519 signature validation
+   of the ACS document at registration time. The raw document hash is
+   stored for subsequent integrity checks.
+4. **Audit logging**: Every registration and dispatch is recorded in the
    HMAC-signed audit chain.
-4. **Agent registry**: Maintains the set of federated agents with their
+5. **Agent registry**: Maintains the set of federated agents with their
    AIC, ACS, endpoint URL, and current health.
 
 The gateway is protocol-agnostic: it stores identity and capability
@@ -20,6 +23,8 @@ the existing integration bridges.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -42,6 +47,11 @@ class FederationRequest:
         endpoint_url: The external agent's network endpoint.
         protocol: The wire protocol ("a2a", "mcp", "aip").
         did_namespace: Optional MAREF DID namespace to assign.
+        acs_signature: Optional Ed25519 hex signature of the ACS document.
+            When provided and a verifier is configured, the signature is
+            validated during registration.
+        acs_public_key_pem: Optional PEM-encoded Ed25519 public key for
+            verifying the ACS signature.
     """
 
     aic_string: str
@@ -49,6 +59,8 @@ class FederationRequest:
     endpoint_url: str
     protocol: str = "aip"
     did_namespace: str = "federated"
+    acs_signature: str = ""
+    acs_public_key_pem: str = ""
 
 
 @dataclass
@@ -82,6 +94,11 @@ class FederatedAgent:
         protocol: Wire protocol ("a2a", "mcp", "aip").
         registered_at: Registration timestamp.
         last_seen: Last activity timestamp.
+        acs_signature: Ed25519 hex signature of the raw ACS document at
+            registration time. Empty string if unsigned.
+        acs_public_key_pem: PEM-encoded Ed25519 public key that signed the ACS.
+        acs_digest: SHA-256 hex digest of the raw ACS document at registration
+            time. Used for subsequent integrity verification.
     """
 
     did: AgentDID
@@ -91,10 +108,47 @@ class FederatedAgent:
     protocol: str
     registered_at: float
     last_seen: float = 0.0
+    acs_signature: str = ""
+    acs_public_key_pem: str = ""
+    acs_digest: str = ""
 
     def touch(self) -> None:
         """Update ``last_seen`` to the current time."""
         self.last_seen = time.time()
+
+    def verify_acs_integrity(self, raw_acs_document: dict[str, Any] | None = None) -> bool:
+        """Verify that the ACS document content matches the registration signature.
+
+        If ``raw_acs_document`` is provided, verifies the Ed25519 signature
+        against that document. Otherwise, compares the SHA-256 digest of
+        ``self.acs.to_dict()`` with the stored ``acs_digest`` (best-effort).
+
+        Returns:
+            True if the integrity check passes or no signature was provided.
+            False if verification fails.
+        """
+        if not self.acs_signature or not self.acs_public_key_pem:
+            return True  # No signature to verify
+
+        if raw_acs_document is not None:
+            from maref.crypto.ed25519_keys import Ed25519KeyPair
+            acs_bytes = json.dumps(raw_acs_document, sort_keys=True).encode()
+            try:
+                return Ed25519KeyPair.verify(
+                    self.acs_public_key_pem,
+                    bytes.fromhex(self.acs_signature),
+                    acs_bytes,
+                )
+            except (ValueError, Exception):
+                return False
+
+        # Without the raw document, compare digest as best-effort
+        if self.acs_digest:
+            current = hashlib.sha256(
+                json.dumps(self.acs.to_dict(), sort_keys=True).encode()
+            ).hexdigest()
+            return current == self.acs_digest
+        return True
 
 
 class FederationGatewayError(ValueError):
@@ -172,6 +226,26 @@ class FederationGateway:
                 ),
             )
 
+        # ACS Ed25519 signature verification
+        raw_acs_digest = hashlib.sha256(
+            json.dumps(request.acs_document, sort_keys=True).encode()
+        ).hexdigest()
+        if request.acs_signature and request.acs_public_key_pem:
+            from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+            acs_bytes = json.dumps(request.acs_document, sort_keys=True).encode()
+            sig_valid = Ed25519KeyPair.verify(
+                request.acs_public_key_pem,
+                bytes.fromhex(request.acs_signature),
+                acs_bytes,
+            )
+            if not sig_valid:
+                return FederationResponse(
+                    success=False,
+                    aic_string=request.aic_string,
+                    error="ACS signature verification failed",
+                )
+
         did = AgentDID.generate(namespace=request.did_namespace)
 
         try:
@@ -212,6 +286,9 @@ class FederationGateway:
             endpoint_url=request.endpoint_url,
             protocol=request.protocol,
             registered_at=time.time(),
+            acs_signature=request.acs_signature,
+            acs_public_key_pem=request.acs_public_key_pem,
+            acs_digest=raw_acs_digest,
         )
         agent.touch()
         self._agents[did] = agent

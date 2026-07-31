@@ -1,6 +1,7 @@
 const { app, BrowserWindow, shell, ipcMain, dialog, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const http = require('http');
 const { autoUpdater } = require('electron-updater');
 const windowStateKeeper = require('electron-window-state');
 
@@ -18,7 +19,6 @@ if (!gotTheLock) {
 
 let mainWindow = null;
 let sidecarProcess = null;
-let ptyProcess = null;
 
 function createWindow() {
   const mainWindowState = windowStateKeeper({
@@ -78,33 +78,90 @@ function stopSidecar() {
   if (sidecarProcess) { sidecarProcess.kill(); sidecarProcess = null; }
 }
 
-ipcMain.handle('pty:spawn', async (event, { shell }) => {
-  const osShell = shell || process.env.SHELL || '/bin/zsh';
-  const pty = require('node-pty');
-  ptyProcess = pty.spawn(osShell, [], {
-    name: 'xterm-256color',
-    cols: 80, rows: 24,
-    cwd: process.env.HOME || '/',
-    env: process.env,
+const SIDECAR_URL = 'http://localhost:8000';
+
+function sidecarPost(path, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const options = {
+      hostname: 'localhost',
+      port: 8000,
+      path: path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+      },
+    };
+    const req = http.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch { resolve({ text: body }); }
+      });
+    });
+    req.on('error', (err) => reject(err));
+    req.write(data);
+    req.end();
   });
-  ptyProcess.onData((data) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('pty:data', data);
+}
+
+// PTY now routed through MCP Gateway (governed)
+// No local node-pty fallback — all commands go through sidecar governance
+ipcMain.handle('pty:spawn', async (event, { shell, cols = 80, rows = 24, cwd }) => {
+  try {
+    const result = await sidecarPost('/api/mcp/gateway/tools/call', {
+      name: 'maref_pty_exec',
+      arguments: {
+        command: `exec ${shell || process.env.SHELL || '/bin/zsh'} -l`,
+        timeout: 1,
+        cols,
+        rows,
+        cwd: cwd || process.env.HOME || '/',
+      },
+    });
+    if (result.isError) {
+      console.warn('[pty] gateway returned error:', result.content?.[0]?.text);
     }
-  });
-  return { pid: ptyProcess.pid };
+    return { pid: 1, governed: true };
+  } catch (e) {
+    console.error('[pty] gateway unavailable:', e.message);
+    throw new Error(`PTY spawn failed — sidecar governance unavailable: ${e.message}`);
+  }
 });
 
-ipcMain.handle('pty:write', (event, data) => {
-  if (ptyProcess) { ptyProcess.write(data); }
+ipcMain.handle('pty:write', async (event, data) => {
+  try {
+    await sidecarPost('/api/mcp/gateway/tools/call', {
+      name: 'maref_pty_exec',
+      arguments: { command: data, timeout: 5 },
+    });
+  } catch (e) {
+    console.warn('[pty] write failed:', e.message);
+  }
 });
 
-ipcMain.handle('pty:resize', (event, { cols, rows }) => {
-  if (ptyProcess) { ptyProcess.resize(cols, rows); }
+ipcMain.handle('pty:resize', async (event, { cols, rows }) => {
+  try {
+    await sidecarPost('/api/mcp/gateway/tools/call', {
+      name: 'maref_pty_exec',
+      arguments: { command: `stty cols ${cols} rows ${rows}`, timeout: 1 },
+    });
+  } catch (e) {
+    console.warn('[pty] resize failed:', e.message);
+  }
 });
 
-ipcMain.handle('pty:kill', () => {
-  if (ptyProcess) { ptyProcess.kill(); ptyProcess = null; }
+ipcMain.handle('pty:kill', async () => {
+  try {
+    await sidecarPost('/api/mcp/gateway/tools/call', {
+      name: 'maref_pty_exec',
+      arguments: { command: 'exit', timeout: 1 },
+    });
+  } catch (e) {
+    console.warn('[pty] kill failed:', e.message);
+  }
 });
 
 ipcMain.handle('dialog:openDirectory', async () => {

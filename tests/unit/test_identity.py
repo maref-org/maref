@@ -9,7 +9,12 @@ import pytest
 from maref.governance.audit import AuditLogger
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.identity.credential import CredentialStore, VerifiableCredential
-from maref.identity.did_registry import AgentDID, DIDRegistry
+from maref.identity.did_registry import (
+    AgentDID,
+    AgentIdentityRecord,
+    DIDRegistry,
+    DIDResolutionResult,
+)
 
 
 @pytest.fixture
@@ -99,6 +104,123 @@ class TestDIDRegistry:
             registry.register(AgentDID.generate(), state_machine)
         assert registry.agent_count() == 3
         assert len(registry.list_all()) == 3
+
+
+class TestDIDDocument:
+    """P2-1: W3C DID Document generation and resolution."""
+
+    def test_to_did_document_basic(self) -> None:
+        did = AgentDID.parse("did:maref:test:abc123")
+        doc = did.to_did_document()
+        assert doc["@context"] == "https://www.w3.org/ns/did/v1"
+        assert doc["id"] == "did:maref:test:abc123"
+        assert "verificationMethod" not in doc
+
+    def test_to_did_document_with_ed25519(self) -> None:
+        did = AgentDID.generate()
+        pem = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA...\n-----END PUBLIC KEY-----"
+        doc = did.to_did_document(ed25519_public_key_pem=pem)
+        assert "verificationMethod" in doc
+        vm = doc["verificationMethod"][0]
+        assert vm["type"] == "Ed25519VerificationKey2018"
+        assert vm["controller"] == did.did_string
+        assert vm["publicKeyPem"] == pem
+        assert doc["authentication"] == [vm["id"]]
+        assert doc["assertionMethod"] == [vm["id"]]
+
+    def test_to_did_document_with_services(self) -> None:
+        did = AgentDID.generate()
+        services = [
+            {
+                "id": f"{did.did_string}#a2a",
+                "type": "A2AAgentService",
+                "serviceEndpoint": "https://agent.example.com/a2a",
+            }
+        ]
+        doc = did.to_did_document(service_endpoints=services)
+        assert "service" in doc
+        assert doc["service"] == services
+
+    def test_resolve_did_document_found(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        result = registry.resolve_did_document(did)
+        assert result.resolved
+        assert result.did_document is not None
+        assert result.did_document["id"] == did.did_string
+        assert result.resolution_metadata["method"] == "maref"
+
+    def test_resolve_did_document_not_found(self) -> None:
+        registry = DIDRegistry()
+        did = AgentDID.generate()
+        result = registry.resolve_did_document(did)
+        assert not result.resolved
+        assert result.did_document is None
+        assert "notFound" in result.resolution_metadata.get("error", "")
+
+    def test_resolve_did_document_includes_ed25519(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        keypair = Ed25519KeyPair.generate()
+        did = AgentDID.generate()
+        record = registry.register(did, sm)
+        record.metadata["ed25519_public_key_pem"] = keypair.public_key_pem
+
+        result = registry.resolve_did_document(did)
+        assert result.resolved
+        assert result.did_document is not None
+        vm = result.did_document.get("verificationMethod", [])
+        assert len(vm) == 1
+        assert vm[0]["publicKeyPem"] == keypair.public_key_pem
+
+    def test_resolve_did_document_with_services(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        services = [{"id": f"{did.did_string}#endpoint", "type": "Endpoint", "serviceEndpoint": "https://x.com"}]
+        result = registry.resolve_did_document(did, service_endpoints=services)
+        assert result.did_document is not None
+        assert result.did_document["service"] == services
+
+    def test_did_resolution_result_to_dict(self) -> None:
+        result = DIDResolutionResult(
+            did_document={"id": "did:maref:test:abc"},
+            resolution_metadata={"method": "maref", "resolved": True},
+            document_metadata={"created": 1000.0, "updated": 1000.0, "deactivated": False},
+        )
+        d = result.to_dict()
+        assert d["did_document"]["id"] == "did:maref:test:abc"
+        assert d["resolution_metadata"]["method"] == "maref"
+
+    def test_did_resolution_result_not_found_to_dict(self) -> None:
+        result = DIDResolutionResult(
+            did_document=None,
+            resolution_metadata={"error": "notFound"},
+            document_metadata={},
+        )
+        d = result.to_dict()
+        assert "did_document" not in d
+        assert d["resolution_metadata"]["error"] == "notFound"
+
+    def test_agent_identity_record_ed25519_public_key(self) -> None:
+        record = AgentIdentityRecord(
+            did=AgentDID.generate(),
+            state_machine=GovernanceStateMachine(),
+            metadata={"ed25519_public_key_pem": "test-pem"},
+        )
+        assert record.ed25519_public_key() == "test-pem"
+
+    def test_agent_identity_record_no_key(self) -> None:
+        record = AgentIdentityRecord(
+            did=AgentDID.generate(),
+            state_machine=GovernanceStateMachine(),
+        )
+        assert record.ed25519_public_key() == ""
 
 
 class TestVerifiableCredential:

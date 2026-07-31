@@ -8,12 +8,12 @@ description: MAREF v0.34.0-rc — Agent Governance OS
 
 **MAREF (Multi-Agent Recursive Evolution Framework)** v0.34.0-rc is an open-source **Agent Governance Operating System** that provides formal verification, constitutional governance, self-healing infrastructure, and comprehensive compliance for multi-agent systems.
 
-This version introduces the six-layer governance architecture, 64-state Gray-code FSM, TLA+ formal verification, dual-protocol (A2A + MCP) communication, and the Immunity System for self-SAEB recursive benchmarking.
+This version introduces the six-layer governance architecture, 34-state Gray-code FSM (10 governance + 24 agent), TLA+ formal verification, dual-protocol (A2A + MCP) communication, and the Immunity System for self-SAEB recursive benchmarking.
 
 ## Key Features in v0.34.0-rc
 
 - Six-layer governance (Heaven → Human → Earth → Trigram → Hexagram → Change)
-- 64-state Gray-code finite state machine
+- 34-state Gray-code finite state machine (10 governance + 24 agent)
 - 5 TLA+ formally verified constitutional invariants
 - A2A protocol v0.2.6 with signed agent cards
 - MCP protocol with 6 transport types

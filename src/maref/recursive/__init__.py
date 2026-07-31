@@ -404,6 +404,13 @@ from maref.recursive.trust_engine_v2 import (
     TrustFactor,
     TrustScoreV2,
 )
+from maref.recursive.kakeya_completeness import (
+    AttackDirection,
+    BlindSpot,
+    CompletenessReport,
+    KakeyaCompletenessChecker,
+    assess_and_check,
+)
 from maref.recursive.trust_v2 import (
     ConsensusProposal,
     ConsensusResult,
@@ -580,6 +587,11 @@ __all__ = [
     "TrustFactor",
     "GoodhartDetection",
     "AgentProfileV2",
+    "KakeyaCompletenessChecker",
+    "CompletenessReport",
+    "BlindSpot",
+    "AttackDirection",
+    "assess_and_check",
     "Agent24StateMachine",
     "AgentStateV3",
     "GRAY_CODE_5BIT",

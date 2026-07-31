@@ -206,6 +206,7 @@ except ImportError:
 
 from maref.integration.hitl import HITLEvent, HITLRouter, HITLStatus, HITLTier
 from maref.integration.maref_loop_adapter import MAREFLoop
+
 try:
     from maref.integration.mq_adapter import InMemoryMQ, MQAdapter
 except ImportError:

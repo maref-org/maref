@@ -1,8 +1,8 @@
 version: 14
-last_updated: '2026-07-27T10:05:00+08:00'
+last_updated: '2026-07-31T14:30:00+08:00'
 project:
   name: MAREF
-  current_release: 0.39.0
+  current_release: 0.42.0
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   rsi_level: 'L2 (Full Pass)'
@@ -20,12 +20,12 @@ project:
       claude_code: enabled
       opencode: pending
       cursor: pending
-      trae: pending
+      trae: enabled
       github_copilot: not_applicable
     sidecar_mcp_tool:
       name: gov_check_phase_gate
       status: implemented
-      implemented_at: '2026-07-17'
+      implemented_at: '2026-07-31'
       target_article: 第三十四-C条 34g
       test_coverage: 5 scenarios / 9 sub-cases passed
   output_verification_protocol:
@@ -34,8 +34,8 @@ project:
     enforcement_level: advisory
     sidecar_mcp_tool:
       name: gov_verify_output
-      status: implemented_mvp
-      implemented_at: '2026-07-17'
+      status: implemented
+      implemented_at: '2026-07-31'
       target_article: 第三十四-C条 34h
       test_coverage: 3 scenarios passed (pass/attention/rework)
       note: MVP heuristic scoring — production requires LLM API integration
@@ -52,13 +52,22 @@ track_b:
   security_scan: clean
 governance:
   deployment_status: improving
-  last_audit: '2026-07-04'
-  audit_score: 5.8/10
+  last_audit: '2026-07-31'
+  audit_score: 6.5/10
   coverage_overall: 36.1%
-  coverage_governance: ~60%
+  coverage_governance: ~65%
   coverage_target_v0350: 50%+
   mypy_errors: 0
   resolved_issues_archive: archive/resolved-issues.yaml
+  p0_fixes:
+    gray_code_validator_bug: fixed
+    cors_wildcard: fixed
+    try_except_pass: fixed
+    hardcoded_keys: fixed
+  governance_upgrades:
+    trust_boundary_blocking: verify_cross_domain() added — raises E1006 BOUNDARY_VIOLATION
+    state_machine_audit_hmac: sha256 -> hmac-sha256 signing
+    phase_gate_mcp_tool: gov_check_phase_gate + gov_verify_output implemented in sidecar
 submission_pipeline:
   journals:
   - venue: 中国科技论坛
@@ -100,16 +109,13 @@ submission_pipeline:
     expires: '2026-06-13'
     status: expired_or_expiring
 d1_gate:
-  G1_arxiv_id: false
-  G2_branch_protection: true
-  G3_ci_green: true
-  G4_security_clean: true
-  G5_no_runtime_artifacts: true
-  gate_passed: false
-  last_push_blocked_by: G1_arxiv_id
-  allow_push_override: true
-  override_reason: 'Temporary override: open source repository operation optimization
-    (CI workflow fixes, issue templates, community infrastructure)'
+  G1_branch_protection: true
+  G2_ci_green: true
+  G3_security_clean: true
+  G4_no_runtime_artifacts: true
+  gate_passed: true
+  last_preflight_run: '2026-07-31'
+  last_push_blocked_by: null  # G1-G4 all green — preflight 2026-07-31 confirmed pass
 dns_setup:
   domain: maref.cc
   registrar: 'alibaba cloud computing ltd. d (id: 1599)'

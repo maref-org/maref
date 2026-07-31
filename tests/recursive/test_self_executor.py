@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from maref.recursive.self_executor import (
     ASTSandbox,
     ASTValidationResult,

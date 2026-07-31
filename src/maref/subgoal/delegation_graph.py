@@ -25,6 +25,25 @@ class CreepReport:
     findings: list[str] = field(default_factory=list)
 
 
+@dataclass
+class EnforcementResult:
+    """Result of an enforced delegation.
+
+    Attributes:
+        allowed: Whether the delegation was permitted.
+        requested_permissions: The permissions requested by the delegator.
+        granted_permissions: The permissions actually granted (trimmed to scope).
+        trimmed_permissions: Permissions that were trimmed (out of scope).
+        reason: Human-readable explanation.
+    """
+
+    allowed: bool
+    requested_permissions: set[str]
+    granted_permissions: set[str]
+    trimmed_permissions: set[str]
+    reason: str
+
+
 class DelegationGraph:
     def __init__(self, max_depth: int = 5, cooldown_threshold: float = 0.5) -> None:
         self._events: list[DelegationEvent] = []
@@ -129,3 +148,74 @@ class DelegationGraph:
         rate = len(recent) / max(len(baseline), 1)
         score = (min(size_ratio / 3, 1.0) * 0.5) + (min(rate, 1.0) * 0.5)
         return min(score, 1.0)
+
+    def enforce_delegation(
+        self,
+        from_agent: str,
+        to_agent: str,
+        requested_permissions: set[str],
+        reason: str = "",
+    ) -> EnforcementResult:
+        """Enforce that delegated permissions don't exceed the delegator's scope.
+
+        Unlike :meth:`record_delegation` (which records any delegation),
+        this method enforces a hard constraint: only permissions within
+        the delegator's transitive closure are granted. Out-of-scope
+        permissions are silently trimmed. If *all* requested permissions
+        are out of scope, the delegation is refused.
+
+        Args:
+            from_agent: The delegating agent.
+            to_agent: The receiving agent.
+            requested_permissions: The permissions requested for delegation.
+            reason: Optional reason for the delegation.
+
+        Returns:
+            An :class:`EnforcementResult` describing what was granted,
+            what was trimmed, and whether the delegation was allowed.
+        """
+        delegator_perms = self.transitive_closure(from_agent)
+
+        in_scope = requested_permissions & delegator_perms
+        out_of_scope = requested_permissions - delegator_perms
+
+        if not in_scope:
+            return EnforcementResult(
+                allowed=False,
+                requested_permissions=requested_permissions,
+                granted_permissions=set(),
+                trimmed_permissions=out_of_scope,
+                reason="all requested permissions are out of delegator scope",
+            )
+
+        self.record_delegation(from_agent, to_agent, in_scope, reason)
+
+        if out_of_scope:
+            return EnforcementResult(
+                allowed=True,
+                requested_permissions=requested_permissions,
+                granted_permissions=in_scope,
+                trimmed_permissions=out_of_scope,
+                reason=f"trimmed {len(out_of_scope)} out-of-scope permissions",
+            )
+
+        return EnforcementResult(
+            allowed=True,
+            requested_permissions=requested_permissions,
+            granted_permissions=in_scope,
+            trimmed_permissions=set(),
+            reason="all permissions in scope",
+        )
+
+    def check_permission(self, agent_id: str, permission: str) -> bool:
+        """Check if an agent has a specific permission (including transitive).
+
+        Args:
+            agent_id: The agent to check.
+            permission: The permission to verify.
+
+        Returns:
+            True if the permission is in the agent's transitive closure.
+        """
+        effective = self.transitive_closure(agent_id)
+        return permission in effective

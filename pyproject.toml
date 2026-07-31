@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.39.0"
+version = "0.42.0"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -195,6 +195,7 @@ markers = [
     "security: Security penetration tests",
     "benchmark: Performance benchmark tests",
     "longevity: Longevity / 24h regression tests",
+    "ci_only: CI-mode quick tests",
 ]
 
 [tool.coverage.run]

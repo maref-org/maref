@@ -123,6 +123,11 @@ class CircuitBreakerPool:
         }
         return mapping.get(state, CBState.CLOSED)
 
+    @property
+    def breaker_count(self) -> int:
+        """Number of active circuit breaker instances."""
+        return len(self._pool)
+
     def cleanup_idle(self, idle_seconds: float = 3600.0) -> int:
         """Remove CBs idle longer than threshold. Returns removed count."""
         now = time.time()

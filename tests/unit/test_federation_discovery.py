@@ -9,6 +9,8 @@ from maref.federation.discovery import (
     DiscoveryQuery,
     FederatedDiscovery,
     FederationPeer,
+    HTTPDiscoveryTransport,
+    InProcessTransport,
 )
 from maref.federation.gateway import FederatedAgent, FederationGateway
 from maref.identity.aic_adapter import AIC
@@ -267,3 +269,170 @@ class TestFederatedDiscoverySummary:
         assert ADP_PROTOCOL_VERSION == "2.00"
         assert DEFAULT_QUERY_TIMEOUT == 5.0
         assert DEFAULT_MAX_DEPTH == 3
+
+
+class TestInProcessTransport:
+    def test_set_and_fetch(self) -> None:
+        transport = InProcessTransport()
+        agent = _make_standalone_agent(skills=["research"])
+        transport.set_catalog_provider("srv-1", lambda: [agent])
+
+        peer = FederationPeer(server_id="srv-1", endpoint_url="https://srv1")
+        query = DiscoveryQuery(capability="research")
+        result = transport.fetch_catalog(peer, query)
+        assert len(result) == 1
+        assert result[0].aic.aic_string == agent.aic.aic_string
+
+    def test_fetch_returns_empty_for_unregistered(self) -> None:
+        transport = InProcessTransport()
+        peer = FederationPeer(server_id="unknown", endpoint_url="https://unknown")
+        query = DiscoveryQuery()
+        assert transport.fetch_catalog(peer, query) == []
+
+
+class TestHTTPDiscoveryTransport:
+    def test_parse_catalog_response(self) -> None:
+        """Test JSON parsing without making HTTP requests."""
+        transport = HTTPDiscoveryTransport()
+        agent = _make_standalone_agent(skills=["research", "analysis"])
+        catalog_data = {
+            "agents": [
+                {
+                    "aic": agent.aic.aic_string,
+                    "did": agent.did.did_string,
+                    "name": agent.acs.name,
+                    "endpoint": agent.endpoint_url,
+                    "protocol": agent.protocol,
+                    "capabilities": ["research", "analysis"],
+                    "registered_at": 1234567890.0,
+                }
+            ]
+        }
+        result = transport._parse_catalog_response(catalog_data)
+        assert len(result) == 1
+        assert result[0].aic.aic_string == agent.aic.aic_string
+        assert result[0].did.did_string == agent.did.did_string
+        assert result[0].endpoint_url == agent.endpoint_url
+        assert result[0].protocol == agent.protocol
+
+    def test_parse_empty_response(self) -> None:
+        transport = HTTPDiscoveryTransport()
+        assert transport._parse_catalog_response({}) == []
+        assert transport._parse_catalog_response({"agents": []}) == []
+        assert transport._parse_catalog_response([]) == []
+
+    def test_parse_invalid_entries_skipped(self) -> None:
+        transport = HTTPDiscoveryTransport()
+        agent = _make_standalone_agent()
+        catalog_data = {
+            "agents": [
+                "not a dict",
+                {"aic": "invalid"},
+                {
+                    "aic": agent.aic.aic_string,
+                    "did": agent.did.did_string,
+                    "name": "test",
+                    "endpoint": "https://test",
+                    "protocol": "aip",
+                    "capabilities": [],
+                },
+            ]
+        }
+        result = transport._parse_catalog_response(catalog_data)
+        assert len(result) == 1
+
+    def test_fetch_catalog_with_mock_http(self, monkeypatch) -> None:
+        """Test HTTP fetch using httpx MockTransport."""
+        import httpx
+
+        agent = _make_standalone_agent(skills=["research"])
+        catalog_json = {
+            "agents": [
+                {
+                    "aic": agent.aic.aic_string,
+                    "did": agent.did.did_string,
+                    "name": agent.acs.name,
+                    "endpoint": agent.endpoint_url,
+                    "protocol": agent.protocol,
+                    "capabilities": ["research"],
+                    "registered_at": 0.0,
+                }
+            ]
+        }
+
+        def mock_handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=catalog_json)
+
+        mock_client = httpx.Client(transport=httpx.MockTransport(mock_handler))
+        monkeypatch.setattr(httpx, "get", mock_client.get)
+
+        transport = HTTPDiscoveryTransport(timeout=1.0, max_retries=0)
+        peer = FederationPeer(
+            server_id="remote",
+            endpoint_url="https://remote.example.com/adp",
+        )
+        query = DiscoveryQuery(capability="research")
+        result = transport.fetch_catalog(peer, query)
+        assert len(result) == 1
+        assert result[0].aic.aic_string == agent.aic.aic_string
+
+    def test_fetch_catalog_returns_empty_on_error(self, monkeypatch) -> None:
+        """HTTP transport returns empty list on 500 errors."""
+        import httpx
+
+        def mock_handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(500, text="Internal Server Error")
+
+        mock_client = httpx.Client(transport=httpx.MockTransport(mock_handler))
+        monkeypatch.setattr(httpx, "get", mock_client.get)
+
+        transport = HTTPDiscoveryTransport(timeout=1.0, max_retries=0)
+        peer = FederationPeer(
+            server_id="broken",
+            endpoint_url="https://broken.example.com/adp",
+        )
+        query = DiscoveryQuery()
+        result = transport.fetch_catalog(peer, query)
+        assert result == []
+
+
+class TestFederatedDiscoveryTransportInjection:
+    """Test that FederatedDiscovery supports transport injection."""
+
+    def test_custom_transport_used(
+        self, fed_gateway: FederationGateway
+    ) -> None:
+        """A custom transport is used for peer catalog fetches."""
+        agent = _make_standalone_agent(skills=["research"])
+
+        class CustomTransport:
+            def fetch_catalog(self, peer: FederationPeer, query: DiscoveryQuery) -> list:
+                return [agent]
+
+        disc = FederatedDiscovery(
+            gateway=fed_gateway,
+            transport=CustomTransport(),  # type: ignore[arg-type]
+        )
+        disc.add_peer("peer", "https://peer/adp")
+
+        results = disc.discover(capability="research", include_remote=True)
+        aics = {r.agent.aic.aic_string for r in results}
+        assert agent.aic.aic_string in aics
+
+    def test_set_catalog_provider_with_in_process_transport(
+        self, fed_gateway: FederationGateway
+    ) -> None:
+        """set_catalog_provider works when transport is InProcessTransport."""
+        in_process = InProcessTransport()
+        disc = FederatedDiscovery(
+            gateway=fed_gateway,
+            transport=in_process,
+        )
+
+        agent = _make_standalone_agent(skills=["research"])
+        disc.add_peer("peer", "https://peer/adp")
+        disc.set_catalog_provider("peer", lambda: [agent])
+
+        results = disc.discover(capability="research", include_remote=True)
+        aics = {r.agent.aic.aic_string for r in results}
+        assert agent.aic.aic_string in aics

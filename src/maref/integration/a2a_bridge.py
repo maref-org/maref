@@ -94,6 +94,7 @@ class A2ABridge:
         self._lock = asyncio.Lock()
         self._state_queues: dict[str, asyncio.Queue[A2ATaskState]] = {}
         self._trajectory = trajectory_collector or TrajectoryCollector()
+        self._last_action_ids: dict[str, str] = {}
         self._register_default_capabilities()
 
     def _register_default_capabilities(self) -> None:
@@ -217,13 +218,14 @@ class A2ABridge:
         )
         self._tasks[task_id] = task_ctx
         self._sm.transition(GovernanceState.INIT, f"Task created: {task_description}")
-        self._audit.log(
+        entry = self._audit.log(
             event_type="a2a_task_created",
             actor=self._name,
             action="create_task",
             details=f"Created task: {task_description}",
             metadata={"task_id": task_id, "a2a_state": A2ATaskState.SUBMITTED.value},
         )
+        self._last_action_ids[task_id] = entry.id
         self._trajectory.start_task(task_id, task_description, actor=self._name)
         return task_id
 
@@ -267,7 +269,8 @@ class A2ABridge:
         self._delegated_tasks[task_id] = delegated
         self._tasks[task_id].a2a_state = A2ATaskState.WORKING
         self._tasks[task_id].updated_at = now
-        self._audit.log(
+        parent_id = self._last_action_ids.get(task_id, "")
+        entry = self._audit.log(
             event_type="a2a_task_delegated",
             actor=self._name,
             action="delegate_task",
@@ -277,7 +280,9 @@ class A2ABridge:
                 "target_agent_url": target_agent_url,
                 "delegated_at": now,
             },
+            parent_action_id=parent_id,
         )
+        self._last_action_ids[task_id] = entry.id
         self._trajectory.record_delegation(task_id, target_agent_url)
         try:
             import asyncio
@@ -328,7 +333,8 @@ class A2ABridge:
         self._tasks[task_id].maref_state = maref_state
         self._tasks[task_id].updated_at = time.time()
         self._sm.transition(maref_state, f"A2A state sync: {a2a_state}")
-        self._audit.log(
+        parent_id = self._last_action_ids.get(task_id, "")
+        entry = self._audit.log(
             event_type="a2a_state_sync",
             actor=self._name,
             action="sync_state_from_a2a",
@@ -338,7 +344,9 @@ class A2ABridge:
                 "a2a_state": a2a_state,
                 "maref_state": maref_state.name,
             },
+            parent_action_id=parent_id,
         )
+        self._last_action_ids[task_id] = entry.id
         self._trajectory.record_event(
             task_id,
             TrajectoryEventType.TASK_STATE_CHANGED,
@@ -421,12 +429,14 @@ class A2ABridge:
         task.maref_state = GovernanceState.HALT
         task.updated_at = time.time()
         self._sm.transition(GovernanceState.HALT, f"Task halted: {reason}")
+        parent_id = self._last_action_ids.get(task_id, "")
         self._audit.log(
             event_type="a2a_task_halted",
             actor=self._name,
             action="force_halt_task",
             details=f"Halted task {task_id}: {reason}",
             metadata={"task_id": task_id, "reason": reason},
+            parent_action_id=parent_id,
         )
         self._trajectory.complete_task(task_id, final_state="canceled")
         self._notify_state_change(task_id)

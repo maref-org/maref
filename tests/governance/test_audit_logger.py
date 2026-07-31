@@ -135,7 +135,7 @@ class TestAuditLoggerFileOperations:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             path = Path(f.name)
         logger = AuditLogger(log_path=path)
-        entry = logger.log("test_event", "TestActor", "test_action", "details")
+        logger.log("test_event", "TestActor", "test_action", "details")
         assert path.exists()
         entries = logger.read_all()
         assert len(entries) == 1
@@ -227,3 +227,154 @@ class TestAuditLoggerUnified:
         exported = logger.export_json()
         assert len(exported) == 1
         assert exported[0]["event_type"] == "test"
+
+
+class TestAuditLoggerEd25519:
+    """Ed25519 signing compatibility tests (v0.38.0+)."""
+
+    def test_ed25519_sign_and_verify(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+
+        logger = AuditLogger(log_path=path, ed25519_keypair=keypair)
+        entry = logger.log("test", "alice", "sign_test")
+        assert entry.ed25519_signature, "Expected Ed25519 signature"
+        assert entry.signer_fingerprint == keypair.fingerprint
+        assert entry.hmac_signature == ""
+
+        entries = logger.read_all()
+        assert len(entries) == 1
+        result = logger.verify_integrity(ed25519_public_key_pem=keypair.public_key_pem)
+        assert result["integrity_intact"] is True
+
+    def test_hmac_and_ed25519_entries_can_coexist(self) -> None:
+        """Old HMAC entries remain readable alongside new Ed25519 entries."""
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+
+        logger = AuditLogger(log_path=path, hmac_key=b"test-hmac-key")
+        logger.log("test", "alice", "hmac_entry")
+        logger = AuditLogger(log_path=path, ed25519_keypair=keypair)
+        logger.log("test", "bob", "ed25519_entry")
+
+        entries = logger.read_all()
+        assert len(entries) == 2
+        types = {e.signature_type for e in entries}
+        assert "hmac" in types
+        assert "ed25519" in types
+
+    def test_ed25519_verify_detects_tamper(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+
+        logger = AuditLogger(log_path=path, ed25519_keypair=keypair)
+        logger.log("test", "alice", "entry1")
+        logger.log("test", "bob", "entry2")
+
+        with open(path) as f:
+            data = f.read()
+        with open(path, "w") as f:
+            f.write(data.replace("entry2", "TAMPERED"))
+
+        result = logger.verify_integrity(ed25519_public_key_pem=keypair.public_key_pem)
+        assert result["integrity_intact"] is False
+        assert len(result["tampered_entries"]) > 0
+
+    def test_ed25519_in_memory_logger(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        logger = AuditLogger(log_path=None, ed25519_keypair=keypair)
+
+        logger.log("test", "alice", "in_memory")
+        entries = logger.read_all()
+        assert len(entries) == 1
+        assert entries[0].ed25519_signature
+        assert entries[0].chain_hash
+
+        result = logger.verify_integrity(ed25519_public_key_pem=keypair.public_key_pem)
+        assert result["integrity_intact"] is True
+
+
+class TestAuditLoggerCausality:
+    """P1-1: Delegation chain causality via parent_action_id."""
+
+    def test_log_accepts_parent_action_id(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        logger = AuditLogger(log_path=None, ed25519_keypair=keypair)
+
+        parent = logger.log("parent", "alice", "parent_action")
+        child = logger.log(
+            "child",
+            "bob",
+            "child_action",
+            parent_action_id=parent.id,
+        )
+        assert child.parent_action_id == parent.id
+
+    def test_parent_action_id_in_to_dict(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        logger = AuditLogger(log_path=None, ed25519_keypair=keypair)
+
+        parent = logger.log("parent", "alice", "parent_action")
+        child = logger.log(
+            "child",
+            "bob",
+            "child_action",
+            parent_action_id=parent.id,
+        )
+        d = child.to_dict()
+        assert d.get("parent_action_id") == parent.id
+
+    def test_parent_action_id_defaults_empty(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        logger = AuditLogger(log_path=None, ed25519_keypair=keypair)
+
+        entry = logger.log("test", "alice", "no_parent")
+        assert entry.parent_action_id == ""
+        d = entry.to_dict()
+        assert "parent_action_id" not in d
+
+    def test_parent_action_id_survives_serialization_roundtrip(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+
+        logger = AuditLogger(log_path=path, ed25519_keypair=keypair)
+        parent = logger.log("parent", "alice", "parent_action")
+        logger.log("child", "bob", "child_action", parent_action_id=parent.id)
+
+        read_logger = AuditLogger(log_path=path, ed25519_keypair=keypair)
+        entries = read_logger.read_all()
+        assert len(entries) == 2
+        child = [e for e in entries if e.action == "child_action"][0]
+        assert child.parent_action_id == parent.id
+        assert child.signature_type == "ed25519"
+
+    def test_parent_action_id_does_not_break_backward_compat(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        logger = AuditLogger(log_path=None, ed25519_keypair=keypair)
+
+        entry = logger.log("test", "alice", "old_style")
+        d = entry.to_dict()
+        assert "parent_action_id" not in d
+        assert entry.parent_action_id == ""

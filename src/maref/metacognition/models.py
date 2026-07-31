@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -106,4 +108,26 @@ class InferenceResult:
                 round(self.confidence_interval[0], 4),
                 round(self.confidence_interval[1], 4),
             ],
+        }
+
+
+@dataclass
+class SelfReflectionRecord:
+    """自省记录 - sentinel_hook 收到 CRITICAL 事件后产出的自省评估结果。"""
+
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    agent_id: str = ""
+    trigger_event: str = ""
+    reflection_summary: str = ""
+    timestamp: float = field(default_factory=time.time)
+    recommended_action: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "record_id": self.record_id,
+            "agent_id": self.agent_id,
+            "trigger_event": self.trigger_event,
+            "reflection_summary": self.reflection_summary,
+            "timestamp": self.timestamp,
+            "recommended_action": self.recommended_action,
         }

@@ -36,7 +36,7 @@ def cfg_content() -> str:
 
 
 class TestRSIRedLineCoverage:
-    """All 5 RSI red lines must have formal invariants."""
+    """All 7 RSI red lines must have formal invariants."""
 
     def test_rl001_resource_bound(self, tla_content: str) -> None:
         assert "RSIRL001_ResourceBoundInv" in tla_content
@@ -52,6 +52,12 @@ class TestRSIRedLineCoverage:
 
     def test_rl005_logging_requirement(self, tla_content: str) -> None:
         assert "RSIRL005_LoggingRequirementInv" in tla_content
+
+    def test_rl006_security_dim_protection(self, tla_content: str) -> None:
+        assert "RSIRL006_SecurityDimProtectionInv" in tla_content
+
+    def test_rl007_max_files_per_round(self, tla_content: str) -> None:
+        assert "RSIRL007_MaxFilesPerRoundInv" in tla_content
 
 
 class TestGrayCodeFSM:
@@ -101,8 +107,13 @@ class TestGrayCodeFSM:
 class TestTLCConfig:
     """TLC model checker configuration includes all invariants."""
 
-    def test_cfg_has_rl002(self, cfg_content: str) -> None:
-        assert "RSIRL002_AgentAutonomyInv" in cfg_content
+    def test_cfg_has_rl_invariants(self, cfg_content: str) -> None:
+        for inv in [
+            "RSIRL002_AgentAutonomyInv",
+            "RSIRL006_SecurityDimProtectionInv",
+            "RSIRL007_MaxFilesPerRoundInv",
+        ]:
+            assert inv in cfg_content, f"{inv} missing from TLC config"
 
     def test_cfg_has_base_invariants(self, cfg_content: str) -> None:
         for inv in [
