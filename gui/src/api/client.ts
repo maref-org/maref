@@ -9,10 +9,6 @@ export function getBackendMode() {
   return _backendMode;
 }
 
-export function setBackendMode(mode: "real" | "mock") {
-  _backendMode = mode;
-}
-
 export async function checkBackendHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${REAL_BACKEND}/health`, {

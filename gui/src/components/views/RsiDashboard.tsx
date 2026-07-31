@@ -78,7 +78,7 @@ export default function RsiDashboard() {
           <SectionHeader icon={Target} title="Cross-Impact Effects" />
           <div className="mt-3">
             <CrossImpactHeatmap
-              effects={crossEffects?.effects ?? []}
+              effects={crossEffects ?? []}
               loading={loading && !crossEffects}
               error={null}
             />
@@ -89,8 +89,7 @@ export default function RsiDashboard() {
           <SectionHeader icon={TrendingUp} title="Adaptive Allocation" />
           <div className="mt-3">
             <AdaptiveAllocationReport
-              allocation={adaptiveAllocation?.allocation ?? {}}
-              rationale={adaptiveAllocation?.rationale ?? ""}
+              allocations={adaptiveAllocation ?? []}
               loading={loading && !adaptiveAllocation}
               error={null}
             />
