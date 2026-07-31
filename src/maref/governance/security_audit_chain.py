@@ -1,11 +1,12 @@
 """Security Audit Chain - tamper-evident chain for security-critical events.
 
-Writes to .governance/security_audit.chain with HMAC-signed, chain-linked
-records. Each record's chain_hash = SHA256(previous_chain_hash + payload).
+DEPRECATED: Use ``maref.governance.audit.AuditLogger`` instead.
+This module is frozen (no new features, bug fixes only). It remains for
+backward compatibility with existing chain files.
 
-This complements the main AuditLogger by focusing on security-critical
-events (auth, access, privilege escalation, safety gate trips, etc.)
-with a dedicated, independently verifiable chain.
+The main AuditLogger (v0.38.0+) supports Ed25519 signing and interfaces
+with the Merkle audit tree via ``AuditChainIntegrator``. Prefer that
+over this module for all new code.
 """
 
 from __future__ import annotations

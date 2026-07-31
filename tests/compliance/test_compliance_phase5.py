@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from maref.compliance.five_eyes import (
     FiveEyesControl,
     FiveEyesMapper,
@@ -183,10 +185,8 @@ class TestEnhancedAuditLogging:
         assert len(trail) == 3
         # 验证不可变性：AuditEntry 是 frozen dataclass
         original_id = trail[0].id
-        try:
+        with pytest.raises(Exception):
             trail[0].id = "modified"
-        except Exception:
-            pass
         assert trail[0].id == original_id
 
     def test_export_within_timeframe(self):

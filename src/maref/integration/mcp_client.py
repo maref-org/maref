@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -15,6 +16,8 @@ from maref.integration.mcp_transport import (
     SSETransport,
     StdioTransport,
 )
+
+logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 1
 
@@ -90,6 +93,7 @@ class MCPClient:
     def __init__(self) -> None:
         self._connections: dict[str, MCPConnection] = {}
         self._governance: MCPGovernance | None = None
+        self.governance_bypassed_count: int = 0
 
     def register_governance(self, governance: MCPGovernance) -> None:
         self._governance = governance
@@ -212,6 +216,14 @@ class MCPClient:
             # 宪法第七条: FAIL_MODE 降级处理
             fail = str(fail_mode) if not isinstance(fail_mode, str) else fail_mode
             if fail == FailMode.OPEN or fail == "open":
+                self.governance_bypassed_count += 1
+                logger.warning(
+                    "Governance bypassed (fail_mode=open) | tool=%s agent=%s session=%s error=%s",
+                    tool_name,
+                    agent_id or "N/A",
+                    session_id or "N/A",
+                    exc,
+                )
                 return JSONRPCResponse(
                     jsonrpc="2.0",
                     result={

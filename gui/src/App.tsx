@@ -3,6 +3,7 @@ import { Sidebar, type MarefSection } from "@/components/layout/Sidebar";
 import { ChatPanel } from "@/components/layout/ChatPanel";
 import { TerminalPanel } from "@/components/layout/TerminalPanel";
 import { StatusBar } from "@/components/layout/StatusBar";
+import { GovernanceBanner } from "@/components/status/GovernanceBanner";
 import { ResizeHandle } from "@/components/layout/ResizeHandle";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { MarefDrawer } from "@/components/layout/MarefDrawer";
@@ -223,6 +224,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-maref-bg text-maref-text">
+      <GovernanceBanner />
       <div className="flex flex-1 overflow-hidden">
         <div
           className="flex-shrink-0 overflow-hidden transition-[width] duration-75"

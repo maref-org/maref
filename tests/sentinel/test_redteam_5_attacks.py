@@ -462,85 +462,70 @@ class TestSAEBRedTeamDetectionRate:
         results: dict[str, bool] = {}
 
         # 攻击 ①
-        try:
-            attack1 = PixelTrackingAttack()
-            probe = NetworkEgressProbe(
-                config=ProbeConfig(hmac_key=HMAC_KEY),
-                declared_endpoints=("api.anthropic.com",),
-            )
-            await probe.start()
-            await probe.submit_flow(attack1.build_flow_record())
-            events = await probe.poll()
-            await probe.stop()
-            results["pixel_tracking"] = any(
-                e.attack_type == AttackType.PIXEL_TRACKING for e in events
-            )
-        except Exception:
-            results["pixel_tracking"] = False
+        attack1 = PixelTrackingAttack()
+        probe = NetworkEgressProbe(
+            config=ProbeConfig(hmac_key=HMAC_KEY),
+            declared_endpoints=("api.anthropic.com",),
+        )
+        await probe.start()
+        await probe.submit_flow(attack1.build_flow_record())
+        events = await probe.poll()
+        await probe.stop()
+        results["pixel_tracking"] = any(
+            e.attack_type == AttackType.PIXEL_TRACKING for e in events
+        )
 
         # 攻击 ②
-        try:
-            attack2 = SilentTimezoneAttack(pid=20010)
-            mock_proc = MagicMock()
-            mock_proc.environ.side_effect = [{}, attack2.build_environ_dict()]
-            config = ProbeConfig(hmac_key=HMAC_KEY, target_pids=(attack2.pid,))
-            probe = EnvProbe(config=config)
-            with patch("maref.sentinel.probes.env_probe.psutil.Process", return_value=mock_proc):
-                await probe.start()
-                events = await probe.poll()
-                await probe.stop()
-            # EnvProbe 对 TZ 产出 ENV_EXFIL,这是攻击 ② 的 EnvProbe 侧检测
-            results["silent_timezone"] = any(
-                e.evidence.get("var_name") == "TZ" for e in events
-            )
-        except Exception:
-            results["silent_timezone"] = False
+        attack2 = SilentTimezoneAttack(pid=20010)
+        mock_proc = MagicMock()
+        mock_proc.environ.side_effect = [{}, attack2.build_environ_dict()]
+        config = ProbeConfig(hmac_key=HMAC_KEY, target_pids=(attack2.pid,))
+        probe = EnvProbe(config=config)
+        with patch("maref.sentinel.probes.env_probe.psutil.Process", return_value=mock_proc):
+            await probe.start()
+            events = await probe.poll()
+            await probe.stop()
+        # EnvProbe 对 TZ 产出 ENV_EXFIL,这是攻击 ② 的 EnvProbe 侧检测
+        results["silent_timezone"] = any(
+            e.evidence.get("var_name") == "TZ" for e in events
+        )
 
         # 攻击 ③
-        try:
-            attack3 = EnvExfilAttack(pid=20011)
-            probe = NetworkEgressProbe(
-                config=ProbeConfig(hmac_key=HMAC_KEY),
-                declared_endpoints=("api.anthropic.com",),
-            )
-            await probe.start()
-            await probe.submit_flow(attack3.build_exfil_flow_record())
-            events = await probe.poll()
-            await probe.stop()
-            # 未声明外联: attack_type=PRIVILEGE_ABUSE, detection=undeclared_egress
-            results["env_exfil"] = any(
-                e.attack_type == AttackType.PRIVILEGE_ABUSE
-                or "undeclared" in str(e.evidence.get("detection", "")).lower()
-                for e in events
-            )
-        except Exception:
-            results["env_exfil"] = False
+        attack3 = EnvExfilAttack(pid=20011)
+        probe = NetworkEgressProbe(
+            config=ProbeConfig(hmac_key=HMAC_KEY),
+            declared_endpoints=("api.anthropic.com",),
+        )
+        await probe.start()
+        await probe.submit_flow(attack3.build_exfil_flow_record())
+        events = await probe.poll()
+        await probe.stop()
+        # 未声明外联: attack_type=PRIVILEGE_ABUSE, detection=undeclared_egress
+        results["env_exfil"] = any(
+            e.attack_type == AttackType.PRIVILEGE_ABUSE
+            or "undeclared" in str(e.evidence.get("detection", "")).lower()
+            for e in events
+        )
 
         # 攻击 ④
-        try:
-            attack4 = SteganographyAttack(pid=20012)
-            probe = NetworkEgressProbe(
-                config=ProbeConfig(hmac_key=HMAC_KEY),
-                declared_endpoints=(attack4.exfil_domain,),
-            )
-            await probe.start()
-            await probe.submit_flow(attack4.build_flow_record())
-            events = await probe.poll()
-            await probe.stop()
-            results["steganography"] = any(
-                e.attack_type == AttackType.STEGANOGRAPHY for e in events
-            )
-        except Exception:
-            results["steganography"] = False
+        attack4 = SteganographyAttack(pid=20012)
+        probe = NetworkEgressProbe(
+            config=ProbeConfig(hmac_key=HMAC_KEY),
+            declared_endpoints=(attack4.exfil_domain,),
+        )
+        await probe.start()
+        await probe.submit_flow(attack4.build_flow_record())
+        events = await probe.poll()
+        await probe.stop()
+        results["steganography"] = any(
+            e.attack_type == AttackType.STEGANOGRAPHY for e in events
+        )
 
         # 攻击 ⑤
-        try:
-            attack5 = PrivilegeAbuseAttack()
-            validator = BashValidator()
-            is_valid, _, _ = validator.validate(attack5.build_bash_command())
-            results["privilege_abuse"] = not is_valid
-        except Exception:
-            results["privilege_abuse"] = False
+        attack5 = PrivilegeAbuseAttack()
+        validator = BashValidator()
+        is_valid, _, _ = validator.validate(attack5.build_bash_command())
+        results["privilege_abuse"] = not is_valid
 
         # 检测率 = 检出数 / 总数
         detected = sum(1 for v in results.values() if v)

@@ -1,9 +1,12 @@
 """
 MAREF Federated Audit Log
 
-Cross-instance audit trail that records all synchronization
-events, consensus decisions, and detected poisoning attempts.
-Each entry is HMAC-signed for tamper-evident verification.
+DEPRECATED: Use ``maref.eivl.federated_merkle.FederatedMerkleAggregator``
+instead. This module is frozen (no new features, bug fixes only).
+
+The FederatedMerkleAggregator supports Ed25519-signed proofs, offline
+verification, and cross-organization root aggregation. Prefer that
+over this module for all new code.
 """
 
 from __future__ import annotations

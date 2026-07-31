@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 
+import pytest
 from maref.recursive.complexity_budget import ArchitectureComplexityBudget
 from maref.recursive.continuous_optimizer import ContinuousOptimizer
 from maref.recursive.correlation_engine import CorrelationEngine

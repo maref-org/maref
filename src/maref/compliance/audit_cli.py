@@ -22,9 +22,8 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] MAS-TS: %(message)s")
 logger = logging.getLogger("mas_ts_compliance")
@@ -211,7 +210,7 @@ def run_audit(config_file: str | None = None, regulations: list[str] | None = No
 def print_report(report: dict):
     """打印人类可读的合规审计报告"""
     print(f"\n{'='*60}")
-    print(f"  MAS-TS 数据合规审计报告")
+    print("  MAS-TS 数据合规审计报告")
     print(f"  ID: {report['audit_id']}")
     print(f"{'='*60}")
     print(f"  适用法规: {', '.join(report['regulations'])}")
@@ -221,7 +220,7 @@ def print_report(report: dict):
     print(f"  ✅ 通过: {report['summary']['passed']}")
     print(f"  ❌ 失败: {report['summary']['failed']}")
 
-    print(f"\n  各阶段概况:")
+    print("\n  各阶段概况:")
     phase_names = {"collection": "数据收集", "processing": "数据处理",
                    "storage": "数据存储", "deletion": "数据删除"}
     for phase, stats in report["summary"]["phases"].items():

@@ -5,7 +5,7 @@ import time
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
@@ -21,6 +21,7 @@ from maref.observability.metric_store import MetricStore
 from maref.observability.security_headers_middleware import SecurityHeadersMiddleware
 from maref.recursive.cost_tracker import CostTracker
 from maref.tool.registry import ToolRegistry
+from sidecar.api_auth import AuthMiddleware, _register_route_scope, require_auth
 from sidecar.collector import MockAgentAdapter, ObservationCollector
 from sidecar.federation_router import router as federation_router
 from sidecar.gaas_router import router as gaas_router
@@ -29,6 +30,15 @@ from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
 from sidecar.monitor import CompositeMonitor
 from sidecar.obs_bridge import ObsBridge
 from sidecar.report_router import router as report_router
+
+_CORS_ORIGINS: list[str] = [
+    origin.strip()
+    for origin in os.environ.get(
+        "MAREF_CORS_ORIGINS",
+        ",".join(f"http://localhost:{p}" for p in range(3000, 3011)),
+    ).split(",")
+    if origin.strip()
+]
 
 _sessions: dict[str, dict[str, Any]] = {}
 _messages: dict[str, list[dict[str, Any]]] = {}
@@ -304,7 +314,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"providers": list(_providers.values())}
 
     @app.post("/api/providers")
-    def register_provider(provider: dict[str, Any]) -> dict[str, Any]:
+    @require_auth(scope="providers:admin")
+    def register_provider(request: Request, provider: dict[str, Any]) -> dict[str, Any]:
         provider_id = str(uuid4())
         provider["id"] = provider_id
         _providers[provider_id] = provider
@@ -330,7 +341,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"roots": [], "files": []}
 
     @app.post("/api/compliance/register")
-    def compliance_register(body: dict[str, Any]) -> dict[str, Any]:
+    @require_auth(scope="compliance:admin")
+    def compliance_register(request: Request, body: dict[str, Any]) -> dict[str, Any]:
         agent_id = body.get("agent_id", "")
         _compliance_agents[agent_id] = {
             "agent_id": agent_id,
@@ -360,7 +372,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"allowed": True, "decision": "allow"}
 
     @app.post("/api/compliance/snapshot")
-    def compliance_snapshot(body: dict[str, Any]) -> dict[str, Any]:
+    @require_auth(scope="compliance:admin")
+    def compliance_snapshot(request: Request, body: dict[str, Any]) -> dict[str, Any]:
         agent_id = body.get("agent_id", "")
         if agent_id not in _compliance_agents:
             return {"error": "Agent not found"}
@@ -585,7 +598,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"stats": dict(_hitl_stats)}
 
     @app.post("/api/v1/hitl/{event_id}/approve")
-    def hitl_approve(event_id: str) -> dict[str, Any]:
+    @require_auth(scope="hitl:write")
+    def hitl_approve(request: Request, event_id: str) -> dict[str, Any]:
         event = _hitl_events.get(event_id)
         if event is None:
             raise HTTPException(status_code=404, detail="HITL event not found")
@@ -598,7 +612,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"event_id": event_id, "status": "approved", "approved": True}
 
     @app.post("/api/v1/hitl/{event_id}/deny")
-    def hitl_deny(event_id: str) -> dict[str, Any]:
+    @require_auth(scope="hitl:write")
+    def hitl_deny(request: Request, event_id: str) -> dict[str, Any]:
         event = _hitl_events.get(event_id)
         if event is None:
             raise HTTPException(status_code=404, detail="HITL event not found")
@@ -611,7 +626,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"event_id": event_id, "status": "rejected", "cancelled": True, "reason": event.get("description", "")}
 
     @app.post("/api/v1/hitl/request")
-    def hitl_request(body: dict[str, Any]) -> dict[str, Any]:
+    @require_auth(scope="hitl:write")
+    def hitl_request(request: Request, body: dict[str, Any]) -> dict[str, Any]:
         event_id = f"hitl-{str(uuid4())[:8]}"
         event = {
             "event_id": event_id,
@@ -800,7 +816,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return snapshots
 
     @app.post("/api/v1/evolution/dry-run")
-    def evolution_dry_run() -> dict[str, Any]:
+    @require_auth(scope="evolution:execute")
+    def evolution_dry_run(request: Request) -> dict[str, Any]:
         import asyncio
 
         from maref.evolution.engine import EvolutionConfig, RecursiveEvolutionEngine
@@ -816,7 +833,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         }
 
     @app.post("/api/v1/evolution/approve-proposal")
-    def evolution_approve_proposal(body: dict[str, Any]) -> dict[str, Any]:
+    @require_auth(scope="evolution:execute")
+    def evolution_approve_proposal(request: Request, body: dict[str, Any]) -> dict[str, Any]:
         if body.get("approved") is not True or body.get("execute") is not True:
             raise HTTPException(
                 status_code=403,
@@ -839,7 +857,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"verifiers": _verifier_loop.get_verifiers()}
 
     @app.post("/api/verifiers/register")
-    def register_verifier(body: dict[str, str]) -> dict[str, str]:
+    @require_auth(scope="verifier:admin")
+    def register_verifier(request: Request, body: dict[str, str]) -> dict[str, str]:
         _verifier_loop.register_verifier(
             name=body.get("name", ""),
             model=body.get("model", ""),
@@ -848,7 +867,8 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         return {"status": "registered"}
 
     @app.post("/api/verifiers/check")
-    def verifier_check(body: dict[str, Any]) -> dict[str, Any]:
+    @require_auth(scope="verifier:execute")
+    def verifier_check(request: Request, body: dict[str, Any]) -> dict[str, Any]:
         result = _verifier_loop.check(
             action=body.get("action", ""),
             context=body.get("context", {}),
@@ -869,11 +889,12 @@ class SidecarFastAPI(FastAPI):
         super().__init__(title="MAREF Sidecar", version="0.38.0")
         self.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=_CORS_ORIGINS,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
+        self.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
         self.add_middleware(SecurityHeadersMiddleware)
         self.include_router(gaas_router)
         a2a_bridge = create_a2a_bridge()
@@ -882,17 +903,19 @@ class SidecarFastAPI(FastAPI):
         if federated:
             self.include_router(federation_router)
         _setup_routes(self, collector, monitor, obs_bridge)
+        _register_route_scope(self)
 
 
 def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False) -> FastAPI:
     app = FastAPI(title="MAREF Sidecar", version="0.35.0-beta")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
     app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(gaas_router)
     app.include_router(report_router)
@@ -902,4 +925,5 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     if federated:
         app.include_router(federation_router)
     _setup_routes(app, collector, monitor, obs_bridge)
+    _register_route_scope(app)
     return app

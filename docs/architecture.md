@@ -4,7 +4,7 @@
 
 ## Overview
 
-MAREF (Multi-Agent Recursive Evolution Framework) is an Agent Governance Operating System. It provides six-layer governance, formal verification via TLA+, a 64-state Gray-code finite state machine, dual-protocol communication (A2A + MCP), and a full audit/security/compliance infrastructure.
+MAREF (Multi-Agent Recursive Evolution Framework) is an Agent Governance Operating System. It provides six-layer governance, formal verification via TLA+, a 10-state Gray-code governance FSM, dual-protocol communication (A2A + MCP), and a full audit/security/compliance infrastructure.
 
 This document describes the architecture from four perspectives: the six-layer governance model, the runtime architecture layers, the protocol layer, and the security architecture.
 
@@ -201,7 +201,7 @@ Coordinates multi-agent task execution with formal planning and fault tolerance.
 Manages agent lifecycle, skill execution, and multi-agent coordination.
 
 #### Agent 24-State FSM (`src/maref/recursive/agent_24_state_machine.py`)
-- 64 states (8 trigrams x 8 sub-states)
+- 34 states (10 governance + 24 agent)
 - Gray-code transitions (Hamming distance = 1)
 - Pickle-safe snapshot/restore
 
@@ -605,7 +605,7 @@ Result returned to client
 
 | Decision | Rationale |
 |----------|-----------|
-| 64-state Gray Code FSM | Hamming distance=1 transitions guarantee stability |
+| 10-state Gray Code FSM | Hamming distance=1 transitions guarantee stability |
 | TLA+ formal verification | Prove correctness before implementation |
 | 5 constitutional red lines | Immutable safety constraints enforced at meta layer |
 | 8-trigram trust states | Trust-aware autonomy scaling with smooth transitions |

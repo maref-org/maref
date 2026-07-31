@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from maref.evolution.high_order_convergence import HighOrderConvergenceMonitor
+
 
 @dataclass
 class TLAInvariantCheck:
@@ -89,6 +91,13 @@ class TLAReplayValidator:
                 "check_type": "tla_invariant",
             },
             {
+                "name": "HighOrderConvergence",
+                "description": "Beyond first-order Lyapunov: variance, skewness, kurtosis all converged",
+                "expression": "mean_converged AND variance_converged AND distribution_symmetric AND no_extreme_outliers",
+                "check_type": "empirical",
+                "tolerance": {"mean_slope": 0.005, "variance": 0.05, "skewness": 0.5, "kurtosis": 1.0},
+            },
+            {
                 "name": "SafetyGateIntegrity",
                 "description": "Safety gate cannot be bypassed by any evolution decision",
                 "expression": "Square(SafetyGate.active = True /\\ forall decision: SafetyGate.evaluate(decision) != None)",
@@ -140,6 +149,7 @@ class TLAReplayValidator:
             "lyapunov": self.check_lyapunov(states),
             "halt_absorption": self.check_halt_absorption(states),
             "gray_code": self.check_gray_code_transitions(states),
+            "high_order_convergence": self.check_high_order_convergence(states),
         }
         return results
 
@@ -209,6 +219,34 @@ class TLAReplayValidator:
                 violations += 1
 
         return violations <= max(1, len(states) * 0.10)
+
+    def check_high_order_convergence(self, states: list[dict[str, Any]]) -> bool:
+        """Check high-order convergence on the state trajectory.
+
+        Extracts FNR, FPR, entropy, and KL-drift series from states
+        and verifies each converges by first-order AND high-order criteria.
+        """
+        if len(states) < 4:
+            return True
+
+        def _extract(key: str, default: float) -> list[float]:
+            return [s.get(key, default) for s in states]
+
+        fnr_series = _extract("fnr", 0.1)
+        fpr_series = _extract("fpr", 0.05)
+        entropy_series = _extract("entropy", 0.0)
+        kl_drift_series = _extract("kl_drift", 0.0)
+
+        monitor = HighOrderConvergenceMonitor(window=min(20, len(states)))
+
+        results = [
+            monitor.compute(fnr_series, "fnr"),
+            monitor.compute(fpr_series, "fpr"),
+            monitor.compute(entropy_series, "entropy"),
+            monitor.compute(kl_drift_series, "kl_drift"),
+        ]
+
+        return all(r.fully_converged for r in results)
 
     def generate_validation_report(
         self,
@@ -289,6 +327,18 @@ class TLAReplayValidator:
                         f"check_type={check_type}",
                         f"Gray code transition check on {len(states)} states: "
                         f"{'all single-bit' if passed else 'multi-bit violations detected'}",
+                    ],
+                )
+            elif name == "HighOrderConvergence":
+                passed = self.check_high_order_convergence(states)
+                check = TLAInvariantCheck(
+                    invariant_name=name,
+                    passed=passed,
+                    description=desc,
+                    details=[
+                        f"check_type={check_type}",
+                        f"High-order convergence check on {len(states)} states: "
+                        f"{'all metrics converged' if passed else 'one or more metrics not converged'}",
                     ],
                 )
             elif name in ("SafetyGateIntegrity", "RedLineImmutability"):

@@ -187,10 +187,7 @@ class TestSAEBSentinelBenchmark:
 
         for name, injector in attacks:
             metrics.total_attacks += 1
-            try:
-                detected = await injector()
-            except Exception:
-                detected = False
+            detected = await injector()
             metrics.per_attack_result[name] = detected
             if detected:
                 metrics.detected_attacks += 1
@@ -213,10 +210,7 @@ class TestSAEBSentinelBenchmark:
 
         for sample in benign_samples:
             metrics.total_benign += 1
-            try:
-                is_false_positive = await sample()
-            except Exception:
-                is_false_positive = False
+            is_false_positive = await sample()
             if is_false_positive:
                 metrics.false_positives += 1
 
@@ -250,23 +244,17 @@ class TestSAEBSentinelBenchmark:
             ("privilege_abuse", _inject_privilege_abuse),
         ]:
             metrics.total_attacks += 1
-            try:
-                if await injector():
-                    metrics.detected_attacks += 1
-                    metrics.per_attack_result[name] = True
-                else:
-                    metrics.per_attack_result[name] = False
-            except Exception:
+            if await injector():
+                metrics.detected_attacks += 1
+                metrics.per_attack_result[name] = True
+            else:
                 metrics.per_attack_result[name] = False
 
         # 误报率
         for _ in range(4):
             metrics.total_benign += 1
-            try:
-                if await _inject_benign_api_call():
-                    metrics.false_positives += 1
-            except Exception:
-                pass
+            if await _inject_benign_api_call():
+                metrics.false_positives += 1
 
         # 汇总报告 (打印到 stdout,pytest -s 时可见)
         print("\n" + "=" * 60)

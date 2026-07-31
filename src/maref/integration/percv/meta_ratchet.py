@@ -441,6 +441,15 @@ class MetaRatchet:
         n_rounds: int = 10,
     ) -> SandboxResult:
         """降级：模拟沙箱测试（无真实评估器时）"""
+
+        # H7: constitutional immutables are blocked even in simulated mode
+        if change.config_key in self.CONSTITUTIONAL_IMMUTABLES:
+            logger.warning("Simulated sandbox blocked: %s is constitutional immutable", change.config_key)
+            return SandboxResult(
+                protocol_change=change, old_avg_score=0, new_avg_score=0,
+                improvement=0, adopted=False, is_production_safe=False,
+            )
+
         import random
         rng = random.Random(42)
 
@@ -488,10 +497,15 @@ class MetaRatchet:
 
         # HITL 门控
         if self.is_production and self.require_hitl_in_production and not change.hitl_approved:
-            logger.info("HITL gate: waiting for human approval in production")
-            # 在实际实现中，这里会发送通知并等待人类确认
-            # 当前版本记录为待审批
-            change.hitl_approved = False
+            logger.warning("HITL gate: blocked — no human approval in production")
+            return SandboxResult(
+                protocol_change=change,
+                old_avg_score=0,
+                new_avg_score=0,
+                improvement=0,
+                adopted=False,
+                is_production_safe=False,
+            )
 
         # 运行沙箱
         if evaluator_fn is not None:

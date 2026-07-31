@@ -54,7 +54,7 @@ SUBMISSION_META = {
         "(constitutional constraints), Human Pole (human-in-the-loop), "
         "Earth Pole (execution semantics), Primary Hexagram (governance "
         "state machine), Derived Hexagram (domain-specific governance), "
-        "and Line Change (dynamic adaptation). MAREF employs a 64-state "
+        "and Line Change (dynamic adaptation). MAREF employs a 34-state "
         "Gray Code finite state machine, cryptographic attestation via "
         "SM2/SM3/SM4-GCM, and TLA+ formal verification to guarantee "
         "deterministic behavior across autonomous agent collectives. "

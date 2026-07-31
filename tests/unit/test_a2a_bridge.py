@@ -353,3 +353,60 @@ class TestSchemaValidation:
 
     def test_validate_non_dict(self) -> None:
         assert validate_agent_card_json("not-a-dict") is False  # type: ignore[arg-type]
+
+
+class TestTaskCausality:
+    """P1-1: Delegation chain causality via parent_action_id in A2ABridge."""
+
+    def test_create_task_records_last_action_id(self, bridge: A2ABridge) -> None:
+        task_id = bridge.create_task("Causal task")
+        assert task_id in bridge._last_action_ids
+        assert bridge._last_action_ids[task_id]
+
+    def test_delegate_task_chains_parent_action_id(
+        self, bridge: A2ABridge, audit_logger: AuditLogger
+    ) -> None:
+        task_id = bridge.create_task("Chain task")
+        bridge.delegate_task(task_id, "http://agent-b:8000")
+
+        entries = audit_logger.read_all()
+        create_entry = [e for e in entries if e.action == "create_task"][0]
+        delegate_entry = [e for e in entries if e.action == "delegate_task"][0]
+        assert delegate_entry.parent_action_id == create_entry.id
+
+    def test_sync_state_chains_from_create(
+        self, bridge: A2ABridge, audit_logger: AuditLogger
+    ) -> None:
+        task_id = bridge.create_task("Chain sync")
+        bridge.sync_state_from_a2a(task_id, "working")
+
+        entries = audit_logger.read_all()
+        create_entry = [e for e in entries if e.action == "create_task"][0]
+        sync_entry = [e for e in entries if e.action == "sync_state_from_a2a"][0]
+        assert sync_entry.parent_action_id == create_entry.id
+
+    def test_force_halt_chains_previous(
+        self, bridge: A2ABridge, audit_logger: AuditLogger
+    ) -> None:
+        task_id = bridge.create_task("Chain halt")
+        bridge.delegate_task(task_id, "http://agent-b:8000")
+        bridge.force_halt_task(task_id, "test halt")
+
+        entries = audit_logger.read_all()
+        delegate_entry = [e for e in entries if e.action == "delegate_task"][0]
+        halt_entry = [e for e in entries if e.action == "force_halt_task"][0]
+        assert halt_entry.parent_action_id == delegate_entry.id
+
+    def test_causality_chain_survives_serialization(
+        self, bridge: A2ABridge, audit_logger: AuditLogger
+    ) -> None:
+        task_id = bridge.create_task("Serial chain")
+        bridge.delegate_task(task_id, "http://agent-b:8000")
+
+        entries = audit_logger.read_all()
+        create_entry = [e for e in entries if e.action == "create_task"][0]
+        delegate_entry = [e for e in entries if e.action == "delegate_task"][0]
+        assert delegate_entry.parent_action_id == create_entry.id
+
+        d = delegate_entry.to_dict()
+        assert d.get("parent_action_id") == create_entry.id

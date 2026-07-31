@@ -54,7 +54,7 @@
     "Differentiator": {
       "description": "Unique selling points — what only MAREF has",
       "points": [
-        "TLA+ formal verification with 5 proven theorems (Lyapunov convergence + Sperner completeness + HALT absorbing + Gray Code transition + Safety Gate integrity)",
+        "TLA+ formal verification with 5 model-checked invariants (HALT absorbing, Gray Code transition, Safety Gate integrity, Red Line immutability, state reachability)",
         "10-state Gray Code governance state machine (Hamming distance=1, mathematically provable convergence)",
         "Three-gate skill marketplace admission (static scan + sandbox test + manual review) — no other open-source agent framework has this",
         "10/10 OWASP Agentic Top 10 risk coverage — first open-source framework to achieve this",

@@ -134,12 +134,13 @@ telemetry-server/data/
 # OpenCode config
 .opencode/
 
-# Website (maref.cc) — track source, ignore build artifacts
+# Website (maref.cc) - track source, ignore build artifacts
 website/dist/
 website/node_modules/
 website/.astro/
 website/.wrangler/
 website/.DS_Store
+docs/website/.docusaurus/
 !docs/website/blog/
 !docs/website/blog/**
 

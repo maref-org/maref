@@ -45,7 +45,7 @@ jobs:
         run: python -c "from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, f'Mock mismatch: {errors}'"
         continue-on-error: true
       - name: Coverage report
-        run: coverage report --fail-under=30
+        run: coverage report --fail-under=40
 
   security:
     needs: lint
@@ -67,6 +67,50 @@ jobs:
         run: |
           pip install trufflehog
           trufflehog filesystem . --config .trufflehog.yaml --since 2026-01-01
+
+  integrity:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for hardcoded passed=True in validation code
+        run: |
+          # 禁止验证代码中硬编码 passed=True（T0-1 诚信修复项）
+          if grep -rn "passed=True" src/maref/recursive/tla_replay.py 2>/dev/null; then
+            echo "ERROR: tla_replay.py still contains hardcoded passed=True"
+            exit 1
+          fi
+          echo "✅ No hardcoded passed=True in validation code"
+      - name: Check for remaining 64-state claims
+        run: |
+          # 禁止"64-state"夸大声明
+          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
+          if [ -n "$FILES" ]; then
+            echo "ERROR: Found remaining '64-state' claims in:"
+            echo "$FILES"
+            exit 1
+          fi
+          echo "✅ No 64-state claims remain"
+      - name: Check for Sperner claims
+        run: |
+          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null; then
+            echo "ERROR: Found remaining Sperner claims"
+            exit 1
+          fi
+          echo "✅ No Sperner claims remain"
+      - name: Check for 82% coverage claims in product-facing docs
+        run: |
+          # Check product-facing docs only (README, wiki, website product pages)
+          # Skip plans/, research/, changelog (internal/historical records)
+          for f in README.md README.zh-CN.md .wiki/Home.md website/src/content/pages/product-overview.md docs/MAREF-Technical-Whitepaper-arXiv.md; do
+            if [ -f "$f" ] && grep -q "82%" "$f" 2>/dev/null; then
+              if grep -qi "cover" "$f" 2>/dev/null; then
+                echo "ERROR: $f still has 82% coverage claim"
+                exit 1
+              fi
+            fi
+          done
+          echo "✅ No 82% coverage claims in product-facing docs"
 
   crypto-test:
     needs: test

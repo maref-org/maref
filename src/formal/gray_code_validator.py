@@ -157,28 +157,133 @@ def print_gray_code_table() -> None:
     console.print()
 
 
+# ── 24-state Agent FSM validation ──────────────────────────────────────
+
+from maref.recursive.agent_24_state_machine import (
+    GRAY_CODE_5BIT,
+    AgentStateV3,
+    VALID_TRANSITIONS,
+)
+
+
+def validate_agent24_single_bit() -> tuple[bool, list[str]]:
+    errors: list[str] = []
+    for s, targets in VALID_TRANSITIONS.items():
+        for t in targets:
+            gs = GRAY_CODE_5BIT[s]
+            gt = GRAY_CODE_5BIT[t]
+            dist = sum(1 for a, b in zip(gs, gt) if a != b)
+            if dist != 1:
+                errors.append(
+                    f"Agent transition {s.value} -> {t.value} "
+                    f"has Hamming distance {dist}, expected 1"
+                )
+    return len(errors) == 0, errors
+
+
+def validate_agent24_no_self_loop() -> tuple[bool, list[str]]:
+    errors: list[str] = []
+    for s in AgentStateV3:
+        if s in VALID_TRANSITIONS.get(s, set()):
+            errors.append(f"Agent state {s.value} has self-loop")
+    return len(errors) == 0, errors
+
+
+def validate_agent24_terminals_absorbing() -> tuple[bool, list[str]]:
+    errors: list[str] = []
+    for terminal in (AgentStateV3.TERMINATED, AgentStateV3.ZOMBIE):
+        if VALID_TRANSITIONS.get(terminal, set()):
+            errors.append(f"Agent terminal state {terminal.value} has outgoing transitions")
+    return len(errors) == 0, errors
+
+
+def validate_agent24_no_orphans() -> tuple[bool, list[str]]:
+    has_incoming: set[AgentStateV3] = set()
+    for _, targets in VALID_TRANSITIONS.items():
+        has_incoming.update(targets)
+    orphans = set(AgentStateV3) - has_incoming - {AgentStateV3.UNINITIALIZED}
+    errors = [f"Orphan state: {s.value}" for s in sorted(orphans, key=lambda x: x.value)]
+    return len(errors) == 0, errors
+
+
+def validate_agent24_state_count() -> tuple[bool, list[str]]:
+    count = len(set(AgentStateV3))
+    ok = count == 24
+    return ok, [] if ok else [f"Expected 24 states, got {count}"]
+
+
+def validate_agent24_all() -> list[tuple[str, tuple[bool, list[str]]]]:
+    validators = [
+        ("Agent24: Single-bit transitions", validate_agent24_single_bit()),
+        ("Agent24: No self-loops", validate_agent24_no_self_loop()),
+        ("Agent24: Terminals absorbing", validate_agent24_terminals_absorbing()),
+        ("Agent24: No orphans", validate_agent24_no_orphans()),
+        ("Agent24: State count = 24", validate_agent24_state_count()),
+    ]
+    return validators
+
+
+def run_all_validations() -> tuple[bool, dict[str, tuple[bool, list[str]]]]:
+    checks: dict[str, tuple[bool, list[str]]] = {}
+
+    all_passed = True
+    for check_name, (passed, errors) in [
+        ("Single-bit transitions", validate_single_bit_transitions()),
+        ("No self-loops", validate_no_self_loops(compute_valid_transitions())),
+        ("Terminal absorbing", validate_terminal_absorbing(compute_valid_transitions())),
+        ("Cycle completeness", validate_reachability()),
+        ("Entropy bound", validate_entropy_profile()),
+        ("Gray code uniqueness", validate_gray_code_completeness()),
+    ]:
+        checks[check_name] = (passed, errors)
+        if not passed:
+            all_passed = False
+
+    for check_name, (passed, errors) in validate_agent24_all():
+        checks[check_name] = (passed, errors)
+        if not passed:
+            all_passed = False
+
+    return all_passed, checks
+
+
 if __name__ == "__main__":
     console.print("=" * 60)
-    console.print("MAREF-Lite Gray Code State Machine Validation")
+    console.print("MAREF Gray Code State Machine Validation")
     console.print("=" * 60)
 
     print_gray_code_table()
     print_transition_graph()
 
-    console.print("Running validation checks...")
+    console.print("\nRunning 10-state governance FSM checks...")
     console.print("=" * 60)
+    for check_name, (passed, errors) in [
+        ("Single-bit transitions", validate_single_bit_transitions()),
+        ("No self-loops", validate_no_self_loops(compute_valid_transitions())),
+        ("Terminal absorbing", validate_terminal_absorbing(compute_valid_transitions())),
+        ("Cycle completeness", validate_reachability()),
+        ("Entropy bound", validate_entropy_profile()),
+        ("Gray code uniqueness", validate_gray_code_completeness()),
+    ]:
+        status = "PASS" if passed else "FAIL"
+        console.print(f"  [{status}] {check_name}")
+        for error in errors:
+            console.print(f"         -> {error}")
 
-    all_passed, checks = run_all_validations()
-
-    for check_name, (passed, errors) in checks.items():
+    console.print("\nRunning 24-state agent FSM checks...")
+    console.print("=" * 60)
+    for check_name, (passed, errors) in validate_agent24_all():
         status = "PASS" if passed else "FAIL"
         console.print(f"  [{status}] {check_name}")
         for error in errors:
             console.print(f"         -> {error}")
 
     console.print("=" * 60)
+    all_passed = all(
+        p for _, (p, _) in validate_agent24_all()
+    ) and validate_single_bit_transitions()[0]
     if all_passed:
-        console.print("All validations PASSED")
+        console.print("\nAll validations PASSED")
     else:
-        console.print("Some validations FAILED")
+        console.print("\nSome validations FAILED")
     console.print("=" * 60)

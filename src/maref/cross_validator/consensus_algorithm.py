@@ -92,23 +92,26 @@ class ValidatorNode:
 
 @dataclass
 class Vote:
-    """投票"""
+    """投票 (Ed25519-signed for verifiable evidence)"""
 
     validator_id: str
     vote_value: VoteValue
     proposal_id: str
     timestamp: float
     justification: str | None = None
-    signature: str | None = None  # 简化的签名
+    signature: str | None = None  # Ed25519 hex signature
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "validator_id": self.validator_id,
             "vote": self.vote_value.value,
             "proposal_id": self.proposal_id,
             "timestamp": self.timestamp,
             "justification": self.justification,
         }
+        if self.signature:
+            result["signature"] = self.signature
+        return result
 
 
 @dataclass
@@ -251,15 +254,17 @@ class WeightedConsensusEngine:
         validator_id: str,
         vote_value: VoteValue,
         justification: str | None = None,
+        signer: Any | None = None,
     ) -> Vote | None:
         """
-        投票
+        投票 (可选 Ed25519 签名)
 
         Args:
             proposal_id: 提案 ID
             validator_id: 验证者 ID
             vote_value: 投票值
             justification: 投票理由
+            signer: Ed25519KeyPair 实例，用于签名投票
 
         Returns:
             Vote: 投票记录，如果失败返回 None
@@ -285,6 +290,15 @@ class WeightedConsensusEngine:
             timestamp=time.time(),
             justification=justification,
         )
+
+        # Ed25519 签名
+        if signer is not None:
+            try:
+                msg = f"{validator_id}|{vote_value.value}|{proposal_id}|{vote.timestamp}".encode()
+                sig = signer.sign(msg)
+                vote.signature = sig.hex()
+            except Exception:
+                vote.signature = "sign_error"
 
         self._votes[proposal_id].append(vote)
         return vote

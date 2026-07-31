@@ -9,6 +9,9 @@ Key components:
 - ReputationTracker: skill success/failure scoring
 """
 
+from maref.marketplace.adapter import ManifestAdapter
+from maref.marketplace.execution import approve_and_execute, execute_skill
+from maref.marketplace.loader import MarketplaceSkillLoader
 from maref.marketplace.registry import (
     SkillManifest,
     SkillRegistry,
@@ -28,6 +31,8 @@ from maref.marketplace.version_negotiator import (
 )
 
 __all__ = [
+    "ManifestAdapter",
+    "MarketplaceSkillLoader",
     "MatchScore",
     "ReputationRecord",
     "ReputationTracker",
@@ -37,4 +42,6 @@ __all__ = [
     "SkillValidationResult",
     "VersionNegotiator",
     "VersionNegotiationResult",
+    "approve_and_execute",
+    "execute_skill",
 ]

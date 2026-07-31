@@ -505,6 +505,82 @@ class TestFederationGatewayDispatch:
         assert gw.dispatch_task(task) is None
 
 
+class TestACSVerification:
+    def test_register_with_valid_acs_signature(self, acs_document: dict, gateway: FederationGateway) -> None:
+        import json
+
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+        aic = AIC.generate()
+        doc = dict(acs_document, aic=aic.aic_string)
+        kp = Ed25519KeyPair.generate()
+        sig = kp.sign(json.dumps(doc, sort_keys=True).encode()).hex()
+        req = FederationRequest(
+            aic_string=aic.aic_string,
+            acs_document=doc,
+            endpoint_url="https://agent.example.com/api",
+            acs_signature=sig,
+            acs_public_key_pem=kp.public_key_pem,
+        )
+        resp = gateway.register_agent(req)
+        assert resp.success is True
+        assert resp.did_string != ""
+
+    def test_register_with_invalid_acs_signature_rejected(self, acs_document: dict, gateway: FederationGateway) -> None:
+        import json
+
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+        aic = AIC.generate()
+        doc = dict(acs_document, aic=aic.aic_string)
+        real_kp = Ed25519KeyPair.generate()
+        fake_kp = Ed25519KeyPair.generate()
+        acs_bytes = json.dumps(doc, sort_keys=True).encode()
+        wrong_sig = real_kp.sign(acs_bytes).hex()
+        req = FederationRequest(
+            aic_string=aic.aic_string,
+            acs_document=doc,
+            endpoint_url="https://evil.com/api",
+            acs_signature=wrong_sig,
+            acs_public_key_pem=fake_kp.public_key_pem,
+        )
+        resp = gateway.register_agent(req)
+        assert resp.success is False
+        assert "signature" in resp.error.lower()
+
+    def test_register_without_signature_succeeds(self, acs_document: dict, gateway: FederationGateway) -> None:
+        aic = AIC.generate()
+        doc = dict(acs_document, aic=aic.aic_string)
+        req = FederationRequest(
+            aic_string=aic.aic_string,
+            acs_document=doc,
+            endpoint_url="https://agent.example.com/api",
+        )
+        resp = gateway.register_agent(req)
+        assert resp.success is True
+
+    def test_stored_agent_has_signature_fields(self, acs_document: dict, gateway: FederationGateway) -> None:
+        import json
+
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+        aic = AIC.generate()
+        doc = dict(acs_document, aic=aic.aic_string)
+        kp = Ed25519KeyPair.generate()
+        sig = kp.sign(json.dumps(doc, sort_keys=True).encode()).hex()
+        req = FederationRequest(
+            aic_string=aic.aic_string,
+            acs_document=doc,
+            endpoint_url="https://agent.example.com/api",
+            acs_signature=sig,
+            acs_public_key_pem=kp.public_key_pem,
+        )
+        gateway.register_agent(req)
+        agent = gateway.get_agent_by_aic(aic.aic_string)
+        assert agent is not None
+        assert agent.acs_signature == sig
+        assert agent.acs_public_key_pem == kp.public_key_pem
+        assert agent.acs_digest != ""
+        assert agent.verify_acs_integrity(raw_acs_document=doc) is True
+
+
 class TestFederationGatewaySummary:
     def test_summary_initial_state(self) -> None:
         gw = FederationGateway()

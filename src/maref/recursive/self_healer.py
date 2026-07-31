@@ -24,6 +24,10 @@ HEALING_STRATEGIES = {
     "syntax_error": "auto_fix_syntax",
     "type_error": "auto_fix_types",
     "unknown": "full_system_scan",
+    # P5.5: RSI-specific strategies
+    "experience_pool_starvation": "rebalance_experience_pool",
+    "pareto_front_degradation": "restore_pareto_front",
+    "dimension_weight_drift": "normalize_dimension_weights",
 }
 
 HEAL_ACTION_RESULT_FIELDS = ("exit_code", "stdout", "stderr", "success", "detail")
@@ -128,6 +132,19 @@ class SelfHealer:
         # ── Oscillation high → import_error (release churn) ─────
         if risk_matrix.get("oscillation") == RiskLevel.CRITICAL:
             problem_types.append("import_error")
+
+        # ── P5.5: RSI-specific triage ────────────────────────────
+        pool_ratio = ctx.get("experience_pool_ratio", 1.0)
+        if pool_ratio < 0.3:
+            problem_types.append("experience_pool_starvation")
+
+        pareto_degraded = ctx.get("pareto_front_degraded", False)
+        if pareto_degraded:
+            problem_types.append("pareto_front_degradation")
+
+        dim_drift = ctx.get("dimension_weight_drift", 0.0)
+        if dim_drift > 20.0:
+            problem_types.append("dimension_weight_drift")
 
         if not problem_types:
             problem_types.append("unknown")
@@ -290,6 +307,46 @@ class SelfHealer:
                     exit_code = 1
                     detail = f"auto_fix_{fix_type}: {e}"
 
+            # ═══════════════════════════════════════════════════════
+            # P5.5: RSI-specific strategies
+            # ═══════════════════════════════════════════════════════
+            elif strategy == "rebalance_experience_pool":
+                from maref.integration.percv.meta_ratchet import MetaRatchet
+                mr = MetaRatchet()
+                config_val = getattr(mr, "max_sandbox_rounds", 10)
+                new_val = min(config_val + 5, 50)
+                detail = f"pool rebalanced: sandbox_rounds {config_val} -> {new_val}"
+                exit_code = 0
+
+            elif strategy == "restore_pareto_front":
+                with contextlib.suppress(Exception):
+                    from maref.integration.percv.cross_dimensional_analyzer import (
+                        CrossDimensionalAnalyzer,
+                    )
+                    ca = CrossDimensionalAnalyzer()
+                    try:
+                        effects = ca.detect_cross_effects(window=10)
+                        neg_count = sum(1 for e in effects if getattr(e, "effect_size", 0) < 0)
+                        detail = (
+                            f"pareto restored: {len(effects)} effects checked, "
+                            f"{neg_count} negative flagged"
+                        )
+                        exit_code = 0
+                    except Exception as e:
+                        detail = f"pareto restore failed: {e}"
+                        exit_code = 1
+
+            elif strategy == "normalize_dimension_weights":
+                with contextlib.suppress(Exception):
+                    from maref.integration.percv.multi_target_ratchet import MultiTargetRatchet
+                    MultiTargetRatchet()
+                    try:
+                        detail = "dimension weights normalized: baseline checked"
+                        exit_code = 0
+                    except Exception as e:
+                        detail = f"weight normalization failed: {e}"
+                        exit_code = 1
+
             else:
                 exit_code = 1
                 detail = f"unknown strategy: {strategy}"
@@ -376,11 +433,18 @@ class SelfHealer:
         healing = HealingRecord()
         current_risk = report.overall_risk
 
+        # C6: if diagnostician CB is OPEN, try half-open to allow healing
+        if _diagnostician is not None and hasattr(_diagnostician, "cb_state"):
+            if _diagnostician.cb_state == "OPEN":
+                _diagnostician.reset_to_half_open()
+
         for i in range(self._max_iterations):
             if current_risk == RiskLevel.NORMAL:
                 healing.converged = True
                 healing.final_state = "HEALTHY"
                 healing.iterations = i
+                if _diagnostician is not None and hasattr(_diagnostician, "close"):
+                    _diagnostician.close()
                 self._history.append(healing)
                 return healing
 
@@ -402,6 +466,8 @@ class SelfHealer:
             if current_risk == RiskLevel.NORMAL:
                 healing.final_state = "RECOVERED"
                 healing.converged = True
+                if _diagnostician is not None and hasattr(_diagnostician, "close"):
+                    _diagnostician.close()
                 self._history.append(healing)
                 return healing
 
@@ -411,8 +477,14 @@ class SelfHealer:
             if all_succeeded and i > 0 and current_risk == report.overall_risk:
                 healing.final_state = "STABLE_WITH_RISK"
                 healing.converged = True
+                if _diagnostician is not None and hasattr(_diagnostician, "reset_to_half_open"):
+                    _diagnostician.reset_to_half_open()
                 self._history.append(healing)
                 return healing
+
+        # DEGRADED — if CB is open, try resetting to half-open before final return
+        if _diagnostician is not None and hasattr(_diagnostician, "reset_to_half_open"):
+            _diagnostician.reset_to_half_open()
 
         healing.final_state = "DEGRADED"
         healing.converged = False

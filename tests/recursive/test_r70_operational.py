@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from maref.orchestration.operational_validator import (
     OperationalReport,
     OperationalValidator,

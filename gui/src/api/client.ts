@@ -24,10 +24,25 @@ export async function checkBackendHealth(): Promise<boolean> {
   }
 }
 
+function _dispatchGovernanceEvent(mode: "real" | "mock") {
+  if (mode === "mock") {
+    window.dispatchEvent(new CustomEvent("governance:offline", { detail: { mode } }));
+  } else {
+    window.dispatchEvent(new CustomEvent("governance:online", { detail: { mode } }));
+  }
+  window.dispatchEvent(new CustomEvent("governance:backend-mode", { detail: { mode } }));
+}
+
 export async function detectBackend(): Promise<"real" | "mock"> {
   const healthy = await checkBackendHealth();
   _backendMode = healthy ? "real" : "mock";
+  _dispatchGovernanceEvent(_backendMode);
   return _backendMode;
+}
+
+export function setBackendMode(mode: "real" | "mock") {
+  _backendMode = mode;
+  _dispatchGovernanceEvent(mode);
 }
 
 export function connectWebSocket(path: string): WebSocket {

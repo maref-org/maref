@@ -29,10 +29,9 @@ import logging
 import math
 import random
 import sys
-from collections import Counter, defaultdict
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from collections import Counter
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] BA-SDK: %(message)s")
 logger = logging.getLogger("behavior_analysis")
@@ -370,7 +369,7 @@ def main():
                     print(f"  {sev_icon[a.severity]} [{a.anomaly_type}] {a.description}")
                     print(f"    → {a.recommendation}")
             else:
-                print(f"\n✅ 未检测到异常行为")
+                print("\n✅ 未检测到异常行为")
 
             # Step 4-5: Report
             report = generate_report(events, baseline, anomalies)
@@ -381,7 +380,7 @@ def main():
 
         except FileNotFoundError:
             print(f"❌ 文件不存在: {input_file}")
-            print(f"   先用 'simulate' 生成示例数据")
+            print("   先用 'simulate' 生成示例数据")
 
     elif cmd == "report":
         report_file = sys.argv[2] if len(sys.argv) > 2 else "ba-report-agent-ghost-001.json"
@@ -389,7 +388,7 @@ def main():
             with open(report_file) as f:
                 report = json.load(f)
             print(f"\n{'='*60}")
-            print(f"  Agent 行为分析报告")
+            print("  Agent 行为分析报告")
             print(f"  ID: {report['report_id']}")
             print(f"{'='*60}")
             print(f"  Agent: {report['agent_id']}")

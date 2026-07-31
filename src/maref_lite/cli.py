@@ -35,6 +35,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from maref.governance import AuditLogger
 from maref.governance.state_machine import _default_audit_log_path
 from maref.production.ip_cli import ip_app
 from maref_lite.commands.demo import app as demo_app
@@ -57,6 +58,30 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+
+# ── Governance bypass audit ──
+_bypass_audit: AuditLogger | None = None
+
+
+def _get_bypass_audit() -> AuditLogger:
+    global _bypass_audit
+    if _bypass_audit is None:
+        _bypass_audit = AuditLogger(log_path="governance_audit.jsonl")
+    return _bypass_audit
+
+
+def _log_bypass(flag: str, command: str, reason: str = "") -> None:
+    """Record a governance bypass event in the audit log."""
+    _get_bypass_audit().log_decision(
+        actor="CLI",
+        action=f"governance_bypassed:{flag}",
+        reason=reason or f"CLI flag --{flag} enabled for {command}",
+        from_state="N/A",
+        to_state="N/A",
+        bypass_flag=flag,
+        command=command,
+        timestamp=time.time(),
+    )
 
 
 @app.callback(invoke_without_command=True)
@@ -288,6 +313,8 @@ def desktop_run(
         raise typer.Exit(code=1) from e
 
     dry_run = not live
+    if live:
+        _log_bypass("live", "desktop run", reason=f"Desktop task executed with real mouse/keyboard: {task[:60]}")
     console.print(f"[bold]MAREF Desktop Agent[/bold] ({'LIVE' if live else 'dry-run'})")
     console.print(f"Task: {task or '(demo)'}")
 
@@ -1181,6 +1208,8 @@ def self_heal_start(
     """启动自我修复循环（SelfObserver→Diagnostician→Healer 闭环）."""
     from maref_lite.self_healing_loop import SelfHealingConfig, SelfHealingLoop
 
+    if execute_proposals:
+        _log_bypass("execute-proposals", "self-heal start", reason="SelfExecutor write bypassed proposal dry-run")
     config = SelfHealingConfig(
         check_interval_seconds=interval,  # type: ignore[arg-type]
         proposal_dry_run=not execute_proposals,
@@ -1291,6 +1320,8 @@ def daemon_start(
 
     from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
 
+    if not dry_run:
+        _log_bypass("no-dry-run", "daemon start", reason="Evolution daemon running with real writes enabled")
     config = DaemonConfig(
         interval_hours=interval,
         max_runs=max_runs,

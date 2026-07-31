@@ -57,7 +57,6 @@ def _parse_yaml(text: str) -> dict:
 def _parse_yaml_simple(text: str) -> dict:
     """Minimal YAML parser for flat nested dicts (fallback)."""
     result: dict = {}
-    current = result
     path: list[str] = []
     for line in text.splitlines():
         stripped = line.strip()
@@ -80,7 +79,6 @@ def _parse_yaml_simple(text: str) -> dict:
                 else:
                     result[key] = new_dict
                 path.append((key, indent))
-                current = new_dict
             else:
                 if value.lower() == "true":
                     value = True
@@ -88,13 +86,10 @@ def _parse_yaml_simple(text: str) -> dict:
                     value = False
                 elif value.lower() == "null" or value == "~":
                     value = None
-                try:
-                    if "." in value:
-                        value = float(value)
-                    else:
-                        value = int(value)
-                except (ValueError, TypeError):
-                    pass
+                    try:
+                        value = float(value) if "." in value else int(value)
+                    except (ValueError, TypeError):
+                        pass
                 if path:
                     parent = result
                     for p in path:
@@ -126,64 +121,21 @@ def check_gates(json_output: bool = False) -> tuple[bool, list[dict]]:
 
     d1 = (state or {}).get("d1_gate", {})
 
-    # G1: arXiv ID or Journal Acceptance (fallback)
-    g1_pass = d1.get("G1_arxiv_id", False)
-    
-    # Check journal acceptance as fallback bypass (per STATE.yaml strategy)
-    submission_pipeline = (state or {}).get("submission_pipeline", {})
-    journals = submission_pipeline.get("journals", [])
-    arxiv_endorsement = submission_pipeline.get("arxiv_endorsement", {})
-    fallback_strategy = arxiv_endorsement.get("fallback", "")
-    
-    journal_accepted = any(j.get("status") == "accepted" for j in journals)
-    g1_bypass = journal_accepted and fallback_strategy == "journal_acceptance"
-    
-    # Check override (for emergency pushes during arXiv blocking period)
-    allow_override = d1.get("allow_push_override", False)
-    override_reason = d1.get("override_reason", "")
-    
-    if allow_override and override_reason:
-        g1_pass = True
-        detail = f"⚠️ Override enabled: {override_reason}"
-        action = None
-    elif g1_bypass:
-        g1_pass = True
-        detail = f"✅ Journal acceptance bypass (arXiv not needed)"
-        action = None
-    elif g1_pass:
-        detail = "✅ arXiv ID obtained"
-        action = None
+    # G1: Branch Protection
+    g1 = d1.get("G1_branch_protection", False)
+    if g1:
+        gates.append({"id": "G1", "name": "Branch Protection", "pass": True, "detail": "✅ Branch protection enabled on main"})
     else:
-        detail = f"❌ arXiv ID not obtained. {len(journals)} journal(s) submitted, fallback={fallback_strategy}"
-        action = "Publish to journal and use acceptance as arXiv bypass"
-    
-    gates.append({
-        "id": "G1",
-        "name": "arXiv ID / Journal Acceptance",
-        "pass": g1_pass,
-        "detail": detail,
-        "action": action,
-    })
-    if not g1_pass:
-        all_pass = False
-
-    # G2: Branch Protection
-    g2_name = "G2_branch_protection"
-    g2 = d1.get(g2_name, False)
-    if g2:
-        gates.append({"id": "G2", "name": "Branch Protection", "pass": True, "detail": "✅ Branch protection enabled on main"})
-    else:
-        # Try live check via gh
-        live_pass, detail = _check_github_gate("G2", ["gh", "api", "/repos/maref-org/maref/branches/main/protection", "--jq", ".required_status_checks.enabled"], True, "Branch protection enabled on main")
-        g2 = live_pass
-        gates.append({"id": "G2", "name": "Branch Protection", "pass": live_pass, "detail": detail})
+        live_pass, detail = _check_github_gate("G1", ["gh", "api", "/repos/maref-org/maref/branches/main/protection", "--jq", ".required_status_checks.enabled"], True, "Branch protection enabled on main")
+        g1 = live_pass
+        gates.append({"id": "G1", "name": "Branch Protection", "pass": live_pass, "detail": detail})
         if not live_pass:
             all_pass = False
 
-    # G3: CI Green
-    g3 = d1.get("G3_ci_green", False)
-    if g3:
-        gates.append({"id": "G3", "name": "CI Status", "pass": True, "detail": "✅ All CI checks passing"})
+    # G2: CI Green
+    g2 = d1.get("G2_ci_green", False)
+    if g2:
+        gates.append({"id": "G2", "name": "CI Status", "pass": True, "detail": "✅ All CI checks passing"})
     else:
         try:
             ci_result = subprocess.run(
@@ -194,35 +146,34 @@ def check_gates(json_output: bool = False) -> tuple[bool, list[dict]]:
             if ci_result.returncode == 0:
                 runs = json.loads(ci_result.stdout) if ci_result.stdout.strip() else []
                 failures = [r for r in runs if r.get("conclusion") == "failure"]
-                g3 = len(failures) == 0
+                g2 = len(failures) == 0
             else:
-                g3 = False
+                g2 = False
         except (json.JSONDecodeError, subprocess.TimeoutExpired, OSError):
-            g3 = False
+            g2 = False
         gates.append({
-            "id": "G3", "name": "CI Status", "pass": g3,
-            "detail": "✅ All CI checks passing" if g3 else "❌ CI has failures",
+            "id": "G2", "name": "CI Status", "pass": g2,
+            "detail": "✅ All CI checks passing" if g2 else "❌ CI has failures",
         })
-        if not g3:
+        if not g2:
             all_pass = False
 
-    # G4: Security Scan Clean
-    g4 = d1.get("G4_security_clean", False)
+    # G3: Security Scan Clean
+    g3 = d1.get("G3_security_clean", False)
     gates.append({
-        "id": "G4", "name": "Security Scan", "pass": g4,
-        "detail": "✅ Security scan passed" if g4 else "❌ Security scan has findings",
+        "id": "G3", "name": "Security Scan", "pass": g3,
+        "detail": "✅ Security scan passed" if g3 else "❌ Security scan has findings",
     })
-    if not g4:
+    if not g3:
         all_pass = False
 
-    # G5: No Runtime Artifacts (context-aware: public/maref checks .openclaw/; openclaw doesn't)
-    g5 = True
+    # G4: No Runtime Artifacts (context-aware: public/maref checks .openclaw/; openclaw doesn't)
     is_public_maref = "public/maref" in os.getcwd() or "public/maref" in _STATE_PATH
-    g5_patterns = [".env", "*.key", "*.pem", "credentials*", "secrets*"]
+    g4_patterns = [".env", "*.key", "*.pem", "credentials*", "secrets*"]
     if is_public_maref:
-        g5_patterns.append(".openclaw/")
+        g4_patterns.append(".openclaw/")
     artifacts = []
-    for pattern in g5_patterns:
+    for pattern in g4_patterns:
         try:
             result = subprocess.run(
                 ["git", "ls-files", "--", pattern],
@@ -233,16 +184,15 @@ def check_gates(json_output: bool = False) -> tuple[bool, list[dict]]:
         except (subprocess.TimeoutExpired, OSError):
             pass
     if artifacts:
-        g5 = False
         gates.append({
-            "id": "G5", "name": "No Runtime Artifacts", "pass": False,
+            "id": "G4", "name": "No Runtime Artifacts", "pass": False,
             "detail": f"❌ Found {len(artifacts)} artifact(s) in index",
             "artifacts": artifacts[:10],
         })
         all_pass = False
     else:
         gates.append({
-            "id": "G5", "name": "No Runtime Artifacts", "pass": True,
+            "id": "G4", "name": "No Runtime Artifacts", "pass": True,
             "detail": "✅ No runtime artifacts in index",
         })
 

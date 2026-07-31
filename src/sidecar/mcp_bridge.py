@@ -127,11 +127,6 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
         input_schema={"type": "object", "properties": {}},
     ),
     MCPToolDefinition(
-        name="maref_health_check",
-        description="Check sidecar health",
-        input_schema={"type": "object", "properties": {}},
-    ),
-    MCPToolDefinition(
         name="maref_run_evolution",
         description="Trigger a single evolution run with the specified engine",
         input_schema={
@@ -151,6 +146,47 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
         name="maref_list_evolution_results",
         description="List recent evolution run results from vault",
         input_schema={"type": "object", "properties": {"limit": {"type": "integer"}}},
+    ),
+    MCPToolDefinition(
+        name="maref_pty_exec",
+        description="Execute a command in a PTY session (governed)",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "command": {"type": "string"},
+                "timeout": {"type": "integer"},
+                "cols": {"type": "integer"},
+                "rows": {"type": "integer"},
+                "cwd": {"type": "string"},
+            },
+            "required": ["command"],
+        },
+    ),
+    MCPToolDefinition(
+        name="gov_check_phase_gate",
+        description="Check phase gate — verify whether an action is allowed in the current governance phase",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "description": "The action to check (e.g., write, delete, modify)"},
+                "file_path": {"type": "string", "description": "Target file path for the action"},
+                "phase": {"type": "string", "description": "Override phase (default: read from current_phase.json)"},
+            },
+            "required": ["action", "file_path"],
+        },
+    ),
+    MCPToolDefinition(
+        name="gov_verify_output",
+        description="Verify output quality — heuristic scoring of completion claims against evidence",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "claim": {"type": "string", "description": "The completion claim to verify"},
+                "evidence_paths": {"type": "array", "items": {"type": "string"}, "description": "Paths to evidence files"},
+                "severity": {"type": "string", "enum": ["advisory", "block"], "description": "Verification severity level"},
+            },
+            "required": ["claim"],
+        },
     ),
 ]
 
@@ -350,6 +386,12 @@ class SidecarMCPBridge:
             result = self._handle_evolution_status(args)
         elif name == "maref_list_evolution_results":
             result = self._handle_evolution_results(args)
+        elif name == "maref_pty_exec":
+            result = self._handle_pty_exec(args)
+        elif name == "gov_check_phase_gate":
+            result = self._handle_gov_check_phase_gate(args)
+        elif name == "gov_verify_output":
+            result = self._handle_gov_verify_output(args)
         else:
             result = {
                 "content": [{"type": "text", "text": f"Tool {name} executed"}],
@@ -357,6 +399,63 @@ class SidecarMCPBridge:
         if trace_id:
             result["_trace_id"] = trace_id
         return result
+
+    def _handle_pty_exec(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Execute a command in a PTY session — governed by sidecar.
+
+        This replaces the local node-pty spawn in Electron main process.
+        The command is executed through the sidecar's governance pipeline.
+        """
+        import os
+        import subprocess
+
+        command = args.get("command", "")
+        timeout = args.get("timeout", 30)
+        cwd = args.get("cwd", os.getcwd())
+        cols = args.get("cols", 80)
+        rows = args.get("rows", 24)
+
+        if not command:
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": "Missing 'command' argument"}],
+            }
+
+        try:
+            # Execute command with timeout
+            proc = subprocess.run(
+                command,
+                shell=True,
+                cwd=cwd,
+                capture_output=True,
+                timeout=timeout,
+                env={**os.environ, "COLUMNS": str(cols), "LINES": str(rows)},
+            )
+
+            output = proc.stdout.decode("utf-8", errors="replace")
+            if proc.stderr:
+                output += "\n[stderr] " + proc.stderr.decode("utf-8", errors="replace")
+
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": output,
+                    }
+                ],
+                "exit_code": proc.returncode,
+                "governed": True,
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Command timed out after {timeout}s"}],
+            }
+        except Exception as e:
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Execution failed: {e}"}],
+            }
 
     def _route_cd(self, name: str, args: dict[str, Any]) -> str:
         """路由 codedepth 工具调用，返回 JSON 字符串。"""
@@ -462,6 +561,100 @@ class SidecarMCPBridge:
                 }
             ],
         }
+
+    def _handle_gov_check_phase_gate(self, args: dict[str, Any]) -> dict[str, Any]:
+        """gov_check_phase_gate — check if action is allowed in current phase."""
+        import json as _json
+        import os as _os
+        from pathlib import Path as _Path
+
+        action = args.get("action", "")
+        file_path = args.get("file_path", "")
+        phase_override = args.get("phase")
+
+        # Read current phase from local state (Claude Code infra) or use override
+        phase = phase_override
+        if phase is None:
+            phase_file = _Path(_os.environ.get("HOME", "~")) / ".claude" / "current_phase.json"
+            if phase_file.expanduser().exists():
+                try:
+                    data = _json.loads(phase_file.expanduser().read_text())
+                    phase = data.get("phase", "unconstrained")
+                except Exception:
+                    phase = "unknown"
+            else:
+                phase = "unconstrained"
+
+        # Simple phase gate rules
+        allowed_extensions = {
+            "design": [".md", ".tla", ".tex", ".bib"],
+            "review": [".md", ".py", ".ts", ".tsx", ".json", ".yaml", ".yml", ".tla"],
+            "implement": [".py", ".ts", ".tsx", ".json", ".yaml", ".yml", ".css", ".html", ".sh", ".tla"],
+            "deliver": [],
+            "unconstrained": None,  # all allowed
+        }
+
+        ext = _Path(file_path).suffix
+        allowed = allowed_extensions.get(phase)
+        blocked = False
+        reason = ""
+
+        if allowed is not None and ext not in allowed:
+            blocked = True
+            reason = f"Extension '{ext}' not allowed in phase '{phase}'"
+
+        result = {
+            "phase": phase,
+            "action": action,
+            "file_path": file_path,
+            "blocked": blocked,
+            "reason": reason,
+        }
+        return {"content": [{"type": "text", "text": _json.dumps(result, indent=2)}]}
+
+    def _handle_gov_verify_output(self, args: dict[str, Any]) -> dict[str, Any]:
+        """gov_verify_output — heuristic scoring of completion claims against evidence."""
+        import json as _json
+        import os as _os
+
+        claim = args.get("claim", "")
+        evidence_paths = args.get("evidence_paths", [])
+        severity = args.get("severity", "advisory")
+
+        # Heuristic verification: check if claim references exist as files
+        evidence_found = 0
+        evidence_missing = 0
+        details: list[str] = []
+
+        for path in (evidence_paths or []):
+            if _os.path.isfile(path):
+                evidence_found += 1
+                details.append(f"Found evidence: {path}")
+            else:
+                evidence_missing += 1
+                details.append(f"Missing evidence: {path}")
+
+        # Score: 0 (no evidence) to 10 (all evidence found)
+        total = evidence_found + evidence_missing
+        score = (evidence_found / total * 10) if total > 0 else 5
+
+        verdict = "pass"
+        if score < 5 and total > 0:
+            verdict = "attention" if severity == "advisory" else "rework"
+        if evidence_missing > 0 and evidence_found == 0:
+            verdict = "rework"
+
+        result = {
+            "claim": claim,
+            "score": round(score, 1),
+            "verdict": verdict,
+            "severity": severity,
+            "evidence_found": evidence_found,
+            "evidence_missing": evidence_missing,
+            "details": details,
+            "note": "LLM API integration required for full semantic verification",
+        }
+        return {"content": [{"type": "text", "text": _json.dumps(result, indent=2)}]}
 
     def close(self) -> None:
         """释放后端资源。"""

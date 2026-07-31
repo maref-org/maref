@@ -122,7 +122,7 @@ kubectl apply -f k8s/production/
 ## Key Design Decisions
 | Decision | Rationale |
 |----------|-----------|
-| 64-state Gray Code FSM | Hamming distance=1 transitions guarantee stability |
+| 34-state Gray Code FSM (10 governance + 24 agent) | Hamming distance=1 transitions guarantee stability |
 | TLA+ formal verification | Prove correctness before implementation |
 | SAEB recursive benchmark | Self-Adaptive Error Benchmark — agents detect+fix injected defects |
 | Immune self-SAEB | Immunity system runs SAEB on itself to detect gene degradation |

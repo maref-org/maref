@@ -150,6 +150,50 @@ class TestSelfHealer:
         types = h.triage(report)
         assert "import_error" in types
 
+    def test_triage_rsi_pool_starvation(self) -> None:
+        h = SelfHealer()
+        report = DiagnosisReport(
+            snapshot_ref="s1",
+            risk_matrix={"latency": RiskLevel.WARNING},
+            overall_risk=RiskLevel.WARNING,
+            diagnostic_context={"experience_pool_ratio": 0.2},
+        )
+        types = h.triage(report)
+        assert "experience_pool_starvation" in types
+
+    def test_triage_rsi_pareto_degraded(self) -> None:
+        h = SelfHealer()
+        report = DiagnosisReport(
+            snapshot_ref="s1",
+            risk_matrix={"latency": RiskLevel.WARNING},
+            overall_risk=RiskLevel.WARNING,
+            diagnostic_context={"pareto_front_degraded": True},
+        )
+        types = h.triage(report)
+        assert "pareto_front_degradation" in types
+
+    def test_triage_rsi_dim_drift(self) -> None:
+        h = SelfHealer()
+        report = DiagnosisReport(
+            snapshot_ref="s1",
+            risk_matrix={"latency": RiskLevel.WARNING},
+            overall_risk=RiskLevel.WARNING,
+            diagnostic_context={"dimension_weight_drift": 25.0},
+        )
+        types = h.triage(report)
+        assert "dimension_weight_drift" in types
+
+    def test_triage_rsi_no_drift(self) -> None:
+        h = SelfHealer()
+        report = DiagnosisReport(
+            snapshot_ref="s1",
+            risk_matrix={},
+            overall_risk=RiskLevel.NORMAL,
+            diagnostic_context={"dimension_weight_drift": 5.0},
+        )
+        types = h.triage(report)
+        assert "dimension_weight_drift" not in types
+
     def test_triage_multiple_risks(self) -> None:
         h = SelfHealer()
         report = DiagnosisReport(
@@ -375,3 +419,6 @@ class TestSelfHealer:
         assert HEALING_STRATEGIES["performance_regression"] == "bisect_commits_identify_cause"
         assert HEALING_STRATEGIES["import_error"] == "check_missing_dependency_install"
         assert HEALING_STRATEGIES["unknown"] == "full_system_scan"
+        assert HEALING_STRATEGIES["experience_pool_starvation"] == "rebalance_experience_pool"
+        assert HEALING_STRATEGIES["pareto_front_degradation"] == "restore_pareto_front"
+        assert HEALING_STRATEGIES["dimension_weight_drift"] == "normalize_dimension_weights"

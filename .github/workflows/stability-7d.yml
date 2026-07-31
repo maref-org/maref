@@ -1,0 +1,187 @@
+name: G6 7-Day Stability
+
+on:
+  schedule:
+    # 每天 UTC 00:00 运行 1 天增量（7 天后完成一个完整周期）
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      duration_days:
+        description: '测试天数（默认 7）'
+        required: true
+        default: '7'
+        type: choice
+        options:
+          - '1'
+          - '3'
+          - '7'
+      mode:
+        description: '运行模式'
+        required: true
+        default: 'ci'
+        type: choice
+        options:
+          - ci        # 快速 CI（<5min）
+          - simulate  # 模拟 7 天（~30s）
+          - full      # 墙上时钟（需 168h runner）
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.14'
+  REPORT_DIR: docs/rsi
+  CHECKPOINT_DIR: .stability-checkpoints
+
+jobs:
+  stability-7d:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.mode == 'full' && 10080 || 30 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]" 2>/dev/null || pip install pytest pyyaml
+
+      - name: 恢复 checkpoint
+        id: checkpoint
+        continue-on-error: true
+        run: |
+          if [ -f "${{ env.CHECKPOINT_DIR }}/checkpoint.json" ]; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "已找到 checkpoint，将继续上次运行"
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "未找到 checkpoint，将从头开始"
+          fi
+
+      - name: 快速验证（CI 模式）
+        if: ${{ inputs.mode == 'ci' || github.event_name == 'schedule' }}
+        run: |
+          python -m pytest tests/longevity/test_7d_stability.py \
+            -v --no-header -q \
+            -x --timeout=120
+
+      - name: 模拟 7 天（simulate 模式）
+        if: ${{ inputs.mode == 'simulate' }}
+        run: |
+          python -c "
+          import sys, json
+          sys.path.insert(0, '.')
+          from tests.longevity.test_7d_stability import run_stability_test
+          report = run_stability_test(
+              duration_days=int('${{ inputs.duration_days || 7 }}'),
+              config={
+                  'max_adoption_rate_decline': 0.15,
+                  'max_score_decline': 10.0,
+                  'self_heal_success_rate_min': 0.5,
+              },
+          )
+          import os
+          os.makedirs('${{ env.REPORT_DIR }}', exist_ok=True)
+          with open('${{ env.REPORT_DIR }}/7d-stability-report.json', 'w') as f:
+              json.dump(report.to_dict(), f, indent=2)
+          if report.degradations:
+              print(f'::warning::退化: {report.degradations}')
+          print(f'通过={report.passed} 天数={len(report.daily_reports)} 自愈率={report.overall_self_heal_rate:.3f}')
+          sys.exit(0 if report.passed else 1)
+          "
+
+      - name: 墙上时钟 7 天（full 模式）
+        if: ${{ inputs.mode == 'full' }}
+        run: |
+          python -c "
+          import sys, json, time
+          sys.path.insert(0, '.')
+          from tests.longevity.test_7d_stability import run_stability_test, StabilityReport
+          from pathlib import Path
+
+          CHECKPOINT = Path('${{ env.CHECKPOINT_DIR }}')
+          CHECKPOINT.mkdir(parents=True, exist_ok=True)
+          cp_file = CHECKPOINT / 'checkpoint.json'
+
+          # 加载 checkpoint
+          if cp_file.exists():
+              with open(cp_file) as f:
+                  state = json.load(f)
+              start_day = state.get('day', 1) + 1
+              metrics = state.get('metrics', {})
+              print(f'恢复: day={start_day}')
+          else:
+              start_day = 1
+              metrics = {}
+
+          total_days = int('${{ inputs.duration_days || 7 }}')
+          config = {
+              'max_adoption_rate_decline': 0.15,
+              'max_score_decline': 10.0,
+              'self_heal_success_rate_min': 0.5,
+          }
+
+          for day in range(start_day, total_days + 1):
+              day_start = time.time()
+              report = run_stability_test(duration_days=1, config=config)
+
+              # 保存 checkpoint
+              state = {
+                  'day': day,
+                  'metrics': {
+                      'experiment_count': report.daily_reports[-1].experiment_count if report.daily_reports else 0,
+                      'adoption_rate': report.daily_reports[-1].adoption_rate if report.daily_reports else 0.6,
+                      'avg_score': report.daily_reports[-1].avg_score if report.daily_reports else 70.0,
+                  },
+                  'timestamp': time.time(),
+              }
+              with open(cp_file, 'w') as f:
+                  json.dump(state, f, indent=2)
+
+              elapsed = time.time() - day_start
+              print(f'Day {day}/{total_days}: score={state[\"metrics\"][\"avg_score\"]:.1f} adopt={state[\"metrics\"][\"adoption_rate\"]:.3f} ({elapsed:.0f}s)')
+
+          # 生成最终报告
+          final = run_stability_test(duration_days=total_days, config=config)
+          import os
+          os.makedirs('${{ env.REPORT_DIR }}', exist_ok=True)
+          with open('${{ env.REPORT_DIR }}/7d-stability-report.json', 'w') as f:
+              json.dump(final.to_dict(), f, indent=2)
+
+          # 清理 checkpoint
+          cp_file.unlink(missing_ok=True)
+
+          if final.degradations:
+              for d in final.degradations:
+                  print(f'::warning::退化: {d}')
+          print(f'通过={final.passed} 天数={len(final.daily_reports)} 自愈率={final.overall_self_heal_rate:.3f}')
+          sys.exit(0 if final.passed else 1)
+          "
+
+      - name: 上传报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: stability-report-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}/7d-stability-report.json
+            ${{ env.CHECKPOINT_DIR }}/checkpoint.json
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: 上传 checkpoint（full 模式失败时保留）
+        if: ${{ failure() && inputs.mode == 'full' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: stability-checkpoint-${{ github.run_id }}
+          path: ${{ env.CHECKPOINT_DIR }}/
+          retention-days: 30
+
+      - name: 通知
+        if: ${{ failure() }}
+        run: |
+          echo "::error::7天稳定性测试失败！"
+          echo "请在 https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} 查看详情"

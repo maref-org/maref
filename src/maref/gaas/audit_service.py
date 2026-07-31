@@ -115,7 +115,7 @@ class AuditLogService:
         assert self._log_path is not None
         if not self._log_path.exists():
             return
-        with open(self._log_path, "r", encoding="utf-8") as f:
+        with open(self._log_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:

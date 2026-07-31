@@ -381,7 +381,7 @@ The Skill Marketplace provides four core services:
 | Cryptography (SM2/SM3/SM4) | 29 | PASS |
 | **Total** | **~4300** | **PASS** |
 
-Overall coverage: 81.97% (exceeds 70% threshold).
+Overall coverage: 待确认 (完整测试套件超时，局部子集测试实测约 10%)
 
 ### 9.2 Chaos Engineering
 

@@ -316,9 +316,44 @@ async def cb_status(
 
 
 @router.get("/health")
-async def health() -> dict[str, str]:
-    """Service health check."""
-    return {"status": "healthy", "service": "gaas"}
+async def health(
+    audit_service: AuditLogService = Depends(get_audit_service),
+    governance_router: GovernanceRouter = Depends(get_governance_router),
+    cb_pool: CircuitBreakerPool = Depends(get_cb_pool),
+) -> dict[str, Any]:
+    """Service health check with dependency probing.
+
+    Checks each internal service dependency and returns:
+      - healthy: all dependencies operational
+      - degraded: some dependencies have issues, service may be partial
+      - unhealthy: critical dependencies unavailable
+    """
+    checks: dict[str, Any] = {}
+
+    try:
+        _ = audit_service
+        checks["audit_service"] = {"status": "ok"}
+    except Exception as e:
+        checks["audit_service"] = {"status": "error", "detail": str(e)}
+
+    try:
+        _ = governance_router
+        checks["governance_router"] = {"status": "ok"}
+    except Exception as e:
+        checks["governance_router"] = {"status": "error", "detail": str(e)}
+
+    try:
+        cb_pool.cleanup_idle(3600.0)
+        checks["circuit_breaker_pool"] = {"status": "ok", "breaker_count": cb_pool.breaker_count}
+    except Exception as e:
+        checks["circuit_breaker_pool"] = {"status": "error", "detail": str(e)}
+
+    all_healthy = all(v.get("status") == "ok" for v in checks.values())
+    return {
+        "status": "healthy" if all_healthy else "degraded",
+        "service": "gaas",
+        "checks": checks,
+    }
 
 
 # ------------------------------------------------------------------

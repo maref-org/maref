@@ -6,6 +6,9 @@ C37: Execution isolation for life state entities with permission matrix and beha
 from __future__ import annotations
 
 import shlex
+import shutil
+import subprocess
+import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -96,7 +99,7 @@ class SandboxBackend(ABC):
 
 
 class MemorySandboxBackend(SandboxBackend):
-    """纯内存沙箱后端 — 默认向后兼容实现。"""
+    """纯内存沙箱后端 - 默认向后兼容实现。"""
 
     def execute_sandboxed(self, command: list[str], policy: Any = None) -> dict[str, Any]:
         # sandboxed=False 表示"未真正沙箱化",但 allowed=True 表示"允许执行"
@@ -105,6 +108,120 @@ class MemorySandboxBackend(SandboxBackend):
 
     def is_available(self) -> bool:
         return True
+
+
+class SandboxExecBackend(SandboxBackend):
+    """macOS sandbox-exec 后端 - 使用 seatbelt profile 隔离执行。
+
+    生成基础 profile 拒绝网络和文件写入,通过 sandbox-exec -p <profile> 执行命令。
+    仅在 macOS (darwin) 且 sandbox-exec 可执行文件存在时可用。
+    """
+
+    _BASE_PROFILE = (
+        "(version 1)"
+        "(deny default)"
+        "(allow process-fork)"
+        "(allow process-exec)"
+        "(allow file-read*)"
+        "(deny file-write*)"
+        "(deny network*)"
+    )
+
+    def execute_sandboxed(self, command: list[str], policy: Any = None) -> dict[str, Any]:
+        profile = self._generate_profile(policy)
+        try:
+            result = subprocess.run(
+                ["sandbox-exec", "-p", profile, *command],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired:
+            return {"status": "timeout", "command": command, "blocked": True}
+        except FileNotFoundError:
+            return {"status": "unavailable", "command": command, "blocked": True}
+        blocked = result.returncode != 0
+        return {
+            "status": "completed" if not blocked else "blocked",
+            "command": command,
+            "returncode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "blocked": blocked,
+        }
+
+    def is_available(self) -> bool:
+        if sys.platform != "darwin":
+            return False
+        return shutil.which("sandbox-exec") is not None
+
+    def _generate_profile(self, policy: Any = None) -> str:
+        if isinstance(policy, str) and policy:
+            return policy
+        return self._BASE_PROFILE
+
+
+class SeccompFilterBackend(SandboxBackend):
+    """Linux seccomp 后端 - 使用 seccomp 规则限制 syscall。
+
+    生成 seccomp filter 限制高危 syscall (网络/文件写入),通过 seccomp 库执行。
+    仅在 Linux 且 seccomp 库可用时可用;否则 is_available() 返回 False。
+    """
+
+    _DENIED_SYSCALLS = (
+        "socket",
+        "connect",
+        "bind",
+        "listen",
+        "accept",
+        "unlink",
+    )
+
+    def execute_sandboxed(self, command: list[str], policy: Any = None) -> dict[str, Any]:
+        filter_rules = self._generate_filter(policy)
+        try:
+            import seccomp  # type: ignore[import-not-found]
+        except ImportError:
+            return {"status": "unavailable", "command": command, "blocked": True}
+
+        try:
+            ctx = seccomp.SyscallFilter(def_action=seccomp.ACT_ALLOW)
+            for syscall in filter_rules:
+                ctx.add_rule(seccomp.ACT_KILL, syscall)
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                preexec_fn=lambda: ctx.load(),
+            )
+        except subprocess.TimeoutExpired:
+            return {"status": "timeout", "command": command, "blocked": True}
+        except (FileNotFoundError, RuntimeError, OSError):
+            return {"status": "unavailable", "command": command, "blocked": True}
+        blocked = result.returncode != 0
+        return {
+            "status": "completed" if not blocked else "blocked",
+            "command": command,
+            "returncode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "blocked": blocked,
+        }
+
+    def is_available(self) -> bool:
+        if sys.platform != "linux":
+            return False
+        try:
+            import seccomp  # noqa: F401
+        except ImportError:
+            return False
+        return True
+
+    def _generate_filter(self, policy: Any = None) -> tuple[str, ...]:
+        if isinstance(policy, (list, tuple)) and policy:
+            return tuple(str(s) for s in policy)
+        return self._DENIED_SYSCALLS
 
 
 class LifeStateSandbox:

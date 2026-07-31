@@ -9,3 +9,4 @@ resources:
   - pdb.yaml
   - networkpolicy.yaml
   - ingress.yaml
+  - cronjob-stability.yaml

@@ -474,6 +474,7 @@ class RecursiveEvolutionLoop:
         convergence_detector: RELConvergenceDetector | None = None,
         transaction_manager: RELTransactionManager | None = None,
         safety_governor: RELSafetyGovernor | None = None,
+        agent_id: str | None = None,
     ) -> None:
         self._sm = state_machine or RELStateMachine()
         self._detector = convergence_detector or RELConvergenceDetector()
@@ -485,6 +486,9 @@ class RecursiveEvolutionLoop:
         self._current_report: Any = None
         self._current_proposal: Any = None
         self._current_code: Any = None
+        self._agent_id = agent_id or f"rel-{uuid.uuid4().hex[:8]}"
+        self._pulse_writer: Any = None
+        self._best_baseline: float = 0.0
 
     @property
     def state_machine(self) -> RELStateMachine:
@@ -515,6 +519,11 @@ class RecursiveEvolutionLoop:
             return
         self._governor.start_session()
         self._sm.transition(RELState.TRIGGERED)
+        from maref.recursive.agent_health import PulseWriter
+        self._pulse_writer = PulseWriter(
+            agent_id=self._agent_id,
+            interval_seconds=30.0,
+        )
 
     def stop(self) -> None:
         if can_transition(self._sm.state, RELState.STOP):
@@ -552,6 +561,26 @@ class RecursiveEvolutionLoop:
             )
 
         verdict = self._detector.evaluate(metrics_after)
+
+        # H5: MetaRatchetAuditor baseline audit — block if baseline regresses
+        new_baseline = metrics_after.get("test_pass_rate", 1.0)
+        if self._best_baseline > 0.0:
+            from maref.integration.percv.meta_ratchet_auditor import MetaRatchetAuditor
+            _ra = MetaRatchetAuditor()
+            baseline_verdict = _ra.audit_baseline(self._best_baseline, new_baseline)
+            if baseline_verdict.blocked:
+                logger.error("REL baseline audit blocked: %s", baseline_verdict.reason)
+                self.halt(f"baseline_audit: {baseline_verdict.reason}")
+                if tx is not None:
+                    self._tx_mgr.rollback(tx)
+                return ConvergenceVerdict(
+                    converged=False,
+                    reason=f"baseline_regression: {baseline_verdict.reason}",
+                    metrics_snapshot=metrics_after,
+                    divergence_detected=True,
+                )
+        if new_baseline > self._best_baseline:
+            self._best_baseline = new_baseline
 
         if verdict.divergence_detected or verdict.oscillation_detected:
             if tx is not None:
@@ -658,6 +687,9 @@ class RecursiveEvolutionLoop:
 
             await self._execute_state_actions()
 
+            if self._pulse_writer is not None:
+                self._pulse_writer.write_pulse(status="alive")
+
             metrics_after = self._collect_current_metrics()
             verdict = self.complete_round(metrics_before, metrics_after, tx)
             rounds_completed += 1
@@ -707,6 +739,19 @@ class RecursiveEvolutionLoop:
                 architect = SelfArchitect(audit_store=UnifiedAuditStore())
                 proposals = architect.propose_all()
                 self._current_proposal = proposals[0] if proposals else None
+
+                # H2: MetaRatchetAuditor config change audit — block if proposal targets ratchet config
+                if self._current_proposal is not None:
+                    target_files = getattr(self._current_proposal, "target_files", []) or []
+                    for tf in target_files:
+                        from maref.integration.percv.meta_ratchet_auditor import MetaRatchetAuditor
+                        _ra = MetaRatchetAuditor()
+                        verdict = _ra.audit_file_change(str(tf))
+                        if verdict.blocked:
+                            logger.error("REL ratchet audit blocked proposal: %s — %s", tf, verdict.reason)
+                            self.halt(f"ratchet_audit_architect: {verdict.reason}")
+                            return
+
                 if can_transition(RELState.ARCHITECT, RELState.CODEGEN):
                     self._sm.transition(RELState.CODEGEN)
 
@@ -762,11 +807,38 @@ class RecursiveEvolutionLoop:
                         last_tx = self._tx_mgr.get_by_round(self._current_round)
                         if last_tx:
                             self._tx_mgr.rollback(last_tx[-1])
+                    else:
+                        # H4: MetaRatchetAuditor config change audit — block if deployed file is ratchet config
+                        f_path = getattr(self._current_code, "file_path", None)
+                        if f_path:
+                            from maref.integration.percv.meta_ratchet_auditor import (
+                                MetaRatchetAuditor,
+                            )
+                            _ra = MetaRatchetAuditor()
+                            verdict = _ra.audit_file_change(str(f_path))
+                            if verdict.blocked:
+                                logger.error("REL ratchet audit blocked deploy: %s — %s", f_path, verdict.reason)
+                                self.halt(f"ratchet_audit_deploy: {verdict.reason}")
+                                return
+
                 if can_transition(RELState.DEPLOY, RELState.VERIFY):
                     self._sm.transition(RELState.VERIFY)
 
             elif state == RELState.VERIFY:
                 self._run_quality_checks()
+
+                # H1: MetaRatchetAuditor check — block if REL modifies ratchet files
+                if self._current_code is not None:
+                    f_path = getattr(self._current_code, "file_path", None)
+                    if f_path:
+                        from maref.integration.percv.meta_ratchet_auditor import MetaRatchetAuditor
+                        _ra = MetaRatchetAuditor()
+                        verdict = _ra.audit_file_change(str(f_path))
+                        if verdict.blocked:
+                            logger.error("REL ratchet audit blocked: %s — %s", f_path, verdict.reason)
+                            self.halt(f"ratchet_audit: {verdict.reason}")
+                            return
+
                 if can_transition(RELState.VERIFY, RELState.EVALUATE):
                     self._sm.transition(RELState.EVALUATE)
 

@@ -17,14 +17,10 @@ SkillOS README Template Generator — README 模板自动生成 + 发布检查�
 
 from __future__ import annotations
 
-import argparse
-import json
 import logging
-import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] SkillOS: %(message)s")
 logger = logging.getLogger("skillos_readme")
@@ -436,7 +432,7 @@ def main():
 
         path = generate_readme(project, output, **kwargs)
         print(f"\n📄 README.md 已生成: {path}")
-        print(f"\n📋 发布检查清单:")
+        print("\n📋 发布检查清单:")
         print_checklist("release")
 
     elif cmd == "checklist":

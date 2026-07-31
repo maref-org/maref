@@ -29,7 +29,7 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 ### 治理层 (世界领先)
 - **三种 Loop 元模式** — 收敛型/探索型/交互型 模板库 🚧 (v0.36.0-rc)
 - **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (6bit, 汉明距离=1)
-- **TLA+ 形式化验证** — 5 定理证明 (Lyapunov收敛 + Sperner完备性)
+- **TLA+ 形式化验证** — 5 TLA+ 模型校验不变量 (状态可达性/转换确定性/HALT吸收/安全门完整性/红线不可变性)
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
 - **四级安全决策树** — Rule→Mode→SafetyGate→User, 97% 自动化率
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
@@ -214,7 +214,7 @@ python examples/simple_integration_demo.py
 |------|------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
 | **Tests** | 4,300+ — [![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]() |
-| **Coverage** | 82% — [![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]() |
+| **Coverage** | 待确认 (完整测试套件超时) — [![Coverage](https://img.shields.io/badge/coverage-pending-yellow.svg)]() |
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |

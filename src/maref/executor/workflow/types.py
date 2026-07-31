@@ -36,6 +36,8 @@ class WorkflowStep:
     max_retries: int = 0
     depends_on: list[str] = field(default_factory=list)
     fallback_step: str = ""
+    compensation_step: str = ""
+    on_failure: str = "fail"
     parallel_group: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -50,6 +52,8 @@ class WorkflowStep:
             "max_retries": self.max_retries,
             "depends_on": list(self.depends_on),
             "fallback_step": self.fallback_step,
+            "compensation_step": self.compensation_step,
+            "on_failure": self.on_failure,
             "parallel_group": self.parallel_group,
             "metadata": dict(self.metadata),
         }
@@ -66,6 +70,8 @@ class WorkflowStep:
             max_retries=data.get("max_retries", 0),
             depends_on=list(data.get("depends_on", [])),
             fallback_step=data.get("fallback_step", ""),
+            compensation_step=data.get("compensation_step", ""),
+            on_failure=data.get("on_failure", "fail"),
             parallel_group=data.get("parallel_group", ""),
             metadata=dict(data.get("metadata", {})),
         )

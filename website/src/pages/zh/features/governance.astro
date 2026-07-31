@@ -4,7 +4,7 @@ import GrayCodeFSM from "@/components/animations/GrayCodeFSM/GrayCodeFSM.astro";
 import CodeBlock from "@/components/ui/CodeBlock.astro";
 ---
 
-<DocLayout locale="zh" title="智能体治理 — Gray Code 状态机" description="数学可证明的治理状态机 — TLA+ 验证、汉明距离=1、10 状态、HALT 吸收态。" section="features">
+<DocLayout locale="zh" title="智能体治理 — Gray Code 状态机" description="TLA+ 模型检查验证的治理状态机 — 汉明距离=1、10 状态、HALT 吸收态。" section="features">
 
   <!-- Zone 1: Hook -->
   <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
@@ -12,7 +12,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
     <span class="text-brand-accent-blue">不只是承诺。</span>
   </h1>
   <p class="text-lg text-brand-text-secondary mb-10">
-    基于 TLA+ 形式化方法验证的治理状态机。十个状态、六位编码、零歧义。每一次状态转换都可以数学证明。
+    基于 TLA+ 形式化方法验证的治理状态机。十个状态、四位编码、零歧义。每一次状态转换都经模型检查验证。
   </p>
 
   <GrayCodeFSM locale="zh" />
@@ -20,16 +20,16 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
   <!-- Zone 2: Why -->
   <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
     <p class="text-base text-brand-text-secondary leading-relaxed">
-      每个智能体框架都有一个"安全"复选框，但没人能证明它有效。MAREF 的治理状态机是第一个通过 TLA+ 数学证明的：
-      <strong class="text-brand-text-primary">五大定理已验证、零不可达状态、每次转换都是确定性的。</strong>
+      每个智能体框架都有一个"安全"复选框，但没人能证明它有效。MAREF 的治理状态机是第一个通过 TLA+ 模型检查验证的：
+      <strong class="text-brand-text-primary">五大不变量验证通过、零不可达状态、每次转换都是确定性的。</strong>
     </p>
   </div>
 
   <!-- Zone 3: Columns -->
   <div class="grid md:grid-cols-3 gap-8 my-20">
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
-      <h3 class="font-semibold text-brand-accent-cyan mb-2">状态，永远明确。</h3>
-      <p class="text-sm text-brand-text-secondary">六位 Gray Code 编码保证相邻状态间汉明距离恒为 1。任何转换都不会落入模糊地带。</p>
+       <h3 class="font-semibold text-brand-accent-cyan mb-2">状态，永远明确。</h3>
+      <p class="text-sm text-brand-text-secondary">四位 Gray Code 编码保证相邻状态间汉明距离恒为 1。任何转换都不会落入模糊地带。</p>
     </div>
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
       <h3 class="font-semibold text-brand-accent-green mb-2">HALT。无法撤销。</h3>
@@ -46,7 +46,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
     <div>
       <h2 class="text-2xl font-bold tracking-tight mb-6">数学家也会信任的状态机。</h2>
       <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
-        十个状态，每个状态使用 6 位 Gray Code 编码。相邻状态间仅变化一位，任何转换都不会落在歧义的中间地带。
+        十个状态，每个状态使用 4 位 Gray Code 编码。相邻状态间仅变化一位，任何转换都不会落在歧义的中间地带。
         TLA+ 模型检查在所有可能路径上验证了这一点。状态空间有限、完备、全探索。
       </p>
     </div>
@@ -76,7 +76,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
       <div class="text-brand-text-muted">状态机</div>
       <div class="text-brand-text-primary">10 个工作状态 + HALT 吸收态</div>
       <div class="text-brand-text-muted">编码</div>
-      <div class="text-brand-text-primary">6 位 Gray Code，汉明距离 = 1</div>
+      <div class="text-brand-text-primary">4 位 Gray Code，汉明距离 = 1</div>
       <div class="text-brand-text-muted">形式化方法</div>
       <div class="text-brand-text-primary">TLA+ 模型检查</div>
       <div class="text-brand-text-muted">验证的不变量</div>

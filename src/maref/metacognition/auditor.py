@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from maref.governance.circuit_breaker import CircuitBreaker
@@ -14,9 +15,11 @@ from maref.metacognition.models import (
     AgentProfile,
     ConsistencyReport,
     ProbeResult,
+    SelfReflectionRecord,
     SessionRecord,
 )
 from maref.metacognition.stealth_probe import ProbeAnalyst, StealthProbe
+from maref.sentinel.event import ObservationEvent, Severity
 
 
 class MetaCognitiveAuditor:
@@ -80,6 +83,56 @@ class MetaCognitiveAuditor:
 
     def get_analyst(self, agent_id: str) -> ProbeAnalyst | None:
         return self._analysts.get(agent_id)
+
+    def sentinel_hook(self, event: ObservationEvent) -> SelfReflectionRecord:
+        """M4: 接收 CRITICAL 级别 ObservationEvent,触发自省评估。
+
+        同步执行,无 sleep,5 秒内产出 SelfReflectionRecord。
+        非 CRITICAL 事件仅记录,不触发 halt。
+        """
+        start = time.time()
+        agent_id = event.subject or "unknown"
+        trigger = f"{event.severity.value}:{event.attack_type.value}:{event.source}"
+
+        try:
+            evidence_summary = ", ".join(
+                f"{k}={v}" for k, v in list(event.evidence.items())[:3]
+            )
+        except (AttributeError, TypeError):
+            evidence_summary = "unavailable"
+        reflection_summary = (
+            f"{event.severity.value} event from {event.source} "
+            f"(attack={event.attack_type.value}); evidence: {evidence_summary}"
+        )
+
+        if event.severity != Severity.CRITICAL:
+            return SelfReflectionRecord(
+                agent_id=agent_id,
+                trigger_event=trigger,
+                reflection_summary=reflection_summary,
+                timestamp=start,
+                recommended_action="observe",
+            )
+
+        recommended_action = "halt"
+        if self._circuit_breaker is not None:
+            for _ in range(5):
+                self._circuit_breaker.record_failure()
+        if self._state_machine is not None:
+            try:
+                self._state_machine.force_halt(
+                    f"sentinel_hook:{event.attack_type.value}"
+                )
+            except Exception:
+                recommended_action = "escalate_audit"
+
+        return SelfReflectionRecord(
+            agent_id=agent_id,
+            trigger_event=trigger,
+            reflection_summary=reflection_summary,
+            timestamp=start,
+            recommended_action=recommended_action,
+        )
 
     def _apply_governance_action(
         self,

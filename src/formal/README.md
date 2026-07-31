@@ -40,7 +40,28 @@ The `MAREF_ConstitutionalRedLines` spec checks the 5 constitutional invariants:
 
 ## Running TLC
 
-Requires the TLA+ Toolbox or standalone TLC jar:
+### Option 1: Docker (Recommended)
+
+> **Note**: First build requires internet (downloads tla2tools.jar from GitHub).
+> For offline builds, pre-download the jar and add `COPY tla2tools.jar /usr/local/lib/tla2tools.jar`
+> to `Dockerfile.tlc`, removing the `RUN wget` line.
+
+```bash
+# Build the TLC Docker image
+docker build -t maref-tlc -f Dockerfile.tlc .
+
+# Verify all specifications
+docker run --rm maref-tlc
+
+# List available specs
+docker run --rm maref-tlc list
+
+# Verify a single spec
+docker run --rm maref-tlc MarefLiteModel
+docker run --rm maref-tlc MAREF_ConstitutionalRedLines
+```
+
+### Option 2: Standalone TLC jar
 
 ```bash
 # Download tla2tools.jar from https://github.com/tlaplus/tlaplus/releases
