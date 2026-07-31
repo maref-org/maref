@@ -94,10 +94,17 @@ jobs:
         if: always()
         run: docker rm -f maref-test || true
 
+      - name: Resolve image tag
+        id: image-tag
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          echo "first_tag=$FIRST_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ steps.image-tag.outputs.first_tag }}
           format: cyclonedx
           output-file: sbom.cdx.json
       - name: Upload SBOM
