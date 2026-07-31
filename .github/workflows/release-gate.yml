@@ -66,7 +66,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Core tests
-        run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal
+        run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal --cov-fail-under=0
       - name: Coverage gate
         run: pytest tests/ -q --cov=src/maref --cov-fail-under=15 --ignore=tests/sidecar --ignore=tests/compliance --ignore=tests/chaos
 
