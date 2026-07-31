@@ -24,9 +24,10 @@ class UnifiedAuditRecord:
     justification: str
     outcome: str | None = None
     context_refs: list[str] = field(default_factory=list)
+    tenant_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "record_id": self.record_id,
             "timestamp": self.timestamp,
             "layer": self.layer,
@@ -39,6 +40,9 @@ class UnifiedAuditRecord:
             "outcome": self.outcome,
             "context_refs": self.context_refs,
         }
+        if self.tenant_id:
+            result["tenant_id"] = self.tenant_id
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> UnifiedAuditRecord:
@@ -54,6 +58,7 @@ class UnifiedAuditRecord:
             justification=data["justification"],
             outcome=data.get("outcome"),
             context_refs=data.get("context_refs", []),
+            tenant_id=data.get("tenant_id", ""),
         )
 
 

@@ -1,12 +1,15 @@
 """Security Audit Chain - tamper-evident chain for security-critical events.
 
-DEPRECATED: Use ``maref.governance.audit.AuditLogger`` instead.
+DEPRECATED: Use ``maref.governance.audit.AuditLogger`` + ``maref.governance.audit_bus.AuditBus`` instead.
 This module is frozen (no new features, bug fixes only). It remains for
 backward compatibility with existing chain files.
 
 The main AuditLogger (v0.38.0+) supports Ed25519 signing and interfaces
 with the Merkle audit tree via ``AuditChainIntegrator``. Prefer that
 over this module for all new code.
+
+AuditBus (v0.42.0+) provides a unified interface combining governance,
+GaaS tenant, and recursive-evolution audit. See ``governance/audit_bus.py``.
 """
 
 from __future__ import annotations
