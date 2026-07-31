@@ -23,6 +23,10 @@ from dataclasses import dataclass, field
 from math import exp
 from typing import Any
 
+from maref.federation.trust_hardening import (
+    SybilTrustGuard,
+    byzantine_robust_aggregate,
+)
 from maref.recursive.trust_engine_v2 import TrustEngineV2
 
 # Default local sovereignty weight: 60% local, 40% federated.
@@ -133,11 +137,29 @@ class FederatedTrustEngine:
         local_weight: float = DEFAULT_LOCAL_WEIGHT,
         trust_freshness: float = DEFAULT_TRUST_FRESHNESS,
         min_peer_reports: int = DEFAULT_MIN_PEER_REPORTS,
+        robust_aggregation: bool = True,
+        sybil_guard: SybilTrustGuard | None = None,
     ) -> None:
+        """Initialize the federated trust engine.
+
+        Args:
+            local_engine: The local :class:`TrustEngineV2` instance.
+            local_weight: Weight given to local scores (``alpha``).
+            trust_freshness: Seconds before a report is considered stale.
+            min_peer_reports: Minimum reports (after Sybil filtering) for
+                federated aggregation.
+            robust_aggregation: When True (default), peer reports are
+                aggregated with a Byzantine-robust scheme (weighted median
+                + MAD outlier rejection) instead of a plain weighted mean.
+            sybil_guard: Optional :class:`SybilTrustGuard` enabling source
+                reputation (cold start + penalty/reward) for Sybil defense.
+        """
         self._local = local_engine
         self._local_weight = max(0.0, min(1.0, local_weight))
         self._freshness = trust_freshness
         self._min_peer_reports = max(1, min_peer_reports)
+        self._robust_aggregation = robust_aggregation
+        self._sybil_guard = sybil_guard
         # agent_id → list of peer reports.
         self._peer_reports: dict[str, list[PeerTrustReport]] = {}
         # agent_id → last computed federated score.
@@ -151,19 +173,40 @@ class FederatedTrustEngine:
     def local_weight(self) -> float:
         return self._local_weight
 
+    @property
+    def sybil_guard(self) -> SybilTrustGuard | None:
+        return self._sybil_guard
+
     def submit_peer_report(self, report: PeerTrustReport) -> None:
         """Submit a trust score report from a peer federation server.
 
         Args:
             report: The peer trust report.
         """
+        if self._sybil_guard is not None:
+            # Observe the source so it is tracked with cold-start reputation.
+            self._sybil_guard.register_source(report.source_server)
         reports = self._peer_reports.setdefault(report.agent_id, [])
         # Replace any existing report from the same source.
         reports = [r for r in reports if r.source_server != report.source_server]
         reports.append(report)
-        # Keep only the most recent 10 reports per agent.
+        # Keep only the most recent 10 reports per agent.  When Sybil
+        # defense is active, established (eligible) sources are never
+        # evicted by a flood of fresh identities — otherwise an attacker
+        # could push honest reports out of the window.
         if len(reports) > 10:
-            reports = sorted(reports, key=lambda r: r.timestamp, reverse=True)[:10]
+            if self._sybil_guard is not None:
+                eligible = [r for r in reports if self._sybil_guard.is_eligible(r.source_server)]
+                ineligible = sorted(
+                    (r for r in reports if r not in eligible),
+                    key=lambda r: r.timestamp,
+                    reverse=True,
+                )
+                reports = eligible[:10]
+                if len(reports) < 10:
+                    reports += ineligible[: 10 - len(reports)]
+            else:
+                reports = sorted(reports, key=lambda r: r.timestamp, reverse=True)[:10]
         self._peer_reports[report.agent_id] = reports
 
     def submit_peer_reports(self, reports: list[PeerTrustReport]) -> None:
@@ -207,24 +250,18 @@ class FederatedTrustEngine:
             A :class:`FederatedTrustScore` combining local and federated inputs.
         """
         local_score = self._local.get_score(agent_id)
-        local_value: float | None = (
-            local_score.overall_trust if local_score is not None else None
-        )
+        local_value: float | None = local_score.overall_trust if local_score is not None else None
 
         peer_reports = self._peer_reports.get(agent_id, [])
-        federated_value, federated_confidence = self._aggregate_peer_reports(
-            peer_reports
-        )
+        federated_value, federated_confidence = self._aggregate_peer_reports(peer_reports)
 
         # Compute effective score based on available inputs.
         if local_value is not None and federated_value is not None:
             effective = (
-                self._local_weight * local_value
-                + (1.0 - self._local_weight) * federated_value
+                self._local_weight * local_value + (1.0 - self._local_weight) * federated_value
             )
             confidence = (
-                self._local_weight * 1.0
-                + (1.0 - self._local_weight) * federated_confidence
+                self._local_weight * 1.0 + (1.0 - self._local_weight) * federated_confidence
             )
         elif local_value is not None:
             effective = local_value
@@ -248,12 +285,14 @@ class FederatedTrustEngine:
         self._federated_scores[agent_id] = score
         return score
 
-    def _aggregate_peer_reports(
-        self, reports: list[PeerTrustReport]
-    ) -> tuple[float | None, float]:
+    def _aggregate_peer_reports(self, reports: list[PeerTrustReport]) -> tuple[float | None, float]:
         """Aggregate peer trust reports into a single score.
 
-        Uses confidence-weighted average with freshness discounting.
+        Uses a Byzantine-robust aggregation by default (weighted median +
+        MAD outlier rejection, then a confidence-weighted mean over the
+        survivors).  When a :class:`SybilTrustGuard` is attached, only
+        sources whose reputation clears the eligibility threshold
+        participate, and outlier sources are penalized.
 
         Returns:
             (aggregated_score, confidence) — score is None if no reports
@@ -263,27 +302,47 @@ class FederatedTrustEngine:
         if len(valid_reports) < self._min_peer_reports:
             return None, 0.0
 
-        now = time.time()
-        total_weight = 0.0
-        weighted_sum = 0.0
-        total_confidence = 0.0
-
-        for report in valid_reports:
-            freshness = report.freshness(now)
-            weight = report.confidence * freshness
-            weighted_sum += report.trust_score * weight
-            total_weight += weight
-            total_confidence += report.confidence
-
-        if total_weight <= 0:
+        guard = self._sybil_guard
+        if guard is not None:
+            eligible = [r for r in valid_reports if guard.is_eligible(r.source_server)]
+        else:
+            eligible = valid_reports
+        if len(eligible) < self._min_peer_reports:
             return None, 0.0
 
-        aggregated = weighted_sum / total_weight
-        # Confidence: average of peer confidences, scaled by coverage.
-        avg_confidence = total_confidence / len(valid_reports)
+        now = time.time()
+
+        def weight_of(report: PeerTrustReport) -> float:
+            weight = report.confidence * report.freshness(now)
+            if guard is not None:
+                weight *= guard.source_trust(report.source_server)
+            return weight
+
+        if self._robust_aggregation:
+            score, survivors, outliers = byzantine_robust_aggregate(eligible, weight_of)
+            if guard is not None and outliers:
+                guard.apply_outcome(
+                    agent_id=eligible[0].agent_id,
+                    eligible_reports=eligible,
+                    survivors=survivors,
+                    robust_score=score,
+                )
+        else:
+            total_weight = 0.0
+            weighted_sum = 0.0
+            for report in eligible:
+                weight = weight_of(report)
+                weighted_sum += report.trust_score * weight
+                total_weight += weight
+            if total_weight <= 0:
+                return None, 0.0
+            score = weighted_sum / total_weight
+
+        # Confidence: average of eligible peer confidences, scaled by coverage.
+        avg_confidence = sum(r.confidence for r in eligible) / len(eligible)
         # Penalize if fewer reports than ideal (5+).
-        coverage = min(1.0, len(valid_reports) / 5.0)
-        return aggregated, avg_confidence * coverage
+        coverage = min(1.0, len(eligible) / 5.0)
+        return score, avg_confidence * coverage
 
     def get_score(self, agent_id: str) -> FederatedTrustScore | None:
         """Return the last computed federated score, or None."""
@@ -305,6 +364,9 @@ class FederatedTrustEngine:
             "local_weight": self._local_weight,
             "min_peer_reports": self._min_peer_reports,
             "trust_freshness": self._freshness,
+            "robust_aggregation": self._robust_aggregation,
+            "sybil_guard_enabled": self._sybil_guard is not None,
+            "sybil_guard": self._sybil_guard.summary() if self._sybil_guard else None,
         }
 
 

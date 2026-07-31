@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from maref.governance.audit import AuditEntry
 from maref.governance.audit_bus import AuditBus
 
 
@@ -78,24 +77,6 @@ class NullAuditStore:
         return []
 
 
-def _record_to_audit_entry(record: UnifiedAuditRecord) -> AuditEntry:
-    return AuditEntry(
-        id=record.record_id,
-        timestamp=record.timestamp,
-        event_type=record.event_type,
-        actor=record.source_module,
-        action=record.decision,
-        details=record.justification,
-        metadata={
-            "layer": record.layer,
-            "round": record.round,
-            "target_module": record.target_module,
-            "outcome": record.outcome,
-            "context_refs": record.context_refs,
-        },
-    )
-
-
 class UnifiedAuditStore:
     """Audit store that delegates persistence to AuditBus.
 
@@ -136,7 +117,9 @@ class UnifiedAuditStore:
         self._by_module[record.target_module].append(idx)
         self._by_event_type[record.event_type].append(idx)
         self._by_round[record.round].append(idx)
-        self._audit_bus.publish(_record_to_audit_entry(record))
+        # AuditBus has no `publish`; log_from_unified persists via the bus
+        # logger (when configured) and fans out to pub/sub subscribers.
+        self._audit_bus.log_from_unified(record)
 
     def query_by_layer(self, layer: str) -> list[UnifiedAuditRecord]:
         return [self._records[i] for i in self._by_layer.get(layer, [])]

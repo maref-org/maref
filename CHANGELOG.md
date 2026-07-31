@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [v0.43.0] - 2026-07-31 (开源发布 — Phase 4 集成验证与发布)
+
+### Added
+- **Sidecar 二进制发布**: PyInstaller 打包 + 一键安装脚本（install-sidecar.sh）+ Docker 镜像 + Homebrew formula
+- **三个框架治理集成 Demo**: LangGraph / CrewAI / AutoGen 各 4 场景治理拦截验证
+- **GovBench 治理基准套件**: 5 场景 × 3 框架 CLI runner（preflight / goal-hijack / behavior-anomaly / breaker）
+- **TLA+ 规约独立仓库**: gray-code-fsm（5 规约 + 自包含验证器 + CI 模板），主仓库 34 态联合规约重写并通过 TLC 验证
+- **联邦真实网络传输层**: federation_http（ADP v2.00 目录 + 双进程 E2E 全链路 HTTP 驱动）
+- **级联断路器**: FederationCascadeBreaker 四态多 Agent 故障隔离（NOMINAL/DEGRADED/ISOLATED/RECOVERING）
+- **性能基准回归**: 联邦信任评估 344,860 QPS / 共识决策 P95 0.46µs / 128 组织 Merkle 聚合 3.71ms
+- **能力对标报告**: L1 10/10 · L2 9.5/10 · L3 7.5/10，20 维竞品差距矩阵
+
+### Fixed
+- **GovernedPipeline 审计落盘**: govern() 现写入 governance_decision 审计事件（事件类型 + actor/action/metadata）
+- **state_machine 性能缺陷**: 审计链哈希 O(n) 全文件扫描 → O(1) 尾部块读取（hotpotqa 16.8s → 3.18s）
+- **evolution_vault.load_day**: 聚合读取当日产物（metrics_snapshot / experiment / report / next_plan）
+
+### Changed
+- 统一信任引擎: TrustEngineV2 为事实标准，旧接口降级为弃用兼容层
+- 版本基线: 0.42.0 → 0.43.0
+
 ## [v0.41.0] - 2026-07-29 (递归自演进 GA — 真实指标驱动闭环)
 
 ### Added

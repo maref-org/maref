@@ -125,16 +125,29 @@ Advance(a) ==
     /\ globalEntropy' = newEntropy
     /\ governanceActive' = governanceBecomesActive
 
-(* No agent can advance *)
-Stutter ==
-  UNCHANGED <<agentState, transitionCount, globalEntropy, governanceActive>>
+(* No agent can advance (all terminal or transition budget exhausted).
+   This is the designed terminal configuration of the model. *)
+TerminalConfig ==
+  \A a \in Agents :
+    IsTerminal(agentState[a]) \/ transitionCount[a] = MaxTransitions
 
-(* Next state relation: advance any agent, or stutter *)
+(* Next state relation: advance any agent, or stutter only in the terminal
+   configuration (so TLC's deadlock check accepts the designed endpoint and
+   no stutter-only behavior can violate the liveness properties). *)
 Next ==
-  (\E a \in Agents : Advance(a)) \/ Stutter
+  (\E a \in Agents : Advance(a))
+  \/ (TerminalConfig /\ UNCHANGED vars)
 
-(* Specification *)
-Spec == Init /\ [][Next]_vars
+(* Specification.
+   WF_vars(Next) (weak fairness) rules out the TLC stutter counterexample:
+   without fairness, TLC may pick an arbitrary stutter step in any state,
+   so the liveness properties (Termination, GovernanceEffectiveness) would
+   be violated by a behavior that advances a few agents and then stutters
+   forever. Under weak fairness, whenever <<Next>>_vars is enabled
+   (any agent can still advance), it must eventually fire. In the terminal
+   configuration only the UNCHANGED branch is enabled, so stutter there is
+   allowed and no liveness property is compromised. *)
+Spec == Init /\ [][Next]_vars /\ WF_vars(Next)
 
 (* Invariant: No two agents can cause multi-bit state corruption *)
 TypeInvariant ==

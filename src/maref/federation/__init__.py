@@ -42,6 +42,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from maref.federation.bootstrap import (
+    BootstrapClient,
+    BootstrapSeed,
+    parse_srv_seeds,
+)
+from maref.federation.cascade_breaker import (
+    CascadeStatus,
+    CascadeTrip,
+    FederationCascadeBreaker,
+)
 from maref.federation.catalog import FederatedCatalog
 from maref.federation.discovery import FederatedDiscovery
 from maref.federation.gateway import (
@@ -51,6 +61,7 @@ from maref.federation.gateway import (
     FederationRequest,
     FederationResponse,
 )
+from maref.federation.health_monitor import FederationHealthMonitor
 from maref.federation.hitl import (
     CrossOrgApprovalRequest,
     CrossOrgApprovalStatus,
@@ -69,6 +80,10 @@ from maref.federation.marketplace import (
     MarketplaceListing,
     Pricing,
     PricingModel,
+)
+from maref.federation.membership import (
+    HeartbeatMessage,
+    MembershipManager,
 )
 from maref.federation.metering import (
     ContributionScore,
@@ -96,6 +111,13 @@ from maref.federation.settlement import (
     LedgerEntry,
     SettlementProposal,
     SettlementStatus,
+    billing_charge_key,
+    billing_fingerprint,
+    merkle_root,
+)
+from maref.federation.settlement_reconciler import (
+    SettlementReconciler,
+    SettlementReconciliationReport,
 )
 from maref.federation.trigram_sync import (
     AgentTrigramProof,
@@ -106,6 +128,12 @@ from maref.federation.trust import (
     FederatedTrustEngine,
     FederatedTrustScore,
     PeerTrustReport,
+)
+from maref.federation.trust_hardening import (
+    AnomalyRecord,
+    SourceReputation,
+    SybilTrustGuard,
+    byzantine_robust_aggregate,
 )
 
 
@@ -302,10 +330,23 @@ __all__ = [
     "FederationGatewayError",
     "FederationRequest",
     "FederationResponse",
+    # Bootstrap (3.1)
+    "BootstrapClient",
+    "BootstrapSeed",
+    "parse_srv_seeds",
+    # Cascade breaker (2.4)
+    "FederationCascadeBreaker",
+    "CascadeStatus",
+    "CascadeTrip",
     # Discovery
     "FederatedDiscovery",
     # Catalog
     "FederatedCatalog",
+    # Health monitor (2.5 / 3.1 membership)
+    "FederationHealthMonitor",
+    # Membership (3.1)
+    "MembershipManager",
+    "HeartbeatMessage",
     # Trust
     "FederatedTrustEngine",
     "FederatedTrustScore",
@@ -337,6 +378,17 @@ __all__ = [
     "SettlementProposal",
     "SettlementStatus",
     "LedgerEntry",
+    # Settlement reconciliation (3.2)
+    "SettlementReconciler",
+    "SettlementReconciliationReport",
+    "billing_charge_key",
+    "billing_fingerprint",
+    "merkle_root",
+    # Trust hardening (3.3)
+    "SybilTrustGuard",
+    "SourceReputation",
+    "AnomalyRecord",
+    "byzantine_robust_aggregate",
     # Trigram Sync (F1)
     "TrigramStateSnapshot",
     "TrigramStateSynchronizer",

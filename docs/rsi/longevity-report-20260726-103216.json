@@ -1,0 +1,394 @@
+{
+  "duration_hours": 23.50026882416672,
+  "start_time": "2026-07-26T10:32:16.332839",
+  "end_time": "2026-07-27T10:02:17.300606",
+  "snapshot_count": 48,
+  "passed": true,
+  "degradations": [],
+  "snapshots": [
+    {
+      "timestamp": 0.00014090538024902344,
+      "experiment_count": 130,
+      "adoption_rate": 0.7871,
+      "avg_score": 79.37,
+      "safety_alerts": 0,
+      "human_interventions": 0
+    },
+    {
+      "timestamp": 1800.0787789821625,
+      "experiment_count": 160,
+      "adoption_rate": 0.9175,
+      "avg_score": 88.18,
+      "safety_alerts": 0,
+      "human_interventions": 1
+    },
+    {
+      "timestamp": 3600.075161933899,
+      "experiment_count": 190,
+      "adoption_rate": 1.0,
+      "avg_score": 97.42,
+      "safety_alerts": 0,
+      "human_interventions": 1
+    },
+    {
+      "timestamp": 5400.11550784111,
+      "experiment_count": 220,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 1
+    },
+    {
+      "timestamp": 7200.1367909908295,
+      "experiment_count": 250,
+      "adoption_rate": 0.9949,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 1
+    },
+    {
+      "timestamp": 9000.070522069931,
+      "experiment_count": 280,
+      "adoption_rate": 0.9892,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 2
+    },
+    {
+      "timestamp": 10800.068521976471,
+      "experiment_count": 310,
+      "adoption_rate": 0.9775,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 2
+    },
+    {
+      "timestamp": 12600.069363117218,
+      "experiment_count": 340,
+      "adoption_rate": 0.989,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 14400.07910490036,
+      "experiment_count": 370,
+      "adoption_rate": 0.9872,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 16200.11021900177,
+      "experiment_count": 400,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 18000.15005683899,
+      "experiment_count": 430,
+      "adoption_rate": 0.9383,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 19800.14345598221,
+      "experiment_count": 460,
+      "adoption_rate": 0.9814,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 21600.228945970535,
+      "experiment_count": 490,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 23400.261296987534,
+      "experiment_count": 520,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 25200.30529499054,
+      "experiment_count": 550,
+      "adoption_rate": 0.9352,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 27000.306656837463,
+      "experiment_count": 580,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 28800.327326774597,
+      "experiment_count": 610,
+      "adoption_rate": 0.9819,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 30600.3529419899,
+      "experiment_count": 640,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 32400.345453977585,
+      "experiment_count": 670,
+      "adoption_rate": 0.9978,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 3
+    },
+    {
+      "timestamp": 34200.37329912186,
+      "experiment_count": 700,
+      "adoption_rate": 0.997,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 4
+    },
+    {
+      "timestamp": 36000.39366912842,
+      "experiment_count": 730,
+      "adoption_rate": 0.9602,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 5
+    },
+    {
+      "timestamp": 37800.391170978546,
+      "experiment_count": 760,
+      "adoption_rate": 0.9915,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 39600.419019937515,
+      "experiment_count": 790,
+      "adoption_rate": 0.996,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 41400.45570397377,
+      "experiment_count": 820,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 43200.440809965134,
+      "experiment_count": 850,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 45000.4472990036,
+      "experiment_count": 880,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 46800.40809202194,
+      "experiment_count": 910,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 48600.45143890381,
+      "experiment_count": 940,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 50400.519328832626,
+      "experiment_count": 970,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 6
+    },
+    {
+      "timestamp": 52200.56375694275,
+      "experiment_count": 1000,
+      "adoption_rate": 0.995,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 8
+    },
+    {
+      "timestamp": 54000.6237449646,
+      "experiment_count": 1030,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 8
+    },
+    {
+      "timestamp": 55800.68009400368,
+      "experiment_count": 1060,
+      "adoption_rate": 0.978,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 8
+    },
+    {
+      "timestamp": 57600.684744119644,
+      "experiment_count": 1090,
+      "adoption_rate": 0.9666,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 8
+    },
+    {
+      "timestamp": 59400.66771912575,
+      "experiment_count": 1120,
+      "adoption_rate": 0.9917,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 8
+    },
+    {
+      "timestamp": 61200.606153964996,
+      "experiment_count": 1150,
+      "adoption_rate": 0.9999,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 9
+    },
+    {
+      "timestamp": 63000.714190006256,
+      "experiment_count": 1180,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 9
+    },
+    {
+      "timestamp": 64800.754322052,
+      "experiment_count": 1210,
+      "adoption_rate": 0.9857,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 9
+    },
+    {
+      "timestamp": 66600.79329919815,
+      "experiment_count": 1240,
+      "adoption_rate": 0.9918,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 10
+    },
+    {
+      "timestamp": 68400.83182883263,
+      "experiment_count": 1270,
+      "adoption_rate": 0.993,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 11
+    },
+    {
+      "timestamp": 70200.87203001976,
+      "experiment_count": 1300,
+      "adoption_rate": 0.9973,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 11
+    },
+    {
+      "timestamp": 72000.91521406174,
+      "experiment_count": 1330,
+      "adoption_rate": 0.9966,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 11
+    },
+    {
+      "timestamp": 73800.9110879898,
+      "experiment_count": 1360,
+      "adoption_rate": 0.9977,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 12
+    },
+    {
+      "timestamp": 75600.8875939846,
+      "experiment_count": 1390,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 12
+    },
+    {
+      "timestamp": 77400.8959698677,
+      "experiment_count": 1420,
+      "adoption_rate": 0.9914,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 12
+    },
+    {
+      "timestamp": 79200.9290599823,
+      "experiment_count": 1450,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 12
+    },
+    {
+      "timestamp": 81000.94664001465,
+      "experiment_count": 1480,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 0,
+      "human_interventions": 13
+    },
+    {
+      "timestamp": 82800.99934720993,
+      "experiment_count": 1510,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 1,
+      "human_interventions": 13
+    },
+    {
+      "timestamp": 84600.96045517921,
+      "experiment_count": 1540,
+      "adoption_rate": 1.0,
+      "avg_score": 100.0,
+      "safety_alerts": 1,
+      "human_interventions": 13
+    }
+  ]
+}

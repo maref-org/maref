@@ -26,13 +26,18 @@ class EvolutionVault:
         return day_dir
 
     def load_day(self, day: str) -> dict[str, Any]:
-        path = self._base_dir / day / "result.yaml"
-        if not path.exists():
+        day_dir = self._base_dir / day
+        if not day_dir.exists():
             return {}
-        return self._read_yaml(path)
+        loaded: dict[str, Any] = {}
+        for name in ("metrics_snapshot", "experiment", "report", "next_plan"):
+            path = day_dir / f"{name}.yaml"
+            if path.exists():
+                loaded[name] = self._read_yaml(path)
+        return loaded
 
     def write_metrics_snapshot(self, day_dir: Path, snapshot: dict[str, Any]) -> None:
-        self._write_yaml(day_dir / "metrics.yaml", snapshot)
+        self._write_yaml(day_dir / "metrics_snapshot.yaml", snapshot)
 
     def write_experiment_result(self, day_dir: Path, result: Any) -> None:
         self._write_yaml(day_dir / "experiment.yaml", {"result": str(result)})

@@ -89,6 +89,7 @@ class GovernanceOverlay:
         observation_db_path: str = "governance_observations.db",
         detector_config: DualThresholdConfig | None = None,
         audit_log_path: str = "governance_audit.jsonl",
+        audit_hmac_key: str | None = None,
         oscillation_cooldown: float = 30.0,
         max_decisions: int = 1000,
         max_self_observations: int = 500,
@@ -110,7 +111,10 @@ class GovernanceOverlay:
         self._store = ObservationStore(db_path=observation_db_path)
 
         # M4: Audit logger
-        self._audit = AuditLogger(log_path=audit_log_path)
+        self._audit = AuditLogger(
+            log_path=audit_log_path,
+            hmac_key=audit_hmac_key,
+        )
 
         # M4: Oscillation fix loop
         self._oscillation_loop = OscillationFixLoop(

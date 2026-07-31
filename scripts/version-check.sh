@@ -10,7 +10,13 @@ set -euo pipefail
 GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 
 # Collect all expected versions from authoritative source (pyproject.toml)
-EXPECTED_VERSION=$(python3 -c "import tomllib; f=open('$GIT_ROOT/pyproject.toml','rb'); d=tomllib.load(f); print(d['project']['version'])" 2>/dev/null || echo "unknown")
+# tomllib requires Python 3.11+; prefer the project venv, fall back to system python3
+if [ -x "$GIT_ROOT/.venv/bin/python" ]; then
+    PY_BIN="$GIT_ROOT/.venv/bin/python"
+else
+    PY_BIN="python3"
+fi
+EXPECTED_VERSION=$($PY_BIN -c "import tomllib; f=open('$GIT_ROOT/pyproject.toml','rb'); d=tomllib.load(f); print(d['project']['version'])" 2>/dev/null || echo "unknown")
 
 echo "=== MAREF Version Consistency Check ==="
 echo "Expected version: $EXPECTED_VERSION"

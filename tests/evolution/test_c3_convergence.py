@@ -378,11 +378,11 @@ class TestTLAReplayWithMockStates:
         report = validator.generate_validation_report()
 
         assert isinstance(report, TLAValidationReport)
-        assert report.total_checks == 5
+        assert report.total_checks == 6
         assert report.passed == 0
         assert report.failed == 0
         assert report.all_passed is False
-        assert len(report.checks) == 5
+        assert len(report.checks) == 6
         for check in report.checks:
             assert check.passed is None
 
@@ -397,15 +397,20 @@ class TestTLAReplayWithMockStates:
         report = validator.generate_validation_report(states)
 
         assert isinstance(report, TLAValidationReport)
-        assert report.total_checks == 5
+        assert report.total_checks == 6
         assert report.state_count == 4
-        assert len(report.checks) == 5
+        assert len(report.checks) == 6
         # SafetyGate and RedLine are structural — passed=None
         structural = {c.invariant_name for c in report.checks if c.passed is None}
         assert structural == {"SafetyGateIntegrity", "RedLineImmutability"}
-        # Lyapunov, HALT, GrayCode should have real results
+        # Lyapunov, HALT, GrayCode, HighOrder should have real results
         runtime = {c.invariant_name for c in report.checks if c.passed is not None}
-        assert runtime == {"LyapunovConvergence", "HALTAbsorbing", "GrayCodeTransition"}
+        assert runtime == {
+            "LyapunovConvergence",
+            "HALTAbsorbing",
+            "GrayCodeTransition",
+            "HighOrderConvergence",
+        }
 
     def test_validation_report_to_dict_without_states(self):
         validator = TLAReplayValidator()
@@ -413,9 +418,9 @@ class TestTLAReplayWithMockStates:
         d = report.to_dict()
 
         assert d["all_passed"] is False
-        assert d["total_checks"] == 5
+        assert d["total_checks"] == 6
         assert d["passed"] == 0
-        assert len(d["checks"]) == 5
+        assert len(d["checks"]) == 6
 
 
 # ──────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import {
 } from "@/components/views/MarefViews";
 import { ImmunityDashboard } from "@/components/immunity/ImmunityDashboard";
 import { HITLView } from "@/components/views/HITLView";
+import { FederationView } from "@/components/views/FederationView";
 
 const DRAWER_LABELS: Record<MarefSection, string> = {
   home: "首页仪表盘",
@@ -34,6 +35,7 @@ const DRAWER_LABELS: Record<MarefSection, string> = {
   formal: "形式验证",
   guardrails: "护栏监控",
   error_budget: "错误预算",
+  federation: "联邦网络",
   skills: "技能市场",
   automation: "自动化",
   tasks: "任务面板",
@@ -54,6 +56,7 @@ const SECTION_VIEWS: Record<MarefSection, React.ComponentType> = {
   formal: FormalVerificationView,
   guardrails: GuardrailsView,
   error_budget: ErrorBudgetView,
+  federation: FederationView,
   skills: SkillsPanel,
   automation: AutomationView,
   tasks: TaskPanelView,

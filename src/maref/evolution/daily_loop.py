@@ -103,6 +103,7 @@ class DailyEvolutionLoop:
 
     def run_once(self, day: str | None = None) -> DailyEvolutionResult | None:
         current_day = day or time.strftime("%Y-%m-%d")
+        day_dir = self._vault.start_day(current_day)
         self._environment_check()
         metrics = self._metrics_collector.collect_incremental()
         current_snapshot = {
@@ -157,7 +158,7 @@ class DailyEvolutionLoop:
                     {h.hypothesis_id: h.description[:60] for h in hypotheses},
                 )
             self._vault.write_metrics_snapshot(
-                current_day,
+                day_dir,
                 {
                     **current_snapshot,
                     "overall_risk": report.overall_risk.value,
@@ -220,7 +221,7 @@ class DailyEvolutionLoop:
             )
         )
         self._vault.write_experiment_result(
-            current_day,
+            day_dir,
             {
                 "stop_reason": evolution_result.stop_reason,
                 "all_passed": evolution_result.all_passed,
@@ -229,7 +230,7 @@ class DailyEvolutionLoop:
         )
         self._vault.write_daily_report(current_day, self._build_report(current_day, analysis.priority))
         self._vault.write_next_plan(
-            current_day,
+            day_dir,
             {"priority": analysis.priority, "degradations": analysis.degradations},
         )
 
@@ -256,7 +257,6 @@ class DailyEvolutionLoop:
         except Exception:
             logger.exception("Failed to record day metrics in RoundVault")
 
-        day_dir = self._vault.start_day(current_day)
         return DailyEvolutionResult(
             day=current_day,
             phases=list(self.PHASES),
@@ -340,8 +340,9 @@ class DailyEvolutionLoop:
 
         # Persist metrics snapshot so the main diagnosis phase still sees it.
         try:
+            day_dir = self._vault.start_day(day)
             self._vault.write_metrics_snapshot(
-                day,
+                day_dir,
                 {
                     "trust_elevation": True,
                     "overall_risk": report.overall_risk.value,

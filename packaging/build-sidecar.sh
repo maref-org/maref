@@ -43,7 +43,7 @@ echo ""
 
 # 2. Install MAREF with sidecar dependencies (if not already installed)
 echo "==> Ensuring MAREF + sidecar dependencies..."
-pip install -e "$PROJECT_ROOT[sidecar]" 2>/dev/null || {
+pip install -e "$PROJECT_ROOT[sidecar,identity,sentinel]" 2>/dev/null || {
     echo "WARNING: pip install failed, proceeding with PYTHONPATH fallback"
 }
 
@@ -87,6 +87,9 @@ PYTHONPATH="$PROJECT_ROOT/src${PYTHONPATH:+:$PYTHONPATH}" \
     --hiddenimport websockets \
     --hiddenimport websockets.legacy.server \
     --hiddenimport maref \
+    --hiddenimport maref.crypto.ed25519_keys \
+    --hiddenimport maref.crypto.sm2 \
+    --hiddenimport gmssl \
     --hiddenimport maref.governance \
     --hiddenimport maref.integration \
     --hiddenimport maref.integration.a2a_bridge \

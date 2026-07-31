@@ -29,6 +29,11 @@ def _get_base() -> Path:
     return Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
 
 
+def _get_meta_base() -> Path:
+    """Meta-monitor data path (notifications, reports)."""
+    return Path(os.environ.get("MAREF_META_PATH", ".openclaw"))
+
+
 def register(entry: AuditPathEntry) -> None:
     _REGISTRY[entry.subsystem] = entry
 
@@ -53,7 +58,9 @@ def get_read_paths(subsystem: str) -> list[str]:
 
 def _resolve(path_template: str) -> str:
     base = _get_base()
+    meta_base = _get_meta_base()
     resolved = path_template.replace("{MAREF_AUDIT_PATH}", str(base))
+    resolved = resolved.replace("{MAREF_META_PATH}", str(meta_base))
     resolved = resolved.replace("{BASE}", str(base))
     return str(Path(resolved))
 
@@ -119,8 +126,8 @@ register(AuditPathEntry(
 register(AuditPathEntry(
     subsystem="meta_monitor",
     description="Meta-monitor self report",
-    write_path=".openclaw/meta-monitor-report.json",
-    read_paths=(".openclaw/meta-monitor-report.json",),
+    write_path="{MAREF_META_PATH}/meta-monitor-report.json",
+    read_paths=("{MAREF_META_PATH}/meta-monitor-report.json",),
     file_pattern="*.json",
     expected_format="json",
 ))
@@ -128,8 +135,8 @@ register(AuditPathEntry(
 register(AuditPathEntry(
     subsystem="notifications",
     description="Alert notification files",
-    write_path=".openclaw/notifications/",
-    read_paths=(".openclaw/notifications/",),
+    write_path="{MAREF_META_PATH}/notifications/",
+    read_paths=("{MAREF_META_PATH}/notifications/",),
     file_pattern="*.json",
     expected_format="json",
 ))

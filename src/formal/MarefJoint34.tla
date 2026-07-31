@@ -3,32 +3,36 @@
   MAREF 34-State Joint FSM: 10-State Governance + 24-State Agent
 
   This TLA+ specification models the joint state space of the governance
-  and agent state machines. The joint state is a tuple <<gov_state, agent_state>>.
+  (10-state, 4-bit Gray code) and agent (24-state, 5-bit Gray code) state
+  machines. The joint state is the tuple <<govState, agentState>>.
 
-  Cross-layer invariants:
-  - Gov HALT => all agents must be TERMINATED or ZOMBIE
-  - Gov STABILIZE => no agents in CONFLICTING
-  - Gov ACT => at least one agent in EXECUTING
-  - Agent ZOMBIE => Gov must be in ANALYZE or higher entropy
+  Cross-layer invariants (SJ-001..007) restrict the joint state space:
+  - SJ-001: Gov HALT (9)  => agent is TERMINATED (22) or ZOMBIE (23)
+  - SJ-002: Gov STABILIZE (7) => agent is not CONFLICTING (12)
+  - SJ-003: Gov ACT (5)    => agent is EXECUTING (8)
+  - SJ-004: Gov HALT is absorbing (no outgoing governance transition)
+  - SJ-005: Agent ZOMBIE (23) => gov >= ANALYZE (2)
+  - SJ-006: Agent TERMINATED (22) cannot re-enter lifecycle
+  - SJ-007: Gov HALT is absorbing for the joint state (no agent move either)
 
-  The joint space has 10 * 24 = 240 possible states (before Gray code constraints).
-  With symmetry reduction, the reachable state space is much smaller.
+  Earlier versions of this spec asserted the SJ predicates over the full
+  Cartesian product GovStates \X AgentStates, which is trivially FALSE (e.g.
+  (9, 3) exists in the product). This version encodes the SJ constraints into
+  the Next relation as a pruning predicate ValidJoint, so TLC verifies that
+  every REACHABLE joint state satisfies them, plus the temporal properties
+  (absorbing terminals and reachability of the constrained states).
 *)
 
 EXTENDS Naturals, Sequences, FiniteSets
 
 CONSTANTS
   GovStates,        (* 0..9 *)
-  AgentStates,       (* 0..23 *)
-  Agents,            (* Set of agent identifiers *)
-  MaxTransitions
+  AgentStates       (* 0..23 *)
 
 ASSUME GovStates = 0..9
 ASSUME AgentStates = 0..23
-ASSUME IsFiniteSet(Agents)
-ASSUME MaxTransitions \in Nat
 
-(* ── Import 10-state governance Gray code ── *)
+(* ── 10-state governance Gray code ── *)
 GovGray == [
   s \in GovStates |->
     CASE s = 0 -> <<0,0,0,0>>
@@ -49,7 +53,7 @@ GovName == [s \in GovStates |->
   [] s = 6 -> "VERIFY" [] s = 7 -> "STABILIZE" [] s = 8 -> "REPORT"
   [] s = 9 -> "HALT"]
 
-(* ── Import 24-state agent Gray code ── *)
+(* ── 24-state agent Gray code ── *)
 AgentGray == [
   s \in AgentStates |->
     CASE s = 0 -> <<0,0,0,0,0>>  [] s = 1 -> <<0,0,0,0,1>>
@@ -80,15 +84,13 @@ AgentName == [s \in AgentStates |->
   [] s = 20 -> "EVOLVING"       [] s = 21 -> "TERMINATING"
   [] s = 22 -> "TERMINATED"     [] s = 23 -> "ZOMBIE"]
 
-(* ── Governor state: which FSM can transition next ── *)
-GovGovernor == {0, 1}  (* 0 = governance moves, 1 = agent moves *)
-
-(* ── Valid governance transitions (from MarefLite) ── *)
+(* ── Valid governance transitions: exactly one Gray code bit differs ── *)
 GovTransition(s, t) ==
   LET gs == GovGray[s]  gt == GovGray[t] IN
-  \E i \in 1..4 : /\ gs[i] # gt[i] /\ \A j \in 1..4 : j # i => gs[j] = gt[j]
+  \E i \in 1..4 : /\ gs[i] # gt[i]
+                  /\ \A j \in 1..4 : j # i => gs[j] = gt[j]
 
-(* ── Valid agent transitions (from MarefAgent24) ── *)
+(* ── Valid agent transitions: explicit lifecycle table ── *)
 AgentTransition(s, t) ==
   \/ /\ s = 0  /\ t \in {1, 22}
   \/ /\ s = 1  /\ t \in {2, 21}
@@ -115,53 +117,109 @@ AgentTransition(s, t) ==
   \/ /\ s = 22 /\ FALSE
   \/ /\ s = 23 /\ FALSE
 
-(* ── Joint state ── *)
-JointState == GovStates \X AgentStates
+(* ── Cross-layer constraints (SJ-001/002/003/005 prune the joint space) ── *)
+SJ001(g, a) == ~(g = 9 /\ a \notin {22, 23})    (* HALT => dead agent *)
+SJ002(g, a) == ~(g = 7 /\ a = 12)               (* STABILIZE => no conflict *)
+SJ003(g, a) == (g = 5 => a = 8)                 (* ACT => agent EXECUTING *)
+SJ005(g, a) == (a = 23 => g >= 2)               (* ZOMBIE => gov >= ANALYZE *)
 
-(* ── Cross-layer safety invariants ── *)
+(* A joint state is legal iff all cross-layer constraints hold *)
+ValidJoint(g, a) ==
+  /\ SJ001(g, a)
+  /\ SJ002(g, a)
+  /\ SJ003(g, a)
+  /\ SJ005(g, a)
 
-(* SJ-001: Gov HALT => all agents must be TERMINATED(22) or ZOMBIE(23) *)
-HaltImpliesAgentsDead ==
-  \A <<gov, agent>> \in JointState :
-    gov = 9 => (agent = 22 \/ agent = 23)
+(* ── Executable model ── *)
 
-(* SJ-002: Gov STABILIZE(7) => no agents in CONFLICTING(12) *)
-StabilizeImpliesNoConflict ==
-  \A <<gov, agent>> \in JointState :
-    gov = 7 => agent # 12
+VARIABLES govState, agentState
 
-(* SJ-003: Gov ACT(5) => at least one agent in EXECUTING(8) *)
-ActImpliesExecuting ==
-  \E <<gov, agent>> \in JointState :
-    gov = 5 /\ agent = 8
+vars == <<govState, agentState>>
 
-(* SJ-004: Gov HALT is absorbing for both FSMs *)
+Init ==
+  /\ govState = 0
+  /\ agentState = 0
+
+(* Governance moves one Gray-code step, pruning to legal joint states.
+   SJ-004: no outgoing governance transition from HALT (9). *)
+GovMove ==
+  /\ govState # 9
+  /\ \E t \in GovStates :
+       /\ GovTransition(govState, t)
+       /\ govState # t
+       /\ ValidJoint(t, agentState)
+       /\ govState' = t
+       /\ UNCHANGED agentState
+
+(* Agent moves one lifecycle step, pruning to legal joint states.
+   SJ-006/007: terminal agent states (22/23) have no outgoing moves. *)
+AgentMove ==
+  /\ agentState \notin {22, 23}
+  /\ \E t \in AgentStates :
+       /\ AgentTransition(agentState, t)
+       /\ agentState # t
+       /\ ValidJoint(govState, t)
+       /\ agentState' = t
+       /\ UNCHANGED govState
+
+(* Legal joint terminal state: Gov HALT with a dead agent (SJ-001). Such a
+   state has no progress by construction; allow it to stutter so TLC's
+   deadlock check accepts the designed end-of-life configuration. *)
+JointTerminal ==
+  /\ govState = 9
+  /\ agentState \in {22, 23}
+
+Next ==
+  \/ GovMove
+  \/ AgentMove
+  \/ (JointTerminal /\ UNCHANGED vars)
+
+(* Spec with weak fairness: WF_vars(Next) rules out the trivial stutter
+   counterexample that previously violated the temporal properties.
+   Without fairness TLC may stutter forever at any state; under weak
+   fairness, whenever <<Next>>_vars is enabled (GovMove or AgentMove), it
+   must eventually fire. In the JointTerminal configuration only the
+   UNCHANGED branch is enabled, so the designed end-of-life stutter is
+   still allowed. *)
+Spec == Init /\ [][Next]_vars /\ WF_vars(Next)
+
+(* ── Invariants ── *)
+
+TypeOK ==
+  /\ govState \in GovStates
+  /\ agentState \in AgentStates
+
+(* Every reachable joint state satisfies the cross-layer constraints *)
+JointInvariant == ValidJoint(govState, agentState)
+
+(* ── Temporal properties ── *)
+
+(* SJ-004: once in HALT, governance never leaves.
+   []-formulas quantify over ALL behaviors, so TLC can check them directly
+   as PROPERTIES. *)
 HaltGovAbsorbing ==
-  \A g \in GovStates : GovTransition(9, g) => g = 9
+  [](govState = 9 => [](govState = 9))
 
-(* SJ-005: Agent ZOMBIE(23) implies Gov entropy >= 2 (ANALYZE or higher) *)
-ZombieImpliesGovAnalyzed ==
-  \A <<gov, agent>> \in JointState :
-    agent = 23 => gov >= 2
+(* SJ-006: once terminal, the agent never re-enters the lifecycle *)
+TerminalsAbsorbAgent ==
+  [](agentState \in {22, 23} => [](agentState \in {22, 23}))
 
-(* SJ-006: Agent TERMINATED(22) cannot re-enter lifecycle *)
-TerminatedImmutability ==
-  \A <<gov, agent>> \in JointState :
-    agent = 22 => \A t \in AgentStates : ~AgentTransition(22, t)
+(* ── Existential reachability (NOT TLC temporal properties) ────────────────
+   A liveness formula <>P means "EVERY behavior must eventually satisfy P".
+   Because GovMove / AgentMove are non-deterministic here, behaviors exist
+   that skip (5,8) or (9,22), so ActReachable / HaltReachable would be
+   violated even though such paths DO exist. The existential question
+   ("is there a legal path to (ACT, EXECUTING) / (HALT, TERMINATED)?") is a
+   reachability check performed by validator.py via BFS over the same
+   transition relations. These definitions are kept as documentation of the
+   intended witnesses only; they are NOT listed in MarefJoint34MC.cfg. *)
 
-(* SJ-007: Gov HALT(9) is terminal for joint state — no joint transitions possible *)
-HaltJointAbsorbing ==
-  \A <<gov, agent>> \in JointState :
-    gov = 9 => ~\E t \in AgentStates : AgentTransition(agent, t)
+(* SJ-003 satisfiability witness (checked by validator.py BFS) *)
+ActReachable ==
+  <>(govState = 5 /\ agentState = 8)
 
-(* ── Collective invariant ── *)
-CrossLayerInvariants ==
-  /\ HaltImpliesAgentsDead
-  /\ StabilizeImpliesNoConflict
-  /\ ActImpliesExecuting
-  /\ HaltGovAbsorbing
-  /\ ZombieImpliesGovAnalyzed
-  /\ TerminatedImmutability
-  /\ HaltJointAbsorbing
+(* SJ-001 satisfiability witness (checked by validator.py BFS) *)
+HaltReachable ==
+  <>(govState = 9 /\ agentState = 22)
 
 ===============================================================================

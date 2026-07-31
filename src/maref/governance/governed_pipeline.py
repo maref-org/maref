@@ -84,6 +84,7 @@ class GovernedPipeline:
         self.pipeline = GovernancePipeline(
             hitl=self.hitl,
             permission=self.permission,
+            audit_callback=self._audit_decision,
         )
 
         logger.info(
@@ -102,3 +103,17 @@ class GovernedPipeline:
     def govern(self, request: GovernanceRequest) -> GovernanceResult:
         """Execute governance check through the unified pipeline."""
         return self.pipeline.govern(request)
+
+    def _audit_decision(self, request: GovernanceRequest, result: GovernanceResult) -> None:
+        """Persist governance decisions to the append-only audit log."""
+        self.audit.log(
+            event_type="governance_decision",
+            actor=request.agent_id,
+            action=request.action,
+            details=f"{result.verdict.value}: {result.reason}",
+            metadata={
+                "tenant_id": request.tenant_id,
+                "matched_rule": result.matched_rule,
+                "hitl_tier": result.hitl_tier.name if result.hitl_tier else "",
+            },
+        )

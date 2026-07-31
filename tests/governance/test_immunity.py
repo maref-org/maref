@@ -600,11 +600,11 @@ class TestCooldownManager:
 
     def test_force_merge(self):
         cid = self.mgr.submit_code("agent-1", "code")
-        result = self.mgr.force_merge(cid, reason="testing")
+        result = self.mgr.force_merge(cid, actor_id="agent-1", reason="testing")
         assert result["success"] is True
 
     def test_force_merge_not_found(self):
-        result = self.mgr.force_merge("nonexistent")
+        result = self.mgr.force_merge("nonexistent", actor_id="agent-1")
         assert result["success"] is False
 
     def test_auto_archive_expired(self):

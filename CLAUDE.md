@@ -44,12 +44,11 @@
 
 | 闸门 | 条件 | 验证方式 |
 |------|------|---------|
-| G1 | arXiv ID 已获取 | d1_preflight_check.py |
-| G2 | branch protection 已启用 | 手动确认 |
-| G3 | CI 全绿 + 安全扫描通过 | GitHub Actions status |
+| G1 | branch protection 已启用 | d1_preflight_check.py / GitHub API |
+| G2 | CI 全绿 + 安全扫描通过 | GitHub Actions status / d1_preflight_check.py |
+| G3 | 安全扫描通过 | d1_preflight_check.py |
 | G4 | 无专有文件泄露 | pre-push hook Phase 2-3 |
 | G5 | 无运行时产物 | pre-push hook Phase 3 |
-
 **推送流程**:
 ```bash
 python3 scripts/d1_preflight_check.py   # 运行闸门检查

@@ -180,6 +180,11 @@ class FederatedPolicySubscriber:
         self._event_handlers: list[Callable[[PolicyPushEvent], None]] = []
         self._published_rules: dict[str, list[PolicyRule]] = {}
 
+    @property
+    def local_engine(self) -> FederationPolicyEngine:
+        """The local policy engine that imported rules are applied to."""
+        return self._local_engine
+
     # ------------------------------------------------------------------
     # Subscription management
     # ------------------------------------------------------------------

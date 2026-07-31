@@ -143,3 +143,36 @@ class TestKeyringStore:
     def test_custom_service_name(self) -> None:
         store = KeyringStore(service_name="custom.service")
         assert store._service == "custom.service"
+
+    @patch("maref.security.keyring_store.keyring", create=True)
+    def test_set_returns_false_on_keyring_error(self, mock_keyring: MagicMock) -> None:
+        mock_keyring.set_password.side_effect = RuntimeError("keyring failure")
+        store = KeyringStore()
+        store._keyring_available = True
+        result = store.set("MAREF_TEST_KEY", "secret")
+        assert result is False
+
+    @patch("maref.security.keyring_store.keyring", create=True)
+    def test_delete_returns_false_on_keyring_error(self, mock_keyring: MagicMock) -> None:
+        mock_keyring.delete_password.side_effect = RuntimeError("keyring failure")
+        store = KeyringStore()
+        store._keyring_available = True
+        result = store.delete("MAREF_TEST_KEY")
+        assert result is False
+
+    @patch("maref.security.keyring_store.keyring", create=True)
+    def test_diagnose_unknown_backend_on_keyring_error(self, mock_keyring: MagicMock) -> None:
+        mock_keyring.get_keyring.side_effect = RuntimeError("no backend")
+        store = KeyringStore()
+        store._keyring_available = True
+        diag = store.diagnose()
+        assert diag["keyring_backend"] == "unknown"
+
+    @patch("maref.security.keyring_store.keyring", create=True)
+    def test_diagnose_skips_stored_keys_on_keyring_error(self, mock_keyring: MagicMock) -> None:
+        mock_keyring.get_keyring.return_value.name = "memory"
+        mock_keyring.get_password.side_effect = RuntimeError("keyring failure")
+        store = KeyringStore()
+        store._keyring_available = True
+        diag = store.diagnose()
+        assert diag["stored_keys"] == []

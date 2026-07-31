@@ -1,4 +1,4 @@
-import type { GuardrailStats, Session, Message, ModelProvider, Skill, Task, FileNode, HITLEvent, HITLStats } from "@/types";
+import type { GuardrailStats, Session, Message, ModelProvider, Skill, Task, FileNode, HITLEvent, HITLStats, FederatedPlatformSummary } from "@/types";
 
 const REAL_BACKEND = "http://localhost:8000";
 const BASE_URL = "/api";
@@ -351,4 +351,9 @@ export const api = {
     return request<{ entries: Array<{ id: number; type: string; actor: string; action: string; reason: string; severity: string; time: string }>; total: number; counts: Record<string, number> }>(
       `/v1/audit/logs${qs ? `?${qs}` : ""}`);
   },
+
+  // ── Federation API (Phase 2.3) ─────────────────────
+
+  getFederatedPlatformSummary: () =>
+    request<FederatedPlatformSummary>("/v1/federation/platform-summary"),
 };

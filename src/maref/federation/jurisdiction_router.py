@@ -116,6 +116,37 @@ class CrossJurisdictionResult:
     suggested_jurisdiction: str = ""
     evaluated_at: float = field(default_factory=time.time)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a dict for HTTP / audit consumption."""
+        return {
+            "action": self.action,
+            "agent_trigram": self.agent_trigram,
+            "final_decision": self.final_decision.value,
+            "conflict_detected": self.conflict_detected,
+            "suggested_jurisdiction": self.suggested_jurisdiction,
+            "evaluated_at": self.evaluated_at,
+            "jurisdiction_results": [
+                {
+                    "jurisdiction": jr.jurisdiction,
+                    "compatible": jr.compatible,
+                    "decision": jr.decision.value,
+                    "trigram_allowed": jr.trigram_allowed,
+                    "winning_rule": (
+                        jr.evaluation_result.winning_rule.rule_id
+                        if jr.evaluation_result is not None
+                        and jr.evaluation_result.winning_rule is not None
+                        else None
+                    ),
+                    "matched_rules": (
+                        [r.rule_id for r in jr.evaluation_result.matched_rules]
+                        if jr.evaluation_result is not None
+                        else []
+                    ),
+                }
+                for jr in self.jurisdiction_results
+            ],
+        }
+
 
 class JurisdictionPolicyRouter:
     """Routes policy decisions across jurisdictions based on trigram state.
@@ -145,10 +176,13 @@ class JurisdictionPolicyRouter:
         self,
         conflict_strategy: JurisdictionConflictStrategy = JurisdictionConflictStrategy.MOST_RESTRICTIVE,
         prefer_jurisdiction: str = "",
+        audit_logger: Any | None = None,
     ):
         self._configs: dict[str, JurisdictionConfig] = {}
         self._conflict_strategy = conflict_strategy
         self._prefer_jurisdiction = prefer_jurisdiction
+        self._audit_logger = audit_logger
+        self._decision_log: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # Jurisdiction management
@@ -264,11 +298,13 @@ class JurisdictionPolicyRouter:
             )
             results.append(jr)
 
-        return self._resolve_cross_jurisdiction(
+        result = self._resolve_cross_jurisdiction(
             action=action,
             trigram=trigram_str,
             results=results,
         )
+        self._record_decision(result)
+        return result
 
     def _evaluate_jurisdiction(
         self,
@@ -472,6 +508,123 @@ class JurisdictionPolicyRouter:
                 else ""
             ),
         }
+
+    # ------------------------------------------------------------------
+    # Compliance audit trail (Phase 3.5)
+    # ------------------------------------------------------------------
+
+    def decision_log(self, limit: int | None = None) -> list[dict[str, Any]]:
+        """Return the decision audit trail (newest first when limited).
+
+        Every :meth:`route_action` call appends one entry with the action,
+        trigram, per-jurisdiction decisions, winning rule ids and the final
+        cross-jurisdiction decision — the "operation trace" required for
+        cross-jurisdiction compliance review.
+        """
+        log = self._decision_log
+        return list(log[-limit:]) if limit is not None else list(log)
+
+    def compliance_report(self, limit: int = 10) -> dict[str, Any]:
+        """Generate a cross-jurisdiction compliance report.
+
+        Summarizes every recorded decision per jurisdiction (with its legal
+        reference) plus the most recent decisions — the audit artefact for
+        regulatory submission.
+
+        Args:
+            limit: Number of most recent decisions to include.
+
+        Returns:
+            A report dict with aggregate stats and the decision trail.
+        """
+        jurisdiction_stats: dict[str, dict[str, Any]] = {
+            cfg.name: {
+                "description": cfg.description,
+                "regulation_ref": cfg.metadata.get("regulation_ref", ""),
+                "rule_count": cfg.policy_engine.rule_count() if cfg.policy_engine else 0,
+                "decisions": 0,
+                "allow": 0,
+                "deny": 0,
+                "defer": 0,
+            }
+            for cfg in self._configs.values()
+        }
+        for entry in self._decision_log:
+            for name, jr in entry["jurisdictions"].items():
+                stats = jurisdiction_stats.setdefault(
+                    name,
+                    {
+                        "description": "",
+                        "regulation_ref": self._regulation_ref(name),
+                        "rule_count": 0,
+                        "decisions": 0,
+                        "allow": 0,
+                        "deny": 0,
+                        "defer": 0,
+                    },
+                )
+                stats["decisions"] += 1
+                decision = jr["decision"]
+                if decision in stats:
+                    stats[decision] += 1
+
+        return {
+            "generated_at": time.time(),
+            "total_decisions": len(self._decision_log),
+            "conflicts_detected": sum(
+                1 for e in self._decision_log if e["conflict_detected"]
+            ),
+            "jurisdictions": jurisdiction_stats,
+            "recent_decisions": self.decision_log(limit=limit),
+        }
+
+    def _record_decision(self, result: CrossJurisdictionResult) -> None:
+        """Append a decision to the audit trail (and external audit logger)."""
+        entry: dict[str, Any] = {
+            "timestamp": result.evaluated_at,
+            "action": result.action,
+            "trigram": result.agent_trigram,
+            "final_decision": result.final_decision.value,
+            "conflict_detected": result.conflict_detected,
+            "suggested_jurisdiction": result.suggested_jurisdiction,
+            "jurisdictions": {
+                jr.jurisdiction: {
+                    "decision": jr.decision.value,
+                    "compatible": jr.compatible,
+                    "winning_rule": (
+                        jr.evaluation_result.winning_rule.rule_id
+                        if jr.evaluation_result is not None
+                        and jr.evaluation_result.winning_rule is not None
+                        else None
+                    ),
+                    "regulation_ref": self._regulation_ref(jr.jurisdiction),
+                }
+                for jr in result.jurisdiction_results
+            },
+        }
+        self._decision_log.append(entry)
+        if self._audit_logger is not None:
+            self._audit_logger.log(
+                event_type="compliance_decision",
+                actor=f"trigram:{result.agent_trigram}",
+                action=result.action,
+                details=(
+                    f"final={result.final_decision.value} "
+                    f"conflict={result.conflict_detected}"
+                ),
+                metadata={
+                    "final_decision": result.final_decision.value,
+                    "conflict_detected": result.conflict_detected,
+                    "suggested_jurisdiction": result.suggested_jurisdiction,
+                },
+                layer="federation",
+            )
+
+    def _regulation_ref(self, jurisdiction: str) -> str:
+        config = self._configs.get(jurisdiction)
+        if config is None:
+            return ""
+        return str(config.metadata.get("regulation_ref", ""))
 
     # ------------------------------------------------------------------
     # Internal helpers

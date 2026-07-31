@@ -21,6 +21,7 @@ import {
   Wrench,
   UserCheck,
   Bug,
+  GitMerge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
@@ -42,6 +43,7 @@ export type MarefSection =
   | "rsi"
   | "guardrails"
   | "error_budget"
+  | "federation"
   | "skills"
   | "automation"
   | "hitl"
@@ -79,6 +81,7 @@ const MAREF_NAV_ITEMS: {
   { id: "rsi", icon: Activity, label: "RSI 演化", shortcut: "" },
   { id: "guardrails", icon: Shield, label: "护栏监控", shortcut: "" },
   { id: "error_budget", icon: BarChart3, label: "错误预算", shortcut: "" },
+  { id: "federation", icon: GitMerge, label: "联邦网络", shortcut: "" },
   { id: "tasks", icon: ListTodo, label: "任务面板", shortcut: "⌃-" },
   { id: "tools", icon: Wrench, label: "工具管理", shortcut: "⌃," },
   { id: "settings", icon: Settings, label: "设置", shortcut: "⌃." },

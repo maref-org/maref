@@ -1,123 +1,203 @@
 """端到端策略引擎集成测试
 
-测试全链路：GovernancePipeline + AuditLogger + CircuitBreaker + PermissionMatrix
+测试全链路：GovernancePipeline 8 步管线 + 审计回调 + 断路器回调 +
+权限矩阵 + HITL 路由 + PipelineRegistry 选择治理。
+
+对齐真实 API（core_pipeline.govern 的 8 步流程）：
+  1. 断路器深度检查（cb_check_callback）
+  2. 权限矩阵（role 角色访问）
+  3-4. 策略规则评估（policy_rules 优先级降序）
+  5. HITL 路由（ASK_USER → hitl_event_id）
+  6. 审计回调
+  7. 信任更新
+  8. 断路器成功/失败记录
 """
 
 from __future__ import annotations
 
-import json
-import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from maref.governance import AuditLogger, CircuitBreaker, GovernanceStateMachine
-from maref.governance.core_pipeline import GovernancePipeline, GovernanceRequest, Verdict
+from maref.governance import AuditLogger
+from maref.governance.core_pipeline import GovernancePipeline, GovernanceRequest, GovernanceResult, Verdict
 from maref.governance.governed_pipeline import GovernedPipeline
-from maref.governance.pipeline_registry import PipelineGovernor, PipelineRegistry, QualityTier
-from maref.recursive.permission_matrix import IChingRole, PermissionMatrix
+from maref.governance.pipeline_registry import (
+    PipelineGovernor,
+    PipelineRegistration,
+    QualityTier,
+)
+from maref.integration.hitl import HITLTier
+from maref.recursive.permission_matrix import PermissionMatrix
 
 
 @pytest.fixture
-def temp_audit_path():
-    with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False) as f:
-        path = Path(f.name)
-    yield path
-    if path.exists():
-        path.unlink()
+def temp_audit_path(tmp_path: Path) -> Path:
+    return tmp_path / "audit.jsonl"
 
 
 @pytest.fixture
-def audit_logger(temp_audit_path):
-    return AuditLogger(log_path=str(temp_audit_path))
-
-
-@pytest.fixture
-def circuit_breaker():
-    return CircuitBreaker(max_depth=3)
-
-
-@pytest.fixture
-def state_machine():
-    return GovernanceStateMachine()
-
-
-@pytest.fixture
-def permission_matrix():
+def permission_matrix() -> PermissionMatrix:
     return PermissionMatrix()
 
 
+@pytest.fixture
+def audit_events() -> list[tuple[GovernanceRequest, GovernanceResult]]:
+    return []
+
+
+@pytest.fixture
+def plain_pipeline(audit_events: list[tuple[GovernanceRequest, GovernanceResult]]) -> GovernancePipeline:
+    def on_audit(req: GovernanceRequest, result: GovernanceResult) -> None:
+        audit_events.append((req, result))
+
+    return GovernancePipeline(audit_callback=on_audit)
+
+
 class TestPipelineIntegration:
-    def test_basic_allow_flow(self, audit_logger, circuit_breaker):
-        pipe = GovernancePipeline(audit_logger=audit_logger, circuit_breaker=circuit_breaker)
-        req = GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80)
-        result = pipe.govern(req)
+    """真实 API 的 8 步管线行为验证。"""
+
+    def test_basic_allow_flow(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80)
+        )
         assert result.verdict == Verdict.ALLOW
 
-    def test_basic_deny_flow(self, audit_logger, circuit_breaker):
-        pipe = GovernancePipeline(audit_logger=audit_logger, circuit_breaker=circuit_breaker)
-        req = GovernanceRequest(action="shell.exec", agent_id="agent-a", trust_score=10)
-        result = pipe.govern(req)
-        assert result.verdict == Verdict.DENY
-
-    def test_ask_user_flow(self, audit_logger, circuit_breaker):
-        pipe = GovernancePipeline(audit_logger=audit_logger, circuit_breaker=circuit_breaker)
-        req = GovernanceRequest(action="shell.exec", agent_id="agent-a", trust_score=50)
-        result = pipe.govern(req)
+    def test_dangerous_action_low_trust_asks_user(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="shell.exec", agent_id="agent-a", trust_score=10)
+        )
         assert result.verdict == Verdict.ASK_USER
+        assert result.hitl_event_id, "ASK_USER 必须产生 HITL 事件"
 
-    def test_audit_logger_integration(self, temp_audit_path):
-        logger = AuditLogger(log_path=str(temp_audit_path))
-        pipe = GovernancePipeline(audit_logger=logger)
-        pipe.govern(GovernanceRequest(action="file.write", agent_id="agent-a", trust_score=80))
-        entries = list(logger.read_all())
-        assert len(entries) >= 1
-        entry = entries[-1]
-        assert entry.event_type == "decision"
-        assert "ALLOW" in entry.details or "allow" in entry.details.lower()
+    def test_dangerous_action_trusted_allowed(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="shell.exec", agent_id="agent-a", trust_score=90)
+        )
+        assert result.verdict == Verdict.ALLOW
 
-    def test_circuit_breaker_records_failures(self, audit_logger):
-        cb = CircuitBreaker(max_depth=3)
-        pipe = GovernancePipeline(audit_logger=audit_logger, circuit_breaker=cb)
-        for _ in range(5):
-            pipe.govern(GovernanceRequest(action="shell.exec", agent_id="agent-a", trust_score=10))
-        assert cb.state_name == "OPEN"
+    def test_git_push_requires_human(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="git.push", agent_id="agent-a", trust_score=95)
+        )
+        assert result.verdict == Verdict.ASK_USER
+        assert result.hitl_tier == HITLTier.P0_RESPONSE
 
-    def test_circuit_breaker_blocks_when_open(self, audit_logger):
-        cb = CircuitBreaker(max_depth=2)
-        pipe = GovernancePipeline(audit_logger=audit_logger, circuit_breaker=cb)
-        for _ in range(3):
-            pipe.govern(GovernanceRequest(action="shell.exec", agent_id="agent-a", trust_score=10))
-        assert cb.is_open
+    def test_low_trust_denied(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=10)
+        )
+        assert result.verdict == Verdict.DENY
+        assert "Trust score too low" in result.reason
+
+    def test_high_recursion_asks_user(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="file.read", agent_id="agent-a", recursion_depth=10)
+        )
+        assert result.verdict == Verdict.ASK_USER
+        assert "recursion" in result.reason.lower()
+
+    def test_permission_matrix_denies_write(self, plain_pipeline: GovernancePipeline) -> None:
+        # 角色「坎」禁止 write 工具 → 权限矩阵先于策略规则拒绝
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="file.write", agent_id="agent-a", trust_score=80, role="坎")
+        )
+        assert result.verdict == Verdict.DENY
+        assert result.matched_rule == "permission_matrix"
+
+    def test_unknown_action_default_allow(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="unknown.action.12345", agent_id="agent-a", trust_score=50)
+        )
+        assert result.verdict == Verdict.ALLOW
+
+    def test_empty_action_handled(self, plain_pipeline: GovernancePipeline) -> None:
+        result = plain_pipeline.govern(
+            GovernanceRequest(action="", agent_id="agent-a", trust_score=50)
+        )
+        assert result.verdict is not None
+
+    def test_audit_callback_invoked(
+        self,
+        plain_pipeline: GovernancePipeline,
+        audit_events: list[tuple[GovernanceRequest, GovernanceResult]],
+    ) -> None:
+        plain_pipeline.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80))
+        assert len(audit_events) == 1
+        req, result = audit_events[0]
+        assert req.action == "file.read"
+        assert result.verdict == Verdict.ALLOW
+
+    def test_cb_open_blocks(self) -> None:
+        def cb_check(_tenant: str, _agent: str, _action: str, _depth: int) -> bool:
+            return False
+
+        pipe = GovernancePipeline(cb_check_callback=cb_check)
         result = pipe.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=90))
         assert result.verdict == Verdict.DENY
+        assert result.matched_rule == "circuit_breaker_depth"
 
-    def test_custom_policies_override_defaults(self, audit_logger):
-        def block_git_push(req):
+    def test_cb_record_invoked(self) -> None:
+        records: list[tuple[str, str, str, bool]] = []
+
+        def cb_check(_tenant: str, _agent: str, _action: str, _depth: int) -> bool:
+            return True
+
+        def cb_record(tenant: str, agent: str, action: str, success: bool) -> None:
+            records.append((tenant, agent, action, success))
+
+        pipe = GovernancePipeline(cb_check_callback=cb_check, cb_record_callback=cb_record)
+        pipe.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80))
+        assert records, "断路器必须记录决策结果"
+        assert records[-1][3] is True  # ALLOW → success=True
+
+    def test_trust_callback_allow(self) -> None:
+        updates: list[tuple[str, str, float, str]] = []
+
+        def on_trust(tenant: str, agent: str, score: float, source: str) -> None:
+            updates.append((tenant, agent, score, source))
+
+        pipe = GovernancePipeline(trust_callback=on_trust)
+        pipe.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80))
+        assert updates, "ALLOW 必须触发信任更新"
+        assert updates[-1][2] == 80.5  # +0.5
+
+    def test_trust_callback_deny(self) -> None:
+        updates: list[tuple[str, str, float, str]] = []
+
+        def on_trust(tenant: str, agent: str, score: float, source: str) -> None:
+            updates.append((tenant, agent, score, source))
+
+        pipe = GovernancePipeline(trust_callback=on_trust)
+        pipe.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=10))
+        assert updates, "DENY 必须触发信任更新"
+        assert updates[-1][2] == 9.0  # -1.0
+
+    def test_custom_policies_override_defaults(self) -> None:
+        def block_git_push(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if "git.push" in req.action:
-                return (Verdict.DENY, "git push blocked by custom policy", None)
-            return (Verdict.ALLOW, "", None)
+                return Verdict.DENY, "git push blocked by custom policy", None
+            return Verdict.ALLOW, "", None
 
-        pipe = GovernancePipeline(
-            audit_logger=audit_logger,
-            policy_rules=[(100, block_git_push)],
+        pipe = GovernancePipeline(policy_rules=[(100, block_git_push)])
+        result = pipe.govern(
+            GovernanceRequest(action="git.push", agent_id="agent-a", trust_score=95)
         )
-        req = GovernanceRequest(action="git.push", agent_id="agent-a", trust_score=95)
-        result = pipe.govern(req)
         assert result.verdict == Verdict.DENY
+        assert "custom policy" in result.reason
 
-    def test_multiple_policies_priority(self, audit_logger):
-        def high_priority_block(req):
+    def test_multiple_policies_priority(self) -> None:
+        def high_priority_block(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.trust_score < 50:
-                return (Verdict.DENY, "low trust blocked by high-priority rule", None)
-            return None
+                return Verdict.DENY, "low trust blocked by high-priority rule", None
+            return Verdict.ALLOW, "", None
 
-        def low_priority_allow(req):
-            return (Verdict.ALLOW, "allow by low-priority rule", None)
+        def low_priority_allow(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
+            return Verdict.ALLOW, "allow by low-priority rule", None
 
         pipe = GovernancePipeline(
-            audit_logger=audit_logger,
             policy_rules=[
                 (200, high_priority_block),
                 (10, low_priority_allow),
@@ -128,113 +208,124 @@ class TestPipelineIntegration:
         result_high = pipe.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80))
         assert result_high.verdict == Verdict.ALLOW
 
-    def test_permission_matrix_custom_role(self, permission_matrix):
-        pm = permission_matrix
-        role = pm.get_role("kan")
-        assert role is not None
-        assert role.role is IChingRole.KAN
-        assert role.max_recursion_depth > 0
-
-    def test_pipeline_with_permission_matrix(self, audit_logger, permission_matrix):
-        pipe = GovernancePipeline(
-            audit_logger=audit_logger,
-            permission_matrix=permission_matrix,
-        )
-        req = GovernanceRequest(
-            action="file.write",
-            agent_id="agent-a",
-            trust_score=80,
-            metadata={"role": "kan"},
-        )
-        result = pipe.govern(req)
-        assert result.verdict is not None
-
-    def test_pipeline_timing(self, audit_logger):
-        import time
-        pipe = GovernancePipeline(audit_logger=audit_logger)
+    def test_pipeline_timing(self) -> None:
+        pipe = GovernancePipeline()
         start = time.perf_counter()
         for _ in range(100):
             pipe.govern(GovernanceRequest(action="file.read", agent_id="agent-a"))
         elapsed = time.perf_counter() - start
         assert elapsed < 5.0
 
-    def test_high_recursion_depth(self, audit_logger, circuit_breaker):
-        pipe = GovernancePipeline(audit_logger=audit_logger, circuit_breaker=circuit_breaker)
-        req = GovernanceRequest(action="file.read", agent_id="agent-a", recursion_depth=10)
-        result = pipe.govern(req)
-        assert result.verdict in (Verdict.DENY, Verdict.ASK_USER)
+    def test_permission_matrix_custom_role(self, permission_matrix: PermissionMatrix) -> None:
+        entry = permission_matrix.get_permissions("坎")
+        assert entry is not None
+        assert entry.role == "坎"
+        assert entry.max_entropy >= 0
 
-    def test_full_governed_pipeline_assembly(self, temp_audit_path):
-        gp = GovernedPipeline(audit_log_path=str(temp_audit_path))
-        req = GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80)
-        result = gp.govern(req)
+    def test_pipeline_with_permission_matrix(self, permission_matrix: PermissionMatrix) -> None:
+        pipe = GovernancePipeline(permission=permission_matrix)
+        result = pipe.govern(
+            GovernanceRequest(
+                action="file.write",
+                agent_id="agent-a",
+                trust_score=80,
+                role="坎",
+            )
+        )
+        assert result.verdict is not None
+        assert result.verdict == Verdict.DENY  # 坎 禁止 write
+
+    def test_pipeline_registry_quality_tier(self) -> None:
+        governor = PipelineGovernor()
+        governor.register(
+            PipelineRegistration(
+                pipeline_id="test-pipe",
+                name="test",
+                entry_point="test.py",
+                description="test pipeline",
+                quality_tier=QualityTier.OFFICIAL,
+                verified=True,
+            )
+        )
+        verdict, _reason, _hitl = governor.validate_selection("test-pipe")
+        assert verdict == Verdict.ALLOW
+
+    def test_pipeline_registry_deprecated_blocks(self) -> None:
+        governor = PipelineGovernor()
+        governor.register(
+            PipelineRegistration(
+                pipeline_id="deprecated-pipe",
+                name="deprecated",
+                entry_point="deprecated.py",
+                description="deprecated pipeline",
+                quality_tier=QualityTier.DEPRECATED,
+            )
+        )
+        verdict, _reason, _hitl = governor.validate_selection("deprecated-pipe")
+        assert verdict == Verdict.DENY
+
+    def test_pipeline_registry_unregistered_asks(self) -> None:
+        governor = PipelineGovernor()
+        verdict, reason, _hitl = governor.validate_selection("never-registered")
+        assert verdict == Verdict.ASK_USER
+        assert "not registered" in reason
+
+
+class TestGovernedPipeline:
+    """Batteries-included 组装（审计 + HITL + 权限 + 断路器池 + 管线）。"""
+
+    def test_full_governed_pipeline_assembly(self, temp_audit_path: Path) -> None:
+        gp = GovernedPipeline(audit_path=str(temp_audit_path))
+        result = gp.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80))
         assert result.verdict == Verdict.ALLOW
 
-    def test_pipeline_registry_quality_tier(self):
-        registry = PipelineRegistry()
-        pipe = GovernancePipeline()
-        registry.register("test-pipe", pipe, tier=QualityTier.OFFICIAL)
-        governor = PipelineGovernor(registry)
-        result = governor.validate_selection("test-pipe")
-        assert result.allowed is True
-
-    def test_pipeline_registry_deprecated_blocks(self):
-        registry = PipelineRegistry()
-        pipe = GovernancePipeline()
-        registry.register("deprecated-pipe", pipe, tier=QualityTier.DEPRECATED)
-        governor = PipelineGovernor(registry)
-        result = governor.validate_selection("deprecated-pipe")
-        assert result.allowed is False
-
-    def test_pipeline_agent_id_isolation(self, audit_logger):
-        pipe = GovernancePipeline(audit_logger=audit_logger)
-        req_a = GovernanceRequest(action="shell.exec", agent_id="agent-a", trust_score=90)
-        req_b = GovernanceRequest(action="shell.exec", agent_id="agent-b", trust_score=10)
-        result_a = pipe.govern(req_a)
-        result_b = pipe.govern(req_b)
-        assert result_a.verdict == Verdict.ALLOW
-        assert result_b.verdict == Verdict.DENY
-
-    def test_hitl_decision_routing(self, audit_logger):
-        pipe = GovernancePipeline(audit_logger=audit_logger)
-        req = GovernanceRequest(action="git.push", agent_id="agent-a", trust_score=90)
-        result = pipe.govern(req)
+    def test_governed_pipeline_git_push_asks_user(self, temp_audit_path: Path) -> None:
+        gp = GovernedPipeline(audit_path=str(temp_audit_path))
+        result = gp.govern(GovernanceRequest(action="git.push", agent_id="agent-a", trust_score=95))
         assert result.verdict == Verdict.ASK_USER
-        assert result.needs_human is True
+        assert result.hitl_event_id
 
-    def test_empty_action_handling(self, audit_logger):
-        pipe = GovernancePipeline(audit_logger=audit_logger)
-        req = GovernanceRequest(action="", agent_id="agent-a")
-        result = pipe.govern(req)
-        assert result.verdict is not None
+    def test_governed_pipeline_writes_audit(self, temp_audit_path: Path) -> None:
+        gp = GovernedPipeline(audit_path=str(temp_audit_path))
+        gp.govern(GovernanceRequest(action="file.read", agent_id="agent-a", trust_score=80))
+        entries = list(gp.audit.read_all())
+        assert entries, "治理决策必须写入审计日志"
+        entry = entries[-1]
+        sig = entry.ed25519_signature or entry.hmac_signature
+        assert sig, "审计条目必须带签名"
+        assert entry.chain_hash, "审计条目必须带链哈希"
+        assert gp.audit.verify_integrity()["integrity_intact"] is True
 
-    def test_unknown_action_handling(self, audit_logger):
-        pipe = GovernancePipeline(audit_logger=audit_logger)
-        req = GovernanceRequest(action="unknown.action.12345", agent_id="agent-a", trust_score=50)
-        result = pipe.govern(req)
-        assert result.verdict in (Verdict.ALLOW, Verdict.ASK_USER)
 
-    @pytest.mark.parametrize("score,expected", [
-        (100, Verdict.ALLOW),
-        (70, Verdict.ALLOW),
-        (50, Verdict.ASK_USER),
-        (30, Verdict.ASK_USER),
-        (10, Verdict.DENY),
-    ])
-    def test_trust_score_thresholds(self, audit_logger, score, expected):
-        pipe = GovernancePipeline(audit_logger=audit_logger)
-        req = GovernanceRequest(action="file.write", agent_id="agent-a", trust_score=score)
-        result = pipe.govern(req)
-        assert result.verdict == expected
+class TestAuditLoggerIntegration:
+    """独立 AuditLogger + 断言（沿用旧测试意图）。"""
 
-    def test_audit_entries_have_signatures(self, temp_audit_path):
+    def test_audit_logger_writes_signed_entries(self, temp_audit_path: Path) -> None:
         logger = AuditLogger(log_path=str(temp_audit_path))
-        pipe = GovernancePipeline(audit_logger=logger)
-        pipe.govern(GovernanceRequest(action="file.read", agent_id="agent-a"))
-        raw = temp_audit_path.read_text()
-        lines = [l for l in raw.strip().split("\n") if l]
-        for line in lines[-3:]:
-            entry = json.loads(line)
-            sig = entry.get("ed25519_signature") or entry.get("hmac_signature")
-            assert sig, f"Entry {entry.get('id')} missing signature"
-            assert entry.get("chain_hash"), f"Entry {entry.get('id')} missing chain_hash"
+        logger.log_decision(
+            event_type="decision",
+            actor="agent-a",
+            action="file.read",
+            details="allow",
+        )
+        entries = list(logger.read_all())
+        assert len(entries) >= 1
+        entry = entries[-1]
+        assert entry.event_type == "governance_decision"
+        sig = entry.ed25519_signature or entry.hmac_signature
+        assert sig
+        assert logger.verify_integrity()["integrity_intact"] is True
+
+    def test_audit_chain_tamper_detected(self, temp_audit_path: Path) -> None:
+        logger = AuditLogger(log_path=str(temp_audit_path))
+        logger.log_decision(actor="agent-a", action="file.read", reason="allow")
+        logger.log_decision(actor="agent-a", action="file.write", reason="deny")
+        # 篡改中间条目
+        lines = temp_audit_path.read_text().strip().split("\n")
+        import json
+
+        entry = json.loads(lines[0])
+        entry["details"] = "tampered"
+        lines[0] = json.dumps(entry)
+        temp_audit_path.write_text("\n".join(lines) + "\n")
+        assert logger.verify_integrity()["integrity_intact"] is False
