@@ -14,6 +14,7 @@ from maref.immunity.cooldown_manager import CooldownManager
 from maref.immunity.negative_gene_bank import NegativeGeneBank
 from maref.integration.a2a_bridge import A2ABridge
 from maref.integration.a2a_server import create_a2a_router
+from maref.integration.mcp_server import SUPPORTED_PROTOCOL_VERSIONS
 from maref.mcp.evolution_tools import EVOLUTION_TOOLS
 from maref.mcp.router import MCPServerAdapter
 from maref.observability.guardrail_metrics import get_guardrail_metrics
@@ -397,6 +398,17 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
                 "id": req_id,
                 "result": mcp_bridge.get_server_info(),
             }
+        if method == "server/discover":
+            _mcp_info = mcp_bridge.get_server_info()
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "protocolVersions": SUPPORTED_PROTOCOL_VERSIONS,
+                    "capabilities": mcp_bridge.get_capabilities(),
+                    "serverInfo": _mcp_info.get("serverInfo", {}),
+                },
+            }
         if method == "tools/list":
             return {
                 "jsonrpc": "2.0",
@@ -435,7 +447,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     def mcp_well_known() -> dict[str, Any]:
         return {
             "protocol": "mcp",
-            "version": "2024-11-05",
+            "protocolVersions": SUPPORTED_PROTOCOL_VERSIONS,
             "capabilities": {"tools": list(SIDECAR_MCP_TOOLS)},
         }
 

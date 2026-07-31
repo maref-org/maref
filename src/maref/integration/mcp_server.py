@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -11,6 +12,11 @@ from maref.integration.mcp_transport import (
     JSONRPCRequest,
     JSONRPCResponse,
 )
+
+logger = logging.getLogger(__name__)
+
+# 2026-07-28 起协议无状态化；按新→旧排列，供 server/discover 与版本协商使用
+SUPPORTED_PROTOCOL_VERSIONS = ["2026-07-28", "2025-11-25", "2024-11-05"]
 
 
 @dataclass
@@ -128,6 +134,8 @@ class MCPServer:
 
         if method == "initialize":
             return self._handle_initialize(request.id, params)
+        elif method == "server/discover":
+            return self._handle_discover(request.id)
         elif method == "tools/list":
             return self._handle_tools_list(request.id)
         elif method == "tools/call":
@@ -151,12 +159,31 @@ class MCPServer:
             )
 
     def _handle_initialize(self, req_id: int | str, params: dict[str, Any]) -> JSONRPCResponse:
-        params.get("clientInfo", {})
-        protocol_version = params.get("protocolVersion", "2024-11-05")
+        client_version = params.get("protocolVersion", "2024-11-05")
+        protocol_version = (
+            client_version if client_version in SUPPORTED_PROTOCOL_VERSIONS else SUPPORTED_PROTOCOL_VERSIONS[0]
+        )
+        if protocol_version != client_version:
+            logger.warning(
+                "MCP version negotiation: client=%s server supports=%s using=%s",
+                client_version,
+                SUPPORTED_PROTOCOL_VERSIONS,
+                protocol_version,
+            )
         return JSONRPCResponse(
             result={
                 "protocolVersion": protocol_version,
-                "capabilities": {},
+                "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
+                "serverInfo": {"name": self.name, "version": self.version},
+            },
+            id=req_id,
+        )
+
+    def _handle_discover(self, req_id: int | str) -> JSONRPCResponse:
+        return JSONRPCResponse(
+            result={
+                "protocolVersions": SUPPORTED_PROTOCOL_VERSIONS,
+                "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
                 "serverInfo": {"name": self.name, "version": self.version},
             },
             id=req_id,
