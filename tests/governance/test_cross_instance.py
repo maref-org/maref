@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from maref.eivl.federated_audit_log import AuditEventType, FederatedAuditLog
 from maref.governance.cross_instance import (
     CrossInstanceGovernor,
     InstanceStatus,
@@ -13,7 +14,6 @@ from maref.governance.cross_instance import (
     WeightPoisonDetector,
     WeightSnapshot,
 )
-from maref.governance.federated_audit import AuditEventType, FederatedAuditLog
 from maref.governance.sync_policy import (
     ConflictStrategy,
     SyncDataType,
@@ -349,7 +349,7 @@ class TestWeightPoisonDetector:
 
 class TestFederatedAuditEdgeCases:
     def test_sign_with_explicit_key(self) -> None:
-        from maref.governance.federated_audit import FederatedAuditEntry, AuditEventType
+        from maref.eivl.federated_audit_log import AuditEventType, FederatedAuditEntry
         entry = FederatedAuditEntry(
             entry_id="e1", event_type=AuditEventType.SYNC_STARTED,
             source_instance="a", target_instance="b", data_type="t", details="",
@@ -359,7 +359,7 @@ class TestFederatedAuditEdgeCases:
         assert entry.verify(key=b"custom-key")
 
     def test_verify_empty_signature(self) -> None:
-        from maref.governance.federated_audit import FederatedAuditEntry, AuditEventType
+        from maref.eivl.federated_audit_log import AuditEventType, FederatedAuditEntry
         entry = FederatedAuditEntry(
             entry_id="e1", event_type=AuditEventType.SYNC_FAILED,
             source_instance="a", target_instance="b", data_type="t", details="",
@@ -367,7 +367,7 @@ class TestFederatedAuditEdgeCases:
         assert not entry.verify()
 
     def test_get_entries_returns_copy(self) -> None:
-        from maref.governance.federated_audit import FederatedAuditLog, AuditEventType
+        from maref.eivl.federated_audit_log import AuditEventType, FederatedAuditLog
         log = FederatedAuditLog()
         log.record(AuditEventType.SYNC_STARTED, "a", "b", "t")
         entries = log.get_entries()
@@ -375,7 +375,7 @@ class TestFederatedAuditEdgeCases:
         assert log.entry_count == 1
 
     def test_query_limit(self) -> None:
-        from maref.governance.federated_audit import FederatedAuditLog, AuditEventType
+        from maref.eivl.federated_audit_log import AuditEventType, FederatedAuditLog
         log = FederatedAuditLog()
         log.record(AuditEventType.SYNC_STARTED, "a", "b", "t1")
         log.record(AuditEventType.SYNC_FAILED, "c", "d", "t2")
@@ -384,7 +384,7 @@ class TestFederatedAuditEdgeCases:
 
     def test_missing_key_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import importlib
-        fed = importlib.import_module("maref.governance.federated_audit")
+        fed = importlib.import_module("maref.eivl.federated_audit_log")
         monkeypatch.delenv("MAREF_FEDERATED_AUDIT_KEY", raising=False)
         monkeypatch.setattr(fed, "_HMAC_KEY", None, raising=False)
         with pytest.raises(RuntimeError, match="MAREF_FEDERATED_AUDIT_KEY"):

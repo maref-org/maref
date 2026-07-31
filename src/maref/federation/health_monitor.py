@@ -64,6 +64,7 @@ class FederationHealthMonitor:
         silence_timeout: float = DEFAULT_SILENCE_TIMEOUT,
         trust_decay_per_cycle: float = DEFAULT_TRUST_DECAY_PER_CYCLE,
         check_interval: float = DEFAULT_CHECK_INTERVAL,
+        cascade_breaker: Any | None = None,
     ) -> None:
         self._audit_logger = audit_logger
         self._signer = ed25519_signer
@@ -72,14 +73,22 @@ class FederationHealthMonitor:
         self._check_interval = check_interval
         self._members: dict[str, MemberHealth] = {}
         self._last_check_time: float = 0.0
+        # Optional :class:`~maref.federation.cascade_breaker.FederationCascadeBreaker`.
+        # Kept duck-typed to avoid a hard import cycle: sustained silence feeds
+        # ``record_failure`` (driving isolation + dependent degradation) and a
+        # recovery probe feeds ``record_success`` (exact un-degradation).
+        self._cascade_breaker = cascade_breaker
 
     def probe(self, agent_id: str) -> None:
         existing = self._members.get(agent_id)
         if existing is not None:
+            was_suspected = existing.suspected
             existing.last_seen = time.time()
             existing.suspected = False
             existing.suspicion_started = 0.0
             existing.trust_penalty = max(0.0, existing.trust_penalty - self._trust_decay * 2)
+            if was_suspected:
+                self._signal_cascade_recovery(agent_id)
         else:
             self._members[agent_id] = MemberHealth(
                 agent_id=agent_id,
@@ -121,6 +130,7 @@ class FederationHealthMonitor:
                     100.0,
                     member.trust_penalty + self._trust_decay,
                 )
+                self._signal_cascade_failure(member.agent_id)
                 details.append(member.to_dict())
 
         silent_count = sum(1 for m in self._members.values() if m.is_silent)
@@ -134,11 +144,15 @@ class FederationHealthMonitor:
         )
 
     def get_applied_penalties(self) -> dict[str, float]:
-        return {
-            mid: m.trust_penalty
-            for mid, m in self._members.items()
-            if m.trust_penalty > 0
-        }
+        return {mid: m.trust_penalty for mid, m in self._members.items() if m.trust_penalty > 0}
+
+    def member_snapshots(self) -> dict[str, dict[str, Any]]:
+        """Return every tracked member's health snapshot keyed by agent id.
+
+        Used by the Phase 3.1 membership layer to expose the node
+        membership table (heartbeat-tracked servers) to operators.
+        """
+        return {mid: m.to_dict() for mid, m in self._members.items()}
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -150,3 +164,47 @@ class FederationHealthMonitor:
             "trust_decay_per_cycle": self._trust_decay,
             "last_check_time": self._last_check_time,
         }
+
+    # ── Cascade breaker linkage ──────────────────────────────────────────
+
+    def _signal_cascade_failure(self, agent_id: str) -> None:
+        """Feed a silent member into the cascade breaker.
+
+        Called once per ``check()`` cycle while the member stays silent, so
+        sustained silence accumulates consecutive failures and eventually
+        isolates the agent (and degrades its dependents). Never raises.
+        """
+        breaker = self._cascade_breaker
+        if breaker is None:
+            return
+        try:
+            breaker.record_failure(agent_id, reason="health_monitor_silence")
+        except Exception:
+            return
+
+    def _signal_cascade_recovery(self, agent_id: str) -> None:
+        """Signal that a previously-suspected member has recovered.
+
+        Permits a half-open probe first (``can_proceed``), then completes
+        the recovery (``record_success``) so degraded dependents are
+        un-degraded exactly. Never raises.
+        """
+        breaker = self._cascade_breaker
+        if breaker is None:
+            return
+        try:
+            if hasattr(breaker, "can_proceed"):
+                breaker.can_proceed(agent_id)
+            breaker.record_success(agent_id)
+        except Exception:
+            return
+
+
+__all__ = [
+    "FederationHealthMonitor",
+    "MemberHealth",
+    "HealthCheckResult",
+    "DEFAULT_SILENCE_TIMEOUT",
+    "DEFAULT_TRUST_DECAY_PER_CYCLE",
+    "DEFAULT_CHECK_INTERVAL",
+]

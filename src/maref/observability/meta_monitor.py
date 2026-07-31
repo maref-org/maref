@@ -23,6 +23,7 @@ from typing import Any
 
 import httpx
 
+from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
 from maref.observability.audit_paths import (
     get_registry,
     verify_path_consistency,
@@ -38,17 +39,22 @@ _NOTIFICATIONS_DIR: Path | None = None
 _REPORT_PATH: Path | None = None
 
 
+def _meta_base() -> Path:
+    """Path for meta-monitor data (notifications, reports)."""
+    return Path(os.environ.get("MAREF_META_PATH", ".openclaw"))
+
+
 def _notifications_dir() -> Path:
     global _NOTIFICATIONS_DIR
     if _NOTIFICATIONS_DIR is None:
-        _NOTIFICATIONS_DIR = Path(".openclaw/notifications")
+        _NOTIFICATIONS_DIR = _meta_base() / "notifications"
     return _NOTIFICATIONS_DIR
 
 
 def _report_path() -> Path:
     global _REPORT_PATH
     if _REPORT_PATH is None:
-        _REPORT_PATH = Path(".openclaw/meta-monitor-report.json")
+        _REPORT_PATH = _meta_base() / "meta-monitor-report.json"
     return _REPORT_PATH
 
 
@@ -90,6 +96,13 @@ def _read_last_report() -> dict[str, Any] | None:
         return None
 
 
+def _get_alert_tracker() -> AlertFeedbackTracker:
+    """Get or create the singleton AlertFeedbackTracker."""
+    if not hasattr(_get_alert_tracker, "_instance"):
+        _get_alert_tracker._instance = AlertFeedbackTracker()  # type: ignore[attr-defined]
+    return _get_alert_tracker._instance  # type: ignore[attr-defined]
+
+
 def _write_notification(
     title: str,
     severity: str,
@@ -120,6 +133,18 @@ def _write_notification(
     path = ndir / name
     with open(path, "w") as f:
         json.dump(notif, f)
+
+    # Also track via AlertFeedbackTracker for M2 metrics
+    try:
+        tracker = _get_alert_tracker()
+        tracker.record_alert(
+            name=title,
+            severity=severity,
+            message=message,
+            subsystem=subsystem,
+        )
+    except Exception:
+        pass
 
 
 # ── M0: Survivability Assertions ────────────────────────────────────── #
@@ -276,6 +301,28 @@ def _scripts_dir() -> Path:
     return Path(os.environ.get("MAREF_SCRIPTS_PATH", "scripts"))
 
 
+def _find_all_plist_labels() -> set[str]:
+    """Find com.maref plist labels across all standard launchd directories.
+
+    Searches project scripts/, user LaunchAgents, and system locations.
+    """
+    labels: set[str] = set()
+    search_dirs = [
+        _scripts_dir(),
+        Path.home() / "Library/LaunchAgents",
+    ]
+    if sys.platform == "darwin":
+        search_dirs.extend([
+            Path("/Library/LaunchAgents"),
+            Path("/Library/LaunchDaemons"),
+        ])
+    for d in search_dirs:
+        if d.exists():
+            for p in d.glob("com.maref.*.plist"):
+                labels.add(p.stem)
+    return labels
+
+
 def _get_launchd_maref_agents() -> list[tuple[str, bool]]:
     """Query launchd for all com.maref.* agents. Returns [(label, is_running)]. """
     agents: list[tuple[str, bool]] = []
@@ -313,9 +360,9 @@ def check_managed_agents() -> dict[str, Any]:
         "unknown": [],
     }
 
-    plists = list(_scripts_dir().glob("com.maref.*.plist"))
-    results["plist_count"] = len(plists)
-    plist_labels = {p.stem for p in plists}
+    # Find all plist labels across multiple directories
+    plist_labels = _find_all_plist_labels()
+    results["plist_count"] = len(plist_labels)
 
     if sys.platform == "darwin":
         launchd_agents = _get_launchd_maref_agents()
@@ -330,7 +377,23 @@ def check_managed_agents() -> dict[str, Any]:
                 else:
                     results["dead"].append(label)
             else:
-                results["dead"].append(label)
+                # Check PID file fallback for manually started agents
+                pid_file = Path(f"/tmp/{label}.pid")
+                is_running = False
+                if pid_file.exists():
+                    try:
+                        pid = int(pid_file.read_text().strip())
+                        # Check if process is alive
+                        pid_alive = os.path.exists(f"/proc/{pid}") if sys.platform == "linux" else (
+                            subprocess.run(["kill", "-0", str(pid)], capture_output=True, timeout=2).returncode == 0
+                        )
+                        is_running = pid_alive
+                    except (OSError, ValueError, subprocess.TimeoutExpired):
+                        pass
+                if is_running:
+                    results["running"].append(label)
+                else:
+                    results["dead"].append(label)
 
         meta_monitor_running = os.getpid() > 0
         if meta_monitor_running and "com.maref.meta-monitor" not in results["running"]:
@@ -340,49 +403,71 @@ def check_managed_agents() -> dict[str, Any]:
         results["meta_monitor_pid"] = os.getpid()
 
     elif sys.platform == "linux":
-        for plist in plists:
-            results["configured"].append(plist.stem)
+        for label in sorted(plist_labels):
+            results["configured"].append(label)
             try:
                 r = subprocess.run(
-                    ["systemctl", "is-active", plist.stem],
+                    ["systemctl", "is-active", label],
                     capture_output=True, text=True, timeout=5,
                 )
                 if r.stdout.strip() == "active":
-                    results["running"].append(plist.stem)
+                    results["running"].append(label)
                 else:
-                    results["dead"].append(plist.stem)
+                    results["dead"].append(label)
             except (subprocess.TimeoutExpired, FileNotFoundError):
-                results["dead"].append(plist.stem)
+                results["dead"].append(label)
     else:
         results["unknown"].append("unsupported_platform")
+
+    # Core agents required for M0 survival.
+    # Only includes long-running daemons that are essential for meta-audit.
+    # NOTE: compliance-sidecar excluded here — it depends on sidecar.server
+    # which requires ObservationCollector + CompositeMonitor. Install via
+    # `scripts/com.maref.compliance-sidecar.plist` instructions separately.
+    _CORE_MAREF_AGENTS: set[str] = {
+        "com.maref.meta-monitor",
+        "com.maref.audit-agent",
+    }
 
     total = len(results["configured"])
     running = len(results["running"])
     survival_rate = running / total if total > 0 else 1.0
     results["survival_rate"] = round(survival_rate, 3)
 
-    if results["dead"]:
-        core_running = "com.maref.meta-monitor" in results["running"]
-        if not core_running:
-            results["passed"] = False
-            _write_notification(
-                "M0 Fail", "critical",
-                "meta-monitor not running — audit system cannot function",
-                subsystem="agents",
-            )
-        elif survival_rate < 0.10:
-            results["passed"] = False
-            _write_notification(
-                "M0 Fail", "critical",
-                f"Agent survival rate {survival_rate:.0%} ({running}/{total}) — dead: {results['dead']}",
-                subsystem="agents",
-            )
-        else:
-            _write_notification(
-                "M0 Degraded", "warning",
-                f"Agent survival rate {survival_rate:.0%} ({running}/{total}) — dead: {results['dead']}",
-                subsystem="agents",
-            )
+    # Calculate core agent survival separately
+    core_running = [l for l in results["running"] if l in _CORE_MAREF_AGENTS]
+    core_dead = [l for l in results["dead"] if l in _CORE_MAREF_AGENTS]
+    core_total = len(_CORE_MAREF_AGENTS)
+    core_survival = len(core_running) / core_total if core_total > 0 else 1.0
+    results["core_survival"] = {
+        "running": core_running,
+        "dead": core_dead,
+        "total": core_total,
+        "survival_rate": round(core_survival, 3),
+    }
+
+    # Thresholds applied to CORE agents, not all agents
+    maturity = os.environ.get("MAREF_MATURITY", "experimental").lower()
+    threshold = 0.70 if maturity != "beta" else 0.90
+    if maturity == "ga":
+        threshold = 1.0
+
+    if core_survival < threshold:
+        results["passed"] = False
+        _write_notification(
+            "M0 Fail", "critical",
+            f"Core agent survival rate {core_survival:.0%} ({len(core_running)}/{core_total}) — "
+            f"threshold={threshold:.0%}, dead: {core_dead}",
+            subsystem="agents",
+        )
+    elif results["dead"]:
+        _write_notification(
+            "M0 Degraded", "warning",
+            f"Agent survival rate {survival_rate:.0%} ({running}/{total}), "
+            f"core={core_survival:.0%} ({len(core_running)}/{core_total}) — "
+            f"dead (non-core): {[l for l in results['dead'] if l not in _CORE_MAREF_AGENTS][:5]}",
+            subsystem="agents",
+        )
     return results
 
 
@@ -488,9 +573,23 @@ def check_notification_staleness(
 def check_m2(notifications_dir: Path | str | None = None) -> dict[str, Any]:
     """Run all M2 feedback loop checks."""
     staleness = check_notification_staleness(notifications_dir=notifications_dir)
+
+    # AlertFeedbackTracker metrics for enhanced M2 checks
+    feedback_metrics: dict[str, Any] = {}
+    try:
+        tracker = _get_alert_tracker()
+        feedback_metrics = {
+            "repeat_rate": tracker.repeat_alert_rate(),
+            "alert_recovery": tracker.alert_recovery_rate(),
+            "alert_disappearance": tracker.check_alert_disappearance(),
+        }
+    except Exception:
+        feedback_metrics = {"error": "AlertFeedbackTracker unavailable"}
+
     return {
         "passed": staleness.get("passed", False),
         "notification_staleness": staleness,
+        "feedback_tracking": feedback_metrics,
     }
 
 
@@ -560,15 +659,24 @@ def run_all_checks(
 
 
 _snapshot_writer: HealthSnapshotWriter | None = None
+_pulse_writer: PulseWriter | None = None
 
 
 def _update_health_snapshot(status: str = "healthy", active_agents: int = 0) -> None:
     """Write health snapshot to keep M0 health_snapshot_freshness passing."""
-    global _snapshot_writer
+    global _snapshot_writer, _pulse_writer
     if _snapshot_writer is None:
         _snapshot_writer = HealthSnapshotWriter()
     try:
         _snapshot_writer.write_snapshot(status=status, active_agents=active_agents)
+    except Exception:
+        pass
+
+    # Also write meta-monitor's own pulse to keep .governance/pulses/ populated
+    try:
+        if _pulse_writer is None:
+            _pulse_writer = PulseWriter(agent_id="meta-monitor", interval_seconds=300.0)
+        _pulse_writer.write_pulse(status="alive")
     except Exception:
         pass
 

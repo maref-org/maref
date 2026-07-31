@@ -1,6 +1,26 @@
+"""DEPRECATED compatibility layer for the legacy MAREF trust engine.
+
+The single source of truth for trust scoring is now
+:class:`~maref.recursive.trust_engine_v2.TrustEngineV2` (9-factor scoring with
+Goodhart-overoptimization detection, temporal decay, AAA-F tiers). This
+module keeps the legacy ``TrustEngine`` API working by delegating to
+``TrustEngineV2`` internally:
+
+- ``evaluate()`` / ``get_score()``  -> ``TrustEngineV2.assess()`` mapped to the
+  legacy 0..1 ``TrustScore`` scale
+- ``record_event()``              -> feeds V2 signals (task success/failure,
+  behavioral delta, compliance violations)
+- ``sync_to_circuit_breaker()``   -> legacy CB state mapping kept verbatim
+
+New code MUST use :class:`TrustEngineV2` instead. This module exists only so
+existing callers keep working during migration; importing it raises a
+``DeprecationWarning``.
+"""
+
 from __future__ import annotations
 
 import time
+import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
@@ -8,7 +28,10 @@ from typing import Any
 from maref.governance.audit import AuditLogger
 from maref.governance.circuit_breaker import BreakerState, CircuitBreaker
 from maref.identity.did_registry import AgentDID
+from maref.recursive.trust_engine_v2 import TrustEngineV2
 
+# Legacy weights kept for API compatibility (validated on construction).
+# Actual scoring weights now live in TrustEngineV2.FACTOR_WEIGHTS.
 DEFAULT_WEIGHTS = {
     "behavior_consistency": 0.30,
     "cb_trigger_frequency": 0.25,
@@ -27,83 +50,93 @@ class TrustScore:
 
 
 class TrustEngine:
+    """Legacy trust-engine API delegating to :class:`TrustEngineV2`.
+
+    Deprecated. Prefer ``TrustEngineV2`` for all new code. The legacy
+    constructor signature, ``evaluate()`` 0..1 value scale and
+    ``sync_to_circuit_breaker()`` behavior are preserved.
+    """
+
     def __init__(
         self,
         circuit_breaker: CircuitBreaker,
         audit_logger: AuditLogger,
         weights: dict[str, float] | None = None,
     ) -> None:
-        self._cb = circuit_breaker
-        self._audit = audit_logger
+        warnings.warn(
+            "TrustEngine is deprecated; use maref.recursive.trust_engine_v2.TrustEngineV2",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._weights = weights or dict(DEFAULT_WEIGHTS)
-        self._scores: dict[AgentDID, TrustScore] = {}
-        self._agent_events: dict[AgentDID, list[dict[str, Any]]] = defaultdict(list)
         total = sum(self._weights.values())
         if abs(total - 1.0) > 0.01:
             raise ValueError(f"Trust weights must sum to 1.0, got {total}")
+        self._cb = circuit_breaker
+        self._audit = audit_logger
+        self._v2 = TrustEngineV2()
+        self._scores: dict[AgentDID, TrustScore] = {}
+        self._agent_events: dict[AgentDID, list[dict[str, Any]]] = defaultdict(list)
+
+    def _ensure_profile(self, agent_did: AgentDID) -> str:
+        """Idempotently register the agent in the V2 engine (registering twice
+        would reset its profile)."""
+        aid = agent_did.did_string
+        if aid not in self._v2._profiles:
+            self._v2.register_agent(aid)
+        return aid
+
+    def record_event(
+        self, agent_did: AgentDID, event_type: str, data: dict[str, Any] | None = None
+    ) -> None:
+        aid = self._ensure_profile(agent_did)
+        event = {"type": event_type, "timestamp": time.time(), **(data or {})}
+        self._agent_events[agent_did].append(event)
+
+        d = data or {}
+        profile = self._v2._profiles[aid]
+        # Behavioral drift lowers the V2 behavioral_consistency factor.
+        if "delta" in d:
+            delta = abs(float(d["delta"]))
+            profile.behavioral_consistency = max(
+                0.0, min(1.0, profile.behavioral_consistency - delta)
+            )
+        # Compliance violations lower the compliance_adherence factor.
+        if "violations" in d or "compliance" in d:
+            self._v2.update_compliance(aid, int(d.get("violations", d.get("compliance", 0))))
+        # Task success/failure feeds the V2 task history.
+        success = d.get("success")
+        is_failure = success is False or (
+            success is None
+            and ("fail" in event_type.lower() or "halt" in event_type.lower())
+        )
+        if success is not None or is_failure:
+            self._v2.record_task(
+                aid,
+                task_id=event_type,
+                success=not is_failure,
+                quality=float(d.get("quality", 0.5)),
+            )
 
     def evaluate(self, agent_did: AgentDID) -> TrustScore:
-        factors = self._compute_factors(agent_did)
-        value = sum(w * factors.get(k, 0.5) for k, w in self._weights.items())
-        value = max(0.0, min(1.0, value))
-        confidence = self._compute_confidence(agent_did)
+        aid = self._ensure_profile(agent_did)
+        v2_score = self._v2.assess(aid)
+        if v2_score is None:
+            # Should not happen after ensure_profile; guard for typing.
+            raise RuntimeError(f"agent {aid} could not be assessed")
+        n_events = len(self._agent_events.get(agent_did, []))
+        confidence = min(1.0, n_events / 100.0) if n_events else 0.1
         score = TrustScore(
-            value=value,
+            value=round(v2_score.overall_trust / 100.0, 4),
             confidence=confidence,
-            factors=factors,
+            factors={f.name: round(f.value, 4) for f in v2_score.factors},
             last_updated=time.time(),
         )
         self._scores[agent_did] = score
         return score
 
-    def _compute_factors(self, agent_did: AgentDID) -> dict[str, float]:
-        events = self._agent_events.get(agent_did, [])
-        factors: dict[str, float] = {}
-
-        audit_entries = self._audit.read_all()
-        agent_entries = [
-            e for e in audit_entries if e.metadata.get("agent_did") == agent_did.did_string
-        ]
-
-        completed = sum(1 for e in agent_entries if e.action == "task_completed")
-        total_tasks = max(completed + sum(1 for e in agent_entries if e.action == "task_failed"), 1)
-        factors["task_completion"] = completed / total_tasks
-
-        halts = sum(1 for e in agent_entries if "halt" in e.event_type.lower())
-        factors["halt_avoidance"] = max(0.0, 1.0 - halts / max(len(agent_entries), 1))
-
-        agent_cb_events = sum(
-            1
-            for e in agent_entries
-            if "circuit_breaker" in e.event_type.lower() or "cb_trip" in e.event_type.lower()
-        )
-        cb_trips = agent_cb_events
-        cb_factor = max(0.0, 1.0 - (cb_trips * 0.1)) if cb_trips < 10 else 0.0
-        factors["cb_trigger_frequency"] = cb_factor
-
-        behavior_score = 0.7
-        behavior_deltas = [e.get("delta", 0) for e in events if "delta" in e]
-        if behavior_deltas:
-            avg_delta = sum(abs(d) for d in behavior_deltas) / len(behavior_deltas)
-            behavior_score = max(0.0, 1.0 - avg_delta)
-        factors["behavior_consistency"] = behavior_score
-
-        valid_creds = sum(1 for e in agent_entries if e.metadata.get("credential_valid") is True)
-        total_creds = max(
-            valid_creds
-            + sum(1 for e in agent_entries if e.metadata.get("credential_valid") is False),
-            1,
-        )
-        factors["vc_validity"] = valid_creds / total_creds if total_creds > 0 else 0.5
-
-        return factors
-
-    def _compute_confidence(self, agent_did: AgentDID) -> float:
-        events = self._agent_events.get(agent_did, [])
-        n = len(events)
-        if n == 0:
-            return 0.1
-        return min(1.0, n / 100.0)
+    def get_score(self, agent_did: AgentDID) -> TrustScore | None:
+        return self._scores.get(agent_did)
 
     def sync_to_circuit_breaker(self, agent_did: AgentDID) -> BreakerState:
         score = self.evaluate(agent_did)
@@ -126,12 +159,3 @@ class TrustEngine:
             },
         )
         return target_state
-
-    def record_event(
-        self, agent_did: AgentDID, event_type: str, data: dict[str, Any] | None = None
-    ) -> None:
-        event = {"type": event_type, "timestamp": time.time(), **(data or {})}
-        self._agent_events[agent_did].append(event)
-
-    def get_score(self, agent_did: AgentDID) -> TrustScore | None:
-        return self._scores.get(agent_did)

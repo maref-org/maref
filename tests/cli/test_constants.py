@@ -1,13 +1,5 @@
 from __future__ import annotations
 
-from maref.governance.constants import (
-    ENTROPY_LEVELS as SRC_ENTROPY_LEVELS,
-    GRAY_CODE as SRC_GRAY_CODE,
-    MAX_ENTROPY as SRC_MAX_ENTROPY,
-    STATE_NAMES as SRC_STATE_NAMES,
-    compute_valid_transitions as src_compute_valid_transitions,
-    hamming_distance as src_hamming_distance,
-)
 from maref_lite._constants import (
     ENTROPY_LEVELS,
     GRAY_CODE,
@@ -20,47 +12,71 @@ from maref_lite._constants import (
 from maref_lite._constants import __all__ as constants_all
 
 
-class TestReExports:
-    def test_max_entropy_matches(self):
-        assert MAX_ENTROPY == SRC_MAX_ENTROPY
+def _states() -> set[str]:
+    return set(STATE_NAMES)
 
-    def test_hamming_distance_matches(self):
-        assert hamming_distance is src_hamming_distance
 
-    def test_compute_valid_transitions_matches(self):
-        assert compute_valid_transitions is src_compute_valid_transitions
+class TestLiteModelSelfConsistency:
+    """Lite 8 态模型（INIT..HALT）常量自洽性验证。
 
-    def test_state_names_contains_all(self):
-        assert set(STATE_NAMES.keys()) == set(SRC_STATE_NAMES.keys())
-        for k in STATE_NAMES:
-            assert STATE_NAMES[k] == SRC_STATE_NAMES[k]
+    maref_lite 是独立的 8 态精简 FSM（非完整版 10 态模型的重导出），
+    因此不要求与 maref.governance.constants 数值相等，只验证内部一致。
+    """
 
-    def test_entropy_levels_contains_all(self):
-        assert set(ENTROPY_LEVELS.keys()) == set(SRC_ENTROPY_LEVELS.keys())
+    def test_entropy_levels_cover_all_states(self):
+        assert set(ENTROPY_LEVELS.keys()) == _states()
 
-    def test_gray_code_contains_values(self):
-        assert len(GRAY_CODE) > 0
-        for state, code in GRAY_CODE.items():
-            assert isinstance(code, tuple)
+    def test_max_entropy_matches_entropy_levels(self):
+        assert MAX_ENTROPY == max(ENTROPY_LEVELS.values())
+        assert MAX_ENTROPY > 0
 
-    def test_valid_transitions_is_dict(self):
-        assert isinstance(VALID_TRANSITIONS, dict)
-        assert len(VALID_TRANSITIONS) > 0
+    def test_entropy_forms_mountain_curve(self):
+        order = [ENTROPY_LEVELS[s] for s in STATE_NAMES]
+        assert order[0] == 0  # INIT
+        assert order[-1] == 0  # HALT
+        peak = max(order)
+        assert peak == MAX_ENTROPY
 
-    def test_valid_transitions_has_all_states(self):
-        for source, targets in VALID_TRANSITIONS.items():
-            for target in targets:
-                assert isinstance(source, target.__class__)
-                assert isinstance(target, source.__class__)
+    def test_gray_code_covers_all_states(self):
+        assert set(GRAY_CODE.keys()) == _states()
+        assert len(set(GRAY_CODE.values())) == len(GRAY_CODE)  # 编码互异
+
+    def test_gray_code_single_bit_adjacency(self):
+        order = STATE_NAMES
+        for i in range(len(order) - 1):
+            assert hamming_distance(GRAY_CODE[order[i]], GRAY_CODE[order[i + 1]]) == 1
+
+    def test_valid_transitions_cover_all_states(self):
+        assert set(VALID_TRANSITIONS.keys()) == _states()
+        for targets in VALID_TRANSITIONS.values():
+            for t in targets:
+                assert t in _states()
+
+    def test_halt_is_terminal(self):
+        assert VALID_TRANSITIONS["HALT"] == []
+
+    def test_compute_valid_transitions_matches_table(self):
+        for state in STATE_NAMES:
+            assert compute_valid_transitions(state) == VALID_TRANSITIONS[state]
+
+    def test_compute_valid_transitions_unknown_state(self):
+        assert compute_valid_transitions("UNKNOWN_STATE") == []
+
+    def test_hamming_distance_semantics(self):
+        assert hamming_distance(0, 0) == 0
+        assert hamming_distance(0b0000, 0b1000) == 1
+        assert hamming_distance(0b1010, 0b0101) == 4
 
     def test_all_exports_declared(self):
         expected = {
+            "EvolutionState",
+            "SafetyLevel",
             "ENTROPY_LEVELS",
             "GRAY_CODE",
             "MAX_ENTROPY",
             "STATE_NAMES",
             "VALID_TRANSITIONS",
-            "hamming_distance",
             "compute_valid_transitions",
+            "hamming_distance",
         }
         assert set(constants_all) == expected

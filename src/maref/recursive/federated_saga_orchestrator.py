@@ -138,9 +138,7 @@ class FederatedSagaResult:
     @property
     def is_denied(self) -> bool:
         """True if any step was denied by policy (no HITL pending)."""
-        return any(
-            d.decision == PolicyDecision.DENY for d in self.policy_decisions
-        )
+        return any(d.decision == PolicyDecision.DENY for d in self.policy_decisions)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -295,9 +293,7 @@ class FederatedSagaOrchestrator:
                 decision=policy_result.decision,
                 conflict_detected=policy_result.conflict_detected,
                 matched_rule_id=(
-                    policy_result.winning_rule.rule_id
-                    if policy_result.winning_rule
-                    else ""
+                    policy_result.winning_rule.rule_id if policy_result.winning_rule else ""
                 ),
             )
             policy_decisions.append(decision_record)
@@ -306,9 +302,7 @@ class FederatedSagaOrchestrator:
                 denied.append(step.step_id)
             elif policy_result.decision == PolicyDecision.DEFER:
                 # Route to cross-org HITL.
-                hitl_outcome = self._request_hitl_approval(
-                    step, context, decision_record
-                )
+                hitl_outcome = self._request_hitl_approval(step, context, decision_record)
                 if hitl_outcome == CrossOrgApprovalStatus.REJECTED:
                     denied.append(step.step_id)
                 elif hitl_outcome == CrossOrgApprovalStatus.EXPIRED:
@@ -334,6 +328,15 @@ class FederatedSagaOrchestrator:
         # All steps cleared the policy gate. Delegate to the inner
         # orchestrator.
         inner_result: SagaResult = self._inner.execute(saga, context)
+
+        # Merge per-step data back into the outer context. The inner
+        # :class:`SagaOrchestrator` executes on a shallow copy of the
+        # context, so DIDs stashed by steps (convention: key
+        # ``f"{step.step_id}_agent_did"``) must be re-surfaced here for
+        # the trust snapshot pass below.
+        for rec in inner_result.step_records:
+            if rec.result is not None:
+                context.update(rec.result.data)
 
         # Collect trust snapshots for any agents the saga referenced.
         # Convention: a step's execute_fn can stash the agent DID it used
@@ -402,9 +405,7 @@ class FederatedSagaOrchestrator:
 
         # Honour explicit per-step overrides from context.
         timeout = float(context.get("hitl_timeout_seconds", self._default_timeout))
-        escalation_org = context.get(
-            "hitl_escalation_org", self._default_escalation_org
-        )
+        escalation_org = context.get("hitl_escalation_org", self._default_escalation_org)
 
         request = self._hitl.request_approval(
             action=self._action_for_step(step),

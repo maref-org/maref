@@ -20,6 +20,7 @@ import { AutomationView } from "@/components/views/AutomationView";
 import TaskPanelView from "@/components/views/TaskPanelView";
 import { ToolPanelView } from "@/components/tools";
 import { HITLView } from "@/components/views/HITLView";
+import { FederationView } from "@/components/views/FederationView";
 import {
   DesktopAgentView,
   AuditLogView,
@@ -56,6 +57,7 @@ const SECTION_VIEWS: Record<MarefSection, React.ComponentType> = {
   rsi: EvolutionTimeline,
   guardrails: GuardrailsView,
   error_budget: ErrorBudgetView,
+  federation: FederationView,
   skills: SkillsPanel,
   automation: AutomationView,
   tasks: TaskPanelView,

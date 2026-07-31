@@ -206,3 +206,88 @@ export interface GeneEntry {
   last_seen: string;
   description: string;
 }
+
+// ── Federation platform summary (Phase 2.3) ───────────────
+
+export interface GatewaySummary {
+  agent_count: number;
+  identity_mapping_count: number;
+  protocols: Record<string, number>;
+}
+
+export interface DiscoverySummary {
+  server_id: string;
+  local_agent_count: number;
+  peer_count: number;
+  healthy_peers: number;
+  max_depth: number;
+}
+
+export interface CatalogSummary {
+  entry_count: number;
+  capability_count: number;
+  protocol_count: number;
+  organization_count: number;
+  active_subscriptions: number;
+}
+
+export interface TrustSummary {
+  local_agent_count: number;
+  agents_with_peer_reports: number;
+  total_peer_reports: number;
+}
+
+export interface PolicySummary {
+  conflict_strategy: string;
+  federation_rules: number;
+  local_rules: number;
+  adhoc_rules: number;
+  total_rules: number;
+}
+
+export interface HITLSummary {
+  total_requests: number;
+  status_counts: Record<string, number>;
+  total_orgs: number;
+  pending_count: number;
+}
+
+export interface MarketplaceSummary {
+  total_listings: number;
+  active_listings: number;
+  total_reviews: number;
+  total_capabilities: number;
+  total_organizations: number;
+  average_price: number;
+  priced_listings: number;
+  free_listings: number;
+}
+
+export interface MeteringSummary {
+  total_metrics: number;
+  total_tasks: number;
+  total_orgs: number;
+  orgs: string[];
+}
+
+export interface SettlementSummary {
+  total_billing_entries: number;
+  total_proposals: number;
+  status_counts: Record<string, number>;
+  total_outstanding: number;
+  total_settled: number;
+  ledger_entries: number;
+  pricing: Record<string, number>;
+}
+
+export interface FederatedPlatformSummary {
+  gateway: GatewaySummary;
+  discovery: DiscoverySummary;
+  catalog: CatalogSummary;
+  trust: TrustSummary;
+  policy: PolicySummary;
+  hitl: HITLSummary;
+  marketplace: MarketplaceSummary;
+  metering: MeteringSummary;
+  settlement: SettlementSummary;
+}

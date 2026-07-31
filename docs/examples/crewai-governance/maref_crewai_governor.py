@@ -245,7 +245,7 @@ class MAREFGovernedCrew:
 
         # Determine governance state
         if blocked:
-            self._state_machine.transition(GovernanceState.HALT, "validation_blocked")
+            self._state_machine.force_halt("validation_blocked")
         elif all_passed:
             self._state_machine.transition(GovernanceState.ANALYZE, "validation_passed")
         else:
@@ -312,8 +312,10 @@ class MAREFGovernedCrew:
                 "tokens": tokens[:10],  # first 10 for audit
             })
 
-            # If interceptor says HALT, raise to stop the crew
-            if action == InterceptorAction.HALT:
+            # If interceptor says HALT (or ROLLBACK — SubgoalInterceptor
+            # upgrades HALT to ROLLBACK when a snapshot exists), raise to
+            # stop the crew.
+            if action in (InterceptorAction.HALT, InterceptorAction.ROLLBACK):
                 raise GovernanceError(GovernanceReport(
                     passed=False,
                     blocked=True,

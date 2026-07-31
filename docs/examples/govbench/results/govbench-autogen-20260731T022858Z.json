@@ -1,0 +1,69 @@
+{
+  "framework": "autogen",
+  "passed": 5,
+  "failed": 0,
+  "scenarios": [
+    {
+      "name": "preflight_pass",
+      "passed": true,
+      "metrics": {
+        "validate_latency_us": 1074.83,
+        "fsm_state": "ANALYZE",
+        "checks": 4
+      },
+      "detail": "report.passed=True, blocked=False, state=ANALYZE"
+    },
+    {
+      "name": "preflight_block",
+      "passed": true,
+      "metrics": {
+        "validate_latency_us": 1230.29,
+        "fsm_state": "HALT"
+      },
+      "detail": "blocked=True, state=HALT"
+    },
+    {
+      "name": "goal_hijack",
+      "passed": true,
+      "metrics": {
+        "intercept_latency_us": 309.47,
+        "final_state": "HALT",
+        "breaker_state": "open",
+        "audit_events": 4
+      },
+      "detail": "halted=True, final_state=HALT"
+    },
+    {
+      "name": "behavior_anomaly",
+      "passed": true,
+      "metrics": {
+        "anomaly_count": 1,
+        "total_steps": 21,
+        "audit_events": 22
+      },
+      "detail": "anomalies=1, steps=21"
+    },
+    {
+      "name": "breaker_failure",
+      "passed": true,
+      "metrics": {
+        "breaker_tripped": true,
+        "execution_blocked": true,
+        "breaker_state": "open"
+      },
+      "detail": "tripped=True, execution_blocked=True"
+    }
+  ],
+  "metadata": {
+    "generated_at": "2026-07-31T02:28:58.513382+00:00",
+    "maref_version": "0.42.0-dev",
+    "python": "3.14.3",
+    "scenarios": [
+      "preflight_pass",
+      "preflight_block",
+      "goal_hijack",
+      "behavior_anomaly",
+      "breaker_failure"
+    ]
+  }
+}

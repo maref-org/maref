@@ -43,59 +43,41 @@ class TestTrustScoreEvaluation:
         did = AgentDID.generate()
         score1 = trust_engine.evaluate(did)
         for _ in range(50):
-            trust_engine.record_event(did, "good_action", {"delta": 0.01})
+            trust_engine.record_event(did, "good_action", {"success": True, "delta": 0.01})
         score2 = trust_engine.evaluate(did)
         assert score2.confidence >= score1.confidence
 
-    def test_multiple_failures_lower_score(
-        self, trust_engine: TrustEngine, audit_logger: AuditLogger
-    ) -> None:
+    def test_multiple_failures_lower_score(self, trust_engine: TrustEngine) -> None:
         did = AgentDID.generate()
-        for i in range(5):
-            audit_logger.log(
-                event_type="halt_event",
-                actor=did.did_string,
-                action="task_failed",
-                details=f"Failure {i}",
-                metadata={"agent_did": did.did_string},
-            )
+        for _ in range(5):
+            trust_engine.record_event(did, "task_failed", {"success": False, "delta": 0.05})
         score = trust_engine.evaluate(did)
         assert score.value < 0.8
 
 
 class TestTrustToCircuitBreakerSync:
     def test_low_trust_sets_open(
-        self, trust_engine: TrustEngine, circuit_breaker: CircuitBreaker, audit_logger: AuditLogger
+        self, trust_engine: TrustEngine, circuit_breaker: CircuitBreaker
     ) -> None:
         did = AgentDID.generate()
         for _ in range(20):
-            audit_logger.log(
-                event_type="halt_detected",
-                actor=did.did_string,
-                action="task_failed",
-                details="Repeated failure",
-                metadata={"agent_did": did.did_string},
-            )
-        for _ in range(20):
-            circuit_breaker.check_depth(depth=10)
+            trust_engine.record_event(did, "task_failed", {"success": False, "delta": 0.05})
+        trust_engine.record_event(did, "violation", {"violations": 10})
         state = trust_engine.sync_to_circuit_breaker(did)
-        assert state in (BreakerState.OPEN, BreakerState.HALF_OPEN, BreakerState.CLOSED)
+        assert state == BreakerState.OPEN
+        assert circuit_breaker._state == BreakerState.OPEN
 
     def test_high_trust_sets_closed(
-        self, trust_engine: TrustEngine, circuit_breaker: CircuitBreaker, audit_logger: AuditLogger
+        self, trust_engine: TrustEngine, circuit_breaker: CircuitBreaker
     ) -> None:
         did = AgentDID.generate()
-        for _ in range(10):
-            audit_logger.log(
-                event_type="task_completed",
-                actor=did.did_string,
-                action="task_completed",
-                details="Success",
-                metadata={"agent_did": did.did_string},
+        for _ in range(20):
+            trust_engine.record_event(
+                did, "task_completed", {"success": True, "quality": 1.0}
             )
         circuit_breaker._state = BreakerState.CLOSED
         state = trust_engine.sync_to_circuit_breaker(did)
-        assert state in (BreakerState.CLOSED, BreakerState.HALF_OPEN, BreakerState.OPEN)
+        assert state == BreakerState.CLOSED
 
     def test_sync_produces_audit_entry(
         self, trust_engine: TrustEngine, audit_logger: AuditLogger
@@ -108,24 +90,14 @@ class TestTrustToCircuitBreakerSync:
 
 
 class TestTrustRecovery:
-    def test_trust_can_recover(self, trust_engine: TrustEngine, audit_logger: AuditLogger) -> None:
+    def test_trust_can_recover(self, trust_engine: TrustEngine) -> None:
         did = AgentDID.generate()
         for _ in range(5):
-            audit_logger.log(
-                event_type="halt_detected",
-                actor=did.did_string,
-                action="task_failed",
-                details="Bad behavior",
-                metadata={"agent_did": did.did_string},
-            )
+            trust_engine.record_event(did, "task_failed", {"success": False, "delta": 0.05})
         score_bad = trust_engine.evaluate(did)
         for _ in range(20):
-            audit_logger.log(
-                event_type="task_completed",
-                actor=did.did_string,
-                action="task_completed",
-                details="Good behavior",
-                metadata={"agent_did": did.did_string},
+            trust_engine.record_event(
+                did, "task_completed", {"success": True, "quality": 1.0}
             )
         score_good = trust_engine.evaluate(did)
         assert score_good.value > score_bad.value

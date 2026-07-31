@@ -1,0 +1,18 @@
+{
+  "duration_hours": 4.026624891493056e-08,
+  "start_time": "2026-07-25T12:51:28.167264",
+  "end_time": "2026-07-25T12:51:28.167409",
+  "snapshot_count": 1,
+  "passed": true,
+  "degradations": [],
+  "snapshots": [
+    {
+      "timestamp": 0.00013113021850585938,
+      "experiment_count": 130,
+      "adoption_rate": 0.7165,
+      "avg_score": 78.64,
+      "safety_alerts": 0,
+      "human_interventions": 0
+    }
+  ]
+}

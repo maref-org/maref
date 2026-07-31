@@ -68,6 +68,36 @@ def _append_record_locked(fh, record: dict[str, Any]) -> None:
         fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
+def _last_chain_hash(log_path: Path) -> str:
+    """Read the last non-empty record's chain_hash without scanning the full file.
+
+    Seeks to the file tail (last 64KB, audit lines are small) and walks
+    backwards to the first complete JSON line — O(1) instead of O(n).
+    """
+    try:
+        with open(log_path, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            if size == 0:
+                return ""
+            chunk_size = min(size, 65536)
+            fh.seek(size - chunk_size)
+            tail = fh.read(chunk_size).decode("utf-8", errors="replace")
+        for line in reversed(tail.splitlines()):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                prev = json.loads(line)
+                return prev.get("chain_hash", prev.get("id", ""))
+            except json.JSONDecodeError:
+                # Only a line truncated at the seek boundary can fail to parse
+                continue
+    except OSError:
+        pass
+    return ""
+
+
 def _write_state_transition(event: StateTransition, actor: str = "state_machine") -> None:
     """Append a state_transition record to the audit log (best-effort).
 
@@ -77,19 +107,7 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
     log_path = _default_audit_log_path()
     shard_path = _actor_audit_log_path(actor)
     try:
-        previous_hash = ""
-        chain_hash = ""
-        if log_path.exists():
-            lines = log_path.read_text().splitlines()
-            for line in reversed(lines):
-                line = line.strip()
-                if line:
-                    try:
-                        prev = json.loads(line)
-                        previous_hash = prev.get("chain_hash", prev.get("id", ""))
-                    except json.JSONDecodeError:
-                        pass
-                    break
+        previous_hash = _last_chain_hash(log_path) if log_path.exists() else ""
 
         payload = json.dumps(
             {

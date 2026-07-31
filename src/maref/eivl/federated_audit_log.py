@@ -1,12 +1,13 @@
 """
-MAREF Federated Audit Log
+MAREF Federated Audit Log (EIVL).
 
-DEPRECATED: Use ``maref.eivl.federated_merkle.FederatedMerkleAggregator``
-instead. This module is frozen (no new features, bug fixes only).
+Cross-instance audit event log with HMAC-SHA256 signed entries. Records
+federation synchronization and consensus events between instances, with
+tamper-evident signatures verifiable offline.
 
-The FederatedMerkleAggregator supports Ed25519-signed proofs, offline
-verification, and cross-organization root aggregation. Prefer that
-over this module for all new code.
+This module is the EIVL-layer home of the legacy
+``maref.governance.federated_audit`` API. For cross-organization Merkle
+root aggregation, use :class:`maref.eivl.federated_merkle.FederatedMerkleAggregator`.
 """
 
 from __future__ import annotations
@@ -163,3 +164,10 @@ class FederatedAuditLog:
 
     def get_entries(self) -> list[FederatedAuditEntry]:
         return list(self._entries)
+
+
+__all__ = [
+    "AuditEventType",
+    "FederatedAuditEntry",
+    "FederatedAuditLog",
+]
