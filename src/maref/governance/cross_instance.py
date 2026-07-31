@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from maref.governance.federated_audit import AuditEventType, FederatedAuditLog
+from maref.eivl.federated_audit_log import AuditEventType, FederatedAuditLog
 from maref.governance.sync_policy import SyncDataType, SyncDirection, SyncPolicyRegistry
 from maref.security.decorators import security_critical
 

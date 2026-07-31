@@ -19,6 +19,7 @@ References:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 import uuid
@@ -44,10 +45,10 @@ class SettlementStatus(str, Enum):
 # Default pricing per metric unit (in abstract "settlement units").
 # These are configurable via the ``pricing_rules`` constructor arg.
 _DEFAULT_PRICING: dict[str, float] = {
-    "per_task": 1.0,        # base charge per task
-    "per_token": 0.0001,    # charge per token processed
-    "per_ms": 0.0005,       # charge per millisecond of duration
-    "success_bonus": 0.5,   # bonus multiplier for successful tasks
+    "per_task": 1.0,  # base charge per task
+    "per_token": 0.0001,  # charge per token processed
+    "per_ms": 0.0005,  # charge per millisecond of duration
+    "success_bonus": 0.5,  # bonus multiplier for successful tasks
     "complexity_multiplier": 1.0,  # multiplier for complexity score
 }
 
@@ -141,6 +142,56 @@ class LedgerEntry:
 def _org_pair_key(org_a: str, org_b: str) -> str:
     """Stable key for an org pair (alphabetically sorted)."""
     return "|".join(sorted((org_a, org_b)))
+
+
+# ------------------------------------------------------------------
+# Reconciliation primitives (Phase 3.2)
+# ------------------------------------------------------------------
+
+
+def billing_charge_key(entry: BillingEntry) -> str:
+    """Stable reconciliation key for a billing entry (server-independent).
+
+    Uses ``provider|consumer|task_id`` — the shared execution identity
+    that both the provider and the consumer server agree on.  Server-local
+    fields (``entry_id``, ``metric_id``) are excluded on purpose.
+    """
+    return f"{entry.provider_org}|{entry.consumer_org}|{entry.task_id}"
+
+
+def billing_fingerprint(entry: BillingEntry) -> str:
+    """Deterministic content fingerprint of a billing entry.
+
+    Excludes server-local fields (``entry_id``, ``metric_id``,
+    ``timestamp``) so that identical charges recorded on different
+    servers hash equal.  The amount is rounded to 4 decimals, matching
+    :meth:`BillingEntry.to_dict`.
+    """
+    raw = (
+        f"{entry.provider_org}|{entry.consumer_org}|{entry.task_id}"
+        f"|{entry.agent_did}|{round(entry.amount, 4)}"
+    )
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def merkle_root(fingerprints: list[str]) -> str | None:
+    """Build a binary Merkle root from content fingerprints.
+
+    Fingerprints are sorted before hashing so the root is independent
+    of insertion order.  Returns ``None`` for an empty list.
+    """
+    if not fingerprints:
+        return None
+    leaves = sorted(fingerprints)
+    while len(leaves) > 1:
+        next_level: list[str] = []
+        for i in range(0, len(leaves) - 1, 2):
+            combined = leaves[i] + leaves[i + 1]
+            next_level.append(hashlib.sha256(combined.encode()).hexdigest())
+        if len(leaves) % 2 == 1:
+            next_level.append(leaves[-1])
+        leaves = next_level
+    return leaves[0]
 
 
 class FederatedSettlement:
@@ -331,9 +382,7 @@ class FederatedSettlement:
         token_cost = metric.token_count * self._pricing["per_token"]
         duration_cost = metric.duration_ms * self._pricing["per_ms"]
         complexity_bonus = metric.complexity_score * self._pricing["complexity_multiplier"]
-        success_multiplier = (
-            1.0 + self._pricing["success_bonus"] if metric.success else 1.0
-        )
+        success_multiplier = 1.0 + self._pricing["success_bonus"] if metric.success else 1.0
         return (base + token_cost + duration_cost + complexity_bonus) * success_multiplier
 
     # ------------------------------------------------------------------
@@ -377,9 +426,7 @@ class FederatedSettlement:
         self._persist_billing(entry)
         return entry
 
-    def generate_billing_from_metering(
-        self, since: float | None = None
-    ) -> list[BillingEntry]:
+    def generate_billing_from_metering(self, since: float | None = None) -> list[BillingEntry]:
         """Generate billing entries for all recorded metrics.
 
         If ``since`` is given, only metrics at or after that timestamp
@@ -448,9 +495,7 @@ class FederatedSettlement:
         self._persist_proposal(proposal)
         return True
 
-    def reject_proposal(
-        self, proposal_id: str, reason: str = ""
-    ) -> bool:
+    def reject_proposal(self, proposal_id: str, reason: str = "") -> bool:
         """Reject a proposed settlement."""
         proposal = self._proposals.get(proposal_id)
         if proposal is None or proposal.status != SettlementStatus.PROPOSED:
@@ -484,9 +529,7 @@ class FederatedSettlement:
             self._persist_ledger(key, ledger)
         return True
 
-    def dispute_proposal(
-        self, proposal_id: str, reason: str = ""
-    ) -> bool:
+    def dispute_proposal(self, proposal_id: str, reason: str = "") -> bool:
         """Mark a proposal as disputed (halts settlement)."""
         proposal = self._proposals.get(proposal_id)
         if proposal is None:
@@ -510,10 +553,7 @@ class FederatedSettlement:
         """List proposals, optionally filtered by org or status."""
         proposals = list(self._proposals.values())
         if org is not None:
-            proposals = [
-                p for p in proposals
-                if p.provider_org == org or p.consumer_org == org
-            ]
+            proposals = [p for p in proposals if p.provider_org == org or p.consumer_org == org]
         if status is not None:
             proposals = [p for p in proposals if p.status == status]
         return sorted(proposals, key=lambda p: p.created_at, reverse=True)
@@ -557,6 +597,92 @@ class FederatedSettlement:
         self._persist_ledger(key, ledger)
 
     # ------------------------------------------------------------------
+    # Reconciliation (Phase 3.2)
+    # ------------------------------------------------------------------
+
+    def billing_entries(self) -> list[BillingEntry]:
+        """Return all recorded billing entries (read-only copy)."""
+        return list(self._billing_entries)
+
+    def compute_settlement_root(self) -> dict[str, Any]:
+        """Compute the local settlement Merkle root over billing content.
+
+        The root is deterministic across servers: identical charges
+        produce an identical root, enabling cross-server reconciliation
+        without shipping the full ledgers.
+        """
+        fingerprints = [billing_fingerprint(e) for e in self._billing_entries]
+        return {
+            "root_hash": merkle_root(fingerprints),
+            "tree_size": len(fingerprints),
+        }
+
+    def ledger_snapshot(self) -> dict[str, Any]:
+        """Export the local ledger as a reconciler-consumable snapshot.
+
+        Each entry carries a ``charge_key`` (provider|consumer|task_id)
+        and a content ``fingerprint``; see :func:`billing_charge_key`
+        and :func:`billing_fingerprint`.
+        """
+        entries: list[dict[str, Any]] = [
+            {
+                "charge_key": billing_charge_key(e),
+                "fingerprint": billing_fingerprint(e),
+                "entry_id": e.entry_id,
+                "provider_org": e.provider_org,
+                "consumer_org": e.consumer_org,
+                "task_id": e.task_id,
+                "agent_did": e.agent_did,
+                "amount": round(e.amount, 4),
+            }
+            for e in self._billing_entries
+        ]
+        return {
+            "root_hash": merkle_root([e["fingerprint"] for e in entries]),
+            "tree_size": len(entries),
+            "entries": entries,
+        }
+
+    def authoritative_snapshot(self) -> dict[str, Any]:
+        """Recompute the expected ledger from metering records (no mutation).
+
+        Used as the arbitration source of truth when a reconciliation
+        detects conflicts: the metering engine is the authoritative
+        record of what actually happened.
+        """
+        entries: list[dict[str, Any]] = []
+        for metric in self._metering.iter_all_metrics():
+            if metric.provider_org == metric.consumer_org:
+                continue
+            amount = self.compute_amount(metric)
+            entry = BillingEntry(
+                entry_id="",
+                provider_org=metric.provider_org,
+                consumer_org=metric.consumer_org,
+                task_id=metric.task_id,
+                agent_did=metric.agent_did,
+                amount=amount,
+                metric_id=metric.metric_id,
+                description="authoritative recomputation from metering",
+            )
+            entries.append(
+                {
+                    "charge_key": billing_charge_key(entry),
+                    "fingerprint": billing_fingerprint(entry),
+                    "provider_org": entry.provider_org,
+                    "consumer_org": entry.consumer_org,
+                    "task_id": entry.task_id,
+                    "agent_did": entry.agent_did,
+                    "amount": round(entry.amount, 4),
+                }
+            )
+        return {
+            "root_hash": merkle_root([e["fingerprint"] for e in entries]),
+            "tree_size": len(entries),
+            "entries": entries,
+        }
+
+    # ------------------------------------------------------------------
     # Summary
     # ------------------------------------------------------------------
 
@@ -567,9 +693,7 @@ class FederatedSettlement:
         for p in proposals:
             status_counts[p.status.value] = status_counts.get(p.status.value, 0) + 1
 
-        total_outstanding = sum(
-            abs(e.balance) for e in self._ledger.values()
-        )
+        total_outstanding = sum(abs(e.balance) for e in self._ledger.values())
         total_settled = sum(e.settled for e in self._ledger.values())
 
         return {

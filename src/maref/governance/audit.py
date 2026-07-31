@@ -319,7 +319,11 @@ class AuditLogger:
                         action=entry.action,
                         details=entry.details,
                         metadata=entry.metadata,
+                        parent_action_id=entry.parent_action_id,
                         previous_hash=entry.previous_hash,
+                        tenant_id=entry.tenant_id,
+                        layer=entry.layer,
+                        round=entry.round,
                     )
                 )
                 if hmac.compare_digest(expected, entry.hmac_signature):
@@ -438,6 +442,9 @@ class AuditLogger:
             hmac_signature=signed_entry.hmac_signature,
             ed25519_signature=signed_entry.ed25519_signature,
             signer_fingerprint=signed_entry.signer_fingerprint,
+            tenant_id=signed_entry.tenant_id,
+            layer=signed_entry.layer,
+            round=signed_entry.round,
         )
         if self._chain_integrator is not None:
             self._chain_integrator.record_audit_entry(final_entry)

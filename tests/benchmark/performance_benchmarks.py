@@ -10,6 +10,7 @@ Run: pytest tests/benchmark/performance_benchmarks.py -v -m benchmark
 from __future__ import annotations
 
 import gc
+import hashlib
 import os
 import sys
 import tempfile
@@ -179,3 +180,82 @@ class TestStateMachineThroughput:
         elapsed = time.perf_counter() - t0
         tps = count / elapsed if elapsed > 0 else 0
         assert tps > 500, f"Throughput {tps:.0f} transitions/s below 500 minimum"
+
+
+class TestFederatedTrustThroughput:
+    """Verify federated trust assessment meets > 100 QPS target."""
+
+    def test_federated_trust_assess_throughput(self) -> None:
+        from maref.federation.trust import FederatedTrustEngine, PeerTrustReport
+        from maref.recursive.trust_engine_v2 import TrustEngineV2
+
+        local = TrustEngineV2()
+        fed = FederatedTrustEngine(local_engine=local)
+        agent_ids = [f"did:maref:bench:agent-{i:04d}" for i in range(100)]
+        for aid in agent_ids:
+            local.register_agent(aid)
+            fed.submit_peer_report(
+                PeerTrustReport(agent_id=aid, source_server="org-peer-1", trust_score=85.0)
+            )
+
+        iterations = 1000
+        t0 = time.perf_counter()
+        for i in range(iterations):
+            fed.assess(agent_ids[i % len(agent_ids)])
+        elapsed = time.perf_counter() - t0
+
+        qps = iterations / elapsed if elapsed > 0 else float("inf")
+        assert qps > 100, f"Federated trust throughput {qps:.0f} QPS below 100 minimum"
+
+
+class TestConsensusDecisionLatency:
+    """Verify NACK consensus decision latency P95 < 1ms."""
+
+    def test_nack_decision_latency(self) -> None:
+        from maref.consensus.nack_protocol import NackBuilder, NackCode, NackHandler
+
+        builder = NackBuilder()
+        handler = NackHandler()
+        nack = (
+            builder.request("req-1")
+            .agents("agent-a", "agent-b")
+            .because(NackCode.TRUST_TOO_LOW, "benchmark")
+            .build()
+        )
+
+        latencies = []
+        for _ in range(200):
+            t0 = time.perf_counter()
+            handler.decide(nack)
+            latencies.append((time.perf_counter() - t0) * 1000)
+
+        latencies.sort()
+        p95 = latencies[int(len(latencies) * 0.95)]
+        assert p95 < 1.0, f"Consensus decision P95 latency {p95:.3f}ms exceeds 1ms threshold"
+
+
+class TestMerkleAggregationLatency:
+    """Verify federated Merkle aggregation scales to 128 orgs."""
+
+    def test_federated_merkle_aggregation_latency(self) -> None:
+        from maref.eivl.federated_merkle import FederatedMerkleAggregator
+
+        aggregator = FederatedMerkleAggregator()
+        org_count = 128
+
+        t0 = time.perf_counter()
+        for i in range(org_count):
+            aggregator.submit_root(
+                f"org-{i:04d}",
+                hashlib.sha256(f"root-{i}".encode()).hexdigest(),
+                tree_size=1000 + i,
+            )
+        submit_elapsed = (time.perf_counter() - t0) * 1000
+
+        assert aggregator.get_federated_root() is not None
+        proof = aggregator.generate_proof("org-0000")
+        assert proof is not None and proof.verify()
+
+        assert submit_elapsed < 1000, (
+            f"Merkle {org_count}-org aggregation {submit_elapsed:.1f}ms exceeds 1000ms threshold"
+        )

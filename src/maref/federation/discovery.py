@@ -136,9 +136,7 @@ class DiscoveryTransport(Protocol):
     - :class:`HTTPDiscoveryTransport`: real HTTP via ``httpx`` (production).
     """
 
-    def fetch_catalog(
-        self, peer: FederationPeer, query: DiscoveryQuery
-    ) -> list[FederatedAgent]:
+    def fetch_catalog(self, peer: FederationPeer, query: DiscoveryQuery) -> list[FederatedAgent]:
         """Fetch the agent catalog from a peer federation server."""
         ...
 
@@ -162,9 +160,7 @@ class InProcessTransport:
         """Register a callable that returns the local catalog for a peer."""
         self._providers[server_id] = provider
 
-    def fetch_catalog(
-        self, peer: FederationPeer, query: DiscoveryQuery
-    ) -> list[FederatedAgent]:
+    def fetch_catalog(self, peer: FederationPeer, query: DiscoveryQuery) -> list[FederatedAgent]:
         provider = self._providers.get(peer.server_id)
         if provider is None:
             return []
@@ -190,10 +186,30 @@ class HTTPDiscoveryTransport:
         self._timeout = timeout
         self._max_retries = max_retries
 
-    def fetch_catalog(
+    def fetch_catalog(self, peer: FederationPeer, query: DiscoveryQuery) -> list[FederatedAgent]:
+        """Fetch a peer's agent catalog via HTTP (single-layer view).
+
+        Returns agents this peer knows about — its local catalog plus any
+        catalog it forwarded from its own peers — without hop/source
+        metadata. See :meth:`fetch_catalog_with_sources` for the
+        multi-hop view used by :class:`FederatedDiscovery`.
+
+        Returns an empty list on any error (network, parse, etc.).
+        """
+        return [agent for agent, _, _ in self.fetch_catalog_with_sources(peer, query)]
+
+    def fetch_catalog_with_sources(
         self, peer: FederationPeer, query: DiscoveryQuery
-    ) -> list[FederatedAgent]:
-        """Fetch a peer's agent catalog via HTTP.
+    ) -> list[tuple[FederatedAgent, str, int]]:
+        """Fetch a peer's catalog over HTTP, including multi-hop forwards.
+
+        The request carries the query's ``visited`` set and ``max_depth``
+        so the peer can forward the query onward (Phase 3.1 distributed
+        catalog). The peer's response is a tree of ``{server_id, _hop,
+        agents, forwarded}`` nodes; this method flattens it into a list
+        of ``(agent, source_server, hop_count)`` tuples, where
+        ``hop_count`` is measured from the caller (local=1, one forward
+        away=2, ...).
 
         Returns an empty list on any error (network, parse, etc.).
         """
@@ -205,13 +221,17 @@ class HTTPDiscoveryTransport:
             "maxResults": query.max_results,
         }
         params = {k: v for k, v in params.items() if v is not None}
+        if query.visited:
+            params["visited"] = ",".join(sorted(query.visited))
+        if query.max_depth:
+            params["maxDepth"] = query.max_depth
 
         for attempt in range(self._max_retries + 1):
             try:
                 response = httpx.get(url, params=params, timeout=self._timeout)
                 response.raise_for_status()
                 data = response.json()
-                return self._parse_catalog_response(data)
+                return self._parse_catalog_response_with_sources(data)
             except (httpx.HTTPError, ValueError, KeyError, TypeError):
                 if attempt < self._max_retries:
                     continue
@@ -227,19 +247,48 @@ class HTTPDiscoveryTransport:
 
         Returns an empty list on any parse error.
         """
+        if not isinstance(data, dict):
+            return []
+        return self._parse_agent_list(data.get("agents", []))
+
+    def _parse_catalog_response_with_sources(
+        self, data: Any
+    ) -> list[tuple[FederatedAgent, str, int]]:
+        """Flatten a multi-hop catalog response tree into (agent, source, hop)."""
+        results: list[tuple[FederatedAgent, str, int]] = []
+        if isinstance(data, dict):
+            self._collect_agents(data, results, default_hop=1)
+        return results
+
+    def _collect_agents(
+        self,
+        node: dict[str, Any],
+        out: list[tuple[FederatedAgent, str, int]],
+        default_hop: int,
+    ) -> None:
+        """Recursively flatten one ``{server_id, _hop, agents, forwarded}`` node."""
+        server_id = node.get("server_id", "")
+        try:
+            hop = int(node.get("_hop", default_hop))
+        except (TypeError, ValueError):
+            hop = default_hop
+        for agent in self._parse_agent_list(node.get("agents", [])):
+            out.append((agent, server_id, hop))
+        for child in node.get("forwarded", []):
+            if isinstance(child, dict):
+                self._collect_agents(child, out, default_hop)
+
+    def _parse_agent_list(self, items: Any) -> list[FederatedAgent]:
+        """Parse a JSON ``agents`` list into :class:`FederatedAgent` objects."""
         from maref.identity.aic_adapter import AIC
         from maref.identity.did_registry import AgentDID
         from maref.integration.acs_parser import AgentCapabilitySpec, AgentSkill
 
-        if not isinstance(data, dict):
-            return []
-
-        agents_data = data.get("agents", [])
-        if not isinstance(agents_data, list):
+        if not isinstance(items, list):
             return []
 
         result: list[FederatedAgent] = []
-        for item in agents_data:
+        for item in items:
             try:
                 if not isinstance(item, dict):
                     continue
@@ -458,8 +507,10 @@ class FederatedDiscovery:
                 continue
 
             # Fetch peer's catalog via the configured transport.
-            peer_catalog = self._fetch_peer_catalog(peer, query)
-            for agent in peer_catalog:
+            # Multi-hop transports return (agent, source_server, hop_count);
+            # single-hop transports fall back to peer.id / hop 1.
+            fetched = self._fetch_peer_catalog(peer, query)
+            for agent, source, hop in fetched:
                 aic_str = agent.aic.aic_string
                 if aic_str in local_aics:
                     continue
@@ -468,8 +519,8 @@ class FederatedDiscovery:
                 remote_results.append(
                     DiscoveryResult(
                         agent=agent,
-                        source_server=peer.server_id,
-                        hop_count=1,
+                        source_server=source,
+                        hop_count=hop,
                     )
                 )
                 local_aics.add(aic_str)
@@ -480,9 +531,18 @@ class FederatedDiscovery:
 
     def _fetch_peer_catalog(
         self, peer: FederationPeer, query: DiscoveryQuery
-    ) -> list[FederatedAgent]:
-        """Fetch a peer's local agent catalog via the configured transport."""
-        return self._transport.fetch_catalog(peer, query)
+    ) -> list[tuple[FederatedAgent, str, int]]:
+        """Fetch a peer's agent catalog via the configured transport.
+
+        Returns a list of ``(agent, source_server, hop_count)`` tuples.
+        :class:`HTTPDiscoveryTransport` natively provides source/hop
+        metadata (multi-hop forwarding); other transports are wrapped to
+        attribute every agent to the peer at hop 1.
+        """
+        fetch_sources = getattr(self._transport, "fetch_catalog_with_sources", None)
+        if callable(fetch_sources):
+            return fetch_sources(peer, query)
+        return [(agent, peer.server_id, 1) for agent in self._transport.fetch_catalog(peer, query)]
 
     def set_catalog_provider(
         self,

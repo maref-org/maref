@@ -21,6 +21,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BINARY="$PROJECT_ROOT/dist/maref-sidecar"
 PORT=8999
 BASE_URL="http://127.0.0.1:$PORT"
+# Isolated HOME so the binary runs in a clean environment (its runtime state
+# dirs live under $HOME/.maref and must not collide with the dev machine's).
+VERIFY_HOME="$(mktemp -d /tmp/maref-verify-home.XXXXXX)"
 PASS=0
 FAIL=0
 SERVER_PID=""
@@ -31,6 +34,7 @@ cleanup() {
         wait "$SERVER_PID" 2>/dev/null || true
         SERVER_PID=""
     fi
+    rm -rf "$VERIFY_HOME" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -66,12 +70,12 @@ echo ""
 
 # Step 3: Start server
 echo "--- Step 3: Start server ---"
-"$BINARY" --port "$PORT" --host "127.0.0.1" >/tmp/maref-sidecar-test.log 2>&1 &
+HOME="$VERIFY_HOME" "$BINARY" --port "$PORT" --host "127.0.0.1" >/tmp/maref-sidecar-test.log 2>&1 &
 SERVER_PID=$!
-echo "    PID: $SERVER_PID"
+echo "    PID: $SERVER_PID (isolated HOME: $VERIFY_HOME)"
 
 # Wait for process to appear
-sleep 2
+sleep 3
 
 if kill -0 "$SERVER_PID" 2>/dev/null; then
     pass "Server process started (PID $SERVER_PID)"
@@ -85,28 +89,32 @@ fi
 echo ""
 
 # Step 4: GET /api/health (with retry)
+# onefile extraction of the ~75MB payload can take several seconds under load
 echo "--- Step 4: GET /api/health ---"
 HEALTH=""
-for i in 1 2 3 4 5; do
-    sleep 1
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 2
     HEALTH=$(curl -s --max-time 3 "$BASE_URL/api/health" 2>/dev/null || echo "")
     if echo "$HEALTH" | grep -q "healthy"; then
         break
     fi
-    echo "    Retry $i/5..."
+    echo "    Retry $i/10..."
 done
 
 if echo "$HEALTH" | grep -q "healthy"; then
     pass "/api/health returned healthy"
 else
-    fail "/api/health failed after 5 retries (got: $HEALTH)"
+    fail "/api/health failed after 10 retries (got: $HEALTH)"
 fi
 echo ""
 
 # Step 5: POST /api/mcp (initialize)
 echo "--- Step 5: POST /api/mcp (initialize) ---"
+# Auth middleware requires an Authorization header; when MAREF_API_KEY is
+# unset any Bearer token is accepted.
 MCP_RESP=$(curl -s --max-time 5 -X POST "$BASE_URL/api/mcp" \
     -H "Content-Type: application/json" \
+    -H "Authorization: Bearer verify-test-token" \
     -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' 2>/dev/null || echo "")
 if echo "$MCP_RESP" | grep -q "jsonrpc"; then
     pass "/api/mcp initialize succeeded"

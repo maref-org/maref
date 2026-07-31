@@ -8,19 +8,17 @@
 from __future__ import annotations
 
 import os
-import time
-import uuid
 from unittest.mock import patch
 
 import pytest
 
-from maref.governance.audit import AuditEntry
-from maref.governance.audit_bus import AuditBus
-from maref.governance.federated_audit import (
+from maref.eivl.federated_audit_log import (
     AuditEventType,
     FederatedAuditEntry,
     FederatedAuditLog,
 )
+from maref.governance.audit import AuditEntry
+from maref.governance.audit_bus import AuditBus
 from maref.governance.sync_policy import (
     ConflictStrategy,
     SyncDataType,
@@ -127,11 +125,9 @@ class TestSyncPolicyRegistry:
 
 class TestAuditBus:
 
-    def _make_entry(self, event_type: str = "test_event") -> AuditEntry:
-        """构造测试用 AuditEntry。"""
-        return AuditEntry(
-            id=str(uuid.uuid4()),
-            timestamp=time.time(),
+    def _log(self, bus: AuditBus, event_type: str = "test_event") -> AuditEntry:
+        """通过 AuditBus.log 记录事件（真实分发入口）。"""
+        return bus.log(
             event_type=event_type,
             actor="test-actor",
             action="test-action",
@@ -143,8 +139,7 @@ class TestAuditBus:
         bus = AuditBus()
         received: list[AuditEntry] = []
         bus.subscribe("test_event", lambda e: received.append(e))
-        entry = self._make_entry("test_event")
-        bus.publish(entry)
+        self._log(bus, "test_event")
         assert len(received) == 1
         assert received[0].event_type == "test_event"
 
@@ -153,8 +148,8 @@ class TestAuditBus:
         bus = AuditBus()
         received: list[AuditEntry] = []
         bus.subscribe("*", lambda e: received.append(e))
-        bus.publish(self._make_entry("event_a"))
-        bus.publish(self._make_entry("event_b"))
+        self._log(bus, "event_a")
+        self._log(bus, "event_b")
         assert len(received) == 2
 
     def test_unsubscribe(self) -> None:
@@ -166,11 +161,11 @@ class TestAuditBus:
             received.append(e)
 
         bus.subscribe("test_event", callback)
-        bus.publish(self._make_entry("test_event"))
+        self._log(bus, "test_event")
         assert len(received) == 1
 
         bus.unsubscribe("test_event", callback)
-        bus.publish(self._make_entry("test_event"))
+        self._log(bus, "test_event")
         assert len(received) == 1  # 仍然只有 1 条
 
     def test_unsubscribe_nonexistent(self) -> None:
@@ -179,17 +174,16 @@ class TestAuditBus:
         bus.unsubscribe("nonexistent", lambda e: None)  # 不应抛异常
 
     def test_no_subscribers_no_error(self) -> None:
-        """无订阅者时 publish 不应抛异常。"""
+        """无订阅者时记录事件不应抛异常。"""
         bus = AuditBus()
-        bus.publish(self._make_entry("orphan_event"))
+        self._log(bus, "orphan_event")
 
     def test_publish_logs_to_logger(self) -> None:
-        """publish 应同时写入 AuditLogger。"""
+        """log 应同时分发到订阅者并写入 AuditLogger。"""
         bus = AuditBus()
         received: list[AuditEntry] = []
         bus.subscribe("logged_event", lambda e: received.append(e))
-        entry = self._make_entry("logged_event")
-        bus.publish(entry)
+        self._log(bus, "logged_event")
         assert len(received) == 1
 
     def test_multiple_subscribers_same_topic(self) -> None:
@@ -199,7 +193,7 @@ class TestAuditBus:
         received_b: list[AuditEntry] = []
         bus.subscribe("multi", lambda e: received_a.append(e))
         bus.subscribe("multi", lambda e: received_b.append(e))
-        bus.publish(self._make_entry("multi"))
+        self._log(bus, "multi")
         assert len(received_a) == 1
         assert len(received_b) == 1
 
@@ -214,7 +208,7 @@ class TestFederatedAuditEntry:
         """签名后验证应通过。"""
         with patch.dict(os.environ, {"MAREF_FEDERATED_AUDIT_KEY": "test-secret-key"}):
             # 重置模块级缓存
-            import maref.governance.federated_audit as fa_module
+            import maref.eivl.federated_audit_log as fa_module
             fa_module._HMAC_KEY = None
 
             entry = FederatedAuditEntry(
@@ -232,7 +226,7 @@ class TestFederatedAuditEntry:
     def test_verify_tampered_fails(self) -> None:
         """篡改 details 后验证应失败。"""
         with patch.dict(os.environ, {"MAREF_FEDERATED_AUDIT_KEY": "test-secret-key"}):
-            import maref.governance.federated_audit as fa_module
+            import maref.eivl.federated_audit_log as fa_module
             fa_module._HMAC_KEY = None
 
             entry = FederatedAuditEntry(
@@ -284,7 +278,7 @@ class TestFederatedAuditLog:
     def _setup_key(self) -> None:
         """每个测试前设置 HMAC 密钥。"""
         with patch.dict(os.environ, {"MAREF_FEDERATED_AUDIT_KEY": "test-secret-key"}):
-            import maref.governance.federated_audit as fa_module
+            import maref.eivl.federated_audit_log as fa_module
             fa_module._HMAC_KEY = None
             yield
             fa_module._HMAC_KEY = None
