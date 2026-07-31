@@ -240,6 +240,9 @@ class AuditLogger:
                 chain_hash=entry.chain_hash,
                 ed25519_signature=sig,
                 signer_fingerprint=self._signer_fingerprint,
+                tenant_id=entry.tenant_id,
+                layer=entry.layer,
+                round=entry.round,
             )
         return AuditEntry(
             id=entry.id,
@@ -253,6 +256,9 @@ class AuditLogger:
             previous_hash=entry.previous_hash,
             chain_hash=entry.chain_hash,
             hmac_signature=sig,
+            tenant_id=entry.tenant_id,
+            layer=entry.layer,
+            round=entry.round,
         )
 
     def _compute_chain_hash(self, entry: AuditEntry) -> str:
@@ -347,6 +353,9 @@ class AuditLogger:
         details: str = "",
         metadata: dict[str, Any] | None = None,
         parent_action_id: str = "",
+        tenant_id: str = "",
+        layer: str = "governance",
+        round: int = 0,
     ) -> AuditEntry:
         import uuid
 
@@ -366,6 +375,9 @@ class AuditLogger:
             metadata=metadata or {},
             parent_action_id=parent_action_id,
             previous_hash=previous_hash,
+            tenant_id=tenant_id,
+            layer=layer,
+            round=round,
         )
         signed_entry = self._write(entry)
         return signed_entry

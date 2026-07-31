@@ -20,12 +20,8 @@ Usage::
 
 from __future__ import annotations
 
-import json
-import time
-import uuid
 from collections import defaultdict
 from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from maref.governance.audit import AuditEntry, AuditLogger
@@ -81,16 +77,12 @@ class AuditBus:
             actor=actor,
             action=action,
             details=details,
-            metadata={
-                **(metadata or {}),
-                "layer": layer,
-                "round": round,
-            },
+            metadata=metadata or {},
             parent_action_id=parent_action_id,
+            tenant_id=tenant_id,
+            layer=layer,
+            round=round,
         )
-        # Recreate with unified fields — AuditEntry is frozen
-        # so we need to write through the logger's internal path.
-        # Instead, we expose the fields via a wrapper on the stored entry.
         self._publish(entry)
         return entry
 
@@ -153,7 +145,6 @@ class AuditBus:
             context: Additional context (optional).
         """
         metadata = {
-            "tenant_id": tenant_id,
             "action_params": parameters or {},
             "context": context or {},
         }
@@ -218,7 +209,7 @@ class AuditBus:
         all_entries = self._logger.read_all(max_entries=None)
         return [
             e for e in all_entries
-            if e.metadata.get("tenant_id") == tenant_id
+            if getattr(e, "tenant_id", "") == tenant_id
         ][-max_entries:]
 
     def query_recent(self, n: int = 100) -> list[AuditEntry]:
