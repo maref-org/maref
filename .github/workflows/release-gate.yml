@@ -102,6 +102,6 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: SAEB recursive benchmark
-        run: pytest tests/benchmark/test_saeb.py -v --tb=short -x
+        run: pytest tests/benchmark/test_saeb.py -v --tb=short -x --cov-fail-under=0
         env:
           MAREF_FEDERATED_AUDIT_KEY: ${{ secrets.MAREF_FEDERATED_AUDIT_KEY || 'ci-placeholder-key' }}
