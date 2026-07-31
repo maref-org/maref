@@ -927,13 +927,20 @@ def run_validation_experiment():
     print("开始MAREF验证实验")
     print("=" * 70)
 
+    results_dir = os.environ.get(
+        "MAREF_RESULTS_DIR",
+        os.path.abspath(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..", "..", "..", "maref_sandbox", "results_analysis",
+        )),
+    )
+    os.makedirs(results_dir, exist_ok=True)
+
     # 1. 运行基线场景
     print("\n步骤1: 运行基线场景（有缺陷的Athena队列系统）")
     print("-" * 40)
 
-    baseline_results_file = (
-        "/Volumes/1TB-M2/openclaw/maref_sandbox/results_analysis/baseline_results.json"
-    )
+    baseline_results_file = os.path.join(results_dir, "baseline_results.json")
     baseline_results = run_baseline_scenario(
         num_cycles=3, tasks_per_cycle=5, output_file=baseline_results_file
     )
@@ -948,9 +955,7 @@ def run_validation_experiment():
     print("\n步骤2: 运行MAREF场景（智能工作流系统）")
     print("-" * 40)
 
-    maref_results_file = (
-        "/Volumes/1TB-M2/openclaw/maref_sandbox/results_analysis/maref_results.json"
-    )
+    maref_results_file = os.path.join(results_dir, "maref_results.json")
     maref_results = run_maref_scenario(
         num_cycles=3, tasks_per_cycle=5, output_file=maref_results_file
     )
@@ -972,7 +977,7 @@ def run_validation_experiment():
     print("\n步骤4: 生成验证报告")
     print("-" * 40)
 
-    report_file = "/Volumes/1TB-M2/openclaw/maref_sandbox/results_analysis/validation_report.json"
+    report_file = os.path.join(results_dir, "validation_report.json")
     final_report = controller.generate_report(report_file)
 
     return final_report
@@ -989,7 +994,7 @@ if __name__ == "__main__":
         else:
             print("\n⚠️ MAREF验证实验部分失败，需要进一步优化。")
 
-        print("\n验证报告位置: /Volumes/1TB-M2/openclaw/maref_sandbox/results_analysis/")
+        print(f"\n验证报告位置: {results_dir}")
         print("  1. 基线结果: baseline_results.json")
         print("  2. MAREF结果: maref_results.json")
         print("  3. 验证报告: validation_report.json")
