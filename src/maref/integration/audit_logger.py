@@ -1,7 +1,16 @@
 """audit_logger.py — MCP Audit Log persistence with JSONL + HMAC signing.
 
-Lightweight version for MAREF open-source. Logs to data/audit/ directory.
-No dependencies on openclaw proprietary paths.
+DEPRECATED: Use ``maref.governance.audit_bus.AuditBus`` instead.
+AuditBus provides the same HMAC-signed JSONL persistence as a unified
+interface.  Migration::
+
+    from maref.governance.audit_bus import AuditBus
+
+    # instead of: from maref.integration.audit_logger import AuditLogger
+    bus = AuditBus()
+
+This module is frozen (no new features, bug fixes only). It remains for
+backward compatibility with existing MCP audit log files.
 """
 
 from __future__ import annotations

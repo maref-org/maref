@@ -1,3 +1,15 @@
+"""recursive/audit_schema.py — Orchestration-layer audit schema.
+
+DEPRECATED: Use ``maref.governance.audit.AuditEntry`` + ``maref.governance.audit_bus.AuditBus`` instead.
+The ``AuditEntry`` and ``AuditWriter``/``AuditReader`` here are
+orchestration-specific wrappers.  The unified ``AuditEntry`` in
+``governance/audit.py`` covers all fields needed for hexagram-based
+state transitions.
+
+This module is frozen (no new features, bug fixes only). It remains for
+backward compatibility with existing orchestration audit files.
+"""
+
 from __future__ import annotations
 
 import json

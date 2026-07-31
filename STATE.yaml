@@ -1,5 +1,5 @@
 version: 14
-last_updated: '2026-07-31T14:30:00+08:00'
+last_updated: '2026-07-31T16:00:00+08:00'
 project:
   name: MAREF
   current_release: 0.42.0
@@ -53,9 +53,9 @@ track_b:
 governance:
   deployment_status: improving
   last_audit: '2026-07-31'
-  audit_score: 6.5/10
+  audit_score: 7.0/10
   coverage_overall: 36.1%
-  coverage_governance: ~65%
+  coverage_governance: ~68%
   coverage_target_v0350: 50%+
   mypy_errors: 0
   resolved_issues_archive: archive/resolved-issues.yaml
@@ -68,6 +68,8 @@ governance:
     trust_boundary_blocking: verify_cross_domain() added — raises E1006 BOUNDARY_VIOLATION
     state_machine_audit_hmac: sha256 -> hmac-sha256 signing
     phase_gate_mcp_tool: gov_check_phase_gate + gov_verify_output implemented in sidecar
+    audit_bus_unified: 11 fragmented modules unified under AuditBus (governance/governance_bus/gaas/integration/recursive/eivl)
+    audit_deprecated: security_audit_chain, integration/audit_logger, recursive/audit_schema marked DEPRECATED
 submission_pipeline:
   journals:
   - venue: 中国科技论坛
