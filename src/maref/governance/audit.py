@@ -54,6 +54,12 @@ class AuditEntry:
     hmac_signature: str = ""
     ed25519_signature: str = ""
     signer_fingerprint: str = ""
+    # Unified fields — used by GaaS tenant audit, recursive evolution,
+    # and integration layers.  Optional (empty defaults) for full
+    # backward compatibility with existing log entries.
+    tenant_id: str = ""
+    layer: str = "governance"
+    round: int = 0
 
     @property
     def signature_type(self) -> str:
@@ -64,7 +70,7 @@ class AuditEntry:
         return "unsigned"
 
     def to_dict(self) -> dict[str, Any]:
-        result = {
+        result: dict[str, Any] = {
             "id": self.id,
             "timestamp": self.timestamp,
             "event_type": self.event_type,
@@ -85,6 +91,10 @@ class AuditEntry:
             result["ed25519_signature"] = self.ed25519_signature
         if self.signer_fingerprint:
             result["signer_fingerprint"] = self.signer_fingerprint
+        if self.tenant_id:
+            result["tenant_id"] = self.tenant_id
+        if self.round:
+            result["round"] = self.round
         return result
 
     def _payload_for_signing(self) -> str:
@@ -100,9 +110,15 @@ class AuditEntry:
         }
         if self.parent_action_id:
             payload["parent_action_id"] = self.parent_action_id
+        if self.tenant_id:
+            payload["tenant_id"] = self.tenant_id
+        if self.layer:
+            payload["layer"] = self.layer
+        if self.round:
+            payload["round"] = self.round
         return json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
 
-    def to_unified(self, layer: str = "governance", round_num: int = 0) -> UnifiedAuditRecord:
+    def to_unified(self, layer: str | None = None, round_num: int | None = None) -> UnifiedAuditRecord:
         from maref.recursive.unified_audit import UnifiedAuditRecord
 
         outcome: str | None = None
@@ -114,8 +130,8 @@ class AuditEntry:
         return UnifiedAuditRecord(
             record_id=self.id,
             timestamp=self.timestamp,
-            layer=layer,
-            round=round_num,
+            layer=layer or self.layer,
+            round=round_num if round_num is not None else self.round,
             event_type=self.event_type,
             source_module=self.actor,
             target_module=self.metadata.get("target_module", ""),
@@ -123,6 +139,7 @@ class AuditEntry:
             justification=self.details,
             outcome=outcome,
             context_refs=[],
+            tenant_id=self.tenant_id,
         )
 
 
