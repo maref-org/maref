@@ -18,7 +18,7 @@ COPY src/ src/
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir -e ".[all,desktop]"
+RUN pip install --no-cache-dir ".[all,desktop]"
 RUN playwright install chromium --with-deps 2>/dev/null || true
 
 # ──────────────────────────────────────────────────────
