@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -112,7 +113,12 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
             ensure_ascii=False,
             default=str,
         )
-        chain_hash = hashlib.sha256(payload.encode()).hexdigest()
+        # HMAC-SHA256 signing matching AuditLogger security level
+        _hmac_key = os.environ.get("MAREF_HMAC_SECRET_KEY", "").encode("utf-8")
+        if _hmac_key:
+            chain_hash = hmac.new(_hmac_key, payload.encode(), hashlib.sha256).hexdigest()
+        else:
+            chain_hash = hashlib.sha256(payload.encode()).hexdigest()
 
         record = json.loads(payload)
         record["chain_hash"] = chain_hash

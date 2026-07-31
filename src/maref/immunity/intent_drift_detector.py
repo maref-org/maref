@@ -11,6 +11,7 @@ from maref.immunity.acceptance_extractor import AcceptanceCriterion, AcceptanceE
 if TYPE_CHECKING:
     from maref.immunity.immune_checker import ImmuneChecker, ImmuneHit
     from maref.immunity.negative_gene_bank import NegativeGeneBank
+    from maref.recursive.safety_gate_v2 import SafetyGateV2
 
 @dataclass
 class FuzzTestResult:
@@ -34,6 +35,11 @@ class IntentDriftDetector:
     def __init__(self, gene_bank: NegativeGeneBank | None=None) -> None:
         self._extractor = AcceptanceExtractor()
         self._gene_bank = gene_bank
+        self._safety_gate: SafetyGateV2 | None = None
+
+    def attach_safety_gate(self, gate: SafetyGateV2) -> None:
+        """附加 SafetyGateV2 - 哈希变化时调用其 block() 阻断。"""
+        self._safety_gate = gate
 
     def verify_intent_hash(self, criteria: list[AcceptanceCriterion], expected_hash: str) -> bool:
         actual = self._extractor.compute_intent_hash(criteria)
@@ -42,6 +48,8 @@ class IntentDriftDetector:
     def evaluate_code(self, code: str, criteria: list[AcceptanceCriterion], expected_hash: str, immune_checker: ImmuneChecker | None=None, language: str='python') -> IntentDriftResult:
         intent_valid = self.verify_intent_hash(criteria, expected_hash)
         if not intent_valid:
+            if self._safety_gate is not None:
+                self._safety_gate.block("intent_drift:hash_mismatch")
             return IntentDriftResult(passed=False, intent_valid=False, test_results=[], blocked=True)
         test_results = self._fuzz_test_code(code, criteria, language)
         immune_hits: list[ImmuneHit] = []

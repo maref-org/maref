@@ -55,6 +55,7 @@ class SafetyGateV2:
         self._stench_detector: AIStenchDetector | None = None
         self._intent_drift_detector: IntentDriftDetector | None = None  # M4
         self._sentinel_observer: Any | None = None  # M4
+        self._blocked = False
 
     def detect_core_removal(self, target: str) -> ThreatAssessment:
         for core in self._CORE_COMPONENTS:
@@ -398,6 +399,30 @@ class SafetyGateV2:
         )
 
     # ── M4: IntentDriftDetector 集成 ──
+
+    def block(self, reason: str) -> bool:
+        """M4: 阻断操作并记录审计。
+
+        Args:
+            reason: 阻断原因 (如 intent drift hash mismatch)
+
+        Returns:
+            True - 阻断已记录并生效
+        """
+        self._blocked = True
+        self._audit_trail.append(
+            {
+                "timestamp": time.time(),
+                "target": "safety_gate_v2",
+                "direction": "block",
+                "value": reason,
+            }
+        )
+        return True
+
+    def is_blocked(self) -> bool:
+        """M4: 查询是否已阻断。"""
+        return self._blocked
 
     def attach_intent_drift_detector(self, detector: IntentDriftDetector) -> None:
         """附加意图漂移检测器。"""

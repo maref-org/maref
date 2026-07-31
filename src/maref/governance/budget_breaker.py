@@ -169,7 +169,6 @@ class BudgetBreaker:
             self._monthly_spend[agent_id] = 0.0
             self._warning_emitted[agent_id] = False
         # Check if we've crossed into a new calendar month
-        import datetime
         current = datetime.datetime.fromtimestamp(now)
         start = datetime.datetime.fromtimestamp(self._month_start[agent_id])
         if current.year != start.year or current.month != start.month:

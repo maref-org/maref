@@ -48,6 +48,7 @@ class AuditEntry:
     action: str
     details: str
     metadata: dict[str, Any] = field(default_factory=dict)
+    parent_action_id: str = ""
     previous_hash: str = ""
     chain_hash: str = ""
     hmac_signature: str = ""
@@ -72,6 +73,8 @@ class AuditEntry:
             "details": self.details,
             "metadata": self.metadata,
         }
+        if self.parent_action_id:
+            result["parent_action_id"] = self.parent_action_id
         if self.previous_hash:
             result["previous_hash"] = self.previous_hash
         if self.chain_hash:
@@ -85,21 +88,19 @@ class AuditEntry:
         return result
 
     def _payload_for_signing(self) -> str:
-        return json.dumps(
-            {
-                "id": self.id,
-                "timestamp": self.timestamp,
-                "event_type": self.event_type,
-                "actor": self.actor,
-                "action": self.action,
-                "details": self.details,
-                "metadata": self.metadata,
-                "previous_hash": self.previous_hash,
-            },
-            sort_keys=True,
-            ensure_ascii=False,
-            default=str,
-        )
+        payload: dict[str, Any] = {
+            "id": self.id,
+            "timestamp": self.timestamp,
+            "event_type": self.event_type,
+            "actor": self.actor,
+            "action": self.action,
+            "details": self.details,
+            "metadata": self.metadata,
+            "previous_hash": self.previous_hash,
+        }
+        if self.parent_action_id:
+            payload["parent_action_id"] = self.parent_action_id
+        return json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
 
     def to_unified(self, layer: str = "governance", round_num: int = 0) -> UnifiedAuditRecord:
         from maref.recursive.unified_audit import UnifiedAuditRecord
@@ -217,6 +218,7 @@ class AuditLogger:
                 action=entry.action,
                 details=entry.details,
                 metadata=entry.metadata,
+                parent_action_id=entry.parent_action_id,
                 previous_hash=entry.previous_hash,
                 chain_hash=entry.chain_hash,
                 ed25519_signature=sig,
@@ -230,6 +232,7 @@ class AuditLogger:
             action=entry.action,
             details=entry.details,
             metadata=entry.metadata,
+            parent_action_id=entry.parent_action_id,
             previous_hash=entry.previous_hash,
             chain_hash=entry.chain_hash,
             hmac_signature=sig,
@@ -326,6 +329,7 @@ class AuditLogger:
         action: str,
         details: str = "",
         metadata: dict[str, Any] | None = None,
+        parent_action_id: str = "",
     ) -> AuditEntry:
         import uuid
 
@@ -343,6 +347,7 @@ class AuditLogger:
             action=action,
             details=details,
             metadata=metadata or {},
+            parent_action_id=parent_action_id,
             previous_hash=previous_hash,
         )
         signed_entry = self._write(entry)
@@ -398,6 +403,7 @@ class AuditLogger:
             action=signed_entry.action,
             details=signed_entry.details,
             metadata=signed_entry.metadata,
+            parent_action_id=signed_entry.parent_action_id,
             previous_hash=signed_entry.previous_hash,
             chain_hash=chain_hash,
             hmac_signature=signed_entry.hmac_signature,
@@ -449,6 +455,7 @@ class AuditLogger:
                                 action=data["action"],
                                 details=data["details"],
                                 metadata=data.get("metadata", {}),
+                                parent_action_id=data.get("parent_action_id", ""),
                                 previous_hash=data.get("previous_hash", ""),
                                 chain_hash=data.get("chain_hash", ""),
                                 hmac_signature=data.get("hmac_signature", ""),

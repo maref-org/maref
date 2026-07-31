@@ -178,6 +178,72 @@ class TrustBoundaryManager:
 
         return event
 
+    @security_critical
+    def verify_cross_domain(
+        self,
+        source_agent_id: str,
+        target_agent_id: str,
+    ) -> None:
+        """Enforce cross-domain boundary — raises BoundaryViolationError if unauthorized.
+
+        This is the blocking equivalent of check_cross_domain(). Callers MUST use
+        this method instead of ignoring the optional BoundaryEvent return value.
+        """
+        from maref.exceptions import ErrorCode, MAREFError
+
+        source_domain = self.get_agent_domain(source_agent_id)
+        target_domain = self.get_agent_domain(target_agent_id)
+
+        if source_domain is None:
+            raise MAREFError(
+                ErrorCode.BOUNDARY_VIOLATION,
+                f"Agent {source_agent_id} not registered in any domain",
+            )
+        if target_domain is None:
+            raise MAREFError(
+                ErrorCode.BOUNDARY_VIOLATION,
+                f"Agent {target_agent_id} not registered in any domain",
+            )
+
+        if source_domain == target_domain:
+            return  # Same domain — allowed
+
+        source = self._domains.get(source_domain)
+        target = self._domains.get(target_domain)
+        if source is None or target is None:
+            raise MAREFError(
+                ErrorCode.BOUNDARY_VIOLATION,
+                f"Domain lookup failed: source={source_domain}, target={target_domain}",
+            )
+
+        risk_score = self._calculate_risk(source, target)
+
+        event = BoundaryEvent(
+            event_type=BoundaryEventType.CROSS_DOMAIN_CALL,
+            source_domain=source_domain,
+            target_domain=target_domain,
+            agent_id=target_agent_id,
+            risk_score=risk_score,
+            requires_reverification=risk_score >= 0.5 or source.policy == TrustPolicy.STRICT,
+        )
+        self._boundary_events.append(event)
+        self._log_cross_domain_event(event, source_agent_id, target_agent_id)
+        self._evaluate_circuit_breaker(event)
+
+        # BLOCK: STRICT policy cross-domain calls are always denied
+        if source.policy == TrustPolicy.STRICT:
+            raise MAREFError(
+                ErrorCode.BOUNDARY_VIOLATION,
+                f"STRICT policy: cross-domain call from {source_domain} to "
+                f"{target_domain} blocked (risk={risk_score:.2f})",
+            )
+        if risk_score >= 0.7:
+            raise MAREFError(
+                ErrorCode.BOUNDARY_VIOLATION,
+                f"Cross-domain call from {source_domain} to {target_domain} "
+                f"blocked — risk score {risk_score:.2f} exceeds threshold 0.7",
+            )
+
     def _calculate_risk(self, source: TrustDomain, target: TrustDomain) -> float:
         risk = 0.0
         if source.policy == TrustPolicy.STRICT:

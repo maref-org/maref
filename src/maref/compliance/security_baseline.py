@@ -20,9 +20,8 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] PERCV: %(message)s")
 logger = logging.getLogger("percv_scanner")
@@ -188,7 +187,7 @@ def run_scan(config_file: str | None = None) -> dict:
 def print_report(report: dict):
     """打印人类可读的安全报告"""
     print(f"\n{'='*60}")
-    print(f"  PERCV 安全基线扫描报告")
+    print("  PERCV 安全基线扫描报告")
     print(f"  ID: {report['scan_id']}")
     print(f"{'='*60}")
     print(f"  框架: {report['framework']}")

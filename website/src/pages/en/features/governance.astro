@@ -7,7 +7,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
 <DocLayout
   locale="en"
   title="Agent Governance — Gray Code FSM"
-  description="A mathematically verifiable governance state machine — TLA+ proven, Hamming distance = 1, 10 states, HALT absorbing state."
+  description="A mathematically verifiable governance state machine — TLA+ model-checked, Hamming distance = 1, 10 states, HALT absorbing state."
   section="features"
 >
 
@@ -18,7 +18,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
   </h1>
   <p class="text-lg text-brand-text-secondary mb-10">
     A governance state machine verified with TLA+ formal methods.
-    Ten states, six bits, zero ambiguity. Every transition mathematically provable.
+    Ten states, four bits, zero ambiguity. Every transition model-checked.
   </p>
 
   <GrayCodeFSM locale="en" />
@@ -27,8 +27,8 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
   <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
     <p class="text-base text-brand-text-secondary leading-relaxed">
       Every agent framework has a "safety" checkbox. None of them can prove it works.
-      MAREF's governance state machine is the first with a TLA+ mathematical proof:
-      <strong class="text-brand-text-primary">five theorems verified, zero unreachable states, every transition deterministic by construction.</strong>
+      MAREF's governance state machine is the first with TLA+ model checking:
+      <strong class="text-brand-text-primary">five invariants verified, zero unreachable states, every transition deterministic by construction.</strong>
     </p>
   </div>
 
@@ -36,7 +36,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
   <div class="grid md:grid-cols-3 gap-8 my-20">
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
       <h3 class="font-semibold text-brand-accent-cyan mb-2">Unambiguous state. Always.</h3>
-      <p class="text-sm text-brand-text-secondary">Six-bit Gray code encoding guarantees Hamming distance = 1 between adjacent states. No transition is ever ambiguous.</p>
+      <p class="text-sm text-brand-text-secondary">Four-bit Gray code encoding guarantees Hamming distance = 1 between adjacent states. No transition is ever ambiguous.</p>
     </div>
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
       <h3 class="font-semibold text-brand-accent-green mb-2">HALT. And nothing can undo it.</h3>
@@ -54,12 +54,12 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
     <div>
       <h2 class="text-2xl font-bold tracking-tight mb-6">A state machine a mathematician would trust.</h2>
       <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
-        Ten states, each with a 6-bit Gray code encoding. Because adjacent states differ by exactly one bit,
+        Ten states, each with a 4-bit Gray code encoding. Because adjacent states differ by exactly one bit,
         no transition can land in an ambiguous middle ground. TLA+ model checking verified this across
         every possible path. The state space is finite, complete, and fully explored.
       </p>
       <p class="text-sm text-brand-accent-cyan font-code">
-        Formal verification: 5 theorems, 10 states, 0 unreachable states
+        Formal verification: 5 invariants, 10 states, 0 unreachable states
       </p>
     </div>
 
@@ -102,7 +102,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
       <div class="text-brand-text-muted">State machine</div>
       <div class="text-brand-text-primary">10 operational states + HALT absorbing state</div>
       <div class="text-brand-text-muted">Encoding</div>
-      <div class="text-brand-text-primary">6-bit Gray code, Hamming distance = 1</div>
+      <div class="text-brand-text-primary">4-bit Gray code, Hamming distance = 1</div>
       <div class="text-brand-text-muted">Formal methods</div>
       <div class="text-brand-text-primary">TLA+ (Temporal Logic of Actions) model checking</div>
       <div class="text-brand-text-muted">Verified invariants</div>

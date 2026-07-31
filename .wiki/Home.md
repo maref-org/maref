@@ -15,7 +15,7 @@
 
 ### Governance Layer (World-Leading)
 - **10-State Gray Code Governance State Machine** — Mathematically provable convergence (6-bit, Hamming distance=1)
-- **TLA+ Formal Verification** — 5 theorem proofs (Lyapunov convergence + Sperner completeness)
+- **TLA+ Formal Verification** — 5 model-checked invariants (state reachability, transition determinism, HALT absorption, safety gate integrity, red line immutability)
 - **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
 - **Four-Tier Security Decision Tree** — Rule → Mode → SafetyGate → User, 97% automation rate
 - **Dual Drift Detection (LoRA/Ontology)** — KL/JS/Hellinger triple divergence + human arbitration
@@ -50,7 +50,7 @@
 | Version | v0.36.0-rc |
 | License | Apache 2.0 |
 | Tests | 4,300+ |
-| Coverage | 82% |
+| Coverage | 待确认 |
 | Python | 3.10+ |
 
 ## Getting Help

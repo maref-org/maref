@@ -17,7 +17,9 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
+
+import httpx
 
 from maref.federation.gateway import FederatedAgent, FederationGateway
 
@@ -126,6 +128,149 @@ class FederationPeer:
         }
 
 
+class DiscoveryTransport(Protocol):
+    """Abstract transport for fetching peer agent catalogs.
+
+    Implementations include:
+    - :class:`InProcessTransport`: in-process callbacks (testing/offline).
+    - :class:`HTTPDiscoveryTransport`: real HTTP via ``httpx`` (production).
+    """
+
+    def fetch_catalog(
+        self, peer: FederationPeer, query: DiscoveryQuery
+    ) -> list[FederatedAgent]:
+        """Fetch the agent catalog from a peer federation server."""
+        ...
+
+
+class InProcessTransport:
+    """In-process transport using registered catalog providers.
+
+    This is the default transport, primarily used for testing and
+    offline operation. Peers register callable providers via
+    :meth:`set_catalog_provider`.
+    """
+
+    def __init__(self) -> None:
+        self._providers: dict[str, Callable[[], list[FederatedAgent]]] = {}
+
+    def set_catalog_provider(
+        self,
+        server_id: str,
+        provider: Callable[[], list[FederatedAgent]],
+    ) -> None:
+        """Register a callable that returns the local catalog for a peer."""
+        self._providers[server_id] = provider
+
+    def fetch_catalog(
+        self, peer: FederationPeer, query: DiscoveryQuery
+    ) -> list[FederatedAgent]:
+        provider = self._providers.get(peer.server_id)
+        if provider is None:
+            return []
+        return provider()
+
+
+class HTTPDiscoveryTransport:
+    """HTTP transport for fetching peer catalogs via ADP protocol.
+
+    Fetches peer catalogs via HTTP GET to
+    ``{peer.endpoint_url}/.well-known/adp/catalog``.
+
+    Uses ``httpx`` for HTTP requests with configurable timeout and
+    retries. On any error (network, parse, etc.), returns an empty
+    list rather than raising.
+    """
+
+    def __init__(
+        self,
+        timeout: float = DEFAULT_QUERY_TIMEOUT,
+        max_retries: int = 2,
+    ) -> None:
+        self._timeout = timeout
+        self._max_retries = max_retries
+
+    def fetch_catalog(
+        self, peer: FederationPeer, query: DiscoveryQuery
+    ) -> list[FederatedAgent]:
+        """Fetch a peer's agent catalog via HTTP.
+
+        Returns an empty list on any error (network, parse, etc.).
+        """
+        url = f"{peer.endpoint_url.rstrip('/')}/.well-known/adp/catalog"
+        params: dict[str, Any] = {
+            "capability": query.capability,
+            "aicPrefix": query.aic_prefix,
+            "protocol": query.protocol,
+            "maxResults": query.max_results,
+        }
+        params = {k: v for k, v in params.items() if v is not None}
+
+        for attempt in range(self._max_retries + 1):
+            try:
+                response = httpx.get(url, params=params, timeout=self._timeout)
+                response.raise_for_status()
+                data = response.json()
+                return self._parse_catalog_response(data)
+            except (httpx.HTTPError, ValueError, KeyError, TypeError):
+                if attempt < self._max_retries:
+                    continue
+                return []
+        return []
+
+    def _parse_catalog_response(self, data: Any) -> list[FederatedAgent]:
+        """Parse a JSON catalog response into FederatedAgent list.
+
+        Expected format::
+
+            {"agents": [{"aic": "...", "did": "...", "name": "...", ...}]}
+
+        Returns an empty list on any parse error.
+        """
+        from maref.identity.aic_adapter import AIC
+        from maref.identity.did_registry import AgentDID
+        from maref.integration.acs_parser import AgentCapabilitySpec, AgentSkill
+
+        if not isinstance(data, dict):
+            return []
+
+        agents_data = data.get("agents", [])
+        if not isinstance(agents_data, list):
+            return []
+
+        result: list[FederatedAgent] = []
+        for item in agents_data:
+            try:
+                if not isinstance(item, dict):
+                    continue
+                aic = AIC.parse(item["aic"])
+                did = AgentDID.parse(item["did"])
+                skills_data = item.get("capabilities", [])
+                acs = AgentCapabilitySpec(
+                    aic=item["aic"],
+                    name=item.get("name", "unknown"),
+                    description=item.get("description", ""),
+                    skills=[
+                        AgentSkill(id=s, name=s, description="")
+                        for s in skills_data
+                        if isinstance(s, str)
+                    ],
+                )
+                agent = FederatedAgent(
+                    did=did,
+                    aic=aic,
+                    acs=acs,
+                    endpoint_url=item.get("endpoint", ""),
+                    protocol=item.get("protocol", "aip"),
+                    registered_at=float(item.get("registered_at", 0.0)),
+                )
+                result.append(agent)
+            except (KeyError, ValueError, TypeError):
+                continue
+
+        return result
+
+
 class FederatedDiscovery:
     """ADP discovery client for cross-organization agent discovery.
 
@@ -145,15 +290,16 @@ class FederatedDiscovery:
         server_id: str = "maref-local",
         max_depth: int = DEFAULT_MAX_DEPTH,
         query_timeout: float = DEFAULT_QUERY_TIMEOUT,
+        transport: DiscoveryTransport | None = None,
     ) -> None:
         self._gateway = gateway
         self._server_id = server_id
         self._max_depth = max_depth
         self._query_timeout = query_timeout
         self._peers: dict[str, FederationPeer] = {}
-        # Per-instance catalog providers for testability. Kept on the
-        # instance (not module-level) so parallel tests don't leak state.
-        self._catalog_providers: dict[str, Callable[[], list[FederatedAgent]]] = {}
+        # Transport for fetching peer catalogs. Defaults to in-process
+        # for testability; use HTTPDiscoveryTransport for production.
+        self._transport: DiscoveryTransport = transport or InProcessTransport()
 
     @property
     def server_id(self) -> str:
@@ -295,10 +441,10 @@ class FederatedDiscovery:
     ) -> list[DiscoveryResult]:
         """Forward the query to peer federation servers.
 
-        This is a synchronous, in-process simulation of ADP forwarding.
-        In production, this would issue HTTP requests to peer ADP endpoints.
-        For testability and offline operation, peers can be registered with
-        a callable hook that returns their local catalog.
+        Uses the configured :class:`DiscoveryTransport` to fetch each
+        peer's catalog. The default :class:`InProcessTransport` uses
+        registered callbacks; :class:`HTTPDiscoveryTransport` issues
+        real HTTP requests to peer ADP endpoints.
         """
         remote_results: list[DiscoveryResult] = []
         local_aics = {r.agent.aic.aic_string for r in local_results}
@@ -311,8 +457,8 @@ class FederatedDiscovery:
             if query.max_depth <= 0:
                 continue
 
-            # Fetch peer's catalog (in production, HTTP GET to peer.endpoint_url).
-            peer_catalog = self._fetch_peer_catalog(peer)
+            # Fetch peer's catalog via the configured transport.
+            peer_catalog = self._fetch_peer_catalog(peer, query)
             for agent in peer_catalog:
                 aic_str = agent.aic.aic_string
                 if aic_str in local_aics:
@@ -332,17 +478,11 @@ class FederatedDiscovery:
 
         return remote_results
 
-    def _fetch_peer_catalog(self, peer: FederationPeer) -> list[FederatedAgent]:
-        """Fetch a peer's local agent catalog.
-
-        In production this would issue an HTTP GET to
-        ``{peer.endpoint_url}/.well-known/adp/catalog``. For testability,
-        peers can register a catalog provider via :meth:`set_catalog_provider`.
-        """
-        provider = self._catalog_providers.get(peer.server_id)
-        if provider is None:
-            return []
-        return provider()
+    def _fetch_peer_catalog(
+        self, peer: FederationPeer, query: DiscoveryQuery
+    ) -> list[FederatedAgent]:
+        """Fetch a peer's local agent catalog via the configured transport."""
+        return self._transport.fetch_catalog(peer, query)
 
     def set_catalog_provider(
         self,
@@ -351,9 +491,15 @@ class FederatedDiscovery:
     ) -> None:
         """Register a callable that returns the local catalog for a peer.
 
-        This is primarily for testing; production deployments use HTTP.
+        This is a backward-compatibility wrapper for
+        :meth:`InProcessTransport.set_catalog_provider`. Only works
+        when the transport is an :class:`InProcessTransport`.
+
+        For production, pass an :class:`HTTPDiscoveryTransport` to
+        :class:`FederatedDiscovery` instead.
         """
-        self._catalog_providers[server_id] = provider
+        if isinstance(self._transport, InProcessTransport):
+            self._transport.set_catalog_provider(server_id, provider)
 
     def discovery_summary(self) -> dict[str, Any]:
         """Return a summary of the discovery service state."""
@@ -373,6 +519,9 @@ __all__ = [
     "DEFAULT_QUERY_TIMEOUT",
     "DiscoveryQuery",
     "DiscoveryResult",
-    "FederationPeer",
+    "DiscoveryTransport",
     "FederatedDiscovery",
+    "FederationPeer",
+    "HTTPDiscoveryTransport",
+    "InProcessTransport",
 ]

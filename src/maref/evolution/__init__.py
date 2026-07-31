@@ -10,6 +10,7 @@ from maref.evolution.evo_genotype import AgentGenotype, GenotypePool
 from maref.evolution.evo_state import EvoStateManager
 from maref.evolution.evolution_vault import EvolutionVault, RoundVault
 from maref.evolution.iteration_analyzer import IterationAnalysisResult, IterationAnalyzer
+from maref.evolution.high_order_convergence import ConvergenceReport, HighOrderConvergenceMonitor
 from maref.evolution.metrics import (
     AcceptanceCriteria,
     CycleResult,
@@ -34,6 +35,8 @@ __all__ = [
     "RoundVault",
     "IterationAnalysisResult",
     "IterationAnalyzer",
+    "HighOrderConvergenceMonitor",
+    "ConvergenceReport",
     "ConstitutionCheckResult",
     "ConstitutionHarness",
     "EvolutionChange",

@@ -8,6 +8,7 @@ bypasses Agent B for that category.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -77,6 +78,10 @@ class ReliabilityMatrix:
         # _data[observer_id][target_id][task_type] = ReliabilityCell
         self._data: dict[str, dict[str, dict[str, ReliabilityCell]]] = {}
         self._history: dict[str, list[TaskOutcome]] = {}
+        self._callbacks: list[Callable[[dict], None]] = []
+
+    def add_bypass_callback(self, callback: Callable[[dict], None]) -> None:
+        self._callbacks.append(callback)
 
     # ------------------------------------------------------------------ #
     # Recording
@@ -91,6 +96,18 @@ class ReliabilityMatrix:
     ) -> ReliabilityCell:
         cell = self._ensure_cell(observer_id, target_id, task_type)
         cell.record(success, latency_ms)
+
+        # Fire bypass callbacks if the cell just crossed the threshold
+        if not success and cell.consecutive_failures == self.BYPASS_THRESHOLD:
+            event: dict = {
+                "observer_id": observer_id,
+                "target_id": target_id,
+                "task_type": task_type,
+                "consecutive_failures": cell.consecutive_failures,
+                "timestamp": time.time(),
+            }
+            for cb in self._callbacks:
+                cb(event)
 
         # Append to rolling history
         key = f"{observer_id}:{target_id}:{task_type}"

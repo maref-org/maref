@@ -87,10 +87,12 @@ class CooldownManager:
         return {'success': True, 'cooldown_id': cooldown_id, 'action': 'auto_merged'}
 
     @security_critical
-    def force_merge(self, cooldown_id: str, reason: str='manual_override') -> dict[str, Any]:
+    def force_merge(self, cooldown_id: str, actor_id: str, reason: str = 'manual_override') -> dict[str, Any]:
         entry = self._entries.get(cooldown_id)
         if entry is None:
             return {'success': False, 'reason': 'cooldown_id not found'}
+        if not reason or not reason.strip():
+            return {'success': False, 'reason': 'reason must be non-empty'}
         if not entry.evaluated_at and self._simulator is not None:
             report = self._simulator.simulate_contamination(entry.code)
             entry.contamination_index = report.contamination_index

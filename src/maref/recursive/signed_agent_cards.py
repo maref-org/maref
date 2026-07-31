@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from maref.crypto.ed25519_keys import Ed25519KeyPair
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
 
 
@@ -22,9 +23,30 @@ class AgentCardSignature:
     verified: bool = False
 
     def verify(self, public_key_pem: str, card_data: dict[str, Any]) -> bool:
-        computed_hash = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
-        match = computed_hash == self.card_hash
-        self.verified = match and (time.time() < self.expires_at)
+        """Verify the signature against the card data.
+
+        Supports two algorithms:
+        - ``ed25519``: real Ed25519 elliptic curve signature verification.
+        - ``ed25519-sim``: legacy SHA-256 hash comparison (for backward compat).
+        """
+        computed_hash = hashlib.sha256(
+            json.dumps(card_data, sort_keys=True).encode()
+        ).hexdigest()
+
+        if self.algorithm == "ed25519":
+            try:
+                signature_bytes = bytes.fromhex(self.signature_value)
+            except ValueError:
+                self.verified = False
+                return False
+            sig_valid = Ed25519KeyPair.verify(
+                public_key_pem, signature_bytes, computed_hash.encode()
+            )
+            self.verified = sig_valid and (time.time() < self.expires_at)
+        else:
+            # Legacy SHA-256 simulation (ed25519-sim).
+            match = computed_hash == self.card_hash
+            self.verified = match and (time.time() < self.expires_at)
         return self.verified
 
 
@@ -89,29 +111,52 @@ class CapabilityDriftReport:
 
 
 class AgentCardSigner:
-    def __init__(self) -> None:
+    """Signs Agent Cards with Ed25519 or legacy SHA-256 simulation.
+
+    By default (``legacy_mode=False``) uses real Ed25519 elliptic curve
+    signatures via :class:`~maref.crypto.ed25519_keys.Ed25519KeyPair`.
+    Set ``legacy_mode=True`` for backward compatibility with the
+    previous SHA-256 hash simulation (``ed25519-sim``).
+    """
+
+    def __init__(self, legacy_mode: bool = False) -> None:
         self._key_registry: dict[str, str] = {}
+        self._legacy_mode = legacy_mode
 
     def register_key(self, agent_id: str, public_key_pem: str) -> None:
         self._key_registry[agent_id] = public_key_pem
 
     def sign_card(self, card: SignedAgentCard, private_key_pem: str) -> AgentCardSignature:
         card_data = card.to_card_data()
-        card_hash = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
+        card_hash = hashlib.sha256(
+            json.dumps(card_data, sort_keys=True).encode()
+        ).hexdigest()
 
-        object.__setattr__(card, "card_hash", card_hash)
+        if self._legacy_mode:
+            algorithm = "ed25519-sim"
+            signature_value = hashlib.sha256(
+                (card_hash + private_key_pem).encode()
+            ).hexdigest()
+        else:
+            key_pair = Ed25519KeyPair.from_private_pem(private_key_pem)
+            signature_bytes = key_pair.sign(card_hash.encode())
+            algorithm = "ed25519"
+            signature_value = signature_bytes.hex()
 
-        signature_value = hashlib.sha256((card_hash + private_key_pem).encode()).hexdigest()
+        public_key_pem = self._key_registry.get(card.agent_id, "")
+        fingerprint = (
+            hashlib.sha256(public_key_pem.encode()).hexdigest()[:16]
+            if public_key_pem
+            else ""
+        )
 
         sig = AgentCardSignature(
             signature_id=f"sig_{card.card_id}_{int(time.time())}",
             agent_id=card.agent_id,
-            public_key_fingerprint=hashlib.sha256(
-                (self._key_registry.get(card.agent_id, "")).encode()
-            ).hexdigest()[:16],
+            public_key_fingerprint=fingerprint,
             signed_at=time.time(),
             expires_at=card.expires_at,
-            algorithm="ed25519-sim",
+            algorithm=algorithm,
             signature_value=signature_value,
             card_hash=card_hash,
         )

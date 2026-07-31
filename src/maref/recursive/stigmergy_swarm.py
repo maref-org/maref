@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
+
+if TYPE_CHECKING:
+    from maref.crypto.ed25519_keys import Ed25519KeyPair
 
 
 class PheromoneType(str, Enum):
@@ -26,11 +30,41 @@ class Pheromone:
     decay_rate: float = 0.1
     created_at: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
+    signature: str = ""
+    signer_fingerprint: str = ""
 
     @property
     def current_intensity(self) -> float:
         elapsed = (time.time() - self.created_at) / 3600.0
         return max(0.0, self.intensity * (1.0 - elapsed * self.decay_rate))
+
+    def _payload_for_signing(self) -> str:
+        return json.dumps(
+            {
+                "stig_id": self.stig_id,
+                "pheromone_type": self.pheromone_type.value,
+                "source_agent": self.source_agent,
+                "location": self.location,
+                "intensity": self.intensity,
+                "decay_rate": self.decay_rate,
+                "created_at": self.created_at,
+                "metadata": self.metadata,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+
+    def sign(self, signer: Ed25519KeyPair) -> None:
+        sig_bytes = signer.sign(self._payload_for_signing().encode("utf-8"))
+        self.signature = sig_bytes.hex()
+        self.signer_fingerprint = signer.fingerprint
+
+    def verify_signature(self, public_key_pem: str) -> bool:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+        if not self.signature:
+            return False
+        sig_bytes = bytes.fromhex(self.signature)
+        return Ed25519KeyPair.verify(public_key_pem, sig_bytes, self._payload_for_signing().encode("utf-8"))
 
 
 @dataclass
@@ -96,6 +130,7 @@ class StigmergySwarm:
         location: str,
         intensity: float = 1.0,
         metadata: dict[str, Any] | None = None,
+        signer: Any | None = None,
     ) -> Pheromone | None:
         env = self._environments.get(env_id)
         if env is None:
@@ -112,6 +147,8 @@ class StigmergySwarm:
             intensity=intensity,
             metadata=metadata or {},
         )
+        if signer is not None:
+            p.sign(signer)
         env.pheromones[p.stig_id] = p
         self._pheromone_ids[stig_id] = env_id
         return p

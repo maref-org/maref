@@ -274,10 +274,10 @@ WeightAdjustmentBoundInv ==
 
 (* RSI-RL-002: Agent autonomy — improvement decisions must not be
    externally dictated. Agent state transitions must follow the
-   64-state Gray Code FSM (Hamming distance = 1).
-   NOTE: Full formalization requires the complete 64-state model in
-   MAREF_GrayCodeFSM.tla. Formalized here as a bounded 2-bit Gray Code
-   subset (4 states) with Hamming-distance=1 transition constraint. *)
+   34-state Gray Code FSM (Hamming distance = 1): 10 governance states
+   (MarefLite.tla) + 24 agent states (future work).
+   Formalized here as a bounded 2-bit Gray Code subset (4 states) with
+   Hamming-distance=1 transition constraint. *)
 
 (* RSI-RL-002: Agent state must always be a valid Gray Code state.
    Transitions are constrained by ValidGrayCodeTransition in the
@@ -294,6 +294,14 @@ RSIRL002_AgentAutonomyInv ==
 
 (* RSI-RL-005: Audit trail — all decisions must be logged with 
    timestamp, agent_id, decision, and HMAC signature. *)
+
+(* RSI-RL-006: Cross-dimension improvements must not modify security-related
+   dimension weights (security, safety_gate, circuit_breaker).
+   Formalized by CD-INV-001: ProtectedDim weights remain at initial value. *)
+
+(* RSI-RL-007: Single-round cross-dimension improvement must not modify more
+   than 3 target files.
+   Formalized by CD-INV-002: fileModCount <= FileCountMax. *)
 
 SAFETY_GATE_THRESHOLD == 3   (* C4 level, max of C1-C4 *)
 
@@ -317,5 +325,16 @@ RSIRL004_HumanAuthorityInv ==
 RSIRL005_LoggingRequirementInv ==
   auditLogCount >= decisionTicket
 
-===============================================================================
+(* RSI-RL-006: Security dimension protection — security-related dimension
+   weights (dim=1) must not be modified by cross-dimension improvements.
+   Alias for CrossDimSecurityInv (CD-INV-001). *)
+RSIRL006_SecurityDimProtectionInv ==
+  CrossDimSecurityInv
+
+(* RSI-RL-007: Per-round file limit — no more than FileCountMax files
+   modified per round.  Alias for MaxFilesPerRoundInv (CD-INV-002). *)
+RSIRL007_MaxFilesPerRoundInv ==
+  MaxFilesPerRoundInv
+
+============================================================================
 ====

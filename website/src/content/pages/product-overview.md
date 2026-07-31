@@ -142,7 +142,7 @@ print(overlay.get_status())
 |------|------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
 | **Tests** | 4,300+ — [![Tests](https://img.shields.io/badge/tests-4300+-brightgreen.svg)]() |
-| **Coverage** | 82% — [![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)]() |
+| **Coverage** | 待确认 — [![Coverage](https://img.shields.io/badge/coverage-pending-yellow.svg)]() |
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |

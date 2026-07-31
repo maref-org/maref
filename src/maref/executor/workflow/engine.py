@@ -16,7 +16,12 @@ from maref.executor.workflow.types import (
     WorkflowResult,
     WorkflowScript,
     WorkflowStatus,
+    WorkflowStep,
     _now,
+)
+from maref.recursive.blast_radius import (
+    BlastRadiusController,
+    CompensationDecision,
 )
 
 # 可选的 governance bridge 类型（避免硬依赖）
@@ -124,13 +129,14 @@ class WorkflowEngine:
         worker_pool: WorkerPool,
         governance_bridge: GovernanceBridgeLike | None = None,
         checkpoint_dir: str = "",
+        blast_radius: BlastRadiusController | None = None,
     ) -> None:
         self._worker_pool = worker_pool
         self._governance = governance_bridge
         self._checkpoint_dir = checkpoint_dir
+        self._blast_radius = blast_radius or BlastRadiusController()
         self._handlers: dict[str, HandlerType] = {}
         self._lock = threading.Lock()
-        # 自动从 WorkerPool 导入已注册的 handler
         self.register_handlers_from_pool()
 
     # ── Handler 注册 ─────────────────────────────────────────────────
@@ -167,9 +173,9 @@ class WorkflowEngine:
 
         step_index = 0
         checkpoint_count = 0
+        completed_step_names: list[str] = []
 
         for group in groups:
-            # 检查组内是否有并行步骤
             has_parallel = any(
                 s.parallel_group for s in group
             )
@@ -187,39 +193,37 @@ class WorkflowEngine:
                         )
                         result.step_results.append(sr)
                         step_index += 1
-                        if sr.status == StepStatus.FAILED:
-                            result.status = WorkflowStatus.FAILED
-                            result.error_message = (
-                                f"Step '{pg_steps[0].name}' failed: "
-                                f"{sr.error_message}"
+                        if sr.status == StepStatus.COMPLETED:
+                            completed_step_names.append(pg_steps[0].name)
+                        else:
+                            return self._handle_step_failure(
+                                sr, pg_steps[0], completed_step_names, result
                             )
-                            result.completed_at = _now()
-                            return result
                     else:
                         srs = self._execute_parallel(pg_steps, script, inputs, result)
                         result.step_results.extend(srs)
                         step_index += len(srs)
                         failed = [sr for sr in srs if sr.status == StepStatus.FAILED]
                         if failed:
-                            result.status = WorkflowStatus.FAILED
-                            result.error_message = (
-                                f"Parallel group '{pg_name}' failed: "
-                                f"{failed[0].error_message}"
+                            completed_step_names.extend(
+                                sr.step_name for sr in srs if sr.status == StepStatus.COMPLETED
                             )
-                            result.completed_at = _now()
-                            return result
+                            failed_step = next(s for s in pg_steps if s.name == failed[0].step_name)
+                            return self._handle_step_failure(
+                                failed[0], failed_step, completed_step_names, result
+                            )
+                        completed_step_names.extend(sr.step_name for sr in srs)
             else:
                 for step in group:
                     sr = self._execute_step(step, script, inputs, result)
                     result.step_results.append(sr)
                     step_index += 1
-                    if sr.status == StepStatus.FAILED:
-                        result.status = WorkflowStatus.FAILED
-                        result.error_message = (
-                            f"Step '{step.name}' failed: {sr.error_message}"
+                    if sr.status == StepStatus.COMPLETED:
+                        completed_step_names.append(step.name)
+                    else:
+                        return self._handle_step_failure(
+                            sr, step, completed_step_names, result
                         )
-                        result.completed_at = _now()
-                        return result
 
             # 检查点
             if (
@@ -342,6 +346,94 @@ class WorkflowEngine:
         result.total_duration_ms = total_ms
 
         return result
+
+    # ── 补偿 / 级联回滚 ──────────────────────────────────────────────
+
+    def _handle_step_failure(
+        self,
+        sr: StepResult,
+        failed_step: WorkflowStep,
+        completed_step_names: list[str],
+        result: WorkflowResult,
+    ) -> WorkflowResult:
+        """Handle a step failure with optional blast-radius-limited compensation."""
+        result.status = WorkflowStatus.FAILED
+        result.error_message = (
+            f"Step '{failed_step.name}' failed: {sr.error_message}"
+        )
+
+        if failed_step.on_failure == "rollback" and completed_step_names:
+            decision = self._blast_radius.decide(
+                failed_step_id=failed_step.name,
+                completed_step_ids=list(completed_step_names),
+            )
+            compensated = self._compensate_steps(
+                decision, failed_step, sr, result
+            )
+
+            if not compensated:
+                result.error_message += " (compensation failed)"
+
+        result.completed_at = _now()
+        return result
+
+    def _compensate_steps(
+        self,
+        decision: CompensationDecision,
+        failed_step: WorkflowStep,
+        failed_sr: StepResult,
+        result: WorkflowResult,
+    ) -> list[StepResult]:
+        """Run compensation handlers for steps in decision list."""
+        compensated: list[StepResult] = []
+        for step_name in decision.steps_to_compensate:
+            csr = self._compensate_step(step_name, failed_step.name)
+            result.step_results.append(csr)
+            compensated.append(csr)
+        return compensated
+
+    def _compensate_step(
+        self,
+        step_name: str,
+        failed_step_name: str,
+    ) -> StepResult:
+        """Run a single step's compensation handler, if registered."""
+        compensation_key = f"compensate:{step_name}"
+        handler = self._handlers.get(compensation_key)
+
+        sr = StepResult(
+            step_name=f"compensate:{step_name}",
+            started_at=_now(),
+        )
+
+        if handler is None:
+            sr.status = StepStatus.FAILED
+            sr.error_message = (
+                f"No compensation handler registered for '{step_name}'. "
+                f"Register with: register_handler('{compensation_key}', handler)"
+            )
+            sr.completed_at = _now()
+            return sr
+
+        try:
+            task = Task(
+                name=compensation_key,
+                payload={
+                    "step_name": step_name,
+                    "failed_step_name": failed_step_name,
+                    "reason": f"compensating {step_name} after {failed_step_name} failure",
+                },
+                priority=TaskPriority.HIGH,
+            )
+            handler(task)
+            sr.status = StepStatus.COMPLETED
+            sr.output = {"compensated": step_name}
+        except Exception as exc:
+            sr.status = StepStatus.FAILED
+            sr.error_message = f"Compensation handler failed for '{step_name}': {exc}"
+
+        sr.completed_at = _now()
+        return sr
 
     # ── 内部执行方法 ──────────────────────────────────────────────────
 

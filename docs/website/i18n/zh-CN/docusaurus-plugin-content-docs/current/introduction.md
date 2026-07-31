@@ -22,7 +22,7 @@ As AI agents become autonomous and interconnected, governing their behavior beco
 ## Core Capabilities
 
 - **Six-Layer Governance** — Heaven (constitutional) → Human (HITL) → Earth (zero trust) → Trigram (roles) → Hexagram (contracts) → Change (evolution)
-- **64-State Gray-Code FSM** — Hamming distance=1 transitions guarantee stability
+- **34-State Gray-Code FSM** (10 治理 + 24 Agent) — Hamming distance=1 transitions guarantee stability
 - **TLA+ Formal Verification** — 5 proven invariants running at runtime
 - **A2A Protocol v0.3** — Google-standard Agent-to-Agent task delegation
 - **MCP Protocol 2025-03-26** — Anthropic-standard Model Context Protocol with 6 transports
