@@ -17,7 +17,7 @@ import sys
 from typing import Any
 
 from maref.codedepth.indexer import CodeIndexer
-from maref.integration.mcp_server import MCPServer
+from maref.integration.mcp_server import MCPServer, SUPPORTED_PROTOCOL_VERSIONS
 
 
 def create_code_depth_server(
@@ -171,9 +171,18 @@ def _stdio_handle(server: MCPServer, raw: str) -> str | None:
     method = msg.get("method", "")
 
     if method == "initialize":
+        client_version = (msg.get("params") or {}).get("protocolVersion", "2024-11-05")
+        protocol_version = (
+            client_version if client_version in SUPPORTED_PROTOCOL_VERSIONS else SUPPORTED_PROTOCOL_VERSIONS[0]
+        )
         return json.dumps({
             "jsonrpc": "2.0", "id": req_id,
-            "result": {"protocolVersion": "2024-11-05", "serverInfo": {"name": "maref-codedepth", "version": "0.1.0"}},
+            "result": {"protocolVersion": protocol_version, "serverInfo": {"name": "maref-codedepth", "version": "0.1.0"}},
+        })
+    if method == "server/discover":
+        return json.dumps({
+            "jsonrpc": "2.0", "id": req_id,
+            "result": {"protocolVersions": SUPPORTED_PROTOCOL_VERSIONS, "capabilities": {"tools": {}}, "serverInfo": {"name": "maref-codedepth", "version": "0.1.0"}},
         })
     if method == "tools/list":
         tools = [{"name": t.name, "description": t.description, "inputSchema": t.input_schema}
