@@ -67,7 +67,7 @@ jobs:
             -e DISPLAY=:99 \
             --entrypoint /bin/bash \
             "$FIRST_TAG" \
-            -c "Xvfb :99 -screen 0 1280x720x24 & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
+            -c "export XAUTHORITY=/tmp/.xauth; touch /tmp/.xauth; Xvfb :99 -screen 0 1280x720x24 -ac & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
 
       - name: Wait for health endpoint
         run: |
