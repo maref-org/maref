@@ -65,6 +65,7 @@ jobs:
             -p 8080:8080 \
             -e MAREF_DRY_RUN=true \
             -e MAREF_MCP_SECRET_KEY=${{ secrets.MAREF_MCP_SECRET_KEY || 'ci-test-key' }} \
+            -e MAREF_HMAC_SECRET_KEY=${{ secrets.MAREF_HMAC_SECRET_KEY || 'ci-hmac-key' }} \
             -e DISPLAY=:99 \
             --entrypoint /bin/bash \
             "$FIRST_TAG" \
