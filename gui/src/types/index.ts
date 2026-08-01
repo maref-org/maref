@@ -176,6 +176,7 @@ export interface CooldownEntry {
   id: string;
   agent_id: string;
   agent_name: string;
+  repo?: string;
   status: "cooling" | "blocked" | "merged" | "force_merged";
   submitted_at: string;
   evaluated_at: string | null;

@@ -39,10 +39,9 @@ jobs:
         run: pnpm build
 
       - name: Run Lighthouse CI
-        working-directory: ./gui
         run: |
           npm install -g @lhci/cli@0.14.x
-          lhci autorun --config=../lighthouserc.json
+          lhci autorun --config=lighthouserc.json
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 

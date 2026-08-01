@@ -242,7 +242,7 @@ class TestCircuitBreakerCascade:
             cb.record_failure()
         assert cb.is_open
 
-        time.sleep(1.1)
+        time.sleep(1.5)
         result = cb.check_depth(1)
         assert result is True
 

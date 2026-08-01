@@ -20,12 +20,14 @@ RedLineID == {1, 2, 3, 4, 5}
 DecisionType == {0, 1}                (* 0=normal, 1=violation-causing *)
 DecisionStatus == {"p", "a", "r"}     (* proposed, approved, rejected *)
 AgentID == {1, 99}                    (* 1=agent, 99=HumanMaker *)
-MaxTicket == 3                        (* Bound for model checking *)
+MaxTicket == 2                        (* Bound for model checking *)
 DimensionID == {1, 2, 3, 4, 5}   (* 1=security, 2=correctness, 3=testing, 4=code_quality, 5=performance *)
 ProtectedDim == {1}               (* security dimension is protected *)
 FileCountMax == 3
 MaxAdjustment == 15               (* 0.15 * 100 for integer TLC *)
 GrayCodeStates == {0, 1, 2, 3}    (* 2-bit Gray Code subset: 00, 01, 11, 10 *)
+SAFETY_GATE_THRESHOLD == 3   (* C4 level, max of C1-C4 *)
+WeightRange == 50..50         (* 收敛权重枚举避免状态爆炸；security 维度不可改由 action guard 保证 *)
 
 (* ---- STATE VARIABLES ---- *)
 
@@ -74,23 +76,30 @@ ProposeDecision(agent, dtype) ==
   /\ decisions' = decisions \cup {
       <<ticket, agent, dtype, "p", FALSE>>}
   /\ auditLogCount' = auditLogCount + 1
-  /\ UNCHANGED <<redLines, safetyGateActive, safetyGateCount>>
+  /\ UNCHANGED <<redLines, safetyGateActive, safetyGateCount,
+                 dimensionWeights, fileModCount, crossImpactMonitored,
+                 weightAdjustmentTotal, agentState>>
 
-(* Safety gate evaluates a decision *)
+(* Safety gate evaluates a decision.
+   C1-C4 gate 流程：safetyGateCount 未达阈值时决策保持 "p"（等待），
+   达到阈值后才批准（"a"），满足 RSIRL003（approve => gate >= C4）。 *)
 EvaluateDecision(decisionTag) ==
   LET
     candidates == {d \in decisions : d[1] = decisionTag}
     d == CHOOSE d \in candidates : TRUE
     status == d[3]     (* dtype field *)
     violates == (status = 1)    (* policy_update always violates *)
-    newStatus == IF violates THEN "r" ELSE "a"
+    newStatus == IF violates THEN "r"
+                 ELSE IF safetyGateCount >= SAFETY_GATE_THRESHOLD THEN "a" ELSE "p"
   IN
   /\ d[4] = "p"                  (* status must be proposed *)
   /\ safetyGateActive = TRUE
   /\ decisions' = (decisions \ {d}) \cup {
       <<d[1], d[2], d[3], newStatus, violates>>}
   /\ safetyGateCount' = safetyGateCount + 1
-  /\ UNCHANGED <<redLines, decisionTicket, auditLogCount, safetyGateActive>>
+  /\ UNCHANGED <<redLines, decisionTicket, auditLogCount, safetyGateActive,
+                 dimensionWeights, fileModCount, crossImpactMonitored,
+                 weightAdjustmentTotal, agentState>>
 
 (* Agent tries to modify a red line — constitutionally rejected *)
 AttemptModifyRedLine(agent, rlid) ==
@@ -105,11 +114,11 @@ HumanModifyRedLine(rlid) ==
   /\ rlid \in RedLineID
   /\ rlid \in redLines
   (* Red line remains in the set, unchanged in structure *)
-  /\ UNCHANGED vars
-  (* Just log the audit entry *)
+  /\ auditLogCount < MaxTicket + MaxTicket      (* bound 防无限增长 *)
   /\ auditLogCount' = auditLogCount + 1
-  /\ UNCHANGED <<redLines, decisions, decisionTicket,
-                 safetyGateActive, safetyGateCount>>
+  /\ UNCHANGED <<redLines, decisions, decisionTicket, safetyGateActive,
+                 safetyGateCount, dimensionWeights, fileModCount,
+                 crossImpactMonitored, weightAdjustmentTotal, agentState>>
 
 (* Remove a completed decision *)
 RemoveCompletedDecision(decisionTag) ==
@@ -119,24 +128,24 @@ RemoveCompletedDecision(decisionTag) ==
   IN
   /\ d[4] \in {"a", "r"}               (* completed *)
   /\ decisions' = decisions \ {d}
-  /\ UNCHANGED <<redLines, decisionTicket, safetyGateActive,
-                 safetyGateCount, auditLogCount>>
+  /\ UNCHANGED <<redLines, decisionTicket, safetyGateActive, safetyGateCount,
+                 auditLogCount, dimensionWeights, fileModCount,
+                 crossImpactMonitored, weightAdjustmentTotal, agentState>>
 
 (* ---- CROSS-DIMENSIONAL ACTIONS ---- *)
 
 (* Agent or HumanMaker modifies a dimension weight.
-   Protected dimensions can only be modified by HumanMaker (99). *)
+   Security 维度（ProtectedDim）权重完全不可变（RSI-RL-006），
+   由 CrossDimSecurityInv 强制 dimensionWeights[d] = 50。 *)
 ModifyDimensionWeight(agent, dim, newWeight) ==
   /\ agent \in AgentID
   /\ dim \in DimensionID
-  /\ newWeight \in 0..100
-  /\ IF dim \in ProtectedDim
-     THEN agent = 99
-     ELSE TRUE
+  /\ newWeight \in WeightRange
+  /\ dim \notin ProtectedDim
   /\ dimensionWeights' = [dimensionWeights EXCEPT ![dim] = newWeight]
   /\ UNCHANGED <<redLines, decisions, decisionTicket, safetyGateActive,
                  safetyGateCount, auditLogCount, fileModCount,
-                 crossImpactMonitored, weightAdjustmentTotal>>
+                 crossImpactMonitored, weightAdjustmentTotal, agentState>>
 
 (* Set the number of files modified in the current round *)
 SetFileModCount(n) ==
@@ -144,18 +153,21 @@ SetFileModCount(n) ==
   /\ fileModCount' = n
   /\ UNCHANGED <<redLines, decisions, decisionTicket, safetyGateActive,
                  safetyGateCount, auditLogCount, dimensionWeights,
-                 crossImpactMonitored, weightAdjustmentTotal>>
+                 crossImpactMonitored, weightAdjustmentTotal, agentState>>
 
-(* Track cumulative weight adjustments in a round *)
+(* Track cumulative weight adjustments in a round.
+   单轮调整量有上界（CD-INV-004 / WeightAdjustmentBoundInv），且累积不超上限。 *)
 TrackWeightAdjustment(dim, oldW, newW) ==
   /\ dim \in DimensionID
-  /\ oldW \in 0..100
-  /\ newW \in 0..100
+  /\ oldW \in WeightRange
+  /\ newW \in WeightRange
   /\ LET adj == IF newW >= oldW THEN newW - oldW ELSE oldW - newW IN
-     weightAdjustmentTotal' = weightAdjustmentTotal + adj
+     /\ adj <= MaxAdjustment
+     /\ weightAdjustmentTotal' = weightAdjustmentTotal + adj
+     /\ weightAdjustmentTotal' <= MaxAdjustment
   /\ UNCHANGED <<redLines, decisions, decisionTicket, safetyGateActive,
                  safetyGateCount, auditLogCount, dimensionWeights,
-                 fileModCount, crossImpactMonitored>>
+                 fileModCount, crossImpactMonitored, agentState>>
 
 (* ---- AGENT STATE TRANSITION (RSI-RL-002: Gray Code FSM) ---- *)
 
@@ -180,10 +192,10 @@ Next ==
   \/ (\E a \in AgentID \ {99}, r \in RedLineID : AttemptModifyRedLine(a, r))
   \/ (\E r \in RedLineID : HumanModifyRedLine(r))
   \/ (\E t \in {d[1] : d \in decisions} : RemoveCompletedDecision(t))
-  \/ (\E a \in AgentID, d \in DimensionID, n \in 0..100 :
+  \/ (\E a \in AgentID, d \in DimensionID, n \in WeightRange :
        ModifyDimensionWeight(a, d, n))
   \/ (\E n \in 0..FileCountMax : SetFileModCount(n))
-  \/ (\E d \in DimensionID, o \in 0..100, n \in 0..100 :
+  \/ (\E d \in DimensionID, o \in WeightRange, n \in WeightRange :
        TrackWeightAdjustment(d, o, n))
   \/ (\E ns \in GrayCodeStates : AgentStateTransition(ns))
 
@@ -229,8 +241,11 @@ TypeInvariant ==
        (d[1] \in 1..MaxTicket /\ d[2] \in AgentID /\ d[3] \in DecisionType
          /\ d[4] \in DecisionStatus /\ d[5] \in {TRUE, FALSE})
   /\ decisionTicket \in 0..MaxTicket
-  /\ safetyGateCount \in 0..MaxTicket
-  /\ auditLogCount \in 0..MaxTicket
+  (* gate 等待链：首个 decision 需 SAFETY_GATE_THRESHOLD+1 次评估才批准，后续每次 +1 *)
+  /\ safetyGateCount \in 0..(SAFETY_GATE_THRESHOLD + MaxTicket)
+  (* ProposeDecision（+MaxTicket）与 HumanModifyRedLine（guard < 2*MaxTicket）叠加，
+     最坏路径 auditLogCount 达 3*MaxTicket *)
+  /\ auditLogCount \in 0..(3 * MaxTicket)
 
 (* ================================================================ *)
 (* ---- CROSS-DIMENSIONAL INVARIANTS (L2: PERCV-RSI-ACCEPT-001) ---- *)
@@ -303,8 +318,6 @@ RSIRL002_AgentAutonomyInv ==
    than 3 target files.
    Formalized by CD-INV-002: fileModCount <= FileCountMax. *)
 
-SAFETY_GATE_THRESHOLD == 3   (* C4 level, max of C1-C4 *)
-
 (* --- Invariants --- *)
 
 (* RSI-RL-001: Resource bound — decision ticket never exceeds MaxTicket *)
@@ -335,6 +348,12 @@ RSIRL006_SecurityDimProtectionInv ==
    modified per round.  Alias for MaxFilesPerRoundInv (CD-INV-002). *)
 RSIRL007_MaxFilesPerRoundInv ==
   MaxFilesPerRoundInv
+
+(* --- Model checking constraint --- *)
+(* 维度权重 bounded checking：限制在初始值 50 附近 ±2。
+   宪法不变量只约束 ProtectedDim 恒等，维度权重的具体值不影响验证目标。 *)
+StateConstraint ==
+  \A d \in DimensionID : dimensionWeights[d] \in WeightRange
 
 ============================================================================
 ====

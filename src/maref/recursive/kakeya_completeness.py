@@ -12,7 +12,6 @@ from typing import Any, ClassVar
 
 from maref.recursive.trust_engine_v2 import TrustFactor, TrustScoreV2
 
-
 FACTOR_ORDER = [
     "task_completion",
     "response_quality",
@@ -179,7 +178,7 @@ class KakeyaCompletenessChecker:
         covered_count = 0
 
         for direction in self._directions:
-            projection = sum(f * d for f, d in zip(factor_unit, direction.vector))
+            projection = sum(f * d for f, d in zip(factor_unit, direction.vector, strict=False))
             if abs(projection) < self._epsilon:
                 severity = "critical" if abs(projection) < self._epsilon * 0.1 else "warning"
                 blind_spots.append(BlindSpot(

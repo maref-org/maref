@@ -317,9 +317,9 @@ async def cb_status(
 
 @router.get("/health")
 async def health(
-    audit_service: AuditLogService = Depends(get_audit_service),
-    governance_router: GovernanceRouter = Depends(get_governance_router),
-    cb_pool: CircuitBreakerPool = Depends(get_cb_pool),
+    audit_service: AuditLogService = Depends(get_audit_service),  # noqa: B008
+    governance_router: GovernanceRouter = Depends(get_governance_router),  # noqa: B008
+    cb_pool: CircuitBreakerPool = Depends(get_cb_pool),  # noqa: B008
 ) -> dict[str, Any]:
     """Service health check with dependency probing.
 

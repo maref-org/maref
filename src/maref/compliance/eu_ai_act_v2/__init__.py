@@ -29,6 +29,9 @@ from maref.compliance.eu_ai_act_v2.accuracy_robustness import (
     RobustnessManager,
     RobustnessReport,
 )
+from maref.compliance.eu_ai_act_v2.annex_iv_exporter import (
+    AnnexIVExporter,
+)
 from maref.compliance.eu_ai_act_v2.conformity_assessment import (
     CEMarking,
     ConformityAssessmentManager,
@@ -45,9 +48,6 @@ from maref.compliance.eu_ai_act_v2.data_governance import (
     DatasetGovernanceRecord,
     DatasetQualityMetrics,
     SpecialCategoryAssessment,
-)
-from maref.compliance.eu_ai_act_v2.annex_iv_exporter import (
-    AnnexIVExporter,
 )
 from maref.compliance.eu_ai_act_v2.engine import (
     EUAIComplianceEngineV2,

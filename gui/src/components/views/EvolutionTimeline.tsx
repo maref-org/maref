@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   RefreshCw,
   Clock,
-  GitTag,
+  Tag,
   ShieldCheck,
   AlertTriangle,
   HeartPulse,
@@ -16,7 +16,7 @@ import type { DaySnapshot, TimelineEvent } from "@/stores/evolutionStore";
 function eventIcon(type: TimelineEvent["type"]) {
   switch (type) {
     case "version":
-      return <GitTag className="h-3 w-3 text-maref-accent" />;
+      return <Tag className="h-3 w-3 text-maref-accent" />;
     case "gate":
       return <ShieldCheck className="h-3 w-3 text-maref-success" />;
     case "conflict":
@@ -56,7 +56,7 @@ function DayColumn({ snapshot }: { snapshot: DaySnapshot }) {
 
       {snapshot.version && (
         <div className="mt-1 flex items-center gap-1 text-[10px] text-maref-accent">
-          <GitTag className="h-2.5 w-2.5" />
+          <Tag className="h-2.5 w-2.5" />
           {snapshot.version}
         </div>
       )}
