@@ -15,6 +15,7 @@ from maref.evolution.evolution_vault import EvolutionVault, RoundVault
 from maref.evolution.iteration_analyzer import IterationAnalyzer
 from maref.evolution.optimizer_bridge import OptimizerEvolutionBridge
 from maref.evolution.real_metrics import RealMetricsCollector
+from maref.knowledge.writeback import TruthWriteback
 from maref.recursive.eight_trigrams_governance import EightTrigramsGovernance
 from maref.recursive.self_diagnostician import RiskLevel, SelfDiagnostician
 from maref.recursive.self_observer import SelfObserver
@@ -99,6 +100,7 @@ class DailyEvolutionLoop:
         self._analyzer = IterationAnalyzer()
         self._constitution = ConstitutionHarness()
         self._trigrams = EightTrigramsGovernance(agent_id="self_executor")
+        self._writeback = TruthWriteback()
         self._load_trust_state()
 
     def run_once(self, day: str | None = None) -> DailyEvolutionResult | None:
@@ -144,6 +146,7 @@ class DailyEvolutionLoop:
                 )
 
         # ── Self-diagnosis: observe system, diagnose risks, generate hypotheses ──
+        hypotheses: list[Any] = []
         try:
             observer = SelfObserver()
             snapshot = observer.snapshot()
@@ -157,6 +160,15 @@ class DailyEvolutionLoop:
                     len(hypotheses),
                     {h.hypothesis_id: h.description[:60] for h in hypotheses},
                 )
+                for h in hypotheses:
+                    try:
+                        self._writeback.register_hypothesis(
+                            h.hypothesis_id, h.description, h.target_module
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Failed to register hypothesis %s", h.hypothesis_id
+                        )
             self._vault.write_metrics_snapshot(
                 day_dir,
                 {
@@ -191,6 +203,20 @@ class DailyEvolutionLoop:
         except Exception:
             logger.exception("Daily evolution failed on day %s", current_day)
             return None
+
+        # Recursive writeback: resolve each registered hypothesis against the
+        # evolution outcome so conclusions land back in TruthStore for reuse.
+        for h in hypotheses:
+            try:
+                self._writeback.resolve_outcome(
+                    h.hypothesis_id,
+                    all_passed=evolution_result.all_passed,
+                    summary=evolution_result.stop_reason,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to resolve writeback for hypothesis %s", h.hypothesis_id
+                )
 
         # Collect actual changed files for constitution review
         changed_files: list[str] = []
