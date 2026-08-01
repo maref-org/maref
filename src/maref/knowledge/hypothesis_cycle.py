@@ -64,12 +64,13 @@ class HypothesisCycle:
         self._kg.add_node(q_node)
 
         entity_id = entity_id or self._default_entity_id(question)
-        prior_best = prior_truth.get("current_best") if prior_truth else None
+        prior = prior_truth or {}
+        prior_best = prior.get("current_best")
         h_content = hypothesis_text
         if prior_best:
             h_content = (
                 f"{hypothesis_text}\n[prior_truth] {prior_best}"
-                f" (conf {prior_truth.get('confidence', 0.0):.2f})"
+                f" (conf {prior.get('confidence', 0.0):.2f})"
             )
         h_node = KnowledgeNode(
             id=f"h-{int(time.time())}-{hash(hypothesis_text) % 10000}",
