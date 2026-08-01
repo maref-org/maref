@@ -18,7 +18,9 @@ COPY src/ src/
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir ".[all,desktop,identity]"
+RUN pip install --no-cache-dir ".[all,desktop,identity]" \
+    && pip install --no-cache-dir --upgrade "msgpack>=1.2.1" "tornado>=6.5.6" "setuptools>=78.1.1" \
+    && pip uninstall -y wandb
 RUN playwright install chromium --with-deps 2>/dev/null || true
 
 # ──────────────────────────────────────────────────────
