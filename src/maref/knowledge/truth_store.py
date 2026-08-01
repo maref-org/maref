@@ -82,6 +82,33 @@ class TruthStore:
             return True
         return False
 
+    def get_truth_context(self, entity_id: str) -> dict[str, Any] | None:
+        """Return a structured digest as agent reasoning context.
+
+        Mirrors Bridgewater's "analysis output feeds back as input":
+        current_best plus active (non-superseded) evidence.
+        """
+        page = self.load(entity_id)
+        if page is None:
+            return None
+        active = page.get_active_evidence()
+        return {
+            "entity_id": page.entity_id,
+            "current_best": page.compiled_truth.current_best,
+            "confidence": page.compiled_truth.confidence,
+            "last_updated": page.compiled_truth.last_updated,
+            "updated_by": page.compiled_truth.updated_by,
+            "active_evidence": [
+                {
+                    "text": e.text,
+                    "source": e.source,
+                    "confidence": e.confidence,
+                    "timestamp": e.timestamp,
+                }
+                for e in active
+            ],
+        }
+
     @property
     def count(self) -> int:
         return len(list(self._dir.glob("*.json")))
