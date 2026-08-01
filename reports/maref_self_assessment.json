@@ -170,7 +170,7 @@
           "layer": 4,
           "severity": "INFO",
           "title": "E2E Scenario: web_research",
-          "description": "E2E test file exists at /Volumes/1TB-M2/public/maref/tests/e2e/test_web_research.py",
+          "description": "E2E test file exists at tests/e2e/test_web_research.py",
           "rule_id": "MAS-TS-001-L4-E2E",
           "remediation": "",
           "metadata": {}

@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from maref.desktop.browser_session_pool import BrowserSessionPool
 from maref.observation.probes import BaseProbe, ProbeReading, ProbeSeverity
 
 logger = logging.getLogger(__name__)
@@ -28,6 +27,8 @@ class DesktopProbe(BaseProbe):
         )
 
     def measure(self, context: dict[str, Any] | None = None) -> ProbeReading:
+        from maref.desktop.browser_session_pool import BrowserSessionPool
+
         pool = BrowserSessionPool()
         if not pool.is_available:
             severity = ProbeSeverity.CRITICAL

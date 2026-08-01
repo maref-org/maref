@@ -2,7 +2,7 @@
 
 **审计日期**: 2026-07-29
 **审计范围**: 全仓源代码、脚本、配置、测试
-**审计依据**: SKILLOS-RELEASE-HANDBOOK-003 v0.3-skillos
+**审计依据**: docs/release-gate.md（MAREF 自有门禁规范）
 **目标成熟度**: Beta
 
 ---

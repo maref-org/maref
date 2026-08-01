@@ -1,0 +1,60 @@
+{
+  "navigation": {
+    "home": "Home",
+    "chat": "Chat",
+    "terminal": "Terminal",
+    "git": "Git",
+    "governance": "Governance",
+    "desktop": "Desktop",
+    "audit": "Audit",
+    "drift": "Drift Detection",
+    "anomaly": "Anomaly Monitor",
+    "trust": "Trust Score",
+    "formal": "Formal Verification",
+    "skills": "Skills",
+    "automation": "Automation",
+    "settings": "Settings"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "close": "Close",
+    "copy": "Copy",
+    "download": "Download",
+    "upload": "Upload"
+  },
+  "agent": {
+    "idle": "Idle",
+    "thinking": "Thinking...",
+    "processing": "Processing...",
+    "error": "Error",
+    "interrupt": "Interrupt",
+    "newSession": "New Session",
+    "closeSession": "Close Session",
+    "clearChat": "Clear Chat"
+  },
+  "desktop": {
+    "capture": "Capture",
+    "operate": "Operate",
+    "verify": "Verify",
+    "dryRun": "Dry Run",
+    "realRun": "Real Run",
+    "safeMode": "Safe Mode"
+  },
+  "settings": {
+    "language": "Language",
+    "theme": "Theme",
+    "font": "Font",
+    "notifications": "Notifications",
+    "about": "About"
+  }
+}
