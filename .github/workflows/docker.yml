@@ -139,7 +139,7 @@ jobs:
           tags: maref/maref:scan
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.20.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           scan-ref: maref/maref:scan
@@ -149,7 +149,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Run Trivy with SARIF output
-        uses: aquasecurity/trivy-action@v0.20.0
+        uses: aquasecurity/trivy-action@v0.36.0
         if: always()
         with:
           scan-type: image
