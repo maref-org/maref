@@ -17,7 +17,7 @@ import sys
 from typing import Any
 
 from maref.codedepth.indexer import CodeIndexer
-from maref.integration.mcp_server import MCPServer, SUPPORTED_PROTOCOL_VERSIONS
+from maref.integration.mcp_server import SUPPORTED_PROTOCOL_VERSIONS, MCPServer
 
 
 def create_code_depth_server(

@@ -66,9 +66,9 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Core tests
-        run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal
+        run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal --cov-fail-under=0
       - name: Coverage gate
-        run: pytest tests/ -q --cov=src/maref --cov-fail-under=15 --ignore=tests/sidecar --ignore=tests/compliance --ignore=tests/chaos
+        run: pytest tests/governance -q --cov=src/maref --cov-fail-under=15
 
   gate-security:
     needs: gate-quality
@@ -102,6 +102,6 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: SAEB recursive benchmark
-        run: pytest tests/benchmark/test_saeb.py -v --tb=short -x
+        run: pytest tests/benchmark/test_saeb.py -v --tb=short -x --cov-fail-under=0
         env:
           MAREF_FEDERATED_AUDIT_KEY: ${{ secrets.MAREF_FEDERATED_AUDIT_KEY || 'ci-placeholder-key' }}

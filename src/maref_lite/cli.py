@@ -1677,6 +1677,7 @@ def start(
 
 @app.command()
 def serve(
+    host: str = typer.Option("0.0.0.0", "--host", help="Bind host"),
     port: int = typer.Option(8000, "--port", "-p", help="HTTP server port"),
     gui: bool = typer.Option(
         False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"
@@ -1693,7 +1694,7 @@ def serve(
         console.print("[bold green]MAREF Sidecar Server (GUI Mode)[/bold green]")
     else:
         console.print("[bold green]MAREF Sidecar Server[/bold green]")
-    console.print(f"Starting on http://0.0.0.0:{port}")
+    console.print(f"Starting on http://{host}:{port}")
 
     if federated:
         console.print("  [green]Federated:[/green] /api/v1/federation/* — cross-org Merkle audit")
@@ -1732,7 +1733,7 @@ def serve(
         collector = ObservationCollector(adapter=MockAgentAdapter())
         monitor = CompositeMonitor()
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
-        uvicorn.run(create_app(collector, monitor, obs_bridge=obs_bridge, federated=federated), host="0.0.0.0", port=port, log_level="info")
+        uvicorn.run(create_app(collector, monitor, obs_bridge=obs_bridge, federated=federated), host=host, port=port, log_level="info")
     except ImportError:
         console.print(f"[dim]Sidecar server mock — http://0.0.0.0:{port}[/dim]")
 

@@ -184,7 +184,7 @@ class HighOrderConvergenceMonitor:
         sx = sum(xs)
         sy = sum(values)
         sxx = sum(x * x for x in xs)
-        sxy = sum(x * y for x, y in zip(xs, values))
+        sxy = sum(x * y for x, y in zip(xs, values, strict=True))
         denom = n * sxx - sx * sx
         if abs(denom) < 1e-10:
             return 0.0

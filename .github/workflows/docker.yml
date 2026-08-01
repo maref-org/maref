@@ -64,10 +64,12 @@ jobs:
           docker run -d --name maref-test \
             -p 8080:8080 \
             -e MAREF_DRY_RUN=true \
+            -e MAREF_MCP_SECRET_KEY=${{ secrets.MAREF_MCP_SECRET_KEY || 'ci-test-key' }} \
+            -e MAREF_HMAC_SECRET_KEY=${{ secrets.MAREF_HMAC_SECRET_KEY || 'ci-hmac-key' }} \
             -e DISPLAY=:99 \
             --entrypoint /bin/bash \
             "$FIRST_TAG" \
-            -c "Xvfb :99 -screen 0 1280x720x24 & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
+            -c "export XAUTHORITY=/tmp/.xauth; touch /tmp/.xauth; Xvfb :99 -screen 0 1280x720x24 -ac & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
 
       - name: Wait for health endpoint
         run: |
@@ -92,10 +94,17 @@ jobs:
         if: always()
         run: docker rm -f maref-test || true
 
+      - name: Resolve image tag
+        id: image-tag
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          echo "first_tag=$FIRST_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ steps.image-tag.outputs.first_tag }}
           format: cyclonedx
           output-file: sbom.cdx.json
       - name: Upload SBOM

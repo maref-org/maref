@@ -69,7 +69,7 @@ runs:
           # Check with MAREF sidecar
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ inputs.sidecar-url }}/api/v1/check-before-write" \
             -H "Content-Type: application/json" \
-            -d "{\"file_path\": \"$file\", \"actor\": \"ci-governance\", \"session_id\": \"${{ github.run_id }}\"}" 2>/dev/null)
+            -d "{\"file_path\": \"$file\", \"actor\": \"ci-governance\", \"session_id\": \"${{ github.run_id }}\"}" 2>/dev/null) || RESPONSE="0"
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -n -1)
