@@ -179,6 +179,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
