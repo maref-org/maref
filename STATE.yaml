@@ -85,7 +85,7 @@ submission_pipeline:
     deadline: 2026-07-01 (per CFP) / 2026-06-15 (per tracker)
     notes: AtyponRex error 3b5fc88c — needs IEEE support contact
   arxiv_endorsement:
-    status: blocked
+    status: cancelled  # 外部闸门已由人类决策取消 (2026-08-01)，回归内功门禁，见 d1_gate.external_gate_override
     total_emailed: 15
     replies: 2
     eligible_endorsers: 0
@@ -116,8 +116,12 @@ d1_gate:
   G3_security_clean: true
   G4_no_runtime_artifacts: true
   gate_passed: true
-  last_preflight_run: '2026-07-31'
-  last_push_blocked_by: null  # G1-G4 all green — preflight 2026-07-31 confirmed pass
+  last_preflight_run: '2026-08-01'
+  last_push_blocked_by: null  # G1-G4 all green — preflight 2026-08-01 confirmed pass
+  external_gate_override:  # arXiv/期刊等外部闸门已由人类决策取消，回归内功补强，不受外部影响
+    arxiv_id: cancelled_by_human
+    cancelled_at: '2026-08-01'
+    basis: 回归内功门禁 — 以 release-gate.md G1-G10 + d1_preflight_check.py G1-G4 为 D1c 判定标准
 dns_setup:
   domain: maref.cc
   registrar: 'alibaba cloud computing ltd. d (id: 1599)'
