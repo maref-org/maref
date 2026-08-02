@@ -6,6 +6,8 @@ AuditLogger 独立测试
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import tempfile
@@ -378,3 +380,115 @@ class TestAuditLoggerCausality:
         d = entry.to_dict()
         assert "parent_action_id" not in d
         assert entry.parent_action_id == ""
+
+
+class TestAuditLoggerVerifyNewMethods:
+    """verify_integrity 修复新增方法专项测试（2026-08-02 review 补测）。
+
+    覆盖 legacy payload 兼容、chain_hash 终裁、HMAC key 文件 fallback、
+    bytes.fromhex 损坏签名防御、key 轮换 unverifiable 三态。
+    """
+
+    def _make_entry(self, **kw: object) -> AuditEntry:
+        base: dict[str, object] = dict(
+            id="e1",
+            timestamp=1.0,
+            event_type="test",
+            actor="alice",
+            action="act",
+            details="",
+        )
+        base.update(kw)
+        return AuditEntry(**base)  # type: ignore[arg-type]
+
+    def test_legacy_payload_omits_unified_fields(self) -> None:
+        logger = AuditLogger(hmac_key="secret")
+        entry = self._make_entry(tenant_id="t1", layer="x", round=3)
+        payload = json.loads(logger._legacy_payload(entry))
+        assert "tenant_id" not in payload
+        assert "layer" not in payload
+        assert "round" not in payload
+        assert payload["id"] == "e1"
+
+    def test_verify_hmac_signature_current_and_legacy(self) -> None:
+        logger = AuditLogger(hmac_key="secret")
+        entry = self._make_entry()
+        current = hmac.new(
+            b"secret", entry._payload_for_signing().encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        assert logger._verify_hmac_signature(self._make_entry(hmac_signature=current), b"secret") is True
+        legacy = hmac.new(
+            b"secret", logger._legacy_payload(entry).encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        assert logger._verify_hmac_signature(self._make_entry(hmac_signature=legacy), b"secret") is True
+
+    def test_verify_chain_hash_current_and_legacy(self) -> None:
+        logger = AuditLogger(hmac_key="secret")
+        entry = self._make_entry(previous_hash="")
+        current = hashlib.sha256(b"" + entry._payload_for_signing().encode("utf-8")).hexdigest()
+        assert logger._verify_chain_hash(self._make_entry(previous_hash="", chain_hash=current)) is True
+        legacy = hashlib.sha256(b"" + logger._legacy_payload(entry).encode("utf-8")).hexdigest()
+        assert logger._verify_chain_hash(self._make_entry(previous_hash="", chain_hash=legacy)) is True
+
+    def test_resolve_hmac_key_prefers_configured(self) -> None:
+        logger = AuditLogger(hmac_key="secret")
+        assert logger._resolve_hmac_key_for_verify() == b"secret"
+
+    def test_resolve_hmac_key_from_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        (tmp_path / ".maraf_hmac_key").write_text("file-secret\n")
+        monkeypatch.chdir(tmp_path)
+        logger = AuditLogger(log_path=None, ed25519_keypair=Ed25519KeyPair.generate())
+        assert logger._resolve_hmac_key_for_verify() == b"file-secret"
+
+    def test_resolve_hmac_key_none_when_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        monkeypatch.chdir(tmp_path)
+        logger = AuditLogger(log_path=None, ed25519_keypair=Ed25519KeyPair.generate())
+        assert logger._resolve_hmac_key_for_verify() is None
+
+    def test_verify_entry_signature_valid(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        logger = AuditLogger(log_path=None, ed25519_keypair=keypair)
+        entry = logger.log("test", "alice", "act")
+        assert logger._verify_entry_signature(entry, keypair.public_key_pem) is True
+
+    def test_verify_entry_signature_malformed_hex(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        logger = AuditLogger(log_path=None, ed25519_keypair=keypair)
+        entry = self._make_entry(ed25519_signature="zz-not-hex!!")
+        assert logger._verify_entry_signature(entry, keypair.public_key_pem) is False
+
+    def test_key_rotation_marks_unverifiable_not_tampered(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        AuditLogger(log_path=path, hmac_key="old-key").log("test", "alice", "entry1")
+        AuditLogger(log_path=path, hmac_key="old-key").log("test", "bob", "entry2")
+        verifier = AuditLogger(log_path=path, hmac_key="new-key")
+        result = verifier.verify_integrity()
+        assert result["valid_signatures"] == 0
+        assert len(result["unverifiable_entries"]) == 2
+        assert result["tampered_entries"] == []
+        assert result["integrity_intact"] is True
+
+    def test_mixed_signatures_verify_all_valid(self) -> None:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        keypair = Ed25519KeyPair.generate()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        AuditLogger(log_path=path, hmac_key="secret").log("test", "alice", "hmac_entry")
+        AuditLogger(log_path=path, ed25519_keypair=keypair).log("test", "bob", "ed_entry")
+        verifier = AuditLogger(log_path=path, hmac_key="secret")
+        result = verifier.verify_integrity(ed25519_public_key_pem=keypair.public_key_pem)
+        assert result["valid_signatures"] == 2
+        assert result["tampered_entries"] == []
+        assert result["integrity_intact"] is True
