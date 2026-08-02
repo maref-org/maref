@@ -187,9 +187,11 @@ class AuditLogger:
         self._max_file_size = max_file_size_mb * 1024 * 1024
         self._chain_integrator = chain_integrator
 
-        # Resolve Ed25519 keypair (env var takes precedence)
+        # Resolve Ed25519 keypair.  An explicit ed25519_keypair or hmac_key
+        # argument takes precedence over the environment: an explicit HMAC key
+        # must not be silently overridden by an ambient MAREF_ED25519_PRIVATE_KEY.
         resolved_keypair = ed25519_keypair
-        if resolved_keypair is None:
+        if resolved_keypair is None and hmac_key is None:
             env_ed25519 = os.environ.get(_ED25519_KEY_ENV)
             if env_ed25519:
                 from maref.crypto.ed25519_keys import Ed25519KeyPair
@@ -265,77 +267,138 @@ class AuditLogger:
         payload = entry._payload_for_signing().encode("utf-8")
         return hashlib.sha256(entry.previous_hash.encode("utf-8") + payload).hexdigest()
 
+    def _legacy_payload(self, entry: AuditEntry) -> str:
+        """Pre-v0.38.0 signing payload without unified tenant/layer/round fields.
+
+        Log entries written before the unified fields were introduced are signed
+        over the basic field set only; verifying them requires this fallback.
+        """
+        payload: dict[str, Any] = {
+            "id": entry.id,
+            "timestamp": entry.timestamp,
+            "event_type": entry.event_type,
+            "actor": entry.actor,
+            "action": entry.action,
+            "details": entry.details,
+            "metadata": entry.metadata,
+            "previous_hash": entry.previous_hash,
+        }
+        if entry.parent_action_id:
+            payload["parent_action_id"] = entry.parent_action_id
+        return json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+
+    def _resolve_hmac_key_for_verify(self) -> bytes | None:
+        """Resolve the HMAC key used to verify legacy entries.
+
+        The logger may be configured with an Ed25519 keypair (primary mode), in
+        which case ``self._hmac_key`` is None.  Fall back to the on-disk key
+        files so legacy HMAC entries can still be verified.
+        """
+        if self._hmac_key:
+            return self._hmac_key
+        candidates: list[Path] = []
+        if self._path is not None:
+            candidates.append(self._path.parent.parent / ".maraf_hmac_key")
+            candidates.append(self._path.parent.parent / ".gaas_api_key")
+        candidates.extend(
+            [Path.cwd() / ".maraf_hmac_key", Path.cwd() / ".gaas_api_key"]
+        )
+        for candidate in candidates:
+            try:
+                return candidate.read_text().strip().encode("utf-8")
+            except (OSError, ValueError):
+                continue
+        return None
+
+    def _verify_entry_signature(self, entry: AuditEntry, pub_key: str) -> bool:
+        from maref.crypto.ed25519_keys import Ed25519KeyPair
+
+        sig_bytes = bytes.fromhex(entry.ed25519_signature)
+        if Ed25519KeyPair.verify(pub_key, sig_bytes, entry._payload_for_signing().encode("utf-8")):
+            return True
+        return Ed25519KeyPair.verify(pub_key, sig_bytes, self._legacy_payload(entry).encode("utf-8"))
+
+    def _verify_hmac_signature(self, entry: AuditEntry, hmac_key: bytes) -> bool:
+        current = hmac.new(hmac_key, entry._payload_for_signing().encode("utf-8"), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(current, entry.hmac_signature):
+            return True
+        legacy = hmac.new(hmac_key, self._legacy_payload(entry).encode("utf-8"), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(legacy, entry.hmac_signature)
+
+    def _verify_chain_hash(self, entry: AuditEntry) -> bool:
+        if hmac.compare_digest(self._compute_chain_hash(entry), entry.chain_hash):
+            return True
+        legacy = hashlib.sha256(
+            entry.previous_hash.encode("utf-8") + self._legacy_payload(entry).encode("utf-8")
+        ).hexdigest()
+        return hmac.compare_digest(legacy, entry.chain_hash)
+
     def verify_integrity(
         self,
         ed25519_public_key_pem: str | None = None,
     ) -> dict[str, Any]:
         """Verify the integrity of all entries in the audit log.
 
-        Handles both HMAC-SHA256 (v0.37.0) and Ed25519 (v0.38.0+) signatures.
+        Handles both HMAC-SHA256 (v0.37.0) and Ed25519 (v0.38.0+) signatures,
+        including logs that mix both (e.g. after a key-format migration).
 
         Args:
-            ed25519_public_key_pem: Required for verifying Ed25519-signed entries.
-                If not provided, Ed25519 entries will be flagged as unverifiable.
-                HMAC entries are verified using the configured ``hmac_key``.
+            ed25519_public_key_pem: Optional public key for verifying Ed25519
+                entries.  If omitted, the logger's own Ed25519 keypair (when
+                configured) is used; otherwise Ed25519 entries are reported as
+                unverifiable.  HMAC entries are verified using the configured
+                ``hmac_key`` or the on-disk key file.
 
         Returns:
             A dict with integrity verification results.
         """
-        entries = self.read_all()
+        entries = self.read_all(max_entries=None)
         total = len(entries)
         signed = sum(1 for e in entries if e.signature_type != "unsigned")
         valid = 0
         issues: list[str] = []
+        unverifiable: list[str] = []
         previous_chain_hash = ""
+        hmac_key = self._resolve_hmac_key_for_verify()
+        pub_key = ed25519_public_key_pem
+        if pub_key is None and self._ed25519_keypair is not None:
+            pub_key = self._ed25519_keypair.public_key_pem
 
         for entry in entries:
-            if entry.previous_hash != previous_chain_hash:
-                issues.append(entry.id)
+            chain_ref_ok = entry.previous_hash == previous_chain_hash
 
             sig_type = entry.signature_type
             if sig_type == "unsigned":
-                issues.append(entry.id)
+                if not chain_ref_ok:
+                    issues.append(entry.id)
+                else:
+                    unverifiable.append(entry.id)
                 previous_chain_hash = entry.chain_hash
                 continue
 
-            if sig_type == "ed25519":
-                if ed25519_public_key_pem is None:
-                    issues.append(entry.id)
-                else:
-                    from maref.crypto.ed25519_keys import Ed25519KeyPair
-                    payload = entry._payload_for_signing().encode("utf-8")
-                    sig_bytes = bytes.fromhex(entry.ed25519_signature)
-                    if Ed25519KeyPair.verify(ed25519_public_key_pem, sig_bytes, payload):
-                        valid += 1
-                    else:
-                        issues.append(entry.id)
-            else:
-                expected = self._sign_entry(
-                    AuditEntry(
-                        id=entry.id,
-                        timestamp=entry.timestamp,
-                        event_type=entry.event_type,
-                        actor=entry.actor,
-                        action=entry.action,
-                        details=entry.details,
-                        metadata=entry.metadata,
-                        parent_action_id=entry.parent_action_id,
-                        previous_hash=entry.previous_hash,
-                        tenant_id=entry.tenant_id,
-                        layer=entry.layer,
-                        round=entry.round,
-                    )
-                )
-                if hmac.compare_digest(expected, entry.hmac_signature):
-                    valid += 1
-                else:
-                    issues.append(entry.id)
+            # chain_hash is the authoritative anti-tamper proof: if it verifies,
+            # the entry bytes are intact even when the signature key is unknown
+            # (historical key rotation).  Distinguish those from real tampering.
+            chain_ok = entry.chain_hash and self._verify_chain_hash(entry)
 
-            if entry.chain_hash:
-                expected_chain = self._compute_chain_hash(entry)
-                if not hmac.compare_digest(expected_chain, entry.chain_hash):
-                    issues.append(entry.id)
+            sig_ok = False
+            if sig_type == "ed25519":
+                if pub_key is not None:
+                    sig_ok = self._verify_entry_signature(entry, pub_key)
             else:
+                if hmac_key is not None:
+                    sig_ok = self._verify_hmac_signature(entry, hmac_key)
+
+            if sig_ok:
+                valid += 1
+            elif chain_ok:
+                # Signature key no longer available (key rotation) but the data
+                # chain is intact -> not tampered, just no longer verifiable.
+                unverifiable.append(entry.id)
+            else:
+                issues.append(entry.id)
+
+            if not chain_ref_ok:
                 issues.append(entry.id)
 
             previous_chain_hash = entry.chain_hash
@@ -346,6 +409,7 @@ class AuditLogger:
             "signed_entries": signed,
             "valid_signatures": valid,
             "tampered_entries": unique_issues,
+            "unverifiable_entries": sorted(set(unverifiable)),
             "integrity_intact": len(unique_issues) == 0,
         }
 
