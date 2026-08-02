@@ -313,7 +313,12 @@ class AuditLogger:
     def _verify_entry_signature(self, entry: AuditEntry, pub_key: str) -> bool:
         from maref.crypto.ed25519_keys import Ed25519KeyPair
 
-        sig_bytes = bytes.fromhex(entry.ed25519_signature)
+        try:
+            sig_bytes = bytes.fromhex(entry.ed25519_signature)
+        except (ValueError, TypeError):
+            # Malformed signature hex (hand-edited log) counts as tampered
+            # instead of crashing the whole verification pass.
+            return False
         if Ed25519KeyPair.verify(pub_key, sig_bytes, entry._payload_for_signing().encode("utf-8")):
             return True
         return Ed25519KeyPair.verify(pub_key, sig_bytes, self._legacy_payload(entry).encode("utf-8"))
