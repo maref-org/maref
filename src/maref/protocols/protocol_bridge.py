@@ -377,13 +377,29 @@ class SecureProtocolBridge(ProtocolBridge):
     在基础桥接器之上添加:
     - ATP 身份验证
     - 防重放攻击
-    - 消息签名验证
+    - 消息签名验证（Ed25519，v0.47 S8 替换原 SHA-256 伪签名）
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        peer_public_keys: dict[str, str] | None = None,
+        signing_key: Any | None = None,
+    ) -> None:
         super().__init__()
         self._nonce_store: set[str] = set()
         self._max_nonce_age = 300  # 5分钟
+        # agent_did → Ed25519 public key PEM (v0.47 S8).
+        self._peer_public_keys: dict[str, str] = dict(peer_public_keys or {})
+        self._signing_key = signing_key
+
+    def _verify_signature(self, agent_did: str, payload: bytes, signature: str) -> bool:
+        """Verify an Ed25519 signature against the peer's public key."""
+        from maref.signing.signing_key import ReportSigningKey
+
+        public_key_pem = self._peer_public_keys.get(agent_did)
+        if public_key_pem is None:
+            return False
+        return ReportSigningKey.verify_signature(public_key_pem, signature, payload)
 
     def verify_and_convert_mcp_to_a2a(
         self, mcp_message: MCPMessage, target_agent: str, agent_did: str, signature: str
@@ -395,15 +411,14 @@ class SecureProtocolBridge(ProtocolBridge):
             mcp_message: MCP 消息
             target_agent: 目标 Agent
             agent_did: Agent DID
-            signature: 消息签名
+            signature: 消息签名（Ed25519，覆盖 agent_did + message_id）
 
         Returns:
             如果验证通过返回 A2ATask，否则返回 None
         """
-        # 验证签名（简化实现）
-        expected_sig = hashlib.sha256(f"{agent_did}:{mcp_message.message_id}".encode()).hexdigest()
-
-        if signature != expected_sig:
+        # 验证签名（Ed25519，v0.47 S8 替换原 SHA-256 哈希比较）
+        payload = f"{agent_did}:{mcp_message.message_id}".encode()
+        if not self._verify_signature(agent_did, payload, signature):
             self.metrics.record_conversion(BridgeDirection.MCP_TO_A2A, 0.0, False)
             return None
 
@@ -429,9 +444,15 @@ def create_protocol_bridge() -> ProtocolBridge:
     return ProtocolBridge()
 
 
-def create_secure_protocol_bridge() -> SecureProtocolBridge:
+def create_secure_protocol_bridge(
+    peer_public_keys: dict[str, str] | None = None,
+    signing_key: Any | None = None,
+) -> SecureProtocolBridge:
     """创建安全增强的协议桥接器"""
-    return SecureProtocolBridge()
+    return SecureProtocolBridge(
+        peer_public_keys=peer_public_keys,
+        signing_key=signing_key,
+    )
 
 
 __all__ = [

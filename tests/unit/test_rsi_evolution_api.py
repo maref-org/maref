@@ -20,7 +20,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> "object":
 
     from sidecar.server import create_app
 
-    app = create_app(MagicMock(), MagicMock())
+    app = create_app(MagicMock(), MagicMock(), allow_unauthenticated=True)
     return TestClient(app)
 
 

@@ -300,8 +300,13 @@ class OAuthTokenProvider:
 
 
 class OAuthMiddleware:
-    def __init__(self, token_provider: OAuthTokenProvider | None = None) -> None:
+    def __init__(
+        self,
+        token_provider: OAuthTokenProvider | None = None,
+        verification_key: bytes | None = None,
+    ) -> None:
         self._provider = token_provider
+        self._verification_key = verification_key
 
     async def authenticate(
         self, headers: dict[str, str]
@@ -330,19 +335,37 @@ class OAuthMiddleware:
         try:
             import base64
             parts = token.split(".")
-            if len(parts) == 3:
-                padding = 4 - len(parts[1]) % 4
-                if padding != 4:
-                    parts[1] += "=" * padding
+            if len(parts) != 3:
+                raise PermissionError("Invalid token format or signature")
+            header_b64, payload_b64, sig_b64 = parts
+            # Verify the signature when a verification key is configured
+            # (v0.47 S8 — previously the payload was decoded with no
+            # signature check, so a forged token was accepted).
+            if self._verification_key is not None:
+                signing_input = f"{header_b64}.{payload_b64}".encode()
+                expected = hmac.new(
+                    self._verification_key,
+                    signing_input,
+                    hashlib.sha256,
+                ).digest()
                 try:
-                    payload = json.loads(base64.urlsafe_b64decode(parts[1]))
-                    exp = payload.get("exp", 0)
-                    if exp and exp < time.time():
-                        raise PermissionError("Token has expired")
-                    return payload
-                except (json.JSONDecodeError, ValueError):
-                    pass
-            raise PermissionError("Invalid token format or signature")
+                    actual = base64.urlsafe_b64decode(sig_b64 + "=" * (-len(sig_b64) % 4))
+                except (ValueError, TypeError):
+                    raise PermissionError("Invalid token signature") from None
+                if not hmac.compare_digest(expected, actual):
+                    raise PermissionError("Token signature verification failed")
+
+            padding = 4 - len(payload_b64) % 4
+            if padding != 4:
+                payload_b64 += "=" * padding
+            try:
+                payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+                exp = payload.get("exp", 0)
+                if exp and exp < time.time():
+                    raise PermissionError("Token has expired")
+                return payload
+            except (json.JSONDecodeError, ValueError):
+                raise PermissionError("Invalid token format or signature") from None
         except PermissionError:
             raise
         except Exception as exc:
@@ -360,6 +383,7 @@ class MCPSecurityGate:
     max_delegation_depth: int = 5
     rate_limiter: RateLimiter = field(default_factory=lambda: RateLimiter())
     oauth_provider: OAuthTokenProvider | None = None
+    verification_key: bytes | None = None
     _audit_log: list[AuditLogEntry] = field(default_factory=list, repr=False)
 
     def authenticate_request(self, headers: dict[str, str]) -> ZeroTrustContext:
@@ -379,6 +403,27 @@ class MCPSecurityGate:
             import base64
             segments = token.split(".")
             if len(segments) == 3:
+                header_b64, payload_b64, sig_b64 = segments
+                # Verify the JWT signature when a key is configured
+                # (v0.47 S8 — previously only the payload was decoded).
+                if self.verification_key is not None:
+                    signing_input = f"{header_b64}.{payload_b64}".encode()
+                    expected = hmac.new(
+                        self.verification_key, signing_input, hashlib.sha256
+                    ).digest()
+                    try:
+                        actual = base64.urlsafe_b64decode(
+                            sig_b64 + "=" * (-len(sig_b64) % 4)
+                        )
+                    except (ValueError, TypeError):
+                        return ZeroTrustContext(
+                            agent_id="anonymous", token_claims={"error": "bad_signature"}
+                        )
+                    if not hmac.compare_digest(expected, actual):
+                        return ZeroTrustContext(
+                            agent_id="anonymous",
+                            token_claims={"error": "invalid_signature"},
+                        )
                 padding = 4 - len(segments[1]) % 4
                 if padding != 4:
                     segments[1] += "=" * padding
