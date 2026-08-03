@@ -353,3 +353,101 @@ class TestCredentialStore:
         elapsed = (time.time() - start) * 1000
         assert result is not None
         assert elapsed < 50
+
+
+# ---------------------------------------------------------------------------
+# 方案 E：DID 版本化撤销
+# ---------------------------------------------------------------------------
+
+
+class TestDIDVersionedRevocation:
+    def test_active_record_metadata(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        result = registry.resolve_did_document(did)
+        md = result.document_metadata
+        assert md["status"] == "active"
+        assert md["version"] == 1
+        assert md["deactivated"] is False
+
+    def test_revoke_sets_status_and_entry(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        record = registry.revoke(did, reason="compromised", signer="security")
+        assert record is not None
+        assert record.status == "revoked"
+        assert record.version == 2
+        assert record.revocation_entry["reason"] == "compromised"
+        assert record.revocation_entry["signer"] == "security"
+        assert record.revocation_entry["version"] == 2
+
+    def test_revoked_resolves_to_revoked(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        registry.revoke(did, reason="policy")
+        result = registry.resolve_did_document(did)
+        md = result.document_metadata
+        assert md["status"] == "revoked"
+        assert md["deactivated"] is True
+        assert "revocation_entry" in md
+        assert result.resolved  # 保留历史，仍可解析
+
+    def test_revoke_keeps_history_in_registry(self) -> None:
+        """撤销不删除注册，历史版本可查。"""
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        registry.revoke(did, reason="r1")
+        assert registry.resolve(did) is not None
+        assert registry.agent_count() == 1
+
+    def test_deactivate_is_terminal(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        registry.deactivate(did, reason="retired")
+        result = registry.resolve_did_document(did)
+        assert result.document_metadata["status"] == "deactivated"
+        assert result.document_metadata["deactivated"] is True
+
+    def test_is_active_after_revoke(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        assert registry.is_active(did) is True
+        registry.revoke(did)
+        assert registry.is_active(did) is False
+
+    def test_revoke_unknown_returns_none(self) -> None:
+        registry = DIDRegistry()
+        assert registry.revoke(AgentDID.generate()) is None
+
+    def test_deactivated_cannot_be_revoked_again(self) -> None:
+        """deactivated 是不可逆终态：再次 revoke 不得改写其状态/版本。"""
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        registry.deactivate(did, reason="retired")
+        before = registry.resolve(did)
+        assert before is not None
+        assert before.status == "deactivated"
+        version_before = before.version
+
+        registry.revoke(did, reason="later")
+        after = registry.resolve(did)
+        assert after is not None
+        assert after.status == "deactivated"
+        assert after.version == version_before
+        assert after.revocation_entry["reason"] == "retired"
+
+
