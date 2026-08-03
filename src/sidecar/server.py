@@ -219,6 +219,12 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     _cost_tracker = CostTracker(metric_store=_metric_store)
     mcp_bridge = SidecarMCPBridge(repo_path=os.getcwd())
 
+    # v0.47 S10: 装配运行时行为探针（AuditBus + TrustEngineV2 + CircuitBreaker，
+    # 收窄订阅治理事件）。独立审计总线实例，不影响 HTTP 行为。
+    from maref.agent.behavior_analyzer import assemble_runtime_behavior_probe
+
+    app.state.behavior_probe = assemble_runtime_behavior_probe()
+
     _tool_registry = ToolRegistry()
     for t in EVOLUTION_TOOLS:
         _tool_registry.register(t)
