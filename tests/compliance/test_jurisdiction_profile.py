@@ -52,11 +52,12 @@ class TestJurisdictionProfile:
         profile = JurisdictionProfile(code="x", name="x", enforcement_table={"high": EnforcementLevel.ENFORCE})
         assert profile.enforcement_for_risk(ClassifierRiskLevel.HIGH) == EnforcementLevel.ENFORCE
 
-    def test_unknown_profile_fail_open(self) -> None:
+    def test_unknown_profile_fail_closed(self) -> None:
+        """Unknown jurisdiction → strictest enforcement (v0.47 R1)."""
         profile = get_profile("zz")
         assert profile.code == "zz"
         assert profile.regulations == []
-        assert profile.enforcement_for_risk(ClassifierRiskLevel.HIGH) == EnforcementLevel.OBSERVE
+        assert profile.enforcement_for_risk(ClassifierRiskLevel.HIGH) == EnforcementLevel.ENFORCE
 
     def test_to_dict_roundtrip(self) -> None:
         data = EU_PROFILE.to_dict()
@@ -102,8 +103,9 @@ class TestRegulatoryPolicyMapper:
         assert data["enforcement"] == "enforce"
 
     def test_unknown_jurisdiction(self) -> None:
+        """Unknown jurisdiction fails closed to ENFORCE (v0.47 R1)."""
         decision = RegulatoryPolicyMapper().map_action("file.read", jurisdiction="zz")
-        assert decision.enforcement == EnforcementLevel.OBSERVE
+        assert decision.enforcement == EnforcementLevel.ENFORCE
 
 
 class TestCredentialComplianceMapping:

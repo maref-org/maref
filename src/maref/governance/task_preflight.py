@@ -426,6 +426,30 @@ class RiskAuthorizationCheck(PreflightCheck):
                     issuer=scope_data.get("issuer", ""),
                 )
 
+        # v0.47 R1: 监管 ENFORCE 接入 — 提供 jurisdiction 时，若该辖区对该
+        # 动作实施强制监管（ENFORCE），则无授权范围时一律 FAIL（fail-closed），
+        # 即使动作本身是 LOW/MEDIUM（不得因低风险自动放行）。
+        enforce_blocked = False
+        enforce_reason = ""
+        jurisdiction = context.get("jurisdiction", "")
+        if jurisdiction:
+            from maref.compliance.regulatory_policy_mapper import (
+                RegulatoryPolicyMapper,
+            )
+
+            try:
+                decision_map = RegulatoryPolicyMapper().map_action(
+                    action, jurisdiction=jurisdiction, metadata=metadata
+                )
+                enforce_blocked = decision_map.blocked
+            except Exception:
+                enforce_blocked = False
+            if enforce_blocked and scope is None:
+                enforce_reason = (
+                    f"辖区 {jurisdiction} 对该动作实施强制监管（ENFORCE），"
+                    "未提供授权范围"
+                )
+
         # S1 接线：风险分级 + 授权范围 + 目标域白名单统一交给
         # TrustBoundaryManager 强制裁决（fail-closed）。
         boundary = TrustBoundaryManager(
@@ -444,6 +468,20 @@ class RiskAuthorizationCheck(PreflightCheck):
             "risk_level": assessment.risk_level.value,
             "reasons": list(assessment.reasons),
         }
+
+        if enforce_blocked and scope is None:
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.FAIL,
+                description=f"动作 {action} 为监管强制（ENFORCE）级别：{enforce_reason}",
+                evidence=decision.reason,
+                details={
+                    **base_details,
+                    "authorized": False,
+                    "action_required": "HITL",
+                    "enforce_blocked": True,
+                },
+            )
 
         if decision.allowed:
             return PreflightCheckResult(

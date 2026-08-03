@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from maref.compliance.regulatory_policy_mapper import RegulatoryPolicyMapper
 from maref.governance.verifiable_governance_credential import (
     GovernanceCredentialStore,
     VerifiableGovernanceCredential,
@@ -140,6 +139,8 @@ class AgentIdentityService:
             ttl_seconds=ttl_seconds,
         )
         if jurisdiction:
+            from maref.compliance.regulatory_policy_mapper import RegulatoryPolicyMapper
+
             cred.attach_compliance_mapping(
                 RegulatoryPolicyMapper().build_credential_mapping(
                     scopes=scope, jurisdiction=jurisdiction
