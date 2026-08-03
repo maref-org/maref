@@ -62,6 +62,11 @@ from maref.governance.social_impact import (
 )
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.threat_bridge import ThreatGovernanceBridge, ThreatGovernanceMapping
+from maref.governance.trust_boundary import (
+    BoundaryDecision,
+    BoundaryViolationError,
+    TrustBoundaryManager,
+)
 from maref.governance.trust_bridge import (
     GovernanceBridge,
     GovernanceQuery,
@@ -105,6 +110,9 @@ __all__ = [
     "GovernanceBridge",
     "GovernanceQuery",
     "RecursiveEvent",
+    "TrustBoundaryManager",
+    "BoundaryDecision",
+    "BoundaryViolationError",
     "RecursiveEventType",
     "ThreatGovernanceBridge",
     "ThreatGovernanceMapping",

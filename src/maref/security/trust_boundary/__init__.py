@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import uuid
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from maref.security.decorators import security_critical
+
+warnings.warn(
+    "maref.security.trust_boundary is deprecated (v0.47 S9). Use "
+    "maref.governance.trust_boundary.TrustBoundaryManager (action-level "
+    "permission boundary, E1006) instead. This legacy module is the "
+    "trust-domain model and will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 if TYPE_CHECKING:
     from maref.governance.audit import AuditLogger
