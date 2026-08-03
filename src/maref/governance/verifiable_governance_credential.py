@@ -245,6 +245,57 @@ class GovernanceCredentialStore:
         if source:
             self._revoked_sources[credential_id] = source
 
+    def revoke_by_subject_did(
+        self,
+        subject_did: str,
+        reason: str = "did_revoked",
+        source: str = "",
+    ) -> int:
+        """吊销指定治理主体的全部有效凭证（方案 E M3 联动）。
+
+        当 DID 撤销事件到达时，将该主体所有凭证（含已吊销的除外）
+        一并吊销，确保吊销列表与 DID 生命周期一致。
+
+        Args:
+            subject_did: 治理主体 DID（如 ``did:maref:default:abcd1234``）。
+            reason: 吊销原因。
+            source: 触发来源，默认 ``did-revocation:{subject_did}``。
+
+        Returns:
+            本次新吊销的凭证数量（已吊销的不重复计数）。
+        """
+        source = source or f"did-revocation:{subject_did}"
+        count = 0
+        for cid, cred in list(self._credentials.items()):
+            if cred.subject_did == subject_did and not self.is_revoked(cid):
+                self._revoked[cid] = reason
+                self._revoked_sources[cid] = source
+                count += 1
+        return count
+
+    def attach_to_did_registry(
+        self,
+        registry: Any,
+        server_id: str = "",
+    ) -> None:
+        """绑定 DIDRegistry：其 DID 撤销/停用事件自动联动吊销凭证。
+
+        通过订阅 registry 的撤销监听器，任意主体 DID 被撤销时，
+        该主体的治理凭证立即进入吊销列表（并保留 ``did-revocation`` 来源）。
+
+        Args:
+            registry: 实现了 ``add_revocation_listener(listener)`` 的 DIDRegistry。
+            server_id: 预留的服务器标识（未使用，保留签名兼容）。
+        """
+        registry.add_revocation_listener(self._on_did_revocation)
+
+    def _on_did_revocation(self, did_string: str, reason: str, signer: str) -> None:
+        self.revoke_by_subject_did(
+            subject_did=did_string,
+            reason=f"did_revoked:{reason}" if reason else "did_revoked",
+            source=f"did-revocation:{did_string}",
+        )
+
     def is_revoked(self, credential_id: str) -> bool:
         return credential_id in self._revoked
 
