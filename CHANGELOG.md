@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [v0.48.0] - 2026-08-03 (Level 2 架构设计 + 治理接线闭环)
+
+### Added — Level 2 架构设计（M1，TP-08 承接，2026 仅设计不生产化）
+- **L1 联邦制宪法 v0.1**: 联邦原则/主权边界/互操作性 + 全局红线 FR-001~FR-004 + 冲突仲裁（2/3 多数）+ 修订机制（3/4 超级多数）
+- **L2 联合状态机**: Federal FSM（HEALTHY/DEGRADED/CRISIS）聚合成员状态 + 与 34 态 Gray Code 映射 + 加权投票聚合算法
+- **L3 分布式审计总线 MVP**: `maref/level2/audit_bus_mvp` 三框架（langgraph/crewai/autogen）跨平台审计一致性验证（canonical digest + HMAC 签名，8 测试）
+- **L4 组织 DID**: `did:maref:org:*` 结构 + 组织证书模型（公钥/加权/角色/辖区）+ 与现有 DIDRegistry 复用
+- **L5 Gossip 同步**: 随机 peer 传播 + 去重/TTL + CRDT 版本合并 + 收敛性论证
+- **L6 轻量级 BFT 预研**: 三阶段协议（propose/prepare/commit）+ 6 条 TLA+ 不变量草案 + 性能预估
+
+### Added — 治理生产接线闭环（W1-W4）
+- **W1 统一治理装配工厂**: `GovernedPipeline` 统一装配 TrustBoundary + TaskPreflight + 行为探针 + FederatedConsensus + 共享 audit_bus
+- **W2 sidecar 装配闭环**: `create_app` 装配 GovernedPipeline，行为探针订阅共享审计流
+- **W3 联邦生产装配**: `create_default_federation` 装配 `trusted_peer_public_keys`（S4）+ `consensus_membership`（F2）；平台暴露 `consensus`
+- **W4 接线端到端验证**: v0.47 治理门禁装配后真生效（综合回归 2154 passed）
+
+### Changed
+- 版本基线: 0.47.0 → 0.48.0
+
 ## [v0.47.0] - 2026-08-03 (治理闭环生产化 — 接线 + 安全封堵)
 
 ### Added — P0 安全封堵（S1–S8）
