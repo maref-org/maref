@@ -131,12 +131,14 @@ class TestMetaCircuitBreaker:
 
     def test_try_half_open_before_cooldown_fails(self) -> None:
         cb = MetaCircuitBreaker()
+        cb.authorize_override(actor="test")
         cb.state = MetaBreakerState.OPEN
         cb.last_open_time = time.time()
         assert cb.try_half_open() is False
 
     def test_try_half_open_after_cooldown(self) -> None:
         cb = MetaCircuitBreaker()
+        cb.authorize_override(actor="test")
         cb.state = MetaBreakerState.OPEN
         cb.last_open_time = time.time() - 31
         assert cb.try_half_open() is True
@@ -151,6 +153,36 @@ class TestMetaCircuitBreaker:
 
     def test_fail_half_open(self) -> None:
         cb = MetaCircuitBreaker()
+        cb.authorize_override(actor="test")
         cb.state = MetaBreakerState.HALF_OPEN
         cb.fail_half_open()
+        assert cb.state == MetaBreakerState.OPEN
+
+    def test_state_override_requires_authorization(self) -> None:
+        """漏洞回归：未授权时禁止覆写熔断状态。
+
+        旧实现允许任意代码直接 cb.state = ... 把 OPEN 改回 CLOSED，
+        绕过熔断保护。现在必须显式授权。
+        """
+        cb = MetaCircuitBreaker()
+        with pytest.raises(PermissionError):
+            cb.state = MetaBreakerState.OPEN
+
+    def test_authorize_override_allows_state_set(self) -> None:
+        cb = MetaCircuitBreaker()
+        cb.authorize_override(actor="test")
+        cb.state = MetaBreakerState.OPEN
+        assert cb.state == MetaBreakerState.OPEN
+
+    def test_revoke_override_blocks_state_set(self) -> None:
+        cb = MetaCircuitBreaker()
+        cb.authorize_override(actor="test")
+        cb.revoke_override()
+        with pytest.raises(PermissionError):
+            cb.state = MetaBreakerState.OPEN
+
+    def test_internal_transitions_do_not_need_authorization(self) -> None:
+        """正常状态转移方法无需授权（由框架内部驱动）。"""
+        cb = MetaCircuitBreaker(inner_trip_threshold=1)
+        cb.record_trip()
         assert cb.state == MetaBreakerState.OPEN

@@ -48,6 +48,7 @@ class MetaCircuitBreaker:
         self.last_open_time: float = 0.0
         self.cooldown_seconds: float = cooldown_seconds
         self._state_override: MetaBreakerState | None = None
+        self._override_authorized = False
         self._cb = CircuitBreaker(
             max_consecutive_failures=inner_trip_threshold,
             cooldown_seconds=cooldown_seconds,
@@ -59,8 +60,28 @@ class MetaCircuitBreaker:
             return self._state_override
         return _BREAKER_TO_META[self._cb.state]
 
+    def authorize_override(self, actor: str = "") -> None:
+        """受权路径：显式授权后才允许通过 ``state`` 属性覆写熔断状态。
+
+        安全约束：状态覆写可绕过真实的失败计数/熔断保护（例如把 OPEN
+        改回 CLOSED），因此必须显式授权。授权为会话级，可用
+        :meth:`revoke_override` 收回。正常状态转移
+        （``record_trip``/``try_half_open``/``close``/``fail_half_open``）
+        不受此约束，它们由框架内部驱动。
+        """
+        self._override_authorized = True
+
+    def revoke_override(self) -> None:
+        """收回状态覆写授权。"""
+        self._override_authorized = False
+
     @state.setter
     def state(self, value: MetaBreakerState) -> None:
+        if not self._override_authorized:
+            raise PermissionError(
+                "MetaCircuitBreaker.state 覆写未授权：请先调用 authorize_override() "
+                "（防止绕过熔断保护的状态篡改）"
+            )
         self._state_override = value
 
     def record_trip(self) -> None:
