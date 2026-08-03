@@ -287,10 +287,26 @@ import {{ describe, it, expect }} from 'vitest';
         return "generic"
 
     def _resolve_target_paths(self, proposal, project_root: str) -> list[Path]:
+        root = Path(project_root).resolve()
         if hasattr(proposal, "target_files") and proposal.target_files:
-            return [Path(p) for p in proposal.target_files]
-        target = self._resolve_target_path(proposal, project_root)
-        return [target]
+            resolved: list[Path] = []
+            for p in proposal.target_files:
+                target = Path(p)
+                # 安全边界：拒绝 project_root 之外的写入目标（沙盒逃逸防护）。
+                # target_files 可能来自对真实仓库的分析（如 SelfArchitect 的
+                # propose_import_cleanup），当 SelfExecutor 绑定到沙盒工作目录时
+                # 绝不能回写仓库文件。
+                try:
+                    in_root = target.resolve().is_relative_to(root)
+                except (OSError, ValueError):
+                    in_root = False
+                if in_root:
+                    resolved.append(target)
+            if resolved:
+                return resolved
+            # 全部越界 -> 退回到 project_root 内的生成路径，避免污染外部。
+            return [self._resolve_target_path(proposal, str(root))]
+        return [self._resolve_target_path(proposal, str(root))]
 
     def _resolve_target_path(self, proposal, project_root: str) -> Path:
         current = getattr(proposal, "current_arch", "")

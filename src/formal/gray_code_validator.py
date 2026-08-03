@@ -24,6 +24,11 @@ from maref.governance.constants import (
     compute_valid_transitions,
     hamming_distance,
 )
+from maref.recursive.agent_24_state_machine import (
+    GRAY_CODE_5BIT,
+    VALID_TRANSITIONS,
+    AgentStateV3,
+)
 
 console = Console()
 
@@ -159,12 +164,6 @@ def print_gray_code_table() -> None:
 
 # ── 24-state Agent FSM validation ──────────────────────────────────────
 
-from maref.recursive.agent_24_state_machine import (
-    GRAY_CODE_5BIT,
-    AgentStateV3,
-    VALID_TRANSITIONS,
-)
-
 
 def validate_agent24_single_bit() -> tuple[bool, list[str]]:
     errors: list[str] = []
@@ -172,7 +171,7 @@ def validate_agent24_single_bit() -> tuple[bool, list[str]]:
         for t in targets:
             gs = GRAY_CODE_5BIT[s]
             gt = GRAY_CODE_5BIT[t]
-            dist = sum(1 for a, b in zip(gs, gt) if a != b)
+            dist = sum(1 for a, b in zip(gs, gt, strict=True) if a != b)
             if dist != 1:
                 errors.append(
                     f"Agent transition {s.value} -> {t.value} "
@@ -221,30 +220,6 @@ def validate_agent24_all() -> list[tuple[str, tuple[bool, list[str]]]]:
         ("Agent24: State count = 24", validate_agent24_state_count()),
     ]
     return validators
-
-
-def run_all_validations() -> tuple[bool, dict[str, tuple[bool, list[str]]]]:
-    checks: dict[str, tuple[bool, list[str]]] = {}
-
-    all_passed = True
-    for check_name, (passed, errors) in [
-        ("Single-bit transitions", validate_single_bit_transitions()),
-        ("No self-loops", validate_no_self_loops(compute_valid_transitions())),
-        ("Terminal absorbing", validate_terminal_absorbing(compute_valid_transitions())),
-        ("Cycle completeness", validate_reachability()),
-        ("Entropy bound", validate_entropy_profile()),
-        ("Gray code uniqueness", validate_gray_code_completeness()),
-    ]:
-        checks[check_name] = (passed, errors)
-        if not passed:
-            all_passed = False
-
-    for check_name, (passed, errors) in validate_agent24_all():
-        checks[check_name] = (passed, errors)
-        if not passed:
-            all_passed = False
-
-    return all_passed, checks
 
 
 if __name__ == "__main__":

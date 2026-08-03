@@ -215,7 +215,7 @@ class TestCodeGenerator:
                 target_files=[tmp_path],
                 affected_symbols=["os"],
             )
-            generated = cg.generate(proposal, project_root="/tmp")
+            generated = cg.generate(proposal, project_root=os.path.dirname(tmp_path))
             assert len(generated) == 1
             assert "os" not in generated[0].content
             assert "sys" in generated[0].content
