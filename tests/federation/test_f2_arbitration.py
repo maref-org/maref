@@ -136,6 +136,78 @@ class TestSettlementArbitration:
         assert verdict["strategy"] == "unanimity"
 
 
+class TestAgentAsJudgeArbitration:
+    """v0.46.0 J1/J3：争议仲裁走真实法官路径 + 证据可溯源。"""
+
+    def _judged_settlement(self) -> FederatedSettlement:
+        from maref.governance.judge import RuleJudge
+
+        reg = VerifierRegistry()
+        reg.register(
+            VerifierEntry(name="judge-h", model="m", methodology="x", accuracy=0.9)
+        )
+        consensus = VerifierConsensus(reg, judges={"judge-h": RuleJudge()})
+        return FederatedSettlement(
+            metering=TaskMeteringEngine(),
+            verifier_consensus=consensus,
+        )
+
+    def test_real_judge_arbitrates_trace(self) -> None:
+        settlement = self._judged_settlement()
+        pid = _disputed_proposal(settlement)
+        verdict = settlement.arbitrate_dispute(pid)
+        assert verdict is not None
+        assert verdict["passed"] is True
+        # 法官路径激活：vote 带 verdict 而非仿真表决
+        assert verdict["votes"][0]["verdict"]["judge_name"] == "rule-judge"
+        assert verdict["votes"][0]["verdict"]["decision"] == "pass"
+
+    def test_judge_evidence_aggregated(self) -> None:
+        settlement = self._judged_settlement()
+        pid = _disputed_proposal(settlement)
+        verdict = settlement.arbitrate_dispute(pid)
+        assert verdict is not None
+        assert "judge_evidence" in verdict
+        evidence = verdict["judge_evidence"][0]
+        assert evidence["judge_name"] == "rule-judge"
+        assert evidence["decision"] == "pass"
+        assert "reasoning" in evidence
+        assert "evidence_refs" in evidence
+
+    def test_judge_blocks_privilege_escalation(self) -> None:
+        settlement = self._judged_settlement()
+        engine = settlement._metering
+        engine.record(
+            task_id="t1", agent_did="did:1", agent_aic="aic:1",
+            provider_org="OrgA", consumer_org="OrgB",
+            duration_ms=1.0, token_count=1, success=True, complexity_score=0.1,
+        )
+        settlement.generate_billing_from_metering()
+        now = time.time()
+        pid = settlement.generate_proposal("OrgA", "OrgB", now - 60, now + 60).proposal_id
+        # 争议理由含越权模式 → RuleJudge BLOCK → 提案驳回
+        settlement.dispute_proposal(pid, reason="escalation_privilege detected")
+        verdict = settlement.arbitrate_dispute(pid)
+        assert verdict is not None
+        assert verdict["passed"] is False
+        assert verdict["judge_evidence"][0]["decision"] == "block"
+        assert settlement.get_proposal(pid).status == SettlementStatus.REJECTED
+
+    def test_trace_contains_dispute_context(self) -> None:
+        from maref.federation.settlement import FederatedSettlement
+
+        settlement = self._judged_settlement()
+        pid = _disputed_proposal(settlement)
+        proposal = settlement.get_proposal(pid)
+        assert proposal is not None
+        trace = FederatedSettlement._proposal_to_trace(proposal)
+        assert trace.trace_id == f"dispute-{pid}"
+        actions = [s.action for s in trace.steps]
+        assert "billing.entry" in actions
+        assert "settlement.dispute" in actions
+        assert "settlement.summary" in actions
+
+
 class TestJointArbitration:
     def test_legacy_without_consensus_returns_string(self) -> None:
         jsm = JointStateMachine()

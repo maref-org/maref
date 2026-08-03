@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [v0.46.0] - 2026-08-03 (Agent-as-a-Judge 生产化 — 联邦争议真实裁判)
+
+### Added
+- **争议轨迹转换**: `settlement._proposal_to_trace()` — 结算争议还原为结构化 Trace（billing.entry / settlement.dispute / settlement.summary），作为法官仲裁输入
+- **真实法官仲裁路径**: `arbitrate_dispute` 改传 Trace，激活 `VerifierConsensus._call_verifier` 的 Agent-as-a-Judge 分支（非仿真表决）
+- **法官注入接线**: `FederatedSettlement(judges=)` 注入 Agent-as-a-Judge 到 VerifierConsensus；未注入时保持仿真表决（向后兼容）
+- **可溯源 verdict**: 争议仲裁 verdict 聚合 `judge_evidence`（judge_name/decision/reasoning/evidence_refs），写审计链 metadata 供事后复核
+
+### Changed
+- 联邦争议从"加权仿真表决"升级为"真实法官裁决"（补战略 §5.2 最大功能空白）
+- 越权模式（escalation_privilege 等）由 RuleJudge 识别并 BLOCK → 提案驳回
+- 版本基线: 0.45.0 → 0.46.0
+
 ## [v0.45.0] - 2026-08-03 (监管适配层 — Jurisdiction-Aware Governance)
 
 ### Added
