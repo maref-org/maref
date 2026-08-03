@@ -219,11 +219,12 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     _cost_tracker = CostTracker(metric_store=_metric_store)
     mcp_bridge = SidecarMCPBridge(repo_path=os.getcwd())
 
-    # v0.47 S10: 装配运行时行为探针（AuditBus + TrustEngineV2 + CircuitBreaker，
-    # 收窄订阅治理事件）。独立审计总线实例，不影响 HTTP 行为。
-    from maref.agent.behavior_analyzer import assemble_runtime_behavior_probe
+    # v0.48 W2: 装配统一治理闭环（GovernedPipeline）——共享 audit_bus，
+    # 行为探针订阅同一审计流（S10 探针 → W2 闭环）。
+    from maref.governance.governed_pipeline import GovernedPipeline
 
-    app.state.behavior_probe = assemble_runtime_behavior_probe()
+    app.state.governed = GovernedPipeline()
+    app.state.behavior_probe = app.state.governed.behavior_probe
 
     _tool_registry = ToolRegistry()
     for t in EVOLUTION_TOOLS:
