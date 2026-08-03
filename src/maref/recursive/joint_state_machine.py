@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -39,7 +40,58 @@ class JointStateMachine:
         for agent_id in self.agents:
             self.agents[agent_id] = new_state
 
-    def arbitrate(self, agent_a: str, agent_b: str, issue: str) -> str:
+    def arbitrate(
+        self,
+        agent_a: str,
+        agent_b: str,
+        issue: str,
+        consensus: Any | None = None,
+        weight_key: str = "accuracy",
+        audit_logger: Any | None = None,
+    ) -> str | dict:
+        """Arbitrate a conflict between two agents.
+
+        Without ``consensus``, appends a plain resolution string to the
+        conflict log (legacy behaviour). When a :class:`VerifierConsensus`
+        is provided (v0.44.0 F2), the issue is escalated to weighted-judge
+        voting and a structured, traceable verdict dict is returned
+        (with per-judge votes, strategy and agreement). The verdict is
+        also written to the audit chain when ``audit_logger`` is given.
+
+        Returns:
+            The legacy resolution string, or a structured verdict dict
+            when consensus voting is used.
+        """
+        if consensus is not None:
+            result = consensus.evaluate(
+                {"agent_a": agent_a, "agent_b": agent_b, "issue": issue},
+                weight_key=weight_key,
+            )
+            verdict: dict = result.to_dict()
+            verdict["agent_a"] = agent_a
+            verdict["agent_b"] = agent_b
+            verdict["issue"] = issue
+            self.conflict_log.append(
+                {
+                    "agent_a": agent_a,
+                    "agent_b": agent_b,
+                    "issue": issue,
+                    "resolution": "verdict:passed"
+                    if result.passed
+                    else "verdict:blocked",
+                    "agreement": round(result.agreement, 3),
+                }
+            )
+            if audit_logger is not None:
+                audit_logger.log(
+                    event_type="joint.arbitration",
+                    actor="joint_state_machine",
+                    action="arbitrate",
+                    details=f"{agent_a} vs {agent_b}: {issue}",
+                    metadata=verdict,
+                )
+            return verdict
+
         resolution = f"arbitration: {issue} resolved between {agent_a} and {agent_b}"
         self.conflict_log.append(
             {
