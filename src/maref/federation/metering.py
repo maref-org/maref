@@ -48,6 +48,7 @@ class TaskMetric:
     complexity_score: float
     timestamp: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
+    caller_did: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +64,7 @@ class TaskMetric:
             "complexity_score": self.complexity_score,
             "timestamp": self.timestamp,
             "metadata": dict(self.metadata),
+            "caller_did": self.caller_did,
         }
 
 
@@ -135,7 +137,8 @@ class TaskMeteringEngine:
                 success          INTEGER NOT NULL,
                 complexity_score REAL NOT NULL,
                 timestamp        REAL NOT NULL,
-                metadata         TEXT NOT NULL
+                metadata         TEXT NOT NULL,
+                caller_did       TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_metrics_task
                 ON task_metrics(task_id);
@@ -161,6 +164,7 @@ class TaskMeteringEngine:
                 complexity_score=row["complexity_score"],
                 timestamp=row["timestamp"],
                 metadata=json.loads(row["metadata"]),
+                caller_did=row.get("caller_did", ""),  # type: ignore[attr-defined]
             )
             idx = len(self._metrics)
             self._metrics.append(metric)
@@ -186,10 +190,15 @@ class TaskMeteringEngine:
         success: bool,
         complexity_score: float,
         metadata: dict[str, Any] | None = None,
+        caller_did: str = "",
     ) -> TaskMetric:
         """Record a single task execution metric.
 
         ``complexity_score`` is clamped to ``[0.0, 1.0]``.
+
+        ``caller_did`` binds the metric to the identity that submitted it
+        (v0.47 S5 source binding).  Defaults to "" for backward
+        compatibility with existing callers.
         """
         complexity = max(0.0, min(1.0, complexity_score))
         metric = TaskMetric(
@@ -204,6 +213,7 @@ class TaskMeteringEngine:
             success=success,
             complexity_score=complexity,
             metadata=metadata or {},
+            caller_did=caller_did,
         )
         idx = len(self._metrics)
         self._metrics.append(metric)
@@ -399,8 +409,8 @@ class TaskMeteringEngine:
             "INSERT OR REPLACE INTO task_metrics "
             "(metric_id, task_id, agent_did, agent_aic, provider_org, "
             "consumer_org, duration_ms, token_count, success, "
-            "complexity_score, timestamp, metadata) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "complexity_score, timestamp, metadata, caller_did) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 metric.metric_id,
                 metric.task_id,
@@ -414,5 +424,6 @@ class TaskMeteringEngine:
                 metric.complexity_score,
                 metric.timestamp,
                 json.dumps(metric.metadata),
+                metric.caller_did,
             ),
         )
