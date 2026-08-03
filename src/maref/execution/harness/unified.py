@@ -35,6 +35,7 @@ class UnifiedHarness(BaseHarness):
         tool_orchestrator: Any = None,
         run_hook: Callable[[HarnessLifecycleState, HarnessResult], None] | None = None,
         memory_hub: Any = None,
+        task_preflight: Any | None = None,
     ) -> None:
         super().__init__()
         self._lifecycle_state = HarnessLifecycleState.INIT
@@ -47,6 +48,10 @@ class UnifiedHarness(BaseHarness):
         self._tool_orchestrator = tool_orchestrator
         self._run_hook = run_hook
         self._memory_hub = memory_hub
+        # v0.47 S11: TaskPreflight gate.  When provided, preflight() runs the
+        # 6-check battery and aborts (fail-closed) on any FAIL.
+        self._task_preflight = task_preflight
+        self._last_preflight: Any | None = None
         self._transition_history: list[HarnessLifecycleState] = [HarnessLifecycleState.INIT]
         self._step_handlers: list[Callable[[], None]] = []
         self._context: dict[str, str] = {}
@@ -133,7 +138,7 @@ class UnifiedHarness(BaseHarness):
         if self._governance_bridge:
             self._governance_bridge.configure(config)
 
-    def preflight(self) -> list[str]:
+    def preflight(self, context: dict[str, Any] | None = None) -> list[str]:
         warnings: list[str] = []
         self._transition(HarnessLifecycleState.PREFLIGHT)
         self._check_governance("preflight")
@@ -142,11 +147,30 @@ class UnifiedHarness(BaseHarness):
         if self._config is None:
             warnings.append("no configuration set")
 
+        # v0.47 S11: TaskPreflight gate — fail-closed on any FAIL.
+        if self._task_preflight is not None:
+            result = self._task_preflight.execute(dict(context or {}))
+            self._last_preflight = result
+            if not result.passed:
+                failed = [c.check_name for c in result.failed_checks]
+                self._lifecycle_state = HarnessLifecycleState.FAILED
+                self._transition_history.append(HarnessLifecycleState.FAILED)
+                raise HarnessAbortedError(
+                    f"preflight failed for agent={result.agent_id}: "
+                    f"blocked checks={failed}"
+                )
+            warnings.append(result.summary)
+
         if self._audit_logger:
             self._audit_logger.log_preflight(warnings)
 
         self._transition(HarnessLifecycleState.READY)
         return warnings
+
+    @property
+    def last_preflight(self) -> Any | None:
+        """The most recent TaskPreflight result (None if not run)."""
+        return self._last_preflight
 
     def run(self, round_id: str = "") -> HarnessResult:
         self._transition(HarnessLifecycleState.RUNNING)
