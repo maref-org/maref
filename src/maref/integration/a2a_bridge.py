@@ -221,7 +221,12 @@ class A2ABridge:
 
         agent_dns = self._agent_dns
         assert agent_dns is not None
-        did = AgentDID.parse(self._agent_did)
+        try:
+            did = AgentDID.parse(self._agent_did)
+        except ValueError as exc:
+            raise CommunicationBlockedError(
+                f"agent_did 配置非法: {self._agent_did!r}"
+            ) from exc
         card = agent_dns.resolve(did)
         if card is None:
             raise CommunicationBlockedError(
@@ -230,6 +235,31 @@ class A2ABridge:
             )
         a2a_card = card.to_a2a_card(base_url=base_url)
         a2a_card["protocolVersion"] = A2A_PROTOCOL_VERSION
+        # 合并默认能力声明（与 legacy 路径一致），保证 A2A 客户端可发现
+        # streaming/pushNotifications 等能力。
+        merged_caps = {
+            "streaming": True,
+            "pushNotifications": True,
+            "stateTransitionHistory": True,
+            **a2a_card.get("capabilities", {}),
+        }
+        a2a_card["capabilities"] = merged_caps
+        # 合并本地 register_capability 注册的技能（按 id 去重，DNS card 优先）。
+        dns_skill_ids = {s.get("id") for s in a2a_card.get("skills", [])}
+        local_skills = [
+            {
+                "id": cap.id,
+                "name": cap.name,
+                "description": cap.description,
+                "tags": cap.tags,
+                "examples": cap.examples,
+                "inputModes": cap.input_modes,
+                "outputModes": cap.output_modes,
+            }
+            for cap in self._capabilities
+            if cap.id not in dns_skill_ids
+        ]
+        a2a_card["skills"] = list(a2a_card.get("skills", [])) + local_skills
         if not validate_agent_card_json(a2a_card):
             raise ValueError("AgentDNS AgentCard does not pass schema validation")
         self._audit.log(

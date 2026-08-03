@@ -156,16 +156,18 @@ class TestProbeFeedbackLoop:
         self._feed_durations(bus, [1000, 1000, 100, 100])  # window 2 → anomaly
         assert probe.anomaly_counts().get("agent-1", 0) == 2
 
-    def test_anomaly_count_threshold_trips_breaker(self) -> None:
+    def test_non_critical_anomaly_does_not_trip_breaker(self) -> None:
         probe, bus, trust, cb = self._probe(window_size=4, with_cb=True)
         trust.register_agent("agent-1")
-        # 非 critical（medium 加速 35%），但累计 3 次异常触发降级
-        self._feed_durations(bus, [1000, 1000, 650, 650])  # deviation 35% → medium
+        # medium 加速（35%）累计多次也不触发全局熔断，仅扣信任分
+        self._feed_durations(bus, [1000, 1000, 650, 650])
         self._feed_durations(bus, [1000, 1000, 650, 650])
         self._feed_durations(bus, [1000, 1000, 650, 650])
         assert cb is not None
-        assert cb.state == BreakerState.OPEN
+        assert cb.state == BreakerState.CLOSED
         assert probe.anomaly_counts().get("agent-1", 0) == 3
+        profile = trust._profiles["agent-1"]
+        assert profile.behavioral_consistency < 0.7
 
     def test_stop_halts_processing(self) -> None:
         probe, bus, trust, _cb = self._probe(window_size=4)

@@ -8,7 +8,7 @@ from typing import Any
 @dataclass
 class JointStateMachine:
     agents: dict[str, str] = field(default_factory=dict)
-    conflict_log: list[dict[str, str]] = field(default_factory=list)
+    conflict_log: list[dict[str, Any]] = field(default_factory=list)
     _handoff_timeouts: dict[str, float] = field(default_factory=dict)
     _handoff_pairs: dict[str, str] = field(default_factory=dict)
 

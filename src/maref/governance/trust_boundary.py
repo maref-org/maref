@@ -164,8 +164,20 @@ class TrustBoundaryManager:
                 assessment=assessment,
             )
 
-        # LOW/MEDIUM 自动放行（无论是否有 scope）。
+        # LOW/MEDIUM 自动放行；若已配置授权范围，仍需动作在授权列表内。
         if assessment.risk_level in (RiskLevel.LOW, RiskLevel.MEDIUM):
+            if self.scope is not None and not self.scope.allows_action(
+                action, assessment.risk_level.value
+            ):
+                return BoundaryDecision(
+                    action=action,
+                    agent_id=agent_id,
+                    allowed=False,
+                    reason=(
+                        f"动作超出授权范围（allowed_actions 未包含 {action}）"
+                    ),
+                    assessment=assessment,
+                )
             return BoundaryDecision(
                 action=action,
                 agent_id=agent_id,
@@ -226,20 +238,25 @@ class TrustBoundaryManager:
     def _record_audit(self, decision: BoundaryDecision) -> None:
         if self._audit_logger is None:
             return
-        entry = {
-            "event_type": "trust_boundary_check",
-            "outcome": "allowed" if decision.allowed else "blocked",
-            "action": decision.action,
-            "agent_id": decision.agent_id,
-            "risk_level": decision.assessment.risk_level.value,
-            "reason": decision.reason,
-            "timestamp": decision.checked_at,
-        }
+        entry = decision.to_dict()
+        entry["event_type"] = "trust_boundary_check"
+        entry["outcome"] = "allowed" if decision.allowed else "blocked"
         try:
             if hasattr(self._audit_logger, "append"):
                 self._audit_logger.append(entry)
             elif hasattr(self._audit_logger, "log"):
-                self._audit_logger.log(entry)
+                # AuditLogger / AuditBus 接口: log(event_type, actor, action, ...)
+                self._audit_logger.log(
+                    event_type="trust_boundary_check",
+                    actor=decision.agent_id,
+                    action=decision.action,
+                    details=(
+                        f"outcome={'allowed' if decision.allowed else 'blocked'} "
+                        f"risk={decision.assessment.risk_level.value} "
+                        f"reason={decision.reason}"
+                    ),
+                    metadata=decision.to_dict(),
+                )
         except Exception:
             # 审计失败不应阻断动作执行；由上层审计完整性检查兜底。
             pass
