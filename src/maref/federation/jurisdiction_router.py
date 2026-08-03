@@ -25,6 +25,7 @@ from maref.federation.policy import (
     PolicyDecision,
     PolicyEvaluationResult,
 )
+from maref.governance.federated_consensus import FederationRole
 from maref.recursive.eight_trigrams_governance import TrigramsGovernance
 
 
@@ -508,6 +509,56 @@ class JurisdictionPolicyRouter:
                 else ""
             ),
         }
+
+    # ------------------------------------------------------------------
+    # Federation role assignment (v0.44.0 F1)
+    # ------------------------------------------------------------------
+
+    def assign_federation_roles(
+        self,
+        members: list[str],
+        leader_id: str,
+    ) -> dict[str, FederationRole]:
+        """Assign LEADER_WORKER roles across a federation member set.
+
+        The leader is designated by ``leader_id``; every other member is a
+        worker. A member outside the member set is not assigned a role.
+        Role assignment is deterministic — the same inputs always yield the
+        same mapping.
+
+        Args:
+            members: The federation member identifiers.
+            leader_id: The member designated as leader.
+
+        Returns:
+            A mapping of member_id → :class:`FederationRole`.
+        """
+        roles: dict[str, FederationRole] = {}
+        for member in members:
+            if member == leader_id:
+                roles[member] = FederationRole.LEADER
+            else:
+                roles[member] = FederationRole.WORKER
+        return roles
+
+    def suggest_consensus_topology(self, critical_topic: bool = False) -> str:
+        """Suggest a consensus topology for a decision.
+
+        Returns ``"leader_worker"`` for routine decisions (fast execution
+        under leader arbitration) and ``"flat"`` for critical decisions
+        (escalated to full quorum voting).
+
+        Args:
+            critical_topic: Whether the decision is critical.
+
+        Returns:
+            The suggested :class:`ConsensusTopology` value.
+        """
+        from maref.governance.federated_consensus import ConsensusTopology
+
+        if critical_topic:
+            return ConsensusTopology.FLAT.value
+        return ConsensusTopology.LEADER_WORKER.value
 
     # ------------------------------------------------------------------
     # Compliance audit trail (Phase 3.5)
