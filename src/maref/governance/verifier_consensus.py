@@ -5,6 +5,7 @@ from typing import Any
 
 from maref.governance.trace import Trace, VerdictDecision
 from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry
+from maref.security.decorators import security_critical
 
 
 class ConsensusStrategy(str, Enum):
@@ -42,6 +43,7 @@ class VerifierConsensus:
         # 仲裁而非仿真表决。未注入法官的 verifier 保持向后兼容的仿真路径。
         self._judges: dict[str, Any] = judges or {}
 
+    @security_critical
     def evaluate(
         self,
         item: Any,

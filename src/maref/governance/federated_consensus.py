@@ -30,6 +30,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.security.decorators import security_critical
+
 
 class VoteChoice(Enum):
     """A member's vote on a proposal."""
@@ -282,6 +284,7 @@ class FederatedConsensus:
     def quorum_size(self) -> int:
         return self._quorum_size
 
+    @security_critical
     def propose(
         self,
         proposer_id: str,
@@ -331,6 +334,7 @@ class FederatedConsensus:
         })
         return proposal
 
+    @security_critical
     def vote(
         self,
         proposal_id: str,
@@ -395,6 +399,7 @@ class FederatedConsensus:
         })
         return True
 
+    @security_critical
     def resolve(self, proposal_id: str) -> ConsensusProposal | None:
         """Attempt to resolve a proposal.
 
