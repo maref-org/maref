@@ -53,6 +53,16 @@ class PolicyScope(str, Enum):
     AD_HOC = "ad_hoc"
 
 
+# Restrictiveness ordering for tie-breaks and conflict resolution
+# (higher = more restrictive).  Used to fail-closed when rules tie.
+_RESTRICTIVENESS: dict[PolicyDecision, int] = {
+    PolicyDecision.DENY: 3,
+    PolicyDecision.DEFER: 2,
+    PolicyDecision.ALLOW: 1,
+    PolicyDecision.NOT_APPLICABLE: 0,
+}
+
+
 @dataclass(frozen=True)
 class PolicyRule:
     """A single policy rule.
@@ -135,6 +145,7 @@ class PolicyEvaluationResult:
     conflict_strategy: ConflictStrategy = ConflictStrategy.FEDERATION_WINS
     context: dict[str, Any] = field(default_factory=dict)
     evaluated_at: float = field(default_factory=time.time)
+    no_rule_match: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -145,6 +156,7 @@ class PolicyEvaluationResult:
             "conflict_detected": self.conflict_detected,
             "conflict_strategy": self.conflict_strategy.value,
             "evaluated_at": self.evaluated_at,
+            "no_rule_match": self.no_rule_match,
         }
 
 
@@ -261,20 +273,13 @@ class FederationPolicyEngine:
         local_matches = self._matching_rules(self._local_rules, action, context)
         adhoc_matches = self._matching_rules(self._adhoc_rules, action, context)
 
-        all_matches = fed_matches + local_matches + adhoc_matches
+        # Ad-hoc rules are merged into the federation tier (same precedence).
+        # They no longer unconditionally override the federation layer; they
+        # compete by priority, with ties broken toward the most restrictive
+        # decision (v0.47 S3, fail-closed).
+        fed_matches = fed_matches + adhoc_matches
 
-        # Ad-hoc rules always take precedence (highest scope authority).
-        if adhoc_matches:
-            winner = self._highest_priority(adhoc_matches)
-            return PolicyEvaluationResult(
-                action=action,
-                decision=winner.decision,
-                matched_rules=all_matches,
-                winning_rule=winner,
-                conflict_detected=False,
-                conflict_strategy=self._conflict_strategy,
-                context=context,
-            )
+        all_matches = fed_matches + local_matches
 
         # If only one layer has matches, use its highest-priority rule.
         if fed_matches and not local_matches:
@@ -300,16 +305,17 @@ class FederationPolicyEngine:
                 context=context,
             )
 
-        # No matches at all — default ALLOW (open by default).
+        # No matches at all — default DENY (fail-closed) with an audit signal.
         if not fed_matches and not local_matches:
             return PolicyEvaluationResult(
                 action=action,
-                decision=PolicyDecision.ALLOW,
+                decision=PolicyDecision.DENY,
                 matched_rules=[],
                 winning_rule=None,
                 conflict_detected=False,
                 conflict_strategy=self._conflict_strategy,
                 context=context,
+                no_rule_match=True,
             )
 
         # Both layers have matches — resolve conflict.
@@ -357,8 +363,16 @@ class FederationPolicyEngine:
 
     @staticmethod
     def _highest_priority(rules: list[PolicyRule]) -> PolicyRule:
-        """Return the highest-priority rule (ties broken by rule_id for determinism)."""
-        return max(rules, key=lambda r: (r.priority, r.rule_id))
+        """Return the highest-priority rule; ties broken toward the most
+        restrictive decision, then by rule_id for determinism (fail-closed)."""
+        return max(
+            rules,
+            key=lambda r: (
+                r.priority,
+                _RESTRICTIVENESS.get(r.decision, 0),
+                r.rule_id,
+            ),
+        )
 
     def _resolve_conflict(
         self, fed_rule: PolicyRule, local_rule: PolicyRule
@@ -379,13 +393,7 @@ class FederationPolicyEngine:
                 description="Auto-DENY due to federation/local conflict",
             )
         # MOST_RESTRICTIVE: DENY wins over DEFER, DEFER wins over ALLOW.
-        restrictiveness = {
-            PolicyDecision.DENY: 3,
-            PolicyDecision.DEFER: 2,
-            PolicyDecision.ALLOW: 1,
-            PolicyDecision.NOT_APPLICABLE: 0,
-        }
-        if restrictiveness[fed_rule.decision] >= restrictiveness[local_rule.decision]:
+        if _RESTRICTIVENESS[fed_rule.decision] >= _RESTRICTIVENESS[local_rule.decision]:
             return fed_rule
         return local_rule
 

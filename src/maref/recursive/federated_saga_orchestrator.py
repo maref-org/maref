@@ -22,7 +22,8 @@ Design goals
 1. **Zero regression for existing callers** — wraps (not inherits)
    :class:`SagaOrchestrator`.
 2. **Fail-closed by default** — if a step has no policy rule, the
-   default is ``ALLOW`` (matches ``FederationPolicyEngine.evaluate``).
+   default is ``DENY`` (matches ``FederationPolicyEngine.evaluate``,
+   v0.47 S3).
 3. **HITL is opt-in per saga** — sagas opt in by setting
    ``saga.metadata["federation"]["hitl"] = True`` or by providing an
    explicit ``escalation_org``.
@@ -263,8 +264,9 @@ class FederatedSagaOrchestrator:
         3. If ``DEFER`` and the orgs differ, route to
            :class:`CrossOrgHITL` for review. The saga blocks until the
            HITL request resolves (or times out and is escalated).
-        4. If ``ALLOW`` (or no policy rule matched), the step executes
-           through the inner :class:`SagaOrchestrator`.
+        4. If ``ALLOW``, the step executes through the inner
+           :class:`SagaOrchestrator`.  An action with no matching rule is
+           ``DENY`` (fail-closed, v0.47 S3).
 
         Args:
             saga: The :class:`Saga` to execute.
