@@ -25,6 +25,32 @@ class AuthorizationScope:
     valid_until: float | None = None
     jurisdiction: str = "local"
     issuer: str = ""
+    signature: str = ""
+
+    def canonical_payload(self) -> bytes:
+        """Canonical bytes the issuer signs over (v0.47 S12)."""
+        return (
+            f"{self.subject_did}\n"
+            f"{self.max_risk_level}\n"
+            f"{','.join(sorted(self.allowed_actions))}\n"
+            f"{self.valid_until!r}\n"
+            f"{self.jurisdiction}\n"
+            f"{self.issuer}"
+        ).encode()
+
+    def sign(self, signing_key: Any) -> None:
+        """Sign the scope with the issuer's Ed25519 key (v0.47 S12)."""
+        self.signature = signing_key.sign_report(self.canonical_payload())
+
+    def verify_signature(self, public_key_pem: str) -> bool:
+        """Verify the issuer's Ed25519 signature against a public key."""
+        if not self.signature or not public_key_pem:
+            return False
+        from maref.signing.signing_key import ReportSigningKey
+
+        return ReportSigningKey.verify_signature(
+            public_key_pem, self.signature, self.canonical_payload()
+        )
 
     def allows_action(self, action: str, risk_level: str) -> bool:
         """校验动作是否在授权范围内。
@@ -84,6 +110,7 @@ class AuthorizationScope:
             "valid_until": self.valid_until,
             "jurisdiction": self.jurisdiction,
             "issuer": self.issuer,
+            "signature": self.signature,
         }
 
     @classmethod
