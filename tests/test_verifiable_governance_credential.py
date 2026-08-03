@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import time
 
 import pytest
 
-from maref.eivl.federated_merkle import FederatedMerkleAggregator
+from maref.eivl.federated_merkle import FederatedMerkleAggregator, FederatedProof
 from maref.governance.verifiable_governance_credential import (
     GOVERNANCE_SCOPES,
     GovernanceCredentialStore,
@@ -271,3 +270,124 @@ class TestStorePersistence:
         empty.save_revocation_list(tmp_path / "empty.json")
         store.load_revocation_list(tmp_path / "empty.json")
         assert not store.is_revoked(cred.credential_id)
+
+
+class TestDIDRevocationLinkage:
+    """方案 E M3 / v0.44.0 I1：凭证吊销联动 DID 撤销。"""
+
+    def _store_with_subject(
+        self, subject_did: str, n: int = 2
+    ) -> tuple[GovernanceCredentialStore, list[str]]:
+        store = GovernanceCredentialStore()
+        ids: list[str] = []
+        for _ in range(n):
+            key = ReportSigningKey.generate()
+            cred = VerifiableGovernanceCredential.issue(
+                subject_did=subject_did,
+                issuer_did="did:maref:org-governor",
+                scope=["state_machine", "audit"],
+                merkle_proof=_proof_for("org-1"),
+                signing_key=key,
+                ttl_seconds=3600,
+            )
+            store.store(cred)
+            ids.append(cred.credential_id)
+        return store, ids
+
+    def test_revoke_by_subject_did_revokes_all(self) -> None:
+        store, ids = self._store_with_subject("did:maref:default:alice")
+        count = store.revoke_by_subject_did("did:maref:default:alice")
+        assert count == len(ids)
+        assert all(store.is_revoked(i) for i in ids)
+
+    def test_revoke_by_subject_did_sets_source(self) -> None:
+        store, ids = self._store_with_subject("did:maref:default:alice")
+        store.revoke_by_subject_did("did:maref:default:alice")
+        assert store.revoked_source(ids[0]) == "did-revocation:did:maref:default:alice"
+        assert store.revoked_reason(ids[0]) == "did_revoked"
+
+    def test_revoke_by_subject_did_does_not_touch_others(self) -> None:
+        store, _ = self._store_with_subject("did:maref:default:alice")
+        store, ids_bob = self._store_with_subject("did:maref:default:bob", n=1)
+        store.revoke_by_subject_did("did:maref:default:alice")
+        assert not store.is_revoked(ids_bob[0])
+
+    def test_revoke_by_subject_did_skips_already_revoked(self) -> None:
+        store, ids = self._store_with_subject("did:maref:default:alice")
+        store.revoke(ids[0], reason="manual")
+        count = store.revoke_by_subject_did("did:maref:default:alice")
+        assert count == len(ids) - 1
+        assert store.is_revoked(ids[0])
+        assert store.revoked_reason(ids[0]) == "manual"
+
+    def test_revoke_by_subject_did_unknown_returns_zero(self) -> None:
+        store, _ = self._store_with_subject("did:maref:default:alice")
+        assert store.revoke_by_subject_did("did:maref:default:ghost") == 0
+
+    def test_list_valid_excludes_did_revoked(self) -> None:
+        store, ids = self._store_with_subject("did:maref:default:alice")
+        store.revoke_by_subject_did("did:maref:default:alice")
+        assert all(c.credential_id not in ids for c in store.list_valid())
+
+    def test_attach_to_did_registry_revokes_on_revoke(self) -> None:
+        from maref.governance.state_machine import GovernanceStateMachine
+        from maref.identity.did_registry import AgentDID, DIDRegistry
+
+        registry = DIDRegistry()
+        did = AgentDID.generate(namespace="default")
+        registry.register(did, GovernanceStateMachine())
+
+        store, ids = self._store_with_subject(did.did_string)
+        store.attach_to_did_registry(registry)
+
+        registry.revoke(did, reason="compromised", signer="security")
+        assert all(store.is_revoked(i) for i in ids)
+        assert store.revoked_reason(ids[0]) == "did_revoked:compromised"
+        assert store.revoked_source(ids[0]) == f"did-revocation:{did.did_string}"
+
+    def test_attach_to_did_registry_revokes_on_deactivate(self) -> None:
+        from maref.governance.state_machine import GovernanceStateMachine
+        from maref.identity.did_registry import AgentDID, DIDRegistry
+
+        registry = DIDRegistry()
+        did = AgentDID.generate(namespace="default")
+        registry.register(did, GovernanceStateMachine())
+
+        store, ids = self._store_with_subject(did.did_string)
+        store.attach_to_did_registry(registry)
+
+        registry.deactivate(did, reason="retired")
+        assert all(store.is_revoked(i) for i in ids)
+
+    def test_detach_stops_linkage(self) -> None:
+        from maref.governance.state_machine import GovernanceStateMachine
+        from maref.identity.did_registry import AgentDID, DIDRegistry
+
+        registry = DIDRegistry()
+        did = AgentDID.generate(namespace="default")
+        registry.register(did, GovernanceStateMachine())
+
+        store, ids = self._store_with_subject(did.did_string)
+        listener = store._on_did_revocation
+        store.attach_to_did_registry(registry)
+        assert registry.remove_revocation_listener(listener) is True
+
+        registry.revoke(did, reason="compromised")
+        assert not store.is_revoked(ids[0])
+
+    def test_revocation_listener_error_does_not_block(self) -> None:
+        from maref.governance.state_machine import GovernanceStateMachine
+        from maref.identity.did_registry import AgentDID, DIDRegistry
+
+        registry = DIDRegistry()
+
+        def bad_listener(did_string: str, reason: str, signer: str) -> None:
+            raise RuntimeError("listener down")
+
+        registry.add_revocation_listener(bad_listener)
+
+        did = AgentDID.generate(namespace="default")
+        registry.register(did, GovernanceStateMachine())
+        record = registry.revoke(did, reason="test")
+        assert record is not None
+        assert record.status == "revoked"

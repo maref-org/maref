@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import secrets
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from maref.governance.state_machine import GovernanceStateMachine
+
+# 撤销事件监听器签名：fn(did_string: str, reason: str, signer: str)
+RevocationListener = Callable[[str, str, str], Any]
 
 # W3C DID Core 1.0 context
 _DID_CONTEXT = "https://www.w3.org/ns/did/v1"
@@ -121,6 +125,36 @@ class DIDResolutionResult:
 class DIDRegistry:
     def __init__(self) -> None:
         self._agents: dict[AgentDID, AgentIdentityRecord] = {}
+        self._revocation_listeners: list[RevocationListener] = []
+
+    def add_revocation_listener(self, listener: RevocationListener) -> None:
+        """订阅 DID 撤销事件（方案 E M3 联动机制）。
+
+        ``listener(did_string, reason, signer)`` 在每次 :meth:`revoke`
+        或 :meth:`deactivate` 成功变更状态后同步调用（先注册先通知）。
+
+        Args:
+            listener: 接收 (did_string, reason, signer) 的回调。
+        """
+        if listener not in self._revocation_listeners:
+            self._revocation_listeners.append(listener)
+
+    def remove_revocation_listener(self, listener: RevocationListener) -> bool:
+        """取消订阅撤销事件；返回是否找到并移除。"""
+        if listener in self._revocation_listeners:
+            self._revocation_listeners.remove(listener)
+            return True
+        return False
+
+    def _notify_revocation(
+        self, did: AgentDID, reason: str, signer: str
+    ) -> None:
+        """向所有监听器广播撤销事件；单个监听器异常不影响其余与主流程。"""
+        for listener in list(self._revocation_listeners):
+            try:
+                listener(did.did_string, reason, signer)
+            except Exception:
+                continue
 
     def register(
         self,
@@ -227,6 +261,7 @@ class DIDRegistry:
             "reason": reason,
             "signer": signer,
         }
+        self._notify_revocation(did, reason, signer)
         return record
 
     def deactivate(self, did: AgentDID, reason: str = "", signer: str = "") -> AgentIdentityRecord | None:
@@ -243,6 +278,7 @@ class DIDRegistry:
             "reason": reason or "deactivated",
             "signer": signer,
         }
+        self._notify_revocation(did, reason, signer)
         return record
 
     def is_active(self, did: AgentDID) -> bool:
