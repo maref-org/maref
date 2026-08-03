@@ -270,10 +270,10 @@ def create_a2a_router(bridge: A2ABridge, signing_key: str | None = None) -> APIR
             )
         except HTTPException:
             raise
-        except CommunicationBlockedError:
+        except CommunicationBlockedError as exc:
             return JSONResponse(
                 status_code=503,
-                content={"detail": "Circuit breaker is OPEN"},
+                content={"detail": str(exc)},
             )
         except Exception:
             return JSONResponse(status_code=500, content={"detail": "Server error"})
