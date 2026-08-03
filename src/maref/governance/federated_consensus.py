@@ -47,6 +47,27 @@ class ProposalState(Enum):
     EXPIRED = "expired"
 
 
+class ConsensusTopology(str, Enum):
+    """The decision-making topology of a federation (v0.44.0 F1).
+
+    - ``FLAT``: every member carries equal weight; proposals resolve via
+      a majority quorum vote (legacy behaviour).
+    - ``LEADER_WORKER``: workers execute fast decisions, the leader
+      arbitrates routine proposals, and critical proposals are escalated
+      to a full quorum vote.
+    """
+
+    FLAT = "flat"
+    LEADER_WORKER = "leader_worker"
+
+
+class FederationRole(str, Enum):
+    """A member's role within a LEADER_WORKER topology."""
+
+    LEADER = "leader"
+    WORKER = "worker"
+
+
 @dataclass
 class ConsensusVote:
     """A single vote on a proposal, Ed25519-signed for verifiability.
@@ -128,6 +149,8 @@ class ConsensusProposal:
     resolved_at: float | None = None
     resolution_signature: str = ""
     signer_fingerprint: str = ""
+    topology: ConsensusTopology = ConsensusTopology.FLAT
+    is_critical: bool = False
 
     @property
     def approve_count(self) -> int:
@@ -161,6 +184,8 @@ class ConsensusProposal:
             "created_at": self.created_at,
             "expires_at": self.expires_at,
             "state": self.state.value,
+            "topology": self.topology.value,
+            "is_critical": self.is_critical,
             "approve_count": self.approve_count,
             "reject_count": self.reject_count,
             "total_votes": len(self.votes),
@@ -195,6 +220,9 @@ class FederatedConsensus:
         default_timeout: float = 300.0,
         signer: Any = None,
         audit_logger: Any = None,
+        topology: ConsensusTopology = ConsensusTopology.FLAT,
+        leader_id: str = "",
+        critical_topics: set[str] | None = None,
     ) -> None:
         self._member_count = member_count
         self._quorum_size = quorum_size
@@ -202,6 +230,22 @@ class FederatedConsensus:
         self._proposals: dict[str, ConsensusProposal] = {}
         self._signer = signer
         self._audit_logger = audit_logger
+        self._topology = topology
+        self._leader_id = leader_id
+        self._critical_topics = critical_topics or set()
+
+    @property
+    def topology(self) -> ConsensusTopology:
+        """The consensus topology in use."""
+        return self._topology
+
+    @property
+    def leader_id(self) -> str:
+        """The federation leader in LEADER_WORKER topology ("" if unset)."""
+        return self._leader_id
+
+    def _is_critical_topic(self, topic: str) -> bool:
+        return any(t in topic for t in self._critical_topics)
 
     def _log_audit(self, event_type: str, detail: dict[str, Any]) -> None:
         if self._audit_logger is None:
@@ -237,6 +281,7 @@ class FederatedConsensus:
         topic: str,
         payload: dict[str, Any] | None = None,
         timeout: float | None = None,
+        is_critical: bool | None = None,
     ) -> ConsensusProposal:
         """Create a new consensus proposal.
 
@@ -245,16 +290,27 @@ class FederatedConsensus:
             topic: Short description of the proposal.
             payload: Proposal-specific data.
             timeout: Auto-expire timeout in seconds.
+            is_critical: Whether this proposal requires full quorum voting.
+                In LEADER_WORKER topology, ``None`` (default) derives the
+                flag from ``critical_topics``; routine proposals are
+                arbitrated by the leader without full quorum.
 
         Returns:
             The created :class:`ConsensusProposal`.
         """
+        critical = (
+            is_critical
+            if is_critical is not None
+            else self._is_critical_topic(topic)
+        )
         proposal = ConsensusProposal(
             proposal_id=f"prop-{uuid.uuid4().hex[:12]}",
             proposer_id=proposer_id,
             topic=topic,
             payload=payload or {},
             expires_at=time.time() + (timeout or self._default_timeout),
+            topology=self._topology,
+            is_critical=critical,
         )
         self._proposals[proposal.proposal_id] = proposal
 
@@ -262,6 +318,8 @@ class FederatedConsensus:
             "proposal_id": proposal.proposal_id,
             "proposer_id": proposer_id,
             "topic": topic,
+            "topology": self._topology.value,
+            "is_critical": critical,
             "proposal_digest": proposal.proposal_digest(),
         })
         return proposal
@@ -362,6 +420,34 @@ class FederatedConsensus:
             return proposal
 
         total_votes = len(proposal.votes)
+
+        # LEADER_WORKER: leader arbitrates routine proposals directly
+        if (
+            self._topology == ConsensusTopology.LEADER_WORKER
+            and not proposal.is_critical
+        ):
+            leader_vote = next(
+                (v for v in proposal.votes if v.voter_id == self._leader_id),
+                None,
+            )
+            if leader_vote is None:
+                # Awaiting leader arbitration
+                return proposal
+            if leader_vote.choice == VoteChoice.APPROVE:
+                proposal.state = ProposalState.ACCEPTED
+            else:
+                proposal.state = ProposalState.REJECTED
+            proposal.resolved_at = time.time()
+            self._sign_resolution(proposal)
+            self._log_audit("consensus.resolve", {
+                "proposal_id": proposal_id,
+                "state": proposal.state.value,
+                "topology": "leader_worker",
+                "arbitrated_by": self._leader_id,
+                "resolution_signature": proposal.resolution_signature,
+            })
+            return proposal
+
         if total_votes < self._quorum_size:
             return proposal
 
@@ -375,20 +461,7 @@ class FederatedConsensus:
             return proposal
 
         proposal.resolved_at = time.time()
-
-        # Sign the resolution if a signer is configured
-        if self._signer is not None:
-            resolution_msg = (
-                f"{proposal.proposal_id}|{proposal.state.value}|"
-                f"{proposal.approve_count}|{proposal.reject_count}|"
-                f"{proposal.resolved_at}"
-            ).encode()
-            try:
-                sig_bytes = self._signer.sign(resolution_msg)
-                proposal.resolution_signature = sig_bytes.hex()
-                proposal.signer_fingerprint = self._signer.fingerprint
-            except Exception:
-                proposal.resolution_signature = "sign_error"
+        self._sign_resolution(proposal)
 
         self._log_audit("consensus.resolve", {
             "proposal_id": proposal_id,
@@ -398,6 +471,22 @@ class FederatedConsensus:
             "resolution_signature": proposal.resolution_signature,
         })
         return proposal
+
+    def _sign_resolution(self, proposal: ConsensusProposal) -> None:
+        """Sign a resolved proposal if a signer is configured."""
+        if self._signer is None:
+            return
+        resolution_msg = (
+            f"{proposal.proposal_id}|{proposal.state.value}|"
+            f"{proposal.approve_count}|{proposal.reject_count}|"
+            f"{proposal.resolved_at}"
+        ).encode()
+        try:
+            sig_bytes = self._signer.sign(resolution_msg)
+            proposal.resolution_signature = sig_bytes.hex()
+            proposal.signer_fingerprint = self._signer.fingerprint
+        except Exception:
+            proposal.resolution_signature = "sign_error"
 
     def get_proposal(self, proposal_id: str) -> ConsensusProposal | None:
         """Get a proposal by ID."""
@@ -442,6 +531,8 @@ class FederatedConsensus:
         return {
             "member_count": self._member_count,
             "quorum_size": self._quorum_size,
+            "topology": self._topology.value,
+            "leader_id": self._leader_id,
             "total_proposals": len(self._proposals),
             "open": open_count,
             "accepted": accepted,
@@ -452,8 +543,10 @@ class FederatedConsensus:
 
 __all__ = [
     "ConsensusProposal",
+    "ConsensusTopology",
     "ConsensusVote",
     "FederatedConsensus",
+    "FederationRole",
     "ProposalState",
     "VoteChoice",
 ]
