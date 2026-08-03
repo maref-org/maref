@@ -606,3 +606,151 @@ class TestAgentDNS:
         assert card.skills[0]["id"] == "s1"
 
 
+
+
+# ---------------------------------------------------------------------------
+# v0.44.0 I3：AgentIdentityService 统一身份编排门面
+# ---------------------------------------------------------------------------
+
+
+class TestAgentIdentityService:
+    def _service(self) -> tuple:
+        from maref.identity.agent_identity_service import AgentIdentityService
+
+        registry = DIDRegistry()
+        dns = AgentDNS(did_registry=registry)
+        service = AgentIdentityService(
+            did_registry=registry,
+            agent_dns=dns,
+        )
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        dns.register(
+            did,
+            name="researcher",
+            description="research agent",
+            endpoints=["https://agent.example.com/a2a"],
+        )
+        return service, registry, dns, did
+
+    def test_resolve_aggregates_all_views(self) -> None:
+        service, _reg, _dns, did = self._service()
+        result = service.resolve(did.did_string)
+        assert result is not None
+        assert result["status"] == "active"
+        assert result["did_document_metadata"]["version"] == 1
+        assert result["agent_card"]["name"] == "researcher"
+        assert result["trust"] is None  # 未评估
+
+    def test_resolve_unknown_did_returns_none(self) -> None:
+        service, _reg, _dns, _did = self._service()
+        assert service.resolve("did:maref:default:ghost") is None
+        assert service.resolve("not-a-did") is None
+
+    def test_resolve_agent_card_only(self) -> None:
+        service, _reg, _dns, did = self._service()
+        card = service.resolve_agent_card(did.did_string)
+        assert card is not None
+        assert card.name == "researcher"
+
+    def test_issue_requires_registered_did(self) -> None:
+        from maref.signing.signing_key import ReportSigningKey
+
+        service, _reg, _dns, did = self._service()
+        key = ReportSigningKey.generate()
+        cred = service.issue(
+            subject_did=did.did_string,
+            scope=["state_machine", "audit"],
+            signing_key=key,
+        )
+        assert cred.subject_did == did.did_string
+        assert cred.verify_signature()
+
+    def test_issue_unregistered_did_raises(self) -> None:
+        from maref.signing.signing_key import ReportSigningKey
+
+        service, _reg, _dns, _did = self._service()
+        key = ReportSigningKey.generate()
+        with pytest.raises(ValueError, match="未注册"):
+            service.issue(
+                subject_did="did:maref:default:ghost",
+                scope=["audit"],
+                signing_key=key,
+            )
+
+    def test_issue_inactive_did_raises(self) -> None:
+        from maref.signing.signing_key import ReportSigningKey
+
+        service, registry, _dns, did = self._service()
+        registry.revoke(did, reason="compromised")
+        key = ReportSigningKey.generate()
+        with pytest.raises(ValueError, match="非 active"):
+            service.issue(
+                subject_did=did.did_string,
+                scope=["audit"],
+                signing_key=key,
+            )
+
+    def test_issue_without_key_raises(self) -> None:
+        service, _reg, _dns, did = self._service()
+        with pytest.raises(ValueError, match="密钥"):
+            service.issue(subject_did=did.did_string, scope=["audit"])
+
+    def test_verify_reports_revoked(self) -> None:
+        from maref.signing.signing_key import ReportSigningKey
+
+        service, _reg, _dns, did = self._service()
+        key = ReportSigningKey.generate()
+        cred = service.issue(
+            subject_did=did.did_string,
+            scope=["state_machine"],
+            signing_key=key,
+        )
+        result = service.verify(cred)
+        assert result["valid"] is True
+        assert result["revoked"] is False
+
+        service._credential_store.revoke(cred.credential_id, reason="policy")
+        result = service.verify(cred)
+        assert result["valid"] is False
+        assert result["revoked"] is True
+        assert result["revoked_reason"] == "policy"
+
+    def test_revoke_cascades_credentials_and_card(self) -> None:
+        from maref.signing.signing_key import ReportSigningKey
+
+        service, _reg, _dns, did = self._service()
+        key = ReportSigningKey.generate()
+        service.issue(
+            subject_did=did.did_string,
+            scope=["state_machine", "audit"],
+            signing_key=key,
+        )
+        result = service.revoke(did.did_string, reason="compromised", signer="admin")
+        assert result["revoked"] is True
+        assert result["status"] == "revoked"
+        assert result["card_active"] is False
+        assert result["credential_revoked_total"] == 1
+        # 联动吊销：凭证进入吊销列表
+        assert service._credential_store.revoked_count() == 1
+
+    def test_revoke_unknown_did(self) -> None:
+        service, _reg, _dns, _did = self._service()
+        result = service.revoke("did:maref:default:ghost")
+        assert result["revoked"] is False
+
+    def test_is_active_and_list(self) -> None:
+        service, _reg, _dns, did = self._service()
+        assert service.is_active(did.did_string) is True
+        assert service.is_active("did:maref:default:ghost") is False
+        agents = service.list_agents(active_only=True)
+        assert len(agents) == 1
+        assert agents[0]["did"] == did.did_string
+
+    def test_summary(self) -> None:
+        service, _reg, _dns, _did = self._service()
+        s = service.summary()
+        assert s["agents"] == 1
+        assert s["cards"] == 1
+        assert s["credentials"] == 0
