@@ -59,6 +59,21 @@ class VerifierConsensus:
         """
         self._judges = dict(judges)
 
+    @property
+    def judges(self) -> dict[str, Any]:
+        """当前装配的法官映射（verifier name → Judge）。"""
+        return dict(self._judges)
+
+    def record_call(self, name: str, correct: bool) -> None:
+        """在 Trace 裁决后回写 verifier 的 accuracy 校准（v0.47 S13）。
+
+        用一次裁决的「正确与否」更新注册表中该 verifier 的精度统计，
+        使共识表决权重随真实表现收敛。未知 verifier 静默忽略。
+        """
+        if self._registry.get(name) is None:
+            return
+        self._registry.record_evaluation(name, correct)
+
     @security_critical
     def evaluate(
         self,

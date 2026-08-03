@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
+from maref.governance.judge import RuleJudge
 from maref.governance.verifier_consensus import ConsensusStrategy, VerifierConsensus
 from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry
 
@@ -17,7 +18,11 @@ class MAREFLoop:
     def __init__(self) -> None:
         warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
         self._registry = VerifierRegistry()
-        self._consensus = VerifierConsensus(self._registry)
+        # v0.47 S13: 装配 RuleJudge 到共识 —— 轨迹输入走真实仲裁而非仿真表决。
+        self._consensus = VerifierConsensus(
+            self._registry,
+            judges={"judge": RuleJudge()},
+        )
         self._history: list[dict[str, Any]] = []
 
     def register_verifier(self, name: str, model: str, methodology: str, accuracy: float = 0.0) -> None:

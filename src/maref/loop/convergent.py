@@ -136,7 +136,25 @@ class ConvergentLoop(LoopBase):
 
     def _evaluate(self, output: Any) -> EvaluationResult:
         if isinstance(self._evaluator, VerifierConsensus):
-            result = self._evaluator.evaluate({"output": output})
+            # v0.47 S13: 装配法官后，对输出构造 Trace 走真实仲裁；
+            # 否则保持向后兼容的 dict 仿真表决。
+            if self._evaluator.has_judges:
+                from maref.governance.trace import Trace, TraceStep
+
+                trace = Trace(
+                    trace_id=f"convergent-{self._state.round}",
+                    agent_id="convergent-loop",
+                )
+                trace.add_step(
+                    TraceStep(
+                        agent_id="convergent-loop",
+                        action=str(output)[:200],
+                        decision="evaluate",
+                    )
+                )
+                result = self._evaluator.evaluate(trace)
+            else:
+                result = self._evaluator.evaluate({"output": output})
             return EvaluationResult(
                 score=result.agreement,
                 errors=[],
