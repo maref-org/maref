@@ -98,6 +98,30 @@ class ConsensusVote:
         """Canonical message for Ed25519 signing."""
         return f"{self.voter_id}|{self.choice.value}|{self.timestamp}|{self.proposal_id}".encode()
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the vote including its Ed25519 signature (v0.47 F4)."""
+        return {
+            "voter_id": self.voter_id,
+            "choice": self.choice.value,
+            "reason": self.reason,
+            "timestamp": self.timestamp,
+            "proposal_id": self.proposal_id,
+            "signature": self.signature,
+            "signer_fingerprint": self.signer_fingerprint,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ConsensusVote:
+        return cls(
+            voter_id=data["voter_id"],
+            choice=VoteChoice(data["choice"]),
+            reason=data.get("reason", ""),
+            timestamp=float(data.get("timestamp", 0.0)),
+            proposal_id=data.get("proposal_id", ""),
+            signature=data.get("signature", ""),
+            signer_fingerprint=data.get("signer_fingerprint", ""),
+        )
+
     def verify_signature(self, public_key_pem: str) -> bool:
         """Verify the Ed25519 signature on this vote.
 
@@ -195,7 +219,30 @@ class ConsensusProposal:
             "resolution_signature": self.resolution_signature,
             "signer_fingerprint": self.signer_fingerprint,
             "proposal_digest": self.proposal_digest(),
+            # v0.47 F4: include full vote details (Ed25519 signatures) so
+            # verifiable evidence survives persistence.
+            "votes": [v.to_dict() for v in self.votes],
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ConsensusProposal:
+        """Reconstruct a proposal from :meth:`to_dict` (v0.47 F4)."""
+        proposal = cls(
+            proposal_id=data["proposal_id"],
+            proposer_id=data["proposer_id"],
+            topic=data["topic"],
+            payload=dict(data.get("payload", {})),
+            created_at=float(data.get("created_at", 0.0)),
+            expires_at=float(data.get("expires_at", 0.0)),
+            votes=[ConsensusVote.from_dict(v) for v in data.get("votes", [])],
+            state=ProposalState(data["state"]),
+            resolved_at=data.get("resolved_at"),
+            resolution_signature=data.get("resolution_signature", ""),
+            signer_fingerprint=data.get("signer_fingerprint", ""),
+            topology=ConsensusTopology(data["topology"]),
+            is_critical=bool(data.get("is_critical", False)),
+        )
+        return proposal
 
 
 class FederatedConsensus:
@@ -226,6 +273,7 @@ class FederatedConsensus:
         leader_id: str = "",
         critical_topics: set[str] | None = None,
         membership: Any | None = None,
+        db_path: Any | None = None,
     ) -> None:
         self._member_count = member_count
         self._quorum_size = quorum_size
@@ -246,6 +294,40 @@ class FederatedConsensus:
         # v0.47 F2: membership source (MembershipManager-style). When
         # provided, only tracked members may vote (fail-closed).
         self._membership = membership
+        # v0.47 F4: SQLite persistence for proposals (incl. signed votes).
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS consensus_proposals (
+                proposal_id TEXT PRIMARY KEY,
+                data        TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        rows = self._db.fetchall("SELECT proposal_id, data FROM consensus_proposals")
+        for row in rows:
+            proposal = ConsensusProposal.from_dict(json.loads(row["data"]))
+            self._proposals[proposal.proposal_id] = proposal
+
+    def _persist(self, proposal: ConsensusProposal) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO consensus_proposals (proposal_id, data) VALUES (?, ?)",
+            (proposal.proposal_id, json.dumps(proposal.to_dict())),
+        )
 
     @property
     def membership_enforced(self) -> bool:
@@ -344,6 +426,7 @@ class FederatedConsensus:
             is_critical=critical,
         )
         self._proposals[proposal.proposal_id] = proposal
+        self._persist(proposal)
 
         self._log_audit("consensus.propose", {
             "proposal_id": proposal.proposal_id,
@@ -422,6 +505,7 @@ class FederatedConsensus:
             vote.signature = "unsigned"
 
         proposal.votes.append(vote)
+        self._persist(proposal)
 
         self._log_audit("consensus.vote", {
             "proposal_id": proposal_id,
@@ -483,6 +567,7 @@ class FederatedConsensus:
                 proposal.state = ProposalState.REJECTED
             proposal.resolved_at = time.time()
             self._sign_resolution(proposal)
+            self._persist(proposal)
             self._log_audit("consensus.resolve", {
                 "proposal_id": proposal_id,
                 "state": proposal.state.value,
@@ -506,6 +591,7 @@ class FederatedConsensus:
 
         proposal.resolved_at = time.time()
         self._sign_resolution(proposal)
+        self._persist(proposal)
 
         self._log_audit("consensus.resolve", {
             "proposal_id": proposal_id,

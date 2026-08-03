@@ -15,9 +15,11 @@ The router:
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from maref.federation.policy import (
@@ -178,12 +180,48 @@ class JurisdictionPolicyRouter:
         conflict_strategy: JurisdictionConflictStrategy = JurisdictionConflictStrategy.MOST_RESTRICTIVE,
         prefer_jurisdiction: str = "",
         audit_logger: Any | None = None,
+        db_path: str | Path | None = None,
     ):
         self._configs: dict[str, JurisdictionConfig] = {}
         self._conflict_strategy = conflict_strategy
         self._prefer_jurisdiction = prefer_jurisdiction
         self._audit_logger = audit_logger
         self._decision_log: list[dict[str, Any]] = []
+        # v0.47 F4: SQLite persistence for the decision log.
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS jurisdiction_decisions (
+                seq  INTEGER PRIMARY KEY AUTOINCREMENT,
+                data TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        rows = self._db.fetchall(
+            "SELECT data FROM jurisdiction_decisions ORDER BY seq"
+        )
+        for row in rows:
+            self._decision_log.append(json.loads(row["data"]))
+
+    def _persist_decision(self, entry: dict[str, Any]) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT INTO jurisdiction_decisions (data) VALUES (?)",
+            (json.dumps(entry),),
+        )
 
     # ------------------------------------------------------------------
     # Jurisdiction management
@@ -654,6 +692,7 @@ class JurisdictionPolicyRouter:
             },
         }
         self._decision_log.append(entry)
+        self._persist_decision(entry)
         if self._audit_logger is not None:
             self._audit_logger.log(
                 event_type="compliance_decision",

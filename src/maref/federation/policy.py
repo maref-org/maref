@@ -21,9 +21,11 @@ Reference: AIP-ACPs-Technical-Analysis.md section 4.5 (Federation Policy).
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 
@@ -121,6 +123,20 @@ class PolicyRule:
             "description": self.description,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PolicyRule:
+        """Reconstruct a rule from :meth:`to_dict` output (v0.47 F4)."""
+        return cls(
+            rule_id=data["rule_id"],
+            action=data["action"],
+            scope=PolicyScope(data["scope"]),
+            decision=PolicyDecision(data["decision"]),
+            priority=int(data.get("priority", 0)),
+            conditions=dict(data.get("conditions", {})),
+            description=data.get("description", ""),
+            created_at=float(data.get("created_at", time.time())),
+        )
+
 
 @dataclass
 class PolicyEvaluationResult:
@@ -180,11 +196,89 @@ class FederationPolicyEngine:
     def __init__(
         self,
         conflict_strategy: ConflictStrategy = ConflictStrategy.FEDERATION_WINS,
+        db_path: str | Path | None = None,
     ) -> None:
         self._conflict_strategy = conflict_strategy
         self._federation_rules: dict[str, PolicyRule] = {}
         self._local_rules: dict[str, PolicyRule] = {}
         self._adhoc_rules: dict[str, PolicyRule] = {}
+        # v0.47 F4: decision log (action → decision) for auditability.
+        self._decision_log: list[dict[str, Any]] = []
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS policy_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS policy_rules (
+                rule_id TEXT PRIMARY KEY,
+                data    TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS policy_decisions (
+                seq  INTEGER PRIMARY KEY AUTOINCREMENT,
+                data TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        meta_rows = self._db.fetchall("SELECT key, value FROM policy_meta")
+        for row in meta_rows:
+            if row["key"] == "conflict_strategy":
+                self._conflict_strategy = ConflictStrategy(row["value"])
+        rows = self._db.fetchall("SELECT rule_id, data FROM policy_rules")
+        for row in rows:
+            rule = PolicyRule.from_dict(json.loads(row["data"]))
+            self._rules_for_scope(rule.scope)[rule.rule_id] = rule
+        decision_rows = self._db.fetchall(
+            "SELECT data FROM policy_decisions ORDER BY seq"
+        )
+        for row in decision_rows:
+            self._decision_log.append(json.loads(row["data"]))
+
+    def _persist_rule(self, rule: PolicyRule) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO policy_rules (rule_id, data) VALUES (?, ?)",
+            (rule.rule_id, json.dumps(rule.to_dict())),
+        )
+
+    def _delete_rule(self, rule_id: str) -> None:
+        if self._db is None:
+            return
+        self._db.execute("DELETE FROM policy_rules WHERE rule_id = ?", (rule_id,))
+
+    def _persist_decision(self, decision: dict[str, Any]) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT INTO policy_decisions (data) VALUES (?)",
+            (json.dumps(decision),),
+        )
+
+    def decision_log(self, limit: int = 500) -> list[dict[str, Any]]:
+        """Return the decision audit log (most recent last, capped)."""
+        return list(self._decision_log[-limit:])
+
+    def _record_decision(self, result: PolicyEvaluationResult) -> None:
+        """Append an evaluation to the decision log (v0.47 F4)."""
+        entry = result.to_dict()
+        self._decision_log.append(entry)
+        self._persist_decision(entry)
+        if len(self._decision_log) > 2000:
+            self._decision_log = self._decision_log[-2000:]
 
     @property
     def conflict_strategy(self) -> ConflictStrategy:
@@ -192,11 +286,17 @@ class FederationPolicyEngine:
 
     def set_conflict_strategy(self, strategy: ConflictStrategy) -> None:
         self._conflict_strategy = strategy
+        if self._db is not None:
+            self._db.execute(
+                "INSERT OR REPLACE INTO policy_meta (key, value) VALUES ('conflict_strategy', ?)",
+                (strategy.value,),
+            )
 
     def add_rule(self, rule: PolicyRule) -> None:
         """Add a rule to the appropriate layer based on its scope."""
         target = self._rules_for_scope(rule.scope)
         target[rule.rule_id] = rule
+        self._persist_rule(rule)
 
     def remove_rule(self, rule_id: str) -> bool:
         """Remove a rule from any layer.
@@ -207,6 +307,7 @@ class FederationPolicyEngine:
         for rules in (self._federation_rules, self._local_rules, self._adhoc_rules):
             if rule_id in rules:
                 del rules[rule_id]
+                self._delete_rule(rule_id)
                 return True
         return False
 
@@ -268,6 +369,16 @@ class FederationPolicyEngine:
         Returns:
             A :class:`PolicyEvaluationResult` with the final decision.
         """
+        result = self._evaluate_impl(action, context)
+        self._record_decision(result)
+        return result
+
+    def _evaluate_impl(
+        self,
+        action: str,
+        context: dict[str, Any] | None = None,
+    ) -> PolicyEvaluationResult:
+        """Core evaluation (decision log recorded by :meth:`evaluate`)."""
         context = context or {}
         fed_matches = self._matching_rules(self._federation_rules, action, context)
         local_matches = self._matching_rules(self._local_rules, action, context)

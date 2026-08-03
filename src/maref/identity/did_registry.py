@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from maref.governance.state_machine import GovernanceStateMachine
+if TYPE_CHECKING:
+    from maref.governance.state_machine import GovernanceStateMachine
 
 # 撤销事件监听器签名：fn(did_string: str, reason: str, signer: str)
 RevocationListener = Callable[[str, str, str], Any]
@@ -123,9 +126,86 @@ class DIDResolutionResult:
 
 
 class DIDRegistry:
-    def __init__(self) -> None:
+    def __init__(self, db_path: str | Path | None = None) -> None:
         self._agents: dict[AgentDID, AgentIdentityRecord] = {}
         self._revocation_listeners: list[RevocationListener] = []
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS did_registry (
+                did              TEXT PRIMARY KEY,
+                namespace        TEXT NOT NULL,
+                short_id         TEXT NOT NULL,
+                state_snapshot   TEXT NOT NULL,
+                roles            TEXT NOT NULL,
+                registered_at    REAL NOT NULL,
+                metadata         TEXT NOT NULL,
+                version          INTEGER NOT NULL,
+                status           TEXT NOT NULL,
+                revocation_entry TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        from maref.governance.state_machine import GovernanceStateMachine
+        from maref.governance.types import StateMachineSnapshot
+
+        rows = self._db.fetchall("SELECT * FROM did_registry")
+        for row in rows:
+            did = AgentDID(namespace=row["namespace"], agent_short_id=row["short_id"])
+            sm = GovernanceStateMachine.restore(
+                StateMachineSnapshot.from_dict(json.loads(row["state_snapshot"]))
+            )
+            record = AgentIdentityRecord(
+                did=did,
+                state_machine=sm,
+                roles=json.loads(row["roles"]),
+                registered_at=row["registered_at"],
+                metadata=json.loads(row["metadata"]),
+                version=row["version"],
+                status=row["status"],
+                revocation_entry=json.loads(row["revocation_entry"]),
+            )
+            self._agents[did] = record
+
+    def _persist(self, record: AgentIdentityRecord) -> None:
+        if self._db is None:
+            return
+        snapshot = record.state_machine.snapshot().to_dict()
+        self._db.execute(
+            "INSERT OR REPLACE INTO did_registry "
+            "(did, namespace, short_id, state_snapshot, roles, registered_at, "
+            "metadata, version, status, revocation_entry) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                record.did.did_string,
+                record.did.namespace,
+                record.did.agent_short_id,
+                json.dumps(snapshot),
+                json.dumps(record.roles),
+                record.registered_at,
+                json.dumps(record.metadata),
+                record.version,
+                record.status,
+                json.dumps(record.revocation_entry),
+            ),
+        )
+
+    def _delete(self, did_string: str) -> None:
+        if self._db is None:
+            return
+        self._db.execute("DELETE FROM did_registry WHERE did = ?", (did_string,))
 
     def add_revocation_listener(self, listener: RevocationListener) -> None:
         """订阅 DID 撤销事件（方案 E M3 联动机制）。
@@ -170,6 +250,7 @@ class DIDRegistry:
         )
         record.registered_at = time.time()
         self._agents[did] = record
+        self._persist(record)
         return record
 
     def resolve(self, did: AgentDID) -> AgentIdentityRecord | None:
@@ -265,6 +346,7 @@ class DIDRegistry:
             "signer": signer,
         }
         self._notify_revocation(did, reason, signer)
+        self._persist(record)
         return record
 
     def deactivate(self, did: AgentDID, reason: str = "", signer: str = "") -> AgentIdentityRecord | None:
@@ -284,6 +366,7 @@ class DIDRegistry:
             "signer": signer,
         }
         self._notify_revocation(did, reason or "deactivated", signer)
+        self._persist(record)
         return record
 
     def is_active(self, did: AgentDID) -> bool:
@@ -300,7 +383,10 @@ class DIDRegistry:
         Returns:
             The removed record if found, None otherwise.
         """
-        return self._agents.pop(did, None)
+        removed = self._agents.pop(did, None)
+        if removed is not None:
+            self._delete(did.did_string)
+        return removed
 
     def list_all(self) -> list[AgentIdentityRecord]:
         return list(self._agents.values())
