@@ -139,11 +139,15 @@ class FederatedPlanExecutor:
         action_handlers: dict[str, ActionHandler] | None = None,
         route_resolvers: dict[str, RouteResolver] | None = None,
         trust_fallback_threshold: float = 50.0,
+        boundary: Any | None = None,
     ) -> None:
         self._platform = platform
         self._gateway: FederationGateway = platform.gateway
         self._metering: TaskMeteringEngine = platform.metering
         self._trust: FederatedTrustEngine = platform.trust_engine
+        # v0.47 F3: TrustBoundary gate for federated dispatch — same gate
+        # local execution gets via GovernancePipeline (S9).
+        self._boundary = boundary
         # Inner executor handles non-federation actions.
         self._executor = PlanExecutor(
             governance_check=governance_check,
@@ -375,6 +379,18 @@ class FederatedPlanExecutor:
             provider_org=provider_org,
             consumer_org=consumer_org,
         )
+
+        # v0.47 F3: TrustBoundary gate — federated dispatch gets the same
+        # boundary check as local execution (GovernancePipeline S9).
+        if self._boundary is not None:
+            boundary_decision = self._boundary.check_no_raise(
+                action=action,
+                agent_id=consumer_org or "federated",
+                metadata={"capability": capability, "provider_org": provider_org},
+            )
+            if not boundary_decision.allowed:
+                record.error = f"TrustBoundary denied dispatch: {boundary_decision.reason}"
+                return record
 
         if not capability:
             record.error = "Missing 'required_capability' in params"
