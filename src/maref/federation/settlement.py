@@ -30,6 +30,7 @@ from typing import Any
 
 from maref.federation.metering import TaskMeteringEngine
 from maref.governance.db import DatabaseManager
+from maref.governance.trace import Trace, TraceStep
 
 
 class SettlementStatus(str, Enum):
@@ -211,6 +212,7 @@ class FederatedSettlement:
         db_path: str | Path | None = None,
         verifier_consensus: Any | None = None,
         audit_logger: Any | None = None,
+        judges: dict[str, Any] | None = None,
     ) -> None:
         self._metering = metering
         self._pricing = dict(_DEFAULT_PRICING)
@@ -220,7 +222,13 @@ class FederatedSettlement:
         self._proposals: dict[str, SettlementProposal] = {}
         self._ledger: dict[str, LedgerEntry] = {}
         # v0.44.0 F2：联邦级统一裁判接线 — 争议提交到加权法官表决。
+        # v0.46.0 J2：注入 Agent-as-a-Judge 法官，争议走真实仲裁路径。
         self._verifier_consensus = verifier_consensus
+        if self._verifier_consensus is not None and judges:
+            try:
+                self._verifier_consensus._judges = judges
+            except AttributeError:
+                pass
         self._audit_logger = audit_logger
         self._db: DatabaseManager | None = None
         if db_path is not None:
@@ -583,7 +591,9 @@ class FederatedSettlement:
         if self._verifier_consensus is None:
             return None
 
-        item = proposal.to_dict()
+        # v0.46.0 J1：争议提交为结构化 Trace，激活 Agent-as-a-Judge 真实仲裁路径。
+        # 未注入法官时 verifier 保持仿真表决（向后兼容）。
+        item: Trace | dict[str, Any] = self._proposal_to_trace(proposal)
         kwargs: dict[str, Any] = {"weight_key": weight_key}
         if strategy is not None:
             kwargs["strategy"] = strategy
@@ -601,6 +611,21 @@ class FederatedSettlement:
         verdict["arbitrated"] = True
         verdict["proposal_id"] = proposal_id
         verdict["dispute_reason"] = proposal.dispute_reason
+        # v0.46.0 J3：聚合各法官证据，供事后复核（judge_name/decision/reasoning）。
+        judge_evidence: list[dict[str, Any]] = []
+        for vote in result.votes:
+            if "verdict" in vote and isinstance(vote["verdict"], dict):
+                v = vote["verdict"]
+                judge_evidence.append({
+                    "verifier": vote.get("verifier", ""),
+                    "weight": vote.get("weight", 0.0),
+                    "judge_name": v.get("judge_name", ""),
+                    "decision": v.get("decision", ""),
+                    "reasoning": v.get("reasoning", ""),
+                    "evidence_refs": list(v.get("evidence_refs", [])),
+                })
+        if judge_evidence:
+            verdict["judge_evidence"] = judge_evidence
 
         if result.passed:
             proposal.status = SettlementStatus.ACCEPTED
@@ -623,6 +648,62 @@ class FederatedSettlement:
                 metadata=verdict,
             )
         return verdict
+
+    @staticmethod
+    def _proposal_to_trace(proposal: SettlementProposal) -> Trace:
+        """把争议提案转为结构化执行轨迹（v0.46.0 J1）。
+
+        将结算争议还原为可供法官仲裁的 TraceStep 序列：
+        - 每笔计费条目（BillingEntry）→ 一条 TraceStep（action=billing.entry）
+        - 争议声明（dispute）→ 一条 TraceStep（action=settlement.dispute）
+        - 结算金额汇总 → 一条 TraceStep（action=settlement.summary）
+
+        法官据此对"金额是否合理/条目是否越界"做模式仲裁。
+        """
+        trace = Trace(
+            trace_id=f"dispute-{proposal.proposal_id}",
+            agent_id=f"{proposal.consumer_org}->{proposal.provider_org}",
+        )
+        for entry in proposal.entries:
+            trace.add_step(
+                TraceStep(
+                    agent_id=entry.agent_did,
+                    action="billing.entry",
+                    decision=(
+                        "credit" if entry.amount >= 0 else "debit"
+                    ),
+                    context_hash=entry.entry_id,
+                    ts=entry.timestamp,
+                    metadata={
+                        "provider_org": entry.provider_org,
+                        "consumer_org": entry.consumer_org,
+                        "task_id": entry.task_id,
+                        "metric_id": entry.metric_id,
+                        "amount": round(entry.amount, 4),
+                    },
+                )
+            )
+        if proposal.dispute_reason:
+            trace.add_step(
+                TraceStep(
+                    agent_id=proposal.consumer_org,
+                    action="settlement.dispute",
+                    decision=proposal.dispute_reason,
+                    metadata={"proposal_id": proposal.proposal_id},
+                )
+            )
+        trace.add_step(
+            TraceStep(
+                agent_id=proposal.provider_org,
+                action="settlement.summary",
+                decision=f"total={round(proposal.total_amount, 4)}",
+                metadata={
+                    "proposal_id": proposal.proposal_id,
+                    "entry_count": len(proposal.entries),
+                },
+            )
+        )
+        return trace
 
     def get_proposal(self, proposal_id: str) -> SettlementProposal | None:
         return self._proposals.get(proposal_id)
