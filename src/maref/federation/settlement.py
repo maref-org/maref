@@ -100,6 +100,8 @@ class SettlementProposal:
     resolved_at: float | None = None
     rejection_reason: str = ""
     dispute_reason: str = ""
+    # v0.44.0 F2：争议仲裁溯源 verdict（加权法官表决结果）。
+    verdict: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -115,6 +117,7 @@ class SettlementProposal:
             "resolved_at": self.resolved_at,
             "rejection_reason": self.rejection_reason,
             "dispute_reason": self.dispute_reason,
+            "verdict": dict(self.verdict),
         }
 
 
@@ -206,6 +209,8 @@ class FederatedSettlement:
         metering: TaskMeteringEngine,
         pricing_rules: dict[str, float] | None = None,
         db_path: str | Path | None = None,
+        verifier_consensus: Any | None = None,
+        audit_logger: Any | None = None,
     ) -> None:
         self._metering = metering
         self._pricing = dict(_DEFAULT_PRICING)
@@ -214,6 +219,9 @@ class FederatedSettlement:
         self._billing_entries: list[BillingEntry] = []
         self._proposals: dict[str, SettlementProposal] = {}
         self._ledger: dict[str, LedgerEntry] = {}
+        # v0.44.0 F2：联邦级统一裁判接线 — 争议提交到加权法官表决。
+        self._verifier_consensus = verifier_consensus
+        self._audit_logger = audit_logger
         self._db: DatabaseManager | None = None
         if db_path is not None:
             self._db = DatabaseManager(db_path)
@@ -541,6 +549,70 @@ class FederatedSettlement:
         proposal.resolved_at = time.time()
         self._persist_proposal(proposal)
         return True
+
+    def arbitrate_dispute(
+        self,
+        proposal_id: str,
+        strategy: Any | None = None,
+        weight_key: str = "accuracy",
+    ) -> dict[str, Any] | None:
+        """将争议提交到加权法官表决（v0.44.0 F2 联邦级统一裁判）。
+
+        仅对 DISPUTED 提案生效。争议内容（``SettlementProposal.to_dict``）
+        进入 :class:`VerifierConsensus.evaluate` 加权表决，输出可溯源
+        verdict（含逐票记录、策略与一致率）：
+
+        - 表决通过（``passed``）→ 争议成立，提案回到 ACCEPTED，可继续结算；
+        - 表决不通过 → 争议驳回，提案置 REJECTED。
+
+        verdict 写入 ``proposal.verdict`` 并通过 audit_logger 写审计链
+        （event_type=``settlement.arbitration``），供事后复核。
+
+        Args:
+            proposal_id: 待仲裁的争议提案 ID。
+            strategy: 表决策略（缺省用 VerifierConsensus 默认）。
+            weight_key: 加权键（缺省 accuracy）。
+
+        Returns:
+            溯源 verdict dict；提案不存在/非 DISPUTED/未接线共识引擎时
+            返回 None。
+        """
+        proposal = self._proposals.get(proposal_id)
+        if proposal is None or proposal.status != SettlementStatus.DISPUTED:
+            return None
+        if self._verifier_consensus is None:
+            return None
+
+        item = proposal.to_dict()
+        kwargs: dict[str, Any] = {"weight_key": weight_key}
+        if strategy is not None:
+            kwargs["strategy"] = strategy
+        result = self._verifier_consensus.evaluate(item, **kwargs)
+        verdict: dict[str, Any] = result.to_dict()
+        verdict["proposal_id"] = proposal_id
+        verdict["dispute_reason"] = proposal.dispute_reason
+
+        if result.passed:
+            proposal.status = SettlementStatus.ACCEPTED
+        else:
+            proposal.status = SettlementStatus.REJECTED
+            proposal.rejection_reason = f"arbitration: {proposal.dispute_reason}"
+        proposal.resolved_at = time.time()
+        proposal.verdict = verdict
+        self._persist_proposal(proposal)
+
+        if self._audit_logger is not None:
+            self._audit_logger.log(
+                event_type="settlement.arbitration",
+                actor="federated_settlement",
+                action="arbitrate_dispute",
+                details=(
+                    f"proposal={proposal_id} passed={result.passed} "
+                    f"agreement={result.agreement:.3f}"
+                ),
+                metadata=verdict,
+            )
+        return verdict
 
     def get_proposal(self, proposal_id: str) -> SettlementProposal | None:
         return self._proposals.get(proposal_id)
