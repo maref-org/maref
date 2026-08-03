@@ -73,6 +73,8 @@ class A2ABridge:
         agent_description: str = "MAREF-governed agent",
         trajectory_collector: TrajectoryCollector | None = None,
         protocol_bridge: Any | None = None,
+        agent_dns: Any | None = None,
+        agent_did: str | None = None,
     ) -> None:
         """Initialize the A2A bridge with governance components.
 
@@ -83,6 +85,12 @@ class A2ABridge:
             agent_name: Name exposed in the Agent Card.
             agent_description: Description exposed in the Agent Card.
             trajectory_collector: Optional trajectory collector for D2/D3 data.
+            protocol_bridge: Optional MCP-A2A adapter bridge (方案 A D4).
+            agent_dns: Optional :class:`~maref.identity.agent_dns.AgentDNS`;
+                when set together with ``agent_did``, the served Agent Card
+                is generated from AgentDNS resolution (方案 E M2 / I2).
+            agent_did: The agent's MAREF DID string; the Agent Card is only
+                published while the DID lifecycle is active.
         """
         self._sm = state_machine
         self._audit = audit_logger
@@ -94,6 +102,9 @@ class A2ABridge:
         self._capabilities: list[A2ASkillDefinition] = []
         # 可选协议桥：启用 A2A 能力在 MCP 生态的可见性（方案 A D4）
         self._protocol_bridge = protocol_bridge
+        # 可选 AgentDNS：Agent Card 由 DID → AgentCard 解析生成（方案 E M2）
+        self._agent_dns = agent_dns
+        self._agent_did = agent_did
         self._lock = asyncio.Lock()
         self._state_queues: dict[str, asyncio.Queue[A2ATaskState]] = {}
         self._trajectory = trajectory_collector or TrajectoryCollector()
@@ -144,8 +155,12 @@ class A2ABridge:
     def build_agent_card(self, base_url: str = "http://localhost:8000") -> dict[str, Any]:
         """Build an A2A Agent Card for service discovery.
 
-        Constructs a dictionary conforming to the A2A Agent Card schema,
-        including agent metadata, protocol version, capabilities, and skills.
+        When an ``agent_dns`` + ``agent_did`` are configured, the card is
+        generated from :meth:`AgentDNS.resolve` (方案 E M2 / I2) — the card
+        is only served while the DID lifecycle is ``active``; a revoked or
+        deactivated DID raises :class:`CommunicationBlockedError`.
+
+        Otherwise falls back to the legacy in-bridge card construction.
 
         Args:
             base_url: The base URL where this agent is reachable.
@@ -154,10 +169,14 @@ class A2ABridge:
             A dictionary representing the Agent Card.
 
         Raises:
-            CommunicationBlockedError: If the circuit breaker is open.
+            CommunicationBlockedError: If the circuit breaker is open, or
+                the configured agent DID is revoked/deactivated.
             ValueError: If the generated card fails schema validation.
         """
         self._check_circuit_breaker()
+        if self._agent_dns is not None and self._agent_did:
+            return self._build_agent_card_from_dns(base_url)
+
         skills = [
             {
                 "id": cap.id,
@@ -190,6 +209,35 @@ class A2ABridge:
         if not validate_agent_card_json(card):
             raise ValueError("Generated AgentCard does not pass schema validation")
         return card
+
+    def _build_agent_card_from_dns(self, base_url: str) -> dict[str, Any]:
+        """从 AgentDNS 解析生成 Agent Card（方案 E M2 / I2）。
+
+        DID 生命周期非 active（未注册/撤销/停用）时解析失败，
+        抛 :class:`CommunicationBlockedError`，agent-card 端点据此
+        不再对外发布该能力目录。
+        """
+        from maref.identity.agent_dns import AgentDID
+
+        did = AgentDID.parse(self._agent_did)
+        card = self._agent_dns.resolve(did)
+        if card is None:
+            raise CommunicationBlockedError(
+                f"Agent DID {self._agent_did} revoked/deactivated/unregistered"
+                " — Agent Card unavailable"
+            )
+        a2a_card = card.to_a2a_card(base_url=base_url)
+        a2a_card["protocolVersion"] = A2A_PROTOCOL_VERSION
+        if not validate_agent_card_json(a2a_card):
+            raise ValueError("AgentDNS AgentCard does not pass schema validation")
+        self._audit.log(
+            event_type="a2a_agent_card_dns",
+            actor=self._name,
+            action="build_agent_card",
+            details=f"Agent Card resolved via AgentDNS for {self._agent_did}",
+            metadata={"did": self._agent_did, "status": card.status},
+        )
+        return a2a_card
 
     def build_mcp_tools(self) -> list[dict[str, Any]]:
         """将本 agent 的 A2A 能力映射为 MCP tool 定义。
