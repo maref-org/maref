@@ -132,9 +132,14 @@ def test_governance_exports_trust_boundary_symbols() -> None:
 
 def test_legacy_security_trust_boundary_deprecated() -> None:
     """Importing the legacy module emits a DeprecationWarning."""
+    import importlib
+
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        import maref.security.trust_boundary  # noqa: F401
+        module = importlib.import_module("maref.security.trust_boundary")
+        # Reload to re-trigger the module-level warning regardless of
+        # whether an earlier test already imported the module.
+        importlib.reload(module)
 
     assert any(issubclass(w.category, DeprecationWarning) for w in caught), (
         "legacy maref.security.trust_boundary must emit DeprecationWarning"
