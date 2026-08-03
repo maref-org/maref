@@ -323,8 +323,24 @@ PROFILE_REGISTRY: dict[str, JurisdictionProfile] = {
 
 
 def get_profile(code: str) -> JurisdictionProfile:
-    """按代码取辖区画像；未知辖区返回一个宽松的默认画像（fail-open 记录侧）。"""
-    return PROFILE_REGISTRY.get(code, JurisdictionProfile(code=code, name=code))
+    """按代码取辖区画像。
+
+    未知辖区返回 fail-closed 的严格画像（v0.47 R1）：所有风险等级强制
+    ENFORCE（此前是宽松 OBSERVE 的 fail-open，监管语义下不应默认放行）。
+    """
+    known = PROFILE_REGISTRY.get(code)
+    if known is not None:
+        return known
+    return JurisdictionProfile(
+        code=code,
+        name=code,
+        enforcement_table={
+            "low": EnforcementLevel.ENFORCE,
+            "medium": EnforcementLevel.ENFORCE,
+            "high": EnforcementLevel.ENFORCE,
+            "irreversible": EnforcementLevel.ENFORCE,
+        },
+    )
 
 
 __all__ = [
