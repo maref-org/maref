@@ -20,7 +20,6 @@ _STUB_MODULES = [
     "maref.integration.a2a_types",
     "maref.integration.a2a_client",
     "maref.integration.a2a_discovery",
-    "maref.integration.a2a_secure_transport",
     "maref.integration.a2a_server",
     "maref.integration.deerflow_bridge",
     "maref.integration.flag_bridge",
