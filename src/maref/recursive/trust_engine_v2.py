@@ -241,6 +241,24 @@ class TrustEngineV2:
         if profile:
             profile.peer_ratings[rater_id] = min(1.0, max(0.0, rating))
 
+    def adjust_behavioral_consistency(self, agent_id: str, delta: float) -> None:
+        """调整 agent 的行为一致性因子（S2 行为审计闭环反馈）。
+
+        行为异常探针据此将行为信号反馈到信任评分：delta 为带符号的
+        调整量（负值降信任），结果 clamp 到 [0.0, 1.0]。未注册 agent
+        自动注册以支持探针实时接入。
+
+        Args:
+            agent_id: 目标 agent 标识（DID 字符串或名称）。
+            delta: 行为一致性增量，如 -0.3（critical 异常）。
+        """
+        profile = self._profiles.get(agent_id)
+        if profile is None:
+            profile = self.register_agent(agent_id)
+        new_val = min(1.0, max(0.0, profile.behavioral_consistency + delta))
+        profile.behavioral_consistency = new_val
+        profile.last_active_at = time.time()
+
     def record_task(
         self,
         agent_id: str,
