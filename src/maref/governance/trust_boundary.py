@@ -28,6 +28,17 @@ from maref.security.decorators import security_critical
 _DEFAULT_ALLOWED_DOMAINS: set[str] = {"local", "filesystem", "readonly"}
 
 
+def _subjects_match(subject_did: str, agent_id: str) -> bool:
+    """Whether a scope's subject DID matches the requesting agent id.
+
+    Accepts both full DID (``did:maref:agent-01``) and short id
+    (``agent-01``) forms by comparing the trailing identifier.
+    """
+    if subject_did == agent_id:
+        return True
+    return subject_did.endswith(f":{agent_id}") or subject_did.endswith(f"/{agent_id}")
+
+
 @dataclass
 class BoundaryDecision:
     """一次边界校验的裁决结果。"""
@@ -89,11 +100,14 @@ class TrustBoundaryManager:
         audit_logger: Any | None = None,
         allowed_domains: set[str] | None = None,
         fail_closed: bool = True,
+        issuer_public_keys: dict[str, str] | None = None,
     ) -> None:
         self.scope = scope
         self._audit_logger = audit_logger
         self.allowed_domains = set(allowed_domains or _DEFAULT_ALLOWED_DOMAINS)
         self.fail_closed = fail_closed
+        # issuer DID → Ed25519 public key PEM (v0.47 S12 scope anti-forgery).
+        self.issuer_public_keys = dict(issuer_public_keys or {})
         self._decisions: list[BoundaryDecision] = []
 
     # -- 主入口 --
@@ -166,6 +180,36 @@ class TrustBoundaryManager:
                 reason=f"impact_scope '{impact_scope}' 不在允许域 {sorted(self.allowed_domains)} 内",
                 assessment=assessment,
             )
+
+        # v0.47 S12: agent_id 绑定 — scope 的 subject_did 必须等于执行 agent。
+        # 兼容 DID 与短名两种标识：subject_did="did:maref:agent-01" 与
+        # agent_id="agent-01" 视为同一主体。
+        if self.scope is not None and not _subjects_match(
+            self.scope.subject_did, agent_id
+        ):
+            return BoundaryDecision(
+                action=action,
+                agent_id=agent_id,
+                allowed=False,
+                reason=(
+                    f"授权范围 subject_did={self.scope.subject_did} "
+                    f"与执行 agent={agent_id} 不匹配"
+                ),
+                assessment=assessment,
+            )
+
+        # v0.47 S12: scope 防伪 — 签发者签名须与其公钥匹配（配置公钥表时）。
+        if self.scope is not None and self.scope.issuer in self.issuer_public_keys:
+            if not self.scope.verify_signature(
+                self.issuer_public_keys[self.scope.issuer]
+            ):
+                return BoundaryDecision(
+                    action=action,
+                    agent_id=agent_id,
+                    allowed=False,
+                    reason=f"授权范围签发者签名无效（issuer={self.scope.issuer}）",
+                    assessment=assessment,
+                )
 
         # LOW/MEDIUM 自动放行；若已配置授权范围，仍需动作在授权列表内。
         if assessment.risk_level in (RiskLevel.LOW, RiskLevel.MEDIUM):
