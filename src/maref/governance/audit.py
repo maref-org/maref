@@ -357,11 +357,11 @@ class AuditLogger:
         Returns:
             A dict with integrity verification results.
         """
-        entries = self.read_all(max_entries=None)
-        total = len(entries)
+        entries, unparsable_ids = self._load_entries_for_verify()
+        total = len(entries) + len(unparsable_ids)
         signed = sum(1 for e in entries if e.signature_type != "unsigned")
         valid = 0
-        issues: list[str] = []
+        issues: list[str] = list(unparsable_ids)
         unverifiable: list[str] = []
         previous_chain_hash = ""
         hmac_key = self._resolve_hmac_key_for_verify()
@@ -369,22 +369,34 @@ class AuditLogger:
         if pub_key is None and self._ed25519_keypair is not None:
             pub_key = self._ed25519_keypair.public_key_pem
 
+        # 判断当前验证密钥是否有效：若日志中至少有一条签名验证通过，则
+        # 密钥正确，其余签名不匹配的条目即为篡改；若全部不匹配，则属于
+        # 历史密钥轮换，应归为 unverifiable 而非 tampered。
+        key_valid = False
+        for entry in entries:
+            sig_type = entry.signature_type
+            if sig_type == "ed25519":
+                if pub_key is not None and self._verify_entry_signature(entry, pub_key):
+                    key_valid = True
+                    break
+            elif sig_type == "hmac":
+                if hmac_key is not None and self._verify_hmac_signature(entry, hmac_key):
+                    key_valid = True
+                    break
+
         for entry in entries:
             chain_ref_ok = entry.previous_hash == previous_chain_hash
 
             sig_type = entry.signature_type
             if sig_type == "unsigned":
-                if not chain_ref_ok:
-                    issues.append(entry.id)
-                else:
-                    unverifiable.append(entry.id)
+                # 无签名条目无法证明完整性，视为完整性破坏。
+                issues.append(entry.id)
                 previous_chain_hash = entry.chain_hash
                 continue
 
-            # chain_hash is the authoritative anti-tamper proof: if it verifies,
-            # the entry bytes are intact even when the signature key is unknown
-            # (historical key rotation).  Distinguish those from real tampering.
-            chain_ok = entry.chain_hash and self._verify_chain_hash(entry)
+            # chain_hash 是权威防篡改证明：不匹配即篡改，无论签名是否有效
+            # （签名只覆盖 payload，不覆盖 chain_hash 字段本身）。
+            chain_ok = bool(entry.chain_hash) and self._verify_chain_hash(entry)
 
             sig_ok = False
             if sig_type == "ed25519":
@@ -394,14 +406,16 @@ class AuditLogger:
                 if hmac_key is not None:
                     sig_ok = self._verify_hmac_signature(entry, hmac_key)
 
-            if sig_ok:
-                valid += 1
-            elif chain_ok:
-                # Signature key no longer available (key rotation) but the data
-                # chain is intact -> not tampered, just no longer verifiable.
-                unverifiable.append(entry.id)
-            else:
+            if not chain_ok:
                 issues.append(entry.id)
+            elif sig_ok:
+                valid += 1
+            elif key_valid:
+                # 密钥有效但该条目签名不匹配 -> 签名被篡改。
+                issues.append(entry.id)
+            else:
+                # 密钥轮换（整条日志均无法验证）-> 数据链完整，仅不可验证。
+                unverifiable.append(entry.id)
 
             if not chain_ref_ok:
                 issues.append(entry.id)
@@ -417,6 +431,61 @@ class AuditLogger:
             "unverifiable_entries": sorted(set(unverifiable)),
             "integrity_intact": len(unique_issues) == 0,
         }
+
+    def _load_entries_for_verify(self) -> tuple[list[AuditEntry], list[str]]:
+        """Load all entries plus ids of unparsable raw lines.
+
+        ``read_all`` silently skips malformed or missing-field lines, which
+        would let a hand-edited tampered line pass integrity verification.
+        Verification therefore reads the raw lines itself and reports any
+        line it cannot parse as an AuditEntry as tampered.
+        """
+        if self._path is None:
+            return list(self._memory_entries), []
+        if not self._path.exists():
+            return [], []
+        entries: list[AuditEntry] = []
+        unparsable: list[str] = []
+        with open(self._path) as f:
+            for lineno, line in enumerate(f, 1):
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                try:
+                    data = json.loads(stripped)
+                    entry = self._entry_from_dict(data)
+                    if entry is None:
+                        unparsable.append(f"<line-{lineno}>")
+                        continue
+                    entries.append(entry)
+                except (json.JSONDecodeError, TypeError):
+                    unparsable.append(f"<line-{lineno}>")
+        return entries, unparsable
+
+    @staticmethod
+    def _entry_from_dict(data: dict[str, Any]) -> AuditEntry | None:
+        """Build an AuditEntry from a parsed dict, or None if fields are missing."""
+        try:
+            return AuditEntry(
+                id=data["id"],
+                timestamp=data["timestamp"],
+                event_type=data["event_type"],
+                actor=data["actor"],
+                action=data["action"],
+                details=data["details"],
+                metadata=data.get("metadata", {}),
+                parent_action_id=data.get("parent_action_id", ""),
+                previous_hash=data.get("previous_hash", ""),
+                chain_hash=data.get("chain_hash", ""),
+                hmac_signature=data.get("hmac_signature", ""),
+                ed25519_signature=data.get("ed25519_signature", ""),
+                signer_fingerprint=data.get("signer_fingerprint", ""),
+                tenant_id=data.get("tenant_id", ""),
+                layer=data.get("layer", "governance"),
+                round=data.get("round", 0),
+            )
+        except (KeyError, TypeError, ValueError):
+            return None
 
     def log(
         self,
