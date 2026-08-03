@@ -231,6 +231,13 @@ class FederatedConsensus:
         self._signer = signer
         self._audit_logger = audit_logger
         self._topology = topology
+        if (
+            topology == ConsensusTopology.LEADER_WORKER
+            and not leader_id
+        ):
+            raise ValueError(
+                "LEADER_WORKER 拓扑必须指定 leader_id，否则常规决议无法仲裁"
+            )
         self._leader_id = leader_id
         self._critical_topics = critical_topics or set()
 

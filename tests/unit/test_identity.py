@@ -731,7 +731,7 @@ class TestAgentIdentityService:
         assert result["revoked"] is True
         assert result["status"] == "revoked"
         assert result["card_active"] is False
-        assert result["credential_revoked_total"] == 1
+        assert result["credentials_revoked"] == 1
         # 联动吊销：凭证进入吊销列表
         assert service._credential_store.revoked_count() == 1
 
@@ -754,3 +754,100 @@ class TestAgentIdentityService:
         assert s["agents"] == 1
         assert s["cards"] == 1
         assert s["credentials"] == 0
+
+
+class TestDIDRevocationIdempotent:
+    def test_revoke_twice_no_version_bump(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        first = registry.revoke(did, reason="r1")
+        version_after_first = first.version
+        again = registry.revoke(did, reason="r2")
+        assert again.version == version_after_first
+        assert again.revocation_entry["reason"] == "r1"
+
+    def test_revoke_twice_single_notification(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        notified: list[str] = []
+        registry.add_revocation_listener(
+            lambda ds, r, s: notified.append(ds)
+        )
+        registry.revoke(did, reason="r1")
+        registry.revoke(did, reason="r2")
+        assert notified == [did.did_string]
+
+    def test_deactivate_notifies_default_reason(self) -> None:
+        registry = DIDRegistry()
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        events: list[tuple] = []
+        registry.add_revocation_listener(
+            lambda ds, r, s: events.append((ds, r))
+        )
+        registry.deactivate(did)  # 无 reason
+        assert events == [(did.did_string, "deactivated")]
+
+
+class TestIdentityServiceKeyBinding:
+    def _registered_with_key(self) -> tuple:
+        from maref.identity.agent_identity_service import AgentIdentityService
+        from maref.signing.signing_key import ReportSigningKey
+
+        registry = DIDRegistry()
+        dns = AgentDNS(did_registry=registry)
+        service = AgentIdentityService(did_registry=registry, agent_dns=dns)
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        key = ReportSigningKey.generate()
+        record = registry.register(did, sm)
+        record.metadata["ed25519_public_key_pem"] = key.public_key_pem
+        return service, did, key
+
+    def test_matching_key_issues(self) -> None:
+        service, did, key = self._registered_with_key()
+        cred = service.issue(
+            subject_did=did.did_string,
+            scope=["audit"],
+            signing_key=key,
+        )
+        assert cred.verify_signature()
+
+    def test_mismatched_key_rejected(self) -> None:
+        from maref.signing.signing_key import ReportSigningKey
+
+        service, did, _key = self._registered_with_key()
+        other = ReportSigningKey.generate()
+        with pytest.raises(ValueError, match="不匹配"):
+            service.issue(
+                subject_did=did.did_string,
+                scope=["audit"],
+                signing_key=other,
+            )
+
+    def test_verify_reflects_subject_inactive(self) -> None:
+        from maref.identity.agent_identity_service import AgentIdentityService
+        from maref.signing.signing_key import ReportSigningKey
+
+        registry = DIDRegistry()
+        dns = AgentDNS(did_registry=registry)
+        service = AgentIdentityService(did_registry=registry, agent_dns=dns)
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        registry.register(did, sm)
+        key = ReportSigningKey.generate()
+        cred = service.issue(
+            subject_did=did.did_string,
+            scope=["audit"],
+            signing_key=key,
+        )
+        assert service.verify(cred)["valid"] is True
+        # 撤销 DID（联动吊销凭证）→ verify 反映无效
+        registry.revoke(did, reason="x")
+        result = service.verify(cred)
+        assert result["valid"] is False

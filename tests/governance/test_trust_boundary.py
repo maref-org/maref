@@ -180,3 +180,51 @@ class TestTrustBoundaryDecisionHistory:
         assert d["action"] == "file.read"
         assert d["allowed"] is True
         assert d["risk_level"] == "LOW"
+
+
+class TestTrustBoundaryRealAuditLogger:
+    def test_real_audit_logger_writes_chain(self, tmp_path) -> None:
+        from maref.governance.audit import AuditLogger
+
+        logger = AuditLogger(tmp_path / "audit.jsonl")
+        boundary = TrustBoundaryManager(audit_logger=logger)
+        with pytest.raises(BoundaryViolationError):
+            boundary.check("payment:transfer", agent_id="agent-01")
+        entries = logger.read_all()
+        assert len(entries) == 1
+        assert entries[0].event_type == "trust_boundary_check"
+        assert entries[0].actor == "agent-01"
+        assert entries[0].action == "payment:transfer"
+
+    def test_real_audit_bus_writes_chain(self) -> None:
+        from maref.governance.audit_bus import AuditBus
+
+        bus = AuditBus()
+        boundary = TrustBoundaryManager(audit_logger=bus)
+        with pytest.raises(BoundaryViolationError):
+            boundary.check("payment:transfer", agent_id="agent-01")
+        recent = bus.query_recent(10)
+        assert any(e.event_type == "trust_boundary_check" for e in recent)
+
+
+class TestTrustBoundaryScopeForLowRisk:
+    def test_medium_in_scope_allowed(self) -> None:
+        scope = AuthorizationScope.issue(
+            subject_did="did:maref:agent-01",
+            max_risk_level="MEDIUM",
+            allowed_actions=["file.write"],
+        )
+        boundary = TrustBoundaryManager(scope=scope)
+        decision = boundary.check("file.write", agent_id="agent-01")
+        assert decision.allowed is True
+
+    def test_medium_out_of_scope_blocked(self) -> None:
+        scope = AuthorizationScope.issue(
+            subject_did="did:maref:agent-01",
+            max_risk_level="MEDIUM",
+            allowed_actions=["file.read"],
+        )
+        boundary = TrustBoundaryManager(scope=scope)
+        with pytest.raises(BoundaryViolationError) as excinfo:
+            boundary.check("file.write", agent_id="agent-01")
+        assert "授权范围" in excinfo.value.details["reason"]

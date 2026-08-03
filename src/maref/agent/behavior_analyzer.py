@@ -342,8 +342,6 @@ _SEVERITY_DELTA = {
 }
 # 触发熔断器降级的异常严重度
 _TRIP_SEVERITIES = {"critical"}
-# 单 agent 窗口内异常计数达到该值也触发降级
-_TRIP_THRESHOLD = 3
 
 
 def audit_entry_to_agent_event(entry: Any) -> AgentEvent:
@@ -452,11 +450,19 @@ class RuntimeBehaviorProbe:
     def _on_event(self, entry: Any) -> None:
         if not self._is_behavioral_event(entry):
             return
-        event = audit_entry_to_agent_event(entry)
+        try:
+            event = audit_entry_to_agent_event(entry)
+        except Exception:
+            # 单条事件适配失败不应击穿审计发布链路。
+            logger.warning("behavior probe: 审计事件适配失败 event_type=%s", getattr(entry, "event_type", "?"))
+            return
         events = self._events.setdefault(event.agent_id, [])
         events.append(event)
         if len(events) >= self._window_size:
-            self._analyze_window(event.agent_id, events)
+            try:
+                self._analyze_window(event.agent_id, events)
+            except Exception:
+                logger.exception("behavior probe: 行为窗口分析失败 agent=%s", event.agent_id)
 
     def _analyze_window(self, agent_id: str, events: list[AgentEvent]) -> None:
         baseline = build_baseline(events)
@@ -472,12 +478,11 @@ class RuntimeBehaviorProbe:
         self._trust.adjust_behavioral_consistency(anomaly.agent_id, delta)
         count = self._anomaly_counts.get(anomaly.agent_id, 0) + 1
         self._anomaly_counts[anomaly.agent_id] = count
+        # 仅 critical 异常触发全局熔断降级；非 critical 只扣信任分，
+        # 避免任一 agent 的低危异常拖累整个联邦。
         if (
             self._cb is not None
-            and (
-                anomaly.severity in _TRIP_SEVERITIES
-                or count >= _TRIP_THRESHOLD
-            )
+            and anomaly.severity in _TRIP_SEVERITIES
             and not self._cb.is_open
         ):
             self._cb.force_open(
