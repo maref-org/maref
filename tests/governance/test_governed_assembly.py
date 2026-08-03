@@ -60,3 +60,29 @@ class TestGovernedPipelineAssembly:
             )
         )
         assert result.verdict == Verdict.ALLOW
+
+
+class TestClosedLoopAudit:
+    def test_governance_decision_reaches_behavior_probe(self, tmp_path: Path) -> None:
+        """W2: a governance decision published to the shared audit_bus is
+        received by the behavior probe (closed loop)."""
+        from maref.governance.governed_pipeline import GovernedPipeline
+
+        gp = GovernedPipeline(audit_path=str(tmp_path / "audit.jsonl"))
+        # Pre-warm the probe window so the event lands in its buffer.
+        probe = gp.behavior_probe
+        bus = gp.audit_bus
+
+        # Trigger a governance decision through the pipeline.
+        gp.pipeline.govern(
+            GovernanceRequest(
+                action="file.read", agent_id="agent-a", trust_score=80, role=""
+            )
+        )
+
+        # The probe must have received the audit event (actor=agent-a).
+        assert any(
+            ev.agent_id == "agent-a"
+            for events in probe._events.values()
+            for ev in events
+        )
