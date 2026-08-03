@@ -69,6 +69,11 @@ from maref.governance.trust_bridge import (
     RecursiveEventType,
 )
 from maref.governance.types import GovernanceState, StateMachineSnapshot, StateTransition
+from maref.governance.verifiable_governance_credential import (
+    GOVERNANCE_SCOPES,
+    GovernanceCredentialStore,
+    VerifiableGovernanceCredential,
+)
 from maref.governance.verifier_consensus import (
     ConsensusResult,
     ConsensusStrategy,
@@ -103,6 +108,10 @@ __all__ = [
     "RecursiveEventType",
     "ThreatGovernanceBridge",
     "ThreatGovernanceMapping",
+    # Verifiable Governance Credential
+    "VerifiableGovernanceCredential",
+    "GovernanceCredentialStore",
+    "GOVERNANCE_SCOPES",
     # Verifier Registry
     "VerifierRegistry",
     "VerifierEntry",

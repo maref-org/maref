@@ -42,6 +42,7 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 
+from maref.eivl.federated_merkle import FederatedMerkleAggregator
 from maref.federation.bootstrap import PEERS_ENDPOINT_PATH
 from maref.federation.gateway import FederatedAgent, FederationRequest
 from maref.federation.identity_service import IdentityService
@@ -57,6 +58,11 @@ from maref.federation.policy_subscriber import (
 )
 from maref.federation.settlement_reconciler import SettlementReconciler
 from maref.federation.trust import FederatedTrustEngine, PeerTrustReport
+from maref.governance.verifiable_governance_credential import (
+    GovernanceCredentialStore,
+    VerifiableGovernanceCredential,
+)
+from maref.signing.signing_key import ReportSigningKey
 
 _ADP_CATALOG_PATH = "/.well-known/adp/catalog"
 _NETWORK_MEMBERS_PATH = "/api/v1/federation/network/members"
@@ -131,6 +137,9 @@ def create_federation_app(
     settlement: Any | None = None,
     identity_service: IdentityService | None = None,
     jurisdiction_router: Any | None = None,
+    governance_credentials: GovernanceCredentialStore | None = None,
+    credential_signing_key: ReportSigningKey | None = None,
+    merkle_aggregator: FederatedMerkleAggregator | None = None,
 ) -> FastAPI:
     """Build a FastAPI app exposing the federated HTTP endpoints.
 
@@ -531,6 +540,101 @@ def create_federation_app(
             "agent_id": agent_id,
             "reports": [r.to_dict() for r in reports],
         }
+
+    # ── Verifiable Governance Credential (Phase: Agent-Internet) ────────
+
+    def _governance_credentials() -> GovernanceCredentialStore:
+        if governance_credentials is None:
+            raise HTTPException(status_code=503, detail="governance credential store not configured")
+        return governance_credentials
+
+    def _credential_signing_key() -> ReportSigningKey:
+        if credential_signing_key is None:
+            raise HTTPException(status_code=503, detail="credential signing key not configured")
+        return credential_signing_key
+
+    @router.post("/api/v1/federation/governance/credential/issue")
+    def governance_credential_issue(body: dict[str, Any]) -> dict[str, Any]:
+        """签发可验证治理凭证。
+
+        body: {subject_did, issuer_did, scope[], ttl_seconds?, org_id?+root_hash?+tree_size? 或 merkle_proof?}
+        """
+        subject_did = body.get("subject_did")
+        issuer_did = body.get("issuer_did")
+        scope = body.get("scope")
+        if scope is None:
+            scope = ["audit"]
+        if not isinstance(scope, list) or not scope or not all(
+            isinstance(s, str) for s in scope
+        ):
+            raise HTTPException(
+                status_code=400, detail="scope must be a non-empty list of strings"
+            )
+        if not subject_did or not issuer_did:
+            raise HTTPException(status_code=400, detail="subject_did and issuer_did are required")
+        merkle_proof = body.get("merkle_proof") or {}
+        if not merkle_proof and body.get("org_id") and body.get("root_hash"):
+            if merkle_aggregator is None:
+                raise HTTPException(status_code=503, detail="merkle aggregator not configured")
+            org_id = body["org_id"]
+            merkle_aggregator.submit_root(
+                org_id,
+                body["root_hash"],
+                tree_size=body.get("tree_size", 0),
+            )
+            proof = merkle_aggregator.generate_proof(org_id)
+            merkle_proof = proof.to_dict() if proof else {}
+        try:
+            cred = VerifiableGovernanceCredential.issue(
+                subject_did=subject_did,
+                issuer_did=issuer_did,
+                scope=scope,
+                merkle_proof=merkle_proof,
+                signing_key=_credential_signing_key(),
+                ttl_seconds=float(body.get("ttl_seconds", 86400)),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _governance_credentials().store(cred)
+        return {"credential": cred.to_dict(), "verification": cred.verify()}
+
+    @router.get("/api/v1/federation/governance/credential/revocation-list")
+    def governance_credential_revocation_list() -> dict[str, Any]:
+        """导出吊销列表；配置签名密钥时返回带 Ed25519 签名的版本防篡改。
+
+        未配置签名密钥时降级为未签名列表（store 缺失仍 503）。
+        """
+        store = _governance_credentials()
+        if credential_signing_key is not None:
+            return store.build_signed_revocation_list(
+                credential_signing_key, server_id=server_id
+            )
+        return {"server_id": server_id, "revoked": store.revocation_list()}
+
+    @router.get("/api/v1/federation/governance/credential/{credential_id}")
+    def governance_credential_get(credential_id: str) -> dict[str, Any]:
+        """查询凭证并返回离线验证结果（监管/审计方 GET 即可核验）。"""
+        store = _governance_credentials()
+        cred = store.get(credential_id)
+        if cred is None:
+            raise HTTPException(status_code=404, detail=f"credential {credential_id} not found")
+        return {
+            "credential": cred.to_dict(),
+            "verification": cred.verify(revoked=store.is_revoked(credential_id)),
+        }
+
+    @router.post("/api/v1/federation/governance/credential/{credential_id}/revoke")
+    def governance_credential_revoke(credential_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """吊销凭证（保留历史，记录原因与来源）。"""
+        try:
+            _governance_credentials().revoke(
+                credential_id,
+                reason=body.get("reason", "unspecified"),
+                source=body.get("source", ""),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"revoked": True, "credential_id": credential_id}
 
     app.include_router(router)
     return app
