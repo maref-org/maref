@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [v0.45.0] - 2026-08-03 (监管适配层 — Jurisdiction-Aware Governance)
+
+### Added
+- **JurisdictionProfile 监管画像**: `compliance/jurisdiction_profile.py` — EnforcementLevel（OBSERVE/ADVISORY/ENFORCE）+ JurisdictionProfile 数据模型，预置三档画像（CN 生成式 AI 办法 / EU AI Act+GDPR / Global-South LGPD+DPDP+POPIA），复用 `geopolitical_risk` 与 `compliance.registry`
+- **RegulatoryPolicyMapper 策略映射**: `compliance/regulatory_policy_mapper.py` — `map_action()` 将动作风险分级 × 辖区画像映射为处置策略；ENFORCE 级动作标 `blocked=True` 可接入 TrustBoundary 强制校验
+- **凭证辖区合规映射**: `VerifiableGovernanceCredential` 新增 `compliance_mapping` + `attach_compliance_mapping()`（不参与签名 payload，保持向后兼容）；`AgentIdentityService.issue(jurisdiction=)` 签发时注入按辖区合规映射，形成「策略-执行-证明」闭环
+
+### Changed
+- 切换辖区 profile 后同一动作的 enforcement 级别自动改变（HIGH 级：CN/EU=ENFORCE，Global-South=ADVISORY）
+- IRREVERSIBLE 风险未显式配置时 fail-safe 回退 ENFORCE（最严格档）
+- 版本基线: 0.44.0 → 0.45.0
+
 ## [v0.44.0] - 2026-08-03 (三维度可验证治理闭环 — Agent 大战补强)
 
 ### Added
