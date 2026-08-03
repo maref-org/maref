@@ -54,6 +54,7 @@ class A2ASkillDefinition:
     output_modes: list[str] = field(default_factory=lambda: ["application/json"])
     input_schema: dict[str, Any] | None = None
     output_schema: dict[str, Any] | None = None
+    a2a_action: str | None = None  # MCP→A2A 映射时的目标 action；缺省 execute_task
 
 
 @dataclass

@@ -72,6 +72,7 @@ class A2ABridge:
         agent_name: str = "maref-agent",
         agent_description: str = "MAREF-governed agent",
         trajectory_collector: TrajectoryCollector | None = None,
+        protocol_bridge: Any | None = None,
     ) -> None:
         """Initialize the A2A bridge with governance components.
 
@@ -91,6 +92,8 @@ class A2ABridge:
         self._tasks: dict[str, A2ATaskContext] = {}
         self._delegated_tasks: dict[str, DelegatedTask] = {}
         self._capabilities: list[A2ASkillDefinition] = []
+        # 可选协议桥：启用 A2A 能力在 MCP 生态的可见性（方案 A D4）
+        self._protocol_bridge = protocol_bridge
         self._lock = asyncio.Lock()
         self._state_queues: dict[str, asyncio.Queue[A2ATaskState]] = {}
         self._trajectory = trajectory_collector or TrajectoryCollector()
@@ -187,6 +190,29 @@ class A2ABridge:
         if not validate_agent_card_json(card):
             raise ValueError("Generated AgentCard does not pass schema validation")
         return card
+
+    def build_mcp_tools(self) -> list[dict[str, Any]]:
+        """将本 agent 的 A2A 能力映射为 MCP tool 定义。
+
+        接线点（方案 A D4）：注入 protocol_bridge 时启用——A2A 能力在
+        MCP 生态可发现/可调用。未注入时返回空列表，行为不变。
+
+        每个 tool 的 A2A action 取 capability 的 ``a2a_action``（未指定
+        时默认 ``execute_task``），由 MCPToA2AAdapter 语义映射保证一致性。
+        """
+        if self._protocol_bridge is None:
+            return []
+        return [
+            {
+                "name": cap.id,
+                "description": cap.description,
+                "inputSchema": cap.input_schema
+                or {"type": "object", "properties": {}},
+                "sourceProtocol": "a2a",
+                "targetA2AAction": cap.a2a_action or "execute_task",
+            }
+            for cap in self._capabilities
+        ]
 
     def create_task(self, task_description: str, context: dict[str, Any] | None = None) -> str:
         """Create a new governed task.

@@ -158,7 +158,7 @@ def require_auth(
         wrapper = async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
         # Store scope requirement for this function
-        setattr(wrapper, "_maref_required_scope", scope)
+        wrapper._maref_required_scope = scope
         return wrapper  # type: ignore[return-value]
     return decorator
 
@@ -173,7 +173,7 @@ def _register_route_scope(app: FastAPI) -> None:
         if endpoint and hasattr(endpoint, "_maref_required_scope"):
             path = getattr(route, "path", getattr(route, "path_format", ""))
             if path:
-                _SCOPE_MAP[path] = getattr(endpoint, "_maref_required_scope")
+                _SCOPE_MAP[path] = endpoint._maref_required_scope
 
 
 def is_auth_enabled() -> bool:
