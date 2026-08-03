@@ -35,10 +35,14 @@ class AuthorizationScope:
 
         Returns:
             True 表示允许；False 表示越界（风险超限或动作未授权）。
+
+        Note:
+            前缀授权 ``file:`` 只匹配 ``file:<...>`` / ``file.<...>`` 域内动作，
+            不匹配 ``filesystem:...`` 等含相同词根的跨域动作（防跨域超授权）。
         """
         if self.allowed_actions:
             allowed = any(
-                action == a or action.startswith(a.rstrip(":"))
+                action == a or self._prefix_allows(a, action)
                 for a in self.allowed_actions
                 if a.endswith(":")
             ) or (action in self.allowed_actions)
@@ -46,6 +50,19 @@ class AuthorizationScope:
                 return False
         order = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "IRREVERSIBLE": 3}
         return order.get(risk_level, 99) <= order.get(self.max_risk_level, -1)
+
+    @staticmethod
+    def _prefix_allows(scope_action: str, action: str) -> bool:
+        """前缀授权判定：前缀词根后必须紧跟路径分隔符（``:`` / ``.``）或结束。
+
+        防止 ``file:`` 匹配 ``filesystem:format`` 等含相同词根的跨域动作。
+        """
+        prefix = scope_action.rstrip(":")
+        if not action.startswith(prefix):
+            return False
+        rest = action[len(prefix):]
+        # 前缀后必须为分隔符或已结束；空 rest 表示完全相等（由 action==a 覆盖）。
+        return rest.startswith(":") or rest.startswith(".")
 
     def is_expired(self, now: float | None = None) -> bool:
         if self.valid_until is None:

@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [v0.46.1] - 2026-08-03 (全量 Review 修复 — 安全缺陷封堵)
+
+### Security
+- **C1 前缀授权跨域超授权**: `AuthorizationScope` 前缀匹配 `file:` 不再放行 `filesystem:format` 等含相同词根的跨域动作（需路径分隔符边界）
+- **C2 共识评审 fail-open**: VerifierConsensus 对 Trace 输入未注入 judge 时 fail-closed（不得退回仿真表决静默放行），新增 `has_judges` / `set_judges` API
+- **v0.45-C1 合规证明可篡改**: `compliance_mapping` 纳入签名 payload，篡改 enforcement/regulations 现被 `verify_signature` 检测
+- **v0.45-I1 强制级别 fail-open**: `enforcement_for_risk` 未知风险回退表内最严格档（ENFORCE > ADVISORY > OBSERVE），空表返回 OBSERVE
+
+### Fixed
+- **v0.46-I2 法官注入静默失败**: `FederatedSettlement(judges=)` 不支持注入时显式抛 TypeError（不再静默回退仿真表决）
+- **v0.46-I5 FLAG 误判否决**: FLAG 风险提示计为通过并标记 `flagged`（供人工复核），仅 BLOCK 否决
+- **v0.45-I3 治理维度语义错配**: `build_credential_mapping` 改为按治理维度（scopes）映射辖区强制级别，不再将治理维度当动作分级
+- **v0.46-J1 兼容修复**: settlement 仲裁按 `has_judges` 决定传 Trace（真实仲裁）或 dict（仿真表决，向后兼容）
+
+### Changed
+- 新增回归测试 8 项（前缀边界 / Trace fail-closed / judge block / FLAG pass / mapping 篡改检测 / 强制级别 fail-safe / FLAG 复核标记 / dict 回退）
+- 版本基线: 0.46.0 → 0.46.1
+
 ## [v0.46.0] - 2026-08-03 (Agent-as-a-Judge 生产化 — 联邦争议真实裁判)
 
 ### Added

@@ -880,7 +880,7 @@ class TestCredentialComplianceMappingIntegration:
         )
         assert cred.compliance_mapping["jurisdiction"] == "eu"
         assert cred.compliance_mapping["profile_name"]
-        assert "audit" in cred.compliance_mapping["actions"]
+        assert "audit" in cred.compliance_mapping["scopes"]
         assert cred.verify_signature()
 
     def test_issue_without_jurisdiction_no_mapping(self) -> None:

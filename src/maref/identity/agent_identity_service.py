@@ -142,8 +142,9 @@ class AgentIdentityService:
         if jurisdiction:
             cred.attach_compliance_mapping(
                 RegulatoryPolicyMapper().build_credential_mapping(
-                    actions=scope, jurisdiction=jurisdiction
-                )
+                    scopes=scope, jurisdiction=jurisdiction
+                ),
+                signing_key=key,
             )
         self._credential_store.store(cred)
         return cred
