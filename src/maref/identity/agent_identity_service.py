@@ -22,6 +22,7 @@ from maref.governance.verifiable_governance_credential import (
 from maref.identity.agent_dns import AgentCard, AgentDNS
 from maref.identity.did_registry import AgentDID, DIDRegistry
 from maref.recursive.trust_engine_v2 import TrustEngineV2
+from maref.security.decorators import security_critical
 
 
 class AgentIdentityService:
@@ -93,6 +94,7 @@ class AgentIdentityService:
     # 门面：issue
     # ------------------------------------------------------------------
 
+    @security_critical
     def issue(
         self,
         subject_did: str,
@@ -139,6 +141,7 @@ class AgentIdentityService:
     # 门面：verify
     # ------------------------------------------------------------------
 
+    @security_critical
     def verify(
         self,
         credential: VerifiableGovernanceCredential,
@@ -167,6 +170,7 @@ class AgentIdentityService:
     # 门面：revoke
     # ------------------------------------------------------------------
 
+    @security_critical
     def revoke(
         self,
         did_string: str,

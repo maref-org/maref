@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from maref.identity.did_registry import AgentDID, DIDRegistry
+from maref.security.decorators import security_critical
 
 
 @dataclass
@@ -108,6 +109,7 @@ class AgentDNS:
 
     # -- 注册 --
 
+    @security_critical
     def register(
         self,
         did: AgentDID,
@@ -157,6 +159,7 @@ class AgentDNS:
 
     # -- 解析 --
 
+    @security_critical
     def resolve(self, did: AgentDID) -> AgentCard | None:
         """解析 DID → Agent Card。
 
@@ -181,6 +184,7 @@ class AgentDNS:
 
     # -- 注销 --
 
+    @security_critical
     def unregister(self, did: AgentDID) -> AgentCard | None:
         """注销能力目录（从 DNS 移除）。DID 本身不删除，保留在 DIDRegistry。"""
         return self._cards.pop(did, None)
