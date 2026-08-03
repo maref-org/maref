@@ -4,6 +4,16 @@ Protocols 模块
 协议桥接和安全增强，支持 MCP/A2A 双向转换。
 """
 
+from maref.protocols.adapters import (
+    A2AToMCPAdapter,
+    ASLAdapter,
+    MCPToA2AAdapter,
+    ProtocolAdapter,
+    ProtocolKind,
+    create_adapter,
+    create_default_adapters,
+    register_adapter,
+)
 from maref.protocols.protocol_bridge import (
     A2AMessage,
     A2ATask,
@@ -30,4 +40,12 @@ __all__ = [
     "ProtocolBridgeMetrics",
     "create_protocol_bridge",
     "create_secure_protocol_bridge",
+    "ProtocolKind",
+    "ProtocolAdapter",
+    "MCPToA2AAdapter",
+    "A2AToMCPAdapter",
+    "ASLAdapter",
+    "create_adapter",
+    "register_adapter",
+    "create_default_adapters",
 ]
