@@ -144,6 +144,43 @@ class TestPhaseTransitions:
         assert transition.to_phase == GovernancePhase.OLD_YANG
         assert gov.trust_score >= 0.9
 
+    def test_authorization_token_is_one_time(self):
+        """漏洞回归：授权 token 一次性使用，消费后复用被拒绝。
+
+        旧实现返回静态预生成 token，可无限次提权。现在每次 authorize()
+        动态签发、用后作废。
+        """
+        gov = FourPhaseGovernance("agent_1", initial_trust=0.75)
+        token = gov.authorize()
+        first = gov._escalate_to_old_yang(authorization_token=token)
+        assert first is not None
+        # 同一 token 复用：已被消费，提权被拒。
+        second = gov._escalate_to_old_yang(authorization_token=token)
+        assert second is None
+
+    def test_authorization_token_no_static_cert(self):
+        """漏洞回归：不得存在可任意读取的静态授权凭证。"""
+        gov = FourPhaseGovernance("agent_1", initial_trust=0.75)
+        assert not hasattr(gov, "_authorization_token")
+
+    def test_authorization_requires_issued_token(self):
+        """漏洞回归：未签发（伪造/随机）token 无法提权。"""
+        gov = FourPhaseGovernance("agent_1", initial_trust=0.75)
+        assert gov._escalate_to_old_yang(authorization_token="forged-token") is None
+
+    def test_recover_requires_valid_token(self):
+        gov = FourPhaseGovernance("agent_1", initial_trust=0.8)
+        gov.quarantine("test_quarantine")
+        assert gov.current_phase == GovernancePhase.OLD_YIN
+        # 伪造 token 无法恢复。
+        assert gov._recover_from_old_yin(new_trust=0.55, authorization_token="forged") is None
+        assert gov.current_phase == GovernancePhase.OLD_YIN
+        # 合法 token 正常恢复。
+        token = gov.authorize()
+        transition = gov._recover_from_old_yin(new_trust=0.55, authorization_token=token)
+        assert transition is not None
+        assert gov.current_phase != GovernancePhase.OLD_YIN
+
 
 class TestRedLineHandling:
     def test_red_line_triggers_old_yin(self):
