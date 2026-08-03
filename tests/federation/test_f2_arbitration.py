@@ -207,6 +207,38 @@ class TestAgentAsJudgeArbitration:
         assert "settlement.dispute" in actions
         assert "settlement.summary" in actions
 
+    def test_flag_verdict_passes_with_review_marker(self) -> None:
+        """FLAG 是风险提示：提案通过但标记人工复核（I5 回归）。"""
+        settlement = self._judged_settlement()
+        engine = settlement._metering
+        engine.record(
+            task_id="t1", agent_did="did:1", agent_aic="aic:1",
+            provider_org="OrgA", consumer_org="OrgB",
+            duration_ms=1.0, token_count=1, success=True, complexity_score=0.1,
+        )
+        settlement.generate_billing_from_metering()
+        now = time.time()
+        pid = settlement.generate_proposal("OrgA", "OrgB", now - 60, now + 60).proposal_id
+        # circuit_breaker_trip → FLAG（风险提示非否决）
+        settlement.dispute_proposal(pid, reason="circuit_breaker_trip observed")
+        verdict = settlement.arbitrate_dispute(pid)
+        assert verdict is not None
+        assert verdict["passed"] is True
+        assert verdict.get("flagged") is True
+        assert settlement.get_proposal(pid).status == SettlementStatus.ACCEPTED
+
+    def test_without_judge_falls_back_to_dict(self) -> None:
+        """无 judge 的 consensus：settlement 回退 dict 输入（仿真表决兼容）。"""
+        settlement = FederatedSettlement(
+            metering=TaskMeteringEngine(),
+            verifier_consensus=_consensus(high=2, low=1),
+        )
+        pid = _disputed_proposal(settlement)
+        verdict = settlement.arbitrate_dispute(pid)
+        assert verdict is not None
+        assert verdict["passed"] is True
+        assert "judge_evidence" not in verdict
+
 
 class TestJointArbitration:
     def test_legacy_without_consensus_returns_string(self) -> None:

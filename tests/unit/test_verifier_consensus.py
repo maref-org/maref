@@ -91,3 +91,58 @@ def test_consensus_with_majority_wrong() -> None:
     consensus = VerifierConsensus(reg)
     result = consensus.evaluate(False)
     assert result.passed
+
+
+def test_trace_without_judge_fails_closed() -> None:
+    """无 judge 的 consensus 对 Trace 输入必须 fail-closed（C2 回归）。"""
+    from maref.governance.trace import Trace, TraceStep
+
+    reg = VerifierRegistry()
+    reg.register(VerifierEntry(name="v1", model="gpt-4", methodology="x", accuracy=0.9))
+    reg.register(VerifierEntry(name="v2", model="claude-3", methodology="x", accuracy=0.9))
+    reg.register(VerifierEntry(name="v3", model="gemini", methodology="x", accuracy=0.9))
+    consensus = VerifierConsensus(reg)
+    trace = Trace(
+        trace_id="t1",
+        agent_id="a1",
+        steps=[TraceStep(agent_id="a1", action="network.exfiltrate", decision="exfiltrate")],
+    )
+    result = consensus.evaluate(trace)
+    assert not result.passed
+    assert result.votes[0]["verdict"]["error"] == "no_judge_for_trace"
+
+
+def test_trace_with_judge_block_denies() -> None:
+    """有 judge 时恶意轨迹被 BLOCK 否决。"""
+    from maref.governance.judge import RuleJudge
+    from maref.governance.trace import Trace, TraceStep
+
+    reg = VerifierRegistry()
+    reg.register(VerifierEntry(name="v1", model="gpt-4", methodology="x", accuracy=0.9))
+    consensus = VerifierConsensus(reg, judges={"v1": RuleJudge()})
+    trace = Trace(
+        trace_id="t1",
+        agent_id="a1",
+        steps=[TraceStep(agent_id="a1", action="network.exfiltrate", decision="exfiltrate")],
+    )
+    result = consensus.evaluate(trace)
+    assert not result.passed
+    assert result.votes[0]["verdict"]["decision"] == "block"
+
+
+def test_trace_with_judge_flag_counts_as_pass() -> None:
+    """FLAG 是风险提示而非否决，计为通过（I5 回归）。"""
+    from maref.governance.judge import RuleJudge
+    from maref.governance.trace import Trace, TraceStep
+
+    reg = VerifierRegistry()
+    reg.register(VerifierEntry(name="v1", model="gpt-4", methodology="x", accuracy=0.9))
+    consensus = VerifierConsensus(reg, judges={"v1": RuleJudge()})
+    trace = Trace(
+        trace_id="t1",
+        agent_id="a1",
+        steps=[TraceStep(agent_id="a1", action="deploy", decision="circuit_breaker_trip")],
+    )
+    result = consensus.evaluate(trace)
+    assert result.passed
+    assert result.votes[0]["verdict"]["decision"] == "flag"

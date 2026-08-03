@@ -29,6 +29,13 @@ class EnforcementLevel(str, Enum):
     ENFORCE = "enforce"
 
 
+_ENFORCEMENT_SEVERITY: dict[EnforcementLevel, int] = {
+    EnforcementLevel.OBSERVE: 0,
+    EnforcementLevel.ADVISORY: 1,
+    EnforcementLevel.ENFORCE: 2,
+}
+
+
 class RegulationCode(str, Enum):
     """法规代码 — 作为 profile 内法规引用键。"""
 
@@ -74,17 +81,44 @@ class JurisdictionProfile:
         ``value`` 大小写不一致（geopolitical 为小写，classifier 为大写），
         此处统一转为小写匹配。
 
-        未显式配置的风险等级按 fail-safe 降级处理：
-        高于最高已配置风险时按最严格档（ENFORCE）。
+        未显式配置的风险等级按 fail-safe 处理：回退到表内最严格档
+        （ENFORCE > ADVISORY > OBSERVE）；空表返回 OBSERVE。
         """
         key = str(risk_level.value).lower()
         if key in self.enforcement_table:
             return self.enforcement_table[key]
-        # fail-safe：未知风险等级按辖区最严格档处理。
-        all_levels = list(self.enforcement_table.values())
-        if EnforcementLevel.ENFORCE in all_levels:
-            return EnforcementLevel.ENFORCE
-        return EnforcementLevel.OBSERVE
+        # fail-safe：未知风险等级按表内最严格档处理（不得 fail-open 降级）。
+        if not self.enforcement_table:
+            return EnforcementLevel.OBSERVE
+        return max(
+            self.enforcement_table.values(),
+            key=lambda level: _ENFORCEMENT_SEVERITY[level],
+        )
+
+    def governance_scope_enforcement(self, scope: str) -> EnforcementLevel:
+        """返回给定治理维度在该辖区的强制级别（v0.45.0 G3 语义修正）。
+
+        治理维度（state_machine/drift/consensus/memory/audit）非动作，
+        不适用动作风险分级。按治理维度语义归类：
+        - 跨组织/共识类维度（consensus、state_machine）→ 辖区最严格档
+        - 数据/记忆类维度（memory、audit、drift）→ 辖区高风险档
+          （enforcement_table["high"]，无则用最严格档）
+        """
+        _CROSS_ORG_SCOPES = {"consensus", "state_machine"}
+        if scope in _CROSS_ORG_SCOPES:
+            return self._max_enforcement()
+        high = self.enforcement_table.get("high")
+        if high is not None:
+            return high
+        return self._max_enforcement()
+
+    def _max_enforcement(self) -> EnforcementLevel:
+        if not self.enforcement_table:
+            return EnforcementLevel.OBSERVE
+        return max(
+            self.enforcement_table.values(),
+            key=lambda level: _ENFORCEMENT_SEVERITY[level],
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

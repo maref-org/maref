@@ -43,6 +43,22 @@ class VerifierConsensus:
         # 仲裁而非仿真表决。未注入法官的 verifier 保持向后兼容的仿真路径。
         self._judges: dict[str, Any] = judges or {}
 
+    @property
+    def has_judges(self) -> bool:
+        """是否配置了任何 Agent-as-a-Judge 法官。
+
+        调用方据此决定是否向 consensus 提交 Trace（真实仲裁）——
+        未配置法官的 consensus 无法对轨迹做出可信裁决。
+        """
+        return bool(self._judges)
+
+    def set_judges(self, judges: dict[str, Any]) -> None:
+        """注入/替换 Agent-as-a-Judge 法官映射（verifier name → Judge）。
+
+        v0.46.0 接线用公共 setter，避免调用方直接触碰私有属性。
+        """
+        self._judges = dict(judges)
+
     @security_critical
     def evaluate(
         self,
@@ -104,7 +120,15 @@ class VerifierConsensus:
     ) -> tuple[bool, dict[str, Any] | None]:
         # 方案 C：注入法官且输入为轨迹时，走真实仲裁（Agent-as-a-Judge）。
         judge = self._judges.get(verifier.name)
-        if judge is not None and isinstance(item, Trace):
+        if isinstance(item, Trace):
+            # 轨迹输入必须由真实法官裁决：未注入法官的 verifier 无法
+            # 对轨迹做出可信判断，fail-closed 拒绝（不得退回仿真表决，
+            # 否则评审可被静默绕过）。
+            if judge is None:
+                return False, {
+                    "error": "no_judge_for_trace",
+                    "judge": verifier.name,
+                }
             try:
                 verdict = judge.arbitrate(item, verdict_schema)
             except Exception:
@@ -112,7 +136,10 @@ class VerifierConsensus:
                 # 由其余法官的加权表决兜底（方案 C 验收：故障降级）。
                 return False, {"error": "judge_failed", "judge": verifier.name}
             verdict_dict = verdict.to_dict()
-            return verdict.decision == VerdictDecision.PASS, verdict_dict
+            # FLAG 是风险提示而非否决：计为通过但保留 flag 标记，
+            # 供上层决定是否升级人工复核；仅 BLOCK 计为否决。
+            approved = verdict.decision in (VerdictDecision.PASS, VerdictDecision.FLAG)
+            return approved, verdict_dict
 
         # 向后兼容：对布尔/普通输入保留仿真表决路径。
         ground_truth = bool(item)

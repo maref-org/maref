@@ -110,13 +110,22 @@ class TestCredentialComplianceMapping:
     def test_build_credential_mapping(self) -> None:
         mapper = RegulatoryPolicyMapper()
         mapping = mapper.build_credential_mapping(
-            actions=["file.read", "file.export"],
+            scopes=["audit", "memory"],
             jurisdiction="eu",
         )
         assert mapping["jurisdiction"] == "eu"
-        assert mapping["actions"]["file.read"]["enforcement"] == "observe"
-        # file.export 默认本地 impact_scope → LOW/MEDIUM；用 enforce 断言见下一用例
-        assert "file.export" in mapping["actions"]
+        assert mapping["scopes"]["audit"]["enforcement"] in ("enforce", "advisory")
+        assert "memory" in mapping["scopes"]
+
+    def test_build_credential_mapping_cross_org_enforce(self) -> None:
+        mapper = RegulatoryPolicyMapper()
+        mapping = mapper.build_credential_mapping(
+            scopes=["consensus"],
+            jurisdiction="eu",
+        )
+        # 跨组织/共识维度 → 辖区最严格档（ENFORCE）
+        assert mapping["scopes"]["consensus"]["enforcement"] == "enforce"
+        assert mapping["scopes"]["consensus"]["regulations"]
 
     def test_build_credential_mapping_with_metadata(self) -> None:
         mapper = RegulatoryPolicyMapper()

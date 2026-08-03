@@ -133,34 +133,37 @@ class RegulatoryPolicyMapper:
 
     def build_credential_mapping(
         self,
-        actions: list[str],
+        scopes: list[str],
         jurisdiction: str,
     ) -> dict[str, Any]:
         """为治理凭证构建按辖区的合规映射（v0.45.0 方案 G G3）。
 
-        遍历凭证 scope 中的动作，逐动作映射到目标辖区的强制级别与
-        依据法规，形成对监管的"证明输出"。
+        遍历凭证治理维度（GOVERNANCE_SCOPES：state_machine/drift/consensus/
+        memory/audit），逐维度映射到目标辖区的强制级别与依据法规，
+        形成对监管的"证明输出"。
 
         Args:
-            actions: 凭证声称覆盖的动作标识列表。
+            scopes: 凭证声称覆盖的治理维度列表。
             jurisdiction: 目标辖区代码。
 
         Returns:
-            compliance_mapping dict（含 jurisdiction、profile_name、actions）。
+            compliance_mapping dict（含 jurisdiction、profile_name、scopes）。
         """
         profile = self._profiles(jurisdiction)
-        action_map: dict[str, dict[str, Any]] = {}
-        for action in actions:
-            decision = self.map_action(action, jurisdiction=jurisdiction)
-            action_map[action] = {
-                "enforcement": decision.enforcement.value,
-                "risk_level": decision.risk_level.value,
-                "regulations": list(decision.basis_regulations),
+        scope_map: dict[str, dict[str, Any]] = {}
+        for scope in scopes:
+            enforcement = profile.governance_scope_enforcement(scope)
+            scope_map[scope] = {
+                "enforcement": enforcement.value,
+                "regulations": [
+                    r.regulation_id for r in profile.regulations
+                    if enforcement != EnforcementLevel.OBSERVE
+                ],
             }
         return {
             "jurisdiction": profile.code,
             "profile_name": profile.name,
-            "actions": action_map,
+            "scopes": scope_map,
         }
 
 

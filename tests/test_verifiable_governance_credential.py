@@ -88,6 +88,20 @@ class TestTamperDetection:
         cred.scope = ["audit", "memory"]
         assert cred.verify_signature() is False
 
+    def test_compliance_mapping_tamper_detected(self) -> None:
+        """合规映射纳入签名：篡改 enforcement 必须被检测（v0.45 C1 回归）。"""
+        cred, key = _issue()
+        cred.attach_compliance_mapping(
+            {
+                "jurisdiction": "cn",
+                "actions": {"audit": {"enforcement": "observe"}},
+            },
+            signing_key=key,
+        )
+        assert cred.verify_signature() is True
+        cred.compliance_mapping["actions"]["audit"]["enforcement"] = "enforce"
+        assert cred.verify_signature() is False
+
 
 class TestMerkleBinding:
     def test_valid_inclusion_proof(self) -> None:

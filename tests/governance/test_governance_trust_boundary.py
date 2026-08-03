@@ -80,6 +80,22 @@ class TestTrustBoundaryScope:
             boundary.check("deploy:app", agent_id="agent-01")
         assert "已过期" in excinfo.value.details["reason"]
 
+    def test_prefix_scope_blocks_cross_domain_lookalike(self) -> None:
+        """前缀授权 file: 不得放行 filesystem: 等含相同词根的跨域动作（C1 回归）。"""
+        scope = AuthorizationScope.issue(
+            subject_did="did:maref:agent-01",
+            max_risk_level="HIGH",
+            allowed_actions=["file:"],
+        )
+        boundary = TrustBoundaryManager(scope=scope)
+        # 同域放行
+        assert boundary.check("file.write", agent_id="agent-01").allowed is True
+        # 跨域词根相似动作必须阻断
+        with pytest.raises(BoundaryViolationError):
+            boundary.check("filesystem:format", agent_id="agent-01")
+        with pytest.raises(BoundaryViolationError):
+            boundary.check("payment:transfer", agent_id="agent-01")
+
 
 class TestTrustBoundaryDomains:
     def test_unallowed_impact_scope_blocked(self) -> None:
