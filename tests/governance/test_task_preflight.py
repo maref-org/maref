@@ -19,7 +19,6 @@ from maref.governance.task_preflight import (
     TaskPreflight,
 )
 
-
 # ---------------------------------------------------------------------------
 # ReadmeReadCheck
 # ---------------------------------------------------------------------------
@@ -297,15 +296,16 @@ class TestTaskPreflight:
         return g
 
     def test_default_checks(self):
-        """TaskPreflight should have 5 default checks."""
+        """TaskPreflight should have 6 default checks."""
         preflight = TaskPreflight()
-        assert len(preflight.checks) == 5
+        assert len(preflight.checks) == 6
         names = [c.name for c in preflight.checks]
         assert "readme_read" in names
         assert "pipeline_selection" in names
         assert "git_history" in names
         assert "alternatives_compared" in names
         assert "decision_logged" in names
+        assert "risk_authorization" in names
 
     def test_custom_checks(self):
         """Can provide custom check list."""
@@ -331,7 +331,7 @@ class TestTaskPreflight:
             "decision_log_location": "audit://test/launch-video",
         })
         assert result.passed is True
-        assert len(result.checks) == 5
+        assert len(result.checks) == 6
         assert len(result.failed_checks) == 0
         assert len(result.warn_checks) == 0
         assert result.agent_id == "agent-01"
@@ -396,7 +396,7 @@ class TestTaskPreflight:
         })
         summary = result.summary
         assert "PASS" in summary or "FAIL" in summary
-        assert "5" in summary  # total count
+        assert "6" in summary  # total count
 
     def test_to_dict(self, governor):
         result = TaskPreflight().execute({
@@ -415,6 +415,140 @@ class TestTaskPreflight:
         })
         d = result.to_dict()
         assert d["passed"] is True
-        assert len(d["checks"]) == 5
+        assert len(d["checks"]) == 6
         assert d["agent_id"] == "test"
         assert d["task_description"] == "test"
+
+
+# ---------------------------------------------------------------------------
+# RiskAuthorizationCheck（方案 D 决策分级授权）
+# ---------------------------------------------------------------------------
+
+
+class TestRiskAuthorizationCheck:
+    def test_low_risk_auto_approve(self) -> None:
+        preflight = TaskPreflight()
+        result = preflight.execute({
+            "agent_id": "agent",
+            "task_description": "read",
+            "action": "file.read",
+        })
+        check = next(c for c in result.checks if c.check_name == "risk_authorization")
+        assert check.status == PreflightCheckStatus.PASS
+        assert check.details["risk_level"] == "LOW"
+        assert check.details["authorized"] is True
+
+    def test_high_risk_without_scope_fails(self) -> None:
+        preflight = TaskPreflight()
+        result = preflight.execute({
+            "agent_id": "agent",
+            "task_description": "transfer",
+            "action": "payment:transfer",
+        })
+        check = next(c for c in result.checks if c.check_name == "risk_authorization")
+        assert check.status == PreflightCheckStatus.FAIL
+        assert check.details["risk_level"] == "IRREVERSIBLE"
+        assert check.details["action_required"] == "HITL"
+
+    def test_irreversible_out_of_scope_blocked(self) -> None:
+        preflight = TaskPreflight()
+        result = preflight.execute({
+            "agent_id": "agent",
+            "task_description": "transfer",
+            "action": "payment:transfer",
+            "authorization_scope": {
+                "subject_did": "did:maref:agent",
+                "max_risk_level": "MEDIUM",
+            },
+        })
+        check = next(c for c in result.checks if c.check_name == "risk_authorization")
+        assert check.status == PreflightCheckStatus.FAIL
+        assert check.details["action_required"] == "HITL"
+        assert check.details["max_risk_level"] == "MEDIUM"
+
+    def test_in_scope_high_risk_approved(self) -> None:
+        from maref.identity.credential import AuthorizationScope
+
+        scope = AuthorizationScope.issue(
+            subject_did="did:maref:agent",
+            max_risk_level="HIGH",
+            allowed_actions=["network:medical_record"],
+        )
+        preflight = TaskPreflight()
+        result = preflight.execute({
+            "agent_id": "agent",
+            "task_description": "access record",
+            "action": "network:medical_record",
+            "authorization_scope": scope,
+        })
+        check = next(c for c in result.checks if c.check_name == "risk_authorization")
+        assert check.status == PreflightCheckStatus.PASS
+        assert check.details["risk_level"] == "HIGH"
+        assert check.details["authorized"] is True
+
+    def test_expired_scope_fails(self) -> None:
+        from maref.identity.credential import AuthorizationScope
+
+        scope = AuthorizationScope.issue(
+            subject_did="did:maref:agent",
+            max_risk_level="HIGH",
+            ttl_seconds=1,
+        )
+        scope.valid_until = 0.0
+        preflight = TaskPreflight()
+        result = preflight.execute({
+            "agent_id": "agent",
+            "task_description": "deploy",
+            "action": "deploy:app",
+            "authorization_scope": scope,
+        })
+        check = next(c for c in result.checks if c.check_name == "risk_authorization")
+        assert check.status == PreflightCheckStatus.FAIL
+        assert check.details["action_required"] == "HITL"
+
+    def test_string_valid_until_fails_closed(self) -> None:
+        """外部 dict 传入字符串时间戳时，过期判定应类型安全（fail-closed）。"""
+        preflight = TaskPreflight()
+        result = preflight.execute({
+            "agent_id": "agent",
+            "task_description": "deploy",
+            "action": "deploy:app",
+            "authorization_scope": {
+                "subject_did": "did:maref:agent",
+                "max_risk_level": "HIGH",
+                "valid_until": "2020-01-01T00:00:00Z",  # 已过期的字符串时间戳
+            },
+        })
+        check = next(c for c in result.checks if c.check_name == "risk_authorization")
+        assert check.status == PreflightCheckStatus.FAIL
+        assert check.details["action_required"] == "HITL"
+
+
+class TestRiskClassifier:
+    def test_low_read(self) -> None:
+        from maref.governance.risk_classifier import RiskLevel, classify_action
+
+        assert classify_action("file.read").risk_level == RiskLevel.LOW
+
+    def test_medium_write(self) -> None:
+        from maref.governance.risk_classifier import RiskLevel, classify_action
+
+        assert classify_action("file.write").risk_level == RiskLevel.MEDIUM
+
+    def test_irreversible_prefix(self) -> None:
+        from maref.governance.risk_classifier import RiskLevel, classify_action
+
+        assert classify_action("revoke:credential").risk_level == RiskLevel.IRREVERSIBLE
+
+    def test_high_sensitive_term(self) -> None:
+        from maref.governance.risk_classifier import RiskLevel, classify_action
+
+        assert classify_action("network:medical_record").risk_level == RiskLevel.HIGH
+
+    def test_high_production_scope(self) -> None:
+        from maref.governance.risk_classifier import RiskLevel, classify_action, risk_exceeds
+
+        assert classify_action("file.write", {"impact_scope": "production"}).risk_level == RiskLevel.HIGH
+        assert risk_exceeds(RiskLevel.HIGH, RiskLevel.MEDIUM) is True
+        assert risk_exceeds(RiskLevel.MEDIUM, RiskLevel.HIGH) is False
+
