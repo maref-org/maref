@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## [v0.47.0] - 2026-08-03 (治理闭环生产化 — 接线 + 安全封堵)
+
+### Added — P0 安全封堵（S1–S8）
+- **S1 联邦传输认证**: `FederationHTTPClient` 请求签名（Ed25519 + 时间戳防重放 + body 摘要），`create_federation_app(request_verifier=...)` 配置后 POST 端点 fail-closed 校验；`auth_failed` 审计
+- **S2 SSRF 封堵**: `reconcile` 的 `peer_url` 校验（拒绝回环/链路本地/私有/保留，白名单放行）
+- **S3 策略 fail-closed**: 无规则匹配默认 DENY + `no_rule_match` 审计；ad-hoc 层降为与 federation 同优先级；`JurisdictionConfig.default_decision` → DENY
+- **S4 信任报告签名**: `PeerTrustReport` Ed25519 验签（`trusted_peer_public_keys`），无效丢弃 + `rejected_reports` 审计
+- **S5 计量注入封堵**: `TaskMetric.caller_did` 来源绑定；executor `success` 实测定（禁 params 注入）
+- **S6 sidecar 认证 fail-open 修复**: 无 key fail-closed + `allow_unauthenticated` 开发旗标；真实 scope 校验（`MAREF_API_KEY_SCOPES`）；移除 `/_debug/` 绕过
+- **S7 /api/mcp 治理**: 主入口走 MCPGateway 三层治理（SecurityGate→PolicyEngine→CircuitBreaker）
+- **S8 伪签名替换**: `protocol_bridge` SHA-256 → Ed25519；`a2a_secure_transport` HMAC 截断 → Ed25519；`mcp_security` JWT 补 HS256 验签
+
+### Added — P1 单 Agent 接线（S9–S13）
+- **S9 TrustBoundary 进管线**: `GovernancePipeline` 注入 TrustBoundaryManager 步骤 0 强制门禁（E1006→DENY）；旧版 `security/trust_boundary` deprecation
+- **S10 行为探针装配**: `assemble_runtime_behavior_probe()` 标准装配点 + 订阅收窄治理事件；sidecar `app.state.behavior_probe`
+- **S11 TaskPreflight 接入**: `UnifiedHarness.preflight` 走 6 项检查硬门禁（FAIL→abort）
+- **S12 scope 防伪**: `TrustBoundaryManager` 校验 `subject_did==agent_id` + 签发者 Ed25519 验签
+- **S13 Judge 真实接线**: `VerifierConsensus.record_call` accuracy 回写；convergent/adapter 装配 RuleJudge 真实仲裁
+
+### Added — P1 联邦治理（F1–F4）
+- **F1 multi_agent 治理化**: `MultiAgentCoordinator` 派发前 TrustBoundary 门禁 + 审计/计量 + 级联断路器
+- **F2 共识成员认证**: `FederatedConsensus` 投票绑定成员表，非成员拒绝 + `unauthorized_vote` 审计
+- **F3 联邦派发经边界**: `FederatedPlanExecutor` 跨组织派发前 TrustBoundary 校验（与本地同门禁）
+- **F4 持久化收敛**: 6 模块接入 SQLite（DIDRegistry/AgentDNS/HITL/共识提案/策略决策日志/管辖决策日志），重启恢复
+
+### Added — 监管执行（R1）
+- **R1 监管 ENFORCE 进执行**: `RiskAuthorizationCheck` 接入 `RegulatoryPolicyMapper` ENFORCE 结果，无授权 FAIL；未知辖区 fail-closed 最严格档
+
+### Changed
+- 版本基线: 0.46.1 → 0.47.0
+- 修复多处预先存在的包初始化循环（identity / compliance import 链）
+
 ## [v0.46.1] - 2026-08-03 (全量 Review 修复 — 安全缺陷封堵)
 
 ### Security
