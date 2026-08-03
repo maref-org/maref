@@ -164,10 +164,16 @@ def create_a2a_bridge() -> A2ABridge:
     sm = GovernanceStateMachine()
     audit = AuditLogger()
     cb = CircuitBreaker()
-    return A2ABridge(state_machine=sm, audit_logger=audit, circuit_breaker=cb)
+    from maref.protocols import create_secure_protocol_bridge
+    return A2ABridge(
+        state_machine=sm,
+        audit_logger=audit,
+        circuit_breaker=cb,
+        protocol_bridge=create_secure_protocol_bridge(),
+    )
 
 
-def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None) -> None:
+def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, a2a_bridge: A2ABridge | None = None) -> None:
     _metric_store = MetricStore()
     _cost_tracker = CostTracker(metric_store=_metric_store)
     mcp_bridge = SidecarMCPBridge(repo_path=os.getcwd())
@@ -190,6 +196,31 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         handler=_mcp_adapter.handle_tool_call,
         tools=_mcp_adapter.list_tools(),
     )
+    if a2a_bridge is not None:
+        a2a_mcp_tools = a2a_bridge.build_mcp_tools()
+        if a2a_mcp_tools:
+            bridge_ref = a2a_bridge
+
+            def _route_a2a_tool_call(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+                try:
+                    description = arguments.get("description") or arguments.get("task") or tool_name
+                    task_id = bridge_ref.create_task(description, arguments)
+                    return {
+                        "content": [{"type": "text", "text": f"Task created: {task_id}"}],
+                        "task_id": task_id,
+                    }
+                except Exception as exc:  # noqa: BLE001
+                    return {
+                        "isError": True,
+                        "content": [{"type": "text", "text": f"A2A bridge error: {exc}"}],
+                    }
+
+            gateway.register_backend(
+                prefix="a2a_",
+                transport_type="in-process",
+                handler=_route_a2a_tool_call,
+                tools=a2a_mcp_tools,
+            )
     gateway_router = create_mcp_gateway_router(gateway)
     app.include_router(gateway_router)
 
@@ -916,7 +947,7 @@ class SidecarFastAPI(FastAPI):
         self.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
         if federated:
             self.include_router(federation_router)
-        _setup_routes(self, collector, monitor, obs_bridge)
+        _setup_routes(self, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
         _register_route_scope(self)
 
 
@@ -939,6 +970,6 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     app.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
     if federated:
         app.include_router(federation_router)
-    _setup_routes(app, collector, monitor, obs_bridge)
+    _setup_routes(app, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
     _register_route_scope(app)
     return app
