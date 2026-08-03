@@ -166,6 +166,7 @@ class FourPhaseGovernance:
     OLD_YIN_RED_LINE_TRIGGER_COUNT = 1
     MAX_PHASE_SWITCH_HISTORY = 50
     COOLDOWN_ROUNDS_AFTER_RED_LINE = 10
+    AUTHORIZATION_TOKEN_TTL = 30.0
 
     def __init__(
         self,
@@ -184,12 +185,41 @@ class FourPhaseGovernance:
         self._phase_history: list[str] = [self._current_phase.value]
         self._transitions: list[PhaseTransition] = []
         self._red_line_cooldown_remaining: int = 0
-        import secrets
-
-        self._authorization_token: str = secrets.token_hex(16)
+        # 动态签发的授权 token：token -> 过期时间。一次性使用、用后作废，
+        # 不再像旧实现那样在 __init__ 预生成一个永不轮换的静态凭证。
+        self._authorization_tokens: dict[str, float] = {}
 
     def authorize(self) -> str:
-        return self._authorization_token
+        """签发一个短期有效、一次性使用的授权 token。
+
+        修复"免费提权凭证"漏洞：旧实现返回实例化时生成的静态 token，
+        任何调用者都能凭它提权且永不过期。现在每次调用动态签发，
+        TTL 后过期，被 ``_escalate_to_old_yang`` / ``_recover_from_old_yin``
+        消费后立即作废，并在审计日志留下签发记录。
+        """
+        import secrets
+
+        token = secrets.token_hex(16)
+        self._authorization_tokens[token] = time.time() + self.AUTHORIZATION_TOKEN_TTL
+        self._audit_transition(
+            "authorize_issued",
+            detail=f"authorization token issued (ttl={self.AUTHORIZATION_TOKEN_TTL}s)",
+        )
+        return token
+
+    def _consume_authorization(self, authorization_token: str) -> bool:
+        """校验并消费一个授权 token（一次性）。
+
+        - 未知 token（未签发/已消费/伪造）→ 拒绝。
+        - 已过期 → 拒绝。
+        - 有效 → 立即删除（用后作废），返回 True。
+        """
+        expires_at = self._authorization_tokens.pop(authorization_token, None)
+        if expires_at is None:
+            return False
+        if time.time() > expires_at:
+            return False
+        return True
 
     def _audit_transition(self, event: str, detail: str = "") -> None:
         from maref.recursive.unified_audit import UnifiedAuditRecord, make_record_id
@@ -382,7 +412,7 @@ class FourPhaseGovernance:
         return self.update_trust(new_trust=new_trust, violation_occurred=False)
 
     def _escalate_to_old_yang(self, authorization_token: str = "") -> PhaseTransition | None:
-        if authorization_token != self._authorization_token:
+        if not self._consume_authorization(authorization_token):
             self._audit_transition("escalate_rejected", detail="unauthorized escalation attempt")
             return None
         self._trust_score = max(self._trust_score, self.TRUST_OLD_YANG_THRESHOLD)
@@ -402,7 +432,7 @@ class FourPhaseGovernance:
     def _recover_from_old_yin(
         self, new_trust: float = 0.5, authorization_token: str = ""
     ) -> PhaseTransition | None:
-        if authorization_token != self._authorization_token:
+        if not self._consume_authorization(authorization_token):
             self._audit_transition("recover_rejected", detail="unauthorized recovery attempt")
             return None
         self._red_line_triggered = False
