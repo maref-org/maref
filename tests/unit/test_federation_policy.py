@@ -75,21 +75,23 @@ class TestPolicyRule:
 
 
 class TestPolicyEvaluationDefault:
-    def test_default_allow_when_no_rules(self) -> None:
+    def test_default_deny_when_no_rules(self) -> None:
         engine = FederationPolicyEngine()
         result = engine.evaluate("any_action")
-        assert result.decision == PolicyDecision.ALLOW
+        assert result.decision == PolicyDecision.DENY
         assert result.winning_rule is None
         assert result.matched_rules == []
         assert result.conflict_detected is False
+        assert result.no_rule_match is True
 
-    def test_no_matching_rule_defaults_to_allow(self) -> None:
+    def test_no_matching_rule_defaults_to_deny(self) -> None:
         engine = FederationPolicyEngine()
         engine.add_federation_rule(
             "f1", "dispatch_task", PolicyDecision.DENY
         )
         result = engine.evaluate("unrelated_action")
-        assert result.decision == PolicyDecision.ALLOW
+        assert result.decision == PolicyDecision.DENY
+        assert result.no_rule_match is True
 
 
 class TestSingleLayerRules:
@@ -119,7 +121,9 @@ class TestSingleLayerRules:
 
 
 class TestAdhocOverride:
-    def test_adhoc_overrides_federation(self) -> None:
+    def test_adhoc_same_priority_fails_closed(self) -> None:
+        """Ad-hoc no longer unconditionally overrides federation: on equal
+        priority the most restrictive decision (DENY) wins."""
         engine = FederationPolicyEngine()
         engine.add_federation_rule("f1", "x", PolicyDecision.DENY)
         engine.add_rule(
@@ -131,9 +135,25 @@ class TestAdhocOverride:
             )
         )
         result = engine.evaluate("x")
+        assert result.decision == PolicyDecision.DENY
+        assert result.winning_rule.rule_id == "f1"
+        assert result.conflict_detected is False
+
+    def test_adhoc_higher_priority_overrides_federation(self) -> None:
+        engine = FederationPolicyEngine()
+        engine.add_federation_rule("f1", "x", PolicyDecision.DENY, priority=1)
+        engine.add_rule(
+            PolicyRule(
+                rule_id="a1",
+                action="x",
+                scope=PolicyScope.AD_HOC,
+                decision=PolicyDecision.ALLOW,
+                priority=10,
+            )
+        )
+        result = engine.evaluate("x")
         assert result.decision == PolicyDecision.ALLOW
         assert result.winning_rule.rule_id == "a1"
-        assert result.conflict_detected is False
 
     def test_adhoc_overrides_local(self) -> None:
         engine = FederationPolicyEngine()
@@ -212,7 +232,8 @@ class TestRuleManagement:
         engine.add_federation_rule("f1", "x", PolicyDecision.DENY)
         assert engine.remove_rule("f1") is True
         result = engine.evaluate("x")
-        assert result.decision == PolicyDecision.ALLOW  # back to default
+        assert result.decision == PolicyDecision.DENY  # default is now deny
+        assert result.no_rule_match is True
         assert engine.remove_rule("nonexistent") is False
 
     def test_add_federation_rule_helper(self) -> None:

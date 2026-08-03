@@ -61,7 +61,7 @@ class JurisdictionConfig:
         policy_engine: The :class:`FederationPolicyEngine` for this jurisdiction.
         allowed_trigrams: Set of trigrams permitted to operate in this
             jurisdiction. Empty set means all trigrams are allowed.
-        default_decision: Default decision when no rules match.
+        default_decision: Default decision when no rules match (fail-closed).
         weight: Priority weight for cross-jurisdiction conflict resolution
             (higher = preferred).
         metadata: Optional metadata (e.g. regulatory reference).
@@ -71,7 +71,7 @@ class JurisdictionConfig:
     description: str = ""
     policy_engine: FederationPolicyEngine | None = None
     allowed_trigrams: set[str] = field(default_factory=set)
-    default_decision: PolicyDecision = PolicyDecision.ALLOW
+    default_decision: PolicyDecision = PolicyDecision.DENY
     weight: int = 1
     metadata: dict[str, Any] = field(default_factory=dict)
 
