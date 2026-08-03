@@ -26,6 +26,7 @@ from typing import Any
 from maref.federation.trust_hardening import (
     SybilTrustGuard,
     byzantine_robust_aggregate,
+    verify_report_signature,
 )
 from maref.recursive.trust_engine_v2 import TrustEngineV2
 
@@ -61,6 +62,8 @@ class PeerTrustReport:
     tier: str = "B"
     timestamp: float = field(default_factory=time.time)
     confidence: float = 1.0
+    signature: str = ""
+    signer_key_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +73,8 @@ class PeerTrustReport:
             "tier": self.tier,
             "timestamp": self.timestamp,
             "confidence": self.confidence,
+            "signature": self.signature,
+            "signer_key_id": self.signer_key_id,
         }
 
     def freshness(self, now: float | None = None) -> float:
@@ -139,6 +144,7 @@ class FederatedTrustEngine:
         min_peer_reports: int = DEFAULT_MIN_PEER_REPORTS,
         robust_aggregation: bool = True,
         sybil_guard: SybilTrustGuard | None = None,
+        trusted_peer_public_keys: dict[str, str] | None = None,
     ) -> None:
         """Initialize the federated trust engine.
 
@@ -153,6 +159,12 @@ class FederatedTrustEngine:
                 + MAD outlier rejection) instead of a plain weighted mean.
             sybil_guard: Optional :class:`SybilTrustGuard` enabling source
                 reputation (cold start + penalty/reward) for Sybil defense.
+            trusted_peer_public_keys: Optional mapping of ``key_id`` →
+                Ed25519 public key PEM.  When provided (v0.47 S4), every
+                submitted peer report must carry a valid signature from a
+                trusted key; invalid reports are discarded and recorded for
+                audit.  When None the engine keeps its historical behaviour
+                (unsigned reports accepted).
         """
         self._local = local_engine
         self._local_weight = max(0.0, min(1.0, local_weight))
@@ -160,6 +172,9 @@ class FederatedTrustEngine:
         self._min_peer_reports = max(1, min_peer_reports)
         self._robust_aggregation = robust_aggregation
         self._sybil_guard = sybil_guard
+        self._trusted_peer_public_keys = dict(trusted_peer_public_keys or {})
+        # Audit-visible list of reports rejected for invalid signatures.
+        self._rejected_reports: list[dict[str, Any]] = []
         # agent_id → list of peer reports.
         self._peer_reports: dict[str, list[PeerTrustReport]] = {}
         # agent_id → last computed federated score.
@@ -177,12 +192,35 @@ class FederatedTrustEngine:
     def sybil_guard(self) -> SybilTrustGuard | None:
         return self._sybil_guard
 
+    @property
+    def trusted_peer_count(self) -> int:
+        """Number of trusted peer public keys configured (0 = unverified)."""
+        return len(self._trusted_peer_public_keys)
+
+    @property
+    def rejected_report_count(self) -> int:
+        """Number of reports discarded for invalid signatures."""
+        return len(self._rejected_reports)
+
+    def rejected_reports(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Audit-visible record of rejected reports (most recent last)."""
+        return list(self._rejected_reports[-limit:])
+
     def submit_peer_report(self, report: PeerTrustReport) -> None:
         """Submit a trust score report from a peer federation server.
+
+        When the engine is configured with trusted peer keys (v0.47 S4),
+        the report must carry a valid signature; otherwise it is discarded
+        and recorded in :meth:`rejected_reports` for audit.
 
         Args:
             report: The peer trust report.
         """
+        if self._trusted_peer_public_keys and not verify_report_signature(
+            report, self._trusted_peer_public_keys
+        ):
+            self._record_rejected_report(report)
+            return
         if self._sybil_guard is not None:
             # Observe the source so it is tracked with cold-start reputation.
             self._sybil_guard.register_source(report.source_server)
@@ -213,6 +251,21 @@ class FederatedTrustEngine:
         """Submit multiple peer reports at once."""
         for report in reports:
             self.submit_peer_report(report)
+
+    def _record_rejected_report(self, report: PeerTrustReport) -> None:
+        """Record a report discarded for an invalid signature (audit trail)."""
+        self._rejected_reports.append(
+            {
+                "agent_id": report.agent_id,
+                "source_server": report.source_server,
+                "trust_score": report.trust_score,
+                "tier": report.tier,
+                "timestamp": report.timestamp,
+                "reason": "invalid_signature",
+            }
+        )
+        if len(self._rejected_reports) > 500:
+            self._rejected_reports = self._rejected_reports[-500:]
 
     def get_peer_reports(self, agent_id: str) -> list[PeerTrustReport]:
         """Return all peer reports for an agent."""
@@ -367,6 +420,8 @@ class FederatedTrustEngine:
             "robust_aggregation": self._robust_aggregation,
             "sybil_guard_enabled": self._sybil_guard is not None,
             "sybil_guard": self._sybil_guard.summary() if self._sybil_guard else None,
+            "trusted_peer_count": self.trusted_peer_count,
+            "rejected_report_count": self.rejected_report_count,
         }
 
 

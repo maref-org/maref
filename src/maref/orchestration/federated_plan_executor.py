@@ -357,15 +357,17 @@ class FederatedPlanExecutor:
             provider_org: str  (optional — if missing, any org is allowed)
             token_count: int
             complexity_score: float  (0.0-1.0)
-            success: bool  (default True)
             use_remote: bool  (default False) — also try peer catalogs
+
+        The ``success`` flag is **measured by the executor** from the actual
+        dispatch outcome (v0.47 S5) — callers cannot inject it via params to
+        fabricate or suppress billable work.
         """
         capability = params.get("required_capability", "")
         consumer_org = params.get("consumer_org", "")
         provider_org = params.get("provider_org", "")
         token_count = int(params.get("token_count", 0))
         complexity_score = float(params.get("complexity_score", 0.5))
-        success = bool(params.get("success", True))
         use_remote = bool(params.get("use_remote", False))
 
         record = FederationDispatchRecord(
@@ -425,6 +427,9 @@ class FederatedPlanExecutor:
             record.success = True
 
             # 4. Record a TaskMetric so cross-org billing is generated.
+            #    success is measured from the dispatch outcome, and the
+            #    metric is bound to the consumer as the caller identity
+            #    (v0.47 S5).
             duration_ms = (time.time() - start) * 1000
             self._metering.record(
                 task_id=record.agent_did,
@@ -434,8 +439,9 @@ class FederatedPlanExecutor:
                 consumer_org=consumer_org,
                 duration_ms=duration_ms,
                 token_count=token_count,
-                success=success,
+                success=record.success,
                 complexity_score=complexity_score,
+                caller_did=consumer_org,
             )
             record.duration_ms = duration_ms
         except Exception as exc:  # pragma: no cover - defensive

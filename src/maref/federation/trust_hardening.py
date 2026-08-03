@@ -23,7 +23,7 @@ avoid a circular import — it only relies on report objects exposing
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -46,6 +46,84 @@ SOURCE_TRUST_FLOOR = 0.05
 # Multiplicative factors for the penalty/reward loop.
 PENALTY_FACTOR = 0.5
 REWARD_FACTOR = 2.0
+
+
+# ── Peer trust report signing (v0.47 S4) ─────────────────────────────────
+
+
+def peer_report_payload(report: Any) -> bytes:
+    """Return the canonical bytes a trust report is signed over.
+
+    The payload covers every field that is meaningful to the recipient so
+    a tampered score / source / tier invalidates the signature:
+
+    ``agent_id\\nsource_server\\ntrust_score\\ntier\\ntimestamp\\nconfidence``
+
+    Field order and formatting must never change after release — any
+    change breaks verification of previously issued reports.
+    """
+    return (
+        f"{report.agent_id}\n"
+        f"{report.source_server}\n"
+        f"{report.trust_score!r}\n"
+        f"{report.tier}\n"
+        f"{report.timestamp!r}\n"
+        f"{report.confidence!r}"
+    ).encode()
+
+
+def sign_peer_report(report: Any, signing_key: Any, key_id: str) -> Any:
+    """Sign a peer trust report in place and return it.
+
+    Args:
+        report: A :class:`~maref.federation.trust.PeerTrustReport` (or a
+            report-like object exposing the canonical fields plus mutable
+            ``signature`` / ``signer_key_id`` attributes).
+        signing_key: A :class:`~maref.signing.signing_key.ReportSigningKey`.
+        key_id: Identifier the recipient uses to look up the public key
+            (usually the source server id).
+
+    Returns:
+        The same report with ``signature`` and ``signer_key_id`` set.
+    """
+    payload = peer_report_payload(report)
+    report.signature = signing_key.sign_report(payload)
+    report.signer_key_id = key_id
+    return report
+
+
+def verify_report_signature(
+    report: Any,
+    trusted_public_keys: Mapping[str, str],
+) -> bool:
+    """Verify a peer trust report's signature against trusted keys.
+
+    Args:
+        report: The submitted report carrying ``signature`` and
+            ``signer_key_id``.
+        trusted_public_keys: Mapping of ``key_id`` → Ed25519 public key PEM
+            for the peer servers this engine trusts.
+
+    Returns:
+        True only if the report is signed by a trusted key over the exact
+        canonical payload.  Never raises.
+    """
+    signature = getattr(report, "signature", "")
+    key_id = getattr(report, "signer_key_id", "") or getattr(
+        report, "source_server", ""
+    )
+    if not signature or not key_id:
+        return False
+    public_key_pem = trusted_public_keys.get(key_id)
+    if public_key_pem is None:
+        return False
+    from maref.signing.signing_key import ReportSigningKey
+
+    return ReportSigningKey.verify_signature(
+        public_key_pem,
+        signature,
+        peer_report_payload(report),
+    )
 
 
 @dataclass
@@ -342,6 +420,9 @@ __all__ = [
     "SOURCE_TRUST_FLOOR",
     "PENALTY_FACTOR",
     "REWARD_FACTOR",
+    "peer_report_payload",
+    "sign_peer_report",
+    "verify_report_signature",
     "SourceReputation",
     "AnomalyRecord",
     "byzantine_robust_aggregate",
