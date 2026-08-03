@@ -20,6 +20,7 @@ from maref.integration.a2a_types import (
     validate_agent_card_json,
 )
 from maref.integration.trajectory import TrajectoryCollector, TrajectoryEventType
+from maref.security.decorators import security_critical
 
 DEFAULT_GOVERNANCE_SKILLS = [
     A2ASkillDefinition(
@@ -152,6 +153,7 @@ class A2ABridge:
         state = await self._state_queues[task_id].get()
         return state
 
+    @security_critical
     def build_agent_card(self, base_url: str = "http://localhost:8000") -> dict[str, Any]:
         """Build an A2A Agent Card for service discovery.
 
@@ -220,9 +222,14 @@ class A2ABridge:
         from maref.identity.agent_dns import AgentDID
 
         agent_dns = self._agent_dns
+        agent_did = self._agent_did
         assert agent_dns is not None
+        if agent_did is None:
+            raise CommunicationBlockedError(
+                "agent_did 未配置，无法经 AgentDNS 生成 Agent Card"
+            )
         try:
-            did = AgentDID.parse(self._agent_did)
+            did = AgentDID.parse(agent_did)
         except ValueError as exc:
             raise CommunicationBlockedError(
                 f"agent_did 配置非法: {self._agent_did!r}"
@@ -266,8 +273,8 @@ class A2ABridge:
             event_type="a2a_agent_card_dns",
             actor=self._name,
             action="build_agent_card",
-            details=f"Agent Card resolved via AgentDNS for {self._agent_did}",
-            metadata={"did": self._agent_did, "status": card.status},
+            details=f"Agent Card resolved via AgentDNS for {agent_did}",
+            metadata={"did": agent_did, "status": card.status},
         )
         return a2a_card
 
@@ -515,6 +522,7 @@ class A2ABridge:
             )
         return tasks
 
+    @security_critical
     def force_halt_task(self, task_id: str, reason: str = "") -> bool:
         """Forcefully halt a task and transition to HALT state.
 

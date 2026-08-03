@@ -397,7 +397,7 @@ class RiskAuthorizationCheck(PreflightCheck):
     name = "risk_authorization"
 
     def execute(self, context: dict[str, Any]) -> PreflightCheckResult:
-        from maref.governance.risk_classifier import RiskLevel, classify_action
+        from maref.governance.trust_boundary import TrustBoundaryManager
 
         action = context.get("action", "")
         if not action:
@@ -409,7 +409,6 @@ class RiskAuthorizationCheck(PreflightCheck):
             )
 
         metadata = context.get("risk_metadata", {}) or {}
-        assessment = classify_action(action, metadata)
         scope_data = context.get("authorization_scope")
         scope = None
         if scope_data is not None:
@@ -427,68 +426,53 @@ class RiskAuthorizationCheck(PreflightCheck):
                     issuer=scope_data.get("issuer", ""),
                 )
 
+        # S1 接线：风险分级 + 授权范围 + 目标域白名单统一交给
+        # TrustBoundaryManager 强制裁决（fail-closed）。
+        boundary = TrustBoundaryManager(
+            scope=scope,
+            allowed_domains=context.get("allowed_domains"),
+            fail_closed=True,
+        )
+        decision = boundary.check_no_raise(
+            action,
+            agent_id=str(context.get("agent_id", "unknown")),
+            metadata=metadata,
+        )
+        assessment = decision.assessment
         base_details = {
             "action": action,
             "risk_level": assessment.risk_level.value,
             "reasons": list(assessment.reasons),
         }
 
-        if assessment.risk_level in (RiskLevel.LOW, RiskLevel.MEDIUM):
+        if decision.allowed:
             return PreflightCheckResult(
                 check_name=self.name,
                 status=PreflightCheckStatus.PASS,
                 description=(
-                    f"动作 {action} 风险等级 {assessment.risk_level.value} — 自动放行"
+                    f"动作 {action} 风险等级 {assessment.risk_level.value} — 放行"
+                    f"（{decision.reason}）"
                 ),
-                evidence="auto-approve",
+                evidence=decision.reason,
                 details={**base_details, "authorized": True},
             )
 
-        if scope is None:
-            return PreflightCheckResult(
-                check_name=self.name,
-                status=PreflightCheckStatus.FAIL,
-                description=(
-                    f"动作 {action} 风险等级 {assessment.risk_level.value} 需要授权范围证书，"
-                    "未提供 — 触发 HITL"
-                ),
-                evidence="no-scope",
-                details={**base_details, "authorized": False, "action_required": "HITL"},
-            )
-
-        if scope.is_expired():
-            return PreflightCheckResult(
-                check_name=self.name,
-                status=PreflightCheckStatus.FAIL,
-                description="授权范围证书已过期 — 触发 HITL",
-                evidence="expired",
-                details={**base_details, "authorized": False, "action_required": "HITL"},
-            )
-
-        if not scope.allows_action(action, assessment.risk_level.value):
-            return PreflightCheckResult(
-                check_name=self.name,
-                status=PreflightCheckStatus.FAIL,
-                description=(
-                    f"动作 {action} 超出授权范围（max={scope.max_risk_level}）— 越界阻断"
-                ),
-                evidence="out-of-scope",
-                details={
-                    **base_details,
-                    "authorized": False,
-                    "action_required": "HITL",
-                    "max_risk_level": scope.max_risk_level,
-                },
-            )
-
+        details: dict[str, Any] = {
+            **base_details,
+            "authorized": False,
+            "action_required": "HITL",
+        }
+        if scope is not None:
+            details["max_risk_level"] = scope.max_risk_level
         return PreflightCheckResult(
             check_name=self.name,
-            status=PreflightCheckStatus.PASS,
+            status=PreflightCheckStatus.FAIL,
             description=(
-                f"动作 {action} 风险等级 {assessment.risk_level.value} — 授权范围内放行"
+                f"动作 {action} 风险等级 {assessment.risk_level.value} 越界阻断："
+                f"{decision.reason}"
             ),
-            evidence="in-scope",
-            details={**base_details, "authorized": True},
+            evidence=decision.reason,
+            details=details,
         )
 
 

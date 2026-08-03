@@ -23,6 +23,7 @@ from typing import Any
 from maref.exceptions import ErrorCode, MAREFError
 from maref.governance.risk_classifier import RiskAssessment, RiskLevel, classify_action
 from maref.identity.credential import AuthorizationScope
+from maref.security.decorators import security_critical
 
 _DEFAULT_ALLOWED_DOMAINS: set[str] = {"local", "filesystem", "readonly"}
 
@@ -97,6 +98,7 @@ class TrustBoundaryManager:
 
     # -- 主入口 --
 
+    @security_critical
     def check(
         self,
         action: str,
@@ -128,6 +130,7 @@ class TrustBoundaryManager:
             )
         return decision
 
+    @security_critical
     def check_no_raise(
         self,
         action: str,

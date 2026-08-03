@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [v0.44.0] - 2026-08-03 (三维度可验证治理闭环 — Agent 大战补强)
+
+### Added
+- **单 Agent 权限边界强制实施**: TrustBoundaryManager（`governance/trust_boundary.py`）— 动作执行前经风险分级 + 授权范围 + 目标域白名单校验，越界抛 E1006 并记审计；接线 `task_preflight.RiskAuthorizationCheck` 统一裁决（fail-closed）
+- **行为审计闭环反馈**: RuntimeBehaviorProbe 运行时探针（`agent/behavior_analyzer.py`）— 审计链事件 → 行为特征 → 反馈信任评分，异常自动触发熔断器降级
+- **联邦治理拓扑感知**: ConsensusTopology FLAT/LEADER_WORKER（`governance/federated_consensus.py`）— Worker 快执行、Leader 仲裁、关键决议升级法定人数投票；角色由 `jurisdiction_router` 分配
+- **联邦统一裁判接线**: `settlement.dispute` 与 `joint_state_machine.arbitrate` 接入 VerifierConsensus 加权表决，可溯源 verdict 写审计链
+- **凭证吊销联动 DID**: GovernanceCredentialStore 订阅 DIDRegistry 撤销事件，DID 撤销 → 自动吊销其签发凭证并更新吊销列表
+- **AgentDNS 接线 A2A**: `a2a_server` `.well-known/agent-card.json` 改由 AgentDNS 解析生成，随 DID 生命周期变化
+- **统一身份编排门面**: AgentIdentityService（`identity/agent_identity_service.py`）聚合 DIDRegistry + AgentDNS + CredentialStore + TrustEngine，提供单一 resolve/issue/verify/revoke
+- **Agent DNS 解析服务**: DID → 能力目录解析（对齐 A2A Agent Card 结构），revoked/deactivated 解析失败
+
+### Fixed
+- **同名测试文件收集中断**: `tests/governance/test_trust_boundary.py` 重命名消除与 `tests/security/` 同名冲突，完整套件恢复收集（15224 项）
+- **a2a_bridge mypy**: `AgentDID.parse` 参数 `str | None` 收窄，全模块 mypy strict 通过
+- **安全规范合规**: 新增治理模块（trust_boundary / federated_consensus / verifier_consensus / agent_dns / agent_identity_service / a2a_bridge）补 `@security_critical` 装饰器
+- **legacy 漏洞清理**: MetaCircuitBreaker.state 覆写显式授权、NullAuditStore 不再静默丢弃审计、授权 token 一次性动态签发、ed25519-sim 伪造签名默认拒绝
+
+### Security
+- DID 版本化撤销 + 凭证吊销联动（I1）— 身份生命周期可追溯
+
+### Changed
+- 版本基线: 0.43.0 → 0.44.0
+
 ## [v0.43.0] - 2026-07-31 (开源发布 — Phase 4 集成验证与发布)
 
 ### Added
