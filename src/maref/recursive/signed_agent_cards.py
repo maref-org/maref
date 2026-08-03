@@ -22,31 +22,46 @@ class AgentCardSignature:
     card_hash: str = ""
     verified: bool = False
 
-    def verify(self, public_key_pem: str, card_data: dict[str, Any]) -> bool:
+    def verify(
+        self,
+        public_key_pem: str,
+        card_data: dict[str, Any],
+        allow_legacy_sim: bool = False,
+    ) -> bool:
         """Verify the signature against the card data.
 
         Supports two algorithms:
         - ``ed25519``: real Ed25519 elliptic curve signature verification.
         - ``ed25519-sim``: legacy SHA-256 hash comparison (for backward compat).
+
+        ``ed25519-sim`` 是弱模拟：只做哈希比较，不校验公钥，任何能算出
+        card_hash 的人都可以伪造"验证通过"。因此默认（``allow_legacy_sim=False``）
+        一律拒绝该算法；仅当调用方显式开启 legacy 兼容时才保留旧行为。
         """
+        if self.algorithm != "ed25519":
+            # ed25519-sim 默认不可信（防伪造：默认路径不接受弱模拟签名）。
+            if self.algorithm == "ed25519-sim" and allow_legacy_sim:
+                computed_hash = hashlib.sha256(
+                    json.dumps(card_data, sort_keys=True).encode()
+                ).hexdigest()
+                match = computed_hash == self.card_hash
+                self.verified = match and (time.time() < self.expires_at)
+            else:
+                self.verified = False
+            return self.verified
+
         computed_hash = hashlib.sha256(
             json.dumps(card_data, sort_keys=True).encode()
         ).hexdigest()
-
-        if self.algorithm == "ed25519":
-            try:
-                signature_bytes = bytes.fromhex(self.signature_value)
-            except ValueError:
-                self.verified = False
-                return False
-            sig_valid = Ed25519KeyPair.verify(
-                public_key_pem, signature_bytes, computed_hash.encode()
-            )
-            self.verified = sig_valid and (time.time() < self.expires_at)
-        else:
-            # Legacy SHA-256 simulation (ed25519-sim).
-            match = computed_hash == self.card_hash
-            self.verified = match and (time.time() < self.expires_at)
+        try:
+            signature_bytes = bytes.fromhex(self.signature_value)
+        except ValueError:
+            self.verified = False
+            return False
+        sig_valid = Ed25519KeyPair.verify(
+            public_key_pem, signature_bytes, computed_hash.encode()
+        )
+        self.verified = sig_valid and (time.time() < self.expires_at)
         return self.verified
 
 
@@ -170,7 +185,7 @@ class AgentCardSigner:
 
         for sig in card.signatures:
             card_data = card.to_card_data()
-            sig.verify(public_key, card_data)
+            sig.verify(public_key, card_data, allow_legacy_sim=self._legacy_mode)
         return card.is_valid()
 
     def has_key(self, agent_id: str) -> bool:
