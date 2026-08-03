@@ -11,6 +11,87 @@ from maref.identity.did_registry import AgentDID
 
 
 @dataclass
+class AuthorizationScope:
+    """授权范围证书 — 方案 D M2。
+
+    声明主体（subject_did）在某时限内被授权执行不超过 ``max_risk_level``
+    风险等级的动作子集。每个动作执行前校验
+    ``action.risk_level <= scope.max_risk_level``，越界即阻断并记审计。
+    """
+
+    subject_did: str
+    max_risk_level: str
+    allowed_actions: list[str] = field(default_factory=list)
+    valid_until: float | None = None
+    jurisdiction: str = "local"
+    issuer: str = ""
+
+    def allows_action(self, action: str, risk_level: str) -> bool:
+        """校验动作是否在授权范围内。
+
+        Args:
+            action: 动作标识。
+            risk_level: 动作的风险等级（RiskLevel.value）。
+
+        Returns:
+            True 表示允许；False 表示越界（风险超限或动作未授权）。
+        """
+        if self.allowed_actions:
+            allowed = any(
+                action == a or action.startswith(a.rstrip(":"))
+                for a in self.allowed_actions
+                if a.endswith(":")
+            ) or (action in self.allowed_actions)
+            if not allowed:
+                return False
+        order = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "IRREVERSIBLE": 3}
+        return order.get(risk_level, 99) <= order.get(self.max_risk_level, -1)
+
+    def is_expired(self, now: float | None = None) -> bool:
+        if self.valid_until is None:
+            return False
+        now = now if now is not None else time.time()
+        # valid_until 可能来自外部 dict（字符串时间戳），类型安全地解析，
+        # 无法解析时按 fail-closed 处理（视为过期）。
+        try:
+            valid_until = float(self.valid_until)
+        except (TypeError, ValueError):
+            return True
+        return now > valid_until
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "subject_did": self.subject_did,
+            "max_risk_level": self.max_risk_level,
+            "allowed_actions": list(self.allowed_actions),
+            "valid_until": self.valid_until,
+            "jurisdiction": self.jurisdiction,
+            "issuer": self.issuer,
+        }
+
+    @classmethod
+    def issue(
+        cls,
+        subject_did: str,
+        max_risk_level: str,
+        allowed_actions: list[str] | None = None,
+        ttl_seconds: float | None = 3600,
+        jurisdiction: str = "local",
+        issuer: str = "",
+    ) -> AuthorizationScope:
+        valid_until = (time.time() + ttl_seconds) if ttl_seconds is not None else None
+        return cls(
+            subject_did=subject_did,
+            max_risk_level=max_risk_level,
+            allowed_actions=allowed_actions or [],
+            valid_until=valid_until,
+            jurisdiction=jurisdiction,
+            issuer=issuer,
+        )
+
+
+
+@dataclass
 class VerifiableCredential:
     id: str
     issuer: AgentDID

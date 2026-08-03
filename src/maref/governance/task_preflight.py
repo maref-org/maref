@@ -380,6 +380,118 @@ class DecisionLoggedCheck(PreflightCheck):
         )
 
 
+class RiskAuthorizationCheck(PreflightCheck):
+    """决策分级授权检查（方案 D）。
+
+    依据动作风险分级与授权范围证书判定是否放行：
+    - LOW/MEDIUM：自动放行
+    - HIGH：需 scope 显式授权，否则 FAIL（触发 HITL）
+    - IRREVERSIBLE：强制多验证者/HITL，无授权则 FAIL
+
+    Context keys:
+    - ``action`` (str)：待执行动作标识
+    - ``authorization_scope`` (AuthorizationScope | dict)：授权范围证书
+    - ``risk_metadata`` (dict, optional)：风险分级上下文
+    """
+
+    name = "risk_authorization"
+
+    def execute(self, context: dict[str, Any]) -> PreflightCheckResult:
+        from maref.governance.risk_classifier import RiskLevel, classify_action
+
+        action = context.get("action", "")
+        if not action:
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.PASS,
+                description="无待执行动作 — 分级授权检查跳过",
+                evidence="",
+            )
+
+        metadata = context.get("risk_metadata", {}) or {}
+        assessment = classify_action(action, metadata)
+        scope_data = context.get("authorization_scope")
+        scope = None
+        if scope_data is not None:
+            from maref.identity.credential import AuthorizationScope
+
+            if isinstance(scope_data, AuthorizationScope):
+                scope = scope_data
+            elif isinstance(scope_data, dict):
+                scope = AuthorizationScope(
+                    subject_did=scope_data.get("subject_did", ""),
+                    max_risk_level=scope_data.get("max_risk_level", "LOW"),
+                    allowed_actions=scope_data.get("allowed_actions", []),
+                    valid_until=scope_data.get("valid_until"),
+                    jurisdiction=scope_data.get("jurisdiction", "local"),
+                    issuer=scope_data.get("issuer", ""),
+                )
+
+        base_details = {
+            "action": action,
+            "risk_level": assessment.risk_level.value,
+            "reasons": list(assessment.reasons),
+        }
+
+        if assessment.risk_level in (RiskLevel.LOW, RiskLevel.MEDIUM):
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.PASS,
+                description=(
+                    f"动作 {action} 风险等级 {assessment.risk_level.value} — 自动放行"
+                ),
+                evidence="auto-approve",
+                details={**base_details, "authorized": True},
+            )
+
+        if scope is None:
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.FAIL,
+                description=(
+                    f"动作 {action} 风险等级 {assessment.risk_level.value} 需要授权范围证书，"
+                    "未提供 — 触发 HITL"
+                ),
+                evidence="no-scope",
+                details={**base_details, "authorized": False, "action_required": "HITL"},
+            )
+
+        if scope.is_expired():
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.FAIL,
+                description="授权范围证书已过期 — 触发 HITL",
+                evidence="expired",
+                details={**base_details, "authorized": False, "action_required": "HITL"},
+            )
+
+        if not scope.allows_action(action, assessment.risk_level.value):
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.FAIL,
+                description=(
+                    f"动作 {action} 超出授权范围（max={scope.max_risk_level}）— 越界阻断"
+                ),
+                evidence="out-of-scope",
+                details={
+                    **base_details,
+                    "authorized": False,
+                    "action_required": "HITL",
+                    "max_risk_level": scope.max_risk_level,
+                },
+            )
+
+        return PreflightCheckResult(
+            check_name=self.name,
+            status=PreflightCheckStatus.PASS,
+            description=(
+                f"动作 {action} 风险等级 {assessment.risk_level.value} — 授权范围内放行"
+            ),
+            evidence="in-scope",
+            details={**base_details, "authorized": True},
+        )
+
+
 # ---------------------------------------------------------------------------
 # TaskPreflight — orchestrator
 # ---------------------------------------------------------------------------
@@ -435,6 +547,7 @@ class TaskPreflight:
             GitHistoryCheck(),
             AlternativesComparedCheck(),
             DecisionLoggedCheck(),
+            RiskAuthorizationCheck(),
         ]
 
     def execute(self, context: dict[str, Any]) -> PreflightResult:
