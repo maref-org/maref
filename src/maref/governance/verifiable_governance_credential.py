@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import secrets
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +48,7 @@ class VerifiableGovernanceCredential:
     expires_at: float
     signature: str = ""
     signer_public_key_pem: str = ""
+    compliance_mapping: dict[str, Any] = field(default_factory=dict)
 
     # -- 签发 --
 
@@ -109,6 +110,28 @@ class VerifiableGovernanceCredential:
 
     def is_expired(self, now: float | None = None) -> bool:
         return (now if now is not None else time.time()) > self.expires_at
+
+    def attach_compliance_mapping(
+        self,
+        mapping: dict[str, Any],
+    ) -> None:
+        """附加按辖区的合规映射（v0.45.0 方案 G G3）。
+
+        ``mapping`` 结构::
+
+            {
+              "jurisdiction": "eu",
+              "profile_name": "European Union — AI Act + GDPR",
+              "actions": {
+                 "payment:transfer": {"enforcement": "enforce", "regulations": ["eu_ai_act"]},
+                 "file.read": {"enforcement": "observe", "regulations": []},
+              }
+            }
+
+        该字段不参与签名 payload（避免破坏既有凭证签名），仅作为
+        对监管的展示侧合规证明输出。
+        """
+        self.compliance_mapping = mapping
 
     def renew(self, signing_key: ReportSigningKey, ttl_seconds: float = 86400) -> None:
         """就地续期：保留 credential_id 与 Merkle 证明，重算有效期并重签名。
@@ -187,6 +210,7 @@ class VerifiableGovernanceCredential:
             "expires_at": self.expires_at,
             "signature": self.signature,
             "signer_public_key_pem": self.signer_public_key_pem,
+            "compliance_mapping": dict(self.compliance_mapping),
         }
 
     @classmethod
@@ -201,6 +225,7 @@ class VerifiableGovernanceCredential:
             expires_at=float(data["expires_at"]),
             signature=data.get("signature", ""),
             signer_public_key_pem=data.get("signer_public_key_pem", ""),
+            compliance_mapping=dict(data.get("compliance_mapping", {})),
         )
 
     def to_json(self, indent: int = 2) -> str:

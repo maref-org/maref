@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from maref.compliance.regulatory_policy_mapper import RegulatoryPolicyMapper
 from maref.governance.verifiable_governance_credential import (
     GovernanceCredentialStore,
     VerifiableGovernanceCredential,
@@ -102,11 +103,15 @@ class AgentIdentityService:
         merkle_proof: dict[str, Any] | None = None,
         ttl_seconds: float = 86400,
         signing_key: Any | None = None,
+        jurisdiction: str | None = None,
     ) -> VerifiableGovernanceCredential:
         """为治理主体签发治理凭证。
 
         要求 DID 已注册且处于 active；否则抛 :class:`ValueError`。
         未提供 signing_key 时使用服务默认密钥（未配置则抛 ValueError）。
+
+        提供 ``jurisdiction`` 时，凭证附带按辖区的合规映射
+        （v0.45.0 方案 G G3）——对监管的"证明输出"。
         """
         did = AgentDID.parse(subject_did)
         if self._did_registry.resolve(did) is None:
@@ -134,6 +139,12 @@ class AgentIdentityService:
             signing_key=key,
             ttl_seconds=ttl_seconds,
         )
+        if jurisdiction:
+            cred.attach_compliance_mapping(
+                RegulatoryPolicyMapper().build_credential_mapping(
+                    actions=scope, jurisdiction=jurisdiction
+                )
+            )
         self._credential_store.store(cred)
         return cred
 

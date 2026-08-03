@@ -851,3 +851,74 @@ class TestIdentityServiceKeyBinding:
         registry.revoke(did, reason="x")
         result = service.verify(cred)
         assert result["valid"] is False
+
+
+class TestCredentialComplianceMappingIntegration:
+    """v0.45.0 方案 G G3：签发凭证附带按辖区合规映射。"""
+
+    def _service_with_key(self) -> tuple:
+        from maref.identity.agent_identity_service import AgentIdentityService
+        from maref.signing.signing_key import ReportSigningKey
+
+        registry = DIDRegistry()
+        dns = AgentDNS(did_registry=registry)
+        service = AgentIdentityService(did_registry=registry, agent_dns=dns)
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate()
+        key = ReportSigningKey.generate()
+        record = registry.register(did, sm)
+        record.metadata["ed25519_public_key_pem"] = key.public_key_pem
+        return service, did, key
+
+    def test_issue_with_jurisdiction_attaches_mapping(self) -> None:
+        service, did, key = self._service_with_key()
+        cred = service.issue(
+            subject_did=did.did_string,
+            scope=["audit", "memory"],
+            signing_key=key,
+            jurisdiction="eu",
+        )
+        assert cred.compliance_mapping["jurisdiction"] == "eu"
+        assert cred.compliance_mapping["profile_name"]
+        assert "audit" in cred.compliance_mapping["actions"]
+        assert cred.verify_signature()
+
+    def test_issue_without_jurisdiction_no_mapping(self) -> None:
+        service, did, key = self._service_with_key()
+        cred = service.issue(
+            subject_did=did.did_string,
+            scope=["audit"],
+            signing_key=key,
+        )
+        assert cred.compliance_mapping == {}
+
+    def test_mapping_roundtrips_through_dict(self) -> None:
+        service, did, key = self._service_with_key()
+        cred = service.issue(
+            subject_did=did.did_string,
+            scope=["audit"],
+            signing_key=key,
+            jurisdiction="cn",
+        )
+        restored = cred.from_dict(cred.to_dict())
+        assert restored.compliance_mapping["jurisdiction"] == "cn"
+        # 合规映射不参与签名 payload，签名仍可验证
+        assert restored.verify_signature()
+
+    def test_different_jurisdiction_different_profile(self) -> None:
+        service, did, key = self._service_with_key()
+        cn = service.issue(
+            subject_did=did.did_string,
+            scope=["audit"],
+            signing_key=key,
+            jurisdiction="cn",
+        )
+        gs = service.issue(
+            subject_did=did.did_string,
+            scope=["audit"],
+            signing_key=key,
+            jurisdiction="global_south",
+        )
+        assert cn.compliance_mapping["jurisdiction"] == "cn"
+        assert gs.compliance_mapping["jurisdiction"] == "global_south"
+        assert cn.compliance_mapping["profile_name"] != gs.compliance_mapping["profile_name"]
