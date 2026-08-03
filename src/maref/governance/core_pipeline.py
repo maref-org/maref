@@ -81,6 +81,7 @@ class GovernancePipeline:
         cb_check_callback: Callable[[str, str, str, int], bool] | None = None,
         cb_record_callback: Callable[[str, str, str, bool], None] | None = None,
         policy_rules: list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]] | None = None,
+        boundary: Any | None = None,
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
 
@@ -91,6 +92,10 @@ class GovernancePipeline:
         self._cb_check_callback = cb_check_callback
         self._cb_record_callback = cb_record_callback
         self._policy_rules = policy_rules or self._default_policy_rules()
+        # TrustBoundaryManager (v0.47 S9): mandatory pre-action boundary gate.
+        # Injected via duck typing so core_pipeline does not hard-depend on
+        # maref.governance.trust_boundary.
+        self._boundary = boundary
 
     @staticmethod
     def _default_policy_rules() -> list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]]:
@@ -143,6 +148,31 @@ class GovernancePipeline:
     def govern(self, req: GovernanceRequest) -> GovernanceResult:
         """Execute the unified 8-step governance pipeline."""
         start = time.time()
+
+        # 0. TrustBoundaryManager gate (v0.47 S9): mandatory pre-action
+        # boundary check before any other rule.  Out-of-bounds → DENY
+        # (E1006 semantics surfaced as Verdict.DENY / trust_boundary).
+        if self._boundary is not None:
+            try:
+                boundary_decision = self._boundary.check_no_raise(
+                    action=req.action,
+                    agent_id=req.agent_id,
+                    metadata=req.parameters,
+                )
+            except Exception:
+                boundary_decision = None
+            if boundary_decision is not None and not boundary_decision.allowed:
+                result = GovernanceResult(
+                    verdict=Verdict.DENY,
+                    reason=f"TrustBoundary 阻断越界动作: {boundary_decision.reason}",
+                    matched_rule="trust_boundary",
+                )
+                result.latency_ms = int((time.time() - start) * 1000)
+                if self._audit_callback:
+                    self._audit_callback(req, result)
+                if self._cb_record_callback:
+                    self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
+                return result
 
         # 1. Circuit breaker depth check
         if self._cb_check_callback:
