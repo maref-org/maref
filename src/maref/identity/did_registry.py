@@ -80,6 +80,11 @@ class AgentIdentityRecord:
     roles: list[str] = field(default_factory=list)
     registered_at: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
+    # 版本化生命周期（方案 E）：
+    # status 取值 active / revoked / deactivated；revocation_entry 保留撤销历史。
+    version: int = 1
+    status: str = "active"
+    revocation_entry: dict[str, Any] = field(default_factory=dict)
 
     def ed25519_public_key(self) -> str:
         return self.metadata.get("ed25519_public_key_pem", "")
@@ -165,6 +170,17 @@ class DIDRegistry:
             ed25519_public_key_pem=record.ed25519_public_key(),
             service_endpoints=service_endpoints,
         )
+        document_metadata: dict[str, Any] = {
+            "created": record.registered_at,
+            "updated": record.registered_at,
+            "deactivated": record.status in ("deactivated", "revoked"),
+            "versionId": str(record.version),
+            # 方案 E：DID 文档增加 version 与 status 字段。
+            "version": record.version,
+            "status": record.status,
+        }
+        if record.revocation_entry:
+            document_metadata["revocation_entry"] = dict(record.revocation_entry)
         return DIDResolutionResult(
             did_document=doc,
             resolution_metadata={
@@ -172,13 +188,67 @@ class DIDRegistry:
                 "resolved": True,
                 "retrieved": time.time(),
             },
-            document_metadata={
-                "created": record.registered_at,
-                "updated": record.registered_at,
-                "deactivated": False,
-                "versionId": "1",
-            },
+            document_metadata=document_metadata,
         )
+
+    def revoke(
+        self,
+        did: AgentDID,
+        reason: str = "unspecified",
+        signer: str = "",
+    ) -> AgentIdentityRecord | None:
+        """版本化撤销一个 DID（方案 E）。
+
+        将状态置为 revoked 并写入 ``revocation_entry``，保留历史记录，
+        不删除注册。解析时可通过 ``document_metadata.status`` 判定。
+        支持再次调用实现版本递增（deactivated 为不可逆终态）。
+
+        Args:
+            did: 待撤销的 DID。
+            reason: 撤销原因。
+            signer: 撤销签署者标识。
+
+        Returns:
+            更新后的记录；若 DID 不存在返回 None。
+        """
+        record = self._agents.get(did)
+        if record is None:
+            return None
+        # deactivated 是不可逆终态，拒绝再次撤销/改写。
+        if record.status == "deactivated":
+            return record
+        new_version = record.version + 1
+        record.version = new_version
+        record.status = "revoked"
+        record.revocation_entry = {
+            "did": did.did_string,
+            "version": new_version,
+            "revoked_at": time.time(),
+            "reason": reason,
+            "signer": signer,
+        }
+        return record
+
+    def deactivate(self, did: AgentDID, reason: str = "", signer: str = "") -> AgentIdentityRecord | None:
+        """将 DID 置为不可逆的 deactivated 终态（方案 E）。"""
+        record = self._agents.get(did)
+        if record is None:
+            return None
+        record.version += 1
+        record.status = "deactivated"
+        record.revocation_entry = {
+            "did": did.did_string,
+            "version": record.version,
+            "revoked_at": time.time(),
+            "reason": reason or "deactivated",
+            "signer": signer,
+        }
+        return record
+
+    def is_active(self, did: AgentDID) -> bool:
+        """DID 是否处于 active 状态。"""
+        record = self._agents.get(did)
+        return record is not None and record.status == "active"
 
     def unregister(self, did: AgentDID) -> AgentIdentityRecord | None:
         """Remove a DID record from the registry.
