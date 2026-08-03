@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from maref.immunity.red_contamination_probe import ContaminationFinding, RedContaminationProbe
-from maref.recursive.unified_audit import NullAuditStore
+from maref.recursive.unified_audit import UnifiedAuditStore
 
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditStore
@@ -22,7 +22,7 @@ class ContaminationReport:
 class CrossGenerationImpactSimulator:
 
     def __init__(self, audit_store: UnifiedAuditStore | None=None) -> None:
-        self._audit_store = audit_store or NullAuditStore()
+        self._audit_store = audit_store or UnifiedAuditStore()
 
     def simulate_contamination(self, code: str) -> ContaminationReport:
         probe = RedContaminationProbe()
