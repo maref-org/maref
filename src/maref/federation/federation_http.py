@@ -37,13 +37,20 @@ The end-to-end flow (2+ processes over HTTP):
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 
 from maref.eivl.federated_merkle import FederatedMerkleAggregator
 from maref.federation.bootstrap import PEERS_ENDPOINT_PATH
+from maref.federation.federation_auth import (
+    FederationRequestSigner,
+    FederationRequestVerifier,
+    validate_peer_url,
+)
 from maref.federation.gateway import FederatedAgent, FederationRequest
 from maref.federation.identity_service import IdentityService
 from maref.federation.membership import (
@@ -67,6 +74,31 @@ from maref.signing.signing_key import ReportSigningKey
 _ADP_CATALOG_PATH = "/.well-known/adp/catalog"
 _NETWORK_MEMBERS_PATH = "/api/v1/federation/network/members"
 _SETTLEMENT_LEDGER_PATH = "/api/v1/federation/settlement/ledger"
+
+# Audit-visible log of requests rejected for invalid signatures (v0.47 S1).
+_AUTH_FAILED_LOG: list[dict[str, Any]] = []
+
+
+def _record_auth_failed(
+    path: str, method: str, reason: str, key_id: str = ""
+) -> None:
+    """Record a rejected federation request for audit."""
+    _AUTH_FAILED_LOG.append(
+        {
+            "timestamp": time.time(),
+            "path": path,
+            "method": method,
+            "reason": reason,
+            "key_id": key_id,
+        }
+    )
+    if len(_AUTH_FAILED_LOG) > 500:
+        del _AUTH_FAILED_LOG[:-500]
+
+
+def get_auth_failed_log() -> list[dict[str, Any]]:
+    """Return the audit log of rejected federated requests."""
+    return list(_AUTH_FAILED_LOG)
 
 
 # ── Serialization helpers ────────────────────────────────────────────────
@@ -121,6 +153,8 @@ def _report_from_dict(data: dict[str, Any]) -> PeerTrustReport:
         tier=data.get("tier", "B"),
         timestamp=data.get("timestamp", 0.0),
         confidence=data.get("confidence", 1.0),
+        signature=data.get("signature", ""),
+        signer_key_id=data.get("signer_key_id", ""),
     )
 
 
@@ -140,6 +174,10 @@ def create_federation_app(
     governance_credentials: GovernanceCredentialStore | None = None,
     credential_signing_key: ReportSigningKey | None = None,
     merkle_aggregator: FederatedMerkleAggregator | None = None,
+    request_verifier: (
+        FederationRequestVerifier | Mapping[str, str] | None
+    ) = None,
+    peer_url_policy: dict[str, Any] | None = None,
 ) -> FastAPI:
     """Build a FastAPI app exposing the federated HTTP endpoints.
 
@@ -160,12 +198,81 @@ def create_federation_app(
             — enables the DID / AIC identity endpoints (Phase 3.4).
         jurisdiction_router: Optional :class:`~maref.federation.jurisdiction_router.JurisdictionPolicyRouter`
             — enables the regulatory compliance endpoints (Phase 3.5).
+        request_verifier: Optional :class:`FederationRequestVerifier`.  When
+            provided, every POST under ``/api/v1/federation/`` must carry a
+            valid Ed25519 request signature (v0.47 S1, fail-closed).  When
+            omitted the transport keeps its historical unauthenticated
+            behaviour (backward compatible).
+        peer_url_policy: Optional dict of hardening knobs for outbound
+            peer fetches (v0.47 S2).  Supports ``{"allowed_hosts": set[str]}``.
+            When provided, ``settlement/reconcile`` rejects peer URLs that
+            resolve to loopback / link-local / private / reserved addresses
+            unless the host is explicitly whitelisted.
 
     Returns:
         A configured :class:`fastapi.FastAPI` application.
     """
     app = FastAPI(title=f"MAREF Federation {server_id}", version="0.1.0")
     router = APIRouter()
+
+    if isinstance(request_verifier, Mapping):
+        request_verifier = FederationRequestVerifier(request_verifier)
+
+    if request_verifier is not None:
+        _ALLOWED_PUBLIC_POSTS = {HEARTBEAT_ENDPOINT_PATH}
+
+        class _RequestAuthMiddleware:
+            """Pure-ASGI auth gate: reads the body, verifies the signature,
+            then replays the body to the downstream app."""
+
+            def __init__(self, app: Any, verifier: FederationRequestVerifier) -> None:
+                self.app = app
+                self._verifier = verifier
+
+            async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+                if scope["type"] != "http":
+                    await self.app(scope, receive, send)
+                    return
+                request = Request(scope, receive)
+                path = request.url.path
+                if not (
+                    request.method == "POST"
+                    and path.startswith("/api/v1/federation/")
+                    and path not in _ALLOWED_PUBLIC_POSTS
+                ):
+                    await self.app(scope, receive, send)
+                    return
+                body = await request.body()
+
+                async def receive_with_body() -> dict[str, Any]:
+                    return {"type": "http.request", "body": body, "more_body": False}
+
+                auth_header = request.headers.get("X-MAREF-Fed-Auth")
+                body_hash_header = request.headers.get("X-MAREF-Fed-Body-Hash")
+                if not self._verifier.verify(
+                    method=request.method,
+                    path=path,
+                    body_bytes=body,
+                    auth_header=auth_header,
+                    body_hash_header=body_hash_header,
+                ):
+                    key_id = auth_header.split(":", 1)[0] if auth_header else ""
+                    _record_auth_failed(
+                        path=path,
+                        method=request.method,
+                        reason="auth_failed",
+                        key_id=key_id,
+                    )
+                    response = JSONResponse(
+                        status_code=401,
+                        content={"detail": "missing or invalid request signature"},
+                    )
+                    await response(scope, receive, send)
+                    return
+                await self.app(scope, receive_with_body, send)
+
+        app.add_middleware(_RequestAuthMiddleware, verifier=request_verifier)
+
 
     @router.get("/api/v1/federation/health")
     def health() -> dict[str, Any]:
@@ -340,6 +447,11 @@ def create_federation_app(
         peer_url = body.get("peer_url")
         if not peer_url:
             raise HTTPException(status_code=400, detail="peer_url is required")
+        if peer_url_policy is not None:
+            allowed_hosts = set(peer_url_policy.get("allowed_hosts") or ())
+            ssrf_error = validate_peer_url(str(peer_url), allowed_hosts=allowed_hosts)
+            if ssrf_error is not None:
+                raise HTTPException(status_code=400, detail=f"peer_url rejected: {ssrf_error}")
         timeout = body.get("timeout", 10.0)
         try:
             with httpx.Client(base_url=str(peer_url).rstrip("/"), timeout=timeout) as client:
@@ -652,11 +764,40 @@ class FederationHTTPClient:
         catalog = client.fetch_catalog()
         client.push_policy(event_dict)
         client.submit_trust_report(report_dict)
+
+    When a ``signer`` (v0.47 S1) is provided, every POST request is
+    automatically signed with ``X-MAREF-Fed-*`` headers so the client can
+    talk to a server with ``request_verifier`` configured.
     """
 
-    def __init__(self, base_url: str, timeout: float = 5.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 5.0,
+        signer: FederationRequestSigner | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
-        self._client = httpx.Client(base_url=self._base_url, timeout=timeout)
+        self._signer = signer
+        event_hooks: dict[str, list[Any]] = {}
+        if signer is not None:
+            event_hooks["request"] = [self._sign_request]
+        self._client = httpx.Client(
+            base_url=self._base_url,
+            timeout=timeout,
+            event_hooks=event_hooks,
+        )
+
+    def _sign_request(self, request: httpx.Request) -> None:
+        """Attach federation signature headers to outbound POST requests."""
+        if request.method != "POST":
+            return
+        assert self._signer is not None
+        headers = self._signer.sign(
+            method=request.method,
+            path=request.url.path,
+            body_bytes=request.content,
+        )
+        request.headers.update(headers)
 
     def close(self) -> None:
         self._client.close()
