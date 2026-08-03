@@ -217,9 +217,7 @@ class FourPhaseGovernance:
         expires_at = self._authorization_tokens.pop(authorization_token, None)
         if expires_at is None:
             return False
-        if time.time() > expires_at:
-            return False
-        return True
+        return time.time() <= expires_at
 
     def _audit_transition(self, event: str, detail: str = "") -> None:
         from maref.recursive.unified_audit import UnifiedAuditRecord, make_record_id
