@@ -14,7 +14,7 @@
 - **W1 统一治理装配工厂**: `GovernedPipeline` 统一装配 TrustBoundary + TaskPreflight + 行为探针 + FederatedConsensus + 共享 audit_bus
 - **W2 sidecar 装配闭环**: `create_app` 装配 GovernedPipeline，行为探针订阅共享审计流
 - **W3 联邦生产装配**: `create_default_federation` 装配 `trusted_peer_public_keys`（S4）+ `consensus_membership`（F2）；平台暴露 `consensus`
-- **W4 接线端到端验证**: v0.47 治理门禁装配后真生效（综合回归 2154 passed）
+- **W4 接线端到端验证**: v0.47 治理门禁装配后真生效（综合回归 3154 passed）
 
 ### Changed
 - 版本基线: 0.47.0 → 0.48.0

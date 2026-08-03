@@ -144,7 +144,8 @@ class GovernedPipeline:
         return self.pipeline.govern(request)
 
     def _audit_decision(self, request: GovernanceRequest, result: GovernanceResult) -> None:
-        """Persist governance decisions to the append-only audit log."""
+        """Persist governance decisions to the append-only audit log AND the
+        shared audit bus (W2: closes the loop to the behavior probe)."""
         self.audit.log(
             event_type="governance_decision",
             actor=request.agent_id,
@@ -154,5 +155,19 @@ class GovernedPipeline:
                 "tenant_id": request.tenant_id,
                 "matched_rule": result.matched_rule,
                 "hitl_tier": result.hitl_tier.name if result.hitl_tier else "",
+            },
+        )
+        # Publish to the shared audit bus so the behavior probe (subscribed
+        # to the "audit" topic) receives the governance decision event.
+        self.audit_bus.log(
+            event_type="audit",
+            actor=request.agent_id,
+            action=request.action,
+            details=f"{result.verdict.value}: {result.reason}",
+            metadata={
+                "governance_event": "governance_decision",
+                "tenant_id": request.tenant_id,
+                "matched_rule": result.matched_rule,
+                "verdict": result.verdict.value,
             },
         )

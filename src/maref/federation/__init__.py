@@ -199,6 +199,7 @@ def create_default_federation(
     did_registry: Any | None = None,
     trusted_peer_public_keys: dict[str, str] | None = None,
     consensus_membership: Any | None = None,
+    consensus_quorum_size: int | None = None,
 ) -> FederatedPlatform:
     """Create a fully-wired :class:`FederatedPlatform` with sensible defaults.
 
@@ -315,9 +316,16 @@ def create_default_federation(
     # 11. Consensus (v0.48 W3): F2 membership-bound voting, when wired.
     from maref.governance.federated_consensus import FederatedConsensus
 
+    member_count = (
+        len(consensus_membership.members_summary())
+        if consensus_membership is not None
+        and hasattr(consensus_membership, "members_summary")
+        else 3
+    )
+    quorum_size = consensus_quorum_size or max(2, member_count // 2 + 1)
     consensus = FederatedConsensus(
-        member_count=3,
-        quorum_size=2,
+        member_count=member_count,
+        quorum_size=quorum_size,
         membership=consensus_membership,
     )
 
