@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from maref.recursive.self_observer import SystemSnapshot
@@ -63,6 +64,23 @@ class SelfDiagnostician:
         self._trip_count = 0
         self._blocked = False
 
+    # TTL 缓存：真实探针测量（GUI build / desktop）是重量级操作，同一进程
+    # 内重复诊断应复用结果。缓存仅对未 mock 的探针生效，避免污染测试。
+    _heavy_probe_cache: dict[str, tuple[float, ProbeReading]] = {}
+    _heavy_probe_ttl_s = 300.0
+
+    def _heavy_measure(self, probe: Any, probe_cls: Any) -> ProbeReading:
+        measure = probe.measure
+        if getattr(measure, "__func__", None) is not probe_cls.measure:
+            return measure()
+        now = time.monotonic()
+        cached = self._heavy_probe_cache.get(probe.name)
+        if cached is not None and now - cached[0] < self._heavy_probe_ttl_s:
+            return cached[1]
+        reading = measure()
+        self._heavy_probe_cache[probe.name] = (now, reading)
+        return reading
+
     @property
     def cb_state(self) -> str:
         return self._cb_state
@@ -121,7 +139,7 @@ class SelfDiagnostician:
         )
 
         # ── Desktop: desktop agent runtime health ─────────────
-        desktop_reading = self._desktop_probe.measure()
+        desktop_reading = self._heavy_measure(self._desktop_probe, DesktopProbe)
         probe_results["desktop"] = [desktop_reading]
         diagnostic_context["desktop_active_sessions"] = desktop_reading.context.get(
             "active_sessions", 0
@@ -131,7 +149,7 @@ class SelfDiagnostician:
         )
 
         # ── GUI Build: Electron build health ──────────────────
-        gui_reading = self._gui_build_probe.measure()
+        gui_reading = self._heavy_measure(self._gui_build_probe, GUIBuildProbe)
         probe_results["gui_build"] = [gui_reading]
         diagnostic_context["gui_build_value"] = gui_reading.value
         diagnostic_context["gui_lint_passes"] = gui_reading.context.get("lint_passes", False)
