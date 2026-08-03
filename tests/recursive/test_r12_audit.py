@@ -13,6 +13,7 @@ from maref.recursive.evolution_dsl import (
 from maref.recursive.meta_governance import CrossLayerAuditEntry
 from maref.recursive.self_healer import HealAction, HealingRecord
 from maref.recursive.unified_audit import (
+    NullAuditStore,
     UnifiedAuditRecord,
     UnifiedAuditStore,
     make_record_id,
@@ -609,3 +610,32 @@ class TestUnifiedAuditE2E:
     def test_make_record_id(self) -> None:
         rid = make_record_id("test", 42)
         assert rid.startswith("test_000042_")
+
+
+class TestNullAuditStore:
+    """漏洞回归：NullAuditStore 不得静默丢弃审计记录。"""
+
+    def _record(self) -> UnifiedAuditRecord:
+        return UnifiedAuditRecord(
+            record_id="rec_dropped",
+            timestamp=time.time(),
+            layer="execution",
+            round=0,
+            event_type="test_dropped",
+            source_module="test",
+            target_module="test",
+            decision="test",
+            justification="drop",
+        )
+
+    def test_append_warns_not_silent(self) -> None:
+        """append() 必须告警，而非静默丢弃。"""
+        store = NullAuditStore()
+        with pytest.warns(RuntimeWarning, match="audit record dropped"):
+            store.append(self._record())
+
+    def test_query_methods_return_empty(self) -> None:
+        store = NullAuditStore()
+        assert store.query_by_layer("execution") == []
+        assert store.query_by_event("test") == []
+        assert store.query_by_module("test") == []
