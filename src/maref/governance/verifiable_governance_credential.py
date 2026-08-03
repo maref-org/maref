@@ -114,6 +114,7 @@ class VerifiableGovernanceCredential:
     def attach_compliance_mapping(
         self,
         mapping: dict[str, Any],
+        signing_key: Any | None = None,
     ) -> None:
         """附加按辖区的合规映射（v0.45.0 方案 G G3）。
 
@@ -128,10 +129,14 @@ class VerifiableGovernanceCredential:
               }
             }
 
-        该字段不参与签名 payload（避免破坏既有凭证签名），仅作为
-        对监管的展示侧合规证明输出。
+        mapping 纳入签名 payload，作为对监管的可验证合规证明输出——
+        篡改 enforcement/regulations 会被 ``verify_signature`` 检测。
+        已签名凭证需传 ``signing_key`` 重签，否则 mapping 不被签名覆盖。
         """
         self.compliance_mapping = mapping
+        if signing_key is not None:
+            self.signature = signing_key.sign_report(self._signing_payload())
+            self.signer_public_key_pem = signing_key.public_key_pem
 
     def renew(self, signing_key: ReportSigningKey, ttl_seconds: float = 86400) -> None:
         """就地续期：保留 credential_id 与 Merkle 证明，重算有效期并重签名。
@@ -196,6 +201,7 @@ class VerifiableGovernanceCredential:
             "merkle_proof": self.merkle_proof,
             "valid_from": self.valid_from,
             "expires_at": self.expires_at,
+            "compliance_mapping": self.compliance_mapping,
         }
         return json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
 

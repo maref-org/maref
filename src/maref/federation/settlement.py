@@ -225,10 +225,13 @@ class FederatedSettlement:
         # v0.46.0 J2：注入 Agent-as-a-Judge 法官，争议走真实仲裁路径。
         self._verifier_consensus = verifier_consensus
         if self._verifier_consensus is not None and judges:
-            try:
-                self._verifier_consensus._judges = judges
-            except AttributeError:
-                pass
+            setter = getattr(self._verifier_consensus, "set_judges", None)
+            if setter is None:
+                raise TypeError(
+                    "verifier_consensus 不支持注入法官：缺少 set_judges() "
+                    "（应传 VerifierConsensus 实例）"
+                )
+            setter(judges)
         self._audit_logger = audit_logger
         self._db: DatabaseManager | None = None
         if db_path is not None:
@@ -592,8 +595,11 @@ class FederatedSettlement:
             return None
 
         # v0.46.0 J1：争议提交为结构化 Trace，激活 Agent-as-a-Judge 真实仲裁路径。
-        # 未注入法官时 verifier 保持仿真表决（向后兼容）。
-        item: Trace | dict[str, Any] = self._proposal_to_trace(proposal)
+        # 未注入法官时回退 dict 输入（v0.44 仿真表决，向后兼容）。
+        if getattr(self._verifier_consensus, "has_judges", False):
+            item: Trace | dict[str, Any] = self._proposal_to_trace(proposal)
+        else:
+            item = proposal.to_dict()
         kwargs: dict[str, Any] = {"weight_key": weight_key}
         if strategy is not None:
             kwargs["strategy"] = strategy
@@ -626,6 +632,15 @@ class FederatedSettlement:
                 })
         if judge_evidence:
             verdict["judge_evidence"] = judge_evidence
+
+        # FLAG 风险提示聚合：通过但建议人工复核（v0.46.0 I5 修复）。
+        flagged_decisions = [
+            e["decision"] for e in judge_evidence
+            if e.get("decision") == "flag"
+        ]
+        if flagged_decisions:
+            verdict["flagged"] = True
+            verdict["flag_review_recommended"] = True
 
         if result.passed:
             proposal.status = SettlementStatus.ACCEPTED
