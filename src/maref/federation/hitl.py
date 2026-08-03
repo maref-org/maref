@@ -18,10 +18,12 @@ References:
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 
@@ -100,6 +102,29 @@ class CrossOrgApprovalRequest:
             CrossOrgApprovalStatus.ESCALATED,
         )
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CrossOrgApprovalRequest:
+        """Reconstruct a request from :meth:`to_dict` output (v0.47 F4)."""
+        return cls(
+            request_id=data["request_id"],
+            action=data["action"],
+            description=data["description"],
+            requesting_org=data["requesting_org"],
+            reviewing_org=data["reviewing_org"],
+            agent_did=data["agent_did"],
+            task_id=data["task_id"],
+            parameters=dict(data.get("parameters", {})),
+            status=CrossOrgApprovalStatus(data["status"]),
+            created_at=float(data.get("created_at", 0.0)),
+            resolved_at=data.get("resolved_at"),
+            reviewer=data.get("reviewer", ""),
+            reason=data.get("reason", ""),
+            timeout_seconds=float(data.get("timeout_seconds", 300.0)),
+            escalation_org=data.get("escalation_org"),
+            escalated_to=data.get("escalated_to"),
+            escalated_at=data.get("escalated_at"),
+        )
+
 
 class CrossOrgHITL:
     """Cross-organization human-in-the-loop approval engine.
@@ -109,12 +134,52 @@ class CrossOrgHITL:
     escalation to a designated third org.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, db_path: str | Path | None = None) -> None:
         self._requests: dict[str, CrossOrgApprovalRequest] = {}
         # Index: reviewing_org -> {request_id} for pending lookups.
         self._pending_by_org: dict[str, set[str]] = {}
         # Index: requesting_org -> {request_id} for history lookups.
         self._by_requesting_org: dict[str, list[str]] = {}
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS cross_org_hitl (
+                request_id TEXT PRIMARY KEY,
+                data       TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        rows = self._db.fetchall("SELECT request_id, data FROM cross_org_hitl")
+        for row in rows:
+            request = CrossOrgApprovalRequest.from_dict(json.loads(row["data"]))
+            self._requests[request.request_id] = request
+            self._by_requesting_org.setdefault(
+                request.requesting_org, []
+            ).append(request.request_id)
+            if request.is_pending:
+                self._pending_by_org.setdefault(
+                    request.reviewing_org, set()
+                ).add(request.request_id)
+
+    def _persist(self, request: CrossOrgApprovalRequest) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO cross_org_hitl (request_id, data) VALUES (?, ?)",
+            (request.request_id, json.dumps(request.to_dict())),
+        )
 
     # ------------------------------------------------------------------
     # Request lifecycle
@@ -160,6 +225,7 @@ class CrossOrgHITL:
 
         self._requests[request.request_id] = request
         self._by_requesting_org.setdefault(requesting_org, []).append(request.request_id)
+        self._persist(request)
         return request
 
     def approve(
@@ -173,6 +239,7 @@ class CrossOrgHITL:
         request.resolved_at = time.time()
         request.reviewer = reviewer
         self._remove_from_pending(request)
+        self._persist(request)
         return True
 
     def reject(
@@ -186,6 +253,7 @@ class CrossOrgHITL:
         request.resolved_at = time.time()
         request.reason = reason
         self._remove_from_pending(request)
+        self._persist(request)
         return True
 
     # ------------------------------------------------------------------
@@ -237,6 +305,11 @@ class CrossOrgHITL:
                 request.resolved_at = current
                 self._remove_from_pending(request)
                 affected.append(request.request_id)
+
+        for request_id in affected:
+            req = self._requests.get(request_id)
+            if req is not None:
+                self._persist(req)
 
         return affected
 
