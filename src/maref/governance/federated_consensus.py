@@ -225,6 +225,7 @@ class FederatedConsensus:
         topology: ConsensusTopology = ConsensusTopology.FLAT,
         leader_id: str = "",
         critical_topics: set[str] | None = None,
+        membership: Any | None = None,
     ) -> None:
         self._member_count = member_count
         self._quorum_size = quorum_size
@@ -242,6 +243,26 @@ class FederatedConsensus:
             )
         self._leader_id = leader_id
         self._critical_topics = critical_topics or set()
+        # v0.47 F2: membership source (MembershipManager-style). When
+        # provided, only tracked members may vote (fail-closed).
+        self._membership = membership
+
+    @property
+    def membership_enforced(self) -> bool:
+        """Whether votes are restricted to tracked members."""
+        return self._membership is not None
+
+    def _member_ids(self) -> set[str]:
+        """Resolve the current membership id set (empty when unenforced)."""
+        if self._membership is None:
+            return set()
+        try:
+            table = self._membership.members_summary()
+        except AttributeError:
+            table = self._membership.member_snapshots()
+        if not isinstance(table, dict):
+            return set()
+        return set(table.keys())
 
     @property
     def topology(self) -> ConsensusTopology:
@@ -369,6 +390,17 @@ class FederatedConsensus:
             return False
         if voter_id in proposal.voter_ids:
             return False
+
+        # v0.47 F2: 投票绑定成员表 — 非成员投票拒绝并记 unauthorized_vote。
+        if self._membership is not None:
+            member_ids = self._member_ids()
+            if voter_id not in member_ids:
+                self._log_audit("consensus.unauthorized_vote", {
+                    "proposal_id": proposal_id,
+                    "voter_id": voter_id,
+                    "reason": "not_a_member",
+                })
+                return False
 
         vote = ConsensusVote(
             voter_id=voter_id,
@@ -545,6 +577,7 @@ class FederatedConsensus:
             "quorum_size": self._quorum_size,
             "topology": self._topology.value,
             "leader_id": self._leader_id,
+            "membership_enforced": self.membership_enforced,
             "total_proposals": len(self._proposals),
             "open": open_count,
             "accepted": accepted,
