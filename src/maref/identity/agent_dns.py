@@ -10,8 +10,10 @@
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from maref.identity.did_registry import AgentDID, DIDRegistry
@@ -103,9 +105,51 @@ class AgentDNS:
     def __init__(
         self,
         did_registry: DIDRegistry | None = None,
+        db_path: str | Path | None = None,
     ) -> None:
         self._did_registry = did_registry or DIDRegistry()
         self._cards: dict[AgentDID, AgentCard] = {}
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS agent_dns (
+                did     TEXT PRIMARY KEY,
+                card    TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        rows = self._db.fetchall("SELECT did, card FROM agent_dns")
+        for row in rows:
+            card = AgentCard.from_dict(json.loads(row["card"]))
+            self._cards[card.did] = card
+
+    def _persist(self, did: AgentDID) -> None:
+        if self._db is None:
+            return
+        card = self._cards.get(did)
+        if card is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO agent_dns (did, card) VALUES (?, ?)",
+            (did.did_string, json.dumps(card.to_dict())),
+        )
+
+    def _delete(self, did: AgentDID) -> None:
+        if self._db is None:
+            return
+        self._db.execute("DELETE FROM agent_dns WHERE did = ?", (did.did_string,))
 
     # -- 注册 --
 
@@ -155,6 +199,7 @@ class AgentDNS:
             status="active",
         )
         self._cards[did] = card
+        self._persist(did)
         return card
 
     # -- 解析 --
@@ -187,7 +232,10 @@ class AgentDNS:
     @security_critical
     def unregister(self, did: AgentDID) -> AgentCard | None:
         """注销能力目录（从 DNS 移除）。DID 本身不删除，保留在 DIDRegistry。"""
-        return self._cards.pop(did, None)
+        removed = self._cards.pop(did, None)
+        if removed is not None:
+            self._delete(did)
+        return removed
 
     def unregister_did_string(self, did_string: str) -> AgentCard | None:
         try:
