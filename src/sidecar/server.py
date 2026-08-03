@@ -44,6 +44,47 @@ _CORS_ORIGINS: list[str] = [
 
 _sessions: dict[str, dict[str, Any]] = {}
 _messages: dict[str, list[dict[str, Any]]] = {}
+
+
+def _default_allow_unauthenticated() -> bool:
+    """Resolve the unauthenticated-dev flag for the auth middleware.
+
+    Fail-closed by default (v0.47 S6): production starts without accepting
+    unauthenticated requests.  Development / test stacks opt in explicitly
+    via ``MAREF_ALLOW_UNAUTHENTICATED=1`` or the ``allow_unauthenticated``
+    parameter.
+    """
+    return os.environ.get("MAREF_ALLOW_UNAUTHENTICATED", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _wire_mcp_governance(gateway: MCPGateway) -> None:
+    """Attach the three-layer MCP governance to the gateway (v0.47 S7).
+
+    SecurityGate → PolicyEngine → CircuitBreaker.  This makes the main
+    ``/api/mcp`` entrypoint governed exactly like ``/api/mcp/gateway``.
+    """
+    from maref.governance.circuit_breaker import CircuitBreaker
+    from maref.integration.mcp_governance import MCPGovernance, MCPPolicyEngine
+    from maref.integration.mcp_security import MCPSecurityGate
+
+    security_gate = MCPSecurityGate()
+    policy_engine = MCPPolicyEngine()
+    governance = MCPGovernance(
+        policy_engine=policy_engine,
+        circuit_breaker=CircuitBreaker(
+            max_depth=10,
+            max_consecutive_failures=5,
+            cooldown_seconds=30.0,
+        ),
+    )
+    gateway._gate = security_gate
+    gateway._policy_engine = policy_engine
+    gateway._governance = governance
 _providers: dict[str, dict[str, Any]] = {
     "ollama": {"id": "ollama", "name": "Ollama", "models": ["gemma3:4b"], "defaultModel": "gemma3:4b"},
     "bailian": {"id": "bailian", "name": "阿里云百炼", "models": ["deepseek-v4-pro"], "defaultModel": "deepseek-v4-pro"},
@@ -184,6 +225,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     _mcp_adapter = MCPServerAdapter(_tool_registry)
 
     gateway = MCPGateway()
+    _wire_mcp_governance(gateway)
     gateway.register_backend(
         prefix="maref_",
         transport_type="in-process",
@@ -462,7 +504,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
             params = body.get("params", {})
             tool_name = params.get("name", "")
             arguments = params.get("arguments", {})
-            result = mcp_bridge.handle_tool_call(tool_name, arguments)
+            result = gateway.route_tool_call(tool_name, arguments)
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -476,9 +518,11 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
     @app.get("/api/mcp/.well-known")
     def mcp_well_known() -> dict[str, Any]:
+        versions = list(SUPPORTED_PROTOCOL_VERSIONS)
         return {
             "protocol": "mcp",
-            "protocolVersions": SUPPORTED_PROTOCOL_VERSIONS,
+            "version": versions[-1] if versions else "2024-11-05",
+            "protocolVersions": versions,
             "capabilities": {"tools": list(SIDECAR_MCP_TOOLS)},
         }
 
@@ -929,7 +973,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
 
 class SidecarFastAPI(FastAPI):
-    def __init__(self, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False, **kwargs: Any) -> None:
+    def __init__(self, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False, allow_unauthenticated: bool | None = None, **kwargs: Any) -> None:
         super().__init__(title="MAREF Sidecar", version="0.38.0")
         self.add_middleware(
             CORSMiddleware,
@@ -938,7 +982,9 @@ class SidecarFastAPI(FastAPI):
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        self.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
+        if allow_unauthenticated is None:
+            allow_unauthenticated = _default_allow_unauthenticated()
+        self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
         self.add_middleware(SecurityHeadersMiddleware)
         self.include_router(gaas_router)
         self.include_router(platform_router)
@@ -951,7 +997,7 @@ class SidecarFastAPI(FastAPI):
         _register_route_scope(self)
 
 
-def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False) -> FastAPI:
+def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False, allow_unauthenticated: bool | None = None) -> FastAPI:
     app = FastAPI(title="MAREF Sidecar", version="0.35.0-beta")
     app.add_middleware(
         CORSMiddleware,
@@ -960,7 +1006,9 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
+    if allow_unauthenticated is None:
+        allow_unauthenticated = _default_allow_unauthenticated()
+    app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
     app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(gaas_router)
     app.include_router(report_router)

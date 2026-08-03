@@ -22,7 +22,7 @@ def client() -> TestClient:
     adapter = MockAgentAdapter(num_agents=2)
     collector = ObservationCollector(adapter)
     monitor = CompositeMonitor()
-    app = create_app(collector, monitor)
+    app = create_app(collector, monitor, allow_unauthenticated=True)
     return TestClient(app)
 
 

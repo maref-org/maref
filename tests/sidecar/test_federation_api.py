@@ -19,7 +19,7 @@ def _make_client(tmp_path: Path) -> TestClient:
     adapter = MockAgentAdapter()
     collector = ObservationCollector(adapter)
     monitor = CompositeMonitor()
-    app = create_app(collector, monitor, None, federated=True)
+    app = create_app(collector, monitor, None, federated=True, allow_unauthenticated=True)
     return TestClient(app)
 
 

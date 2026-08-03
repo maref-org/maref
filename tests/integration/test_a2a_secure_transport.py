@@ -163,24 +163,36 @@ class TestA2ASecureTransport:
         assert ssl_context.verify_mode.name == "CERT_REQUIRED"
 
     def test_sign_request_payload(self):
-        cert_path, key_path = create_self_signed_cert("test-agent")
+        from maref.signing.signing_key import ReportSigningKey
+
+        signing_key = ReportSigningKey.generate()
         transport = A2ASecureTransport(
-            base_url="https://localhost:8443",
-            cert_path=cert_path,
-            key_path=key_path,
+            base_url="http://localhost:8080",
+            cert_path=None,
+            key_path=None,
+            verify_ssl=False,
+            signing_key=signing_key,
         )
 
         payload = b'{"method":"tasks/send","id":1}'
         signature = transport.sign_payload(payload)
         assert signature is not None
         assert len(signature) > 0
+        # Ed25519 signature verifies against the public key (v0.47 S8).
+        from maref.signing.signing_key import ReportSigningKey as _RSK
+
+        assert _RSK.verify_signature(signing_key.public_key_pem, signature, payload) is True
 
     def test_request_headers_include_auth(self):
-        cert_path, key_path = create_self_signed_cert("test-agent")
+        from maref.signing.signing_key import ReportSigningKey
+
+        signing_key = ReportSigningKey.generate()
         transport = A2ASecureTransport(
-            base_url="https://localhost:8443",
-            cert_path=cert_path,
-            key_path=key_path,
+            base_url="http://localhost:8080",
+            cert_path=None,
+            key_path=None,
+            verify_ssl=False,
+            signing_key=signing_key,
         )
 
         headers = transport.get_auth_headers(b"test payload")

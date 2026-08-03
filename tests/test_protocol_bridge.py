@@ -242,14 +242,17 @@ class TestSecureProtocolBridge:
         assert isinstance(bridge, SecureProtocolBridge)
 
     def test_verify_and_convert_valid(self) -> None:
-        """测试有效验证和转换"""
-        bridge = create_secure_protocol_bridge()
+        """测试有效验证和转换（Ed25519 签名）"""
+        from maref.signing.signing_key import ReportSigningKey
+
+        peer_key = ReportSigningKey.generate()
+        bridge = create_secure_protocol_bridge(
+            peer_public_keys={"did:agent-1": peer_key.public_key_pem}
+        )
 
         mcp_msg = MCPMessage(message_id="msg-1", method="tools/call", params={})
-
-        import hashlib
-
-        expected_sig = hashlib.sha256(f"did:agent-1:{mcp_msg.message_id}".encode()).hexdigest()
+        payload = f"did:agent-1:{mcp_msg.message_id}".encode()
+        expected_sig = peer_key.sign_report(payload)
 
         task = bridge.verify_and_convert_mcp_to_a2a(mcp_msg, "agent-2", "did:agent-1", expected_sig)
 
@@ -270,13 +273,16 @@ class TestSecureProtocolBridge:
 
     def test_replay_protection(self) -> None:
         """测试重放保护"""
-        bridge = create_secure_protocol_bridge()
+        from maref.signing.signing_key import ReportSigningKey
+
+        peer_key = ReportSigningKey.generate()
+        bridge = create_secure_protocol_bridge(
+            peer_public_keys={"did:agent-1": peer_key.public_key_pem}
+        )
 
         mcp_msg = MCPMessage(message_id="msg-1", method="tools/call", params={})
-
-        import hashlib
-
-        expected_sig = hashlib.sha256(f"did:agent-1:{mcp_msg.message_id}".encode()).hexdigest()
+        payload = f"did:agent-1:{mcp_msg.message_id}".encode()
+        expected_sig = peer_key.sign_report(payload)
 
         # 第一次转换应该成功
         task1 = bridge.verify_and_convert_mcp_to_a2a(

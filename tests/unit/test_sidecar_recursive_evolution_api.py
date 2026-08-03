@@ -11,7 +11,7 @@ def make_client() -> TestClient:
     adapter = MockAgentAdapter(num_agents=1)
     collector = ObservationCollector(adapter)
     monitor = CompositeMonitor()
-    return TestClient(create_app(collector, monitor))
+    return TestClient(create_app(collector, monitor, allow_unauthenticated=True))
 
 
 def test_evolution_status_endpoint() -> None:

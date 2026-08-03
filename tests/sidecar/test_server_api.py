@@ -17,7 +17,7 @@ def _make_client() -> TestClient:
         adapter = MockAgentAdapter()
         collector = ObservationCollector(adapter)
         monitor = CompositeMonitor()
-        app = create_app(collector, monitor, None)
+        app = create_app(collector, monitor, None, allow_unauthenticated=True)
         _client = TestClient(app)
     return _client
 
@@ -482,7 +482,7 @@ class TestStatus:
         client = _make_client()
         resp = client.get("/api/version")
         assert resp.status_code == 200
-        assert resp.json()["version"] == "0.33.0-rc"
+        assert resp.json()["version"] == "0.38.0"
 
 
 class TestObs:

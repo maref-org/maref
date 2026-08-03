@@ -15,7 +15,7 @@ def client() -> TestClient:
     adapter = MockAgentAdapter(num_agents=2)
     collector = ObservationCollector(adapter)
     monitor = CompositeMonitor()
-    app = create_app(collector, monitor)
+    app = create_app(collector, monitor, allow_unauthenticated=True)
     return TestClient(app)
 
 
@@ -104,7 +104,7 @@ class TestMCPIntegration:
         assert response.status_code == 200
         data = response.json()
         assert data["result"]["isError"] is True
-        assert "Unknown tool" in data["result"]["content"][0]["text"]
+        assert "No backend registered" in data["result"]["content"][0]["text"]
 
     def test_tool_call_compliance_check(self, client: TestClient) -> None:
         """tools/call for maref_compliance_check."""

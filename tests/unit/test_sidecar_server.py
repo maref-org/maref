@@ -22,7 +22,7 @@ class TestSidecarFastAPI:
         adapter = MockAgentAdapter(num_agents=2)
         collector = ObservationCollector(adapter)
         monitor = CompositeMonitor()
-        app = SidecarFastAPI(collector, monitor)
+        app = SidecarFastAPI(collector, monitor, allow_unauthenticated=True)
         return TestClient(app)
 
     def test_health_endpoint(self, client: TestClient) -> None:
@@ -69,7 +69,7 @@ class TestObsStatus:
         adapter = MockAgentAdapter(num_agents=2)
         collector = ObservationCollector(adapter)
         monitor = CompositeMonitor()
-        app = SidecarFastAPI(collector, monitor)
+        app = SidecarFastAPI(collector, monitor, allow_unauthenticated=True)
         return TestClient(app)
 
     def test_obs_status_default(self, client: TestClient) -> None:
@@ -92,7 +92,7 @@ class TestObsStatus:
 
         obs_client = MarefObsClient(level=TelemetryLevel.BASIC, base_dir=tmpdir)
         bridge = ObsBridge(client=obs_client)
-        app = SidecarFastAPI(collector, monitor, obs_bridge=bridge)
+        app = SidecarFastAPI(collector, monitor, obs_bridge=bridge, allow_unauthenticated=True)
         test_client = TestClient(app)
 
         response = test_client.get("/api/obs/status")

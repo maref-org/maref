@@ -302,28 +302,37 @@ class TestScopeEscalation:
 
         mock_has_scope.side_effect = _check
 
-        resp = client.post(
-            "/api/v1/admin/actions",
-            headers={"Authorization": "Bearer user-token"},
-        )
-        assert resp.status_code == 403
-        assert "scope" in resp.text.lower() or "Insufficient" in resp.text
+        with patch.dict(
+            os.environ,
+            {"MAREF_API_KEY": "user-token", "MAREF_API_KEY_2": "admin-token"},
+            clear=True,
+        ):
+            APIKeyManager.reload()
 
-        resp = client.post(
-            "/api/v1/admin/actions",
-            headers={"Authorization": "Bearer admin-token"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["action"] == "executed"
+            resp = client.post(
+                "/api/v1/admin/actions",
+                headers={"Authorization": "Bearer user-token"},
+            )
+            assert resp.status_code == 403
+            assert "scope" in resp.text.lower() or "Insufficient" in resp.text
+
+            resp = client.post(
+                "/api/v1/admin/actions",
+                headers={"Authorization": "Bearer admin-token"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["action"] == "executed"
 
     @patch("sidecar.api_auth._has_scope", return_value=False)
     def test_missing_scope_blocked(self, mock_has_scope, client):
-        resp = client.post(
-            "/api/v1/admin/actions",
-            headers={"Authorization": "Bearer any-token"},
-        )
-        assert resp.status_code == 403
-        assert "scope" in resp.text.lower() or "Insufficient" in resp.text
+        with patch.dict(os.environ, {"MAREF_API_KEY": "test-key"}, clear=True):
+            APIKeyManager.reload()
+            resp = client.post(
+                "/api/v1/admin/actions",
+                headers={"Authorization": "Bearer test-key"},
+            )
+            assert resp.status_code == 403
+            assert "scope" in resp.text.lower() or "Insufficient" in resp.text
 
     @patch("sidecar.api_auth._has_scope")
     def test_wildcard_scope_matching_rejected(self, mock_has_scope, client):
@@ -353,12 +362,14 @@ class TestScopeEscalation:
             assert registered == scope, f"{path}: expected scope={scope}, got {registered}"
 
     def test_route_without_scope_unrestricted(self, client):
-        resp = client.get(
-            "/api/unrestricted/stats",
-            headers={"Authorization": "Bearer any-token"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["stats"] == {}
+        with patch.dict(os.environ, {"MAREF_API_KEY": "any-token"}, clear=True):
+            APIKeyManager.reload()
+            resp = client.get(
+                "/api/unrestricted/stats",
+                headers={"Authorization": "Bearer any-token"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["stats"] == {}
 
     @patch.dict(os.environ, {"MAREF_API_KEY": "test-key"}, clear=True)
     @patch("sidecar.api_auth._has_scope", return_value=False)
@@ -397,12 +408,15 @@ class TestAuthMiddlewareEdgeCases:
     """Verify auth middleware behavior under edge conditions."""
 
     def test_auth_disabled_when_no_key_set(self, client):
+        """No key configured → fail-closed: requests are denied (v0.47 S6)."""
         assert APIKeyManager.is_auth_enabled() is False
-        resp = client.post(
-            "/api/v1/hitl/event-1/approve",
-            headers={"Authorization": "Bearer any-token"},
-        )
-        assert resp.status_code == 200
+        with patch.dict(os.environ, {}, clear=True):
+            APIKeyManager.reload()
+            resp = client.post(
+                "/api/v1/hitl/event-1/approve",
+                headers={"Authorization": "Bearer any-token"},
+            )
+            assert resp.status_code in (401, 403)
 
     @patch.dict(os.environ, {"MAREF_API_KEY": "new-key-after-rotation"}, clear=True)
     def test_key_rotation_reload_picks_up(self, client):
