@@ -219,8 +219,10 @@ class A2ABridge:
         """
         from maref.identity.agent_dns import AgentDID
 
+        agent_dns = self._agent_dns
+        assert agent_dns is not None
         did = AgentDID.parse(self._agent_did)
-        card = self._agent_dns.resolve(did)
+        card = agent_dns.resolve(did)
         if card is None:
             raise CommunicationBlockedError(
                 f"Agent DID {self._agent_did} revoked/deactivated/unregistered"
