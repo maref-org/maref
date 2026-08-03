@@ -8,6 +8,7 @@ import pytest
 
 from maref.governance.audit import AuditLogger
 from maref.governance.state_machine import GovernanceStateMachine
+from maref.identity.agent_dns import AgentDNS
 from maref.identity.credential import CredentialStore, VerifiableCredential
 from maref.identity.did_registry import (
     AgentDID,
@@ -449,5 +450,159 @@ class TestDIDVersionedRevocation:
         assert after.status == "deactivated"
         assert after.version == version_before
         assert after.revocation_entry["reason"] == "retired"
+
+
+# ---------------------------------------------------------------------------
+# 方案 E M2：Agent DNS（DID → 能力目录解析）
+
+
+def _make_registered_dns() -> tuple[AgentDNS, DIDRegistry, AgentDID]:
+    registry = DIDRegistry()
+    sm = GovernanceStateMachine()
+    did = AgentDID.generate()
+    registry.register(did, sm)
+    dns = AgentDNS(did_registry=registry)
+    return dns, registry, did
+
+
+class TestAgentDNS:
+    def test_register_and_resolve(self) -> None:
+        dns, _, did = _make_registered_dns()
+        card = dns.register(
+            did,
+            name="researcher",
+            description="research agent",
+            skills=[{"id": "s1", "name": "search", "description": "web search"}],
+            endpoints=["https://agent.example.com/a2a"],
+            capabilities={"streaming": True},
+        )
+        assert card.status == "active"
+        resolved = dns.resolve(did)
+        assert resolved is not None
+        assert resolved.did == did
+        assert resolved.name == "researcher"
+        assert resolved.skills[0]["id"] == "s1"
+
+    def test_register_unregistered_did_rejected(self) -> None:
+        registry = DIDRegistry()
+        dns = AgentDNS(did_registry=registry)
+        with pytest.raises(ValueError):
+            dns.register(AgentDID.generate(), name="ghost", description="no identity")
+
+    def test_register_allow_unregistered(self) -> None:
+        registry = DIDRegistry()
+        dns = AgentDNS(did_registry=registry)
+        did = AgentDID.generate()
+        card = dns.register(did, name="ghost", description="no identity", require_registered=False)
+        assert dns.resolve(did) is not None
+        assert card.name == "ghost"
+
+    def test_register_revoked_did_rejected(self) -> None:
+        dns, registry, did = _make_registered_dns()
+        registry.revoke(did, reason="compromised")
+        with pytest.raises(ValueError):
+            dns.register(did, name="x", description="y")
+
+    def test_resolve_after_revoke_returns_none(self) -> None:
+        """DID 撤销后能力目录同步失效。"""
+        dns, registry, did = _make_registered_dns()
+        dns.register(did, name="researcher", description="research agent")
+        assert dns.resolve(did) is not None
+        registry.revoke(did, reason="compromised")
+        assert dns.resolve(did) is None
+
+    def test_resolve_after_deactivate_returns_none(self) -> None:
+        dns, registry, did = _make_registered_dns()
+        dns.register(did, name="researcher", description="research agent")
+        registry.deactivate(did, reason="retired")
+        assert dns.resolve(did) is None
+
+    def test_resolve_by_did_string(self) -> None:
+        dns, _, did = _make_registered_dns()
+        dns.register(did, name="researcher", description="research agent")
+        assert dns.resolve_did_string(did.did_string) is not None
+        assert dns.resolve_did_string("did:maref:bad") is None
+        assert dns.resolve_did_string(did.did_string + ":extra") is None
+
+    def test_resolve_unknown_returns_none(self) -> None:
+        dns, _, _ = _make_registered_dns()
+        assert dns.resolve(AgentDID.generate()) is None
+
+    def test_unregister(self) -> None:
+        dns, _, did = _make_registered_dns()
+        dns.register(did, name="researcher", description="research agent")
+        removed = dns.unregister(did)
+        assert removed is not None
+        assert dns.resolve(did) is None
+        assert dns.unregister(did) is None
+
+    def test_unregister_by_did_string(self) -> None:
+        dns, _, did = _make_registered_dns()
+        dns.register(did, name="researcher", description="research agent")
+        assert dns.unregister_did_string(did.did_string) is not None
+        assert dns.unregister_did_string("invalid::did") is None
+
+    def test_list_cards_active_only(self) -> None:
+        dns, registry, did = _make_registered_dns()
+        did2 = AgentDID.generate()
+        registry.register(did2, GovernanceStateMachine())
+        dns.register(did, name="a", description="1")
+        dns.register(did2, name="b", description="2")
+        assert len(dns.list_cards()) == 2
+        registry.revoke(did, reason="r")
+        assert len(dns.list_cards()) == 1
+        assert dns.list_cards()[0].did == did2
+        assert len(dns.list_cards(active_only=False)) == 2
+
+    def test_count(self) -> None:
+        dns, _, did = _make_registered_dns()
+        assert dns.count() == 0
+        dns.register(did, name="a", description="1")
+        assert dns.count() == 1
+
+    def test_to_a2a_card_shape(self) -> None:
+        dns, _, did = _make_registered_dns()
+        dns.register(
+            did,
+            name="researcher",
+            description="research agent",
+            skills=[{"id": "s1", "name": "search", "description": "web search"}],
+            endpoints=["https://agent.example.com/a2a"],
+            capabilities={"streaming": True},
+        )
+        card = dns.resolve(did)
+        assert card is not None
+        a2a = card.to_a2a_card()
+        assert a2a["name"] == "researcher"
+        assert a2a["url"] == "https://agent.example.com/a2a"
+        assert a2a["protocolVersion"] == "1.0"
+        assert a2a["skills"][0]["id"] == "s1"
+        assert a2a["capabilities"]["streaming"] is True
+
+    def test_to_a2a_card_fallback_base_url(self) -> None:
+        dns, _, did = _make_registered_dns()
+        dns.register(did, name="a", description="1")
+        card = dns.resolve(did)
+        assert card is not None
+        assert card.to_a2a_card(base_url="https://fallback.example.com")["url"] == (
+            "https://fallback.example.com"
+        )
+
+    def test_roundtrip_serialization(self) -> None:
+        dns, registry, did = _make_registered_dns()
+        dns.register(
+            did,
+            name="researcher",
+            description="research agent",
+            skills=[{"id": "s1", "name": "search", "description": "web search"}],
+            endpoints=["https://agent.example.com/a2a"],
+            capabilities={"streaming": True},
+        )
+        restored = AgentDNS.from_dict(dns.to_dict())
+        restored._did_registry = registry
+        card = restored.resolve(did)
+        assert card is not None
+        assert card.name == "researcher"
+        assert card.skills[0]["id"] == "s1"
 
 
