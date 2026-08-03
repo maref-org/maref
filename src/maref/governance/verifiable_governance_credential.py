@@ -420,3 +420,12 @@ class GovernanceCredentialStore:
 
     def revoked_count(self) -> int:
         return len(self._revoked)
+
+    def revoked_count_for_subject(self, subject_did: str) -> int:
+        """统计某治理主体当前被吊销的凭证数量（供撤销联动报告）。"""
+        return sum(
+            1
+            for cid in self._revoked
+            if self._credentials.get(cid) is not None
+            and self._credentials[cid].subject_did == subject_did
+        )

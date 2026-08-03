@@ -251,6 +251,9 @@ class DIDRegistry:
         # deactivated 是不可逆终态，拒绝再次撤销/改写。
         if record.status == "deactivated":
             return record
+        # 幂等：已 revoked 的 DID 重复撤销不再递增版本/重复广播。
+        if record.status == "revoked":
+            return record
         new_version = record.version + 1
         record.version = new_version
         record.status = "revoked"
@@ -269,6 +272,8 @@ class DIDRegistry:
         record = self._agents.get(did)
         if record is None:
             return None
+        if record.status == "deactivated":
+            return record
         record.version += 1
         record.status = "deactivated"
         record.revocation_entry = {
@@ -278,7 +283,7 @@ class DIDRegistry:
             "reason": reason or "deactivated",
             "signer": signer,
         }
-        self._notify_revocation(did, reason, signer)
+        self._notify_revocation(did, reason or "deactivated", signer)
         return record
 
     def is_active(self, did: AgentDID) -> bool:

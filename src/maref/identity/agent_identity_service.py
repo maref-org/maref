@@ -116,6 +116,14 @@ class AgentIdentityService:
         if key is None:
             raise ValueError("未配置签发密钥：issue 需传入 signing_key 或服务默认密钥")
 
+        # 防御纵深：若该 DID 已注册公钥，签发密钥必须与其匹配（防冒名签发）。
+        record = self._did_registry.resolve(did)
+        registered_key = record.ed25519_public_key() if record is not None else ""
+        if registered_key and key.public_key_pem != registered_key:
+            raise ValueError(
+                f"签发密钥与该 DID 注册公钥不匹配，拒绝签发凭证: {subject_did}"
+            )
+
         cred = VerifiableGovernanceCredential.issue(
             subject_did=subject_did,
             issuer_did=did.did_string,
@@ -144,6 +152,10 @@ class AgentIdentityService:
             revoked=revoked,
             require_merkle=require_merkle,
         )
+        # 防御纵深：subject DID 生命周期非 active 时凭证亦不可信。
+        if result["valid"] and not self.is_active(credential.subject_did):
+            result["valid"] = False
+            result["subject_inactive"] = True
         result["credential_id"] = credential.credential_id
         result["subject_did"] = credential.subject_did
         result["revoked_reason"] = self._credential_store.revoked_reason(
@@ -163,14 +175,17 @@ class AgentIdentityService:
     ) -> dict[str, Any]:
         """撤销一个 DID 并联动吊销其治理凭证、失效能力目录。
 
-        返回撤销汇总：DID 记录、联动吊销的凭证数量、能力目录状态。
+        返回撤销汇总：DID 记录、本次联动吊销的凭证数量、能力目录状态。
         对已 deactivated 的终态 DID 返回当前记录（不重复变更）。
         """
         did = AgentDID.parse(did_string)
         record = self._did_registry.revoke(did, reason=reason, signer=signer)
         if record is None:
             return {"revoked": False, "reason": f"DID {did_string} 未注册"}
-        revoked_creds = self._credential_store.revoked_count()
+        # 撤销联动（I1）：监听器已吊销该主体凭证，统计本次被吊销的数量。
+        credentials_revoked = self._credential_store.revoked_count_for_subject(
+            did_string
+        )
         card = self._agent_dns.resolve(did)
         return {
             "revoked": True,
@@ -178,7 +193,7 @@ class AgentIdentityService:
             "status": record.status,
             "version": record.version,
             "revocation_entry": record.revocation_entry,
-            "credential_revoked_total": revoked_creds,
+            "credentials_revoked": credentials_revoked,
             "card_active": card is not None,
         }
 

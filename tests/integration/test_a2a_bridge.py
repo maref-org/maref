@@ -584,7 +584,11 @@ class TestAgentCardFromAgentDNS:
         assert card["url"] == "https://agent.example.com"
         assert card["protocolVersion"] == "1.0"
         assert card["skills"][0]["id"] == "marf-research"
-        assert card["capabilities"] == {"streaming": True}
+        # DNS card capabilities 与默认能力声明合并
+        assert card["capabilities"]["streaming"] is True
+        assert card["capabilities"]["pushNotifications"] is True
+        # 本地 register_capability 技能并入
+        assert any(s["id"] == "maref-governance" for s in card["skills"])
 
     def test_card_uses_endpoint_first(self, state_machine: Any, audit_logger: Any) -> None:
         dns, did = self._agent_dns()

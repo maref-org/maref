@@ -177,3 +177,18 @@ class TestJointArbitration:
         jsm = JointStateMachine()
         jsm.arbitrate("a", "b", "d", consensus=_consensus(high=2, low=1), audit_logger=audit)
         assert audit.events[0]["event_type"] == "joint.arbitration"
+
+
+class TestArbitrationNoVerifiers:
+    def test_no_active_verifier_not_rejected(self) -> None:
+        settlement = FederatedSettlement(
+            metering=TaskMeteringEngine(),
+            verifier_consensus=VerifierConsensus(VerifierRegistry()),
+        )
+        pid = _disputed_proposal(settlement)
+        result = settlement.arbitrate_dispute(pid)
+        assert result is not None
+        assert result["arbitrated"] is False
+        assert result["reason"] == "no_active_verifiers"
+        # 状态保持 DISPUTED，不误判为驳回
+        assert settlement.get_proposal(pid).status == SettlementStatus.DISPUTED

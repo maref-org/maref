@@ -588,7 +588,17 @@ class FederatedSettlement:
         if strategy is not None:
             kwargs["strategy"] = strategy
         result = self._verifier_consensus.evaluate(item, **kwargs)
+
+        if not result.votes:
+            # 无可用 verifier：无法仲裁，不得误判为驳回（保持 DISPUTED）。
+            return {
+                "arbitrated": False,
+                "reason": "no_active_verifiers",
+                "proposal_id": proposal_id,
+            }
+
         verdict: dict[str, Any] = result.to_dict()
+        verdict["arbitrated"] = True
         verdict["proposal_id"] = proposal_id
         verdict["dispute_reason"] = proposal.dispute_reason
 

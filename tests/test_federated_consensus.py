@@ -459,3 +459,15 @@ class TestFederationRoleAssignment:
     def test_suggest_topology_for_routine_uses_leader_worker(self) -> None:
         router = self._router()
         assert router.suggest_consensus_topology(critical_topic=False) == "leader_worker"
+
+
+class TestLeaderWorkerValidation:
+    def test_leader_worker_requires_leader_id(self) -> None:
+        with pytest.raises(ValueError, match="leader_id"):
+            FederatedConsensus(
+                topology=ConsensusTopology.LEADER_WORKER,
+            )
+
+    def test_flat_does_not_require_leader(self) -> None:
+        fc = FederatedConsensus(topology=ConsensusTopology.FLAT)
+        assert fc.topology == ConsensusTopology.FLAT
