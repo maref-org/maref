@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from maref.recursive.unified_audit import NullAuditStore
+from maref.recursive.unified_audit import UnifiedAuditStore
 from maref.security.decorators import security_critical
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ class CooldownManager:
     def __init__(self, simulator: CrossGenerationImpactSimulator | None=None, audit_store: UnifiedAuditStore | None=None, cooldown_seconds: float=COOLDOWN_DURATION) -> None:
         self._entries: dict[str, CooldownEntry] = {}
         self._simulator = simulator
-        self._audit_store = audit_store or NullAuditStore()
+        self._audit_store = audit_store or UnifiedAuditStore()
         self._cooldown_seconds = cooldown_seconds
 
     @security_critical
