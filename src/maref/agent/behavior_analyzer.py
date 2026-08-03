@@ -248,7 +248,7 @@ def generate_report(events: list[AgentEvent], baseline: BehaviorBaseline,
     risk_score = sum(severity_scores.get(a.severity, 0) for a in anomalies)
 
     # 报告
-    report = {
+    report: dict[str, Any] = {
         "report_id": f"ba-report-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "agent_id": baseline.agent_id,
@@ -330,8 +330,17 @@ def generate_sample_events(agent_id: str = "agent-ghost-001", n: int = 100) -> l
 
 # ── 运行时行为探针（v0.44.0 S2 行为审计闭环反馈）─────────────
 
-# 审计事件类型筛选：仅处理 agent 行为类事件
-_BEHAVIOR_EVENT_PREFIXES = ("agent_action", "action", "task", "tool", "delegate", "rollback")
+# 审计事件类型筛选：仅处理 agent 行为类事件 + 治理事件（v0.47 S10 收窄订阅）。
+_BEHAVIOR_EVENT_PREFIXES = (
+    "agent_action",
+    "action",
+    "task",
+    "tool",
+    "delegate",
+    "rollback",
+    "state_transition",
+    "audit",
+)
 
 # 异常严重度 → 行为一致性扣减量
 _SEVERITY_DELTA = {
@@ -407,16 +416,26 @@ class RuntimeBehaviorProbe:
         circuit_breaker: Any | None = None,
         window_size: int = 30,
         event_topic: str = "*",
+        subscribed_topics: tuple[str, ...] | None = None,
     ) -> None:
         self._bus = audit_bus
         self._trust = trust_engine
         self._cb = circuit_breaker
         self._window_size = max(2, window_size)
         self._event_topic = event_topic
+        # v0.47 S10: narrowed subscription topics.  When provided the probe
+        # subscribes to these exact topics (governance events) instead of
+        # the all-events wildcard, reducing false positives.
+        self._subscribed_topics = tuple(subscribed_topics or (event_topic,))
         self._events: dict[str, list[AgentEvent]] = {}
         self._baselines: dict[str, BehaviorBaseline] = {}
         self._anomaly_counts: dict[str, int] = {}
         self._started = False
+
+    @property
+    def subscribed_topics(self) -> tuple[str, ...]:
+        """The audit topics this probe is subscribed to."""
+        return self._subscribed_topics
 
     # -- 生命周期 --
 
@@ -424,14 +443,16 @@ class RuntimeBehaviorProbe:
         """开始订阅审计事件流（幂等）。"""
         if self._started:
             return
-        self._bus.subscribe(self._event_topic, self._on_event)
+        for topic in self._subscribed_topics:
+            self._bus.subscribe(topic, self._on_event)
         self._started = True
 
     def stop(self) -> None:
         """停止订阅审计事件流（幂等）。"""
         if not self._started:
             return
-        self._bus.unsubscribe(self._event_topic, self._on_event)
+        for topic in self._subscribed_topics:
+            self._bus.unsubscribe(topic, self._on_event)
         self._started = False
 
     @property
@@ -497,6 +518,52 @@ class RuntimeBehaviorProbe:
 
     def baselines(self) -> dict[str, dict]:
         return {k: v.to_dict() for k, v in self._baselines.items()}
+
+
+# 默认收窄订阅的治理事件 topic（v0.47 S10）：探针只订阅这些，避免全量
+# 事件流带来的误报与开销。
+_DEFAULT_GOVERNANCE_TOPICS = ("state_transition", "audit")
+
+
+def assemble_runtime_behavior_probe(
+    audit_bus: Any | None = None,
+    trust_engine: Any | None = None,
+    circuit_breaker: Any | None = None,
+    window_size: int = 30,
+    subscribed_topics: tuple[str, ...] | None = None,
+) -> RuntimeBehaviorProbe:
+    """装配运行时行为探针（v0.47 S10）— sidecar / 编排层标准启动点。
+
+    Args:
+        audit_bus: 事件源（缺省新建 :class:`~maref.governance.audit_bus.AuditBus`）。
+        trust_engine: 信任引擎（缺省新建 :class:`TrustEngineV2`）。
+        circuit_breaker: 熔断器（可选，缺省新建 :class:`CircuitBreaker`）。
+        window_size: 行为分析滑动窗口大小。
+        subscribed_topics: 订阅的审计 topic。默认收窄到治理事件
+            ``("state_transition", "audit")``，降低误报。
+
+    Returns:
+        已 ``start()`` 的探针实例。
+    """
+    from maref.governance.audit_bus import AuditBus
+    from maref.governance.circuit_breaker import CircuitBreaker
+    from maref.recursive.trust_engine_v2 import TrustEngineV2
+
+    if audit_bus is None:
+        audit_bus = AuditBus()
+    if trust_engine is None:
+        trust_engine = TrustEngineV2()
+    if circuit_breaker is None:
+        circuit_breaker = CircuitBreaker()
+    probe = RuntimeBehaviorProbe(
+        audit_bus=audit_bus,
+        trust_engine=trust_engine,
+        circuit_breaker=circuit_breaker,
+        window_size=window_size,
+        subscribed_topics=subscribed_topics or _DEFAULT_GOVERNANCE_TOPICS,
+    )
+    probe.start()
+    return probe
 
 
 # ── CLI ─────────────────────────────────────────────────────
