@@ -88,7 +88,6 @@ def _direction_conflict(assertion: str, evidence: list[str]) -> bool:
         evidence_tokens |= _tokenize(chunk)
 
     a_positive = bool(assertion_tokens & _POSITIVE_DIRECTION)
-    a_negative = bool(assertion_tokens & _NEGATIVE_DIRECTION)
     e_negative = bool(evidence_tokens & (_NEGATIVE_DIRECTION | _FLAT_DIRECTION))
 
     # e.g. "doubled" (positive) vs "flat/declined" (negative/flat) is a conflict.

@@ -45,7 +45,6 @@ def test_context_without_explanation_serializes_none() -> None:
 def test_approval_requires_explanation_in_mandatory_surface() -> None:
     """HITL 审批前必须可见推理链：context 无 explanation 时标记缺失."""
     context = _context()
-    request = DecisionRequest(task_id="t1", context=context)
     assert not context.explanation_present()
     context_with_chain = _context(explanation=ReasoningChain(decision_id="d", conclusion="approve"))
     assert context_with_chain.explanation_present()
