@@ -47,6 +47,32 @@ def test_unauthorized_cross_domain_triggers_circuit_breaker() -> None:
     assert "marketing" in alerts[0]["message"]
 
 
+def test_internal_domain_target_does_not_bypass_breaker() -> None:
+    """C1 回归：流向内部域不得绕过分类白名单（CRITICAL_INFRASTRUCTURE 仅允许 ops）."""
+    lineage = SensitiveDataLineage()
+    lineage.record_flow(
+        _flow(
+            "infra",
+            "external",
+            "analytics",
+            category=DataCategory.CRITICAL_INFRASTRUCTURE,
+        )
+    )
+    assert lineage.violation_count() == 1
+    assert lineage.circuit_breaker_open()
+    assert lineage.audit_alerts()[0]["to_domain"] == "analytics"
+
+
+def test_restricted_to_reporting_still_violation() -> None:
+    """RESTRICTED 白名单仅 etl——流向 reporting 必须 violation，即使 reporting 是内部域."""
+    lineage = SensitiveDataLineage()
+    lineage.record_flow(
+        _flow("r", "source", "reporting", category=DataCategory.RESTRICTED)
+    )
+    assert lineage.violation_count() == 1
+    assert lineage.circuit_breaker_open()
+
+
 def test_spread_analysis_downstream() -> None:
     lineage = SensitiveDataLineage()
     # raw 经 etl 清洗进入 analytics，最后产出 report —— asset 链式扩散

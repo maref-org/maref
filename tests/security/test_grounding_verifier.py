@@ -35,6 +35,17 @@ def test_contradictory_evidence_scores_low() -> None:
     assert score.score < 0.5
 
 
+def test_reverse_direction_conflict_scores_low() -> None:
+    """I2 回归：负向断言 vs 正向证据同样判矛盾."""
+    verifier = _verifier()
+    score = verifier.verify_assertion(
+        assertion="revenue declined last quarter",
+        evidence=["Revenue increased last quarter"],
+    )
+    assert score.score < 0.5
+    assert score.support_level == SupportLevel.CONTRADICTED
+
+
 def test_irrelevant_evidence_scores_low() -> None:
     verifier = _verifier()
     score = verifier.verify_assertion(

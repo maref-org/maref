@@ -96,8 +96,8 @@ class ContributionScore:
 
 
 # Contribution weights — sum to 1.0.  The outcome_quality weight is set per
-# engine instance (v0.51 W2-S3 / B3); when > 0 it is carved out of the
-# "success" slot so the base weights still sum to 1.0.
+# engine instance (v0.51 W2-S3 / B3); it is carved out of ALL base slots
+# proportionally so the total always sums to 1.0 regardless of its value.
 _BASE_CONTRIBUTION_WEIGHTS: dict[str, float] = {
     "duration": 0.30,   # longer work = more contribution
     "tokens": 0.25,     # more tokens processed = more contribution
@@ -107,13 +107,17 @@ _BASE_CONTRIBUTION_WEIGHTS: dict[str, float] = {
 
 
 def _contribution_weights(quality_weight: float) -> dict[str, float]:
-    """Return the effective factor weights for the engine's quality weight."""
+    """Return the effective factor weights for the engine's quality weight.
+
+    The quality weight is carved out of every base slot proportionally so the
+    total always sums to 1.0 (v0.51 review fix for the sum-invariant breach).
+    """
     quality_weight = max(0.0, min(1.0, quality_weight))
-    weights = dict(_BASE_CONTRIBUTION_WEIGHTS)
+    base_total = sum(_BASE_CONTRIBUTION_WEIGHTS.values())
+    scale = (base_total - quality_weight) / base_total if base_total > 0 else 0.0
+    weights = {k: round(v * scale, 6) for k, v in _BASE_CONTRIBUTION_WEIGHTS.items()}
     if quality_weight > 0:
-        # Carve quality out of the success slot; base weights otherwise hold.
         weights["outcome_quality"] = quality_weight
-        weights["success"] = max(0.0, _BASE_CONTRIBUTION_WEIGHTS["success"] - quality_weight)
     return weights
 
 
@@ -172,21 +176,24 @@ class TaskMeteringEngine:
         assert self._db is not None
         rows = self._db.fetchall("SELECT * FROM task_metrics ORDER BY timestamp")
         for row in rows:
+            # sqlite3.Row lacks .get(); convert to a plain dict for safe access
+            # to columns that older DB schemas may not carry (v0.51 review C2).
+            data = dict(row)
             metric = TaskMetric(
-                metric_id=row["metric_id"],
-                task_id=row["task_id"],
-                agent_did=row["agent_did"],
-                agent_aic=row["agent_aic"],
-                provider_org=row["provider_org"],
-                consumer_org=row["consumer_org"],
-                duration_ms=row["duration_ms"],
-                token_count=row["token_count"],
-                success=bool(row["success"]),
-                complexity_score=row["complexity_score"],
-                outcome_quality=row.get("outcome_quality", 0.0),  # type: ignore[attr-defined]
-                timestamp=row["timestamp"],
-                metadata=json.loads(row["metadata"]),
-                caller_did=row.get("caller_did", ""),  # type: ignore[attr-defined]
+                metric_id=data["metric_id"],
+                task_id=data["task_id"],
+                agent_did=data["agent_did"],
+                agent_aic=data["agent_aic"],
+                provider_org=data["provider_org"],
+                consumer_org=data["consumer_org"],
+                duration_ms=data["duration_ms"],
+                token_count=data["token_count"],
+                success=bool(data["success"]),
+                complexity_score=data["complexity_score"],
+                outcome_quality=data.get("outcome_quality", 0.0),
+                timestamp=data["timestamp"],
+                metadata=json.loads(data["metadata"]),
+                caller_did=data.get("caller_did", ""),
             )
             idx = len(self._metrics)
             self._metrics.append(metric)

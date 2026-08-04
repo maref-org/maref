@@ -106,3 +106,12 @@ def test_contribution_factors_include_quality() -> None:
     score = engine.compute_contribution("t1")[0]
     assert "outcome_quality" in score.factors
     assert score.factors["outcome_quality"] == 0.8
+
+
+def test_weight_sum_invariant_across_quality_weights() -> None:
+    """I1 回归：任意 quality weight 下因子权重和恒为 1.0."""
+    from maref.federation.metering import _contribution_weights
+
+    for qw in (0.0, 0.05, 0.15, 0.3, 0.5, 1.0):
+        weights = _contribution_weights(qw)
+        assert abs(sum(weights.values()) - 1.0) < 1e-6, f"qw={qw} sum={sum(weights.values())}"
