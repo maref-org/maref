@@ -77,6 +77,17 @@ class DataSource:
             "fields": [f.to_dict() for f in self.fields],
         }
 
+    def category_for_field(self, field_name: str) -> DataCategory:
+        """Return the DataCategory declared for a field (C1 field-level mapping)."""
+        for field in self.fields:
+            if field.name == field_name:
+                return field.data_category
+        raise ValueError(f"field {field_name!r} not present in data source {self.name!r}")
+
+    def sensitive_fields(self) -> tuple[FieldSpec, ...]:
+        """Return fields whose category is not PUBLIC (need classification-aware sanitization)."""
+        return tuple(f for f in self.fields if f.data_category != DataCategory.PUBLIC)
+
 
 ChangeCallback = Callable[[DataSource], None]
 RemovalCallback = Callable[[str], None]
