@@ -1,6 +1,31 @@
 # CHANGELOG
 
-## [v0.49.0] - 2026-08-04 (Level 2 生产化首个闭环 — 审计总线 + 组织身份 + Gossip)
+## [v0.50.0] - 2026-08-04 (治理承重墙封堵 + 三大域补强收口)
+
+### Added — P0 治理承重墙封堵（W1–W4）
+- **W1 单 Agent 治理承重墙**: `GovernanceStateMachine` 空 HMAC 密钥拒绝写链（fail-closed）；`force_stabilize/halt` 增加 `actor` 授权（无授权上下文抛 `PermissionError`）；`restore()` 从快照 `history_entries` 重建历史链（补 `transition_count` 一致性校验）
+- **W2 心跳身份认证**: `FederatedMembership` 可配 `allowed_heartbeat_servers`，未知 server_id 拒绝并审计 `unauthorized_heartbeat`；`federation_http` 心跳端点认证
+- **W3 跨 Agent 信任链**: `A2AClient` 支持 `signing_key` + `peer_public_key`（`X-A2A-Signature`/`X-A2A-Timestamp`/`X-A2A-Nonce` 请求头，Ed25519）；`a2a_server` 验签失败拒绝；`DelegationChain` 链节点签名（`create_signed`/`add_delegation_signed`/`validate_signed`，失败签名 → `INVALID_SIGNATURE`）
+- **W4 认证默认开启**: `MCPSecurityGate`/`OAuthMiddleware` 无 `verification_key` 构造抛错（fail-closed），需显式 `allow_unverified_tokens=True` 才放行；sidecar 装配从 `MAREF_MCP_SECRET_KEY` 注入真实 key
+
+### Added — P1 治理补强（W5–W8）
+- **W5 执行层**: `pty_bridge`/`mcp_bridge` 的 `pty_exec` 用 `shlex.split` + `shell=False`（拒绝空/空白命令，命令注入失效）；`UnifiedHarness` 生产路径接线 `TaskPreflight`（审计含 `self_declared` 标记）
+- **W6 联邦事件/审批安全**: `FederatedPolicySubscriber` policy push 事件级验签（Ed25519，`configure_verification`/`sign_event`）；`HITL approve()` 非 human reviewer 需 `signature`+`reviewer_did`；`FederationGateway(require_acs_signature)` 强制 ACS 签名；`FederatedConsensus` 验签投票 + LEADER_WORKER 常规决议需 quorum
+- **W7 身份与凭证收敛**: 未注册公钥的 DID 签发治理凭证抛 `ValueError`（A7 fail-closed）；`VerifiableCredential.issue` 无 `issuer_secret` 抛错（不再隐式随机密钥）；`identity/__init__` 不再导出死代码凭证路径（迁移到 `VerifiableGovernanceCredential`）
+- **W8 评审与规则**: `RuleJudge` 词边界精确匹配（token 级，消除子串误报，支持下划线复合词与中文模式）；`VerifierConsensus` 无官时非 Trace 输入 fail-closed（不再确定性仿真）
+
+### Changed
+- 版本基线: 0.49.0 → 0.50.0-dev（AGENTS.md 同步 v0.50.0-dev）
+- 覆盖率门禁: CI 全仓 `--fail-under` 40→50；release-gate governance 门禁聚焦 `src/maref/governance` 并提升到 60
+
+### Fixed
+- 27 项基线失败清零: `tests/sidecar` 联邦 API 测试隔离（`MAREF_FEDERATED_DB` + store 重置）、MCP 工具列表漂移（`gov_check_phase_gate`/`gov_verify_output` 补齐）、`tests/integration/test_mcp_server` envelope 校验对齐（`trace_id`/`timestamp`/`source_agent`）、`test_r63_r64_mcp` mock 脚本工具名回显修正、`RateLimiter` 误加参数移除
+
+### Tests
+- 新增 40+ 项: W1 状态机加固（8）、W3 A2A 凭证（6）+ 信任链签名（7）、W4 MCP fail-closed（12）、W5 pty 去 shell（7）+ harness 接线（5）、W6 事件/审批/共识签名（18）、W7 身份收敛（7）、W8 词边界 + fail-closed（15）、W9 覆盖率补测（10）
+- 回归: 治理/联邦/身份/安全/侧车域 1328+ 通过；ruff/mypy 对新增/改动代码 0 errors
+
+
 
 ### Added — P0 分布式审计总线生产化（P1–P4）
 - **P1 审计事件规范化**: `normalise_metadata`（递归类型归一 + 键排序，tuple/set/Enum/bytes 幂等归一）；框架运行时噪声键（`tool_call_id`/`task_id`/`conversation_id` 等）在 adapter 层剥离，同一动作跨框架 canonical digest 一致（含噪声键场景）
