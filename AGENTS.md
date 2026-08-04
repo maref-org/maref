@@ -157,6 +157,8 @@ kubectl apply -f k8s/production/
 - Error codes: `maref.exceptions.MAREFError` (20 codes E0000–E4002)
 - SAEB comparison: `from maref.evaluation.saeb import run_comparison`
 - L2 acceptance report: `docs/rsi/l2-acceptance-report-20260702.md`
+- 迭代依据（艾瑞 2026 报告分析）: `docs/research/ai-agent-enterprise-2026-ireport-analysis.md`
+- 当前补强规划: `docs/plans/2026-08-04-ai-agent-report-governance-reinforcement.md` + `.missions/v0.51.0-enterprise-value/`
 
 ## Open Source Execution Norm
 > **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](docs/oss-execution-norm-v1.0.md) 约束。

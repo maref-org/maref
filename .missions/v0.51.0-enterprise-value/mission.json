@@ -1,0 +1,38 @@
+{
+  "mission_id": "maref-v0.51.0-enterprise-value",
+  "version": "0.51.0",
+  "name": "企业价值闭环补强（Enterprise Value Closure）",
+  "status": "planned",
+  "start_date": "2026-08-04",
+  "target_completion_date": "2026-09-04",
+  "estimated_duration_days": 31,
+  "parent": "TP-03",
+  "source_report": "docs/research/ai-agent-enterprise-2026-ireport-analysis.md",
+  "implementation_plan": "docs/plans/2026-08-04-ai-agent-report-governance-reinforcement.md",
+  "current_milestone": "M1",
+  "milestones": [
+    {"id": "M1", "name": "A1-A3 数据目录/血缘/schema + B1-B2 ValueMetric/追踪", "status": "pending"},
+    {"id": "M2", "name": "B3 结果质量参与结算 + C1-C3 分类贯通+敏感血缘", "status": "pending"},
+    {"id": "M3", "name": "D1-D2 推理链+HITL + E1-E2 grounding", "status": "pending"},
+    {"id": "M4", "name": "测试补齐 + 覆盖率 + CHANGELOG + 版本 bump 0.51.0", "status": "pending"}
+  ],
+  "all_milestones_completed": false,
+  "total_features": 19,
+  "completed_features": 0,
+  "team": {
+    "primary_developer": "opencode-agent",
+    "backup_developer": "human-oversight",
+    "reviewer": "human"
+  },
+  "repository": {
+    "current_branch": "dev",
+    "base_branch": "main"
+  },
+  "quality_gates": {
+    "ruff_errors": 0,
+    "mypy_errors": 0,
+    "test_pass_rate": 100,
+    "collection_errors": 0
+  },
+  "last_updated": "2026-08-04T00:00:00+08:00"
+}
