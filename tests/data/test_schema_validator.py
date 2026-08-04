@@ -5,9 +5,8 @@ Covers field-level type/required/enum constraints and schema drift detection.
 
 from __future__ import annotations
 
-from maref.compliance.data_sovereignty import DataCategory
 from maref.data.catalog import DataSource, DataSourceType, FieldSpec
-from maref.data.schema_validator import SchemaValidator, ValidationResult
+from maref.data.schema_validator import SchemaValidator
 
 
 def _source_with_fields(

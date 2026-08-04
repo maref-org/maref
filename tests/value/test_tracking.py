@@ -11,7 +11,7 @@ import os
 import pytest
 
 from maref.value.metrics import ValueMetric, ValueMetricType
-from maref.value.tracking import ValueTrackingEngine, ValueRecord
+from maref.value.tracking import ValueRecord, ValueTrackingEngine
 
 
 @pytest.fixture(autouse=True)
