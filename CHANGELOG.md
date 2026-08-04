@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [v0.49.0] - 2026-08-04 (Level 2 生产化首个闭环 — 审计总线 + 组织身份 + Gossip)
+
+### Added — P0 分布式审计总线生产化（P1–P4）
+- **P1 审计事件规范化**: `normalise_metadata`（递归类型归一 + 键排序，tuple/set/Enum/bytes 幂等归一）；框架运行时噪声键（`tool_call_id`/`task_id`/`conversation_id` 等）在 adapter 层剥离，同一动作跨框架 canonical digest 一致（含噪声键场景）
+- **P2 签名归属强化**: 签名 payload 附加 framework（`signed_payload`，scheme `v2`），跨框架贴签被 `verify_event_signature` 拒绝；旧 `v1` canonical-only 签名向后兼容可验
+- **P3 真实三框架接入**: langgraph 1.2.0 真实 `StateGraph` 执行接入事件源；crewai/autogen 真实运行时格式样例（Task output / ConversableAgent message）→ 三格式同一动作同一 digest 集成测试
+- **P4 总线持久化**: `level2/audit_store.PersistentAuditStore`（复用 DatabaseManager，SQLite）——事件落库、重启可查、按 actor/framework/type 过滤、全量签名完整性校验（含篡改与跨框架复用检测）；`DistributedAuditBus(store=...)` 发布即落库
+
+### Added — P1 组织身份层 + Gossip 原型（P5–P7）
+- **P5 组织 DID 生产实现**: `identity/org_did` — `OrgDID`（`did:maref:org:{org_name}:{org_id}` 严格解析）+ `OrgCertificate`（联邦根 Ed25519 签发/验签，任意第三方持根公钥可验）+ `OrgDIDRegistry`（注册/解析/撤销/deactivate 生命周期 + SQLite 持久化）
+- **P6 Gossip 传输原型**: `level2/gossip_protocol` — 进程内多节点网络，随机-k 转发 + `(kind, origin, generation)` 去重 + TTL 界 + CRDT 合并（snapshot/amendment 高 generation 覆盖，audit 仅追加）+ Ed25519 鉴权（trust_store fail-closed 丢弃未知签名/篡改消息）
+- **P7 组织治理 API**: sidecar `/api/v1/federation/consensus/*`（summary/membership/propose/vote/proposals）+ `/api/v1/federation/preflight` 路由，打通 v0.48 W 轨遗留（GovernedPipeline 的 consensus/task_preflight 零接线）；未装配时 503 fail-closed
+
+### Changed
+- `DistributedAuditBus.__init__` 增加可选 `store`（向后兼容）；`FrameworkAuditEvent` 增加 `signature_scheme`（默认 v2）
+- `level2` 包导出 Gossip 组件；`identity` 包导出组织 DID 组件
+- 版本基线: 0.48.0 → 0.49.0
+
+### Fixed (review)
+- **Gossip 审计事件误去重**: `audit_event` 原以 `(kind, origin, generation)` 去重，默认 `generation=0` 导致同源连续事件被折叠丢失；改为按 payload 规范摘要去重（同内容重播折叠、异内容全保留，append-only 语义正确）
+- **签名 v1 降级绕过**: `verify_event_signature` 无条件回退 v1 校验，允许 canonical-only 签名绕过 v2 事件的 framework 绑定（跨框架贴签复活）；改为严格按 `signature_scheme` 分支——v2 事件仅验 v2，v1 签名仅对显式标记 v1 的事件生效
+- **P7 治理端点缺 scope**: `/api/v1/federation/*` 敏感端点（propose/vote/preflight）补 `federation:write/execute/read` scope 声明（对齐 verifier/evolution 等现有模式）；修正 `@require_auth` 装饰顺序（须位于 `@router.*` 之下，否则 scope 落在注册之外的对象上被静默丢弃）
+- 冗余异常捕获清理（`except (ValueError, Exception)` → `except Exception`）
+
+### Tests
+- 新增 62 项：规范化/签名归属（11）、真实框架接入（7）、总线持久化（8）、Gossip（11）、组织 DID（15）、组织治理 API（10）
+- 回归：改动前失败集合逐一对比一致，无新增回归；ruff/mypy 对新增/改动代码 0 errors
+
 ## [v0.48.0] - 2026-08-03 (Level 2 架构设计 + 治理接线闭环)
 
 ### Added — Level 2 架构设计（M1，TP-08 承接，2026 仅设计不生产化）
