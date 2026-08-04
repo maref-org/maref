@@ -137,6 +137,14 @@ class AuthorizationScope:
 
 @dataclass
 class VerifiableCredential:
+    """DEPRECATED (v0.50 W7-S3 / A5) — use
+    :class:`maref.governance.verifiable_governance_credential.VerifiableGovernanceCredential`
+    instead.  Removed from the ``maref.identity`` package exports.
+
+    HMAC-based legacy credential.  ``issue`` requires an explicit
+    ``issuer_secret`` (fail-closed since v0.50 W7-S2 / A6).
+    """
+
     id: str
     issuer: AgentDID
     subject: AgentDID
@@ -187,7 +195,10 @@ class VerifiableCredential:
         issuer_secret: bytes | None = None,
     ) -> VerifiableCredential:
         if issuer_secret is None:
-            issuer_secret = secrets.token_bytes(32)
+            raise ValueError(
+                "issuer_secret is required to issue a credential "
+                "(fail-closed; implicit random secrets are disabled)"
+            )
         now = time.time()
         vc_id = f"vc-{secrets.token_hex(8)}"
         expires = (now + ttl_seconds) if ttl_seconds is not None else None
@@ -223,6 +234,11 @@ class VerifiableCredential:
 
 
 class CredentialStore:
+    """DEPRECATED (v0.50 W7-S3 / A5) — use
+    :class:`maref.governance.verifiable_governance_credential.GovernanceCredentialStore`
+    instead.  Removed from the ``maref.identity`` package exports.
+    """
+
     def __init__(self) -> None:
         self._credentials: dict[str, VerifiableCredential] = {}
         self._revoked: dict[str, str] = {}

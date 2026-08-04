@@ -11,15 +11,53 @@ AGENT_ID = "urn:agent:maref:0-35-0-beta:a2a-client"
 
 
 class A2AClient:
-    def __init__(self, timeout: float = 30.0) -> None:
+    """A2A client with optional request signing (v0.50 W3-S1 / I7).
+
+    When a ``signing_key`` (Ed25519 :class:`ReportSigningKey`) is provided,
+    every outgoing request carries ``X-A2A-Signature`` / ``X-A2A-Timestamp``
+    headers so a peer configured with ``peer_public_keys`` can authenticate
+    the sender. Without a signing key the client remains wire-compatible
+    (unsigned) for backwards compatibility.
+    """
+
+    def __init__(
+        self,
+        timeout: float = 30.0,
+        signing_key: Any | None = None,
+    ) -> None:
         self._timeout = timeout
+        self._signing_key = signing_key
         self._active_tasks: dict[str, dict[str, Any]] = {}
 
-    def _headers(self) -> dict[str, str]:
-        return {
+    def _sign_payload(self, payload: bytes) -> tuple[str, str]:
+        """Return (signature, timestamp) for a request body.
+
+        The signed payload is ``{timestamp}.{body}`` so the signature is
+        bound to both the request freshness and its exact content.
+        """
+        timestamp = str(int(time.time()))
+        signed = f"{timestamp}.{payload.decode('utf-8')}".encode()
+        if self._signing_key is None:
+            raise ValueError("signing_key is required to sign A2A payloads")
+        sig = self._signing_key.sign_report(signed)
+        return sig, timestamp
+
+    def _headers(self, payload: bytes | None = None) -> dict[str, str]:
+        headers = {
             "Content-Type": "application/json",
             "X-A2A-Agent-Id": AGENT_ID,
         }
+        if self._signing_key is not None and payload is not None:
+            sig, timestamp = self._sign_payload(payload)
+            headers["X-A2A-Signature"] = sig
+            headers["X-A2A-Timestamp"] = timestamp
+        return headers
+
+    def _request_headers(self, json_payload: dict[str, Any]) -> tuple[bytes, dict[str, str]]:
+        import json as _json
+
+        body = _json.dumps(json_payload, separators=(",", ":")).encode("utf-8")
+        return body, self._headers(payload=body)
 
     async def send_task(
         self,
@@ -46,10 +84,11 @@ class A2AClient:
                 },
             }
             async with httpx.AsyncClient(timeout=self._timeout) as client:
+                body, headers = self._request_headers(payload)
                 resp = await client.post(
                     f"{agent_url.rstrip('/')}/api/a2a/task/send",
-                    json=payload,
-                    headers=self._headers(),
+                    content=body,
+                    headers=headers,
                 )
                 resp.raise_for_status()
                 result = resp.json()

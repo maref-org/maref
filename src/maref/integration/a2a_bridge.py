@@ -76,6 +76,7 @@ class A2ABridge:
         protocol_bridge: Any | None = None,
         agent_dns: Any | None = None,
         agent_did: str | None = None,
+        signing_key: Any | None = None,
     ) -> None:
         """Initialize the A2A bridge with governance components.
 
@@ -92,12 +93,15 @@ class A2ABridge:
                 is generated from AgentDNS resolution (方案 E M2 / I2).
             agent_did: The agent's MAREF DID string; the Agent Card is only
                 published while the DID lifecycle is active.
+            signing_key: Optional Ed25519 :class:`ReportSigningKey` used to
+                sign outgoing delegated tasks (v0.50 W3-S1 / I7).
         """
         self._sm = state_machine
         self._audit = audit_logger
         self._cb = circuit_breaker
         self._name = agent_name
         self._description = agent_description
+        self._signing_key = signing_key
         self._tasks: dict[str, A2ATaskContext] = {}
         self._delegated_tasks: dict[str, DelegatedTask] = {}
         self._capabilities: list[A2ASkillDefinition] = []
@@ -401,7 +405,7 @@ class A2ABridge:
             import asyncio
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                client = A2AClient()
+                client = A2AClient(signing_key=self._signing_key)
                 task = self._tasks.get(task_id)
                 if task is not None:
                     loop.create_task(

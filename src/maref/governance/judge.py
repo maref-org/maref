@@ -7,10 +7,50 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Protocol
 
 from maref.governance.trace import Trace, Verdict, VerdictDecision
+
+_WORD_RE = re.compile(r"\w+")
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def _tokens(text: str) -> list[str]:
+    """把文本拆成词级 token（A11 词边界）。
+
+    ``\\w+`` 同时覆盖英文单词、下划线复合词与中文连续串。词边界匹配
+    消除子串误报（如 ``privilege`` 不命中 ``privilege_escalation``）。
+    """
+    return _WORD_RE.findall(text.lower())
+
+
+def _pattern_matches(blob_tokens: list[str], pattern: str) -> bool:
+    """判断 pattern 是否为 blob token 序列的连续子序列。
+
+    中文 token 允许子串包含（中文无空格分词）；英文/复合词要求精确
+    token 相等，避免词内子串误报。
+    """
+    pat_tokens = _tokens(pattern)
+    if not pat_tokens:
+        return False
+    width = len(pat_tokens)
+    for i in range(len(blob_tokens) - width + 1):
+        matched = True
+        for j in range(width):
+            blob_tok = blob_tokens[i + j]
+            pat_tok = pat_tokens[j]
+            if _CJK_RE.search(pat_tok):
+                if pat_tok not in blob_tok:
+                    matched = False
+                    break
+            elif blob_tok != pat_tok:
+                matched = False
+                break
+        if matched:
+            return True
+    return False
 
 
 class Judge(ABC):
@@ -85,15 +125,15 @@ class RuleJudge(Judge):
         block_evidence: list[str] = []
         flag_evidence: list[str] = []
         for step in trace.steps:
-            blob = f"{step.action} {step.decision}".lower()
+            blob_tokens = _tokens(f"{step.action} {step.decision}")
             for pattern in self._block_patterns:
-                if pattern in blob:
+                if _pattern_matches(blob_tokens, pattern):
                     block_evidence.append(
                         f"{step.agent_id}:{step.action}@{step.ts:.2f} (block:{pattern})"
                     )
                     break
             for pattern in self._flag_patterns:
-                if pattern in blob:
+                if _pattern_matches(blob_tokens, pattern):
                     flag_evidence.append(
                         f"{step.agent_id}:{step.action}@{step.ts:.2f} (flag:{pattern})"
                     )
