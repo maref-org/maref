@@ -97,3 +97,54 @@ def test_detect_schema_drift_enum_narrowing() -> None:
 
     drift = SchemaValidator.detect_schema_drift(old, new)
     assert any("status" in d for d in drift)
+
+
+def test_none_required_field_fails() -> None:
+    fields = [FieldSpec(name="id", data_type="string", required=True)]
+    validator = SchemaValidator(fields)
+    result = validator.validate_record({"id": None})
+    assert not result.valid
+    assert any("id" in e for e in result.errors)
+
+
+def test_none_optional_field_passes() -> None:
+    fields = [FieldSpec(name="note", data_type="string")]
+    validator = SchemaValidator(fields)
+    result = validator.validate_record({"note": None})
+    assert result.valid
+
+
+def test_boolean_and_timestamp_types() -> None:
+    fields = [
+        FieldSpec(name="active", data_type="boolean"),
+        FieldSpec(name="created", data_type="timestamp"),
+        FieldSpec(name="unknown_type", data_type="json"),
+    ]
+    validator = SchemaValidator(fields)
+    result = validator.validate_record(
+        {"active": True, "created": "2026-08-04", "unknown_type": {"a": 1}}
+    )
+    assert result.valid
+
+
+def test_boolean_rejects_string() -> None:
+    fields = [FieldSpec(name="active", data_type="boolean")]
+    validator = SchemaValidator(fields)
+    result = validator.validate_record({"active": "yes"})
+    assert not result.valid
+
+
+def test_detect_schema_drift_removed_field() -> None:
+    old = [FieldSpec(name="legacy", data_type="string"), FieldSpec(name="keep", data_type="string")]
+    new = [FieldSpec(name="keep", data_type="string")]
+    drift = SchemaValidator.detect_schema_drift(old, new)
+    assert any("legacy" in d for d in drift)
+
+
+def test_fingerprint_stable_and_sensitive_to_change() -> None:
+    fields_a = [FieldSpec(name="id", data_type="string", required=True)]
+    fields_b = [FieldSpec(name="id", data_type="string", required=True)]
+    fields_c = [FieldSpec(name="id", data_type="integer", required=True)]
+    assert SchemaValidator.fingerprint(fields_a) == SchemaValidator.fingerprint(fields_b)
+    assert SchemaValidator.fingerprint(fields_a) != SchemaValidator.fingerprint(fields_c)
+    assert SchemaValidator.fingerprint(fields_a).startswith("sha256:")
