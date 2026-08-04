@@ -125,6 +125,7 @@ node_modules
 
 # Runtime generated large files
 coverage.json
+coverage_full.json
 htmlcov/
 coverage_html/
 bandit_report.json

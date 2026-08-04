@@ -45,7 +45,7 @@ jobs:
         run: python -c "from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, f'Mock mismatch: {errors}'"
         continue-on-error: true
       - name: Coverage report
-        run: coverage report --fail-under=40
+        run: coverage report --fail-under=50
 
   security:
     needs: lint
