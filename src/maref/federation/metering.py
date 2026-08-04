@@ -46,6 +46,7 @@ class TaskMetric:
     token_count: int
     success: bool
     complexity_score: float
+    outcome_quality: float = 0.0
     timestamp: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
     caller_did: str = ""
@@ -62,6 +63,7 @@ class TaskMetric:
             "token_count": self.token_count,
             "success": self.success,
             "complexity_score": self.complexity_score,
+            "outcome_quality": self.outcome_quality,
             "timestamp": self.timestamp,
             "metadata": dict(self.metadata),
             "caller_did": self.caller_did,
@@ -93,13 +95,26 @@ class ContributionScore:
         }
 
 
-# Contribution weights — sum to 1.0.
-_CONTRIBUTION_WEIGHTS: dict[str, float] = {
+# Contribution weights — sum to 1.0.  The outcome_quality weight is set per
+# engine instance (v0.51 W2-S3 / B3); when > 0 it is carved out of the
+# "success" slot so the base weights still sum to 1.0.
+_BASE_CONTRIBUTION_WEIGHTS: dict[str, float] = {
     "duration": 0.30,   # longer work = more contribution
     "tokens": 0.25,     # more tokens processed = more contribution
     "complexity": 0.30, # higher complexity = more contribution
     "success": 0.15,    # successful completion bonus
 }
+
+
+def _contribution_weights(quality_weight: float) -> dict[str, float]:
+    """Return the effective factor weights for the engine's quality weight."""
+    quality_weight = max(0.0, min(1.0, quality_weight))
+    weights = dict(_BASE_CONTRIBUTION_WEIGHTS)
+    if quality_weight > 0:
+        # Carve quality out of the success slot; base weights otherwise hold.
+        weights["outcome_quality"] = quality_weight
+        weights["success"] = max(0.0, _BASE_CONTRIBUTION_WEIGHTS["success"] - quality_weight)
+    return weights
 
 
 class TaskMeteringEngine:
@@ -110,12 +125,17 @@ class TaskMeteringEngine:
     backend by subclassing and overriding :meth:`_persist`.
     """
 
-    def __init__(self, db_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        db_path: str | Path | None = None,
+        outcome_quality_weight: float = 0.0,
+    ) -> None:
         self._db: DatabaseManager | None = None
         self._metrics: list[TaskMetric] = []
         self._index_by_task: dict[str, list[int]] = {}
         self._index_by_org: dict[str, list[int]] = {}
         self._index_by_metric_id: dict[str, int] = {}
+        self._outcome_quality_weight = max(0.0, min(1.0, outcome_quality_weight))
         if db_path is not None:
             self._db = DatabaseManager(db_path)
             self._init_schema()
@@ -136,6 +156,7 @@ class TaskMeteringEngine:
                 token_count      INTEGER NOT NULL,
                 success          INTEGER NOT NULL,
                 complexity_score REAL NOT NULL,
+                outcome_quality  REAL NOT NULL DEFAULT 0,
                 timestamp        REAL NOT NULL,
                 metadata         TEXT NOT NULL,
                 caller_did       TEXT NOT NULL DEFAULT ''
@@ -162,6 +183,7 @@ class TaskMeteringEngine:
                 token_count=row["token_count"],
                 success=bool(row["success"]),
                 complexity_score=row["complexity_score"],
+                outcome_quality=row.get("outcome_quality", 0.0),  # type: ignore[attr-defined]
                 timestamp=row["timestamp"],
                 metadata=json.loads(row["metadata"]),
                 caller_did=row.get("caller_did", ""),  # type: ignore[attr-defined]
@@ -191,16 +213,24 @@ class TaskMeteringEngine:
         complexity_score: float,
         metadata: dict[str, Any] | None = None,
         caller_did: str = "",
+        outcome_quality: float = 0.0,
     ) -> TaskMetric:
         """Record a single task execution metric.
 
         ``complexity_score`` is clamped to ``[0.0, 1.0]``.
+
+        ``outcome_quality`` (v0.51 W2-S3 / B3) is the result-quality score
+        (attainment rate / output usability), clamped to ``[0.0, 1.0]``.
+        It feeds the contribution formula only when the engine was built
+        with ``outcome_quality_weight > 0``.  Defaults to 0.0 for backward
+        compatibility with existing callers.
 
         ``caller_did`` binds the metric to the identity that submitted it
         (v0.47 S5 source binding).  Defaults to "" for backward
         compatibility with existing callers.
         """
         complexity = max(0.0, min(1.0, complexity_score))
+        quality = max(0.0, min(1.0, outcome_quality))
         metric = TaskMetric(
             metric_id=f"met_{uuid.uuid4().hex}",
             task_id=task_id,
@@ -212,6 +242,7 @@ class TaskMeteringEngine:
             token_count=max(0, token_count),
             success=success,
             complexity_score=complexity,
+            outcome_quality=quality,
             metadata=metadata or {},
             caller_did=caller_did,
         )
@@ -293,6 +324,12 @@ class TaskMeteringEngine:
         for m in metrics:
             per_agent.setdefault(m.agent_did, []).append(m)
 
+        # Normalise effort factors to [0, 1] relative to the task's max so
+        # that duration/tokens/complexity/success/outcome_quality are
+        # comparable before weighting (v0.51 W2-S3 quality participation).
+        max_duration = max((sum(m.duration_ms for m in ms) for ms in per_agent.values()), default=0.0)
+        max_tokens = max((sum(m.token_count for m in ms) for ms in per_agent.values()), default=0)
+
         raw_weights: dict[str, float] = {}
         factor_breakdown: dict[str, dict[str, float]] = {}
 
@@ -302,16 +339,20 @@ class TaskMeteringEngine:
             avg_complexity = sum(m.complexity_score for m in agent_metrics) / len(agent_metrics)
             any_success = any(m.success for m in agent_metrics)
 
-            # Normalise each factor to [0, 1] relative to the task's max.
             factors_raw = {
-                "duration": total_duration,
-                "tokens": float(total_tokens),
+                "duration": total_duration / max_duration if max_duration > 0 else 0.0,
+                "tokens": (float(total_tokens) / max_tokens) if max_tokens > 0 else 0.0,
                 "complexity": avg_complexity,
                 "success": 1.0 if any_success else 0.0,
             }
+            weights = _contribution_weights(self._outcome_quality_weight)
+            if self._outcome_quality_weight > 0:
+                factors_raw["outcome_quality"] = (
+                    sum(m.outcome_quality for m in agent_metrics) / len(agent_metrics)
+                )
             factor_breakdown[did] = factors_raw
             raw_weights[did] = sum(
-                factors_raw[f] * _CONTRIBUTION_WEIGHTS[f] for f in factors_raw
+                factors_raw[f] * weights[f] for f in factors_raw
             )
 
         # Normalise weights so they sum to 1.0 across all agents.
@@ -409,8 +450,8 @@ class TaskMeteringEngine:
             "INSERT OR REPLACE INTO task_metrics "
             "(metric_id, task_id, agent_did, agent_aic, provider_org, "
             "consumer_org, duration_ms, token_count, success, "
-            "complexity_score, timestamp, metadata, caller_did) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "complexity_score, outcome_quality, timestamp, metadata, caller_did) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 metric.metric_id,
                 metric.task_id,
@@ -422,6 +463,7 @@ class TaskMeteringEngine:
                 metric.token_count,
                 int(metric.success),
                 metric.complexity_score,
+                metric.outcome_quality,
                 metric.timestamp,
                 json.dumps(metric.metadata),
                 metric.caller_did,
