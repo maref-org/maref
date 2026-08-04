@@ -125,7 +125,11 @@ class AgentIdentityService:
         # 防御纵深：若该 DID 已注册公钥，签发密钥必须与其匹配（防冒名签发）。
         record = self._did_registry.resolve(did)
         registered_key = record.ed25519_public_key() if record is not None else ""
-        if registered_key and key.public_key_pem != registered_key:
+        if not registered_key:
+            raise ValueError(
+                f"DID {subject_did} 未注册公钥，拒绝签发凭证（A7 fail-closed）"
+            )
+        if key.public_key_pem != registered_key:
             raise ValueError(
                 f"签发密钥与该 DID 注册公钥不匹配，拒绝签发凭证: {subject_did}"
             )

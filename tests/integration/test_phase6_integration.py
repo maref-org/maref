@@ -194,7 +194,7 @@ class TestMCPProtocolCompatibility:
         """安全门与工具调用集成"""
         from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
 
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         server = MCPServer(name="secure-server", security_gate=gate)
 
         def bash(args):
@@ -270,7 +270,7 @@ class TestSelfVerification:
             "child", boundary._domains[list(boundary._domains.keys())[1]].domain_id
         )
 
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
 
         verdict = gate.check(
             "read_file",

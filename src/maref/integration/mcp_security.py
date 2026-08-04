@@ -304,7 +304,13 @@ class OAuthMiddleware:
         self,
         token_provider: OAuthTokenProvider | None = None,
         verification_key: bytes | None = None,
+        allow_unverified_tokens: bool = False,
     ) -> None:
+        if verification_key is None and not allow_unverified_tokens:
+            raise ValueError(
+                "OAuthMiddleware requires a verification_key; pass "
+                "allow_unverified_tokens=True only for non-production use"
+            )
         self._provider = token_provider
         self._verification_key = verification_key
 
@@ -341,19 +347,22 @@ class OAuthMiddleware:
             # Verify the signature when a verification key is configured
             # (v0.47 S8 — previously the payload was decoded with no
             # signature check, so a forged token was accepted).
-            if self._verification_key is not None:
-                signing_input = f"{header_b64}.{payload_b64}".encode()
-                expected = hmac.new(
-                    self._verification_key,
-                    signing_input,
-                    hashlib.sha256,
-                ).digest()
-                try:
-                    actual = base64.urlsafe_b64decode(sig_b64 + "=" * (-len(sig_b64) % 4))
-                except (ValueError, TypeError):
-                    raise PermissionError("Invalid token signature") from None
-                if not hmac.compare_digest(expected, actual):
-                    raise PermissionError("Token signature verification failed")
+            if self._verification_key is None:
+                raise PermissionError(
+                    "Token signature verification required but no verification_key configured"
+                )
+            signing_input = f"{header_b64}.{payload_b64}".encode()
+            expected = hmac.new(
+                self._verification_key,
+                signing_input,
+                hashlib.sha256,
+            ).digest()
+            try:
+                actual = base64.urlsafe_b64decode(sig_b64 + "=" * (-len(sig_b64) % 4))
+            except (ValueError, TypeError):
+                raise PermissionError("Invalid token signature") from None
+            if not hmac.compare_digest(expected, actual):
+                raise PermissionError("Token signature verification failed")
 
             padding = 4 - len(payload_b64) % 4
             if padding != 4:
@@ -384,7 +393,15 @@ class MCPSecurityGate:
     rate_limiter: RateLimiter = field(default_factory=lambda: RateLimiter())
     oauth_provider: OAuthTokenProvider | None = None
     verification_key: bytes | None = None
+    allow_unverified_tokens: bool = False
     _audit_log: list[AuditLogEntry] = field(default_factory=list, repr=False)
+
+    def __post_init__(self) -> None:
+        if self.verification_key is None and not self.allow_unverified_tokens:
+            raise ValueError(
+                "MCPSecurityGate requires a verification_key; pass "
+                "allow_unverified_tokens=True only for non-production use"
+            )
 
     def authenticate_request(self, headers: dict[str, str]) -> ZeroTrustContext:
         auth_header = headers.get("authorization", headers.get("Authorization", ""))

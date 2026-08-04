@@ -62,6 +62,7 @@ class PreflightResult:
     agent_id: str
     task_description: str
     timestamp: float = 0.0
+    self_declared: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +71,7 @@ class PreflightResult:
             "agent_id": self.agent_id,
             "task_description": self.task_description,
             "timestamp": self.timestamp or time.time(),
+            "self_declared": self.self_declared,
         }
 
     @property
@@ -585,12 +587,18 @@ class TaskPreflight:
         results = [check.execute(context) for check in self._checks]
         passed = all(r.status != PreflightCheckStatus.FAIL for r in results)
 
+        # self_declared marks checks that carried no independent evidence —
+        # none of the results carried non-empty evidence (v0.50 W5-S2 / A4),
+        # i.e. the gate relied solely on the agent's self-declared flags.
+        self_declared = all(not r.evidence for r in results)
+
         result = PreflightResult(
             passed=passed,
             checks=results,
             agent_id=context.get("agent_id", "unknown"),
             task_description=context.get("task_description", ""),
             timestamp=time.time(),
+            self_declared=self_declared,
         )
 
         if passed:

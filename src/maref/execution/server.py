@@ -69,8 +69,10 @@ app = FastAPI(
 
 def _run_harness_in_thread(run_id: str, config_dict: dict[str, Any]) -> None:
     try:
+        from maref.governance.task_preflight import TaskPreflight
+
         config = HarnessConfig(**config_dict)
-        harness = UnifiedHarness()
+        harness = UnifiedHarness(task_preflight=TaskPreflight())
         harness.configure(config)
         harness.preflight()
         result = harness.run(round_id=run_id)

@@ -11,9 +11,24 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
 from maref.integration.a2a_types import A2A_PROTOCOL_VERSION, A2ATaskState
+from maref.signing.signing_key import ReportSigningKey
 
 
-def create_a2a_router(bridge: A2ABridge, signing_key: str | None = None) -> APIRouter:
+def create_a2a_router(
+    bridge: A2ABridge,
+    signing_key: str | None = None,
+    peer_public_keys: dict[str, str] | None = None,
+) -> APIRouter:
+    """Create the A2A HTTP router.
+
+    v0.50 W3-S1 (I7): when ``peer_public_keys`` (``{agent_id: Ed25519 public key}``)
+    is provided, ``tasks/send`` requests are verified against the sender's
+    ``X-A2A-Signature`` / ``X-A2A-Timestamp`` headers. Requests from an
+    unknown sender or with an invalid signature are rejected with 401.
+    """
+    if peer_public_keys is None:
+        peer_public_keys = {}
+
     def _sign_card(card: dict[str, Any]) -> str:
         if signing_key is None:
             return ""
@@ -27,11 +42,35 @@ def create_a2a_router(bridge: A2ABridge, signing_key: str | None = None) -> APIR
         except CommunicationBlockedError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    def _verify_sender(request: Request, body: dict[str, Any]) -> bool:
+        """Verify the sender's Ed25519 signature when peer keys are configured.
+
+        Returns True when verification passes or no peer keys are configured.
+        """
+        if not peer_public_keys:
+            return True
+        agent_id = request.headers.get("X-A2A-Agent-Id", "")
+        public_key = peer_public_keys.get(agent_id)
+        if public_key is None:
+            return False
+        signature = request.headers.get("X-A2A-Signature", "")
+        timestamp = request.headers.get("X-A2A-Timestamp", "")
+        if not signature or not timestamp:
+            return False
+        body_bytes = json.dumps(body, separators=(",", ":")).encode("utf-8")
+        signed = f"{timestamp}.{body_bytes.decode('utf-8')}".encode()
+        return ReportSigningKey.verify_signature(public_key, signature, signed)
+
     router = APIRouter()
 
     @router.post("/api/a2a/task/send")
-    async def task_send(body: dict[str, Any]) -> JSONResponse:
+    async def task_send(request: Request, body: dict[str, Any]) -> JSONResponse:
         try:
+            if not _verify_sender(request, body):
+                return JSONResponse(
+                    status_code=401,
+                    content={"jsonrpc": "2.0", "error": {"code": -32001, "message": "Unauthorized: sender signature verification failed"}},
+                )
             if body.get("jsonrpc") != "2.0":
                 return JSONResponse(
                     status_code=200,
@@ -241,8 +280,13 @@ def create_a2a_router(bridge: A2ABridge, signing_key: str | None = None) -> APIR
             return JSONResponse(status_code=500, content={"detail": "Server error"})
 
     @router.post("/a2a/tasks")
-    async def a2a_tasks_spec(body: dict[str, Any]) -> JSONResponse:
-        return await task_send(body)
+    async def a2a_tasks_spec(request: Request, body: dict[str, Any]) -> JSONResponse:
+        if not _verify_sender(request, body):
+            return JSONResponse(
+                status_code=401,
+                content={"jsonrpc": "2.0", "error": {"code": -32001, "message": "Unauthorized: sender signature verification failed"}},
+            )
+        return await task_send(request, body)
 
     @router.get("/a2a/tasks/{task_id}")
     async def a2a_tasks_get_spec(task_id: str) -> JSONResponse:

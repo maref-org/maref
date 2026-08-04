@@ -358,25 +358,32 @@ class TestLeaderWorkerResolution:
     def test_routine_leader_approve_resolves(self) -> None:
         fc = self._consensus()
         proposal = fc.propose("worker-1", "routine-task")
+        # v0.50 W6-S3: leader arbitration still requires quorum support.
         fc.vote(proposal.proposal_id, "leader-1", VoteChoice.APPROVE)
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.APPROVE)
+        fc.vote(proposal.proposal_id, "worker-3", VoteChoice.APPROVE)
         result = fc.resolve(proposal.proposal_id)
         assert result.state == ProposalState.ACCEPTED
 
     def test_routine_leader_reject_resolves(self) -> None:
         fc = self._consensus()
         proposal = fc.propose("worker-1", "routine-task")
+        # v0.50 W6-S3: leader arbitration still requires quorum support.
         fc.vote(proposal.proposal_id, "leader-1", VoteChoice.REJECT)
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.REJECT)
+        fc.vote(proposal.proposal_id, "worker-3", VoteChoice.REJECT)
         result = fc.resolve(proposal.proposal_id)
         assert result.state == ProposalState.REJECTED
 
     def test_routine_resolves_below_quorum(self) -> None:
-        # Leader arbitration needs no full quorum
+        # v0.50 W6-S3: leader arbitration needs quorum (>= quorum_size
+        # votes); a lone leader vote must not resolve a routine proposal.
         fc = self._consensus()
         proposal = fc.propose("worker-1", "routine-task")
         fc.vote(proposal.proposal_id, "leader-1", VoteChoice.APPROVE)
         result = fc.resolve(proposal.proposal_id)
         assert result.approve_count == 1
-        assert result.state == ProposalState.ACCEPTED
+        assert result.state == ProposalState.OPEN
 
     def test_critical_escalates_to_quorum(self) -> None:
         fc = self._consensus()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from maref.integration.mcp_server import MCPServer
 from maref.integration.mcp_transport import JSONRPCRequest
 
@@ -76,7 +78,7 @@ class TestMCPServerBasics:
 
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": "add", "arguments": {"a": 2, "b": 3}},
+            params={"name": "add", "arguments": {"a": 2, "b": 3}, "trace_id": str(uuid.uuid4()), "timestamp": 1.0, "source_agent": "test-agent"},
             id=4,
         )
         resp = server.handle_request(req)
@@ -88,7 +90,7 @@ class TestMCPServerBasics:
         server = MCPServer()
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": "unknown", "arguments": {}},
+            params={"name": "unknown", "arguments": {}, "trace_id": str(uuid.uuid4()), "timestamp": 1.0, "source_agent": "test-agent"},
             id=5,
         )
         resp = server.handle_request(req)
@@ -185,7 +187,7 @@ class TestMCPServerSecurityIntegration:
     def test_tool_call_with_security_gate(self):
         from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
 
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         server = MCPServer(security_gate=gate)
 
         def safe_handler(args):
@@ -200,7 +202,7 @@ class TestMCPServerSecurityIntegration:
 
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": "safe_tool", "arguments": {}},
+            params={"name": "safe_tool", "arguments": {}, "trace_id": str(uuid.uuid4()), "timestamp": 1.0, "source_agent": "test-agent"},
             id=12,
         )
         resp = server.handle_request(req, trust_level=MCPTrustLevel.TRUSTED)
@@ -210,7 +212,7 @@ class TestMCPServerSecurityIntegration:
     def test_blocked_tool_denied(self):
         from maref.integration.mcp_security import MCPSecurityGate, MCPTrustLevel
 
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         server = MCPServer(security_gate=gate)
 
         def bash_handler(args):
@@ -225,7 +227,7 @@ class TestMCPServerSecurityIntegration:
 
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": "bash", "arguments": {"command": "ls"}},
+            params={"name": "bash", "arguments": {"command": "ls"}, "trace_id": str(uuid.uuid4()), "timestamp": 1.0, "source_agent": "test-agent"},
             id=13,
         )
         resp = server.handle_request(req, trust_level=MCPTrustLevel.UNTRUSTED)

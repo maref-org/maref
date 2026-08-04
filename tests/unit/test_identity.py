@@ -17,6 +17,8 @@ from maref.identity.did_registry import (
     DIDResolutionResult,
 )
 
+_LEGACY_ISSUER_SECRET = b"test-legacy-secret-32-bytes-key!!!"
+
 
 @pytest.fixture
 def state_machine() -> GovernanceStateMachine:
@@ -261,6 +263,7 @@ class TestVerifiableCredential:
             credential_type="MAREFCapability",
             claims={},
             ttl_seconds=0.01,
+            issuer_secret=_LEGACY_ISSUER_SECRET,
         )
         time.sleep(0.02)
         assert vc.is_expired() is True
@@ -274,6 +277,7 @@ class TestVerifiableCredential:
             credential_type="MAREFCapability",
             claims={},
             ttl_seconds=None,
+            issuer_secret=_LEGACY_ISSUER_SECRET,
         )
         assert vc.is_expired() is False
 
@@ -285,6 +289,7 @@ class TestVerifiableCredential:
             subject=subject,
             credential_type="MAREFCapability",
             claims={"can_delegate": True},
+            issuer_secret=_LEGACY_ISSUER_SECRET,
         )
         ld = vc.to_json_ld()
         assert ld["id"] == vc.id
@@ -298,7 +303,9 @@ class TestCredentialStore:
         store = CredentialStore()
         issuer = AgentDID.generate()
         subject = AgentDID.generate()
-        vc = VerifiableCredential.issue(issuer, subject, "Test", {})
+        vc = VerifiableCredential.issue(
+            issuer, subject, "Test", {}, issuer_secret=_LEGACY_ISSUER_SECRET
+        )
         store.store(vc)
         assert store.get(vc.id) == vc
         assert store.count() == 1
@@ -307,7 +314,9 @@ class TestCredentialStore:
         store = CredentialStore()
         issuer = AgentDID.generate()
         subject = AgentDID.generate()
-        vc = VerifiableCredential.issue(issuer, subject, "Test", {})
+        vc = VerifiableCredential.issue(
+            issuer, subject, "Test", {}, issuer_secret=_LEGACY_ISSUER_SECRET
+        )
         store.store(vc)
         store.revoke(vc.id, "compromised")
         assert store.is_revoked(vc.id) is True
@@ -323,8 +332,12 @@ class TestCredentialStore:
         issuer = AgentDID.generate()
         sub1 = AgentDID.generate()
         sub2 = AgentDID.generate()
-        vc1 = VerifiableCredential.issue(issuer, sub1, "Test", {})
-        vc2 = VerifiableCredential.issue(issuer, sub2, "Test", {})
+        vc1 = VerifiableCredential.issue(
+            issuer, sub1, "Test", {}, issuer_secret=_LEGACY_ISSUER_SECRET
+        )
+        vc2 = VerifiableCredential.issue(
+            issuer, sub2, "Test", {}, issuer_secret=_LEGACY_ISSUER_SECRET
+        )
         store.store(vc1)
         store.store(vc2)
         store.revoke(vc1.id, "test")
@@ -336,7 +349,9 @@ class TestCredentialStore:
         store = CredentialStore()
         issuer = AgentDID.generate()
         subject = AgentDID.generate()
-        vc = VerifiableCredential.issue(issuer, subject, "Test", {}, ttl_seconds=0.01)
+        vc = VerifiableCredential.issue(
+            issuer, subject, "Test", {}, ttl_seconds=0.01, issuer_secret=_LEGACY_ISSUER_SECRET
+        )
         store.store(vc)
         time.sleep(0.02)
         assert store.list_valid() == []
@@ -346,7 +361,7 @@ class TestCredentialStore:
         issuer = AgentDID.generate()
         for _ in range(1000):
             vc = VerifiableCredential.issue(
-                issuer, AgentDID.generate(), "Test", {}, ttl_seconds=3600
+                issuer, AgentDID.generate(), "Test", {}, ttl_seconds=3600, issuer_secret=_LEGACY_ISSUER_SECRET
             )
             store.store(vc)
         start = time.time()
@@ -659,6 +674,7 @@ class TestAgentIdentityService:
 
         service, _reg, _dns, did = self._service()
         key = ReportSigningKey.generate()
+        _reg.resolve(did).metadata["ed25519_public_key_pem"] = key.public_key_pem
         cred = service.issue(
             subject_did=did.did_string,
             scope=["state_machine", "audit"],
@@ -702,6 +718,7 @@ class TestAgentIdentityService:
 
         service, _reg, _dns, did = self._service()
         key = ReportSigningKey.generate()
+        _reg.resolve(did).metadata["ed25519_public_key_pem"] = key.public_key_pem
         cred = service.issue(
             subject_did=did.did_string,
             scope=["state_machine"],
@@ -722,6 +739,7 @@ class TestAgentIdentityService:
 
         service, _reg, _dns, did = self._service()
         key = ReportSigningKey.generate()
+        _reg.resolve(did).metadata["ed25519_public_key_pem"] = key.public_key_pem
         service.issue(
             subject_did=did.did_string,
             scope=["state_machine", "audit"],
@@ -839,8 +857,9 @@ class TestIdentityServiceKeyBinding:
         service = AgentIdentityService(did_registry=registry, agent_dns=dns)
         sm = GovernanceStateMachine()
         did = AgentDID.generate()
-        registry.register(did, sm)
+        record = registry.register(did, sm)
         key = ReportSigningKey.generate()
+        record.metadata["ed25519_public_key_pem"] = key.public_key_pem
         cred = service.issue(
             subject_did=did.did_string,
             scope=["audit"],

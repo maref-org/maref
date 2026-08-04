@@ -503,7 +503,12 @@ class TrustLevelBasedGate(MCPPolicyRule):
             description="Trust-level based evaluation via MCPSecurityGate",
             priority=50,
         )
-        self._security_gate = security_gate or MCPSecurityGate()
+        if security_gate is None:
+            import os
+
+            key = os.environb.get(b"MAREF_MCP_SECRET_KEY")
+            security_gate = MCPSecurityGate(verification_key=key)
+        self._security_gate = security_gate
 
     def _is_session_active(self, session_id: str) -> bool:
         """Check if session_id corresponds to an active execution session."""
@@ -605,15 +610,22 @@ class MCPPolicyEngine:
     rule that returns a result determines the verdict.
     """
 
-    def __init__(self, rules: list[MCPPolicyRule] | None = None) -> None:
-        self._rules = rules or [
-            AllowMCPProtocolSignals(),
-            AllowKnownSafeMCPTools(),
-            BlockDangerousMCPTools(),
-            BlockDangerousArgs(),
-            WriteToolRequiresHITL(),
-            TrustLevelBasedGate(),
-        ]
+    def __init__(
+        self,
+        rules: list[MCPPolicyRule] | None = None,
+        security_gate: MCPSecurityGate | None = None,
+    ) -> None:
+        if rules is None:
+            trust_gate = TrustLevelBasedGate(security_gate)
+            rules = [
+                AllowMCPProtocolSignals(),
+                AllowKnownSafeMCPTools(),
+                BlockDangerousMCPTools(),
+                BlockDangerousArgs(),
+                WriteToolRequiresHITL(),
+                trust_gate,
+            ]
+        self._rules = rules
 
     def evaluate(self, context: MCPPolicyContext) -> MCPGovernanceResult:
         """Evaluate a tool call against all registered rules.
