@@ -32,6 +32,7 @@ import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] BA-SDK: %(message)s")
 logger = logging.getLogger("behavior_analysis")
@@ -247,7 +248,7 @@ def generate_report(events: list[AgentEvent], baseline: BehaviorBaseline,
     risk_score = sum(severity_scores.get(a.severity, 0) for a in anomalies)
 
     # 报告
-    report = {
+    report: dict[str, Any] = {
         "report_id": f"ba-report-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "agent_id": baseline.agent_id,
@@ -325,6 +326,244 @@ def generate_sample_events(agent_id: str = "agent-ghost-001", n: int = 100) -> l
         ))
 
     return events
+
+
+# ── 运行时行为探针（v0.44.0 S2 行为审计闭环反馈）─────────────
+
+# 审计事件类型筛选：仅处理 agent 行为类事件 + 治理事件（v0.47 S10 收窄订阅）。
+_BEHAVIOR_EVENT_PREFIXES = (
+    "agent_action",
+    "action",
+    "task",
+    "tool",
+    "delegate",
+    "rollback",
+    "state_transition",
+    "audit",
+)
+
+# 异常严重度 → 行为一致性扣减量
+_SEVERITY_DELTA = {
+    "critical": -0.30,
+    "high": -0.15,
+    "medium": -0.08,
+    "low": -0.03,
+}
+# 触发熔断器降级的异常严重度
+_TRIP_SEVERITIES = {"critical"}
+
+
+def audit_entry_to_agent_event(entry: Any) -> AgentEvent:
+    """将审计链事件（AuditEntry）适配为行为分析事件（AgentEvent）。
+
+    字段映射：
+        timestamp    ← entry.timestamp
+        agent_id     ← entry.actor
+        action       ← entry.action
+        status       ← 由 action/details/metadata 推断
+        duration/tools/decision/confidence/tokens ← entry.metadata
+    """
+    md = entry.metadata if isinstance(entry.metadata, dict) else {}
+    timestamp = datetime.fromtimestamp(entry.timestamp, tz=timezone.utc).isoformat()
+    details = str(entry.details or "").lower()
+    if "retry" in details or str(entry.action).endswith(".retry"):
+        status = "retry"
+    elif "fail" in details or str(entry.event_type).endswith(".failed"):
+        status = "failure"
+    elif "timeout" in details or str(entry.action).endswith(".timeout"):
+        status = "timeout"
+    else:
+        status = "success"
+    tools = md.get("tools_used", md.get("tools", []))
+    return AgentEvent(
+        timestamp=timestamp,
+        agent_id=str(entry.actor),
+        action=str(entry.action),
+        duration_ms=float(md.get("duration_ms", md.get("duration", 0)) or 0),
+        tools_used=list(tools) if isinstance(tools, list) else [],
+        decision=str(md.get("decision", "")),
+        confidence=float(md.get("confidence", 0) or 0),
+        tokens_consumed=int(md.get("tokens", md.get("tokens_consumed", 0)) or 0),
+        status=status,
+    )
+
+
+class RuntimeBehaviorProbe:
+    """运行时行为探针：审计链事件 → 行为特征 → 信任评分反馈 → 降级。
+
+    S2 将行为分析从离线 SDK 升级为运行时闭环：
+
+    1. 订阅 :class:`~maref.governance.audit_bus.AuditBus` 事件流；
+    2. 将审计事件适配为 :class:`AgentEvent`，按 agent 累积到滑动窗口；
+    3. 窗口满后调用 :func:`build_baseline` + :func:`detect_anomalies`
+       检测四类异常（acceleration / tool_abuse / rollback_storm / drift）；
+    4. 每次异常按严重度调整 :class:`TrustEngineV2` 的
+       ``behavioral_consistency`` 因子（行为信号反馈到信任评分）；
+    5. critical 异常或窗口内异常数超阈值 → 触发熔断器降级。
+
+    用法::
+
+        probe = RuntimeBehaviorProbe(audit_bus, trust_engine, circuit_breaker)
+        probe.start()          # 开始订阅
+        # ... 审计事件持续产生 ...
+        probe.stop()           # 停止订阅
+    """
+
+    def __init__(
+        self,
+        audit_bus: Any,
+        trust_engine: Any,
+        circuit_breaker: Any | None = None,
+        window_size: int = 30,
+        event_topic: str = "*",
+        subscribed_topics: tuple[str, ...] | None = None,
+    ) -> None:
+        self._bus = audit_bus
+        self._trust = trust_engine
+        self._cb = circuit_breaker
+        self._window_size = max(2, window_size)
+        self._event_topic = event_topic
+        # v0.47 S10: narrowed subscription topics.  When provided the probe
+        # subscribes to these exact topics (governance events) instead of
+        # the all-events wildcard, reducing false positives.
+        self._subscribed_topics = tuple(subscribed_topics or (event_topic,))
+        self._events: dict[str, list[AgentEvent]] = {}
+        self._baselines: dict[str, BehaviorBaseline] = {}
+        self._anomaly_counts: dict[str, int] = {}
+        self._started = False
+
+    @property
+    def subscribed_topics(self) -> tuple[str, ...]:
+        """The audit topics this probe is subscribed to."""
+        return self._subscribed_topics
+
+    # -- 生命周期 --
+
+    def start(self) -> None:
+        """开始订阅审计事件流（幂等）。"""
+        if self._started:
+            return
+        for topic in self._subscribed_topics:
+            self._bus.subscribe(topic, self._on_event)
+        self._started = True
+
+    def stop(self) -> None:
+        """停止订阅审计事件流（幂等）。"""
+        if not self._started:
+            return
+        for topic in self._subscribed_topics:
+            self._bus.unsubscribe(topic, self._on_event)
+        self._started = False
+
+    @property
+    def started(self) -> bool:
+        return self._started
+
+    # -- 事件处理 --
+
+    def _is_behavioral_event(self, entry: Any) -> bool:
+        event_type = str(entry.event_type)
+        return any(
+            event_type.startswith(p) or event_type.endswith(p)
+            for p in _BEHAVIOR_EVENT_PREFIXES
+        )
+
+    def _on_event(self, entry: Any) -> None:
+        if not self._is_behavioral_event(entry):
+            return
+        try:
+            event = audit_entry_to_agent_event(entry)
+        except Exception:
+            # 单条事件适配失败不应击穿审计发布链路。
+            logger.warning("behavior probe: 审计事件适配失败 event_type=%s", getattr(entry, "event_type", "?"))
+            return
+        events = self._events.setdefault(event.agent_id, [])
+        events.append(event)
+        if len(events) >= self._window_size:
+            try:
+                self._analyze_window(event.agent_id, events)
+            except Exception:
+                logger.exception("behavior probe: 行为窗口分析失败 agent=%s", event.agent_id)
+
+    def _analyze_window(self, agent_id: str, events: list[AgentEvent]) -> None:
+        baseline = build_baseline(events)
+        self._baselines[agent_id] = baseline
+        anomalies = detect_anomalies(events, baseline)
+        # 滑动窗口：保留后半段用于下次检测
+        self._events[agent_id] = events[len(events) // 2:]
+        for anomaly in anomalies:
+            self._apply_anomaly(anomaly)
+
+    def _apply_anomaly(self, anomaly: Anomaly) -> None:
+        delta = _SEVERITY_DELTA.get(anomaly.severity, -0.05)
+        self._trust.adjust_behavioral_consistency(anomaly.agent_id, delta)
+        count = self._anomaly_counts.get(anomaly.agent_id, 0) + 1
+        self._anomaly_counts[anomaly.agent_id] = count
+        # 仅 critical 异常触发全局熔断降级；非 critical 只扣信任分，
+        # 避免任一 agent 的低危异常拖累整个联邦。
+        if (
+            self._cb is not None
+            and anomaly.severity in _TRIP_SEVERITIES
+            and not self._cb.is_open
+        ):
+            self._cb.force_open(
+                f"behavior_anomaly:{anomaly.anomaly_type}"
+                f":agent={anomaly.agent_id}"
+            )
+
+    # -- 查询 --
+
+    def anomaly_counts(self) -> dict[str, int]:
+        return dict(self._anomaly_counts)
+
+    def baselines(self) -> dict[str, dict]:
+        return {k: v.to_dict() for k, v in self._baselines.items()}
+
+
+# 默认收窄订阅的治理事件 topic（v0.47 S10）：探针只订阅这些，避免全量
+# 事件流带来的误报与开销。
+_DEFAULT_GOVERNANCE_TOPICS = ("state_transition", "audit")
+
+
+def assemble_runtime_behavior_probe(
+    audit_bus: Any | None = None,
+    trust_engine: Any | None = None,
+    circuit_breaker: Any | None = None,
+    window_size: int = 30,
+    subscribed_topics: tuple[str, ...] | None = None,
+) -> RuntimeBehaviorProbe:
+    """装配运行时行为探针（v0.47 S10）— sidecar / 编排层标准启动点。
+
+    Args:
+        audit_bus: 事件源（缺省新建 :class:`~maref.governance.audit_bus.AuditBus`）。
+        trust_engine: 信任引擎（缺省新建 :class:`TrustEngineV2`）。
+        circuit_breaker: 熔断器（可选，缺省新建 :class:`CircuitBreaker`）。
+        window_size: 行为分析滑动窗口大小。
+        subscribed_topics: 订阅的审计 topic。默认收窄到治理事件
+            ``("state_transition", "audit")``，降低误报。
+
+    Returns:
+        已 ``start()`` 的探针实例。
+    """
+    from maref.governance.audit_bus import AuditBus
+    from maref.governance.circuit_breaker import CircuitBreaker
+    from maref.recursive.trust_engine_v2 import TrustEngineV2
+
+    if audit_bus is None:
+        audit_bus = AuditBus()
+    if trust_engine is None:
+        trust_engine = TrustEngineV2()
+    if circuit_breaker is None:
+        circuit_breaker = CircuitBreaker()
+    probe = RuntimeBehaviorProbe(
+        audit_bus=audit_bus,
+        trust_engine=trust_engine,
+        circuit_breaker=circuit_breaker,
+        window_size=window_size,
+        subscribed_topics=subscribed_topics or _DEFAULT_GOVERNANCE_TOPICS,
+    )
+    probe.start()
+    return probe
 
 
 # ── CLI ─────────────────────────────────────────────────────

@@ -15,9 +15,11 @@ The router:
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from maref.federation.policy import (
@@ -25,6 +27,7 @@ from maref.federation.policy import (
     PolicyDecision,
     PolicyEvaluationResult,
 )
+from maref.governance.federated_consensus import FederationRole
 from maref.recursive.eight_trigrams_governance import TrigramsGovernance
 
 
@@ -60,7 +63,7 @@ class JurisdictionConfig:
         policy_engine: The :class:`FederationPolicyEngine` for this jurisdiction.
         allowed_trigrams: Set of trigrams permitted to operate in this
             jurisdiction. Empty set means all trigrams are allowed.
-        default_decision: Default decision when no rules match.
+        default_decision: Default decision when no rules match (fail-closed).
         weight: Priority weight for cross-jurisdiction conflict resolution
             (higher = preferred).
         metadata: Optional metadata (e.g. regulatory reference).
@@ -70,7 +73,7 @@ class JurisdictionConfig:
     description: str = ""
     policy_engine: FederationPolicyEngine | None = None
     allowed_trigrams: set[str] = field(default_factory=set)
-    default_decision: PolicyDecision = PolicyDecision.ALLOW
+    default_decision: PolicyDecision = PolicyDecision.DENY
     weight: int = 1
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -177,12 +180,48 @@ class JurisdictionPolicyRouter:
         conflict_strategy: JurisdictionConflictStrategy = JurisdictionConflictStrategy.MOST_RESTRICTIVE,
         prefer_jurisdiction: str = "",
         audit_logger: Any | None = None,
+        db_path: str | Path | None = None,
     ):
         self._configs: dict[str, JurisdictionConfig] = {}
         self._conflict_strategy = conflict_strategy
         self._prefer_jurisdiction = prefer_jurisdiction
         self._audit_logger = audit_logger
         self._decision_log: list[dict[str, Any]] = []
+        # v0.47 F4: SQLite persistence for the decision log.
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS jurisdiction_decisions (
+                seq  INTEGER PRIMARY KEY AUTOINCREMENT,
+                data TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        rows = self._db.fetchall(
+            "SELECT data FROM jurisdiction_decisions ORDER BY seq"
+        )
+        for row in rows:
+            self._decision_log.append(json.loads(row["data"]))
+
+    def _persist_decision(self, entry: dict[str, Any]) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT INTO jurisdiction_decisions (data) VALUES (?)",
+            (json.dumps(entry),),
+        )
 
     # ------------------------------------------------------------------
     # Jurisdiction management
@@ -510,6 +549,56 @@ class JurisdictionPolicyRouter:
         }
 
     # ------------------------------------------------------------------
+    # Federation role assignment (v0.44.0 F1)
+    # ------------------------------------------------------------------
+
+    def assign_federation_roles(
+        self,
+        members: list[str],
+        leader_id: str,
+    ) -> dict[str, FederationRole]:
+        """Assign LEADER_WORKER roles across a federation member set.
+
+        The leader is designated by ``leader_id``; every other member is a
+        worker. A member outside the member set is not assigned a role.
+        Role assignment is deterministic — the same inputs always yield the
+        same mapping.
+
+        Args:
+            members: The federation member identifiers.
+            leader_id: The member designated as leader.
+
+        Returns:
+            A mapping of member_id → :class:`FederationRole`.
+        """
+        roles: dict[str, FederationRole] = {}
+        for member in members:
+            if member == leader_id:
+                roles[member] = FederationRole.LEADER
+            else:
+                roles[member] = FederationRole.WORKER
+        return roles
+
+    def suggest_consensus_topology(self, critical_topic: bool = False) -> str:
+        """Suggest a consensus topology for a decision.
+
+        Returns ``"leader_worker"`` for routine decisions (fast execution
+        under leader arbitration) and ``"flat"`` for critical decisions
+        (escalated to full quorum voting).
+
+        Args:
+            critical_topic: Whether the decision is critical.
+
+        Returns:
+            The suggested :class:`ConsensusTopology` value.
+        """
+        from maref.governance.federated_consensus import ConsensusTopology
+
+        if critical_topic:
+            return ConsensusTopology.FLAT.value
+        return ConsensusTopology.LEADER_WORKER.value
+
+    # ------------------------------------------------------------------
     # Compliance audit trail (Phase 3.5)
     # ------------------------------------------------------------------
 
@@ -603,6 +692,7 @@ class JurisdictionPolicyRouter:
             },
         }
         self._decision_log.append(entry)
+        self._persist_decision(entry)
         if self._audit_logger is not None:
             self._audit_logger.log(
                 event_type="compliance_decision",

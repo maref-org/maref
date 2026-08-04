@@ -232,30 +232,38 @@ class TestEdgeCases:
         assert entry.metadata["extra_field"] == "custom"
 
     def test_hmac_key_from_environment(self):
-        old_val = os.environ.get("MAREF_HMAC_SECRET_KEY")
+        old_hmac = os.environ.get("MAREF_HMAC_SECRET_KEY")
+        old_ed = os.environ.get("MAREF_ED25519_PRIVATE_KEY")
         os.environ["MAREF_HMAC_SECRET_KEY"] = "env_key_value"
+        os.environ.pop("MAREF_ED25519_PRIVATE_KEY", None)
         try:
             logger = AuditLogger()
             entry = logger.log("event", "actor", "action")
             assert entry.hmac_signature != ""
         finally:
-            if old_val is not None:
-                os.environ["MAREF_HMAC_SECRET_KEY"] = old_val
+            if old_hmac is not None:
+                os.environ["MAREF_HMAC_SECRET_KEY"] = old_hmac
             else:
                 os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+            if old_ed is not None:
+                os.environ["MAREF_ED25519_PRIVATE_KEY"] = old_ed
 
     def test_hmac_key_env_overrides_none(self):
-        old_val = os.environ.get("MAREF_HMAC_SECRET_KEY")
+        old_hmac = os.environ.get("MAREF_HMAC_SECRET_KEY")
+        old_ed = os.environ.get("MAREF_ED25519_PRIVATE_KEY")
         os.environ["MAREF_HMAC_SECRET_KEY"] = "env_key"
+        os.environ.pop("MAREF_ED25519_PRIVATE_KEY", None)
         try:
             logger = AuditLogger(hmac_key=None)
             entry = logger.log("event", "actor", "action")
             assert entry.hmac_signature != ""
         finally:
-            if old_val is not None:
-                os.environ["MAREF_HMAC_SECRET_KEY"] = old_val
+            if old_hmac is not None:
+                os.environ["MAREF_HMAC_SECRET_KEY"] = old_hmac
             else:
                 os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+            if old_ed is not None:
+                os.environ["MAREF_ED25519_PRIVATE_KEY"] = old_ed
 
     def test_hmac_key_argument_overrides_env(self):
         old_val = os.environ.get("MAREF_HMAC_SECRET_KEY")

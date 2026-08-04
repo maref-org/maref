@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from maref.recursive.unified_audit import NullAuditStore
+from maref.recursive.unified_audit import UnifiedAuditStore
 from maref.security.decorators import security_critical
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ _DANGEROUS_TRIGGERS = ['eval(', 'exec(', 'pickle', 'md5(', 'sha1(']
 class RedContaminationProbe:
 
     def __init__(self, audit_store: UnifiedAuditStore | None=None) -> None:
-        self._audit_store = audit_store or NullAuditStore()
+        self._audit_store = audit_store or UnifiedAuditStore()
         self._findings: list[ContaminationFinding] = []
 
     @security_critical

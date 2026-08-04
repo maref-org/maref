@@ -37,12 +37,20 @@ The end-to-end flow (2+ processes over HTTP):
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 
+from maref.eivl.federated_merkle import FederatedMerkleAggregator
 from maref.federation.bootstrap import PEERS_ENDPOINT_PATH
+from maref.federation.federation_auth import (
+    FederationRequestSigner,
+    FederationRequestVerifier,
+    validate_peer_url,
+)
 from maref.federation.gateway import FederatedAgent, FederationRequest
 from maref.federation.identity_service import IdentityService
 from maref.federation.membership import (
@@ -57,10 +65,40 @@ from maref.federation.policy_subscriber import (
 )
 from maref.federation.settlement_reconciler import SettlementReconciler
 from maref.federation.trust import FederatedTrustEngine, PeerTrustReport
+from maref.governance.verifiable_governance_credential import (
+    GovernanceCredentialStore,
+    VerifiableGovernanceCredential,
+)
+from maref.signing.signing_key import ReportSigningKey
 
 _ADP_CATALOG_PATH = "/.well-known/adp/catalog"
 _NETWORK_MEMBERS_PATH = "/api/v1/federation/network/members"
 _SETTLEMENT_LEDGER_PATH = "/api/v1/federation/settlement/ledger"
+
+# Audit-visible log of requests rejected for invalid signatures (v0.47 S1).
+_AUTH_FAILED_LOG: list[dict[str, Any]] = []
+
+
+def _record_auth_failed(
+    path: str, method: str, reason: str, key_id: str = ""
+) -> None:
+    """Record a rejected federation request for audit."""
+    _AUTH_FAILED_LOG.append(
+        {
+            "timestamp": time.time(),
+            "path": path,
+            "method": method,
+            "reason": reason,
+            "key_id": key_id,
+        }
+    )
+    if len(_AUTH_FAILED_LOG) > 500:
+        del _AUTH_FAILED_LOG[:-500]
+
+
+def get_auth_failed_log() -> list[dict[str, Any]]:
+    """Return the audit log of rejected federated requests."""
+    return list(_AUTH_FAILED_LOG)
 
 
 # ── Serialization helpers ────────────────────────────────────────────────
@@ -115,6 +153,8 @@ def _report_from_dict(data: dict[str, Any]) -> PeerTrustReport:
         tier=data.get("tier", "B"),
         timestamp=data.get("timestamp", 0.0),
         confidence=data.get("confidence", 1.0),
+        signature=data.get("signature", ""),
+        signer_key_id=data.get("signer_key_id", ""),
     )
 
 
@@ -131,6 +171,13 @@ def create_federation_app(
     settlement: Any | None = None,
     identity_service: IdentityService | None = None,
     jurisdiction_router: Any | None = None,
+    governance_credentials: GovernanceCredentialStore | None = None,
+    credential_signing_key: ReportSigningKey | None = None,
+    merkle_aggregator: FederatedMerkleAggregator | None = None,
+    request_verifier: (
+        FederationRequestVerifier | Mapping[str, str] | None
+    ) = None,
+    peer_url_policy: dict[str, Any] | None = None,
 ) -> FastAPI:
     """Build a FastAPI app exposing the federated HTTP endpoints.
 
@@ -151,12 +198,81 @@ def create_federation_app(
             — enables the DID / AIC identity endpoints (Phase 3.4).
         jurisdiction_router: Optional :class:`~maref.federation.jurisdiction_router.JurisdictionPolicyRouter`
             — enables the regulatory compliance endpoints (Phase 3.5).
+        request_verifier: Optional :class:`FederationRequestVerifier`.  When
+            provided, every POST under ``/api/v1/federation/`` must carry a
+            valid Ed25519 request signature (v0.47 S1, fail-closed).  When
+            omitted the transport keeps its historical unauthenticated
+            behaviour (backward compatible).
+        peer_url_policy: Optional dict of hardening knobs for outbound
+            peer fetches (v0.47 S2).  Supports ``{"allowed_hosts": set[str]}``.
+            When provided, ``settlement/reconcile`` rejects peer URLs that
+            resolve to loopback / link-local / private / reserved addresses
+            unless the host is explicitly whitelisted.
 
     Returns:
         A configured :class:`fastapi.FastAPI` application.
     """
     app = FastAPI(title=f"MAREF Federation {server_id}", version="0.1.0")
     router = APIRouter()
+
+    if isinstance(request_verifier, Mapping):
+        request_verifier = FederationRequestVerifier(request_verifier)
+
+    if request_verifier is not None:
+        _ALLOWED_PUBLIC_POSTS = {HEARTBEAT_ENDPOINT_PATH}
+
+        class _RequestAuthMiddleware:
+            """Pure-ASGI auth gate: reads the body, verifies the signature,
+            then replays the body to the downstream app."""
+
+            def __init__(self, app: Any, verifier: FederationRequestVerifier) -> None:
+                self.app = app
+                self._verifier = verifier
+
+            async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+                if scope["type"] != "http":
+                    await self.app(scope, receive, send)
+                    return
+                request = Request(scope, receive)
+                path = request.url.path
+                if not (
+                    request.method == "POST"
+                    and path.startswith("/api/v1/federation/")
+                    and path not in _ALLOWED_PUBLIC_POSTS
+                ):
+                    await self.app(scope, receive, send)
+                    return
+                body = await request.body()
+
+                async def receive_with_body() -> dict[str, Any]:
+                    return {"type": "http.request", "body": body, "more_body": False}
+
+                auth_header = request.headers.get("X-MAREF-Fed-Auth")
+                body_hash_header = request.headers.get("X-MAREF-Fed-Body-Hash")
+                if not self._verifier.verify(
+                    method=request.method,
+                    path=path,
+                    body_bytes=body,
+                    auth_header=auth_header,
+                    body_hash_header=body_hash_header,
+                ):
+                    key_id = auth_header.split(":", 1)[0] if auth_header else ""
+                    _record_auth_failed(
+                        path=path,
+                        method=request.method,
+                        reason="auth_failed",
+                        key_id=key_id,
+                    )
+                    response = JSONResponse(
+                        status_code=401,
+                        content={"detail": "missing or invalid request signature"},
+                    )
+                    await response(scope, receive, send)
+                    return
+                await self.app(scope, receive_with_body, send)
+
+        app.add_middleware(_RequestAuthMiddleware, verifier=request_verifier)
+
 
     @router.get("/api/v1/federation/health")
     def health() -> dict[str, Any]:
@@ -260,8 +376,13 @@ def create_federation_app(
         }
 
     @router.post(HEARTBEAT_ENDPOINT_PATH)
-    def network_heartbeat(body: dict[str, Any]) -> dict[str, Any]:
-        """Receive a node heartbeat (liveness + membership auto-registration)."""
+    def network_heartbeat(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+        """Receive a node heartbeat (liveness + membership auto-registration).
+
+        v0.50 W2-S1 (F12): when the membership manager is configured with a
+        heartbeat token, the ``X-MAREF-HB-Token`` header is required and
+        verified; unknown servers on a whitelist are rejected.
+        """
         if membership is None:
             return {
                 "accepted": True,
@@ -272,7 +393,8 @@ def create_federation_app(
             message = HeartbeatMessage.from_dict(body)
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=f"invalid heartbeat: {exc}") from exc
-        accepted = membership.receive_heartbeat(message)
+        token = request.headers.get("X-MAREF-HB-Token")
+        accepted = membership.receive_heartbeat(message, token=token)
         return {
             "accepted": accepted,
             "server_id": server_id,
@@ -331,6 +453,11 @@ def create_federation_app(
         peer_url = body.get("peer_url")
         if not peer_url:
             raise HTTPException(status_code=400, detail="peer_url is required")
+        if peer_url_policy is not None:
+            allowed_hosts = set(peer_url_policy.get("allowed_hosts") or ())
+            ssrf_error = validate_peer_url(str(peer_url), allowed_hosts=allowed_hosts)
+            if ssrf_error is not None:
+                raise HTTPException(status_code=400, detail=f"peer_url rejected: {ssrf_error}")
         timeout = body.get("timeout", 10.0)
         try:
             with httpx.Client(base_url=str(peer_url).rstrip("/"), timeout=timeout) as client:
@@ -532,6 +659,101 @@ def create_federation_app(
             "reports": [r.to_dict() for r in reports],
         }
 
+    # ── Verifiable Governance Credential (Phase: Agent-Internet) ────────
+
+    def _governance_credentials() -> GovernanceCredentialStore:
+        if governance_credentials is None:
+            raise HTTPException(status_code=503, detail="governance credential store not configured")
+        return governance_credentials
+
+    def _credential_signing_key() -> ReportSigningKey:
+        if credential_signing_key is None:
+            raise HTTPException(status_code=503, detail="credential signing key not configured")
+        return credential_signing_key
+
+    @router.post("/api/v1/federation/governance/credential/issue")
+    def governance_credential_issue(body: dict[str, Any]) -> dict[str, Any]:
+        """签发可验证治理凭证。
+
+        body: {subject_did, issuer_did, scope[], ttl_seconds?, org_id?+root_hash?+tree_size? 或 merkle_proof?}
+        """
+        subject_did = body.get("subject_did")
+        issuer_did = body.get("issuer_did")
+        scope = body.get("scope")
+        if scope is None:
+            scope = ["audit"]
+        if not isinstance(scope, list) or not scope or not all(
+            isinstance(s, str) for s in scope
+        ):
+            raise HTTPException(
+                status_code=400, detail="scope must be a non-empty list of strings"
+            )
+        if not subject_did or not issuer_did:
+            raise HTTPException(status_code=400, detail="subject_did and issuer_did are required")
+        merkle_proof = body.get("merkle_proof") or {}
+        if not merkle_proof and body.get("org_id") and body.get("root_hash"):
+            if merkle_aggregator is None:
+                raise HTTPException(status_code=503, detail="merkle aggregator not configured")
+            org_id = body["org_id"]
+            merkle_aggregator.submit_root(
+                org_id,
+                body["root_hash"],
+                tree_size=body.get("tree_size", 0),
+            )
+            proof = merkle_aggregator.generate_proof(org_id)
+            merkle_proof = proof.to_dict() if proof else {}
+        try:
+            cred = VerifiableGovernanceCredential.issue(
+                subject_did=subject_did,
+                issuer_did=issuer_did,
+                scope=scope,
+                merkle_proof=merkle_proof,
+                signing_key=_credential_signing_key(),
+                ttl_seconds=float(body.get("ttl_seconds", 86400)),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _governance_credentials().store(cred)
+        return {"credential": cred.to_dict(), "verification": cred.verify()}
+
+    @router.get("/api/v1/federation/governance/credential/revocation-list")
+    def governance_credential_revocation_list() -> dict[str, Any]:
+        """导出吊销列表；配置签名密钥时返回带 Ed25519 签名的版本防篡改。
+
+        未配置签名密钥时降级为未签名列表（store 缺失仍 503）。
+        """
+        store = _governance_credentials()
+        if credential_signing_key is not None:
+            return store.build_signed_revocation_list(
+                credential_signing_key, server_id=server_id
+            )
+        return {"server_id": server_id, "revoked": store.revocation_list()}
+
+    @router.get("/api/v1/federation/governance/credential/{credential_id}")
+    def governance_credential_get(credential_id: str) -> dict[str, Any]:
+        """查询凭证并返回离线验证结果（监管/审计方 GET 即可核验）。"""
+        store = _governance_credentials()
+        cred = store.get(credential_id)
+        if cred is None:
+            raise HTTPException(status_code=404, detail=f"credential {credential_id} not found")
+        return {
+            "credential": cred.to_dict(),
+            "verification": cred.verify(revoked=store.is_revoked(credential_id)),
+        }
+
+    @router.post("/api/v1/federation/governance/credential/{credential_id}/revoke")
+    def governance_credential_revoke(credential_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """吊销凭证（保留历史，记录原因与来源）。"""
+        try:
+            _governance_credentials().revoke(
+                credential_id,
+                reason=body.get("reason", "unspecified"),
+                source=body.get("source", ""),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"revoked": True, "credential_id": credential_id}
+
     app.include_router(router)
     return app
 
@@ -548,11 +770,40 @@ class FederationHTTPClient:
         catalog = client.fetch_catalog()
         client.push_policy(event_dict)
         client.submit_trust_report(report_dict)
+
+    When a ``signer`` (v0.47 S1) is provided, every POST request is
+    automatically signed with ``X-MAREF-Fed-*`` headers so the client can
+    talk to a server with ``request_verifier`` configured.
     """
 
-    def __init__(self, base_url: str, timeout: float = 5.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 5.0,
+        signer: FederationRequestSigner | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
-        self._client = httpx.Client(base_url=self._base_url, timeout=timeout)
+        self._signer = signer
+        event_hooks: dict[str, list[Any]] = {}
+        if signer is not None:
+            event_hooks["request"] = [self._sign_request]
+        self._client = httpx.Client(
+            base_url=self._base_url,
+            timeout=timeout,
+            event_hooks=event_hooks,
+        )
+
+    def _sign_request(self, request: httpx.Request) -> None:
+        """Attach federation signature headers to outbound POST requests."""
+        if request.method != "POST":
+            return
+        assert self._signer is not None
+        headers = self._signer.sign(
+            method=request.method,
+            path=request.url.path,
+            body_bytes=request.content,
+        )
+        request.headers.update(headers)
 
     def close(self) -> None:
         self._client.close()

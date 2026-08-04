@@ -62,6 +62,7 @@ class PreflightResult:
     agent_id: str
     task_description: str
     timestamp: float = 0.0
+    self_declared: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +71,7 @@ class PreflightResult:
             "agent_id": self.agent_id,
             "task_description": self.task_description,
             "timestamp": self.timestamp or time.time(),
+            "self_declared": self.self_declared,
         }
 
     @property
@@ -380,6 +382,140 @@ class DecisionLoggedCheck(PreflightCheck):
         )
 
 
+class RiskAuthorizationCheck(PreflightCheck):
+    """决策分级授权检查（方案 D）。
+
+    依据动作风险分级与授权范围证书判定是否放行：
+    - LOW/MEDIUM：自动放行
+    - HIGH：需 scope 显式授权，否则 FAIL（触发 HITL）
+    - IRREVERSIBLE：强制多验证者/HITL，无授权则 FAIL
+
+    Context keys:
+    - ``action`` (str)：待执行动作标识
+    - ``authorization_scope`` (AuthorizationScope | dict)：授权范围证书
+    - ``risk_metadata`` (dict, optional)：风险分级上下文
+    """
+
+    name = "risk_authorization"
+
+    def execute(self, context: dict[str, Any]) -> PreflightCheckResult:
+        from maref.governance.trust_boundary import TrustBoundaryManager
+
+        action = context.get("action", "")
+        if not action:
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.PASS,
+                description="无待执行动作 — 分级授权检查跳过",
+                evidence="",
+            )
+
+        metadata = context.get("risk_metadata", {}) or {}
+        scope_data = context.get("authorization_scope")
+        scope = None
+        if scope_data is not None:
+            from maref.identity.credential import AuthorizationScope
+
+            if isinstance(scope_data, AuthorizationScope):
+                scope = scope_data
+            elif isinstance(scope_data, dict):
+                scope = AuthorizationScope(
+                    subject_did=scope_data.get("subject_did", ""),
+                    max_risk_level=scope_data.get("max_risk_level", "LOW"),
+                    allowed_actions=scope_data.get("allowed_actions", []),
+                    valid_until=scope_data.get("valid_until"),
+                    jurisdiction=scope_data.get("jurisdiction", "local"),
+                    issuer=scope_data.get("issuer", ""),
+                )
+
+        # v0.47 R1: 监管 ENFORCE 接入 — 提供 jurisdiction 时，若该辖区对该
+        # 动作实施强制监管（ENFORCE），则无授权范围时一律 FAIL（fail-closed），
+        # 即使动作本身是 LOW/MEDIUM（不得因低风险自动放行）。
+        enforce_blocked = False
+        enforce_reason = ""
+        jurisdiction = context.get("jurisdiction", "")
+        if jurisdiction:
+            from maref.compliance.regulatory_policy_mapper import (
+                RegulatoryPolicyMapper,
+            )
+
+            try:
+                decision_map = RegulatoryPolicyMapper().map_action(
+                    action, jurisdiction=jurisdiction, metadata=metadata
+                )
+                enforce_blocked = decision_map.blocked
+            except Exception:
+                enforce_blocked = False
+            if enforce_blocked and scope is None:
+                enforce_reason = (
+                    f"辖区 {jurisdiction} 对该动作实施强制监管（ENFORCE），"
+                    "未提供授权范围"
+                )
+
+        # S1 接线：风险分级 + 授权范围 + 目标域白名单统一交给
+        # TrustBoundaryManager 强制裁决（fail-closed）。
+        boundary = TrustBoundaryManager(
+            scope=scope,
+            allowed_domains=context.get("allowed_domains"),
+            fail_closed=True,
+        )
+        decision = boundary.check_no_raise(
+            action,
+            agent_id=str(context.get("agent_id", "unknown")),
+            metadata=metadata,
+        )
+        assessment = decision.assessment
+        base_details = {
+            "action": action,
+            "risk_level": assessment.risk_level.value,
+            "reasons": list(assessment.reasons),
+        }
+
+        if enforce_blocked and scope is None:
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.FAIL,
+                description=f"动作 {action} 为监管强制（ENFORCE）级别：{enforce_reason}",
+                evidence=decision.reason,
+                details={
+                    **base_details,
+                    "authorized": False,
+                    "action_required": "HITL",
+                    "enforce_blocked": True,
+                },
+            )
+
+        if decision.allowed:
+            return PreflightCheckResult(
+                check_name=self.name,
+                status=PreflightCheckStatus.PASS,
+                description=(
+                    f"动作 {action} 风险等级 {assessment.risk_level.value} — 放行"
+                    f"（{decision.reason}）"
+                ),
+                evidence=decision.reason,
+                details={**base_details, "authorized": True},
+            )
+
+        details: dict[str, Any] = {
+            **base_details,
+            "authorized": False,
+            "action_required": "HITL",
+        }
+        if scope is not None:
+            details["max_risk_level"] = scope.max_risk_level
+        return PreflightCheckResult(
+            check_name=self.name,
+            status=PreflightCheckStatus.FAIL,
+            description=(
+                f"动作 {action} 风险等级 {assessment.risk_level.value} 越界阻断："
+                f"{decision.reason}"
+            ),
+            evidence=decision.reason,
+            details=details,
+        )
+
+
 # ---------------------------------------------------------------------------
 # TaskPreflight — orchestrator
 # ---------------------------------------------------------------------------
@@ -435,6 +571,7 @@ class TaskPreflight:
             GitHistoryCheck(),
             AlternativesComparedCheck(),
             DecisionLoggedCheck(),
+            RiskAuthorizationCheck(),
         ]
 
     def execute(self, context: dict[str, Any]) -> PreflightResult:
@@ -450,12 +587,18 @@ class TaskPreflight:
         results = [check.execute(context) for check in self._checks]
         passed = all(r.status != PreflightCheckStatus.FAIL for r in results)
 
+        # self_declared marks checks that carried no independent evidence —
+        # none of the results carried non-empty evidence (v0.50 W5-S2 / A4),
+        # i.e. the gate relied solely on the agent's self-declared flags.
+        self_declared = all(not r.evidence for r in results)
+
         result = PreflightResult(
             passed=passed,
             checks=results,
             agent_id=context.get("agent_id", "unknown"),
             task_description=context.get("task_description", ""),
             timestamp=time.time(),
+            self_declared=self_declared,
         )
 
         if passed:

@@ -117,6 +117,15 @@ def _run_initiator_process(port: int, workdir: Path, executor_url: str) -> None:
     platform = create_default_federation(server_id="org-alpha", audit_logger=audit_logger)
     chain = AuditChainIntegrator()
     orchestrator = FederatedSagaOrchestrator(platform)
+    # Explicitly allow the saga steps (v0.47 S3 fail-closed: no rule → deny).
+    from maref.federation.policy import PolicyDecision
+
+    for _action in ("delegate_to_executor", "assess_trust", "execute_task"):
+        orchestrator.policy_engine.add_federation_rule(
+            rule_id=f"e2e-allow-{_action}",
+            action=_action,
+            decision=PolicyDecision.ALLOW,
+        )
     subscriber = FederatedPolicySubscriber(
         local_engine=platform.policy_engine, local_org="org-alpha"
     )

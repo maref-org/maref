@@ -19,7 +19,7 @@ class TestJurisdictionConfig:
     def test_defaults(self) -> None:
         c = JurisdictionConfig(name="eu_ai_act")
         assert c.name == "eu_ai_act"
-        assert c.default_decision == PolicyDecision.ALLOW
+        assert c.default_decision == PolicyDecision.DENY
         assert c.weight == 1
         assert c.allowed_trigrams == set()
 
@@ -108,9 +108,9 @@ class TestAddJurisdictionRule:
         # KUN should be denied
         r1 = router.route_action(trigram="kun", action="evolve")
         assert r1.final_decision == PolicyDecision.DENY
-        # DUI should still be allowed (no matching rule)
+        # DUI has no matching rule → fail-closed DENY (v0.47 S3)
         r2 = router.route_action(trigram="dui", action="evolve")
-        assert r2.final_decision == PolicyDecision.ALLOW
+        assert r2.final_decision == PolicyDecision.DENY
 
 
 # ------------------------------------------------------------------ #
@@ -118,11 +118,12 @@ class TestAddJurisdictionRule:
 # ------------------------------------------------------------------ #
 
 class TestRouteAction:
-    def test_route_single_jurisdiction_allow(self) -> None:
+    def test_route_single_jurisdiction_deny_by_default(self) -> None:
+        """Empty jurisdiction with no rules fails closed to DENY (v0.47 S3)."""
         router = JurisdictionPolicyRouter()
         router.register_jurisdiction(JurisdictionConfig(name="eu"))
         result = router.route_action(trigram="dui", action="train_model")
-        assert result.final_decision == PolicyDecision.ALLOW
+        assert result.final_decision == PolicyDecision.DENY
         assert result.agent_trigram == "dui"
         assert len(result.jurisdiction_results) == 1
 
@@ -132,7 +133,7 @@ class TestRouteAction:
         result = router.route_action(
             trigram=TrigramsGovernance.DUI, action="deploy"
         )
-        assert result.final_decision == PolicyDecision.ALLOW
+        assert result.final_decision == PolicyDecision.DENY
 
     def test_route_blocked_by_allowed_trigrams(self) -> None:
         router = JurisdictionPolicyRouter()
@@ -143,16 +144,16 @@ class TestRouteAction:
         # KUN is not allowed in EU
         result = router.route_action(trigram="kun", action="deploy")
         assert result.final_decision == PolicyDecision.DENY
-        # QIAN is allowed
+        # QIAN is allowed but no rule matches → fail-closed DENY
         result2 = router.route_action(trigram="qian", action="deploy")
-        assert result2.final_decision == PolicyDecision.ALLOW
+        assert result2.final_decision == PolicyDecision.DENY
 
     def test_multiple_jurisdictions_agree(self) -> None:
         router = JurisdictionPolicyRouter()
         router.register_jurisdiction(JurisdictionConfig(name="eu"))
         router.register_jurisdiction(JurisdictionConfig(name="us"))
         result = router.route_action(trigram="dui", action="train")
-        assert result.final_decision == PolicyDecision.ALLOW
+        assert result.final_decision == PolicyDecision.DENY
         assert result.conflict_detected is False
 
     def test_cross_jurisdiction_conflict(self) -> None:

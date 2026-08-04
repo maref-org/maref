@@ -131,6 +131,17 @@ class CircuitBreaker:
             else:
                 self._failure_count = 0
 
+    def force_open(self, reason: str) -> None:
+        """Externally trip the breaker (S2 行为审计闭环降级入口).
+
+        异常行为（如 critical 行为异常）可主动触发降级，记录到 trip
+        历史并拒绝后续流量，直到冷却后 HALF_OPEN 探测。已 OPEN 时幂等。
+        """
+        with self._lock:
+            if self._state == BreakerState.OPEN:
+                return
+            self._trip(reason, 0, 0, self._state.value)
+
     def check_rsi_oscillation(self, statuses: list[str]) -> bool:
         """RSI-specific: detect keep/discard oscillation.
         Trips if flip-flops >= threshold in the full provided window.

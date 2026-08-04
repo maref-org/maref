@@ -113,9 +113,9 @@ class TestCrossOrgHITLApproveReject:
             requesting_org="A", reviewing_org="B",
             agent_did="did:1", task_id="t1",
         )
-        assert hitl.approve(req.request_id, reviewer="alice") is True
+        assert hitl.approve(req.request_id, reviewer="human") is True
         assert req.status == CrossOrgApprovalStatus.APPROVED
-        assert req.reviewer == "alice"
+        assert req.reviewer == "human"
         assert req.resolved_at is not None
 
     def test_approve_already_resolved_returns_false(self) -> None:

@@ -20,6 +20,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.protocols.adapters import (
+    MCPToA2AAdapter,
+    ProtocolAdapter,
+    create_default_adapters,
+)
+
 
 class ProtocolType(str, Enum):
     """协议类型"""
@@ -177,14 +183,8 @@ class ProtocolBridge:
     实现 MCP 和 A2A 协议之间的双向转换。
     """
 
-    # 方法映射表
-    MCP_TO_A2A_METHOD_MAP = {
-        "tools/call": "execute_task",
-        "resources/read": "fetch_artifact",
-        "prompts/get": "send_message",
-        "tools/list": "list_capabilities",
-        "resources/list": "list_artifacts",
-    }
+    # 方法映射表（语义映射由适配器持有，此处保留类属性以向后兼容）
+    MCP_TO_A2A_METHOD_MAP = MCPToA2AAdapter.METHOD_MAP
 
     A2A_TO_MCP_METHOD_MAP = {v: k for k, v in MCP_TO_A2A_METHOD_MAP.items()}
 
@@ -192,6 +192,23 @@ class ProtocolBridge:
         self.metrics = ProtocolBridgeMetrics()
         self._session_store: dict[str, dict[str, Any]] = {}
         self._task_to_message_map: dict[str, str] = {}  # task_id -> message_id
+        self._adapters: dict[str, ProtocolAdapter] = create_default_adapters()
+
+    # -- 适配器管理（方案 A：可插拔转换单元） --
+
+    def adapter(self, name: str) -> ProtocolAdapter:
+        """按名称获取适配器（如 mcp-to-a2a / a2a-to-mcp / asl）。"""
+        if name not in self._adapters:
+            raise KeyError(f"未知适配器: {name!r}")
+        return self._adapters[name]
+
+    def register_adapter(self, adapter: ProtocolAdapter) -> None:
+        """注册自定义适配器（扩展新协议无需改桥层核心）。"""
+        self._adapters[adapter.name] = adapter
+
+    def list_adapters(self) -> list[str]:
+        """列出已注册适配器。"""
+        return sorted(self._adapters)
 
     def convert_mcp_to_a2a(self, mcp_message: MCPMessage, target_agent: str) -> A2ATask:
         """
@@ -206,27 +223,8 @@ class ProtocolBridge:
         """
         start_time = time.perf_counter()
 
-        # 方法映射
-        a2a_action = self.MCP_TO_A2A_METHOD_MAP.get(mcp_message.method, "execute_task")
-
-        # 构建任务输入
-        input_data = {
-            "original_method": mcp_message.method,
-            "original_params": mcp_message.params,
-            "source_protocol": "mcp",
-            "message_hash": mcp_message.compute_hash(),
-        }
-
-        task = A2ATask(
-            task_id=f"task-{mcp_message.message_id}",
-            agent_id=target_agent,
-            action=a2a_action,
-            input_data=input_data,
-            metadata={
-                "source_message_id": mcp_message.message_id,
-                "converted_at": time.time(),
-                "bridge_version": "1.0",
-            },
+        task = self._adapters["mcp-to-a2a"].convert(
+            mcp_message, target_agent=target_agent
         )
 
         # 记录映射关系
@@ -252,39 +250,9 @@ class ProtocolBridge:
         # 查找原始消息 ID
         message_id = self._task_to_message_map.get(a2a_task.task_id, a2a_task.task_id)
 
-        # 根据任务状态构建响应
-        if a2a_task.status == "completed":
-            result = {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": json.dumps(a2a_task.output_data)
-                        if a2a_task.output_data
-                        else "Task completed",
-                    }
-                ],
-                "task_status": a2a_task.status,
-                "agent_id": a2a_task.agent_id,
-            }
-            response = MCPResponse(message_id=message_id, result=result)
-        elif a2a_task.status == "failed":
-            error = {
-                "code": -32000,
-                "message": "A2A task execution failed",
-                "data": {
-                    "task_id": a2a_task.task_id,
-                    "agent_id": a2a_task.agent_id,
-                    "error_details": a2a_task.output_data,
-                },
-            }
-            response = MCPResponse(message_id=message_id, error=error)
-        else:
-            # 进行中状态
-            result = {
-                "status": "pending",
-                "task_id": a2a_task.task_id,
-            }
-            response = MCPResponse(message_id=message_id, result=result)
+        response = self._adapters["a2a-to-mcp"].convert(
+            a2a_task, message_id=message_id
+        )
 
         latency_ms = (time.perf_counter() - start_time) * 1000
         self.metrics.record_conversion(BridgeDirection.A2A_TO_MCP, latency_ms, True)
@@ -409,13 +377,29 @@ class SecureProtocolBridge(ProtocolBridge):
     在基础桥接器之上添加:
     - ATP 身份验证
     - 防重放攻击
-    - 消息签名验证
+    - 消息签名验证（Ed25519，v0.47 S8 替换原 SHA-256 伪签名）
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        peer_public_keys: dict[str, str] | None = None,
+        signing_key: Any | None = None,
+    ) -> None:
         super().__init__()
         self._nonce_store: set[str] = set()
         self._max_nonce_age = 300  # 5分钟
+        # agent_did → Ed25519 public key PEM (v0.47 S8).
+        self._peer_public_keys: dict[str, str] = dict(peer_public_keys or {})
+        self._signing_key = signing_key
+
+    def _verify_signature(self, agent_did: str, payload: bytes, signature: str) -> bool:
+        """Verify an Ed25519 signature against the peer's public key."""
+        from maref.signing.signing_key import ReportSigningKey
+
+        public_key_pem = self._peer_public_keys.get(agent_did)
+        if public_key_pem is None:
+            return False
+        return ReportSigningKey.verify_signature(public_key_pem, signature, payload)
 
     def verify_and_convert_mcp_to_a2a(
         self, mcp_message: MCPMessage, target_agent: str, agent_did: str, signature: str
@@ -427,15 +411,14 @@ class SecureProtocolBridge(ProtocolBridge):
             mcp_message: MCP 消息
             target_agent: 目标 Agent
             agent_did: Agent DID
-            signature: 消息签名
+            signature: 消息签名（Ed25519，覆盖 agent_did + message_id）
 
         Returns:
             如果验证通过返回 A2ATask，否则返回 None
         """
-        # 验证签名（简化实现）
-        expected_sig = hashlib.sha256(f"{agent_did}:{mcp_message.message_id}".encode()).hexdigest()
-
-        if signature != expected_sig:
+        # 验证签名（Ed25519，v0.47 S8 替换原 SHA-256 哈希比较）
+        payload = f"{agent_did}:{mcp_message.message_id}".encode()
+        if not self._verify_signature(agent_did, payload, signature):
             self.metrics.record_conversion(BridgeDirection.MCP_TO_A2A, 0.0, False)
             return None
 
@@ -461,9 +444,15 @@ def create_protocol_bridge() -> ProtocolBridge:
     return ProtocolBridge()
 
 
-def create_secure_protocol_bridge() -> SecureProtocolBridge:
+def create_secure_protocol_bridge(
+    peer_public_keys: dict[str, str] | None = None,
+    signing_key: Any | None = None,
+) -> SecureProtocolBridge:
     """创建安全增强的协议桥接器"""
-    return SecureProtocolBridge()
+    return SecureProtocolBridge(
+        peer_public_keys=peer_public_keys,
+        signing_key=signing_key,
+    )
 
 
 __all__ = [

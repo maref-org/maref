@@ -9,8 +9,10 @@ import pytest
 
 from maref.governance.federated_consensus import (
     ConsensusProposal,
+    ConsensusTopology,
     ConsensusVote,
     FederatedConsensus,
+    FederationRole,
     ProposalState,
     VoteChoice,
 )
@@ -268,3 +270,211 @@ class TestConsensusEd25519Signing:
             fc.vote(proposal.proposal_id, voter, VoteChoice.APPROVE, signer=signer)
         for vote in proposal.votes:
             assert vote.verify_signature(signer.public_key_pem) is True
+
+
+class TestConsensusTopology:
+    """Tests for F1: ConsensusTopology (FLAT / LEADER_WORKER)."""
+
+    def test_default_topology_is_flat(self) -> None:
+        fc = FederatedConsensus()
+        assert fc.topology == ConsensusTopology.FLAT
+        assert fc.topology.value == "flat"
+
+    def test_flat_proposal_marks_topology(self) -> None:
+        fc = FederatedConsensus(topology=ConsensusTopology.FLAT)
+        proposal = fc.propose("m1", "routine")
+        assert proposal.topology == ConsensusTopology.FLAT
+        assert proposal.is_critical is False
+
+    def test_leader_worker_proposal_topology(self) -> None:
+        fc = FederatedConsensus(
+            topology=ConsensusTopology.LEADER_WORKER,
+            leader_id="leader-1",
+        )
+        proposal = fc.propose("worker-1", "routine")
+        assert proposal.topology == ConsensusTopology.LEADER_WORKER
+
+    def test_routine_proposal_default_not_critical(self) -> None:
+        fc = FederatedConsensus(
+            topology=ConsensusTopology.LEADER_WORKER,
+            leader_id="leader-1",
+        )
+        proposal = fc.propose("worker-1", "routine-task")
+        assert proposal.is_critical is False
+
+    def test_critical_topic_matches_substring(self) -> None:
+        fc = FederatedConsensus(
+            topology=ConsensusTopology.LEADER_WORKER,
+            leader_id="leader-1",
+            critical_topics={"cross-border-transfer", "payment"},
+        )
+        proposal = fc.propose("worker-1", "payment:cross-border")
+        assert proposal.is_critical is True
+
+    def test_explicit_is_critical_overrides_topic(self) -> None:
+        fc = FederatedConsensus(
+            topology=ConsensusTopology.LEADER_WORKER,
+            leader_id="leader-1",
+        )
+        proposal = fc.propose("worker-1", "routine-task", is_critical=True)
+        assert proposal.is_critical is True
+
+    def test_to_dict_contains_topology(self) -> None:
+        fc = FederatedConsensus(topology=ConsensusTopology.FLAT)
+        proposal = fc.propose("m1", "test")
+        d = proposal.to_dict()
+        assert d["topology"] == "flat"
+        assert d["is_critical"] is False
+
+    def test_summary_contains_topology(self) -> None:
+        fc = FederatedConsensus(
+            topology=ConsensusTopology.LEADER_WORKER,
+            leader_id="leader-1",
+        )
+        s = fc.summary()
+        assert s["topology"] == "leader_worker"
+        assert s["leader_id"] == "leader-1"
+
+
+class TestLeaderWorkerResolution:
+    """LEADER_WORKER: leader arbitrates routine, quorum escalates critical."""
+
+    def _consensus(self, leader: str = "leader-1") -> FederatedConsensus:
+        return FederatedConsensus(
+            member_count=5,
+            quorum_size=3,
+            topology=ConsensusTopology.LEADER_WORKER,
+            leader_id=leader,
+        )
+
+    def test_routine_awaits_leader_vote(self) -> None:
+        fc = self._consensus()
+        proposal = fc.propose("worker-1", "routine-task")
+        # Only a worker voted — leader arbitration pending
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.APPROVE)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.state == ProposalState.OPEN
+
+    def test_routine_leader_approve_resolves(self) -> None:
+        fc = self._consensus()
+        proposal = fc.propose("worker-1", "routine-task")
+        # v0.50 W6-S3: leader arbitration still requires quorum support.
+        fc.vote(proposal.proposal_id, "leader-1", VoteChoice.APPROVE)
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.APPROVE)
+        fc.vote(proposal.proposal_id, "worker-3", VoteChoice.APPROVE)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.state == ProposalState.ACCEPTED
+
+    def test_routine_leader_reject_resolves(self) -> None:
+        fc = self._consensus()
+        proposal = fc.propose("worker-1", "routine-task")
+        # v0.50 W6-S3: leader arbitration still requires quorum support.
+        fc.vote(proposal.proposal_id, "leader-1", VoteChoice.REJECT)
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.REJECT)
+        fc.vote(proposal.proposal_id, "worker-3", VoteChoice.REJECT)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.state == ProposalState.REJECTED
+
+    def test_routine_resolves_below_quorum(self) -> None:
+        # v0.50 W6-S3: leader arbitration needs quorum (>= quorum_size
+        # votes); a lone leader vote must not resolve a routine proposal.
+        fc = self._consensus()
+        proposal = fc.propose("worker-1", "routine-task")
+        fc.vote(proposal.proposal_id, "leader-1", VoteChoice.APPROVE)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.approve_count == 1
+        assert result.state == ProposalState.OPEN
+
+    def test_critical_escalates_to_quorum(self) -> None:
+        fc = self._consensus()
+        proposal = fc.propose(
+            "worker-1",
+            "cross-border-transfer",
+            is_critical=True,
+        )
+        # Leader alone is insufficient for critical decisions
+        fc.vote(proposal.proposal_id, "leader-1", VoteChoice.APPROVE)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.state == ProposalState.OPEN
+
+    def test_critical_quorum_reached_accepts(self) -> None:
+        fc = self._consensus()
+        proposal = fc.propose(
+            "worker-1",
+            "payment:cross-border",
+            is_critical=True,
+        )
+        fc.vote(proposal.proposal_id, "leader-1", VoteChoice.APPROVE)
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.APPROVE)
+        fc.vote(proposal.proposal_id, "worker-3", VoteChoice.APPROVE)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.state == ProposalState.ACCEPTED
+
+    def test_critical_quorum_rejects(self) -> None:
+        fc = self._consensus()
+        proposal = fc.propose("worker-1", "pay", is_critical=True)
+        fc.vote(proposal.proposal_id, "worker-1", VoteChoice.REJECT)
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.REJECT)
+        fc.vote(proposal.proposal_id, "worker-3", VoteChoice.REJECT)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.state == ProposalState.REJECTED
+
+    def test_worker_approve_below_quorum_stays_open(self) -> None:
+        fc = self._consensus()
+        proposal = fc.propose("worker-1", "routine-task")
+        # Worker votes don't resolve a routine task — leader decides
+        fc.vote(proposal.proposal_id, "worker-1", VoteChoice.APPROVE)
+        fc.vote(proposal.proposal_id, "worker-2", VoteChoice.APPROVE)
+        result = fc.resolve(proposal.proposal_id)
+        assert result.state == ProposalState.OPEN
+
+
+class TestFederationRoleAssignment:
+    """F1 role assignment via JurisdictionPolicyRouter."""
+
+    def _router(self) -> Any:
+        from maref.federation.jurisdiction_router import JurisdictionPolicyRouter
+        return JurisdictionPolicyRouter()
+
+    def test_leader_designated(self) -> None:
+        router = self._router()
+        roles = router.assign_federation_roles(["leader-1", "w1", "w2"], "leader-1")
+        assert roles["leader-1"] == FederationRole.LEADER
+
+    def test_others_are_workers(self) -> None:
+        router = self._router()
+        roles = router.assign_federation_roles(["leader-1", "w1", "w2"], "leader-1")
+        assert roles["w1"] == FederationRole.WORKER
+        assert roles["w2"] == FederationRole.WORKER
+
+    def test_deterministic(self) -> None:
+        router = self._router()
+        a = router.assign_federation_roles(["m1", "m2", "m3"], "m2")
+        b = router.assign_federation_roles(["m1", "m2", "m3"], "m2")
+        assert {k: v.value for k, v in a.items()} == {k: v.value for k, v in b.items()}
+
+    def test_missing_leader_has_no_role(self) -> None:
+        router = self._router()
+        roles = router.assign_federation_roles(["m1", "m2"], "ghost")
+        assert set(roles) == {"m1", "m2"}
+        assert all(r == FederationRole.WORKER for r in roles.values())
+
+    def test_suggest_topology_for_critical_uses_flat(self) -> None:
+        router = self._router()
+        assert router.suggest_consensus_topology(critical_topic=True) == "flat"
+
+    def test_suggest_topology_for_routine_uses_leader_worker(self) -> None:
+        router = self._router()
+        assert router.suggest_consensus_topology(critical_topic=False) == "leader_worker"
+
+
+class TestLeaderWorkerValidation:
+    def test_leader_worker_requires_leader_id(self) -> None:
+        with pytest.raises(ValueError, match="leader_id"):
+            FederatedConsensus(
+                topology=ConsensusTopology.LEADER_WORKER,
+            )
+
+    def test_flat_does_not_require_leader(self) -> None:
+        fc = FederatedConsensus(topology=ConsensusTopology.FLAT)
+        assert fc.topology == ConsensusTopology.FLAT

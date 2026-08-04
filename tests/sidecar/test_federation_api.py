@@ -14,12 +14,20 @@ from sidecar.monitor import CompositeMonitor
 from sidecar.server import create_app
 
 
+@pytest.fixture(autouse=True)
+def _reset_federation_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sidecar.federation_router as fed_router
+
+    monkeypatch.setattr(fed_router, "_store", None)
+
+
 def _make_client(tmp_path: Path) -> TestClient:
+    os.environ["MAREF_FEDERATED_DB"] = str(tmp_path / "federation.db")
     os.environ["MAREF_FEDERATED_STATE"] = str(tmp_path / "federated-state.json")
     adapter = MockAgentAdapter()
     collector = ObservationCollector(adapter)
     monitor = CompositeMonitor()
-    app = create_app(collector, monitor, None, federated=True)
+    app = create_app(collector, monitor, None, federated=True, allow_unauthenticated=True)
     return TestClient(app)
 
 

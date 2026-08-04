@@ -54,7 +54,12 @@ class BridgeEvent:
 class MCPBridge:
     def __init__(self, client: MCPClient, security_gate: MCPSecurityGate | None = None) -> None:
         self._client = client
-        self._security = security_gate or MCPSecurityGate()
+        if security_gate is None:
+            import os
+
+            key = os.environb.get(b"MAREF_MCP_SECRET_KEY")
+            security_gate = MCPSecurityGate(verification_key=key)
+        self._security = security_gate
         self._event_handlers: dict[str, list[Any]] = {}
         self._skill_imports: dict[str, MarefSkill] = {}
 

@@ -27,7 +27,7 @@ class TestAgentCardSignature:
         assert sig.verified is False
 
     def test_verify_legacy_signature(self) -> None:
-        """Legacy ed25519-sim mode: SHA-256 hash comparison."""
+        """Legacy ed25519-sim mode: SHA-256 hash comparison (explicit opt-in)."""
         sig = AgentCardSignature(
             signature_id="sig_1",
             agent_id="agent_1",
@@ -40,8 +40,29 @@ class TestAgentCardSignature:
         card_data = {"agent_name": "test", "version": "1.0"}
         computed = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
         sig.card_hash = computed
-        sig.verify("pub_key_pem", card_data)
+        sig.verify("pub_key_pem", card_data, allow_legacy_sim=True)
         assert sig.verified is True
+
+    def test_verify_legacy_sim_rejected_by_default(self) -> None:
+        """ed25519-sim 默认不可信：未显式开启 legacy 兼容时拒绝。
+
+        这是修复"免费签名验证"漏洞的回归测试——攻击者只要算出 card_hash
+        就能伪造 ed25519-sim 签名通过验证，默认路径必须拒绝。
+        """
+        sig = AgentCardSignature(
+            signature_id="sig_forged",
+            agent_id="agent_1",
+            public_key_fingerprint="fp_1234",
+            signed_at=1000.0,
+            expires_at=9999999999.0,
+            algorithm="ed25519-sim",
+            card_hash="",
+        )
+        card_data = {"agent_name": "evil", "version": "1.0"}
+        computed = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
+        sig.card_hash = computed  # 攻击者已知的 card_hash
+        assert sig.verify("pub_key_pem", card_data) is False
+        assert sig.verified is False
 
     def test_verify_ed25519_signature(self) -> None:
         """Real Ed25519 signature verification."""
@@ -210,6 +231,39 @@ class TestAgentCardSignerEd25519:
         )
         signer.sign_card(card, key_pair.private_key_pem)
         assert signer.verify_card(card) is True
+
+    def test_default_signer_rejects_forged_ed25519_sim(self) -> None:
+        """默认（非 legacy）signer 拒绝伪造的 ed25519-sim 签名。
+
+        漏洞回归：ed25519-sim 只要 card_hash 匹配即可通过，默认模式必须拒绝。
+        """
+        import hashlib
+        import json
+
+        signer = AgentCardSigner()  # 默认 Ed25519 模式
+        key_pair = Ed25519KeyPair.generate()
+        signer.register_key("agent_1", key_pair.public_key_pem)
+
+        card = SignedAgentCard(
+            card_id="card_forged",
+            agent_id="agent_1",
+            agent_name="Evil",
+        )
+        card_hash = hashlib.sha256(
+            json.dumps(card.to_card_data(), sort_keys=True).encode()
+        ).hexdigest()
+        forged = AgentCardSignature(
+            signature_id="sig_forged",
+            agent_id="agent_1",
+            public_key_fingerprint="fp_1234",
+            signed_at=1000.0,
+            expires_at=9999999999.0,
+            algorithm="ed25519-sim",
+            card_hash=card_hash,
+        )
+        card.signatures.append(forged)
+        # 未显式开启 legacy 模式时，伪造 sim 卡验证失败。
+        assert signer.verify_card(card) is False
 
     def test_ed25519_rejects_wrong_public_key(self) -> None:
         """Verification fails when the wrong public key is registered."""

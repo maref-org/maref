@@ -16,8 +16,10 @@ Invariants:
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
+
 from maref.governance.constants import ENTROPY_LEVELS, STATE_NAMES, compute_valid_transitions
 from maref.recursive.agent_24_state_machine import VALID_TRANSITIONS, AgentStateV3
+
 GovState = int
 AgentState = AgentStateV3
 GOV_NAME: dict[int, str] = STATE_NAMES

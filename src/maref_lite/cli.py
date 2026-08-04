@@ -1047,6 +1047,119 @@ def governance_status() -> None:
     console.print(table)
 
 
+@governance_app.command("credential")
+def governance_credential(
+    action: str = typer.Argument(..., help="issue | verify | revoke | export-revocations"),
+    subject_did: str = typer.Option("", "--subject-did", help="治理主体 DID"),
+    issuer_did: str = typer.Option("", "--issuer-did", help="签发方 DID"),
+    scope: str = typer.Option("state_machine,audit", "--scope", help="逗号分隔的治理维度"),
+    org_id: str = typer.Option("", "--org-id", help="Merkle 证明所属组织"),
+    root_hash: str = typer.Option("", "--root-hash", help="该组织审计根哈希（签发时生成证明）"),
+    tree_size: int = typer.Option(0, "--tree-size", help="审计树叶子数"),
+    key_pem: str = typer.Option("", "--key", help="Ed25519 私钥 PEM 路径；缺省生成临时密钥"),
+    ttl: float = typer.Option(86400.0, "--ttl", help="凭证有效期（秒）"),
+    out: str = typer.Option("", "--out", help="输出凭证/吊销列表文件路径"),
+    store_path: str = typer.Option("", "--store", help="store JSON 路径（默认 .maref/credentials_store.json）"),
+    credential_file: str = typer.Option("", "--file", help="待验证的凭证 JSON 文件"),
+    credential_id: str = typer.Option("", "--id", help="要吊销的凭证 ID"),
+    reason: str = typer.Option("unspecified", "--reason", help="吊销原因"),
+    revocations: str = typer.Option("", "--revocations", help="外部吊销列表 JSON 路径（verify 时加载）"),
+) -> None:
+    """Issue / verify / revoke / export verifiable governance credentials."""
+    from pathlib import Path
+
+    from maref.eivl.federated_merkle import FederatedMerkleAggregator
+    from maref.governance.verifiable_governance_credential import (
+        GovernanceCredentialStore,
+        VerifiableGovernanceCredential,
+    )
+    from maref.signing.signing_key import ReportSigningKey
+
+    store_file = Path(store_path or ".maref/credentials_store.json")
+    store = (
+        GovernanceCredentialStore.load(store_file)
+        if store_file.exists()
+        else GovernanceCredentialStore()
+    )
+
+    def _save_store() -> None:
+        store_file.parent.mkdir(parents=True, exist_ok=True)
+        store.save(store_file)
+
+    if action == "issue":
+        if not subject_did or not issuer_did:
+            console.print("[red]issue 需要 --subject-did 与 --issuer-did[/red]")
+            raise typer.Exit(code=1)
+        key = (
+            ReportSigningKey.from_private_pem(Path(key_pem).read_text())
+            if key_pem
+            else ReportSigningKey.generate()
+        )
+        merkle_proof: dict = {}
+        if org_id and root_hash:
+            agg = FederatedMerkleAggregator()
+            agg.submit_root(org_id, root_hash, tree_size=tree_size)
+            proof = agg.generate_proof(org_id)
+            merkle_proof = proof.to_dict() if proof else {}
+        try:
+            cred = VerifiableGovernanceCredential.issue(
+                subject_did=subject_did,
+                issuer_did=issuer_did,
+                scope=[s.strip() for s in scope.split(",") if s.strip()],
+                merkle_proof=merkle_proof,
+                signing_key=key,
+                ttl_seconds=ttl,
+            )
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from exc
+        store.store(cred)
+        _save_store()
+        target = Path(out or f"{cred.credential_id}.json")
+        cred.to_file(target)
+        console.print(f"[green]凭证已签发:[/green] {cred.credential_id}")
+        console.print(f"[green]已导出:[/green] {target}")
+        console.print(f"[green]验证:[/green] {cred.verify()}")
+
+    elif action == "verify":
+        if not credential_file:
+            console.print("[red]verify 需要 --file <凭证 JSON>[/red]")
+            raise typer.Exit(code=1)
+        if revocations:
+            store.load_revocation_list(Path(revocations))
+        cred = VerifiableGovernanceCredential.from_file(credential_file)
+        result = cred.verify(revoked=store.is_revoked(cred.credential_id))
+        console.print(result)
+        if not result["valid"]:
+            raise typer.Exit(code=1)
+
+    elif action == "revoke":
+        if not credential_id:
+            console.print("[red]revoke 需要 --id <credential_id>[/red]")
+            raise typer.Exit(code=1)
+        try:
+            store.revoke(credential_id, reason=reason)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from exc
+        _save_store()
+        console.print(f"[green]已吊销:[/green] {credential_id} ({reason})")
+
+    elif action == "export-revocations":
+        target = Path(out or "revocations.json")
+        if key_pem:
+            key = ReportSigningKey.from_private_pem(Path(key_pem).read_text())
+            store.save_signed_revocation_list(target, key, server_id=issuer_did or "")
+            console.print(f"[green]吊销列表（带签名）已导出:[/green] {target}")
+        else:
+            store.save_revocation_list(target)
+            console.print(f"[green]吊销列表已导出:[/green] {target}")
+
+    else:
+        console.print("[red]未知 action:[/red] " + action)
+        raise typer.Exit(code=1)
+
+
 # ── Drift detection commands ─────────────────────────────────────────
 
 
@@ -1677,6 +1790,7 @@ def start(
 
 @app.command()
 def serve(
+    host: str = typer.Option("0.0.0.0", "--host", help="Bind host"),
     port: int = typer.Option(8000, "--port", "-p", help="HTTP server port"),
     gui: bool = typer.Option(
         False, "--gui/--no-gui", help="Enable GUI endpoints (sessions, streaming, terminal)"
@@ -1693,7 +1807,7 @@ def serve(
         console.print("[bold green]MAREF Sidecar Server (GUI Mode)[/bold green]")
     else:
         console.print("[bold green]MAREF Sidecar Server[/bold green]")
-    console.print(f"Starting on http://0.0.0.0:{port}")
+    console.print(f"Starting on http://{host}:{port}")
 
     if federated:
         console.print("  [green]Federated:[/green] /api/v1/federation/* — cross-org Merkle audit")
@@ -1732,7 +1846,7 @@ def serve(
         collector = ObservationCollector(adapter=MockAgentAdapter())
         monitor = CompositeMonitor()
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
-        uvicorn.run(create_app(collector, monitor, obs_bridge=obs_bridge, federated=federated), host="0.0.0.0", port=port, log_level="info")
+        uvicorn.run(create_app(collector, monitor, obs_bridge=obs_bridge, federated=federated), host=host, port=port, log_level="info")
     except ImportError:
         console.print(f"[dim]Sidecar server mock — http://0.0.0.0:{port}[/dim]")
 

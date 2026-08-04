@@ -21,9 +21,11 @@ Reference: AIP-ACPs-Technical-Analysis.md section 4.5 (Federation Policy).
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 
@@ -51,6 +53,16 @@ class PolicyScope(str, Enum):
     FEDERATION = "federation"
     LOCAL = "local"
     AD_HOC = "ad_hoc"
+
+
+# Restrictiveness ordering for tie-breaks and conflict resolution
+# (higher = more restrictive).  Used to fail-closed when rules tie.
+_RESTRICTIVENESS: dict[PolicyDecision, int] = {
+    PolicyDecision.DENY: 3,
+    PolicyDecision.DEFER: 2,
+    PolicyDecision.ALLOW: 1,
+    PolicyDecision.NOT_APPLICABLE: 0,
+}
 
 
 @dataclass(frozen=True)
@@ -111,6 +123,20 @@ class PolicyRule:
             "description": self.description,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PolicyRule:
+        """Reconstruct a rule from :meth:`to_dict` output (v0.47 F4)."""
+        return cls(
+            rule_id=data["rule_id"],
+            action=data["action"],
+            scope=PolicyScope(data["scope"]),
+            decision=PolicyDecision(data["decision"]),
+            priority=int(data.get("priority", 0)),
+            conditions=dict(data.get("conditions", {})),
+            description=data.get("description", ""),
+            created_at=float(data.get("created_at", time.time())),
+        )
+
 
 @dataclass
 class PolicyEvaluationResult:
@@ -135,6 +161,7 @@ class PolicyEvaluationResult:
     conflict_strategy: ConflictStrategy = ConflictStrategy.FEDERATION_WINS
     context: dict[str, Any] = field(default_factory=dict)
     evaluated_at: float = field(default_factory=time.time)
+    no_rule_match: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -145,6 +172,7 @@ class PolicyEvaluationResult:
             "conflict_detected": self.conflict_detected,
             "conflict_strategy": self.conflict_strategy.value,
             "evaluated_at": self.evaluated_at,
+            "no_rule_match": self.no_rule_match,
         }
 
 
@@ -168,11 +196,89 @@ class FederationPolicyEngine:
     def __init__(
         self,
         conflict_strategy: ConflictStrategy = ConflictStrategy.FEDERATION_WINS,
+        db_path: str | Path | None = None,
     ) -> None:
         self._conflict_strategy = conflict_strategy
         self._federation_rules: dict[str, PolicyRule] = {}
         self._local_rules: dict[str, PolicyRule] = {}
         self._adhoc_rules: dict[str, PolicyRule] = {}
+        # v0.47 F4: decision log (action → decision) for auditability.
+        self._decision_log: list[dict[str, Any]] = []
+        self._db = None
+        if db_path is not None:
+            from maref.governance.db import DatabaseManager
+
+            self._db = DatabaseManager(db_path)
+            self._init_schema()
+            self._load_from_disk()
+
+    def _init_schema(self) -> None:
+        assert self._db is not None
+        self._db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS policy_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS policy_rules (
+                rule_id TEXT PRIMARY KEY,
+                data    TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS policy_decisions (
+                seq  INTEGER PRIMARY KEY AUTOINCREMENT,
+                data TEXT NOT NULL
+            );
+            """
+        )
+
+    def _load_from_disk(self) -> None:
+        assert self._db is not None
+        meta_rows = self._db.fetchall("SELECT key, value FROM policy_meta")
+        for row in meta_rows:
+            if row["key"] == "conflict_strategy":
+                self._conflict_strategy = ConflictStrategy(row["value"])
+        rows = self._db.fetchall("SELECT rule_id, data FROM policy_rules")
+        for row in rows:
+            rule = PolicyRule.from_dict(json.loads(row["data"]))
+            self._rules_for_scope(rule.scope)[rule.rule_id] = rule
+        decision_rows = self._db.fetchall(
+            "SELECT data FROM policy_decisions ORDER BY seq"
+        )
+        for row in decision_rows:
+            self._decision_log.append(json.loads(row["data"]))
+
+    def _persist_rule(self, rule: PolicyRule) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT OR REPLACE INTO policy_rules (rule_id, data) VALUES (?, ?)",
+            (rule.rule_id, json.dumps(rule.to_dict())),
+        )
+
+    def _delete_rule(self, rule_id: str) -> None:
+        if self._db is None:
+            return
+        self._db.execute("DELETE FROM policy_rules WHERE rule_id = ?", (rule_id,))
+
+    def _persist_decision(self, decision: dict[str, Any]) -> None:
+        if self._db is None:
+            return
+        self._db.execute(
+            "INSERT INTO policy_decisions (data) VALUES (?)",
+            (json.dumps(decision),),
+        )
+
+    def decision_log(self, limit: int = 500) -> list[dict[str, Any]]:
+        """Return the decision audit log (most recent last, capped)."""
+        return list(self._decision_log[-limit:])
+
+    def _record_decision(self, result: PolicyEvaluationResult) -> None:
+        """Append an evaluation to the decision log (v0.47 F4)."""
+        entry = result.to_dict()
+        self._decision_log.append(entry)
+        self._persist_decision(entry)
+        if len(self._decision_log) > 2000:
+            self._decision_log = self._decision_log[-2000:]
 
     @property
     def conflict_strategy(self) -> ConflictStrategy:
@@ -180,11 +286,17 @@ class FederationPolicyEngine:
 
     def set_conflict_strategy(self, strategy: ConflictStrategy) -> None:
         self._conflict_strategy = strategy
+        if self._db is not None:
+            self._db.execute(
+                "INSERT OR REPLACE INTO policy_meta (key, value) VALUES ('conflict_strategy', ?)",
+                (strategy.value,),
+            )
 
     def add_rule(self, rule: PolicyRule) -> None:
         """Add a rule to the appropriate layer based on its scope."""
         target = self._rules_for_scope(rule.scope)
         target[rule.rule_id] = rule
+        self._persist_rule(rule)
 
     def remove_rule(self, rule_id: str) -> bool:
         """Remove a rule from any layer.
@@ -195,6 +307,7 @@ class FederationPolicyEngine:
         for rules in (self._federation_rules, self._local_rules, self._adhoc_rules):
             if rule_id in rules:
                 del rules[rule_id]
+                self._delete_rule(rule_id)
                 return True
         return False
 
@@ -256,25 +369,28 @@ class FederationPolicyEngine:
         Returns:
             A :class:`PolicyEvaluationResult` with the final decision.
         """
+        result = self._evaluate_impl(action, context)
+        self._record_decision(result)
+        return result
+
+    def _evaluate_impl(
+        self,
+        action: str,
+        context: dict[str, Any] | None = None,
+    ) -> PolicyEvaluationResult:
+        """Core evaluation (decision log recorded by :meth:`evaluate`)."""
         context = context or {}
         fed_matches = self._matching_rules(self._federation_rules, action, context)
         local_matches = self._matching_rules(self._local_rules, action, context)
         adhoc_matches = self._matching_rules(self._adhoc_rules, action, context)
 
-        all_matches = fed_matches + local_matches + adhoc_matches
+        # Ad-hoc rules are merged into the federation tier (same precedence).
+        # They no longer unconditionally override the federation layer; they
+        # compete by priority, with ties broken toward the most restrictive
+        # decision (v0.47 S3, fail-closed).
+        fed_matches = fed_matches + adhoc_matches
 
-        # Ad-hoc rules always take precedence (highest scope authority).
-        if adhoc_matches:
-            winner = self._highest_priority(adhoc_matches)
-            return PolicyEvaluationResult(
-                action=action,
-                decision=winner.decision,
-                matched_rules=all_matches,
-                winning_rule=winner,
-                conflict_detected=False,
-                conflict_strategy=self._conflict_strategy,
-                context=context,
-            )
+        all_matches = fed_matches + local_matches
 
         # If only one layer has matches, use its highest-priority rule.
         if fed_matches and not local_matches:
@@ -300,16 +416,17 @@ class FederationPolicyEngine:
                 context=context,
             )
 
-        # No matches at all — default ALLOW (open by default).
+        # No matches at all — default DENY (fail-closed) with an audit signal.
         if not fed_matches and not local_matches:
             return PolicyEvaluationResult(
                 action=action,
-                decision=PolicyDecision.ALLOW,
+                decision=PolicyDecision.DENY,
                 matched_rules=[],
                 winning_rule=None,
                 conflict_detected=False,
                 conflict_strategy=self._conflict_strategy,
                 context=context,
+                no_rule_match=True,
             )
 
         # Both layers have matches — resolve conflict.
@@ -357,8 +474,16 @@ class FederationPolicyEngine:
 
     @staticmethod
     def _highest_priority(rules: list[PolicyRule]) -> PolicyRule:
-        """Return the highest-priority rule (ties broken by rule_id for determinism)."""
-        return max(rules, key=lambda r: (r.priority, r.rule_id))
+        """Return the highest-priority rule; ties broken toward the most
+        restrictive decision, then by rule_id for determinism (fail-closed)."""
+        return max(
+            rules,
+            key=lambda r: (
+                r.priority,
+                _RESTRICTIVENESS.get(r.decision, 0),
+                r.rule_id,
+            ),
+        )
 
     def _resolve_conflict(
         self, fed_rule: PolicyRule, local_rule: PolicyRule
@@ -379,13 +504,7 @@ class FederationPolicyEngine:
                 description="Auto-DENY due to federation/local conflict",
             )
         # MOST_RESTRICTIVE: DENY wins over DEFER, DEFER wins over ALLOW.
-        restrictiveness = {
-            PolicyDecision.DENY: 3,
-            PolicyDecision.DEFER: 2,
-            PolicyDecision.ALLOW: 1,
-            PolicyDecision.NOT_APPLICABLE: 0,
-        }
-        if restrictiveness[fed_rule.decision] >= restrictiveness[local_rule.decision]:
+        if _RESTRICTIVENESS[fed_rule.decision] >= _RESTRICTIVENESS[local_rule.decision]:
             return fed_rule
         return local_rule
 

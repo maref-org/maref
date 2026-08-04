@@ -30,6 +30,7 @@ from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
 from sidecar.monitor import CompositeMonitor
 from sidecar.obs_bridge import ObsBridge
+from sidecar.org_governance_router import router as org_governance_router
 from sidecar.platform_router import router as platform_router
 from sidecar.report_router import router as report_router
 
@@ -44,6 +45,54 @@ _CORS_ORIGINS: list[str] = [
 
 _sessions: dict[str, dict[str, Any]] = {}
 _messages: dict[str, list[dict[str, Any]]] = {}
+
+
+def _default_allow_unauthenticated() -> bool:
+    """Resolve the unauthenticated-dev flag for the auth middleware.
+
+    Fail-closed by default (v0.47 S6): production starts without accepting
+    unauthenticated requests.  Development / test stacks opt in explicitly
+    via ``MAREF_ALLOW_UNAUTHENTICATED=1`` or the ``allow_unauthenticated``
+    parameter.
+    """
+    return os.environ.get("MAREF_ALLOW_UNAUTHENTICATED", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _wire_mcp_governance(gateway: MCPGateway) -> None:
+    """Attach the three-layer MCP governance to the gateway (v0.47 S7).
+
+    SecurityGate → PolicyEngine → CircuitBreaker.  This makes the main
+    ``/api/mcp`` entrypoint governed exactly like ``/api/mcp/gateway``.
+    """
+    from maref.governance.circuit_breaker import CircuitBreaker
+    from maref.integration.mcp_governance import MCPGovernance, MCPPolicyEngine
+    from maref.integration.mcp_security import MCPSecurityGate
+
+    verification_key = os.environb.get(b"MAREF_MCP_SECRET_KEY")
+    if verification_key is None:
+        raise ValueError(
+            "MAREF_MCP_SECRET_KEY is required to wire MCP governance "
+            "(v0.50 W4-S1 fail-closed). Set the environment variable or "
+            "inject a key before starting the sidecar."
+        )
+    security_gate = MCPSecurityGate(verification_key=verification_key)
+    policy_engine = MCPPolicyEngine(security_gate=security_gate)
+    governance = MCPGovernance(
+        policy_engine=policy_engine,
+        circuit_breaker=CircuitBreaker(
+            max_depth=10,
+            max_consecutive_failures=5,
+            cooldown_seconds=30.0,
+        ),
+    )
+    gateway._gate = security_gate
+    gateway._policy_engine = policy_engine
+    gateway._governance = governance
 _providers: dict[str, dict[str, Any]] = {
     "ollama": {"id": "ollama", "name": "Ollama", "models": ["gemma3:4b"], "defaultModel": "gemma3:4b"},
     "bailian": {"id": "bailian", "name": "阿里云百炼", "models": ["deepseek-v4-pro"], "defaultModel": "deepseek-v4-pro"},
@@ -164,13 +213,26 @@ def create_a2a_bridge() -> A2ABridge:
     sm = GovernanceStateMachine()
     audit = AuditLogger()
     cb = CircuitBreaker()
-    return A2ABridge(state_machine=sm, audit_logger=audit, circuit_breaker=cb)
+    from maref.protocols import create_secure_protocol_bridge
+    return A2ABridge(
+        state_machine=sm,
+        audit_logger=audit,
+        circuit_breaker=cb,
+        protocol_bridge=create_secure_protocol_bridge(),
+    )
 
 
-def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None) -> None:
+def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, a2a_bridge: A2ABridge | None = None) -> None:
     _metric_store = MetricStore()
     _cost_tracker = CostTracker(metric_store=_metric_store)
     mcp_bridge = SidecarMCPBridge(repo_path=os.getcwd())
+
+    # v0.48 W2: 装配统一治理闭环（GovernedPipeline）——共享 audit_bus，
+    # 行为探针订阅同一审计流（S10 探针 → W2 闭环）。
+    from maref.governance.governed_pipeline import GovernedPipeline
+
+    app.state.governed = GovernedPipeline()
+    app.state.behavior_probe = app.state.governed.behavior_probe
 
     _tool_registry = ToolRegistry()
     for t in EVOLUTION_TOOLS:
@@ -178,6 +240,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     _mcp_adapter = MCPServerAdapter(_tool_registry)
 
     gateway = MCPGateway()
+    _wire_mcp_governance(gateway)
     gateway.register_backend(
         prefix="maref_",
         transport_type="in-process",
@@ -190,6 +253,31 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         handler=_mcp_adapter.handle_tool_call,
         tools=_mcp_adapter.list_tools(),
     )
+    if a2a_bridge is not None:
+        a2a_mcp_tools = a2a_bridge.build_mcp_tools()
+        if a2a_mcp_tools:
+            bridge_ref = a2a_bridge
+
+            def _route_a2a_tool_call(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+                try:
+                    description = arguments.get("description") or arguments.get("task") or tool_name
+                    task_id = bridge_ref.create_task(description, arguments)
+                    return {
+                        "content": [{"type": "text", "text": f"Task created: {task_id}"}],
+                        "task_id": task_id,
+                    }
+                except Exception as exc:  # noqa: BLE001
+                    return {
+                        "isError": True,
+                        "content": [{"type": "text", "text": f"A2A bridge error: {exc}"}],
+                    }
+
+            gateway.register_backend(
+                prefix="a2a_",
+                transport_type="in-process",
+                handler=_route_a2a_tool_call,
+                tools=a2a_mcp_tools,
+            )
     gateway_router = create_mcp_gateway_router(gateway)
     app.include_router(gateway_router)
 
@@ -431,7 +519,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
             params = body.get("params", {})
             tool_name = params.get("name", "")
             arguments = params.get("arguments", {})
-            result = mcp_bridge.handle_tool_call(tool_name, arguments)
+            result = gateway.route_tool_call(tool_name, arguments)
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -445,9 +533,11 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
     @app.get("/api/mcp/.well-known")
     def mcp_well_known() -> dict[str, Any]:
+        versions = list(SUPPORTED_PROTOCOL_VERSIONS)
         return {
             "protocol": "mcp",
-            "protocolVersions": SUPPORTED_PROTOCOL_VERSIONS,
+            "version": versions[-1] if versions else "2024-11-05",
+            "protocolVersions": versions,
             "capabilities": {"tools": list(SIDECAR_MCP_TOOLS)},
         }
 
@@ -898,7 +988,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
 
 
 class SidecarFastAPI(FastAPI):
-    def __init__(self, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False, **kwargs: Any) -> None:
+    def __init__(self, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False, allow_unauthenticated: bool | None = None, **kwargs: Any) -> None:
         super().__init__(title="MAREF Sidecar", version="0.38.0")
         self.add_middleware(
             CORSMiddleware,
@@ -907,20 +997,23 @@ class SidecarFastAPI(FastAPI):
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        self.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
+        if allow_unauthenticated is None:
+            allow_unauthenticated = _default_allow_unauthenticated()
+        self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
         self.add_middleware(SecurityHeadersMiddleware)
         self.include_router(gaas_router)
         self.include_router(platform_router)
+        self.include_router(org_governance_router)
         a2a_bridge = create_a2a_bridge()
         _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
         self.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
         if federated:
             self.include_router(federation_router)
-        _setup_routes(self, collector, monitor, obs_bridge)
+        _setup_routes(self, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
         _register_route_scope(self)
 
 
-def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False) -> FastAPI:
+def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, federated: bool = False, allow_unauthenticated: bool | None = None) -> FastAPI:
     app = FastAPI(title="MAREF Sidecar", version="0.35.0-beta")
     app.add_middleware(
         CORSMiddleware,
@@ -929,16 +1022,19 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(AuthMiddleware)  # type: ignore[arg-type]
+    if allow_unauthenticated is None:
+        allow_unauthenticated = _default_allow_unauthenticated()
+    app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
     app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(gaas_router)
     app.include_router(report_router)
     app.include_router(platform_router)
+    app.include_router(org_governance_router)
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
     app.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
     if federated:
         app.include_router(federation_router)
-    _setup_routes(app, collector, monitor, obs_bridge)
+    _setup_routes(app, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
     _register_route_scope(app)
     return app

@@ -8,7 +8,6 @@ on:
 
 env:
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/maref
-  DOCKERHUB_IMAGE: maref/maref
 
 jobs:
   build:
@@ -24,9 +23,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.GHCR_IMAGE }}
-            ${{ env.DOCKERHUB_IMAGE }}
+          images: ${{ env.GHCR_IMAGE }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -64,10 +61,12 @@ jobs:
           docker run -d --name maref-test \
             -p 8080:8080 \
             -e MAREF_DRY_RUN=true \
+            -e MAREF_MCP_SECRET_KEY=${{ secrets.MAREF_MCP_SECRET_KEY || 'ci-test-key' }} \
+            -e MAREF_HMAC_SECRET_KEY=${{ secrets.MAREF_HMAC_SECRET_KEY || 'ci-hmac-key' }} \
             -e DISPLAY=:99 \
             --entrypoint /bin/bash \
             "$FIRST_TAG" \
-            -c "Xvfb :99 -screen 0 1280x720x24 & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
+            -c "export XAUTHORITY=/tmp/.xauth; touch /tmp/.xauth; Xvfb :99 -screen 0 1280x720x24 -ac & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
 
       - name: Wait for health endpoint
         run: |
@@ -92,10 +91,17 @@ jobs:
         if: always()
         run: docker rm -f maref-test || true
 
+      - name: Resolve image tag
+        id: image-tag
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          echo "first_tag=$FIRST_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ steps.image-tag.outputs.first_tag }}
           format: cyclonedx
           output-file: sbom.cdx.json
       - name: Upload SBOM
@@ -115,6 +121,9 @@ jobs:
     name: Docker Vulnerability Scan
     runs-on: ubuntu-latest
     needs: [build]
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
 
@@ -130,7 +139,7 @@ jobs:
           tags: maref/maref:scan
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.20.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           scan-ref: maref/maref:scan
@@ -140,7 +149,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Run Trivy with SARIF output
-        uses: aquasecurity/trivy-action@v0.20.0
+        uses: aquasecurity/trivy-action@v0.36.0
         if: always()
         with:
           scan-type: image
@@ -170,6 +179,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -180,9 +193,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.GHCR_IMAGE }}
-            ${{ env.DOCKERHUB_IMAGE }}
+          images: ${{ env.GHCR_IMAGE }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
@@ -195,12 +206,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker images
         id: push
@@ -244,4 +249,3 @@ jobs:
           echo "| Registry | Image | Tags |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|------|" >> $GITHUB_STEP_SUMMARY
           echo "| GHCR | ${{ env.GHCR_IMAGE }} | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Hub | ${{ env.DOCKERHUB_IMAGE }} | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY

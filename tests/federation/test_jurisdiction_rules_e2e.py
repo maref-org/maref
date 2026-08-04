@@ -130,25 +130,40 @@ def test_rule_library_installed_ids() -> None:
 # ── Acceptance: same operation → different decisions in 2+ jurisdictions ─
 
 
-def test_acceptance_cross_border_transfer_differs_across_jurisdictions() -> None:
-    """The same operation yields different compliance decisions in 2+ states."""
+def test_acceptance_cross_border_transfer_fails_closed() -> None:
+    """Cross-border transfer with no lawful basis is denied in every
+    jurisdiction (v0.47 S3 fail-closed — Five Eyes has no rule for this
+    action and now denies instead of allowing by default)."""
     router = _router()
     result = router.route_action("dui", "cross_border_transfer", {"data_type": "pii"})
     decisions = {jr.jurisdiction: jr.decision for jr in result.jurisdiction_results}
     # GDPR: no adequacy/SCC → DENY. China CSL: no CAC assessment → DENY.
-    # Five Eyes: no cross-border constraint → ALLOW (open by default).
+    # Five Eyes: no cross-border rule → DENY (fail-closed, was ALLOW).
     assert decisions["gdpr"] == PolicyDecision.DENY
     assert decisions["china_csl"] == PolicyDecision.DENY
-    assert decisions["five_eyes"] == PolicyDecision.ALLOW
-    assert len(set(decisions.values())) >= 2
-    # MOST_RESTRICTIVE resolution → final DENY, conflict flagged.
-    assert result.conflict_detected is True
+    assert decisions["five_eyes"] == PolicyDecision.DENY
+    # All agree → no conflict, MOST_RESTRICTIVE final DENY.
+    assert result.conflict_detected is False
     assert result.final_decision == PolicyDecision.DENY
-    # Audit trail records the per-jurisdiction split.
+    # Audit trail records the fail-closed per-jurisdiction split.
     entry = router.decision_log()[-1]
     assert entry["action"] == "cross_border_transfer"
     assert entry["jurisdictions"]["gdpr"]["decision"] == "deny"
-    assert entry["jurisdictions"]["five_eyes"]["decision"] == "allow"
+    assert entry["jurisdictions"]["five_eyes"]["decision"] == "deny"
+
+
+def test_acceptance_cross_border_transfer_differs_with_adequacy() -> None:
+    """With an adequacy decision GDPR allows while China still requires a
+    CAC assessment — the same operation genuinely differs across states."""
+    router = _router()
+    result = router.route_action(
+        "dui", "cross_border_transfer", {"transfer_basis": "adequacy"}
+    )
+    decisions = {jr.jurisdiction: jr.decision for jr in result.jurisdiction_results}
+    assert decisions["gdpr"] == PolicyDecision.ALLOW
+    assert decisions["china_csl"] == PolicyDecision.DENY
+    assert decisions["five_eyes"] == PolicyDecision.DENY
+    assert len(set(decisions.values())) >= 2
 
 
 def test_acceptance_auditable_to_legal_article() -> None:
@@ -332,11 +347,11 @@ def test_compliance_http_e2e() -> None:
                 "dui", "cross_border_transfer", {"data_type": "pii"}
             )
             assert result["final_decision"] == "deny"
-            assert result["conflict_detected"] is True
+            assert result["conflict_detected"] is False
             jr = {j["jurisdiction"]: j["decision"] for j in result["jurisdiction_results"]}
             assert jr["gdpr"] == "deny"
             assert jr["china_csl"] == "deny"
-            assert jr["five_eyes"] == "allow"
+            assert jr["five_eyes"] == "deny"
 
             # Audit endpoints.
             decisions = client.compliance_decisions()

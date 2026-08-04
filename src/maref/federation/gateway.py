@@ -172,12 +172,14 @@ class FederationGateway:
         dispatcher: AgentDispatcher | None = None,
         did_registry: DIDRegistry | None = None,
         audit_logger: AuditLogger | None = None,
+        require_acs_signature: bool = False,
     ) -> None:
         self._identity = identity_adapter or AICIdentityAdapter()
         self._acs_parser = acs_parser or ACSParser()
         self._dispatcher = dispatcher
         self._did_registry = did_registry
         self._audit = audit_logger
+        self._require_acs_signature = require_acs_signature
         self._agents: dict[AgentDID, FederatedAgent] = {}
         self._aic_to_agent: dict[str, FederatedAgent] = {}
 
@@ -230,6 +232,14 @@ class FederationGateway:
         raw_acs_digest = hashlib.sha256(
             json.dumps(request.acs_document, sort_keys=True).encode()
         ).hexdigest()
+        if self._require_acs_signature and (
+            not request.acs_signature or not request.acs_public_key_pem
+        ):
+            return FederationResponse(
+                success=False,
+                aic_string=request.aic_string,
+                error="ACS signature required but missing (fail-closed)",
+            )
         if request.acs_signature and request.acs_public_key_pem:
             from maref.crypto.ed25519_keys import Ed25519KeyPair
 

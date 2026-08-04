@@ -30,6 +30,7 @@ from typing import Any
 
 from maref.federation.metering import TaskMeteringEngine
 from maref.governance.db import DatabaseManager
+from maref.governance.trace import Trace, TraceStep
 
 
 class SettlementStatus(str, Enum):
@@ -100,6 +101,8 @@ class SettlementProposal:
     resolved_at: float | None = None
     rejection_reason: str = ""
     dispute_reason: str = ""
+    # v0.44.0 F2：争议仲裁溯源 verdict（加权法官表决结果）。
+    verdict: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -115,6 +118,7 @@ class SettlementProposal:
             "resolved_at": self.resolved_at,
             "rejection_reason": self.rejection_reason,
             "dispute_reason": self.dispute_reason,
+            "verdict": dict(self.verdict),
         }
 
 
@@ -206,6 +210,9 @@ class FederatedSettlement:
         metering: TaskMeteringEngine,
         pricing_rules: dict[str, float] | None = None,
         db_path: str | Path | None = None,
+        verifier_consensus: Any | None = None,
+        audit_logger: Any | None = None,
+        judges: dict[str, Any] | None = None,
     ) -> None:
         self._metering = metering
         self._pricing = dict(_DEFAULT_PRICING)
@@ -214,6 +221,18 @@ class FederatedSettlement:
         self._billing_entries: list[BillingEntry] = []
         self._proposals: dict[str, SettlementProposal] = {}
         self._ledger: dict[str, LedgerEntry] = {}
+        # v0.44.0 F2：联邦级统一裁判接线 — 争议提交到加权法官表决。
+        # v0.46.0 J2：注入 Agent-as-a-Judge 法官，争议走真实仲裁路径。
+        self._verifier_consensus = verifier_consensus
+        if self._verifier_consensus is not None and judges:
+            setter = getattr(self._verifier_consensus, "set_judges", None)
+            if setter is None:
+                raise TypeError(
+                    "verifier_consensus 不支持注入法官：缺少 set_judges() "
+                    "（应传 VerifierConsensus 实例）"
+                )
+            setter(judges)
+        self._audit_logger = audit_logger
         self._db: DatabaseManager | None = None
         if db_path is not None:
             self._db = DatabaseManager(db_path)
@@ -541,6 +560,165 @@ class FederatedSettlement:
         proposal.resolved_at = time.time()
         self._persist_proposal(proposal)
         return True
+
+    def arbitrate_dispute(
+        self,
+        proposal_id: str,
+        strategy: Any | None = None,
+        weight_key: str = "accuracy",
+    ) -> dict[str, Any] | None:
+        """将争议提交到加权法官表决（v0.44.0 F2 联邦级统一裁判）。
+
+        仅对 DISPUTED 提案生效。争议内容（``SettlementProposal.to_dict``）
+        进入 :class:`VerifierConsensus.evaluate` 加权表决，输出可溯源
+        verdict（含逐票记录、策略与一致率）：
+
+        - 表决通过（``passed``）→ 争议成立，提案回到 ACCEPTED，可继续结算；
+        - 表决不通过 → 争议驳回，提案置 REJECTED。
+
+        verdict 写入 ``proposal.verdict`` 并通过 audit_logger 写审计链
+        （event_type=``settlement.arbitration``），供事后复核。
+
+        Args:
+            proposal_id: 待仲裁的争议提案 ID。
+            strategy: 表决策略（缺省用 VerifierConsensus 默认）。
+            weight_key: 加权键（缺省 accuracy）。
+
+        Returns:
+            溯源 verdict dict；提案不存在/非 DISPUTED/未接线共识引擎时
+            返回 None。
+        """
+        proposal = self._proposals.get(proposal_id)
+        if proposal is None or proposal.status != SettlementStatus.DISPUTED:
+            return None
+        if self._verifier_consensus is None:
+            return None
+
+        # v0.46.0 J1：争议提交为结构化 Trace，激活 Agent-as-a-Judge 真实仲裁路径。
+        # 未注入法官时回退 dict 输入（v0.44 仿真表决，向后兼容）。
+        if getattr(self._verifier_consensus, "has_judges", False):
+            item: Trace | dict[str, Any] = self._proposal_to_trace(proposal)
+        else:
+            item = proposal.to_dict()
+        kwargs: dict[str, Any] = {"weight_key": weight_key}
+        if strategy is not None:
+            kwargs["strategy"] = strategy
+        result = self._verifier_consensus.evaluate(item, **kwargs)
+
+        if not result.votes:
+            # 无可用 verifier：无法仲裁，不得误判为驳回（保持 DISPUTED）。
+            return {
+                "arbitrated": False,
+                "reason": "no_active_verifiers",
+                "proposal_id": proposal_id,
+            }
+
+        verdict: dict[str, Any] = result.to_dict()
+        verdict["arbitrated"] = True
+        verdict["proposal_id"] = proposal_id
+        verdict["dispute_reason"] = proposal.dispute_reason
+        # v0.46.0 J3：聚合各法官证据，供事后复核（judge_name/decision/reasoning）。
+        judge_evidence: list[dict[str, Any]] = []
+        for vote in result.votes:
+            if "verdict" in vote and isinstance(vote["verdict"], dict):
+                v = vote["verdict"]
+                judge_evidence.append({
+                    "verifier": vote.get("verifier", ""),
+                    "weight": vote.get("weight", 0.0),
+                    "judge_name": v.get("judge_name", ""),
+                    "decision": v.get("decision", ""),
+                    "reasoning": v.get("reasoning", ""),
+                    "evidence_refs": list(v.get("evidence_refs", [])),
+                })
+        if judge_evidence:
+            verdict["judge_evidence"] = judge_evidence
+
+        # FLAG 风险提示聚合：通过但建议人工复核（v0.46.0 I5 修复）。
+        flagged_decisions = [
+            e["decision"] for e in judge_evidence
+            if e.get("decision") == "flag"
+        ]
+        if flagged_decisions:
+            verdict["flagged"] = True
+            verdict["flag_review_recommended"] = True
+
+        if result.passed:
+            proposal.status = SettlementStatus.ACCEPTED
+        else:
+            proposal.status = SettlementStatus.REJECTED
+            proposal.rejection_reason = f"arbitration: {proposal.dispute_reason}"
+        proposal.resolved_at = time.time()
+        proposal.verdict = verdict
+        self._persist_proposal(proposal)
+
+        if self._audit_logger is not None:
+            self._audit_logger.log(
+                event_type="settlement.arbitration",
+                actor="federated_settlement",
+                action="arbitrate_dispute",
+                details=(
+                    f"proposal={proposal_id} passed={result.passed} "
+                    f"agreement={result.agreement:.3f}"
+                ),
+                metadata=verdict,
+            )
+        return verdict
+
+    @staticmethod
+    def _proposal_to_trace(proposal: SettlementProposal) -> Trace:
+        """把争议提案转为结构化执行轨迹（v0.46.0 J1）。
+
+        将结算争议还原为可供法官仲裁的 TraceStep 序列：
+        - 每笔计费条目（BillingEntry）→ 一条 TraceStep（action=billing.entry）
+        - 争议声明（dispute）→ 一条 TraceStep（action=settlement.dispute）
+        - 结算金额汇总 → 一条 TraceStep（action=settlement.summary）
+
+        法官据此对"金额是否合理/条目是否越界"做模式仲裁。
+        """
+        trace = Trace(
+            trace_id=f"dispute-{proposal.proposal_id}",
+            agent_id=f"{proposal.consumer_org}->{proposal.provider_org}",
+        )
+        for entry in proposal.entries:
+            trace.add_step(
+                TraceStep(
+                    agent_id=entry.agent_did,
+                    action="billing.entry",
+                    decision=(
+                        "credit" if entry.amount >= 0 else "debit"
+                    ),
+                    context_hash=entry.entry_id,
+                    ts=entry.timestamp,
+                    metadata={
+                        "provider_org": entry.provider_org,
+                        "consumer_org": entry.consumer_org,
+                        "task_id": entry.task_id,
+                        "metric_id": entry.metric_id,
+                        "amount": round(entry.amount, 4),
+                    },
+                )
+            )
+        if proposal.dispute_reason:
+            trace.add_step(
+                TraceStep(
+                    agent_id=proposal.consumer_org,
+                    action="settlement.dispute",
+                    decision=proposal.dispute_reason,
+                    metadata={"proposal_id": proposal.proposal_id},
+                )
+            )
+        trace.add_step(
+            TraceStep(
+                agent_id=proposal.provider_org,
+                action="settlement.summary",
+                decision=f"total={round(proposal.total_amount, 4)}",
+                metadata={
+                    "proposal_id": proposal.proposal_id,
+                    "entry_count": len(proposal.entries),
+                },
+            )
+        )
+        return trace
 
     def get_proposal(self, proposal_id: str) -> SettlementProposal | None:
         return self._proposals.get(proposal_id)

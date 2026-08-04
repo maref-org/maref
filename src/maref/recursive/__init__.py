@@ -219,6 +219,13 @@ from maref.recursive.instance_cloner import (
 from maref.recursive.internal_agents import InternalAgent, InternalAgentRegistry
 from maref.recursive.iterative_refiner import IterativeRefiner, RefinementResult, VerificationError
 from maref.recursive.joint_state_machine import JointStateMachine
+from maref.recursive.kakeya_completeness import (
+    AttackDirection,
+    BlindSpot,
+    CompletenessReport,
+    KakeyaCompletenessChecker,
+    assess_and_check,
+)
 from maref.recursive.live_migration import (
     LiveMigration,
     MigrationPlan,
@@ -403,13 +410,6 @@ from maref.recursive.trust_engine_v2 import (
     TrustEngineV2,
     TrustFactor,
     TrustScoreV2,
-)
-from maref.recursive.kakeya_completeness import (
-    AttackDirection,
-    BlindSpot,
-    CompletenessReport,
-    KakeyaCompletenessChecker,
-    assess_and_check,
 )
 from maref.recursive.trust_v2 import (
     ConsensusProposal,

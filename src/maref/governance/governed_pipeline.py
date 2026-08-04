@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from maref.governance.audit import AuditLogger
 from maref.governance.core_pipeline import (
@@ -56,6 +56,10 @@ class GovernedPipeline:
         cb_pool: CircuitBreakerPool | None = None,
         hitl: HITLRouter | None = None,
         permission: PermissionMatrix | None = None,
+        boundary: Any | None = None,
+        task_preflight: Any | None = None,
+        behavior_probe: Any | None = None,
+        consensus: Any | None = None,
     ) -> None:
         # 1. Audit logger with HMAC
         hmac_key = hmac_key or os.environ.get("MAREF_HMAC_SECRET_KEY")
@@ -80,19 +84,54 @@ class GovernedPipeline:
             __import__("maref.gaas.cb_pool", fromlist=["CircuitBreakerPool"]).CircuitBreakerPool()
         ))()
 
-        # 5. Unified governance pipeline with all components
+        # 5. v0.47/v0.48 governance gates (W1: unified closed-loop assembly)
+        from maref.governance.audit_bus import AuditBus
+        from maref.governance.task_preflight import TaskPreflight
+        from maref.governance.trust_boundary import TrustBoundaryManager
+
+        # Shared audit bus: the behavior probe subscribes to the same stream
+        # the pipeline audits into, closing the loop (W2).
+        self.audit_bus = AuditBus()
+        self.boundary = boundary if boundary is not None else TrustBoundaryManager()
+        self.task_preflight = (
+            task_preflight if task_preflight is not None else TaskPreflight()
+        )
+        if behavior_probe is not None:
+            self.behavior_probe = behavior_probe
+        else:
+            from maref.agent.behavior_analyzer import (
+                assemble_runtime_behavior_probe,
+            )
+
+            self.behavior_probe = assemble_runtime_behavior_probe(
+                audit_bus=self.audit_bus
+            )
+        if consensus is not None:
+            self.consensus = consensus
+        else:
+            from maref.governance.federated_consensus import FederatedConsensus
+
+            self.consensus = FederatedConsensus()
+
+        # 6. Unified governance pipeline with all components
         self.pipeline = GovernancePipeline(
             hitl=self.hitl,
             permission=self.permission,
             audit_callback=self._audit_decision,
+            boundary=self.boundary,
         )
 
         logger.info(
-            "GovernedPipeline initialized: audit=%s, hitl=%s, permission=%s, cb=%s",
+            "GovernedPipeline initialized: audit=%s, hitl=%s, permission=%s, cb=%s, "
+            "boundary=%s, preflight=%s, probe=%s, consensus=%s",
             type(self.audit).__name__,
             type(self.hitl).__name__,
             type(self.permission).__name__,
             type(self.cb_pool).__name__,
+            type(self.boundary).__name__,
+            type(self.task_preflight).__name__,
+            type(self.behavior_probe).__name__,
+            type(self.consensus).__name__,
         )
 
     def set_as_default(self) -> None:
@@ -105,7 +144,8 @@ class GovernedPipeline:
         return self.pipeline.govern(request)
 
     def _audit_decision(self, request: GovernanceRequest, result: GovernanceResult) -> None:
-        """Persist governance decisions to the append-only audit log."""
+        """Persist governance decisions to the append-only audit log AND the
+        shared audit bus (W2: closes the loop to the behavior probe)."""
         self.audit.log(
             event_type="governance_decision",
             actor=request.agent_id,
@@ -115,5 +155,19 @@ class GovernedPipeline:
                 "tenant_id": request.tenant_id,
                 "matched_rule": result.matched_rule,
                 "hitl_tier": result.hitl_tier.name if result.hitl_tier else "",
+            },
+        )
+        # Publish to the shared audit bus so the behavior probe (subscribed
+        # to the "audit" topic) receives the governance decision event.
+        self.audit_bus.log(
+            event_type="audit",
+            actor=request.agent_id,
+            action=request.action,
+            details=f"{result.verdict.value}: {result.reason}",
+            metadata={
+                "governance_event": "governance_decision",
+                "tenant_id": request.tenant_id,
+                "matched_rule": result.matched_rule,
+                "verdict": result.verdict.value,
             },
         )

@@ -62,6 +62,11 @@ from maref.governance.social_impact import (
 )
 from maref.governance.state_machine import GovernanceStateMachine
 from maref.governance.threat_bridge import ThreatGovernanceBridge, ThreatGovernanceMapping
+from maref.governance.trust_boundary import (
+    BoundaryDecision,
+    BoundaryViolationError,
+    TrustBoundaryManager,
+)
 from maref.governance.trust_bridge import (
     GovernanceBridge,
     GovernanceQuery,
@@ -69,6 +74,11 @@ from maref.governance.trust_bridge import (
     RecursiveEventType,
 )
 from maref.governance.types import GovernanceState, StateMachineSnapshot, StateTransition
+from maref.governance.verifiable_governance_credential import (
+    GOVERNANCE_SCOPES,
+    GovernanceCredentialStore,
+    VerifiableGovernanceCredential,
+)
 from maref.governance.verifier_consensus import (
     ConsensusResult,
     ConsensusStrategy,
@@ -100,9 +110,16 @@ __all__ = [
     "GovernanceBridge",
     "GovernanceQuery",
     "RecursiveEvent",
+    "TrustBoundaryManager",
+    "BoundaryDecision",
+    "BoundaryViolationError",
     "RecursiveEventType",
     "ThreatGovernanceBridge",
     "ThreatGovernanceMapping",
+    # Verifiable Governance Credential
+    "VerifiableGovernanceCredential",
+    "GovernanceCredentialStore",
+    "GOVERNANCE_SCOPES",
     # Verifier Registry
     "VerifierRegistry",
     "VerifierEntry",

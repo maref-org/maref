@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
 import aiohttp
 import structlog
+
 logger = structlog.get_logger()
 
 class LLMResponse(Enum):
@@ -57,7 +61,7 @@ class DashScopeClient:
             for finding_id, content in findings.items():
                 analysis = await self.analyze_finding(finding_id, content)
                 results.append(analysis)
-            total_confidence = sum((r.confidence for r in results)) / len(results) if results else 0.0
+            total_confidence = sum(r.confidence for r in results) / len(results) if results else 0.0
             return BatchAnalysis(findings=results, total_confidence=total_confidence)
         except Exception as e:
             logger.error('batch_analysis_failed', error=str(e))

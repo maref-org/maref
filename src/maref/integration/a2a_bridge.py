@@ -20,6 +20,7 @@ from maref.integration.a2a_types import (
     validate_agent_card_json,
 )
 from maref.integration.trajectory import TrajectoryCollector, TrajectoryEventType
+from maref.security.decorators import security_critical
 
 DEFAULT_GOVERNANCE_SKILLS = [
     A2ASkillDefinition(
@@ -72,6 +73,10 @@ class A2ABridge:
         agent_name: str = "maref-agent",
         agent_description: str = "MAREF-governed agent",
         trajectory_collector: TrajectoryCollector | None = None,
+        protocol_bridge: Any | None = None,
+        agent_dns: Any | None = None,
+        agent_did: str | None = None,
+        signing_key: Any | None = None,
     ) -> None:
         """Initialize the A2A bridge with governance components.
 
@@ -82,15 +87,29 @@ class A2ABridge:
             agent_name: Name exposed in the Agent Card.
             agent_description: Description exposed in the Agent Card.
             trajectory_collector: Optional trajectory collector for D2/D3 data.
+            protocol_bridge: Optional MCP-A2A adapter bridge (方案 A D4).
+            agent_dns: Optional :class:`~maref.identity.agent_dns.AgentDNS`;
+                when set together with ``agent_did``, the served Agent Card
+                is generated from AgentDNS resolution (方案 E M2 / I2).
+            agent_did: The agent's MAREF DID string; the Agent Card is only
+                published while the DID lifecycle is active.
+            signing_key: Optional Ed25519 :class:`ReportSigningKey` used to
+                sign outgoing delegated tasks (v0.50 W3-S1 / I7).
         """
         self._sm = state_machine
         self._audit = audit_logger
         self._cb = circuit_breaker
         self._name = agent_name
         self._description = agent_description
+        self._signing_key = signing_key
         self._tasks: dict[str, A2ATaskContext] = {}
         self._delegated_tasks: dict[str, DelegatedTask] = {}
         self._capabilities: list[A2ASkillDefinition] = []
+        # 可选协议桥：启用 A2A 能力在 MCP 生态的可见性（方案 A D4）
+        self._protocol_bridge = protocol_bridge
+        # 可选 AgentDNS：Agent Card 由 DID → AgentCard 解析生成（方案 E M2）
+        self._agent_dns = agent_dns
+        self._agent_did = agent_did
         self._lock = asyncio.Lock()
         self._state_queues: dict[str, asyncio.Queue[A2ATaskState]] = {}
         self._trajectory = trajectory_collector or TrajectoryCollector()
@@ -138,11 +157,16 @@ class A2ABridge:
         state = await self._state_queues[task_id].get()
         return state
 
+    @security_critical
     def build_agent_card(self, base_url: str = "http://localhost:8000") -> dict[str, Any]:
         """Build an A2A Agent Card for service discovery.
 
-        Constructs a dictionary conforming to the A2A Agent Card schema,
-        including agent metadata, protocol version, capabilities, and skills.
+        When an ``agent_dns`` + ``agent_did`` are configured, the card is
+        generated from :meth:`AgentDNS.resolve` (方案 E M2 / I2) — the card
+        is only served while the DID lifecycle is ``active``; a revoked or
+        deactivated DID raises :class:`CommunicationBlockedError`.
+
+        Otherwise falls back to the legacy in-bridge card construction.
 
         Args:
             base_url: The base URL where this agent is reachable.
@@ -151,10 +175,14 @@ class A2ABridge:
             A dictionary representing the Agent Card.
 
         Raises:
-            CommunicationBlockedError: If the circuit breaker is open.
+            CommunicationBlockedError: If the circuit breaker is open, or
+                the configured agent DID is revoked/deactivated.
             ValueError: If the generated card fails schema validation.
         """
         self._check_circuit_breaker()
+        if self._agent_dns is not None and self._agent_did:
+            return self._build_agent_card_from_dns(base_url)
+
         skills = [
             {
                 "id": cap.id,
@@ -187,6 +215,95 @@ class A2ABridge:
         if not validate_agent_card_json(card):
             raise ValueError("Generated AgentCard does not pass schema validation")
         return card
+
+    def _build_agent_card_from_dns(self, base_url: str) -> dict[str, Any]:
+        """从 AgentDNS 解析生成 Agent Card（方案 E M2 / I2）。
+
+        DID 生命周期非 active（未注册/撤销/停用）时解析失败，
+        抛 :class:`CommunicationBlockedError`，agent-card 端点据此
+        不再对外发布该能力目录。
+        """
+        from maref.identity.agent_dns import AgentDID
+
+        agent_dns = self._agent_dns
+        agent_did = self._agent_did
+        assert agent_dns is not None
+        if agent_did is None:
+            raise CommunicationBlockedError(
+                "agent_did 未配置，无法经 AgentDNS 生成 Agent Card"
+            )
+        try:
+            did = AgentDID.parse(agent_did)
+        except ValueError as exc:
+            raise CommunicationBlockedError(
+                f"agent_did 配置非法: {self._agent_did!r}"
+            ) from exc
+        card = agent_dns.resolve(did)
+        if card is None:
+            raise CommunicationBlockedError(
+                f"Agent DID {self._agent_did} revoked/deactivated/unregistered"
+                " — Agent Card unavailable"
+            )
+        a2a_card = card.to_a2a_card(base_url=base_url)
+        a2a_card["protocolVersion"] = A2A_PROTOCOL_VERSION
+        # 合并默认能力声明（与 legacy 路径一致），保证 A2A 客户端可发现
+        # streaming/pushNotifications 等能力。
+        merged_caps = {
+            "streaming": True,
+            "pushNotifications": True,
+            "stateTransitionHistory": True,
+            **a2a_card.get("capabilities", {}),
+        }
+        a2a_card["capabilities"] = merged_caps
+        # 合并本地 register_capability 注册的技能（按 id 去重，DNS card 优先）。
+        dns_skill_ids = {s.get("id") for s in a2a_card.get("skills", [])}
+        local_skills = [
+            {
+                "id": cap.id,
+                "name": cap.name,
+                "description": cap.description,
+                "tags": cap.tags,
+                "examples": cap.examples,
+                "inputModes": cap.input_modes,
+                "outputModes": cap.output_modes,
+            }
+            for cap in self._capabilities
+            if cap.id not in dns_skill_ids
+        ]
+        a2a_card["skills"] = list(a2a_card.get("skills", [])) + local_skills
+        if not validate_agent_card_json(a2a_card):
+            raise ValueError("AgentDNS AgentCard does not pass schema validation")
+        self._audit.log(
+            event_type="a2a_agent_card_dns",
+            actor=self._name,
+            action="build_agent_card",
+            details=f"Agent Card resolved via AgentDNS for {agent_did}",
+            metadata={"did": agent_did, "status": card.status},
+        )
+        return a2a_card
+
+    def build_mcp_tools(self) -> list[dict[str, Any]]:
+        """将本 agent 的 A2A 能力映射为 MCP tool 定义。
+
+        接线点（方案 A D4）：注入 protocol_bridge 时启用——A2A 能力在
+        MCP 生态可发现/可调用。未注入时返回空列表，行为不变。
+
+        每个 tool 的 A2A action 取 capability 的 ``a2a_action``（未指定
+        时默认 ``execute_task``），由 MCPToA2AAdapter 语义映射保证一致性。
+        """
+        if self._protocol_bridge is None:
+            return []
+        return [
+            {
+                "name": cap.id,
+                "description": cap.description,
+                "inputSchema": cap.input_schema
+                or {"type": "object", "properties": {}},
+                "sourceProtocol": "a2a",
+                "targetA2AAction": cap.a2a_action or "execute_task",
+            }
+            for cap in self._capabilities
+        ]
 
     def create_task(self, task_description: str, context: dict[str, Any] | None = None) -> str:
         """Create a new governed task.
@@ -288,7 +405,7 @@ class A2ABridge:
             import asyncio
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                client = A2AClient()
+                client = A2AClient(signing_key=self._signing_key)
                 task = self._tasks.get(task_id)
                 if task is not None:
                     loop.create_task(
@@ -409,6 +526,7 @@ class A2ABridge:
             )
         return tasks
 
+    @security_critical
     def force_halt_task(self, task_id: str, reason: str = "") -> bool:
         """Forcefully halt a task and transition to HALT state.
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -185,7 +186,6 @@ class TestCreateTask:
         assert after > before
 
     def test_timestamp_set(self, bridge: A2ABridge) -> None:
-        import time
         task_id = bridge.create_task("Timing")
         task = bridge.get_task(task_id)
         assert task is not None
@@ -391,7 +391,7 @@ class TestListGovernedTasks:
     def test_filter_by_state(self, bridge: A2ABridge) -> None:
         t1 = bridge.create_task("Will work")
         bridge.sync_state_from_a2a(t1, "working")
-        t2 = bridge.create_task("Will stay")
+        bridge.create_task("Will stay")
         tasks = bridge.list_governed_tasks(filter_state=GovernanceState.ACT)
         assert len(tasks) == 1
         assert tasks[0]["task_id"] == t1
@@ -403,7 +403,7 @@ class TestListGovernedTasks:
         assert len(tasks) == 0
 
     def test_returns_summary_dict(self, bridge: A2ABridge) -> None:
-        task_id = bridge.create_task("Summary test")
+        bridge.create_task("Summary test")
         tasks = bridge.list_governed_tasks()
         assert len(tasks) == 1
         entry = tasks[0]
@@ -516,7 +516,7 @@ class TestWaitForStateChange:
         assert "nonexistent-task" not in bridge._state_queues
 
 
-class TestDEFAULT_GOVERNANCE_SKILLS:
+class TestDefaultGovernanceSkills:
     def test_three_skills(self, bridge: A2ABridge) -> None:
         assert len(bridge._capabilities) == 3
 
@@ -545,3 +545,109 @@ class TestCommunicationBlockedError:
     def test_can_be_caught_as_exception(self) -> None:
         with pytest.raises(CommunicationBlockedError):
             raise CommunicationBlockedError("blocked")
+
+
+class TestAgentCardFromAgentDNS:
+    """I2：Agent Card 由 AgentDNS.resolve() 生成（方案 E M2 接线）。"""
+
+    def _agent_dns(self) -> Any:
+        from maref.governance.state_machine import GovernanceStateMachine
+        from maref.identity.agent_dns import AgentDNS
+        from maref.identity.did_registry import AgentDID, DIDRegistry
+
+        registry = DIDRegistry()
+        dns = AgentDNS(did_registry=registry)
+        sm = GovernanceStateMachine()
+        did = AgentDID.generate(namespace="default")
+        registry.register(did, sm)
+        dns.register(
+            did=did,
+            name="research-agent",
+            description="MAREF research agent",
+            skills=[{"id": "marf-research", "name": "Research", "description": "Do research"}],
+            endpoints=["https://agent.example.com"],
+            capabilities={"streaming": True},
+        )
+        return dns, did
+
+    def test_card_resolved_from_agent_dns(self, state_machine: Any, audit_logger: Any) -> None:
+        dns, did = self._agent_dns()
+        bridge = A2ABridge(
+            state_machine=state_machine,
+            audit_logger=audit_logger,
+            agent_dns=dns,
+            agent_did=did.did_string,
+        )
+        card = bridge.build_agent_card(base_url="https://agent.example.com")
+        assert card["name"] == "research-agent"
+        assert card["description"] == "MAREF research agent"
+        assert card["url"] == "https://agent.example.com"
+        assert card["protocolVersion"] == "1.0"
+        assert card["skills"][0]["id"] == "marf-research"
+        # DNS card capabilities 与默认能力声明合并
+        assert card["capabilities"]["streaming"] is True
+        assert card["capabilities"]["pushNotifications"] is True
+        # 本地 register_capability 技能并入
+        assert any(s["id"] == "maref-governance" for s in card["skills"])
+
+    def test_card_uses_endpoint_first(self, state_machine: Any, audit_logger: Any) -> None:
+        dns, did = self._agent_dns()
+        bridge = A2ABridge(
+            state_machine=state_machine,
+            audit_logger=audit_logger,
+            agent_dns=dns,
+            agent_did=did.did_string,
+        )
+        card = bridge.build_agent_card(base_url="https://fallback.example.com")
+        # to_a2a_card: url 取 endpoints[0]，endpoint 存在时不回退 base_url
+        assert card["url"] == "https://agent.example.com"
+
+    def test_revoked_did_card_unavailable(self, state_machine: Any, audit_logger: Any) -> None:
+        dns, did = self._agent_dns()
+        bridge = A2ABridge(
+            state_machine=state_machine,
+            audit_logger=audit_logger,
+            agent_dns=dns,
+            agent_did=did.did_string,
+        )
+        dns._did_registry.revoke(did, reason="compromised")
+        with pytest.raises(CommunicationBlockedError, match="revoked/deactivated"):
+            bridge.build_agent_card()
+
+    def test_unregistered_did_card_unavailable(self, state_machine: Any, audit_logger: Any) -> None:
+        dns, _did = self._agent_dns()
+        # 未在 DNS 挂卡的 DID 解析失败
+        from maref.identity.did_registry import AgentDID
+
+        ghost = AgentDID.generate(namespace="ghost")
+        bridge2 = A2ABridge(
+            state_machine=state_machine,
+            audit_logger=audit_logger,
+            agent_dns=dns,
+            agent_did=ghost.did_string,
+        )
+        with pytest.raises(CommunicationBlockedError, match="unregistered"):
+            bridge2.build_agent_card()
+
+    def test_no_agent_dns_falls_back_to_legacy(self, state_machine: Any, audit_logger: Any) -> None:
+        bridge = A2ABridge(
+            state_machine=state_machine,
+            audit_logger=audit_logger,
+            agent_name="legacy-agent",
+        )
+        card = bridge.build_agent_card(base_url="https://legacy.example.com")
+        assert card["name"] == "legacy-agent"
+        assert card["url"] == "https://legacy.example.com"
+        assert card["protocolVersion"] == "1.0"
+
+    def test_dns_card_audit_logged(self, state_machine: Any, audit_logger: Any) -> None:
+        dns, did = self._agent_dns()
+        bridge = A2ABridge(
+            state_machine=state_machine,
+            audit_logger=audit_logger,
+            agent_dns=dns,
+            agent_did=did.did_string,
+        )
+        bridge.build_agent_card()
+        events = [e.event_type for e in audit_logger.read_all()]
+        assert "a2a_agent_card_dns" in events

@@ -124,8 +124,16 @@ class TestRequireAuth:
         assert resp.status_code == 200
         assert resp.json()["status"] == "running"
 
-    def test_debug_prefix_bypass(self, client):
+    @patch.dict(os.environ, {"MAREF_API_KEY": "test-key"}, clear=True)
+    def test_debug_prefix_requires_auth(self, client):
+        """/_debug/* no longer bypasses auth (v0.47 S6)."""
+        APIKeyManager.reload()
         resp = client.get("/_debug/health")
+        assert resp.status_code == 401
+        resp = client.get(
+            "/_debug/health",
+            headers={"Authorization": "Bearer test-key"},
+        )
         assert resp.status_code == 200
 
     def test_custom_bypass_path(self, client):
@@ -141,12 +149,17 @@ class TestRequireAuth:
         )
         assert resp.status_code == 200
 
-    def test_no_env_key_fallback_allows(self, client):
-        resp = client.post(
-            "/api/v1/hitl/event-1/approve",
-            headers={"Authorization": "Bearer any-token"},
-        )
-        assert resp.status_code == 200
+    @patch.dict(os.environ, {"MAREF_API_KEY": "test-key"}, clear=True)
+    def test_no_env_key_rejects(self, client):
+        """No key configured → fail-closed: even a presented token is denied (v0.47 S6)."""
+        APIKeyManager.reload()
+        with patch.dict(os.environ, {}, clear=True):
+            APIKeyManager.reload()
+            resp = client.post(
+                "/api/v1/hitl/event-1/approve",
+                headers={"Authorization": "Bearer any-token"},
+            )
+            assert resp.status_code in (401, 403)
 
 
 class TestAPIKeyManager:

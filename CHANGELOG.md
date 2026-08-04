@@ -1,5 +1,176 @@
 # CHANGELOG
 
+## [v0.50.0] - 2026-08-04 (治理承重墙封堵 + 三大域补强收口)
+
+### Added — P0 治理承重墙封堵（W1–W4）
+- **W1 单 Agent 治理承重墙**: `GovernanceStateMachine` 空 HMAC 密钥拒绝写链（fail-closed）；`force_stabilize/halt` 增加 `actor` 授权（无授权上下文抛 `PermissionError`）；`restore()` 从快照 `history_entries` 重建历史链（补 `transition_count` 一致性校验）
+- **W2 心跳身份认证**: `FederatedMembership` 可配 `allowed_heartbeat_servers`，未知 server_id 拒绝并审计 `unauthorized_heartbeat`；`federation_http` 心跳端点认证
+- **W3 跨 Agent 信任链**: `A2AClient` 支持 `signing_key` + `peer_public_key`（`X-A2A-Signature`/`X-A2A-Timestamp`/`X-A2A-Nonce` 请求头，Ed25519）；`a2a_server` 验签失败拒绝；`DelegationChain` 链节点签名（`create_signed`/`add_delegation_signed`/`validate_signed`，失败签名 → `INVALID_SIGNATURE`）
+- **W4 认证默认开启**: `MCPSecurityGate`/`OAuthMiddleware` 无 `verification_key` 构造抛错（fail-closed），需显式 `allow_unverified_tokens=True` 才放行；sidecar 装配从 `MAREF_MCP_SECRET_KEY` 注入真实 key
+
+### Added — P1 治理补强（W5–W8）
+- **W5 执行层**: `pty_bridge`/`mcp_bridge` 的 `pty_exec` 用 `shlex.split` + `shell=False`（拒绝空/空白命令，命令注入失效）；`UnifiedHarness` 生产路径接线 `TaskPreflight`（审计含 `self_declared` 标记）
+- **W6 联邦事件/审批安全**: `FederatedPolicySubscriber` policy push 事件级验签（Ed25519，`configure_verification`/`sign_event`）；`HITL approve()` 非 human reviewer 需 `signature`+`reviewer_did`；`FederationGateway(require_acs_signature)` 强制 ACS 签名；`FederatedConsensus` 验签投票 + LEADER_WORKER 常规决议需 quorum
+- **W7 身份与凭证收敛**: 未注册公钥的 DID 签发治理凭证抛 `ValueError`（A7 fail-closed）；`VerifiableCredential.issue` 无 `issuer_secret` 抛错（不再隐式随机密钥）；`identity/__init__` 不再导出死代码凭证路径（迁移到 `VerifiableGovernanceCredential`）
+- **W8 评审与规则**: `RuleJudge` 词边界精确匹配（token 级，消除子串误报，支持下划线复合词与中文模式）；`VerifierConsensus` 无官时非 Trace 输入 fail-closed（不再确定性仿真）
+
+### Changed
+- 版本基线: 0.49.0 → 0.50.0-dev（AGENTS.md 同步 v0.50.0-dev）
+- 覆盖率门禁: CI 全仓 `--fail-under` 40→50；release-gate governance 门禁聚焦 `src/maref/governance` 并提升到 60
+
+### Fixed
+- 27 项基线失败清零: `tests/sidecar` 联邦 API 测试隔离（`MAREF_FEDERATED_DB` + store 重置）、MCP 工具列表漂移（`gov_check_phase_gate`/`gov_verify_output` 补齐）、`tests/integration/test_mcp_server` envelope 校验对齐（`trace_id`/`timestamp`/`source_agent`）、`test_r63_r64_mcp` mock 脚本工具名回显修正、`RateLimiter` 误加参数移除
+
+### Tests
+- 新增 40+ 项: W1 状态机加固（8）、W3 A2A 凭证（6）+ 信任链签名（7）、W4 MCP fail-closed（12）、W5 pty 去 shell（7）+ harness 接线（5）、W6 事件/审批/共识签名（18）、W7 身份收敛（7）、W8 词边界 + fail-closed（15）、W9 覆盖率补测（10）
+- 回归: 治理/联邦/身份/安全/侧车域 1328+ 通过；ruff/mypy 对新增/改动代码 0 errors
+
+
+
+### Added — P0 分布式审计总线生产化（P1–P4）
+- **P1 审计事件规范化**: `normalise_metadata`（递归类型归一 + 键排序，tuple/set/Enum/bytes 幂等归一）；框架运行时噪声键（`tool_call_id`/`task_id`/`conversation_id` 等）在 adapter 层剥离，同一动作跨框架 canonical digest 一致（含噪声键场景）
+- **P2 签名归属强化**: 签名 payload 附加 framework（`signed_payload`，scheme `v2`），跨框架贴签被 `verify_event_signature` 拒绝；旧 `v1` canonical-only 签名向后兼容可验
+- **P3 真实三框架接入**: langgraph 1.2.0 真实 `StateGraph` 执行接入事件源；crewai/autogen 真实运行时格式样例（Task output / ConversableAgent message）→ 三格式同一动作同一 digest 集成测试
+- **P4 总线持久化**: `level2/audit_store.PersistentAuditStore`（复用 DatabaseManager，SQLite）——事件落库、重启可查、按 actor/framework/type 过滤、全量签名完整性校验（含篡改与跨框架复用检测）；`DistributedAuditBus(store=...)` 发布即落库
+
+### Added — P1 组织身份层 + Gossip 原型（P5–P7）
+- **P5 组织 DID 生产实现**: `identity/org_did` — `OrgDID`（`did:maref:org:{org_name}:{org_id}` 严格解析）+ `OrgCertificate`（联邦根 Ed25519 签发/验签，任意第三方持根公钥可验）+ `OrgDIDRegistry`（注册/解析/撤销/deactivate 生命周期 + SQLite 持久化）
+- **P6 Gossip 传输原型**: `level2/gossip_protocol` — 进程内多节点网络，随机-k 转发 + `(kind, origin, generation)` 去重 + TTL 界 + CRDT 合并（snapshot/amendment 高 generation 覆盖，audit 仅追加）+ Ed25519 鉴权（trust_store fail-closed 丢弃未知签名/篡改消息）
+- **P7 组织治理 API**: sidecar `/api/v1/federation/consensus/*`（summary/membership/propose/vote/proposals）+ `/api/v1/federation/preflight` 路由，打通 v0.48 W 轨遗留（GovernedPipeline 的 consensus/task_preflight 零接线）；未装配时 503 fail-closed
+
+### Changed
+- `DistributedAuditBus.__init__` 增加可选 `store`（向后兼容）；`FrameworkAuditEvent` 增加 `signature_scheme`（默认 v2）
+- `level2` 包导出 Gossip 组件；`identity` 包导出组织 DID 组件
+- 版本基线: 0.48.0 → 0.49.0
+
+### Fixed (review)
+- **Gossip 审计事件误去重**: `audit_event` 原以 `(kind, origin, generation)` 去重，默认 `generation=0` 导致同源连续事件被折叠丢失；改为按 payload 规范摘要去重（同内容重播折叠、异内容全保留，append-only 语义正确）
+- **签名 v1 降级绕过**: `verify_event_signature` 无条件回退 v1 校验，允许 canonical-only 签名绕过 v2 事件的 framework 绑定（跨框架贴签复活）；改为严格按 `signature_scheme` 分支——v2 事件仅验 v2，v1 签名仅对显式标记 v1 的事件生效
+- **P7 治理端点缺 scope**: `/api/v1/federation/*` 敏感端点（propose/vote/preflight）补 `federation:write/execute/read` scope 声明（对齐 verifier/evolution 等现有模式）；修正 `@require_auth` 装饰顺序（须位于 `@router.*` 之下，否则 scope 落在注册之外的对象上被静默丢弃）
+- 冗余异常捕获清理（`except (ValueError, Exception)` → `except Exception`）
+
+### Tests
+- 新增 62 项：规范化/签名归属（11）、真实框架接入（7）、总线持久化（8）、Gossip（11）、组织 DID（15）、组织治理 API（10）
+- 回归：改动前失败集合逐一对比一致，无新增回归；ruff/mypy 对新增/改动代码 0 errors
+
+## [v0.48.0] - 2026-08-03 (Level 2 架构设计 + 治理接线闭环)
+
+### Added — Level 2 架构设计（M1，TP-08 承接，2026 仅设计不生产化）
+- **L1 联邦制宪法 v0.1**: 联邦原则/主权边界/互操作性 + 全局红线 FR-001~FR-004 + 冲突仲裁（2/3 多数）+ 修订机制（3/4 超级多数）
+- **L2 联合状态机**: Federal FSM（HEALTHY/DEGRADED/CRISIS）聚合成员状态 + 与 34 态 Gray Code 映射 + 加权投票聚合算法
+- **L3 分布式审计总线 MVP**: `maref/level2/audit_bus_mvp` 三框架（langgraph/crewai/autogen）跨平台审计一致性验证（canonical digest + HMAC 签名，8 测试）
+- **L4 组织 DID**: `did:maref:org:*` 结构 + 组织证书模型（公钥/加权/角色/辖区）+ 与现有 DIDRegistry 复用
+- **L5 Gossip 同步**: 随机 peer 传播 + 去重/TTL + CRDT 版本合并 + 收敛性论证
+- **L6 轻量级 BFT 预研**: 三阶段协议（propose/prepare/commit）+ 6 条 TLA+ 不变量草案 + 性能预估
+
+### Added — 治理生产接线闭环（W1-W4）
+- **W1 统一治理装配工厂**: `GovernedPipeline` 统一装配 TrustBoundary + TaskPreflight + 行为探针 + FederatedConsensus + 共享 audit_bus
+- **W2 sidecar 装配闭环**: `create_app` 装配 GovernedPipeline，行为探针订阅共享审计流
+- **W3 联邦生产装配**: `create_default_federation` 装配 `trusted_peer_public_keys`（S4）+ `consensus_membership`（F2）；平台暴露 `consensus`
+- **W4 接线端到端验证**: v0.47 治理门禁装配后真生效（综合回归 3154 passed）
+
+### Changed
+- 版本基线: 0.47.0 → 0.48.0
+
+## [v0.47.0] - 2026-08-03 (治理闭环生产化 — 接线 + 安全封堵)
+
+### Added — P0 安全封堵（S1–S8）
+- **S1 联邦传输认证**: `FederationHTTPClient` 请求签名（Ed25519 + 时间戳防重放 + body 摘要），`create_federation_app(request_verifier=...)` 配置后 POST 端点 fail-closed 校验；`auth_failed` 审计
+- **S2 SSRF 封堵**: `reconcile` 的 `peer_url` 校验（拒绝回环/链路本地/私有/保留，白名单放行）
+- **S3 策略 fail-closed**: 无规则匹配默认 DENY + `no_rule_match` 审计；ad-hoc 层降为与 federation 同优先级；`JurisdictionConfig.default_decision` → DENY
+- **S4 信任报告签名**: `PeerTrustReport` Ed25519 验签（`trusted_peer_public_keys`），无效丢弃 + `rejected_reports` 审计
+- **S5 计量注入封堵**: `TaskMetric.caller_did` 来源绑定；executor `success` 实测定（禁 params 注入）
+- **S6 sidecar 认证 fail-open 修复**: 无 key fail-closed + `allow_unauthenticated` 开发旗标；真实 scope 校验（`MAREF_API_KEY_SCOPES`）；移除 `/_debug/` 绕过
+- **S7 /api/mcp 治理**: 主入口走 MCPGateway 三层治理（SecurityGate→PolicyEngine→CircuitBreaker）
+- **S8 伪签名替换**: `protocol_bridge` SHA-256 → Ed25519；`a2a_secure_transport` HMAC 截断 → Ed25519；`mcp_security` JWT 补 HS256 验签
+
+### Added — P1 单 Agent 接线（S9–S13）
+- **S9 TrustBoundary 进管线**: `GovernancePipeline` 注入 TrustBoundaryManager 步骤 0 强制门禁（E1006→DENY）；旧版 `security/trust_boundary` deprecation
+- **S10 行为探针装配**: `assemble_runtime_behavior_probe()` 标准装配点 + 订阅收窄治理事件；sidecar `app.state.behavior_probe`
+- **S11 TaskPreflight 接入**: `UnifiedHarness.preflight` 走 6 项检查硬门禁（FAIL→abort）
+- **S12 scope 防伪**: `TrustBoundaryManager` 校验 `subject_did==agent_id` + 签发者 Ed25519 验签
+- **S13 Judge 真实接线**: `VerifierConsensus.record_call` accuracy 回写；convergent/adapter 装配 RuleJudge 真实仲裁
+
+### Added — P1 联邦治理（F1–F4）
+- **F1 multi_agent 治理化**: `MultiAgentCoordinator` 派发前 TrustBoundary 门禁 + 审计/计量 + 级联断路器
+- **F2 共识成员认证**: `FederatedConsensus` 投票绑定成员表，非成员拒绝 + `unauthorized_vote` 审计
+- **F3 联邦派发经边界**: `FederatedPlanExecutor` 跨组织派发前 TrustBoundary 校验（与本地同门禁）
+- **F4 持久化收敛**: 6 模块接入 SQLite（DIDRegistry/AgentDNS/HITL/共识提案/策略决策日志/管辖决策日志），重启恢复
+
+### Added — 监管执行（R1）
+- **R1 监管 ENFORCE 进执行**: `RiskAuthorizationCheck` 接入 `RegulatoryPolicyMapper` ENFORCE 结果，无授权 FAIL；未知辖区 fail-closed 最严格档
+
+### Changed
+- 版本基线: 0.46.1 → 0.47.0
+- 修复多处预先存在的包初始化循环（identity / compliance import 链）
+
+## [v0.46.1] - 2026-08-03 (全量 Review 修复 — 安全缺陷封堵)
+
+### Security
+- **C1 前缀授权跨域超授权**: `AuthorizationScope` 前缀匹配 `file:` 不再放行 `filesystem:format` 等含相同词根的跨域动作（需路径分隔符边界）
+- **C2 共识评审 fail-open**: VerifierConsensus 对 Trace 输入未注入 judge 时 fail-closed（不得退回仿真表决静默放行），新增 `has_judges` / `set_judges` API
+- **v0.45-C1 合规证明可篡改**: `compliance_mapping` 纳入签名 payload，篡改 enforcement/regulations 现被 `verify_signature` 检测
+- **v0.45-I1 强制级别 fail-open**: `enforcement_for_risk` 未知风险回退表内最严格档（ENFORCE > ADVISORY > OBSERVE），空表返回 OBSERVE
+
+### Fixed
+- **v0.46-I2 法官注入静默失败**: `FederatedSettlement(judges=)` 不支持注入时显式抛 TypeError（不再静默回退仿真表决）
+- **v0.46-I5 FLAG 误判否决**: FLAG 风险提示计为通过并标记 `flagged`（供人工复核），仅 BLOCK 否决
+- **v0.45-I3 治理维度语义错配**: `build_credential_mapping` 改为按治理维度（scopes）映射辖区强制级别，不再将治理维度当动作分级
+- **v0.46-J1 兼容修复**: settlement 仲裁按 `has_judges` 决定传 Trace（真实仲裁）或 dict（仿真表决，向后兼容）
+
+### Changed
+- 新增回归测试 8 项（前缀边界 / Trace fail-closed / judge block / FLAG pass / mapping 篡改检测 / 强制级别 fail-safe / FLAG 复核标记 / dict 回退）
+- 版本基线: 0.46.0 → 0.46.1
+
+## [v0.46.0] - 2026-08-03 (Agent-as-a-Judge 生产化 — 联邦争议真实裁判)
+
+### Added
+- **争议轨迹转换**: `settlement._proposal_to_trace()` — 结算争议还原为结构化 Trace（billing.entry / settlement.dispute / settlement.summary），作为法官仲裁输入
+- **真实法官仲裁路径**: `arbitrate_dispute` 改传 Trace，激活 `VerifierConsensus._call_verifier` 的 Agent-as-a-Judge 分支（非仿真表决）
+- **法官注入接线**: `FederatedSettlement(judges=)` 注入 Agent-as-a-Judge 到 VerifierConsensus；未注入时保持仿真表决（向后兼容）
+- **可溯源 verdict**: 争议仲裁 verdict 聚合 `judge_evidence`（judge_name/decision/reasoning/evidence_refs），写审计链 metadata 供事后复核
+
+### Changed
+- 联邦争议从"加权仿真表决"升级为"真实法官裁决"（补战略 §5.2 最大功能空白）
+- 越权模式（escalation_privilege 等）由 RuleJudge 识别并 BLOCK → 提案驳回
+- 版本基线: 0.45.0 → 0.46.0
+
+## [v0.45.0] - 2026-08-03 (监管适配层 — Jurisdiction-Aware Governance)
+
+### Added
+- **JurisdictionProfile 监管画像**: `compliance/jurisdiction_profile.py` — EnforcementLevel（OBSERVE/ADVISORY/ENFORCE）+ JurisdictionProfile 数据模型，预置三档画像（CN 生成式 AI 办法 / EU AI Act+GDPR / Global-South LGPD+DPDP+POPIA），复用 `geopolitical_risk` 与 `compliance.registry`
+- **RegulatoryPolicyMapper 策略映射**: `compliance/regulatory_policy_mapper.py` — `map_action()` 将动作风险分级 × 辖区画像映射为处置策略；ENFORCE 级动作标 `blocked=True` 可接入 TrustBoundary 强制校验
+- **凭证辖区合规映射**: `VerifiableGovernanceCredential` 新增 `compliance_mapping` + `attach_compliance_mapping()`（不参与签名 payload，保持向后兼容）；`AgentIdentityService.issue(jurisdiction=)` 签发时注入按辖区合规映射，形成「策略-执行-证明」闭环
+
+### Changed
+- 切换辖区 profile 后同一动作的 enforcement 级别自动改变（HIGH 级：CN/EU=ENFORCE，Global-South=ADVISORY）
+- IRREVERSIBLE 风险未显式配置时 fail-safe 回退 ENFORCE（最严格档）
+- 版本基线: 0.44.0 → 0.45.0
+
+## [v0.44.0] - 2026-08-03 (三维度可验证治理闭环 — Agent 大战补强)
+
+### Added
+- **单 Agent 权限边界强制实施**: TrustBoundaryManager（`governance/trust_boundary.py`）— 动作执行前经风险分级 + 授权范围 + 目标域白名单校验，越界抛 E1006 并记审计；接线 `task_preflight.RiskAuthorizationCheck` 统一裁决（fail-closed）
+- **行为审计闭环反馈**: RuntimeBehaviorProbe 运行时探针（`agent/behavior_analyzer.py`）— 审计链事件 → 行为特征 → 反馈信任评分，异常自动触发熔断器降级
+- **联邦治理拓扑感知**: ConsensusTopology FLAT/LEADER_WORKER（`governance/federated_consensus.py`）— Worker 快执行、Leader 仲裁、关键决议升级法定人数投票；角色由 `jurisdiction_router` 分配
+- **联邦统一裁判接线**: `settlement.dispute` 与 `joint_state_machine.arbitrate` 接入 VerifierConsensus 加权表决，可溯源 verdict 写审计链
+- **凭证吊销联动 DID**: GovernanceCredentialStore 订阅 DIDRegistry 撤销事件，DID 撤销 → 自动吊销其签发凭证并更新吊销列表
+- **AgentDNS 接线 A2A**: `a2a_server` `.well-known/agent-card.json` 改由 AgentDNS 解析生成，随 DID 生命周期变化
+- **统一身份编排门面**: AgentIdentityService（`identity/agent_identity_service.py`）聚合 DIDRegistry + AgentDNS + CredentialStore + TrustEngine，提供单一 resolve/issue/verify/revoke
+- **Agent DNS 解析服务**: DID → 能力目录解析（对齐 A2A Agent Card 结构），revoked/deactivated 解析失败
+
+### Fixed
+- **同名测试文件收集中断**: `tests/governance/test_trust_boundary.py` 重命名消除与 `tests/security/` 同名冲突，完整套件恢复收集（15224 项）
+- **a2a_bridge mypy**: `AgentDID.parse` 参数 `str | None` 收窄，全模块 mypy strict 通过
+- **安全规范合规**: 新增治理模块（trust_boundary / federated_consensus / verifier_consensus / agent_dns / agent_identity_service / a2a_bridge）补 `@security_critical` 装饰器
+- **legacy 漏洞清理**: MetaCircuitBreaker.state 覆写显式授权、NullAuditStore 不再静默丢弃审计、授权 token 一次性动态签发、ed25519-sim 伪造签名默认拒绝
+
+### Security
+- DID 版本化撤销 + 凭证吊销联动（I1）— 身份生命周期可追溯
+
+### Changed
+- 版本基线: 0.43.0 → 0.44.0
+
 ## [v0.43.0] - 2026-07-31 (开源发布 — Phase 4 集成验证与发布)
 
 ### Added

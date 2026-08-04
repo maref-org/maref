@@ -32,9 +32,12 @@ EXTENDS Naturals, Sequences, FiniteSets, TLC
 
 CONSTANTS
   AgentIds,           (* Set of agent identifiers *)
-  Locations,          (* Set of data residency locations: {"US", "EU", "CN", ...} *)
   MaxAgents,          (* Maximum number of agents for model checking *)
   ScoreThresholds     (* Score thresholds: <<quarantine, conditional, approve>> *)
+
+(* Locations 用整数编码（1=US, 2=EU, 3=CN）：TLC 无法枚举 record 字段中的
+   字符串字面量，整数可枚举且可指纹。 *)
+Locations == {1, 2, 3}
 
 ASSUME IsFiniteSet(AgentIds)
 ASSUME IsFiniteSet(Locations)
@@ -54,6 +57,17 @@ FindingSeverity == {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
 (* Test execution modes *)
 TestMode == {"fast_screen", "full_run"}
 
+(* Finite skill/name universe (replaces TLC built-in STRING to keep TLC bounded) *)
+SkillIDs == {"test_skill", "search", "summarize"}
+
+(* Bounded findings sequences (length 0..1) to avoid enumerating infinite Seq(FindingSeverity);
+   CRITICAL 检测语义被完整保留。 *)
+ShortFindings == UNION {[1..n -> FindingSeverity] : n \in 0..1}
+
+(* Score 采样（阈值边界）收敛状态空间：evalScores 组合 101^2 太大，
+   边界值足以覆盖 ScoreToPhase 与决策树分档。 *)
+ScoreSamples == {0, 29, 30, 49, 50, 60, 80, 100}
+
 (* Governance phases (4-phase autonomy model) *)
 GovernancePhase == {"OLD_YANG", "LESSER_YANG", "LESSER_YIN", "OLD_YIN"}
 
@@ -67,22 +81,22 @@ GovernanceState == {"INIT", "OBSERVE", "ANALYZE", "EVALUATE", "DECIDE",
 
 (* A capability/skill within an agent card *)
 Capability == [
-  skill_id: STRING,
-  name: STRING,
-  business_rule_version: STRING \cup {"Nil"}
+  skill_id: SkillIDs,
+  name: SkillIDs,
+  business_rule_version: SkillIDs \cup {"Nil"}
 ]
 
 (* MAS-TS-001 Agent Card *)
 AgentCard == [
   agent_id: AgentIds,
-  agent_name: STRING,
-  version: STRING,
+  agent_name: SkillIDs,
+  version: SkillIDs,
   data_residency: Locations,
   model_backend_location: Locations,
   cross_border: BOOLEAN,
   capabilities: SUBSET Capability,
   eval_score: 0..100,
-  findings: Seq(FindingSeverity)
+  findings: ShortFindings
 ]
 
 (* ============================================================================ *)
@@ -108,10 +122,10 @@ vars == <<agentCards, evalReports, evalScores, governanceStates,
 
 Init ==
   /\ agentCards = [a \in AgentIds |->
-       [cross_border: FALSE,
-        data_residency: "US",
-        model_backend_location: "US",
-        findings: <<>>]]
+       [cross_border |-> FALSE,
+        data_residency |-> 1,
+        model_backend_location |-> 1,
+        findings |-> <<>>]]
   /\ evalReports = [a \in AgentIds |-> "PASS"]
   /\ evalScores = [a \in AgentIds |-> 0]
   /\ governanceStates = [a \in AgentIds |-> "INIT"]
@@ -147,8 +161,8 @@ PhasePermissions[phase \in Phases] ==
 
 (* Has CRITICAL finding? *)
 HasCriticalFindings(agentId) ==
-  \E i \in 1..Len(agentCards[agentId].findings) :
-    agentCards[agentId].findings[i] = "CRITICAL"
+  \E i \in 1..Len(agentCards[agentId]["findings"]) :
+    agentCards[agentId]["findings"][i] = "CRITICAL"
 
 (* ============================================================================ *)
 (* --- THEOREM 1: Cross-Border Consistency --- *)
@@ -171,8 +185,8 @@ HasCriticalFindings(agentId) ==
 CrossBorderConsistencyInvariant ==
   \A a \in AgentIds :
     LET card == agentCards[a] IN
-      card.data_residency # card.model_backend_location
-        => card.cross_border = TRUE
+      card["data_residency"] # card["model_backend_location"]
+        => card["cross_border"] = TRUE
 
 (* ============================================================================ *)
 (* --- THEOREM 2: Prompt Rot Detection Completeness --- *)
@@ -351,8 +365,8 @@ Rule5Matches(ctx_evalScore) ==
 
 (* Rule: warn-cross-border-inconsistency, priority = 60 *)
 Rule6Matches(ctx_dataResidency, ctx_modelBackend, ctx_crossBorder) ==
-  /\ ctx_dataResidency # ""
-  /\ ctx_modelBackend # ""
+  /\ ctx_dataResidency # 0
+  /\ ctx_modelBackend # 0
   /\ ctx_dataResidency # ctx_modelBackend
   /\ ctx_crossBorder = FALSE
 
@@ -375,11 +389,11 @@ DecisionSafetyInvariant ==
       HasCriticalFindings(a),
       governancePhases[a],
       "",
-      agentCards[a].cross_border,
+      agentCards[a]["cross_border"],
       0,
       evalScores[a],
-      agentCards[a].data_residency,
-      agentCards[a].model_backend_location
+      agentCards[a]["data_residency"],
+      agentCards[a]["model_backend_location"]
     ) \in DecisionLevels
 
 (* --- THEOREM 7: Decision Liveness --- *)
@@ -391,11 +405,11 @@ DecisionLivenessInvariant ==
       HasCriticalFindings(a),
       governancePhases[a],
       "",
-      agentCards[a].cross_border,
+      agentCards[a]["cross_border"],
       0,
       evalScores[a],
-      agentCards[a].data_residency,
-      agentCards[a].model_backend_location
+      agentCards[a]["data_residency"],
+      agentCards[a]["model_backend_location"]
     ) \in {0, 1, 2, 3}
 
 (* --- THEOREM 8: Priority Order Invariant --- *)
@@ -410,11 +424,11 @@ DecisionPriorityInvariant ==
            HasCriticalFindings(a),
            governancePhases[a],
            "tool_execution",
-           agentCards[a].cross_border,
+           agentCards[a]["cross_border"],
            0,
            evalScores[a],
-           agentCards[a].data_residency,
-           agentCards[a].model_backend_location
+           agentCards[a]["data_residency"],
+           agentCards[a]["model_backend_location"]
          ) = 3
 
 (* --- THEOREM 9: Decision Consistency --- *)
@@ -424,8 +438,8 @@ DecisionPriorityInvariant ==
 
 DecisionConsistencyInvariant ==
   \A a \in AgentIds, level \in DecisionLevels :
-    ApplyDecisionTree(TRUE, "OLD_YANG", "", TRUE, 0, 30, "US", "EU") = 3 /\  (* CRITICAL → BLOCK *)
-    ApplyDecisionTree(FALSE, "OLD_YANG", "", FALSE, 4, 80, "US", "US") = 2    (* entropy ≥ 3 → THROTTLE *)
+    ApplyDecisionTree(TRUE, "OLD_YANG", "", TRUE, 0, 30, 1, 2) = 3 /\  (* CRITICAL → BLOCK *)
+    ApplyDecisionTree(FALSE, "OLD_YANG", "", FALSE, 4, 80, 1, 1) = 2    (* entropy ≥ 3 → THROTTLE *)
 
 (* THEOREM DecisionSafety ==
   Spec => []DecisionSafetyInvariant *)
@@ -501,15 +515,15 @@ ThresholdBoundaryInvariant ==
 NoRuleConflictInvariant ==
   (* Scenario 1: CRITICAL finding + high entropy → BLOCK wins (priority 100 > 80) *)
   /\ (Rule1Matches(TRUE, "tool_execution") /\ Rule4Matches(4))
-      => ApplyDecisionTree(TRUE, "OLD_YANG", "tool_execution", FALSE, 4, 80, "US", "US") = 3
+      => ApplyDecisionTree(TRUE, "OLD_YANG", "tool_execution", FALSE, 4, 80, 1, 1) = 3
 
   (* Scenario 2: OLD_YIN + cross_border + entropy → BLOCK wins *)
   /\ (Rule2Matches("OLD_YIN", "cross_boundary") /\ Rule3Matches(TRUE, "cross_boundary", "OLD_YIN"))
-      => ApplyDecisionTree(FALSE, "OLD_YIN", "cross_boundary", TRUE, 0, 80, "US", "US") = 3
+      => ApplyDecisionTree(FALSE, "OLD_YIN", "cross_boundary", TRUE, 0, 80, 1, 1) = 3
 
   (* Scenario 3: High entropy + cross-border inconsistency → THROTTLE wins (80 > 60) *)
-  /\ (Rule4Matches(4) /\ Rule6Matches("US", "EU", FALSE))
-      => ApplyDecisionTree(FALSE, "OLD_YANG", "tool_execution", FALSE, 4, 80, "US", "EU") = 2
+  /\ (Rule4Matches(4) /\ Rule6Matches(1, 2, FALSE))
+      => ApplyDecisionTree(FALSE, "OLD_YANG", "tool_execution", FALSE, 4, 80, 1, 2) = 2
 
 (* THEOREM ScoreConvergence ==
   Spec => []ScoreDeterminismInvariant *)
@@ -533,15 +547,17 @@ RegisterAgentCard(a, card) ==
   /\ evalScores' = [evalScores EXCEPT ![a] = card.eval_score]
   /\ governanceStates' = [governanceStates EXCEPT ![a] = "INIT"]
   /\ governancePhases' = [governancePhases EXCEPT ![a] = ScoreToPhase(card.eval_score)]
-  /\ UNCHANGED <<alerts, quarantineList>>
+  /\ UNCHANGED <<alerts, quarantineList, outputSanitized>>
 
 (* Action: Run Fast-Screen evaluation *)
 RunFastScreen(a, score, status) ==
   /\ a \in AgentIds
-  /\ score \in 0..100
+  /\ score \in ScoreSamples
   /\ status \in EvalStatus
   /\ evalReports' = [evalReports EXCEPT ![a] = status]
   /\ evalScores' = [evalScores EXCEPT ![a] = score]
+  (* Keep phase consistent with score (ScorePhaseMonotonicity) *)
+  /\ governancePhases' = [governancePhases EXCEPT ![a] = ScoreToPhase(score)]
   (* If FAIL, force to HALT *)
   /\ governanceStates' = IF status = "FAIL"
        THEN [governanceStates EXCEPT ![a] = "HALT"]
@@ -550,39 +566,42 @@ RunFastScreen(a, score, status) ==
   /\ quarantineList' = IF status = "FAIL"
        THEN quarantineList \cup {a}
        ELSE quarantineList \ {a}
-  /\ UNCHANGED <<agentCards, governancePhases, alerts>>
+  /\ UNCHANGED <<agentCards, alerts, outputSanitized>>
 
 (* Action: Run Full-Run evaluation *)
 RunFullRun(a, score, findings) ==
   /\ a \in AgentIds
-  /\ score \in 0..100
-  /\ findings \in Seq(FindingSeverity)
+  /\ score \in ScoreSamples
+  /\ findings \in ShortFindings
   /\ evalScores' = [evalScores EXCEPT ![a] = score]
   (* Update phase based on score *)
   /\ governancePhases' = [governancePhases EXCEPT ![a] = ScoreToPhase(score)]
-  (* CRITICAL findings force HALT *)
-  /\ governanceStates' = IF (\E i \in 1..Len(findings) : findings[i] = "CRITICAL")
-       THEN [governanceStates EXCEPT ![a] = "HALT"]
-       ELSE IF score >= 80
-         THEN [governanceStates EXCEPT ![a] = "ACT"]
-         ELSE IF score >= 60
-           THEN [governanceStates EXCEPT ![a] = "VERIFY"]
-           ELSE [governanceStates EXCEPT ![a] = "HALT"]
-  /\ agentCards' = [agentCards EXCEPT ![a].findings = findings]
-  /\ UNCHANGED <<evalReports, alerts, quarantineList>>
+  (* HALT 是吸收态（quarantine/输出未消毒不可解除）；CRITICAL findings force HALT *)
+  /\ governanceStates' = IF governanceStates[a] = "HALT"
+       THEN governanceStates
+       ELSE IF (\E i \in 1..Len(findings) : findings[i] = "CRITICAL")
+         THEN [governanceStates EXCEPT ![a] = "HALT"]
+         ELSE IF score >= 80
+           THEN [governanceStates EXCEPT ![a] = "ACT"]
+           ELSE IF score >= 60
+             THEN [governanceStates EXCEPT ![a] = "VERIFY"]
+             ELSE [governanceStates EXCEPT ![a] = "HALT"]
+  /\ agentCards' = [agentCards EXCEPT ![a]["findings"] = findings]
+  /\ UNCHANGED <<evalReports, alerts, quarantineList, outputSanitized>>
 
 (* Action: Generate alert for prompt rot detection *)
 GeneratePromptRotAlert(a, skillName) ==
   /\ a \in AgentIds
-  /\ alerts' = alerts \cup {[agent_id: a, type: "PROMPT_ROT_UNDETECTABLE",
-                              skill: skillName, timestamp: 0]}
+  /\ skillName \in SkillIDs
+  /\ Cardinality(alerts) < 2 * Cardinality(AgentIds)
+  /\ alerts' = alerts \cup {<<a, "PROMPT_ROT_UNDETECTABLE", skillName, 0>>}
   /\ UNCHANGED <<agentCards, evalReports, evalScores, governanceStates,
-                governancePhases, quarantineList>>
+                governancePhases, quarantineList, outputSanitized>>
 
 (* Action: Update cross-border flag *)
 UpdateCrossBorder(a, isCrossBorder) ==
   /\ a \in AgentIds
-  /\ agentCards' = [agentCards EXCEPT ![a].cross_border = isCrossBorder]
+  /\ agentCards' = [agentCards EXCEPT ![a]["cross_border"] = isCrossBorder]
   /\ UNCHANGED <<evalReports, evalScores, governanceStates, governancePhases,
                 alerts, quarantineList, outputSanitized>>
 
@@ -612,12 +631,14 @@ EmitOutput(a, sanitized) ==
 (* ============================================================================ *)
 
 Next ==
-  \/ \E a \in AgentIds, card \in AgentCard : RegisterAgentCard(a, card)
-  \/ \E a \in AgentIds, score \in 0..100, status \in EvalStatus :
+  (* RegisterAgentCard excluded: Init already registers all AgentIds, and enumerating
+     AgentCard (SUBSET Capability, 2^36 records) makes TLC unbounded. *)
+  (* GeneratePromptRotAlert excluded: PromptRotDetectionInvariant == TRUE has no
+     check; unbounded alert growth explodes the state space. *)
+  \/ \E a \in AgentIds, score \in ScoreSamples, status \in EvalStatus :
        RunFastScreen(a, score, status)
-  \/ \E a \in AgentIds, score \in 0..100, findings \in Seq(FindingSeverity) :
+  \/ \E a \in AgentIds, score \in ScoreSamples, findings \in ShortFindings :
        RunFullRun(a, score, findings)
-  \/ \E a \in AgentIds, skillName \in STRING : GeneratePromptRotAlert(a, skillName)
   \/ \E a \in AgentIds, isCrossBorder \in BOOLEAN : UpdateCrossBorder(a, isCrossBorder)
   \/ \E a \in AgentIds, sanitized \in BOOLEAN : EmitOutput(a, sanitized)
 
@@ -681,7 +702,7 @@ TypeInvariant ==
   /\ \A a \in AgentIds : evalScores[a] \in 0..100
   /\ \A a \in AgentIds : governanceStates[a] \in GovernanceState
   /\ \A a \in AgentIds : governancePhases[a] \in GovernancePhase
-  /\ \A a \in AgentIds : agentCards[a].cross_border \in BOOLEAN
+  /\ \A a \in AgentIds : agentCards[a]["cross_border"] \in BOOLEAN
 
 THEOREM TypeInvariantHolds ==
   Spec => []TypeInvariant

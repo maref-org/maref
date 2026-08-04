@@ -23,6 +23,7 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+import re
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar
@@ -37,10 +38,11 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 _SCOPE_MAP: dict[str, str] = {}
 _API_KEYS: list[str] = []
+_ALLOWED_SCOPES: list[str] = []
 
 
 def _load_keys() -> None:
-    global _API_KEYS
+    global _API_KEYS, _ALLOWED_SCOPES
     if _API_KEYS:
         return
     raw = os.environ.get("MAREF_API_KEY", "")
@@ -51,9 +53,16 @@ def _load_keys() -> None:
     if raw2:
         keys.append(raw2.strip())
     _API_KEYS = keys
+    scopes_raw = os.environ.get("MAREF_API_KEY_SCOPES", "")
+    _ALLOWED_SCOPES = [s.strip() for s in scopes_raw.split(",") if s.strip()]
 
 
-_AUTH_BYPASS_PATHS = {"/api/health", "/api/version", "/api/status", "/_debug/", "/api/mcp/gateway/health"}
+_AUTH_BYPASS_PATHS = {
+    "/api/health",
+    "/api/version",
+    "/api/status",
+    "/api/mcp/gateway/health",
+}
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -61,11 +70,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     Bypass paths are checked first; any path starting with or matching a bypass
     prefix is allowed through without authentication.
+
+    Fail-closed (v0.47 S6): when no API key is configured the middleware
+    rejects requests unless ``allow_unauthenticated=True`` is passed (an
+    explicit development flag).
     """
 
-    def __init__(self, app: FastAPI, bypass_paths: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        app: FastAPI,
+        bypass_paths: set[str] | None = None,
+        allow_unauthenticated: bool = False,
+    ) -> None:
         super().__init__(app)
         self._bypass = (bypass_paths or set()) | _AUTH_BYPASS_PATHS
+        self._allow_unauthenticated = allow_unauthenticated
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Any:
         path = request.url.path
@@ -75,17 +94,23 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         token = _extract_token(request)
         if not token:
+            if self._allow_unauthenticated:
+                _audit_auth(request, path, "unauthenticated_dev", True)
+                return await call_next(request)
             logger.warning("API auth failed: missing token for %s", path)
             _audit_auth(request, path, "missing_token", False)
             return JSONResponse(status_code=401, content={"detail": "Missing Authorization header (Bearer token required)"})
 
         if not _verify_token(token):
+            if self._allow_unauthenticated:
+                _audit_auth(request, path, "unauthenticated_dev", True)
+                return await call_next(request)
             logger.warning("API auth failed: invalid token for %s", path)
             _audit_auth(request, path, "invalid_token", False)
             return JSONResponse(status_code=403, content={"detail": "Invalid API key"})
 
         # Scope enforcement
-        required_scope = _SCOPE_MAP.get(path)
+        required_scope = _resolve_required_scope(path)
         if required_scope and not _has_scope(token, required_scope):
             logger.warning("API auth failed: insufficient scope for %s (required: %s)", path, required_scope)
             _audit_auth(request, path, f"insufficient_scope:{required_scope}", False)
@@ -93,6 +118,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         _audit_auth(request, path, "allowed", True)
         return await call_next(request)
+
+
+def _resolve_required_scope(path: str) -> str | None:
+    """Resolve the required scope for a request path.
+
+    Registered scope templates use FastAPI path params (e.g.
+    ``/api/v1/hitl/{event_id}/approve``); the incoming request path is a
+    concrete URL.  Match the template against the path so scope checks work
+    for parameterised routes.
+    """
+    direct = _SCOPE_MAP.get(path)
+    if direct is not None:
+        return direct
+    for template, scope in _SCOPE_MAP.items():
+        if "{" in template:
+            pattern = re.sub(r"\{[^}]+\}", "[^/]+", template) + "$"
+            if re.match(pattern, path):
+                return scope
+    return None
 
 
 def _extract_token(request: Request) -> str | None:
@@ -105,17 +149,23 @@ def _extract_token(request: Request) -> str | None:
 def _verify_token(token: str) -> bool:
     _load_keys()
     if not _API_KEYS:
-        return True
+        # Fail-closed: no keys configured → no token is accepted unless the
+        # development flag allows unauthenticated access.
+        return False
     return any(hmac.compare_digest(token, k) for k in _API_KEYS)
 
 
 def _has_scope(token: str, required_scope: str) -> bool:
     """Check if token has the required scope.
 
-    Current implementation: any valid key has all scopes (master key model).
-    Future: could extend to per-key scope mapping.
+    ``MAREF_API_KEY_SCOPES`` (comma separated) limits the master key to a
+    specific scope set.  When unset the master key has every scope (the
+    historical master-key model); when set, only the configured scopes pass.
     """
-    return True
+    _load_keys()
+    if not _ALLOWED_SCOPES:
+        return True
+    return required_scope in _ALLOWED_SCOPES
 
 
 _AUDIT_LOG: list[dict[str, Any]] = []
@@ -158,7 +208,7 @@ def require_auth(
         wrapper = async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
         # Store scope requirement for this function
-        setattr(wrapper, "_maref_required_scope", scope)
+        wrapper._maref_required_scope = scope  # type: ignore[union-attr]
         return wrapper  # type: ignore[return-value]
     return decorator
 
@@ -173,7 +223,7 @@ def _register_route_scope(app: FastAPI) -> None:
         if endpoint and hasattr(endpoint, "_maref_required_scope"):
             path = getattr(route, "path", getattr(route, "path_format", ""))
             if path:
-                _SCOPE_MAP[path] = getattr(endpoint, "_maref_required_scope")
+                _SCOPE_MAP[path] = endpoint._maref_required_scope
 
 
 def is_auth_enabled() -> bool:
@@ -196,8 +246,9 @@ class APIKeyManager:
 
     @staticmethod
     def reload() -> None:
-        global _API_KEYS
+        global _API_KEYS, _ALLOWED_SCOPES
         _API_KEYS = []
+        _ALLOWED_SCOPES = []
         _load_keys()
 
     @staticmethod

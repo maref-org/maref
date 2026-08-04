@@ -62,10 +62,21 @@ class UnifiedAuditRecord:
 
 
 class NullAuditStore:
-    """No-op audit store for dev/test. Drops all records silently."""
+    """No-op audit store for dev/test.
+
+    **安全要求**：审计记录不得静默丢弃。append() 时发出显式告警，
+    提醒调用方记录未被持久化；仅在确认丢弃可接受的场景显式使用。
+    """
 
     def append(self, record: UnifiedAuditRecord) -> None:
-        pass
+        import warnings
+
+        warnings.warn(
+            f"NullAuditStore: audit record dropped (event_type={record.event_type}, "
+            f"source={record.source_module}). Audit trail not persisted.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
     def query_by_layer(self, layer: str) -> list[UnifiedAuditRecord]:
         return []

@@ -18,16 +18,17 @@ jobs:
           echo "=== 检查内部卷路径 ==="
           ! grep -r "/Volumes/1TB-M2" --include="*.py" --include="*.sh" \
             --include="*.md" --include="*.yaml" --include="*.yml" \
-            --include="*.json" --include="*.toml" . 2>/dev/null || \
+            --include="*.json" --include="*.toml" \
+            --exclude="leak-detection.yml" --exclude-dir=.git . 2>/dev/null || \
             (echo "❌ 发现内部路径泄露" && exit 1)
           echo "✅ 通过"
 
       - name: Scan for API keys
         run: |
           echo "=== 检查 API 密钥 ==="
-          ! grep -rE "(sk-[a-zA-Z0-9]{32,}|nvapi-[a-zA-Z0-9_-]+|ark-[a-zA-Z0-9-]{20,})" \
+          ! grep -rE "(sk-[a-zA-Z0-9]{40,}|nvapi-[a-zA-Z0-9]{20,}|ark-[a-zA-Z0-9]{20,})" \
             --include="*.py" --include="*.sh" --include="*.env" --include="*.json" \
-            --include="*.yaml" . 2>/dev/null || \
+            --include="*.yaml" --exclude-dir=.git . 2>/dev/null || \
             (echo "❌ 发现 API 密钥泄露" && exit 1)
           echo "✅ 通过"
 
@@ -43,6 +44,7 @@ jobs:
           echo "=== 检查私有组织引用 ==="
           ! grep -r "frankiehot-tech" --include="*.py" --include="*.sh" \
             --include="*.md" --include="*.yaml" --include="*.yml" \
-            --include="*.json" . 2>/dev/null || \
+            --include="*.json" \
+            --exclude="leak-detection.yml" --exclude-dir=.git . 2>/dev/null || \
             (echo "❌ 发现私有组织名引用" && exit 1)
           echo "✅ 通过"

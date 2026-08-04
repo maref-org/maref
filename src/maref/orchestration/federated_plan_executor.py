@@ -139,11 +139,15 @@ class FederatedPlanExecutor:
         action_handlers: dict[str, ActionHandler] | None = None,
         route_resolvers: dict[str, RouteResolver] | None = None,
         trust_fallback_threshold: float = 50.0,
+        boundary: Any | None = None,
     ) -> None:
         self._platform = platform
         self._gateway: FederationGateway = platform.gateway
         self._metering: TaskMeteringEngine = platform.metering
         self._trust: FederatedTrustEngine = platform.trust_engine
+        # v0.47 F3: TrustBoundary gate for federated dispatch — same gate
+        # local execution gets via GovernancePipeline (S9).
+        self._boundary = boundary
         # Inner executor handles non-federation actions.
         self._executor = PlanExecutor(
             governance_check=governance_check,
@@ -357,15 +361,17 @@ class FederatedPlanExecutor:
             provider_org: str  (optional — if missing, any org is allowed)
             token_count: int
             complexity_score: float  (0.0-1.0)
-            success: bool  (default True)
             use_remote: bool  (default False) — also try peer catalogs
+
+        The ``success`` flag is **measured by the executor** from the actual
+        dispatch outcome (v0.47 S5) — callers cannot inject it via params to
+        fabricate or suppress billable work.
         """
         capability = params.get("required_capability", "")
         consumer_org = params.get("consumer_org", "")
         provider_org = params.get("provider_org", "")
         token_count = int(params.get("token_count", 0))
         complexity_score = float(params.get("complexity_score", 0.5))
-        success = bool(params.get("success", True))
         use_remote = bool(params.get("use_remote", False))
 
         record = FederationDispatchRecord(
@@ -373,6 +379,18 @@ class FederatedPlanExecutor:
             provider_org=provider_org,
             consumer_org=consumer_org,
         )
+
+        # v0.47 F3: TrustBoundary gate — federated dispatch gets the same
+        # boundary check as local execution (GovernancePipeline S9).
+        if self._boundary is not None:
+            boundary_decision = self._boundary.check_no_raise(
+                action=action,
+                agent_id=consumer_org or "federated",
+                metadata={"capability": capability, "provider_org": provider_org},
+            )
+            if not boundary_decision.allowed:
+                record.error = f"TrustBoundary denied dispatch: {boundary_decision.reason}"
+                return record
 
         if not capability:
             record.error = "Missing 'required_capability' in params"
@@ -425,6 +443,9 @@ class FederatedPlanExecutor:
             record.success = True
 
             # 4. Record a TaskMetric so cross-org billing is generated.
+            #    success is measured from the dispatch outcome, and the
+            #    metric is bound to the consumer as the caller identity
+            #    (v0.47 S5).
             duration_ms = (time.time() - start) * 1000
             self._metering.record(
                 task_id=record.agent_did,
@@ -434,8 +455,9 @@ class FederatedPlanExecutor:
                 consumer_org=consumer_org,
                 duration_ms=duration_ms,
                 token_count=token_count,
-                success=success,
+                success=record.success,
                 complexity_score=complexity_score,
+                caller_did=consumer_org,
             )
             record.duration_ms = duration_ms
         except Exception as exc:  # pragma: no cover - defensive

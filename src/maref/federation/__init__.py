@@ -168,6 +168,8 @@ class FederatedPlatform:
     marketplace: AgentMarketplace
     metering: TaskMeteringEngine
     settlement: FederatedSettlement
+    # v0.48 W3: federated consensus (F2 membership-bound voting).
+    consensus: Any | None = None
 
     def platform_summary(self) -> dict[str, Any]:
         """Return a snapshot of the entire platform's state.
@@ -195,6 +197,9 @@ def create_default_federation(
     audit_logger: Any | None = None,
     dispatcher: Any | None = None,
     did_registry: Any | None = None,
+    trusted_peer_public_keys: dict[str, str] | None = None,
+    consensus_membership: Any | None = None,
+    consensus_quorum_size: int | None = None,
 ) -> FederatedPlatform:
     """Create a fully-wired :class:`FederatedPlatform` with sensible defaults.
 
@@ -290,6 +295,7 @@ def create_default_federation(
     trust_engine = FederatedTrustEngine(
         local_engine=local_trust,
         local_weight=local_trust_weight,
+        trusted_peer_public_keys=trusted_peer_public_keys,
     )
 
     # 6. Policy: layered engine with the requested conflict strategy.
@@ -307,6 +313,22 @@ def create_default_federation(
     # 10. Settlement: wraps metering for cross-org billing.
     settlement = FederatedSettlement(metering=metering)
 
+    # 11. Consensus (v0.48 W3): F2 membership-bound voting, when wired.
+    from maref.governance.federated_consensus import FederatedConsensus
+
+    member_count = (
+        len(consensus_membership.members_summary())
+        if consensus_membership is not None
+        and hasattr(consensus_membership, "members_summary")
+        else 3
+    )
+    quorum_size = consensus_quorum_size or max(2, member_count // 2 + 1)
+    consensus = FederatedConsensus(
+        member_count=member_count,
+        quorum_size=quorum_size,
+        membership=consensus_membership,
+    )
+
     return FederatedPlatform(
         gateway=gateway,
         discovery=discovery,
@@ -317,6 +339,7 @@ def create_default_federation(
         marketplace=marketplace,
         metering=metering,
         settlement=settlement,
+        consensus=consensus,
     )
 
 

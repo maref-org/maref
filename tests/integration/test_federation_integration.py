@@ -282,9 +282,40 @@ class TestEndToEndFederationFlow:
 class TestFederatedSagaFlow:
     """FederatedSagaOrchestrator end-to-end."""
 
-    def test_saga_no_policy_succeeds(self) -> None:
+    def test_saga_no_policy_fails_closed(self) -> None:
+        """Without any policy rule the saga is denied (v0.47 S3 fail-closed)."""
         platform = create_default_federation()
         orch = FederatedSagaOrchestrator(platform)
+
+        def step_a(ctx: dict[str, Any]) -> StepResult:
+            return StepResult(step_id="a", success=True, data={"v": 1})
+
+        def step_b(ctx: dict[str, Any]) -> StepResult:
+            return StepResult(step_id="b", success=True, data={"v": 2})
+
+        saga = Saga(
+            saga_id="s1",
+            steps=[
+                SagaStep(step_id="a", description="action:noop", execute_fn=step_a),
+                SagaStep(step_id="b", description="action:noop", execute_fn=step_b),
+            ],
+        )
+        result = orch.execute(
+            saga,
+            initial_context={"requesting_org": "Acme", "reviewing_org": "Acme"},
+        )
+        assert not result.is_success
+        assert all(d.decision.value == "deny" for d in result.policy_decisions)
+
+    def test_saga_succeeds_with_explicit_allow(self) -> None:
+        """An explicit ALLOW rule lets the no-op saga run."""
+        platform = create_default_federation()
+        orch = FederatedSagaOrchestrator(platform)
+        orch.policy_engine.add_federation_rule(
+            rule_id="allow-noop",
+            action="action:noop",
+            decision=PolicyDecision.ALLOW,
+        )
 
         def step_a(ctx: dict[str, Any]) -> StepResult:
             return StepResult(step_id="a", success=True, data={"v": 1})
@@ -471,10 +502,11 @@ class TestFederationPolicyConflictResolution:
         assert result.decision.value == "deny"
         assert result.conflict_detected is True
 
-    def test_no_rules_allow_by_default(self) -> None:
+    def test_no_rules_deny_by_default(self) -> None:
         engine = FederationPolicyEngine()
         result = engine.evaluate("unknown-action")
-        assert result.decision.value == "allow"
+        assert result.decision.value == "deny"
+        assert result.no_rule_match is True
 
 
 # ---------------------------------------------------------------------------

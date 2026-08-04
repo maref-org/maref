@@ -4,9 +4,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
-
-
 @dataclass
 class TrustFactor:
     name: str
@@ -95,6 +92,9 @@ class TrustScoreV2:
         )
 
     def to_audit_record(self, round_num: int = 42) -> UnifiedAuditRecord:
+        # 惰性导入：绕开 unified_audit → governance → identity → trust_engine_v2 循环
+        from maref.recursive.unified_audit import UnifiedAuditRecord, make_record_id
+
         return UnifiedAuditRecord(
             record_id=make_record_id("trustv2", hash(self.agent_id) % 100000),
             timestamp=self.timestamp,
@@ -146,6 +146,8 @@ class TrustEngineV2:
     CONSISTENCY_WINDOW = 5
 
     def __init__(self, audit_store: UnifiedAuditStore | None = None) -> None:
+        from maref.recursive.unified_audit import UnifiedAuditStore
+
         self._profiles: dict[str, AgentProfileV2] = {}
         self._scores: dict[str, TrustScoreV2] = {}
         self._audit_store = audit_store or UnifiedAuditStore()
@@ -240,6 +242,24 @@ class TrustEngineV2:
         profile = self._profiles.get(agent_id)
         if profile:
             profile.peer_ratings[rater_id] = min(1.0, max(0.0, rating))
+
+    def adjust_behavioral_consistency(self, agent_id: str, delta: float) -> None:
+        """调整 agent 的行为一致性因子（S2 行为审计闭环反馈）。
+
+        行为异常探针据此将行为信号反馈到信任评分：delta 为带符号的
+        调整量（负值降信任），结果 clamp 到 [0.0, 1.0]。未注册 agent
+        自动注册以支持探针实时接入。
+
+        Args:
+            agent_id: 目标 agent 标识（DID 字符串或名称）。
+            delta: 行为一致性增量，如 -0.3（critical 异常）。
+        """
+        profile = self._profiles.get(agent_id)
+        if profile is None:
+            profile = self.register_agent(agent_id)
+        new_val = min(1.0, max(0.0, profile.behavioral_consistency + delta))
+        profile.behavioral_consistency = new_val
+        profile.last_active_at = time.time()
 
     def record_task(
         self,

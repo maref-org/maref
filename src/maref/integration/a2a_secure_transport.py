@@ -10,8 +10,6 @@ A2A Secure Transport — mTLS + 身份验证
 from __future__ import annotations
 
 import datetime
-import hashlib
-import hmac
 import ssl
 import tempfile
 import time
@@ -120,6 +118,8 @@ class A2ASecureTransport:
     allowed_peers: list[str] | None = None
     agent_id: str = "urn:agent:maref:0-35-0-beta:transport"
     cert_manager: CertificateManager | None = None
+    signing_key: Any | None = None
+    peer_public_key: str = ""
 
     def __post_init__(self) -> None:
         if self.cert_path and self.key_path:
@@ -183,19 +183,27 @@ class A2ASecureTransport:
         }
 
     def sign_payload(self, payload: bytes) -> str:
-        """使用私钥对请求体签名。"""
-        if self.key_path is None:
-            # 无证书时返回空签名
-            return ""
+        """使用 Ed25519 私钥对请求体签名（v0.47 S8）。
 
+        原先的实现把 TLS 私钥的前 32 字节当作 HMAC 密钥——那不是真正的
+        签名。现在要求显式传入 :class:`ReportSigningKey`（Ed25519）。
+        """
+        if self.signing_key is None:
+            return ""
         try:
-            with open(self.key_path, "rb") as f:
-                key_data = f.read()
-            # 使用 HMAC-SHA256 签名（简化版，生产环境应使用 RSA/ECDSA）
-            signature = hmac.new(key_data[:32], payload, hashlib.sha256).hexdigest()
-            return signature
+            return self.signing_key.sign_report(payload)
         except Exception:
             return ""
+
+    def verify_payload_signature(self, payload: bytes, signature: str) -> bool:
+        """用对等方公钥验证请求签名（需配置 ``peer_public_key``）。"""
+        if not signature or self.peer_public_key is None:
+            return False
+        from maref.signing.signing_key import ReportSigningKey
+
+        return ReportSigningKey.verify_signature(
+            self.peer_public_key, signature, payload
+        )
 
     def verify_peer_identity(self, peer_cert: dict[str, Any]) -> bool:
         """验证对等方身份。

@@ -48,6 +48,7 @@ class ChaosResilience:
 
         for _i in range(3):
             meta.signal_inner_trip()
+            meta._meta_cb.authorize_override(actor="chaos_injector")
             meta._meta_cb.state = meta._meta_cb.state.__class__("open")
 
         start = time.monotonic()

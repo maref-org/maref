@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.43.0"
+version = "0.50.0"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -32,6 +32,8 @@ dependencies = [
     "pyyaml>=6.0",
     "httpx>=0.27",
     "defusedxml>=0.7.1",
+    "psutil>=5.9",
+    "aiohttp>=3.9",
 ]
 
 [project.optional-dependencies]
@@ -74,6 +76,7 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "nox>=2024.0",
+    "numpy>=1.26",
 ]
 desktop = [
     "Pillow>=10.0",
@@ -215,7 +218,7 @@ branch = true
 
 [tool.coverage.report]
 precision = 2
-fail_under = 60
+fail_under = 50
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",

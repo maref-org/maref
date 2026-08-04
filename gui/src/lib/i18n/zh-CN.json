@@ -1,0 +1,60 @@
+{
+  "navigation": {
+    "home": "首页",
+    "chat": "对话",
+    "terminal": "终端",
+    "git": "版本控制",
+    "governance": "治理",
+    "desktop": "桌面",
+    "audit": "审计",
+    "drift": "漂移检测",
+    "anomaly": "异常监控",
+    "trust": "信任评分",
+    "formal": "形式化验证",
+    "skills": "技能",
+    "automation": "自动化",
+    "settings": "设置"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "delete": "删除",
+    "search": "搜索",
+    "filter": "筛选",
+    "refresh": "刷新",
+    "retry": "重试",
+    "close": "关闭",
+    "copy": "复制",
+    "download": "下载",
+    "upload": "上传"
+  },
+  "agent": {
+    "idle": "空闲",
+    "thinking": "思考中...",
+    "processing": "处理中...",
+    "error": "出错",
+    "interrupt": "中断",
+    "newSession": "新建会话",
+    "closeSession": "关闭会话",
+    "clearChat": "清空对话"
+  },
+  "desktop": {
+    "capture": "截屏",
+    "operate": "操作",
+    "verify": "验证",
+    "dryRun": "试运行",
+    "realRun": "实际运行",
+    "safeMode": "安全模式"
+  },
+  "settings": {
+    "language": "语言",
+    "theme": "主题",
+    "font": "字体",
+    "notifications": "通知",
+    "about": "关于"
+  }
+}
