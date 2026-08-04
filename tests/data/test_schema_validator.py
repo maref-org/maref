@@ -148,3 +148,10 @@ def test_fingerprint_stable_and_sensitive_to_change() -> None:
     assert SchemaValidator.fingerprint(fields_a) == SchemaValidator.fingerprint(fields_b)
     assert SchemaValidator.fingerprint(fields_a) != SchemaValidator.fingerprint(fields_c)
     assert SchemaValidator.fingerprint(fields_a).startswith("sha256:")
+
+
+def test_fingerprint_sensitive_to_category_change() -> None:
+    """I4 回归：字段分类 PUBLIC→HEALTH 必须改变指纹（C1 治理事件）. """
+    public = [FieldSpec(name="diag", data_type="string", data_category=DataCategory.PUBLIC)]
+    health = [FieldSpec(name="diag", data_type="string", data_category=DataCategory.HEALTH)]
+    assert SchemaValidator.fingerprint(public) != SchemaValidator.fingerprint(health)

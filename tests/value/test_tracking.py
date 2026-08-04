@@ -102,6 +102,53 @@ def test_missing_hmac_key_fails_closed() -> None:
         engine.capture(_record())
 
 
+def test_verify_valid_signature() -> None:
+    """I3 回归：verify() 对合法记录返回 True."""
+    engine = ValueTrackingEngine()
+    stored = engine.capture(_record())
+    assert engine.verify(stored)
+
+
+def test_verify_detects_tampered_record() -> None:
+    """I3 回归：篡改字段后 verify() 返回 False."""
+    engine = ValueTrackingEngine()
+    stored = engine.capture(_record())
+    tampered = ValueRecord(
+        task_id=stored.task_id,
+        agent_id="attacker-changed",
+        team_id=stored.team_id,
+        org_id=stored.org_id,
+        metrics=stored.metrics,
+        recorded_at=stored.recorded_at,
+        signature=stored.signature,
+    )
+    assert not engine.verify(tampered)
+
+
+def test_verify_missing_signature_false() -> None:
+    engine = ValueTrackingEngine()
+    unsigned = _record()
+    assert not engine.verify(unsigned)
+
+
+def test_aggregate_refuses_tampered_records() -> None:
+    """I3 回归：聚合前校验签名，篡改记录导致聚合拒绝."""
+    engine = ValueTrackingEngine()
+    stored = engine.capture(_record(agent="agent-a"))
+    tampered = ValueRecord(
+        task_id=stored.task_id,
+        agent_id="agent-a",
+        team_id=stored.team_id,
+        org_id=stored.org_id,
+        metrics=stored.metrics,
+        recorded_at=stored.recorded_at,
+        signature="deadbeef" * 8,
+    )
+    engine._records.append(tampered)
+    with pytest.raises(ValueError):
+        engine.aggregate(scope="agent", scope_id="agent-a")
+
+
 def test_record_serialization() -> None:
     engine = ValueTrackingEngine()
     engine.capture(_record())

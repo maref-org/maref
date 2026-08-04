@@ -42,9 +42,12 @@ class ValueRecord:
             "recorded_at": self.recorded_at,
             "metrics": [
                 {
+                    "metric_id": m.metric_id,
                     "metric_type": m.metric_type.value,
                     "baseline": m.baseline,
                     "current": m.current,
+                    "unit": m.unit,
+                    "label": m.label,
                 }
                 for m in self.metrics
             ],
@@ -95,6 +98,18 @@ class ValueTrackingEngine:
         self._records.append(signed)
         return signed
 
+    def verify(self, record: ValueRecord) -> bool:
+        """Verify the record's HMAC signature against its payload (I3 fix).
+
+        Returns False when the signature is missing or does not match the
+        current payload — i.e. the record was tampered with or was signed
+        under a different key.
+        """
+        if not record.signature:
+            return False
+        expected = self._sign(record._canonical_payload())
+        return hmac.compare_digest(expected, record.signature)
+
     def records(self) -> list[ValueRecord]:
         return list(self._records)
 
@@ -102,7 +117,11 @@ class ValueTrackingEngine:
         return len(self._records)
 
     def aggregate(self, scope: str, scope_id: str) -> dict[str, Any]:
-        """Aggregate value totals for the given scope (agent|team|org)."""
+        """Aggregate value totals for the given scope (agent|team|org).
+
+        Refuses to aggregate when any matching record fails signature
+        verification (tamper-evident, I3 fix).
+        """
         field_name = {
             "agent": "agent_id",
             "team": "team_id",
@@ -112,6 +131,8 @@ class ValueTrackingEngine:
             raise ValueError(f"invalid scope {scope!r}; expected agent|team|org")
 
         filtered = [r for r in self._records if getattr(r, field_name) == scope_id]
+        if any(not self.verify(r) for r in filtered):
+            raise ValueError("refusing to aggregate records with invalid signatures")
         totals: dict[str, dict[str, float]] = {}
         for record in filtered:
             for metric in record.metrics:

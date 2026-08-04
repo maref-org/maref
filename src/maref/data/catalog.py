@@ -20,6 +20,14 @@ from typing import Any, Callable
 from maref.compliance.data_sovereignty import DataCategory
 
 
+def _compute_fingerprint(fields: tuple[FieldSpec, ...]) -> str:
+    """Compute the schema fingerprint for a field set (lazy import to avoid
+    a circular dependency: schema_validator already imports catalog)."""
+    from maref.data.schema_validator import SchemaValidator
+
+    return SchemaValidator.fingerprint(list(fields))
+
+
 class DataSourceType(Enum):
     """Physical shape of an enterprise data source."""
 
@@ -111,6 +119,27 @@ class DataCatalog:
     def register(self, source: DataSource) -> str:
         if source.name in self._by_name:
             raise ValueError(f"data source {source.name!r} already registered")
+        if source.fields:
+            # I4 fix: 校验声明的 schema_fingerprint 与字段一致（C1-A3 集成）。
+            # 有字段却未提供指纹时自动计算；提供但不一致则拒绝注册。
+            declared = source.schema_fingerprint
+            if not declared:
+                source = DataSource(
+                    name=source.name,
+                    data_type=source.data_type,
+                    owner=source.owner,
+                    categories=source.categories,
+                    sensitive_tags=source.sensitive_tags,
+                    schema_fingerprint=_compute_fingerprint(source.fields),
+                    dataset_id=source.dataset_id,
+                    created_at=source.created_at,
+                    fields=source.fields,
+                )
+            elif declared != _compute_fingerprint(source.fields):
+                raise ValueError(
+                    f"schema_fingerprint for {source.name!r} does not match its fields "
+                    "(field schema or classification changed — refresh fingerprint)"
+                )
         self._sources[source.dataset_id] = source
         self._by_name[source.name] = source.dataset_id
         for cb in self._on_register:

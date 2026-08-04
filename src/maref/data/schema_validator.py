@@ -103,11 +103,16 @@ class SchemaValidator:
 
     @staticmethod
     def fingerprint(fields: list[FieldSpec]) -> str:
-        """Stable schema fingerprint for change detection."""
+        """Stable schema fingerprint for change detection.
+
+        Includes each field's data_category so a PUBLIC→HEALTH reclassification
+        (the key governance event in C1) changes the fingerprint (I4 fix).
+        """
         import hashlib
 
         canonical = "|".join(
-            f"{f.name}:{f.data_type}:{'r' if f.required else 'o'}:{','.join(sorted(f.enum))}"
+            f"{f.name}:{f.data_type}:{f.data_category.value}:"
+            f"{'r' if f.required else 'o'}:{','.join(sorted(f.enum))}"
             for f in sorted(fields, key=lambda f: f.name)
         )
         return f"sha256:{hashlib.sha256(canonical.encode()).hexdigest()[:16]}"
