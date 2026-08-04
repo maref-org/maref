@@ -27,6 +27,17 @@ PII_PATTERNS: dict[str, re.Pattern] = {
     "ip_address": re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"),
 }
 
+# Classification-aware rule selection (C1 → C2 linkage).
+# Keys are DataCategory.value strings to avoid an import-time cycle with
+# maref.compliance.data_sovereignty (which transitively pulls the audit bus).
+CATEGORY_RULE_SETS: dict[str, set[str]] = {
+    "health": {"id_card_cn", "phone_cn", "phone_us"},
+    "financial": {"credit_card"},
+    "personal": {"phone_cn", "phone_us", "email"},
+    "sensitive_personal": {"id_card_cn", "phone_cn", "phone_us", "email"},
+}
+_FULL_PII_RULE_SET: set[str] = set(PII_PATTERNS)
+
 SQL_INJECTION_KEYWORDS: list[str] = [
     "'--",
     "';",
@@ -67,6 +78,44 @@ class Sanitizer:
     """
 
     TOKEN_PREFIX = "[PII_"
+
+    @security_critical
+    def sanitize_by_category(self, text: str, category: object) -> SanitizeResult:
+        """Classification-aware sanitization (v0.51 W3-S2 / C2).
+
+        Applies the PII rule set mapped to ``category`` (see
+        ``CATEGORY_RULE_SETS``).  ``category`` accepts a
+        ``DataCategory`` enum or its ``value`` string.  Unmapped categories
+        fall back to the full PII rule set.  Result tokens are restorable by
+        authorized callers.
+        """
+        category_key = getattr(category, "value", str(category))
+        rule_set = CATEGORY_RULE_SETS.get(category_key, _FULL_PII_RULE_SET)
+        result = SanitizeResult(text=text)
+
+        lowered = text.lower()
+        for kw in SQL_INJECTION_KEYWORDS:
+            if kw.lower() in lowered:
+                result.sql_risk = True
+                result.blocked = True
+                result.reason = f"SQL injection keyword detected: {kw!r}"
+                return result
+
+        for name, pattern in PII_PATTERNS.items():
+            if name not in rule_set:
+                continue
+            matches = pattern.findall(text)
+            for match in matches:
+                token = f"{self.TOKEN_PREFIX}{name.upper()}_{secrets.token_hex(4)}"
+                result.text = result.text.replace(match, token, 1)
+                result.tokens[token] = match
+                if name not in result.pii_found:
+                    result.pii_found.append(name)
+
+        if len(result.text) > 100_000:
+            result.blocked = True
+            result.reason = "input exceeds 100K character limit"
+        return result
 
     @security_critical
     def sanitize_input(self, text: str) -> SanitizeResult:
