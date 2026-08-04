@@ -1,11 +1,8 @@
 """Tests for AlertFeedbackTracker — M2 alert→fix→verify tracking."""
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
-
-import pytest
 
 from maref.observability.alert_feedback_tracker import AlertFeedbackTracker, AlertRecord
 
@@ -111,6 +108,7 @@ class TestAlertFeedbackTracker:
         tracker.record_alert("C", "critical", "msg")
         # Force a second alert with same name outside dedup window
         import uuid
+
         from maref.observability.alert_feedback_tracker import AlertRecord as AR
         r = AR(
             alert_id=uuid.uuid4().hex[:12],
@@ -142,6 +140,33 @@ class TestAlertFeedbackTracker:
         tracker.mark_verified(r.alert_id)
         result = tracker.alert_recovery_rate(window_hours=72)
         assert result["recovery_rate"] >= 0.9
+
+    def test_recovery_rate_counts_recovered_not_double(self, tmp_path: Path) -> None:
+        """Recovery rate must never exceed 1.0 (fixed+verified not double-counted)."""
+        tracker = AlertFeedbackTracker(state_path=tmp_path / "state.json")
+        r = tracker.record_alert("A", "critical", "msg")
+        tracker.mark_fixed(r.alert_id, "fixed")
+        tracker.mark_verified(r.alert_id)
+        result = tracker.alert_recovery_rate(window_hours=72)
+        assert result["recovery_rate"] == 1.0
+
+    def test_resolve_legacy_open_only(self, tmp_path: Path) -> None:
+        """Legacy (empty check_id) open alerts are closed, modern ones kept."""
+        tracker = AlertFeedbackTracker(state_path=tmp_path / "state.json")
+        legacy = tracker.record_alert("Legacy", "critical", "old")  # check_id=""
+        modern = tracker.record_alert(
+            "Modern", "critical", "new", check_id="health_snapshot_freshness",
+        )
+        resolved = tracker.resolve_legacy_open()
+        assert resolved == 1
+        by_id = {r.alert_id: r for r in tracker.get_alerts()}
+        assert not by_id[legacy.alert_id].is_open
+        assert by_id[modern.alert_id].is_open
+
+    def test_resolve_legacy_open_noop_when_none(self, tmp_path: Path) -> None:
+        tracker = AlertFeedbackTracker(state_path=tmp_path / "state.json")
+        tracker.record_alert("Modern", "critical", "new", check_id="pulse_freshness")
+        assert tracker.resolve_legacy_open() == 0
 
     def test_summary_includes_all_metrics(self, tmp_path: Path) -> None:
         tracker = AlertFeedbackTracker(state_path=tmp_path / "state.json")
