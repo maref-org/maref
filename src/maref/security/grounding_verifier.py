@@ -81,7 +81,11 @@ def _tokenize(text: str) -> set[str]:
 
 
 def _direction_conflict(assertion: str, evidence: list[str]) -> bool:
-    """True when assertion and evidence state contradictory movement directions."""
+    """True when assertion and evidence state contradictory movement directions.
+
+    Detects both directions: positive assertion vs negative/flat evidence, and
+    negative assertion vs positive evidence (v0.51 review I2 fix).
+    """
     assertion_tokens = _tokenize(assertion)
     evidence_tokens: set[str] = set()
     for chunk in evidence:
@@ -89,10 +93,10 @@ def _direction_conflict(assertion: str, evidence: list[str]) -> bool:
 
     a_positive = bool(assertion_tokens & _POSITIVE_DIRECTION)
     a_negative = bool(assertion_tokens & _NEGATIVE_DIRECTION)
+    e_positive = bool(evidence_tokens & _POSITIVE_DIRECTION)
     e_negative = bool(evidence_tokens & (_NEGATIVE_DIRECTION | _FLAT_DIRECTION))
 
-    # e.g. "doubled" (positive) vs "flat/declined" (negative/flat) is a conflict.
-    return a_positive and e_negative
+    return (a_positive and e_negative) or (a_negative and e_positive)
 
 
 def _token_overlap(assertion: str, evidence: list[str]) -> float:

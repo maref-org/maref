@@ -7,7 +7,8 @@ notification events required for enterprise data onboarding governance.
 from __future__ import annotations
 
 from maref.compliance.data_sovereignty import DataCategory
-from maref.data.catalog import DataCatalog, DataSource, DataSourceType
+from maref.data.catalog import DataCatalog, DataSource, DataSourceType, FieldSpec
+from maref.data.schema_validator import SchemaValidator
 
 
 def _sample_source(
@@ -89,3 +90,39 @@ def test_change_notice_on_unregister() -> None:
     catalog.unregister(source.dataset_id)
     assert removed == [source.dataset_id]
     assert catalog.get(source.dataset_id) is None
+
+
+def test_register_auto_computes_fingerprint() -> None:
+    """I4 回归：有字段未提供指纹时自动计算并校验一致性."""
+    catalog = DataCatalog()
+    source = DataSource(
+        name="orders",
+        data_type=DataSourceType.TABLE,
+        owner="data-team",
+        fields=(FieldSpec(name="id", data_type="string", required=True),),
+    )
+    catalog.register(source)
+    stored = catalog.get(source.dataset_id)
+    assert stored is not None
+    assert stored.schema_fingerprint.startswith("sha256:")
+    assert stored.schema_fingerprint == SchemaValidator.fingerprint(list(source.fields))
+
+
+def test_register_rejects_stale_fingerprint() -> None:
+    """I4 回归：指纹与字段不一致（分类变更未刷新）时拒绝注册."""
+    catalog = DataCatalog()
+    stale = DataSource(
+        name="patients",
+        data_type=DataSourceType.TABLE,
+        owner="health-team",
+        fields=(FieldSpec(name="diag", data_type="string", data_category=DataCategory.HEALTH),),
+        schema_fingerprint=SchemaValidator.fingerprint(
+            [FieldSpec(name="diag", data_type="string", data_category=DataCategory.PUBLIC)]
+        ),
+    )
+    try:
+        catalog.register(stale)
+    except ValueError as exc:
+        assert "fingerprint" in str(exc)
+    else:
+        raise AssertionError("stale fingerprint should be rejected")

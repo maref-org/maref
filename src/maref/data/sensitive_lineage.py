@@ -31,8 +31,10 @@ _DEFAULT_ALLOWED_CROSS_DOMAINS: dict[DataCategory, set[str]] = {
     DataCategory.CRITICAL_INFRASTRUCTURE: {"ops"},
 }
 
-# Domains that always make a flow "internal" — moving within the same domain
-# is never a cross-domain violation even if it is not explicitly whitelisted.
+# Domains listed here are treated as internal processing domains for the
+# *source* side only; flows *into* an internal domain are NOT auto-allowed —
+# cross-domain policy is enforced by the category whitelist.  Keeping the
+# constant documents intent without weakening the circuit breaker.
 _INTERNAL_DOMAINS = {"etl", "analytics", "reporting", "ops", "clinical", "finance", "src", "health"}
 
 
@@ -85,7 +87,12 @@ class SensitiveDataLineage:
         ``next_asset`` optionally links this flow to the downstream asset it
         produces, enabling chain-based spread analysis.
         """
-        is_internal = node.from_domain == node.to_domain or node.to_domain in _INTERNAL_DOMAINS
+        # Same-domain flow is always internal; cross-domain flow is permitted
+        # only when the target domain is in the category's whitelist.  An
+        # internal-domain target does NOT auto-permit the flow — otherwise the
+        # circuit breaker could be bypassed by routing through an internal
+        # domain (C1 fix, v0.51 review).
+        is_internal = node.from_domain == node.to_domain
         allowed = self._allowed.get(node.category, set())
         permitted = is_internal or "*" in allowed or node.to_domain in allowed
 
