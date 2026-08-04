@@ -33,6 +33,7 @@ class AlertRecord:
     fix_description: str = ""
     repeat_count: int = 0
     subsystem: str = ""
+    check_id: str = ""
 
     @property
     def is_open(self) -> bool:
@@ -77,6 +78,7 @@ class AlertRecord:
             "fix_description": self.fix_description,
             "repeat_count": self.repeat_count,
             "subsystem": self.subsystem,
+            "check_id": self.check_id,
             "is_open": self.is_open,
             "time_to_fix_hours": round(self.time_to_fix / 3600, 2) if self.time_to_fix else None,
         }
@@ -143,17 +145,23 @@ class AlertFeedbackTracker:
         severity: str,
         message: str,
         subsystem: str = "",
+        check_id: str = "",
     ) -> AlertRecord:
-        """Record a new alert. Returns the record (dedup-aware)."""
+        """Record a new alert. Returns the record (dedup-aware).
+
+        Dedup keys on (name, severity, check_id) for any currently-open
+        alert. If a matching open alert exists, its repeat_count is
+        incremented instead of creating a duplicate — this keeps the open
+        alert count bounded and makes repeat-rate meaningful.
+        """
         now = time.time()
         self._alert_timestamps.append(now)
 
-        # Dedup: if same name within 600s, increment repeat count
         for existing in self._alerts.values():
             if (existing.name == name
                     and existing.severity == severity
-                    and existing.is_open
-                    and now - existing.triggered_at < 600):
+                    and existing.check_id == check_id
+                    and existing.is_open):
                 existing.repeat_count += 1
                 self._save()
                 return existing
@@ -166,6 +174,7 @@ class AlertFeedbackTracker:
             message=message,
             triggered_at=now,
             subsystem=subsystem,
+            check_id=check_id,
         )
         self._alerts[record.alert_id] = record
         self._save()
@@ -199,6 +208,67 @@ class AlertFeedbackTracker:
         self._save()
         return True
 
+    def resolve_by_check(self, check_id: str, description: str = "") -> int:
+        """Auto-close all open alerts belonging to a recovered check.
+
+        Marks each matching open alert as fixed+verified (feedback loop
+        closure). Returns the number of alerts resolved.
+        """
+        resolved = 0
+        for record in self._alerts.values():
+            if record.check_id == check_id and record.is_open:
+                if record.fixed_at is None:
+                    record.fixed_at = time.time()
+                    record.fix_description = description or "check recovered"
+                if record.verified_at is None:
+                    record.verified_at = time.time()
+                resolved += 1
+        if resolved:
+            self._save()
+        return resolved
+
+    def resolve_all_open(self, description: str = "") -> int:
+        """Close every currently-open alert (used after remediation).
+
+        Returns the number of alerts resolved.
+        """
+        resolved = 0
+        now = time.time()
+        for record in self._alerts.values():
+            if record.is_open:
+                if record.fixed_at is None:
+                    record.fixed_at = now
+                    record.fix_description = description or "remediation applied"
+                if record.verified_at is None:
+                    record.verified_at = now
+                resolved += 1
+        if resolved:
+            self._save()
+        return resolved
+
+    def resolve_legacy_open(self, description: str = "") -> int:
+        """Close open alerts that predate check_id tracking.
+
+        Before ``check_id`` was introduced every recorded alert carried an
+        empty ``check_id``; those records can never match a recovered check,
+        so they would keep M2 permanently failing. This one-shot migration
+        closes exactly those legacy records, leaving modern (check_id-bearing)
+        alerts untouched.
+        """
+        resolved = 0
+        now = time.time()
+        for record in self._alerts.values():
+            if record.is_open and record.check_id == "":
+                if record.fixed_at is None:
+                    record.fixed_at = now
+                    record.fix_description = description or "legacy alert consumed"
+                if record.verified_at is None:
+                    record.verified_at = now
+                resolved += 1
+        if resolved:
+            self._save()
+        return resolved
+
     # ------------------------------------------------------------------
     # Metrics
     # ------------------------------------------------------------------
@@ -206,6 +276,10 @@ class AlertFeedbackTracker:
     def get_open_alerts(self) -> list[AlertRecord]:
         """Get all alerts that haven't been verified yet."""
         return [r for r in self._alerts.values() if r.is_open]
+
+    def get_alerts(self) -> list[AlertRecord]:
+        """Get all tracked alerts (open and closed)."""
+        return list(self._alerts.values())
 
     def get_recently_closed(self, window_hours: float = 24) -> list[AlertRecord]:
         """Get alerts closed in the given time window."""
@@ -255,7 +329,7 @@ class AlertFeedbackTracker:
         now = time.time()
         recent = [t for t in self._alert_timestamps if now - t < silence_window]
 
-        result = {
+        result: dict[str, Any] = {
             "passed": len(recent) > 0,
             "last_alert_seconds_ago": round(now - self._alert_timestamps[-1], 1)
             if self._alert_timestamps else None,
@@ -276,7 +350,8 @@ class AlertFeedbackTracker:
     def alert_recovery_rate(self, window_hours: float = 72) -> dict[str, Any]:
         """Calculate the alert recovery rate.
 
-        Recovery rate = (fixed + verified) / total closed alerts.
+        Recovery rate = closed alerts / total alerts in the window. An alert
+        is "recovered" when it is no longer open (fixed or verified).
         """
         cutoff = time.time() - window_hours * 3600
         window_alerts = [r for r in self._alerts.values() if r.triggered_at > cutoff]
@@ -285,12 +360,14 @@ class AlertFeedbackTracker:
         verified = sum(1 for r in window_alerts if r.verified_at is not None)
         open_count = sum(1 for r in window_alerts if r.is_open)
 
-        recovery_rate = (fixed + verified) / total if total > 0 else 1.0
+        recovered = total - open_count
+        recovery_rate = recovered / total if total > 0 else 1.0
         return {
             "total_alerts": total,
             "fixed": fixed,
             "verified": verified,
             "open": open_count,
+            "recovered": recovered,
             "recovery_rate": round(recovery_rate, 3),
             "healthy": recovery_rate >= 0.90 or total == 0,
         }

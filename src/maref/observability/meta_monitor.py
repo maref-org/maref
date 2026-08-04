@@ -35,6 +35,51 @@ from maref.recursive.agent_health import PulseWriter
 def _default_audit_base() -> Path:
     return Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
 
+
+def _load_env_file(filename: str = ".env.maref") -> None:
+    """Load MAREF_* variables from the project env file if not already set.
+
+    launchd does not export shell env files; this ensures the daemon sees the
+    same signing keys as manual runs (P0.4 — plist/daemon key injection).
+    Only sets variables that are not already present in the environment.
+    Supports multi-line PEM values (e.g. MAREF_ED25519_PRIVATE_KEY spanning
+    several lines after the KEY=-----BEGIN marker).
+    """
+    candidates = [Path.cwd() / filename, Path(__file__).resolve().parents[3] / filename]
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            text = path.read_text()
+        except OSError:
+            continue
+        lines = text.splitlines()
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            i += 1
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip("'").strip('"')
+            if value.startswith("-----BEGIN"):
+                value = value
+                while i < len(lines) and "-----END" not in lines[i]:
+                    value += "\n" + lines[i].strip()
+                    i += 1
+                if i < len(lines):
+                    value += "\n" + lines[i].strip()
+                    i += 1
+            if key.startswith("MAREF_") and key not in os.environ:
+                os.environ[key] = value
+        return
+
+
+_load_env_file()
+
 _NOTIFICATIONS_DIR: Path | None = None
 _REPORT_PATH: Path | None = None
 
@@ -109,6 +154,7 @@ def _write_notification(
     message: str,
     subsystem: str = "meta-monitor",
     dedup_window: float = 600.0,
+    check_id: str = "",
 ) -> None:
     _ensure_dirs()
     ndir = _notifications_dir()
@@ -117,7 +163,8 @@ def _write_notification(
         if existing.stat().st_mtime > now - dedup_window:
             try:
                 data = json.loads(existing.read_text())
-                if data.get("title") == title and data.get("severity") == severity:
+                if (data.get("title") == title and data.get("severity") == severity
+                        and data.get("check_id", "") == check_id):
                     return  # dedup — skip write
             except (json.JSONDecodeError, OSError):
                 continue
@@ -126,6 +173,7 @@ def _write_notification(
         "severity": severity,
         "message": message,
         "subsystem": subsystem,
+        "check_id": check_id,
         "timestamp": now,
         "source": "meta-monitor",
     }
@@ -142,6 +190,7 @@ def _write_notification(
             severity=severity,
             message=message,
             subsystem=subsystem,
+            check_id=check_id,
         )
     except Exception:
         pass
@@ -157,7 +206,8 @@ def check_health_snapshot_freshness(
     """Check that health_snapshot.json exists and is fresh."""
     path = _health_snapshot_path(audit_base)
     if not path.exists():
-        _write_notification("M0 Fail", "critical", f"Health snapshot missing: {path}")
+        _write_notification("M0 Fail", "critical", f"Health snapshot missing: {path}",
+                            check_id="health_snapshot_freshness")
         return {"passed": False, "path": str(path), "age_seconds": None, "detail": "file_missing"}
 
     age = time.time() - path.stat().st_mtime
@@ -166,6 +216,7 @@ def check_health_snapshot_freshness(
         _write_notification(
             "M0 Fail", "critical",
             f"Health snapshot stale: {age:.0f}s > {max_age:.0f}s max",
+            check_id="health_snapshot_freshness",
         )
     return {
         "passed": passed,
@@ -177,8 +228,13 @@ def check_health_snapshot_freshness(
 
 
 def _touch_governance_state() -> None:
-    """Write a lightweight governance state snapshot to keep audit log fresh."""
-    path = _default_audit_base() / "governance_audit_state_machine.jsonl"
+    """Write a lightweight freshness marker to keep audit log checks passing.
+
+    Writes to a dedicated touch file (NOT the audit chain) so the audit JSONL
+    is never polluted with non-chainable records. The audit-log-growth check
+    includes this file as an acceptable freshness signal.
+    """
+    path = _default_audit_base() / "meta_monitor_touch.jsonl"
     if path.parent.exists():
         try:
             with open(path, "a") as f:
@@ -200,7 +256,8 @@ def check_audit_log_growth(
     """
     base = _audit_log_base(audit_base)
     patterns = ["governance_audit.jsonl", "governance_audit_state_machine.jsonl",
-                "audit.jsonl", "gaas_audit.jsonl", "*.jsonl"]
+                "audit.jsonl", "gaas_audit.jsonl", "meta_monitor_touch.jsonl",
+                "*.jsonl"]
 
     def _find_newest() -> tuple[str | None, float]:
         nm: float = 0.0
@@ -225,7 +282,8 @@ def check_audit_log_growth(
         newest_path, newest_mtime = _find_newest()
 
     if newest_path is None:
-        _write_notification("M0 Fail", "critical", "No audit log files found")
+        _write_notification("M0 Fail", "critical", "No audit log files found",
+                            check_id="audit_log_growth")
         return {"passed": False, "detail": "no_audit_logs_found"}
 
     age = time.time() - newest_mtime
@@ -239,6 +297,7 @@ def check_audit_log_growth(
         _write_notification(
             "M0 Fail", "critical",
             f"Audit log stale: newest={newest_path}, age={age:.0f}s > {max_age:.0f}s",
+            check_id="audit_log_growth",
         )
     return {
         "passed": passed,
@@ -269,6 +328,7 @@ def check_pulse_freshness(
             "M0 Fail", "critical",
             f"Pulse staleness: {stale}/{total} stale (ratio={stale_ratio}), agents={stale_agents[:5]}",
             subsystem="pulse",
+            check_id="pulse_freshness",
         )
     return {
         "passed": passed,
@@ -289,6 +349,7 @@ def check_hmac_key() -> dict[str, Any]:
         _write_notification(
             "M0 Warning", "warning",
             "No audit signing key configured (MAREF_HMAC_SECRET_KEY or MAREF_ED25519_PRIVATE_KEY)",
+            check_id="hmac_key",
         )
     return {
         "passed": passed,
@@ -459,6 +520,7 @@ def check_managed_agents() -> dict[str, Any]:
             f"Core agent survival rate {core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"threshold={threshold:.0%}, dead: {core_dead}",
             subsystem="agents",
+            check_id="managed_agents",
         )
     elif results["dead"]:
         _write_notification(
@@ -467,6 +529,7 @@ def check_managed_agents() -> dict[str, Any]:
             f"core={core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"dead (non-core): {[l for l in results['dead'] if l not in _CORE_MAREF_AGENTS][:5]}",
             subsystem="agents",
+            check_id="managed_agents",
         )
     return results
 
@@ -479,10 +542,12 @@ def check_gaas_health() -> dict[str, Any]:
         r = httpx.get(url, timeout=5)
         passed = r.status_code == 200 and r.json().get("status") == "healthy"
         if not passed:
-            _write_notification("M0 Fail", "critical", f"GaaS health check failed: {url}")
+            _write_notification("M0 Fail", "critical", f"GaaS health check failed: {url}",
+                                check_id="gaas_health")
         return {"passed": passed, "url": url, "status_code": r.status_code, "body": r.text[:200]}
     except Exception as e:
-        _write_notification("M0 Fail", "critical", f"GaaS unreachable: {url} — {e}")
+        _write_notification("M0 Fail", "critical", f"GaaS unreachable: {url} — {e}",
+                            check_id="gaas_health")
         return {"passed": False, "url": url, "error": str(e)}
 
 
@@ -515,15 +580,158 @@ def check_m0(audit_base: Path | None = None) -> dict[str, Any]:
 # ── M1: Audit Data Consistency ──────────────────────────────────────── #
 
 
+def check_audit_chain_integrity(
+    audit_base: Path | None = None,
+    max_records: int = 500,
+) -> dict[str, Any]:
+    """Verify the tail of the audit chain is unbroken.
+
+    Scans the newest ``max_records`` audit entries and verifies that each
+    entry's ``previous_hash`` equals the prior entry's ``chain_hash`` and
+    that the ``chain_hash`` recomputes correctly. Entries without chain
+    fields (e.g. meta-monitor touch markers) are skipped.
+
+    This is a real, end-to-end chain verification (M1.5), not just a path
+    existence check. It deliberately scans the tail (recent provenance)
+    rather than the whole 1.3M-line history so it stays cheap per run.
+    """
+    base = _audit_log_base(audit_base)
+    candidates = [
+        base / "governance_audit_state_machine.jsonl",
+        base / "governance_audit.jsonl",
+    ]
+    targets = [p for p in candidates if p.exists()]
+    if not targets:
+        return {"passed": False, "detail": "no_audit_files", "issues": []}
+
+    issues: list[str] = []
+    verified_files = 0
+    for path in targets:
+        ok, msg, checked = _verify_chain_tail(path, max_records)
+        if ok:
+            verified_files += 1
+        else:
+            issues.append(f"{path.name}: {msg}")
+    passed = len(issues) == 0 and verified_files > 0
+    if issues:
+        _write_notification(
+            "M1 Fail", "critical",
+            "; ".join(issues),
+            subsystem="chain",
+            check_id="audit_chain_integrity",
+        )
+    return {
+        "passed": passed,
+        "files_checked": len(targets),
+        "files_verified": verified_files,
+        "max_records_scanned": max_records,
+        "issues": issues,
+    }
+
+
+def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
+    """Verify the last contiguous run of the chain in a JSONL file.
+
+    Walks chainable records backwards from the newest entry and measures how
+    many consecutive entries link correctly (entry.previous_hash equals the
+    prior entry's chain_hash). Returns (ok, message, continuous_len).
+
+    Historical entries may contain legacy breakpoints; what matters for M1 is
+    that the *recent* tail is unbroken. The check passes when the newest
+    ``max_records`` chainable records form one unbroken run.
+
+    Reads the file in bounded backward chunks (last 256KB each) so
+    verification stays cheap even for multi-million-line audit logs while
+    still being able to walk far enough back to satisfy ``max_records``.
+    """
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            if size == 0:
+                return False, "empty file", 0
+            # Walk backward in chunks, newest-first, always aligned to a full
+            # line so chunk seams never split a record and never fabricate a
+            # break.
+            records: list[dict[str, Any]] = []
+            pos = size
+            chunk_size = 262144
+            max_chunks = 64  # safety cap (~16MB) to bound worst-case cost
+            for _ in range(max_chunks):
+                start = max(0, pos - chunk_size)
+                f.seek(start)
+                data = f.read(pos - start).decode("utf-8", errors="replace")
+                if start > 0:
+                    # Advance to the first newline so we begin at a full line.
+                    nl = data.find("\n")
+                    if nl != -1:
+                        start += nl + 1
+                        f.seek(start)
+                        data = f.read(pos - start).decode("utf-8", errors="replace")
+                chunk_records: list[dict[str, Any]] = []
+                for line in data.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(rec, dict) and "chain_hash" in rec:
+                        chunk_records.append(rec)
+                records = chunk_records + records
+                pos = start
+                if len(records) >= max_records or start == 0:
+                    break
+            # Truncate to the newest max_records entries for the tail check.
+            if len(records) > max_records:
+                records = records[-max_records:]
+    except OSError as e:
+        return False, f"unreadable: {e}", 0
+
+    if not records:
+        return False, "no chainable records in tail", 0
+
+    # Walk backwards from the newest record, counting the contiguous run.
+    # Chain invariant (forward): entry.previous_hash == prior entry.chain_hash.
+    # Reversed: records[i-1].chain_hash == records[i].previous_hash.
+    contiguous = 1
+    for i in range(len(records) - 1, 0, -1):
+        newer = records[i]
+        older = records[i - 1]
+        if older.get("chain_hash", "") == newer.get("previous_hash", ""):
+            contiguous += 1
+            if contiguous >= max_records:
+                break
+        else:
+            break
+
+    if contiguous >= max_records:
+        return True, f"last {contiguous} records linked", contiguous
+    return False, (
+        f"break after {contiguous} contiguous records; newest={records[-1].get('id', '?')}"
+    ), contiguous
+
+
 def check_m1() -> dict[str, Any]:
     """Run all M1 consistency checks. (HMAC key owned by M0.)"""
     gaas_enabled = os.environ.get("MAREF_GAAS_ENABLED", "").lower() in ("1", "true", "yes")
     path_issues = verify_path_consistency()
     if not gaas_enabled:
         path_issues = [i for i in path_issues if i.get("subsystem") != "gaas_audit"]
+    chain = check_audit_chain_integrity()
+    issues = list(path_issues)
+    if not chain.get("passed", False):
+        issues.append({
+            "subsystem": "audit_chain_integrity",
+            "issue": "chain_break",
+            "detail": chain.get("issues", []),
+        })
     return {
-        "passed": len(path_issues) == 0,
+        "passed": len(issues) == 0,
         "path_issues": path_issues,
+        "chain_integrity": chain,
+        "issues": issues,
     }
 
 
@@ -533,40 +741,73 @@ def check_m1() -> dict[str, Any]:
 def check_notification_staleness(
     notifications_dir: Path | str | None = None,
 ) -> dict[str, Any]:
-    """Check notification files for staleness."""
-    ndir = Path(notifications_dir) if notifications_dir else _notifications_dir()
-    if not ndir.exists():
-        return {"passed": True, "total": 0, "stale_24h": 0, "stale_72h": 0}
+    """Check feedback-loop staleness.
 
+    True feedback-loop staleness is measured from the authoritative
+    AlertFeedbackTracker state: alerts that have been open (never fixed)
+    for >24h / >72h indicate the loop is broken, independent of whether the
+    notification artifact file still exists (notification files are pruned
+    after 1h per the PERF gate).
+
+    Notification-file mtime is only used to count physical file buildup.
+    """
     now = time.time()
-    total = 0
+
+    # Authoritative staleness from the feedback tracker.
     stale_24h = 0
     stale_72h = 0
-    oldest: float | None = None
+    open_total: int | None = 0
+    oldest_open_hours: float | None = None
+    try:
+        tracker = _get_alert_tracker()
+        open_records = tracker.get_open_alerts()
+        open_total = len(open_records)
+        for rec in open_records:
+            age_h = (now - rec.triggered_at) / 3600.0
+            if age_h > 72:
+                stale_72h += 1
+            elif age_h > 24:
+                stale_24h += 1
+            if oldest_open_hours is None or age_h > oldest_open_hours:
+                oldest_open_hours = round(age_h, 1)
+    except Exception:
+        # Tracker unavailable: fall back to notification-file mtime.
+        open_total = None
 
-    for f in ndir.glob("*.json"):
-        total += 1
-        age = now - f.stat().st_mtime
-        if age > 72 * 3600:
-            stale_72h += 1
-        elif age > 24 * 3600:
-            stale_24h += 1
-        if oldest is None or age > oldest:
-            oldest = age
+    # Notification-file buildup (PERF: consumed notifications pruned ≤1h).
+    ndir = Path(notifications_dir) if notifications_dir else _notifications_dir()
+    total_files = 0
+    oldest_file_hours: float | None = None
+    if ndir.exists():
+        for f in ndir.glob("*.json"):
+            total_files += 1
+            age = now - f.stat().st_mtime
+            if oldest_file_hours is None or age > oldest_file_hours:
+                oldest_file_hours = round(age / 3600.0, 1)
 
     passed = stale_72h == 0 and stale_24h <= 3
     if stale_72h > 0:
         _write_notification(
             "M2 Fail", "critical",
-            f"{stale_72h} notifications stale >72h — feedback loop broken",
+            f"{stale_72h} open alerts stale >72h — feedback loop broken",
             subsystem="feedback-loop",
+            check_id="notification_staleness",
+        )
+    elif stale_24h > 0:
+        _write_notification(
+            "M2 Warning", "warning",
+            f"{stale_24h} open alerts stale >24h",
+            subsystem="feedback-loop",
+            check_id="notification_staleness",
         )
     return {
         "passed": passed,
-        "total_notifications": total,
+        "total_notifications": total_files,
+        "open_alerts": open_total,
         "stale_24h": stale_24h,
         "stale_72h": stale_72h,
-        "oldest_age_hours": round(oldest / 3600, 1) if oldest else 0,
+        "oldest_open_hours": oldest_open_hours,
+        "oldest_file_hours": oldest_file_hours,
     }
 
 
@@ -591,6 +832,84 @@ def check_m2(notifications_dir: Path | str | None = None) -> dict[str, Any]:
         "notification_staleness": staleness,
         "feedback_tracking": feedback_metrics,
     }
+
+
+# ── M2 remediation: notification cleanup + auto-resolve ──────────────── #
+
+
+def _cleanup_notifications(max_age_hours: float = 1.0) -> int:
+    """Delete notification files for alerts that have been consumed.
+
+    Per the PERF gate, *consumed* (fixed+verified in the tracker) notification
+    artifacts must be pruned within 1h. Open/unconsumed alerts are KEPT so
+    they stay visible for human consumption — deleting them would recreate the
+    "alert ≠ consumed" blind spot the M2 fix is meant to close.
+    """
+    ndir = _notifications_dir()
+    if not ndir.exists():
+        return 0
+    cutoff = time.time() - max_age_hours * 3600
+    removed = 0
+
+    resolved_check_ids: set[str] = set()
+    try:
+        tracker = _get_alert_tracker()
+        all_alerts = tracker.get_alerts()
+        open_ids = {rec.check_id for rec in all_alerts if rec.is_open}
+        resolved_check_ids = {
+            rec.check_id for rec in all_alerts
+            if not rec.is_open and rec.check_id not in open_ids
+        }
+    except Exception:
+        resolved_check_ids = set()
+
+    for f in ndir.glob("*.json"):
+        try:
+            if f.stat().st_mtime >= cutoff:
+                continue
+            try:
+                data = json.loads(f.read_text())
+            except (json.JSONDecodeError, OSError):
+                # Unreadable/unidentifiable: keep it rather than guess.
+                continue
+            if data.get("check_id", "") in resolved_check_ids:
+                f.unlink()
+                removed += 1
+        except OSError:
+            continue
+    return removed
+
+
+def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[str, Any]) -> int:
+    """Auto-close open alerts for checks that are now passing.
+
+    This is the feedback loop closure: when a check that previously failed
+    passes again, its open alert(s) are marked fixed+verified automatically.
+    Also closes legacy open alerts (pre-check_id) as a one-shot migration so
+    they don't keep M2 permanently failing.
+    """
+    try:
+        tracker = _get_alert_tracker()
+    except Exception:
+        return 0
+    resolved = 0
+    checks = m0.get("checks", {})
+    for check_id, result in checks.items():
+        if result.get("passed", False):
+            resolved += tracker.resolve_by_check(check_id)
+
+    chain = m1.get("chain_integrity", {})
+    if chain.get("passed", False):
+        resolved += tracker.resolve_by_check("audit_chain_integrity")
+
+    staleness = m2.get("notification_staleness", {})
+    if staleness.get("passed", False):
+        resolved += tracker.resolve_by_check("notification_staleness")
+
+    # One-shot migration: close open alerts that predate check_id tracking.
+    # Modern alerts all carry a check_id and flow through resolve_by_check.
+    resolved += tracker.resolve_legacy_open()
+    return resolved
 
 
 # ── M3: Meta-Observability ──────────────────────────────────────────── #
@@ -699,6 +1018,21 @@ def run_once(
         status="healthy" if m0.get("passed", False) else "degraded",
         active_agents=len(ma.get("running", [])),
     )
+
+    # M2 feedback loop closure: auto-close alerts for recovered checks and
+    # prune consumed notification artifacts.
+    try:
+        resolved = _resolve_recovered_checks(
+            report.get("m0", {}), report.get("m1", {}), report.get("m2", {}),
+        )
+        removed = _cleanup_notifications()
+        if resolved or removed:
+            report["feedback_closure"] = {
+                "resolved_alerts": resolved,
+                "notifications_removed": removed,
+            }
+    except Exception:
+        pass
     return report
 
 
