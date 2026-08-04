@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.governance.explainer import ReasoningChain
+
 
 class DecisionMode(Enum):
     """How the human receives and responds to the decision request."""
@@ -54,6 +56,11 @@ class DecisionContext:
     estimated_cost: float = 0.0
     affected_resources: list[str] = field(default_factory=list)
     historical_precedent: str = ""  # "Similar action approved 3 times last week"
+    explanation: ReasoningChain | None = None  # structured reasoning chain (D2)
+
+    def explanation_present(self) -> bool:
+        """True when a structured reasoning chain is attached (HITL visibility)."""
+        return self.explanation is not None
 
 
 @dataclass
@@ -89,6 +96,11 @@ class DecisionRequest:
                 "estimated_cost": self.context.estimated_cost,
                 "affected_resources": self.context.affected_resources,
                 "historical_precedent": self.context.historical_precedent,
+                "explanation": (
+                    self.context.explanation.to_dict()
+                    if self.context.explanation is not None
+                    else None
+                ),
             },
         }
 
