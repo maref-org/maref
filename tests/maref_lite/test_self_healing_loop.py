@@ -11,11 +11,11 @@ Aligns with the current implementation:
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from maref_lite.self_healing_loop import HealingCycleReport, SelfHealingConfig, SelfHealingLoop
+from maref_lite.self_healing_loop import SelfHealingConfig, SelfHealingLoop
 
 
 @pytest.fixture
@@ -25,8 +25,8 @@ def mock_deps():
         patch("maref.recursive.self_observer.SelfObserver") as MockObserver,
         patch("maref.recursive.self_diagnostician.SelfDiagnostician") as MockDiagnostician,
         patch("maref.recursive.self_healer.SelfHealer") as MockHealer,
-        patch("maref.recursive.self_architect.SelfArchitect") as MockArchitect,
-        patch("maref.recursive.self_executor.SelfExecutor") as MockExecutor,
+        patch("maref.recursive.self_architect.SelfArchitect") as _,
+        patch("maref.recursive.self_executor.SelfExecutor") as _,
         patch("maref.recursive.unified_audit.UnifiedAudit") as MockAudit,
     ):
         observer_inst = MockObserver.return_value
