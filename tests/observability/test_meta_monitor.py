@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
+import maref.observability.meta_monitor as meta_monitor
 from maref.observability.audit_paths import (
     AuditPathEntry,
     get_registry,
@@ -151,27 +152,140 @@ class TestM0ManagedAgents:
 
 
 class TestM2NotificationStaleness:
+    def _stale_tracker(self, age_hours: float) -> object:
+        """Build an AlertFeedbackTracker with one open alert aged age_hours."""
+        from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+
+        tracker = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
+        tracker.record_alert(
+            name="Test Stale Alert",
+            severity="critical",
+            message="test",
+            check_id="test_stale_check",
+        )
+        record = tracker.get_open_alerts()[0]
+        record.triggered_at = time.time() - age_hours * 3600
+        return tracker
+
     def test_no_notifications_passes(self, tmp_path: Path) -> None:
-        result = check_notification_staleness(notifications_dir=tmp_path / "notifications")
+        from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+
+        clean = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
+        with patch.object(meta_monitor, "_get_alert_tracker", return_value=clean):
+            result = check_notification_staleness(notifications_dir=tmp_path / "notifications")
         assert result["passed"] is True
-        assert result["total"] == 0
+        assert result["total_notifications"] == 0
+        assert result["open_alerts"] == 0
 
     def test_fresh_notifications_pass(self, tmp_path: Path) -> None:
+        from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+
         notif_dir = tmp_path / "notifications"
         notif_dir.mkdir(parents=True)
         (notif_dir / "test.json").write_text(json.dumps({"ts": time.time()}))
-        result = check_notification_staleness(notifications_dir=notif_dir)
+        clean = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
+        with patch.object(meta_monitor, "_get_alert_tracker", return_value=clean):
+            result = check_notification_staleness(notifications_dir=notif_dir)
         assert result["passed"] is True
 
     def test_old_notification_fails(self, tmp_path: Path) -> None:
+        """Feedback-loop staleness is measured from open alerts, not files."""
+        from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+
         notif_dir = tmp_path / "notifications"
         notif_dir.mkdir(parents=True)
         nf = notif_dir / "stale.json"
         nf.write_text(json.dumps({"ts": time.time() - 300000}))
         old_mtime = time.time() - 300000
         os.utime(nf, (old_mtime, old_mtime))
-        result = check_notification_staleness(notifications_dir=notif_dir)
+        clean = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
+        with patch.object(meta_monitor, "_get_alert_tracker", return_value=clean):
+            result = check_notification_staleness(notifications_dir=notif_dir)
+        assert result["passed"] is True  # stale file alone does not fail
+
+    def test_old_open_alert_fails(self, tmp_path: Path) -> None:
+        """An open alert aged >72h must fail the staleness check."""
+
+        with patch.object(meta_monitor, "_get_alert_tracker",
+                          return_value=self._stale_tracker(age_hours=73)):
+            result = check_notification_staleness(notifications_dir=tmp_path / "notifications")
         assert result["passed"] is False
+        assert result["stale_72h"] == 1
+
+    def test_old_open_alert_24h_warns(self, tmp_path: Path) -> None:
+        """An open alert aged 25h must not fail but be tracked as stale_24h."""
+
+        with patch.object(meta_monitor, "_get_alert_tracker",
+                          return_value=self._stale_tracker(age_hours=25)):
+            result = check_notification_staleness(notifications_dir=tmp_path / "notifications")
+        assert result["passed"] is True
+        assert result["stale_24h"] == 1
+
+
+class TestM2NotificationCleanup:
+    def test_only_consumed_notifications_pruned(self, tmp_path: Path) -> None:
+        """Open (unconsumed) notification files must survive cleanup."""
+        from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+        from maref.observability.meta_monitor import _cleanup_notifications
+
+        tracker = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
+        tracker.record_alert(
+            name="Open Alert", severity="critical", message="open",
+            check_id="open_check",
+        )
+        tracker.record_alert(
+            name="Closed Alert", severity="warning", message="closed",
+            check_id="closed_check",
+        )
+        # Resolve only the closed one.
+        tracker.resolve_by_check("closed_check", description="fixed")
+
+        ndir = tmp_path / "notifications"
+        ndir.mkdir(parents=True)
+        for check_id, name in (("open_check", "open"), ("closed_check", "closed")):
+            f = ndir / f"{check_id}.json"
+            f.write_text(json.dumps({
+                "title": name, "severity": "critical", "check_id": check_id,
+                "timestamp": time.time(), "source": "meta-monitor",
+            }))
+            # Age it past the cleanup window.
+            old = time.time() - 2 * 3600
+            os.utime(f, (old, old))
+
+        with patch.object(meta_monitor, "_get_alert_tracker", return_value=tracker), \
+                patch.object(meta_monitor, "_notifications_dir", return_value=ndir):
+            removed = _cleanup_notifications(max_age_hours=1.0)
+
+        assert removed == 1
+        assert not (ndir / "closed_check.json").exists()
+        assert (ndir / "open_check.json").exists()
+
+    def test_fresh_notifications_never_pruned(self, tmp_path: Path) -> None:
+        """Notifications within the cleanup window are always kept."""
+        from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+        from maref.observability.meta_monitor import _cleanup_notifications
+
+        tracker = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
+        tracker.record_alert(
+            name="Fresh", severity="warning", message="fresh",
+            check_id="fresh_check",
+        )
+        tracker.resolve_by_check("fresh_check")
+
+        ndir = tmp_path / "notifications"
+        ndir.mkdir(parents=True)
+        f = ndir / "fresh.json"
+        f.write_text(json.dumps({
+            "title": "Fresh", "severity": "warning", "check_id": "fresh_check",
+            "timestamp": time.time(), "source": "meta-monitor",
+        }))
+
+        with patch.object(meta_monitor, "_get_alert_tracker", return_value=tracker), \
+                patch.object(meta_monitor, "_notifications_dir", return_value=ndir):
+            removed = _cleanup_notifications(max_age_hours=1.0)
+
+        assert removed == 0
+        assert (ndir / "fresh.json").exists()
 
 
 class TestGaaSHealth:
