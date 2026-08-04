@@ -80,9 +80,9 @@ class DataSource:
 
     def category_for_field(self, field_name: str) -> DataCategory:
         """Return the DataCategory declared for a field (C1 field-level mapping)."""
-        for field in self.fields:
-            if field.name == field_name:
-                return field.data_category
+        for f in self.fields:
+            if f.name == field_name:
+                return f.data_category
         raise ValueError(f"field {field_name!r} not present in data source {self.name!r}")
 
     def sensitive_fields(self) -> tuple[FieldSpec, ...]:
