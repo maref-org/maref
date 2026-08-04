@@ -5,6 +5,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from maref.security.grounding_verifier import GroundingVerifier
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,11 +44,18 @@ class VerificationBridge:
         gateway_adapter: Any | None = None,
         trust_graph: Any | None = None,
         redblue_engine: Any | None = None,
+        grounding_verifier: GroundingVerifier | None = None,
     ):
         self._gateway = gateway_adapter
         self._trust_graph = trust_graph
         self._redblue = redblue_engine
         self._history: list[VerificationResult] = []
+        self._grounding = grounding_verifier or GroundingVerifier()
+
+    @property
+    def history(self) -> list[VerificationResult]:
+        """All verification results recorded by this bridge."""
+        return list(self._history)
 
     def run_protocol_a(self, kdp_cards: list[dict[str, Any]]) -> list[VerificationResult]:
         """Dual-blind KDP extraction verification (Protocol A).
@@ -287,6 +296,38 @@ class VerificationBridge:
             self._history.append(result)
 
         return results
+
+    def run_protocol_e(
+        self,
+        assertion: str,
+        evidence: list[str],
+        source: str = "",
+        evidence_ids: list[str] | None = None,
+    ) -> VerificationResult:
+        """Grounding triangulation (Protocol E, v0.51 W5-S2 / E2).
+
+        Verifies a generated assertion against its retrieved evidence and the
+        declared source via :class:`GroundingVerifier` faithfulness scoring.
+        Unlike protocols A-D, Protocol E needs no gateway adapter.
+        """
+        score = self._grounding.verify_assertion(
+            assertion, evidence, evidence_ids=evidence_ids
+        )
+        result = VerificationResult(
+            protocol="E",
+            passed=score.support_level.value == "supported" and score.score >= 0.5,
+            confidence=score.score,
+            details={
+                "assertion": assertion,
+                "source": source,
+                "evidence_count": len(evidence),
+                "support_level": score.support_level.value,
+                "evidence_ids": list(score.evidence_ids),
+            },
+            error=None if evidence else "no evidence supplied",
+        )
+        self._history.append(result)
+        return result
 
     def _compute_consensus(self, result_a: str, result_b: str) -> dict[str, Any]:
         """Simple heuristic consensus between two model outputs."""
