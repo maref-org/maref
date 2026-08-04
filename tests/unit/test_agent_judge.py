@@ -58,7 +58,7 @@ class TestConsensusWithJudges:
             "j1": RuleJudge(),
             "j2": RuleJudge(),
         })
-        trace = _trace_with([("file.read", "allowed"), ("privilege_escalation", "attempted")])
+        trace = _trace_with([("file.read", "allowed"), ("escalation_privilege", "attempted")])
         result = consensus.evaluate(trace)
         assert result.passed is False
         assert len(result.votes) == 2
@@ -157,12 +157,13 @@ class TestTraceModel:
 
 
 class TestBackwardCompat:
-    def test_bool_item_still_uses_simulation(self) -> None:
-        """未注入法官时，布尔输入保持既有仿真行为。"""
+    def test_bool_item_without_judges_fails_closed(self) -> None:
+        """v0.50 W8-S2 (A10)：未注入法官时布尔输入 fail-closed，不再仿真。"""
         reg = VerifierRegistry()
         reg.register(VerifierEntry(name="v1", model="gpt-4", methodology="cross-check", accuracy=0.9))
         consensus = VerifierConsensus(reg)
         result = consensus.evaluate(True)
-        assert result.passed
+        assert result.passed is False
+        assert result.votes[0]["verdict"]["error"] == "no_judge_for_input"
         result = consensus.evaluate(False, strategy=ConsensusStrategy.UNANIMITY)
         assert result.passed is False

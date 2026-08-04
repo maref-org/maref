@@ -15,6 +15,8 @@ from maref.recursive.joint_state_machine import JointStateMachine
 
 
 def _consensus(high: int = 2, low: int = 1) -> VerifierConsensus:
+    from maref.governance.judge import RuleJudge
+
     reg = VerifierRegistry()
     for i in range(high):
         reg.register(
@@ -24,10 +26,13 @@ def _consensus(high: int = 2, low: int = 1) -> VerifierConsensus:
         reg.register(
             VerifierEntry(name=f"judge-l{i}", model="m", methodology="x", accuracy=0.1)
         )
-    return VerifierConsensus(reg)
+    # v0.50 W8-S2 (A10)：无官时非 Trace 输入 fail-closed，联邦仲裁装配真实法官。
+    judges = {f"judge-h{i}": RuleJudge() for i in range(high)}
+    judges.update({f"judge-l{i}": RuleJudge() for i in range(low)})
+    return VerifierConsensus(reg, judges=judges)
 
 
-def _disputed_proposal(settlement: FederatedSettlement) -> str:
+def _disputed_proposal(settlement: FederatedSettlement, reason: str = "overcharged") -> str:
     engine = settlement._metering
     engine.record(
         task_id="t1",
@@ -43,7 +48,7 @@ def _disputed_proposal(settlement: FederatedSettlement) -> str:
     settlement.generate_billing_from_metering()
     now = time.time()
     proposal = settlement.generate_proposal("OrgA", "OrgB", now - 60, now + 60)
-    settlement.dispute_proposal(proposal.proposal_id, reason="overcharged")
+    settlement.dispute_proposal(proposal.proposal_id, reason=reason)
     return proposal.proposal_id
 
 
@@ -65,7 +70,8 @@ class TestSettlementArbitration:
 
     def test_arbitration_failed_rejects_proposal(self) -> None:
         settlement = self._settlement(_consensus(high=1, low=2))
-        pid = _disputed_proposal(settlement)
+        # 争议理由含越权模式 → RuleJudge BLOCK → 提案驳回
+        pid = _disputed_proposal(settlement, reason="escalation_privilege detected")
         verdict = settlement.arbitrate_dispute(pid)
         assert verdict is not None
         assert verdict["passed"] is False
@@ -227,17 +233,26 @@ class TestAgentAsJudgeArbitration:
         assert verdict.get("flagged") is True
         assert settlement.get_proposal(pid).status == SettlementStatus.ACCEPTED
 
-    def test_without_judge_falls_back_to_dict(self) -> None:
-        """无 judge 的 consensus：settlement 回退 dict 输入（仿真表决兼容）。"""
+    def test_without_judge_fails_closed(self) -> None:
+        """v0.50 W8-S2 (A10)：无 judge 的 consensus 不再回退 dict 仿真，仲裁 fail-closed。"""
+        from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry
+
+        reg = VerifierRegistry()
+        reg.register(
+            VerifierEntry(name="judge-h", model="m", methodology="x", accuracy=0.9)
+        )
+        reg.register(
+            VerifierEntry(name="judge-l", model="m", methodology="x", accuracy=0.1)
+        )
         settlement = FederatedSettlement(
             metering=TaskMeteringEngine(),
-            verifier_consensus=_consensus(high=2, low=1),
+            verifier_consensus=VerifierConsensus(reg),
         )
         pid = _disputed_proposal(settlement)
         verdict = settlement.arbitrate_dispute(pid)
         assert verdict is not None
-        assert verdict["passed"] is True
-        assert "judge_evidence" not in verdict
+        assert verdict["passed"] is False
+        assert "no_judge_for_input" in str(verdict["votes"])
 
 
 class TestJointArbitration:

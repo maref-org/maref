@@ -112,6 +112,8 @@ class TestSIDECAR_MCP_TOOLS:
             "maref_get_evolution_status",
             "maref_list_evolution_results",
             "maref_pty_exec",
+            "gov_check_phase_gate",
+            "gov_verify_output",
         }
         assert names == expected
 
@@ -244,6 +246,8 @@ class TestSidecarMCPBridge:
             "maref_list_evolution_results",
             "maref_health_check",
             "maref_pty_exec",
+            "gov_check_phase_gate",
+            "gov_verify_output",
         }
         for tool_def in SIDECAR_MCP_TOOLS:
             if tool_def.name in custom_handlers:

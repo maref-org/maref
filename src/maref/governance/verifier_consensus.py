@@ -156,7 +156,15 @@ class VerifierConsensus:
             approved = verdict.decision in (VerdictDecision.PASS, VerdictDecision.FLAG)
             return approved, verdict_dict
 
-        # 向后兼容：对布尔/普通输入保留仿真表决路径。
+        # 非 Trace 输入（bool/dict）：v0.50 W8-S2 (A10) 无官时 fail-closed。
+        # 完全未配置法官（has_judges=False）时移除确定性仿真
+        # （ground_truth = bool(item) 可被构造输入操纵，不构成可信仲裁）；
+        # 有法官装配时保留向后兼容的仿真降级（调用方应传 Trace 走真实仲裁）。
+        if not self._judges:
+            return False, {
+                "error": "no_judge_for_input",
+                "judge": verifier.name,
+            }
         ground_truth = bool(item)
         reliability = min(verifier.accuracy, 0.99)
         return ground_truth if reliability > 0.5 else not ground_truth, None

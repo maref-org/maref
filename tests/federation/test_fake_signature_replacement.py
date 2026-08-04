@@ -173,8 +173,7 @@ class TestMCPOAuthJWTVerification:
 
         secret = b"test-jwt-secret"
         provider = OAuthTokenProvider()
-        middleware = OAuthMiddleware(token_provider=provider)
-        middleware._verification_key = secret
+        middleware = OAuthMiddleware(token_provider=provider, verification_key=secret)
 
         header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').rstrip(b"=").decode()
         payload = base64.urlsafe_b64encode(
@@ -209,8 +208,7 @@ class TestMCPOAuthJWTVerification:
 
         secret = b"test-jwt-secret"
         provider = OAuthTokenProvider()
-        middleware = OAuthMiddleware(token_provider=provider)
-        middleware._verification_key = secret
+        middleware = OAuthMiddleware(token_provider=provider, verification_key=secret)
 
         header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').rstrip(b"=").decode()
         payload = base64.urlsafe_b64encode(
@@ -236,8 +234,7 @@ class TestMCPOAuthJWTVerification:
 
         from maref.integration.mcp_security import OAuthMiddleware, OAuthTokenProvider
 
-        middleware = OAuthMiddleware(token_provider=OAuthTokenProvider())
-        middleware._verification_key = b"test-jwt-secret"
+        middleware = OAuthMiddleware(token_provider=OAuthTokenProvider(), verification_key=b"test-jwt-secret")
 
         # A JWT with an empty/invalid signature must be rejected.
         header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').rstrip(b"=").decode()

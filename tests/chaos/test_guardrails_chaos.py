@@ -35,7 +35,7 @@ class TestGuardrailsChaos:
         assert should_trip_after_recovery, "Should still trip due to historical error rate"
 
     async def test_high_concurrency_gate(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         gate.rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
         results: list[str] = []
@@ -60,7 +60,7 @@ class TestGuardrailsChaos:
         assert allowed + denied == len(results), f"All requests should have a verdict, got {len(results)} results"
 
     async def test_boundary_risk_scores(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
 
         empty_trust = gate._calculate_risk(
             tool_name="",
@@ -122,7 +122,7 @@ class TestGuardrailsChaos:
         assert current == 5, f"Current rate should be 5, got {current}"
 
     async def test_empty_args_dont_crash(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
 
         for trust_level in MCPTrustLevel:
             for tool in ["", None, "test"]:

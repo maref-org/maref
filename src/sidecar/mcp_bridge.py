@@ -421,11 +421,26 @@ class SidecarMCPBridge:
                 "content": [{"type": "text", "text": "Missing 'command' argument"}],
             }
 
+        import shlex
+
+        try:
+            cmd_list = shlex.split(command)
+        except ValueError as exc:
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Unparseable command: {exc}"}],
+            }
+        if not cmd_list:
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": "Missing 'command' argument"}],
+            }
+
         try:
             # Execute command with timeout
             proc = subprocess.run(
-                command,
-                shell=True,
+                cmd_list,
+                shell=False,
                 cwd=cwd,
                 capture_output=True,
                 timeout=timeout,

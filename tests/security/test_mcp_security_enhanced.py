@@ -13,45 +13,45 @@ from maref.integration.mcp_security import (
 
 class TestMCPSecurityGateBasic:
     def test_trusted_always_allow(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         result = gate.check("bash", MCPTrustLevel.TRUSTED)
         assert result == SecurityVerdict.ALLOW
 
     def test_untrusted_blocked_tool(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         result = gate.check("bash", MCPTrustLevel.UNTRUSTED)
         assert result == SecurityVerdict.DENY
 
     def test_untrusted_blocked_pattern(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         result = gate.check("safe_tool", MCPTrustLevel.UNTRUSTED, {"command": "rm -rf /"})
         assert result == SecurityVerdict.DENY
 
     def test_untrusted_allowed_tool(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         result = gate.check("safe_tool", MCPTrustLevel.UNTRUSTED, {"input": "hello"})
         assert result == SecurityVerdict.AUDIT
 
     def test_semi_trusted_blocked_tool(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         result = gate.check("bash", MCPTrustLevel.SEMI_TRUSTED)
         assert result == SecurityVerdict.DENY
 
     def test_semi_trusted_allowed_tool(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         result = gate.check("safe_tool", MCPTrustLevel.SEMI_TRUSTED)
         assert result == SecurityVerdict.AUDIT
 
 
 class TestZeroTrustContext:
     def test_delegation_depth_limit(self):
-        gate = MCPSecurityGate(max_delegation_depth=3)
+        gate = MCPSecurityGate(max_delegation_depth=3, allow_unverified_tokens=True)
         context = ZeroTrustContext(delegation_depth=4)
         result = gate.check("safe_tool", MCPTrustLevel.TRUSTED, context=context)
         assert result == SecurityVerdict.DENY
 
     def test_delegation_depth_ok(self):
-        gate = MCPSecurityGate(max_delegation_depth=5)
+        gate = MCPSecurityGate(max_delegation_depth=5, allow_unverified_tokens=True)
         context = ZeroTrustContext(delegation_depth=3)
         result = gate.check("safe_tool", MCPTrustLevel.TRUSTED, context=context)
         assert result == SecurityVerdict.ALLOW
@@ -62,6 +62,7 @@ class TestRateLimiter:
         gate = MCPSecurityGate(
             enable_rate_limiting=True,
             rate_limiter=RateLimiter(max_requests=2, window_seconds=60),
+            allow_unverified_tokens=True,
         )
         # First 2 requests should succeed
         assert gate.check("tool1", MCPTrustLevel.TRUSTED) == SecurityVerdict.ALLOW
@@ -71,7 +72,7 @@ class TestRateLimiter:
         assert result == SecurityVerdict.DENY
 
     def test_rate_limit_disabled(self):
-        gate = MCPSecurityGate(enable_rate_limiting=False)
+        gate = MCPSecurityGate(enable_rate_limiting=False, allow_unverified_tokens=True)
         # Should allow many requests
         for _ in range(10):
             assert gate.check("tool", MCPTrustLevel.TRUSTED) == SecurityVerdict.ALLOW
@@ -79,7 +80,7 @@ class TestRateLimiter:
 
 class TestAuditLogging:
     def test_audit_log_created(self):
-        gate = MCPSecurityGate(enable_audit_logging=True)
+        gate = MCPSecurityGate(enable_audit_logging=True, allow_unverified_tokens=True)
         context = ZeroTrustContext(agent_id="agent-001")
         gate.check("safe_tool", MCPTrustLevel.UNTRUSTED, {"input": "hello"}, context=context)
 
@@ -89,12 +90,12 @@ class TestAuditLogging:
         assert log[0].tool_name == "safe_tool"
 
     def test_audit_log_disabled(self):
-        gate = MCPSecurityGate(enable_audit_logging=False)
+        gate = MCPSecurityGate(enable_audit_logging=False, allow_unverified_tokens=True)
         gate.check("tool", MCPTrustLevel.TRUSTED)
         assert len(gate.get_audit_log()) == 0
 
     def test_audit_summary(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         gate.check("tool1", MCPTrustLevel.TRUSTED)
         gate.check("bash", MCPTrustLevel.UNTRUSTED)
         gate.check("tool3", MCPTrustLevel.SEMI_TRUSTED)
@@ -106,7 +107,7 @@ class TestAuditLogging:
         assert summary["audited"] == 1
 
     def test_export_json(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         gate.check("tool", MCPTrustLevel.TRUSTED)
 
         json_output = gate.export_audit_log("json")
@@ -114,7 +115,7 @@ class TestAuditLogging:
         assert "tool" in json_output
 
     def test_export_syslog(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         gate.check("tool", MCPTrustLevel.TRUSTED)
 
         syslog_output = gate.export_audit_log("syslog")
@@ -124,7 +125,7 @@ class TestAuditLogging:
 
 class TestRiskCalculation:
     def test_high_risk_untrusted_deep(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         context = ZeroTrustContext(delegation_depth=5)
         result = gate.check("bash", MCPTrustLevel.UNTRUSTED, {"cmd": "rm file"}, context=context)
         assert result == SecurityVerdict.DENY
@@ -133,7 +134,7 @@ class TestRiskCalculation:
         assert log[0].risk_score > 0.7
 
     def test_low_risk_trusted(self):
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         context = ZeroTrustContext(delegation_depth=0)
         gate.check("safe_tool", MCPTrustLevel.TRUSTED, context=context)
 

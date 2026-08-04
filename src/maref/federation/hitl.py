@@ -65,6 +65,9 @@ class CrossOrgApprovalRequest:
     # Timestamp when the request was escalated to escalation_org. Set on
     # escalation; ``created_at`` remains immutable for audit-trail integrity.
     escalated_at: float | None = None
+    # Non-human approval evidence (v0.50 W6-S2 / F14).
+    approval_signature: str = ""
+    reviewer_did: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -85,6 +88,8 @@ class CrossOrgApprovalRequest:
             "escalation_org": self.escalation_org,
             "escalated_to": self.escalated_to,
             "escalated_at": self.escalated_at,
+            "approval_signature": self.approval_signature,
+            "reviewer_did": self.reviewer_did,
         }
 
     @property
@@ -123,6 +128,8 @@ class CrossOrgApprovalRequest:
             escalation_org=data.get("escalation_org"),
             escalated_to=data.get("escalated_to"),
             escalated_at=data.get("escalated_at"),
+            approval_signature=data.get("approval_signature", ""),
+            reviewer_did=data.get("reviewer_did", ""),
         )
 
 
@@ -229,15 +236,31 @@ class CrossOrgHITL:
         return request
 
     def approve(
-        self, request_id: str, reviewer: str = "human"
+        self,
+        request_id: str,
+        reviewer: str = "human",
+        signature: str = "",
+        reviewer_did: str = "",
     ) -> bool:
-        """Approve a pending or escalated request."""
+        """Approve a pending or escalated request.
+
+        Human reviewers (``reviewer="human"``) may approve without a
+        signature — the human identity is gated by the sidecar scope
+        boundary.  Automated reviewers (any other ``reviewer``) must
+        provide both a ``signature`` and a ``reviewer_did``; otherwise
+        the approval is refused (fail-closed, v0.50 W6-S2 / F14).
+        """
         request = self._requests.get(request_id)
         if request is None or not request.is_pending:
             return False
+        if reviewer != "human":
+            if not signature or not reviewer_did:
+                return False
         request.status = CrossOrgApprovalStatus.APPROVED
         request.resolved_at = time.time()
         request.reviewer = reviewer
+        request.approval_signature = signature
+        request.reviewer_did = reviewer_did
         self._remove_from_pending(request)
         self._persist(request)
         return True

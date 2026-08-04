@@ -80,7 +80,7 @@ def create_server(host: str='localhost', port: int=8080) -> http.server.HTTPServ
     try:
         mcp_server = MCPServer()
         mcp_transport = MCPTransport()  # type: ignore[abstract]
-        security_manager = MCPSecurityGate()
+        security_manager = MCPSecurityGate(allow_unverified_tokens=True)
         exfiltration_probe = DataExfiltrationProbe()
         mcp_bridge = MCPBridge()
 

@@ -172,6 +172,7 @@ class FederatedPolicySubscriber:
         self,
         local_engine: FederationPolicyEngine,
         local_org: str,
+        publisher_public_keys: dict[str, str] | None = None,
     ) -> None:
         self._local_engine = local_engine
         self._local_org = local_org
@@ -179,6 +180,16 @@ class FederatedPolicySubscriber:
         self._received_events: list[PolicyPushEvent] = []
         self._event_handlers: list[Callable[[PolicyPushEvent], None]] = []
         self._published_rules: dict[str, list[PolicyRule]] = {}
+        self._publisher_public_keys: dict[str, str] = dict(publisher_public_keys or {})
+        self.unverified_pushes: list[PolicyPushEvent] = []
+
+    def configure_verification(self, publisher_public_keys: dict[str, str]) -> None:
+        """Configure the Ed25519 public-key table used to verify policy pushes.
+
+        Once configured (non-empty), every incoming event must carry a valid
+        signature from a known publisher org (fail-closed, v0.50 W6-S1 / F8).
+        """
+        self._publisher_public_keys = dict(publisher_public_keys)
 
     @property
     def local_engine(self) -> FederationPolicyEngine:
@@ -282,8 +293,19 @@ class FederatedPolicySubscriber:
         Matches the event against active subscriptions and optionally
         imports the rule into the local engine.
 
+        When a publisher public-key table is configured, the event must
+        carry a valid Ed25519 signature from a known publisher; otherwise
+        the event is rejected and recorded in ``unverified_pushes``
+        (fail-closed, v0.50 W6-S1 / F8).
+
         Returns True if at least one subscription matched.
         """
+        if self._publisher_public_keys:
+            if not self._verify_push(event):
+                self._received_events.append(event)
+                self.unverified_pushes.append(event)
+                return False
+
         self._received_events.append(event)
         self._notify_handlers(event)
 
@@ -358,6 +380,38 @@ class FederatedPolicySubscriber:
             sub.imported_rule_ids.clear()
 
     # ------------------------------------------------------------------
+    # Event verification (v0.50 W6-S1 / F8)
+    # ------------------------------------------------------------------
+
+    def _signing_payload(self, event: PolicyPushEvent) -> bytes:
+        rule_part = ""
+        if event.rule is not None:
+            rule_part = (
+                f"{event.rule.rule_id}|{event.rule.action}|"
+                f"{event.rule.decision.value}|{event.rule.priority}"
+            )
+        return (
+            f"{event.event_id}|{event.publisher_org}|{event.change_type.value}|{rule_part}"
+        ).encode()
+
+    def _verify_push(self, event: PolicyPushEvent) -> bool:
+        public_key = self._publisher_public_keys.get(event.publisher_org)
+        if public_key is None or not event.signature:
+            return False
+        from maref.signing.signing_key import ReportSigningKey
+
+        return ReportSigningKey.verify_signature(
+            public_key, event.signature, self._signing_payload(event)
+        )
+
+    def sign_event(
+        self, event: PolicyPushEvent, signing_key: Any, publisher_org: str
+    ) -> None:
+        """Attach an Ed25519 signature to an event on behalf of an org."""
+        event.publisher_org = publisher_org
+        event.signature = signing_key.sign_report(self._signing_payload(event))
+
+    # ------------------------------------------------------------------
     # Publishing (simulated — real transport uses sidecar/federation_router)
     # ------------------------------------------------------------------
 
@@ -365,11 +419,15 @@ class FederatedPolicySubscriber:
         self,
         rule: PolicyRule,
         publisher_org: str | None = None,
+        signing_key: Any | None = None,
     ) -> PolicyPushEvent:
         """Simulate publishing a rule change to subscribers.
 
         In production, this event would be dispatched via the sidecar's
         federation router. Here it is recorded locally for testing.
+
+        When ``signing_key`` is provided, the event is signed with it
+        (v0.50 W6-S1 / F8).
 
         Returns the generated event.
         """
@@ -380,6 +438,8 @@ class FederatedPolicySubscriber:
             change_type=PolicyChangeType.RULE_ADDED,
             rule=rule,
         )
+        if signing_key is not None:
+            self.sign_event(event, signing_key, org)
         if org not in self._published_rules:
             self._published_rules[org] = []
         self._published_rules[org].append(rule)

@@ -4,9 +4,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore, make_record_id
-
-
 @dataclass
 class TrustFactor:
     name: str
@@ -95,6 +92,9 @@ class TrustScoreV2:
         )
 
     def to_audit_record(self, round_num: int = 42) -> UnifiedAuditRecord:
+        # 惰性导入：绕开 unified_audit → governance → identity → trust_engine_v2 循环
+        from maref.recursive.unified_audit import UnifiedAuditRecord, make_record_id
+
         return UnifiedAuditRecord(
             record_id=make_record_id("trustv2", hash(self.agent_id) % 100000),
             timestamp=self.timestamp,
@@ -146,6 +146,8 @@ class TrustEngineV2:
     CONSISTENCY_WINDOW = 5
 
     def __init__(self, audit_store: UnifiedAuditStore | None = None) -> None:
+        from maref.recursive.unified_audit import UnifiedAuditStore
+
         self._profiles: dict[str, AgentProfileV2] = {}
         self._scores: dict[str, TrustScoreV2] = {}
         self._audit_store = audit_store or UnifiedAuditStore()

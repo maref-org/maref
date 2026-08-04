@@ -39,13 +39,13 @@ class TestCrossOrgHITLPersistence:
         db = tmp_path / "hitl.db"
         hitl = _hitl(db)
         req_id = _request(hitl)
-        hitl.approve(req_id, reviewer="human-1")
+        hitl.approve(req_id, reviewer="human")
 
         reloaded = _hitl(db)
         req = reloaded.get_request(req_id)
         assert req is not None
         assert req.status == CrossOrgApprovalStatus.APPROVED
-        assert req.reviewer == "human-1"
+        assert req.reviewer == "human"
 
     def test_no_db_path_in_memory(self) -> None:
         hitl = _hitl()

@@ -160,7 +160,7 @@ class OperationalValidator:
 
     def _validate_mcp_security(self) -> None:
         try:
-            gate = MCPSecurityGate()
+            gate = MCPSecurityGate(allow_unverified_tokens=True)
             ok = (
                 gate.check("search", MCPTrustLevel.TRUSTED) == "ALLOW"
                 and gate.check("bash", MCPTrustLevel.UNTRUSTED) == "DENY"

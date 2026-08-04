@@ -46,7 +46,10 @@ class MCPSecurityGateV2:
     ) -> None:
         repo_root = self._find_repo_root()
         self.policy_path = policy_path or repo_root / "configs" / "mcp_security_policy.json"
-        self.base_gate = base_gate or MCPSecurityGate()
+        # v0.50 W4-S1: MCPSecurityGate 默认 fail-closed（无 key 构造抛错）。
+        # 此处是策略门面，不持有 MCP 验签密钥 — 显式声明兼容模式，实际
+        # 验签边界由 sidecar `_wire_mcp_governance` 注入真实 key 强制。
+        self.base_gate = base_gate or MCPSecurityGate(allow_unverified_tokens=True)
         self._policy: dict[str, Any] = {}
         self._load_policy()
 

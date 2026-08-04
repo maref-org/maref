@@ -22,7 +22,9 @@ per member is exposed in :meth:`members_summary`.
 
 from __future__ import annotations
 
+import hmac
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -99,6 +101,9 @@ class MembershipManager:
         discovery: FederatedDiscovery | None = None,
         timeout: float = DEFAULT_HEARTBEAT_TIMEOUT,
         generation: int = 0,
+        allowed_heartbeat_servers: set[str] | None = None,
+        heartbeat_token: str | None = None,
+        audit_sink: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self._server_id = server_id
         self._endpoint_url = endpoint_url.rstrip("/")
@@ -108,6 +113,67 @@ class MembershipManager:
         self._generation = generation
         # Latest seen instance generation per member server id.
         self._generations: dict[str, int] = {}
+        # v0.50 W2-S1 (F12): optional identity enforcement.
+        # When configured, unknown server ids are rejected instead of
+        # auto-registered, and a shared heartbeat token is required.
+        self._allowed_heartbeat_servers: set[str] | None = (
+            set(allowed_heartbeat_servers) if allowed_heartbeat_servers else None
+        )
+        self._heartbeat_token: str | None = heartbeat_token
+        self._audit_sink: Callable[[dict[str, Any]], None] | None = audit_sink
+
+    def set_audit_sink(self, sink: Callable[[dict[str, Any]], None]) -> None:
+        """Install an audit callback for heartbeat auth events."""
+        self._audit_sink = sink
+
+    def _emit_audit(self, record: dict[str, Any]) -> None:
+        if self._audit_sink is not None:
+            try:
+                self._audit_sink(record)
+            except Exception:
+                pass
+
+    def _heartbeat_authorized(self, message: HeartbeatMessage, token: str | None) -> bool:
+        """Enforce heartbeat identity: whitelist + optional shared token.
+
+        Returns True when the heartbeat is authorized. Emits an
+        ``unauthorized_heartbeat`` audit record on rejection and an
+        ``unsecured_heartbeat`` warning when no enforcement is configured.
+        """
+        if self._allowed_heartbeat_servers is not None and message.server_id not in self._allowed_heartbeat_servers:
+            self._emit_audit(
+                {
+                    "event_type": "unauthorized_heartbeat",
+                    "server_id": message.server_id,
+                    "endpoint_url": message.endpoint_url,
+                    "reason": "server_id_not_in_whitelist",
+                    "timestamp": time.time(),
+                }
+            )
+            return False
+
+        if self._heartbeat_token is not None:
+            if token is None or not hmac.compare_digest(self._heartbeat_token, token):
+                self._emit_audit(
+                    {
+                        "event_type": "unauthorized_heartbeat",
+                        "server_id": message.server_id,
+                        "reason": "invalid_heartbeat_token",
+                        "timestamp": time.time(),
+                    }
+                )
+                return False
+
+        if self._allowed_heartbeat_servers is None and self._heartbeat_token is None:
+            self._emit_audit(
+                {
+                    "event_type": "unsecured_heartbeat",
+                    "server_id": message.server_id,
+                    "reason": "no_heartbeat_auth_configured",
+                    "timestamp": time.time(),
+                }
+            )
+        return True
 
     @property
     def server_id(self) -> str:
@@ -118,7 +184,7 @@ class MembershipManager:
         """Number of tracked members (including ourselves when probed)."""
         return len(self._health_monitor.member_snapshots())
 
-    def receive_heartbeat(self, message: HeartbeatMessage) -> bool:
+    def receive_heartbeat(self, message: HeartbeatMessage, token: str | None = None) -> bool:
         """Record a peer's heartbeat; auto-register unknown peers.
 
         A heartbeat from our own server id is ignored (echo loop
@@ -126,10 +192,17 @@ class MembershipManager:
         when a :class:`FederatedDiscovery` is attached, an unknown peer is
         added to the peer table so future queries can reach it.
 
+        v0.50 W2-S1 (F12): heartbeat identity is enforced when configured —
+        unknown server ids are rejected instead of auto-registered, and a
+        shared ``heartbeat_token`` is required when set.
+
         Returns:
-            True if the heartbeat was accepted, False if ignored (self-echo).
+            True if the heartbeat was accepted, False if ignored (self-echo)
+            or rejected by identity enforcement.
         """
         if message.server_id == self._server_id:
+            return False
+        if not self._heartbeat_authorized(message, token):
             return False
         self._generations[message.server_id] = max(
             self._generations.get(message.server_id, 0), message.generation
@@ -156,8 +229,11 @@ class MembershipManager:
             generation=self._generation,
         )
         url = f"{peer.endpoint_url.rstrip('/')}{HEARTBEAT_ENDPOINT_PATH}"
+        headers = {}
+        if self._heartbeat_token is not None:
+            headers["X-MAREF-HB-Token"] = self._heartbeat_token
         try:
-            response = httpx.post(url, json=message.to_dict(), timeout=self._timeout)
+            response = httpx.post(url, json=message.to_dict(), headers=headers, timeout=self._timeout)
             response.raise_for_status()
             peer.last_contact = time.time()
             peer.healthy = True

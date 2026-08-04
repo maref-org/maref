@@ -73,8 +73,15 @@ def _wire_mcp_governance(gateway: MCPGateway) -> None:
     from maref.integration.mcp_governance import MCPGovernance, MCPPolicyEngine
     from maref.integration.mcp_security import MCPSecurityGate
 
-    security_gate = MCPSecurityGate()
-    policy_engine = MCPPolicyEngine()
+    verification_key = os.environb.get(b"MAREF_MCP_SECRET_KEY")
+    if verification_key is None:
+        raise ValueError(
+            "MAREF_MCP_SECRET_KEY is required to wire MCP governance "
+            "(v0.50 W4-S1 fail-closed). Set the environment variable or "
+            "inject a key before starting the sidecar."
+        )
+    security_gate = MCPSecurityGate(verification_key=verification_key)
+    policy_engine = MCPPolicyEngine(security_gate=security_gate)
     governance = MCPGovernance(
         policy_engine=policy_engine,
         circuit_breaker=CircuitBreaker(

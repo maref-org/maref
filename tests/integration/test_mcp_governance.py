@@ -345,7 +345,7 @@ class TestTrustLevelBasedGate:
         assert result.verdict == MCPDecisionVerdict.ASK_USER
 
     def test_custom_security_gate(self):
-        gate = MCPSecurityGate(allow_untrusted_shell=True)
+        gate = MCPSecurityGate(allow_untrusted_shell=True, allow_unverified_tokens=True)
         rule = TrustLevelBasedGate(security_gate=gate)
         ctx = MCPPolicyContext(
             tool_name="bash",

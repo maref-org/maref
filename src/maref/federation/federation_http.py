@@ -376,8 +376,13 @@ def create_federation_app(
         }
 
     @router.post(HEARTBEAT_ENDPOINT_PATH)
-    def network_heartbeat(body: dict[str, Any]) -> dict[str, Any]:
-        """Receive a node heartbeat (liveness + membership auto-registration)."""
+    def network_heartbeat(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+        """Receive a node heartbeat (liveness + membership auto-registration).
+
+        v0.50 W2-S1 (F12): when the membership manager is configured with a
+        heartbeat token, the ``X-MAREF-HB-Token`` header is required and
+        verified; unknown servers on a whitelist are rejected.
+        """
         if membership is None:
             return {
                 "accepted": True,
@@ -388,7 +393,8 @@ def create_federation_app(
             message = HeartbeatMessage.from_dict(body)
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=f"invalid heartbeat: {exc}") from exc
-        accepted = membership.receive_heartbeat(message)
+        token = request.headers.get("X-MAREF-HB-Token")
+        accepted = membership.receive_heartbeat(message, token=token)
         return {
             "accepted": accepted,
             "server_id": server_id,

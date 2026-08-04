@@ -74,4 +74,5 @@ class StateMachineSnapshot:
             transition_count=data.get("transition_count", 0),
             valid_next_states=[],
             is_terminal=data.get("is_terminal", False),
+            history_entries=data.get("history_entries", []),
         )

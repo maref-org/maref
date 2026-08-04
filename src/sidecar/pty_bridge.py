@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -77,13 +78,21 @@ class PTYHandler:
             return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}]}
 
         command = arguments.get("command", "")
-        if not command:
+        if not command or not command.strip():
             return {"isError": True, "content": [{"type": "text", "text": "No command provided"}]}
 
         blocked = _check_blocked(command)
         if blocked:
             logger.warning("PTY blocked: %s", command[:80])
             return {"isError": True, "content": [{"type": "text", "text": blocked}]}
+
+        try:
+            cmd_list = shlex.split(command)
+        except ValueError as exc:
+            logger.warning("PTY unparseable command: %s", command[:80])
+            return {"isError": True, "content": [{"type": "text", "text": f"Unparseable command: {exc}"}]}
+        if not cmd_list:
+            return {"isError": True, "content": [{"type": "text", "text": "No command provided"}]}
 
         timeout = arguments.get("timeout", self._default_timeout)
         workdir = arguments.get("workdir", "") or os.getcwd()
@@ -92,8 +101,8 @@ class PTYHandler:
 
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                cmd_list,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=timeout,

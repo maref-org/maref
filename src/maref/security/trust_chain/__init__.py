@@ -41,6 +41,8 @@ class ChainNode:
     timestamp: datetime
     parent_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    signature: str = ""
+    signer_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -49,6 +51,8 @@ class ChainNode:
             "timestamp": self.timestamp.isoformat(),
             "parent_id": self.parent_id,
             "metadata": self.metadata,
+            "signature": self.signature,
+            "signer_id": self.signer_id,
         }
 
 
@@ -133,6 +137,89 @@ class DelegationChain:
                     return False
                 return capability.rank <= node.capability.rank
         return False
+
+    @classmethod
+    def create_signed(
+        cls,
+        root_agent_id: str,
+        root_signing_key: Any,
+        max_depth: int = 5,
+        policy_version: str = "1.0",
+    ) -> DelegationChain:
+        """Create a chain whose root node carries a signature from the root agent."""
+        chain = cls.create(
+            root_agent_id, max_depth=max_depth, policy_version=policy_version
+        )
+        chain._sign_node(chain.nodes[0], root_agent_id, root_signing_key)
+        return chain
+
+    def add_delegation_signed(
+        self,
+        parent_agent_id: str,
+        child_agent_id: str,
+        capability: DelegationCapability,
+        signing_key: Any,
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
+        """Add a delegation node signed by the delegating (parent) agent."""
+        if not self.add_delegation(
+            parent_agent_id,
+            child_agent_id,
+            capability,
+            metadata=metadata,
+        ):
+            return False
+        self._sign_node(self.nodes[-1], parent_agent_id, signing_key)
+        return True
+
+    def validate_signed(self, public_keys: dict[str, str]) -> ValidationResult:
+        """Verify every signed node against the provided public keys.
+
+        Unsigned nodes are skipped for backwards compatibility; a signed node
+        whose signer is unknown or whose signature fails verification yields
+        :attr:`ValidationStatus.INVALID_SIGNATURE`.
+        """
+        for node in self.nodes:
+            if not node.signature:
+                continue
+            if node.signer_id not in public_keys:
+                return ValidationResult(
+                    status=ValidationStatus.INVALID_SIGNATURE,
+                    message=f"Unknown signer {node.signer_id} for node {node.agent_id}",
+                    depth=self.depth,
+                    max_depth=self.max_depth,
+                )
+            if not self._verify_node(node, public_keys[node.signer_id]):
+                return ValidationResult(
+                    status=ValidationStatus.INVALID_SIGNATURE,
+                    message=f"Signature mismatch for node {node.agent_id}",
+                    depth=self.depth,
+                    max_depth=self.max_depth,
+                )
+        return ValidationResult(
+            status=ValidationStatus.VALID,
+            message="Chain signatures verified",
+            depth=self.depth,
+            max_depth=self.max_depth,
+        )
+
+    def _node_payload(self, node: ChainNode) -> bytes:
+        payload = (
+            f"{node.signer_id}|{node.parent_id or ''}|{node.agent_id}|"
+            f"{node.capability.value}|{node.timestamp.isoformat()}|{self.chain_id}"
+        )
+        return payload.encode("utf-8")
+
+    def _sign_node(self, node: ChainNode, signer_id: str, signing_key: Any) -> None:
+        node.signer_id = signer_id
+        node.signature = signing_key.sign_report(self._node_payload(node))
+
+    def _verify_node(self, node: ChainNode, public_key_pem: str) -> bool:
+        from maref.signing.signing_key import ReportSigningKey
+
+        return ReportSigningKey.verify_signature(
+            public_key_pem, node.signature, self._node_payload(node)
+        )
 
     def validate(self) -> ValidationResult:
         if self.depth > self.max_depth:

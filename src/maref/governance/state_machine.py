@@ -103,7 +103,18 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
 
     Writes to both the global log and a per-actor shard for isolation.
     Uses POSIX advisory locks to prevent inter-process corruption.
+
+    v0.50 W1-S1 (A9): fail-closed — when ``MAREF_HMAC_SECRET_KEY`` is not set,
+    refuse to write an unsigned chain instead of silently degrading to a bare
+    SHA-256 hash (tamperable). Aligns with ``AuditLogger`` (audit.py:220).
     """
+    _hmac_key = os.environ.get("MAREF_HMAC_SECRET_KEY", "").encode("utf-8")
+    if not _hmac_key:
+        raise ValueError(
+            "MAREF_HMAC_SECRET_KEY is not set — refusing to write unauthenticated "
+            "governance audit chain (fail-closed). Set MAREF_HMAC_SECRET_KEY or "
+            "route through AuditLogger with an Ed25519 keypair."
+        )
     log_path = _default_audit_log_path()
     shard_path = _actor_audit_log_path(actor)
     try:
@@ -132,11 +143,7 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
             default=str,
         )
         # HMAC-SHA256 signing matching AuditLogger security level
-        _hmac_key = os.environ.get("MAREF_HMAC_SECRET_KEY", "").encode("utf-8")
-        if _hmac_key:
-            chain_hash = hmac.new(_hmac_key, payload.encode(), hashlib.sha256).hexdigest()
-        else:
-            chain_hash = hashlib.sha256(payload.encode()).hexdigest()
+        chain_hash = hmac.new(_hmac_key, payload.encode(), hashlib.sha256).hexdigest()
 
         record = json.loads(payload)
         record["chain_hash"] = chain_hash
@@ -189,6 +196,8 @@ class GovernanceStateMachine:
         self._entropy_history: list[int] = []
         self._transition_count: int = 0
         self._lock: RLock = RLock()
+        self._force_authorizer: Callable[[str, str], bool] | None = None
+        self._enforce_force_authorization: bool = False
 
     # --- Properties ---
 
@@ -236,6 +245,10 @@ class GovernanceStateMachine:
         Attempt to transition to target state.
 
         Returns True if the transition was accepted.
+
+        v0.50 W1-S1 (A9): the audit chain is written before the state change
+        is committed, so a fail-closed (missing HMAC key) audit write aborts
+        the transition without mutating the state machine.
         """
         with self._lock:
             if not self.can_transition(target):
@@ -247,24 +260,65 @@ class GovernanceStateMachine:
                 reason=reason,
             )
 
+            _write_state_transition(event)
+
             self._state = target
             self._history.append(event)
             self._entropy_history.append(self.current_entropy)
             self._transition_count += 1
 
-            _write_state_transition(event)
             self._notify_callbacks(event)
             return True
 
     # --- Force Operations ---
 
-    def force_stabilize(self, reason: str = "entropy_threshold") -> bool:
+    def configure_force_authorization(
+        self,
+        enforce: bool,
+        authorizer: Callable[[str, str], bool] | None,
+    ) -> None:
+        """Configure authorization for force operations (v0.50 W1-S2 / A12).
+
+        Args:
+            enforce: When True, force operations require an actor approved by
+                ``authorizer``; unauthorized calls raise :class:`PermissionError`.
+            authorizer: Callable ``(actor, reason) -> bool`` deciding whether the
+                actor is allowed to force-transition. Must be provided when
+                ``enforce`` is True.
+
+        Raises:
+            RuntimeError: If ``enforce`` is True but ``authorizer`` is None.
+        """
+        if enforce and authorizer is None:
+            raise RuntimeError(
+                "force_authorization enforce=True requires an authorizer callable"
+            )
+        self._enforce_force_authorization = enforce
+        self._force_authorizer = authorizer
+
+    def _check_force_authorization(self, actor: str, reason: str) -> None:
+        """Raise PermissionError when force authorization is enforced and denied."""
+        if not self._enforce_force_authorization:
+            return
+        if self._force_authorizer is None:
+            raise RuntimeError("force authorization enforced but authorizer is unset")
+        if not self._force_authorizer(actor, reason):
+            raise PermissionError(
+                f"Force operation denied: actor {actor!r} not authorized to "
+                f"force-transition (reason={reason!r})"
+            )
+
+    def force_stabilize(self, reason: str = "entropy_threshold", actor: str = "state_machine") -> bool:
         """
         Force transition to STABILIZE via BFS shortest path.
 
         Can reach STABILIZE from any non-HALT state by walking
         through valid intermediate states.
+
+        v0.50 W1-S2 (A12): when force authorization is enforced, requires an
+        actor approved by the configured authorizer.
         """
+        self._check_force_authorization(actor, reason)
         with self._lock:
             if self._state == GovernanceState.HALT:
                 return False
@@ -272,8 +326,9 @@ class GovernanceStateMachine:
                 return self.transition(GovernanceState.STABILIZE, reason)
             return self._bfs_to(GovernanceState.STABILIZE, reason)
 
-    def force_halt(self, reason: str = "emergency") -> bool:
+    def force_halt(self, reason: str = "emergency", actor: str = "state_machine") -> bool:
         """Force transition to HALT via BFS shortest path."""
+        self._check_force_authorization(actor, reason)
         with self._lock:
             if self._state == GovernanceState.HALT:
                 return False
@@ -357,12 +412,23 @@ class GovernanceStateMachine:
 
     @classmethod
     def restore(cls, snapshot: StateMachineSnapshot) -> GovernanceStateMachine:
-        """Restore a state machine from a previously taken snapshot."""
+        """Restore a state machine from a previously taken snapshot.
+
+        v0.50 W1-S3 (A8): rebuild the transition history chain from
+        ``snapshot.history_entries`` so audit traceability survives a restore.
+        """
         sm = cls()
         sm._state = snapshot.current_state
         sm._entropy_history = list(snapshot.entropy_history)
         sm._transition_count = snapshot.transition_count
-        sm._history = []
+        sm._history = [
+            StateTransition(
+                from_state=GovernanceState[entry["from_state"]],
+                to_state=GovernanceState[entry["to_state"]],
+                reason=entry.get("reason", ""),
+            )
+            for entry in snapshot.history_entries
+        ]
         return sm
 
     # --- Internal ---

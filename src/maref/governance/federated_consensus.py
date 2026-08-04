@@ -274,6 +274,8 @@ class FederatedConsensus:
         critical_topics: set[str] | None = None,
         membership: Any | None = None,
         db_path: Any | None = None,
+        verify_vote_signatures: bool = False,
+        voter_public_keys: dict[str, str] | None = None,
     ) -> None:
         self._member_count = member_count
         self._quorum_size = quorum_size
@@ -294,6 +296,10 @@ class FederatedConsensus:
         # v0.47 F2: membership source (MembershipManager-style). When
         # provided, only tracked members may vote (fail-closed).
         self._membership = membership
+        # v0.50 W6-S3 / F10: when enabled, only Ed25519-verified votes count
+        # toward resolution; unsigned votes are excluded (fail-closed).
+        self._verify_vote_signatures = verify_vote_signatures
+        self._voter_public_keys: dict[str, str] = dict(voter_public_keys or {})
         # v0.47 F4: SQLite persistence for proposals (incl. signed votes).
         self._db = None
         if db_path is not None:
@@ -547,15 +553,19 @@ class FederatedConsensus:
             })
             return proposal
 
-        total_votes = len(proposal.votes)
+        total_votes = len(self._verified_votes(proposal))
 
         # LEADER_WORKER: leader arbitrates routine proposals directly
         if (
             self._topology == ConsensusTopology.LEADER_WORKER
             and not proposal.is_critical
         ):
+            # v0.50 W6-S3 / F13: leader arbitration still requires quorum
+            # support (>= quorum_size verified votes), not a lone leader.
+            if total_votes < self._quorum_size:
+                return proposal
             leader_vote = next(
-                (v for v in proposal.votes if v.voter_id == self._leader_id),
+                (v for v in self._verified_votes(proposal) if v.voter_id == self._leader_id),
                 None,
             )
             if leader_vote is None:
@@ -573,6 +583,7 @@ class FederatedConsensus:
                 "state": proposal.state.value,
                 "topology": "leader_worker",
                 "arbitrated_by": self._leader_id,
+                "total_verified_votes": total_votes,
                 "resolution_signature": proposal.resolution_signature,
             })
             return proposal
@@ -580,10 +591,14 @@ class FederatedConsensus:
         if total_votes < self._quorum_size:
             return proposal
 
+        verified = self._verified_votes(proposal)
+        approve_count = sum(1 for v in verified if v.choice == VoteChoice.APPROVE)
+        reject_count = sum(1 for v in verified if v.choice == VoteChoice.REJECT)
+
         # Check majority
-        if proposal.approve_count > proposal.reject_count:
+        if approve_count > reject_count:
             proposal.state = ProposalState.ACCEPTED
-        elif proposal.reject_count > proposal.approve_count:
+        elif reject_count > approve_count:
             proposal.state = ProposalState.REJECTED
         else:
             # Tie -- not resolved, need more votes
@@ -601,6 +616,27 @@ class FederatedConsensus:
             "resolution_signature": proposal.resolution_signature,
         })
         return proposal
+
+    def _verified_votes(self, proposal: ConsensusProposal) -> list[ConsensusVote]:
+        """Return votes that count toward resolution.
+
+        When ``verify_vote_signatures`` is enabled, only votes whose signer
+        is a known voter with a valid Ed25519 signature count; unsigned or
+        unverifiable votes are excluded (fail-closed, v0.50 W6-S3 / F10).
+        """
+        if not self._verify_vote_signatures:
+            return list(proposal.votes)
+        verified: list[ConsensusVote] = []
+        for vote in proposal.votes:
+            public_key = self._voter_public_keys.get(vote.voter_id)
+            if public_key is None or not vote.verify_signature(public_key):
+                self._log_audit("consensus.unverified_vote", {
+                    "proposal_id": proposal.proposal_id,
+                    "voter_id": vote.voter_id,
+                })
+                continue
+            verified.append(vote)
+        return verified
 
     def _sign_resolution(self, proposal: ConsensusProposal) -> None:
         """Sign a resolved proposal if a signer is configured."""

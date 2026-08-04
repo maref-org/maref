@@ -280,8 +280,7 @@ for line in sys.stdin:
     req = json.loads(line)
     method = req.get("method", "")
     if method == "tools/call":
-        arguments = req.get("params", {}).get("arguments", {})
-        resp = {"jsonrpc": "2.0", "result": {"called": arguments.get("name")}, "id": req.get("id", 0)}
+        resp = {"jsonrpc": "2.0", "result": {"called": req.get("params", {}).get("name")}, "id": req.get("id", 0)}
     else:
         resp = {"jsonrpc": "2.0", "result": {"ok": True}, "id": req.get("id", 0)}
     sys.stdout.write(json.dumps(resp) + "\\n")
@@ -297,26 +296,26 @@ for line in sys.stdin:
 class TestMCPSecurityGate:
     @pytest.mark.slow
     def test_trusted_allows_all(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         assert gate.check("bash", MCPTrustLevel.TRUSTED) == SecurityVerdict.ALLOW
         assert gate.check("rm -rf", MCPTrustLevel.TRUSTED) == SecurityVerdict.ALLOW
 
     @pytest.mark.slow
     def test_untrusted_blocks_shell_tools(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         assert gate.check("bash", MCPTrustLevel.UNTRUSTED) == SecurityVerdict.DENY
         assert gate.check("shell_runner", MCPTrustLevel.UNTRUSTED) == SecurityVerdict.DENY
         assert gate.check("system_call", MCPTrustLevel.UNTRUSTED) == SecurityVerdict.DENY
 
     @pytest.mark.slow
     def test_untrusted_audits_safe_tools(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         assert gate.check("search", MCPTrustLevel.UNTRUSTED) == SecurityVerdict.AUDIT
         assert gate.check("read_file", MCPTrustLevel.UNTRUSTED) == SecurityVerdict.AUDIT
 
     @pytest.mark.slow
     def test_untrusted_blocks_destructive_args(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         assert (
             gate.check("write", MCPTrustLevel.UNTRUSTED, {"cmd": "rm -rf /"})
             == SecurityVerdict.DENY
@@ -324,7 +323,7 @@ class TestMCPSecurityGate:
 
     @pytest.mark.slow
     def test_semi_trusted_blocks_shell(self) -> None:
-        gate = MCPSecurityGate()
+        gate = MCPSecurityGate(allow_unverified_tokens=True)
         assert gate.check("bash", MCPTrustLevel.SEMI_TRUSTED) == SecurityVerdict.DENY
         assert gate.check("search", MCPTrustLevel.SEMI_TRUSTED) == SecurityVerdict.AUDIT
 

@@ -29,11 +29,18 @@ from maref.recursive.trust_engine_v2 import TrustEngineV2
 
 
 def _verifier_consensus() -> VerifierConsensus:
+    from maref.governance.judge import RuleJudge
+
     reg = VerifierRegistry()
     for i in range(2):
         reg.register(VerifierEntry(name=f"judge-h{i}", model="m", methodology="x", accuracy=0.9))
     reg.register(VerifierEntry(name="judge-l", model="m", methodology="x", accuracy=0.1))
-    return VerifierConsensus(reg)
+    # v0.50 W8-S2 (A10)：无官时非 Trace 输入 fail-closed，联邦仲裁需装配真实法官。
+    return VerifierConsensus(
+        reg,
+        judges={f"judge-h{i}": RuleJudge() for i in range(2)}
+        | {"judge-l": RuleJudge()},
+    )
 
 
 class TestSingleAgentClosure:
@@ -89,6 +96,7 @@ class TestIdentityClosure:
         registry.register(did, GovernanceStateMachine())
         dns.register(did, name="worker", description="w", endpoints=["https://w/a2a"])
         key = ReportSigningKey.generate()
+        registry.resolve(did).metadata["ed25519_public_key_pem"] = key.public_key_pem
 
         # 签发凭证
         cred = service.issue(
