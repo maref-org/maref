@@ -8,6 +8,8 @@ Validates P0-2: compliance moves from "declarative" to "enforced".
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from maref.compliance.data_sovereignty import DataSovereigntyManager
@@ -26,8 +28,14 @@ from maref.integration.mcp_transport import JSONRPCRequest
 
 
 @pytest.fixture(autouse=True)
-def _set_hmac_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MAREF_HMAC_SECRET_KEY", "test-sovereignty-secret")
+def _set_hmac_secret() -> None:
+    saved = os.environ.get("MAREF_HMAC_SECRET_KEY")
+    os.environ["MAREF_HMAC_SECRET_KEY"] = "test-sovereignty-secret"
+    yield
+    if saved is None:
+        os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+    else:
+        os.environ["MAREF_HMAC_SECRET_KEY"] = saved
 
 
 def _request(params: dict | None = None) -> JSONRPCRequest:

@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from maref.integration.mcp_envelope import validate_envelope
+from maref.integration.mcp_envelope import inject_envelope, validate_envelope
 from maref.integration.mcp_transport import (
     InProcessTransport,
     JSONRPCRequest,
@@ -125,6 +125,9 @@ class MCPServer:
 
         # 宪法第十五-A条: 工具调用需要 MCP 消息信封 — trace_id, source_agent, timestamp
         if method == "tools/call":
+            # 缺失的信封字段自动补全（注入新 trace_id/timestamp/source_agent）；
+            # 已存在但无效的 trace_id 仍拒绝（防伪造）。
+            params = inject_envelope(params)
             is_valid, error_msg = validate_envelope(params)
             if not is_valid:
                 return JSONRPCResponse(

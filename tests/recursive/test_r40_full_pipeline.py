@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 
 import pytest
+from maref.crypto.ed25519_keys import Ed25519KeyPair
 from maref.recursive.complexity_budget import ArchitectureComplexityBudget
 from maref.recursive.continuous_optimizer import ContinuousOptimizer
 from maref.recursive.correlation_engine import CorrelationEngine
@@ -79,8 +80,9 @@ class TestR40FullProcessRegression:
             dry_result["compatibility"] != "unknown"
         ), f"Step 6: Compatibility = {dry_result['compatibility']}"
 
+        step8_key_pair = Ed25519KeyPair.generate()
         step8_signer = AgentCardSigner()
-        step8_signer.register_key("maref_executor", "public_key_r40")
+        step8_signer.register_key("maref_executor", step8_key_pair.public_key_pem)
         card = SignedAgentCard(
             card_id="r40_card",
             agent_id="maref_executor",
@@ -89,7 +91,7 @@ class TestR40FullProcessRegression:
             trust_score=0.95,
             version="0.6.0",
         )
-        step8_signer.sign_card(card, "private_key_r40")
+        step8_signer.sign_card(card, step8_key_pair.private_key_pem)
         assert step8_signer.verify_card(card), "Step 7: Signed agent card verified"
 
         store = SignedAgentCardStore(audit_store=audit)

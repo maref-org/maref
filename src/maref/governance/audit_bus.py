@@ -199,7 +199,7 @@ class AuditBus:
     def query_tenant(
         self,
         tenant_id: str,
-        max_entries: int = 1000,
+        max_entries: int | None = 1000,
     ) -> list[AuditEntry]:
         """Query audit entries scoped to a specific tenant.
 
@@ -207,7 +207,11 @@ class AuditBus:
         For large datasets, prefer a database-backed audit store.
         """
         all_entries = self._logger.read_all(max_entries=None)
-        return [e for e in all_entries if getattr(e, "tenant_id", "") == tenant_id][-max_entries:]
+        filtered = [
+            e for e in all_entries
+            if getattr(e, "tenant_id", "") == tenant_id
+        ]
+        return filtered if max_entries is None else filtered[-max_entries:]
 
     def query_recent(self, n: int = 100) -> list[AuditEntry]:
         return self._logger.read_recent(n)

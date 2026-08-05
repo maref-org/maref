@@ -557,6 +557,7 @@ class TestOmniParserBackendEnum:
         assert "mock" in OmniParserInterface.SUPPORTED_BACKENDS
         assert "omni_parser" in OmniParserInterface.SUPPORTED_BACKENDS
         assert "cog_agent" in OmniParserInterface.SUPPORTED_BACKENDS
+        assert "auto" in OmniParserInterface.SUPPORTED_BACKENDS
         assert len(OmniParserInterface.SUPPORTED_BACKENDS) == 5
 
     def test_cog_agent_graceful_init_fail(self):

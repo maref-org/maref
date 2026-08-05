@@ -54,14 +54,14 @@ governance:
   deployment_status: production_closed_loop
   last_audit: '2026-08-04'
   audit_score: 8.8/10
-  coverage_overall: 29.48%
+  coverage_overall: 52.49%
   coverage_governance: 87.70%
   coverage_federation: 67.76%
   coverage_identity: 58.46%
   coverage_security: 87.24%
   coverage_execution: 71.62%
   coverage_data_value: 95.95%
-  coverage_note: '全仓 29.48% 为 2026-08-05 实测（排除 benchmark/longevity/slow/real/chaos + tests/research 收集错误）；分域为 release-gate 门禁口径。治理域门禁 ≥60% 达标（87.70%）。v0.50 记录的 80.31% 基于当时 4766 tests 标准套件，现已过时。'
+  coverage_note: '全仓 52.49% 为 2026-08-05 实测（标准口径：排除 slow/real/chaos + tests/research 收集错误 + evolution 慢测试；unit/cli/desktop/immunity/tools/governance/federation/security/execution/identity/recursive/sidecar 等 12 标准域 8158 tests 单次跑）。已超 coverage_target 50%+。v0.50 记录的 80.31% 基于当时 4766 tests 标准套件，现已过时。'
   v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
   mypy_errors: 0

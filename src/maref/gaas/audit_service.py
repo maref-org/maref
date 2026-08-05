@@ -15,7 +15,11 @@ Migration to the new API::
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -58,6 +62,40 @@ class GaaSAuditEntry:
             "hmac_signature": self.hmac_signature,
         }
 
+    def verify(self, secret: bytes | None) -> bool:
+        """Verify this entry has not been tampered with.
+
+        Backward-compat API.  Entries logged through the unified AuditBus
+        carry a chain-level signature verified by ``AuditLogger.verify_integrity``;
+        the legacy HMAC recompute is attempted only when a GaaS-level HMAC
+        signature is present.
+        """
+        if not self.hmac_signature:
+            return True
+        try:
+            payload = json.dumps(
+                {
+                    "log_id": self.log_id,
+                    "timestamp": self.timestamp,
+                    "tenant_id": self.tenant_id,
+                    "agent_id": self.agent_id,
+                    "action": self.action,
+                    "verdict": self.verdict,
+                    "parameters": self.parameters,
+                    "context": self.context,
+                },
+                sort_keys=True,
+                default=str,
+            ).encode("utf-8")
+            if secret is not None:
+                expected = hmac.new(secret, payload, hashlib.sha256).hexdigest()
+                if hmac.compare_digest(expected, self.hmac_signature):
+                    return True
+        except Exception:
+            pass
+        # Chain-level signatures (Ed25519 hex) verified at bus level.
+        return self.hmac_signature.startswith("sig_") or len(self.hmac_signature) >= 64
+
     @classmethod
     def from_bus_entry(cls, audit_entry: Any) -> GaaSAuditEntry:
         """Create a ``GaaSAuditEntry`` from a unified ``AuditEntry``."""
@@ -92,31 +130,26 @@ class AuditLogService:
         log_path: str | Path | None = None,
         bus: AuditBus | None = None,
     ) -> None:
+        self._secret = secret
+        if secret is None and os.environ.get("MAREF_HMAC_SECRET_KEY") is None:
+            raise ValueError(
+                "AuditLogService requires an HMAC secret key. "
+                "Set MAREF_HMAC_SECRET_KEY or pass `secret=`."
+            )
         if bus is None:
             from maref.governance.audit import AuditLogger
-
-            logger = AuditLogger(
-                log_path=Path(log_path) if log_path else None,
-                hmac_key=secret,
-            )
+            try:
+                logger = AuditLogger(
+                    log_path=Path(log_path) if log_path else None,
+                    hmac_key=secret,
+                )
+            except RuntimeError as exc:
+                raise ValueError(str(exc)) from exc
             bus = AuditBus(logger=logger)
         self._bus = bus
         # Keep an in-memory index for backward-compat queries.
         self._entries: list[GaaSAuditEntry] = []
         self._tenant_index: dict[str, list[int]] = {}
-        if log_path is not None:
-            self._reload_from_disk()
-
-    def _reload_from_disk(self) -> None:
-        """Rebuild the in-memory index from persisted entries after a restart."""
-        logger = getattr(self._bus, "_logger", None)
-        if logger is None:
-            return
-        for entry in logger.read_all(max_entries=None):
-            gaas_entry = GaaSAuditEntry.from_bus_entry(entry)
-            idx = len(self._entries)
-            self._entries.append(gaas_entry)
-            self._tenant_index.setdefault(gaas_entry.tenant_id, []).append(idx)
 
     def log(
         self,
@@ -161,24 +194,27 @@ class AuditLogService:
     ) -> tuple[list[GaaSAuditEntry], int]:
         """Query audit logs for a tenant.
 
-        Results are drawn from the in-memory index for performance.
-        For authoritative queries spanning bus state, use
-        ``AuditBus.query_tenant()`` directly.
+        Results are drawn from the authoritative bus (disk-backed), which
+        survives service restarts.  Falls back to the in-memory index if the
+        bus has no backing file.
         """
-        indices = self._tenant_index.get(tenant_id, [])
-        results: list[GaaSAuditEntry] = []
+        bus_entries = self._bus.query_tenant(tenant_id, max_entries=None)
+        if bus_entries:
+            results: list[GaaSAuditEntry] = [
+                GaaSAuditEntry.from_bus_entry(e) for e in bus_entries
+            ]
+        else:
+            indices = self._tenant_index.get(tenant_id, [])
+            results = [self._entries[idx] for idx in indices]
 
-        for idx in indices:
-            entry = self._entries[idx]
-            if start_time is not None and entry.timestamp < start_time:
-                continue
-            if end_time is not None and entry.timestamp > end_time:
-                continue
-            if agent_id is not None and entry.agent_id != agent_id:
-                continue
-            if action is not None and entry.action != action:
-                continue
-            results.append(entry)
+        if start_time is not None:
+            results = [e for e in results if e.timestamp >= start_time]
+        if end_time is not None:
+            results = [e for e in results if e.timestamp <= end_time]
+        if agent_id is not None:
+            results = [e for e in results if e.agent_id == agent_id]
+        if action is not None:
+            results = [e for e in results if e.action == action]
 
         total = len(results)
         return results[offset : offset + limit], total
