@@ -310,8 +310,33 @@ def create_default_federation(
     # 9. Metering: per-task metrics (independent).
     metering = TaskMeteringEngine()
 
-    # 10. Settlement: wraps metering for cross-org billing.
-    settlement = FederatedSettlement(metering=metering)
+    # 10. Settlement: wraps metering for cross-org billing. (F2 修复：
+    #     生产路径必须注入 VerifierConsensus + 默认 RuleJudge，否则
+    #     arbitrate_dispute 恒返回 None，联邦争议无法真实仲裁。)
+    from maref.governance.judge import RuleJudge
+    from maref.governance.verifier_consensus import VerifierConsensus
+    from maref.governance.verifier_registry import (
+        VerifierEntry,
+        VerifierRegistry,
+        VerifierStatus,
+    )
+
+    verifier_registry = VerifierRegistry()
+    verifier_registry.register(
+        VerifierEntry(
+            name="rule-judge",
+            model="rule-based",
+            methodology="pattern-match",
+            status=VerifierStatus.ACTIVE,
+            accuracy=0.9,
+        )
+    )
+    consensus_engine = VerifierConsensus(registry=verifier_registry)
+    settlement = FederatedSettlement(
+        metering=metering,
+        verifier_consensus=consensus_engine,
+        judges={"rule-judge": RuleJudge()},
+    )
 
     # 11. Consensus (v0.48 W3): F2 membership-bound voting, when wired.
     from maref.governance.federated_consensus import FederatedConsensus
