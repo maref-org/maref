@@ -95,6 +95,8 @@ class TestAuditLogServicePersistence:
         assert total_t1 == 2
         _, total_t2 = svc2.query("t2")
         assert total_t2 == 1
+        # get_stats is also disk-authoritative after restart.
+        assert svc2.get_stats("t1")["total_entries"] == 2
         # HMAC integrity holds after reload from disk.
         assert svc2.verify_integrity("t1") is True
         assert svc2.verify_integrity("t2") is True
