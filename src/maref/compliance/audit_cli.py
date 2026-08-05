@@ -24,6 +24,7 @@ import logging
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] MAS-TS: %(message)s")
 logger = logging.getLogger("mas_ts_compliance")
@@ -175,7 +176,7 @@ def run_audit(config_file: str | None = None, regulations: list[str] | None = No
         phases[phase]["total"] += 1
         phases[phase]["pending"] += 1
 
-    report = {
+    report: dict[str, Any] = {
         "auditor": "MAS-TS Compliance Audit CLI",
         "version": "1.0.0",
         "audit_id": f"mas-ts-audit-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",

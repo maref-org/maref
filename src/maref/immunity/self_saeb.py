@@ -18,7 +18,7 @@ from maref.immunity.immune_checker import ImmuneChecker
 from maref.immunity.negative_gene_bank import NegativeGeneBank
 
 # Known harmful code samples for self-testing
-_SELF_TEST_SAMPLES: list[dict[str, str]] = [
+_SELF_TEST_SAMPLES: list[dict[str, Any]] = [
     {
         "name": "eval_injection",
         "code": "eval(input('Enter: '))",

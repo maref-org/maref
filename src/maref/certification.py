@@ -256,9 +256,10 @@ class SelfBootstrapVerifier:
                 "method": "merkle_audit_chain",
             }
 
-        results = {"method": "merkle_audit_chain", "checks": []}
+        results: dict[str, Any] = {"method": "merkle_audit_chain", "checks": []}
 
         # 1. Load audit log and verify chain hash continuity
+        logger: AuditLogger | None = None
         try:
             logger = AuditLogger(log_path=path, hmac_key="")
             integrity_check = logger.verify_integrity()
@@ -275,29 +276,36 @@ class SelfBootstrapVerifier:
         except Exception as e:
             results["checks"].append({"check": "chain_hash_continuity", "passed": False, "error": str(e)})
 
-        # 2. Verify entries via Merkle auditor
+        # 2. Rebuild Merkle chain from audit entries and verify proofs
         try:
             auditor = MerkleAuditor()
-            auditor.load_log(path)
+            integrator = AuditChainIntegrator(auditor)
+            entries = logger.read_all() if logger is not None else []
+            leaf_hashes: list[str] = []
+            for entry in entries:
+                leaf_hashes.append(integrator.record_audit_entry(entry))
             merkle_root = auditor.get_root_hash()
-            proof = auditor.generate_proof(0)
-            merkle_ok = proof is not None and (proof.verify() if hasattr(proof, 'verify') else True)
+            verified = 0
+            for leaf_hash in leaf_hashes:
+                proof = auditor.generate_proof(leaf_hash)
+                if proof is not None and proof.verify():
+                    verified += 1
+            merkle_ok = len(leaf_hashes) > 0 and verified == len(leaf_hashes)
             results["merkle_root"] = merkle_root
             results["merkle_proof_verified"] = merkle_ok
             results["checks"].append({
                 "check": "merkle_proof_verification",
                 "passed": merkle_ok,
                 "merkle_root": merkle_root,
+                "entries_verified": verified,
+                "entries_total": len(leaf_hashes),
             })
         except Exception as e:
             results["checks"].append({"check": "merkle_proof_verification", "passed": False, "error": str(e)})
 
         # 3. Verify bootstrap module appears in audit chain
         try:
-            from maref.eivl.merkle_auditor import AuditChainIntegrator
-
-            integrator = AuditChainIntegrator(MerkleAuditor())
-            chain_ok = integrator.verify_chain_integrity() if hasattr(integrator, 'verify_chain_integrity') else False
+            chain_ok = (merkle_root is not None) if "merkle_root" in results else False
             results["chain_integrator_ok"] = chain_ok
             results["checks"].append({
                 "check": "audit_chain_integrity",

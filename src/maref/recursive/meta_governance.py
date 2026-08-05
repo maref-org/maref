@@ -60,6 +60,15 @@ class MetaCircuitBreaker:
             return self._state_override
         return _BREAKER_TO_META[self._cb.state]
 
+    @state.setter
+    def state(self, value: MetaBreakerState) -> None:
+        if not self._override_authorized:
+            raise PermissionError(
+                "MetaCircuitBreaker.state 覆写未授权：请先调用 authorize_override() "
+                "（防止绕过熔断保护的状态篡改）"
+            )
+        self._state_override = value
+
     def authorize_override(self, actor: str = "") -> None:
         """受权路径：显式授权后才允许通过 ``state`` 属性覆写熔断状态。
 
@@ -74,15 +83,6 @@ class MetaCircuitBreaker:
     def revoke_override(self) -> None:
         """收回状态覆写授权。"""
         self._override_authorized = False
-
-    @state.setter
-    def state(self, value: MetaBreakerState) -> None:
-        if not self._override_authorized:
-            raise PermissionError(
-                "MetaCircuitBreaker.state 覆写未授权：请先调用 authorize_override() "
-                "（防止绕过熔断保护的状态篡改）"
-            )
-        self._state_override = value
 
     def record_trip(self) -> None:
         self._state_override = None

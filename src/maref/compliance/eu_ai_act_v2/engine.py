@@ -344,7 +344,7 @@ class EUAIComplianceEngineV2:
             {"metric": d.metric.value, "value": str(d.value), "threshold": str(d.threshold), "passed": str(d.passed)}
             for d in acc_decls
         ]
-        metrics_list = [
+        metrics_list: list[dict[str, float | str]] = [
             {"name": "reproducibility", "value": str(robustness.reproducibility_score), "threshold": "0.95"}
             for robustness in [robustness] if robustness
         ]

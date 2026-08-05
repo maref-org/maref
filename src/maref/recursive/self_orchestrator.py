@@ -180,7 +180,7 @@ class SelfOrchestrator:
             result.timed_out = True
         return result
 
-    def resolve_conflict(self, agent_a: str, agent_b: str, issue: str) -> str:
+    def resolve_conflict(self, agent_a: str, agent_b: str, issue: str) -> str | dict:
         return self._jsm.arbitrate(agent_a, agent_b, issue)
 
     def reset(self) -> None:

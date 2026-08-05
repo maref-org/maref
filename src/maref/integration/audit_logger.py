@@ -240,6 +240,8 @@ class AuditLogger:
                 self._current_log_file = self.log_dir / "mcp_audit.jsonl"
 
     def _sign(self, record: AuditRecord) -> str:
+        if self.hmac_secret is None:
+            return ""
         payload = json.dumps({
             "timestamp": record.timestamp,
             "agent_id": record.agent_id,

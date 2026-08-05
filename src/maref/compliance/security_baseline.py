@@ -22,6 +22,7 @@ import logging
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] PERCV: %(message)s")
 logger = logging.getLogger("percv_scanner")
@@ -152,7 +153,7 @@ def run_scan(config_file: str | None = None) -> dict:
             "recommendation": check.recommendation,
         })
 
-    report = {
+    report: dict[str, Any] = {
         "scanner": "PERCV Security Baseline Scanner",
         "version": "1.0.0",
         "scan_id": f"percv-scan-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
