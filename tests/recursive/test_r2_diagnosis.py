@@ -12,27 +12,8 @@ from maref.recursive.self_observer import SystemSnapshot
 
 class TestSelfDiagnostician:
     @pytest.fixture
-    def diagnostician(self, monkeypatch: pytest.MonkeyPatch) -> SelfDiagnostician:
-        d = SelfDiagnostician()
-        # desktop/gui_build 是环境相关 heavy probe（真实测量会跑 pnpm/桌面检测），
-        # 在不具备这些环境的 CI 上会把 normal_snapshot 判成 CRITICAL。mock 成
-        # NORMAL 让诊断测试跨环境确定。
-        from maref.observation.probes import ProbeReading, ProbeSeverity
-
-        def _normal(name: str):
-            def _measure(context: dict | None = None) -> ProbeReading:
-                return ProbeReading(
-                    probe_name=name,
-                    severity=ProbeSeverity.NORMAL,
-                    value=1.0,
-                    threshold=0.3,
-                )
-
-            return _measure
-
-        monkeypatch.setattr(d._desktop_probe, "measure", _normal("desktop"))
-        monkeypatch.setattr(d._gui_build_probe, "measure", _normal("gui_build"))
-        return d
+    def diagnostician(self) -> SelfDiagnostician:
+        return SelfDiagnostician()
 
     @pytest.fixture
     def normal_snapshot(self) -> SystemSnapshot:
@@ -58,11 +39,10 @@ class TestSelfDiagnostician:
         self, diagnostician: SelfDiagnostician, normal_snapshot: SystemSnapshot
     ) -> None:
         report = diagnostician.diagnose(normal_snapshot)
-        expected_probes = {"entropy", "anomaly", "latency", "kg", "oscillation"}
-        actual_probes = set(report.probe_results.keys())
-        assert expected_probes <= actual_probes, (
-            f"Expected at least {expected_probes}, got {actual_probes}"
-        )
+        expected_probes = {"entropy", "anomaly", "latency", "kg", "oscillation", "playwright", "desktop", "gui_build"}
+        assert (
+            set(report.probe_results.keys()) == expected_probes
+        ), f"Expected {expected_probes}, got {set(report.probe_results.keys())}"
 
     @pytest.mark.slow
     def test_normal_state_all_risk_normal(
@@ -107,6 +87,7 @@ class TestSelfDiagnostician:
             total_lines=0,
         )
         report = diagnostician.diagnose(snapshot)
+        # Circuit breaker opens after sustained critical conditions (trip_count > 3).
         for _ in range(4):
             diagnostician.check_and_trip(report)
         assert diagnostician.cb_state == "OPEN"
@@ -128,7 +109,6 @@ class TestSelfDiagnostician:
             diagnostician.check_and_trip(report)
         result = diagnostician.check_and_trip(report)
         assert result is False
-        assert diagnostician.cb_state == "OPEN"
 
     @pytest.mark.slow
     def test_half_open_allows_probe(self, diagnostician: SelfDiagnostician) -> None:

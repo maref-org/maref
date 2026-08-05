@@ -8,6 +8,7 @@ existing tests in test_gaas.py / test_federation_settlement.py.
 
 from __future__ import annotations
 
+import os
 import time
 
 import pytest
@@ -17,15 +18,22 @@ from maref.federation.settlement import FederatedSettlement
 from maref.gaas.audit_service import AuditLogService
 from maref.gaas.tenant import Tenant, TenantManager
 
+
 # ------------------------------------------------------------------
 # Fixtures
 # ------------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
-def _set_hmac_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+def _set_hmac_secret() -> None:
     """HMAC secret required by AuditLogService in all tests."""
-    monkeypatch.setenv("MAREF_HMAC_SECRET_KEY", "test-secret-for-persistence")
+    saved = os.environ.get("MAREF_HMAC_SECRET_KEY")
+    os.environ["MAREF_HMAC_SECRET_KEY"] = "test-secret-for-persistence"
+    yield
+    if saved is None:
+        os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+    else:
+        os.environ["MAREF_HMAC_SECRET_KEY"] = saved
 
 
 # ------------------------------------------------------------------

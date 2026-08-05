@@ -121,8 +121,10 @@ class SelfObserver:
             # metrics phase stays within the 15-min cycle budget (matches CI).
             cmd.extend(["-m", "not integration and not chaos and not benchmark"])
         # Timeout: fast subset (10 files) completes in <30s; with overhead,
-        # 120s is a safe upper bound.  The old 300s was for the full suite.
-        timeout = 60 if collect_only else 120
+        # 60s is a safe bound for collect-only. Run mode (full filtered suite)
+        # needs 600s (Fix 10b) — the old 300s caused 48h cycle-1 to report
+        # test_count=0 because the ~10k-test suite exceeded it.
+        timeout = 60 if collect_only else 600
         try:
             result = subprocess.run(
                 cmd,

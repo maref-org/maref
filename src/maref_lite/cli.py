@@ -1629,7 +1629,7 @@ def self_heal_start(
             reason="SelfExecutor write bypassed proposal dry-run",
         )
     config = SelfHealingConfig(
-        check_interval_seconds=interval,  # type: ignore[arg-type]
+        check_interval_seconds=interval,
         proposal_dry_run=not execute_proposals,
     )
 

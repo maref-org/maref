@@ -82,7 +82,7 @@ class RecursiveGovernanceConfig:
     circuit_breaker_max_failures: int = 5
     # Self-healing loop (P0)
     enable_self_healing: bool = True
-    healing_check_interval_seconds: int = 300
+    healing_check_interval_seconds: float = 300.0
     healing_max_iterations: int = 3
     enable_architecture_proposals: bool = True
     arch_proposal_interval_cycles: int = 12
@@ -185,7 +185,11 @@ class RecursiveGovernanceOverlay:
             revert_task = None
 
         # P0: Self-healing loop task
-        healing_task = asyncio.create_task(self._healing_loop.run()) if self._healing_loop else None
+        healing_task = (
+            asyncio.create_task(self._healing_loop.run())
+            if self._healing_loop
+            else None
+        )
 
         try:
             await primary_task
@@ -407,7 +411,9 @@ class RecursiveGovernanceOverlay:
             "circuit_breaker": self._breaker.get_stats(),
             "meta_learning": (self._meta_learner.get_stats() if self._meta_learner else None),
             "sandbox": self._sandbox.get_stats() if self._sandbox else None,
-            "self_healing": (self._healing_loop.to_dict() if self._healing_loop else None),
+            "self_healing": (
+                self._healing_loop.get_status_summary() if self._healing_loop else None
+            ),
         }
 
     def _detect_oscillation(self) -> bool:

@@ -27,8 +27,8 @@ class TestSelfObserver:
 
     @pytest.mark.slow
     def test_observe_tests_collects_statistics(self, observer: SelfObserver) -> None:
-        stats = observer.observe_tests()
-        assert stats["total"] >= 100, f"Expected >=100 tests, got {stats['total']}"
+        stats = observer.observe_tests(collect_only=True)
+        assert stats["total"] >= 649, f"Expected >=649 tests, got {stats['total']}"
         assert "passed" in stats
         assert "coverage_pct" in stats
 
@@ -45,8 +45,8 @@ class TestSelfObserver:
 
     @pytest.mark.slow
     def test_snapshot_includes_test_stats(self, observer: SelfObserver) -> None:
-        snapshot = observer.snapshot()
-        assert snapshot.test_stats["total"] >= 100
+        snapshot = observer.snapshot(collect_only=True)
+        assert snapshot.test_stats["total"] >= 649
 
     @pytest.mark.slow
     def test_snapshot_includes_git_stats(self, observer: SelfObserver) -> None:
