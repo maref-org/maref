@@ -1,8 +1,8 @@
-version: 14
-last_updated: '2026-08-13T08:00:00+08:00'
+version: 16
+last_updated: '2026-08-04T20:30:00+08:00'
 project:
   name: MAREF
-  current_release: 0.50.0
+  current_release: 0.52.0
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   rsi_level: 'L2 (Full Pass)'
@@ -51,11 +51,17 @@ track_b:
   ci_status: fixed
   security_scan: clean
 governance:
-  deployment_status: improving
-  last_audit: '2026-07-31'
-  audit_score: 7.0/10
-  coverage_overall: 36.1%
-  coverage_governance: ~68%
+  deployment_status: production_closed_loop
+  last_audit: '2026-08-04'
+  audit_score: 8.8/10
+  coverage_overall: 80.31%
+  coverage_governance: 94.66%
+  coverage_federation: 93.68%
+  coverage_identity: 96.39%
+  coverage_security: 88.42%
+  coverage_execution: 74.32%
+  coverage_data_value: 95.94%
+  v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
   mypy_errors: 0
   resolved_issues_archive: archive/resolved-issues.yaml
