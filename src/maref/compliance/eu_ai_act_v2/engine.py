@@ -185,7 +185,9 @@ class EUAIComplianceEngineV2:
             self.auto_populate_documentation()
         else:
             if "development_methodology" in kwargs:
-                self.technical_docs.set_development_methodology(kwargs["development_methodology"])
+                self.technical_docs.set_development_methodology(
+                    kwargs["development_methodology"]
+                )
             if "system_architecture" in kwargs:
                 self.technical_docs.set_system_architecture(kwargs["system_architecture"])
             if "data_governance" in kwargs:
@@ -195,13 +197,21 @@ class EUAIComplianceEngineV2:
             if "human_oversight" in kwargs:
                 self.technical_docs.set_human_oversight(kwargs["human_oversight"])
             if "cybersecurity_measures" in kwargs:
-                self.technical_docs.set_cybersecurity_measures(kwargs["cybersecurity_measures"])
+                self.technical_docs.set_cybersecurity_measures(
+                    kwargs["cybersecurity_measures"]
+                )
             if "risk_management_summary" in kwargs:
-                self.technical_docs.set_risk_management_summary(kwargs["risk_management_summary"])
+                self.technical_docs.set_risk_management_summary(
+                    kwargs["risk_management_summary"]
+                )
             if "post_market_monitoring" in kwargs:
-                self.technical_docs.set_post_market_monitoring(kwargs["post_market_monitoring"])
+                self.technical_docs.set_post_market_monitoring(
+                    kwargs["post_market_monitoring"]
+                )
             if "performance_metrics" in kwargs:
-                self.technical_docs.set_performance_metrics(kwargs["performance_metrics"])
+                self.technical_docs.set_performance_metrics(
+                    kwargs["performance_metrics"]
+                )
         return self.technical_docs.generate()
 
     def auto_populate_documentation(self, **classify_kwargs: Any) -> None:
@@ -231,58 +241,48 @@ class EUAIComplianceEngineV2:
                 risk_level_str = detail.risk_level.value
             except (TypeError, ValueError):
                 pass
-        self.technical_docs.set_general_description(
-            {
-                "system_type": "multi-agent governance system",
-                "key_components": "governance_engine, trust_orchestrator, audit_chain",
-                "deployment_context": self.technical_docs.intended_purpose,
-                "risk_classification_method": "EU AI Act Annex III + Art.6-7",
-                "risk_level": risk_level_str,
-            }
-        )
+        self.technical_docs.set_general_description({
+            "system_type": "multi-agent governance system",
+            "key_components": "governance_engine, trust_orchestrator, audit_chain",
+            "deployment_context": self.technical_docs.intended_purpose,
+            "risk_classification_method": "EU AI Act Annex III + Art.6-7",
+            "risk_level": risk_level_str,
+        })
 
     def _auto_fill_section_2(self) -> None:
         """§2: Development methodology — from accuracy/robustness config."""
         acc_decls = self.accuracy.get_declarations() if hasattr(self, "accuracy") else []
         metrics = [d.metric.value for d in acc_decls]
-        self.technical_docs.set_development_methodology(
-            DevelopmentMethodology(
-                framework="MAREF recursive governance framework",
-                training_approach="supervised_recursive_evolution",
-                evaluation_methods=metrics
-                or [
-                    "precision",
-                    "recall",
-                    "f1",
-                    "robustness_test",
-                ],
-                tools=["MAREF EIVL", "TLA+ Toolbox", "Gray Code FSM verifier"],
-            )
-        )
+        self.technical_docs.set_development_methodology(DevelopmentMethodology(
+            framework="MAREF recursive governance framework",
+            training_approach="supervised_recursive_evolution",
+            evaluation_methods=metrics or [
+                "precision", "recall", "f1", "robustness_test",
+            ],
+            tools=["MAREF EIVL", "TLA+ Toolbox", "Gray Code FSM verifier"],
+        ))
 
     def _auto_fill_section_3(self) -> None:
         """§3: System architecture — from governance components."""
-        self.technical_docs.set_system_architecture(
-            SystemArchitecture(
-                components=[
-                    {"name": "Governance Engine", "type": "state_machine", "version": "v2"},
-                    {"name": "Trust Oracle", "type": "scoring", "version": "v2"},
-                    {"name": "Safety Gate", "type": "interceptor", "version": "v2"},
-                    {"name": "Audit Chain", "type": "merkle_tree", "version": "v1"},
-                    {"name": "Federation Hub", "type": "multi_org", "version": "v1"},
-                ],
-                data_flows=[
-                    {"from": "Agent", "to": "Safety Gate", "protocol": "intercept"},
-                    {"from": "Safety Gate", "to": "Governance Engine", "protocol": "event"},
-                    {"from": "Governance Engine", "to": "Audit Chain", "protocol": "hmac"},
-                    {"from": "Trust Oracle", "to": "Governance Engine", "protocol": "state"},
-                ],
-                external_interfaces=[
-                    {"name": "MCP Protocol", "type": "sidecar", "direction": "bidirectional"},
-                    {"name": "A2A Protocol", "type": "federation", "direction": "bidirectional"},
-                ],
-            )
-        )
+        self.technical_docs.set_system_architecture(SystemArchitecture(
+            components=[
+                {"name": "Governance Engine", "type": "state_machine", "version": "v2"},
+                {"name": "Trust Oracle", "type": "scoring", "version": "v2"},
+                {"name": "Safety Gate", "type": "interceptor", "version": "v2"},
+                {"name": "Audit Chain", "type": "merkle_tree", "version": "v1"},
+                {"name": "Federation Hub", "type": "multi_org", "version": "v1"},
+            ],
+            data_flows=[
+                {"from": "Agent", "to": "Safety Gate", "protocol": "intercept"},
+                {"from": "Safety Gate", "to": "Governance Engine", "protocol": "event"},
+                {"from": "Governance Engine", "to": "Audit Chain", "protocol": "hmac"},
+                {"from": "Trust Oracle", "to": "Governance Engine", "protocol": "state"},
+            ],
+            external_interfaces=[
+                {"name": "MCP Protocol", "type": "sidecar", "direction": "bidirectional"},
+                {"name": "A2A Protocol", "type": "federation", "direction": "bidirectional"},
+            ],
+        ))
 
     def _auto_fill_section_4(self) -> None:
         """§4: Data governance — from DataGovernanceManager."""
@@ -303,22 +303,16 @@ class EUAIComplianceEngineV2:
                 if ds.bias_assessment:
                     entry["bias_risk"] = ds.bias_assessment.overall_risk
                 datasets.append(entry)
-        self.technical_docs.set_data_governance(
-            TDDataGovernance(
-                datasets=datasets,
-                preprocessing_steps=[
-                    "input_validation",
-                    "anomaly_filtering",
-                    "sanitization",
-                ],
-                bias_mitigation=[
-                    "parity_gap_monitoring",
-                    "demographic_breakdown_audit",
-                ]
-                if datasets
-                else [],
-            )
-        )
+        self.technical_docs.set_data_governance(TDDataGovernance(
+            datasets=datasets,
+            preprocessing_steps=[
+                "input_validation", "anomaly_filtering", "sanitization",
+            ],
+            bias_mitigation=[
+                "parity_gap_monitoring",
+                "demographic_breakdown_audit",
+            ] if datasets else [],
+        ))
 
     def _auto_fill_section_5(self) -> None:
         """§5: Human oversight — from HumanOversightBridge."""
@@ -347,51 +341,25 @@ class EUAIComplianceEngineV2:
         acc_decls = self.accuracy.get_declarations() if hasattr(self, "accuracy") else []
         robustness = self.robustness.run_all() if hasattr(self, "robustness") else None
         test_cases = [
-            {
-                "metric": d.metric.value,
-                "value": str(d.value),
-                "threshold": str(d.threshold),
-                "passed": str(d.passed),
-            }
+            {"metric": d.metric.value, "value": str(d.value), "threshold": str(d.threshold), "passed": str(d.passed)}
             for d in acc_decls
         ]
         metrics_list: list[dict[str, float | str]] = [
-            {
-                "name": "reproducibility",
-                "value": str(robustness.reproducibility_score),
-                "threshold": "0.95",
-            }
-            for robustness in [robustness]
-            if robustness
+            {"name": "reproducibility", "value": str(robustness.reproducibility_score), "threshold": "0.95"}
+            for robustness in [robustness] if robustness
         ]
         if robustness:
-            metrics_list.extend(
-                [
-                    {
-                        "name": "ood_degradation",
-                        "value": str(robustness.ood_degradation),
-                        "threshold": "15.0",
-                    },
-                    {
-                        "name": "psi_stability",
-                        "value": str(robustness.psi_value),
-                        "threshold": "0.2",
-                    },
-                    {
-                        "name": "failsafe_verified",
-                        "value": str(robustness.failsafe_verified),
-                        "threshold": "true",
-                    },
-                ]
-            )
+            metrics_list.extend([
+                {"name": "ood_degradation", "value": str(robustness.ood_degradation), "threshold": "15.0"},
+                {"name": "psi_stability", "value": str(robustness.psi_value), "threshold": "0.2"},
+                {"name": "failsafe_verified", "value": str(robustness.failsafe_verified), "threshold": "true"},
+            ])
         acceptance = ["All accuracy metrics above threshold", "Robustness tests passing"]
-        self.technical_docs.set_validation_procedure(
-            ValidationProcedure(
-                test_cases=test_cases or [{"status": "no_tests_recorded"}],
-                metrics=metrics_list,
-                acceptance_criteria=acceptance,
-            )
-        )
+        self.technical_docs.set_validation_procedure(ValidationProcedure(
+            test_cases=test_cases or [{"status": "no_tests_recorded"}],
+            metrics=metrics_list,
+            acceptance_criteria=acceptance,
+        ))
 
     def _auto_fill_section_7(self) -> None:
         """§7: Cybersecurity — from CybersecurityManager."""
@@ -400,8 +368,7 @@ class EUAIComplianceEngineV2:
             for assessment in self.cybersecurity.assess_all():
                 measures.extend(assessment.controls_in_place)
         self.technical_docs.set_cybersecurity_measures(
-            measures
-            or [
+            measures or [
                 "access_control",
                 "input_validation",
                 "audit_logging",
@@ -412,9 +379,7 @@ class EUAIComplianceEngineV2:
     def _auto_fill_section_8(self) -> None:
         """§8: Risk management — from RiskManagementSystem."""
         rm_summary: dict[str, Any] = {
-            "state": self.risk_mgmt.state.value
-            if hasattr(self, "risk_mgmt")
-            else "not_initialized",
+            "state": self.risk_mgmt.state.value if hasattr(self, "risk_mgmt") else "not_initialized",
             "risk_count": 0,
             "mitigated_count": 0,
         }
@@ -435,21 +400,19 @@ class EUAIComplianceEngineV2:
                 "plan_count": summary.get("total_plans", 0),
                 "observation_count": summary.get("total_observations", 0),
             }
-        self.technical_docs.set_post_market_monitoring(
-            PostMarketMonitoringPlan(
-                monitoring_frequency="quarterly" if pmm_data["active"] else "not_established",
-                data_collection_methods=[
-                    "automated_observation_logging",
-                    "incident_reporting_feed",
-                    "periodic_review",
-                ],
-                incident_reporting_protocol=(
-                    "Art.20 + Art.73 established"
-                    if hasattr(self, "incident_mgr")
-                    else "not_configured"
-                ),
-            )
-        )
+        self.technical_docs.set_post_market_monitoring(PostMarketMonitoringPlan(
+            monitoring_frequency="quarterly" if pmm_data["active"] else "not_established",
+            data_collection_methods=[
+                "automated_observation_logging",
+                "incident_reporting_feed",
+                "periodic_review",
+            ],
+            incident_reporting_protocol=(
+                "Art.20 + Art.73 established"
+                if hasattr(self, "incident_mgr")
+                else "not_configured"
+            ),
+        ))
 
     def _auto_fill_section_10(self) -> None:
         """§10: Accuracy, robustness, cybersecurity metrics."""
@@ -520,7 +483,8 @@ class EUAIComplianceEngineV2:
           5. Register in EU database (Art.49)
         """
         categories_list: list[AnnexIIICategory | str] = [
-            c if isinstance(c, AnnexIIICategory) else c for c in (categories or [])
+            c if isinstance(c, AnnexIIICategory) else c
+            for c in (categories or [])
         ]
         detail = self.classify(categories=categories_list)
 
@@ -555,7 +519,9 @@ class EUAIComplianceEngineV2:
 
         ce_marking = None
         if declaration is not None:
-            ce_marking = self.conformity.issue_ce_marking(declaration_id=declaration.declaration_id)
+            ce_marking = self.conformity.issue_ce_marking(
+                declaration_id=declaration.declaration_id
+            )
 
         registration = self.conformity.register_in_eu_database(
             system_name=self.system_name,
@@ -640,11 +606,7 @@ class EUAIComplianceEngineV2:
                     "capable_tasks": ["governance_enforcement", "trust_scoring", "audit_chain"],
                     "limitations": ["requires_human_oversight", "domain_trained"],
                     "integration_guide": "MCP protocol / A2A federation",
-                    "hardware_requirements": {
-                        "cpu": "2+ cores",
-                        "memory": "4GB+",
-                        "storage": "1GB+",
-                    },
+                    "hardware_requirements": {"cpu": "2+ cores", "memory": "4GB+", "storage": "1GB+"},
                     "evaluation_results": {"saeb_pass_rate": "0.97", "stability": "0.95"},
                 },
                 "model_evaluation": {
@@ -704,7 +666,9 @@ class EUAIComplianceEngineV2:
         if summary.transparency_complete:
             score += weights["transparency"] * 100.0
         elif summary.transparency_missing_obligations:
-            ratio = 1.0 - (len(summary.transparency_missing_obligations) / 5.0)
+            ratio = 1.0 - (
+                len(summary.transparency_missing_obligations) / 5.0
+            )
             score += weights["transparency"] * max(0, ratio * 100)
 
         # Human oversight
@@ -718,10 +682,7 @@ class EUAIComplianceEngineV2:
             score += weights["conformity"] * 50.0
 
         # GPAI
-        if (
-            summary.gpai_status in (None, GPAIStatus.BELOW_THRESHOLD)
-            or not summary.gpai_missing_obligations
-        ):
+        if summary.gpai_status in (None, GPAIStatus.BELOW_THRESHOLD) or not summary.gpai_missing_obligations:
             score += weights["gpai"] * 100.0
         else:
             ratio = 1.0 - (len(summary.gpai_missing_obligations) / 6.0)
@@ -827,7 +788,9 @@ class EUAIComplianceEngineV2:
         compute_threshold = classify_kwargs.get("compute_threshold", GPAIThreshold.BELOW_THRESHOLD)
 
         if training_compute == 0.0 and compute_threshold != GPAIThreshold.BELOW_THRESHOLD:
-            training_compute = 10 ** (26 if compute_threshold == GPAIThreshold.ABOVE_10_25 else 24)
+            training_compute = 10 ** (
+                26 if compute_threshold == GPAIThreshold.ABOVE_10_25 else 24
+            )
 
         gpai_result = self.setup_gpai(
             training_compute=training_compute,
@@ -839,7 +802,9 @@ class EUAIComplianceEngineV2:
         recommendations: list[str] = []
 
         if not doc_complete:
-            gaps.append(f"Technical documentation incomplete: {doc_validation['missing_fields']}")
+            gaps.append(
+                f"Technical documentation incomplete: {doc_validation['missing_fields']}"
+            )
             recommendations.append("Complete Annex IV technical documentation")
 
         if not trans_complete:
@@ -847,7 +812,9 @@ class EUAIComplianceEngineV2:
             recommendations.append("Fulfill Art.50 transparency obligations")
 
         if gpai_result["missing_obligations"]:
-            gaps.append(f"GPAI obligations missing: {gpai_result['missing_obligations']}")
+            gaps.append(
+                f"GPAI obligations missing: {gpai_result['missing_obligations']}"
+            )
             recommendations.append("Complete GPAI compliance obligations")
 
         # M2: Data Governance (Art.10)
@@ -873,7 +840,10 @@ class EUAIComplianceEngineV2:
         all_accuracy_passed = all(d.passed for d in accuracy_decls)
         robustness_report = self.robustness.run_all()
         cyber_gaps = self.cybersecurity.gap_analysis()
-        high_risk_cyber = any(a.risk_score > 0.7 for a in self.cybersecurity.assess_all())
+        high_risk_cyber = any(
+            a.risk_score > 0.7
+            for a in self.cybersecurity.assess_all()
+        )
         accuracy_robustness_complete = (
             len(accuracy_decls) > 0
             and all_accuracy_passed
@@ -918,10 +888,7 @@ class EUAIComplianceEngineV2:
 
         # M3: FRIA (Art.27)
         fria_summary = self.fria.get_fria_summary()
-        fria_complete = (
-            fria_summary.get("generated_at", "") != ""
-            and fria_summary.get("total_assessments", 0) > 0
-        )
+        fria_complete = fria_summary.get("generated_at", "") != "" and fria_summary.get("total_assessments", 0) > 0
         high_risk_assessments = self.fria.get_high_risk_rights()
         fria_high_risk_rights = [a.right.value for a in high_risk_assessments]
 
@@ -930,7 +897,8 @@ class EUAIComplianceEngineV2:
         pmm_active = pmm_summary.get("total_plans", 0) > 0
         pmm_observations = pmm_summary.get("total_observations", 0)
         pmm_review_due = any(
-            self.pmm.check_review_due(p["plan_id"]) for p in pmm_summary.get("plans", [])
+            self.pmm.check_review_due(p["plan_id"])
+            for p in pmm_summary.get("plans", [])
         )
 
         if not qms_established:
@@ -1065,7 +1033,9 @@ class EUAIComplianceEngineV2:
             "risk_management": {
                 "lifecycle_state": self.risk_mgmt.state.value,
                 "risk_count": len(self.risk_mgmt.catalog),
-                "mitigated_count": sum(1 for r in self.risk_mgmt.catalog.values() if r.mitigated),
+                "mitigated_count": sum(
+                    1 for r in self.risk_mgmt.catalog.values() if r.mitigated
+                ),
             },
             "technical_documentation": {
                 "sections": list(docs.keys()) if isinstance(docs, dict) else [],

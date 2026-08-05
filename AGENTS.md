@@ -140,10 +140,11 @@ kubectl apply -f k8s/production/
 - **Patterns**: 1 competitive positioning pattern
 
 ## Mission Workspace
-- **路径**: `.missions/v0.25.0-security-enhancement/`
-- **特性**: 35/35 completed (22 v0.25.0 + 13 L2), 9547+ tests collected (5968 passed in standard suite, 220+ L2 release tests)
-- **验证**: 7 validator rounds, 4 issues found and resolved
-- **里程碑**: m0-m7 all completed
+- **路径**: `.missions/v0.25.0-security-enhancement/` + `.missions/v0.51.0-enterprise-value/`
+- **特性**: v0.25.0 35/35 completed (22 v0.25.0 + 13 L2)；v0.51 13/13 completed (W1-W6 enterprise value)
+- **验证**: v0.25.0 7 validator rounds, 4 issues found and resolved
+- **里程碑**: v0.25.0 m0-m7 all completed；v0.51 M1-M4 all completed
+- **测试现状**: 2026-08-05 全仓收集 15723 tests（446 deselected + 9 research 收集错误）；治理域 1055 passed / 联邦 241 / 安全 326 / 执行 137 全绿；部分 cli/recursive/desktop 为基线既有失败（v0.50 审计第五节分类处置中）
 
 ## Quick Reference
 - MAREF Lite CLI: `maref-lite --help`

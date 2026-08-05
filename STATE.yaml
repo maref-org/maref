@@ -1,5 +1,5 @@
 version: 16
-last_updated: '2026-08-04T20:30:00+08:00'
+last_updated: '2026-08-05T13:40:00+08:00'
 project:
   name: MAREF
   current_release: 0.52.0
@@ -54,13 +54,14 @@ governance:
   deployment_status: production_closed_loop
   last_audit: '2026-08-04'
   audit_score: 8.8/10
-  coverage_overall: 80.31%
-  coverage_governance: 94.66%
-  coverage_federation: 93.68%
-  coverage_identity: 96.39%
-  coverage_security: 88.42%
-  coverage_execution: 74.32%
-  coverage_data_value: 95.94%
+  coverage_overall: 29.48%
+  coverage_governance: 87.70%
+  coverage_federation: 67.76%
+  coverage_identity: 58.46%
+  coverage_security: 87.24%
+  coverage_execution: 71.62%
+  coverage_data_value: 95.95%
+  coverage_note: '全仓 29.48% 为 2026-08-05 实测（排除 benchmark/longevity/slow/real/chaos + tests/research 收集错误）；分域为 release-gate 门禁口径。治理域门禁 ≥60% 达标（87.70%）。v0.50 记录的 80.31% 基于当时 4766 tests 标准套件，现已过时。'
   v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
   mypy_errors: 0
