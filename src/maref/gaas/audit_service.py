@@ -15,6 +15,7 @@ Migration to the new API::
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import hmac
 import json
@@ -65,36 +66,36 @@ class GaaSAuditEntry:
     def verify(self, secret: bytes | None) -> bool:
         """Verify this entry has not been tampered with.
 
-        Backward-compat API.  Entries logged through the unified AuditBus
-        carry a chain-level signature verified by ``AuditLogger.verify_integrity``;
-        the legacy HMAC recompute is attempted only when a GaaS-level HMAC
-        signature is present.
+        Recomputes the HMAC over the canonical payload and compares it to the
+        stored signature.  Returns False when no signature is present or when
+        the recomputed HMAC does not match — tamper-evident by construction.
         """
         if not self.hmac_signature:
-            return True
+            return False
+        if secret is None:
+            return False
         try:
-            payload = json.dumps(
-                {
-                    "log_id": self.log_id,
-                    "timestamp": self.timestamp,
-                    "tenant_id": self.tenant_id,
-                    "agent_id": self.agent_id,
-                    "action": self.action,
-                    "verdict": self.verdict,
-                    "parameters": self.parameters,
-                    "context": self.context,
-                },
-                sort_keys=True,
-                default=str,
-            ).encode("utf-8")
-            if secret is not None:
-                expected = hmac.new(secret, payload, hashlib.sha256).hexdigest()
-                if hmac.compare_digest(expected, self.hmac_signature):
-                    return True
+            payload = self._canonical_payload()
+            expected = hmac.new(secret, payload, hashlib.sha256).hexdigest()
+            return hmac.compare_digest(expected, self.hmac_signature)
         except Exception:
-            pass
-        # Chain-level signatures (Ed25519 hex) verified at bus level.
-        return self.hmac_signature.startswith("sig_") or len(self.hmac_signature) >= 64
+            return False
+
+    def _canonical_payload(self) -> bytes:
+        return json.dumps(
+            {
+                "log_id": self.log_id,
+                "timestamp": self.timestamp,
+                "tenant_id": self.tenant_id,
+                "agent_id": self.agent_id,
+                "action": self.action,
+                "verdict": self.verdict,
+                "parameters": self.parameters,
+                "context": self.context,
+            },
+            sort_keys=True,
+            default=str,
+        ).encode("utf-8")
 
     @classmethod
     def from_bus_entry(cls, audit_entry: Any) -> GaaSAuditEntry:
@@ -131,7 +132,10 @@ class AuditLogService:
         bus: AuditBus | None = None,
     ) -> None:
         self._secret = secret
-        if secret is None and os.environ.get("MAREF_HMAC_SECRET_KEY") is None:
+        if secret is None and os.environ.get("MAREF_HMAC_SECRET_KEY") is not None:
+            secret = os.environ["MAREF_HMAC_SECRET_KEY"].encode("utf-8")
+            self._secret = secret
+        if self._secret is None:
             raise ValueError(
                 "AuditLogService requires an HMAC secret key. "
                 "Set MAREF_HMAC_SECRET_KEY or pass `secret=`."
@@ -176,6 +180,15 @@ class AuditLogService:
         )
         # Wrap as GaaSAuditEntry for backward-compat return type.
         gaas_entry = GaaSAuditEntry.from_bus_entry(bus_entry)
+
+        # Attach a GaaS-level HMAC so ``entry.verify(secret)`` can detect
+        # tampering at the tenant-scoped layer (the bus keeps its own
+        # Ed25519 chain signature on disk).
+        if self._secret is not None:
+            hmac_value = hmac.new(
+                self._secret, gaas_entry._canonical_payload(), hashlib.sha256
+            ).hexdigest()
+            gaas_entry = dataclasses.replace(gaas_entry, hmac_signature=hmac_value)
 
         idx = len(self._entries)
         self._entries.append(gaas_entry)
@@ -229,9 +242,16 @@ class AuditLogService:
         return bool(report.get("chain_intact", True))
 
     def get_stats(self, tenant_id: str) -> dict[str, Any]:
-        indices = self._tenant_index.get(tenant_id, [])
+        # Use the authoritative bus (disk-backed) for consistency with
+        # ``query()``, so stats survive restarts.
+        bus_entries = self._bus.query_tenant(tenant_id, max_entries=None)
+        if bus_entries:
+            total = len(bus_entries)
+        else:
+            indices = self._tenant_index.get(tenant_id, [])
+            total = len(indices)
         return {
-            "total_entries": len(indices),
+            "total_entries": total,
             "tenant_id": tenant_id,
             "integrity_verified": self.verify_integrity(tenant_id),
         }
