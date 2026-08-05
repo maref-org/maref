@@ -174,6 +174,40 @@ class GovernancePipeline:
                     self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
                 return result
 
+            # P0-2: IRREVERSIBLE 动作即使授权放行，仍升级真实 HITL（人工确认）。
+            # 替换"仅返回 action_required=HITL 字符串"的空转——此处真正发起审批事件。
+            if (
+                boundary_decision is not None
+                and boundary_decision.allowed
+                and getattr(boundary_decision, "consensus_required", False)
+            ):
+                from maref.integration.hitl import HITLTier as _HITLTier
+
+                hitl_event = self._hitl.request(
+                    tenant_id=req.tenant_id or "default",
+                    agent_id=req.agent_id,
+                    action=req.action,
+                    description=f"IRREVERSIBLE 动作需人工确认: {req.action}",
+                    parameters=req.parameters,
+                    tier=_HITLTier.P0_RESPONSE,
+                )
+                result = GovernanceResult(
+                    verdict=Verdict.ASK_USER,
+                    reason=f"IRREVERSIBLE 动作 {req.action} 升级人工审批",
+                    hitl_tier=_HITLTier.P0_RESPONSE,
+                    hitl_event_id=hitl_event.event_id,
+                    matched_rule="irreversible_hitl",
+                )
+                result.latency_ms = int((time.time() - start) * 1000)
+                if self._audit_callback:
+                    self._audit_callback(req, result)
+                if self._trust_callback:
+                    self._trust_callback(
+                        req.tenant_id, req.agent_id, max(0.0, req.trust_score - 0.5),
+                        "pipeline:irreversible_hitl",
+                    )
+                return result
+
         # 1. Circuit breaker depth check
         if self._cb_check_callback:
             allowed = self._cb_check_callback(

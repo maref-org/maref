@@ -49,6 +49,9 @@ class BoundaryDecision:
     reason: str
     assessment: RiskAssessment
     checked_at: float = field(default_factory=time.time)
+    # IRREVERSIBLE 动作即使授权放行，仍需人工确认或多验证者共识（P0-2）。
+    # 上层（GovernancePipeline）据此升级为 HITL / 共识流程，而非直接放行。
+    consensus_required: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +60,7 @@ class BoundaryDecision:
             "allowed": self.allowed,
             "reason": self.reason,
             "risk_level": self.assessment.risk_level.value,
+            "consensus_required": self.consensus_required,
             "checked_at": self.checked_at,
         }
 
@@ -280,6 +284,7 @@ class TrustBoundaryManager:
             allowed=True,
             reason=f"风险等级 {assessment.risk_level.value} 授权范围内放行",
             assessment=assessment,
+            consensus_required=assessment.risk_level == RiskLevel.IRREVERSIBLE,
         )
 
     def _record_audit(self, decision: BoundaryDecision) -> None:

@@ -239,7 +239,7 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
         _tool_registry.register(t)
     _mcp_adapter = MCPServerAdapter(_tool_registry)
 
-    gateway = MCPGateway()
+    gateway = MCPGateway(boundary=app.state.governed.boundary)
     _wire_mcp_governance(gateway)
     gateway.register_backend(
         prefix="maref_",

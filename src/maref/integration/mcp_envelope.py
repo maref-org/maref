@@ -13,12 +13,21 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-def make_envelope(source_agent: str = "unknown") -> dict[str, str]:
-    """创建标准 MCP 消息信封。"""
+def make_envelope(
+    source_agent: str = "unknown",
+    chain_id: str | None = None,
+) -> dict[str, str]:
+    """创建标准 MCP 消息信封。
+
+    Args:
+        chain_id: 委托链 ID（P0-5 I1 修复）：随跨消息透传，使
+            delegation 责任链在消息层面可追溯。None 时生成新链。
+    """
     return {
         "trace_id": str(uuid.uuid4()),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "source_agent": source_agent,
+        "chain_id": chain_id or str(uuid.uuid4()),
     }
 
 
@@ -42,12 +51,17 @@ def validate_envelope(payload: dict[str, Any]) -> tuple[bool, str]:
     if not ts or not source:
         return True, "missing timestamp or source_agent (degraded, continuing)"
 
+    # chain_id 缺失仅降级：旧端未升级时继续通信，但审计标记缺失。
+    if not payload.get("chain_id"):
+        return True, "missing chain_id (degraded, continuing)"
+
     return True, ""
 
 
 def inject_envelope(
     payload: dict[str, Any],
     source_agent: str = "unknown",
+    chain_id: str | None = None,
 ) -> dict[str, Any]:
     """向消息中注入信封字段（缺啥补啥）。"""
     result = dict(payload)
@@ -57,4 +71,6 @@ def inject_envelope(
         result["timestamp"] = datetime.now(timezone.utc).isoformat()
     if "source_agent" not in result:
         result["source_agent"] = source_agent
+    if "chain_id" not in result:
+        result["chain_id"] = chain_id or str(uuid.uuid4())
     return result

@@ -7,6 +7,8 @@ from typing import Any
 
 import httpx
 
+# 默认调用方身份（向后兼容）。跨组织调用必须传真实 caller DID，
+# 否则责任链无法追溯（P0-5 I1 修复）。
 AGENT_ID = "urn:agent:maref:0-35-0-beta:a2a-client"
 
 
@@ -24,9 +26,12 @@ class A2AClient:
         self,
         timeout: float = 30.0,
         signing_key: Any | None = None,
+        agent_id: str | None = None,
     ) -> None:
         self._timeout = timeout
         self._signing_key = signing_key
+        # 真实 caller DID：调用方未显式传入时回退默认常量。
+        self._agent_id = agent_id or AGENT_ID
         self._active_tasks: dict[str, dict[str, Any]] = {}
 
     def _sign_payload(self, payload: bytes) -> tuple[str, str]:
@@ -45,7 +50,7 @@ class A2AClient:
     def _headers(self, payload: bytes | None = None) -> dict[str, str]:
         headers = {
             "Content-Type": "application/json",
-            "X-A2A-Agent-Id": AGENT_ID,
+            "X-A2A-Agent-Id": self._agent_id,
         }
         if self._signing_key is not None and payload is not None:
             sig, timestamp = self._sign_payload(payload)

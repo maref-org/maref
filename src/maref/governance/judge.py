@@ -57,6 +57,9 @@ class Judge(ABC):
     """法官抽象接口。"""
 
     name: str = "judge"
+    # 法官归属（组织/DID）。非 None 且与被审 agent 同源时法官必须回避
+    # （P0-4 recusal），防止「法官评审自己」的自审盲区。
+    affiliation: str | None = None
 
     @abstractmethod
     def arbitrate(self, trace: Trace, verdict_schema: dict[str, Any] | None = None) -> Verdict:
@@ -117,6 +120,8 @@ class RuleJudge(Judge):
         self._block_patterns = block_patterns
         self._flag_patterns = flag_patterns
 
+    affiliation = None  # 规则法官全局中立，无归属、永不回避
+
     def arbitrate(
         self,
         trace: Trace,
@@ -169,9 +174,16 @@ class ProviderJudge(Judge):
 
     name = "provider-judge"
 
-    def __init__(self, provider: JudgeProvider, name: str = "provider-judge") -> None:
+    def __init__(
+        self,
+        provider: JudgeProvider,
+        name: str = "provider-judge",
+        affiliation: str | None = None,
+    ) -> None:
         self._provider = provider
         self.name = name
+        # 外部法官归属（组织/DID）：与被审 agent 同源时 recusal 回避。
+        self.affiliation = affiliation
 
     def arbitrate(
         self,
