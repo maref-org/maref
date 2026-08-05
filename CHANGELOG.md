@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [v0.52.0] - 2026-08-05 (治理缺口收口)
+
+### Added — P0 五项治理缺口收口
+- **P0-1 边界注入** (`federation/__init__.py` + `sidecar/mcp_gateway.py` + `sidecar/org_governance_router.py`): TrustBoundaryManager 注入 GaaS GovernanceRouter 与 MCP 网关（默认 fail-closed），`org_governance_router` 暴露 `/api/v1/federation/govern` 端点
+- **P0-2 IRREVERSIBLE HITL** (`governance/core_pipeline.py`): IRREVERSIBLE 授权放行升级真实 HITL（tier=P0_RESPONSE）→ ASK_USER
+- **P0-3 仲裁接线** (`federation/__init__.py` + `governance/verifier_consensus.py`): federation 工厂注入 VerifierConsensus + RuleJudge，激活 `arbitrate_dispute`
+- **P0-4 法官回避** (`governance/judge.py`): `Judge.affiliation` + `_same_source` recusal，同源法官回避不参与表决
+- **P0-5 A2A caller 链** (`integration/a2a_bridge.py` + `integration/a2a_client.py` + `integration/mcp_envelope.py`): A2A header 真实 caller DID + AuthorizationScope 序列化 + chain_id 透传
+- **装配级集成测试** (`tests/sidecar/test_v051_p0_governance_wiring.py`): 30 项新增；governance/gaas/federation/sidecar 1680 回归全绿
+
+### Fixed — 审计缺口收口
+- **G-03 browser dry_run 契约** (`desktop/browser_controller.py`): 无 `MAREF_BROWSER_DRY_RUN` env 时默认 dry_run=False（与测试契约对齐）；补齐 `session_id`/`pool` 接口（兼容 `BrowserSessionBridge`）、`get_html`/`wait_for_selector`/`wait_for_navigation`/`get_cookies`/`set_cookies` 方法及 `_do_*` 实现；`close()` 释放会话资源；`tools/browser_server.py` 单例显式 `dry_run=True` 防止 SSRF
+
 ## [v0.51.0] - 2026-08-04 (企业价值闭环补强)
 
 ### Added — P0 飞轮数据端（W1）

@@ -24,7 +24,7 @@ def _ensure_browser_controller() -> Any | None:
             if _BROWSER_CONTROLLER is None:
                 try:
                     from maref.desktop.browser_controller import BrowserController
-                    _BROWSER_CONTROLLER = BrowserController(safe_domains=["*"])
+                    _BROWSER_CONTROLLER = BrowserController(safe_domains=["*"], dry_run=True)
                 except ImportError:
                     pass
     return _BROWSER_CONTROLLER

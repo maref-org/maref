@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.desktop.browser_session_pool import BrowserSessionPool
 from maref.tools.browser_server import DomainWhitelist
 
 logger = logging.getLogger(__name__)
@@ -60,8 +62,10 @@ class BrowserController:
     """Safe browser automation wrapper for Playwright.
 
     Provides DOM-level control for web application interaction.
-    Safety: runs in dry-run mode by default; all navigation goes through
-    safe-site allow list.
+    Safety: dry-run is enabled via the ``MAREF_BROWSER_DRY_RUN`` env var
+    (values 1/true/yes) or the ``dry_run=True`` constructor flag; all
+    navigation goes through the safe-site allow list. Defaults to live
+    mode when neither is provided.
     """
 
     DEFAULT_SAFE_DOMAINS: list[str] = [
@@ -76,12 +80,21 @@ class BrowserController:
     def __init__(
         self,
         browser_type: BrowserType = BrowserType.CHROMIUM,
-        dry_run: bool = True,
+        dry_run: bool | None = None,
         safe_domains: list[str] | None = None,
+        session_id: str | None = None,
     ) -> None:
         self.browser_type = browser_type
-        self._dry_run = dry_run
+        dry_run_env = os.environ.get("MAREF_BROWSER_DRY_RUN")
+        if dry_run is not None:
+            self._dry_run = dry_run
+        elif dry_run_env is not None:
+            self._dry_run = dry_run_env.lower() in ("1", "true", "yes")
+        else:
+            self._dry_run = False
         self._domain_whitelist = DomainWhitelist(safe_domains or self.DEFAULT_SAFE_DOMAINS)
+        self._session_id = session_id or f"bc_{id(self)}"
+        self._pool = BrowserSessionPool()
         self._playwright_available = False
         self._browser: Any = None
         self._page: Any = None
@@ -97,6 +110,14 @@ class BrowserController:
     @property
     def dry_run(self) -> bool:
         return self._dry_run
+
+    @property
+    def session_id(self) -> str:
+        return self._session_id
+
+    @property
+    def pool(self) -> BrowserSessionPool:
+        return self._pool
 
     def is_safe_domain(self, url: str) -> bool:
         from urllib.parse import urlparse
@@ -203,6 +224,50 @@ class BrowserController:
         self._operation_log.append(result)
         return result
 
+    def get_html(self) -> BrowserResult:
+        if self._dry_run:
+            result = BrowserResult(
+                success=True,
+                action=BrowserAction.GET_HTML,
+                html="<html><body>[DRY RUN]</body></html>",
+            )
+        else:
+            result = self._do_get_html()
+        self._operation_log.append(result)
+        return result
+
+    def wait_for_selector(self, selector: str, timeout: float = 10.0) -> BrowserResult:
+        if self._dry_run:
+            result = BrowserResult(
+                success=True, action=BrowserAction.WAIT, text=f"[DRY RUN] Waited for {selector}"
+            )
+        else:
+            result = self._do_wait_for_selector(selector, timeout)
+        self._operation_log.append(result)
+        return result
+
+    def wait_for_navigation(self, timeout: float = 30.0) -> BrowserResult:
+        if self._dry_run:
+            result = BrowserResult(
+                success=True, action=BrowserAction.WAIT, text="[DRY RUN] Waited for navigation"
+            )
+        else:
+            result = self._do_wait_for_navigation(timeout)
+        self._operation_log.append(result)
+        return result
+
+    def get_cookies(self) -> list[dict[str, Any]]:
+        if self._dry_run:
+            return []
+        return self._do_get_cookies()
+
+    def set_cookies(self, cookies: list[dict[str, Any]]) -> BrowserResult:
+        if self._dry_run:
+            return BrowserResult(
+                success=True, action=BrowserAction.EXECUTE_JS, text="[DRY RUN] Cookies set"
+            )
+        return self._do_set_cookies(cookies)
+
     def go_back(self) -> BrowserResult:
         if self._dry_run:
             result = BrowserResult(success=True, action=BrowserAction.GO_BACK, text="[DRY RUN] Go back")
@@ -260,6 +325,10 @@ class BrowserController:
                 except Exception as exc:
                     logger.debug("playwright.stop() failed during close(): %s", exc)
                 self._playwright = None
+            try:
+                await self._pool.release(self._session_id)
+            except Exception as exc:
+                logger.debug("pool.release() failed during close(): %s", exc)
 
         try:
             asyncio.run(_close_all())
@@ -456,6 +525,103 @@ class BrowserController:
 
             result = asyncio.run(_exec())
             return BrowserResult(success=True, action=BrowserAction.EXECUTE_JS, text=str(result))
+        except Exception as e:
+            return BrowserResult(success=False, action=BrowserAction.EXECUTE_JS, error=str(e))
+
+    def _do_get_html(self) -> BrowserResult:
+        try:
+            import asyncio
+
+            if self._page is None:
+                return BrowserResult(
+                    success=False, action=BrowserAction.GET_HTML, error="No active page. Call navigate() first."
+                )
+
+            async def _extract():
+                return await self._page.evaluate("document.documentElement.outerHTML")
+
+            html = asyncio.run(_extract())
+            return BrowserResult(success=True, action=BrowserAction.GET_HTML, html=html)
+        except Exception as e:
+            return BrowserResult(success=False, action=BrowserAction.GET_HTML, error=str(e))
+
+    def _do_wait_for_selector(self, selector: str, timeout: float) -> BrowserResult:
+        try:
+            import asyncio
+
+            if self._page is None:
+                return BrowserResult(
+                    success=False, action=BrowserAction.WAIT, error="No active page. Call navigate() first."
+                )
+
+            async def _wait():
+                await self._page.wait_for_selector(selector, timeout=int(timeout * 1000))
+
+            asyncio.run(_wait())
+            return BrowserResult(success=True, action=BrowserAction.WAIT, text=f"Selector '{selector}' visible")
+        except Exception as e:
+            return BrowserResult(success=False, action=BrowserAction.WAIT, error=str(e))
+
+    def _do_wait_for_navigation(self, timeout: float) -> BrowserResult:
+        try:
+            import asyncio
+
+            if self._page is None:
+                return BrowserResult(
+                    success=False, action=BrowserAction.WAIT, error="No active page. Call navigate() first."
+                )
+
+            async def _wait():
+                await self._page.wait_for_load_state("load", timeout=int(timeout * 1000))
+
+            asyncio.run(_wait())
+            return BrowserResult(success=True, action=BrowserAction.WAIT, text="Navigation completed")
+        except Exception as e:
+            return BrowserResult(success=False, action=BrowserAction.WAIT, error=str(e))
+
+    def _do_get_cookies(self) -> list[dict[str, Any]]:
+        try:
+            import asyncio
+
+            if self._page is None:
+                return []
+
+            async def _cookies():
+                return await self._page.context.cookies()
+
+            return asyncio.run(_cookies())
+        except Exception:
+            return []
+
+    def _do_set_cookies(self, cookies: list[dict[str, Any]]) -> BrowserResult:
+        try:
+            import asyncio
+
+            for cookie in cookies:
+                domain = str(cookie.get("domain", "")).removeprefix(".")
+                if not domain:
+                    return BrowserResult(
+                        success=False,
+                        action=BrowserAction.EXECUTE_JS,
+                        error="Blocked: cookie without domain",
+                    )
+                if not self._domain_whitelist.is_allowed(domain):
+                    return BrowserResult(
+                        success=False,
+                        action=BrowserAction.EXECUTE_JS,
+                        error=f"Blocked: cookie domain not in safe list: {domain}",
+                    )
+
+            if self._page is None:
+                return BrowserResult(
+                    success=False, action=BrowserAction.EXECUTE_JS, error="No active page. Call navigate() first."
+                )
+
+            async def _set():
+                await self._page.context.add_cookies(cookies)
+
+            asyncio.run(_set())
+            return BrowserResult(success=True, action=BrowserAction.EXECUTE_JS, text="Cookies set")
         except Exception as e:
             return BrowserResult(success=False, action=BrowserAction.EXECUTE_JS, error=str(e))
 
