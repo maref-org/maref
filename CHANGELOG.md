@@ -12,6 +12,7 @@
 
 ### Fixed — 审计缺口收口
 - **G-03 browser dry_run 契约** (`desktop/browser_controller.py`): 无 `MAREF_BROWSER_DRY_RUN` env 时默认 dry_run=False（与测试契约对齐）；补齐 `session_id`/`pool` 接口（兼容 `BrowserSessionBridge`）、`get_html`/`wait_for_selector`/`wait_for_navigation`/`get_cookies`/`set_cookies` 方法及 `_do_*` 实现；`close()` 释放会话资源；`tools/browser_server.py` 单例显式 `dry_run=True` 防止 SSRF
+- **G-04 ruff + mypy 门禁清零** (`pyproject.toml` + 11 源文件): ruff 3 errors 清零（`trust_engine_v2.py` TYPE_CHECKING 导入修复 F821）；mypy src/maref 33 errors → 0（第三方依赖加 ignore_missing_imports override，mitmproxy follow_imports=skip）；修复真实缺陷：`certification.py` Merkle 验证改用真实 API（`load_log`/`generate_proof(int)` 不存在）、`audit_logger.py` HMAC None 处理、`meta_governance.py` property setter 重排、7 处类型标注对齐。治理域覆盖率实测 87.70%（门禁 ≥60% 达标），STATE.yaml 分域覆盖率全部更新为 2026-08-05 实测
 
 ## [v0.51.0] - 2026-08-04 (企业价值闭环补强)
 

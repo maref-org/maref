@@ -171,15 +171,32 @@ module = [
     "zeroconf",
     "bcc",
     "tomllib",
+    "opentelemetry",
+    "opentelemetry.trace",
+    "opentelemetry.sdk.trace",
+    "opentelemetry.sdk.trace.export",
+    "opentelemetry.sdk.resources",
+    "opentelemetry.sdk.metrics",
+    "opentelemetry.sdk.metrics.export",
     "opentelemetry.exporter.otlp.proto.http.metric_exporter",
     "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+    "tomli",
+    "ApplicationServices",
     "maref.stress.sqi",
     "maref.stress.sqi_convergence",
     "maref.executor.workflow.patterns.tournament",
     "maref.knowledge.compiled_truth",
     "maref.recursive.audit_store",
+    "maref.integration.mq_adapter",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "mitmproxy",
+    "mitmproxy.*",
+]
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

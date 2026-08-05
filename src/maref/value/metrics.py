@@ -51,7 +51,7 @@ class ValueMetric:
     @property
     def delta_percent(self) -> float | None:
         """Percentage change; None when baseline is zero/absent."""
-        if self.baseline in (None, 0.0):
+        if self.baseline is None or self.baseline == 0.0:
             return None
         return (self.delta / self.baseline) * 100.0
 
