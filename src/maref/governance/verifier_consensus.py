@@ -36,6 +36,21 @@ class ConsensusResult:
         }
 
 
+def _same_source(judge_affiliation: str | None, subject_affiliation: str | None) -> bool:
+    """判断法官与被审 agent 是否同源（组织/DID 维度）。
+
+    ``org:acme`` 与 ``org:acme``、``org:acme:agent-1`` 均视为同源 →
+    法官必须回避，防止自审。None 任意侧均不同源（无归属不回避）。
+    """
+    if not judge_affiliation or not subject_affiliation:
+        return False
+    return (
+        judge_affiliation == subject_affiliation
+        or subject_affiliation.startswith(judge_affiliation + ":")
+        or judge_affiliation.startswith(subject_affiliation + ":")
+    )
+
+
 class VerifierConsensus:
     def __init__(self, registry: VerifierRegistry, judges: dict[str, Any] | None = None) -> None:
         self._registry = registry
@@ -81,7 +96,15 @@ class VerifierConsensus:
         strategy: ConsensusStrategy = ConsensusStrategy.SIMPLE_MAJORITY,
         weight_key: str = "accuracy",
         verdict_schema: dict[str, Any] | None = None,
+        subject_affiliation: str | None = None,
     ) -> ConsensusResult:
+        """共识表决。
+
+        Args:
+            subject_affiliation: 被审 agent 的归属（组织/DID）。法官与被审
+                对象同源时 recusal 回避（P0-4），回避票记录在案但不参与
+                表决与权重，防止「法官评审自己」的自审盲区。
+        """
         verifiers = self._registry.list_active()
         if not verifiers:
             return ConsensusResult(
@@ -95,9 +118,12 @@ class VerifierConsensus:
         total_weight = 0.0
         weighted_approvals = 0.0
         approvals = 0
+        recused_count = 0
 
         for v in verifiers:
-            vote, verdict = self._call_verifier(v, item, verdict_schema)
+            vote, verdict = self._call_verifier(
+                v, item, verdict_schema, subject_affiliation
+            )
             weight = self._get_weight(v, weight_key)
             vote_record: dict[str, Any] = {
                 "verifier": v.name,
@@ -108,16 +134,19 @@ class VerifierConsensus:
             if verdict is not None:
                 vote_record["verdict"] = verdict
             votes.append(vote_record)
+            if verdict is not None and verdict.get("recused"):
+                # 回避票：记录在案（审计可见）但不参与表决与权重合计。
+                recused_count += 1
+                continue
             if vote:
                 approvals += 1
                 weighted_approvals += weight
             total_weight += weight
 
+        effective_count = len(verifiers) - recused_count
         passed = self._apply_strategy(
-            approvals,
-            len(verifiers),
-            weighted_approvals,
-            total_weight,
+            approvals, effective_count,
+            weighted_approvals, total_weight,
             strategy,
         )
         agreement = weighted_approvals / total_weight if total_weight > 0 else 0.0
@@ -134,6 +163,7 @@ class VerifierConsensus:
         verifier: VerifierEntry,
         item: Any,
         verdict_schema: dict[str, Any] | None = None,
+        subject_affiliation: str | None = None,
     ) -> tuple[bool, dict[str, Any] | None]:
         # 方案 C：注入法官且输入为轨迹时，走真实仲裁（Agent-as-a-Judge）。
         judge = self._judges.get(verifier.name)
@@ -145,6 +175,13 @@ class VerifierConsensus:
                 return False, {
                     "error": "no_judge_for_trace",
                     "judge": verifier.name,
+                }
+            # P0-4 recusal：法官与被审 agent 同源时回避，不参与表决。
+            if _same_source(getattr(judge, "affiliation", None), subject_affiliation):
+                return False, {
+                    "recused": True,
+                    "judge": verifier.name,
+                    "affiliation": getattr(judge, "affiliation", None),
                 }
             try:
                 verdict = judge.arbitrate(item, verdict_schema)

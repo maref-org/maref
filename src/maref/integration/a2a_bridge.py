@@ -77,6 +77,7 @@ class A2ABridge:
         agent_dns: Any | None = None,
         agent_did: str | None = None,
         signing_key: Any | None = None,
+        authorization_scope: Any | None = None,
     ) -> None:
         """Initialize the A2A bridge with governance components.
 
@@ -95,6 +96,9 @@ class A2ABridge:
                 published while the DID lifecycle is active.
             signing_key: Optional Ed25519 :class:`ReportSigningKey` used to
                 sign outgoing delegated tasks (v0.50 W3-S1 / I7).
+            authorization_scope: 本 agent 的授权范围证书（P0-5 I1 修复）。
+                委托任务时序列化进 metadata 随消息传输，使对端能校验
+                「调用方身份 + 授权范围」责任链要素。
         """
         self._sm = state_machine
         self._audit = audit_logger
@@ -102,6 +106,7 @@ class A2ABridge:
         self._name = agent_name
         self._description = agent_description
         self._signing_key = signing_key
+        self._authorization_scope = authorization_scope
         self._tasks: dict[str, A2ATaskContext] = {}
         self._delegated_tasks: dict[str, DelegatedTask] = {}
         self._capabilities: list[A2ASkillDefinition] = []
@@ -352,6 +357,24 @@ class A2ABridge:
         """
         return self._tasks.get(task_id)
 
+    def _delegation_metadata(self, context: dict[str, Any]) -> dict[str, Any]:
+        """序列化委托携带的责任链元数据（P0-5 I1 修复）。
+
+        在 task.context 之上叠加 authorization_scope，使对端能校验
+        「调用方身份 + 授权范围」责任链要素。
+        """
+        metadata = dict(context)
+        if self._authorization_scope is not None:
+            scope = self._authorization_scope
+            metadata["authorization_scope"] = {
+                "subject_did": scope.subject_did,
+                "max_risk_level": scope.max_risk_level,
+                "allowed_actions": list(scope.allowed_actions),
+                "jurisdiction": scope.jurisdiction,
+                "issuer": scope.issuer,
+            }
+        return metadata
+
     def delegate_task(self, task_id: str, target_agent_url: str) -> bool:
         """Delegate a task to another A2A agent.
 
@@ -401,15 +424,20 @@ class A2ABridge:
 
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                client = A2AClient(signing_key=self._signing_key)
+                client = A2AClient(
+                    signing_key=self._signing_key,
+                    agent_id=self._agent_did,
+                )
                 task = self._tasks.get(task_id)
                 if task is not None:
+                    # P0-5 I1 修复：真实 caller DID 已在 header 传输；
+                    # 授权范围序列化进 metadata（_delegation_metadata）。
                     loop.create_task(
                         client.send_task(
                             agent_url=target_agent_url,
                             skill_id="maref-delegate",
                             input_data=task.description,
-                            metadata=task.context,
+                            metadata=self._delegation_metadata(task.context),
                         )
                     )
         except RuntimeError:

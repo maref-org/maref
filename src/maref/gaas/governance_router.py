@@ -54,6 +54,7 @@ class GovernanceRouter:
         hitl_service: HITLRouter | None = None,
         audit_service: AuditLogService | None = None,
         trust_service: TrustScoreService | None = None,
+        boundary: Any | None = None,
     ) -> None:
         self._tenants = tenant_manager or TenantManager()
         self._cb = cb_pool or CircuitBreakerPool()
@@ -61,6 +62,16 @@ class GovernanceRouter:
         self._audit = audit_service or AuditLogService()
         self._trust = trust_service or TrustScoreService()
         self._usage: dict[str, dict[str, int]] = {}
+
+        # TrustBoundaryManager (P0-1 wiring): mandatory pre-action boundary gate.
+        # Default fail-closed so HIGH/IRREVERSIBLE actions are denied without an
+        # explicit AuthorizationScope — the production GaaS path must not skip it.
+        if boundary is not None:
+            self._boundary = boundary
+        else:
+            from maref.governance.trust_boundary import TrustBoundaryManager
+
+            self._boundary = TrustBoundaryManager()
 
         # Unified governance pipeline — shared with MCPGovernance
         self._pipeline = GovernancePipeline(
@@ -70,6 +81,7 @@ class GovernanceRouter:
             cb_check_callback=self._on_cb_check,
             cb_record_callback=self._on_cb_record,
             policy_rules=None,  # use defaults
+            boundary=self._boundary,
         )
 
     # ------------------------------------------------------------------
