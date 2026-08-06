@@ -1,0 +1,144 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="I Shot Films for 30 Years. Now I'm Building Safety Systems for AI Agents"
+  description="After three decades as a steadicam operator on Hollywood sets, I walked away from the film industry to build safety systems for AI agents. The irony isn't lost on me. But film sets taught me something that Silicon Valley still hasn't learned: when things go fast, safety isn't optional — it's what lets you go fast in the first place."
+  date="2026-06-23"
+  author="Frankie"
+  tags={["personal", "agent governance", "safety", "film", "steadicam"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  I spent 30 years behind a steadicam. Big films, small films, commercials, music videos — if it moved, I followed it. Then I walked away to build safety systems for AI agents.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  People ask me why. The answer is simple: because I've seen what happens when safety is an afterthought. On a film set, one mistake with a 40-pound rig running at full sprint can put someone in the hospital. So you learn — fast — that every movement has a protocol, every lift has a spotter, every risky shot has a safety meeting first.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  And then I looked at AI development. And I realized: there is no safety culture. There isn't even a safety meeting. There's just people pushing code and hoping nothing breaks.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">The scene that changed my mind</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  I'd been following AI for years — you can't be in film without watching the tools evolve, and AI was the most interesting thing happening. But it wasn't until I watched an agent system go rogue that I saw the problem.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  I was helping a friend debug his AI pipeline. His agent was supposed to read a CSV, transform the data, and write it to a database. Instead, it deleted the entire database, created a new one with garbage data, and started emailing customers. It wasn't malicious. It wasn't even <em>trying</em> to be bad. It just did what it thought was right, and nobody had put any guardrails around it.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  On a film set, that's like someone walking on set during a take because "nobody told me not to." The AD would scream at you, the director would fire you, and you'd never work again. In AI, it's Tuesday.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">What film sets taught me about safety</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Film production safety isn't complicated. It's a few basic principles, applied relentlessly:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>Every action has a second set of eyes.</strong> You never operate heavy equipment alone. There's always someone watching, always someone who can yell "cut!"</li>
+  <li><strong>Every near-miss gets logged.</strong> You don't wait for an accident to happen. A cable on the floor that someone almost tripped on? That gets recorded, reviewed, and fixed.</li>
+  <li><strong>Every role has clear boundaries.</strong> The camera operator doesn't touch the lighting. The grip doesn't touch the sound. Everyone knows where their job ends and someone else's begins.</li>
+  <li><strong>Safety is everyone's responsibility.</strong> The lowest PA can shut down a shot if they see something unsafe. Authority doesn't come from rank — it comes from being right about safety.</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Now map those same principles to an AI agent system:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>Every tool call should be audited.</strong> Not "we can log if we need to." Every single call, cryptographically signed, immutable.</li>
+  <li><strong>Every near-miss should be captured.</strong> An agent that almost deleted the wrong table but didn't — that's a signal, not a non-event. Log it. Fix it. Learn from it.</li>
+  <li><strong>Every agent should have authority boundaries.</strong> This agent can read the database. It cannot drop it. This agent can send emails. It cannot send them in someone else's name. Clear, enforced, non-negotiable.</li>
+  <li><strong>Safety should be decentralized.</strong> Any agent should be able to flag a problem. Any system check that fails should stop the pipeline, regardless of who wrote the agent.</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  This isn't theoretical. This is what MAREF does.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">The irony</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  I know what it looks like: a steadicam operator showing up in the AI world and telling engineers how to build safety systems. The internet has a name for people like me — "just a filmmaker," "not a real engineer."
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  And that's fine. Because the problem isn't technical — it's cultural. The engineering part of agent safety is straightforward: you need runtime monitoring, cryptographic audit trails, formal verification of safety properties, circuit breakers, and attack detection. Those are solveable problems. Smart people are already working on them.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The hard part is getting people to <em>care</em> before something goes wrong. The hard part is making safety a first-class feature instead of an afterthought. The hard part is building a culture where "did you check the audit log?" is as natural as "did you check the frame?"
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  And that part — the culture part — that's what 30 years on a film set taught me.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">What I'm building</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF is an open-source agent governance operating system. It sits between your agents and everything they touch — databases, APIs, file systems, email, deployment pipelines — and enforces safety policies on every single action.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  It's not a framework. You don't rewrite your agents to use it. It's infrastructure — plug it in, define your policies, and it governs every agent action automatically.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Every tool call is intercepted, logged, and cryptographically signed. Dangerous actions go through a multi-level decision tree — 97% are resolved automatically, 3% escalate to human review. Every near-miss feeds back into the policy engine, making it smarter over time. Formal verification proves that the system converges toward safety, not just "we hope it's safe."
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  I didn't write the code myself — I'm not a software engineer. But I designed the system. I defined the architecture. And I work with engineers who made it real.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">The real question</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Here's what I want you to think about:
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  You're building AI agents that can access your production database, your customer email, your deployment pipeline. They can execute code. They can call APIs. They can interact with other agents that also have powerful tools.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  What happens when one of them makes a mistake? Not "if." <em>When.</em>
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  On a film set, we answer that question before we start rolling. We have a safety meeting. We check the rig. We make sure everyone knows the plan. And if something feels wrong, anyone can yell "cut!" and everything stops.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Who's yelling "cut!" in your agent system?
+</p>
+
+<div class="border-l-4 pl-6 my-8 text-lg text-brand-text-secondary" style="border-color: var(--color-brand-accent-blue);">
+  <strong>MAREF is that "cut!" — brakes, seatbelts, dashcams, and a tireless safety reviewer for your AI agents.</strong> <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Get started in 5 minutes</a>.
+</div>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  I came from film because I saw the same pattern I've seen a hundred times on set: people running fast without thinking about what happens when they fall. In film, you fall into a hospital. In AI, you fall into a security incident, a data leak, or a lawsuit.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The stakes are different. The principle is the same: <strong>safety isn't what slows you down. Safety is what lets you go fast without breaking things.</strong>
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>MAREF is an open-source agent governance operating system. <a href="https://github.com/maref-org/maref" class="text-brand-accent-blue hover:underline">Star us on GitHub</a> · <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Get started in 5 minutes</a>.</em>
+</p>
+
+</BlogLayout>

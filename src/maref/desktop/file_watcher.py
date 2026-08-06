@@ -1,0 +1,182 @@
+from __future__ import annotations
+
+import contextlib
+import os
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class FileEventType(str, Enum):
+    CREATED = "created"
+    MODIFIED = "modified"
+    DELETED = "deleted"
+    MOVED = "moved"
+    RENAMED = "renamed"
+    ATTRIBUTE_CHANGED = "attribute_changed"
+
+
+@dataclass
+class FileEvent:
+    event_type: FileEventType
+    path: str
+    timestamp: float = field(default_factory=time.time)
+    previous_path: str = ""
+    file_size: int = 0
+    is_directory: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_type": self.event_type.value,
+            "path": self.path,
+            "timestamp": self.timestamp,
+            "previous_path": self.previous_path,
+            "file_size": self.file_size,
+            "is_directory": self.is_directory,
+        }
+
+
+class FileWatcher:
+    """Cross-platform file system event watcher.
+
+    macOS: FSEvents (via osascript or polling fallback)
+    Linux: inotify (via polling fallback)
+    Windows: ReadDirectoryChangesW (via polling fallback)
+
+    Safety: restricted to monitored directories; no system directory watching.
+    """
+
+    SAFE_WATCH_DIRS = {
+        os.path.expanduser("~/Desktop"),
+        os.path.expanduser("~/Documents"),
+        os.path.expanduser("~/Downloads"),
+    }
+
+    BLOCKED_WATCH_DIRS = {
+        "/etc",
+        "/System",
+        "/Library",
+        "/private/etc",
+        os.path.expanduser("~/.ssh"),
+        os.path.expanduser("~/.gnupg"),
+    }
+
+    def __init__(
+        self,
+        watch_dirs: list[str] | None = None,
+        poll_interval: float = 0.5,
+        max_events_per_poll: int = 100,
+        event_callback: Callable[[FileEvent], None] | None = None,
+    ) -> None:
+        self._watch_dirs: list[str] = []
+        self._poll_interval = poll_interval
+        self._max_events_per_poll = max_events_per_poll
+        self._event_callback = event_callback
+        self._watching = False
+        self._events: list[FileEvent] = []
+        self._file_states: dict[str, os.stat_result] = {}
+
+        for d in watch_dirs or []:
+            self.add_watch_dir(d)
+
+    def add_watch_dir(self, directory: str) -> bool:
+        resolved = os.path.realpath(os.path.expanduser(directory))
+        if resolved in self.BLOCKED_WATCH_DIRS or any(
+            resolved.startswith(b + "/") for b in self.BLOCKED_WATCH_DIRS
+        ):
+            return False
+        if resolved not in self._watch_dirs:
+            self._watch_dirs.append(resolved)
+            self._scan_directory(resolved)
+        return True
+
+    def remove_watch_dir(self, directory: str) -> None:
+        resolved = os.path.realpath(os.path.expanduser(directory))
+        if resolved in self._watch_dirs:
+            self._watch_dirs.remove(resolved)
+
+    def start(self) -> None:
+        self._watching = True
+
+    def stop(self) -> None:
+        self._watching = False
+
+    def poll(self) -> list[FileEvent]:
+        if not self._watching:
+            return []
+        new_events: list[FileEvent] = []
+        current_files: dict[str, os.stat_result] = {}
+
+        for watch_dir in self._watch_dirs:
+            try:
+                for entry in os.scandir(watch_dir):
+                    full_path = entry.path
+                    try:
+                        stat = entry.stat()
+                        current_files[full_path] = stat
+
+                        if full_path not in self._file_states:
+                            event = FileEvent(
+                                event_type=FileEventType.CREATED,
+                                path=full_path,
+                                file_size=stat.st_size,
+                                is_directory=entry.is_dir(),
+                            )
+                            new_events.append(event)
+                        else:
+                            prev_stat = self._file_states[full_path]
+                            if prev_stat.st_mtime != stat.st_mtime:
+                                event = FileEvent(
+                                    event_type=FileEventType.MODIFIED,
+                                    path=full_path,
+                                    file_size=stat.st_size,
+                                    is_directory=entry.is_dir(),
+                                )
+                                new_events.append(event)
+                    except OSError:
+                        pass
+            except PermissionError:
+                pass
+
+        for old_path in self._file_states:
+            if old_path not in current_files:
+                event = FileEvent(
+                    event_type=FileEventType.DELETED,
+                    path=old_path,
+                )
+                new_events.append(event)
+
+        self._file_states = current_files
+        self._events.extend(new_events)
+
+        if self._event_callback:
+            for event in new_events[: self._max_events_per_poll]:
+                self._event_callback(event)
+
+        return new_events[: self._max_events_per_poll]
+
+    def get_events(self, clear: bool = True) -> list[FileEvent]:
+        events = list(self._events)
+        if clear:
+            self._events.clear()
+        return events
+
+    def get_recent_events(self, seconds: float = 10.0) -> list[FileEvent]:
+        now = time.time()
+        return [e for e in self._events if now - e.timestamp < seconds]
+
+    def get_events_by_type(self, event_type: FileEventType) -> list[FileEvent]:
+        return [e for e in self._events if e.event_type == event_type]
+
+    def get_events_by_path(self, path: str) -> list[FileEvent]:
+        return [e for e in self._events if e.path == path or e.path.startswith(path + os.sep)]
+
+    def _scan_directory(self, directory: str) -> None:
+        try:
+            for entry in os.scandir(directory):
+                with contextlib.suppress(OSError):
+                    self._file_states[entry.path] = entry.stat()
+        except PermissionError:
+            pass

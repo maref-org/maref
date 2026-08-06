@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import base64
+import logging
+from typing import Any
+
+from maref.desktop.browser_session_pool import BrowserSessionPool, PlaywrightNotAvailableError
+
+logger = logging.getLogger(__name__)
+
+
+class BrowserSessionBridge:
+    _instance: BrowserSessionBridge | None = None
+    _controllers: dict[str, Any]
+
+    def __new__(cls) -> BrowserSessionBridge:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._controllers = {}
+        return cls._instance
+
+    def register(self, controller: Any) -> None:
+        self._controllers[controller.session_id] = controller
+
+    def unregister(self, session_id: str) -> None:
+        self._controllers.pop(session_id, None)
+
+    def get_controller(self, session_id: str | None = None) -> Any | None:
+        if session_id is not None:
+            return self._controllers.get(session_id)
+        if self._controllers:
+            return next(iter(self._controllers.values()))
+        return None
+
+    def has_active_session(self) -> bool:
+        return any(
+            c.pool.get_active_page(sid) is not None
+            for sid, c in self._controllers.items()
+        )
+
+    def screenshot_url(self, url: str, session_id: str | None = None) -> dict[str, Any] | None:
+        controller = self.get_controller(session_id)
+        if controller is not None and controller.pool.get_active_page(controller.session_id) is not None:
+            if not controller.is_safe_domain(url):
+                return {"url": url, "error": f"Domain not in safe list: {url}"}
+            nav = controller.navigate(url)
+            if not nav.success:
+                return {"url": url, "error": nav.error}
+            shot = controller.screenshot()
+            if shot.success and shot.screenshot_bytes is not None:
+                return {
+                    "url": url,
+                    "screenshot": base64.b64encode(shot.screenshot_bytes).decode("ascii"),
+                    "format": "png",
+                    "source": "bridge",
+                }
+            return {"url": url, "error": shot.error}
+        return None
+
+    def take_headless_screenshot(self, url: str) -> dict[str, Any] | None:
+        pool = BrowserSessionPool()
+        if not pool.is_available:
+            return None
+        try:
+            import asyncio
+
+            async def _shot() -> dict[str, Any] | None:
+                try:
+                    session = await pool.acquire("_bridge_screenshot")
+                    page = session.active_page
+                    if page is None:
+                        page = await pool.new_page("_bridge_screenshot")
+                    assert page is not None
+                    await page.goto(url, timeout=30000)
+                    png_bytes = await page.screenshot(full_page=True)
+                    b64 = base64.b64encode(png_bytes).decode("ascii")
+                    await pool.release("_bridge_screenshot")
+                    return {"url": url, "screenshot": b64, "format": "png", "source": "headless"}
+                except PlaywrightNotAvailableError:
+                    return None
+                except Exception as e:
+                    try:
+                        asyncio.ensure_future(pool.release("_bridge_screenshot"))
+                    except Exception:
+                        pass
+                    return {"url": url, "error": str(e)}
+
+            return asyncio.run(_shot())
+        except Exception as e:
+            return {"url": url, "error": str(e)}
+
+
+_bridge = BrowserSessionBridge()
+
+
+def get_bridge() -> BrowserSessionBridge:
+    return _bridge

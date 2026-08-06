@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <!-- Dark theme card gradients -->
+    <linearGradient id="cardBg1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1e2e" />
+      <stop offset="100%" stop-color="#111118" />
+    </linearGradient>
+    <linearGradient id="cardBg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e" />
+      <stop offset="100%" stop-color="#0f0f18" />
+    </linearGradient>
+    <linearGradient id="cardBg3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c1c2a" />
+      <stop offset="100%" stop-color="#101018" />
+    </linearGradient>
+
+    <!-- Glow effects -->
+    <filter id="cardGlow">
+      <feGaussianBlur stdDeviation="1" result="blur" />
+      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.5" />
+    </filter>
+
+    <!-- Severity badge gradients -->
+    <linearGradient id="criticalBadge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+    <linearGradient id="highBadge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="warnBadge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+  </defs>
+
+  <!-- Global dark background -->
+  <rect width="1920" height="1080" fill="#0a0a0f" />
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#3b82f6" stroke-width="0.5" />
+    </pattern>
+    <rect width="1920" height="1080" fill="url(#grid)" />
+  </g>
+
+  <!-- Header text -->
+  <text x="960" y="60" text-anchor="middle" fill="#3b82f6" font-size="16" font-weight="800" font-family="sans-serif" letter-spacing="4" opacity="0.6">REAL-WORLD AI AGENT INCIDENTS</text>
+
+  <!-- ==================== CARD 1: Meta ==================== -->
+  <g transform="translate(40, 90)" filter="url(#shadow)">
+    <!-- Card background -->
+    <rect width="580" height="940" rx="16" fill="url(#cardBg2)" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.2" />
+
+    <!-- Top accent line -->
+    <rect x="0" y="0" width="580" height="6" rx="3" fill="url(#criticalBadge)" />
+
+    <!-- Severity badge -->
+    <rect x="440" y="20" width="120" height="26" rx="13" fill="url(#criticalBadge)" />
+    <text x="500" y="37" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" font-family="sans-serif">CRITICAL</text>
+
+    <!-- Agent icon -->
+    <g transform="translate(40, 30)">
+      <circle cx="20" cy="20" r="20" fill="#ef4444" opacity="0.15" />
+      <path d="M12 28 L12 16 C12 12 16 10 20 10 C24 10 28 12 28 16 L28 28" fill="none" stroke="#ef4444" stroke-width="2" />
+      <circle cx="20" cy="14" r="3" fill="#ef4444" />
+      <rect x="16" y="28" width="8" height="6" rx="2" fill="#ef4444" opacity="0.6" />
+    </g>
+
+    <!-- Company tag -->
+    <text x="76" y="44" fill="#6b7280" font-size="12" font-weight="600" font-family="sans-serif">META · AI Alignment</text>
+
+    <!-- Title -->
+    <text x="30" y="100" fill="#f1f5f9" font-size="26" font-weight="800" font-family="sans-serif">My Agent Deleted My Inbox</text>
+
+    <!-- Separator -->
+    <rect x="30" y="118" width="50" height="3" rx="1.5" fill="#ef4444" opacity="0.6" />
+
+    <!-- Description text - multi-line -->
+    <text x="30" y="160" fill="#cbd5e1" font-size="18" font-family="sans-serif" font-weight="400">
+      <tspan x="30" dy="0">Summer Yue explicitly told her agent</tspan>
+      <tspan x="30" dy="30">"Don't act until I confirm."</tspan>
+      <tspan x="30" dy="40" fill="#ef4444" font-weight="700">Agent lost the instruction due to</tspan>
+      <tspan x="30" dy="30" fill="#ef4444" font-weight="700">context compaction, deleted hundreds</tspan>
+      <tspan x="30" dy="30" fill="#ef4444" font-weight="700">of emails, ignored 3 "STOP" commands.</tspan>
+      <tspan x="30" dy="40" fill="#f1f5f9">She had to physically unplug it.</tspan>
+    </text>
+
+    <!-- Impact metrics -->
+    <g transform="translate(30, 480)">
+      <rect width="520" height="70" rx="10" fill="#ef4444" opacity="0.08" />
+      <text x="20" y="25" fill="#9ca3af" font-size="12" font-weight="600" font-family="sans-serif">IMPACT</text>
+      <text x="20" y="52" fill="#fca5a5" font-size="22" font-weight="800" font-family="sans-serif">Hundreds</text>
+      <text x="180" y="52" fill="#fca5a5" font-size="22" font-weight="800" font-family="sans-serif">3x</text>
+      <text x="310" y="52" fill="#fca5a5" font-size="22" font-weight="800" font-family="sans-serif">Unplugged</text>
+      <text x="40" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">——</text>
+      <text x="180" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">emails deleted</text>
+      <text x="190" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">STOP ignored</text>
+      <text x="310" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">physical disconnect</text>
+    </g>
+  </g>
+
+  <!-- ==================== CARD 2: curl ==================== -->
+  <g transform="translate(670, 90)" filter="url(#shadow)">
+    <rect width="580" height="940" rx="16" fill="url(#cardBg1)" stroke="#f97316" stroke-width="1" stroke-opacity="0.2" />
+
+    <!-- Top accent line -->
+    <rect x="0" y="0" width="580" height="6" rx="3" fill="url(#highBadge)" />
+
+    <!-- Severity badge -->
+    <rect x="440" y="20" width="120" height="26" rx="13" fill="url(#highBadge)" />
+    <text x="500" y="37" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" font-family="sans-serif">HIGH</text>
+
+    <!-- Icon: shield-off -->
+    <g transform="translate(40, 30)">
+      <circle cx="20" cy="20" r="20" fill="#f97316" opacity="0.15" />
+      <rect x="10" y="10" width="20" height="24" rx="4" fill="none" stroke="#f97316" stroke-width="2" />
+      <path d="M6 6 L34 34" stroke="#f97316" stroke-width="2" stroke-linecap="round" />
+      <circle cx="20" cy="18" r="3" fill="#f97316" />
+    </g>
+
+    <text x="76" y="44" fill="#6b7280" font-size="12" font-weight="600" font-family="sans-serif">CURL · Open Source</text>
+
+    <!-- Title -->
+    <text x="30" y="100" fill="#f1f5f9" font-size="24" font-weight="800" font-family="sans-serif">7-Year Bug Bounty Killed</text>
+
+    <!-- Separator -->
+    <rect x="30" y="118" width="50" height="3" rx="1.5" fill="#f97316" opacity="0.6" />
+
+    <text x="30" y="160" fill="#cbd5e1" font-size="18" font-family="sans-serif" font-weight="400">
+      <tspan x="30" dy="0">Of AI-generated vulnerability reports,</tspan>
+      <tspan x="30" dy="30" fill="#f97316" font-weight="700">only 5% were real.</tspan>
+      <tspan x="30" dy="40" fill="#f1f5f9">Maintainer shut down the entire program</tspan>
+      <tspan x="30" dy="30" fill="#f1f5f9">rather than filter AI spam.</tspan>
+    </text>
+
+    <!-- Impact metrics -->
+    <g transform="translate(30, 480)">
+      <rect width="520" height="70" rx="10" fill="#f97316" opacity="0.08" />
+      <text x="20" y="25" fill="#9ca3af" font-size="12" font-weight="600" font-family="sans-serif">IMPACT</text>
+      <text x="20" y="52" fill="#fdba74" font-size="22" font-weight="800" font-family="sans-serif">7 years</text>
+      <text x="180" y="52" fill="#fdba74" font-size="22" font-weight="800" font-family="sans-serif">5%</text>
+      <text x="310" y="52" fill="#fdba74" font-size="22" font-weight="800" font-family="sans-serif">Killed</text>
+      <text x="40" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">——</text>
+      <text x="180" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">bug bounty history</text>
+      <text x="190" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">real reports</text>
+      <text x="310" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">program</text>
+    </g>
+  </g>
+
+  <!-- ==================== CARD 3: GitHub ==================== -->
+  <g transform="translate(1300, 90)" filter="url(#shadow)">
+    <rect width="580" height="940" rx="16" fill="url(#cardBg3)" stroke="#eab308" stroke-width="1" stroke-opacity="0.2" />
+
+    <!-- Top accent line -->
+    <rect x="0" y="0" width="580" height="6" rx="3" fill="url(#warnBadge)" />
+
+    <!-- Severity badge -->
+    <rect x="440" y="20" width="120" height="26" rx="13" fill="url(#warnBadge)" />
+    <text x="500" y="37" text-anchor="middle" fill="#000" font-size="11" font-weight="800" font-family="sans-serif">WARNING</text>
+
+    <!-- Icon: code -->
+    <g transform="translate(40, 30)">
+      <circle cx="20" cy="20" r="20" fill="#eab308" opacity="0.15" />
+      <path d="M8 20 l8 -8 l-8 -8" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M32 20 l-8 -8 l8 -8" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <line x1="22" y1="8" x2="18" y2="32" stroke="#eab308" stroke-width="2" stroke-linecap="round" />
+    </g>
+
+    <text x="76" y="44" fill="#6b7280" font-size="12" font-weight="600" font-family="sans-serif">GITHUB · CodeRabbit</text>
+
+    <!-- Title -->
+    <text x="30" y="100" fill="#f1f5f9" font-size="26" font-weight="800" font-family="sans-serif">45% of AI Code Ships</text>
+    <text x="30" y="135" fill="#f1f5f9" font-size="26" font-weight="800" font-family="sans-serif">With Vulnerabilities</text>
+
+    <!-- Separator -->
+    <rect x="30" y="153" width="50" height="3" rx="1.5" fill="#eab308" opacity="0.6" />
+
+    <text x="30" y="195" fill="#cbd5e1" font-size="18" font-family="sans-serif" font-weight="400">
+      <tspan x="30" dy="0">CodeRabbit scanned 470 PRs:</tspan>
+      <tspan x="30" dy="30" fill="#fde047" font-weight="700">AI code has 1.7× more</tspan>
+      <tspan x="30" dy="30" fill="#fde047" font-weight="700">critical bugs than human code.</tspan>
+      <tspan x="30" dy="40" fill="#f1f5f9">63% of developers say fixing</tspan>
+      <tspan x="30" dy="30" fill="#f1f5f9">AI code takes longer than writing it.</tspan>
+    </text>
+
+    <!-- Impact metrics -->
+    <g transform="translate(30, 480)">
+      <rect width="520" height="70" rx="10" fill="#eab308" opacity="0.08" />
+      <text x="20" y="25" fill="#9ca3af" font-size="12" font-weight="600" font-family="sans-serif">IMPACT</text>
+      <text x="20" y="52" fill="#fde047" font-size="22" font-weight="800" font-family="sans-serif">470 PRs</text>
+      <text x="180" y="52" fill="#fde047" font-size="22" font-weight="800" font-family="sans-serif">1.7×</text>
+      <text x="310" y="52" fill="#fde047" font-size="22" font-weight="800" font-family="sans-serif">63%</text>
+      <text x="40" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">——</text>
+      <text x="180" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">scanned sample</text>
+      <text x="190" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">bug multiplier</text>
+      <text x="310" y="65" fill="#6b7280" font-size="10" font-family="sans-serif">devs complain</text>
+    </g>
+  </g>
+
+  <!-- Bottom call-to-action -->
+  <g transform="translate(960, 1050)">
+    <rect x="-160" y="-18" width="320" height="36" rx="18" fill="#3b82f6" opacity="0.12" />
+    <text x="0" y="5" text-anchor="middle" fill="#3b82f6" font-size="13" font-weight="700" font-family="sans-serif">Your agents are breaking things — and you don't know it</text>
+  </g>
+</svg>

@@ -1,0 +1,78 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const features = {
+  en: [
+    {
+      title: "Gray Code FSM",
+      desc: "A state machine that mathematically proves your agents can't enter unsafe states. Not 'probably safe.' Provably safe.",
+      href: "/en/features/governance/",
+      image: "/images/feature-gray-code.svg",
+    },
+    {
+      title: "8-Layer Defense",
+      desc: "Defense in depth. 4-tier decision tree. 97% of safety decisions automated. If one layer fails, the next catches it.",
+      href: "/en/features/defense/",
+      image: "/images/feature-defense.svg",
+    },
+    {
+      title: "Recursive Evolution",
+      desc: "Lyapunov-validated convergence — your governance gets empirically safer over time. FNR -60% over 200 rounds of self-evolution.",
+      href: "/en/features/evolution/",
+      image: "/images/feature-evolution.svg",
+    },
+    {
+      title: "National Cryptography",
+      desc: "SM2/SM3/SM4-GCM. Full GB/T 32918 compliance. Pure Python, zero native deps, fully auditable.",
+      href: "/en/features/cryptography/",
+      image: "/images/feature-cryptography.svg",
+    },
+  ],
+  zh: [
+    {
+      title: "Gray Code 状态机",
+      desc: "从数学上证明你的智能体不会进入不安全状态。不是'大概安全'，而是可证明安全。",
+      href: "/zh/features/governance/",
+      image: "/images/feature-gray-code.svg",
+    },
+    {
+      title: "8 层纵深防御",
+      desc: "四级决策树，97% 决策自动化率。一层失效，下一层接着拦住。",
+      href: "/zh/features/defense/",
+      image: "/images/feature-defense.svg",
+    },
+    {
+      title: "递归自演进",
+      desc: "Lyapunov 经验验证的收敛——治理能力随时间可验证地变安全。200 轮自演进 FNR 降低 60%。",
+      href: "/zh/features/evolution/",
+      image: "/images/feature-evolution.svg",
+    },
+    {
+      title: "国密算法",
+      desc: "SM2/SM3/SM4-GCM。符合 GB/T 32918 标准。纯 Python，零本地依赖，完全可审计。",
+      href: "/zh/features/cryptography/",
+      image: "/images/feature-cryptography.svg",
+    },
+  ],
+};
+
+const items = features[locale as keyof typeof features] || features.en;
+---
+
+<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+  {items.map((f) => (
+    <a href={f.href} class="group rounded-cards border transition-all hover:border-brand-accent-blue/40 overflow-hidden" style="background-color: var(--surface-trench); border-color: var(--color-brand-border);">
+      <div class="aspect-square overflow-hidden">
+        <img src={f.image} alt={f.title} width="512" height="512" loading="lazy" class="w-full h-full object-cover transition-transform group-hover:scale-105" />
+      </div>
+      <div class="p-6">
+        <h3 class="font-semibold mb-2 group-hover:text-brand-accent-blue transition-colors">{f.title}</h3>
+        <p class="text-sm text-brand-text-secondary">{f.desc}</p>
+      </div>
+    </a>
+  ))}
+</div>

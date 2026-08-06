@@ -1,0 +1,94 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+export interface Props {
+  title: string;
+  description: string;
+  locale?: string;
+  date?: string;
+  dateModified?: string;
+  author?: string;
+  canonical?: string;
+  tags?: string[];
+}
+
+const {
+  title, description, locale = "en",
+  date, dateModified, author, canonical,
+  tags = [],
+} = Astro.props;
+
+const site = "https://maref.cc";
+const fullUrl = canonical ? `${site}${canonical}` : Astro.url.href;
+---
+
+<BaseLayout {title} {description} {locale} ogType="article">
+  {date && (
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: title,
+      description,
+      url: fullUrl,
+      datePublished: date,
+      dateModified: dateModified || date,
+      keywords: tags.length > 0 ? tags.join(", ") : undefined,
+      author: {
+        "@type": "Person",
+        name: author || "MAREF Engineering",
+        url: "https://maref.cc",
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "MAREF",
+        url: site,
+      },
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": fullUrl,
+      },
+    })} />
+  )}
+  <NavBar {locale} />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 768px;">
+    <article>
+      {date && <time class="text-sm text-brand-text-muted" datetime={date}>{date}</time>}
+      <h1 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight mb-2">{title}</h1>
+      {author && (
+        <p class="text-sm text-brand-text-muted mb-2">
+          {locale === "zh" ? "作者" : "By"} {author}
+        </p>
+      )}
+      {tags.length > 0 && (
+        <div class="flex flex-wrap gap-2 mb-12">
+          {tags.map(tag => (
+            <span class="text-xs px-2 py-0.5 rounded-full" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border); color: var(--color-brand-text-muted);">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+      <div class="prose-custom">
+        <slot />
+      </div>
+    </article>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href={`/${locale}/privacy/`} class="hover:text-snow-sheet transition-colors">{locale === "zh" ? "隐私" : "Privacy"}</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">{locale === "zh" ? "联系" : "Contact"}</a>
+        </p>
+        <p>{locale === "zh" ? "Apache-2.0 许可证" : "Apache-2.0 License"}</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

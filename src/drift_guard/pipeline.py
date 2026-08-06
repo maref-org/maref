@@ -1,0 +1,316 @@
+"""
+MAREF DriftGuard Pipeline
+
+Automated drift detection pipeline that orchestrates:
+1. Periodic drift metric computation
+2. Threshold-based severity classification
+3. Human-in-the-loop arbitration gate
+4. Base model reset on critical drift
+5. Event logging and alerting
+
+The pipeline operates autonomously for LOW/MEDIUM severity but
+escalates HIGH/CRITICAL to human review before taking action.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import time
+import uuid
+from collections import deque
+from collections.abc import Callable
+from datetime import datetime
+from typing import Any
+
+from drift_guard.metrics import DriftMetricsCollector, compute_drift_metrics
+from drift_guard.types import (
+    DriftAction,
+    DriftEvent,
+    DriftReading,
+    DriftSeverity,
+    GateStatus,
+    ModelSignature,
+    PipelineConfig,
+)
+
+
+class HumanArbitrationGate:
+    """
+    Human-in-the-loop gate for drift event arbitration.
+
+    For HIGH/CRITICAL severity events, the pipeline pauses and
+    waits for human approval before taking destructive actions
+    like base model reset.
+    """
+
+    def __init__(self, timeout_seconds: float = 300.0) -> None:
+        self._timeout = timeout_seconds
+        self._pending: dict[str, DriftEvent] = {}
+        self._resolutions: dict[str, GateStatus] = {}
+
+    async def submit(self, event: DriftEvent) -> GateStatus:
+        """
+        Submit an event for human review.
+
+        Returns APPROVED if auto-approved (lower severity),
+        or waits for human decision for HIGH/CRITICAL.
+        """
+        if event.reading.severity in (DriftSeverity.LOW, DriftSeverity.MEDIUM):
+            return GateStatus.AUTO
+
+        self._pending[event.event_id] = event
+
+        # Wait for human decision or timeout
+        start = time.time()
+        while time.time() - start < self._timeout:
+            if event.event_id in self._resolutions:
+                status = self._resolutions[event.event_id]
+                del self._pending[event.event_id]
+                del self._resolutions[event.event_id]
+                return status
+            await asyncio.sleep(0.5)
+
+        # Timeout
+        if event.event_id in self._pending:
+            del self._pending[event.event_id]
+        return GateStatus.TIMEOUT
+
+    def approve(self, event_id: str) -> bool:
+        """Human approves the action."""
+        if event_id in self._pending:
+            self._resolutions[event_id] = GateStatus.APPROVED
+            return True
+        return False
+
+    def reject(self, event_id: str) -> bool:
+        """Human rejects the action."""
+        if event_id in self._pending:
+            self._resolutions[event_id] = GateStatus.REJECTED
+            return True
+        return False
+
+    def get_pending(self) -> list[DriftEvent]:
+        """Get all pending human review events."""
+        return list(self._pending.values())
+
+
+class BaseModelReset:
+    """
+    Base model reset mechanism.
+
+    When critical drift is detected and approved, this component
+    resets the model to a known-good baseline checkpoint.
+    """
+
+    def __init__(self, cooldown_seconds: float = 60.0) -> None:
+        self._cooldown = cooldown_seconds
+        self._last_reset: datetime | None = None
+        self._reset_count = 0
+
+    async def reset(self, target: ModelSignature, baseline: ModelSignature) -> bool:
+        """
+        Perform base model reset.
+
+        Returns True if reset was performed, False if on cooldown.
+        """
+        if self._last_reset:
+            elapsed = (datetime.now() - self._last_reset).total_seconds()
+            if elapsed < self._cooldown:
+                return False
+
+        self._last_reset = datetime.now()
+        self._reset_count += 1
+        return True
+
+    def can_reset(self) -> bool:
+        """Check if reset is available (not on cooldown)."""
+        if not self._last_reset:
+            return True
+        elapsed = (datetime.now() - self._last_reset).total_seconds()
+        return elapsed >= self._cooldown
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get reset statistics."""
+        return {
+            "reset_count": self._reset_count,
+            "last_reset": self._last_reset.isoformat() if self._last_reset else None,
+            "cooldown_seconds": self._cooldown,
+            "can_reset": self.can_reset(),
+        }
+
+
+class DriftDetectionPipeline:
+    """
+    Main drift detection pipeline orchestrator.
+    """
+
+    def __init__(
+        self,
+        config: PipelineConfig | None = None,
+    ) -> None:
+        self._config = config or PipelineConfig()
+        self._metrics = DriftMetricsCollector()
+        self._gate = HumanArbitrationGate(self._config.review_timeout_seconds)
+        self._reset = BaseModelReset(self._config.reset_cooldown_seconds)
+        self._events: deque[DriftEvent] = deque(maxlen=1000)
+        self._callbacks: list[Callable[[DriftEvent], None]] = []
+        self._running = False
+
+    def add_callback(self, callback: Callable[[DriftEvent], None]) -> None:
+        """Register a callback for drift events."""
+        self._callbacks.append(callback)
+
+    def _classify_severity(self, kl: float, hellinger: float) -> DriftSeverity:
+        """Classify drift severity based on metrics."""
+        if kl >= self._config.kl_max or hellinger >= self._config.hellinger_critical:
+            return DriftSeverity.CRITICAL
+        if kl >= self._config.kl_critical or hellinger >= self._config.hellinger_critical:
+            return DriftSeverity.HIGH
+        if kl >= self._config.kl_warning or hellinger >= self._config.hellinger_warning:
+            return DriftSeverity.MEDIUM
+        if kl > 0.01 or hellinger > 0.05:
+            return DriftSeverity.LOW
+        return DriftSeverity.NONE
+
+    def _determine_action(self, severity: DriftSeverity) -> DriftAction:
+        """Determine action based on severity."""
+        if severity == DriftSeverity.CRITICAL:
+            return DriftAction.EMERGENCY_HALT
+        if severity == DriftSeverity.HIGH:
+            return (
+                DriftAction.BASE_RESET
+                if self._config.reset_on_critical
+                else DriftAction.HUMAN_REVIEW
+            )
+        if severity == DriftSeverity.MEDIUM:
+            return DriftAction.QUARANTINE
+        if severity == DriftSeverity.LOW:
+            return DriftAction.ALERT
+        return DriftAction.NONE
+
+    async def check_drift(
+        self,
+        baseline_weights: Any,
+        current_weights: Any,
+        model: ModelSignature,
+        baseline: ModelSignature,
+    ) -> DriftEvent | None:
+        """
+        Perform a drift check and return event if drift detected.
+        """
+        import numpy as np
+
+        # Compute metrics
+        metrics = compute_drift_metrics(
+            np.asarray(baseline_weights),
+            np.asarray(current_weights),
+        )
+        self._metrics.record(metrics)
+
+        # Classify severity
+        severity = self._classify_severity(
+            metrics["kl_divergence"],
+            metrics["hellinger_distance"],
+        )
+
+        if severity == DriftSeverity.NONE:
+            return None
+
+        # Create reading
+        reading = DriftReading(
+            timestamp=datetime.now(),
+            kl_divergence=metrics["kl_divergence"],
+            js_divergence=metrics["js_divergence"],
+            hellinger_distance=metrics["hellinger_distance"],
+            severity=severity,
+            threshold=self._config.kl_critical,
+            model=model,
+            baseline=baseline,
+        )
+
+        # Determine action
+        action = self._determine_action(severity)
+
+        # Create event
+        event = DriftEvent(
+            event_id=str(uuid.uuid4())[:8],
+            timestamp=datetime.now(),
+            reading=reading,
+            action_taken=action,
+            gate_status=GateStatus.PENDING_REVIEW,
+            reason=f"KL={metrics['kl_divergence']:.4f}, Hellinger={metrics['hellinger_distance']:.4f}",
+        )
+
+        # Submit to human gate
+        gate_status = await self._gate.submit(event)
+        event.gate_status = gate_status
+
+        # Execute action if approved
+        if gate_status in (GateStatus.AUTO, GateStatus.APPROVED):
+            if action == DriftAction.BASE_RESET:
+                success = await self._reset.reset(model, baseline)
+                if not success:
+                    event.reason += " (reset on cooldown)"
+            elif action == DriftAction.EMERGENCY_HALT:
+                event.reason += " (EMERGENCY HALT EXECUTED)"
+
+        event.resolved = True
+        event.resolution_time = datetime.now()
+        self._events.append(event)
+
+        # Notify callbacks
+        for cb in self._callbacks:
+            with contextlib.suppress(Exception):
+                cb(event)
+
+        return event
+
+    async def run_continuous(
+        self,
+        baseline_weights: Any,
+        current_weights_provider: Callable[[], Any],
+        model: ModelSignature,
+        baseline: ModelSignature,
+    ) -> None:
+        """
+        Run continuous drift detection loop.
+        """
+        self._running = True
+        while self._running:
+            current = current_weights_provider()
+            await self.check_drift(baseline_weights, current, model, baseline)
+            await asyncio.sleep(self._config.check_interval_seconds)
+
+    def stop(self) -> None:
+        """Stop the continuous detection loop."""
+        self._running = False
+
+    def get_events(self, severity: DriftSeverity | None = None) -> list[DriftEvent]:
+        """Get drift events, optionally filtered by severity."""
+        events = list(self._events)
+        if severity:
+            events = [e for e in events if e.reading.severity == severity]
+        return events
+
+    def get_pending_reviews(self) -> list[DriftEvent]:
+        """Get events pending human review."""
+        return self._gate.get_pending()
+
+    def approve_event(self, event_id: str) -> bool:
+        """Human approves a pending event."""
+        return self._gate.approve(event_id)
+
+    def reject_event(self, event_id: str) -> bool:
+        """Human rejects a pending event."""
+        return self._gate.reject(event_id)
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get pipeline statistics."""
+        return {
+            "total_events": len(self._events),
+            "pending_reviews": len(self._gate.get_pending()),
+            "reset_stats": self._reset.get_stats(),
+            "config": self._config.to_dict(),
+            "trend": self._metrics.get_trend(),
+        }

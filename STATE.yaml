@@ -1,0 +1,162 @@
+version: 17
+last_updated: '2026-08-06T16:32:22+08:00'
+project:
+  name: MAREF
+  current_release: 0.52.0
+  public_repo: https://github.com/maref-org/maref
+  license: Apache-2.0
+  rsi_level: 'L2 (Full Pass)'
+  rsi_score: 79.5
+  rsi_report: docs/rsi/l2-acceptance-report-20260702.md
+  stage: S0 (学术借力) -> P0 (开源启动) -> S1 (开源运营启动)
+  constitution_version: v2.0
+  phase_gate_enforcement:
+    enabled: true
+    constitution_article: 第三十四-E条
+    local_hook: ~/.claude/hooks/file_write_intercept.py
+    state_file: ~/.claude/current_phase.json
+    manager_cli: python3 ~/.claude/hooks/phase_manager.py status|set|reset|history
+    coverage:
+      claude_code: enabled
+      opencode: pending
+      cursor: pending
+      trae: enabled
+      github_copilot: not_applicable
+    sidecar_mcp_tool:
+      name: gov_check_phase_gate
+      status: implemented
+      implemented_at: '2026-07-31'
+      target_article: 第三十四-C条 34g
+      test_coverage: 5 scenarios / 9 sub-cases passed
+  output_verification_protocol:
+    enabled: true
+    constitution_article: 第三十四-F条
+    enforcement_level: advisory
+    sidecar_mcp_tool:
+      name: gov_verify_output
+      status: implemented
+      implemented_at: '2026-07-31'
+      target_article: 第三十四-C条 34h
+      test_coverage: 3 scenarios passed (pass/attention/rework)
+      note: MVP heuristic scoring — production requires LLM API integration
+    stop_hook_upgrade:
+      status: implemented
+      implemented_at: '2026-07-17'
+      target_article: 第三十四-C条 34i
+      test_coverage: 5 scenarios passed (advisory 1-2 / block on 3rd)
+track_b:
+  remote: git@github.com:maref-org/maref.git
+  pre_push_hook: present
+  branch_protection: enabled
+  ci_status: fixed
+  security_scan: clean
+governance:
+  deployment_status: production_closed_loop
+  last_audit: '2026-08-04'
+  audit_score: 8.8/10
+  coverage_overall: 52.49%
+  coverage_governance: 87.70%
+  coverage_federation: 67.76%
+  coverage_identity: 58.46%
+  coverage_security: 87.24%
+  coverage_execution: 71.62%
+  coverage_data_value: 95.95%
+  coverage_note: '全仓 52.49% 为 2026-08-05 实测（标准口径：排除 slow/real/chaos + tests/research 收集错误 + evolution 慢测试；unit/cli/desktop/immunity/tools/governance/federation/security/execution/identity/recursive/sidecar 等 12 标准域 8158 tests 单次跑）。已超 coverage_target 50%+。v0.50 记录的 80.31% 基于当时 4766 tests 标准套件，现已过时。'
+  v051_features: 13/13 (W1-W6 enterprise value closure)
+  coverage_target_v0350: 50%+
+  mypy_errors: 0  # 2026-08-05 修复 report_generator.py:151 arg-type 后实测清零，见 audit-reinforcement-20260805-v0.52.md H-5
+  resolved_issues_archive: archive/resolved-issues.yaml
+  p0_fixes:
+    gray_code_validator_bug: fixed
+    cors_wildcard: fixed
+    try_except_pass: fixed
+    hardcoded_keys: fixed
+  governance_upgrades:
+    trust_boundary_blocking: verify_cross_domain() added — raises E1006 BOUNDARY_VIOLATION
+    state_machine_audit_hmac: sha256 -> hmac-sha256 signing
+    phase_gate_mcp_tool: gov_check_phase_gate + gov_verify_output implemented in sidecar
+    audit_bus_unified: 11 fragmented modules unified under AuditBus (governance/governance_bus/gaas/integration/recursive/eivl)
+    audit_deprecated: security_audit_chain, integration/audit_logger, recursive/audit_schema marked DEPRECATED
+submission_pipeline:
+  journals:
+  - venue: 中国科技论坛
+    status: submitted
+    deadline: '2026-06-15'
+    notes: 智能体的风险与治理专栏
+  - venue: AI and Ethics (Springer)
+    status: submitted
+    deadline: '2026-06-30'
+    notes: Technical check stage
+  - venue: IEEE TNSE Special Issue
+    status: draft_saved
+    deadline: 2026-07-01 (per CFP) / 2026-06-15 (per tracker)
+    notes: AtyponRex error 3b5fc88c — needs IEEE support contact
+  arxiv_endorsement:
+    status: cancelled  # 外部闸门已由人类决策取消 (2026-08-01)，回归内功门禁，见 d1_gate.external_gate_override
+    total_emailed: 15
+    replies: 2
+    eligible_endorsers: 0
+    strategy_v1: failed
+    strategy_v2: failed
+    fallback: journal_acceptance
+    zenodo_doi: pending
+  aip_pioneer:
+    status: draft
+    contacts:
+    - gaoge@cesi.cn
+    - lichen@cesi.cn
+    materials_ready: false
+    deadline_note: Dashboard says 2026-06-15, program states rolling applications
+  incomplete_arxiv_submissions:
+  - id: submit/7656772
+    expires: '2026-06-13'
+    status: expired_or_expiring
+  - id: submit/7656773
+    expires: '2026-06-13'
+    status: expired_or_expiring
+  - id: submit/7656869
+    expires: '2026-06-13'
+    status: expired_or_expiring
+d1_gate:
+  G1_branch_protection: true
+  G2_ci_green: false  # 2026-08-05 修复 ci.yml 语法错误后待 CI 复跑确认；此前 50 次运行 0 成功（v0.50 引入的 YAML 损坏）
+  G3_security_clean: true
+  G4_no_runtime_artifacts: true
+  gate_passed: false  # G2 待复跑，见 docs/audit-reports/audit-reinforcement-20260805-v0.52.md C-2
+  last_preflight_run: '2026-08-01'
+  last_push_blocked_by: null  # G1/G3/G4 green；G2 修复后待复跑确认
+  external_gate_override:  # arXiv/期刊等外部闸门已由人类决策取消，回归内功补强，不受外部影响
+    arxiv_id: cancelled_by_human
+    cancelled_at: '2026-08-01'
+    basis: 回归内功门禁 — 以 release-gate.md G1-G10 + d1_preflight_check.py G1-G4 为 D1c 判定标准
+dns_setup:
+  domain: maref.cc
+  registrar: 'alibaba cloud computing ltd. d (id: 1599)'
+  dns_provider: Cloudflare
+  nameservers:
+  - chase.ns.cloudflare.com
+  - elisabeth.ns.cloudflare.com
+  zone_id: 70625a7eb912b193d7f3d455f9a5916b
+  zone_status: active
+  zone_plan: Free Website
+  dns_records:
+    mx:
+    - route1.mx.cloudflare.net (5)
+    - route2.mx.cloudflare.net (96)
+    - route3.mx.cloudflare.net (89)
+    spf: v=spf1 include:_spf.mx.cloudflare.net ~all
+    dkim: cf2024-1._domainkey.maref.cc
+  email_routing:
+    enabled: true
+    status: ready
+    destination: 87909004@qq.com
+    destination_verified: true
+    forwarding_rule: admin@maref.cc → 87909004@qq.com
+    forwarding_enabled: true
+    delivery_test: passed
+  aliyun_ticket:
+    id: 0001ZR6ML6
+    issue: MissingInstanceId blocked DNS modification
+    resolution: Engineer manually pushed task through
+    status: closed
+    closed_at: '2026-06-12'

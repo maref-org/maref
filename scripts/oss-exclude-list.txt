@@ -1,0 +1,95 @@
+# ============================================================
+# MAREF OSS 发布排除清单（closed-source exclude list）
+# ------------------------------------------------------------
+# 用途: oss-publish.sh 裁剪公开仓 + oss-check.sh/pre-push 门禁
+# 规则: 每行一个路径（支持 glob）。'#' 开头为注释。空行忽略。
+# 原则: 开源有钩子(协议/标准/单Agent治理)，闭源挖深护城河(王炸层)。
+#       本清单列出的路径绝不允许出现在公开分支(main/oss-release)的 tree 中。
+# 维护: 新增深水区实现时同步追加本节条目，否则 pre-push 不会自动识别。
+# ============================================================
+
+# ---------- [secrets] 密钥与凭证（双保险，.gitignore 已兜底） ----------
+# 注意: .env.example 是公开模板，保留公开。
+.env
+.env.local
+.env.maref
+.maraf_hmac_key
+.gaas_api_key
+athena-governance.jsonc
+credentials/**
+*.key
+*.pem
+*.secret
+
+# ---------- [data-runtime] 数据/运行时/审计（绝密数据层） ----------
+*.db
+*.sqlite
+*_audit.jsonl
+governance_audit*.jsonl
+recursive_governance_audit.jsonl
+.evolution_vault/**
+policy_versions/**
+.data
+:memory:*
+# 内部数据层（运行时/缓存/日志/运营洞察，含聚合审计数据）
+data/**
+data-original/**
+
+# ---------- [nested-guard] 嵌套内部目录守卫（任意层级） ----------
+# 下述内部目录无论出现在哪个层级（deep/.missions/ 等）一律排除；
+# data 系为通用模块名（src/maref/data 属公开代码），仅根级排除。
+**/.missions/**
+**/.openclaw/**
+**/.trae/**
+**/.opencode/**
+**/.maref/**
+**/.governance/**
+**/.maref_backups/**
+**/experiments/**
+**/reports/**
+**/research_output/**
+**/knowledge-library/**
+**/cache/**
+**/logs/**
+**/.evolution_vault/**
+**/policy_versions/**
+**/credentials/**
+
+# ---------- [closed-source] 闭源实现（现网，技术清单见 openclaw 内部深水区登记表） ----------
+src/maref/recursive/distributed_crdt.py
+src/maref/recursive/live_migration.py
+# 深水区对应的公开仓坏测试（import 已被剔除的模块，避免公开仓测试失败）
+tests/recursive/test_r46_distributed_crdt.py
+tests/recursive/test_r35_live_migration.py
+# coverage 运行时副本（含完整源码，全仓泄露风险；仅排除清单兜底，建议后续从仓库清理）
+*,cover
+
+# ---------- [closed-source] 闭源深水区：未来实现守卫 ----------
+# 下述目录一旦创建即自动触发门禁阻断，须经策略评审后才能发布
+src/maref/federation/tla_engine/**
+src/maref/trustgnn/**
+src/maref/cost_scheduler/**
+src/maref/multimodal_guard/**
+data/attack_1m/**
+
+# ---------- [internal-workspaces] 内部工作区/知识/工具配置 ----------
+.missions/**
+.openclaw/**
+.trae/**
+.opencode/**
+.maref/**
+.governance/**
+.maref_backups/**
+experiments/**
+knowledge-library/**
+reports/**
+research_output/**
+cache/**
+logs/**
+results/experiments/**
+.mypy_cache/**
+.ruff_cache/**
+.pytest_cache/**
+.coverage
+coverage.json
+coverage_full.json

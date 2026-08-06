@@ -1,0 +1,93 @@
+import json
+import shutil
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from maref.production._constants import ASSET_BASE
+
+
+class ContentAssembler:
+    """Package character + scripts into deployment-ready deliverables."""
+
+    def __init__(self, base_path: str | None = None) -> None:
+        self.base = Path(base_path or ASSET_BASE)
+
+    def assemble(self, char_id: str, episode: int | None = None) -> dict[str, Any]:
+        char_dir = self.base / "characters" / char_id
+        if not char_dir.exists():
+            raise FileNotFoundError(f"Character '{char_id}' not found.")
+
+        exports_base = self.base / "exports"
+        exports_base.mkdir(parents=True, exist_ok=True)
+
+        profile = char_dir / "profile"
+        scripts_dir = self.base / "storylines"
+        all_scripts = (
+            list(scripts_dir.glob(f"{char_id}-s*/episodes/episode-*.md"))
+            if scripts_dir.exists()
+            else []
+        )
+
+        manifest: dict[str, Any] = {
+            "char_id": char_id,
+            "assembled_at": datetime.now().isoformat(),
+            "assets": {
+                "profile": str(profile / "profile.md")
+                if (profile / "profile.md").exists()
+                else None,
+                "meta": str(profile / "meta.json") if (profile / "meta.json").exists() else None,
+                "scripts": [str(s) for s in all_scripts],
+                "reference_images": self._list_dir(char_dir / "reference-images"),
+            },
+        }
+
+        export_name = f"{char_id}"
+        if episode:
+            export_name += f"-ep{episode:02d}"
+        export_dir = exports_base / export_name
+        export_dir.mkdir(parents=True, exist_ok=True)
+
+        manifest_path = export_dir / "manifest.json"
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+
+        if (profile / "profile.md").exists():
+            shutil.copy2(profile / "profile.md", export_dir / "profile.md")
+
+        for src in all_scripts:
+            if episode is None or f"episode-{episode:02d}" in src.name:
+                dest = export_dir / src.name
+                shutil.copy2(src, dest)
+
+        readme = export_dir / "README.md"
+        script_count = len(all_scripts)
+        readme.write_text(
+            f"# {char_id} — Export Package\n\n"
+            f"Assembled: {datetime.now().isoformat()}\n"
+            f"Scripts: {script_count}\n"
+            f"Profile: {'yes' if manifest['assets']['profile'] else 'no'}\n\n"
+            "## Contents\n"
+            "- `manifest.json` — Asset manifest\n"
+            "- `profile.md` — Character profile\n"
+            f"- `episode-*.md` — Episode scripts ({script_count} total)\n"
+        )
+
+        return {
+            "char_id": char_id,
+            "export_dir": str(export_dir),
+            "manifest_path": str(manifest_path),
+            "script_count": len(all_scripts),
+            "has_profile": manifest["assets"]["profile"] is not None,
+            "size_kb": self._dir_size_kb(export_dir),
+        }
+
+    def _list_dir(self, path: Path) -> list[str]:
+        if not path.exists():
+            return []
+        return [str(f) for f in path.iterdir() if f.is_file()]
+
+    def _dir_size_kb(self, path: Path) -> float:
+        total = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+        return round(total / 1024, 1)

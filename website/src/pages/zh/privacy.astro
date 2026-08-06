@@ -1,0 +1,77 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "隐私政策";
+const description = "MAREF 隐私政策——我们收集哪些数据、如何使用以及你的权利。";
+const canonical = "/zh/privacy";
+---
+
+<BaseLayout {title} {description} {canonical}>
+  <NavBar locale="zh" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">隐私政策</h1>
+    <p class="text-sm text-brand-text-muted mb-12">最后更新：2026 年 6 月 13 日</p>
+
+    <div class="prose-custom text-brand-text-secondary leading-relaxed space-y-6 text-base">
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">1. 我们收集什么</h2>
+        <p>MAREF 开源框架本身不收集任何数据。该软件完全在你的基础设施上运行，不会向任何地方发送遥测数据。</p>
+        <p>本网站（maref.cc）收集标准的 Web 服务器日志：页面请求、来源 URL、浏览器用户代理字符串和 IP 地址。我们仅将这些数据用于聚合流量分析。</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">2. Cookie</h2>
+        <p>本网站不使用跟踪 Cookie、分析 Cookie 或任何形式的持久化客户端存储用于跟踪目的。Cloudflare 可能会为 CDN 功能和安全性（如机器人缓解）设置必要的 Cookie。这些严格属于运营用途。</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">3. 我们如何使用数据</h2>
+        <p>服务器日志数据仅用于：</p>
+        <ul class="list-disc pl-6 space-y-1">
+          <li>诊断和修复网站问题</li>
+          <li>了解聚合流量模式（哪些页面被访问，来自哪些地区）</li>
+          <li>保护网站免受滥用和攻击</li>
+        </ul>
+        <p>我们不会向第三方出售、共享或以其他方式转让你的数据。</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">4. 数据保留</h2>
+        <p>Web 服务器日志最多保留 30 天，然后自动删除。</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">5. 第三方服务</h2>
+        <p>本网站托管在 Cloudflare Pages 上。Cloudflare 的隐私政策适用于由其基础设施处理的数据。我们不使用任何额外的第三方分析、跟踪或广告服务。</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">6. 你的权利</h2>
+        <p>根据你的司法管辖区，你可能拥有关于个人数据的权利，包括访问、更正、删除和可移植性。如需行使这些权利，请通过 admin@maref.cc 联系我们。</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">7. 联系方式</h2>
+        <p>隐私相关问题：<a href="mailto:admin@maref.cc" class="text-brand-accent-blue hover:underline">admin@maref.cc</a></p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/zh/privacy/" class="hover:text-snow-sheet transition-colors">隐私</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">联系</a>
+        </p>
+        <p>Apache-2.0 许可证</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

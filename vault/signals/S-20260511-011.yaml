@@ -1,0 +1,16 @@
+signal_id: S-20260511-011
+topic: MAREF Business Model
+source_node: ecosystem_strategy
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'Open-source ecosystem strategy: Phase 1 (current) — AGPL-3.0 core, free
+  forever. Phase 2 (6 months) — Sidecar adapters for top 5 frameworks (LangGraph,
+  CrewAI, AutoGen done; Dify, Coze next). Phase 3 (12 months) — MAREF Cloud (governance-as-a-service,
+  managed TLA+ verification). Phase 4 (18 months) — Agent Safety Certification (ISO-style
+  compliance badges). Revenue: enterprise support ($10K-100K/year), certification
+  audits, managed cloud. Community: GitHub Discussions, weekly governance office hours,
+  contributor SLA.'
+summary: 'Open-source ecosystem strategy: Phase 1 (current) — AGPL-3.0 core, free
+  forever. Phase 2 (6 months) — Sidecar adapters for top 5 frameworks (LangGraph,
+  CrewAI, AutoGen done; Dify, Coze next). Phase 3 '
+harvested_at: '2026-05-11T21:58:41.314511'
+status: raw

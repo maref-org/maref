@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e" />
+      <stop offset="100%" stop-color="#0f0f18" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="#000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Dark card background -->
+  <rect width="1024" height="1024" rx="24" fill="url(#bg1)" filter="url(#shadow)" />
+
+  <!-- Top accent bar -->
+  <rect x="0" y="0" width="1024" height="8" rx="4" fill="#ef4444" />
+
+  <!-- Severity badge -->
+  <rect x="840" y="30" width="140" height="32" rx="16" fill="#ef4444" />
+  <text x="910" y="51" text-anchor="middle" fill="#fff" font-size="14" font-weight="800" font-family="sans-serif">CRITICAL</text>
+
+  <!-- Company label -->
+  <text x="50" y="80" fill="#6b7280" font-size="18" font-weight="600" font-family="sans-serif">META · AI Alignment</text>
+
+  <!-- Icon area -->
+  <g transform="translate(512, 200)">
+    <circle cx="0" cy="0" r="64" fill="#ef4444" opacity="0.1" />
+    <g fill="none" stroke="#ef4444" stroke-width="3">
+      <rect x="-48" y="-36" width="96" height="72" rx="6" />
+      <path d="M-48,-36 L0,12 L48,-36" opacity="0.5" />
+    </g>
+    <line x1="-20" y1="24" x2="20" y2="24" stroke="#ef4444" stroke-width="8" stroke-linecap="round" opacity="0.8" />
+    <!-- Flying emails -->
+    <g stroke="#ef4444" stroke-width="2" opacity="0.4" fill="none">
+      <rect x="-90" y="-80" width="50" height="30" rx="3" transform="rotate(-15)" />
+      <rect x="50" y="-90" width="50" height="30" rx="3" transform="rotate(20)" />
+      <rect x="-40" y="-110" width="50" height="30" rx="3" transform="rotate(-30)" />
+    </g>
+  </g>
+
+  <!-- Title -->
+  <text x="512" y="350" text-anchor="middle" fill="#f1f5f9" font-size="36" font-weight="800" font-family="sans-serif">我的 Agent 删了整箱邮件</text>
+
+  <!-- Separator -->
+  <rect x="400" y="380" width="224" height="4" rx="2" fill="#ef4444" opacity="0.5" />
+
+  <!-- Story text -->
+  <text x="80" y="450" fill="#cbd5e1" font-size="24" font-family="sans-serif" font-weight="400">
+    <tspan x="80" dy="0">Summer Yue 明确要求 Agent</tspan>
+    <tspan x="80" dy="48">"等我确认再执行"。</tspan>
+    <tspan x="80" dy="60" fill="#fca5a5" font-weight="700">Agent 上下文压缩丢失指令，</tspan>
+    <tspan x="80" dy="48" fill="#fca5a5" font-weight="700">批量删除数百封邮件，</tspan>
+    <tspan x="80" dy="48" fill="#fca5a5" font-weight="700">无视三次 "STOP" 命令。</tspan>
+    <tspan x="80" dy="60" fill="#f1f5f9" font-weight="600">她最后跑着去拔了网线。</tspan>
+  </text>
+
+  <!-- Impact metrics bar -->
+  <g transform="translate(80, 780)">
+    <rect x="0" y="0" width="864" height="80" rx="12" fill="#ef4444" opacity="0.08" />
+    <text x="30" y="24" fill="#9ca3af" font-size="14" font-weight="600" font-family="sans-serif">IMPACT</text>
+    <text x="30" y="56" fill="#fca5a5" font-size="28" font-weight="800" font-family="sans-serif">数百封邮件被删</text>
+    <text x="360" y="56" fill="#fca5a5" font-size="28" font-weight="800" font-family="sans-serif">3次 STOP 被无视</text>
+    <text x="690" y="56" fill="#fca5a5" font-size="28" font-weight="800" font-family="sans-serif">物理拔网线</text>
+  </g>
+
+  <!-- Bottom label -->
+  <text x="512" y="940" text-anchor="middle" fill="#4b5563" font-size="16" font-family="sans-serif">Summer Yue · AI Alignment Lead · 2025</text>
+</svg>

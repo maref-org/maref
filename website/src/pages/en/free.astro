@@ -1,0 +1,130 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "Free Forever";
+const description = "MAREF is 100% free and open source under Apache 2.0 license. No hidden fees, no enterprise tiers — governance for everyone, forever.";
+const canonical = "/en/free";
+---
+
+<BaseLayout {title} {description} {canonical}>
+<NavBar locale="en" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">MAREF is <span class="text-brand-accent-green">100% Free Forever</span></h1>
+    <p class="text-lg text-brand-text-secondary mb-12">No hidden fees, no enterprise tiers — governance for everyone, forever.</p>
+
+    <div class="mb-12 p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="p-3 rounded-lg" style="background-color: var(--color-brand-accent-green);">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div>
+          <h2 class="text-2xl font-bold tracking-tight">Apache 2.0 License</h2>
+          <p class="text-brand-text-secondary">The same license used by Kubernetes, TensorFlow, and React</p>
+        </div>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed">
+        MAREF is released under the Apache 2.0 license — one of the most permissive open-source licenses. You can use, modify, distribute, and even sell MAREF in your products without paying us a cent. The only requirement is to include the license notice and attribution.
+      </p>
+    </div>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Community Edition</h2>
+      
+      <div class="p-6 rounded-2xl mb-8" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold">MAREF Free</h3>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold" style="background-color: var(--color-brand-accent-green); color: #0a0a0b;">FREE</span>
+        </div>
+        <p class="text-brand-text-secondary mb-6">
+          Everything you need to govern your agents. No restrictions, no time limits.
+        </p>
+        <ul class="space-y-3 mb-6">
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">Full governance framework (Gray Code FSM, 8-layer defense)</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">TLA+ formal verification proofs</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">SM2/SM3/SM4-GCM national cryptography</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">Recursive self-evolution engine</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" class="mt-0.5 text-brand-accent-green"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <span class="text-sm">Immutable audit logging (HMAC-SHA256)</span>
+          </li>
+        </ul>
+        <a href="/en/docs/quickstart/" class="block w-full text-center py-3 px-6 rounded-lg font-medium transition-colors" style="background-color: var(--color-brand-accent-blue); color: white;">Get Started Free</a>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Frequently Asked Questions</h2>
+      
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-lg font-semibold mb-2">Is MAREF really 100% free?</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            Yes. The entire MAREF framework is released under Apache 2.0 license. You can download, use, modify, and distribute it without paying anything. The source code is available on GitHub at <a href="https://github.com/maref-org/maref" class="text-brand-accent-blue hover:underline">github.com/maref-org/maref</a>.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">Do I need to pay for updates or new versions?</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            No. All updates to MAREF are free. We follow semantic versioning and all patches, minor updates, and major versions are included in your free license.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">Can I use MAREF in commercial products?</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            Yes. Apache 2.0 allows commercial use. You can integrate MAREF into your products, services, or internal tools and even sell those products without paying us royalties or licensing fees.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">What if I need help or have questions?</h3>
+          <p class="text-brand-text-secondary leading-relaxed">
+            We provide support through <a href="https://github.com/maref-org/maref/issues" class="text-brand-accent-blue hover:underline">GitHub Issues</a> and community forums.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12 p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">Ready to get started?</h2>
+      <p class="text-brand-text-secondary mb-6">
+        Install MAREF in 5 minutes. No credit card required, no account needed.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <a href="/en/docs/quickstart/" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="background-color: var(--color-brand-accent-blue); color: white;">Get Started Free</a>
+        <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="border: 1px solid var(--color-brand-border);">View on GitHub</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/en/privacy/" class="hover:text-snow-sheet transition-colors">Privacy</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">Contact</a>
+        </p>
+        <p>Apache-2.0 License</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

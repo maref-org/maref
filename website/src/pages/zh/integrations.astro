@@ -1,0 +1,132 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "集成生态";
+const description = "MAREF 与您喜爱的工具无缝集成——LangGraph、CrewAI、AutoGen、Claude Code、Cursor 等。MCP + A2A 双协议兼容性确保为任何 Agent 框架提供治理。";
+const canonical = "/zh/integrations";
+---
+
+<BaseLayout {title} {description} {canonical}>
+<NavBar locale="zh" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">MAREF <span class="text-brand-accent-blue">集成生态</span></h1>
+    <p class="text-lg text-brand-text-secondary mb-12">为您喜爱的工具提供治理——LangGraph、CrewAI、AutoGen、Claude Code、Cursor 等。</p>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">MCP + A2A 双协议兼容性</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        MAREF 同时实现 <strong>Model Context Protocol (MCP)</strong> 和 <strong>Agent-to-Agent (A2A) 协议</strong>，确保与支持这些标准的任何 Agent 框架兼容。
+      </p>
+      
+      <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-blue);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">Model Context Protocol (MCP)</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            Anthropic 标准化的工具调用协议
+          </p>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-start gap-2">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" class="mt-0.5 text-brand-accent-blue"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+              <span>6 种传输类型：Stdio、SSE、HTTP、In-Process</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" class="mt-0.5 text-brand-accent-blue"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+              <span>内置 MCP 服务器：文件、Shell、Git、浏览器、邮件</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" class="mt-0.5 text-brand-accent-blue"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+              <span>治理层：策略决策树 + 断路器 + HMAC 审计</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg" style="background-color: var(--color-brand-accent-cyan);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <h3 class="text-xl font-bold">Agent-to-Agent (A2A)</h3>
+          </div>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            直接的 Agent 通信协议
+          </p>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-start gap-2">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" class="mt-0.5 text-brand-accent-cyan"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+              <span>A2A v0.3 协议兼容</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" class="mt-0.5 text-brand-accent-cyan"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+              <span>多 Agent 编排和交接</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" class="mt-0.5 text-brand-accent-cyan"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+              <span>分布式事务协调 (Saga)</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-6">如何集成</h2>
+      
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-lg font-semibold mb-3">1. MCP 集成（推荐）</h3>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            对于支持 MCP 的工具（Claude Code、Cursor、Windsurf），将 MAREF 配置为 MCP 服务器。
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">2. Python 适配器</h3>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            对于基于 Python 的框架（LangGraph、CrewAI、AutoGen），使用 Python 适配器。
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-3">3. Sidecar 部署</h3>
+          <p class="text-sm text-brand-text-secondary mb-4">
+            为 Kubernetes 或 Docker 部署 MAREF 作为 sidecar 服务。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12 p-6 rounded-2xl" style="background-color: var(--surface-abyss); border: 1px solid var(--color-brand-border);">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">需要集成帮助？</h2>
+      <p class="text-brand-text-secondary mb-6">
+        查看我们的文档获取详细的集成指南。
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <a href="/zh/docs/quickstart/" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="background-color: var(--color-brand-accent-blue); color: white;">查看文档</a>
+        <a href="mailto:admin@maref.cc?subject=集成支持" class="flex-1 text-center py-3 px-6 rounded-lg font-medium transition-colors" style="border: 1px solid var(--color-brand-border);">联系支持</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — 多智能体递归演进框架</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/zh/privacy/" class="hover:text-snow-sheet transition-colors">隐私</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">联系</a>
+        </p>
+        <p>Apache-2.0 许可证</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

@@ -1,0 +1,111 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"  # 每天 UTC 3:00
+
+jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: TruffleHog Secret Scan
+        if: github.event_name == 'pull_request'
+        uses: trufflesecurity/trufflehog@v3.90.8
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
+      - name: TruffleHog filesystem scan
+        if: github.event_name != 'pull_request'
+        run: |
+          pip install trufflehog
+          trufflehog filesystem . --only-verified --no-update || true
+
+  semgrep-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep Scan
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/owasp-top-ten
+            p/cwe-top-25
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Upgrade pip first
+        run: python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Upgrade setuptools (PYSEC-2026-3447)
+        run: python -m pip install -U "setuptools>=83.0.0"
+      - name: pip-audit
+        run: pip-audit --ignore-vuln PYSEC-2026-196
+
+  trivy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0.20.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+          skip-dirs: gui/src-tauri/target,website/node_modules,.git,.worktrees
+
+  dast-scan:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies and start server
+        run: |
+          pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+          maref serve --host 0.0.0.0 --port 8080 &
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8080/api/health; then
+              echo "Server ready"
+              break
+            fi
+            echo "Waiting for server... ($i/10)"
+            sleep 3
+          done
+          curl -sf http://localhost:8080/api/health || exit 1
+      - name: OWASP ZAP Baseline Scan
+        continue-on-error: true
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: "http://localhost:8080"
+          cmd_options: "-a -j"
+      - name: Upload ZAP reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-reports
+          path: |
+            zap-report.*
+            zap.out

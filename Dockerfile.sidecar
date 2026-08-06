@@ -1,0 +1,89 @@
+# ──────────────────────────────────────────────────────
+# MAREF Sidecar — packaged binary image
+#
+# Build:
+#   docker build -f Dockerfile.sidecar -t maref/sidecar:latest .
+# Run:
+#   docker run --rm -p 8000:8000 -e MAREF_ED25519_PRIVATE_KEY="$(cat key.pem)" \
+#     maref/sidecar:latest --host 0.0.0.0 --port 8000
+# ──────────────────────────────────────────────────────
+
+# Stage 1: Builder — build the PyInstaller binary on linux
+FROM python:3.12-slim AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+COPY pyproject.toml README.md LICENSE ./
+COPY src/ src/
+COPY packaging/ packaging/
+
+RUN python -m venv /opt/venv && \
+    PATH="/opt/venv/bin:$PATH" pip install --no-cache-dir --upgrade pip && \
+    PATH="/opt/venv/bin:$PATH" pip install --no-cache-dir -e ".[sidecar,identity,sentinel]" && \
+    PATH="/opt/venv/bin:$PATH" pip install --no-cache-dir "pyinstaller>=6.21"
+
+RUN PATH="/opt/venv/bin:$PATH" PYTHONPATH="/build/src" \
+    pyinstaller --onefile \
+    --name maref-sidecar \
+    --distpath /out \
+    --workpath /build/work \
+    --specpath /build \
+    --add-data "/build/packaging/sidecar_boot.py:packaging" \
+    --paths /build/src \
+    --hiddenimport maref.crypto.ed25519_keys \
+    --hiddenimport maref.crypto.sm2 \
+    --hiddenimport gmssl \
+    --hiddenimport cryptography \
+    --hiddenimport uvicorn \
+    --hiddenimport fastapi \
+    --hiddenimport pydantic \
+    --hiddenimport starlette \
+    --hiddenimport sse_starlette \
+    --hiddenimport websockets \
+    --hiddenimport maref \
+    --hiddenimport maref.governance \
+    --hiddenimport maref.observability \
+    --hiddenimport maref.recursive \
+    --hiddenimport maref.obs \
+    --hiddenimport sidecar \
+    --hiddenimport sidecar.collector \
+    --hiddenimport sidecar.exfiltration_probe \
+    --hiddenimport sidecar.gaas_router \
+    --hiddenimport sidecar.mcp_bridge \
+    --hiddenimport sidecar.mcp_gateway \
+    --hiddenimport sidecar.monitor \
+    --hiddenimport sidecar.obs_bridge \
+    --hiddenimport sidecar.server \
+    --exclude-module tkinter --exclude-module matplotlib --exclude-module scipy \
+    --exclude-module PIL --exclude-module pytest --exclude-module torch \
+    --exclude-module playwright --exclude-module pandas \
+    /build/packaging/sidecar_boot.py
+
+# Stage 2: Runtime — minimal image
+# Uses python:3.12-slim (same base as builder) to reuse cached layers;
+# healthcheck uses Python's stdlib (slim has no curl).
+FROM python:3.12-slim AS runtime
+
+LABEL org.opencontainers.image.title="MAREF Sidecar"
+LABEL org.opencontainers.image.description="Multi-Agent Recursive Engineering Framework — Governance Sidecar"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+
+RUN groupadd -r maref && useradd -r -g maref -d /home/maref -m maref
+
+COPY --from=builder /out/maref-sidecar /usr/local/bin/maref-sidecar
+
+USER maref
+ENV HOME=/home/maref
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status == 200 else 1)" || exit 1
+
+ENTRYPOINT ["/usr/local/bin/maref-sidecar"]

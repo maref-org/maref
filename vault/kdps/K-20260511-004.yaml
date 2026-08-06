@@ -1,0 +1,49 @@
+kdp_id: K-20260511-004
+topic: MAREF Competitive Landscape
+signal_ids:
+- S-20260511-004
+claim: CrewAI is the most popular role-based multi-agent framework, evidenced by 22,000
+  GitHub stars and supported by its role-playing + task delegation model and AMP (Agent
+  Market Place) Suite for monetization.
+metric_type: exact_number
+value: '22000'
+source_citation: crewai_competitor – MAREF Competitive Landscape
+confidence: 82
+verification_status: dual_blind_pass
+verification_method: protocol_a_dual_blind
+consensus_score: 0.86
+model_a_result: '{"claim": "CrewAI is the most popular role-based agent framework
+  on GitHub with 22K stars and features role-playing + task delegation model with
+  AMP (Agent Market Place) Suite for monetization", "metric_type": "exact_number",
+  "value": "22000", "unit": "stars", "source_citation": "crewai_competitor", "confidence":
+  85, "who": "CrewAI", "who_else": [], "when": "present", "where": "GitHub platform/developer
+  community", "why": "To establish market leadership position among role-based agent
+  frameworks", "how": "Through GitHub star popularity metric and specific technical
+  features (role-playing + task delegation model, AMP Suite)", "impact_assessment":
+  "High market visibility and developer adoption for CrewAI as the leading role-based
+  agent framework", "actionability": "Monitor CrewAI''s growth trajectory and study
+  their successful features (role delegation model, marketplace) for competitive analysis;
+  conduct 30-day gap analysis comparing MAREF''s capabilities against CrewAI''s strengths/weaknesses;
+  test the claim falsifiability by verifying GitHub star count and comparing with
+  alternative frameworks", "evidence_quality": "medium", "keywords": ["CrewAI", "role-based
+  agent framework", "GitHub stars", "AMP Suite", "task delegation"]}'
+model_b_result: '{"claim": "CrewAI is the most popular role-based multi-agent framework,
+  evidenced by 22 000 GitHub stars.", "metric_type": "exact_number", "value": "22000",
+  "unit": "GitHub stars", "source_citation": "crewai_competitor \u2013 MAREF Competitive
+  Landscape", "confidence": 78, "who": "CrewAI (open-source project)", "competitors":
+  ["AutoGen", "LangGraph", "Microsoft Semantic Kernel", "CAMEL"], "when": "data as
+  of latest competitive scan (implied present)", "where": "global open-source software
+  market", "why": "offers simple API, low learning curve, and growing plugin ecosystem
+  to accelerate adoption of role-playing agent teams", "how": "MIT-licensed codebase
+  lets developers spin up role-based agents that delegate tasks; monetization path
+  added via AMP (Agent Market Place) Suite; lacks state-machine governance, formal
+  verification, long-term memory, or multi-agent safety guarantees", "impact_90d":
+  "star count likely to rise above 25 000, cementing perception as de-facto standard
+  role-based framework and pressuring rivals to match ease-of-use; enterprise tier
+  launch could seed early paid pilots", "strategy_response": "benchmark our GitHub
+  velocity against CrewAI, close state-machine & safety feature gaps within one sprint,
+  and publish a head-to-head performance blog before next major conference", "source_quality":
+  "medium", "is_falsifiable": true, "tags": ["open-source", "multi-agent", "role-based",
+  "GitHub-stars", "monetization", "competitive-intel"]}'
+extracted_at: '2026-05-11T22:02:42.447214'
+status: active

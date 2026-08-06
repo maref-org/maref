@@ -1,0 +1,944 @@
+from __future__ import annotations
+
+import shutil
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+
+@dataclass
+class DefectInjection:
+    label: str
+    apply_fn: Callable[[Path], None]
+    revert_fn: Callable[[Path], None]
+    expected_fnr_gt: float = 0.0
+    expected_compilation_error: bool = False
+    expected_unused_imports_delta: int = 0
+    expected_coverage_delta: float = 0.0
+
+
+@dataclass
+class SAEBScenario:
+    name: str
+    description: str
+    workdir: Path
+    reference_files: dict[str, str] = field(default_factory=dict)
+    injections: list[DefectInjection] = field(default_factory=list)
+    rounds_per_injection: int = 1
+
+    def setup(self) -> None:
+        self.workdir.mkdir(parents=True, exist_ok=True)
+        self.restore_reference()
+
+    def restore_reference(self) -> None:
+        for rel_path, content in self.reference_files.items():
+            path = self.workdir / rel_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        self._clear_caches()
+
+    def apply_injection(self, label: str) -> None:
+        for inj in self.injections:
+            if inj.label == label:
+                inj.apply_fn(self.workdir)
+                self._clear_caches()
+                return
+        msg = f"Unknown injection: {label}"
+        raise ValueError(msg)
+
+    def revert_injection(self, label: str) -> None:
+        for inj in self.injections:
+            if inj.label == label:
+                inj.revert_fn(self.workdir)
+                self._clear_caches()
+                return
+        msg = f"Unknown injection: {label}"
+        raise ValueError(msg)
+
+    def cleanup(self) -> None:
+        if self.workdir.exists():
+            shutil.rmtree(self.workdir)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "workdir": str(self.workdir),
+            "injections": [
+                {"label": i.label, "expected_fnr_gt": i.expected_fnr_gt}
+                for i in self.injections
+            ],
+        }
+
+    @staticmethod
+    def _clear_caches() -> None:
+        pass
+
+
+def _replace_in_file(workdir: Path, rel_path: str, old: str, new: str) -> None:
+    path = workdir / rel_path
+    text = path.read_text()
+    path.write_text(text.replace(old, new))
+
+
+def _write_file(workdir: Path, rel_path: str, content: str) -> None:
+    path = workdir / rel_path
+    path.write_text(content)
+
+
+def create_calculator_scenario(workdir: str | Path | None = None) -> SAEBScenario:
+    if workdir is None:
+        workdir = Path("/tmp/saeb-calculator")
+    workdir = Path(workdir)
+
+    calc_src = """from __future__ import annotations
+
+
+def add(a: float, b: float) -> float:
+    return a + b
+
+
+def subtract(a: float, b: float) -> float:
+    return a - b
+
+
+def multiply(a: float, b: float) -> float:
+    return a * b
+
+
+def divide(a: float, b: float) -> float:
+    if b == 0:
+        raise ValueError("division by zero")
+    return a / b
+
+
+def power(base: float, exp: float) -> float:
+    return base ** exp
+"""
+
+    test_src = """from __future__ import annotations
+
+import pytest
+from calculator.calc import add, subtract, multiply, divide, power
+
+
+def test_add() -> None:
+    assert add(2, 3) == 5
+    assert add(-1, 1) == 0
+    assert add(0, 0) == 0
+    assert add(-5, -3) == -8
+
+
+def test_subtract() -> None:
+    assert subtract(5, 3) == 2
+    assert subtract(0, 5) == -5
+    assert subtract(-5, -3) == -2
+
+
+def test_multiply() -> None:
+    assert multiply(2, 3) == 6
+    assert multiply(0, 5) == 0
+    assert multiply(-2, 3) == -6
+
+
+def test_divide() -> None:
+    assert divide(6, 3) == 2
+    assert divide(5, 2) == 2.5
+    assert divide(0, 1) == 0
+
+
+def test_divide_by_zero() -> None:
+    with pytest.raises(ValueError, match="division by zero"):
+        divide(1, 0)
+
+
+def test_power() -> None:
+    assert power(2, 3) == 8
+    assert power(5, 0) == 1
+    assert power(2, -1) == 0.5
+"""
+
+    init_src = "from calculator.calc import add, subtract, multiply, divide, power\n"
+
+    def inj_add_flipped(wd: Path) -> None:
+        _replace_in_file(wd, "calculator/calc.py", "return a + b", "return a - b")
+
+    def rev_add_flipped(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    def inj_no_div0(wd: Path) -> None:
+        _replace_in_file(
+            wd, "calculator/calc.py",
+            "    if b == 0:\n        raise ValueError(\"division by zero\")\n    return a / b",
+            "    return a / b",
+        )
+
+    def rev_no_div0(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    def inj_power_removed(wd: Path) -> None:
+        _replace_in_file(
+            wd, "calculator/calc.py",
+            "\n\ndef power(base: float, exp: float) -> float:\n    return base ** exp",
+            "",
+        )
+
+    def rev_power_removed(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    def inj_dead_imports(wd: Path) -> None:
+        _replace_in_file(
+            wd, "calculator/calc.py",
+            "from __future__ import annotations\n",
+            "from __future__ import annotations\nimport os\nimport json\nimport re\n",
+        )
+        _replace_in_file(
+            wd, "calculator/calc.py",
+            "def add(a: float, b: float) -> float:\n    return a + b\n",
+            "def _dead_helper() -> None:\n    pass\n\n\ndef add(a: float, b: float) -> float:\n    return a + b\n",
+        )
+
+    def rev_dead_imports(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    def inj_mult_wrong(wd: Path) -> None:
+        _replace_in_file(wd, "calculator/calc.py", "return a * b", "return a + b")
+
+    def rev_mult_wrong(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    def inj_import_confusion(wd: Path) -> None:
+        _replace_in_file(
+            wd, "calculator/calc.py",
+            "from __future__ import annotations\n",
+            "from __future__ import annotations\nfrom nonexistent_module import magic_function\n",
+        )
+
+    def rev_import_confusion(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    def inj_type_error(wd: Path) -> None:
+        _replace_in_file(wd, "calculator/calc.py", "return base ** exp", "return str(base ** exp)")
+
+    def rev_type_error(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    def inj_async_trap(wd: Path) -> None:
+        _replace_in_file(
+            wd, "calculator/calc.py",
+            "def power(base: float, exp: float) -> float:",
+            "async def power(base: float, exp: float) -> float:",
+        )
+
+    def rev_async_trap(wd: Path) -> None:
+        _write_file(wd, "calculator/calc.py", calc_src)
+
+    injections = [
+        DefectInjection(
+            label="add_flipped",
+            apply_fn=inj_add_flipped,
+            revert_fn=rev_add_flipped,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="no_div0_check",
+            apply_fn=inj_no_div0,
+            revert_fn=rev_no_div0,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="power_removed",
+            apply_fn=inj_power_removed,
+            revert_fn=rev_power_removed,
+            expected_compilation_error=True,
+        ),
+        DefectInjection(
+            label="dead_imports",
+            apply_fn=inj_dead_imports,
+            revert_fn=rev_dead_imports,
+            expected_unused_imports_delta=3,
+            expected_coverage_delta=-5.0,
+        ),
+        DefectInjection(
+            label="multiply_wrong",
+            apply_fn=inj_mult_wrong,
+            revert_fn=rev_mult_wrong,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="import_confusion",
+            apply_fn=inj_import_confusion,
+            revert_fn=rev_import_confusion,
+            expected_compilation_error=True,
+        ),
+        DefectInjection(
+            label="type_error",
+            apply_fn=inj_type_error,
+            revert_fn=rev_type_error,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="async_trap",
+            apply_fn=inj_async_trap,
+            revert_fn=rev_async_trap,
+            expected_fnr_gt=0.1,
+        ),
+    ]
+
+    return SAEBScenario(
+        name="calculator-v1",
+        description="Simple calculator with 4 arithmetic functions + power. "
+        "Tests cover basic arithmetic, edge cases, and error handling.",
+        workdir=workdir,
+        reference_files={
+            "calculator/__init__.py": init_src,
+            "calculator/calc.py": calc_src,
+            "tests/__init__.py": "",
+            "tests/test_calc.py": test_src,
+        },
+        injections=injections,
+    )
+
+
+def create_immunity_scenario(workdir: str | Path | None = None) -> SAEBScenario:
+    if workdir is None:
+        workdir = Path("/tmp/saeb-immune")
+    workdir = Path(workdir)
+
+    immune_src = """from __future__ import annotations
+
+import re
+
+CONTAMINATION_KEYWORDS = ["eval(", "exec(", "__import__", "compile("]
+
+
+def get_base_rate(agent_id: str) -> float:
+    return 10.0
+
+
+def check_contamination(code: str) -> float:
+    score = 0.0
+    for kw in CONTAMINATION_KEYWORDS:
+        if kw in code:
+            score += 0.25
+    return min(score, 1.0)
+
+
+def apply_tax(agent_id: str, multiplier: float) -> float:
+    base_rate = get_base_rate(agent_id)
+    return base_rate * multiplier
+
+
+def validate_gene(gene_id: str, cwe: str, severity: int) -> dict:
+    if severity >= 10:
+        return {
+            "gene_id": gene_id,
+            "cwe": cwe,
+            "severity": severity,
+            "valid": False,
+            "reason": "severity too high",
+        }
+    return {"gene_id": gene_id, "cwe": cwe, "severity": severity, "valid": True}
+"""
+
+    test_src = """from __future__ import annotations
+
+import pytest
+from immune.immune import (
+    apply_tax,
+    check_contamination,
+    validate_gene,
+)
+
+
+def test_check_contamination_clean() -> None:
+    assert check_contamination("def add(a: float, b: float) -> float: return a + b") == 0.0
+
+
+def test_check_contamination_contaminated() -> None:
+    assert check_contamination("eval('print(1)')") == 0.25
+
+
+def test_check_contamination_multiple() -> None:
+    assert check_contamination("eval('x'); exec('y')") == 0.5
+
+
+def test_apply_tax_default() -> None:
+    assert apply_tax("agent_1", 1.0) == 10.0
+
+
+def test_apply_tax_multiple() -> None:
+    assert apply_tax("agent_1", 2.5) == 25.0
+
+
+def test_apply_tax_zero_multiplier() -> None:
+    assert apply_tax("agent_2", 0.0) == 0.0
+
+
+def test_validate_gene_valid() -> None:
+    result = validate_gene("GENE001", "CWE-79", 5)
+    assert result["valid"] is True
+
+
+def test_validate_gene_invalid_severity_equal() -> None:
+    result = validate_gene("GENE002", "CWE-89", 10)
+    assert result["valid"] is False
+
+
+def test_validate_gene_invalid_high_severity() -> None:
+    result = validate_gene("GENE003", "CWE-502", 15)
+    assert result["valid"] is False
+"""
+
+    init_src = "from immune.immune import apply_tax, check_contamination, validate_gene\n"
+
+    def inj_contamination_wrong(wd: Path) -> None:
+        _replace_in_file(wd, "immune/immune.py", "return min(score, 1.0)", "return 1.0 - min(score, 1.0)")
+
+    def rev_contamination_wrong(wd: Path) -> None:
+        _write_file(wd, "immune/immune.py", immune_src)
+
+    def inj_validate_gate_removed(wd: Path) -> None:
+        _replace_in_file(
+            wd, "immune/immune.py",
+            "def validate_gene(gene_id: str, cwe: str, severity: int) -> dict:\n"
+            '    if severity >= 10:\n'
+            '        return {\n'
+            '            "gene_id": gene_id,\n'
+            '            "cwe": cwe,\n'
+            '            "severity": severity,\n'
+            '            "valid": False,\n'
+            '            "reason": "severity too high",\n'
+            "        }\n"
+            '    return {"gene_id": gene_id, "cwe": cwe, "severity": severity, "valid": True}',
+            "def validate_gene(gene_id: str, cwe: str, severity: int) -> dict:\n"
+            '    return {"gene_id": gene_id, "cwe": cwe, "severity": severity, "valid": True}',
+        )
+
+    def rev_validate_gate_removed(wd: Path) -> None:
+        _write_file(wd, "immune/immune.py", immune_src)
+
+    def inj_tax_missing_return(wd: Path) -> None:
+        _replace_in_file(
+            wd, "immune/immune.py",
+            "    base_rate = get_base_rate(agent_id)\n    return base_rate * multiplier",
+            "",
+        )
+
+    def rev_tax_missing_return(wd: Path) -> None:
+        _write_file(wd, "immune/immune.py", immune_src)
+
+    injections = [
+        DefectInjection(
+            label="contamination_wrong",
+            apply_fn=inj_contamination_wrong,
+            revert_fn=rev_contamination_wrong,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="validate_gate_removed",
+            apply_fn=inj_validate_gate_removed,
+            revert_fn=rev_validate_gate_removed,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="tax_missing_return",
+            apply_fn=inj_tax_missing_return,
+            revert_fn=rev_tax_missing_return,
+            expected_compilation_error=True,
+        ),
+    ]
+
+    return SAEBScenario(
+        name="immune-v1",
+        description="Immune module with contamination checking, tax calculation, and gene validation. "
+        "Tests cover contamination scoring, tax math, and severity-based validation gates.",
+        workdir=workdir,
+        reference_files={
+            "immune/__init__.py": init_src,
+            "immune/immune.py": immune_src,
+            "tests/__init__.py": "",
+            "tests/test_immune.py": test_src,
+        },
+        injections=injections,
+    )
+
+
+def create_desktop_agent_scenario(workdir: str | Path | None = None) -> SAEBScenario:
+    if workdir is None:
+        workdir = Path("/tmp/saeb-desktop-agent")
+    workdir = Path(workdir)
+
+    agent_src = """from __future__ import annotations
+
+from enum import Enum
+from typing import Any
+
+
+class BrowserType(Enum):
+    CHROMIUM = "chromium"
+    FIREFOX = "firefox"
+    WEBKIT = "webkit"
+
+
+class SessionState(Enum):
+    ACTIVE = "active"
+    IDLE = "idle"
+    EXPIRED = "expired"
+
+
+def create_session(browser: BrowserType, timeout: int = 30) -> dict[str, Any]:
+    return {
+        "browser": browser.value,
+        "timeout": timeout,
+        "state": SessionState.ACTIVE.value,
+    }
+
+
+def release_session(session: dict[str, Any]) -> dict[str, Any]:
+    session["state"] = SessionState.EXPIRED.value
+    return session
+
+
+def check_browser_engine(browser: BrowserType) -> bool:
+    if not isinstance(browser, BrowserType):
+        return False
+    return browser in (BrowserType.CHROMIUM, BrowserType.FIREFOX, BrowserType.WEBKIT)
+
+
+def take_screenshot(url: str, timeout: int = 10) -> str:
+    if not url.startswith("http"):
+        raise ValueError(f"Invalid URL: {url}")
+    return f"screenshot_of_{url.replace('/', '_')}.png"
+
+
+def get_active_sessions(sessions: list[dict[str, Any]]) -> int:
+    return sum(1 for s in sessions if s.get("state") == SessionState.ACTIVE.value)
+"""
+
+    test_src = """from __future__ import annotations
+
+import pytest
+from desktop_agent.agent import (
+    BrowserType,
+    check_browser_engine,
+    create_session,
+    get_active_sessions,
+    release_session,
+    take_screenshot,
+)
+
+
+def test_create_session_chromium() -> None:
+    s = create_session(BrowserType.CHROMIUM)
+    assert s["browser"] == "chromium"
+    assert s["state"] == "active"
+    assert s["timeout"] == 30
+
+
+def test_create_session_firefox_custom_timeout() -> None:
+    s = create_session(BrowserType.FIREFOX, timeout=60)
+    assert s["browser"] == "firefox"
+    assert s["timeout"] == 60
+
+
+def test_release_session() -> None:
+    s = create_session(BrowserType.WEBKIT)
+    result = release_session(s)
+    assert result["state"] == "expired"
+
+
+def test_check_browser_engine_valid() -> None:
+    assert check_browser_engine(BrowserType.CHROMIUM) is True
+    assert check_browser_engine(BrowserType.FIREFOX) is True
+    assert check_browser_engine(BrowserType.WEBKIT) is True
+
+
+def test_check_browser_engine_invalid() -> None:
+    assert check_browser_engine("invalid") is False  # type: ignore[arg-type]
+
+
+def test_take_screenshot() -> None:
+    result = take_screenshot("http://example.com")
+    assert result == "screenshot_of_http:__example.com.png"
+
+
+def test_take_screenshot_invalid_url() -> None:
+    with pytest.raises(ValueError, match="Invalid URL"):
+        take_screenshot("not-a-url")
+
+
+def test_get_active_sessions() -> None:
+    sessions = [
+        create_session(BrowserType.CHROMIUM),
+        create_session(BrowserType.FIREFOX),
+    ]
+    release_session(sessions[1])
+    assert get_active_sessions(sessions) == 1
+"""
+
+    init_src = (
+        "from desktop_agent.agent import BrowserType, SessionState, "
+        "check_browser_engine, create_session, get_active_sessions, "
+        "release_session, take_screenshot\n"
+    )
+
+    def inj_session_browser_wrong(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            '"browser": browser.value',
+            '"browser": browser.name',
+        )
+
+    def rev_session_browser_wrong(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_release_no_state_change(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            '    session["state"] = SessionState.EXPIRED.value\n    return session',
+            "    return session",
+        )
+
+    def rev_release_no_state_change(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_engine_check_always_true(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "def check_browser_engine(browser: BrowserType) -> bool:\n"
+            "    if not isinstance(browser, BrowserType):\n"
+            "        return False\n"
+            "    return browser in (BrowserType.CHROMIUM, BrowserType.FIREFOX, BrowserType.WEBKIT)",
+            "def check_browser_engine(browser: BrowserType) -> bool:\n"
+            "    return True",
+        )
+
+    def rev_engine_check_always_true(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_screenshot_no_url_validation(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "def take_screenshot(url: str, timeout: int = 10) -> str:\n"
+            '    if not url.startswith("http"):\n'
+            '        raise ValueError(f"Invalid URL: {url}")\n'
+            "    return f\"screenshot_of_{url.replace('/', '_')}.png\"",
+            "def take_screenshot(url: str, timeout: int = 10) -> str:\n"
+            "    return f\"screenshot_of_{url.replace('/', '_')}.png\"",
+        )
+
+    def rev_screenshot_no_url_validation(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_broken_import(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "from __future__ import annotations\n",
+            "from __future__ import annotations\nfrom nonexistent_module import magic_function\n",
+        )
+
+    def rev_broken_import(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    def inj_async_trap(wd: Path) -> None:
+        _replace_in_file(
+            wd, "desktop_agent/agent.py",
+            "def take_screenshot(url: str, timeout: int = 10) -> str:",
+            "async def take_screenshot(url: str, timeout: int = 10) -> str:",
+        )
+
+    def rev_async_trap(wd: Path) -> None:
+        _write_file(wd, "desktop_agent/agent.py", agent_src)
+
+    injections = [
+        DefectInjection(
+            label="session_browser_wrong",
+            apply_fn=inj_session_browser_wrong,
+            revert_fn=rev_session_browser_wrong,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="release_no_state_change",
+            apply_fn=inj_release_no_state_change,
+            revert_fn=rev_release_no_state_change,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="engine_check_always_true",
+            apply_fn=inj_engine_check_always_true,
+            revert_fn=rev_engine_check_always_true,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="screenshot_no_url_validation",
+            apply_fn=inj_screenshot_no_url_validation,
+            revert_fn=rev_screenshot_no_url_validation,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="broken_import",
+            apply_fn=inj_broken_import,
+            revert_fn=rev_broken_import,
+            expected_compilation_error=True,
+        ),
+        DefectInjection(
+            label="async_trap",
+            apply_fn=inj_async_trap,
+            revert_fn=rev_async_trap,
+            expected_fnr_gt=0.1,
+        ),
+    ]
+
+    return SAEBScenario(
+        name="desktop-v1",
+        description="Desktop agent with browser session management, engine detection, and screenshot. "
+        "Tests cover session lifecycle, browser type validation, URL validation, "
+        "and active session counting.",
+        workdir=workdir,
+        reference_files={
+            "desktop_agent/__init__.py": init_src,
+            "desktop_agent/agent.py": agent_src,
+            "tests/__init__.py": "",
+            "tests/test_desktop_agent.py": test_src,
+        },
+        injections=injections,
+    )
+
+
+def create_browser_engine_scenario(workdir: str | Path | None = None) -> SAEBScenario:
+    if workdir is None:
+        workdir = Path("/tmp/saeb-browser-engine")
+    workdir = Path(workdir)
+
+    engine_src = """from __future__ import annotations
+
+from typing import Any
+
+
+def make_request(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    if headers is None:
+        headers = {}
+    if "User-Agent" not in headers:
+        headers["User-Agent"] = "Mozilla/5.0 (compatible; MAREF/1.0)"
+    return {"url": url, "headers": headers, "status": 200}
+
+
+def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:
+    status = response.get("status", 200)
+    if status in (301, 302, 303, 307, 308):
+        redirect_url = response.get("location", "")
+        if redirect_url:
+            return make_request(redirect_url)
+    return response
+
+
+def navigate(url: str, timeout: int = 30) -> dict[str, Any]:
+    if timeout <= 0:
+        raise ValueError("Timeout must be positive")
+    return {"url": url, "status": 200, "content": f"<html><body>{url}</body></html>"}
+
+
+def parse_response(response: dict[str, Any]) -> dict[str, Any]:
+    content = response.get("content", "")
+    content_type = response.get("content_type", "text/html; charset=utf-8")
+    charset = "utf-8"
+    if "charset=" in content_type:
+        charset = content_type.split("charset=")[-1].split(";")[0].strip()
+    return {
+        "url": response.get("url", ""),
+        "content": content,
+        "charset": charset,
+        "size": len(content),
+    }
+"""
+
+    test_src = """from __future__ import annotations
+
+import pytest
+from browser_engine.engine import (
+    follow_redirect,
+    make_request,
+    navigate,
+    parse_response,
+)
+
+
+def test_make_request_default_user_agent() -> None:
+    result = make_request("http://example.com")
+    assert result["url"] == "http://example.com"
+    assert result["headers"]["User-Agent"].startswith("Mozilla")
+
+
+def test_make_request_custom_headers() -> None:
+    result = make_request("http://example.com", {"X-Custom": "value"})
+    assert result["headers"]["X-Custom"] == "value"
+    assert result["headers"]["User-Agent"].startswith("Mozilla")
+
+
+def test_follow_redirect_no_redirect() -> None:
+    response = {"url": "http://example.com", "status": 200, "content": "ok"}
+    result = follow_redirect(response)
+    assert result["url"] == "http://example.com"
+
+
+def test_follow_redirect_302() -> None:
+    response = {"url": "http://old.com", "status": 302, "location": "http://new.com"}
+    result = follow_redirect(response)
+    assert result["url"] == "http://new.com"
+
+
+def test_navigate_positive_timeout() -> None:
+    result = navigate("http://example.com", timeout=15)
+    assert result["status"] == 200
+    assert "example.com" in result["content"]
+
+
+def test_navigate_zero_timeout() -> None:
+    with pytest.raises(ValueError, match="Timeout must be positive"):
+        navigate("http://example.com", timeout=0)
+
+
+def test_parse_response_utf8() -> None:
+    response = {"url": "http://example.com", "content": "<html></html>",
+                "content_type": "text/html; charset=utf-8"}
+    result = parse_response(response)
+    assert result["charset"] == "utf-8"
+
+
+def test_parse_response_no_charset() -> None:
+    response = {"url": "http://example.com", "content": "<html></html>",
+                "content_type": "text/html"}
+    result = parse_response(response)
+    assert result["charset"] == "utf-8"
+
+
+def test_parse_response_iso_8859_1() -> None:
+    response = {"url": "http://example.com", "content": "<html></html>",
+                "content_type": "text/html; charset=iso-8859-1"}
+    result = parse_response(response)
+    assert result["charset"] == "iso-8859-1"
+"""
+
+    init_src = (
+        "from browser_engine.engine import follow_redirect, make_request, "
+        "navigate, parse_response\n"
+    )
+
+    def inj_wrong_user_agent(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            'headers["User-Agent"] = "Mozilla/5.0 (compatible; MAREF/1.0)"',
+            'headers["User-Agent"] = "invalid-ua"',
+        )
+
+    def rev_wrong_user_agent(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    def inj_broken_redirect(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            "def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    status = response.get(\"status\", 200)\n"
+            "    if status in (301, 302, 303, 307, 308):\n"
+            "        redirect_url = response.get(\"location\", \"\")\n"
+            "        if redirect_url:\n"
+            "            return make_request(redirect_url)\n"
+            "    return response",
+            "def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    return response",
+        )
+
+    def rev_broken_redirect(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    def inj_timeout_too_low(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            "def navigate(url: str, timeout: int = 30) -> dict[str, Any]:\n"
+            "    if timeout <= 0:\n"
+            '        raise ValueError("Timeout must be positive")\n'
+            '    return {"url": url, "status": 200, "content": f"<html><body>{url}</body></html>"}',
+            "def navigate(url: str, timeout: int = 30) -> dict[str, Any]:\n"
+            '    return {"url": url, "status": 200, "content": f"<html><body>{url}</body></html>"}',
+        )
+
+    def rev_timeout_too_low(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    def inj_missing_content_type(wd: Path) -> None:
+        _replace_in_file(
+            wd, "browser_engine/engine.py",
+            "def parse_response(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    content = response.get(\"content\", \"\")\n"
+            '    content_type = response.get("content_type", "text/html; charset=utf-8")\n'
+            '    charset = "utf-8"\n'
+            '    if "charset=" in content_type:\n'
+            '        charset = content_type.split("charset=")[-1].split(";")[0].strip()\n'
+            '    return {\n'
+            '        "url": response.get("url", ""),\n'
+            '        "content": content,\n'
+            '        "charset": charset,\n'
+            '        "size": len(content),\n'
+            "    }",
+            "def parse_response(response: dict[str, Any]) -> dict[str, Any]:\n"
+            "    content = response.get(\"content\", \"\")\n"
+            '    return {\n'
+            '        "url": response.get("url", ""),\n'
+            '        "content": content,\n'
+            '        "charset": "utf-8",\n'
+            '        "size": len(content),\n'
+            "    }",
+        )
+
+    def rev_missing_content_type(wd: Path) -> None:
+        _write_file(wd, "browser_engine/engine.py", engine_src)
+
+    injections = [
+        DefectInjection(
+            label="wrong_user_agent",
+            apply_fn=inj_wrong_user_agent,
+            revert_fn=rev_wrong_user_agent,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="broken_redirect",
+            apply_fn=inj_broken_redirect,
+            revert_fn=rev_broken_redirect,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="timeout_too_low",
+            apply_fn=inj_timeout_too_low,
+            revert_fn=rev_timeout_too_low,
+            expected_fnr_gt=0.1,
+        ),
+        DefectInjection(
+            label="missing_content_type",
+            apply_fn=inj_missing_content_type,
+            revert_fn=rev_missing_content_type,
+            expected_fnr_gt=0.1,
+        ),
+    ]
+
+    return SAEBScenario(
+        name="browser-engine-v1",
+        description="Browser engine with request construction, redirect following, "
+        "navigation timeout, and Content-Type charset parsing. "
+        "Tests cover User-Agent header, 302 redirect, timeout validation, "
+        "and charset detection.",
+        workdir=workdir,
+        reference_files={
+            "browser_engine/__init__.py": init_src,
+            "browser_engine/engine.py": engine_src,
+            "tests/__init__.py": "",
+            "tests/test_browser_engine.py": test_src,
+        },
+        injections=injections,
+    )
+
+
+# ── END OF registry naming convention ────────────────────────────────────────
+# New scenario factory functions should be inserted above this marker.
+# Each factory must return an SAEBScenario with a unique name.

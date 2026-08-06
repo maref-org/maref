@@ -1,0 +1,61 @@
+MAREF Creative-Automation Skill — Governance Demo
+brand_profile: ./docs/case-studies/creative-automation/brand_profile.yaml
+
+======================================================================
+SCENARIO 1: Benign brief — should compose successfully
+======================================================================
+blocked:           False
+profile_id:        maref_demo_tech
+profile_version:   2026.07.01
+brief_hash:        e4e48e6c927c4c13...
+prompt_hash:       c766af6f04e0d8e9...
+template_version:  skeleton_v1
+audit_trail_count: 1
+--- prompt (first 200 chars) ---
+Photograph of MAREF CLI — Command-line interface for agent governance..
+
+Subject: MAREF CLI shown in a balanced centered composition for social feed; subject fills the safe area layout.
+Audience: plat...
+
+======================================================================
+SCENARIO 2: Restricted phrase 'revolutionary' — should be blocked
+======================================================================
+blocked:         True
+block_reason:    matched deny-rule: 'Revolutionary'
+prompt (empty?): True
+audit_trail_count (should be 0 — blocked prompts aren't audited): 0
+
+======================================================================
+SCENARIO 3: 3 consecutive blocks — CircuitBreaker should HALT
+======================================================================
+max_consecutive_blocks: 3
+attempt 1: blocked=True, reason=matched deny-rule: 'Revolutionary', profile_halted=False
+attempt 2: blocked=True, reason=matched deny-rule: 'Revolutionary', profile_halted=False
+attempt 3: blocked=True, reason=matched deny-rule: 'Revolutionary', profile_halted=True
+attempt 4: blocked=True, reason=brand_profile maref_demo_tech is HALTED — 3 consec, profile_halted=True
+
+After HALT, even a benign brief is refused until human re-authorization:
+  benign attempt after HALT: blocked=True
+  block_reason: brand_profile maref_demo_tech is HALTED — 3 consecutive SafetyGate blocks. Human re-authorization required (circuit_breaker.reset()).
+
+Human re-authorizes (circuit_breaker.reset()):
+  profile_halted now: False
+  benign attempt after reset: blocked=False
+
+======================================================================
+SCENARIO 4: Audit trail tamper-evidence (SHA-256 hash chain)
+======================================================================
+records appended: 3
+chain verifies:   True
+
+Tamper test — manually corrupt the middle record's prompt_hash:
+  chain verifies after tamper: False  (should be False)
+  chain verifies after restore: True  (should be True)
+
+======================================================================
+All 4 scenarios complete. Governance value-add demonstrated:
+  - SafetyGate blocks restricted phrases before they reach the provider
+  - CircuitBreaker HALTs a drifted brand_profile after 3 blocks
+  - Audit trail is tamper-evident (SHA-256 hash chain)
+  - Profile version is pinned into every audit record for reproducibility
+======================================================================

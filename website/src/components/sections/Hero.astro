@@ -1,0 +1,307 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+interface HeroContent {
+  brandTag: string;
+  brandTitle: string;
+  brandMotto: string;
+  headline: string;
+  subtitle: string;
+  ctaScan: string;
+  ctaRisk: string;
+  ctaScanSub: string;
+  ctaRiskSub: string;
+  trustLine: string;
+  trustItems: string[];
+}
+
+const content: Record<string, HeroContent> = {
+  en: {
+    brandTag: "agent Governance OS",
+    brandTitle: "Multi-Agent Recursive Evolution Framework",
+    brandMotto: "With Rules · With Boundaries",
+    headline: "Your agents are breaking things.<br />And you have no idea.",
+    subtitle:
+      "88% of enterprises experienced AI agent incidents last year. Not because agents are unruly — because nobody set the rules. MAREF is the governance OS for multi-agent systems — giving every agent a constitution.",
+    ctaScan: "Scan Your Agent Risk in 3 Min",
+    ctaRisk: "See the Risk Checklist",
+    ctaScanSub: "Already running agents? Get an instant audit.",
+    ctaRiskSub: "No agents yet? See what can go wrong.",
+    trustLine: "Your data never leaves your device.",
+    trustItems: [
+      "Privacy-first — local scan only",
+      "100% open source — auditable",
+      "No raw config uploaded",
+    ],
+  },
+  zh: {
+    brandTag: "agent Governance OS",
+    brandTitle: "多智能体递归演进框架",
+    brandMotto: "有规 · 有矩",
+    headline: "你的 Agent 正在替你闯祸——<br />而你根本不知道。",
+    subtitle:
+      "88% 的企业过去一年经历过 AI Agent 安全事件。不是 Agent 不听话，而是没有人给它立规矩。MAREF 是多智能体系统的「治理操作系统」——让每个 Agent 知道该做什么，不该做什么。",
+    ctaScan: "3分钟检测你的 Agent 风险",
+    ctaRisk: "我还没有Agent，先看风险清单",
+    ctaScanSub: "已有 Agent？直接体检",
+    ctaRiskSub: "还没有 Agent？先了解可能踩的坑",
+    trustLine: "你的数据不会离开你的设备",
+    trustItems: [
+      "前端本地扫描 — 隐私优先",
+      "开源可审计 — 100% 透明",
+      "不上传原始配置 — 自动脱敏",
+    ],
+  },
+};
+
+const t = content[locale] || content.en;
+
+// Read SVG for inline rendering (avoids browser rasterization blur)
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import VideoShowcase from '@/components/sections/VideoShowcase.astro';
+let heroSvgContent = '';
+try {
+  const svgFileName = locale === "zh" ? 'hero-main.svg' : 'hero-main-en.svg';
+  const svgPath = path.resolve(process.cwd(), `public/images/${svgFileName}`);
+  heroSvgContent = readFileSync(svgPath, 'utf-8').replace(
+    '<svg',
+    '<svg style="width:100%;height:auto;display:block;"'
+  );
+} catch (e) {
+  // Fallback: serve via img tag if inline fails
+  heroSvgContent = '';
+}
+---
+
+<div class="hero-wrapper">
+  <div class="mx-auto max-w-(--content-max) px-6">
+
+    <!-- Full-screen brand block: first viewport -->
+    <div class="min-h-screen flex flex-col pt-15">
+      <!-- Centered content -->
+      <div class="flex-1 flex flex-col justify-center">
+        <div class="text-center">
+          <!-- Line 1: MAREF — animated HTML logo (colored flash + tracking squeeze) -->
+          <div class="maref-logo text-7xl sm:text-8xl md:text-9xl font-black leading-tight"><span class="maref-ch" style="--ch-c:#FF3B30;--ch-d:0s">M</span><span class="maref-ch" style="--ch-c:#007AFF;--ch-d:0.15s">A</span><span class="maref-ch" style="--ch-c:#34C759;--ch-d:0.3s">R</span><span class="maref-ch" style="--ch-c:#FF9500;--ch-d:0.45s">E</span><span class="maref-ch" style="--ch-c:#AF52DE;--ch-d:0.6s">F</span></div>
+          <!-- Line 2: agent Governance OS -->
+          <div class="mt-4 text-xl sm:text-2xl md:text-3xl text-brand-text-muted font-light tracking-wider" style="opacity: 0.6;">
+            {t.brandTag}
+          </div>
+          <!-- Line 3: motto — blue, extra spacing -->
+          <div class="text-5xl sm:text-6xl md:text-7xl tracking-wide font-semibold text-[#3b82f6]" style="margin-top: 6rem;">
+            {t.brandMotto}
+          </div>
+        </div>
+      </div>
+
+      <!-- Scroll hint -->
+      <div class="flex justify-center pb-6">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-brand-text-muted animate-bounce" style="opacity: 0.3;">
+          <path d="M12 5v14M5 12l7 7 7-7" />
+        </svg>
+      </div>
+    </div>
+
+    <VideoShowcase locale={locale} />
+
+    <!-- Headline — Apple-style massive text -->
+    <div class="text-center py-24 md:py-32">
+      <h1 class="mb-6" style="font-size: clamp(2.5rem, 8vw, 5.375rem); font-weight: 400; letter-spacing: -0.03em; line-height: 1.1;" set:html={t.headline}>
+      </h1>
+      <p class="text-lg sm:text-xl leading-relaxed max-w-3xl mx-auto mb-14" style="color: var(--color-fog-veil);">
+        {t.subtitle}
+      </p>
+
+      <!-- CTA buttons — Apple pill style -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-5">
+        <a
+          href={locale === "zh" ? "/zh/features/governance/" : "/en/features/governance/"}
+          class="cta-primary"
+        >
+          {t.ctaScan}
+        </a>
+        <a
+          href={locale === "zh" ? "/zh/blog/" : "/en/blog/why-agent-governance-matters-2026/"}
+          class="cta-secondary"
+        >
+          {t.ctaRisk}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="ml-2">
+            <path d="M6 12l4-4-4-4" />
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Hero visual — floating with glow -->
+    <div class="hero-visual mb-20">
+      {heroSvgContent ? (
+        <Fragment set:html={heroSvgContent} />
+      ) : (
+        <img
+          src={locale === "zh" ? "/images/hero-main.svg" : "/images/hero-main-en.svg"}
+          alt="MAREF Agent Governance OS — multiple AI agents governed by a central hub"
+          loading="eager"
+          class="w-full h-auto block"
+        />
+      )}
+    </div>
+
+    <!-- Privacy trust bar — centered -->
+    <div class="trust-bar mb-20">
+      <span class="flex items-center gap-1.5 font-medium text-brand-accent-green whitespace-nowrap">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+          <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+        {t.trustLine}
+      </span>
+      {t.trustItems.map((item) => (
+        <span class="flex items-center gap-1.5 text-brand-text-muted whitespace-nowrap">
+          <span class="w-1 h-1 rounded-full" style="background-color: var(--color-brand-border);"></span>
+          {item}
+        </span>
+      ))}
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .hero-wrapper {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* CTA buttons — Auros-style */
+  .cta-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 28px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.44px;
+    text-transform: uppercase;
+    color: #011d1c;
+    background: var(--gradient-current);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    min-width: 220px;
+  }
+
+  .cta-primary:hover {
+    opacity: 0.9;
+  }
+
+  .cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 24px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.44px;
+    text-transform: uppercase;
+    color: var(--color-snow-sheet);
+    background: transparent;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    min-width: 220px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .cta-secondary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    padding: 1px;
+    background: var(--gradient-aurora);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .cta-secondary:hover {
+    opacity: 0.85;
+  }
+
+  /* Hero visual */
+  .hero-visual {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Trust bar */
+  .trust-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem 2rem;
+    padding: 1.25rem 2rem;
+    border-radius: 6px;
+    background-color: var(--surface-trench);
+    font-size: 0.875rem;
+    max-width: fit-content;
+    margin: 0 auto;
+  }
+
+  /* MAREF letters use natural HTML kerning — no SVG spacing distortions */
+  .maref-logo {
+    color: var(--color-brand-text-primary);
+    line-height: 1;
+    letter-spacing: -0.025em;
+    animation: marefTrack 3.5s ease-in-out infinite;
+  }
+
+  .maref-ch {
+    color: transparent;
+    animation: marefFlash 3.5s ease-in-out infinite;
+    animation-delay: var(--ch-d);
+  }
+
+  @keyframes marefFlash {
+    /* Start in color */
+    0%, 7%  { color: var(--ch-c); opacity: 1; }
+    /* Flash 4 times */
+    10%     { opacity: 1; }
+    12%     { opacity: 0.15; }
+    14%     { opacity: 1; }
+    16%     { opacity: 0.15; }
+    18%     { opacity: 1; }
+    20%     { opacity: 0.15; }
+    22%     { opacity: 1; }
+    24%     { opacity: 0.15; }
+    26%     { opacity: 1; }
+    /* Settle to theme text color */
+    35%     { color: var(--ch-c); opacity: 1; }
+    50%     { color: inherit; opacity: 1; }
+    100%    { color: inherit; opacity: 1; }
+  }
+
+  /* Letter spacing squeeze: current (-0.025em) → 200% tighter (-0.075em) */
+  @keyframes marefTrack {
+    0%, 25%  { letter-spacing: -0.025em; }
+    45%      { letter-spacing: -0.075em; }
+    75%      { letter-spacing: -0.075em; }
+    100%     { letter-spacing: -0.025em; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .maref-ch {
+      color: inherit !important;
+      animation: none !important;
+    }
+    .maref-logo {
+      animation: none !important;
+    }
+  }
+</style>

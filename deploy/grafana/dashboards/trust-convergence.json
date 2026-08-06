@@ -1,0 +1,100 @@
+{
+  "title": "MAREF Trust Convergence",
+  "uid": "maref-trust",
+  "tags": ["maref", "trust", "reputation"],
+  "schemaVersion": 39,
+  "version": 2,
+  "timezone": "browser",
+  "theme": "dark",
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Trust Scores by Agent",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "targets": [
+        {
+          "expr": "{__name__=~\"maref_trust.*|guardrail_risk_score\"}",
+          "legendFormat": "{{agent_id}}",
+          "format": "table"
+        }
+      ],
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Trust Convergence Curve",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "targets": [
+        {
+          "expr": "{__name__=~\"maref_trust.*|guardrail_risk_score\"}",
+          "legendFormat": "convergence"
+        }
+      ],
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Agent Reputation Trend",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate({__name__=~\"maref_trust.*|guardrail_risk_score\"}[1h])",
+          "legendFormat": "{{agent_id}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      }
+    }
+  ]
+}

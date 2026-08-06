@@ -1,0 +1,29 @@
+name: Branch Cleanup
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cleanup merged branches
+        run: |
+          git fetch --prune
+          git branch --merged origin/main | grep -v -E "^[*]\s*main$" | grep -v -E "^[*]\s*develop$" | while read branch; do
+            branch=$(echo "$branch" | xargs)
+            if [[ ! "$branch" =~ ^(main|develop)$ ]]; then
+              echo "Deleting branch: $branch"
+              git push origin --delete "$branch"
+            fi
+          done

@@ -1,0 +1,112 @@
+# MAREF SkillManifest — PMM Competitive Intelligence
+#
+# Encodes Ditto's Competitive Intelligence 7-question framework as a MAREF Skill.
+# Understands how the market perceives you vs competitors: brand awareness,
+# decision drivers, strengths/weaknesses, claim credibility, proof point
+# requirements, switching triggers, and value-vs-premium tradeoffs.
+#
+# Origin: https://github.com/Ask-Ditto/ditto-product-marketing/blob/main/study-templates.md
+# License: Apache-2.0 (this adaptation; framework is publicly documented)
+
+name: maref-pmm-competitive-intelligence
+version: "1.0.0"
+description: >
+  Designs and runs a Competitive Intelligence study using Ditto's 7-question
+  framework. Maps market perception of the product vs its competitors across
+  brand awareness, decision drivers, strengths/weaknesses, claim credibility,
+  proof requirements, and switching triggers. Produces a competitive perception
+  matrix, landmine questions for sales, win/loss themes, and a full battlecard.
+
+input_schema:
+  type: object
+  properties:
+    product:
+      type: object
+      properties:
+        name: {type: string}
+        description: {type: string}
+        key_claim: {type: string, description: "Primary differentiator claim"}
+      required: [name, description, key_claim]
+    competitors:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        properties:
+          name: {type: string}
+          known_strength: {type: string}
+          known_weakness: {type: string}
+        required: [name]
+    category:
+      type: string
+      description: "Product category (e.g., 'agent orchestration frameworks')"
+    panel_responses:
+      type: array
+      description: "Optional. If omitted, runs in self-assessment mode using public competitive data."
+      items:
+        type: object
+  required: [product, competitors, category]
+
+output_schema:
+  type: object
+  properties:
+    study_questions:
+      type: array
+      description: "The 7-question framework, populated with competitor names"
+    competitive_perception_matrix:
+      type: object
+      description: "Per-competitor: strengths, weaknesses, decision drivers"
+    landmine_questions:
+      type: array
+      items: {type: string}
+      description: "Questions sales should be prepared to answer"
+    win_themes:
+      type: array
+      items: {type: string}
+    loss_themes:
+      type: array
+      items: {type: string}
+    battlecard:
+      type: object
+      description: "Full sales battlecard: positioning vs each competitor"
+    mode:
+      type: string
+      enum: [self_assessment, panel_study]
+
+dependencies: []
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.pmm_research.study_runner:run_competitive_intelligence
+
+sandbox_config:
+  cpu_limit: "50%"
+  memory_mb: 256
+  timeout_s: 60
+  network: false
+
+test_cases:
+  - name: "MAREF vs LangGraph/CrewAI/AutoGen"
+    input:
+      product:
+        name: "MAREF"
+        description: "Agent governance and skill marketplace OS"
+        key_claim: "TLA+ formal verification + 10-state Gray Code governance FSM"
+      competitors:
+        - name: "LangGraph"
+          known_strength: "graph-based orchestration, large ecosystem"
+          known_weakness: "no governance layer, no formal verification"
+        - name: "CrewAI"
+          known_strength: "role-based agent design, easy to start"
+          known_weakness: "no runtime safety gates, no audit trail"
+        - name: "AutoGen"
+          known_strength: "Microsoft-backed, multi-agent conversation"
+          known_weakness: "no circuit breakers, no skill marketplace"
+      category: "agent orchestration and governance frameworks"
+    expected:
+      mode: self_assessment
+      study_questions_count: 7
+
+governance:
+  safety_gate: false
+  audit_trail: true

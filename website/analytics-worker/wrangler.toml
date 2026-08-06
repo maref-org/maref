@@ -1,0 +1,8 @@
+name = "maref-analytics"
+main = "src/index.js"
+compatibility_date = "2026-06-13"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "maref-analytics"
+database_id = "1397b2fb-694b-4232-aebe-fa53665e3cbd"

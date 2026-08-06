@@ -1,0 +1,190 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+interface Competitor {
+  id: string;
+  name: string;
+  fullName: string;
+  isMAREF: boolean;
+}
+
+interface Dimension {
+  id: string;
+  name: Record<string, string>;
+  description: Record<string, string>;
+}
+
+const competitors: Competitor[] = [
+  { id: "maref", name: "MAREF", fullName: "MAREF v0.30.0", isMAREF: true },
+  { id: "langgraph", name: "LangGraph", fullName: "LangGraph", isMAREF: false },
+  { id: "crewai", name: "CrewAI", fullName: "CrewAI", isMAREF: false },
+  { id: "autogen", name: "AutoGen", fullName: "Microsoft AutoGen", isMAREF: false },
+  { id: "openai", name: "OpenAI", fullName: "OpenAI Agents SDK", isMAREF: false },
+  { id: "anthropic", name: "Anthropic", fullName: "Anthropic Tool Use", isMAREF: false },
+  { id: "manual", name: "Manual", fullName: "Manual Governance", isMAREF: false },
+];
+
+const dimensions: Dimension[] = [
+  {
+    id: "formal-verif",
+    name: { en: "Formal Verification", zh: "形式化验证" },
+    description: { en: "TLA+/Coq correctness proofs", zh: "TLA+/Coq 正确性证明" },
+  },
+  {
+    id: "defense-depth",
+    name: { en: "Defense-in-Depth", zh: "纵深防御" },
+    description: { en: "Multi-layer security architecture", zh: "多层安全架构" },
+  },
+  {
+    id: "zero-trust",
+    name: { en: "Zero-Trust Architecture", zh: "零信任架构" },
+    description: { en: "No implicit trust between agents", zh: "智能体间无隐式信任" },
+  },
+  {
+    id: "gray-code",
+    name: { en: "Gray Code FSM", zh: "Gray Code 状态机" },
+    description: { en: "Hamming distance = 1 governance", zh: "汉明距离=1 治理" },
+  },
+  {
+    id: "self-evolution",
+    name: { en: "Self-Evolution", zh: "自演进" },
+    description: { en: "Lyapunov-validated convergence", zh: "Lyapunov 经验验证的收敛" },
+  },
+  {
+    id: "nat-crypto",
+    name: { en: "National Cryptography", zh: "国密算法" },
+    description: { en: "SM2/SM3/SM4 compliance", zh: "SM2/SM3/SM4 合规" },
+  },
+  {
+    id: "observability",
+    name: { en: "Full Observability", zh: "全链路可观测" },
+    description: { en: "OpenTelemetry + immutable audit", zh: "OpenTelemetry + 不可变审计" },
+  },
+];
+
+// Scoring data: MAREF is the benchmark at 9-10 across all dimensions
+const scores: Record<string, Record<string, number>> = {
+  maref:     { "formal-verif": 10, "defense-depth": 10, "zero-trust": 9, "gray-code": 10, "self-evolution": 10, "nat-crypto": 9, "observability": 9 },
+  langgraph: { "formal-verif": 4, "defense-depth": 5, "zero-trust": 3, "gray-code": 1, "self-evolution": 2, "nat-crypto": 1, "observability": 6 },
+  crewai:    { "formal-verif": 3, "defense-depth": 4, "zero-trust": 2, "gray-code": 1, "self-evolution": 3, "nat-crypto": 1, "observability": 5 },
+  autogen:   { "formal-verif": 5, "defense-depth": 5, "zero-trust": 3, "gray-code": 1, "self-evolution": 4, "nat-crypto": 1, "observability": 6 },
+  openai:    { "formal-verif": 3, "defense-depth": 4, "zero-trust": 4, "gray-code": 1, "self-evolution": 1, "nat-crypto": 2, "observability": 5 },
+  anthropic: { "formal-verif": 3, "defense-depth": 4, "zero-trust": 4, "gray-code": 1, "self-evolution": 1, "nat-crypto": 2, "observability": 4 },
+  manual:    { "formal-verif": 2, "defense-depth": 3, "zero-trust": 5, "gray-code": 1, "self-evolution": 1, "nat-crypto": 3, "observability": 2 },
+};
+
+function getScore(compId: string, dimId: string): number {
+  return scores[compId]?.[dimId] ?? 0;
+}
+
+function scoreClass(value: number): string {
+  if (value >= 8) return "score-green";
+  if (value >= 5) return "score-amber";
+  return "score-red";
+}
+
+const t = {
+  badge: locale === "zh" ? "MAREF 标准与行业标准" : "MAREF vs Industry Standards",
+  title: locale === "zh" ? "为什么选择 MAREF？" : "Why MAREF?",
+  subtitle: locale === "zh"
+    ? "7 个关键维度 × 6 个框架的横评"
+    : "7 critical dimensions across 6 agent frameworks",
+  dimension: locale === "zh" ? "维度" : "Dimension",
+};
+---
+
+<div class="py-24 px-6" id="competitive-table">
+  <div class="mx-auto max-w-(--content-max)">
+    <!-- Badge + Title -->
+    <div class="text-center mb-16">
+      <span
+        class="inline-block text-xs font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-4"
+        style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border); color: var(--color-brand-accent-purple);"
+      >
+        {t.badge}
+      </span>
+      <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">{t.title}</h2>
+      <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr>
+            <th class="text-left p-3 font-semibold text-brand-text-muted text-xs uppercase tracking-wider min-w-[140px]">
+              {t.dimension}
+            </th>
+            {
+              competitors.map((c) => (
+                <th
+                  class={`p-3 text-center font-semibold text-xs uppercase tracking-wider min-w-[80px] ${
+                    c.isMAREF ? "text-brand-accent-blue" : "text-brand-text-muted"
+                  }`}
+                >
+                  <div>{c.name}</div>
+                  <div class="text-[10px] font-normal opacity-60 mt-0.5">{c.fullName}</div>
+                </th>
+              ))
+            }
+          </tr>
+        </thead>
+        <tbody>
+          {
+            dimensions.map((dim) => (
+              <tr class="group row-hover">
+                <td class="p-3 border-t border-brand-border">
+                  <div class="font-medium text-brand-text-primary">{dim.name[locale]}</div>
+                  <div class="text-xs text-brand-text-muted mt-0.5">{dim.description[locale]}</div>
+                </td>
+                {
+                  competitors.map((c) => {
+                    const score = getScore(c.id, dim.id);
+                    const cls = scoreClass(score);
+                    return (
+                      <td
+                        class={`p-3 border-t border-brand-border text-center font-bold text-lg ${
+                          c.isMAREF ? "maref-cell bg-maref-glow" : ""
+                        } ${cls}`}
+                      >
+                        {score}
+                      </td>
+                    );
+                  })
+                }
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  .row-hover:hover td {
+    background-color: var(--color-brand-bg-tertiary);
+  }
+  .row-hover:hover .maref-cell {
+    background: linear-gradient(to bottom, rgba(59,130,246,0.12), rgba(59,130,246,0.04));
+  }
+  .maref-cell {
+    background: linear-gradient(to bottom, rgba(59,130,246,0.08), rgba(59,130,246,0.02));
+    position: relative;
+  }
+  .maref-cell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(59,130,246,0.15);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  .score-green { color: var(--color-brand-accent-green); }
+  .score-amber { color: var(--color-brand-accent-amber); }
+  .score-red { color: var(--color-brand-accent-red); }
+</style>

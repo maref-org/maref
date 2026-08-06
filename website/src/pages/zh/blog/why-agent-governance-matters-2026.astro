@@ -1,0 +1,113 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="zh"
+  title="为什么智能体治理在 2026 年至关重要"
+  description="多智能体系统正在进入生产环境。没有治理，每个智能体都是数据泄露、幻觉传播和对抗性利用的未监控向量。"
+  date="2026-06-13"
+  author="MAREF Engineering"
+  tags={["智能体治理", "多智能体系统", "安全"]}
+>
+
+  <p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+    多智能体系统正在以前所未有的速度进入生产环境。团队正在部署智能体集群用于客户支持、代码生成、
+    数据管道和内部工具。而其中绝大多数没有任何治理层。
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">无治理的智能体问题</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    单次 LLM 调用很好理解：你发送提示词，得到响应。攻击面仅限于提示注入和输出验证。
+    但一个<em>智能体</em>不是单次 LLM 调用。智能体观察环境、规划、调用工具、读取文件、写入数据库、
+    并对结果采取行动。这些操作中的每一个都是潜在的漏洞。
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    现在乘以十个智能体。或者一百个。每个智能体可以调用其他智能体依赖的工具。
+    一个被攻破的智能体可以级联影响整个系统。一个读取客户数据库的工具调用不仅仅是数据访问——
+    如果智能体被越狱，它就是潜在的数据泄露向量。
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">治理的真正含义</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    治理不是"阻止坏事"。任何安全工程师都能写一个黑名单。治理是：
+  </p>
+
+  <ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+    <li><strong>预防</strong>——在有害操作执行之前阻止它，而不是之后。</li>
+    <li><strong>检测</strong>——识别智能体何时超出预期参数范围。</li>
+    <li><strong>审计</strong>——为每个决策、每次工具调用、每个状态转换生成密码学签名的记录。</li>
+    <li><strong>自适应</strong>——从攻击和错误中学习，随时间变得更好。</li>
+    <li><strong>验证</strong>——从数学上证明系统向安全收敛，而不仅仅是希望如此。</li>
+  </ul>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    没有这五个要素，你就没有治理。最好的情况是有监控，最坏的情况是一厢情愿。
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">为什么 2026 年是转折点</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    今年有三件事情发生了变化：
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    <strong>第一，智能体框架成熟了。</strong> LangGraph、CrewAI、AutoGen 等框架让构建多智能体系统变得轻而易举。
+    准入门槛从"需要专门的基础设施团队"降到了"一个工程师一个下午"。更多的智能体意味着更大的攻击面。
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    <strong>第二，智能体获得了真正的能力。</strong> 现代智能体不仅仅是读写文本。它们执行代码、查询数据库、
+    部署基础设施、管理 API 密钥，并与生产系统交互。每个能力都是可能被滥用的工具。
+  </p>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    <strong>第三，监管力度在加强。</strong> 欧盟、中国和其他地区的 AI 法规开始要求自主系统的审计追踪、
+    可解释性和人类监督。治理不仅仅是好的工程实践——它正在成为合规要求。
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">等待的代价</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    没有治理的每一天都是复利计算的技术债务。运行了六个月的未治理智能体系统积累了：
+  </p>
+
+  <ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+    <li>数千次未经审计且无来源的工具调用</li>
+    <li>可能违反合规要求的未追踪数据流</li>
+    <li>从未被挑战过的智能体信任基线</li>
+    <li>增长速度远超你理解程度的攻击面</li>
+  </ul>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    添加治理的最佳时机是你部署第一个智能体的时候。次佳时机是现在。
+  </p>
+
+  <h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">治理即基础设施</h2>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    我们构建 MAREF 是因为我们相信智能体治理应该是基础设施，而不是事后补丁。它应该是：
+  </p>
+
+  <ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+    <li><strong>框架无关</strong>——与任何智能体栈协同工作。</li>
+    <li><strong>可验证</strong>——形式化方法证明系统行为正确。</li>
+    <li><strong>可演进</strong>——对抗训练使其随时间变得更强。</li>
+    <li><strong>可审计</strong>——每个决策都有签名，无法被篡改。</li>
+    <li><strong>开源</strong>——你可以看到它做的每一件事，审计每一行代码。</li>
+  </ul>
+
+  <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+    多智能体未来不是可选项。无论我们是否做好准备，它都在到来。
+    治理是我们确保那个未来安全的方式。
+  </p>
+
+  <hr class="my-12 border-brand-border" />
+
+  <p class="text-sm text-brand-text-muted">
+    <em>MAREF 是开源智能体治理操作系统。<a href="/zh/docs/quickstart/" class="text-brand-accent-blue hover:underline">5 分钟快速上手</a>。</em>
+  </p>
+</BlogLayout>

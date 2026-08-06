@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: maref-governance-netpol
+  namespace: maref
+  labels:
+    app: maref-governance
+spec:
+  podSelector:
+    matchLabels:
+      app: maref-governance
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - port: 8080
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app: maref-governance
+      ports:
+        - port: 8000
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: maref-governance
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 8000
+          protocol: TCP
+    - ports:
+        - port: 53
+          protocol: UDP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP

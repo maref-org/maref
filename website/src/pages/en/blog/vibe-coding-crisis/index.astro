@@ -1,0 +1,154 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="GitHub Is Becoming a Giant AI Code Dump"
+  description="630M repos, half of new code is AI-written, but trust dropped from 77% to 60%. CMU found 6M fake stars. CodeRabbit: AI code has 1.7x more serious issues than human-written. 63% of developers say fixing AI code takes longer than writing from scratch. And the wildest part — AI users are 19% slower but think they're 20% faster. You're getting slower, and you can't feel it."
+  date="2026-06-13"
+  author="MAREF Engineering"
+  tags={["AI code", "GitHub", "vibe coding", "open source"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  GitHub has 630 million repos. Nearly half of all new code is written by AI.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Sounds like a productivity explosion, right?
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  But there's another number in that same report: developer trust in AI code dropped from <strong>77% to 60%</strong>. More people are using it. Fewer people believe in it.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  And it gets worse.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Half the projects you see are fake</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Carnegie Mellon University found <strong>6 million fake stars</strong> on GitHub. Security firm Socket uncovered <strong>370,000 "fix stars"</strong> directly tied to scams. That vibe coding project with thousands of stars? Probably half are fabricated.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  That's not even the scary part.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  CodeRabbit scanned 470 PRs. AI-written code had <strong>1.7x more critical issues</strong> than human-written code. <strong>45%</strong> of AI code ships with OWASP Top 10 vulnerabilities. <strong>63%</strong> of developers say fixing AI code takes longer than writing it from scratch.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  But here's the most mind-bending finding.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">You're getting slower, but you have no idea</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Meter ran a randomized controlled trial. The result: AI users were actually <strong>19% slower</strong>, but they thought they were <strong>20% faster</strong>.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  When they showed the participants the data, <em>they still insisted they were faster.</em>
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  That's the real horror. You're getting slower, and you have no idea.
+</p>
+
+<div class="border-l-4 pl-6 my-8 text-lg text-brand-text-secondary italic" style="border-color: var(--color-brand-accent-blue);">
+  "This is metacognitive dissonance — the tool gives you the illusion of speed, but reality gives you a slap."
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Open source is drowning in garbage PRs</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Look at what major projects are doing:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>curl</strong> — shut down its 7-year bug bounty program. AI-generated bug reports: only <strong>5%</strong> were real. The rest was noise.</li>
+  <li><strong>Ghost</strong> — outright banned AI-submitted code.</li>
+  <li><strong>Tailscale</strong> — went further: closed all external PRs. AI or not, doesn't matter anymore.</li>
+  <li><strong>GitHub itself</strong> — building a "PR kill switch" so maintainers can one-click disable external submissions.</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Open source isn't being destroyed by hackers. It's being drowned to death by garbage AI-generated PRs from vibe coders.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Garbage in, garbage out</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Here's the most ironic part of the whole chain:
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  You ask AI to write code → AI searches GitHub for references → It finds code written by other AIs → Garbage in, garbage out. What do you think comes out?
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  GitHub used to be a code repository. It's turning into a giant AI code dump.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">The problem isn't AI. It's governance.</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  AI writing code isn't the problem. The problem is: <strong>nobody is auditing what AI does.</strong>
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The core premise of vibe coding is "accept everything AI generates — don't review, don't modify." That works for a TODO app. For production code, it's planting time bombs.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  But asking humans to line-by-line review AI code isn't realistic either. If 63% of devs say fixing is slower than writing, reviewing is even slower.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The real solution isn't "stop using AI" or "review everything manually." It's <strong>automated governance between AI code and production</strong>:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>Every tool call is audited</strong> — every file change, every API call, cryptographically signed and recorded.</li>
+  <li><strong>Dangerous actions are blocked</strong> — delete database? modify production? First pass through a 4-level decision tree. 97% auto-resolved, 3% escalated to human review.</li>
+  <li><strong>Security policies evolve</strong> — every false positive, every bypass attempt feeds back into the governance engine.</li>
+  <li><strong>Formal verification</strong> — not "we hope this is safe." Mathematically provable convergence toward safety.</li>
+</ul>
+
+<div class="border-l-4 pl-6 my-8 text-lg text-brand-text-secondary" style="border-color: var(--color-brand-accent-blue);">
+  <strong>That's MAREF.</strong> The open-source agent governance operating system. Brakes, seatbelts, dashcams, and a tireless security reviewer — for your AI agents.
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Governance isn't a speed bump. It's what lets you go fast safely.</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Un-governed AI code doesn't go faster. It just crashes faster.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The projects banning AI submissions — curl, Ghost, Tailscale — aren't anti-AI. They're saying the same thing: <strong>"We welcome AI assistance. We won't accept garbage without quality control."</strong>
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF is that quality control layer. Not between you and AI. Between garbage code and your production environment.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  You can still vibe code. You can still have AI write your code. But before it deletes your database, someone will stop it.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  <strong>You're getting slower? No. You're finally seeing what you're actually shipping.</strong>
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>📊 Sources: GitHub Octoverse Report, Carnegie Mellon fake star study, Socket security report, CodeRabbit 470 PR analysis, Meter RCT trial, curl/BT/Ghost/Tailscale official announcements. MAREF is an open-source agent governance operating system. <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Get started in 5 minutes</a>.</em>
+</p>
+
+</BlogLayout>

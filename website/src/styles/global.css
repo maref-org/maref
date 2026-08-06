@@ -1,0 +1,260 @@
+/* MAREF — Auros-inspired design system */
+/* Reference: Auros Style Reference v1 */
+
+@import "tailwindcss";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+
+@theme {
+  /* ── Colors ── */
+  --color-abyssal-teal: #012624;
+  --color-midnight-current: #011d1c;
+  --color-tide-pool-teal: #003734;
+  --color-fog-veil: #bbc7c6;
+  --color-ice-mist: #edfffe;
+  --color-ash-gray: #333333;
+  --color-snow-sheet: #ffffff;
+  --color-lilac-wisp: #fde9ff;
+  --color-current-gradient: #00827c;
+  --color-aurora-gradient: #cbfffc;
+  --color-twilight-gradient: #fad1ff;
+
+  /* Brand aliases (backward compat) */
+  --color-brand-bg-primary: #012624;
+  --color-brand-bg-secondary: #011d1c;
+  --color-brand-bg-tertiary: #003734;
+  --color-brand-bg-code: #011d1c;
+
+  --color-brand-accent-blue: #00827c;
+  --color-brand-accent-cyan: #cbfffc;
+  --color-brand-accent-green: #00827c;
+  --color-brand-accent-amber: #ffe082;
+  --color-brand-accent-orange: #ffab91;
+  --color-brand-accent-purple: #fad1ff;
+  --color-brand-accent-red: #ef9a9a;
+
+  --color-brand-text-primary: #ffffff;
+  --color-brand-text-secondary: #bbc7c6;
+  --color-brand-text-muted: #8a9a98;
+
+  --color-brand-border: #1a3a38;
+  --color-brand-border-hover: #2a4a48;
+
+  /* Gradient tokens */
+  --gradient-current: linear-gradient(90deg, #00827c 0%, #cbfffc 100%);
+  --gradient-aurora: linear-gradient(90deg, #cbfffc 0%, #edfffe 26%, #fffdfa 48%, #fad1ff 89%);
+
+  /* ── Typography ── */
+  --font-matter: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-ui: "Inter", system-ui, sans-serif;
+  --font-family-code: "JetBrains Mono", "Fira Code", monospace;
+  --font-family-display: "Inter", system-ui, sans-serif;
+
+  /* Type scale */
+  --text-eyebrow: 10px;
+  --leading-eyebrow: 1.4;
+  --tracking-eyebrow: 2.4px;
+  --text-caption: 12px;
+  --leading-caption: 1.4;
+  --tracking-caption: 1.44px;
+  --text-body: 14px;
+  --leading-body: 1.5;
+  --tracking-body: 0.77px;
+  --text-body-lg: 16px;
+  --leading-body-lg: 1.5;
+  --text-subheading: 20px;
+  --leading-subheading: 1.4;
+  --text-heading-sm: 24px;
+  --leading-heading-sm: 1.4;
+  --tracking-heading-sm: -0.29px;
+  --text-heading: 36px;
+  --leading-heading: 1.3;
+  --tracking-heading: -0.47px;
+  --text-heading-lg: 61px;
+  --leading-heading-lg: 1.1;
+  --tracking-heading-lg: -1.22px;
+  --text-display: 86px;
+  --leading-display: 1;
+  --tracking-display: -3.84px;
+
+  /* ── Spacing ── */
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-28: 28px;
+  --spacing-32: 32px;
+  --spacing-36: 36px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
+  --spacing-120: 120px;
+  --spacing-140: 140px;
+  --spacing-156: 156px;
+  --spacing-160: 160px;
+  --spacing-172: 172px;
+  --content-max: 1200px;
+  --content-narrow: 720px;
+
+  /* ── Border Radius ── */
+  --radius-tags: 6px;
+  --radius-cards: 16px;
+  --radius-inputs: 6px;
+  --radius-avatars: 9999px;
+  --radius-buttons: 6px;
+
+  /* ── Surfaces ── */
+  --surface-abyss: #012624;
+  --surface-trench: #011d1c;
+  --surface-reef: #003734;
+}
+
+/* Light theme */
+.light-theme {
+  --surface-abyss: #f5f2ed;
+  --surface-trench: #eeebe6;
+  --surface-reef: #e5e2dc;
+  --color-brand-bg-primary: #f5f2ed;
+  --color-brand-bg-secondary: #eeebe6;
+  --color-brand-bg-tertiary: #e5e2dc;
+  --color-brand-bg-code: #eeebe6;
+  --color-snow-sheet: #1a1a1a;
+  --color-brand-text-primary: #1a1a1a;
+  --color-brand-text-secondary: #5a5a5a;
+  --color-brand-text-muted: #6a6a6a;
+  --color-fog-veil: #5a5a5a;
+  --color-ice-mist: #c8e8e0;
+  --color-brand-border: #d4d0c8;
+  --color-brand-border-hover: #c4c0b8;
+  --gradient-current: linear-gradient(90deg, #00827c 0%, #20a098 100%);
+  --gradient-aurora: linear-gradient(90deg, #20a098 0%, #c8e8e0 26%, #e8e4d8 48%, #e0c8e0 89%);
+}
+
+/* Base styles */
+html {
+  font-family: var(--font-matter);
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--surface-abyss);
+  color: var(--color-snow-sheet);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Code blocks */
+code,
+pre {
+  font-family: var(--font-family-code);
+  font-size: 0.875em;
+}
+
+/* Selection */
+::selection {
+  background-color: var(--color-current-gradient);
+  color: var(--surface-abyss);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-abyss);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-reef);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ice-mist);
+}
+
+/* ── Blog article (markdown import) styling ── */
+.prose {
+  color: var(--color-fog-veil);
+  line-height: 1.75;
+  max-width: 72ch;
+}
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: var(--color-ice-mist);
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.25;
+}
+.prose h1 { font-size: 2rem; }
+.prose h2 { font-size: 1.5rem; border-bottom: 1px solid var(--surface-reef); padding-bottom: 0.5rem; }
+.prose h3 { font-size: 1.25rem; }
+.prose p { margin-bottom: 1.25rem; }
+.prose ul, .prose ol { margin-bottom: 1.25rem; padding-left: 1.5rem; }
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose li { margin-bottom: 0.5rem; }
+.prose code {
+  background: var(--surface-reef);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+.prose pre {
+  background: var(--surface-abyss);
+  padding: 1.25rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--surface-reef);
+}
+.prose pre code {
+  background: none;
+  padding: 0;
+}
+.prose blockquote {
+  border-left: 3px solid var(--color-current-gradient);
+  padding-left: 1.25rem;
+  margin: 1.5rem 0;
+  color: var(--color-fog-veil);
+  font-style: italic;
+}
+.prose a {
+  color: var(--color-ice-mist);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose a:hover { opacity: 0.8; }
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+.prose th, .prose td {
+  border: 1px solid var(--surface-reef);
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+.prose th {
+  background: var(--surface-abyss);
+  font-weight: 600;
+}
+.prose img { max-width: 100%; border-radius: 8px; margin: 1.5rem 0; }
+.prose hr { border: none; border-top: 1px solid var(--surface-reef); margin: 2.5rem 0; }

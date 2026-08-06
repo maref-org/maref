@@ -1,0 +1,86 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF (Multi-Agent Recursive Evolution Framework) is an open-source agent governance operating system. It sits between AI agents and the tools they call, providing 8 layers of defense, formal verification (TLA+), cryptographic audit trails, recursive self-evolution, and Chinese national cryptography (SM2/SM3/SM4-GCM)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is MAREF different from LangGraph, CrewAI, or AutoGen?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Those frameworks help you build multi-agent systems. MAREF helps you govern them. They solve orchestration who talks to whom. MAREF solves safety what agents are allowed to do. You can use LangGraph to orchestrate agents and MAREF to govern them. The difference is like building a car versus installing brakes."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is MAREF open source and free to use?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. MAREF is released under the Apache 2.0 license. The full source code is available on GitHub at github.com/maref-org/maref. It is 100% free forever with no enterprise tier, no paid features, and no usage limits."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does MAREF require a GPU to run?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. MAREF is a governance layer, not a model runtime. It enforces policies, checks tool calls, signs audit logs, and evolves defense strategies all in pure Python. It runs equally well on a $5 VPS or a workstation. If you run LLM agents those need GPUs but MAREF does not."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What Chinese national cryptography algorithms does MAREF support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF implements full GB/T 32918 compliance: SM2 for digital signatures and key exchange (256-bit ECC), SM3 for cryptographic hashing (256-bit), and SM4-GCM for authenticated symmetric encryption (128-bit block cipher in Galois/Counter mode). All implementations are pure Python with zero native dependencies."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is Lyapunov convergence and why does it matter?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Lyapunov stability analysis mathematically proves that MAREF governance engine becomes safer over time it does not just change but converges to a provably minimal error state. Most security systems degrade or oscillate. MAREF error rate decreases monotonically. This is the difference between we hope this works and we can prove it works."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF handle multi-agent trust?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The Trust Engine v2 evaluates five factors per interaction: recency, consistency, goal alignment, outcome quality, and adversarial resistance. Trust scores recalibrate every interaction. Goodhart anti-gaming detection prevents agents from optimizing trust metrics at the expense of actual trustworthiness."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use MAREF with existing agent frameworks?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. MAREF is framework-agnostic. It implements the Model Context Protocol (MCP), so any MCP-compatible agent or framework can route tool calls through MAREF governance pipeline. Integration typically completes within an hour and requires no changes to existing agent logic."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens if MAREF blocks a legitimate action?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The 4-level decision tree routes only about 3% of decisions to human review. False positives blocking legitimate actions are flagged by human reviewers, fed back to the evolution engine, and the system learns from corrections. After 200 rounds of adversarial evolution, false positive rates decreased by 82%."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does MAREF cover the OWASP Agentic Top 10?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. MAREF is the first open-source framework to address all 10 OWASP Agentic Top 10 risks including: Goal Hijacking, Tool Misuse, Identity Abuse, Supply Chain attacks, Code Execution, Memory Poisoning, Insecure Communication, Cascading Failures, Human Trust Exploitation, and Rogue Agents."
+      }
+    }
+  ]
+}

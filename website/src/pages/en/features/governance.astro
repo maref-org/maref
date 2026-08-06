@@ -1,0 +1,115 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import GrayCodeFSM from "@/components/animations/GrayCodeFSM/GrayCodeFSM.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout
+  locale="en"
+  title="Agent Governance — Gray Code FSM"
+  description="A mathematically verifiable governance state machine — TLA+ model-checked, Hamming distance = 1, 10 states, HALT absorbing state."
+  section="features"
+>
+
+  <!-- Zone 1: Hook -->
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+    Safety you can prove.<br />
+    <span class="text-brand-accent-blue">Not just promise.</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-10">
+    A governance state machine verified with TLA+ formal methods.
+    Ten states, four bits, zero ambiguity. Every transition model-checked.
+  </p>
+
+  <GrayCodeFSM locale="en" />
+
+  <!-- Zone 2: Why it matters -->
+  <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <p class="text-base text-brand-text-secondary leading-relaxed">
+      Every agent framework has a "safety" checkbox. None of them can prove it works.
+      MAREF's governance state machine is the first with TLA+ model checking:
+      <strong class="text-brand-text-primary">five invariants verified, zero unreachable states, every transition deterministic by construction.</strong>
+    </p>
+  </div>
+
+  <!-- Zone 3: Feature columns -->
+  <div class="grid md:grid-cols-3 gap-8 my-20">
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-cyan mb-2">Unambiguous state. Always.</h3>
+      <p class="text-sm text-brand-text-secondary">Four-bit Gray code encoding guarantees Hamming distance = 1 between adjacent states. No transition is ever ambiguous.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-green mb-2">HALT. And nothing can undo it.</h3>
+      <p class="text-sm text-brand-text-secondary">Three consecutive failures trigger an absorbing halt state. No agent, process, or race condition can override it.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-purple mb-2">Verified, not assumed.</h3>
+      <p class="text-sm text-brand-text-secondary">Five invariants verified via TLA+ model checking: state reachability, transition determinism, halt absorption, safety gate integrity, and red line immutability.</p>
+    </div>
+  </div>
+
+  <!-- Zone 4: Deep dives -->
+  <div class="my-20 space-y-20">
+    <!-- Deep dive 1 -->
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">A state machine a mathematician would trust.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Ten states, each with a 4-bit Gray code encoding. Because adjacent states differ by exactly one bit,
+        no transition can land in an ambiguous middle ground. TLA+ model checking verified this across
+        every possible path. The state space is finite, complete, and fully explored.
+      </p>
+      <p class="text-sm text-brand-accent-cyan font-code">
+        Formal verification: 5 invariants, 10 states, 0 unreachable states
+      </p>
+    </div>
+
+    <!-- Deep dive 2 -->
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Three strikes. Locked. Period.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        The CircuitBreaker watches every safety decision. Three failures in any time window trigger HALT.
+        This is not a soft warning. HALT is an absorbing state — once entered, it requires an explicit,
+        authenticated human override to leave. No agent, no pipeline, no race condition can escape it.
+      </p>
+      <CodeBlock
+        lang="python"
+        title="CircuitBreaker transition to HALT"
+        code={`from maref import CircuitBreaker, HALT\n\nbreaker = CircuitBreaker(\n    threshold=3,\n    window_seconds=300,\n    on_halt=HALT  # absorbing, no auto-recovery\n)\n\n# After 3 failures: state → HALT\n# Requires human override to leave`}
+      />
+    </div>
+
+    <!-- Deep dive 3 -->
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Convergence validated over 200 rounds.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Lyapunov stability analysis empirically validates that the governance engine converges toward
+        a safer state over 200+ adversarial evolution rounds. Experimental data shows the error rate
+        decreases monotonically — not oscillating, not diverging. The Lyapunov function V(x) = xᵀPx
+        provides a stability framework validated by red-blue adversarial testing.
+      </p>
+      <p class="text-sm text-brand-accent-cyan font-code">
+        Lyapunov function: V(x) = xᵀPx, validated over 200 red-blue evolution rounds
+      </p>
+    </div>
+  </div>
+
+  <!-- Zone 5: Spec sheet -->
+  <div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">
+      Technical Specifications
+    </h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">State machine</div>
+      <div class="text-brand-text-primary">10 operational states + HALT absorbing state</div>
+      <div class="text-brand-text-muted">Encoding</div>
+      <div class="text-brand-text-primary">4-bit Gray code, Hamming distance = 1</div>
+      <div class="text-brand-text-muted">Formal methods</div>
+      <div class="text-brand-text-primary">TLA+ (Temporal Logic of Actions) model checking</div>
+      <div class="text-brand-text-muted">Verified invariants</div>
+      <div class="text-brand-text-primary">5 — state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability</div>
+      <div class="text-brand-text-muted">Integration</div>
+      <div class="text-brand-text-primary">GovernanceOverlay class, pip install maref</div>
+    </div>
+  </div>
+
+</DocLayout>

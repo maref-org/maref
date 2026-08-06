@@ -1,0 +1,17 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+import Content, { frontmatter } from "../../../../../docs/website/blog/2026-07-22-maref-vs-langgraph-governance-benchmark.md";
+---
+
+<BlogLayout
+  locale="en"
+  title={frontmatter.title}
+  description={frontmatter.description}
+  date="2026-07-22"
+  author="MAREF Engineering"
+  tags={frontmatter.tags}
+>
+  <div class="prose prose-lg max-w-none dark:prose-invert">
+    <Content />
+  </div>
+</BlogLayout>

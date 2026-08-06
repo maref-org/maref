@@ -1,0 +1,18 @@
+name: MAREF CI Governance (example)
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: MAREF CI Governance Scan
+        uses: ./.github/actions/maref-ci-governance
+        with:
+          sidecar-url: "http://localhost:8000"
+          mode: "advisory"
+          fail-closed: "false"

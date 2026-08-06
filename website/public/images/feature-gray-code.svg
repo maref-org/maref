@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" /><feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+  </defs>
+
+  <!-- S0 (HALT - red) -->
+  <circle cx="310" cy="512" r="60" fill="none" stroke="#ef4444" stroke-width="3" opacity="0.8" />
+  <circle cx="310" cy="512" r="50" fill="#ef4444" opacity="0.1" />
+  <text x="310" y="518" text-anchor="middle" fill="#ef4444" font-size="28" font-weight="800" font-family="monospace">S0</text>
+  <text x="310" y="462" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="600" font-family="monospace">HALT</text>
+
+  <!-- S1 -->
+  <circle cx="512" cy="300" r="55" fill="none" stroke="#3b82f6" stroke-width="3" opacity="0.7" />
+  <circle cx="512" cy="300" r="45" fill="#3b82f6" opacity="0.08" />
+  <text x="512" y="306" text-anchor="middle" fill="#3b82f6" font-size="26" font-weight="800" font-family="monospace">S1</text>
+
+  <!-- S2 (current - green glow) -->
+  <circle cx="740" cy="400" r="65" fill="none" stroke="#10b981" stroke-width="4" filter="url(#glow)" />
+  <circle cx="740" cy="400" r="55" fill="#10b981" opacity="0.12" />
+  <text x="740" y="406" text-anchor="middle" fill="#10b981" font-size="28" font-weight="800" font-family="monospace">S2</text>
+  <text x="740" y="350" text-anchor="middle" fill="#10b981" font-size="12" font-weight="600" font-family="monospace">CURRENT</text>
+
+  <!-- S3 -->
+  <circle cx="740" cy="640" r="55" fill="none" stroke="#06b6d4" stroke-width="3" opacity="0.7" />
+  <circle cx="740" cy="640" r="45" fill="#06b6d4" opacity="0.08" />
+  <text x="740" y="646" text-anchor="middle" fill="#06b6d4" font-size="26" font-weight="800" font-family="monospace">S3</text>
+
+  <!-- S4 -->
+  <circle cx="512" cy="740" r="55" fill="none" stroke="#3b82f6" stroke-width="3" opacity="0.6" />
+  <circle cx="512" cy="740" r="45" fill="#3b82f6" opacity="0.06" />
+  <text x="512" y="746" text-anchor="middle" fill="#3b82f6" font-size="26" font-weight="800" font-family="monospace">S4</text>
+
+  <!-- Arrows -->
+  <path d="M 360,490 Q 430,380 470,330" fill="none" stroke="#3b82f6" stroke-width="2.5" />
+  <path d="M 560,320 Q 640,350 690,380" fill="none" stroke="#10b981" stroke-width="2.5" />
+  <path d="M 740,465 Q 740,550 740,590" fill="none" stroke="#06b6d4" stroke-width="2.5" stroke-dasharray="8,4" />
+  <path d="M 690,660 Q 640,690 560,710" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,4" />
+  <path d="M 460,730 Q 380,680 350,570" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,4" opacity="0.5" />
+
+  <!-- 0/1 labels -->
+  <text x="400" y="420" fill="#3b82f6" font-size="16" font-family="monospace" font-weight="700">01</text>
+  <text x="620" y="345" fill="#10b981" font-size="16" font-family="monospace" font-weight="700">00</text>
+  <text x="760" y="530" fill="#06b6d4" font-size="16" font-family="monospace" font-weight="700">11</text>
+  <text x="620" y="690" fill="#3b82f6" font-size="16" font-family="monospace" font-weight="700">10</text>
+
+  <!-- Title -->
+  <text x="512" y="190" text-anchor="middle" fill="#3b82f6" font-size="20" font-weight="700" font-family="sans-serif">Gray Code State Machine</text>
+  <text x="512" y="215" text-anchor="middle" fill="#06b6d4" font-size="13" font-family="sans-serif">Hamming Distance = 1 · Provably Safe</text>
+</svg>

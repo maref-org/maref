@@ -1,0 +1,33 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const metrics = {
+  en: [
+    { value: "4300+", label: "Tests", color: "text-brand-accent-blue" },
+    { value: "82%", label: "Coverage", color: "text-brand-accent-cyan" },
+    { value: "97%", label: "Auto Decision Rate", color: "text-brand-accent-green" },
+    { value: "100%", label: "Red Line Block Rate", color: "text-brand-accent-blue" },
+  ],
+  zh: [
+    { value: "4300+", label: "测试用例", color: "text-brand-accent-blue" },
+    { value: "82%", label: "覆盖率", color: "text-brand-accent-cyan" },
+    { value: "97%", label: "自动化决策率", color: "text-brand-accent-green" },
+    { value: "100%", label: "红线阻止率", color: "text-brand-accent-blue" },
+  ],
+};
+
+const items = metrics[locale as keyof typeof metrics] || metrics.en;
+---
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8 mt-24 py-12 border-t border-brand-border">
+  {items.map((m) => (
+    <div>
+      <div class={`text-4xl font-bold ${m.color}`}>{m.value}</div>
+      <div class="text-sm text-brand-text-muted mt-1">{m.label}</div>
+    </div>
+  ))}
+</div>

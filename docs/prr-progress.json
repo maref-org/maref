@@ -1,0 +1,152 @@
+{
+  "report_id": "FS-PRR-MAREF-v0.25.0-rc-20260514",
+  "last_updated": "2026-05-14",
+  "overall_score": 9.2,
+  "phase1_complete": true,
+  "phase2_complete": true,
+  "phase3_complete": true,
+  "risks": [
+    {
+      "id": "R1",
+      "severity": "P0",
+      "status": "closed",
+      "phase": 1,
+      "fix": "CSP null -> strict policy"
+    },
+    {
+      "id": "R2",
+      "severity": "P0",
+      "status": "closed",
+      "phase": 1,
+      "fix": "dry_run env var control + end-to-end pipeline verified"
+    },
+    {
+      "id": "R3",
+      "severity": "P0",
+      "status": "closed",
+      "phase": 2,
+      "fix": "SLO.md + OTel trace context + RED metrics"
+    },
+    {
+      "id": "R4",
+      "severity": "P0",
+      "status": "closed",
+      "phase": 1,
+      "fix": "KeyringStore OS-native credential module"
+    },
+    {
+      "id": "R5",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 2,
+      "fix": "Code signing process documented"
+    },
+    {
+      "id": "R6",
+      "severity": "P0",
+      "status": "closed",
+      "phase": 1,
+      "fix": "ErrorBoundary.tsx + global wrapper"
+    },
+    {
+      "id": "R7",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 2,
+      "fix": "ErrorDisplay component + error code mapping"
+    },
+    {
+      "id": "R8",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 2,
+      "fix": "ADR-001: Tauri-only architecture decision"
+    },
+    {
+      "id": "R9",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 1,
+      "fix": "Multi-stage Dockerfile + non-root user"
+    },
+    {
+      "id": "R10",
+      "severity": "P2",
+      "status": "closed",
+      "phase": 3,
+      "fix": "i18n (react-i18next) + a11y + offline Service Worker"
+    },
+    {
+      "id": "R11",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 1,
+      "fix": "Security scan CI (bandit+safety+trivy)"
+    },
+    {
+      "id": "R12",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 2,
+      "fix": "RUM web-vitals + Lighthouse CI + performance budget"
+    },
+    {
+      "id": "R13",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 1,
+      "fix": "HMAC-SHA256 audit signing"
+    },
+    {
+      "id": "R14",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 1,
+      "fix": "HPA target name aligned"
+    },
+    {
+      "id": "R15",
+      "severity": "P2",
+      "status": "closed",
+      "phase": 1,
+      "fix": "maref_lite version synced to 0.24.0-rc"
+    },
+    {
+      "id": "R16",
+      "severity": "P2",
+      "status": "closed",
+      "phase": 3,
+      "fix": "Icon files regenerated (icns 37KB, ico 880B)"
+    },
+    {
+      "id": "R17",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 1,
+      "fix": "hardenedRuntime=true + insecure entitlements removed"
+    },
+    {
+      "id": "R18",
+      "severity": "P2",
+      "status": "closed",
+      "phase": 2,
+      "fix": "SSE transport backed by real HTTPTransport"
+    },
+    {
+      "id": "R19",
+      "severity": "P1",
+      "status": "closed",
+      "phase": 1,
+      "fix": "Docker multi-stage no dev deps"
+    },
+    {
+      "id": "R20",
+      "severity": "CRITICAL",
+      "status": "closed",
+      "phase": 1,
+      "fix": "Hardcoded API key removed -> env var"
+    }
+  ],
+  "all_risks_closed": true,
+  "audit_conclusion": "GA Ready \u2014 \u5168\u6808\u8bc4\u52069.2/10\uff0c20\u9879\u98ce\u9669\u5168\u90e8\u5173\u95ed"
+}

@@ -1,0 +1,92 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import ConvergenceChart from "@/components/animations/ConvergenceChart/ConvergenceChart.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="en" title="Recursive Evolution — Self-Learning AI Security" description="Lyapunov-validated convergence. FNR -60% over 200 adversarial rounds. A system that protects itself and gets better at it." section="features">
+
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+    A system that protects itself.<br />
+    <span class="text-brand-accent-green">And gets better at it.</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-10">
+    Lyapunov-validated convergence. 200 rounds of adversarial evolution.
+    False negative rate reduced by 60%.
+  </p>
+
+  <ConvergenceChart locale="en" />
+
+  <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <p class="text-base text-brand-text-secondary leading-relaxed">
+      Most systems change over time. MAREF's evolution engine <strong class="text-brand-text-primary">converges</strong>.
+      Lyapunov stability analysis validates that the system monotonically approaches a safer state —
+      the error rate does not oscillate; it descends toward an empirically validated minimum.
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-8 my-20">
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-cyan mb-2">Empirically converging.</h3>
+      <p class="text-sm text-brand-text-secondary">Lyapunov stability analysis confirms the system gets safer over time, validated over 200 adversarial evolution rounds.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-green mb-2">200 rounds. 60% better.</h3>
+      <p class="text-sm text-brand-text-secondary">Red-blue adversarial evolution. We attacked it 200 times. It learned every time. FNR dropped by 60%.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-purple mb-2">Trust that earns itself.</h3>
+      <p class="text-sm text-brand-text-secondary">Five-factor Trust Engine v2. Reputation recalibrates with every interaction. Anti-gaming detected.</p>
+    </div>
+  </div>
+
+  <div class="my-20 space-y-20">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Evolution validated by 200 rounds of data.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Lyapunov stability analysis validates that the governance engine converges toward a lower error state over time.
+        The false negative rate does not oscillate — it descends monotonically toward an empirically validated minimum.
+        Over 200 red-blue adversarial rounds, attack intensity increased 7.7x while FNR dropped 60%.
+      </p>
+      <p class="text-sm text-brand-accent-cyan font-code">
+        Lyapunov function: V(x) = xᵀPx, validated over 200 adversarial evolution rounds
+      </p>
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">We attacked it 200 times. It thanked us.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Red-blue adversarial evolution pits attack agents against defense agents in 5-stage rounds.
+        Attack intensity escalated from 2.47 to 18.98 (a 7.7x increase). The false negative rate dropped
+        from baseline to -60%. Every attack made the system stronger.
+      </p>
+      <CodeBlock
+        lang="python"
+        title="Red-Blue evolution loop"
+        code={`from maref import RedBlueEvolution\n\nevolution = RedBlueEvolution(\n    rounds=200,\n    attack_intensity=(\n        "escalate",  # 2.47 → 18.98\n        "adapt",     # learns from prior round\n        "diversify"  # tries new attack surfaces\n    )\n)\n\nresult = evolution.run()\nprint(f"FNR delta: {result.fnr_delta}%")  # -60%`}
+      />
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Trust is earned. And recalibrated. Per interaction.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Trust Engine v2 weights five factors per interaction: recency, consistency, alignment,
+        outcome quality, and adversarial resistance. Goodhart anti-gaming detection prevents agents
+        from optimizing for the trust metric instead of actual trustworthiness.
+      </p>
+    </div>
+  </div>
+
+  <div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">Technical Specifications</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">Evolution</div><div class="text-brand-text-primary">Red-Blue adversarial, 5-stage rounds</div>
+      <div class="text-brand-text-muted">Rounds</div><div class="text-brand-text-primary">200</div>
+      <div class="text-brand-text-muted">FNR reduction</div><div class="text-brand-text-primary">-60%</div>
+      <div class="text-brand-text-muted">FPR reduction</div><div class="text-brand-text-primary">-82%</div>
+      <div class="text-brand-text-muted">Attack intensity range</div><div class="text-brand-text-primary">2.47 → 18.98 (7.7x)</div>
+      <div class="text-brand-text-muted">Trust factors</div><div class="text-brand-text-primary">5 — recency, consistency, alignment, outcome quality, adversarial resistance</div>
+      <div class="text-brand-text-muted">Convergence validation</div><div class="text-brand-text-primary">Lyapunov stability analysis, validated over 200 adversarial rounds</div>
+    </div>
+  </div>
+</DocLayout>

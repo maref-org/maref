@@ -1,0 +1,97 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="zh" title="国密算法 — SM2/SM3/SM4" description="完整 GB/T 32918 合规。SM2/SM3/SM4-GCM。企业级安全，自主密码算法。" section="features">
+
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+    企业级安全。<br />
+    <span class="text-brand-accent-blue">自主密码算法。</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-10">SM2/SM3/SM4-GCM。完整 GB/T 32918 合规。</p>
+
+  <!-- Crypto flow SVG -->
+  <div class="my-8 p-8 rounded-xl text-center" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <svg viewBox="0 0 600 120" class="w-full max-h-[140px]" role="img" aria-label="SM4-GCM 加密解密流程">
+      <rect x="10" y="35" width="100" height="40" rx="8" fill="var(--color-brand-accent-blue)" opacity="0.2" stroke="var(--color-brand-accent-blue)" stroke-width="1.5"/>
+      <text x="60" y="59" text-anchor="middle" dominant-baseline="central" fill="var(--color-brand-accent-blue)" font-size="12" font-weight="600">明文</text>
+      <text x="130" y="59" text-anchor="middle" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+      <rect x="150" y="28" width="100" height="54" rx="8" fill="var(--color-brand-accent-cyan)" opacity="0.15" stroke="var(--color-brand-accent-cyan)" stroke-width="1.5"/>
+      <text x="200" y="52" text-anchor="middle" fill="var(--color-brand-accent-cyan)" font-size="10" font-weight="600">SM4-GCM</text>
+      <text x="200" y="66" text-anchor="middle" fill="var(--color-brand-text-muted)" font-size="9">加密</text>
+      <text x="270" y="59" text-anchor="middle" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+      <rect x="290" y="35" width="100" height="40" rx="8" fill="var(--color-brand-accent-green)" opacity="0.2" stroke="var(--color-brand-accent-green)" stroke-width="1.5"/>
+      <text x="340" y="59" text-anchor="middle" fill="var(--color-brand-accent-green)" font-size="12" font-weight="600">密文</text>
+      <text x="410" y="59" text-anchor="middle" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+      <rect x="430" y="28" width="100" height="54" rx="8" fill="var(--color-brand-accent-green)" opacity="0.15" stroke="var(--color-brand-accent-green)" stroke-width="1.5"/>
+      <text x="480" y="52" text-anchor="middle" fill="var(--color-brand-accent-green)" font-size="10" font-weight="600">SM4-GCM</text>
+      <text x="480" y="66" text-anchor="middle" fill="var(--color-brand-text-muted)" font-size="9">解密</text>
+      <text x="550" y="59" text-anchor="middle" fill="var(--color-brand-text-muted)" font-size="18">→</text>
+      <rect x="570" y="35" width="20" height="40" rx="8" fill="var(--color-brand-accent-blue)" opacity="0.3" stroke="var(--color-brand-accent-blue)" stroke-width="1.5"/>
+      <text x="580" y="59" text-anchor="middle" fill="var(--color-brand-text-primary)" font-size="10">✓</text>
+    </svg>
+  </div>
+
+  <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <p class="text-base text-brand-text-secondary leading-relaxed">
+      大多数智能体框架默认使用外国密码套件。MAREF 为你提供
+      <strong class="text-brand-text-primary">完整的中国国家密码算法合规</strong> —
+      SM2 签名、SM3 哈希、SM4-GCM 认证加密。你的数据主权，你的选择。
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-8 my-20">
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-blue mb-2">你的区域。你的标准。</h3>
+      <p class="text-sm text-brand-text-secondary">完整中国国家密码算法标准合规。无外国密码依赖。</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-cyan mb-2">加密 + 认证。一次完成。</h3>
+      <p class="text-sm text-brand-text-secondary">SM4-GCM 伽罗瓦/计数器模式 — 单次遍历同时加密和认证。篡改在解密前即被检测。</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-green mb-2">合规就绪。开箱即用。</h3>
+      <p class="text-sm text-brand-text-secondary">GB/T 32918 认证。SM2/SM3/SM4-GCM 已验证。直接提交，无需返工。</p>
+    </div>
+  </div>
+
+  <div class="my-20 space-y-20">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">听命于你，而非供应商的密码学。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        完整 GB/T 32918 合规意味着你的加密满足中国国家标准。SM2 用于数字签名和密钥交换。
+        SM3 用于密码学哈希。SM4-GCM 用于认证对称加密。无外国密码套件依赖。
+      </p>
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">SM4-GCM：加密与认证。同时进行。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        SM4-GCM 在 SM4 分组密码之上实现了伽罗瓦/计数器模式。单次遍历加密数据并生成认证标签。
+        篡改在解密开始前即被检测。纯 Python 实现——无本地依赖，源码完全可审计。
+      </p>
+      <CodeBlock lang="python" title="SM4-GCM 加密 / 解密" code={`from maref import SM4GCM\n\nkey = SM4GCM.generate_key()\ncipher = SM4GCM(key)\n\n# 加密 + 认证一次完成\nciphertext, tag = cipher.encrypt(\n    b"agent communication data",\n    aad=b"associated metadata"\n)\n\n# 解密 + 验证一次完成\nplaintext = cipher.decrypt(\n    ciphertext, tag,\n    aad=b"associated metadata"\n)\n# 如果被篡改 → 抛出 AuthenticationError`} />
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">29 项测试验证。现可投产。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        完整算法套件已验证：SM2 密钥生成、签名和验证。SM3 哈希已知答案测试。
+        SM4-GCM 加密/解密和认证标签验证。29 项测试。29 项通过。随时可以部署。
+      </p>
+    </div>
+  </div>
+
+  <div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">技术规格</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">SM2</div><div class="text-brand-text-primary">256 位 ECC，数字签名和密钥交换，GB/T 32918</div>
+      <div class="text-brand-text-muted">SM3</div><div class="text-brand-text-primary">256 位密码学哈希，已知答案测试</div>
+      <div class="text-brand-text-muted">SM4-GCM</div><div class="text-brand-text-primary">128 位分组密码，伽罗瓦/计数器模式 AEAD</div>
+      <div class="text-brand-text-muted">合规</div><div class="text-brand-text-primary">GB/T 32918-1 至 32918-5</div>
+      <div class="text-brand-text-muted">测试</div><div class="text-brand-text-primary">29 项已知答案和 KAT 测试，100% 通过</div>
+      <div class="text-brand-text-muted">实现</div><div class="text-brand-text-primary">纯 Python，零本地依赖，完全可审计</div>
+    </div>
+  </div>
+</DocLayout>

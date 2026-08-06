@@ -1,0 +1,12 @@
+title = "MAREF gitleaks 扫描配置"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "误报豁免：环境变量名 / 测试 mock key（均非密钥字面量，用模式识别避免自检死循环）"
+regexes = [
+  '''MAREF_ED25519_PRIVATE_KEY''',
+  '''sk-1234567890abcdef''',
+  '''sk-[a-z]{20,}[0-9]+''',
+]

@@ -1,0 +1,87 @@
+from __future__ import annotations
+
+import time
+from typing import TYPE_CHECKING, Any
+
+from maref.recursive.agent_credit_rating import RatingDimension
+from maref.security.decorators import security_critical
+
+if TYPE_CHECKING:
+    from maref.recursive.agent_credit_rating import AgentCreditRatingSystem
+    from maref.recursive.agent_economy import AgentEconomy
+    from maref.recursive.unified_audit import UnifiedAuditStore
+try:
+    from opentelemetry import metrics
+    _OTEL_AVAILABLE = True
+except ImportError:
+    _OTEL_AVAILABLE = False
+if _OTEL_AVAILABLE:
+    _meter = metrics.get_meter(__name__)
+    _pollution_counter = _meter.create_counter('maref.pollution_tax.applied', unit='1', description='Number of pollution tax applications')
+    _penalty_counter = _meter.create_counter('maref.pollution_tax.penalty', unit='1', description='Number of downstream penalties applied')
+    _downgrade_counter = _meter.create_counter('maref.pollution_tax.downgrade', unit='1', description='Number of credit rating downgrades')
+    _tax_multiplier_gauge = _meter.create_gauge('maref.pollution_tax.multiplier', unit='1', description='Current generation tax multiplier')
+
+class PollutionTax:
+    DOWNGRADE_POLLUTION_THRESHOLD = 3
+
+    def __init__(self, economy: AgentEconomy, credit_systems: dict[str, AgentCreditRatingSystem] | None=None, audit_store: UnifiedAuditStore | None=None) -> None:
+        self._economy = economy
+        self._credit_systems = credit_systems or {}
+        self._audit_store = audit_store
+
+    @security_critical
+    def apply_generation_tax(self, agent_id: str) -> float:
+        multiplier = self._economy.apply_generation_tax(agent_id)
+        if self._audit_store:
+            from maref.recursive.unified_audit import UnifiedAuditRecord
+            self._audit_store.append(UnifiedAuditRecord(record_id=f'polltax_gen_{agent_id}_{int(time.time() * 1000)}', timestamp=time.time(), layer='economy', round=0, event_type='generation_tax', source_module='PollutionTax', target_module=agent_id, decision=f'multiplier_{multiplier}', justification=f'Generation tax x{multiplier} applied to {agent_id}', outcome='applied'))
+        if _OTEL_AVAILABLE:
+            _pollution_counter.add(1, {'agent_id': agent_id})
+            _tax_multiplier_gauge.set(multiplier, {'agent_id': agent_id})
+        return multiplier
+
+    def get_current_multiplier(self, agent_id: str) -> float:
+        return self._economy.get_generation_tax_multiplier(agent_id)
+
+    @security_critical
+    def reset_generation_tax(self, agent_id: str) -> None:
+        self._economy.reset_generation_tax(agent_id)
+
+    @security_critical
+    def apply_downstream_penalty(self, agent_id: str, penalty: float=10.0, reason: str='downstream_contamination') -> dict[str, Any]:
+        wallet = self._economy.get_wallet(agent_id)
+        if wallet is None:
+            return {'success': False, 'reason': 'agent_not_registered'}
+        result = self._economy.record_pollution(agent_id, penalty=penalty, reason=reason)
+        if _OTEL_AVAILABLE:
+            _penalty_counter.add(1, {'agent_id': agent_id, 'reason': reason})
+        return result
+
+    def get_pollution_count(self, agent_id: str) -> int:
+        return self._economy.get_pollution_count(agent_id)
+
+    @security_critical
+    def check_rating_downgrade(self, agent_id: str) -> bool:
+        count = self._economy.get_pollution_count(agent_id)
+        if count < self.DOWNGRADE_POLLUTION_THRESHOLD:
+            return False
+        credit = self._credit_systems.get(agent_id)
+        if credit is None:
+            return False
+        credit.update_dimension(RatingDimension.SAFETY_COMPLIANCE, max(0.0, 1.0 - count * 0.15))
+        rating_change = credit.evaluate_rating()
+        if rating_change:
+            if self._audit_store:
+                from maref.recursive.unified_audit import UnifiedAuditRecord
+                self._audit_store.append(UnifiedAuditRecord(record_id=f'polltax_downgrade_{agent_id}_{int(time.time() * 1000)}', timestamp=time.time(), layer='economy', round=0, event_type='rating_downgrade', source_module='PollutionTax', target_module=agent_id, decision=f'downgrade_{rating_change.rating.value}', justification=f'Pollution count {count} >= threshold {self.DOWNGRADE_POLLUTION_THRESHOLD}', outcome='downgraded'))
+            if _OTEL_AVAILABLE:
+                _downgrade_counter.add(1, {'agent_id': agent_id})
+            return True
+        return False
+
+    def verify_audit_integrity(self) -> bool:
+        return self._economy.verify_pollution_audit_chain()
+
+    def get_pollution_summary(self, agent_id: str) -> dict[str, Any]:
+        return {'agent_id': agent_id, 'pollution_count': self.get_pollution_count(agent_id), 'current_multiplier': self.get_current_multiplier(agent_id), 'eligible_for_downgrade': self.get_pollution_count(agent_id) >= self.DOWNGRADE_POLLUTION_THRESHOLD}

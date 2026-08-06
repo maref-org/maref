@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class PermissionEntry:
+    role: str
+    hexagram: int
+    allowed_tools: list[str] = field(default_factory=list)
+    denied_tools: list[str] = field(default_factory=list)
+    max_entropy: float = 5.0
+    require_approval: bool = False
+    forbidden_operations: list[str] = field(default_factory=list)
+
+
+DEFAULT_PERMISSIONS: list[PermissionEntry] = [
+    PermissionEntry(
+        role="坎",
+        hexagram=-1,
+        allowed_tools=["search", "query", "list", "fetch", "read"],
+        denied_tools=["write", "delete", "execute", "bash"],
+        max_entropy=5.0,
+        require_approval=False,
+        forbidden_operations=[],
+    ),
+    PermissionEntry(
+        role="震",
+        hexagram=-1,
+        allowed_tools=["write", "edit", "run", "test", "build", "deploy"],
+        denied_tools=["bash", "sudo", "chmod", "chown"],
+        max_entropy=7.0,
+        require_approval=True,
+        forbidden_operations=["rm -rf", "DROP TABLE", "DROP DATABASE"],
+    ),
+    PermissionEntry(
+        role="离",
+        hexagram=-1,
+        allowed_tools=["review", "lint", "validate", "diff", "analyze"],
+        denied_tools=["write", "execute"],
+        max_entropy=4.0,
+        require_approval=False,
+        forbidden_operations=[],
+    ),
+    PermissionEntry(
+        role="坤",
+        hexagram=-1,
+        allowed_tools=["store", "retrieve", "save", "load", "read"],
+        denied_tools=["write", "delete", "execute", "bash"],
+        max_entropy=3.0,
+        require_approval=False,
+        forbidden_operations=[],
+    ),
+    PermissionEntry(
+        role="艮",
+        hexagram=-1,
+        allowed_tools=["audit", "check", "verify", "inspect", "read"],
+        denied_tools=["write", "delete", "execute", "bash"],
+        max_entropy=2.0,
+        require_approval=False,
+        forbidden_operations=["bypass_safety_gate", "disable_hooks"],
+    ),
+]
+
+
+class PermissionMatrix:
+    def __init__(self, permissions: list[PermissionEntry] | None = None) -> None:
+        self._entries: list[PermissionEntry] = permissions or list(DEFAULT_PERMISSIONS)
+
+    def check(self, role: str, tool: str, entropy: float = 0.0) -> bool:
+        for entry in self._entries:
+            if entry.role == role or entry.role == "*":
+                tool_lower = tool.lower()
+                for denied in entry.denied_tools:
+                    if denied in tool_lower:
+                        return False
+                return not entropy > entry.max_entropy
+        return False
+
+    def check_operation(self, role: str, operation: str) -> bool:
+        for entry in self._entries:
+            if entry.role == role:
+                return all(forbidden not in operation for forbidden in entry.forbidden_operations)
+        return False
+
+    def get_permissions(self, role: str) -> PermissionEntry | None:
+        for entry in self._entries:
+            if entry.role == role:
+                return entry
+        return None
+
+    def get_all_permissions(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "role": e.role,
+                "allowed_tools": e.allowed_tools,
+                "denied_tools": e.denied_tools,
+                "max_entropy": e.max_entropy,
+                "require_approval": e.require_approval,
+            }
+            for e in self._entries
+        ]

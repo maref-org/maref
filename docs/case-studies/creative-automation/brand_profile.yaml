@@ -1,0 +1,92 @@
+# MAREF Brand Profile — Standard Format
+#
+# Adapted from alexbeattie/creative-automation-pipeline's brand_profiles/*.yaml
+# schema, extended with MAREF governance hooks so every creative-automation run
+# is audited, brand_profile mutations trigger governance state transitions,
+# and `restricted_phrases` automatically become SafetyGate deny-rules.
+#
+# Origin: https://github.com/alexbeattie/creative-automation-pipeline/blob/main/brand_profiles/trdelnik_co.yaml
+# License: Apache-2.0 (this adaptation); original MIT-compatible
+
+id: maref_demo_tech
+name: MAREF Demo (Tech Brand)
+version: "2026.07.01"
+
+# --- Brand voice (carried over from upstream schema) ---
+voice: >-
+  Precise, engineer-to-engineer, no hype. Speaks like a senior distributed-systems
+  engineer who has shipped to production and learned the hard way. Short sentences,
+  concrete numbers, no superlatives, no hype claims.
+
+palette:
+  - "#0B1F3A"  # deep navy — authority
+  - "#1F6FEB"  # electric blue — verification
+  - "#2EA043"  # git-green — passing tests
+  - "#F7F7F7"  # paper white — negative space
+
+# --- Visual cues the prompt composer MUST include (deterministic contract) ---
+must_include:
+  - clean terminal screenshot with monospace font (JetBrains Mono preferred)
+  - at least one visible state-machine diagram or audit-log excerpt
+  - subtle "verified by TLA+" watermark in bottom-right corner
+  - calm, editorial lighting — no dramatic shadows
+  - tactile, slightly imperfect developer-desk feel
+
+# --- Visual cues the prompt composer MUST refuse (becomes SafetyGate deny-rules) ---
+must_avoid:
+  - human faces or identifiable real persons
+  - competitor logos (LangGraph, CrewAI, AutoGen, OpenAI, Anthropic, Google)
+  - marketing stock-photo aesthetics (handshake, rocket, lightbulb)
+  - text rendered into the image other than the verified-by watermark
+  - weaponization imagery (lock-pick, red alarm, skull)
+
+# --- Phrases the copy localizer MUST refuse (becomes SafetyGate deny-rules) ---
+restricted_phrases:
+  - revolutionary
+  - game-changing
+  - world-class
+  - best-in-class
+  - unbreakable
+  - unhackable
+  - 100% secure
+
+tone_examples:
+  - "Build with LangGraph. Govern with MAREF."
+  - "TLA+ proves it. Audit trail shows it."
+  - "10 states. 5 theorems. Zero drift."
+
+# --- MAREF governance extensions (NOT in upstream schema) ---
+# These fields are what makes a brand_profile a *MAREF* brand_profile: every
+# creative-automation run is governed, audited, and reversible.
+governance:
+  # Skill ID that owns this profile. Mutations to this file must be authorized
+  # by an agent whose AgentCard lists `creative-automation.mutate_brand_profile`
+  # in its capabilities, AND must pass the SafetyGate before write commits.
+  owner_skill: maref-creative-automation
+
+  # Governance state machine enters DECIDE before any prompt is composed from
+  # this profile, transitions to ACT during image generation, and OBSERVE after
+  # the asset is written. A HALT in any upstream agent freezes this profile.
+  state_machine_binding: true
+
+  # restricted_phrases above are automatically compiled into SafetyGate
+  # deny-rules at registry-load time. Any composed prompt matching these
+  # phrases is blocked before reaching the image-generation provider.
+  restricted_phrases_as_safety_rules: true
+
+  # Every prompt composed from this profile is appended to a tamper-evident
+  # audit trail (SHA-256 hash chain). The audit record includes:
+  #   {profile_id, profile_version, brief_hash, composed_prompt_hash, agent_id}
+  audit_trail: true
+
+  # Circuit breaker: if 3 consecutive prompts from this profile are blocked
+  # by SafetyGate, the profile enters HALT and requires human re-authorization.
+  # Prevents a drifted brand_profile from flooding the audit log.
+  circuit_breaker:
+    max_consecutive_blocks: 3
+    cooldown_s: 300
+
+  # Brand-profile version is pinned into every audit record. If the profile
+  # is mutated mid-campaign, prior assets remain reproducible from their
+  # original profile_version snapshot.
+  version_pinning: true

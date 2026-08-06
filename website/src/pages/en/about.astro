@@ -1,0 +1,78 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "About";
+const description = "MAREF is the open-source agent governance operating system — TLA+ formal verification, zero-trust identity, runtime guardrails for multi-agent AI systems.";
+const canonical = "/en/about/";
+---
+
+<BaseLayout {title} {description} {canonical}>
+<NavBar locale="en" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">About <span class="text-brand-accent-blue">MAREF</span></h1>
+    <p class="text-lg text-brand-text-secondary mb-12">Agent governance, rethought from first principles.</p>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">Mission</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        MAREF makes multi-agent AI systems <strong>provably safe</strong>. Not "we hope it's safe." Not "our red team didn't find anything." <em>Provably</em> safe — using TLA+ formal model checking, Lyapunov-validated stability analysis, and cryptographic audit trails.
+      </p>
+      <p class="text-base text-brand-text-secondary leading-relaxed">
+        We believe that as agents become infrastructure — like databases, networks, and DNS — they need infrastructure-grade governance. Not a bolted-on security scanner. A constitutional layer that every agent, every tool call, every decision passes through.
+      </p>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">Why governance-first?</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        Because the data is clear: 88% of organizations already had an AI agent security incident. 94% don't have a mature strategy. Companies spend 17x more on "AI-powered security" than on "securing AI itself."
+      </p>
+      <p class="text-base text-brand-text-secondary leading-relaxed">
+        The market is building agents faster than safety can keep up. MAREF closes that gap — not by slowing development, but by putting guardrails in place so teams can move fast without breaking things.
+      </p>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">What makes MAREF different</h2>
+      <ul class="space-y-4 text-base text-brand-text-secondary leading-relaxed">
+        <li><strong class="text-brand-text-primary">TLA+ formal model checking</strong> — Governance state transitions are model-checked against 5 verified invariants.</li>
+        <li><strong class="text-brand-text-primary">8-layer defense architecture</strong> — From prompt injection to rogue agent detection. Defense in depth isn't a feature; it's the architecture.</li>
+        <li><strong class="text-brand-text-primary">Recursive self-evolution</strong> — The system gets empirically safer over time. FNR -60% over 200 rounds, Lyapunov-validated convergence.</li>
+        <li><strong class="text-brand-text-primary">Zero-trust identity per agent</strong> — Ed25519 signing for every decision. Every action is cryptographically attributable.</li>
+        <li><strong class="text-brand-text-primary">National-grade cryptography</strong> — SM2/SM3/SM4-GCM for compliance with Chinese regulations (GB/T 32918, etc.).</li>
+      </ul>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold tracking-tight mb-4">Project status</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed">
+        MAREF is in active development, released under Apache 2.0. 11,416 tests, 36.1% coverage (target 85%). Available on GitHub at <a href="https://github.com/maref-org/maref" class="text-brand-accent-blue hover:underline">github.com/maref-org/maref</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-bold tracking-tight mb-4">Contact</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed">
+        Technical support: <a href="mailto:admin@maref.cc" class="text-brand-accent-blue hover:underline">admin@maref.cc</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/en/privacy/" class="hover:text-snow-sheet transition-colors">Privacy</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">Contact</a>
+        </p>
+        <p>Apache-2.0 License</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

@@ -1,0 +1,157 @@
+"""
+State Monitor - Shared State Pollution Detection (S5)
+
+Detects anomalous mutations in shared state across agents,
+enforces scope isolation, and auto-quarantines polluting agents.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class PollutionSeverity(str, Enum):
+    CLEAN = "clean"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+@dataclass
+class StateMutationEvent:
+    agent_id: str
+    scope: str
+    key: str
+    old_value: Any
+    new_value: Any
+    timestamp: float = field(default_factory=time.time)
+    delta_ratio: float = 0.0
+
+
+@dataclass
+class PollutionReport:
+    agent_id: str
+    severity: PollutionSeverity
+    reason: str
+    affected_keys: list[str]
+    mutations: list[StateMutationEvent]
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "severity": self.severity.value,
+            "reason": self.reason,
+            "affected_keys": self.affected_keys,
+            "mutation_count": len(self.mutations),
+            "timestamp": self.timestamp,
+        }
+
+
+class SharedStateMonitor:
+    """
+    Monitors shared state for pollution patterns:
+    - Single-variable mutation rate > threshold
+    - Multi-variable simultaneous mutations
+    - Unauthorized cross-scope access
+    """
+
+    def __init__(
+        self,
+        mutation_threshold: float = 0.5,
+        burst_threshold: int = 3,
+        burst_window_seconds: float = 1.0,
+    ) -> None:
+        self.mutation_threshold = mutation_threshold
+        self.burst_threshold = burst_threshold
+        self.burst_window_seconds = burst_window_seconds
+        self._history: list[StateMutationEvent] = []
+        self._quarantined_agents: set[str] = set()
+
+    def record_mutation(
+        self,
+        agent_id: str,
+        scope: str,
+        key: str,
+        old_value: Any,
+        new_value: Any,
+    ) -> PollutionReport | None:
+        """Record a state mutation and return a report if pollution is detected."""
+        if agent_id in self._quarantined_agents:
+            return PollutionReport(
+                agent_id=agent_id,
+                severity=PollutionSeverity.CRITICAL,
+                reason="Agent is quarantined but attempted state mutation",
+                affected_keys=[key],
+                mutations=[],
+            )
+
+        delta_ratio = self._compute_delta_ratio(old_value, new_value)
+        event = StateMutationEvent(
+            agent_id=agent_id,
+            scope=scope,
+            key=key,
+            old_value=old_value,
+            new_value=new_value,
+            delta_ratio=delta_ratio,
+        )
+        self._history.append(event)
+
+        # Check for burst mutations
+        recent = [
+            e
+            for e in self._history
+            if e.agent_id == agent_id and e.timestamp >= time.time() - self.burst_window_seconds
+        ]
+
+        if delta_ratio > self.mutation_threshold:
+            return PollutionReport(
+                agent_id=agent_id,
+                severity=PollutionSeverity.HIGH,
+                reason=f"Single-variable mutation rate exceeded threshold ({delta_ratio:.2f} > {self.mutation_threshold})",
+                affected_keys=[key],
+                mutations=recent,
+            )
+
+        if len(recent) > self.burst_threshold:
+            return PollutionReport(
+                agent_id=agent_id,
+                severity=PollutionSeverity.MEDIUM,
+                reason=f"Burst mutation detected ({len(recent)} mutations in {self.burst_window_seconds}s)",
+                affected_keys=list({e.key for e in recent}),
+                mutations=recent,
+            )
+
+        return None
+
+    def _compute_delta_ratio(self, old: Any, new: Any) -> float:
+        """Compute normalized mutation ratio."""
+        try:
+            if isinstance(old, (int, float)) and isinstance(new, (int, float)):
+                if old == 0:
+                    return 1.0 if new != 0 else 0.0
+                return abs((new - old) / old)
+            # For non-numeric types, any change is full mutation
+            return 1.0 if old != new else 0.0
+        except Exception:
+            return 1.0
+
+    def quarantine(self, agent_id: str) -> None:
+        """Quarantine an agent - block all its state mutations."""
+        self._quarantined_agents.add(agent_id)
+
+    def unquarantine(self, agent_id: str) -> None:
+        """Remove agent from quarantine."""
+        self._quarantined_agents.discard(agent_id)
+
+    def is_quarantined(self, agent_id: str) -> bool:
+        return agent_id in self._quarantined_agents
+
+    def get_history(self, agent_id: str | None = None) -> list[StateMutationEvent]:
+        if agent_id:
+            return [e for e in self._history if e.agent_id == agent_id]
+        return list(self._history)

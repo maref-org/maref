@@ -1,0 +1,180 @@
+{
+  "name": "gui",
+  "private": true,
+  "version": "0.52.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"pnpm dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "tsc -b && vite build && electron-builder",
+    "electron:build:mac": "pnpm electron:build --mac",
+    "electron:build:win": "pnpm electron:build --win",
+    "electron:build:linux": "pnpm electron:build --linux",
+    "generate:types": "openapi-typescript openapi-schema.json -o src/types/api.d.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
+    "@tanstack/react-query": "^5.100.9",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "electron-window-state": "^5.0.3",
+    "i18next": "^26.3.4",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-i18next": "^17.0.8",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.5.0",
+    "web-vitals": "^5.3.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@lhci/cli": "^0.14.0",
+    "@tailwindcss/vite": "^4.3.0",
+    "@tauri-apps/api": "^2.11.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "concurrently": "^10.0.3",
+    "electron": "41.3.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.0.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.61.0",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.7",
+    "wait-on": "^9.0.10"
+  },
+  "build": {
+    "appId": "com.maref.agent",
+    "productName": "MAREF Agent",
+    "copyright": "Copyright 2026 MAREF",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "asar": true,
+    "compression": "maximum",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "notarize": {
+        "teamId": "${APPLE_TEAM_ID}"
+      },
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Development",
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  },
+  "bundlesize": [
+    {
+      "path": "./dist/assets/*.js",
+      "maxSize": "350 kB"
+    },
+    {
+      "path": "./dist/assets/*.css",
+      "maxSize": "50 kB"
+    }
+  ],
+  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8",
+  "pnpm": {
+    "overrides": {
+      "axios": "^1.18.0",
+      "form-data": "^4.0.6",
+      "undici": "^7.28.0",
+      "shell-quote": "^1.9.0",
+      "tmp@<0.2.6": "^0.2.6",
+      "js-yaml@3": "^3.15.0",
+      "js-yaml@>=4": "^4.3.0",
+      "ws@<8": "^7.5.11",
+      "ws@>=8": "^8.21.0",
+      "brace-expansion": "^5.0.8"
+    }
+  }
+}

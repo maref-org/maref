@@ -1,0 +1,138 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+
+
+class RolePhase(str, Enum):
+    REGISTERED = "registered"
+    SANDBOX = "sandbox"
+    SHADOW = "shadow"
+    STABLE = "stable"
+    DEPRECATED = "deprecated"
+    REVOKED = "revoked"
+
+
+VALID_TRANSITIONS: dict[RolePhase, list[RolePhase]] = {
+    RolePhase.REGISTERED: [RolePhase.SANDBOX, RolePhase.REVOKED],
+    RolePhase.SANDBOX: [RolePhase.SHADOW, RolePhase.REVOKED],
+    RolePhase.SHADOW: [RolePhase.STABLE, RolePhase.SANDBOX, RolePhase.REVOKED],
+    RolePhase.STABLE: [RolePhase.SHADOW, RolePhase.DEPRECATED, RolePhase.REVOKED],
+    RolePhase.DEPRECATED: [RolePhase.REVOKED],
+    RolePhase.REVOKED: [],
+}
+
+
+@dataclass
+class RoleLifecycleState:
+    phase: RolePhase = RolePhase.REGISTERED
+    registered_at: float = field(default_factory=time.time)
+    sandbox_started_at: float | None = None
+    shadow_started_at: float | None = None
+    stable_at: float | None = None
+    revoked_at: float | None = None
+    safety_incidents: int = 0
+    consecutive_trust_failures: int = 0
+    human_approved: bool = False
+    current_trust_score: float = 0.0
+
+
+class RoleLifecycle:
+    def __init__(self, state: RoleLifecycleState | None = None) -> None:
+        self._state = state or RoleLifecycleState()
+
+    @property
+    def phase(self) -> RolePhase:
+        return self._state.phase
+
+    @property
+    def state_data(self) -> RoleLifecycleState:
+        return self._state
+
+    def promote(self) -> tuple[bool, str]:
+        current = self._state.phase
+        if current == RolePhase.REGISTERED:
+            return self._promote_to_sandbox()
+        elif current == RolePhase.SANDBOX:
+            return self._promote_to_shadow()
+        elif current == RolePhase.SHADOW:
+            return self._promote_to_stable()
+        return (False, f"No promotion path from {current}")
+
+    def _promote_to_sandbox(self) -> tuple[bool, str]:
+        now = time.time()
+        self._state.phase = RolePhase.SANDBOX
+        self._state.sandbox_started_at = now
+        return (True, "Promoted to SANDBOX")
+
+    def _promote_to_shadow(self) -> tuple[bool, str]:
+        if self._state.sandbox_started_at is None:
+            return (False, "No sandbox history")
+        elapsed_hours = (time.time() - self._state.sandbox_started_at) / 3600
+        if elapsed_hours < 48:
+            return (False, f"Need 48h in sandbox, only {elapsed_hours:.1f}h elapsed")
+        if self._state.safety_incidents > 0:
+            return (False, f"Cannot promote: {self._state.safety_incidents} safety incidents")
+        self._state.phase = RolePhase.SHADOW
+        self._state.shadow_started_at = time.time()
+        return (True, "Promoted to SHADOW (5% traffic, 168h)")
+
+    def _promote_to_stable(self) -> tuple[bool, str]:
+        if self._state.shadow_started_at is None:
+            return (False, "No shadow history")
+        elapsed_hours = (time.time() - self._state.shadow_started_at) / 3600
+        if elapsed_hours < 168:
+            return (False, f"Need 168h in shadow, only {elapsed_hours:.1f}h elapsed")
+        if self._state.safety_incidents > 0:
+            return (False, f"Cannot promote: {self._state.safety_incidents} safety incidents")
+        if not self._state.human_approved:
+            return (False, "Human Gate approval required")
+        self._state.phase = RolePhase.STABLE
+        self._state.stable_at = time.time()
+        return (True, "Promoted to STABLE")
+
+    def demote(self, reason: str = "") -> tuple[bool, str]:
+        current = self._state.phase
+        if current == RolePhase.STABLE and reason == "safety_incident":
+            self._state.phase = RolePhase.SHADOW
+            self._state.safety_incidents += 1
+            return (True, f"Demoted to SHADOW: {reason}")
+        if current == RolePhase.SHADOW and reason == "safety_incident":
+            self._state.phase = RolePhase.SANDBOX
+            self._state.safety_incidents += 1
+            return (True, f"Demoted to SANDBOX: {reason}")
+        return (False, f"Cannot demote from {current} with reason '{reason}'")
+
+    def handle_trust_below_threshold(self, threshold: float) -> tuple[bool, str]:
+        if self._state.current_trust_score < threshold:
+            self._state.consecutive_trust_failures += 1
+            if self._state.consecutive_trust_failures >= 3:
+                self._state.phase = RolePhase.REVOKED
+                self._state.revoked_at = time.time()
+                return (True, f"REVOKED: trust below {threshold} for 3 consecutive checks")
+            return (False, f"Trust below threshold: {self._state.consecutive_trust_failures}/3")
+        self._state.consecutive_trust_failures = 0
+        return (False, "Trust OK")
+
+    def record_safety_incident(self) -> None:
+        self._state.safety_incidents += 1
+
+    def human_approve(self) -> None:
+        self._state.human_approved = True
+
+    def deprecate(self) -> tuple[bool, str]:
+        if self._state.phase == RolePhase.STABLE:
+            self._state.phase = RolePhase.DEPRECATED
+            return (True, "Deprecated")
+        return (False, "Only STABLE roles can be deprecated")
+
+    def revoke(self) -> tuple[bool, str]:
+        if self._state.phase != RolePhase.REVOKED:
+            self._state.phase = RolePhase.REVOKED
+            self._state.revoked_at = time.time()
+            return (True, "Revoked")
+        return (False, "Already revoked")
+
+    def is_valid_transition(self, from_phase: RolePhase, to_phase: RolePhase) -> bool:
+        return to_phase in VALID_TRANSITIONS.get(from_phase, [])

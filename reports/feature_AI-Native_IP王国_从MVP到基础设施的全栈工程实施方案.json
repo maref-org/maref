@@ -1,0 +1,94 @@
+{
+  "feature_name": "AI-Native IP王国：从MVP到基础设施的全栈工程实施方案",
+  "total_cycles": 3,
+  "total_duration_seconds": 0.0,
+  "overall_trend": "converging",
+  "layer_trends": [
+    {
+      "layer_name": "Static Audit",
+      "scores": [
+        55.609756097560975,
+        100.0,
+        100.0
+      ],
+      "direction": "converging",
+      "slope": 0.0,
+      "current_gap": 0.0,
+      "is_on_track": true
+    },
+    {
+      "layer_name": "Reasoning Metrics",
+      "scores": [
+        86.0,
+        100.0,
+        100.0
+      ],
+      "direction": "converging",
+      "slope": 0.0,
+      "current_gap": 0.0,
+      "is_on_track": true
+    },
+    {
+      "layer_name": "Action Metrics",
+      "scores": [
+        80.0,
+        95.0,
+        95.0
+      ],
+      "direction": "converging",
+      "slope": 0.0,
+      "current_gap": 0.0,
+      "is_on_track": true
+    },
+    {
+      "layer_name": "E2E Metrics",
+      "scores": [
+        46.666666666666664,
+        78.33333333333333,
+        78.33333333333333
+      ],
+      "direction": "converging",
+      "slope": 0.0,
+      "current_gap": 1.7,
+      "is_on_track": true
+    },
+    {
+      "layer_name": "MAS Dimensions",
+      "scores": [
+        44.0,
+        100.0,
+        100.0
+      ],
+      "direction": "converging",
+      "slope": 0.0,
+      "current_gap": 0.0,
+      "is_on_track": true
+    }
+  ],
+  "deploy_ready": true,
+  "deploy_gates": {
+    "overall_score >= 80": true,
+    "all_layers_on_track": true,
+    "no_diverging_trends": true
+  },
+  "recommendations": [
+    "All gates pass. Feature is deploy-ready."
+  ],
+  "avg_score": 94.7,
+  "cycle_scores": [
+    63.7,
+    94.4,
+    94.4
+  ],
+  "final_decision": "GO (score=94.4)",
+  "budget_spent": 257.25,
+  "content_stats": {
+    "characters": 3,
+    "scripts": 6,
+    "stages_covered": [
+      "mixed",
+      "mvp"
+    ],
+    "reqs_covered": 41
+  }
+}

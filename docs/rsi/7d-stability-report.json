@@ -1,0 +1,79 @@
+{
+  "duration_hours": 1.1916955312093098e-06,
+  "total_days": 7,
+  "passed": true,
+  "degradations": [],
+  "overall_self_heal_rate": 0.6058994197292069,
+  "daily_reports": [
+    {
+      "day": 1,
+      "experiment_count": 1440,
+      "adoption_rate": 1.0,
+      "avg_score": 100,
+      "self_heal_count": 71,
+      "self_heal_successes": 45,
+      "safety_alerts": 71,
+      "human_interventions": 0
+    },
+    {
+      "day": 2,
+      "experiment_count": 2880,
+      "adoption_rate": 1.0,
+      "avg_score": 100,
+      "self_heal_count": 140,
+      "self_heal_successes": 88,
+      "safety_alerts": 69,
+      "human_interventions": 0
+    },
+    {
+      "day": 3,
+      "experiment_count": 4320,
+      "adoption_rate": 1.0,
+      "avg_score": 100,
+      "self_heal_count": 227,
+      "self_heal_successes": 136,
+      "safety_alerts": 87,
+      "human_interventions": 0
+    },
+    {
+      "day": 4,
+      "experiment_count": 5760,
+      "adoption_rate": 1.0,
+      "avg_score": 100,
+      "self_heal_count": 310,
+      "self_heal_successes": 188,
+      "safety_alerts": 83,
+      "human_interventions": 0
+    },
+    {
+      "day": 5,
+      "experiment_count": 7200,
+      "adoption_rate": 1.0,
+      "avg_score": 100,
+      "self_heal_count": 367,
+      "self_heal_successes": 221,
+      "safety_alerts": 57,
+      "human_interventions": 0
+    },
+    {
+      "day": 6,
+      "experiment_count": 8640,
+      "adoption_rate": 1.0,
+      "avg_score": 100,
+      "self_heal_count": 440,
+      "self_heal_successes": 266,
+      "safety_alerts": 73,
+      "human_interventions": 0
+    },
+    {
+      "day": 7,
+      "experiment_count": 10080,
+      "adoption_rate": 1.0,
+      "avg_score": 100,
+      "self_heal_count": 513,
+      "self_heal_successes": 309,
+      "safety_alerts": 73,
+      "human_interventions": 0
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "MAREF: Multi-Agent Recursive Evolution Framework — Agent Governance Operating System"
+message: "If you use MAREF in your research, please cite this work."
+type: software
+authors:
+  - name: "MAREF Team"
+    affiliation: "MAREF Project"
+version: "0.35.0-beta"
+date-released: "2026-06-25"
+license: Apache-2.0
+license-url: "https://www.apache.org/licenses/LICENSE-2.0"
+repository-code: "https://github.com/maref-org/maref"
+url: "https://maref.cc"
+keywords:
+  - agent-framework
+  - ai-governance
+  - formal-verification
+  - multi-agent
+  - state-machine
+  - tla-plus
+  - recursive-evolution
+abstract: >-
+  MAREF is an Agent Governance Operating System implementing a six-layer
+  recursive governance architecture with an Eight-Trigrams trust state machine
+  based on Gray Code transitions. It provides G1-G5 governance auditors,
+  MCP bridging, TLA+ formal specifications, and a desktop GUI.

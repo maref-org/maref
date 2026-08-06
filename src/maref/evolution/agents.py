@@ -1,0 +1,496 @@
+"""
+MAREF Governance Agent Roles & Grouping Mechanism
+
+Defines governance agents, share groups, and parameter sharing modes
+for multi-agent collaborative governance optimization.
+
+Key concepts:
+- GovernanceAgent: A role-specific governance entity with its own policy,
+  reward function, and experience tracking.
+- ShareGroup: A collection of agents that share policy parameters for
+  joint gradient updates.
+- ShareMode: Controls how parameters are shared within a group.
+
+Design principles:
+- Decouples logical governance roles from physical policy parameters
+- Enables full sharing, full separation, and partial sharing patterns
+- Backward compatible: single-strategy mode remains the default
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+from drift_guard.types import PipelineConfig
+
+
+class ShareMode(Enum):
+    """Parameter sharing mode within a governance agent group."""
+
+    FULL_SHARING = "full_sharing"
+    """All agents in the group share identical policy weights."""
+
+    FULL_SEPARATION = "full_separation"
+    """Each agent in the group maintains independent policy weights."""
+
+    PARTIAL_SHARING = "partial_sharing"
+    """Agents share some policy layers while keeping others independent."""
+
+
+class AgentRole(Enum):
+    """Logical governance role categories."""
+
+    DETECTOR = "detector"
+    """Anomaly detection, drift monitoring, threshold evaluation."""
+
+    EVALUATOR = "evaluator"
+    """Trust scoring, risk assessment, compliance checking."""
+
+    OPTIMIZER = "optimizer"
+    """Policy weight adjustment, threshold tuning, configuration optimization."""
+
+    ENFORCER = "enforcer"
+    """Circuit breaker, safety gate, constitution guard enforcement."""
+
+
+@dataclass
+class GovernanceAgentConfig:
+    """Configuration for a single governance agent role."""
+
+    agent_id: str
+    role: AgentRole
+    share_group: str = "default"
+    share_mode: ShareMode = ShareMode.FULL_SHARING
+    policy_features: list[str] = field(
+        default_factory=lambda: [
+            "entropy_penalty",
+            "stability_bonus",
+            "transition_efficiency",
+        ]
+    )
+    initial_weights: dict[str, float] = field(default_factory=dict)
+    learning_rate: float = 0.02
+    reward_weight: float = 1.0
+    """Weight for this agent's contribution to round-level aggregate reward."""
+
+    def __post_init__(self) -> None:
+        if not self.agent_id:
+            raise ValueError("agent_id must be non-empty")
+        if not self.policy_features:
+            raise ValueError("policy_features must be non-empty")
+        if self.learning_rate <= 0:
+            raise ValueError("learning_rate must be positive")
+        if self.reward_weight <= 0:
+            raise ValueError("reward_weight must be positive")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "role": self.role.value,
+            "share_group": self.share_group,
+            "share_mode": self.share_mode.value,
+            "policy_features": self.policy_features,
+            "initial_weights": self.initial_weights,
+            "learning_rate": self.learning_rate,
+            "reward_weight": self.reward_weight,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> GovernanceAgentConfig:
+        return cls(
+            agent_id=data["agent_id"],
+            role=AgentRole(data["role"]),
+            share_group=data.get("share_group", "default"),
+            share_mode=ShareMode(data.get("share_mode", ShareMode.FULL_SHARING.value)),
+            policy_features=data.get(
+                "policy_features",
+                [
+                    "entropy_penalty",
+                    "stability_bonus",
+                    "transition_efficiency",
+                ],
+            ),
+            initial_weights=data.get("initial_weights", {}),
+            learning_rate=data.get("learning_rate", 0.02),
+            reward_weight=data.get("reward_weight", 1.0),
+        )
+
+
+@dataclass
+class AgentPolicyState:
+    """Runtime policy state for a governance agent."""
+
+    policy_weights: dict[str, float]
+    total_reward: float = 0.0
+    episode_count: int = 0
+    learning_rate: float = 0.02
+    gradient_norm: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "policy_weights": self.policy_weights,
+            "total_reward": self.total_reward,
+            "episode_count": self.episode_count,
+            "learning_rate": self.learning_rate,
+            "gradient_norm": self.gradient_norm,
+        }
+
+
+class GovernanceAgent:
+    """
+    A role-specific governance entity with independent policy and reward tracking.
+
+    Each GovernanceAgent:
+    - Maintains its own policy weights for its assigned features
+    - Accumulates role-specific rewards for credit assignment
+    - Participates in a ShareGroup for joint policy updates
+    - Operates within constitutional safety constraints
+
+    Usage:
+        config = GovernanceAgentConfig(
+            agent_id="anomaly_detector",
+            role=AgentRole.DETECTOR,
+            share_group="detectors",
+            policy_features=["entropy_penalty", "stability_bonus"],
+        )
+        agent = GovernanceAgent(config)
+        agent.record_reward(0.8)
+        new_weights = agent.step_gradient({"entropy_penalty": 0.1, "stability_bonus": -0.05})
+    """
+
+    def __init__(self, config: GovernanceAgentConfig) -> None:
+        self._config = config
+        self._policy = AgentPolicyState(
+            policy_weights=dict(config.initial_weights)
+            if config.initial_weights
+            else dict.fromkeys(config.policy_features, 0.0),
+            learning_rate=config.learning_rate,
+        )
+        self._run_id = str(uuid.uuid4())[:8]
+
+    @property
+    def agent_id(self) -> str:
+        return self._config.agent_id
+
+    @property
+    def role(self) -> AgentRole:
+        return self._config.role
+
+    @property
+    def share_group(self) -> str:
+        return self._config.share_group
+
+    @property
+    def share_mode(self) -> ShareMode:
+        return self._config.share_mode
+
+    @property
+    def policy_features(self) -> list[str]:
+        return list(self._config.policy_features)
+
+    @property
+    def policy_weights(self) -> dict[str, float]:
+        return dict(self._policy.policy_weights)
+
+    @property
+    def learning_rate(self) -> float:
+        return self._policy.learning_rate
+
+    @property
+    def total_reward(self) -> float:
+        return self._policy.total_reward
+
+    @property
+    def episode_count(self) -> int:
+        return self._policy.episode_count
+
+    @property
+    def gradient_norm(self) -> float:
+        return self._policy.gradient_norm
+
+    @property
+    def reward_weight(self) -> float:
+        return self._config.reward_weight
+
+    @property
+    def run_id(self) -> str:
+        return self._run_id
+
+    def record_reward(self, reward: float) -> None:
+        """Record a reward signal for this agent."""
+        self._policy.total_reward += reward
+        self._policy.episode_count += 1
+
+    def step_gradient(self, gradient: dict[str, float]) -> dict[str, float]:
+        """
+        Apply one policy gradient step.
+
+        Args:
+            gradient: Estimated gradient per policy feature.
+                     Only keys matching policy_features are applied.
+
+        Returns:
+            Updated policy weights after the gradient step.
+        """
+        lr = self._policy.learning_rate
+
+        for feature in self._config.policy_features:
+            if feature in gradient:
+                grad_value = gradient[feature]
+                self._policy.policy_weights[feature] += lr * grad_value
+
+        self._clip_weights()
+
+        grad_norm = sum(v * v for v in gradient.values()) ** 0.5
+        self._policy.gradient_norm = grad_norm
+
+        return dict(self._policy.policy_weights)
+
+    def update_learning_rate(self, new_lr: float) -> None:
+        """Update the agent's learning rate."""
+        if new_lr <= 0:
+            raise ValueError("learning_rate must be positive")
+        self._policy.learning_rate = new_lr
+
+    def reset_policy(self) -> None:
+        """Reset policy weights to initial values."""
+        self._policy.policy_weights = (
+            dict(self._config.initial_weights)
+            if self._config.initial_weights
+            else dict.fromkeys(self._config.policy_features, 0.0)
+        )
+        self._policy.total_reward = 0.0
+        self._policy.episode_count = 0
+        self._policy.gradient_norm = 0.0
+
+    def propose_config_change(self) -> PipelineConfig | None:
+        """
+        Propose a drift detection pipeline config change based on current policy.
+
+        Returns None if the agent's policy is not strong enough to warrant a change.
+        """
+        weights = self._policy.policy_weights
+        total_weight = sum(abs(w) for w in weights.values())
+
+        if total_weight < 0.01:
+            return None
+
+        adjustment = sum(weights.values()) * 0.1
+
+        return PipelineConfig(
+            kl_warning=max(0.01, 0.1 + adjustment),
+            kl_critical=max(0.1, 0.5 + adjustment * 2),
+            kl_max=max(0.5, 1.0 + adjustment * 3),
+            hellinger_warning=0.2,
+            hellinger_critical=0.5,
+            check_interval_seconds=60.0,
+            review_timeout_seconds=300.0,
+            reset_cooldown_seconds=60.0,
+            reset_on_critical=True,
+        )
+
+    def _clip_weights(self, max_magnitude: float = 1.0) -> None:
+        """Clip policy weights to prevent runaway optimization."""
+        for feature in self._config.policy_features:
+            w = self._policy.policy_weights[feature]
+            self._policy.policy_weights[feature] = max(-max_magnitude, min(max_magnitude, w))
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "role": self.role.value,
+            "share_group": self.share_group,
+            "share_mode": self.share_mode.value,
+            "policy": self._policy.to_dict(),
+            "run_id": self.run_id,
+        }
+
+    def __repr__(self) -> str:
+        return (
+            f"GovernanceAgent(id={self.agent_id!r}, role={self.role.value!r}, "
+            f"group={self.share_group!r}, weights={len(self._policy.policy_weights)})"
+        )
+
+
+@dataclass
+class ShareGroupConfig:
+    """Configuration for a parameter sharing group."""
+
+    group_id: str
+    share_mode: ShareMode = ShareMode.FULL_SHARING
+    aggregation_method: str = "mean"
+    """How to aggregate gradients: 'mean', 'sum', or 'weighted_mean'."""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "group_id": self.group_id,
+            "share_mode": self.share_mode.value,
+            "aggregation_method": self.aggregation_method,
+        }
+
+
+class ShareGroup:
+    """
+    A group of governance agents that share policy parameters.
+
+    Supports three sharing modes:
+    - FULL_SHARING: All agents share identical weights; gradients are aggregated.
+    - FULL_SEPARATION: Agents keep independent weights (group acts as organizer only).
+    - PARTIAL_SHARING: Reserved for future layer-level sharing control.
+
+    Usage:
+        group = ShareGroup("detectors", ShareMode.FULL_SHARING)
+        group.add_agent(agent_a)
+        group.add_agent(agent_b)
+        aggregated_gradient = group.aggregate_gradients({"entropy_penalty": {...}})
+        group.apply_update(aggregated_gradient, learning_rate=0.02)
+    """
+
+    def __init__(self, config: ShareGroupConfig) -> None:
+        self._config = config
+        self._agents: dict[str, GovernanceAgent] = {}
+
+    @property
+    def group_id(self) -> str:
+        return self._config.group_id
+
+    @property
+    def share_mode(self) -> ShareMode:
+        return self._config.share_mode
+
+    @property
+    def agents(self) -> dict[str, GovernanceAgent]:
+        return dict(self._agents)
+
+    @property
+    def agent_count(self) -> int:
+        return len(self._agents)
+
+    def add_agent(self, agent: GovernanceAgent) -> None:
+        """Add a governance agent to this sharing group."""
+        if agent.share_group != self._config.group_id:
+            raise ValueError(
+                f"Agent {agent.agent_id} belongs to group '{agent.share_group}', "
+                f"cannot add to group '{self._config.group_id}'"
+            )
+        self._agents[agent.agent_id] = agent
+
+    def remove_agent(self, agent_id: str) -> GovernanceAgent | None:
+        """Remove an agent from this group."""
+        return self._agents.pop(agent_id, None)
+
+    def aggregate_gradients(
+        self,
+        per_agent_gradients: dict[str, dict[str, float]],
+    ) -> dict[str, float]:
+        """
+        Aggregate per-agent gradients according to the group's sharing mode.
+
+        Args:
+            per_agent_gradients: {agent_id: {feature: gradient_value}}
+
+        Returns:
+            Aggregated gradient for the group's shared policy.
+        """
+        if not per_agent_gradients:
+            return {}
+
+        method = self._config.aggregation_method
+
+        if method == "mean":
+            return self._aggregate_mean(per_agent_gradients)
+        elif method == "sum":
+            return self._aggregate_sum(per_agent_gradients)
+        elif method == "weighted_mean":
+            return self._aggregate_weighted_mean(per_agent_gradients)
+        else:
+            raise ValueError(f"Unknown aggregation method: {method}")
+
+    def _aggregate_mean(self, gradients: dict[str, dict[str, float]]) -> dict[str, float]:
+        all_features: set[str] = set()
+        for g in gradients.values():
+            all_features.update(g.keys())
+
+        result: dict[str, float] = {}
+        for feature in all_features:
+            values = [g[feature] for g in gradients.values() if feature in g]
+            if values:
+                result[feature] = sum(values) / len(values)
+        return result
+
+    def _aggregate_sum(self, gradients: dict[str, dict[str, float]]) -> dict[str, float]:
+        all_features: set[str] = set()
+        for g in gradients.values():
+            all_features.update(g.keys())
+
+        result: dict[str, float] = {}
+        for feature in all_features:
+            values = [g[feature] for g in gradients.values() if feature in g]
+            if values:
+                result[feature] = sum(values)
+        return result
+
+    def _aggregate_weighted_mean(self, gradients: dict[str, dict[str, float]]) -> dict[str, float]:
+        all_features: set[str] = set()
+        for g in gradients.values():
+            all_features.update(g.keys())
+
+        result: dict[str, float] = {}
+        for feature in all_features:
+            weighted_sum = 0.0
+            weight_total = 0.0
+            for agent_id, g in gradients.items():
+                if feature in g:
+                    agent = self._agents.get(agent_id)
+                    w = agent.reward_weight if agent else 1.0
+                    weighted_sum += w * g[feature]
+                    weight_total += w
+            if weight_total > 0:
+                result[feature] = weighted_sum / weight_total
+        return result
+
+    def apply_update(
+        self,
+        aggregated_gradient: dict[str, float],
+        learning_rate: float,
+    ) -> dict[str, dict[str, float]]:
+        """
+        Apply aggregated gradient to all agents in the group.
+
+        Returns:
+            {agent_id: updated_weights} for each agent in the group.
+        """
+        results: dict[str, dict[str, float]] = {}
+
+        for agent in self._agents.values():
+            if self._config.share_mode == ShareMode.FULL_SHARING:
+                updated = agent.step_gradient(aggregated_gradient)
+            elif self._config.share_mode == ShareMode.FULL_SEPARATION:
+                agent.update_learning_rate(learning_rate)
+                per_agent_grad = {f: aggregated_gradient.get(f, 0.0) for f in agent.policy_features}
+                updated = agent.step_gradient(per_agent_grad)
+            else:
+                per_agent_grad = {f: aggregated_gradient.get(f, 0.0) for f in agent.policy_features}
+                updated = agent.step_gradient(per_agent_grad)
+
+            results[agent.agent_id] = updated
+
+        return results
+
+    def get_group_stats(self) -> dict[str, Any]:
+        return {
+            "group_id": self.group_id,
+            "share_mode": self.share_mode.value,
+            "aggregation_method": self._config.aggregation_method,
+            "agent_count": self.agent_count,
+            "agents": {aid: agent.get_stats() for aid, agent in self._agents.items()},
+        }
+
+    def __repr__(self) -> str:
+        return (
+            f"ShareGroup(id={self.group_id!r}, mode={self.share_mode.value!r}, "
+            f"agents={self.agent_count})"
+        )

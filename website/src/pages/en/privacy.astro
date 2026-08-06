@@ -1,0 +1,77 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+const title = "Privacy Policy";
+const description = "MAREF privacy policy — what data we collect, how we use it, and your rights.";
+const canonical = "/en/privacy";
+---
+
+<BaseLayout {title} {description} {canonical}>
+<NavBar locale="en" />
+
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">Privacy Policy</h1>
+    <p class="text-sm text-brand-text-muted mb-12">Last updated: June 13, 2026</p>
+
+    <div class="prose-custom text-brand-text-secondary leading-relaxed space-y-6 text-base">
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">1. What we collect</h2>
+        <p>MAREF the open-source framework collects nothing. The software runs entirely on your infrastructure and no telemetry is sent anywhere.</p>
+        <p>This website (maref.cc) collects standard web server logs: page requests, referring URLs, browser user-agent strings, and IP addresses. We use this data for aggregate traffic analysis only.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">2. Cookies</h2>
+        <p>This website does not use tracking cookies, analytics cookies, or any form of persistent client-side storage for tracking purposes. Cloudflare may set essential cookies for CDN functionality and security (e.g., bot mitigation). These are strictly operational.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">3. How we use data</h2>
+        <p>Server log data is used exclusively for:</p>
+        <ul class="list-disc pl-6 space-y-1">
+          <li>Diagnosing and fixing website issues</li>
+          <li>Understanding aggregate traffic patterns (which pages are visited, from which regions)</li>
+          <li>Protecting the website from abuse and attacks</li>
+        </ul>
+        <p>We do not sell, share, or otherwise transfer your data to third parties.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">4. Data retention</h2>
+        <p>Web server logs are retained for a maximum of 30 days and then automatically deleted.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">5. Third-party services</h2>
+        <p>This website is hosted on Cloudflare Pages. Cloudflare's privacy policy applies to data processed by their infrastructure. We do not use any additional third-party analytics, tracking, or advertising services.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">6. Your rights</h2>
+        <p>Depending on your jurisdiction, you may have rights regarding your personal data, including access, correction, deletion, and portability. To exercise these rights, contact us at admin@maref.cc.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-brand-text-primary mt-8 mb-3">7. Contact</h2>
+        <p>For privacy-related inquiries: <a href="mailto:admin@maref.cc" class="text-brand-accent-blue hover:underline">admin@maref.cc</a></p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/en/privacy/" class="hover:text-snow-sheet transition-colors">Privacy</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">Contact</a>
+        </p>
+        <p>Apache-2.0 License</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

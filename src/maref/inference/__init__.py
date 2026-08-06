@@ -1,0 +1,19 @@
+"""MAREF inference pipeline — GPU-accelerated model inference."""
+
+from maref.inference.memory_trust import (
+    GPUPipelineConfig,
+    InferenceBackend,
+    MemoryCell,
+    MemoryThreeTemperature,
+    MemoryTier,
+    TrustAntiGaming,
+)
+
+__all__ = [
+    "GPUPipelineConfig",
+    "InferenceBackend",
+    "MemoryCell",
+    "MemoryThreeTemperature",
+    "MemoryTier",
+    "TrustAntiGaming",
+]

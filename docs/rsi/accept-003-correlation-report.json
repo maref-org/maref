@@ -1,0 +1,84 @@
+{
+  "_disclaimer": "SIMULATED DATA - NOT VALID ACCEPTANCE EVIDENCE. reviewer_3 is simulated, not a real human reviewer. ACCEPT-003 requires >=3 real human reviewers.",
+  "valid": false,
+  "acceptance_id": "ACCEPT-003",
+  "title": "人类评审员关联性评估",
+  "reviewer_count": 3,
+  "total_rounds": 42,
+  "dimensions": [
+    "correctness",
+    "testing",
+    "code_quality",
+    "security",
+    "efficiency",
+    "adoption"
+  ],
+  "threshold": 0.75,
+  "average_correlation": 0.833,
+  "passed": true,
+  "automated_vs_human_correlation": {
+    "correctness": {
+      "reviewer_1": 0.934,
+      "reviewer_2": 0.676,
+      "reviewer_3": 0.938
+    },
+    "testing": {
+      "reviewer_1": 0.948,
+      "reviewer_2": 0.725,
+      "reviewer_3": 0.933
+    },
+    "code_quality": {
+      "reviewer_1": 0.977,
+      "reviewer_2": 0.883,
+      "reviewer_3": 0.959
+    },
+    "security": {
+      "reviewer_1": 0.984,
+      "reviewer_2": 0.896,
+      "reviewer_3": 0.99
+    },
+    "efficiency": {
+      "reviewer_1": 0.972,
+      "reviewer_2": 0.792,
+      "reviewer_3": 0.954
+    },
+    "adoption": {
+      "reviewer_1": 0.758,
+      "reviewer_2": 0.098,
+      "reviewer_3": 0.585
+    }
+  },
+  "inter_rater_agreement": {
+    "correctness": {
+      "r1_r2": 0.617,
+      "r1_r3": 0.874,
+      "r2_r3": 0.636
+    },
+    "testing": {
+      "r1_r2": 0.694,
+      "r1_r3": 0.89,
+      "r2_r3": 0.685
+    },
+    "code_quality": {
+      "r1_r2": 0.888,
+      "r1_r3": 0.925,
+      "r2_r3": 0.876
+    },
+    "security": {
+      "r1_r2": 0.895,
+      "r1_r3": 0.974,
+      "r2_r3": 0.892
+    },
+    "efficiency": {
+      "r1_r2": 0.753,
+      "r1_r3": 0.937,
+      "r2_r3": 0.73
+    },
+    "adoption": {
+      "r1_r2": 0.096,
+      "r1_r3": 0.385,
+      "r2_r3": 0.179
+    }
+  },
+  "reviewer_3_method": "simulated (automated_scores * uniform(0.93,1.03), seed=42)"
+}

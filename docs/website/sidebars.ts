@@ -1,0 +1,74 @@
+import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+
+const sidebars: SidebarsConfig = {
+  docsSidebar: [
+    {
+      type: 'doc',
+      id: 'introduction',
+      label: 'Introduction',
+    },
+    {
+      type: 'doc',
+      id: 'quickstart',
+      label: 'Quickstart',
+    },
+    {
+      type: 'doc',
+      id: 'architecture',
+      label: 'Architecture',
+    },
+    {
+      type: 'doc',
+      id: 'loop-engineering',
+      label: 'Loop Engineering',
+    },
+    {
+      type: 'doc',
+      id: 'api-reference',
+      label: 'API Reference',
+    },
+    {
+      type: 'category',
+      label: 'Cookbook',
+      items: [
+        'cookbook/governed-agent-setup',
+        'cookbook/a2a-federation',
+        'cookbook/mcp-tool-integration',
+        'cookbook/hitl-approval-flow',
+        'cookbook/compliance-audit',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Integrations',
+      items: [
+        'integrations/langgraph',
+        'integrations/crewai',
+        'integrations/autogen',
+        'integrations/dify',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Deployment',
+      items: [
+        'deployment',
+        'deployment-docker',
+        'deployment-k8s',
+        'deployment-sidecar',
+      ],
+    },
+    {
+      type: 'doc',
+      id: 'error-codes',
+      label: 'Error Codes',
+    },
+    {
+      type: 'doc',
+      id: 'reliability',
+      label: 'Reliability & SLO',
+    },
+  ],
+};
+
+export default sidebars;

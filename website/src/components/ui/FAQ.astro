@@ -1,0 +1,31 @@
+---
+export interface Props {
+  items: { q: string; a: string }[];
+}
+---
+
+<div class="my-8 space-y-2">
+  {Astro.props.items.map((item) => (
+    <details
+      class="group rounded-xl overflow-hidden transition-colors"
+      style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);"
+    >
+      <summary
+        class="flex cursor-pointer items-center justify-between gap-4 px-6 py-4 text-sm font-medium text-brand-text-primary transition-colors hover:text-brand-accent-blue list-none"
+      >
+        <span>{item.q}</span>
+        <svg
+          class="h-4 w-4 shrink-0 text-brand-text-muted transition-transform duration-200 group-open:rotate-180"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <div class="px-6 pb-4 text-sm text-brand-text-secondary leading-relaxed">
+        {item.a}
+      </div>
+    </details>
+  ))}
+</div>

@@ -1,0 +1,42 @@
+---
+import GovernanceShowcase from "./GovernanceShowcase";
+
+const content = {
+  en: {
+    badge: "Real-time governance",
+    title: "Every agent action goes through MAREF first.",
+    subtitle: "Before your agent touches a tool, MAREF checks, signs, and decides. 97% of decisions are automated. The other 3% go to human review. This is governance without the friction.",
+    marefLabel: "Governance OS",
+    decisionsLabel: "Decisions:",
+    blockedLabel: "Blocked:",
+    agentsLabel: "Agents:",
+    agents: [
+      { name: "Claude Code", type: "CLI agent" },
+      { name: "OpenCode", type: "IDE agent" },
+      { name: "Cursor", type: "IDE agent" },
+      { name: "Trae CN", type: "IDE agent" },
+      { name: "Copilot", type: "Editor agent" },
+      { name: "Windsurf", type: "IDE agent" },
+    ],
+  },
+  zh: {
+    badge: "实时治理",
+    title: "每个智能体动作，先经过 MAREF。",
+    subtitle: "你的智能体碰到工具之前，MAREF 先检查、签名、决策。97% 自动处理，3% 交给人工。这就是没有摩擦的治理。",
+    marefLabel: "治理操作系统",
+    decisionsLabel: "决策：",
+    blockedLabel: "拦截：",
+    agentsLabel: "智能体：",
+    agents: [
+      { name: "Claude Code", type: "CLI 智能体" },
+      { name: "OpenCode", type: "IDE 智能体" },
+      { name: "Cursor", type: "IDE 智能体" },
+      { name: "Trae CN", type: "IDE 智能体" },
+      { name: "Copilot", type: "编辑器智能体" },
+      { name: "Windsurf", type: "IDE 智能体" },
+    ],
+  },
+}[Astro.props.locale || "en"];
+---
+
+<GovernanceShowcase client:visible content={content} />

@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <!-- Layer gradients -->
+    <linearGradient id="grdApp" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.1" />
+    </linearGradient>
+    <linearGradient id="grdOrch" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.1" />
+    </linearGradient>
+    <linearGradient id="grdSafety" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0.1" />
+    </linearGradient>
+    <linearGradient id="grdObs" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.1" />
+    </linearGradient>
+    <linearGradient id="grdInfra" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#71717a" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#71717a" stop-opacity="0.1" />
+    </linearGradient>
+
+    <!-- Governance hub gradients -->
+    <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.4" />
+      <stop offset="50%" stop-color="#10b981" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="grdGov" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.5" />
+      <stop offset="50%" stop-color="#10b981" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.3" />
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="hubPulse" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="960" y="70" text-anchor="middle" fill="#3b82f6" font-size="32" font-weight="800" font-family="sans-serif">MAREF Architecture</text>
+  <text x="960" y="98" text-anchor="middle" fill="#06b6d4" font-size="14" font-family="sans-serif" letter-spacing="1">Six Layers — Governance at the Center</text>
+
+  <!-- Background subtle ring -->
+  <circle cx="960" cy="570" r="340" fill="none" stroke="#3b82f6" stroke-width="0.5" opacity="0.08" stroke-dasharray="8,6" />
+  <circle cx="960" cy="570" r="480" fill="none" stroke="#06b6d4" stroke-width="0.3" opacity="0.05" stroke-dasharray="4,8" />
+
+  <!-- ==================== CONNECTION LINES ==================== -->
+  <g opacity="0.25">
+    <!-- Application to Governance -->
+    <line x1="960" y1="260" x2="960" y2="410" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,4" />
+    <!-- Orchestration to Governance -->
+    <line x1="1270" y1="478" x2="1090" y2="478" stroke="#06b6d4" stroke-width="2" stroke-dasharray="6,4" />
+    <!-- Safety to Governance -->
+    <line x1="1150" y1="830" x2="1090" y2="700" stroke="#f97316" stroke-width="2" stroke-dasharray="6,4" />
+    <!-- Observability to Governance -->
+    <line x1="770" y1="830" x2="830" y2="700" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="6,4" />
+    <!-- Infrastructure to Governance -->
+    <line x1="650" y1="478" x2="830" y2="478" stroke="#71717a" stroke-width="2" stroke-dasharray="6,4" />
+  </g>
+
+  <!-- ==================== GOVERNANCE HUB (CENTER) ==================== -->
+  <g transform="translate(960, 560)">
+    <!-- Background glow -->
+    <circle cx="0" cy="0" r="200" fill="url(#hubGlow)" />
+    
+    <!-- Animated pulse ring -->
+    <circle cx="0" cy="0" r="150" fill="none" stroke="#10b981" stroke-width="1" opacity="0.3" filter="url(#hubPulse)">
+      <animate attributeName="r" values="140;170;140" dur="4s" repeatCount="indefinite" />
+      <animate attributeName="opacity" values="0.3;0.05;0.3" dur="4s" repeatCount="indefinite" />
+    </circle>
+
+    <!-- Hexagon -->
+    <polygon points="0,-155 134,-77.5 134,77.5 0,155 -134,77.5 -134,-77.5"
+             fill="url(#grdGov)" stroke="#10b981" stroke-width="2" opacity="0.8" filter="url(#glow)" />
+
+    <!-- Inner hexagon ring -->
+    <polygon points="0,-110 95,-55 95,55 0,110 -95,55 -95,-55"
+             fill="none" stroke="#34d399" stroke-width="1" opacity="0.3" />
+
+    <!-- Hub content -->
+    <text x="0" y="-65" text-anchor="middle" fill="#10b981" font-size="16" font-weight="800" font-family="monospace" letter-spacing="2">GOVERNANCE</text>
+    <text x="0" y="-42" text-anchor="middle" fill="#34d399" font-size="10" font-weight="500" font-family="monospace">Trust State Machine</text>
+    
+    <line x1="-60" y1="-30" x2="60" y2="-30" stroke="#10b981" stroke-width="0.5" opacity="0.3" />
+
+    <text x="0" y="-12" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600" font-family="monospace">QIAN · KUN · 8 STATES</text>
+    <text x="0" y="8" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="500" font-family="monospace">Gray Code FSM · HITL</text>
+    <text x="0" y="28" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="500" font-family="monospace">Zero Trust · Rule Freeze</text>
+    <text x="0" y="48" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="500" font-family="monospace">HOTL · HATL · Audit</text>
+
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="3" fill="#10b981" opacity="0.6" filter="url(#glow)" />
+  </g>
+
+  <!-- ==================== AGENT & TOOLS LAYER (TOP) ==================== -->
+  <g transform="translate(960, 200)">
+    <rect x="-130" y="-50" width="260" height="100" rx="10" fill="url(#grdApp)" stroke="#3b82f6" stroke-width="1" opacity="0.7" />
+    <rect x="-126" y="-46" width="252" height="30" rx="6" fill="#3b82f6" opacity="0.08" />
+    <text x="0" y="-28" text-anchor="middle" fill="#3b82f6" font-size="13" font-weight="800" font-family="monospace">AGENT &amp; TOOLS</text>
+    <text x="0" y="-10" text-anchor="middle" fill="#93c5fd" font-size="9" font-weight="500" font-family="sans-serif">Agent System · Desktop · Tools</text>
+    <text x="0" y="12" text-anchor="middle" fill="#60a5fa" font-size="9" font-family="sans-serif">Agent lifecycle, desktop</text>
+    <text x="0" y="28" text-anchor="middle" fill="#60a5fa" font-size="9" font-family="sans-serif">automation, tool sandbox</text>
+  </g>
+
+  <!-- ==================== ORCHESTRATION LAYER (UPPER-RIGHT) ==================== -->
+  <g transform="translate(1270, 480)">
+    <rect x="-130" y="-50" width="260" height="100" rx="10" fill="url(#grdOrch)" stroke="#06b6d4" stroke-width="1" opacity="0.7" />
+    <rect x="-126" y="-46" width="252" height="30" rx="6" fill="#06b6d4" opacity="0.08" />
+    <text x="0" y="-28" text-anchor="middle" fill="#06b6d4" font-size="13" font-weight="800" font-family="monospace">ORCHESTRATION</text>
+    <text x="0" y="-10" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="500" font-family="sans-serif">TaskDAG · Saga · 5D Scheduler</text>
+    <text x="0" y="12" text-anchor="middle" fill="#22d3ee" font-size="9" font-family="sans-serif">Task decomposition &amp;</text>
+    <text x="0" y="28" text-anchor="middle" fill="#22d3ee" font-size="9" font-family="sans-serif">distributed transactions</text>
+  </g>
+
+  <!-- ==================== SECURITY & COMPLIANCE LAYER (LOWER-RIGHT) ==================== -->
+  <g transform="translate(1150, 830)">
+    <rect x="-140" y="-50" width="280" height="100" rx="10" fill="url(#grdSafety)" stroke="#f97316" stroke-width="1" opacity="0.7" />
+    <rect x="-136" y="-46" width="272" height="30" rx="6" fill="#f97316" opacity="0.08" />
+    <text x="0" y="-28" text-anchor="middle" fill="#f97316" font-size="13" font-weight="800" font-family="monospace">SECURITY &amp; COMPLIANCE</text>
+    <text x="0" y="-10" text-anchor="middle" fill="#fdba74" font-size="9" font-weight="500" font-family="sans-serif">Trust Boundaries · 8-Layer Defense</text>
+    <text x="0" y="12" text-anchor="middle" fill="#fb923c" font-size="9" font-family="sans-serif">Zero-trust, compliance</text>
+    <text x="0" y="28" text-anchor="middle" fill="#fb923c" font-size="9" font-family="sans-serif">GDPR/SOC2/HIPAA/等保</text>
+  </g>
+
+  <!-- ==================== OBSERVABILITY LAYER (LOWER-LEFT) ==================== -->
+  <g transform="translate(770, 830)">
+    <rect x="-130" y="-50" width="260" height="100" rx="10" fill="url(#grdObs)" stroke="#8b5cf6" stroke-width="1" opacity="0.7" />
+    <rect x="-126" y="-46" width="252" height="30" rx="6" fill="#8b5cf6" opacity="0.08" />
+    <text x="0" y="-28" text-anchor="middle" fill="#8b5cf6" font-size="13" font-weight="800" font-family="monospace">OBSERVABILITY</text>
+    <text x="0" y="-10" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="500" font-family="sans-serif">OpenTelemetry · Audit Bus</text>
+    <text x="0" y="12" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="sans-serif">Full telemetry, immutable</text>
+    <text x="0" y="28" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="sans-serif">action recording, monitoring</text>
+  </g>
+
+  <!-- ==================== EVOLUTION LAYER (UPPER-LEFT) ==================== -->
+  <g transform="translate(650, 480)">
+    <rect x="-130" y="-50" width="260" height="100" rx="10" fill="url(#grdInfra)" stroke="#71717a" stroke-width="1" opacity="0.7" />
+    <rect x="-126" y="-46" width="252" height="30" rx="6" fill="#71717a" opacity="0.08" />
+    <text x="0" y="-28" text-anchor="middle" fill="#a1a1aa" font-size="13" font-weight="800" font-family="monospace">EVOLUTION</text>
+    <text x="0" y="-10" text-anchor="middle" fill="#d4d4d8" font-size="9" font-weight="500" font-family="sans-serif">Recursive Evolution · Red-Blue</text>
+    <text x="0" y="12" text-anchor="middle" fill="#a1a1aa" font-size="9" font-family="sans-serif">Self-evolution engine with</text>
+    <text x="0" y="28" text-anchor="middle" fill="#a1a1aa" font-size="9" font-family="sans-serif">adversarial &amp; chaos testing</text>
+  </g>
+
+  <!-- ==================== SUBTLE DECORATIONS ==================== -->
+  <!-- Corner label: "ALL ACTIONS FLOW THROUGH GOVERNANCE" -->
+  <g transform="translate(1860, 570) rotate(90)">
+    <text x="0" y="0" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700" font-family="sans-serif" letter-spacing="4" opacity="0.15">ALL ACTIONS FLOW THROUGH GOVERNANCE</text>
+  </g>
+</svg>
