@@ -15,6 +15,7 @@ sybil/共谋检测, 产出 ObservationEvent。
 
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 from typing import Any
@@ -131,7 +132,12 @@ class IdentityProbe(Probe):
             self._profiles,
         )
         for cluster in clusters:
-            signal_key = f"sybil:{cluster.cluster_id}"
+            # 稳定去重键: 排序账号集合哈希 (cluster_id 每次 poll 重新生成,
+            # 不能作去重键 — G1-C1 修复)
+            cluster_sig = hashlib.sha256(
+                "|".join(sorted(cluster.account_ids)).encode()
+            ).hexdigest()
+            signal_key = f"sybil:{cluster_sig}"
             if signal_key in self._emitted:
                 continue
             events.append(self._build_event(
@@ -152,9 +158,14 @@ class IdentityProbe(Probe):
         report = self._collusion.detect(
             self._registry.all_accounts(),
             self._sybil.last_clusters,
+            registry=self._registry,
         )
         for collusion in report.events:
-            signal_key = f"collusion:{collusion.timestamp}:{collusion.kind.value}"
+            # 稳定去重键: kind + 排序涉及账号 (timestamp 每次重建 — G1-C2 修复)
+            involved_sig = hashlib.sha256(
+                "|".join(sorted(collusion.involved_accounts)).encode()
+            ).hexdigest()
+            signal_key = f"collusion:{collusion.kind.value}:{involved_sig}"
             if signal_key in self._emitted:
                 continue
             events.append(self._build_event(

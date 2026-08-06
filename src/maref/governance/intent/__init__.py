@@ -23,6 +23,7 @@ from maref.governance.intent.chain_tracker import (
     ActionRecord,
     ChainRiskLevel,
 )
+from maref.governance.intent.factory import build_chain_intent_gate
 from maref.governance.intent.gate import (
     ChainDecision,
     ChainInterruptGate,
@@ -61,4 +62,5 @@ __all__ = [
     "ChainDecision",
     "IntentVerdict",
     "ChainInterruptGate",
+    "build_chain_intent_gate",
 ]

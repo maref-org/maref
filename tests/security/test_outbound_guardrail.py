@@ -21,6 +21,7 @@ from maref.security.outbound import (
     ContactReputation,
     ContactTier,
     GateDecision,
+    HITLRequiredError,
     OutboundAttachment,
     OutboundChannel,
     OutboundGuard,
@@ -172,6 +173,32 @@ class TestOutboundPayloadSanitizer:
             body="这是一段完全正常的中文消息，用于验证不会误报隐写检测。"
         )
         assert PayloadFlag.STEGO_UNICODE not in result.flags
+
+    def test_uppercase_scheme_ip_bypass(self):
+        # G3-C2: 大写 scheme + IP 直连 (绕过修复)
+        result = OutboundPayloadSanitizer().sanitize(body="访问 HTTPS://1.2.3.4/payload.sh")
+        assert PayloadFlag.DANGEROUS_URL in result.flags
+
+    def test_bare_ip_no_scheme(self):
+        # G3-C2: 裸 IP 无 scheme
+        result = OutboundPayloadSanitizer().sanitize(body="请下载 1.2.3.4/payload.sh")
+        assert PayloadFlag.DANGEROUS_URL in result.flags
+
+    def test_uppercase_http_domain(self):
+        # G3-C2: 大写 http scheme 域名
+        result = OutboundPayloadSanitizer().sanitize(body="HTTP://example.com/x")
+        assert PayloadFlag.DANGEROUS_URL in result.flags
+
+    def test_www_domain_not_false_positive(self):
+        # I3 修复: 无 scheme 的合法 www 域名不误判
+        result = OutboundPayloadSanitizer().sanitize(body="请访问 www.example.com/report 查看")
+        assert PayloadFlag.DANGEROUS_URL not in result.flags
+
+    def test_urlsafe_base64_blob(self):
+        # G3-C2: url-safe base64 (含 -_)
+        blob = "UEFZTE9BRC1BVFRBQ0stV0lUSC1VUkwtU0FGRS1CQVNFNjQtQkxPQi1JTkdFIQ=="
+        result = OutboundPayloadSanitizer().sanitize(body=blob)
+        assert PayloadFlag.BASE64_BLOB in result.flags
 
 
 class TestContactReputation:
@@ -420,6 +447,84 @@ class TestOutboundGuard:
             return await tool.execute({"path": "/tmp/read"}, None)
 
         assert asyncio.run(run()) == "ok"
+
+
+class TestOutboundGuardHITL:
+    """G3-C1 修复: HITL 决策在 guard 层不得透传发送 (fail-closed)。"""
+
+    def test_wrap_sender_blocks_hitl(self):
+        guard = OutboundGuard(agent_id="agent-01")
+        sent: list = []
+
+        def send(recipient: str, body: str) -> str:
+            sent.append(recipient)
+            return "sent"
+
+        wrapped = guard.wrap_sender(send)
+        with pytest.raises(HITLRequiredError):
+            wrapped(recipient="victim@x.com", body="立即点击链接确认一下")
+        assert sent == []  # 底层 sender 不得被调用
+
+    def test_wrap_sender_async_hitl_blocked(self):
+        guard = OutboundGuard(agent_id="agent-01")
+        sent: list = []
+
+        async def send(recipient: str, body: str) -> str:
+            sent.append(recipient)
+            return "sent"
+
+        wrapped = guard.wrap_sender(send)
+
+        async def run() -> None:
+            with pytest.raises(HITLRequiredError):
+                await wrapped(recipient="victim@x.com", body="立即点击链接确认一下")
+
+        asyncio.run(run())
+        assert sent == []
+
+    def test_wrap_tool_blocks_hitl(self):
+        guard = OutboundGuard(agent_id="agent-01")
+
+        class FakeTool:
+            async def execute(self, inp, context):
+                return "ok"
+
+        tool = guard.wrap_tool(FakeTool())
+
+        async def run() -> None:
+            with pytest.raises(HITLRequiredError):
+                await tool.execute({"recipient": "v@x.com", "text": "立即点击链接确认一下"}, None)
+
+        asyncio.run(run())
+
+    def test_wrap_a2a_blocks_hitl(self):
+        guard = OutboundGuard(agent_id="agent-01")
+
+        class FakeA2A:
+            _agent_id = "agent-01"
+
+            async def send_task(self, agent_url, payload):
+                return {"ok": True}
+
+        client = guard.wrap_a2a_client(FakeA2A())
+
+        async def run() -> None:
+            with pytest.raises(HITLRequiredError):
+                await client.send_task("https://peer.example.com", {"text": "立即点击链接"})
+
+        asyncio.run(run())
+
+    def test_allow_hitl_passthrough(self):
+        guard = OutboundGuard(agent_id="agent-01", allow_hitl_passthrough=True)
+        sent: list = []
+
+        def send(recipient: str, body: str) -> str:
+            sent.append(recipient)
+            return "sent"
+
+        wrapped = guard.wrap_sender(send)
+        assert wrapped(recipient="v@x.com", body="立即点击链接确认一下") == "sent"
+        assert sent == ["v@x.com"]
 
 
 class TestAttackTypeExtension:

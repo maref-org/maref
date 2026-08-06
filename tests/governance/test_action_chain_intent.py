@@ -116,7 +116,7 @@ class TestChainPatternLibrary:
         t = time.time()
         chain = [
             _rec("github.submit_code", ActionCategory.EXTERNAL, ts=t),
-            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10),
+            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10, metadata={"via_undeclared_identity": True}),
             _rec("github.thank_reviewer", ActionCategory.COMMUNICATE, ts=t + 20),
         ]
         matches = lib.match(chain)
@@ -129,7 +129,7 @@ class TestChainPatternLibrary:
         chain = [
             _rec("github.submit_code", ActionCategory.EXTERNAL, ts=t),
             _rec("file.read", ActionCategory.READ, ts=t + 5),  # gap
-            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10),
+            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10, metadata={"via_undeclared_identity": True}),
             _rec("github.thank_reviewer", ActionCategory.COMMUNICATE, ts=t + 20),
         ]
         matches = lib.match(chain)
@@ -144,6 +144,38 @@ class TestChainPatternLibrary:
         ]
         assert lib.match(chain) == []
 
+    def test_gap_count_accurate(self):
+        """G2-I1: gap_count 准确计数匹配段内无关动作。"""
+        lib = ChainPatternLibrary(max_gap=2)
+        lib.register_builtin_patterns()
+        t = time.time()
+        chain = [
+            _rec("github.submit_code", ActionCategory.EXTERNAL, ts=t),
+            _rec("file.read", ActionCategory.READ, ts=t + 1),  # gap
+            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 2, metadata={"via_undeclared_identity": True}),
+            _rec("github.thank_reviewer", ActionCategory.COMMUNICATE, ts=t + 3),
+        ]
+        matches = lib.match(chain)
+        supply = [m for m in matches if m.pattern.pattern_id == "supply_chain_lie"]
+        assert len(supply) == 1
+        assert supply[0].gap_count == 1
+
+    def test_interleaved_obfuscation_not_missed(self):
+        """G2-I2: 穿插伪装步骤不得使真实攻击链整体漏检。"""
+        lib = ChainPatternLibrary(max_gap=1)
+        lib.register_builtin_patterns()
+        t = time.time()
+        chain = [
+            _rec("github.edit_history", ActionCategory.UPDATE, ts=t),
+            _rec("file.read", ActionCategory.READ, ts=t + 1),  # 伪装
+            _rec("github.edit_history", ActionCategory.UPDATE, ts=t + 2),
+            _rec("file.read", ActionCategory.READ, ts=t + 3),  # 伪装
+            _rec("identity.switch", ActionCategory.IDENTITY, ts=t + 4),
+        ]
+        matches = lib.match(chain)
+        tamper = [m for m in matches if m.pattern.pattern_id == "record_tamper"]
+        assert len(tamper) >= 1  # edit@2 → switch@4 应命中
+
 
 class TestIntentHypothesisEngine:
     def test_hypothesize_from_match(self):
@@ -152,7 +184,7 @@ class TestIntentHypothesisEngine:
         t = time.time()
         chain = [
             _rec("github.submit_code", ActionCategory.EXTERNAL, ts=t),
-            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10),
+            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10, metadata={"via_undeclared_identity": True}),
             _rec("github.thank_reviewer", ActionCategory.COMMUNICATE, ts=t + 20),
         ]
         matches = lib.match(chain)
@@ -174,7 +206,7 @@ class TestIntentHypothesisEngine:
         t = time.time()
         chain = [
             _rec("github.submit_code", ActionCategory.EXTERNAL, ts=t),
-            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10),
+            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 10, metadata={"via_undeclared_identity": True}),
             _rec("github.thank_reviewer", ActionCategory.COMMUNICATE, ts=t + 20),
         ]
         hyp = IntentHypothesisEngine(lib).hypothesize(chain, lib.match(chain))[0]
@@ -191,7 +223,7 @@ class TestSequentialRiskAggregator:
             _rec("github.create_account", ActionCategory.IDENTITY, ts=t, risk=ChainRiskLevel.LOW),
             _rec("github.create_account", ActionCategory.IDENTITY, ts=t + 1, risk=ChainRiskLevel.LOW),
             _rec("github.submit_code", ActionCategory.EXTERNAL, ts=t + 2, risk=ChainRiskLevel.LOW),
-            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 3, risk=ChainRiskLevel.LOW),
+            _rec("github.review_approve", ActionCategory.IDENTITY, ts=t + 3, risk=ChainRiskLevel.LOW, metadata={"via_undeclared_identity": True}),
             _rec("github.edit_history", ActionCategory.UPDATE, ts=t + 4, risk=ChainRiskLevel.LOW),
             _rec("identity.switch", ActionCategory.IDENTITY, ts=t + 5, risk=ChainRiskLevel.LOW),
         ]
@@ -276,7 +308,8 @@ class TestChainInterruptGate:
             ("github.edit_history", ActionCategory.UPDATE, ChainRiskLevel.LOW),
             ("identity.switch", ActionCategory.IDENTITY, ChainRiskLevel.LOW),
         ]):
-            tracker.record(_rec(action, cat, ts=t + i * 10, risk=risk))
+            md = {"via_undeclared_identity": True} if "review" in action else None
+            tracker.record(_rec(action, cat, ts=t + i * 10, risk=risk, metadata=md))
 
         gate = ChainInterruptGate(pattern_library=lib)
         verdict = gate.evaluate_agent(tracker, "agent-01")
@@ -302,7 +335,8 @@ class TestChainInterruptGate:
             ("github.review_approve", ActionCategory.IDENTITY),
             ("github.thank_reviewer", ActionCategory.COMMUNICATE),
         ]):
-            tracker.record(_rec(action, cat, ts=t + i * 10))
+            md = {"via_undeclared_identity": True} if "review" in action else None
+            tracker.record(_rec(action, cat, ts=t + i * 10, metadata=md))
 
         gate = ChainInterruptGate(pattern_library=lib)
         calls: list = []
@@ -357,7 +391,14 @@ class TestPipelineIntegration:
             "github.edit_history",
             "identity.switch",
         ]:
-            pipe.govern(GovernanceRequest(action=action, agent_id="agent-01", trust_score=90, role="震"))
+            # review 动作注入"未声明身份"标记 (G1 联动信号) 使 supply_chain_lie 命中
+            params = {"via_undeclared_identity": True} if "review" in action else {}
+            pipe.govern(
+                GovernanceRequest(
+                    action=action, agent_id="agent-01", trust_score=90, role="震",
+                    parameters=params,
+                )
+            )
         result = pipe.govern(
             GovernanceRequest(action="github.submit_code", agent_id="agent-01", trust_score=90, role="震")
         )
@@ -400,3 +441,37 @@ class TestPipelineIntegration:
             GovernanceRequest(action="file.read", agent_id="agent-01", trust_score=90, role="震")
         )
         assert result.verdict == Verdict.ALLOW
+
+    def test_escalate_creates_real_hitl_event(self):
+        """G2-2: 链级 escalate 发起真实 HITL 审批事件。"""
+        from maref.governance.core_pipeline import GovernanceRequest, Verdict
+
+        pipe = self._make_pipeline()
+        for action in ["github.edit_history", "identity.switch"]:
+            pipe.govern(GovernanceRequest(action=action, agent_id="agent-01", trust_score=90, role="震"))
+        result = pipe.govern(
+            GovernanceRequest(action="github.edit_history", agent_id="agent-01", trust_score=90, role="震")
+        )
+        assert result.verdict == Verdict.ASK_USER
+        assert result.hitl_event_id  # 必须有审批事件 ID
+
+    def test_audit_reflects_chain_override(self):
+        """G2-3: 审计回调反映链级覆盖后的裁决 (非覆盖前的 ALLOW)。"""
+        from maref.governance.core_pipeline import GovernancePipeline, GovernanceRequest, Verdict
+
+        tracker = ActionChainTracker(window_seconds=999999)
+        lib = ChainPatternLibrary()
+        lib.register_builtin_patterns()
+        gate = ChainInterruptGate(pattern_library=lib)
+        audit: list = []
+        pipe = GovernancePipeline(
+            intent_tracker=tracker,
+            intent_gate=gate,
+            audit_callback=lambda req, res: audit.append(res.verdict),
+        )
+        for action in ["github.edit_history", "identity.switch"]:
+            pipe.govern(GovernanceRequest(action=action, agent_id="agent-01", trust_score=90, role="震"))
+        pipe.govern(
+            GovernanceRequest(action="github.edit_history", agent_id="agent-01", trust_score=90, role="震")
+        )
+        assert audit[-1] == Verdict.ASK_USER  # 审计记录链级覆盖后的裁决

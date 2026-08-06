@@ -36,6 +36,7 @@ from typing import Any, TypeVar, cast
 from maref.security.outbound.gate import (
     BlockedOutboundError,
     GateDecision,
+    HITLRequiredError,
     OutboundMessageGate,
     OutboundVerdict,
 )
@@ -63,9 +64,13 @@ class OutboundGuard:
         self,
         gate: OutboundMessageGate | None = None,
         agent_id: str = "",
+        allow_hitl_passthrough: bool = False,
     ) -> None:
         self.gate = gate or OutboundMessageGate()
         self.agent_id = agent_id
+        # G3-C1 修复 (fail-closed): 默认 HITL 决策不得透传发送。仅当调用方
+        # 显式配置 allow_hitl_passthrough=True (已实现外部人工确认机制) 才放行。
+        self.allow_hitl_passthrough = allow_hitl_passthrough
 
     # -- 核心裁决 --
 
@@ -101,6 +106,9 @@ class OutboundGuard:
     def ensure_allowed(self, verdict: OutboundVerdict) -> OutboundVerdict:
         """DENY 决策抛异常阻断; ALLOW/HITL 直接返回。
 
+        兼容接口 (HITL 仍由调用方决定)。新代码应使用
+        :meth:`ensure_sendable` (fail-closed)。
+
         Args:
             verdict: 门禁裁决。
 
@@ -117,6 +125,37 @@ class OutboundGuard:
                 verdict.reasons,
             )
             raise BlockedOutboundError(verdict)
+        return verdict
+
+    def ensure_sendable(self, verdict: OutboundVerdict) -> OutboundVerdict:
+        """fail-closed 门禁: 仅 ALLOW (或显式放行 HITL) 才可发送。
+
+        包装器统一使用本方法, 防止 HITL 决策被静默透传 (G3-C1 修复)。
+
+        Args:
+            verdict: 门禁裁决。
+
+        Returns:
+            原 verdict。
+
+        Raises:
+            BlockedOutboundError: verdict.decision == DENY。
+            HITLRequiredError: verdict.decision == HITL 且未配置 passthrough。
+        """
+        if verdict.decision == GateDecision.DENY:
+            logger.warning(
+                "outbound blocked: message=%s reasons=%s",
+                verdict.message_id,
+                verdict.reasons,
+            )
+            raise BlockedOutboundError(verdict)
+        if verdict.decision == GateDecision.HITL and not self.allow_hitl_passthrough:
+            logger.warning(
+                "outbound needs human approval: message=%s reasons=%s",
+                verdict.message_id,
+                verdict.reasons,
+            )
+            raise HITLRequiredError(verdict)
         return verdict
 
     # -- 通用 sender 包装 --
@@ -155,7 +194,7 @@ class OutboundGuard:
                 recipient_type=recipient_type,
                 sender_agent_id=sender_agent_id,
             )
-            self.ensure_allowed(verdict)
+            self.ensure_sendable(verdict)
             coro = cast(Callable[..., Awaitable[T]], sender)
             return await coro(**kwargs)
 
@@ -169,7 +208,7 @@ class OutboundGuard:
                 recipient_type=recipient_type,
                 sender_agent_id=sender_agent_id,
             )
-            self.ensure_allowed(verdict)
+            self.ensure_sendable(verdict)
             return cast(T, sender(**kwargs))
 
         if getattr(sender, "_is_coroutine", False):
@@ -200,7 +239,7 @@ class OutboundGuard:
                     channel=OutboundChannel.MCP,
                     sender_agent_id=kwargs.get("agent_id"),
                 )
-                self.ensure_allowed(verdict)
+                self.ensure_sendable(verdict)
             return original(*args, **kwargs)
 
         client.call_tool = guarded_call_tool
@@ -224,7 +263,7 @@ class OutboundGuard:
                 recipient_type=RecipientType.THIRD_PARTY_AGENT,
                 sender_agent_id=getattr(client, "_agent_id", None),
             )
-            self.ensure_allowed(verdict)
+            self.ensure_sendable(verdict)
             return await original(*args, **kwargs)
 
         client.send_task = guarded_send_task
@@ -255,7 +294,7 @@ class OutboundGuard:
                         for a in (input_dict.get("attachments") or [])
                     ],
                 )
-                self.ensure_allowed(verdict)
+                self.ensure_sendable(verdict)
             return await original(input_dict, context)
 
         tool.execute = guarded_execute
