@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import dataclass, field
+from typing import Any
 
 from maref.security.decorators import security_critical
 
@@ -74,10 +75,16 @@ class Sanitizer:
         # result.tokens = {"[PII_PHONE_CN_abc123]": "13800138000"}
         #
         # Later, for authorized output:
-        original = sani.restore_output(result.text, result.tokens)
+        original = sani.restore_output(
+            result.text, result.tokens, authorized_by="agent-01"
+        )
     """
 
     TOKEN_PREFIX = "[PII_"
+
+    def __init__(self, audit_logger: Any | None = None) -> None:
+        """可选注入审计 logger，授权还原时记录 ``pii_restore`` 事件（v0.52 M2-H2）。"""
+        self._audit_logger = audit_logger
 
     @security_critical
     def sanitize_by_category(self, text: str, category: object) -> SanitizeResult:
@@ -154,14 +161,33 @@ class Sanitizer:
         text: str,
         tokens: dict[str, str],
         authorized: bool = False,
+        authorized_by: str | None = None,
     ) -> str:
         """Restore original values from tokens.
 
         Only authorized callers should call this with authorized=True.
-        Unauthorized callers get the text with tokens still in place.
+
+        v0.52 M2-H2: 授权还原必须提供执行主体 ``authorized_by``
+        （fail-closed），还原动作经注入的 ``audit_logger`` 记录
+        ``pii_restore`` 事件。未授权调用返回仍含 token 的文本。
         """
         if not authorized:
             return text
+        if not authorized_by:
+            raise ValueError(
+                "authorized=True 必须提供 authorized_by 执行主体（fail-closed）"
+            )
+        if self._audit_logger is not None:
+            try:
+                self._audit_logger.log(
+                    event_type="pii_restore",
+                    actor=authorized_by,
+                    action="restore_output",
+                    details=f"restored {len(tokens)} PII tokens",
+                )
+            except Exception:
+                # 审计失败不阻断还原；由审计完整性检查兜底。
+                pass
         for token, original in tokens.items():
             text = text.replace(token, original)
         return text

@@ -2,6 +2,22 @@
 
 ## [v0.52.0] - 2026-08-05 (治理缺口收口)
 
+### Fixed — M1 风险收口: 演化真实性 + CI 修复
+- **REL 虚假收敛修复** (`recursive/recursive_evolution_loop.py` + `recursive/self_observer.py`): `SystemSnapshot` 增加真实 `test_pass_rate`/`coverage_pct`/`test_count` 字段（由 `test_stats` 计算，不再 hasattr 假指标）；`_collect_current_metrics` 改用 `collect_only=False` 真实运行快速子集（原 collect_only=True 无 pass/fail 信号）；`_run_quality_checks` 从"仅 git status"改为真实运行快速子集 pytest 并记录结果；fallback 路径不再伪造 `test_pass_rate=1.0`。新增 `tests/recursive/test_evolution_metrics.py`（7 项 TDD 测试）
+- **mypy 遗留修复** (`compliance/report_generator.py:151`): `jurisdictions` 显式标注 `list[Jurisdiction]`，清零 v0.33 遗留 arg-type error，`mypy src/maref` 实测 Success
+- **ci.yml YAML 语法修复** (`.github/workflows/ci.yml:45`): Validate mock consistency 的 `f'Mock mismatch: {errors}'` 内嵌 `{}` 破坏 YAML plain-scalar 解析，改为 block scalar + `str(errors)` 拼接；此前 50 次 CI 运行 0 成功（v0.50 引入）
+- **release-to-social.yml 修复** (`.github/workflows/release-to-social.yml`): 两个 blog 模板字面量丢失块缩进导致 YAML 文档提前终止，重写为正确 block-scalar 缩进
+- **STATE.yaml 声明修正**: `G2_ci_green` / `gate_passed` 改为 `false`（修复后待 CI 复跑确认，不再虚假声明）
+
+### Fixed — M2 风险收口: TrustBoundary 防伪 + 消毒链路
+- **C-3a 分级服务端权威化** (`governance/risk_classifier.py` + `governance/trust_boundary.py`): 新增 `classify_action_server`，动作字符串推导出不可降级风险下限，调用方 metadata/服务端 trusted 只能升级、不能降级（原 impact_scope/reversible 直接取自 metadata 可降级绕过白名单）；TrustBoundary 切换为服务端权威分级
+- **C-3b scope 防伪 fail-closed** (`governance/trust_boundary.py`): 声明 issuer 的 scope 必须可验证——issuer 非空但无签名 / 公钥未配置 / 签名无效一律拒绝（废除原"公钥表外跳过验签"fail-open 边界）；legacy issuer="" scope 不受影响
+- **H-1 消毒链路生产接线** (`compliance/data_sovereignty.py` + `integration/mcp_security_middleware.py`): `DataSovereigntyManager.sanitize_data` 生产锚点贯通 C1(分类)→C2(分类感知消毒)→C3(授权还原) 并记录审计；`DataSovereigntyMiddleware` 放行跨境 `data_transfer` 时按涉事数据类消毒 `payload`（`MiddlewareResult.sanitized_payload`）
+- **H-2 授权还原鉴权** (`security/sanitizer.py`): `Sanitizer(audit_logger)` 注入审计；`restore_output` 授权还原必须提供 `authorized_by` 执行主体（fail-closed），并记录 `pii_restore` 事件
+- **M2 门禁验证**: 新增 `tests/security/test_m2_governance_hardening.py`（15 项 TDD，含中间件链 payload 传播）；ruff 全过、`mypy src/maref` Success 713 files、governance+security+compliance+middleware 2298 回归 passed、version-check.sh 8/8 OK
+
+## [v0.52.0] - 2026-08-05 (治理缺口收口)
+
 ### Added — P0 五项治理缺口收口
 - **P0-1 边界注入** (`federation/__init__.py` + `sidecar/mcp_gateway.py` + `sidecar/org_governance_router.py`): TrustBoundaryManager 注入 GaaS GovernanceRouter 与 MCP 网关（默认 fail-closed），`org_governance_router` 暴露 `/api/v1/federation/govern` 端点
 - **P0-2 IRREVERSIBLE HITL** (`governance/core_pipeline.py`): IRREVERSIBLE 授权放行升级真实 HITL（tier=P0_RESPONSE）→ ASK_USER

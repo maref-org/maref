@@ -26,6 +26,9 @@ class SystemSnapshot:
     probe_readings: list[ProbeReading] = field(default_factory=list)
     source_file_count: int = 0
     total_lines: int = 0
+    test_pass_rate: float = 0.0
+    coverage_pct: float = 0.0
+    test_count: int = 0
 
 
 class SelfObserver:
@@ -253,6 +256,11 @@ class SelfObserver:
         total = max(test_stats.get("total", 1), 1)
         readings = entropy_probe.read(entropy=failed / total * 10.0)
 
+        total_count = test_stats.get("total", 0)
+        passed_count = test_stats.get("passed", 0)
+        test_pass_rate = passed_count / total_count if total_count > 0 else 0.0
+        coverage_pct = float(test_stats.get("coverage_pct", 0.0))
+
         return SystemSnapshot(
             timestamp=time.time(),
             module_graph=module_graph,
@@ -262,4 +270,7 @@ class SelfObserver:
             probe_readings=readings,
             source_file_count=getattr(self, "_source_file_count", 0),
             total_lines=getattr(self, "_total_lines", 0),
+            test_pass_rate=test_pass_rate,
+            coverage_pct=coverage_pct,
+            test_count=total_count,
         )

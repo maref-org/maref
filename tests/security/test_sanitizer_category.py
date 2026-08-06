@@ -47,7 +47,9 @@ def test_sanitize_by_category_returns_restorable_tokens() -> None:
     sani = Sanitizer()
     text = "电话 13800138000"
     result = sani.sanitize_by_category(text, DataCategory.PERSONAL)
-    restored = sani.restore_output(result.text, result.tokens, authorized=True)
+    restored = sani.restore_output(
+        result.text, result.tokens, authorized=True, authorized_by="test-agent"
+    )
     assert restored == text
 
 

@@ -12,6 +12,7 @@ from enum import Enum
 from typing import Any
 
 from maref.governance.audit import AuditLogger
+from maref.security.sanitizer import Sanitizer, SanitizeResult
 
 
 class DataCategory(Enum):
@@ -337,6 +338,28 @@ class DataSovereigntyManager:
             details="Initialized default geographic restrictions",
             metadata={"num_restrictions": len(self.geographic_restrictions)},
         )
+
+    def sanitize_data(self, text: str, category: DataCategory) -> SanitizeResult:
+        """生产接线：数据主权链路按分类消毒（v0.52 M2-H1）。
+
+        C1（数据分类）→ C2（分类感知消毒）→ C3（授权还原）链路锚点：
+        委托 :class:`~maref.security.sanitizer.Sanitizer` 按 ``category``
+        选择 PII 规则集消毒文本，并记录审计事件。
+        """
+        result = Sanitizer().sanitize_by_category(text, category)
+        self.audit_logger.log(
+            event_type="data_sanitized",
+            actor="DataSovereigntyManager",
+            action="sanitize_data",
+            details=f"Sanitized data for category {category.value}",
+            metadata={
+                "category": category.value,
+                "pii_found": result.pii_found,
+                "num_tokens": len(result.tokens),
+                "blocked": result.blocked,
+            },
+        )
+        return result
 
     def register_data_class(self, data_class: DataClass) -> None:
         """注册数据分类"""
