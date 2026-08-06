@@ -37,6 +37,7 @@ from maref.security.outbound.gate import (
     BlockedOutboundError,
     GateDecision,
     HITLRequiredError,
+    MalformedOutboundCallError,
     OutboundMessageGate,
     OutboundVerdict,
 )
@@ -230,7 +231,19 @@ class OutboundGuard:
         original = client.call_tool
 
         def guarded_call_tool(*args: Any, **kwargs: Any) -> Any:
-            args_dict = kwargs.get("args") or (args[2] if len(args) > 2 else {})
+            # G3-I12: 参数结构无法解析时 fail-closed, 不得静默透传。
+            if "args" in kwargs:
+                args_dict = kwargs["args"]
+            elif len(args) > 2:
+                args_dict = args[2]
+            else:
+                raise MalformedOutboundCallError(
+                    f"call_tool 参数结构无法解析 (args={len(args)}, kwargs={sorted(kwargs)})"
+                )
+            if not isinstance(args_dict, dict):
+                raise MalformedOutboundCallError(
+                    f"call_tool args 非 dict: {type(args_dict).__name__}"
+                )
             recipient = args_dict.get("recipient") or args_dict.get("to")
             if recipient:
                 verdict = self.check(

@@ -364,6 +364,32 @@ class TestChainInterruptGate:
         d = verdict.to_dict()
         assert d["decision"] == "continue"
 
+    def test_slow_drift_upgrades_to_watch(self):
+        """G2-I7: 长时程慢速漂移接入治理 → 升级 WATCH。"""
+        from maref.governance.intent import LongHorizonAnalyzer
+
+        lib = ChainPatternLibrary()
+        lib.register_builtin_patterns()
+        horizon = LongHorizonAnalyzer(pattern_library=lib)
+        gate = ChainInterruptGate(pattern_library=lib, long_horizon_analyzer=horizon)
+        tracker = ActionChainTracker(window_seconds=999999)
+        t = time.time() - 7200
+        # 早期低风险查询
+        for i in range(4):
+            tracker.record(
+                _rec(f"read.{i}", ActionCategory.READ, ts=t + i * 100, risk=ChainRiskLevel.LOW)
+            )
+        # 后期高风险越界
+        for i in range(4):
+            tracker.record(
+                _rec(f"external.{i}", ActionCategory.EXTERNAL, ts=t + 3600 + i * 100,
+                     risk=ChainRiskLevel.HIGH)
+            )
+        verdict = gate.evaluate_agent(tracker, "agent-01")
+        assert verdict.decision == ChainDecision.WATCH
+        assert "漂移" in verdict.reason or "漂移" in verdict.reason
+        assert verdict.level in (ChainRiskLevel.MEDIUM, ChainRiskLevel.HIGH)
+
 
 class TestPipelineIntegration:
     """C7: core_pipeline 挂接链级意图评估。"""

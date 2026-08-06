@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from maref.governance.intent.chain_tracker import ActionChainTracker
 from maref.governance.intent.gate import ChainInterruptGate
+from maref.governance.intent.long_horizon import LongHorizonAnalyzer
 from maref.governance.intent.patterns import ChainPatternLibrary
 
 
@@ -34,5 +35,7 @@ def build_chain_intent_gate(
     library = ChainPatternLibrary(max_gap=max_gap)
     library.register_builtin_patterns()
     tracker = ActionChainTracker(window_seconds=window_seconds)
-    gate = ChainInterruptGate(pattern_library=library)
+    # G2-I7: 装配长时程漂移分析器, 使 34.5h 慢漂移在生产运行时获得治理响应。
+    horizon = LongHorizonAnalyzer(pattern_library=library)
+    gate = ChainInterruptGate(pattern_library=library, long_horizon_analyzer=horizon)
     return tracker, gate

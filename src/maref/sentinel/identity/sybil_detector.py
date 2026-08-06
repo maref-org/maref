@@ -198,13 +198,14 @@ class SybilDetector:
             if len(accs) < self.window_min_accounts:
                 continue
             sorted_accs = sorted(accs, key=lambda a: a.first_seen)
-            # 滑动窗口: 找最大窗口覆盖的账号集
+            # 滑动窗口: 找最大窗口覆盖的账号集 (G1-I2 补下界, 防拖入早期账号)
             for start_i in range(len(sorted_accs)):
-                window_end = sorted_accs[start_i].first_seen + self.window_hours * 3600
+                window_start = sorted_accs[start_i].first_seen
+                window_end = window_start + self.window_hours * 3600
                 group = [
                     a.account_id
                     for a in sorted_accs
-                    if a.first_seen <= window_end
+                    if window_start <= a.first_seen <= window_end
                 ]
                 if len(group) >= self.window_min_accounts:
                     groups.append(group)

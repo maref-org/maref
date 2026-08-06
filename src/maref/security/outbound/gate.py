@@ -19,6 +19,7 @@ HMAC 签名), 流入 ``ThreatGovernanceBridge`` → 八卦状态机 (CRITICAL→
 
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -41,6 +42,17 @@ from maref.security.outbound.social_engineering import (
     SocialEngineeringDetector,
 )
 from maref.sentinel.event import AttackType, ObservationEvent, Severity
+
+
+def _hash_identifier(value: str) -> str:
+    """标识符哈希 (G3-I10): 接收方/URL 脱敏, 防 PII 明文入审计链。
+
+    使用 SHA-256 摘要前缀 (16 字符), 可关联同一标识但不泄露原文。
+    空值返回空串。
+    """
+    if not value:
+        return ""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
 
 
 class GateDecision(str, Enum):
@@ -245,8 +257,10 @@ class OutboundMessageGate:
             return GateDecision.DENY
 
         # DENY 优先级 3: 高置信 SE 信号 (≥0.95) 对真实人类
+        # G3-I11: UNKNOWN 接收方按 HUMAN 保守处理 (不因默认值逃过保护)
+        is_person = message.recipient_type in (RecipientType.HUMAN, RecipientType.UNKNOWN)
         high_conf = [s for s in se_signals if s.confidence >= 0.95]
-        if high_conf and message.recipient_type == RecipientType.HUMAN:
+        if high_conf and is_person:
             reasons.append(
                 "阻断: 对真实人类的强社交工程信号 "
                 f"({', '.join(s.pattern.value for s in high_conf)})"
@@ -279,14 +293,14 @@ class OutboundMessageGate:
 
         # HITL 优先级 4: 联系人不可信 + 存在任何信号/对人发送
         if contact_tier == ContactTier.UNTRUSTED:
-            if se_signals or message.recipient_type == RecipientType.HUMAN:
+            if se_signals or is_person:
                 reasons.append("人工确认: 联系人不可信且存在风险上下文")
                 return GateDecision.HITL
 
         # 高危渠道 + 面向外部人类 → 保守人工确认
         if (
             message.channel in _HIGH_RISK_CHANNELS
-            and message.recipient_type == RecipientType.HUMAN
+            and is_person
         ):
             reasons.append("人工确认: 高危渠道向真实人类发送")
             return GateDecision.HITL
@@ -309,12 +323,16 @@ class OutboundMessageGate:
         )
         evidence: dict[str, Any] = {
             "channel": message.channel.value,
-            "recipient": message.recipient,
+            # G3-I10: 接收方/URL 哈希化, 防 PII 明文入审计链
+            "recipient_hash": _hash_identifier(message.recipient),
             "recipient_type": message.recipient_type.value,
             "sender_agent_id": message.sender_agent_id,
             "decision": verdict.decision.value,
             "se_patterns": [s.pattern.value for s in verdict.se_signals],
             "payload_flags": [f.value for f in verdict.payload_result.flags],
+            "dangerous_url_hashes": [
+                _hash_identifier(u) for u in verdict.payload_result.detail.get("dangerous_urls", [])
+            ],
             "contact_tier": verdict.contact_tier.value,
             "reasons": verdict.reasons,
         }
@@ -355,4 +373,17 @@ class HITLRequiredError(Exception):
         super().__init__(
             f"OutboundMessageGate 出站消息需人工确认: {verdict.decision.value} — "
             f"{'; '.join(verdict.reasons)}"
+        )
+
+
+class MalformedOutboundCallError(Exception):
+    """出站通道调用参数结构无法解析, 无法确认是否含接收方。
+
+    由 ``OutboundGuard.wrap_mcp_client`` 在参数结构不符时抛出 (G3-I12
+    fail-closed) — 宁可拒绝, 不静默透传绕过护栏。
+    """
+
+    def __init__(self, detail: str = "") -> None:
+        super().__init__(
+            "OutboundMessageGate 无法解析出站调用参数 (fail-closed): " + detail
         )
