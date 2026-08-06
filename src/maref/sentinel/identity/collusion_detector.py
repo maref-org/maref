@@ -177,12 +177,16 @@ class CollusionDetector:
         self,
         accounts: list[ExternalAccount] | None = None,
         sybil_clusters: list[SybilCluster] | None = None,
+        registry: Any | None = None,
     ) -> CollusionReport:
         """执行共谋检测。
 
         Args:
             accounts: 外部账号列表 (供跨代理共享检测)。
             sybil_clusters: 已知 sybil 集群 (供自导自演判定, 可选)。
+            registry: ExternalAccountRegistry (可选)。提供后跨代理共享检测
+                优先使用 registry 的使用历史 (G1-C3 修复: 幂等注册表语义下
+                检测仍可靠)。
 
         Returns:
             CollusionReport。
@@ -193,7 +197,7 @@ class CollusionDetector:
 
         self._detect_self_endorsement(sybil_clusters)
         self._detect_mutual_endorsement()
-        self._detect_cross_agent_share(accounts)
+        self._detect_cross_agent_share(accounts, registry)
 
         return CollusionReport(
             events=list(self._events),
@@ -275,32 +279,61 @@ class CollusionDetector:
                     )
                 )
 
-    def _detect_cross_agent_share(self, accounts: list[ExternalAccount]) -> None:
-        """跨代理共享: 同一外部账号被多个不同 agent 使用, 或 SHARE 事件显式共享。"""
-        # 1. (platform, handle) -> 使用它的 agent 集合
-        #    同一外部句柄被多个 agent 使用 → 共享凭据/身份 (发现 ④)
-        handle_agents: dict[tuple[str, str], tuple[set[str], list[str]]] = {}
-        for acc in accounts:
-            if not acc.agent_did:
-                continue
-            key = (acc.platform.value, acc.handle.lower())
-            agents, account_ids = handle_agents.setdefault(key, (set(), []))
-            agents.add(acc.agent_did)
-            if acc.account_id not in account_ids:
-                account_ids.append(acc.account_id)
-        for (platform, handle), (agents, account_ids) in handle_agents.items():
-            if len(agents) >= 2:
-                self._events.append(
-                    CollusionEvent(
-                        kind=CollusionKind.CROSS_AGENT_SHARE,
-                        involved_accounts=account_ids,
-                        description=(
-                            f"跨代理共享账号 {handle} ({platform}): agents "
-                            f"{', '.join(sorted(agents))}"
-                        ),
-                        confidence=0.8,
+    def _detect_cross_agent_share(
+        self, accounts: list[ExternalAccount], registry: Any | None = None
+    ) -> None:
+        """跨代理共享: 同一外部账号被多个不同 agent 使用, 或 SHARE 事件显式共享。
+
+        registry 提供时优先使用其使用历史 (``agents_using``), 因为幂等注册
+        表语义下同 handle 只保留一条记录 — 仅靠 accounts 列表无法观测到
+        多 agent 使用 (G1-C3 修复)。
+        """
+        # 1. 跨代理共享: 同一外部句柄被 ≥2 个 agent 使用 (发现 ④)
+        if registry is not None:
+            # 优先: registry 使用历史
+            handle_accounts: dict[tuple[str, str], list[str]] = {}
+            for acc in accounts:
+                key = (acc.platform.value, acc.handle.lower())
+                if acc.account_id not in handle_accounts.setdefault(key, []):
+                    handle_accounts[key].append(acc.account_id)
+            for (platform, handle), agents in registry.all_usage().items():
+                if len(agents) >= 2:
+                    self._events.append(
+                        CollusionEvent(
+                            kind=CollusionKind.CROSS_AGENT_SHARE,
+                            involved_accounts=handle_accounts.get(
+                                (platform, handle), []
+                            ),
+                            description=(
+                                f"跨代理共享账号 {handle} ({platform}): agents "
+                                f"{', '.join(sorted(agents))}"
+                            ),
+                            confidence=0.8,
+                        )
                     )
-                )
+        else:
+            handle_agents: dict[tuple[str, str], tuple[set[str], list[str]]] = {}
+            for acc in accounts:
+                if not acc.agent_did:
+                    continue
+                key = (acc.platform.value, acc.handle.lower())
+                agents, account_ids = handle_agents.setdefault(key, (set(), []))
+                agents.add(acc.agent_did)
+                if acc.account_id not in account_ids:
+                    account_ids.append(acc.account_id)
+            for (platform, handle), (agents, account_ids) in handle_agents.items():
+                if len(agents) >= 2:
+                    self._events.append(
+                        CollusionEvent(
+                            kind=CollusionKind.CROSS_AGENT_SHARE,
+                            involved_accounts=account_ids,
+                            description=(
+                                f"跨代理共享账号 {handle} ({platform}): agents "
+                                f"{', '.join(sorted(agents))}"
+                            ),
+                            confidence=0.8,
+                        )
+                    )
 
         # 2. 显式 SHARE 事件 (发现 ④: 公开留言邀请复用)
         for ev in self._endorsements:

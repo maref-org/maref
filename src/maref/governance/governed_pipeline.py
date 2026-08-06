@@ -117,11 +117,17 @@ class GovernedPipeline:
             self.consensus = FederatedConsensus()
 
         # 6. Unified governance pipeline with all components
+        # v0.52.1 G2-C7: 链级意图推理生产接线。
+        from maref.governance.intent.factory import build_chain_intent_gate
+
+        intent_tracker, intent_gate = build_chain_intent_gate()
         self.pipeline = GovernancePipeline(
             hitl=self.hitl,
             permission=self.permission,
             audit_callback=self._audit_decision,
             boundary=self.boundary,
+            intent_tracker=intent_tracker,
+            intent_gate=intent_gate,
         )
 
         logger.info(

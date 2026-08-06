@@ -94,9 +94,16 @@ class ExternalAccountRegistry:
         self._accounts: dict[str, ExternalAccount] = {}
         self._handle_index: dict[tuple[str, str], str] = {}  # (platform, handle) -> account_id
         self._agent_index: dict[str, list[str]] = {}  # agent_did -> [account_id]
+        # 使用历史: (platform, handle) -> set[agent_did] — 记录所有使用过该外部
+        # 身份的系统内 agent (G1-C3 修复: 跨代理共享检测的数据基础)。
+        self._usage_history: dict[tuple[str, str], set[str]] = {}
 
     def register(self, account: ExternalAccount) -> ExternalAccount:
         """登记外部账号 (幂等: 同一 platform+handle 更新, 不重复)。
+
+        幂等语义下的多 agent 使用: 同 handle 被第二个 agent 登记时, 不覆盖
+        原记录, 而是把该 agent 记入使用历史 ``_usage_history``, 供跨代理
+        共享检测 (CollusionDetector) 消费。
 
         Args:
             account: 待登记账号。
@@ -107,15 +114,26 @@ class ExternalAccountRegistry:
         if isinstance(account.platform, str):
             account.platform = PlatformType(account.platform)
         key = (account.platform.value, account.handle.lower())
+        # 记录使用历史 (对幂等命中与新建都生效)
+        if account.agent_did:
+            self._usage_history.setdefault(key, set()).add(account.agent_did)
         existing_id = self._handle_index.get(key)
         if existing_id:
             existing = self._accounts[existing_id]
             existing.last_seen = time.time()
-            existing.agent_did = account.agent_did or existing.agent_did
+            # 首次登记记录归属; 后续 agent 使用不覆盖, 保留首个声明者
+            if not existing.agent_did:
+                existing.agent_did = account.agent_did
+            # 同步 agent 索引 (G1-C3 修复: 消除 list_by_agent 索引不一致)
+            if account.agent_did:
+                agent_ids = self._agent_index.setdefault(account.agent_did, [])
+                if existing.account_id not in agent_ids:
+                    agent_ids.append(existing.account_id)
             return existing
         self._accounts[account.account_id] = account
         self._handle_index[key] = account.account_id
-        self._agent_index.setdefault(account.agent_did, []).append(account.account_id)
+        if account.agent_did:
+            self._agent_index.setdefault(account.agent_did, []).append(account.account_id)
         return account
 
     def get(self, platform: PlatformType, handle: str) -> ExternalAccount | None:
@@ -133,6 +151,15 @@ class ExternalAccountRegistry:
         """列出某 agent 登记/使用过的全部外部账号。"""
         ids = self._agent_index.get(agent_did, [])
         return [self._accounts[i] for i in ids if i in self._accounts]
+
+    def agents_using(self, platform: PlatformType, handle: str) -> set[str]:
+        """返回使用过该外部身份的全部 agent DID (跨代理共享检测用)。"""
+        key = (platform.value, handle.lower())
+        return set(self._usage_history.get(key, set()))
+
+    def all_usage(self) -> dict[tuple[str, str], set[str]]:
+        """返回全部 (platform, handle) -> 使用它的 agent DID 集合。"""
+        return {k: set(v) for k, v in self._usage_history.items()}
 
     def undeclared_accounts(self) -> list[ExternalAccount]:
         """列出未声明 (declared=False) 的外部账号 — 身份伪造首要信号。"""

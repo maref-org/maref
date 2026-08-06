@@ -17,6 +17,7 @@ from maref.security.outbound.contact import ContactReputation, ContactTier
 from maref.security.outbound.gate import (
     BlockedOutboundError,
     GateDecision,
+    HITLRequiredError,
     OutboundMessageGate,
     OutboundVerdict,
 )
@@ -55,5 +56,6 @@ __all__ = [
     "GateDecision",
     "OutboundVerdict",
     "BlockedOutboundError",
+    "HITLRequiredError",
     "OutboundGuard",
 ]

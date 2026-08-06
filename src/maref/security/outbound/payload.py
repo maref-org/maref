@@ -100,8 +100,8 @@ _EXEC_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"invoke-?\s?(webrequest|expression|command)", re.IGNORECASE),
 )
 
-# base64 长块检测: ≥40 个连续 base64 字符
-_BASE64_BLOB_RE = re.compile(r"[A-Za-z0-9+/]{40,}={0,2}")
+# base64 长块检测: ≥40 个连续 base64 字符 (含 url-safe 字符集 -_)
+_BASE64_BLOB_RE = re.compile(r"[A-Za-z0-9+/_-]{40,}={0,2}")
 
 # 危险 URL scheme
 _DANGEROUS_SCHEMES: tuple[str, ...] = ("javascript:", "data:text/html", "file://", "vbscript:")
@@ -138,7 +138,13 @@ class PayloadSanitizeResult:
         }
 
 
-_URL_RE = re.compile(r"https?://[^\s<>\"']+|(?:www\.)[^\s<>\"']+")
+# URL 提取正则: IGNORECASE 防大写 scheme 绕过 (G3-C2 修复)
+_URL_RE = re.compile(r"https?://[^\s<>\"']+|(?:www\.)[^\s<>\"']+", re.IGNORECASE)
+
+# 裸 IP 路径 (无 scheme): 1.2.3.4/payload.sh 等 (G3-C2 修复)
+_BARE_IP_URL_RE = re.compile(
+    r"(?<!\w)\b\d{1,3}(?:\.\d{1,3}){3}(?:[/:][^\s<>\"']*)?"
+)
 
 
 class OutboundPayloadSanitizer:
@@ -241,13 +247,26 @@ class OutboundPayloadSanitizer:
     def _extract_urls(self, text: str) -> list[str]:
         if not text:
             return []
-        return [m.group(0) for m in _URL_RE.finditer(text)]
+        urls = [m.group(0) for m in _URL_RE.finditer(text)]
+        # 裸 IP 直连 (无 scheme) — G3-C2 修复
+        urls.extend(m.group(0) for m in _BARE_IP_URL_RE.finditer(text))
+        # 去重保序
+        seen: set[str] = set()
+        dedup: list[str] = []
+        for u in urls:
+            if u not in seen:
+                seen.add(u)
+                dedup.append(u)
+        return dedup
 
     def _classify_urls(self, urls: list[str]) -> list[str]:
         dangerous: list[str] = []
         for url in urls:
             try:
-                parsed = urlparse(url)
+                # 无 scheme 的 URL (裸 IP / www. 域名) 归一化为 https 再解析,
+                # 使 www. 合法域名不因 scheme="" 被误判危险 (I3 修复),
+                # 而裸 IP 直连仍会因 host 是 IP 被判危险。
+                parsed = urlparse(url if "://" in url else f"https://{url}")
             except Exception:
                 dangerous.append(url)
                 continue

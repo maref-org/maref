@@ -341,3 +341,18 @@ class BlockedOutboundError(Exception):
             f"OutboundMessageGate 阻断出站消息: {verdict.decision.value} — "
             f"{'; '.join(verdict.reasons)}"
         )
+
+
+class HITLRequiredError(Exception):
+    """出站消息需人工确认 (HITL) 且未获批准, 不得发送。
+
+    由 ``OutboundGuard`` 在 HITL 决策且未配置人工放行时抛出 (fail-closed),
+    防止"升级人工"环节被绕过 — 底层 sender 不会被调用。
+    """
+
+    def __init__(self, verdict: OutboundVerdict) -> None:
+        self.verdict = verdict
+        super().__init__(
+            f"OutboundMessageGate 出站消息需人工确认: {verdict.decision.value} — "
+            f"{'; '.join(verdict.reasons)}"
+        )

@@ -127,10 +127,7 @@ class GovernancePipeline:
         trust_callback: Callable[[str, str, float, str], None] | None = None,
         cb_check_callback: Callable[[str, str, str, int], bool] | None = None,
         cb_record_callback: Callable[[str, str, str, bool], None] | None = None,
-        policy_rules: list[
-            tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]
-        ]
-        | None = None,
+        policy_rules: list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]] | None = None,
         boundary: Any | None = None,
         # v0.52.1 G2: 可选动作链意图推理挂接 (C7)。注入后 govern 会在动作
         # 记录后追加链级评估; 未注入则行为完全不变 (向后兼容)。
@@ -154,9 +151,7 @@ class GovernancePipeline:
         self._intent_gate = intent_gate
 
     @staticmethod
-    def _default_policy_rules() -> list[
-        tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]
-    ]:
+    def _default_policy_rules() -> list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]]:
         """Default policy rules, highest priority first."""
 
         from maref.integration.hitl import HITLTier as _HITLTier
@@ -165,11 +160,7 @@ class GovernancePipeline:
             dangerous = {"file.delete", "shell.exec", "system.shutdown", "registry.modify"}
             if req.action in dangerous:
                 if req.trust_score < 70:
-                    return (
-                        Verdict.ASK_USER,
-                        "Dangerous action requires approval",
-                        _HITLTier.P0_RESPONSE,
-                    )
+                    return Verdict.ASK_USER, "Dangerous action requires approval", _HITLTier.P0_RESPONSE
                 return Verdict.ALLOW, "Dangerous action allowed for trusted agent", None
             return Verdict.ALLOW, "", None
 
@@ -181,30 +172,18 @@ class GovernancePipeline:
         def p1_git_commit(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.action == "git.commit":
                 if req.trust_score < 80:
-                    return (
-                        Verdict.ASK_USER,
-                        "git.commit requires approval for untrusted agents",
-                        _HITLTier.P1_ESCALATE,
-                    )
+                    return Verdict.ASK_USER, "git.commit requires approval for untrusted agents", _HITLTier.P1_ESCALATE
                 return Verdict.ALLOW, "git.commit allowed for trusted agent", None
             return Verdict.ALLOW, "", None
 
         def p1_recursion_depth(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.recursion_depth > 2:
-                return (
-                    Verdict.ASK_USER,
-                    f"High recursion depth ({req.recursion_depth})",
-                    _HITLTier.P1_ESCALATE,
-                )
+                return Verdict.ASK_USER, f"High recursion depth ({req.recursion_depth})", _HITLTier.P1_ESCALATE
             return Verdict.ALLOW, "", None
 
         def p2_low_trust(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.trust_score < 30:
-                return (
-                    Verdict.DENY,
-                    f"Trust score too low ({req.trust_score:.0f})",
-                    _HITLTier.P2_LOG,
-                )
+                return Verdict.DENY, f"Trust score too low ({req.trust_score:.0f})", _HITLTier.P2_LOG
             return Verdict.ALLOW, "", None
 
         def p3_default_allow(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
@@ -342,37 +321,10 @@ class GovernancePipeline:
             )
             hitl_event_id = event.event_id
 
-        result = GovernanceResult(
-            verdict=verdict,
-            reason=reason,
-            hitl_tier=hitl_tier if verdict == Verdict.ASK_USER else None,
-            hitl_event_id=hitl_event_id,
-            matched_rule=matched_rule,
-        )
-
-        # 6. Audit callback
-        if self._audit_callback:
-            self._audit_callback(req, result)
-
-        # 7. Trust score update
-        if self._trust_callback:
-            if verdict == Verdict.ALLOW:
-                self._trust_callback(
-                    req.tenant_id, req.agent_id, min(100.0, req.trust_score + 0.5), "pipeline:allow"
-                )
-            elif verdict == Verdict.DENY:
-                self._trust_callback(
-                    req.tenant_id, req.agent_id, max(0.0, req.trust_score - 1.0), "pipeline:deny"
-                )
-
-        # 8. Circuit breaker record
-        if self._cb_record_callback:
-            self._cb_record_callback(
-                req.tenant_id, req.agent_id, req.action, verdict == Verdict.ALLOW
-            )
-
-        # v0.52.1 G2-C7: 链级意图评估 (动作记录后追加)。
-        # 未注入 intent 组件时零开销; 注入后链级 HALT/ESCALATE 覆盖单步裁决。
+        # 5.5 v0.52.1 G2-C7: 链级意图评估。
+        # 在审计/信任副作用 (step 6-8) 之前执行, 使链级 HALT/ESCALATE 覆盖的
+        # 裁决能被审计/信任正确反映 (G2-3 修复); escalate 在此发起真实 HITL
+        # 审批事件 (G2-2 修复)。
         if self._intent_tracker is not None and self._intent_gate is not None:
             try:
                 from maref.governance.intent.chain_tracker import (
@@ -403,17 +355,47 @@ class GovernancePipeline:
                         from maref.integration.hitl import HITLTier as _HITLTier
 
                         hitl_tier = _HITLTier.P1_ESCALATE
-                # result 对象在链级评估前已创建, 需同步更新其裁决字段
-                result.verdict = verdict
-                result.reason = reason
-                result.matched_rule = matched_rule
-                result.hitl_tier = hitl_tier if verdict == Verdict.ASK_USER else None
             except Exception as _intent_exc:  # noqa: BLE001
                 # 链级评估失败不阻断主流程 (fail-open 保活, 但已记录审计)
                 import logging as _logging
 
                 _logging.getLogger(__name__).debug("intent chain eval failed: %s", _intent_exc)
                 pass
+
+            # 链级覆盖后重新发起 HITL 审批 (escalate 场景; G2-2 修复)
+            if verdict == Verdict.ASK_USER and hitl_tier:
+                event = self._hitl.request(
+                    tenant_id=req.tenant_id or "default",
+                    agent_id=req.agent_id,
+                    action=req.action,
+                    description=reason,
+                    parameters=req.parameters,
+                    tier=hitl_tier,
+                )
+                hitl_event_id = event.event_id
+
+        result = GovernanceResult(
+            verdict=verdict,
+            reason=reason,
+            hitl_tier=hitl_tier if verdict == Verdict.ASK_USER else None,
+            hitl_event_id=hitl_event_id,
+            matched_rule=matched_rule,
+        )
+
+        # 6. Audit callback
+        if self._audit_callback:
+            self._audit_callback(req, result)
+
+        # 7. Trust score update
+        if self._trust_callback:
+            if verdict == Verdict.ALLOW:
+                self._trust_callback(req.tenant_id, req.agent_id, min(100.0, req.trust_score + 0.5), "pipeline:allow")
+            elif verdict == Verdict.DENY:
+                self._trust_callback(req.tenant_id, req.agent_id, max(0.0, req.trust_score - 1.0), "pipeline:deny")
+
+        # 8. Circuit breaker record
+        if self._cb_record_callback:
+            self._cb_record_callback(req.tenant_id, req.agent_id, req.action, verdict == Verdict.ALLOW)
 
         result.latency_ms = int((time.time() - start) * 1000)
         return result

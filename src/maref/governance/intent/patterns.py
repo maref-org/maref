@@ -173,9 +173,15 @@ class ChainPatternLibrary:
     def _match_one(
         self, chain: list[ActionRecord], pattern: ChainPattern
     ) -> list[PatternMatch]:
-        """对单个模式在链上做子序列匹配 (DP 找首个成功匹配)。
+        """对单个模式在链上做子序列匹配 (多起点推进式, gap 容忍)。
 
-        每个匹配器在链上寻找第一个满足的记录 (允许 gap ≤ max_gap)。
+        修复:
+        - G2-I1: ``gap_count`` 准确计数匹配段内的无关动作 (span - 命中数),
+           gap 惩罚在置信度计算中真实生效。
+        - G2-I2: 对每个满足 seq[0] 的位置作为独立起点推进匹配, 重置不再
+           "消费"当前记录 → 穿插伪装步骤无法使真实攻击链整体漏检。
+
+        匹配段为最短完整匹配 (一旦完整命中立即记录)。
         """
         n = len(chain)
         seq = pattern.sequence
@@ -183,45 +189,41 @@ class ChainPatternLibrary:
             return []
 
         results: list[PatternMatch] = []
-        start_idx: int | None = None
-        cursor = 0  # 模式中的位置
-        gap = 0
-        matched_records: list[ActionRecord] = []
-        i = 0
+        m = len(seq)
 
-        while i < n:
-            if cursor < len(seq) and seq[cursor].matches(chain[i]):
-                if start_idx is None:
-                    start_idx = i
-                matched_records.append(chain[i])
-                cursor += 1
-                gap = 0
-            else:
-                if cursor > 0:
+        # 每个满足 seq[0] 的位置作为起点
+        for start in range(n):
+            if not seq[0].matches(chain[start]):
+                continue
+            matched: list[ActionRecord] = [chain[start]]
+            cursor = 1
+            gap = 0
+            end = start
+            i = start + 1
+            while i < n and cursor < m:
+                if seq[cursor].matches(chain[i]):
+                    matched.append(chain[i])
+                    cursor += 1
+                    gap = 0
+                    end = i
+                else:
                     gap += 1
                     if gap > self.max_gap:
-                        # 匹配失败: 重置, 从下一个位置重新尝试
-                        cursor = 0
-                        gap = 0
-                        matched_records = []
-                        start_idx = None
-            if cursor == len(seq):
-                # 完整匹配
+                        break
+                i += 1
+            if cursor == m:
+                # gap_count = 匹配段内无关动作数 = span - 命中数
+                span = end - start + 1
+                gap_count = max(0, span - m)
                 results.append(
                     PatternMatch(
                         pattern=pattern,
-                        start_index=start_idx if start_idx is not None else 0,
-                        end_index=i,
-                        matched_records=matched_records,
-                        gap_count=max(0, len(matched_records) - len(seq)),
+                        start_index=start,
+                        end_index=end,
+                        matched_records=matched,
+                        gap_count=gap_count,
                     )
                 )
-                # 继续寻找后续匹配 (从 i 之后)
-                cursor = 0
-                gap = 0
-                matched_records = []
-                start_idx = None
-            i += 1
         return results
 
 
@@ -233,16 +235,20 @@ _BUILTIN_PATTERNS: list[ChainPattern] = [
         name="软件供应链欺骗",
         sequence=[
             ActionMatcher(category=ActionCategory.EXTERNAL, action_contains="submit"),
+            # G2-I3 误报缓解: review 步骤要求来自未声明/伪造身份 (via_undeclared_identity),
+            # 正常开源协作中"可信身份的代码审查"不命中 → 不误报正常流程。
+            # 该标记由 G1 身份指纹 (未声明账号检出) 联动标注 (预留接口)。
             ActionMatcher(
                 category=ActionCategory.IDENTITY,
                 action_contains="review",
+                metadata_pred=lambda m: bool(m.get("via_undeclared_identity")),
                 label="review/endorse",
             ),
             ActionMatcher(category=ActionCategory.COMMUNICATE, action_contains="thank"),
         ],
         severity="CRITICAL",
         weight=1.5,
-        description="提交恶意代码 → 假身份审查背书 → 假感谢闭环 (AISI 发现①)",
+        description="提交恶意代码 → 假身份审查背书 → 假感谢闭环 (AISI 发现①, 需未声明身份标记)",
     ),
     ChainPattern(
         pattern_id="se_human_lure",
