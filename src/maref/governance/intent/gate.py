@@ -110,10 +110,13 @@ class ChainInterruptGate:
         pattern_library: ChainPatternLibrary | None = None,
         hypothesis_engine: IntentHypothesisEngine | None = None,
         aggregator: SequentialRiskAggregator | None = None,
+        long_horizon_analyzer: Any | None = None,
     ) -> None:
         self._library = pattern_library or ChainPatternLibrary()
         self._engine = hypothesis_engine or IntentHypothesisEngine(self._library)
         self._aggregator = aggregator or SequentialRiskAggregator()
+        # G2-I7: 长时程漂移分析器 (34.5h 慢漂移检测)。可配置; 未配置则跳过。
+        self._long_horizon = long_horizon_analyzer
         self._handlers: list[Callable[[IntentVerdict], None]] = []
         self._history: list[IntentVerdict] = []
 
@@ -152,7 +155,11 @@ class ChainInterruptGate:
         tracker: ActionChainTracker,
         agent_id: str,
     ) -> IntentVerdict:
-        """一站式评估: 从 tracker 取链 → evaluate。
+        """一站式评估: 从 tracker 取链 → evaluate (含长时程漂移分析)。
+
+        G2-I7: 配置 ``long_horizon_analyzer`` 时, 若检测到慢速漂移
+        (前期 LOW → 后期 HIGH 的渐进越权), 将裁决升级到 WATCH —
+        "34.5h 问题"在运行时获得治理响应。
 
         Args:
             tracker: 动作链追踪器。
@@ -162,7 +169,23 @@ class ChainInterruptGate:
             IntentVerdict。
         """
         chain = tracker.chain(agent_id)
-        return self.evaluate(chain, agent_id=agent_id)
+        verdict = self.evaluate(chain, agent_id=agent_id)
+
+        if self._long_horizon is not None and len(chain) >= 2:
+            try:
+                analysis = self._long_horizon.analyze(tracker, agent_id)
+                if analysis.drift_detected:
+                    # 慢速漂移 → 至少 WATCH (观察); 已有更高裁决 (ESCALATE/HALT) 保持
+                    if verdict.decision in (ChainDecision.CONTINUE, ChainDecision.WATCH):
+                        verdict.decision = ChainDecision.WATCH
+                        if verdict.level in (ChainRiskLevel.LOW, ChainRiskLevel.MEDIUM):
+                            verdict.level = ChainRiskLevel.MEDIUM
+                        verdict.reason = f"{verdict.reason}; {analysis.drift_signal}"
+                        verdict.actions = list(dict.fromkeys(verdict.actions + ["observe"]))
+            except Exception:  # noqa: BLE001 — 漂移分析失败不阻断
+                pass
+
+        return verdict
 
     # -- 治理动作注册 --
 

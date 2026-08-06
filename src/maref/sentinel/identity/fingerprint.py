@@ -161,12 +161,17 @@ class IdentityFingerprint:
         return min(1.0, overlap)
 
     def _egress_similarity(self, a: FingerprintProfile, b: FingerprintProfile) -> float:
+        """网络出口相似度。
+
+        G1-I1 修复: 仅当双方都无网络数据时返中性 0.5; 任一维度有数据但
+        不匹配 → 按实际匹配计分 (IP 不匹配返 0.0, 而非误当中性)。
+        """
+        has_data = (a.ip_hash or a.ua_hash) and (b.ip_hash or b.ua_hash)
+        if not has_data:
+            return 0.5  # 无网络数据 → 中性
         score = 0.0
         if a.ip_hash and b.ip_hash:
             score += 0.5 if a.ip_hash == b.ip_hash else 0.0
         if a.ua_hash and b.ua_hash:
             score += 0.5 if a.ua_hash == b.ua_hash else 0.0
-        if score > 0.0:
-            return score
-        # 无网络数据 → 中性
-        return 0.5
+        return score

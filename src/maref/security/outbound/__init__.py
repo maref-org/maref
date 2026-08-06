@@ -18,6 +18,7 @@ from maref.security.outbound.gate import (
     BlockedOutboundError,
     GateDecision,
     HITLRequiredError,
+    MalformedOutboundCallError,
     OutboundMessageGate,
     OutboundVerdict,
 )
@@ -57,5 +58,6 @@ __all__ = [
     "OutboundVerdict",
     "BlockedOutboundError",
     "HITLRequiredError",
+    "MalformedOutboundCallError",
     "OutboundGuard",
 ]

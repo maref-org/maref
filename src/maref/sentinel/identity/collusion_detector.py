@@ -199,6 +199,10 @@ class CollusionDetector:
         self._detect_mutual_endorsement()
         self._detect_cross_agent_share(accounts, registry)
 
+        # G1-I3: min_confidence 过滤低置信度事件 (原为死参数)
+        events = [e for e in self._events if e.confidence >= self.min_confidence]
+        self._events = events
+
         return CollusionReport(
             events=list(self._events),
             endorsement_count=len(self._endorsements),

@@ -139,6 +139,19 @@ class TestIdentityFingerprint:
         assert d["ngram_count"] > 0
         assert len(d["active_buckets"]) == 6
 
+    def test_egress_mismatch_zero_not_neutral(self):
+        # G1-I1: 双不匹配网络出口 → 0.0 (非中性 0.5)
+        from maref.sentinel.identity import FingerprintProfile
+
+        fp = IdentityFingerprint()
+        a = FingerprintProfile(ip_hash="ipA", ua_hash="uaA")
+        b = FingerprintProfile(ip_hash="ipB", ua_hash="uaB")
+        assert fp._egress_similarity(a, b) == 0.0
+        # 无数据仍中性
+        assert fp._egress_similarity(
+            FingerprintProfile(), FingerprintProfile()
+        ) == 0.5
+
 
 class TestSybilDetector:
     def _setup(self) -> tuple:
@@ -194,6 +207,24 @@ class TestSybilDetector:
         # 无指纹, 但短窗口多账号信号应触发
         sybil = [c for c in clusters if "short_window_multi" in c.signals]
         assert len(sybil) >= 1
+
+    def test_short_window_excludes_early_accounts(self):
+        # G1-I2: 短窗口聚类不得拖入窗口外的早期账号
+        import time as _time
+
+        reg = ExternalAccountRegistry()
+        t = _time.time()
+        reg.register(
+            _account("early-real", declared=True, first_seen=t - 47 * 3600)
+        )
+        for i in range(3):
+            reg.register(
+                _account(f"fake-{i}", declared=False, first_seen=t - (3 - i) * 3600)
+            )
+        detector = SybilDetector(window_hours=24)
+        groups = detector._cluster_by_window(reg.all_accounts())
+        early_id = reg.get(PlatformType.GITHUB, "early-real").account_id
+        assert not any(early_id in g for g in groups)
 
     def test_cluster_to_dict(self):
         reg, profs = self._setup()
@@ -270,6 +301,18 @@ class TestCollusionDetector:
         assert d["max_confidence"] > 0
         assert d["endorsement_count"] == 1
 
+    def test_min_confidence_filters_events(self):
+        # G1-I3: min_confidence 过滤低置信度事件
+        detector = CollusionDetector(min_confidence=0.9)
+        detector.record_endorsement(
+            EndorsementEvent(endorser_account="a", target_account="b", action=EndorsementKind.THANK)
+        )
+        detector.record_endorsement(
+            EndorsementEvent(endorser_account="b", target_account="a", action=EndorsementKind.THANK)
+        )
+        report = detector.detect()
+        assert report.events == []  # mutual_endorsement 0.75 < 0.9 被过滤
+
 
 class TestIdentityProbe:
     async def _poll(self, probe: IdentityProbe) -> list:
@@ -332,6 +375,26 @@ class TestIdentityProbe:
         second = asyncio.run(self._poll(probe))
         assert len(first) == 1
         assert second == []  # 去重
+
+    def test_submit_account_profile_lands_on_effective_record(self):
+        # G1-I4: 幂等命中时 profile 归到 registry 生效记录 (非孤儿 key)
+        import time as _time
+
+        reg = ExternalAccountRegistry()
+        fp = IdentityFingerprint()
+        probe = IdentityProbe(
+            config=ProbeConfig(hmac_key=b"k"), registry=reg, sybil_detector=SybilDetector()
+        )
+        a1 = _account("shared", agent_did="agent-01", first_seen=_time.time() - 100)
+        a2 = _account("shared", agent_did="agent-02", first_seen=_time.time() - 50)
+        p1 = fp.extract_profile(["提交修复"], [_time.time()], "ip1", "ua1", profile_id="p1")
+        p2 = fp.extract_profile(["提交修复"], [_time.time()], "ip1", "ua1", profile_id="p2")
+        probe.submit_account(a1, p1)
+        probe.submit_account(a2, p2)
+        effective = reg.get(PlatformType.GITHUB, "shared").account_id
+        assert effective in probe.submitted_profiles()
+        # 无孤儿 profile key
+        assert all(k == effective for k in probe.submitted_profiles())
 
     def test_probe_emits_collusion_critical(self):
         reg = ExternalAccountRegistry()

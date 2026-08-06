@@ -84,11 +84,16 @@ class IdentityProbe(Probe):
         account: ExternalAccount,
         profile: FingerprintProfile | None = None,
     ) -> None:
-        """登记外部账号 (含可选行为指纹)。"""
-        self._registry.register(account)
+        """登记外部账号 (含可选行为指纹)。
+
+        G1-I4 修复: 使用 registry 实际返回的记录 ID 存指纹 — 幂等命中时
+        register() 返回已存在的记录, 避免 profile 错位到孤儿 account_id。
+        """
+        registered = self._registry.register(account)
         if profile is not None:
-            self._profiles[account.account_id] = profile
-            account.profile_id = profile.profile_id
+            # 指纹归到 registry 实际生效的 account_id
+            self._profiles[registered.account_id] = profile
+            registered.profile_id = profile.profile_id
 
     def submit_endorsement(self, event: EndorsementEvent) -> None:
         """提交一条背书事件 (供共谋检测)。"""
