@@ -27,6 +27,53 @@ class Verdict(str, Enum):
     DEFER = "DEFER"
 
 
+def _infer_category(action: str) -> Any:
+    """从动作标识推断 ActionCategory (供链级追踪; 保守映射到 OTHER)。"""
+    try:
+        from maref.governance.intent.chain_tracker import ActionCategory
+
+        a = action.lower()
+        if any(k in a for k in ("create", "register", "attach")):
+            return ActionCategory.CREATE
+        if any(k in a for k in ("read", "query", "list", "fetch", "search")):
+            return ActionCategory.READ
+        if any(k in a for k in ("edit", "update", "modify", "inject", "history")):
+            return ActionCategory.UPDATE
+        if any(k in a for k in ("delete", "drop", "remove", "clear", "trace")):
+            return ActionCategory.DELETE
+        if any(k in a for k in ("send", "message", "email", "comment", "thank")):
+            return ActionCategory.COMMUNICATE
+        if any(k in a for k in ("submit", "pull_request", "push", "commit", "release", "deploy")):
+            return ActionCategory.EXTERNAL
+        if any(k in a for k in ("credential", "password", "token", "secret")):
+            return ActionCategory.CREDENTIAL
+        if any(k in a for k in ("identity", "account", "role", "rotate", "switch", "reuse", "review", "approve", "endorse")):
+            return ActionCategory.IDENTITY
+        if any(k in a for k in ("network", "proxy", "tor", "connect", "egress")):
+            return ActionCategory.NETWORK
+        if any(k in a for k in ("exec", "run", "shell", "bash", "code")):
+            return ActionCategory.EXECUTE
+        return ActionCategory.OTHER
+    except Exception:
+        from maref.governance.intent.chain_tracker import ActionCategory
+
+        return ActionCategory.OTHER
+
+
+def _risk_level_of(verdict: Verdict) -> Any:
+    """将单步裁决映射为链级单步风险。"""
+    try:
+        from maref.governance.intent.chain_tracker import ChainRiskLevel
+
+        if verdict == Verdict.DENY:
+            return ChainRiskLevel.HIGH
+        if verdict == Verdict.ASK_USER:
+            return ChainRiskLevel.MEDIUM
+        return ChainRiskLevel.LOW
+    except Exception:
+        return "LOW"
+
+
 @dataclass
 class GovernanceRequest:
     """Universal governance request — used by GaaS, MCP, and future peers."""
@@ -85,6 +132,10 @@ class GovernancePipeline:
         ]
         | None = None,
         boundary: Any | None = None,
+        # v0.52.1 G2: 可选动作链意图推理挂接 (C7)。注入后 govern 会在动作
+        # 记录后追加链级评估; 未注入则行为完全不变 (向后兼容)。
+        intent_tracker: Any | None = None,
+        intent_gate: Any | None = None,
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
 
@@ -99,6 +150,8 @@ class GovernancePipeline:
         # Injected via duck typing so core_pipeline does not hard-depend on
         # maref.governance.trust_boundary.
         self._boundary = boundary
+        self._intent_tracker = intent_tracker
+        self._intent_gate = intent_gate
 
     @staticmethod
     def _default_policy_rules() -> list[
@@ -317,6 +370,50 @@ class GovernancePipeline:
             self._cb_record_callback(
                 req.tenant_id, req.agent_id, req.action, verdict == Verdict.ALLOW
             )
+
+        # v0.52.1 G2-C7: 链级意图评估 (动作记录后追加)。
+        # 未注入 intent 组件时零开销; 注入后链级 HALT/ESCALATE 覆盖单步裁决。
+        if self._intent_tracker is not None and self._intent_gate is not None:
+            try:
+                from maref.governance.intent.chain_tracker import (
+                    ActionRecord,
+                )
+
+                tracker = self._intent_tracker
+                cat = _infer_category(req.action)
+                tracker.record(
+                    ActionRecord(
+                        action=req.action,
+                        agent_id=req.agent_id,
+                        category=cat,
+                        risk_level=_risk_level_of(verdict),
+                        subject=str(req.parameters.get("subject", "")),
+                        outcome="denied" if verdict == Verdict.DENY else "success",
+                        metadata={"tenant_id": req.tenant_id, **req.parameters},
+                    )
+                )
+                chain_verdict = self._intent_gate.evaluate_agent(tracker, req.agent_id)
+                if chain_verdict.decision.value == "halt":
+                    verdict, reason = Verdict.DENY, f"链级意图熔断: {chain_verdict.reason}"
+                    matched_rule = "intent_chain_halt"
+                elif chain_verdict.decision.value == "escalate":
+                    verdict, reason = Verdict.ASK_USER, f"链级意图升级: {chain_verdict.reason}"
+                    matched_rule = "intent_chain_escalate"
+                    if hitl_tier is None:
+                        from maref.integration.hitl import HITLTier as _HITLTier
+
+                        hitl_tier = _HITLTier.P1_ESCALATE
+                # result 对象在链级评估前已创建, 需同步更新其裁决字段
+                result.verdict = verdict
+                result.reason = reason
+                result.matched_rule = matched_rule
+                result.hitl_tier = hitl_tier if verdict == Verdict.ASK_USER else None
+            except Exception as _intent_exc:  # noqa: BLE001
+                # 链级评估失败不阻断主流程 (fail-open 保活, 但已记录审计)
+                import logging as _logging
+
+                _logging.getLogger(__name__).debug("intent chain eval failed: %s", _intent_exc)
+                pass
 
         result.latency_ms = int((time.time() - start) * 1000)
         return result
