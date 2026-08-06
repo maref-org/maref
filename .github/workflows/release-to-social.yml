@@ -44,66 +44,66 @@ jobs:
             const body = (release.body || '').replace(/#### /g, '### ').slice(0, 500);
 
             const blog = `---
-import BlogLayout from "@/layouts/BlogLayout.astro";
+            import BlogLayout from "@/layouts/BlogLayout.astro";
 
-<BlogLayout
-  locale="en"
-  title="MAREF ${version} Released"
-  description="${(release.name || tag)} — key updates and improvements."
-  date="${today}"
-  author="MAREF Engineering"
-  tags={["release", "${version}"]}
->
+            <BlogLayout
+              locale="en"
+              title="MAREF ${version} Released"
+              description="${(release.name || tag)} — key updates and improvements."
+              date="${today}"
+              author="MAREF Engineering"
+              tags={["release", "${version}"]}
+            >
 
-<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
-  MAREF ${version} is now available.
-</p>
+            <p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+              MAREF ${version} is now available.
+            </p>
 
-${body}
+            ${body}
 
-<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
-  See the <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">full changelog on GitHub</a> for details.
-</p>
+            <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+              See the <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">full changelog on GitHub</a> for details.
+            </p>
 
-<hr class="my-12 border-brand-border" />
+            <hr class="my-12 border-brand-border" />
 
-<p class="text-sm text-brand-text-muted">
-  <em><a href="/en/docs/quickstart" class="text-brand-accent-blue hover:underline">Deploy MAREF in 5 minutes</a> · <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub Release</a></em>
-</p>
+            <p class="text-sm text-brand-text-muted">
+              <em><a href="/en/docs/quickstart" class="text-brand-accent-blue hover:underline">Deploy MAREF in 5 minutes</a> · <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub Release</a></em>
+            </p>
 
-</BlogLayout>
-`;
+            </BlogLayout>
+            `;
 
             const zhBlog = `---
-import BlogLayout from "@/layouts/BlogLayout.astro";
+            import BlogLayout from "@/layouts/BlogLayout.astro";
 
-<BlogLayout
-  locale="zh"
-  title="MAREF ${version} 发布"
-  description="${(release.name || tag)} — 关键更新和改进。"
-  date="${today}"
-  author="MAREF Engineering"
-  tags={["发布", "${version}"]}
->
+            <BlogLayout
+              locale="zh"
+              title="MAREF ${version} 发布"
+              description="${(release.name || tag)} — 关键更新和改进。"
+              date="${today}"
+              author="MAREF Engineering"
+              tags={["发布", "${version}"]}
+            >
 
-<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
-  MAREF ${version} 现已发布。
-</p>
+            <p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+              MAREF ${version} 现已发布。
+            </p>
 
-${body}
+            ${body}
 
-<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
-  查看 <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub 完整变更日志</a> 了解详情。
-</p>
+            <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+              查看 <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub 完整变更日志</a> 了解详情。
+            </p>
 
-<hr class="my-12 border-brand-border" />
+            <hr class="my-12 border-brand-border" />
 
-<p class="text-sm text-brand-text-muted">
-  <em><a href="/zh/docs/quickstart" class="text-brand-accent-blue hover:underline">5 分钟部署 MAREF</a> · <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub Release</a></em>
-</p>
+            <p class="text-sm text-brand-text-muted">
+              <em><a href="/zh/docs/quickstart" class="text-brand-accent-blue hover:underline">5 分钟部署 MAREF</a> · <a href="${release.html_url}" class="text-brand-accent-blue hover:underline">GitHub Release</a></em>
+            </p>
 
-</BlogLayout>
-`;
+            </BlogLayout>
+            `;
 
             core.setOutput("en_blog", blog);
             core.setOutput("zh_blog", zhBlog);

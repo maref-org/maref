@@ -36,6 +36,8 @@ class MiddlewareResult:
     is_allowed: bool
     verdict: str = "ALLOW"
     reason: str = ""
+    # v0.52 M2-H1: 数据主权中间件放行时返回按分类消毒后的 payload。
+    sanitized_payload: str | None = None
 
 
 class MCPProtocolValidator:
@@ -234,6 +236,16 @@ class DataSovereigntyMiddleware:
                 verdict="DENY",
                 reason=f"data sovereignty blocked: {decision.status.value}; {restrictions}",
             )
+        # v0.52 M2-H1: 生产接线 — 放行的跨境 payload 按涉事数据类分类消毒，
+        # 防止 PII 随数据转移泄露（委托 DataSovereigntyManager.sanitize_data）。
+        payload = dt.get("payload")
+        if isinstance(payload, str) and requested_ids:
+            sanitized = self._manager.sanitize_data(payload, data_classes[0].category)
+            return MiddlewareResult(
+                is_allowed=True,
+                verdict="ALLOW",
+                sanitized_payload=sanitized.text,
+            )
         return MiddlewareResult(is_allowed=True, verdict="ALLOW")
 
 
@@ -292,6 +304,10 @@ class MCPSecurityMiddleware:
             ds_result = self.data_sovereignty.process(request, agent_id)
             if not ds_result.is_allowed:
                 self.audit.process(request, agent_id, verdict="DENY", reason=ds_result.reason)
+                return ds_result
+            # v0.52 M2-H1: 链传播消毒后 payload，供下游消费方使用脱敏数据。
+            if ds_result.sanitized_payload is not None:
+                self.audit.process(request, agent_id, verdict="ALLOW")
                 return ds_result
 
         # 4. 通过 - 记录审计

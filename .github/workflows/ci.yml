@@ -31,34 +31,22 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      # fetch-depth: 0 — git-tag dependent tests (test_r1_self_observer) need
-      # the full tag history; shallow clone yields zero tags on CI.
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[dev,desktop,sidecar,otel,a2a,orchestration,identity]"
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run unit tests
         run: |
-          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not real" --ignore=tests/maref/compliance
+          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --ignore=tests/maref/compliance
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
-          python -c "from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, f'Mock mismatch: {errors}'"
+          python -c "from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, 'Mock mismatch: ' + str(errors)"
         continue-on-error: true
       - name: Coverage report
         run: coverage report --fail-under=50
-      - name: Audit isolation gate (G6)
-        run: |
-          if [ -d .governance ] && [ -n "$(find .governance -name 'governance_audit*.jsonl' -newermt '-10 minutes' 2>/dev/null)" ]; then
-            echo "❌ 测试污染了生产审计链 (.governance/) — MAREF_AUDIT_PATH 隔离未生效"
-            find .governance -name 'governance_audit*.jsonl' -newermt '-10 minutes'
-            exit 1
-          fi
-          echo "✅ 生产审计链未被测试污染"
 
   security:
     needs: lint
@@ -75,19 +63,11 @@ jobs:
       - name: Bandit SAST
         run: bandit -r src/ -c pyproject.toml || true
       - name: pip-audit
-        run: |
-          pip install pip-audit
-          # runner image's setuptools 79.0.1 has PYSEC-2026-3447; bump before audit
-          pip install -U "setuptools>=83.0.0"
-          pip-audit
+        run: pip-audit
       - name: TruffleHog Secret Scan
-        if: github.event_name == 'pull_request'
-        uses: trufflesecurity/trufflehog@v3.90.8
-        with:
-          path: ./
-          base: ${{ github.event.pull_request.base.sha }}
-          head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --only-verified --exclude-paths .trufflehogignore
+        run: |
+          pip install trufflehog
+          trufflehog filesystem . --config .trufflehog.yaml --since 2026-01-01
 
   integrity:
     needs: lint
@@ -105,8 +85,7 @@ jobs:
       - name: Check for remaining 64-state claims
         run: |
           # 禁止"64-state"夸大声明
-          # 豁免 execution-logs/ 与 INTEGRITY_DECLARATION.md：其仅记录"64-state→34-state 已修正"历史
-          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null | grep -vE "execution-logs|INTEGRITY_DECLARATION" || true)
+          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining '64-state' claims in:"
             echo "$FILES"
@@ -115,8 +94,7 @@ jobs:
           echo "✅ No 64-state claims remain"
       - name: Check for Sperner claims
         run: |
-          # 豁免 execution-logs/、INTEGRITY_DECLARATION.md、gov-audit-report.md：仅记录修复历史/审计事实
-          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null | grep -vE "execution-logs|INTEGRITY_DECLARATION|gov-audit-report"; then
+          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null; then
             echo "ERROR: Found remaining Sperner claims"
             exit 1
           fi

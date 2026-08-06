@@ -64,7 +64,7 @@ governance:
   coverage_note: '全仓 52.49% 为 2026-08-05 实测（标准口径：排除 slow/real/chaos + tests/research 收集错误 + evolution 慢测试；unit/cli/desktop/immunity/tools/governance/federation/security/execution/identity/recursive/sidecar 等 12 标准域 8158 tests 单次跑）。已超 coverage_target 50%+。v0.50 记录的 80.31% 基于当时 4766 tests 标准套件，现已过时。'
   v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
-  mypy_errors: 0
+  mypy_errors: 0  # 2026-08-05 修复 report_generator.py:151 arg-type 后实测清零，见 audit-reinforcement-20260805-v0.52.md H-5
   resolved_issues_archive: archive/resolved-issues.yaml
   p0_fixes:
     gray_code_validator_bug: fixed
@@ -119,12 +119,12 @@ submission_pipeline:
     status: expired_or_expiring
 d1_gate:
   G1_branch_protection: true
-  G2_ci_green: true
+  G2_ci_green: false  # 2026-08-05 修复 ci.yml 语法错误后待 CI 复跑确认；此前 50 次运行 0 成功（v0.50 引入的 YAML 损坏）
   G3_security_clean: true
   G4_no_runtime_artifacts: true
-  gate_passed: true
+  gate_passed: false  # G2 待复跑，见 docs/audit-reports/audit-reinforcement-20260805-v0.52.md C-2
   last_preflight_run: '2026-08-01'
-  last_push_blocked_by: null  # G1-G4 all green — preflight 2026-08-01 confirmed pass
+  last_push_blocked_by: null  # G1/G3/G4 green；G2 修复后待复跑确认
   external_gate_override:  # arXiv/期刊等外部闸门已由人类决策取消，回归内功补强，不受外部影响
     arxiv_id: cancelled_by_human
     cancelled_at: '2026-08-01'

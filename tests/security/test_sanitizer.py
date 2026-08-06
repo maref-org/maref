@@ -40,7 +40,9 @@ class TestSanitizer:
     def test_restore_output_authorized(self) -> None:
         sani = Sanitizer()
         result = sani.sanitize_input("email: test@test.com")
-        restored = sani.restore_output(result.text, result.tokens, authorized=True)
+        restored = sani.restore_output(
+            result.text, result.tokens, authorized=True, authorized_by="test-agent"
+        )
         assert "test@test.com" in restored
 
     def test_sanitize_output_replaces_raw_pii(self) -> None:
