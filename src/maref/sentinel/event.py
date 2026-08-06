@@ -37,6 +37,10 @@ class AttackType(str, Enum):
     ENV_EXFIL = "env_exfil"  # ③ 环境变量外泄
     STEGANOGRAPHY = "steganography"  # ④ 日期分隔符隐写
     PRIVILEGE_ABUSE = "privilege_abuse"  # ⑤ 权限滥用
+    SOCIAL_ENGINEERING = "social_engineering"  # ⑥ 出站社交工程 (G3 出站消息护栏)
+    IDENTITY_SPOOFING = "identity_spoofing"  # ⑦ 外部身份伪造 (G1 外部身份指纹, M2)
+    SYBIL_ATTACK = "sybil_attack"  # ⑧ 多重身份协同 (G1 外部身份指纹, M2)
+    DECEPTIVE_CHAIN = "deceptive_chain"  # ⑨ 组合欺骗动作链 (G2 意图推理, M3)
     NONE = "none"  # 无攻击 (用于 capability drift / 异常但未确认)
 
 
