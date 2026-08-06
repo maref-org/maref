@@ -1,0 +1,232 @@
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+CARD_TYPE_MAP: dict[str, str] = {
+    "signal": "SignalCard",
+    "kdp": "KDPCard",
+    "forecast": "ForecastCard",
+    "pattern": "PatternCard",
+}
+
+CARD_TO_KG_TYPE: dict[str, str] = {
+    "S": "research_signal",
+    "K": "research_kdp",
+    "F": "research_forecast",
+    "PAT": "research_pattern",
+}
+
+
+class CardBridge:
+    """Bridges PERCV's 4 card types to MAREF's knowledge graph.
+
+    Each PERCV research card (Signal/KDP/Forecast/Pattern) is converted
+    to a MAREF KnowledgeNode with typed RelationEdges connecting them.
+
+    Features:
+    - Bidirectional sync (cards → KG, KG state → card updates)
+    - Schema version mapping
+    - Atomic sync with conflict detection
+    - HITL gate support (require confirmation before sync)
+
+    Usage:
+        bridge = CardBridge(vault_path=Path("vault"), knowledge_graph=kg)
+        count = bridge.sync_to_knowledge_graph()
+    """
+
+    def __init__(
+        self,
+        vault_path: str | Path = Path("vault"),
+        knowledge_graph: Any | None = None,
+        hitl_router: Any | None = None,
+    ):
+        self._vault_path = Path(vault_path)
+        self._kg = knowledge_graph
+        self._hitl_router = hitl_router
+        self._synced_ids: set[str] = set()
+
+    def _load_cards_of_type(self, subdir: str, card_cls: Any) -> list[Any]:
+        """Load all YAML card files of a given type from the vault."""
+        cards_dir = self._vault_path / subdir
+        if not cards_dir.exists():
+            return []
+        cards: list[Any] = []
+        for path in sorted(cards_dir.glob("*.yaml")):
+            if path.name.startswith("."):
+                continue
+            try:
+                card = card_cls.load(path)
+                cards.append(card)
+            except Exception as exc:
+                logger.warning("Failed to load card %s: %s", path.name, exc)
+        return cards
+
+    def _card_to_kg_node(self, card: Any) -> Any:
+        """Convert a PERCV card to a MAREF knowledge graph node dict."""
+        card_id = (
+            getattr(card, "signal_id", None)
+            or getattr(card, "kdp_id", None)
+            or getattr(card, "forecast_id", None)
+            or getattr(card, "pattern_id", "")
+        )
+        if not isinstance(card_id, str):
+            card_id = str(card_id)
+        card_type_prefix = card_id.split("-")[0] if "-" in card_id else "UNKNOWN"
+        kg_type = CARD_TO_KG_TYPE.get(card_type_prefix, "research_artifact")
+
+        content = (
+            getattr(card, "claim", None)
+            or getattr(card, "core_forecast", None)
+            or getattr(card, "pattern_name", None)
+            or getattr(card, "summary", "")
+            or getattr(card, "raw_text", "")[:500]
+        )
+
+        if self._kg is None:
+            return {
+                "id": card_id,
+                "type": kg_type,
+                "content": str(content),
+                "source": "percv",
+                "metadata": self._card_to_metadata(card),
+            }
+
+        try:
+            from maref.knowledge.graph import KnowledgeNode
+
+            edge_targets: list[str] = []
+            if hasattr(card, "signal_ids"):
+                edge_targets = card.signal_ids
+            elif hasattr(card, "linked_kdps"):
+                edge_targets = card.linked_kdps
+            elif hasattr(card, "linked_patterns"):
+                edge_targets = card.linked_patterns
+            elif hasattr(card, "source_forecast_ids"):
+                edge_targets = card.source_forecast_ids
+
+            import time
+
+            node = KnowledgeNode(
+                id=card_id,
+                type=kg_type,
+                content=str(content),
+                confidence=self._extract_confidence(card),
+                source="percv",
+                timestamp=time.time(),
+                related_nodes=edge_targets,
+                metadata=self._card_to_metadata(card),
+            )
+            return node
+        except ImportError:
+            return None
+
+    def _extract_confidence(self, card: Any) -> float:
+        for attr in (
+            "consensus_score",
+            "confidence",
+            "fact_consistency_score",
+            "causal_audit_score",
+            "hit_rate",
+        ):
+            val = getattr(card, attr, None)
+            if val is not None:
+                try:
+                    return float(val) if isinstance(val, (int, float)) else 0.5
+                except (ValueError, TypeError):
+                    continue
+        return 0.5
+
+    def _card_to_metadata(self, card: Any) -> dict[str, Any]:
+        meta: dict[str, Any] = {"schema_version": getattr(card, "schema_version", 1)}
+        for attr in (
+            "topic",
+            "status",
+            "source_node",
+            "source_url",
+            "metric_type",
+            "value",
+            "source_citation",
+            "verification_status",
+            "horizon",
+            "validated_at",
+            "validation_result",
+            "first_observed",
+            "trigger_conditions",
+            "applicable_domains",
+        ):
+            val = getattr(card, attr, None)
+            if val is not None:
+                meta[attr] = val
+        return meta
+
+    def sync_to_knowledge_graph(self) -> int:
+        """Sync all new/updated PERCV cards to MAREF knowledge graph.
+
+        Returns count of cards synced.
+        """
+        try:
+            from percv.schemas import ForecastCard, KDPCard, PatternCard, SignalCard
+        except ImportError:
+            raise RuntimeError("PERCV package required for CardBridge") from None
+
+        total = 0
+        card_type_pairs: list[tuple[str, Any]] = [
+            ("signals", SignalCard),
+            ("kdps", KDPCard),
+            ("forecasts", ForecastCard),
+            ("patterns", PatternCard),
+        ]
+
+        for subdir, card_cls in card_type_pairs:
+            cards = self._load_cards_of_type(subdir, card_cls)
+            for card in cards:
+                card_id = self._get_card_id(card)
+                if card_id in self._synced_ids:
+                    continue
+
+                if self._hitl_router:
+                    from maref.integration.hitl import HITLEvent, HITLTier
+
+                    event = HITLEvent(
+                        event_id=f"percv-{card_id}",
+                        tier=HITLTier.P3_OBSERVE,
+                        severity="info",
+                        anomaly_type="card_sync",
+                        description=f"Sync PERCV card {card_id} ({subdir})",
+                        metadata={"card_id": card_id, "card_type": subdir},
+                    )
+                    self._hitl_router.submit(event)
+
+                node = self._card_to_kg_node(card)
+                if node is None:
+                    continue
+
+                if self._kg is not None and hasattr(self._kg, "add_node"):
+                    try:
+                        self._kg.add_node(node)
+                    except Exception as exc:
+                        logger.warning("Failed to add KG node for %s: %s", card_id, exc)
+
+                self._synced_ids.add(card_id)
+                total += 1
+
+        return total
+
+    def _get_card_id(self, card: Any) -> str:
+        for attr in ("signal_id", "kdp_id", "forecast_id", "pattern_id"):
+            val = getattr(card, attr, None)
+            if isinstance(val, str) and val:
+                return val
+        return str(id(card))
+
+    def get_synced_count(self) -> int:
+        """Return total number of cards synced so far."""
+        return len(self._synced_ids)
+
+    def reset_sync_state(self) -> None:
+        """Clear sync tracking (for full re-sync)."""
+        self._synced_ids.clear()

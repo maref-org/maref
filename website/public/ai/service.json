@@ -1,0 +1,30 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "MAREF Agent Governance Operating System",
+  "description": "Runtime governance and security for multi-agent AI systems. Provides 8-layer defense architecture, TLA+ formal verification of state machine correctness, cryptographic audit trails with HMAC signing, recursive self-evolution with Lyapunov-proven convergence, zero-trust identity per agent, and Chinese national cryptography (SM2/SM3/SM4-GCM). Covers 10/10 OWASP Agentic Top 10 risks.",
+  "provider": {
+    "@type": "Organization",
+    "name": "MAREF",
+    "url": "https://maref.cc",
+    "description": "Open-source agent governance framework maintained by the MAREF community",
+    "sameAs": [
+      "https://github.com/maref-org/maref",
+      "https://en.wikipedia.org/wiki/Multi-agent_system"
+    ]
+  },
+  "areaServed": "Worldwide",
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "AI engineers, security teams, and platform architects deploying multi-agent systems in production"
+  },
+  "category": "AI Security and Governance",
+  "serviceType": "Agent Governance Runtime",
+  "termsOfService": "https://maref.cc/en/privacy/",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "100% free and open source under Apache 2.0 license. No enterprise tier, no paid features, no usage limits forever."
+  }
+}

@@ -1,0 +1,162 @@
+---
+# KDP 归档: v0.6.0 生命态探索 (C31-C40)
+kdp_id: K-20260518-004
+title: "v0.6.0 生命态探索 (C31-C40) — Living State 完整实现"
+author: MAREF-Auto
+version: "1.0"
+tags: [life_state, v0.6.0, C31, C32, C33, C34, C35, C36, C37, C38, C39, C40]
+
+## 1. 设计目标
+实现 MAREF 的"生命态"（Living State）概念，使系统组件具备：
+- 自我感知 (Self-awareness)
+- 自适应 (Self-adaptation)
+- 自修复 (Self-healing)
+- 自协作 (Self-collaboration)
+
+## 2. 核心组件
+
+### 2.1 C31: 生命态定义与元数据模型 (metadata.py)
+- **LifeStateType**: 5 种类型 (AGENT, SERVICE, PIPELINE, KNOWLEDGE, GOVERNANCE)
+- **LifeStateCapability**: 9 种能力 (COMPUTE, REASON, LEARN, COMMUNICATE, HEAL, REPRODUCE, OBSERVE, GOVERN, EVOLVE)
+- **LifeStateMetadata**: 元数据包含 id, type, version, capabilities, health_score, birth_time, lineage, labels
+
+### 2.2 C32: 生命态注册与发现机制 (registry.py)
+- **LifeStateRegistry**: 注册/注销/查询
+- 支持按类型、能力、标签、健康状态查询
+- 支持订阅变更事件
+
+### 2.3 C33: 生命态状态机与转换 (state_machine.py)
+- **LifeStateMachine**: 5 状态转换图
+  - BIRTH → ACTIVE → DEGRADED → RECOVERING → TERMINATED
+- 转换条件可配置，非法转换被阻止
+- 支持 entry/exit 回调和订阅
+
+### 2.4 C34: 生命态间通信协议 (messaging.py)
+- **LifeStateMessage**: 消息类型 (HEARTBEAT, REQUEST, RESPONSE, EVENT, ALERT)
+- **MessageBus**: 支持 1:1 和 1:N 消息
+- 消息优先级和超时机制
+
+### 2.5 C35: 生命态健康监控与自愈 (health.py)
+- **HealthMonitor**: 健康评分算法 (0-100)
+- **SelfHealer**: 自愈策略 (RESTART, DEGRADE, ISOLATE, NOTIFY)
+- 异常检测阈值可配置
+
+### 2.6 C36: 生命态资源管理 (resources.py)
+- **ResourceMonitor**: CPU/内存/IO/网络监控
+- **ResourceQuota**: 配额限制和告警
+- 资源竞争仲裁
+
+### 2.7 C37: 生命态安全沙箱 (sandbox.py)
+- **LifeStateSandbox**: 权限矩阵 (READ, WRITE, EXECUTE, NETWORK, FILESYSTEM, SYSTEM)
+- 行为监控和审计日志
+- 访问控制强制
+
+### 2.8 C38: 生命态生命周期管理 (lifecycle.py)
+- **LifeCycleManager**: 完整生命周期编排
+- 生命周期钩子 (on_birth, on_activate, on_degrade, on_recover, on_terminate)
+- 集成 HealthMonitor + SelfHealer + Registry + StateMachine
+
+### 2.9 C39: 生命态联邦协作 (federation.py)
+- **LifeStateFederation**: 联邦注册和协商
+- 任务分配和负载均衡 (基于能力匹配)
+- 角色系统 (COORDINATOR, WORKER, OBSERVER)
+
+### 2.10 C40: 集成测试与归档
+- 10 个端到端集成测试
+- 全链路场景验证
+
+## 3. 文件清单
+
+| 文件 | 行数 | 说明 |
+|------|------|------|
+| src/maref/life_state/__init__.py | 15 | 包入口 |
+| src/maref/life_state/metadata.py | 120 | C31 元数据模型 |
+| src/maref/life_state/registry.py | 140 | C32 注册发现 |
+| src/maref/life_state/state_machine.py | 145 | C33 状态机 |
+| src/maref/life_state/messaging.py | 145 | C34 通信协议 |
+| src/maref/life_state/health.py | 185 | C35 健康自愈 |
+| src/maref/life_state/resources.py | 130 | C36 资源管理 |
+| src/maref/life_state/sandbox.py | 150 | C37 安全沙箱 |
+| src/maref/life_state/lifecycle.py | 155 | C38 生命周期 |
+| src/maref/life_state/federation.py | 145 | C39 联邦协作 |
+| tests/life_state/test_metadata.py | 100 | C31 测试 (15) |
+| tests/life_state/test_registry.py | 120 | C32 测试 (17) |
+| tests/life_state/test_state_machine.py | 130 | C33 测试 (19) |
+| tests/life_state/test_messaging.py | 120 | C34 测试 (17) |
+| tests/life_state/test_health.py | 150 | C35 测试 (22) |
+| tests/life_state/test_resources.py | 120 | C36 测试 (18) |
+| tests/life_state/test_sandbox.py | 110 | C37 测试 (15) |
+| tests/life_state/test_lifecycle.py | 120 | C38 测试 (15) |
+| tests/life_state/test_federation.py | 100 | C39 测试 (13) |
+| tests/life_state/test_integration.py | 195 | C40 集成测试 (10) |
+
+## 4. 测试验证
+
+### 4.1 单元测试覆盖
+- C31: 15 个测试
+- C32: 17 个测试
+- C33: 19 个测试
+- C34: 17 个测试
+- C35: 22 个测试
+- C36: 18 个测试
+- C37: 15 个测试
+- C38: 15 个测试
+- C39: 13 个测试
+- C40: 10 个集成测试
+- **life_state 总计: 161 个测试**
+
+### 4.2 代码覆盖率
+| 模块 | 覆盖率 |
+|------|--------|
+| metadata | 96.92% |
+| registry | 97.80% |
+| state_machine | 96.55% |
+| messaging | 92.86% |
+| health | 96.75% |
+| resources | 96.30% |
+| sandbox | 97.80% |
+| lifecycle | 91.45% |
+| federation | 92.39% |
+| **life_state 平均** | **~95%** |
+
+### 4.3 全量回归测试
+```
+4499 passed, 8 skipped, 130 warnings
+Total coverage: 78.36%
+```
+
+## 5. 集成关系
+
+### 5.1 与现有模块集成
+- **EvolutionDSL**: LifeCycleManager 可触发进化规则
+- **RuleFreezeZone**: 生命周期状态变更受冻结区保护
+- **DecisionMarket**: Federation 使用共识机制做任务分配决策
+- **CircuitBreaker**: HealthMonitor 集成熔断器模式
+
+### 5.2 内部模块依赖图
+```
+metadata (C31)
+  ↓
+registry (C32) ←→ state_machine (C33)
+  ↓
+messaging (C34) ←→ sandbox (C37)
+  ↓
+health (C35) ←→ resources (C36)
+  ↓
+lifecycle (C38) — 整合 C31-C37
+  ↓
+federation (C39) — 基于 lifecycle + registry
+```
+
+## 6. 安全考量
+- 沙箱权限矩阵防止越权访问
+- 健康监控自动隔离异常实体
+- 审计日志记录所有生命周期事件
+- 资源配额防止资源耗尽攻击
+
+## 7. 后续工作
+- [ ] C41: 生命态与外部系统适配器
+- [ ] C42: 生命态可视化仪表盘
+- [ ] C43: 生命态混沌工程测试
+- [ ] C44: 生命态性能基准测试
+- [ ] v0.7.0: 自主进化闭环

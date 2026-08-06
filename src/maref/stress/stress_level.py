@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+from enum import Enum
+
+
+class StressLevel(Enum):
+    L1 = (1, "安全区", "系统正常工作，无降级")
+    L2 = (2, "中度区", "轻微延迟，CB未触发")
+    L3 = (3, "降级边界", "CB开始收紧，部分降级")
+    L4 = (4, "降级区", "主动降级，观测频率降低")
+    L5 = (5, "崩溃边界", "MetaCB可能触发，系统保护")
+
+    @property
+    def numeric(self) -> int:
+        return self.value[0]
+
+    @property
+    def label(self) -> str:
+        return self.value[1]
+
+    @property
+    def description(self) -> str:
+        return self.value[2]
+
+    @classmethod
+    def from_numeric(cls, n: int) -> StressLevel:
+        for level in cls:
+            if level.numeric == n:
+                return level
+        return cls.L3
+
+
+STRESS_PRESETS: dict[StressLevel, dict[str, float]] = {
+    StressLevel.L1: {
+        "agent_concurrency": 100,
+        "churn_rate": 10.0,
+        "fault_rate": 1.0,
+        "recursion_depth": 1,
+        "oscillation_rate": 5.0,
+        "data_volume": 1_000,
+    },
+    StressLevel.L2: {
+        "agent_concurrency": 250,
+        "churn_rate": 50.0,
+        "fault_rate": 5.0,
+        "recursion_depth": 2,
+        "oscillation_rate": 10.0,
+        "data_volume": 10_000,
+    },
+    StressLevel.L3: {
+        "agent_concurrency": 500,
+        "churn_rate": 100.0,
+        "fault_rate": 10.0,
+        "recursion_depth": 3,
+        "oscillation_rate": 15.0,
+        "data_volume": 100_000,
+    },
+    StressLevel.L4: {
+        "agent_concurrency": 750,
+        "churn_rate": 500.0,
+        "fault_rate": 20.0,
+        "recursion_depth": 4,
+        "oscillation_rate": 50.0,
+        "data_volume": 500_000,
+    },
+    StressLevel.L5: {
+        "agent_concurrency": 1000,
+        "churn_rate": 1000.0,
+        "fault_rate": 50.0,
+        "recursion_depth": 5,
+        "oscillation_rate": 100.0,
+        "data_volume": 1_000_000,
+    },
+}
+
+
+STRESS_AXIS_NAMES = {
+    "agent_concurrency": "Agent 并发数",
+    "churn_rate": "状态搅动率 (ops/s)",
+    "fault_rate": "故障注入率 (faults/min)",
+    "recursion_depth": "递归深度",
+    "oscillation_rate": "参数振荡率 (changes/min)",
+    "data_volume": "数据量 (entries)",
+}

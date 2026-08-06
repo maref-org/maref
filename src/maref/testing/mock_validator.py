@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+
+class MockValidator:
+    def __init__(self, schema_dir: Path, mock_dir: Path) -> None:
+        self.schema_dir = schema_dir
+        self.mock_dir = mock_dir
+
+    def validate_all(self) -> list[str]:
+        errors: list[str] = []
+        for mock_file in self.mock_dir.glob("*.json"):
+            schema_name = mock_file.stem.replace("_mock", "_schema")
+            schema_path = self.schema_dir / f"{schema_name}.json"
+            if not schema_path.exists():
+                errors.append(f"Schema not found for mock: {mock_file.name}")
+                continue
+            with open(mock_file) as f:
+                mock_data = json.load(f)
+            with open(schema_path) as f:
+                schema_data = json.load(f)
+            mock_keys = set(self._flatten(mock_data))
+            schema_keys = set(self._flatten(schema_data))
+            extra = mock_keys - schema_keys
+            missing = schema_keys - mock_keys
+            if extra:
+                errors.append(f"{mock_file.name}: extra keys {extra}")
+            if missing:
+                errors.append(f"{mock_file.name}: missing keys {missing}")
+        return errors
+
+    @staticmethod
+    def _flatten(data: dict[str, Any], prefix: str = "") -> list[str]:
+        result: list[str] = []
+        for key, value in data.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+            result.append(full_key)
+            if isinstance(value, dict):
+                result.extend(MockValidator._flatten(value, full_key))
+        return result

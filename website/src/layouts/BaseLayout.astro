@@ -1,0 +1,190 @@
+---
+import "@/styles/global.css";
+
+export interface Props {
+  title: string;
+  description: string;
+  ogImage?: string;
+  locale?: string;
+  canonical?: string;
+  ogType?: string;
+  showFAQ?: boolean;
+}
+
+const { title, description, ogImage = "/images/og-image.png", locale = "en", canonical, ogType = "website", showFAQ = false } = Astro.props;
+const site = "https://maref.cc";
+const fullUrl = canonical ? `${site}${canonical}` : Astro.url.href;
+
+const currentPath = Astro.url.pathname;
+const pathWithoutLocale = currentPath.replace(/^\/(en|zh)\/?/, '/');
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title === "MAREF" ? title : `MAREF — ${title}`}</title>
+    <meta name="description" content={description} />
+    <meta name="dateModified" content="2026-06-16" />
+    <meta name="keywords" content="agent governance, AI agent security, multi-agent system, TLA+ formal verification, zero trust, agent safety, open source governance, MAREF, agent operating system, AI safety framework, OWASP Agentic Top 10, non-human identity, agent runtime security, multi-agent orchestration, agent guardrails, agent identity management, autonomous AI agent safety, LLM agent security, agent supply chain security, agentic AI governance, recursive self-improvement" />
+
+    <!-- Google Search Console verification -->
+    <meta name="google-site-verification" content="dBLrpLk1tUO75NEzKmq0d62TSej9vtMBswj0BoMu14k" />
+
+    <!-- Baidu verification -->
+    <meta name="baidu-site-verification" content="codeva-UCVMTushOs" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={fullUrl} />
+    <meta property="og:title" content={title === "MAREF" ? title : `MAREF — ${title}`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:locale" content={locale === "zh" ? "zh_CN" : "en_US"} />
+    <meta property="og:image" content={`${site}${ogImage}`} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@maref_org" />
+    <meta name="twitter:image" content={`${site}${ogImage}`} />
+
+    <!-- Canonical -->
+    <link rel="canonical" href={fullUrl} />
+
+    <!-- Hreflang — per-page locale alternates -->
+    <link rel="alternate" href={`${site}/en${pathWithoutLocale}`} hreflang="en" />
+    <link rel="alternate" href={`${site}/zh${pathWithoutLocale}`} hreflang="zh" />
+    <link rel="alternate" href={pathWithoutLocale === '/' ? site : `${site}/en${pathWithoutLocale}`} hreflang="x-default" />
+
+    <!-- RSS autodiscovery -->
+    <link rel="alternate" type="application/rss+xml" title="MAREF Blog — Agent Governance" href={`${site}/en/feed.xml`} />
+    <link rel="alternate" type="application/rss+xml" title="MAREF 博客 — 智能体治理" href={`${site}/zh/feed.xml`} />
+
+    <!-- Organization Schema -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "MAREF",
+      alternateName: "Multi-Agent Recursive Evolution Framework",
+      description: "MAREF — open-source agent governance operating system",
+      url: site,
+      logo: `${site}/maref-logo.png`,
+      sameAs: [
+        "https://github.com/maref-org/maref",
+        "https://en.wikipedia.org/wiki/Multi-agent_system",
+        "https://www.wikidata.org/wiki/Q1135424",
+        "https://www.linkedin.com/company/maref-org",
+      ],
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "technical support",
+        email: "admin@maref.cc",
+        url: "https://maref.cc",
+      },
+    })} />
+
+    <!-- SoftwareApplication Schema -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "MAREF",
+      description: "MAREF — open-source agent governance framework with TLA+ formal verification",
+      url: site,
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "macOS, Linux, Windows",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+    })} />
+
+    {showFAQ && <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "What is MAREF?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "MAREF is an open-source agent governance operating system with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails covering 10/10 OWASP Agentic Top 10 risks.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "How is MAREF different from other agent frameworks?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Most frameworks help you build multi-agent systems. MAREF helps you govern them. It is complementary — you use LangGraph or CrewAI to orchestrate agents, and MAREF to ensure they stay within safe bounds.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Is MAREF production-ready?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. MAREF has 4,300+ tests, 82% code coverage, and implementation completeness across all OWASP Agentic Top 10 categories. It is Apache 2.0 licensed and available on GitHub.",
+          },
+        },
+      ],
+    })} />}
+
+    <!-- WebSite Schema (homepage search) -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "MAREF",
+      url: site,
+      description: "MAREF — open-source agent governance operating system",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: `${site}/search?q={search_term_string}`,
+        },
+        "query-input": "required name=search_term_string",
+      },
+    })} />
+
+    <!-- Blocking theme restore — prevents flash of wrong theme -->
+    <script is:inline>
+      (function() {
+        var s = localStorage.getItem("maref-theme");
+        var p = matchMedia("(prefers-color-scheme: light)").matches;
+        if (s === "light" || (!s && p)) {
+          document.documentElement.classList.add("light-theme");
+        }
+      })();
+    </script>
+    <!-- Baidu auto-submit -->
+    <script is:inline>
+      (function() {
+        var bp = document.createElement("script");
+        bp.src = "https://zz.bdstatic.com/linksubmit/push.js";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+      })();
+    </script>
+  <slot name="head" />
+  </head>
+  <body>
+    <slot />
+    <script>
+      function updateIcons(light) {
+        document.querySelectorAll("#theme-icon-sun, #theme-icon-moon").forEach((el) => {
+          const show = light ? el.id === "theme-icon-moon" : el.id === "theme-icon-sun";
+          el.classList.toggle("hidden", !show);
+        });
+      }
+      updateIcons(document.documentElement.classList.contains("light-theme"));
+      document.addEventListener("click", (e) => {
+        const btn = e.target.closest("#theme-toggle");
+        if (!btn) return;
+        const light = document.documentElement.classList.toggle("light-theme");
+        localStorage.setItem("maref-theme", light ? "light" : "dark");
+        updateIcons(light);
+      });
+    </script>
+  </body>
+</html>

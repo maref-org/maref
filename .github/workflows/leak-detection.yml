@@ -1,0 +1,60 @@
+name: Leak Detection
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks scan (.gitleaks.toml)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+  oss-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: OSS gate (exclude list + hard-block + content scan)
+        run: |
+          bash scripts/oss-check.sh HEAD
+
+      - name: Hook source integrity
+        run: |
+          test -f .githooks/pre-commit && grep -q "gitleaks" .githooks/pre-commit \
+            && test -f .githooks/pre-push && test -f .gitleaks.toml || {
+            echo "❌ hook 源码 / gitleaks 配置缺失或弱化"
+            exit 1
+          }
+          echo "✅ 通过"
+
+      - name: Scan for internal paths
+        run: |
+          echo "=== 检查内部卷路径 ==="
+          ! git grep -In "/Volumes/1TB-M2" HEAD -- '*.py' '*.sh' '*.md' '*.yaml' '*.yml' '*.json' '*.toml' 2>/dev/null || \
+            (echo "❌ 发现内部路径泄露" && exit 1)
+          echo "✅ 通过"
+
+      - name: Scan for proprietary filenames
+        run: |
+          echo "=== 检查专有文件名 ==="
+          ! git ls-files | grep -E "(SOUL\.md|IDENTITY\.md|HEARTBEAT\.md|TOOLS\.md|USER\.md)$" || \
+            (echo "❌ 发现专有文件被追踪" && exit 1)
+          echo "✅ 通过"
+
+      - name: Scan for private org references
+        run: |
+          echo "=== 检查私有组织引用 ==="
+          ! git grep -In "frankiehot-tech" HEAD -- '*.py' '*.sh' '*.md' '*.yaml' '*.yml' '*.json' 2>/dev/null || \
+            (echo "❌ 发现私有组织名引用" && exit 1)
+          echo "✅ 通过"

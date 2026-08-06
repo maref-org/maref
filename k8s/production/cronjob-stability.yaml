@@ -1,0 +1,100 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: maref-stability-7d
+  namespace: maref
+  labels:
+    app: maref
+    component: stability
+    tier: testing
+spec:
+  # 每天 UTC 00:00 运行，每次增量 1 天
+  schedule: "0 0 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200  # 2h timeout per day
+      template:
+        spec:
+          serviceAccountName: maref-stability
+          restartPolicy: Never
+          containers:
+            - name: stability
+              image: maref:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - pytest
+                - tests/longevity/test_7d_stability.py
+                - --run-longevity
+                - -v
+                - --no-header
+                - -q
+                - -x
+              env:
+                - name: MAREF_HMAC_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: maref-secrets
+                      key: hmac_secret_key
+                - name: MAREF_MCP_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: maref-secrets
+                      key: mcp_secret_key
+                - name: PYTHONUNBUFFERED
+                  value: "1"
+              resources:
+                requests:
+                  cpu: "500m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "2"
+                  memory: "2Gi"
+              volumeMounts:
+                - name: checkpoint-storage
+                  mountPath: /app/.stability-checkpoints
+                - name: report-storage
+                  mountPath: /app/docs/rsi
+          volumes:
+            - name: checkpoint-storage
+              persistentVolumeClaim:
+                claimName: maref-stability-checkpoint-pvc
+            - name: report-storage
+              persistentVolumeClaim:
+                claimName: maref-stability-report-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maref-stability-checkpoint-pvc
+  namespace: maref
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maref-stability-report-pvc
+  namespace: maref
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: maref-stability
+  namespace: maref

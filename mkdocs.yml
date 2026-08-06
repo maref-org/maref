@@ -1,0 +1,80 @@
+site_name: MAREF Documentation
+site_description: Multi-Agent Recursive Engineering Framework — Governance OS for AI Agents
+site_author: MAREF Team
+repo_url: https://github.com/maref-team/maref
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            heading_level: 2
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Architecture:
+      - Overview: architecture.md
+      - Desktop Agent: desktop-agent.md
+      - Governance: governance.md
+      - Formal Verification: formal-verification.md
+  - API Reference:
+      - maref.desktop: api/desktop.md
+      - maref.governance: api/governance.md
+      - maref.recursive: api/recursive.md
+      - maref.integration: api/integration.md
+      - maref.identity: api/identity.md
+      - maref.observation: api/observation.md
+  - Security:
+      - Whitepaper: MAREF-Security-Whitepaper.md
+      - Penetration Tests: security-penetration.md
+  - Deployment:
+      - Docker: deployment-docker.md
+      - Kubernetes: deployment-k8s.md
+      - Configuration: deployment-config.md
+  - Community:
+      - Contributing: ../CONTRIBUTING.md
+      - Code of Conduct: ../CODE_OF_CONDUCT.md
+      - Security Policy: ../SECURITY.md
+      - Changelog: ../CHANGELOG.md

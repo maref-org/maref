@@ -1,0 +1,32 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+export interface Props {
+  title?: string;
+  description?: string;
+  locale?: string;
+  showFAQ?: boolean;
+}
+
+const {
+  title = "MAREF",
+  description = "MAREF is the open-source agent governance OS with TLA+ formal verification, zero-trust identity, and runtime guardrails. Catch your agents before they break things.",
+  locale = "en",
+  showFAQ = false,
+} = Astro.props;
+---
+
+<BaseLayout {title} {description} {locale} {showFAQ}>
+  <NavBar {locale} />
+
+  <main class="landing-main">
+    <slot />
+  </main>
+</BaseLayout>
+
+<style>
+  .landing-main {
+    padding-top: 0;
+  }
+</style>

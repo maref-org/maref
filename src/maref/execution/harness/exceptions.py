@@ -1,0 +1,6 @@
+class HarnessExecutionError(Exception):
+    ...
+
+
+class HarnessAbortedError(Exception):
+    ...

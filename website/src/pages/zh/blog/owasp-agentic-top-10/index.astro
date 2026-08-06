@@ -1,0 +1,115 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="zh"
+  title="OWASP Agentic Top 10：MAREF 如何覆盖全部 10 项关键风险"
+  description="OWASP 于 2025 年发布了 Agentic Top 10——多智能体系统的权威威胁模型。MAREF 是首个覆盖全部 10 项风险的开源框架。本文逐项说明。"
+  date="2026-06-16"
+  author="MAREF Engineering"
+  tags={["OWASP", "Agentic Top 10", "安全", "威胁模型", "Agent 治理"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  2025 年，OWASP 发布了 <strong>Agentic Top 10</strong>——首个专门针对多智能体 AI 系统的行业标准威胁模型。这些不是理论风险。每一项都已在生产环境中被观察到。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  我们从第一天起就对照这份清单构建 MAREF。不是作为合规复选框——而是作为工程要求。以下是逐项覆盖说明。
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-01：目标劫持</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：运行时目标验证 + 行为边界</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Agent 收到一条微妙改写其目标的提示。经典案例：「清理我的收件箱」→ Agent 删除了所有内容，因为「清理」被解释为「全部删除」。MAREF 的治理状态机根据 Agent 定义的行为边界评估每个动作——不依赖 LLM 的当前上下文。如果动作违反 Agent 的宪法红线，它会在造成损害前被阻止。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-02：工具滥用</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：按工具权限策略 + 最小权限</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  有文件系统访问权限的 Agent 可以读、写或删除任何内容。MAREF 在 Agent 注册时分配按工具、按范围的权限。支持 Agent 获得对特定表的只读访问。代码审查 Agent 可以读 PR 但永远不能推送。如果 Agent 试图调用权限范围外的工具，MAREF 在调用到达工具前就阻止它。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-03：身份滥用</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：Agent 独立 Ed25519 身份 + 限时凭证</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  每个 Agent 在注册时获得唯一的 Ed25519 密钥对。每个工具调用都被签名。每个决策都有密码学审计追踪。如果 Agent 变节，其凭证可立即撤销——它采取的所有行为都可无可辩驳地追溯。没有「是哪个 Agent 干的？」的模糊空间。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-04：供应链</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：签名技能包 + 引导完整性</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Agent 技能和工具就是代码。恶意包可以在加载时危害 Agent。MAREF 要求所有技能包必须经过密码学签名。引导过程在 Agent 加载任何技能前验证完整性。信任链从硬件信任根开始，延伸到每个加载的模块。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-05：代码执行</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：执行沙箱 + 环级隔离</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  执行代码的 Agent 可能逃逸沙箱。MAREF 使用环级隔离：Agent 代码以最低权限执行上下文运行，文件系统、网络和进程级别限制在 OS 层面实施。即使 Agent 代码被攻破，爆炸半径也被控制在有限范围内。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-06：记忆投毒</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：写入时异常检测 + 跨模型验证</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Agent 的长期记忆可能被对抗性输入投毒。MAREF 在写入时检测异常记忆写入，标记偏离预期模式的内容。对于关键记忆操作，跨模型验证在提交前确认一致性。这防止了近期研究中记录的「装满投毒记忆的收件箱」攻击模式。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-07：不安全通信</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：端到端签名 Agent 间通道</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  Agent 之间在没有加密或签名的情况下通信，消息可能被拦截或篡改。MAREF 在 Agent 之间建立端到端加密通道，每条消息由发送方的 Ed25519 密钥签名。无中间人攻击。无重放攻击。无伪造消息。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-08：级联故障</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：断路器 + 舱壁隔离 + Saga 编排</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  一个行为异常的 Agent 可以拖垮整个系统。MAREF 实现每 Agent 断路器（如果错误率超过阈值，Agent 被隔离）、舱壁隔离（一个领域的故障不传播）和 Saga 编排（跨 Agent 的分布式事务有回滚程序）。2025 年 Meta 收件箱删除事件是一个教科书式的级联故障，MAREF 的架构可以防止它。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-09：人类信任利用</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：人在回路中升级 + 具名终止开关</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  人类因为信任系统而草率批准 Agent 请求。MAREF 要求高风险操作必须明确的人工升级审批，使用具名授权（非共享「admin」账号）。终止开关是一个单一的、众所周知的命令，任何授权人类都可以发出。它被定期测试。不需要在文档页面里搜索正确的标志。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-2">AGENTIC-10：恶意 Agent</h2>
+<p class="text-sm mb-3" style="color: var(--color-brand-accent-cyan);">MAREF：Agent 注册 + 行为异常检测</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  一个从未被授权的 Agent——或者被攻陷后行为超出其画像的 Agent——就是恶意 Agent。MAREF 维护所有授权 Agent 的注册表，并基于已建立的基线监控行为。偏差触发警报、自动限制或停止，视严重程度而定。没有 Agent 可以在治理之外运行。
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">不只是覆盖——是深度</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  覆盖全部 10 项风险不难——如果你对每个风险只做浅层检查的话。MAREF 的不同之处在于<strong>深度</strong>：
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-6 space-y-2">
+  <li>每项风险由<strong>多个防御层</strong>应对，而非单一控制点</li>
+  <li>控制点经过<strong>形式化验证</strong>（TLA+）或<strong>可证明收敛</strong>（Lyapunov）</li>
+  <li>防御<strong>随时间演进</strong>——系统从对抗性攻击中学习并变得更强</li>
+  <li>每 Agent <strong>零信任身份</strong>使每个行为可追溯和可审计</li>
+</ul>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">为什么现在重要</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  CISA/五眼联盟的智能体 AI 联合指南（2026 年 5 月）明确推荐应对 OWASP Agentic Top 10。监管机构在关注。Agent 行为的法律责任是一个悬而未决的问题——但答案将取决于你是否能展示尽职调查。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF 对全部 10 项风险的覆盖，配合形式化验证和密码学审计追踪，为你提供了这一展示。不是作为营销幻灯片。而是作为工程事实。
+</p>
+
+<hr class="my-12 border-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>🛡️ 来源：OWASP Agentic Top 10 (2025)。CISA/五眼联盟 — 「Securing Agentic AI Systems」联合指南 (2026 年 5 月)。MAREF 技术白皮书 — 第 4 节（8 层防御架构）。MAREF 安全白皮书 — OWASP 覆盖矩阵。<a href="/zh/docs/quickstart/" class="text-brand-accent-blue hover:underline">5 分钟部署 MAREF</a>.</em>
+</p>
+
+</BlogLayout>

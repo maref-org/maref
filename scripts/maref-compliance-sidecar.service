@@ -1,0 +1,43 @@
+[Unit]
+Description=MAREF Unified Compliance Sidecar
+Documentation=https://github.com/anomalyco/maref
+After=network.target
+
+[Service]
+Type=simple
+User=maref
+Group=maref
+
+# Environment
+Environment=MAREF_SIDECAR_PORT=8099
+Environment=MAREF_PROJECT_ROOT=/opt/maref
+
+# Working directory
+WorkingDirectory=/opt/maref
+
+# Executable
+ExecStart=/opt/maref/.venv/bin/python -m sidecar.server --host 127.0.0.1 --port 8099
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+
+# Logging
+StandardOutput=append:/var/log/maref/sidecar/stdout.log
+StandardError=append:/var/log/maref/sidecar/stderr.log
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=50M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

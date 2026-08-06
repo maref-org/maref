@@ -1,0 +1,643 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage[margin=1in]{geometry}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\lstdefinelanguage{TLA+}{
+  morekeywords={EXTENDS, CONSTANTS, ASSUME, VARIABLES, VARIABLE, Init, Next, Spec,
+    THEOREM, INVARIANT, CHOOSE, LET, IN, IF, THEN, ELSE, ENABLED, UNCHANGED,
+    EXCEPT, SUBSET, UNION, DOMAIN, BOOLEAN, Nat, Int, FALSE, TRUE, self},
+  sensitive=true,
+  morecomment=[l]{(*},
+  morecomment=[s]{(*}{*)},
+  morestring=[b]"
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray},
+  stringstyle=\color{teal},
+  breaklines=true,
+  frame=single,
+  language=TLA+
+}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+
+\title{Formal Verification of Agent Governance:\\
+Five Theorems on the MAREF 10-State Gray Code State Machine}
+
+\author{
+  MAREF Engineering \\
+  \texttt{https://maref.cc} \\
+  \texttt{engineering@maref.cc}
+}
+
+\date{July 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present the formal verification of the MAREF (Multi-Agent Recursive Evolution
+Framework) governance state machine---a 10-state finite state machine encoded on
+a 4-bit reflected Gray code, where every legal transition changes exactly one
+bit (Hamming distance~$=1$). We state and prove five theorems that establish
+the safety and liveness properties of the governance layer: (1)~\emph{Lyapunov
+convergence}---governance activation leads to entropy decrease; (2)~\emph{HALT
+absorption}---the terminal state is absorbing; (3)~\emph{Gray code
+transition}---all transitions are single-bit; (4)~\emph{safety gate
+integrity}---the safety gate cannot be bypassed; (5)~\emph{red line
+immutability}---constitutional rules cannot be modified at runtime. The
+properties are specified in TLA+ and verified by TLC model checking over a
+bounded state space. We are transparent about the gap between TLA+
+specification, TLC exhaustive model checking, and TLAPS deductive proof: the
+current verification uses TLC enumeration, not machine-checked proofs. The
+specifications and TLC configurations are open source under Apache~2.0.
+\end{abstract}
+
+\textbf{Keywords:} formal verification, TLA+, agent governance, Gray code,
+finite state machines, multi-agent systems, model checking
+
+% =====================================================================
+\section{Introduction}
+% =====================================================================
+
+The deployment of autonomous AI agents in production has exposed a structural
+gap in the AI stack: orchestration frameworks (LangGraph, CrewAI, AutoGen) can
+compose agents into workflows, but none formalize the \emph{governance} layer---the
+safety boundaries, trust policies, and runtime guardrails that prevent agents
+from causing harm. The OWASP Agentic Top~10~\cite{owasp-agentic} ranks supply
+chain attacks, goal hijacking, and tool misuse among the top risks. Gartner
+predicts that 40\% of enterprises will decommission AI agents by~2027 due to
+governance failures~\cite{gartner-2026}.
+
+MAREF~\cite{maref-repo} is an open-source agent governance operating system
+that addresses this gap by formalizing the governance layer in TLA+~\cite{lamport-specifying}.
+The core of the governance layer is a 10-state finite state machine (FSM)
+encoded on a 4-bit reflected Gray code~\cite{gray-patent}. Every legal state
+transition changes exactly one bit, which prevents race conditions during
+concurrent state updates and makes drift mathematically detectable.
+
+\paragraph{Contributions.}
+This paper makes the following contributions:
+\begin{enumerate}
+  \item We present the TLA+ specification of the MAREF 10-state governance FSM
+    and its five key properties as formal theorems.
+  \item We verify each theorem using TLC model checking over a bounded state
+    space (2~agents, 5~transitions per agent).
+  \item We provide a mixed-alignment mapping between the five ``marketing''
+    theorem names (used in prior position papers) and the actual TLA+
+    invariants/temporal properties, honestly disclosing where the mapping is
+    loose.
+  \item We document the current limitations: TLC enumeration (not TLAPS
+    deductive proof), bounded state space, and two sibling state machines (the
+    8-state trigram machine and the 24-state agent lifecycle machine) that lack
+    TLA+ specifications.
+\end{enumerate}
+
+% =====================================================================
+\section{Background}
+% =====================================================================
+
+\subsection{TLA+ and TLC}
+
+TLA+~\cite{lamport-specifying} is a formal specification language for
+describing systems as mathematical models. A TLA+ specification defines the
+set of all possible behaviors of a system as a logical formula
+$\mathit{Spec} = \mathit{Init} \land \Box[\mathit{Next}]_{\mathit{vars}}$,
+where $\mathit{Init}$ is the initial-state predicate, $\mathit{Next}$ is the
+next-state relation, and $\Box$ is the temporal ``always'' operator.
+
+TLC is the explicit-state model checker for TLA+. It exhaustively enumerates
+the reachable state space of a specification and checks that specified
+invariants and temporal properties hold. TLAPS (TLA+ Proof System) is a
+separate tool for deductive machine-checked proofs. \textbf{MAREF's current
+verification uses TLC model checking, not TLAPS proofs.} All \texttt{THEOREM}
+declarations in the MAREF TLA+ modules are statements checked by TLC
+enumeration, not deductive proofs with \texttt{PROOF}/\texttt{BY}/\texttt{QED}
+steps.
+
+\subsection{The Three State Machines}
+
+MAREF contains three distinct state machines. This paper proves properties of
+the \emph{10-state governance machine} only. We are explicit about this scope
+because earlier MAREF documentation conflated the three:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+State machine & States & Gray strictness & TLA+ spec \\
+\midrule
+Trigram trust (8-state) & 8 & Non-strict (Hamming 1--3) & None \\
+Governance (10-state) & 10 & Strict (Hamming $=1$) & \texttt{MarefLite.tla} \\
+Agent lifecycle (24-state) & 24 & 5-bit Gray code & None \\
+\bottomrule
+\end{tabular}
+\caption{The three state machines in MAREF. Only the 10-state governance
+machine has a TLA+ specification; this paper's scope.}
+\end{table}
+
+The 8-state trigram machine (\texttt{TrigramsGovernance}) operates at the trust
+\emph{semantics} layer and includes transitions with Hamming distance 2 and 3
+(e.g., QIAN$\leftrightarrow$GEN, which differ in 3~bits). It has no TLA+
+specification. Formalizing it is future work (Section~6).
+
+\subsection{The 10-State Gray Code FSM}
+
+The 10 states and their 4-bit Gray code encodings are:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{cllcc}
+\toprule
+ID & Name & Gray code & Entropy & Terminal \\
+\midrule
+0 & INIT & 0000 & 0 & no \\
+1 & OBSERVE & 0001 & 1 & no \\
+2 & ANALYZE & 0011 & 2 & no \\
+3 & EVALUATE & 0010 & 2 & no \\
+4 & DECIDE & 0110 & 3 & no \\
+5 & ACT & 0111 & 4 & no \\
+6 & VERIFY & 0101 & 3 & no \\
+7 & STABILIZE & 0100 & 1 & no \\
+8 & REPORT & 1100 & 0 & no \\
+9 & HALT & 1101 & 0 & \textbf{yes} \\
+\bottomrule
+\end{tabular}
+\caption{The 10 governance states with 4-bit reflected Gray code encodings.}
+\end{table}
+
+The entropy column is a discrete metric of system uncertainty, peaking at
+ACT~(5) and returning to~0 at REPORT~(8) and HALT~(9). The transition relation
+$E \subseteq S \times S$ admits $(s,t)$ if and only if the Hamming distance
+$d_H(\mathit{GrayCode}[s], \mathit{GrayCode}[t]) = 1$, with the additional
+constraint that HALT~(9) has no outgoing edges (absorbing state).
+
+\subsection{The G1--G5 Governance Audit Layer}
+
+The 10-state machine is not an isolated artifact: it is the ``central nerve''
+of MAREF's six-layer governance architecture. Five governance audit layers
+(G1--G5) route their outputs to this state machine:
+
+\begin{itemize}
+  \item \textbf{G1} (MetaCognitiveAuditor): detects agent self-reasoning bias;
+    calls \texttt{force\_stabilize} (risk~$\geq 0.5$) or \texttt{force\_halt}
+    (risk~$\geq 0.8$).
+  \item \textbf{G2} (SubgoalInterceptor): prevents goal drift and unauthorized
+    delegation; same routing thresholds as G1.
+  \item \textbf{G3} (SocialImpactAssessor): audits side effects on external
+    stakeholders; routes via threat bridge (CRITICAL~$\to$~HALT,
+    HIGH~$\to$~STABILIZE).
+  \item \textbf{G4} (EconomicGovernor): enforces resource consumption bounds;
+    BUDGET\_WARNING~$\to$~STABILIZE, BUDGET\_CRITICAL~$\to$~HALT.
+  \item \textbf{G5} (CrossInstanceGovernor): ensures multi-instance consistency;
+    routes synchronization failures to STABILIZE or HALT.
+\end{itemize}
+
+When a governance layer calls \texttt{force\_stabilize()} or
+\texttt{force\_halt()}, if the current state and target state are not adjacent
+(Hamming~$>1$), the system uses BFS on the Gray graph to find a shortest path
+and walks single-bit edges to the target. This is the key invariant: even in
+emergencies, the machine never makes multi-bit jumps. The forced path respects
+the same Gray topology as normal transitions (Proposition~P10
+in~\cite{maref-w3}). This is what makes the governance layer safe under
+concurrent access: the Hamming~$=1$ constraint is a topological invariant that
+holds whether the transition is routine or emergency-triggered.
+
+% =====================================================================
+\section{The Five Theorems}
+% =====================================================================
+
+This section presents the five theorems. Each theorem is given a narrative
+name (matching prior MAREF position papers), its TLA+ specification, a proof
+sketch, TLC evidence, and an honest statement of gaps.
+
+% ---------------------------------------------------------------------
+\subsection{Theorem 1: Lyapunov Convergence}
+% ---------------------------------------------------------------------
+
+\begin{theorem}[Lyapunov Convergence]
+If the governance overlay is active, the global entropy eventually decreases
+below the maximum threshold. Formally:
+\[
+\mathit{governanceActive} \leadsto \mathit{globalEntropy} < \mathit{MaxEntropy}
+\]
+where $\leadsto$ is the TLA+ ``leads-to'' operator.
+\end{theorem}
+
+\paragraph{TLA+ specification.} The property is declared as a temporal
+property in \texttt{MarefLiteModel.tla}:
+
+\begin{lstlisting}
+GovernanceEffectiveness ==
+  governanceActive ~> globalEntropy < MaxEntropy
+\end{lstlisting}
+
+\paragraph{Mapping.} This theorem aggregates three propositions from the
+companion technical report~\cite{maref-w3}: P7 (entropy unimodality), P8
+(entropy boundedness), and P9 (governance liveness). The name ``Lyapunov
+convergence'' is a metaphor borrowed from control theory---the TLA+ property
+is a leads-to temporal formula, not a formal Lyapunov function $V(x)$ with
+$\dot{V} < 0$. We retain the name for consistency with prior MAREF publications
+but disclose that the mathematical structure differs.
+
+\paragraph{Proof sketch.} Governance activates when
+$\mathit{globalEntropy} > \mathit{MaxEntropy}$ (i.e., entropy reaches~4, which
+occurs only at ACT~(5)). The \texttt{ApplyGovernance} action forces all
+non-terminal agents into STABILIZE~(7), whose entropy is~1. At the next state:
+\begin{itemize}
+  \item Non-HALT agents: state~$=7$, entropy~$=1$.
+  \item HALT agents: state~$=9$, entropy~$=0$.
+  \item $\mathit{globalEntropy} = \max(1, 0) = 1 < 4$.
+\end{itemize}
+Thus governance activation leads to $\mathit{globalEntropy} < \mathit{MaxEntropy}$
+in one step.
+
+\paragraph{TLC evidence.} TLC verifies \texttt{GovernanceEffectiveness} as a
+property of \texttt{Spec} over the bounded configuration
+(\texttt{Agents}$=\{\textit{agent1}, \textit{agent2}\}$,
+\texttt{MaxTransitions}$=5$).
+
+\paragraph{Honest gap.} The proof relies on the synchronous semantics of
+\texttt{ApplyGovernance} (all agents update simultaneously). In a distributed
+implementation with message delay, a transient window may exist where
+$\mathit{globalEntropy} \geq 4$ after governance activation but before all
+agents receive the stabilize command. The TLA+ model does not capture network
+asynchrony.
+
+% ---------------------------------------------------------------------
+\subsection{Theorem 2: HALT Absorbing}
+% ---------------------------------------------------------------------
+
+\begin{theorem}[HALT Absorbing]
+The terminal state HALT~(9) is absorbing: once an agent enters HALT, it cannot
+transition to any other state.
+\end{theorem}
+
+\paragraph{TLA+ specification.} The property is captured by the
+\texttt{TerminalAbsorbing} invariant and the \texttt{IsTerminal} predicate:
+
+\begin{lstlisting}
+IsTerminal(s) == s = 9
+
+TerminalAbsorbing ==
+  \A a \in Agents :
+    IsTerminal(agentState[a]) => transitionCount[a] <= MaxTransitions
+\end{lstlisting}
+
+Additionally, the \texttt{Advance} action guards against terminal states:
+\begin{lstlisting}
+Advance(a) ==
+  /\ ~IsTerminal(agentState[a])
+  /\ transitionCount[a] < MaxTransitions
+  /\ \E nextState \in NextStates(currentState) : ...
+\end{lstlisting}
+
+\paragraph{Mapping.} This theorem corresponds to propositions P3 (HALT has no
+outgoing edges) and P11 (HALT irreversibility) from~\cite{maref-w3}. The
+transition graph is explicitly constructed with \texttt{transitions[9] = []}
+(empty adjacency list), and the \texttt{can\_transition} method returns
+\texttt{False} when the current state is HALT.
+
+\paragraph{Proof sketch.}
+\begin{enumerate}
+  \item \texttt{Advance(a)} requires $\neg\mathit{IsTerminal}(\mathit{agentState}[a])$,
+    so an agent in HALT cannot execute \texttt{Advance}.
+  \item \texttt{Stutter} leaves all variables unchanged, so it cannot move an
+    agent out of HALT.
+  \item \texttt{Next} $= \mathit{Advance} \lor \mathit{Stutter}$, so no action
+    can move an agent out of HALT.
+\end{enumerate}
+
+\paragraph{TLC evidence.} TLC verifies \texttt{TerminalAbsorbing} as an
+invariant of \texttt{Spec}.
+
+\paragraph{Honest gap.} The current form of \texttt{TerminalAbsorbing} is
+weaker than full temporal absorption. It states
+$\mathit{IsTerminal} \Rightarrow \mathit{transitionCount} \leq \mathit{MaxTransitions}$,
+which bounds the transition count but does not directly assert
+$\Box(\mathit{IsTerminal} \Rightarrow \Box\,\mathit{IsTerminal})$. The stronger
+temporal form is noted in a comment but not checked in the \texttt{.cfg} file.
+A future revision should add the temporal property explicitly.
+
+% ---------------------------------------------------------------------
+\subsection{Theorem 3: Gray Code Transition}
+% ---------------------------------------------------------------------
+
+\begin{theorem}[Gray Code Transition]
+Every legal state transition changes exactly one bit. Formally, for all
+$(s, t) \in E$:
+\[
+d_H(\mathit{GrayCode}[s], \mathit{GrayCode}[t]) = 1
+\]
+\end{theorem}
+
+\paragraph{TLA+ specification.} The transition predicate is defined in
+\texttt{MarefLite.tla} and reused in \texttt{MarefLiteModel.tla}:
+
+\begin{lstlisting}
+ValidTransition(s, t) ==
+  LET gs == GrayCode[s]
+      gt == GrayCode[t]
+  IN
+    \E i \in 1..4 :
+      /\ gs[i] # gt[i]
+      /\ \A j \in 1..4 : j # i => gs[j] = gt[j]
+\end{lstlisting}
+
+This predicate requires that there exists a bit position~$i$ where $g_s$ and
+$g_t$ differ, and all other positions are equal---exactly the Hamming
+distance~$=1$ condition.
+
+\paragraph{Mapping.} This theorem aggregates propositions P1 (single-bit
+transitions), P2 (consecutive states differ by one bit), P4 (Gray code
+uniqueness), and P10 (forced paths via BFS respect Gray property)
+from~\cite{maref-w3}. The uniqueness (P4) is a prerequisite: if two states
+shared the same Gray code, \texttt{ValidTransition} could match incorrectly.
+
+\paragraph{Proof sketch.} By construction: \texttt{NextStates(s)} is defined as
+$\{t \in S : \mathit{ValidTransition}(s, t)\}$, and \texttt{Advance} only
+transitions to states in \texttt{NextStates}. Therefore every transition
+satisfies the Hamming~$=1$ condition by definition. The forced-path variant
+(P10) uses BFS over the same graph $G = (S, E)$, so every edge in the path
+inherits the property.
+
+\paragraph{TLC evidence.} TLC verifies \texttt{ValidStateInvariant} (all agent
+states remain in $0..9$), which combined with the \texttt{ValidTransition}
+guard ensures no multi-bit corruption occurs.
+
+\paragraph{Honest gap.} The base module \texttt{MarefLite.tla} (line~71)
+contains a syntax error: the conjunction is written as \texttt{:/} instead of
+\texttt{:/\textbackslash}. The executable model \texttt{MarefLiteModel.tla}
+contains the correct syntax and is what TLC actually checks. This typo should
+be fixed in the base module. Additionally, TLC verifies only the bounded
+configuration; for production scale (10+~agents), the state space may exceed
+TLC's enumeration capacity---Apalache~\cite{apalache} (SMT-based) is the
+planned mitigation.
+
+% ---------------------------------------------------------------------
+\subsection{Theorem 4: Safety Gate Integrity}
+% ---------------------------------------------------------------------
+
+\begin{theorem}[Safety Gate Integrity]
+The safety gate is always active, and no agent decision can be evaluated
+without passing through it.
+\end{theorem}
+
+\paragraph{TLA+ specification.} The property is captured in
+\texttt{MAREF\_ConstitutionalRedLines.tla}:
+
+\begin{lstlisting}
+SafetyGateIntegrityInv ==
+  safetyGateActive = TRUE
+
+EvaluateDecision(decisionTag) ==
+  /\ d[4] = "p"               (* status must be proposed *)
+  /\ safetyGateActive = TRUE   (* gate must be active *)
+  /\ decisions' = (decisions \ {d}) \cup {...}
+  /\ safetyGateCount' = safetyGateCount + 1
+\end{lstlisting}
+
+\paragraph{Mapping.} This theorem has no direct counterpart in~\cite{maref-w3},
+which focused on the 10-state machine. The safety gate is modeled in the
+constitutional red lines module, a separate TLA+ specification.
+
+\paragraph{Proof sketch.}
+\begin{enumerate}
+  \item \texttt{Init} sets $\mathit{safetyGateActive} = \textsc{true}$.
+  \item No action in \texttt{Next} modifies $\mathit{safetyGateActive}$ (all
+    actions include \texttt{UNCHANGED safetyGateActive} or leave it implicit).
+  \item Therefore $\Box(\mathit{safetyGateActive} = \textsc{true})$ holds.
+  \item \texttt{EvaluateDecision} requires $\mathit{safetyGateActive} =
+    \textsc{true}$ as a guard, so no decision can be evaluated if the gate
+    were inactive---but by item~3, the gate is always active.
+\end{enumerate}
+
+\paragraph{TLC evidence.} TLC verifies \texttt{SafetyGateIntegrityInv} as an
+invariant of the constitutional red lines specification.
+
+\paragraph{Honest gap.} The invariant $\mathit{safetyGateActive} =
+\textsc{true}$ holds \emph{trivially} because no action ever sets it to
+\textsc{false}. This is a strong but degenerate form of integrity: the gate
+cannot be bypassed because it cannot be disabled. A more meaningful property
+would prove that every code path leading to a decision effect passes through
+\texttt{EvaluateDecision}---this requires a stronger specification of the
+decision lifecycle, which is future work. Additionally, the related invariant
+\texttt{RSIRL003\_GateRequirementInv} (no approval below the C4 threshold) is
+stated but its relationship to \texttt{SafetyGateIntegrityInv} is not
+formalized.
+
+% ---------------------------------------------------------------------
+\subsection{Theorem 5: Red Line Immutability}
+% ---------------------------------------------------------------------
+
+\begin{theorem}[Red Line Immutability]
+The set of constitutional red lines cannot be modified by any agent action.
+\end{theorem}
+
+\paragraph{TLA+ specification.} The property is captured by two invariants in
+\texttt{MAREF\_ConstitutionalRedLines.tla}:
+
+\begin{lstlisting}
+RedLineImmutabilityInv ==
+  redLines = RedLineID
+
+HumanConstitutionSoleAuthorityInv ==
+  redLines = RedLineID
+\end{lstlisting}
+
+Two actions attempt to modify red lines:
+
+\begin{lstlisting}
+AttemptModifyRedLine(agent, rlid) ==
+  /\ agent \in AgentID \ {99}    (* agent, not HumanMaker *)
+  /\ rlid \in redLines
+  (* No state change -- rejected by constitution *)
+  /\ UNCHANGED vars
+
+HumanModifyRedLine(rlid) ==
+  /\ rlid \in RedLineID
+  /\ rlid \in redLines
+  (* Red line remains in the set, unchanged *)
+  /\ UNCHANGED vars
+  /\ auditLogCount' = auditLogCount + 1
+\end{lstlisting}
+
+\paragraph{Mapping.} This theorem has no direct counterpart
+in~\cite{maref-w3}. It is modeled in the constitutional red lines module.
+
+\paragraph{Proof sketch.}
+\begin{enumerate}
+  \item \texttt{Init} sets $\mathit{redLines} = \mathit{RedLineID} = \{1,2,3,4,5\}$.
+  \item \texttt{AttemptModifyRedLine} executes \texttt{UNCHANGED vars}, so
+    $\mathit{redLines}$ is unchanged.
+  \item \texttt{HumanModifyRedLine} also executes \texttt{UNCHANGED vars}
+    (only $\mathit{auditLogCount}$ increments), so $\mathit{redLines}$ is
+    unchanged.
+  \item No other action in \texttt{Next} references $\mathit{redLines}$.
+  \item Therefore $\Box(\mathit{redLines} = \mathit{RedLineID})$ holds.
+\end{enumerate}
+
+\paragraph{TLC evidence.} TLC verifies both \texttt{RedLineImmutabilityInv}
+and \texttt{HumanConstitutionSoleAuthorityInv} as invariants.
+
+\paragraph{Honest gap.} The specification models red line immutability as
+``the set never changes''---which is the strongest possible guarantee.
+However, this means the action \texttt{HumanModifyRedLine} is misnamed: it
+does not actually modify any red line (it only logs an audit entry). The
+semantic intent---that a \emph{human} can modify red lines but an
+\emph{agent} cannot---is not faithfully modeled. A future revision should
+either (a)~allow \texttt{HumanModifyRedLine} to change the red line set and
+prove that only agent~99 (HumanMaker) can trigger it, or (b)~remove the
+action and document that red lines are compile-time constants.
+
+% =====================================================================
+\section{Honest Limitations}
+% =====================================================================
+
+We document the following limitations of the current verification. These are
+not excuses---they are the work items for future iterations.
+
+\subsection{TLC vs.\ TLAPS}
+
+All \texttt{THEOREM} declarations in the MAREF TLA+ modules are checked by TLC
+exhaustive enumeration, not by TLAPS deductive proof. There are zero
+\texttt{PROOF}, \texttt{BY}, or \texttt{QED} steps in the codebase. This means
+the theorems hold for the bounded configurations TLC checks, but are not
+machine-checked proofs for all possible configurations. Migrating to TLAPS is
+the primary future work.
+
+\subsection{Bounded State Space}
+
+The current TLC configuration uses
+$\mathit{Agents} = \{\textit{agent1}, \textit{agent2}\}$ and
+$\mathit{MaxTransitions} = 5$. This bounds the state space to a tractable
+size but does not cover production scale (10+~agents, 100+~transitions). For
+larger configurations, TLC suffers from state explosion. The planned
+mitigation is Apalache~\cite{apalache}, an SMT-based symbolic model checker
+that can handle larger state spaces without full enumeration.
+
+\subsection{Sibling State Machines Lack Specifications}
+
+The 8-state trigram trust machine and the 24-state agent lifecycle machine
+have no TLA+ specifications. Earlier MAREF documentation stated ``8 trust
+states based on Gray code (Hamming distance~$=1$)'', but the actual trigram
+transition table includes Hamming distance~2 and~3 transitions. This is a
+semantic mismatch: the trigram machine operates at the trust semantics layer,
+not the Gray topology layer. Formalizing both sibling machines is future work.
+
+\subsection{CI Integration}
+
+The \texttt{formal-verify.yml} GitHub Actions workflow exists and is wired to
+run TLC on the configured \texttt{.cfg} files. However, the TLC runs are not
+yet gating (they produce reports but do not block merges on failure). Making
+TLC a gating CI check is a v0.36 target.
+
+\subsection{Asynchrony}
+
+The TLA+ model assumes synchronous state updates: \texttt{ApplyGovernance}
+updates all agents simultaneously. Real multi-agent systems are asynchronous:
+messages are delayed, agents may be partitioned, and consensus is required.
+The current specification does not model network asynchrony. Extending the
+model to capture message delay and partial failure is future work.
+
+% =====================================================================
+\section{Related Work}
+% =====================================================================
+
+\paragraph{TLA+ in distributed systems.} TLA+ has been used to specify and
+verify distributed protocols including Paxos~\cite{lamport-paxos}, Raft, and
+the Cosmos Tendermint consensus. MAREF's use of TLA+ for \emph{agent
+governance} (rather than distributed consensus) is, to our knowledge, novel:
+no other open-source agent framework provides a TLA+ specification of its
+governance layer.
+
+\paragraph{Agent governance frameworks.} LangGraph, CrewAI, and AutoGen
+provide orchestration primitives (agent composition, task delegation,
+message passing) but no formal governance specifications. Their ``safety''
+features are runtime checks (e.g., tool permission matrices, output filters)
+rather than verified invariants. The MCP (Model Context Protocol) marketplace
+has no admission control~\cite{maref-w7}. MAREF is the only framework that
+formalizes governance as a TLA+ specification with TLC-verified properties.
+
+\paragraph{Gray code in state machines.} Gray codes~\cite{gray-patent} are
+traditionally used in analog-to-digital conversion and error-detection
+circuits to prevent spurious intermediate states. MAREF's application of Gray
+codes to agent governance state machines is an adaptation: the single-bit
+transition property prevents race conditions during concurrent state updates,
+and the absorbing terminal state (HALT) ensures that halted agents cannot
+self-recover without explicit re-initialization.
+
+\paragraph{Formal verification in AI safety.} Recent work on AI safety has
+focused on reinforcement learning alignment, reward modeling, and
+interpretability---all of which operate at the model layer. Formal
+verification of the \emph{governance infrastructure} surrounding AI agents
+(rather than the models themselves) is comparatively underexplored. The
+CISA/Five Eyes joint guidance on securing agentic AI~\cite{cisa-five-eyes}
+calls for runtime guardrails, identity management, and blast radius control,
+but does not mandate formal verification. MAREF's position is that formal
+verification of the governance layer is a necessary complement to model-layer
+safety: even a perfectly aligned model can cause harm if the governance
+infrastructure surrounding it has exploitable gaps. The EU AI Act's
+high-risk classification of agentic AI systems will likely create regulatory
+demand for formal governance verification, analogous to the role that
+PCI-DSS plays in payment processing.
+
+% =====================================================================
+\section{Conclusion and Future Work}
+% =====================================================================
+
+We have presented five theorems that establish the safety and liveness
+properties of the MAREF 10-state Gray code governance state machine, verified
+by TLC model checking. The theorems cover convergence (governance activation
+leads to entropy decrease), absorption (HALT is terminal), transition safety
+(all transitions are single-bit), safety gate integrity (the gate cannot be
+bypassed), and red line immutability (constitutional rules cannot be modified
+at runtime).
+
+The verification is honest about its limitations: it uses TLC enumeration
+(not TLAPS deductive proof), covers a bounded state space, and excludes two
+sibling state machines. The future work items are:
+
+\begin{enumerate}
+  \item \textbf{TLAPS proofs.} Upgrade the five theorems from TLC-checked
+    declarations to machine-checked deductive proofs with \texttt{PROOF} steps.
+  \item \textbf{Apalache integration.} Use SMT-based symbolic model checking
+    to verify properties over larger state spaces (10+~agents).
+  \item \textbf{Sibling machine formalization.} Write TLA+ specifications for
+    the 8-state trigram machine and the 24-state agent lifecycle machine.
+  \item \textbf{Asynchronous model.} Extend the specification to capture
+    message delay, partial failure, and consensus.
+  \item \textbf{CI gating.} Make TLC verification a blocking CI check.
+\end{enumerate}
+
+The TLA+ specifications, TLC configurations, and Python test suites are open
+source under Apache~2.0 at \url{https://github.com/maref-org/maref}.
+
+% =====================================================================
+\bibliographystyle{plain}
+\bibliography{references}
+% =====================================================================
+
+\end{document}

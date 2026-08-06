@@ -1,0 +1,185 @@
+from __future__ import annotations
+
+import json
+from enum import Enum
+from typing import Any
+from uuid import uuid4
+
+
+class JSONRPCErrorCode(Enum):
+    PARSE_ERROR = -32700
+    INVALID_REQUEST = -32600
+    METHOD_NOT_FOUND = -32601
+    INVALID_PARAMS = -32602
+    INTERNAL_ERROR = -32603
+    GOVERNANCE_REJECTED = -32001
+    SAFETY_GATE_BLOCKED = -32002
+
+
+class SidecarMethod(Enum):
+    OBSERVE = "sidecar.observe"
+    GET_STATE = "sidecar.get_state"
+    HEALTH_CHECK = "sidecar.health_check"
+    GET_CORRELATION = "sidecar.get_correlation"
+    MIGRATE = "sidecar.migrate"
+    GET_ENTROPY = "sidecar.get_entropy"
+    LIST_AGENTS = "sidecar.list_agents"
+    GET_SNAPSHOT = "sidecar.get_snapshot"
+    GET_ANOMALIES = "sidecar.get_anomalies"
+    GET_OBSERVATIONS = "sidecar.get_observations"
+
+
+class JSONRPCRequest:
+    def __init__(
+        self,
+        method: str,
+        params: dict[str, Any] | None = None,
+        id: str = "",
+        jsonrpc: str = "2.0",
+    ) -> None:
+        self.jsonrpc = jsonrpc
+        self.method = method
+        self.params = params or {}
+        self.id = id if id else str(uuid4())
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "jsonrpc": self.jsonrpc,
+            "method": self.method,
+            "id": self.id,
+        }
+        if self.params:
+            d["params"] = self.params
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> JSONRPCRequest:
+        return cls(
+            method=data.get("method", ""),
+            params=data.get("params"),
+            id=data.get("id", ""),
+            jsonrpc=data.get("jsonrpc", "2.0"),
+        )
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> JSONRPCRequest:
+        return cls.from_dict(json.loads(json_str))
+
+
+class JSONRPCError:
+    def __init__(self, code: JSONRPCErrorCode, message: str) -> None:
+        self.code = code
+        self.message = message
+
+
+class JSONRPCResponse:
+    def __init__(self, result: Any = None, error: JSONRPCError | None = None, id: str = "") -> None:
+        self.result = result
+        self.error = error
+        self.id = id
+        self.is_error = error is not None
+
+    @classmethod
+    def success(cls, result: Any, req_id: str = "") -> JSONRPCResponse:
+        return cls(result=result, id=req_id)
+
+    @classmethod
+    def error_response(cls, code: JSONRPCErrorCode, message: str, req_id: str = "") -> JSONRPCResponse:
+        return cls(error=JSONRPCError(code, message), id=req_id)
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"jsonrpc": "2.0", "id": self.id}
+        if self.is_error and self.error:
+            d["error"] = {"code": self.error.code.value, "message": self.error.message}
+        else:
+            d["result"] = self.result
+        return d
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
+
+class SidecarRequest:
+    @classmethod
+    def create(cls, method: SidecarMethod, params: dict[str, Any] | None = None, req_id: str = "") -> JSONRPCRequest:
+        return JSONRPCRequest(method=method.value, params=params, id=req_id)
+
+
+class SidecarResponse:
+    def __init__(self, result: Any = None, error: JSONRPCError | None = None, id: str = "") -> None:
+        self.result = result
+        self.error = error
+        self.id = id
+        self.is_error = error is not None
+
+    @classmethod
+    def from_json_rpc(cls, json_str: str) -> SidecarResponse:
+        data = json.loads(json_str)
+        error_data = data.get("error")
+        error = None
+        if error_data:
+            error = JSONRPCError(JSONRPCErrorCode(error_data["code"]), error_data["message"])
+        return cls(result=data.get("result"), error=error, id=data.get("id", ""))
+
+
+class SidecarJSONRPCBridge:
+    def __init__(self) -> None:
+        self._handlers: dict[str, Any] = {}
+        self._history: list[JSONRPCResponse] = []
+        self._register_default_handlers()
+
+    def _register_default_handlers(self) -> None:
+        for method in SidecarMethod:
+            self.register_handler(method.value, self._make_default_handler(method))
+
+    def _make_default_handler(self, method: SidecarMethod) -> Any:
+        def handler(params: dict[str, Any] | None = None) -> dict[str, Any]:
+            return {"method": method.value, "sidecar_version": "0.35.0-beta"}
+        return handler
+
+    @property
+    def handler_count(self) -> int:
+        return len(self._handlers)
+
+    def register_handler(self, method: str, handler: Any) -> None:
+        self._handlers[method] = handler
+
+    @property
+    def response_history(self) -> list[JSONRPCResponse]:
+        return self._history
+
+    def clear_history(self) -> None:
+        self._history.clear()
+
+    def handle(self, req: JSONRPCRequest | str) -> JSONRPCResponse:
+        if isinstance(req, str):
+            try:
+                data = json.loads(req)
+                req = JSONRPCRequest.from_dict(data)
+            except (json.JSONDecodeError, ValueError):
+                resp = JSONRPCResponse.error_response(JSONRPCErrorCode.PARSE_ERROR, "Parse error")
+                self._history.append(resp)
+                return resp
+
+        if req.jsonrpc != "2.0":
+            resp = JSONRPCResponse.error_response(JSONRPCErrorCode.INVALID_REQUEST, "Invalid JSON-RPC version", req.id)
+            self._history.append(resp)
+            return resp
+
+        handler = self._handlers.get(req.method)
+        if handler is None:
+            resp = JSONRPCResponse.error_response(JSONRPCErrorCode.METHOD_NOT_FOUND, f"Method '{req.method}' not found", req.id)
+            self._history.append(resp)
+            return resp
+
+        try:
+            result = handler(req.params)
+            resp = JSONRPCResponse.success(result, req.id)
+        except Exception:
+            resp = JSONRPCResponse.error_response(JSONRPCErrorCode.INTERNAL_ERROR, "Internal error", req.id)
+
+        self._history.append(resp)
+        return resp

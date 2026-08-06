@@ -1,0 +1,494 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="MAREF vs LangGraph vs CrewAI vs AutoGen: The Governance Layer Benchmark"
+  description="We benchmarked MAREF's governance primitives against LangGraph, CrewAI, and AutoGen. The result: MAREF adds 4.7ms mean overhead per full governance cycle, while the other three frameworks ship zero native governance. Here's the 10-dimension comparison and reproducible numbers."
+  date="2026-07-22"
+  author="MAREF Engineering"
+  tags={["benchmark", "governance", "langgraph", "crewai", "autogen", "comparison"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  MAREF's full governance pipeline (state machine + circuit breaker + subgoal interceptor + safety gate + behavior monitor) costs <strong>4,688 μs mean / 13,316 μs p99</strong> per cycle. LangGraph, CrewAI, and AutoGen ship <strong>0 ms</strong> of native governance overhead — but also <strong>0/10 OWASP Agentic Top 10 coverage</strong>. This article presents a reproducible benchmark, a 10-dimension comparison matrix, and an honest analysis of when each framework is the right choice.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Why Benchmark Governance?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Every agent framework claims to be "production-ready." None of them tell you what happens when an agent goes rogue.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  When we started MAREF, the question wasn't "can we build a faster agent orchestrator?" — LangGraph, CrewAI, and AutoGen already do that well. The question was: <strong>what does it cost to make an agent safe enough to deploy in production?</strong>
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Governance isn't free. A trust state machine adds transitions. A circuit breaker adds failure tracking. A subgoal interceptor adds a CoT scanning pass. A behavior monitor adds statistical analysis. An audit trail adds I/O. These costs compound.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  But the alternative — deploying an agent with no governance — costs more. Deloitte's 2026 report found 88% of enterprises had an AI agent incident last year. Gartner predicts 40% will decommission agents by 2027 due to governance gaps, not capability gaps.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  This benchmark answers two questions:
+</p>
+
+<ol class="list-decimal pl-6 text-base text-brand-text-secondary leading-relaxed mb-6 space-y-2">
+  <li><strong>How much latency does MAREF's governance layer actually add?</strong></li>
+  <li><strong>How does that compare to building governance yourself on LangGraph/CrewAI/AutoGen?</strong></li>
+</ol>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Methodology</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  All measurements were taken on a single machine using Python 3.11 with <code class="font-code">time.perf_counter()</code> micro-benchmarks. Each primitive was warmed up (100–1000 iterations) before measurement to stabilize caches and branch prediction, then measured over 1,000 iterations.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  <strong>Reproduce it yourself:</strong>
+</p>
+
+<pre class="bg-brand-surface-alt rounded-lg p-4 mb-6 overflow-x-auto text-sm font-code text-brand-text-secondary"><code>git clone https://github.com/maref-org/maref.git
+cd maref
+python benchmarks/governance_overhead.py --iters 1000</code></pre>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The benchmark script (<a href="https://github.com/maref-org/maref/blob/main/benchmarks/governance_overhead.py" class="text-brand-accent-cyan hover:underline">benchmarks/governance_overhead.py</a>) measures seven governance primitives:
+</p>
+
+<ol class="list-decimal pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>GovernanceStateMachine.transition()</strong> — single 10-state Gray Code FSM step (with audit trail)</li>
+  <li><strong>GovernanceStateMachine.force_stabilize()</strong> — BFS shortest-path to STABILIZE state</li>
+  <li><strong>GovernanceStateMachine.force_halt()</strong> — BFS shortest-path to absorbing HALT state</li>
+  <li><strong>CircuitBreaker.record_failure() + check_depth()</strong> — failure tracking + recursion depth guard</li>
+  <li><strong>SubgoalInterceptor.intercept()</strong> — full Layer 4 pipeline (CoT scan + goal inference + safety gate)</li>
+  <li><strong>SafetyGateV2.validate_decomposition()</strong> — subtask explosion + dangerous capability guard</li>
+  <li><strong>BehaviorMonitor.record_activity() + detect_anomalies()</strong> — 3-sigma anomaly detection</li>
+</ol>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  For comparison, LangGraph, CrewAI, and AutoGen were measured at <strong>0 ms</strong> because they ship no native governance primitives. Their governance overhead is zero out-of-the-box — but so is their governance coverage.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Benchmark Results</h2>
+
+<table class="w-full text-sm text-brand-text-secondary mb-6">
+  <thead>
+    <tr class="border-b border-brand-border">
+      <th class="text-left py-2 pr-4 font-semibold text-brand-text-primary">Primitive</th>
+      <th class="text-right py-2 px-2 font-semibold text-brand-text-primary">mean (μs)</th>
+      <th class="text-right py-2 px-2 font-semibold text-brand-text-primary">p50 (μs)</th>
+      <th class="text-right py-2 px-2 font-semibold text-brand-text-primary">p99 (μs)</th>
+      <th class="text-right py-2 pl-2 font-semibold text-brand-text-primary">max (μs)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">StateMachine.transition()</td>
+      <td class="text-right py-2 px-2 font-mono">359.74</td>
+      <td class="text-right py-2 px-2 font-mono">416.83</td>
+      <td class="text-right py-2 px-2 font-mono">944.17</td>
+      <td class="text-right py-2 pl-2 font-mono">1,809.33</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">StateMachine.force_stabilize()</td>
+      <td class="text-right py-2 px-2 font-mono">3.11</td>
+      <td class="text-right py-2 px-2 font-mono">3.08</td>
+      <td class="text-right py-2 px-2 font-mono">4.00</td>
+      <td class="text-right py-2 pl-2 font-mono">12.54</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">StateMachine.force_halt()</td>
+      <td class="text-right py-2 px-2 font-mono">4,226.27</td>
+      <td class="text-right py-2 px-2 font-mono">3,865.29</td>
+      <td class="text-right py-2 px-2 font-mono">11,916.46</td>
+      <td class="text-right py-2 pl-2 font-mono">56,471.50</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">CircuitBreaker (record+check)</td>
+      <td class="text-right py-2 px-2 font-mono">0.35</td>
+      <td class="text-right py-2 px-2 font-mono">0.29</td>
+      <td class="text-right py-2 px-2 font-mono">0.62</td>
+      <td class="text-right py-2 pl-2 font-mono">20.67</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">SubgoalInterceptor.intercept() [benign]</td>
+      <td class="text-right py-2 px-2 font-mono">10.53</td>
+      <td class="text-right py-2 px-2 font-mono">10.37</td>
+      <td class="text-right py-2 px-2 font-mono">13.42</td>
+      <td class="text-right py-2 pl-2 font-mono">51.13</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">SafetyGateV2.validate_decomposition()</td>
+      <td class="text-right py-2 px-2 font-mono">0.41</td>
+      <td class="text-right py-2 px-2 font-mono">0.38</td>
+      <td class="text-right py-2 px-2 font-mono">0.50</td>
+      <td class="text-right py-2 pl-2 font-mono">5.21</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">BehaviorMonitor.record+detect()</td>
+      <td class="text-right py-2 px-2 font-mono">87.93</td>
+      <td class="text-right py-2 px-2 font-mono">59.00</td>
+      <td class="text-right py-2 px-2 font-mono">436.63</td>
+      <td class="text-right py-2 pl-2 font-mono">990.96</td>
+    </tr>
+    <tr class="font-semibold text-brand-text-primary">
+      <td class="py-2 pr-4">TOTAL (full pipeline)</td>
+      <td class="text-right py-2 px-2 font-mono">4,688.34</td>
+      <td class="text-right py-2 px-2 font-mono">—</td>
+      <td class="text-right py-2 px-2 font-mono">13,315.79</td>
+      <td class="text-right py-2 pl-2 font-mono">—</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 class="text-xl font-bold tracking-tight mt-10 mb-3">Reading the numbers</h3>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The first thing to notice: <strong>pure governance logic is fast</strong>. CircuitBreaker adds 0.35 μs. SafetyGate adds 0.41 μs. SubgoalInterceptor — the heaviest governance primitive, which scans a full CoT token stream, infers a goal DAG, and checks for control subgoals — adds 10.5 μs. These are sub-microsecond to low-double-digit-microsecond costs.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The second thing: <strong>audit trail I/O dominates</strong>. StateMachine.transition() costs 360 μs because it appends to a tamper-evident hash chain (reading the previous record's hash, computing SHA-256, writing to disk with POSIX advisory locks). force_halt() costs 4.2 ms because it creates a fresh FSM and performs multiple audited transitions in sequence.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  This is a deliberate trade-off: MAREF prioritizes <strong>tamper-evidence over raw speed</strong>. Every state transition is part of a cryptographically-linked audit chain that can be independently verified. If you don't need tamper-evidence, you can disable audit logging and the transition cost drops to single-digit microseconds.
+</p>
+
+<h3 class="text-xl font-bold tracking-tight mt-10 mb-3">The O(n) audit chain caveat</h3>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  The current audit trail implementation reads the last record from the file on each write to chain the hash. For long-running sessions with thousands of transitions, this creates O(n) read amplification. We're optimizing this to a streaming hash chain (keeping only the last hash in memory) in v0.36. After that optimization, transition() is expected to drop to ~20 μs. <strong>This is a known performance issue, not a fundamental architectural cost.</strong> The governance logic itself is already sub-microsecond.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">10-Dimension Comparison Matrix</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  We compared MAREF against the three most popular agent orchestration frameworks across ten governance dimensions. The question for each dimension: <strong>does the framework ship this capability natively, or must you build it yourself?</strong>
+</p>
+
+<table class="w-full text-sm text-brand-text-secondary mb-6">
+  <thead>
+    <tr class="border-b border-brand-border">
+      <th class="text-left py-2 pr-3 font-semibold text-brand-text-primary">#</th>
+      <th class="text-left py-2 pr-3 font-semibold text-brand-text-primary">Governance Dimension</th>
+      <th class="text-center py-2 px-2 font-semibold text-brand-text-primary">MAREF</th>
+      <th class="text-center py-2 px-2 font-semibold text-brand-text-primary">LangGraph</th>
+      <th class="text-center py-2 px-2 font-semibold text-brand-text-primary">CrewAI</th>
+      <th class="text-center py-2 pl-2 font-semibold text-brand-text-primary">AutoGen</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">1</td>
+      <td class="py-2 pr-3"><strong>Trust State Machine</strong> (FSM with formal transitions)</td>
+      <td class="text-center py-2 px-2 text-green-500">✅ 10-state Gray Code, TLA+ verified</td>
+      <td class="text-center py-2 px-2 text-red-400">❌ No FSM</td>
+      <td class="text-center py-2 px-2 text-red-400">❌ No FSM</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌ No FSM</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">2</td>
+      <td class="py-2 pr-3"><strong>Circuit Breaker</strong> (recursion depth + oscillation guard)</td>
+      <td class="text-center py-2 px-2 text-green-500">✅ 0.35 μs/op</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">3</td>
+      <td class="py-2 pr-3"><strong>Subgoal Interception</strong> (goal hijack defense)</td>
+      <td class="text-center py-2 px-2 text-green-500">✅ 10.5 μs/op</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">4</td>
+      <td class="py-2 pr-3"><strong>Behavior Monitoring</strong> (rogue agent detection)</td>
+      <td class="text-center py-2 px-2 text-green-500">✅ 3-sigma, 88 μs/op</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">5</td>
+      <td class="py-2 pr-3"><strong>Human-in-the-Loop Enforcement</strong></td>
+      <td class="text-center py-2 px-2 text-green-500">✅ Formal HITL invariant in TLA+</td>
+      <td class="text-center py-2 px-2 text-yellow-400">⚠️ Manual</td>
+      <td class="text-center py-2 px-2 text-yellow-400">⚠️ Manual</td>
+      <td class="text-center py-2 pl-2 text-yellow-400">⚠️ Manual</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">6</td>
+      <td class="py-2 pr-3"><strong>Tamper-evident Audit Trail</strong></td>
+      <td class="text-center py-2 px-2 text-green-500">✅ SHA-256 chain</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">7</td>
+      <td class="py-2 pr-3"><strong>Formal Verification</strong> (TLA+ specs)</td>
+      <td class="text-center py-2 px-2 text-green-500">✅ 7 TLA+ modules</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">8</td>
+      <td class="py-2 pr-3"><strong>Recursive Depth Protection</strong></td>
+      <td class="text-center py-2 px-2 text-green-500">✅ CircuitBreaker + SafetyGate</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-3">9</td>
+      <td class="py-2 pr-3"><strong>Cross-Instance Governance</strong></td>
+      <td class="text-center py-2 px-2 text-green-500">✅ G5 CrossInstanceGovernor</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 px-2 text-red-400">❌</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌</td>
+    </tr>
+    <tr class="border-b border-border">
+      <td class="py-2 pr-3">10</td>
+      <td class="py-2 pr-3"><strong>OWASP Agentic Top 10 Coverage</strong></td>
+      <td class="text-center py-2 px-2 text-green-500">✅ 10/10</td>
+      <td class="text-center py-2 px-2 text-red-400">❌ 0/10</td>
+      <td class="text-center py-2 px-2 text-red-400">❌ 0/10</td>
+      <td class="text-center py-2 pl-2 text-red-400">❌ 0/10</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 class="text-xl font-bold tracking-tight mt-10 mb-3">What "native" means</h3>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  When we say LangGraph has "no native circuit breaker," we don't mean it's impossible to build one. You can write a circuit breaker in Python and wrap every LangGraph node with it. But:
+</p>
+
+<ol class="list-decimal pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>You have to design it</strong> — what triggers the breaker? What state machine does it use? How does it recover?</li>
+  <li><strong>You have to test it</strong> — does it handle concurrency? Does it survive process restarts?</li>
+  <li><strong>You have to verify it</strong> — can you prove it trips in all cases where it should?</li>
+  <li><strong>You have to maintain it</strong> — across framework upgrades, across team turnover.</li>
+  <li><strong>You have to audit it</strong> — does it produce tamper-evidence? Can a compliance officer verify it?</li>
+</ol>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  MAREF ships all of this, formally specified in TLA+, unit-tested with 270+ tests, and CI-verified on every commit. The 4.7 ms overhead is the cost of having it done for you.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Governance Overhead in Context</h2>
+
+<table class="w-full text-sm text-brand-text-secondary mb-6">
+  <thead>
+    <tr class="border-b border-brand-border">
+      <th class="text-left py-2 pr-4 font-semibold text-brand-text-primary">Operation</th>
+      <th class="text-right py-2 pl-2 font-semibold text-brand-text-primary">Latency</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">LLM API call (GPT-4-class, single inference)</td>
+      <td class="text-right py-2 pl-2 font-mono">500–3,000 ms</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">Vector DB query (top-10 retrieval)</td>
+      <td class="text-right py-2 pl-2 font-mono">5–50 ms</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4 font-semibold text-brand-text-primary">MAREF full governance pipeline (mean)</td>
+      <td class="text-right py-2 pl-2 font-mono font-semibold text-brand-text-primary">4.7 ms</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">MAREF pure governance logic (no audit)</td>
+      <td class="text-right py-2 pl-2 font-mono">~0.1 ms</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">Python function call overhead</td>
+      <td class="text-right py-2 pl-2 font-mono">~0.0001 ms</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  <strong>MAREF's governance overhead is 0.15%–0.9% of a single LLM call.</strong> In a typical agent step (LLM inference + tool execution + state update), governance adds less than 1% latency.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  For the pure logic path (CircuitBreaker + SafetyGate + SubgoalInterceptor without audit I/O), the overhead is <strong>~0.1 ms — effectively unmeasurable</strong> compared to the LLM call it guards. The 4.2 ms force_halt() cost is irrelevant in normal operation because force_halt() only fires on governance violations — it's the emergency brake, not the gas pedal. You don't optimize the emergency brake for speed; you optimize for reliability.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">When to Choose What</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  This isn't a "MAREF wins, everything else loses" article. Each framework has a different sweet spot.
+</p>
+
+<h3 class="text-xl font-bold tracking-tight mt-10 mb-3">Choose LangGraph when</h3>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li>You're building <strong>stateful, graph-structured agent workflows</strong> with complex routing.</li>
+  <li>You need <strong>streaming and human-in-the-loop interrupts</strong> at specific nodes (you'll add governance manually).</li>
+  <li>Your agents operate in a <strong>trusted environment</strong> (internal tools, sandboxed execution).</li>
+  <li>You're willing to <strong>build governance yourself</strong> (circuit breaker, audit trail, etc.).</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  LangGraph's graph-based routing is excellent for complex agent topologies. But if you deploy it in production without adding governance, you're accepting the 88% incident risk.
+</p>
+
+<h3 class="text-xl font-bold tracking-tight mt-10 mb-3">Choose CrewAI when</h3>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li>You're building <strong>role-based multi-agent systems</strong> with clear task decomposition.</li>
+  <li>You want <strong>simplicity and rapid prototyping</strong> over formal guarantees.</li>
+  <li>Your use case is <strong>low-stakes</strong> (content generation, research summarization).</li>
+  <li>You don't need <strong>tamper-evidence or formal verification</strong>.</li>
+</ul>
+
+<h3 class="text-xl font-bold tracking-tight mt-10 mb-3">Choose AutoGen when</h3>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li>You're building <strong>conversational multi-agent systems</strong> with peer-to-peer dialogue.</li>
+  <li>You need <strong>flexible agent communication patterns</strong> (group chat, nested conversations).</li>
+  <li>You're doing <strong>research exploration</strong> where governance overhead would slow iteration.</li>
+  <li>You'll add <strong>external governance</strong> (policy API, wrapper service) separately.</li>
+</ul>
+
+<h3 class="text-xl font-bold tracking-tight mt-10 mb-3">Choose MAREF when</h3>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-6 space-y-2">
+  <li>You're deploying agents in <strong>high-stakes production</strong> (finance, healthcare, infrastructure).</li>
+  <li>You need <strong>formal verification</strong> of safety properties (TLA+ specs, TLC model checking).</li>
+  <li>You require <strong>tamper-evident audit trails</strong> for compliance (SOC 2, ISO 27001, HIPAA).</li>
+  <li>You want <strong>OWASP Agentic Top 10 coverage</strong> out of the box.</li>
+  <li>You need <strong>cross-instance governance</strong> (multi-agent, multi-tenant, multi-region).</li>
+  <li>You're willing to accept <strong>~5 ms governance overhead per cycle</strong> in exchange for 10/10 coverage.</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  MAREF isn't competing with LangGraph for workflow routing. It's the <strong>governance layer that sits underneath</strong> any of them. You can use MAREF's governance primitives (CircuitBreaker, SubgoalInterceptor, BehaviorMonitor) alongside a LangGraph workflow — and we're building adapters for exactly that use case.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">The Build-vs-Buy Math</h2>
+
+<table class="w-full text-sm text-brand-text-secondary mb-6">
+  <thead>
+    <tr class="border-b border-brand-border">
+      <th class="text-left py-2 pr-4 font-semibold text-brand-text-primary">Governance Primitive</th>
+      <th class="text-right py-2 px-2 font-semibold text-brand-text-primary">Build Effort</th>
+      <th class="text-right py-2 px-2 font-semibold text-brand-text-primary">Testing Effort</th>
+      <th class="text-right py-2 pl-2 font-semibold text-brand-text-primary">Verification Effort</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">Trust State Machine</td>
+      <td class="text-right py-2 px-2">2–3 weeks</td>
+      <td class="text-right py-2 px-2">1 week</td>
+      <td class="text-right py-2 pl-2">2–4 weeks</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">Circuit Breaker</td>
+      <td class="text-right py-2 px-2">3–5 days</td>
+      <td class="text-right py-2 px-2">2–3 days</td>
+      <td class="text-right py-2 pl-2">N/A</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">Subgoal Interceptor</td>
+      <td class="text-right py-2 px-2">3–4 weeks</td>
+      <td class="text-right py-2 px-2">1–2 weeks</td>
+      <td class="text-right py-2 pl-2">N/A</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">Behavior Monitor</td>
+      <td class="text-right py-2 px-2">1–2 weeks</td>
+      <td class="text-right py-2 px-2">1 week</td>
+      <td class="text-right py-2 pl-2">N/A</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">Audit Trail (tamper-evident)</td>
+      <td class="text-right py-2 px-2">1–2 weeks</td>
+      <td class="text-right py-2 px-2">3–5 days</td>
+      <td class="text-right py-2 pl-2">N/A</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 pr-4">HITL Enforcement</td>
+      <td class="text-right py-2 px-2">1 week</td>
+      <td class="text-right py-2 px-2">3–5 days</td>
+      <td class="text-right py-2 pl-2">1–2 weeks</td>
+    </tr>
+    <tr class="font-semibold text-brand-text-primary border-t-2 border-brand-border">
+      <td class="py-2 pr-4">Total</td>
+      <td class="text-right py-2 px-2">~8–12 weeks</td>
+      <td class="text-right py-2 px-2">~4–6 weeks</td>
+      <td class="text-right py-2 pl-2">~3–6 weeks</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  <strong>Building governance yourself costs 15–24 weeks of engineering effort</strong> — and that's assuming you have a formal methods engineer who can write TLA+ specs. Most teams don't, which is why most "DIY governance" implementations are incomplete: they have a circuit breaker but no formal verification, an audit log but no tamper-evidence, a HITL flag but no enforcement invariant. MAREF's 4.7 ms overhead buys you 15–24 weeks of engineering you don't have to do, done by people who specialize in agent governance, formally verified and continuously tested.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Limitations and Honesty</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  This benchmark has limitations we want to be transparent about:
+</p>
+
+<ol class="list-decimal pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>Single-machine, single-process.</strong> Production deployments involve network calls, serialization, and concurrency. Real-world governance overhead will be higher due to these factors — but for all frameworks equally.</li>
+  <li><strong>Audit I/O dominates.</strong> The 4.7 ms total is mostly audit trail I/O (3.6 ms of it). If you disable audit logging, MAREF's overhead drops to ~1.1 ms. We're optimizing the audit chain to streaming hashes in v0.36, which should bring transition() from 360 μs to ~20 μs.</li>
+  <li><strong>LangGraph's checkpointing isn't governance.</strong> LangGraph adds 1–3 ms per node for state checkpointing. This is execution-state persistence, not governance — it doesn't include a trust state machine, circuit breaker, subgoal interception, behavior monitoring, or audit trail.</li>
+  <li><strong>We didn't measure "DIY governance on LangGraph."</strong> If you build a circuit breaker on LangGraph, it would have similar overhead to MAREF's CircuitBreaker (0.35 μs) — the logic is the same. The difference is you'd also have the 15–24 weeks of build effort, and likely no formal verification.</li>
+  <li><strong>MAREF is newer and less battle-tested.</strong> LangGraph has thousands of production deployments. MAREF has formal verification and 270+ tests, but fewer real-world deployments. This is an honest trade-off: formal correctness vs. operational maturity.</li>
+</ol>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Reproduce It</h2>
+
+<pre class="bg-brand-surface-alt rounded-lg p-4 mb-6 overflow-x-auto text-sm font-code text-brand-text-secondary"><code>git clone https://github.com/maref-org/maref.git
+cd maref
+python benchmarks/governance_overhead.py --iters 1000</code></pre>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  The script is self-contained, has no external dependencies beyond the MAREF package, and outputs both a human-readable table and a JSON summary for regression tracking. Results will vary by hardware; the relative ratios between primitives should remain stable. If you get dramatically different numbers, please <a href="https://github.com/maref-org/maref/issues" class="text-brand-accent-cyan hover:underline">open an issue</a> with your hardware specs and the full output.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Conclusion</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF adds <strong>4.7 ms of governance overhead per cycle</strong>. That's less than 1% of a single LLM call. In exchange, you get:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li>10/10 OWASP Agentic Top 10 coverage</li>
+  <li>7 TLA+ formally specified governance modules</li>
+  <li>Tamper-evident audit trails</li>
+  <li>Subgoal interception, behavior monitoring, circuit breaking</li>
+  <li>Cross-instance governance</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  LangGraph, CrewAI, and AutoGen add <strong>0 ms of governance overhead</strong> because they ship <strong>0 governance primitives</strong>. If you need governance — and if you're deploying agents in production, you do — you're choosing between building it yourself (15–24 weeks) or using MAREF (4.7 ms).
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  The question isn't whether governance is worth 4.7 ms. The question is whether <strong>ungoverned agents</strong> are worth the 88% incident rate.
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>This benchmark was measured on macOS 26.5 with Python 3.11. Raw results are available in <a href="https://github.com/maref-org/maref/blob/main/benchmarks/results-2026-07-08.txt" class="text-brand-accent-blue hover:underline">benchmarks/results-2026-07-08.txt</a>. The benchmark script is at <a href="https://github.com/maref-org/maref/blob/main/benchmarks/governance_overhead.py" class="text-brand-accent-blue hover:underline">benchmarks/governance_overhead.py</a>. For the full OWASP Agentic Top 10 → MAREF control mapping, see <a href="https://github.com/maref-org/maref/blob/main/docs/governance/owasp-agentic-top10-mapping.md" class="text-brand-accent-blue hover:underline">docs/governance/owasp-agentic-top10-mapping.md</a>.</em>
+</p>
+
+</BlogLayout>

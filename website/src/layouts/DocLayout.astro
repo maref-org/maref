@@ -1,0 +1,134 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+
+export interface Props {
+  title: string;
+  description: string;
+  locale?: string;
+  section?: string; // "features" | "docs"
+}
+
+const {
+  title,
+  description,
+  locale = "en",
+  section = "features",
+} = Astro.props;
+
+const nav = {
+  en: [
+    { href: "/en/features/governance/", label: "Governance", section: "features" },
+    { href: "/en/features/defense/", label: "Defense", section: "features" },
+    { href: "/en/features/evolution/", label: "Evolution", section: "features" },
+    { href: "/en/features/cryptography/", label: "Cryptography", section: "features" },
+    { href: "/en/docs/quickstart/", label: "Quickstart", section: "docs" },
+  ],
+  zh: [
+    { href: "/zh/features/governance/", label: "治理", section: "features" },
+    { href: "/zh/features/defense/", label: "防御", section: "features" },
+    { href: "/zh/features/evolution/", label: "演进", section: "features" },
+    { href: "/zh/features/cryptography/", label: "密码学", section: "features" },
+    { href: "/zh/docs/quickstart/", label: "快速开始", section: "docs" },
+  ],
+}[locale];
+
+const currentPath = Astro.url.pathname;
+
+const t = locale === "zh" ? "zh" : "en";
+const breadcrumbItems = [
+  { name: t === "zh" ? "首页" : "Home", href: `/${t}/` },
+];
+if (section === "features") {
+  breadcrumbItems.push({ name: t === "zh" ? "功能" : "Features", href: `/${t}/features/governance/` });
+}
+breadcrumbItems.push({ name: title, href: currentPath });
+---
+
+<BaseLayout {title} {description} {locale}>
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      item: `https://maref.cc${item.href}`,
+    })),
+  })} />
+  <NavBar {locale} />
+
+  <div class="mx-auto flex" style="max-width: 1400px;">
+    <!-- Sidebar -->
+    <aside class="sticky top-15 hidden w-56 shrink-0 self-start border-r border-brand-border lg:block">
+      <nav class="px-6 py-10">
+        <div class="mb-6">
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
+            {locale === "zh" ? "功能" : "Features"}
+          </p>
+          <ul class="space-y-1">
+            {nav.filter(n => n.section === "features").map(item => (
+              <li>
+                <a
+                  href={item.href}
+                  class={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                    currentPath === item.href
+                      ? "bg-brand-accent-blue/10 text-brand-accent-blue font-medium"
+                      : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-brand-bg-tertiary"
+                  }`}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
+            {locale === "zh" ? "文档" : "Docs"}
+          </p>
+          <ul class="space-y-1">
+            {nav.filter(n => n.section === "docs").map(item => (
+              <li>
+                <a
+                  href={item.href}
+                  class={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                    currentPath === item.href
+                      ? "bg-brand-accent-blue/10 text-brand-accent-blue font-medium"
+                      : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-brand-bg-tertiary"
+                  }`}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="min-w-0 flex-1 px-6 pt-[16rem] pb-12 lg:px-12">
+      <article class="mx-auto space-y-12" style="max-width: 720px;">
+        <slot />
+      </article>
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href={`https://github.com/maref-org/maref`} target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href={`/${locale}/privacy/`} class="hover:text-snow-sheet transition-colors">{locale === "zh" ? "隐私" : "Privacy"}</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">{locale === "zh" ? "联系" : "Contact"}</a>
+        </p>
+        <p>{locale === "zh" ? "Apache-2.0 许可证" : "Apache-2.0 License"}</p>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

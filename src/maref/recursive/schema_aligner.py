@@ -1,0 +1,263 @@
+"""SchemaRegistry + SchemaAligner: semantic mapping layer for agent interoperability.
+
+Provides:
+- SchemaRegistry: versioned JSON-schema-like definitions per capability
+- SchemaAligner: bidirectional field mapping between agent-specific schemas
+- Semantic compatibility scoring
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass(frozen=True)
+class FieldMapping:
+    """A single field-level semantic mapping."""
+
+    source_field: str
+    target_field: str
+    transform: str = "identity"  # e.g. "identity", "uppercase", "concat"
+    required: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source_field": self.source_field,
+            "target_field": self.target_field,
+            "transform": self.transform,
+            "required": self.required,
+        }
+
+
+@dataclass
+class SchemaVersion:
+    """Versioned schema definition for a capability."""
+
+    schema_id: str
+    version: str
+    fields: dict[str, str] = field(default_factory=dict)  # field_name -> type
+    required: list[str] = field(default_factory=list)
+    description: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_id": self.schema_id,
+            "version": self.version,
+            "fields": self.fields,
+            "required": self.required,
+            "description": self.description,
+        }
+
+
+class SchemaRegistry:
+    """Central registry for capability schemas.
+
+    Supports versioned schemas so that agents can declare which schema
+    version they speak and the aligner can look up the right mapping.
+    """
+
+    def __init__(self) -> None:
+        # _schemas[schema_id][version] = SchemaVersion
+        self._schemas: dict[str, dict[str, SchemaVersion]] = {}
+
+    def register(self, schema: SchemaVersion) -> None:
+        versions = self._schemas.setdefault(schema.schema_id, {})
+        versions[schema.version] = schema
+
+    def get(self, schema_id: str, version: str = "latest") -> SchemaVersion | None:
+        versions = self._schemas.get(schema_id)
+        if versions is None:
+            return None
+        if version == "latest":
+            # Lexicographic latest; in production use semver
+            latest = max(versions.keys())
+            return versions[latest]
+        return versions.get(version)
+
+    def list_versions(self, schema_id: str) -> list[str]:
+        return list(self._schemas.get(schema_id, {}).keys())
+
+    def compatibility_score(self, schema_id_a: str, schema_id_b: str) -> float:
+        """Return [0, 1] compatibility between the latest versions of two schemas.
+
+        Score is based on shared required field names.
+        """
+        sa = self.get(schema_id_a)
+        sb = self.get(schema_id_b)
+        if sa is None or sb is None:
+            return 0.0
+        shared = set(sa.required) & set(sb.required)
+        union = set(sa.required) | set(sb.required)
+        if not union:
+            return 1.0
+        return len(shared) / len(union)
+
+
+@dataclass
+class AlignmentResult:
+    """Result of aligning data from source schema to target schema."""
+
+    success: bool
+    mapped_data: dict[str, Any] = field(default_factory=dict)
+    missing_required: list[str] = field(default_factory=list)
+    extra_fields: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "success": self.success,
+            "mapped_data": self.mapped_data,
+            "missing_required": self.missing_required,
+            "extra_fields": self.extra_fields,
+            "errors": self.errors,
+        }
+
+
+class SchemaAligner:
+    """Bidirectional field mapper between agent schemas.
+
+    Maintains a mapping table per (source_schema, target_schema) pair and
+    applies simple transforms during alignment.
+    """
+
+    def __init__(self, registry: SchemaRegistry | None = None) -> None:
+        self._registry = registry
+        # _mappings[(source_schema, target_schema)] = list[FieldMapping]
+        self._mappings: dict[tuple[str, str], list[FieldMapping]] = {}
+
+    def register_mapping(
+        self,
+        source_schema: str,
+        target_schema: str,
+        mappings: list[FieldMapping],
+    ) -> None:
+        self._mappings[(source_schema, target_schema)] = mappings
+
+    def align(
+        self,
+        data: dict[str, Any],
+        source_schema: str,
+        target_schema: str,
+    ) -> AlignmentResult:
+        """Map *data* from *source_schema* to *target_schema*."""
+        mappings = self._mappings.get((source_schema, target_schema), [])
+        result: dict[str, Any] = {}
+        missing: list[str] = []
+        extra: list[str] = []
+        errors: list[str] = []
+
+        mapped_targets = set()
+        for fm in mappings:
+            if fm.source_field in data:
+                raw = data[fm.source_field]
+                try:
+                    result[fm.target_field] = self._apply_transform(raw, fm.transform)
+                except Exception as exc:
+                    errors.append(f"transform error {fm.source_field}->{fm.target_field}: {exc}")
+                    continue
+                mapped_targets.add(fm.target_field)
+            elif fm.required:
+                missing.append(fm.target_field)
+
+        # Detect extra fields not in mapping
+        for key in data:
+            if not any(fm.source_field == key for fm in mappings):
+                extra.append(key)
+
+        success = len(missing) == 0 and len(errors) == 0
+        return AlignmentResult(
+            success=success,
+            mapped_data=result,
+            missing_required=missing,
+            extra_fields=extra,
+            errors=errors,
+        )
+
+    def can_align(self, source_schema: str, target_schema: str) -> bool:
+        """Return True if a mapping path exists (direct or via registry)."""
+        if (source_schema, target_schema) in self._mappings:
+            return True
+        if (target_schema, source_schema) in self._mappings:
+            return True
+        if self._registry is not None:
+            score = self._registry.compatibility_score(source_schema, target_schema)
+            return score >= 0.5
+        return False
+
+    def align_reverse(
+        self,
+        data: dict[str, Any],
+        source_schema: str,
+        target_schema: str,
+    ) -> AlignmentResult:
+        """Map *data* from *target_schema* back to *source_schema*.
+
+        Uses the registered forward mapping but swaps source/target fields
+        and applies inverse transforms where possible.
+        """
+        forward = self._mappings.get((source_schema, target_schema), [])
+        if not forward:
+            return AlignmentResult(
+                success=False,
+                errors=[f"No mapping registered for ({source_schema}, {target_schema})"],
+            )
+
+        # Derive reverse mappings by swapping source <-> target
+        reverse: list[FieldMapping] = []
+        for fm in forward:
+            inv_transform = self._inverse_transform(fm.transform)
+            reverse.append(
+                FieldMapping(
+                    source_field=fm.target_field,
+                    target_field=fm.source_field,
+                    transform=inv_transform,
+                    required=fm.required,
+                )
+            )
+
+        # Temporarily inject reverse mapping and call align
+        self._mappings[(target_schema, source_schema)] = reverse
+        try:
+            return self.align(data, target_schema, source_schema)
+        finally:
+            del self._mappings[(target_schema, source_schema)]
+
+    # ------------------------------------------------------------------ #
+    # Internal
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _apply_transform(value: Any, transform: str) -> Any:
+        if transform == "identity":
+            return value
+        if transform == "uppercase":
+            return str(value).upper()
+        if transform == "lowercase":
+            return str(value).lower()
+        if transform == "stringify":
+            return str(value)
+        if transform == "boolify":
+            return bool(value)
+        if transform.startswith("concat:"):
+            sep = transform.split(":", 1)[1]
+            if isinstance(value, list):
+                return sep.join(str(v) for v in value)
+            return str(value)
+        return value
+
+    @staticmethod
+    def _inverse_transform(transform: str) -> str:
+        """Return the inverse transform name (best-effort)."""
+        if transform == "identity":
+            return "identity"
+        if transform == "uppercase":
+            return "lowercase"
+        if transform == "lowercase":
+            return "uppercase"
+        if transform == "stringify":
+            return "identity"  # cannot reliably un-stringify
+        if transform == "boolify":
+            return "identity"  # cannot reliably un-boolify
+        if transform.startswith("concat:"):
+            return "identity"  # cannot split without schema knowledge
+        return "identity"

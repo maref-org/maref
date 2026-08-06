@@ -1,0 +1,52 @@
+{
+  "name": "@maref-org/mcp-governance",
+  "version": "0.1.0",
+  "description": "MCP Governance Server — wraps any MCP server with MAREF governance guardrails. Intercepts file writes and command execution to enforce policies via MAREF sidecar.",
+  "type": "module",
+  "bin": {
+    "maref-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "keywords": [
+    "MCP",
+    "model-context-protocol",
+    "governance",
+    "MAREF",
+    "agent",
+    "ai-safety",
+    "guardrails"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maref-org/maref.git",
+    "directory": "mcp/governance-server"
+  },
+  "bugs": {
+    "url": "https://github.com/maref-org/maref/issues"
+  },
+  "homepage": "https://maref.cc",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@maref-org/sdk": "^0.2.0",
+    "@modelcontextprotocol/sdk": "^1.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^5.5",
+    "vitest": "^2.0"
+  }
+}

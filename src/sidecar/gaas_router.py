@@ -1,0 +1,26 @@
+"""GaaS sidecar bridge — lazy tenant registration with KeyringStore."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+from fastapi import APIRouter
+
+from maref.gaas.api import get_tenant_manager
+from maref.security.keyring_store import KeyringStore
+
+router = APIRouter(prefix="/api/gaas")
+
+
+@lru_cache
+def _get_hook_api_key() -> str | None:
+    store = KeyringStore()
+    tenant_manager = get_tenant_manager()
+    tenants = tenant_manager.list_tenants()
+    if not tenants:
+        return None
+    return store.get(f"gaas/{tenants[0].tenant_id}/hook_api_key")
+
+
+def get_hook_api_key() -> str | None:
+    return _get_hook_api_key()

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAREF Audit Chain Verifier</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --accent: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); padding: 2rem; line-height: 1.6;
+    max-width: 960px; margin: 0 auto;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+  p.sub { color: var(--text-dim); font-size: .875rem; margin-bottom: 1.5rem; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 8px;
+    padding: 2.5rem; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent); background: rgba(88, 166, 255, .05);
+  }
+  .drop-zone.has-file {
+    border-color: var(--green); border-style: solid;
+  }
+  .drop-zone input { display: none; }
+  .stats { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1rem 0; }
+  .stat {
+    flex: 1; min-width: 120px; background: var(--bg); padding: .75rem;
+    border-radius: 6px; text-align: center;
+  }
+  .stat .num { font-size: 1.5rem; font-weight: 700; display: block; }
+  .stat .lbl { font-size: .75rem; color: var(--text-dim); }
+  .stat.pass .num { color: var(--green); }
+  .stat.fail .num { color: var(--red); }
+  .stat.neutral .num { color: var(--yellow); }
+  table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
+  th, td { padding: .5rem .75rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 600; }
+  tr:hover { background: rgba(255,255,255,.02); }
+  .badge {
+    display: inline-block; padding: .125rem .5rem; border-radius: 999px;
+    font-size: .75rem; font-weight: 600;
+  }
+  .badge.ok { background: rgba(63,185,80,.15); color: var(--green); }
+  .badge.fail { background: rgba(248,81,73,.15); color: var(--red); }
+  .badge.none { background: rgba(139,148,158,.15); color: var(--text-dim); }
+  .error { color: var(--red); padding: .75rem; border: 1px solid var(--red); border-radius: 6px; margin: .5rem 0; }
+  .hidden { display: none; }
+  button {
+    background: var(--accent); color: #fff; border: none; padding: .5rem 1rem;
+    border-radius: 6px; cursor: pointer; font-size: .875rem;
+  }
+  button:hover { opacity: .85; }
+  #results { margin-top: 1rem; }
+  .detail-row { cursor: pointer; }
+  .detail-row:hover { background: rgba(255,255,255,.04); }
+  .detail-row .arrow { transition: transform .2s; display: inline-block; margin-right: .5rem; }
+  .detail-row.expanded .arrow { transform: rotate(90deg); }
+  .detail-content { display: none; padding: 0; }
+  .detail-content.open { display: block; }
+  .detail-content pre {
+    background: var(--bg); padding: .75rem; border-radius: 6px;
+    font-size: .75rem; overflow-x: auto; white-space: pre-wrap;
+    word-break: break-all; margin: .5rem 0;
+  }
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    .stats { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🔗 MAREF Audit Chain Verifier</h1>
+<p class="sub">Browser-side verification of MAREF audit log integrity. No data uploaded — everything runs locally.</p>
+
+<div class="card">
+  <div class="drop-zone" id="dropZone">
+    <div style="font-size:2rem;margin-bottom:.5rem;">📄</div>
+    <p>Drop audit JSONL file here or <strong>click to select</strong></p>
+    <p style="color:var(--text-dim);font-size:.8125rem;margin-top:.25rem;">Supports files with .jsonl extension</p>
+    <input type="file" id="fileInput" accept=".jsonl,.json,.txt">
+  </div>
+</div>
+
+<div id="results" class="hidden">
+  <div class="card">
+    <h2>Summary</h2>
+    <div class="stats" id="summary"></div>
+  </div>
+
+  <div class="card">
+    <h2>Verification Results</h2>
+    <div id="verdicts"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:.75rem;">Entries</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:28px;"></th>
+            <th>#</th>
+            <th>ID</th>
+            <th>Event</th>
+            <th>Actor</th>
+            <th>Signature</th>
+            <th>Chain</th>
+          </tr>
+        </thead>
+        <tbody id="entriesBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const resultsDiv = document.getElementById('results');
+const summaryDiv = document.getElementById('summary');
+const verdictsDiv = document.getElementById('verdicts');
+const entriesBody = document.getElementById('entriesBody');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+function sha256(str) {
+  const data = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', data).then(h => {
+    return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+  });
+}
+
+async function handleFile(file) {
+  const text = await file.text();
+  const lines = text.split('\n').filter(l => l.trim());
+  const entries = lines.map((l, i) => { try { return JSON.parse(l); } catch(e) { return { _parseError: true, _line: i+1, _raw: l }; }});
+  dropZone.classList.add('has-file');
+  dropZone.querySelector('p').textContent = `📄 ${file.name} (${entries.length} entries, ${(file.size / 1024).toFixed(1)} KB)`;
+  resultsDiv.classList.remove('hidden');
+  await verify(entries);
+}
+
+function canonicalJSON(obj) {
+  const keys = ['id', 'timestamp', 'event_type', 'actor', 'action', 'details', 'metadata', 'previous_hash'];
+  const o = {};
+  for (const k of keys) {
+    if (obj[k] !== undefined) o[k] = obj[k];
+  }
+  return JSON.stringify(o, Object.keys(o).sort(), 0);
+}
+
+async function verify(entries) {
+  const errors = entries.filter(e => e._parseError);
+  if (errors.length > 0) {
+    verdictsDiv.innerHTML = `<div class="error">Parse error on ${errors.length} line(s). First: line ${errors[0]._line}</div>`;
+    return;
+  }
+
+  let chainOk = true;
+  let chainError = '';
+  let signedCount = 0;
+  let verifiedCount = 0;
+  let prevHash = '';
+
+  const rows = [];
+
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const prevHashField = e.previous_hash || '';
+    const chainHashField = e.chain_hash || '';
+    const sig = e.ed25519_signature || e.hmac_signature || '';
+    const sigType = e.ed25519_signature ? 'Ed25519' : e.hmac_signature ? 'HMAC' : 'none';
+
+    let chainResult = 'ok';
+    let chainErrorMsg = '';
+
+    if (i === 0) {
+      if (prevHashField !== '') {
+        chainResult = 'error';
+        chainErrorMsg = 'First entry must have empty previous_hash';
+      }
+    } else if (prevHashField !== prevHash) {
+      chainResult = 'error';
+      chainErrorMsg = 'previous_hash does not match previous chain_hash';
+    }
+
+    if (chainResult === 'ok') {
+      const payload = canonicalJSON({ ...e, chain_hash: undefined, ed25519_signature: undefined, hmac_signature: undefined, signer_fingerprint: undefined, signature_type: undefined });
+      const computed = await sha256((prevHashField || '') + payload);
+      if (computed !== chainHashField) {
+        chainResult = 'error';
+        chainErrorMsg = 'chain_hash mismatch';
+      }
+    }
+
+    if (chainResult === 'ok') {
+      prevHash = chainHashField;
+    } else {
+      chainOk = false;
+      chainError = chainErrorMsg;
+    }
+
+    if (sig) signedCount++;
+    rows.push({ entry: e, index: i, sigType, chainResult, chainError: chainErrorMsg });
+  }
+
+  summaryDiv.innerHTML = `
+    <div class="stat ${chainOk ? 'pass' : 'fail'}">
+      <span class="num">${entries.length}</span>
+      <span class="lbl">Entries</span>
+    </div>
+    <div class="stat ${chainOk ? 'pass' : 'fail'}">
+      <span class="num">${chainOk ? '✅' : '❌'}</span>
+      <span class="lbl">Chain Integrity</span>
+    </div>
+    <div class="stat neutral">
+      <span class="num">${signedCount}</span>
+      <span class="lbl">Signed</span>
+    </div>
+    <div class="stat">
+      <span class="num">${(entries[entries.length-1]?.chain_hash || '').substring(0, 12)}…</span>
+      <span class="lbl">Last Hash</span>
+    </div>
+  `;
+
+  verdictsDiv.innerHTML = `
+    <div style="margin-bottom:.5rem;">
+      <span class="badge ${chainOk ? 'ok' : 'fail'}">Chain: ${chainOk ? 'PASS' : 'FAIL'}</span>
+      ${chainError ? `<span style="color:var(--red);margin-left:.5rem;font-size:.8125rem;">${chainError}</span>` : ''}
+    </div>
+    <div>
+      <span class="badge ${signedCount === 0 ? 'none' : 'ok'}">Sig Coverage: ${signedCount}/${entries.length}</span>
+    </div>
+  `;
+
+  entriesBody.innerHTML = '';
+  for (const r of rows) {
+    const e = r.entry;
+    const tr = document.createElement('tr');
+    tr.className = 'detail-row';
+    tr.innerHTML = `
+      <td><span class="arrow">▶</span></td>
+      <td>${r.index + 1}</td>
+      <td style="font-family:monospace;font-size:.75rem;">${(e.id || '?').substring(0, 12)}</td>
+      <td>${e.event_type || '?'}</td>
+      <td>${e.actor || '?'}</td>
+      <td><span class="badge ${r.sigType === 'none' ? 'none' : 'ok'}">${r.sigType}</span></td>
+      <td><span class="badge ${r.chainResult === 'ok' ? 'ok' : 'fail'}">${r.chainResult}</span></td>
+    `;
+    tr.addEventListener('click', () => {
+      tr.classList.toggle('expanded');
+      let detail = tr.nextElementSibling;
+      if (detail && detail.classList.contains('detail-content')) {
+        detail.classList.toggle('open');
+      }
+    });
+    entriesBody.appendChild(tr);
+
+    const detailTr = document.createElement('tr');
+    detailTr.className = 'detail-content';
+    const td = document.createElement('td');
+    td.colSpan = 7;
+    td.innerHTML = `<pre>${JSON.stringify(e, null, 2)}</pre>`;
+    detailTr.appendChild(td);
+    entriesBody.appendChild(detailTr);
+  }
+}
+</script>
+</body>
+</html>

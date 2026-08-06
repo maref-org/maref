@@ -1,0 +1,18 @@
+"""MAREF Life State — Living State exploration for v0.6.0.
+
+Provides self-aware, self-healing, self-adaptive capabilities for MAREF components.
+"""
+
+from __future__ import annotations
+
+from maref.life_state.metadata import (
+    LifeStateCapability,
+    LifeStateMetadata,
+    LifeStateType,
+)
+
+__all__ = [
+    "LifeStateMetadata",
+    "LifeStateType",
+    "LifeStateCapability",
+]

@@ -1,0 +1,109 @@
+# MAREF SkillManifest — Messaging Framework
+# Translates positioning into audience-specific messaging
+
+name: maref-messaging-framework
+version: "1.0.0"
+description: >
+  Translates brand positioning into audience-specific messaging frameworks.
+  For each audience tier, generates: messaging hierarchy, value props,
+  objection handling, proof points, and channel-specific copy guidelines.
+  Depends on maref-brand-positioning and maref-target-audience.
+
+input_schema:
+  type: object
+  properties:
+    brand_id:
+      type: string
+    positioning_statement:
+      type: string
+    audience_segments:
+      type: array
+      items:
+        type: object
+        properties:
+          tier: {type: string}
+          name: {type: string}
+          pain_points: {type: array, items: {type: string}}
+          value_prop: {type: string}
+    channels:
+      type: array
+      items:
+        type: string
+        enum: [github, website, twitter, blog, discord, email, sales_deck, docs]
+      description: "Distribution channels to generate copy for"
+  required: [brand_id, positioning_statement, audience_segments]
+
+output_schema:
+  type: object
+  properties:
+    messaging_hierarchy:
+      type: object
+      description: "Primary → secondary → tertiary messages"
+      properties:
+        primary: {type: string, description: "Core message (north star)"}
+        secondary: {type: array, items: {type: string}}
+        tertiary: {type: array, items: {type: string}}
+    audience_specific_messaging:
+      type: array
+      items:
+        type: object
+        properties:
+          audience: {type: string}
+          hook: {type: string, description: "Attention-grabbing opener"}
+          value_props: {type: array, items: {type: string}}
+          proof_points: {type: array, items: {type: string}}
+          objection_handling:
+            type: array
+            items:
+              type: object
+              properties:
+                objection: {type: string}
+                response: {type: string}
+    channel_copy:
+      type: array
+      items:
+        type: object
+        properties:
+          channel: {type: string}
+          copy: {type: string}
+          character_limit: {type: integer}
+    voice_guidelines:
+      type: object
+      properties:
+        do: {type: array, items: {type: string}}
+        dont: {type: array, items: {type: string}}
+
+dependencies:
+  - "skill://maref-brand-positioning@1.0.0"
+  - "skill://maref-target-audience@1.0.0"
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.brand_building.messaging:translate
+
+sandbox_config:
+  cpu_limit: "50%"
+  memory_mb: 256
+  timeout_s: 30
+  network: false
+  filesystem:
+    read: ["positioning/", "audience/", "brand_dna/"]
+    write: ["messaging/"]
+
+test_cases:
+  - name: "generate MAREF messaging for developers"
+    input:
+      brand_id: maref
+      positioning_statement: "MAREF is the agent governance and skill marketplace OS"
+      audience_segments:
+        - tier: P0
+          name: "Platform Architect"
+          pain_points: ["no governance in LangGraph"]
+          value_prop: "production-grade governance for agent systems"
+      channels: [github, website, twitter]
+    expected:
+      messaging_hierarchy:
+        primary: "Build with LangGraph. Govern with MAREF."
+      channel_copy:
+        - channel: github
+          copy: "MAREF — Agent Governance & Skill Marketplace OS"

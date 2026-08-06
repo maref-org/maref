@@ -1,0 +1,30 @@
+# Gray-code FSM verification (TLC + Python validator)
+# Runs on every push and pull request. See README.md for the acceptance
+# criteria: both TLC models must finish within 5 minutes with no errors.
+
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      # verify.sh auto-downloads tla2tools.jar if not present.
+      - name: Run verification
+        run: |
+          ./verify.sh

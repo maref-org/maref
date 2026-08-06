@@ -1,0 +1,113 @@
+# MAREF SkillManifest — Brand Context (Foundation Skill)
+# Stores brand DNA: values, voice, personality, mission, vision, taboos
+# This is the foundation skill — all other brand-building skills depend on it.
+
+name: maref-brand-context
+version: "1.0.0"
+description: >
+  Foundation skill that stores and retrieves brand DNA (values, voice, personality,
+  mission, vision, taboos). All other brand-building skills depend on this skill
+  for brand context. Encodes the "brand-context" concept from April Dunford's
+  positioning framework.
+
+input_schema:
+  type: object
+  properties:
+    action:
+      type: string
+      enum: [get, update, validate]
+      description: "get: retrieve current brand DNA; update: merge new attributes; validate: check consistency"
+    brand_id:
+      type: string
+      description: "Brand identifier (e.g., 'maref', 'acme-corp')"
+    updates:
+      type: object
+      description: "Brand DNA updates (only for action=update)"
+      properties:
+        values:
+          type: array
+          items: {type: string}
+          description: "Core brand values (e.g., ['rigorous', 'open-source'])"
+        voice:
+          type: object
+          description: "Brand voice characteristics"
+          properties:
+            tone: {type: string, description: "e.g., 'authoritative but accessible'"}
+            vocabulary: {type: array, items: {type: string}}
+            taboos: {type: array, items: {type: string}, description: "Words/phrases to avoid"}
+        personality:
+          type: array
+          items: {type: string}
+          description: "Brand personality traits (e.g., ['safety-obsessed', 'engineering-grade'])"
+        mission: {type: string}
+        vision: {type: string}
+  required: [action, brand_id]
+
+output_schema:
+  type: object
+  properties:
+    brand_id: {type: string}
+    dna:
+      type: object
+      properties:
+        values: {type: array, items: {type: string}}
+        voice: {type: object}
+        personality: {type: array, items: {type: string}}
+        mission: {type: string}
+        vision: {type: string}
+        taboos: {type: array, items: {type: string}}
+    consistency_score:
+      type: number
+      minimum: 0
+      maximum: 100
+      description: "Internal consistency score (0-100), <60 triggers warning"
+    warnings:
+      type: array
+      items: {type: string}
+      description: "Consistency warnings (e.g., 'value X conflicts with taboo Y')"
+
+dependencies: []
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.brand_building.brand_context:get_dna
+
+sandbox_config:
+  cpu_limit: "30%"
+  memory_mb: 128
+  timeout_s: 15
+  network: false
+  filesystem:
+    read: ["brand_dna/"]
+    write: ["brand_dna/"]
+
+test_cases:
+  - name: "get existing brand DNA"
+    input:
+      action: get
+      brand_id: maref
+    expected:
+      brand_id: maref
+      dna:
+        values: ["rigorous", "open-source", "engineering-grade"]
+      consistency_score: 85
+  - name: "update brand values"
+    input:
+      action: update
+      brand_id: maref
+      updates:
+        values: ["rigorous", "open-source", "engineering-grade", "safety-obsessed"]
+    expected:
+      brand_id: maref
+      consistency_score: 90
+  - name: "detect taboo conflict"
+    input:
+      action: validate
+      brand_id: test-brand
+      updates:
+        values: ["innovative", "hype-driven"]
+        voice:
+          taboos: ["hype"]
+    expected:
+      warnings: ["value 'hype-driven' conflicts with taboo 'hype'"]
+      consistency_score: 45

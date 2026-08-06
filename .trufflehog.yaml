@@ -1,0 +1,24 @@
+# TruffleHog Configuration
+# Excludes false positives and vendor files from secret scanning
+
+exclude:
+  paths:
+    - "node_modules/"
+    - "gui/node_modules/"
+    - ".git/"
+    - "__pycache__/"
+    - "*.pyc"
+    - ".venv/"
+    - "venv/"
+    - "dist/"
+    - "build/"
+    - ".missions/"
+    - "vault/"
+  regexes:
+    # Version strings that look like secrets
+    - "version\\s*=\\s*\"[0-9]+\\.[0-9]+\\.[0-9]+"
+    # Example/default keys in test fixtures
+    - "api_key.*example"
+    - "secret.*changeme"
+    # CHANGELOG and docs references to example values
+    - "api_key_hash.*mk_[A-Za-z0-9]"

@@ -1,0 +1,122 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = {
+  en: {
+    badge: "Not a purchase. A position.",
+    title: "You're not buying a tool.<br />You're buying a voice in the next era.",
+    subtitle: "MAREF is open source and free. The real value isn't the code — it's the rules that define how agents behave in your world.",
+    points: [
+      {
+        emoji: "🏆",
+        title: "World's first governance-native agent framework",
+        desc: "Not a security add-on. Governance is the product.",
+      },
+      {
+        emoji: "✓",
+        title: "TLA+ formally verified",
+        desc: "Gray Code FSM, circuit breaker, 5 verified invariants — not 'we believe it's safe.' We model-checked it.",
+      },
+      {
+        emoji: "🔐",
+        title: "National-grade cryptography",
+        desc: "SM2/SM3/SM4. ISO-ready. Zero-compromise compliance.",
+      },
+    ],
+    punchline: "Everyone's building agents. You're building the rules they answer to — and that's where the next era is won.",
+  },
+  zh: {
+    badge: "不是买工具，是买话语权",
+    title: "不是买工具，<br />是买「下一个时代的话语权」。",
+    subtitle: "当所有人都在造 Agent 的时候，真正值钱的不是 Agent 本身，而是让 Agent 不敢乱来的规矩。",
+    points: [
+      {
+        emoji: "🏆",
+        title: "全球唯一治理原生的 Agent 框架",
+        desc: "不是安全附加组件。治理就是产品本身。",
+      },
+      {
+        emoji: "✓",
+        title: "TLA+ 形式化验证",
+        desc: "Gray Code FSM、断路器、5 个已验证不变量——不是「我们相信安全」，是「模型检查验证了安全」。",
+      },
+      {
+        emoji: "🔐",
+        title: "国密级密码学合规",
+        desc: "SM2/SM3/SM4，等保 2.0 就绪。审计来了，报告直接导出。",
+      },
+    ],
+    punchline: "别人在造 Agent，你在造 Agent 的「交通规则」。",
+  },
+};
+
+type Lang = keyof typeof content;
+const t = content[(locale as Lang) || "en"];
+---
+
+<div class="section-apple glow-purple">
+  <div class="mx-auto max-w-(--content-max)">
+
+    <div class="text-center mb-20">
+      <h2 class="headline-apple-sm mb-6" set:html={t.title}></h2>
+      <p class="text-xl text-brand-text-secondary max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-20">
+      {t.points.map((p) => (
+        <div class="point-card">
+          <div class="point-emoji">{p.emoji}</div>
+          <h3 class="point-title">{p.title}</h3>
+          <p class="point-desc">{p.desc}</p>
+        </div>
+      ))}
+    </div>
+
+    <div class="text-center max-w-3xl mx-auto">
+      <p class="text-2xl md:text-3xl font-bold text-gradient-purple">
+        {t.punchline}
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .point-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 2.5rem;
+    border-radius: 16px;
+    background-color: var(--color-brand-bg-secondary);
+    border: 1px solid var(--color-brand-border);
+    transition: all 0.3s ease;
+  }
+
+  .point-card:hover {
+    border-color: var(--color-brand-accent-purple);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(139, 92, 246, 0.08);
+  }
+
+  .point-emoji {
+    font-size: 3rem;
+    line-height: 1;
+  }
+
+  .point-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .point-desc {
+    font-size: 1rem;
+    color: var(--color-brand-text-secondary);
+    line-height: 1.6;
+  }
+</style>

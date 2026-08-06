@@ -1,0 +1,130 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="How to Choose an Agent Governance Framework — 2026 Comparison"
+  description="LangGraph vs CrewAI vs AutoGen vs MAREF: a buyer's guide to agent governance frameworks. Compare runtime safety, formal verification, state machines, and production readiness for multi-agent deployments."
+  date="2026-06-23"
+  author="MAREF Engineering"
+  tags={["agent governance", "framework comparison", "multi-agent safety", "GEO"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  Every agent framework now claims to handle safety. But there is a wide gap between "we have some guardrails"
+  and "every agent action is verified by a TLA+ proven state machine." Here is how to evaluate agent governance
+  frameworks for production multi-agent deployments.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">What is an agent governance framework?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  An agent governance framework enforces runtime safety boundaries for AI agents: identity verification,
+  tool call authorization, state machine transitions, drift detection, circuit breakers, and audit logging.
+  Unlike orchestration frameworks (LangGraph, CrewAI) which focus on getting agents to work together,
+  governance frameworks focus on keeping agents within safe operating bounds.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The <a href="/en/learn/agent-governance/" class="text-brand-accent-cyan hover:underline">Agent Governance</a>
+  explainer covers the full architecture. This post compares the leading options in 2026.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">How do the major frameworks compare on governance?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  We evaluated each framework across nine dimensions relevant to production governance:
+</p>
+
+<div class="my-8 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-brand-border">
+        <th class="text-left py-3 pr-4 font-semibold">Capability</th>
+        <th class="text-left py-3 px-4 font-semibold">MAREF</th>
+        <th class="text-left py-3 px-4 font-semibold">LangGraph</th>
+        <th class="text-left py-3 px-4 font-semibold">CrewAI</th>
+        <th class="text-left py-3 px-4 font-semibold">AutoGen</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">Governance state machine</td><td class="py-3 px-4">10-state Gray Code</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">Formal verification</td><td class="py-3 px-4">TLA+ (5 theorems)</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">Circuit breaker</td><td class="py-3 px-4">HALT absorbing state</td><td class="py-3 px-4">Basic retry</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">Per-agent identity</td><td class="py-3 px-4">Ed25519 signed cards</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">Drift detection</td><td class="py-3 px-4">LoRA + ontology</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">OWASP Top 10 coverage</td><td class="py-3 px-4">10/10</td><td class="py-3 px-4">1/10</td><td class="py-3 px-4">0/10</td><td class="py-3 px-4">1/10</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">Human-in-the-loop</td><td class="py-3 px-4">HITL/HOTL/HATL</td><td class="py-3 px-4">Breakpoints</td><td class="py-3 px-4">Minimal</td><td class="py-3 px-4">Basic</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">SubAgent isolation</td><td class="py-3 px-4">Git Worktree-style</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td><td class="py-3 px-4">None</td></tr>
+      <tr class="border-b border-brand-border"><td class="py-3 pr-4 text-brand-text-muted">Audit trail</td><td class="py-3 px-4">HMAC-SHA256 signed</td><td class="py-3 px-4">Logging only</td><td class="py-3 px-4">Logging only</td><td class="py-3 px-4">Logging only</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">When should I use a dedicated governance framework vs an orchestration framework's built-in safety?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The short answer: if you have more than 5 agents in production, or your agents interact with sensitive data
+  or external tools, you need a dedicated governance layer. Orchestration frameworks' safety features are
+  designed for development convenience, not production assurance.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF is designed as a complementary layer: you keep your existing orchestrator (LangGraph, CrewAI, AutoGen)
+  and add MAREF as a governance overlay. See the
+  <a href="/en/learn/runtime-safety/" class="text-brand-accent-cyan hover:underline">Runtime Safety</a> guide
+  for integration patterns.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">What should I look for in a production governance framework?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Based on real deployment experience, these are the non-negotiable criteria:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong class="text-brand-text-primary">A state machine, not just rules</strong> — Rules are brittle. A Gray Code FSM with formal verification guarantees behavior across all states.</li>
+  <li><strong class="text-brand-text-primary">Tamper-evident audit</strong> — Audit logs must be cryptographically signed. HMAC-SHA256 is the minimum. Plain-text logs can be altered without detection.</li>
+  <li><strong class="text-brand-text-primary">Per-agent identity</strong> — Each agent should have its own cryptographic identity with time-scoped credentials. Shared API keys are not governance.</li>
+  <li><strong class="text-brand-text-primary">Circuit breaker with absorbing state</strong> — Soft warnings are not enough. Three strikes must trigger a halt that no automated process can override.</li>
+  <li><strong class="text-brand-text-primary">Runtime drift detection</strong> — Model behavior changes over time. If you are not measuring drift, you are flying blind.</li>
+  <li><strong class="text-brand-text-primary">Blast radius isolation</strong> — One compromised agent should not cascade to others. SubAgent isolation limits the damage.</li>
+</ul>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">Can I use MAREF alongside my existing LangGraph or CrewAI setup?</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Yes. MAREF provides production-ready adapters for all major frameworks. The governance layer intercepts
+  agent actions before they reach your orchestrator, verifies them against the state machine and permission
+  matrix, and only forwards approved actions. The integration is a single Python import:
+</p>
+
+<div class="my-8 p-4 rounded-lg" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+<pre class="text-sm font-code text-brand-text-secondary"><code>from maref import SafetyGateV2
+
+# Wrap your existing LangGraph/CrewAI/AutoGen deployment
+safety = SafetyGateV2(
+    permission_matrix=my_permissions,
+    circuit_breaker=CircuitBreaker(threshold=3)
+)
+
+for action in agent_actions:
+    decision = await safety.check(action)
+    if decision.allowed:
+        await execute(action)
+    else:
+        await escalate(action, decision.reason)</code></pre>
+</div>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  See the <a href="/en/features/governance/" class="text-brand-accent-cyan hover:underline">Governance feature page</a>
+  for the full API reference and adapter configuration.
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>MAREF is an open-source agent governance operating system. <a href="/en/docs/quickstart/" class="text-brand-accent-blue hover:underline">Get started in 5 minutes</a> with <code class="font-code">pip install maref</code>.</em>
+</p>
+</BlogLayout>

@@ -1,0 +1,37 @@
+"""Memory Layer for MAREF.
+
+Three-tier memory architecture:
+- Working Memory (Hot): Runtime state, TTL minutes, Pub/Sub sync
+- Episodic Memory (Warm): Historical task records, SQL query
+- Semantic Memory (Cold): Knowledge ontology, semantic retrieval
+
+Key components:
+- MemoryManager: Unified interface for all memory operations
+- WorkingMemoryStore: Hot-tier in-memory with checkpointing
+- EpisodicMemoryStore: Warm-tier structured task history
+- SemanticMemoryStore: Cold-tier knowledge graph + vector search
+"""
+
+from maref.memory.memory_manager import (
+    ConfidenceLabel,
+    EpisodicMemoryStore,
+    MemoryManager,
+    MemoryQuery,
+    MemoryRecord,
+    SemanticMemoryStore,
+    SourceAnnotation,
+    UserIsolationTag,
+    WorkingMemoryStore,
+)
+
+__all__ = [
+    "ConfidenceLabel",
+    "EpisodicMemoryStore",
+    "MemoryManager",
+    "MemoryQuery",
+    "MemoryRecord",
+    "SemanticMemoryStore",
+    "SourceAnnotation",
+    "UserIsolationTag",
+    "WorkingMemoryStore",
+]

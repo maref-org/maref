@@ -1,0 +1,222 @@
+# ============================================================================
+# 已关闭 Issue 归档 — 从 STATE.yaml 迁移至此
+# 归档日期: 2026-07-04
+# 背景: STATE.yaml 瘦身，仅保留活跃 issue
+# ============================================================================
+
+resolved_issues:
+  - id: GOV-20260612-04
+    severity: P1
+    description: STATE.yaml missing — agents have no single source of truth
+    status: resolved
+    resolved_at: '2026-06-12'
+
+  - id: GOV-20260612-05
+    severity: P1
+    description: Governance layer code exists but not deployed as runtime service
+    status: wontfix
+    resolved_at: '2026-07-01T10:28:58+08:00'
+    resolution_note: >-
+      Architecture decision: governance layer runs as sidecar hooks, not standalone service.
+      Deploying as runtime service would add operational overhead without proportional benefit.
+      Original SKIPPED changed to wontfix per 2026-07-04 governance review.
+
+  - id: GOV-20260612-06
+    severity: P2
+    description: No cross-agent work reconciliation mechanism
+    status: wontfix
+    resolved_at: '2026-07-01T10:43:55+08:00'
+    resolution_note: >-
+      Cross-agent reconciliation deferred pending multi-agent architecture maturation.
+      Current single-agent workflow doesn't require it. Original SKIPPED changed to
+      wontfix per 2026-07-04 governance review.
+
+  - id: ARXIV-20260613-01
+    severity: P0
+    description: arXiv ID not obtained — G1 gate blocker
+    status: wontfix
+    resolved_at: '2026-07-01T10:13:57+08:00'
+    resolution_note: >-
+      arXiv endorsement strategy exhausted (15 emails, 0 eligible). Pivoted to journal
+      acceptance route (Springer, 中国科技论坛). D1 gate override enabled. Original
+      SKIPPED changed to wontfix per 2026-07-04 governance review.
+
+  - id: AIP-20260613-01
+    severity: P1
+    description: AIP Pioneer Program application materials incomplete
+    status: wontfix
+    resolved_at: '2026-07-01T10:23:57+08:00'
+    resolution_note: >-
+      AIP Pioneer application deprioritized. Grouped under arXiv ID blocker.
+      Original SKIPPED changed to wontfix per 2026-07-04 governance review.
+
+  - id: IEEE-20260613-01
+    severity: P2
+    description: IEEE TNSE submission system migration
+    status: wontfix
+    resolved_at: '2026-07-01T10:38:57+08:00'
+    resolution_note: >-
+      Migration from AtyponRex to Research Exchange. Draft status unverified.
+      Deferred until journal response received. Original CONDITIONAL changed to
+      wontfix per 2026-07-04 governance review.
+
+  - id: GOV-20260613-01
+    severity: P0
+    description: SelfGovernanceHook had broken gh command + no logging
+    status: resolved
+    resolved_at: '2026-06-13'
+    details:
+      - Fixed gh branch → git for-each-ref
+      - Added logging handler to sidecar
+
+  - id: GOV-20260613-02
+    severity: P0
+    description: Main branch had no protection
+    status: wontfix
+    resolved_at: '2026-07-01T10:13:57+08:00'
+    resolution_note: >-
+      Branch protection configured via GitHub UI, not hook-managed. Hook enforcement
+      would duplicate GitHub-native protection. Original SKIPPED changed to wontfix
+      per 2026-07-04 governance review.
+
+  - id: AUDIT-20260617-01
+    severity: P0
+    description: Code coverage 27.87% — below required 70% threshold
+    status: resolved
+    resolved_at: '2026-06-22'
+    details:
+      - Phase 1: Coverage from 27.87% to 69.92% (fail-under=47 passed)
+      - 259 new tests across 7 files
+      - Ruff src/ from 1095→0 errors
+
+  - id: PY5-20260622-01
+    severity: P1
+    description: 'Phase 1 — Coverage 27.87%→69.92%: 259 new tests'
+    status: resolved
+    resolved_at: '2026-06-22'
+
+  - id: PY5-20260622-02
+    severity: P2
+    description: 'Phase 2 — Benchmark framework + Sidecar Pydantic'
+    status: resolved
+    resolved_at: '2026-06-22'
+
+  - id: PY5-20260622-03
+    severity: P2
+    description: 'Phase 3 — Annotated+__all__+Pyright strict'
+    status: resolved
+    resolved_at: '2026-06-22'
+
+  - id: AUDIT-20260617-02
+    severity: P0
+    description: Version strings unified to 0.34.0-rc (was 4-way mismatch)
+    status: resolved
+    resolved_at: '2026-06-17'
+
+  - id: AUDIT-20260617-03
+    severity: P1
+    description: mypy strict mode 29 errors in 9 files
+    status: resolved
+    resolved_at: '2026-06-25'
+
+  - id: V0341-20260625-01
+    severity: P1
+    description: Version consistency 4-file mismatch (0.34.0-rc vs 0.34.0), fixed to 0.34.1
+    status: resolved
+    resolved_at: '2026-06-25'
+
+  - id: V0341-20260625-02
+    severity: P2
+    description: 'Coverage baseline realigned — src/maref/ 36.1% (branch=false). Target v0.35.0: 50%+'
+    status: resolved
+    resolved_at: '2026-07-01T10:33:57+08:00'
+
+  - id: AUDIT-20260617-04
+    severity: P1
+    description: Coverage Day 1 — security module from ~55% to ~87%
+    status: resolved
+    resolved_at: '2026-06-17'
+    details:
+      - decorators.py: 60%→100% (12 new tests)
+      - keyring_store.py: 55%→88% (12 new tests)
+      - security_proofs.py: 28%→77% (10 new tests)
+
+  - id: AUDIT-20260617-05
+    severity: P1
+    description: mypy 29→5 errors (24 fixed across 5 files)
+    status: resolved
+    resolved_at: '2026-06-17'
+    details:
+      - self_healing_loop.py: 8 errors fixed
+      - mcp_transport.py: 2 errors fixed
+      - mcp_transport_async.py: 3 errors fixed
+      - jira_server.py: 5 errors fixed
+      - vector_store.py: 2 errors fixed
+
+  - id: AUDIT-20260617-06
+    severity: P1
+    description: Sidecar coverage from ~10% to ~86% (68 new API tests)
+    status: resolved
+    resolved_at: '2026-06-13'
+    details:
+      - server.py: 10%→86%
+      - mcp_bridge.py: 0%→77%
+      - protocol.py: 80%→86%
+      - collector.py: 0%→47%
+
+  - id: GOV-20260613-03
+    severity: P1
+    description: 5 missing labels (security, triage, performance, refactoring, ci-cd)
+    status: resolved
+    resolved_at: '2026-06-13'
+
+  - id: GOV-20260613-04
+    severity: P1
+    description: 3 automation workflows pending deployment
+    status: wontfix
+    resolved_at: '2026-07-01T10:18:58+08:00'
+    resolution_note: >-
+      Workflows exist locally but blocked by D1 gate. No merge path without arXiv ID.
+      Original SKIPPED changed to wontfix per 2026-07-04 governance review.
+
+  - id: GOV-20260613-07
+    severity: P1
+    description: CLA Assistant Bot installed on maref-org/maref
+    status: resolved
+    resolved_at: '2026-06-13'
+
+  - id: GOV-20260613-08
+    severity: P2
+    description: Playwright web automation proven viable for GitHub App installation flow
+    status: resolved
+    resolved_at: '2026-06-13'
+
+  - id: GOV-20260613-09
+    severity: P2
+    description: agent-browser MCP integrated
+    status: resolved
+    resolved_at: '2026-06-13'
+
+  - id: GOV-20260613-10
+    severity: P2
+    description: agent-browser-automation skill + cross-agent MCP sharing
+    status: resolved
+    resolved_at: '2026-06-13'
+
+  - id: GOV-20260613-05
+    severity: P1
+    description: Crontab had 4 broken script references
+    status: resolved
+    resolved_at: '2026-06-13'
+
+  - id: GOV-20260613-06
+    severity: P2
+    description: Sidecar background thread used logger without handler
+    status: resolved
+    resolved_at: '2026-06-13'
+
+  - id: EVO-20260613-01
+    severity: P1
+    description: evolution/ + learning/ modules untracked
+    status: resolved
+    resolved_at: '2026-06-13'

@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from typing import Any
+
+VALID_TRIGRAMS = {"乾", "坤", "震", "巽", "坎", "离", "艮", "兑"}
+
+
+@dataclass
+class PluginRoleIdentity:
+    did: str
+    name: str
+    version: str
+
+
+@dataclass
+class PluginRoleCapability:
+    trigram: str
+    allowed_tools: list[str] = field(default_factory=list)
+    denied_tools: list[str] = field(default_factory=list)
+    max_entropy: float = 5.0
+
+
+@dataclass
+class PluginRoleTrust:
+    min_trust_score: float = 0.5
+    require_did: bool = True
+    require_vc: bool = False
+
+
+@dataclass
+class PluginRole:
+    maref_role: str
+    identity: PluginRoleIdentity
+    capability: PluginRoleCapability
+    trust: PluginRoleTrust
+    lifecycle: dict[str, Any] = field(default_factory=dict)
+    role_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+
+def validate_role(role: PluginRole) -> list[str]:
+    errors: list[str] = []
+
+    if role.maref_role != "1.0":
+        errors.append("maref_role must be '1.0'")
+
+    if not role.identity.did:
+        errors.append("identity.did is required")
+    elif not role.identity.did.startswith("did:"):
+        errors.append("identity.did must start with 'did:'")
+
+    if not role.identity.name:
+        errors.append("identity.name is required")
+
+    if role.capability.trigram not in VALID_TRIGRAMS:
+        errors.append(
+            f"capability.trigram '{role.capability.trigram}' is not valid. Must be one of: {', '.join(sorted(VALID_TRIGRAMS))}"
+        )
+
+    intersection = set(role.capability.allowed_tools) & set(role.capability.denied_tools)
+    if intersection:
+        errors.append(f"Tool conflict: {intersection} in both allowed and denied")
+
+    if role.capability.max_entropy < 0:
+        errors.append("capability.max_entropy must be >= 0")
+
+    if role.trust.min_trust_score < 0 or role.trust.min_trust_score > 1:
+        errors.append("trust.min_trust_score must be between 0 and 1")
+
+    return errors
+
+
+def parse_role_from_dict(data: dict[str, Any]) -> PluginRole:
+    identity_data = data.get("identity", {})
+    identity = PluginRoleIdentity(
+        did=identity_data.get("did", ""),
+        name=identity_data.get("name", ""),
+        version=identity_data.get("version", ""),
+    )
+
+    capability_data = data.get("capability", {})
+    capability = PluginRoleCapability(
+        trigram=capability_data.get("trigram", "坤"),
+        allowed_tools=capability_data.get("allowed_tools", []),
+        denied_tools=capability_data.get("denied_tools", []),
+        max_entropy=capability_data.get("max_entropy", 5.0),
+    )
+
+    trust_data = data.get("trust", {})
+    trust = PluginRoleTrust(
+        min_trust_score=trust_data.get("min_trust_score", 0.5),
+        require_did=trust_data.get("require_did", True),
+        require_vc=trust_data.get("require_vc", False),
+    )
+
+    return PluginRole(
+        maref_role=data.get("maref_role", "1.0"),
+        identity=identity,
+        capability=capability,
+        trust=trust,
+        lifecycle=data.get("lifecycle", {}),
+    )
+
+
+class RoleRegistry:
+    def __init__(self) -> None:
+        self._roles: dict[str, PluginRole] = {}
+
+    def register(self, role: PluginRole) -> str:
+        errors = validate_role(role)
+        if errors:
+            raise ValueError(f"Role validation failed: {'; '.join(errors)}")
+        self._roles[role.identity.did] = role
+        return role.identity.did
+
+    def register_from_dict(self, data: dict[str, Any]) -> str:
+        role = parse_role_from_dict(data)
+        return self.register(role)
+
+    def get(self, did: str) -> PluginRole | None:
+        return self._roles.get(did)
+
+    def list_available(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "did": r.identity.did,
+                "name": r.identity.name,
+                "version": r.identity.version,
+                "trigram": r.capability.trigram,
+                "role_id": r.role_id,
+            }
+            for r in self._roles.values()
+        ]
+
+    def remove(self, did: str) -> bool:
+        if did in self._roles:
+            del self._roles[did]
+            return True
+        return False

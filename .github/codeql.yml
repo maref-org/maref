@@ -1,0 +1,9 @@
+# CodeQL Configuration for MAREF
+paths:
+  - src/
+  - src-tauri/
+paths-ignore:
+  - node_modules/
+  - '**/*.min.js'
+  - '**/dist/'
+  - '**/build/'

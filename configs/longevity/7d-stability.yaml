@@ -1,0 +1,26 @@
+# 7-day unsupervised stability run — L3 readiness
+run:
+  duration_hours: 168
+  check_interval_minutes: 120    # Every 2 hours
+  mode: stability
+  mock: true
+  l3_features: true
+
+thresholds:
+  max_adoption_rate_decline: 0.15    # More lenient for 7d
+  max_score_decline: 10.0            # Allow more drift over 7 days
+  max_safety_alerts: 3               # Per day
+  max_human_intervention_pct: 5.0    # Per day
+  self_heal_success_rate_min: 0.5    # Minimum 50% self-heal rate
+
+quality_gates:
+  c1_min_score: 60.0
+  c2_min_score: 65.0
+  c3_min_score: 70.0
+  c4_min_score: 75.0
+  l2_dim_count: 5
+  l2_min_dim_score: 70.0
+
+reporting:
+  daily_reports: true
+  report_path: docs/rsi/7d-stability-report

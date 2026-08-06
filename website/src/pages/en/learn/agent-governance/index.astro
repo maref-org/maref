@@ -1,0 +1,135 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout
+  locale="en"
+  title="Agent Governance Framework — What It Is and Why You Need One"
+  description="Agent governance is the system of runtime guardrails, trust verification, and safety enforcement that keeps AI agents operating within their intended boundaries. Learn how MAREF implements provable governance."
+  section="features"
+>
+
+<h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+  Agent Governance for Production AI Systems
+</h1>
+<p class="text-lg text-brand-text-secondary mb-10">
+  Runtime safety, trust enforcement, and provable guardrails for multi-agent deployments. MAREF is the first open-source framework purpose-built for agent governance.
+</p>
+
+<!-- Quick answers for AI extraction -->
+<div class="my-16 space-y-16">
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What is agent governance?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Agent governance is the discipline of controlling, verifying, and auditing the behavior of autonomous AI agents at runtime. Unlike application security (AppSec) which protects static code, agent governance must handle dynamic, LLM-driven behavior that cannot be fully predicted at deployment time.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  An agent governance framework provides: identity verification for every agent, a state machine with mathematically provable transitions, runtime safety gates that intercept unsafe actions before execution, drift detection to catch model degradation, and a circuit breaker that halts runaway behavior automatically.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  The <a href="https://maref.cc/en/" class="text-brand-accent-cyan hover:underline">MAREF</a> framework implements all of these as a cohesive governance operating system — not as features bolted onto an orchestration tool.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">Why do production agents need governance?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Production agent systems face risks that orchestration frameworks alone cannot handle. A LangGraph or CrewAI deployment can orchestrate complex workflows, but without governance, there is no mechanism to enforce safety boundaries at runtime.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The <a href="https://owasp.org/www-project-top-10-for-llm-applications/" class="text-brand-accent-cyan hover:underline" rel="external">OWASP Agentic Top 10</a> identifies critical risks including: unauthorized tool access, prompt injection through agent-to-agent communication, denial-of-wallet attacks, excessive agency (agents taking actions beyond their intended scope), and supply chain vulnerabilities in agent capabilities. These risks are not theoretical — real-world incidents have caused data leaks, financial loss, and regulatory penalties.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What makes MAREF's governance different from other frameworks?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Every major agent framework (LangGraph, CrewAI, AutoGen, Anthropic's agent protocol) treats safety as a secondary concern. Their focus is orchestration — getting agents to work together efficiently. MAREF inverts this priority: governance is the foundation, and orchestration is built on top of it.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Specific differentiators:
+</p>
+<ul class="list-disc pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
+  <li><strong class="text-brand-text-primary">TLA+ formal verification</strong> — Five theorems prove the state machine converges correctly. No other agent governance framework can make this claim.</li>
+  <li><strong class="text-brand-text-primary">10-state Gray Code FSM</strong> — Hamming distance = 1 ensures every transition changes exactly one dimension of trust state. No ambiguous intermediate states.</li>
+  <li><strong class="text-brand-text-primary">Four-level safety decision tree</strong> — Rule → Mode → SafetyGate → User escalation, achieving 97% automated decisions with clear audit trails.</li>
+  <li><strong class="text-brand-text-primary">Runtime drift detection</strong> — LoRA/ontology dual detection catches model drift before it causes safety failures.</li>
+  <li><strong class="text-brand-text-primary">Circuit Breaker with HALT absorption</strong> — Three consecutive failures trigger an irreversible halt that only human override can release.</li>
+</ul>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">How does the governance state machine work?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF's governance engine uses a 10-state finite state machine encoded in 6-bit Gray code. Each state represents a distinct trust level, from full autonomy to complete halt. The Gray code encoding ensures adjacent states differ by exactly one bit — eliminating ambiguous transitions.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The state machine includes an absorbing HALT state. When three consecutive safety failures occur within a configurable time window, the system transitions to HALT. No agent, pipeline, or automated process can override this state. Only explicit human authentication can release it.
+</p>
+<CodeBlock
+  lang="python"
+  title="State machine integration example"
+  code={`from maref import GovernanceEngine, CircuitBreaker
+
+engine = GovernanceEngine(
+    circuit_breaker=CircuitBreaker(threshold=3, window=300),
+    verify_fa  # TLA+ verification enabled
+)
+
+if await engine.approve(agent_action):
+    return await execute(agent_action)
+else:
+    # Action denied, reason logged, state may escalate
+    await engine.escalate(reason, agent_id)`}
+/>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">Can I use MAREF with existing frameworks?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Yes. MAREF is designed as a governance overlay — it sits <em>above</em> or <em>alongside</em> your existing orchestration framework. MAREF provides production-ready adapters for LangGraph, CrewAI, AutoGen, Dify, and Coze. The governance layer intercepts agent actions before execution, verifies trust state, applies safety rules, and only then forwards approved actions to your orchestrator.
+</p>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  This complementary architecture means you keep your existing agent workflows and add governance without rewriting anything. <strong class="text-brand-text-primary">pip install maref</strong> is all it takes to get started.
+</p>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">What threats does agent governance protect against?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF's governance engine covers all 10 categories of the OWASP Agentic Top 10, including:
+</p>
+<ul class="list-disc pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
+  <li><strong class="text-brand-text-primary">Excessive agency</strong> — Agents cannot escalate their own permissions or take actions outside their declared scope.</li>
+  <li><strong class="text-brand-text-primary">Tool access abuse</strong> — Every tool call is verified against the agent's permission matrix before execution.</li>
+  <li><strong class="text-brand-text-primary">Agent-to-agent injection</strong> — Cross-agent communication is isolated per SubAgent, preventing prompt injection spread.</li>
+  <li><strong class="text-brand-text-primary">Denial of wallet</strong> — Gas metering and cost budgets prevent runaway LLM calls from exceeding financial limits.</li>
+  <li><strong class="text-brand-text-primary">Supply chain attacks</strong> — Every Skill and capability has a signed manifest with integrity verification.</li>
+  <li><strong class="text-brand-text-primary">Non-human identity abuse</strong> — Zero-trust identity per agent with SM2/SM3/SM4-GCM cryptographic binding.</li>
+</ul>
+</div>
+
+<div>
+<h2 class="text-2xl font-bold tracking-tight mb-4">Where can I learn more?</h2>
+<p class="text-base text-brand-text-secondary leading-relaxed">
+  Read the <a href="/en/features/governance/" class="text-brand-accent-cyan hover:underline">Governance feature page</a> for technical details on the Gray Code FSM and TLA+ verification. See <a href="/en/learn/runtime-safety/" class="text-brand-accent-cyan hover:underline">Runtime Safety</a> for operational deployment guides. Check the <a href="/en/learn/recursive-evolution/" class="text-brand-accent-cyan hover:underline">Recursive Evolution</a> page for autonomous self-improvement capabilities.
+</p>
+</div>
+
+</div>
+
+<div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+  <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">Key Concepts</h3>
+  <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+    <div class="text-brand-text-muted">Definition</div><div class="text-brand-text-primary">Runtime governance for AI agents</div>
+    <div class="text-brand-text-muted">Primary function</div><div class="text-brand-text-primary">Verify, enforce, and audit agent behavior</div>
+    <div class="text-brand-text-muted">Key technology</div><div class="text-brand-text-primary">10-state Gray Code FSM + TLA+ verification</div>
+    <div class="text-brand-text-muted">OWASP coverage</div><div class="text-brand-text-primary">10/10 Agentic Top 10 categories</div>
+    <div class="text-brand-text-muted">Automation rate</div><div class="text-brand-text-primary">97% (4-level safety decision tree)</div>
+    <div class="text-brand-text-muted">Integration</div><div class="text-brand-text-primary">pip install maref, works with any framework</div>
+  </div>
+</div>
+
+</DocLayout>

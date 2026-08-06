@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class IterationAnalysisResult:
+    degradations: list[str] = field(default_factory=list)
+    opportunities: list[str] = field(default_factory=list)
+    priority: str = "P3"
+    deltas: dict[str, float] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "degradations": list(self.degradations),
+            "opportunities": list(self.opportunities),
+            "priority": self.priority,
+            "deltas": dict(self.deltas),
+        }
+
+
+class IterationAnalyzer:
+    def compare_snapshots(
+        self,
+        previous: dict[str, Any],
+        current: dict[str, Any],
+    ) -> IterationAnalysisResult:
+        prev_fnr = self._float(previous.get("fnr"))
+        curr_fnr = self._float(current.get("fnr"))
+        prev_coverage = self._float(previous.get("coverage"))
+        curr_coverage = self._float(current.get("coverage"))
+        prev_pass_rate = self._float(previous.get("test_pass_rate"))
+        curr_pass_rate = self._float(current.get("test_pass_rate"))
+
+        deltas = {
+            "fnr": curr_fnr - prev_fnr,
+            "coverage": curr_coverage - prev_coverage,
+            "test_pass_rate": curr_pass_rate - prev_pass_rate,
+        }
+        degradations: list[str] = []
+        opportunities: list[str] = []
+
+        if deltas["fnr"] > 0.03:
+            degradations.append("fnr_regression")
+        elif deltas["fnr"] < -0.03:
+            opportunities.append("fnr_improved")
+
+        if deltas["coverage"] < -2.0:
+            degradations.append("coverage_drop")
+        elif deltas["coverage"] > 2.0:
+            opportunities.append("coverage_improved")
+
+        if deltas["test_pass_rate"] < -0.02:
+            degradations.append("test_pass_rate_drop")
+        elif deltas["test_pass_rate"] > 0.02:
+            opportunities.append("test_pass_rate_improved")
+
+        priority = self._priority_for(degradations, opportunities)
+        return IterationAnalysisResult(
+            degradations=degradations,
+            opportunities=opportunities,
+            priority=priority,
+            deltas=deltas,
+        )
+
+    @staticmethod
+    def _priority_for(degradations: list[str], opportunities: list[str]) -> str:
+        if not degradations:
+            return "P2" if opportunities else "P3"
+        if "fnr_regression" in degradations or "test_pass_rate_drop" in degradations:
+            return "P0"
+        return "P1"
+
+    @staticmethod
+    def _float(value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+
+__all__ = ["IterationAnalysisResult", "IterationAnalyzer"]

@@ -1,0 +1,251 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "maref"
+version = "0.52.0"
+description = "Multi-Agent Recursive Engineering Framework"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "MAREF Team"},
+]
+keywords = ["agent", "multi-agent", "governance", "lora", "mcp", "a2a"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "pydantic>=2.0",
+    "structlog>=24.0",
+    "typer>=0.12",
+    "rich>=13.0",
+    "pyyaml>=6.0",
+    "httpx>=0.27",
+    "defusedxml>=0.7.1",
+    "psutil>=5.9",
+    "aiohttp>=3.9",
+]
+
+[project.optional-dependencies]
+ml = [
+    "torch>=2.0",
+    "transformers>=4.40",
+    "peft>=0.11",
+    "datasets>=2.19",
+    "accelerate>=0.30",
+]
+sidecar = [
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "websockets>=12.0",
+    "sse-starlette>=2.0",
+]
+a2a = [
+    "a2a-sdk>=1.0",
+]
+identity = [
+    "cryptography>=42.0",
+    "jwcrypto>=1.5",
+    "gmssl>=3.2.2",
+]
+orchestration = [
+    "networkx>=3.0",
+]
+otel = [
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-http>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "opentelemetry-instrumentation-httpx>=0.48b0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "nox>=2024.0",
+    "numpy>=1.26",
+]
+desktop = [
+    "Pillow>=10.0",
+    "PyAutoGUI>=0.9.54",
+    "playwright>=1.45",
+]
+sentinel = [
+    "psutil>=5.9",
+    "mitmproxy>=10.2",
+]
+audit = [
+    "transformer_lens>=0.2",
+]
+all = [
+    "maref[ml,sidecar,dev,desktop,sentinel,audit]",
+]
+
+[project.scripts]
+maref = "maref_lite.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/maref", "src/maref_lite", "src/sidecar", "src/drift_guard", "src/formal", "src/research"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = ["E501", "SIM102", "N802", "N806", "N817", "E741", "SIM105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+disable_error_code = ["no-untyped-def", "var-annotated", "import-untyped", "no-any-return"]
+exclude = ["tests/"]
+mypy_path = "src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "PIL",
+    "pyautogui",
+    "playwright",
+    "playwright.async_api",
+    "pyperclip",
+    "numpy",
+    "yaml",
+    "dotenv",
+    "aiohttp",
+
+    "fastapi",
+    "fastapi.responses",
+    "prometheus_client",
+    "percv.schemas",
+    "percv.gateway.router",
+    "percv.agents.scout",
+    "percv.pipeline",
+    "psutil",
+    "mitmproxy",
+    "mitmproxy.addonmanager",
+    "anthropic",
+    "torch",
+    "transformers",
+    "transformer_lens",
+    "keyring",
+    "zeroconf",
+    "bcc",
+    "tomllib",
+    "opentelemetry",
+    "opentelemetry.trace",
+    "opentelemetry.sdk.trace",
+    "opentelemetry.sdk.trace.export",
+    "opentelemetry.sdk.resources",
+    "opentelemetry.sdk.metrics",
+    "opentelemetry.sdk.metrics.export",
+    "opentelemetry.exporter.otlp.proto.http.metric_exporter",
+    "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+    "tomli",
+    "ApplicationServices",
+    "maref.stress.sqi",
+    "maref.stress.sqi_convergence",
+    "maref.executor.workflow.patterns.tournament",
+    "maref.knowledge.compiled_truth",
+    "maref.recursive.audit_store",
+    "maref.integration.mq_adapter",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "mitmproxy",
+    "mitmproxy.*",
+]
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-report=json --ignore=tests/research"
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "chaos: Chaos engineering tests",
+    "slow: Slow tests",
+    "real: Real hardware tests (require macOS Accessibility permissions)",
+    "security: Security penetration tests",
+    "benchmark: Performance benchmark tests",
+    "longevity: Longevity / 24h regression tests",
+    "ci_only: CI-mode quick tests",
+]
+
+[tool.coverage.run]
+source = ["src/maref"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/dist/*",
+    "*/node_modules/*",
+    "*/research/*",
+    "*/codedepth/*",
+
+    "*/__main__.py",
+    "*/exceptions.py",
+]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+fail_under = 50
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "pass",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.uv.sources]
+# percv 已改为 PyPI 依赖，见 [project.optional-dependencies]

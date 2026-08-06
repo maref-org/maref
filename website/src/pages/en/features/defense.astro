@@ -1,0 +1,108 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import DefenseLayers from "@/components/animations/DefenseLayers/DefenseLayers.astro";
+import DecisionTree from "@/components/animations/DecisionTree/DecisionTree.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="en" title="8-Layer Defense — Agent Security" description="Eight independent layers of defense. 97% automated safety decisions. HMAC-signed audit trail. Defense-in-depth for multi-agent systems." section="features">
+
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+    Every attack path.<br />
+    <span class="text-brand-accent-cyan">Blocked before it begins.</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-10">
+    Eight independent layers. Four-tier decision tree.
+    97% of safety decisions never touch a human.
+  </p>
+
+  <DefenseLayers locale="en" />
+
+  <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <p class="text-base text-brand-text-secondary leading-relaxed">
+      Most agent security is a single wall: one check, one gate, one point of failure.
+      MAREF deploys <strong class="text-brand-text-primary">eight independent defense layers</strong> —
+      an attacker must break through every single one, but only one needs to hold.
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-8 my-20">
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-cyan mb-2">Eight barriers. One must hold.</h3>
+      <p class="text-sm text-brand-text-secondary">Defense-in-depth. An attacker must break all 8 layers, but any single layer can stop the threat independently.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-green mb-2">97% automated. 3% escalated.</h3>
+      <p class="text-sm text-brand-text-secondary">Four-tier decision tree filters the noise. Your team sees only the edge cases that need human judgment.</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-purple mb-2">Signed. Immutable. Auditable.</h3>
+      <p class="text-sm text-brand-text-secondary">Every MCP tool call and governance decision is HMAC-SHA256 signed. The audit trail cannot be forged.</p>
+    </div>
+  </div>
+
+  <div class="my-20 space-y-20">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Depth matters more than walls.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        An 8-layer defense architecture means an attack must break through every single layer to succeed.
+        But the architecture is designed so that any single layer can stop the threat independently.
+        Layers 1-4 filter the obvious. Layer 5 (SafetyGate) is the reinforced core. Layers 6-8 are the final containment.
+        Fail at any point, and the defense holds.
+      </p>
+      <div class="grid grid-cols-8 gap-1 text-center text-xs py-4">
+        <div class="p-2 rounded" style="background-color: var(--color-brand-accent-cyan); opacity: 0.3;">1</div>
+        <div class="p-2 rounded" style="background-color: var(--color-brand-accent-cyan); opacity: 0.3;">2</div>
+        <div class="p-2 rounded" style="background-color: var(--color-brand-accent-blue); opacity: 0.3;">3</div>
+        <div class="p-2 rounded" style="background-color: var(--color-brand-accent-blue); opacity: 0.3;">4</div>
+        <div class="p-2 rounded font-bold" style="background-color: var(--color-brand-accent-green); opacity: 0.5;">5</div>
+        <div class="p-2 rounded" style="background-color: var(--color-brand-accent-green); opacity: 0.3;">6</div>
+        <div class="p-2 rounded" style="background-color: var(--color-brand-accent-purple); opacity: 0.3;">7</div>
+        <div class="p-2 rounded" style="background-color: var(--color-brand-text-muted); opacity: 0.3;">8</div>
+      </div>
+      <p class="text-xs text-brand-text-muted text-center">Layer 5 (SafetyGate) — the reinforced interception layer</p>
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Four tiers. Three automated.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        The decision tree flows through four levels: Rule (policy matches), Mode (context check),
+        SafetyGate (risk threshold), and Human (escalation).
+        97% of decisions are resolved in the first three tiers. Your security team reviews the 3%
+        that genuinely need human judgment — not the noise.
+      </p>
+      <DecisionTree locale="en" />
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">Audit. Signed. Immutable.</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        Every MCP tool call, every governance decision, every state transition is logged with HMAC-SHA256 signing.
+        The audit trail cannot be forged, deleted, or tampered with. When regulators ask for proof, you have it.
+      </p>
+      <CodeBlock
+        lang="python"
+        title="Audit trail entry"
+        code={`{
+  "action": "tool_call",
+  "agent": "agent-7f3a",
+  "decision": "BLOCK",
+  "layer": "SafetyGate",
+  "signature": "hmac-sha256:ab12...",
+  "timestamp": "2026-06-13T12:00:00Z"
+}`}
+      />
+    </div>
+  </div>
+
+  <div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">Technical Specifications</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">Defense layers</div><div class="text-brand-text-primary">8 independent layers</div>
+      <div class="text-brand-text-muted">Decision tree</div><div class="text-brand-text-primary">4 tiers: Rule → Mode → SafetyGate → Human</div>
+      <div class="text-brand-text-muted">Auto decision rate</div><div class="text-brand-text-primary">97%</div>
+      <div class="text-brand-text-muted">Audit signing</div><div class="text-brand-text-primary">HMAC-SHA256</div>
+      <div class="text-brand-text-muted">Key interception layer</div><div class="text-brand-text-primary">Layer 5 — SafetyGate</div>
+    </div>
+  </div>
+</DocLayout>

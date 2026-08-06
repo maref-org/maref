@@ -1,0 +1,49 @@
+maref_skill: "1.0"
+meta:
+  name: "code-security-audit"
+  version: "1.0.0"
+  description: "Perform security audit before code changes are executed"
+  author_did: "did:maref:builtin/security-audit/v1"
+
+role_affinity:
+  primary: "Executor"
+  secondary:
+    - "Critic"
+    - "Guardian"
+
+hexagram_trigger:
+  require: []
+  exclude: []
+  transition_from: null
+
+parameter_injection:
+  model_override: null
+  effort: "high"
+  timeout_ms: 30000
+
+hooks:
+  - event: "maref.layer3.role.pre_invoke"
+    handler: "check_integrity"
+  - event: "maref.layer3.role.post_invoke"
+    handler: "audit_executor_output"
+
+context_activation:
+  file_patterns:
+    - "**/*.py"
+    - "**/*.ts"
+    - "**/*.yaml"
+  entropy_range:
+    - 1.0
+    - 5.0
+
+degradation_chain:
+  primary: "full_audit"
+  degraded:
+    - condition: "timeout"
+      fallback: "basic_check"
+    - condition: "entropy_high"
+      fallback: "skip_audit_with_warning"
+
+behavior:
+  entrypoint: "skills/security_audit.py"
+  sandbox: "isolated"

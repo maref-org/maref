@@ -1,0 +1,42 @@
+---
+signal_id: S-20260702-013
+signal_type: release
+received_at: "2026-07-02T23:59:00Z"
+source: internal
+payload:
+  milestone: "L2 Conditional Pass"
+  version: "v0.35.0-beta"
+  weighted_score: 79.5
+  dimensions:
+    - name: "PERCV-RSI-ACCEPT-001"
+      score: 85
+      status: "pass"
+    - name: "PERCV-RSI-ACCEPT-002"
+      score: 88
+      status: "pass"
+    - name: "PERCV-RSI-ACCEPT-003"
+      score: 75
+      status: "conditional"
+    - name: "PERCV-RSI-ACCEPT-004"
+      score: 82
+      status: "pass"
+    - name: "PERCV-RSI-ACCEPT-005"
+      score: 70
+      status: "conditional"
+  new_components:
+    - "CrossImpactCircuitBreaker"
+    - "AutoDimensionDiscoverer"
+    - "EvolutionQualityGate L2"
+    - "TLA+ Cross-Dim Invariants"
+    - "Pareto Dashboard"
+    - "24h Longevity Framework"
+    - "RSI Redlines RL-006/007"
+    - "PHASE6 Adversarial Attacks"
+    - "Human-AI Correlation Analysis"
+  next_milestone: "L3 Preparatory Engineering"
+
+kdps:
+  - kdp_id: K-20260702-010
+    decision: "L2 conditional pass approved"
+    rationale: "All engineering complete (220+ tests). Two procedural items (human correlation, 24h run) require wall-clock time."
+    risk_level: "low"

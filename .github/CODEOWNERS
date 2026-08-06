@@ -1,0 +1,30 @@
+# CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# NOTE: @maref-org/maintainers team must be created in GitHub organization settings
+
+# Default owners for everything in the repo
+* @maref-org @maref-org/maintainers
+
+# Python / backend
+*.py @maref-org @maref-org/maintainers
+src/ @maref-org @maref-org/maintainers
+
+# Frontend / GUI
+gui/ @maref-org @maref-org/maintainers
+gui/**/*.ts @maref-org @maref-org/maintainers
+gui/**/*.tsx @maref-org @maref-org/maintainers
+
+# Rust / Tauri
+gui/src-tauri/ @maref-org @maref-org/maintainers
+
+# CI/CD
+.github/workflows/ @maref-org @maref-org/maintainers
+.github/dependabot.yml @maref-org @maref-org/maintainers
+
+# Documentation
+docs/ @maref-org @maref-org/maintainers
+*.md @maref-org @maref-org/maintainers
+
+# Security
+security/ @maref-org @maref-org/maintainers
+DEPENDENCIES @maref-org @maref-org/maintainers

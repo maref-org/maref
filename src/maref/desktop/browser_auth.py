@@ -1,0 +1,175 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import time
+import warnings
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+_BROWSER_AUTH_KEY_ENV = "MAREF_BROWSER_AUTH_KEY"
+
+AUTH_STATE_DIR = Path.home() / ".cache" / "maref" / "browser_auth"
+AUTH_STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
+class AuthState:
+    domain: str
+    cookies_json: str = ""
+    local_storage_json: str = ""
+    created_at: float = field(default_factory=time.time)
+    expires_at: float = 0.0
+    encrypted: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "domain": self.domain,
+            "cookies_json": self.cookies_json,
+            "local_storage_json": self.local_storage_json,
+            "created_at": self.created_at,
+            "expires_at": self.expires_at,
+            "encrypted": self.encrypted,
+        }
+
+
+class AuthSessionManager:
+    """Browser authentication session manager with encrypted persistence.
+
+    Uses Playwright persistent contexts with AES-256-GCM encryption
+    for storing browser authentication state.
+    """
+
+    def __init__(self, storage_dir: str | None = None, encryption_key: bytes | None = None) -> None:
+        self._dir = Path(storage_dir) if storage_dir else AUTH_STATE_DIR
+        self._dir.mkdir(parents=True, exist_ok=True)
+        self._active_states: dict[str, AuthState] = {}
+        raw_key: bytes | None = encryption_key
+        if raw_key is None:
+            env_val = os.environ.get(_BROWSER_AUTH_KEY_ENV)
+            if env_val is not None:
+                raw_key = env_val.encode("utf-8")
+        if raw_key is not None:
+            self._encryption_key = hashlib.sha256(raw_key).digest()
+        else:
+            warnings.warn(
+                "No MAREF_BROWSER_AUTH_KEY set — using hardcoded dev key. "
+                "Set the environment variable for production use.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            self._encryption_key = hashlib.sha256(b"maref-browser-auth-key-v1").digest()
+
+    def save_state(
+        self,
+        domain: str,
+        cookies: list[dict[str, Any]] | None = None,
+        local_storage: dict[str, str] | None = None,
+    ) -> str:
+        cookies_json = json.dumps(cookies or [])
+        storage_json = json.dumps(local_storage or {})
+
+        state = AuthState(
+            domain=domain,
+            cookies_json=cookies_json,
+            local_storage_json=storage_json,
+            expires_at=time.time() + 86400,
+        )
+
+        state.encrypted = True
+        state.cookies_json = self._encrypt(state.cookies_json)
+        state.local_storage_json = self._encrypt(state.local_storage_json)
+
+        state_id = hashlib.sha256(f"{domain}:{time.time()}".encode()).hexdigest()[:16]
+        self._active_states[state_id] = state
+
+        file_path = self._dir / f"{state_id}.auth"
+        file_path.write_text(json.dumps(state.to_dict(), indent=2))
+
+        return state_id
+
+    def load_state(self, state_id: str) -> AuthState | None:
+        if state_id in self._active_states:
+            state = self._active_states[state_id]
+            if state.encrypted:
+                state.cookies_json = self._decrypt(state.cookies_json)
+                state.local_storage_json = self._decrypt(state.local_storage_json)
+                state.encrypted = False
+            return state
+
+        file_path = self._dir / f"{state_id}.auth"
+        if not file_path.exists():
+            return None
+
+        try:
+            data = json.loads(file_path.read_text())
+            state = AuthState(**data)
+            if state.encrypted:
+                state.cookies_json = self._decrypt(state.cookies_json)
+                state.local_storage_json = self._decrypt(state.local_storage_json)
+                state.encrypted = False
+            self._active_states[state_id] = state
+            return state
+        except (json.JSONDecodeError, KeyError):
+            return None
+
+    def list_states(self) -> list[str]:
+        return [f.stem for f in self._dir.glob("*.auth")]
+
+    def delete_state(self, state_id: str) -> bool:
+        self._active_states.pop(state_id, None)
+        file_path = self._dir / f"{state_id}.auth"
+        if file_path.exists():
+            file_path.unlink()
+            return True
+        return False
+
+    def _encrypt(self, data: str) -> str:
+        key_bytes = self._encryption_key
+        nonce = os.urandom(16)[:12]
+        try:
+            from cryptography.hazmat.primitives.ciphers.aead import (
+                AESGCM,
+            )
+
+            aesgcm = AESGCM(key_bytes)
+            encrypted = aesgcm.encrypt(nonce or os.urandom(12), data.encode(), None)
+            return (nonce + encrypted).hex()
+        except ImportError:
+            encoded = data.encode()
+            result = bytes(
+                a ^ b
+                for a, b in zip(
+                    encoded,
+                    key_bytes[: len(encoded)]
+                    * (len(encoded) // len(key_bytes[: len(encoded)]) + 1),
+                    strict=False,
+                )
+            )
+            return result.hex()
+
+    def _decrypt(self, encrypted_hex: str) -> str:
+        try:
+            raw = bytes.fromhex(encrypted_hex)
+            nonce = raw[:12]
+            ciphertext = raw[12:]
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+            key_bytes = self._encryption_key
+            aesgcm = AESGCM(key_bytes)
+            decrypted = aesgcm.decrypt(nonce, ciphertext, None)
+            return decrypted.decode()
+        except (ImportError, Exception):
+            raw = bytes.fromhex(encrypted_hex)
+            key_bytes = self._encryption_key
+            result = bytes(
+                a ^ b
+                for a, b in zip(
+                    raw,
+                    key_bytes[: len(raw)] * (len(raw) // len(key_bytes[: len(raw)]) + 1),
+                    strict=False,
+                )
+            )
+            return result.decode(errors="replace")

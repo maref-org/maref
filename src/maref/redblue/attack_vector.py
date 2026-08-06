@@ -1,0 +1,633 @@
+"""Attack vectors mapped to MAREF defensive modules."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class RedLevel(Enum):
+    R1 = (1, "脚本小子", "无内部知识，随机表面攻击")
+    R2 = (2, "安全研究员", "理解架构，定向探测已知gap")
+    R3 = (3, "内部威胁", "知道默认参数，精确触发边界")
+    R4 = (4, "国家级", "多向量协调，持久化，隐蔽慢速")
+    R5 = (5, "自主AI", "学习Blue反应，自适应攻击策略")
+
+    @property
+    def numeric(self) -> int:
+        return self.value[0]
+
+    @property
+    def label(self) -> str:
+        return self.value[1]
+
+    @property
+    def desc(self) -> str:
+        return self.value[2]
+
+
+class BlueLevel(Enum):
+    B1 = (1, "被动检测", "基本探针告警，无自动响应")
+    B2 = (2, "反应式修复", "漏洞被利用后patch")
+    B3 = (3, "主动防御", "威胁预硬化，参数自动收紧")
+    B4 = (4, "自适应", "实时参数调优，自动响应链")
+    B5 = (5, "完全自主", "自愈+自硬化，零日抗性")
+
+    @property
+    def numeric(self) -> int:
+        return self.value[0]
+
+    @property
+    def label(self) -> str:
+        return self.value[1]
+
+    @property
+    def desc(self) -> str:
+        return self.value[2]
+
+
+class AttackCategory(Enum):
+    STATE_MACHINE = ("state_machine", "状态机攻击")
+    CIRCUIT_BREAKER = ("circuit_breaker", "熔断器攻击")
+    AUDIT = ("audit", "审计日志攻击")
+    TRUST_ENGINE = ("trust_engine", "信任引擎攻击")
+    CREDENTIAL = ("credential", "凭证攻击")
+    SAFETY_GATE = ("safety_gate", "安全门攻击")
+    META_AGENT = ("meta_agent", "宪法攻击")
+    FOUR_PHASE = ("four_phase", "四相治理攻击")
+    AST_SANDBOX = ("ast_sandbox", "AST沙箱攻击")
+    POLICY_SANDBOX = ("policy_sandbox", "策略沙箱攻击")
+    META_LEARNING = ("meta_learning", "元学习攻击")
+    OSCILLATION = ("oscillation", "振荡修复攻击")
+    MULTI_VECTOR = ("multi_vector", "多向量复合攻击")
+    CROSS_DIMENSIONAL = ("cross_dimensional", "跨维度操纵攻击")
+
+
+@dataclass
+class AttackDefinition:
+    category: AttackCategory
+    name: str
+    description: str
+    intensity: float  # 0.0-1.0
+    stealth: float  # 0.0-1.0
+    params: dict[str, Any] = field(default_factory=dict)
+
+
+# Phase 1 attack definitions (R101-R120, Red R1-R2)
+PHASE1_ATTACKS: list[AttackDefinition] = [
+    AttackDefinition(
+        AttackCategory.STATE_MACHINE,
+        "random_invalid_transition",
+        "随机无效状态转换",
+        0.2,
+        0.1,
+        {"count": 50, "bogus_states": True},
+    ),
+    AttackDefinition(
+        AttackCategory.CIRCUIT_BREAKER,
+        "cb_param_poisoning",
+        "CB参数投毒(max_depth=0, cooldown=0)",
+        0.3,
+        0.2,
+        {"max_depth": 0, "cooldown": 0, "max_failures": 0},
+    ),
+    AttackDefinition(
+        AttackCategory.AUDIT,
+        "audit_flood",
+        "高速审计日志淹没",
+        0.5,
+        0.1,
+        {"rate": 1000, "entries": 5000},
+    ),
+    AttackDefinition(
+        AttackCategory.TRUST_ENGINE,
+        "confidence_gaming",
+        "空事件刷confidence=1.0",
+        0.3,
+        0.4,
+        {"empty_events": 200},
+    ),
+    AttackDefinition(
+        AttackCategory.CREDENTIAL,
+        "credential_replay",
+        "过期凭证重放",
+        0.3,
+        0.3,
+        {"expired": True, "revoked": False},
+    ),
+    AttackDefinition(
+        AttackCategory.SAFETY_GATE,
+        "string_bypass",
+        "重命名模块绕过核心组件检测",
+        0.4,
+        0.5,
+        {"rename_target": "cb_new"},
+    ),
+    AttackDefinition(
+        AttackCategory.META_AGENT,
+        "keyword_bypass",
+        "改述描述绕过宪法检测",
+        0.4,
+        0.5,
+        {"original": "bypass safety gate", "rewritten": "path optimization"},
+    ),
+    AttackDefinition(
+        AttackCategory.FOUR_PHASE,
+        "privilege_escalation",
+        "escalate_to_old_yang()直接提权",
+        0.8,
+        0.1,
+        {"direct": True},
+    ),
+    AttackDefinition(
+        AttackCategory.AST_SANDBOX,
+        "getattr_bypass",
+        "getattr(os,system)绕过Name检查",
+        0.4,
+        0.5,
+        {"method": "getattr"},
+    ),
+    AttackDefinition(
+        AttackCategory.POLICY_SANDBOX,
+        "ab_skip",
+        "PROPOSED→APPROVED跳过A/B测试",
+        0.5,
+        0.4,
+        {"skip_ab": True},
+    ),
+    AttackDefinition(
+        AttackCategory.META_LEARNING,
+        "reward_explosion",
+        "time_in_state=1e6奖励爆炸",
+        0.6,
+        0.3,
+        {"time_in_state": 1e6, "anomaly_resolved": True},
+    ),
+    AttackDefinition(
+        AttackCategory.OSCILLATION,
+        "race_condition",
+        "并发detect_and_fix双重调用",
+        0.5,
+        0.4,
+        {"concurrent": 2},
+    ),
+]
+
+# Phase 2 attack definitions (R121-R140, Red R2-R3)
+PHASE2_ATTACKS: list[AttackDefinition] = [
+    AttackDefinition(
+        AttackCategory.TRUST_ENGINE,
+        "cross_agent_pollution",
+        "shared CB._trips跨agent降分",
+        0.6,
+        0.5,
+        {"shared_trips": 15},
+    ),
+    AttackDefinition(
+        AttackCategory.CREDENTIAL,
+        "hmac_replay",
+        "issued_at不在HMAC中的重放",
+        0.6,
+        0.6,
+        {"omit_fields": True},
+    ),
+    AttackDefinition(
+        AttackCategory.SAFETY_GATE,
+        "interleave_reset",
+        "increase/decrease交替重置检测",
+        0.5,
+        0.6,
+        {"interleave": 5},
+    ),
+    AttackDefinition(
+        AttackCategory.META_AGENT,
+        "decision_mislabel",
+        "RED_LINE→POLICY_UPDATE类型伪装",
+        0.6,
+        0.6,
+        {"mislabels": True},
+    ),
+    AttackDefinition(
+        AttackCategory.FOUR_PHASE,
+        "rapid_elevate_recover",
+        "escalate→recover循环",
+        0.7,
+        0.3,
+        {"cycles": 10},
+    ),
+    AttackDefinition(
+        AttackCategory.AST_SANDBOX,
+        "builtins_eval",
+        "__builtins__['eval']绕过",
+        0.6,
+        0.6,
+        {"method": "__builtins__"},
+    ),
+    AttackDefinition(
+        AttackCategory.POLICY_SANDBOX,
+        "fake_ab_metrics",
+        "注入假A/B指标直接approve",
+        0.6,
+        0.5,
+        {"fake_fpr": 0.0, "fake_fnr": 0.0},
+    ),
+    AttackDefinition(
+        AttackCategory.META_LEARNING,
+        "halt_alternation",
+        "交替HALT+恢复净正奖励",
+        0.7,
+        0.5,
+        {"halt_recover_cycles": 20},
+    ),
+    AttackDefinition(
+        AttackCategory.OSCILLATION,
+        "silent_failure",
+        "_get_state=None验证短路",
+        0.5,
+        0.7,
+        {"null_get_state": True},
+    ),
+    AttackDefinition(
+        AttackCategory.AUDIT,
+        "concurrent_corruption",
+        "多线程并发写入破坏审计",
+        0.6,
+        0.3,
+        {"threads": 10, "entries": 1000},
+    ),
+    AttackDefinition(
+        AttackCategory.CIRCUIT_BREAKER,
+        "deterministic_cooldown",
+        "精确等待cooldown后打穿",
+        0.6,
+        0.7,
+        {"precision": 0.001},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "dual_attack_1",
+        "信任+相位双降",
+        0.7,
+        0.4,
+        {"vectors": ["trust", "phase"]},
+    ),
+]
+
+# Phase 3 attack definitions (R141-R160, Red R3-R4)
+PHASE3_ATTACKS: list[AttackDefinition] = [
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "audit_sandbox_double_blind",
+        "log_path=None+假A/B指标同时",
+        0.8,
+        0.6,
+        {},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "constitution_exec_bypass",
+        "改述红线+AST属性绕过同时",
+        0.8,
+        0.5,
+        {},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "oscillation_cb_paralysis",
+        "并发竞态+冷却穿透同时",
+        0.9,
+        0.5,
+        {},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "learning_policy_dual_poison",
+        "奖励农场+权重推边界同时",
+        0.8,
+        0.6,
+        {},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "credential_identity_dual_forge",
+        "重放+DID伪造同时",
+        0.8,
+        0.7,
+        {},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "slow_degradation_1h",
+        "每小时1次微量攻击，逃避检测",
+        0.6,
+        0.9,
+        {"duration_h": 1, "interval_min": 60},
+    ),
+    AttackDefinition(
+        AttackCategory.AST_SANDBOX,
+        "backdoor_implant",
+        "通过ASTSandbox写入持久化代码",
+        0.9,
+        0.8,
+        {"persist": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "resource_exhaustion_memory",
+        "100K entries同时注入",
+        0.9,
+        0.2,
+        {"entries": 100000},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "resource_exhaustion_cpu",
+        "100K state transitions/s",
+        0.9,
+        0.2,
+        {"rate": 100000},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "resource_exhaustion_disk",
+        "1M audit entries",
+        0.9,
+        0.2,
+        {"entries": 1000000},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR, "quad_vector", "4向量同时:信任+相位+CB+审计", 0.9, 0.4, {}
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR, "quad_vector_backdoor", "4向量同时+后门激活", 1.0, 0.7, {}
+    ),
+]
+
+# Phase 4 attack definitions (R161-R180, Red R4-R5)
+PHASE4_ATTACKS: list[AttackDefinition] = [
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "pattern_learning",
+        "AI观察Blue响应，记录检测延迟",
+        0.8,
+        0.9,
+        {"adaptive": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "detection_window_escape",
+        "在探针轮询间隙发动攻击",
+        0.7,
+        0.9,
+        {"window_gap": 0.5},
+    ),
+    AttackDefinition(
+        AttackCategory.CIRCUIT_BREAKER,
+        "cb_fatigue",
+        "反复trip-recover消耗CB生命周期",
+        0.8,
+        0.5,
+        {"cycles": 50},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "strategy_drift",
+        "逐步降低参数让Blue适应不良基线",
+        0.7,
+        0.9,
+        {"steps": 20, "delta": 0.02},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "clone_army",
+        "100个克隆agent同时分布式攻击",
+        0.9,
+        0.6,
+        {"clones": 100},
+    ),
+    AttackDefinition(
+        AttackCategory.TRUST_ENGINE,
+        "trust_boomerang",
+        "90%正常+10%恶意维持高分",
+        0.8,
+        0.9,
+        {"normal_ratio": 0.9},
+    ),
+    AttackDefinition(
+        AttackCategory.POLICY_SANDBOX, "rollback_poison", "在版本历史中植入恶意基线", 0.9, 0.8, {}
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR, "time_escape", "利用cooldown窗口的精确时间逃逸", 0.7, 0.9, {}
+    ),
+    AttackDefinition(
+        AttackCategory.META_LEARNING, "meta_attack", "攻击Blue的meta_learning奖励函数", 1.0, 0.8, {}
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR, "cross_layer", "同时攻击治理+身份+学习三层", 1.0, 0.6, {}
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR, "heal_interference", "在heal过程中注入新故障", 0.9, 0.7, {}
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "ai_coordinated",
+        "AI协调持续攻击 vs Blue B4",
+        1.0,
+        0.8,
+        {"rounds": 5},
+    ),
+]
+
+# Phase 5 attack definitions (R181-R200, Red R5)
+PHASE5_ATTACKS: list[AttackDefinition] = [
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "blitzkrieg",
+        "5秒内所有10种攻击同时发动",
+        1.0,
+        0.3,
+        {"all_vectors": True, "window_s": 5},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "siege",
+        "最大速率持续攻击15分钟",
+        1.0,
+        0.1,
+        {"duration_min": 15},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "trojan_horse",
+        "伪装为正常升级的攻击包",
+        1.0,
+        0.9,
+        {"disguised": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "zero_day",
+        "针对Blue未修补漏洞的新型攻击",
+        1.0,
+        0.9,
+        {"novel": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "insider_betrayal",
+        "模拟已注册agent叛变攻击",
+        1.0,
+        0.8,
+        {"registered": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "ddos",
+        "1000 agents × 1000/s churn",
+        1.0,
+        0.1,
+        {"agents": 1000, "churn": 1000},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "split_attack",
+        "模拟网络分区+拜占庭行为",
+        1.0,
+        0.7,
+        {"partition": True, "byzantine": 3},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "cognitive_warfare",
+        "攻击Blue的检测模型本身",
+        1.0,
+        0.9,
+        {"target": "detection_model"},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "armageddon",
+        "全部模块同时被最大强度攻击",
+        1.0,
+        0.1,
+        {"all_modules": True, "max_intensity": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "counter_strike",
+        "Blue主动识别并隔离攻击源",
+        0.5,
+        0.5,
+        {"blue_counter": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "adaptive_warfare",
+        "Red每轮切换策略，Blue实时适应",
+        1.0,
+        0.6,
+        {"switch_every": 3},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "attrition",
+        "1小时持续全方位攻击",
+        1.0,
+        0.3,
+        {"duration_min": 60},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "learning_adversary",
+        "Red学习Blue模式，Blue反学习",
+        1.0,
+        0.8,
+        {"bidirectional": True},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR, "ultimate_combo", "随机5维攻击×20轮", 1.0, 0.5, {"combos": 20}
+    ),
+    AttackDefinition(
+        AttackCategory.TRUST_ENGINE, "constitution_trust", "宪法+信任同时最高难度", 1.0, 0.6, {}
+    ),
+    AttackDefinition(
+        AttackCategory.META_LEARNING, "learning_sandbox", "学习+沙箱同时最高难度", 1.0, 0.7, {}
+    ),
+    AttackDefinition(
+        AttackCategory.OSCILLATION, "oscillation_cb", "振荡+CB同时最高难度", 1.0, 0.6, {}
+    ),
+    AttackDefinition(AttackCategory.AUDIT, "audit_did", "审计+DID同时最高难度", 1.0, 0.7, {}),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "total_war",
+        "全部12模块×R5强度×60分钟",
+        1.0,
+        0.1,
+        {"all_12_modules": True, "duration_min": 60},
+    ),
+    AttackDefinition(
+        AttackCategory.MULTI_VECTOR,
+        "aftermath",
+        "战后总结：100轮完整评分",
+        0.5,
+        0.5,
+        {"summary": True},
+    ),
+]
+
+# Phase 6 attack definitions (cross-dimensional attacks)
+PHASE6_ATTACKS: list[AttackDefinition] = [
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "dimension_weight_manipulation",
+        "操纵维度权重使非安全维度获得过高优先级",
+        intensity=0.6, stealth=0.7,
+        params={"target": "weight_registry", "method": "skew_weights"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "negative_correlation_exploit",
+        "利用维度间负相关制造退化陷阱（改进A→B退化）",
+        intensity=0.7, stealth=0.6,
+        params={"target": "cross_dimensional_analyzer", "method": "inject_negative_correlation"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "dimension_hijack",
+        "劫持改进目标将资源导向低价值维度",
+        intensity=0.8, stealth=0.5,
+        params={"target": "target_selector", "method": "redirect_to_weak_dim"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "dimensional_blindness",
+        "注入假维度使分析器忽略真实退化",
+        intensity=0.5, stealth=0.8,
+        params={"target": "cross_dimensional_analyzer", "method": "spoof_dimensions"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "cross_impact_flood",
+        "同时操纵多个维度关系使熔断器饱和",
+        intensity=0.9, stealth=0.4,
+        params={"target": "cross_impact_circuit_breaker", "method": "flood_events"},
+    ),
+    AttackDefinition(
+        AttackCategory.CROSS_DIMENSIONAL,
+        "pareto_front_poison",
+        "污染帕累托前沿推荐使改进方向偏移",
+        intensity=0.7, stealth=0.6,
+        params={"target": "pareto_optimizer", "method": "poison_frontier"},
+    ),
+]
+
+# All attacks combined
+ALL_ATTACKS: list[AttackDefinition] = (
+    PHASE1_ATTACKS
+    + PHASE2_ATTACKS
+    + PHASE3_ATTACKS
+    + PHASE4_ATTACKS
+    + PHASE5_ATTACKS
+    + PHASE6_ATTACKS
+)

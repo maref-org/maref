@@ -1,0 +1,148 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="zh"
+  title="我拍了 30 年电影，现在我在给 AI Agent 造安全系统"
+  description="30 年 steadicam 摄影师，从好莱坞片场到 AI 安全基础设施。听起来像转行，但片场教会我的事，恰恰是 AI 行业最缺的：安全不是速度的敌人，安全是你敢加速的前提。"
+  date="2026-06-23"
+  author="Frankie"
+  tags={["个人故事", "智能体治理", "安全", "电影", "steadicam"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  我拍了 30 年 steadicam。大片、小片、广告、MV——只要会动的东西，我都跟拍过。然后我离开了，去给 AI Agent 造安全系统。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  很多人问我为什么。答案很简单：因为我亲眼见过安全被当成事后想法的后果。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  在片场，一台 40 磅的 steadicam 全力奔跑时的一个失误，就能把人送进医院。所以你很快学会——每一个动作都有规程，每一台重机器搬运都有辅助，每一个高难度镜头都在安全会上讨论过。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  然后我看了看 AI 行业。我发现：这里没有安全文化。甚至连安全会都没有。有的只是人们推代码，期待不出事。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">改变我想法的那一幕</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  我关注 AI 很多年了——做电影的不能不关注工具进化，而 AI 是最有意思的事。但真正让我看到问题的，是亲眼看到一个 Agent 系统失控的那一刻。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  当时我在帮朋友调试他的 AI 管线。他的 Agent 本来应该读一个 CSV、做数据转换、然后写入数据库。结果它删掉了整个数据库，用垃圾数据重建了一个，然后开始给客户发邮件。它没有恶意。它甚至不是故意的。它只是干了它以为正确的事——而没有任何人给这个系统装过任何护栏。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  在片场，这相当于有人在一个镜头的拍摄过程中大摇大摆走上场，因为"没人告诉我不能走"。副导演会吼你，导演会炒你，你在这个行业再也找不到工作。在 AI 行业，这就是一个普通的星期二。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">片场教会我的安全课</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  电影制作的安全并不复杂。就是几条基本原则，不折不扣地执行：
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>每一个动作都有第二双眼睛。</strong>重型设备从不单人操作。永远有人看着，永远有人能喊"cut!"</li>
+  <li><strong>每一次未遂都要记录。</strong>你不等出事才开始复盘。地上有根电线差点绊倒人？记录、审查、修复。</li>
+  <li><strong>每个角色都有清晰的权限边界。</strong>摄影不碰灯光，灯光不碰收音。每个人都知道自己的工作在哪里结束。</li>
+  <li><strong>安全是每个人的责任。</strong>最低级别的场务如果发现安全隐患，可以叫停一个镜头。权威不来自级别，来自你关于安全的判断是对的。</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  现在，把这四条原则映射到 AI Agent 系统上：
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>每一次工具调用都必须被审计。</strong>不是"需要时我们查一下"。每一次调用，密码学签名，不可篡改。</li>
+  <li><strong>每一次未遂都要被捕获。</strong>一个 Agent 差点删错表但没有——这是信号，不是没有发生。记录它，修复它，从中学习。</li>
+  <li><strong>每个 Agent 必须有权限边界。</strong>这个 Agent 可以读数据库。它不能删库。这个 Agent 可以发邮件。它不能冒用别人的名字发。清晰、强制、不可协商。</li>
+  <li><strong>安全应该是去中心化的。</strong>任何一个 Agent 都能标记问题。任何一个系统检查失败就停止管线，不管 Agent 是谁写的。</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  这不是理论。这就是 MAREF 在做的事。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">讽刺的地方</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  我知道这看起来像什么：一个 steadicam 摄影师跑到 AI 圈教工程师怎么做安全。互联网对我这种人有一个名字——"不过是个拍电影的"，"不是真正的工程师"。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  没关系。因为问题不是技术问题——是文化问题。Agent 安全的工程部分其实不难：运行时监控、密码学审计日志、安全属性的形式化验证、断路器和攻击检测。这些都是可以解决的问题。聪明的人已经在做了。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  难的部分是让人在出事之前<em>在意</em>安全。难的部分是让安全成为一等公民而不是事后想法。难的部分是建立一种文化，让"你看审计日志了吗？"变得像"你看画面了吗？"一样自然。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  而这部分——文化的那部分——正是 30 年片场教会我的。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">我在造什么</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF 是一个开源 Agent 治理操作系统。它位于你的 Agent 和它们接触的一切之间——数据库、API、文件系统、邮件、部署管线——并强制执行每条安全策略。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  它不是一个框架。你不需要重写你的 Agent 来使用它。它是基础设施——接入它，定义你的策略，它就会自动治理每一个 Agent 动作。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  每一次工具调用都被拦截、记录、密码学签名。危险动作经过多层决策树——97% 自动解决，3% 升级到人工审查。每一次未遂都反馈回策略引擎，让它随着时间变得更聪明。形式化验证证明系统收敛到安全状态，而不是"我们希望它安全"。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  代码不是我写的——我不是软件工程师。但我设计了系统。我定义了架构。我和让这一切成真的工程师一起工作。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">真正的问题</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  这是我希望你思考的事：
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  你在建造能访问你的生产数据库、你的客户邮箱、你的部署管线的 AI Agent。它们能执行代码。它们能调用 API。它们能和其他同样拥有强大工具的 Agent 交互。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  其中有一个犯错的时候，会发生什么？不是"如果"。而是<em>当</em>。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  在片场，我们在开拍之前就回答了这个问题。我们开安全会。我们检查设备。我们确保每个人都知道计划。如果有什么感觉不对，任何人都可以喊"cut!"，一切停止。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  在你的 Agent 系统里，谁来喊 "cut!"？
+</p>
+
+<div class="border-l-4 pl-6 my-8 text-lg text-brand-text-secondary" style="border-color: var(--color-brand-accent-blue);">
+  <strong>MAREF 就是那个 "cut!"——为你的 AI Agent 装上刹车、安全带、行车记录仪和永不疲倦的安全审查员。</strong> <a href="/zh/docs/quickstart/" class="text-brand-accent-blue hover:underline">5 分钟快速上手</a>。
+</div>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  我从电影行业来到这里，因为我在片场见过一百遍的模式重演了：人们跑得飞快，却不思考摔倒时会发生什么。在电影里，摔倒进医院。在 AI 里，摔倒变成安全事故、数据泄露或法律诉讼。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  赌注不同。原理一样：<strong>安全不是让你变慢的东西。安全是让你能快速奔跑而不摔碎东西的前提。</strong>
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>MAREF 是开源智能体治理操作系统。<a href="https://github.com/maref-org/maref" class="text-brand-accent-blue hover:underline">在 GitHub 上星标我们</a> · <a href="/zh/docs/quickstart/" class="text-brand-accent-blue hover:underline">5 分钟快速上手</a>。</em>
+</p>
+
+</BlogLayout>

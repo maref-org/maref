@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" /><feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+  </defs>
+
+  <!-- Attack arrow -->
+  <path d="M 80,460 L 320,460" stroke="#ef4444" stroke-width="6" fill="none" />
+  <polygon points="320,448 340,460 320,472" fill="#ef4444" />
+  <text x="150" y="440" fill="#ef4444" font-size="16" font-weight="700" font-family="monospace">ATTACK</text>
+
+  <!-- 8 shield layers -->
+  <g transform="translate(380, 200)">
+    <rect x="0" y="0" width="260" height="50" rx="6" fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.5" />
+    <text x="130" y="32" text-anchor="middle" fill="#3b82f6" font-size="12" font-weight="600" font-family="monospace">Layer 1: Edge</text>
+    <rect x="0" y="60" width="260" height="50" rx="6" fill="none" stroke="#06b6d4" stroke-width="2" opacity="0.5" />
+    <text x="130" y="92" text-anchor="middle" fill="#06b6d4" font-size="12" font-weight="600" font-family="monospace">Layer 2: Proxy</text>
+    <rect x="0" y="120" width="260" height="50" rx="6" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.5" />
+    <text x="130" y="152" text-anchor="middle" fill="#8b5cf6" font-size="12" font-weight="600" font-family="monospace">Layer 3: Auth</text>
+    <rect x="0" y="180" width="260" height="50" rx="6" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.5" />
+    <text x="130" y="212" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="600" font-family="monospace">Layer 4: Rate Limit</text>
+
+    <!-- Layer 5 - INTERCEPTED -->
+    <rect x="-5" y="240" width="270" height="60" rx="8" fill="#10b981" opacity="0.12" stroke="#10b981" stroke-width="3" filter="url(#glow)" />
+    <text x="130" y="278" text-anchor="middle" fill="#10b981" font-size="14" font-weight="800" font-family="monospace">← Layer 5: INTERCEPTED →</text>
+
+    <rect x="0" y="310" width="260" height="50" rx="6" fill="none" stroke="#3b82f6" stroke-width="1" opacity="0.3" />
+    <text x="130" y="342" text-anchor="middle" fill="#3b82f6" font-size="12" font-weight="600" font-family="monospace" opacity="0.5">Layer 6: Sandbox</text>
+    <rect x="0" y="370" width="260" height="50" rx="6" fill="none" stroke="#06b6d4" stroke-width="1" opacity="0.3" />
+    <text x="130" y="402" text-anchor="middle" fill="#06b6d4" font-size="12" font-weight="600" font-family="monospace" opacity="0.5">Layer 7: Audit</text>
+    <rect x="0" y="430" width="260" height="50" rx="6" fill="none" stroke="#8b5cf6" stroke-width="1" opacity="0.3" />
+    <text x="130" y="462" text-anchor="middle" fill="#8b5cf6" font-size="12" font-weight="600" font-family="monospace" opacity="0.5">Layer 8: Backup</text>
+  </g>
+
+  <!-- Explosion effect -->
+  <g transform="translate(380, 270)">
+    <line x1="-30" y1="-30" x2="-60" y2="-60" stroke="#10b981" stroke-width="3" opacity="0.8" />
+    <line x1="0" y1="-40" x2="0" y2="-80" stroke="#10b981" stroke-width="3" opacity="0.8" />
+    <line x1="30" y1="-30" x2="60" y2="-60" stroke="#10b981" stroke-width="3" opacity="0.8" />
+    <line x1="-30" y1="30" x2="-60" y2="60" stroke="#10b981" stroke-width="2" opacity="0.5" />
+    <line x1="30" y1="30" x2="60" y2="60" stroke="#10b981" stroke-width="2" opacity="0.5" />
+  </g>
+
+  <!-- Badge -->
+  <rect x="350" y="770" width="324" height="50" rx="25" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="1" />
+  <text x="512" y="800" text-anchor="middle" fill="#10b981" font-size="18" font-weight="800" font-family="monospace">97% Decision Automation</text>
+
+  <!-- Title -->
+  <text x="512" y="160" text-anchor="middle" fill="#3b82f6" font-size="20" font-weight="700" font-family="sans-serif">8-Layer Defense in Depth</text>
+</svg>

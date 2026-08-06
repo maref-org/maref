@@ -1,0 +1,32 @@
+{# skeleton_v1.j2 — MAREF Creative-Automation Prompt Template #}
+{# Adapted from alexbeattie/creative-automation-pipeline's prompt_templates/ #}
+{# Variables provided by prompt_composer.compose(): #}
+{#   product, campaign, brand, locale, channel, composition, safety_directives #}
+
+Photograph of {{ product.name }} — {{ product.description }}.
+
+Subject: {{ product.name }} shown in a {{ composition }} layout.
+Audience: {{ campaign.target_audience }}.
+Region context: {{ locale.cultural_cues }}.
+
+Brand voice: {{ brand.voice }}
+Brand palette: {{ brand.palette | join(', ') }}.
+Required visual cues:
+{% for cue in brand.must_include %}  - {{ cue }}
+{% endfor %}
+
+Composition directive: {{ composition }}.
+Channel: {{ channel }}.
+
+Avoid:
+{% for avoid in brand.must_avoid %}  - {{ avoid }}
+{% endfor %}
+{% for directive in safety_directives %}  - {{ directive }}
+{% endfor %}
+
+{% if locale.forbidden_imagery %}Locale-specific forbidden imagery:
+{% for img in locale.forbidden_imagery %}  - {{ img }}
+{% endfor %}
+{% endif %}
+
+Render at native aspect ratio. No text overlays. No watermarks except verified-by-TLA+ marker declared in must_include.

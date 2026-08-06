@@ -1,0 +1,20 @@
+# MAREF dependencies
+# Install: pip install -r requirements.txt
+
+# LLM integration
+aiohttp>=3.14.1
+python-dotenv>=1.0.0
+
+# Agent framework adapters (P0.2)
+pyautogen>=0.10.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+
+# Vector store (P1.1)
+chromadb>=1.5.9
+
+# Additional agent frameworks (future)
+# crewai>=0.1.0
+# langgraph>=0.0.10

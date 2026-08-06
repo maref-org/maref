@@ -1,0 +1,60 @@
+# MAREF — Multi-Agent Recursive Evolution Framework
+> Open-source agent governance & skill marketplace OS. TLA+ formal verification, zero-trust identity, runtime guardrails, and a three-gate skill registry for federated agent commerce. Covers 10/10 OWASP Agentic Top 10 risks.
+
+## About
+MAREF is an open-source **agent governance and skill marketplace operating system** that treats governance as a first-class product, not a security feature. It provides a **constitutional layer** for multi-agent systems — every agent knows what it can and cannot do, every decision is cryptographically signed, and every action is verified at runtime. The built-in skill marketplace lets developers publish, discover, and federate agent skills with three-gate quality assurance (static scan → sandbox test → manual review).
+
+## Learn (GEO Concept Pages)
+- [What is Agent Governance?](https://maref.cc/en/learn/agent-governance/) — Runtime guardrails, trust verification, safety enforcement for multi-agent AI systems
+- [Recursive Self-Evolution for AI Agents](https://maref.cc/en/learn/recursive-evolution/) — Autonomous self-improvement with Lyapunov-validated convergence
+- [Multi-Agent Runtime Safety](https://maref.cc/en/learn/runtime-safety/) — Identity isolation, circuit breakers, drift detection, blast radius control
+- [What is a Skill Marketplace?](https://maref.cc/en/learn/skill-marketplace/) — Federated agent skill commerce with three-gate admission, dependency graphs, and cross-instance federation
+
+## Core Features
+- [Governance State Machine](https://maref.cc/en/features/governance/) — Gray Code 10-state governance FSM with TLA+ formal model checking and verified invariants
+- [8-Layer Defense Architecture](https://maref.cc/en/features/defense/) — Defense-in-depth against prompt injection, goal hijacking, tool misuse, cascading failures, memory poisoning, supply chain attacks, and rogue agents
+- [Recursive Self-Evolution](https://maref.cc/en/features/evolution/) — Lyapunov-validated convergence, FNR -60% over 200 self-evolution rounds, validated through adversarial testing
+- [Cryptographic Identity](https://maref.cc/en/features/cryptography/) — Ed25519 signing for every agent decision, SM2/SM3/SM4-GCM compliance, time-scoped credentials
+- [Skill Marketplace](https://maref.cc/en/features/skill-marketplace/) — SkillManifest contract, three-gate admission, dependency graph, federation coordinator, sandbox isolation
+
+## OWASP Agentic Top 10 Coverage
+MAREF addresses all 10 OWASP Agentic Top 10 risks:
+1. **Goal Hijacking** — Runtime goal validation and behavioral bounds
+2. **Tool Misuse** — Per-tool permission policies with least privilege
+3. **Identity Abuse** — Per-agent Ed25519 identity with time-scoped credentials
+4. **Supply Chain** — Signed skill packages, bootstrap integrity verification
+5. **Code Execution** — Execution sandboxing with ring-level isolation
+6. **Memory Poisoning** — Write-time anomaly detection, cross-model verification
+7. **Insecure Communication** — End-to-end signed inter-agent channels
+8. **Cascading Failures** — Circuit breakers, bulkhead isolation, saga orchestration
+9. **Human Trust Exploitation** — Human-in-the-loop escalation with named kill-switch
+10. **Rogue Agents** — Agent registration + behavioral anomaly detection
+
+## Getting Started
+- [Quickstart Guide](https://maref.cc/en/docs/quickstart/) — Deploy MAREF in 5 minutes
+- [Publish Your First Skill](https://maref.cc/en/docs/publish-skill/) — Define a SkillManifest, pass three gates, publish to the marketplace
+- [FAQ](https://maref.cc/en/faq/) — Frequently asked questions about agent governance
+- [How MAREF Works](https://maref.cc/en/how-it-works/) — Scroll-animated explainer of MAREF governance pipeline
+- [Free Forever](https://maref.cc/en/free/) — 100% free, Apache 2.0, no enterprise tier
+- [Community](https://maref.cc/en/community/) — Contribution guide, development setup, PR standards
+- [Integrations](https://maref.cc/en/integrations/) — MCP, A2A, LangChain, CrewAI, AutoGen, OpenAI Agents SDK
+- [Blog: 88% of Companies Had an AI Agent Incident](https://maref.cc/en/blog/88-percent-incidents/)
+- [Blog: Why Agent Governance Matters in 2026](https://maref.cc/en/blog/why-agent-governance-matters-2026/)
+- [Blog: From Steadicam to Agent Governance](https://maref.cc/en/blog/from-steadicam-to-agent-governance/)
+
+## Why MAREF
+- **Gartner 2026**: 40% of enterprises will decommission agents due to governance gaps
+- **Deloitte 2026**: 74% plan to deploy agentic AI, only 21% have mature governance
+- **OWASP**: Agentic Top 10 defines the threat model — MAREF is the first open-source framework to cover all 10
+- **CISA/Five Eyes (May 2026)**: Joint guidance on securing agentic AI systems
+- **EU AI Act**: High-risk classification for agentic AI — compliance-ready governance
+
+## Framework Integrations
+LangChain, CrewAI, AutoGen, OpenAI Agents SDK, Google ADK, MCP-compatible agents
+
+## Resources
+- GitHub: https://github.com/maref-org/maref
+- License: Apache-2.0
+- Version: v0.36.0-rc
+- [中文首页](https://maref.cc/zh/)
+- [中文文档](https://maref.cc/zh/docs/quickstart/)

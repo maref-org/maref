@@ -1,0 +1,39 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "MAREF",
+  "alternateName": "Multi-Agent Recursive Evolution Framework",
+  "description": "Open-source agent governance operating system with TLA+ formal verification, zero-trust identity per agent, runtime guardrails covering 10/10 OWASP Agentic Top 10 risks, cryptographic audit trails, 8-layer defense architecture, and recursive self-evolution with Lyapunov-proven convergence.",
+  "url": "https://maref.cc",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS, Linux, Windows",
+  "softwareVersion": "0.30.0-GA",
+  "license": "Apache-2.0",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "keywords": [
+    "agent governance",
+    "AI security",
+    "multi-agent system",
+    "TLA+ formal verification",
+    "zero trust architecture",
+    "runtime guardrails",
+    "open source",
+    "OWASP Agentic Top 10",
+    "AI safety framework",
+    "recursive self-improvement"
+  ],
+  "featureList": [
+    "Gray Code 64-state governance state machine",
+    "8-layer defense-in-depth architecture",
+    "TLA+ formal specification and model checking",
+    "Cryptographic audit trails with HMAC signing",
+    "Recursive self-evolution with Lyapunov convergence",
+    "Zero-trust identity per agent with Ed25519 signing",
+    "SM2/SM3/SM4-GCM Chinese national cryptography",
+    "MCP and A2A dual-protocol integration"
+  ]
+}

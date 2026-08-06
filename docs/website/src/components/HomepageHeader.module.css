@@ -1,0 +1,24 @@
+.ctaRow {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.versionInfo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  font-size: 0.85rem;
+}
+
+.license {
+  opacity: 0.7;
+}
+
+.platforms {
+  opacity: 0.6;
+  font-size: 0.8rem;
+}

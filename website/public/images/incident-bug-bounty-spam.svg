@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1e2e" />
+      <stop offset="100%" stop-color="#0f0f18" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="#000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Dark card background -->
+  <rect width="1024" height="1024" rx="24" fill="url(#bg2)" filter="url(#shadow)" />
+
+  <!-- Top accent bar -->
+  <rect x="0" y="0" width="1024" height="8" rx="4" fill="#f97316" />
+
+  <!-- Severity badge -->
+  <rect x="840" y="30" width="140" height="32" rx="16" fill="#f97316" />
+  <text x="910" y="51" text-anchor="middle" fill="#fff" font-size="14" font-weight="800" font-family="sans-serif">HIGH</text>
+
+  <!-- Company label -->
+  <text x="50" y="80" fill="#6b7280" font-size="18" font-weight="600" font-family="sans-serif">CURL · Open Source</text>
+
+  <!-- Icon area -->
+  <g transform="translate(512, 200)">
+    <circle cx="0" cy="0" r="64" fill="#f97316" opacity="0.1" />
+    <!-- Shield with slash -->
+    <g fill="none" stroke="#f97316" stroke-width="3">
+      <path d="M0,-50 L90,-30 L90,20 Q90,80 0,110 Q-90,80 -90,20 L-90,-30 Z" />
+      <path d="M-50,-60 L50,60" stroke-width="4" stroke-linecap="round" />
+    </g>
+  </g>
+
+  <!-- Title -->
+  <text x="512" y="350" text-anchor="middle" fill="#f1f5f9" font-size="36" font-weight="800" font-family="sans-serif">关闭 7 年漏洞悬赏</text>
+
+  <!-- Separator -->
+  <rect x="400" y="380" width="224" height="4" rx="2" fill="#f97316" opacity="0.5" />
+
+  <!-- Story text -->
+  <text x="80" y="460" fill="#cbd5e1" font-size="24" font-family="sans-serif" font-weight="400">
+    <tspan x="80" dy="0">AI 生成的漏洞报告中</tspan>
+    <tspan x="80" dy="52" fill="#fdba74" font-weight="700">只有 5% 是真实的。</tspan>
+    <tspan x="80" dy="60" fill="#f1f5f9">维护者直接砍掉整个项目</tspan>
+    <tspan x="80" dy="48" fill="#f1f5f9">而不是筛选 AI 垃圾。</tspan>
+  </text>
+
+  <!-- Impact metrics bar -->
+  <g transform="translate(80, 720)">
+    <rect x="0" y="0" width="864" height="80" rx="12" fill="#f97316" opacity="0.08" />
+    <text x="30" y="24" fill="#9ca3af" font-size="14" font-weight="600" font-family="sans-serif">IMPACT</text>
+    <text x="30" y="56" fill="#fdba74" font-size="28" font-weight="800" font-family="sans-serif">7 年漏洞悬赏历史</text>
+    <text x="400" y="56" fill="#fdba74" font-size="28" font-weight="800" font-family="sans-serif">仅 5% 真实报告</text>
+  </g>
+
+  <!-- Bottom label -->
+  <text x="512" y="940" text-anchor="middle" fill="#4b5563" font-size="16" font-family="sans-serif">curl Project · Daniel Stenberg · 2025</text>
+</svg>

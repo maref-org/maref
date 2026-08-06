@@ -1,0 +1,251 @@
+name: Docker CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/maref
+
+jobs:
+  build:
+    name: Build & Validate Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.GHCR_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,format=short,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image metadata
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          docker inspect "$FIRST_TAG" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)[0]
+          labels = data['Config']['Labels']
+          print(f\"Image: {labels.get('org.opencontainers.image.title', 'N/A')}\")
+          print(f\"Version: {labels.get('org.opencontainers.image.version', 'N/A')}\")
+          print(f\"Size: {data['Size'] / 1024 / 1024:.1f} MB\")
+          assert 'MAREF' in labels.get('org.opencontainers.image.title', '')
+          " || true
+
+      - name: Start container with Xvfb
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          docker run -d --name maref-test \
+            -p 8080:8080 \
+            -e MAREF_DRY_RUN=true \
+            -e MAREF_MCP_SECRET_KEY=${{ secrets.MAREF_MCP_SECRET_KEY || 'ci-test-key' }} \
+            -e MAREF_HMAC_SECRET_KEY=${{ secrets.MAREF_HMAC_SECRET_KEY || 'ci-hmac-key' }} \
+            -e DISPLAY=:99 \
+            --entrypoint /bin/bash \
+            "$FIRST_TAG" \
+            -c "export XAUTHORITY=/tmp/.xauth; touch /tmp/.xauth; Xvfb :99 -screen 0 1280x720x24 -ac & sleep 1 && maref serve --host 0.0.0.0 --port 8080"
+
+      - name: Wait for health endpoint
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/api/health > /dev/null 2>&1; then
+              echo "✓ Container is healthy (attempt $i)!"
+              curl -s http://localhost:8080/api/health | python3 -m json.tool
+              exit 0
+            fi
+            echo "Attempt $i: Health endpoint not yet available"
+            sleep 2
+          done
+          echo "✗ Container failed to become healthy within 60s"
+          docker logs maref-test --tail 100
+          exit 1
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker logs maref-test --tail 100
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f maref-test || true
+
+      - name: Resolve image tag
+        id: image-tag
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          echo "first_tag=$FIRST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.image-tag.outputs.first_tag }}
+          format: cyclonedx
+          output-file: sbom.cdx.json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json
+
+      - name: Image size report
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          FIRST_TAG=$(echo "$TAGS" | head -1)
+          echo "### Docker Image Size Report" >> $GITHUB_STEP_SUMMARY
+          docker images --format "| {{.Repository}}:{{.Tag}} | {{.Size}} |" "$FIRST_TAG" >> $GITHUB_STEP_SUMMARY
+
+  scan:
+    name: Docker Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: [build]
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scan
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: maref/maref:scan
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          scan-ref: maref/maref:scan
+          format: table
+          exit-code: 1
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Run Trivy with SARIF output
+        uses: aquasecurity/trivy-action@v0.36.0
+        if: always()
+        with:
+          scan-type: image
+          scan-ref: maref/maref:scan
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Upload Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: docker-vulnerability
+
+      - name: Scan summary
+        if: always()
+        run: |
+          echo "### Docker Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "Image: \`maref/maref:scan\`" >> $GITHUB_STEP_SUMMARY
+          echo "Severity: HIGH, CRITICAL" >> $GITHUB_STEP_SUMMARY
+          echo "Unfixed: ignored" >> $GITHUB_STEP_SUMMARY
+
+  push:
+    name: Push Docker Images to Registries
+    runs-on: ubuntu-latest
+    needs: [build, scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.GHCR_IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=sha-
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker images
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install cosign
+        if: github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Sign container images (keyless)
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes \
+            -a "repo=${{ github.repository }}" \
+            -a "workflow=${{ github.workflow }}" \
+            -a "ref=${{ github.ref }}" \
+            -a "commit=${{ github.sha }}" \
+            "${{ env.GHCR_IMAGE }}@${{ steps.push.outputs.digest }}"
+
+      - name: Verify signature
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${{ env.GHCR_IMAGE }}@${{ steps.push.outputs.digest }}"
+
+      - name: Push summary
+        run: |
+          echo "### Docker Image Push Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Registry | Image | Tags |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| GHCR | ${{ env.GHCR_IMAGE }} | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY

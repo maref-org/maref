@@ -1,0 +1,289 @@
+from __future__ import annotations
+
+import fnmatch
+import os
+import shutil
+from datetime import datetime
+from typing import Any
+
+from maref.integration.mcp_server import MCPServer
+
+_DEFAULT_MAX_READ_SIZE = 10 * 1024 * 1024
+
+
+class PathSandboxError(PermissionError): ...
+
+
+class FileSizeLimitError(ValueError): ...
+
+
+class PathSandbox:
+    def __init__(self, allowed_bases: list[str] | None = None) -> None:
+        cwd = os.getcwd()
+        bases = allowed_bases if allowed_bases is not None else [cwd]
+        self._allowed_bases = [
+            os.path.realpath(os.path.abspath(os.path.expanduser(b))) for b in bases
+        ]
+
+    @property
+    def allowed_bases(self) -> list[str]:
+        return list(self._allowed_bases)
+
+    def resolve(self, path: str) -> str:
+        expanded = os.path.expanduser(path)
+        abs_path = os.path.abspath(expanded)
+        return os.path.realpath(abs_path)
+
+    def validate(self, path: str) -> str:
+        resolved = self.resolve(path)
+        for base in self._allowed_bases:
+            if resolved == base or resolved.startswith(base + os.sep):
+                return resolved
+        raise PathSandboxError(
+            f"Path '{resolved}' is outside allowed sandbox bases: {self._allowed_bases}"
+        )
+
+
+def create_file_server(
+    name: str = "maref-file-server",
+    version: str = "0.25.0",
+    allowed_bases: list[str] | None = None,
+    max_read_size: int = _DEFAULT_MAX_READ_SIZE,
+) -> MCPServer:
+    sandbox = PathSandbox(allowed_bases)
+    server = MCPServer(name=name, version=version)
+
+    def _handle_read_file(args: dict[str, Any]) -> dict[str, Any]:
+        path = args["path"]
+        encoding = args.get("encoding", "utf-8")
+        safe_path = sandbox.validate(path)
+
+        file_size = os.path.getsize(safe_path)
+        if file_size > max_read_size:
+            raise FileSizeLimitError(f"File size {file_size} exceeds limit {max_read_size}")
+
+        with open(safe_path, encoding=encoding) as f:
+            content = f.read()
+
+        return {"content": content, "size": file_size, "encoding": encoding}
+
+    def _handle_write_file(args: dict[str, Any]) -> dict[str, Any]:
+        path = args["path"]
+        content = args["content"]
+        encoding = args.get("encoding", "utf-8")
+        safe_path = sandbox.validate(path)
+
+        parent = os.path.dirname(safe_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
+        with open(safe_path, "w", encoding=encoding) as f:
+            f.write(content)
+
+        byte_size = len(content.encode(encoding))
+        return {"success": True, "path": safe_path, "size": byte_size}
+
+    def _handle_list_directory(args: dict[str, Any]) -> dict[str, Any]:
+        path = args.get("path", ".")
+        pattern = args.get("pattern")
+        safe_path = sandbox.validate(path)
+
+        if not os.path.isdir(safe_path):
+            raise NotADirectoryError(f"Path is not a directory: {safe_path}")
+
+        items: list[dict[str, Any]] = []
+        for entry in os.listdir(safe_path):
+            if pattern is not None and not fnmatch.fnmatch(entry, pattern):
+                continue
+            entry_path = os.path.join(safe_path, entry)
+            is_dir = os.path.isdir(entry_path)
+            size = 0
+            if not is_dir:
+                try:
+                    size = os.path.getsize(entry_path)
+                except OSError:
+                    size = 0
+            items.append(
+                {
+                    "name": entry,
+                    "type": "dir" if is_dir else "file",
+                    "size": size,
+                }
+            )
+
+        items.sort(key=lambda x: (x["type"] != "dir", x["name"].lower()))
+        return {"items": items}
+
+    def _handle_delete_file(args: dict[str, Any]) -> dict[str, Any]:
+        path = args["path"]
+        safe_path = sandbox.validate(path)
+
+        if not os.path.exists(safe_path):
+            raise FileNotFoundError(f"File not found: {safe_path}")
+
+        if os.path.isdir(safe_path):
+            shutil.rmtree(safe_path)
+        else:
+            os.remove(safe_path)
+
+        return {"success": True, "path": safe_path}
+
+    def _handle_copy_file(args: dict[str, Any]) -> dict[str, Any]:
+        source = args["source"]
+        destination = args["destination"]
+        safe_source = sandbox.validate(source)
+        safe_dest = sandbox.validate(destination)
+
+        parent = os.path.dirname(safe_dest)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
+        shutil.copy2(safe_source, safe_dest)
+
+        return {"success": True, "source": safe_source, "destination": safe_dest}
+
+    def _handle_move_file(args: dict[str, Any]) -> dict[str, Any]:
+        source = args["source"]
+        destination = args["destination"]
+        safe_source = sandbox.validate(source)
+        safe_dest = sandbox.validate(destination)
+
+        parent = os.path.dirname(safe_dest)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
+        shutil.move(safe_source, safe_dest)
+
+        return {"success": True, "source": safe_source, "destination": safe_dest}
+
+    def _handle_get_file_info(args: dict[str, Any]) -> dict[str, Any]:
+        path = args["path"]
+        safe_path = sandbox.validate(path)
+
+        if not os.path.exists(safe_path):
+            raise FileNotFoundError(f"File not found: {safe_path}")
+
+        is_dir = os.path.isdir(safe_path)
+        size = 0 if is_dir else os.path.getsize(safe_path)
+        mtime = os.path.getmtime(safe_path)
+        modified = datetime.fromtimestamp(mtime).isoformat()
+
+        return {
+            "path": safe_path,
+            "size": size,
+            "modified": modified,
+            "is_dir": is_dir,
+        }
+
+    server.register_tool(
+        name="read_file",
+        description="Read file content from the local filesystem",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to the file to read"},
+                "encoding": {
+                    "type": "string",
+                    "description": "File encoding",
+                    "default": "utf-8",
+                },
+            },
+            "required": ["path"],
+        },
+        handler=_handle_read_file,
+    )
+
+    server.register_tool(
+        name="write_file",
+        description="Write content to a file on the local filesystem",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to the file to write"},
+                "content": {"type": "string", "description": "Content to write"},
+                "encoding": {
+                    "type": "string",
+                    "description": "File encoding",
+                    "default": "utf-8",
+                },
+            },
+            "required": ["path", "content"],
+        },
+        handler=_handle_write_file,
+    )
+
+    server.register_tool(
+        name="list_directory",
+        description="List contents of a directory",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Directory path",
+                    "default": ".",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "Optional glob pattern to filter items",
+                },
+            },
+        },
+        handler=_handle_list_directory,
+    )
+
+    server.register_tool(
+        name="delete_file",
+        description="Delete a file or directory from the local filesystem",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to delete"},
+            },
+            "required": ["path"],
+        },
+        handler=_handle_delete_file,
+    )
+
+    server.register_tool(
+        name="copy_file",
+        description="Copy a file or directory from source to destination",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "source": {"type": "string", "description": "Source path"},
+                "destination": {"type": "string", "description": "Destination path"},
+            },
+            "required": ["source", "destination"],
+        },
+        handler=_handle_copy_file,
+    )
+
+    server.register_tool(
+        name="move_file",
+        description="Move a file or directory from source to destination",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "source": {"type": "string", "description": "Source path"},
+                "destination": {"type": "string", "description": "Destination path"},
+            },
+            "required": ["source", "destination"],
+        },
+        handler=_handle_move_file,
+    )
+
+    server.register_tool(
+        name="get_file_info",
+        description="Get metadata information about a file or directory",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to inspect"},
+            },
+            "required": ["path"],
+        },
+        handler=_handle_get_file_info,
+    )
+
+    return server

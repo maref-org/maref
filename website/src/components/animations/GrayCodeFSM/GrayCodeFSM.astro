@@ -1,0 +1,37 @@
+---
+import GrayCodeFSM from "./GrayCodeFSM";
+
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = locale === "zh" ? {
+  badge: "治理状态机",
+  title: "Gray Code 有限状态机",
+  subtitle: "每步跳转汉明距离 = 1，数学可验证的治理状态转换",
+  stateNames: ["初始", "引导", "加载", "校验", "认证", "运行", "监控", "演进", "检查点", "终止"],
+  legendCurrent: "当前状态",
+  legendPath: "跳转路径",
+  legendHalt: "吸收态 HALT",
+  legendHamming: "汉明距离 = 1",
+  autoPlay: "自动",
+  step: "步进 →",
+  reset: "重置",
+} : {
+  badge: "Governance FSM",
+  title: "Gray Code State Machine",
+  subtitle: "Hamming distance = 1 on every transition. Mathematically verifiable governance.",
+  stateNames: ["INIT", "BOOTSTRAP", "LOAD", "VERIFY", "ATTEST", "OPERATE", "MONITOR", "EVOLVE", "CHECKPOINT", "HALT"],
+  legendCurrent: "Current State",
+  legendPath: "Transition Path",
+  legendHalt: "Absorbing HALT",
+  legendHamming: "Hamming Distance = 1",
+  autoPlay: "Auto",
+  step: "Step →",
+  reset: "Reset",
+};
+---
+
+<GrayCodeFSM client:visible content={content} />

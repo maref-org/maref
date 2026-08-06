@@ -1,0 +1,57 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gui/**'
+      - '.github/workflows/lighthouse.yml'
+      - 'lighthouserc.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gui/**'
+      - '.github/workflows/lighthouse.yml'
+      - 'lighthouserc.json'
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.33.2
+
+      - name: Install dependencies
+        working-directory: ./gui
+        run: pnpm install --frozen-lockfile
+
+      - name: Build GUI
+        working-directory: ./gui
+        run: pnpm build
+
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.14.x
+          lhci autorun --config=lighthouserc.json
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Check bundle size
+        working-directory: ./gui
+        run: npx bundlesize
+
+      - name: Upload Lighthouse reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: gui/.lighthouseci/

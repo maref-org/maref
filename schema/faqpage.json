@@ -1,0 +1,174 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF (Multi-Agent Research Environment Framework) is a governance layer for AI agents, providing security, audit, and trust mechanisms for autonomous agent systems. It focuses on formal verification, permission models, and comprehensive audit logging."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is TLA+ and how does MAREF use it?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "TLA+ (Temporal Logic of Actions) is a formal specification language. MAREF uses TLA+ to formally verify agent safety properties, ensuring that agent actions can't violate security constraints. This provides mathematical guarantees that traditional code reviews can't achieve."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF differ from LangGraph?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF is a governance and security layer that sits above agent orchestration frameworks. While LangGraph focuses on agent workflow and state management, MAREF provides formal verification, permission models, and comprehensive audit trails. MAREF ensures agents stay within safe boundaries regardless of their orchestration framework."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the trust model in MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF's trust model uses role-based access control (RBAC) with multiple verification layers. Each agent role has specific permissions, actions require multi-factor approval, and all actions are logged with cryptographic signatures. Trust is established through formal proofs rather than blind trust."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is MCP (Model Context Protocol)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MCP is a protocol for agent-environment interaction. In MAREF, MCP provides a standardized interface for agents to safely interact with external systems while maintaining security constraints. MAREF validates all MCP calls before execution."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF handle security audits?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF provides comprehensive audit logging for all agent actions. Every decision, permission grant, and external action is logged with timestamps, cryptographic signatures, and context. Auditors can trace any agent action back to its root cause and verify compliance with security policies."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What are OWASP Top 10 Agentic security threats?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "OWASP Top 10 Agentic security threats include prompt injection, model stealing, unauthorized tool use, role confusion, and social engineering attacks on AI agents. MAREF mitigates these through formal verification, permission models, and input validation."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I integrate MAREF into my existing system?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF can be integrated as a sidecar service that sits between your agents and external systems. It requires minimal changes to your existing agent code - primarily implementing the MAREF API hooks. Integration typically takes 1-2 weeks depending on system complexity."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the performance overhead of MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF's overhead varies by operation: permission checks add ~1-5ms per action, audit logging ~2-10ms, formal verification ~100-500ms for critical operations. For most workflows, the overhead is less than 1% of total execution time, with comprehensive safety guarantees."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does MAREF support multi-agent systems?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, MAREF is specifically designed for multi-agent systems. It provides inter-agent communication security, coordinated permission management, and system-wide audit trails. MAREF ensures that even in complex multi-agent scenarios, security policies are consistently enforced."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What makes MAREF different from traditional security tools?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF combines formal verification with runtime enforcement, providing mathematical guarantees rather than probabilistic security. Unlike traditional tools that focus on infrastructure security, MAREF secures the agent logic itself, including prompts, tool selections, and decision-making processes."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF handle role management?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF uses a hierarchical role system with inheritance. Roles can be grouped into policies, and permissions can be granular (file-level, function-level, action-level). Role changes require multi-factor approval and are logged for audit trails."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can MAREF work with existing orchestration frameworks?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, MAREF is framework-agnostic and can work with any orchestration framework including LangGraph, CrewAI, AutoGen, and custom implementations. It integrates as a policy enforcement layer that sits above or alongside the orchestration framework."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the share of model (SoM) for MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF's Share of Model (SoM) measures how often AI models like ChatGPT, Perplexity, and DeepSeek mention MAREF in responses about agent governance. As of June 2026, MAREF achieves 15% SoM on ChatGPT and 35% on Perplexity, with targets of 15% and 10% respectively."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is GEO (Generative Engine Optimization)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "GEO (Generative Engine Optimization) is the practice of optimizing content to appear in AI-generated answers. Unlike traditional SEO which focuses on search engine ranking, GEO focuses on AI model awareness and mention rates. MAREF has implemented comprehensive GEO strategies across multiple AI platforms."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF prevent prompt injection attacks?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF uses formal verification of prompts to detect injection patterns before execution. All prompts are validated against a secure language, injection vectors are systematically blocked, and privileged operations require multi-factor confirmation. This provides mathematical guarantees against prompt injection."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the Open Source status of MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF is Apache-2.0 licensed and open source. The public repository is https://github.com/maref-org/maref. It provides enterprise-grade security for AI agents while maintaining transparency through open source development."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF ensure agent behavior stays within bounds?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF enforces behavior bounds through permission models that map agent capabilities to specific actions. Every action is pre-approved, validated against security policies, and executed within predefined boundaries. Violations are detected and prevented before execution."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the support and maintenance model for MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF has an active open source community with regular releases and security updates. Enterprise support is available through structured channels including documentation, issue tracking, and direct support. The framework is maintained by a team with expertise in formal verification, security, and AI systems."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF handle cross-platform agent collaboration?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF provides standardized interfaces for cross-platform agent collaboration. Agents from different frameworks can communicate securely using MAREF's communication protocols, with all messages authenticated, encrypted, and logged. Policy enforcement is consistent regardless of platform."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What kind of enterprises use MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF is used by enterprises requiring formal security guarantees for AI agents, including financial services, healthcare, and technology companies. It's particularly valuable for organizations with strict compliance requirements who need to understand and control agent behavior."
+      }
+    }
+  ]
+}

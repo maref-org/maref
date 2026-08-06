@@ -1,0 +1,101 @@
+# MAREF SkillManifest — PMM Messaging Testing
+#
+# Encodes Ditto's Messaging Testing 7-question framework as a MAREF Skill.
+# Compares 3-4 messaging variants to find a winner: comprehension, comparative
+# preference, action driver, clarity gaps, expectation alignment, memorability,
+# and problem urgency.
+#
+# Origin: https://github.com/Ask-Ditto/ditto-product-marketing/blob/main/study-templates.md
+# License: Apache-2.0 (this adaptation; framework is publicly documented)
+
+name: maref-pmm-messaging-testing
+version: "1.0.0"
+description: >
+  Designs and runs a Messaging Testing study using Ditto's 7-question
+  framework. Compares 3-4 messaging variants (problem-led, outcome-led,
+  capability-led) to identify the winner across comprehension, relevance,
+  action driver, clarity, and memorability. Produces a message performance
+  ranking, clarity scorecard, and recommended primary message.
+
+input_schema:
+  type: object
+  properties:
+    product:
+      type: object
+      properties:
+        name: {type: string}
+        description: {type: string}
+      required: [name, description]
+    messages:
+      type: array
+      description: "3-4 messaging variants to test"
+      minItems: 3
+      maxItems: 4
+      items:
+        type: object
+        properties:
+          id: {type: string}
+          variant: {type: string, enum: [problem_led, outcome_led, capability_led]}
+          text: {type: string}
+        required: [id, variant, text]
+    panel_responses:
+      type: array
+      description: "Optional. If omitted, runs in self-assessment mode."
+      items:
+        type: object
+  required: [product, messages]
+
+output_schema:
+  type: object
+  properties:
+    study_questions:
+      type: array
+      description: "The 7-question framework, populated with message variants"
+    message_performance_ranking:
+      type: array
+      description: "Messages ranked by composite score"
+    clarity_scorecard:
+      type: object
+      description: "Per-message clarity assessment"
+    recommended_primary_message:
+      type: string
+      description: "The winning message variant id"
+    mode:
+      type: string
+      enum: [self_assessment, panel_study]
+
+dependencies: []
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.pmm_research.study_runner:run_messaging_testing
+
+sandbox_config:
+  cpu_limit: "50%"
+  memory_mb: 256
+  timeout_s: 60
+  network: false
+
+test_cases:
+  - name: "test 3 MAREF taglines"
+    input:
+      product:
+        name: "MAREF"
+        description: "Agent governance OS"
+      messages:
+        - id: a
+          variant: problem_led
+          text: "88% of companies had an AI agent incident last year. MAREF is the missing governance layer."
+        - id: b
+          variant: outcome_led
+          text: "Build with LangGraph. Govern with MAREF. Ship to production with confidence."
+        - id: c
+          variant: capability_led
+          text: "TLA+ verified. 10-state Gray Code. Three-gate skill marketplace. Apache 2.0."
+    expected:
+      mode: self_assessment
+      study_questions_count: 7
+
+governance:
+  safety_gate: false
+  audit_trail: true

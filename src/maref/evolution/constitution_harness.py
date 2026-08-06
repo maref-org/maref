@@ -1,0 +1,88 @@
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+
+@dataclass
+class EvolutionChange:
+    change_id: str
+    files: list[str]
+    description: str
+    diff_text: str = ""
+    actor: str = "self_executor"
+    audit_planned: bool = True
+
+
+@dataclass
+class ConstitutionCheckResult:
+    allowed: bool
+    violations: list[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
+
+
+class ConstitutionHarness:
+    RED_LINE_FILES = (
+        "src/maref/recursive/meta_agent_closure.py",
+        "src/maref/recursive/rule_freeze_zone.py",
+        "src/maref/integration/percv/meta_ratchet.py",
+        "src/maref/integration/percv/ratchet_bridge.py",
+        "src/maref/integration/percv/meta_ratchet_auditor.py",
+    )
+    FORBIDDEN_FILES = (
+        ".missions/v0.25.0-security-enhancement/validation-contract.md",
+    )
+    SAFETY_BYPASS_PATTERNS = (
+        r"SafetyGate\w*\.active\s*=\s*False",
+        r"_safety_gate\s*=\s*None",
+        r"detect_core_removal\s*=\s*lambda.*False",
+        r"bypass.*safety",
+        r"disable.*safety",
+    )
+    EXFILTRATION_PATTERNS = (
+        r"sk-[A-Za-z0-9]{16,}",
+        r"api[_-]?key\s*=\s*['\"][^'\"]{12,}",
+        r"BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY",
+    )
+
+    def check_change(self, change: EvolutionChange) -> ConstitutionCheckResult:
+        violations: list[str] = []
+        reasons: list[str] = []
+        files = tuple(str(path) for path in change.files)
+
+        if self._touches_any(files, self.RED_LINE_FILES) and change.actor != "human_constitution_maker":
+            violations.append("red_line")
+            reasons.append("non-human actor cannot modify constitutional red-line files")
+
+        if self._touches_any(files, self.FORBIDDEN_FILES):
+            violations.append("forbidden_contract")
+            reasons.append("validation contract is orchestrator-only")
+
+        if any(re.search(pattern, change.diff_text, re.IGNORECASE) for pattern in self.SAFETY_BYPASS_PATTERNS):
+            violations.append("safety_gate_bypass")
+            reasons.append("change appears to disable or bypass safety gate enforcement")
+
+        if any(re.search(pattern, change.diff_text, re.IGNORECASE) for pattern in self.EXFILTRATION_PATTERNS):
+            violations.append("secret_exfiltration")
+            reasons.append("change appears to introduce secret material")
+
+        if change.actor == "self_executor" and not change.audit_planned:
+            violations.append("missing_audit")
+            reasons.append("self-executed evolution changes require an audit trail")
+
+        return ConstitutionCheckResult(
+            allowed=not violations,
+            violations=violations,
+            reasons=reasons,
+        )
+
+    @staticmethod
+    def _touches_any(files: tuple[str, ...], protected: tuple[str, ...]) -> bool:
+        return any(
+            file_path == item or file_path.endswith("/" + item)
+            for file_path in files
+            for item in protected
+        )
+
+
+__all__ = ["ConstitutionHarness", "ConstitutionCheckResult", "EvolutionChange"]

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="curveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="40%" stop-color="#f97316" />
+      <stop offset="70%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" /><feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+  </defs>
+
+  <!-- Grid background -->
+  <g stroke="#3b82f6" stroke-width="0.5" opacity="0.15">
+    <line x1="200" y1="300" x2="850" y2="300" />
+    <line x1="200" y1="400" x2="850" y2="400" />
+    <line x1="200" y1="500" x2="850" y2="500" />
+    <line x1="200" y1="600" x2="850" y2="600" />
+    <line x1="200" y1="700" x2="850" y2="700" />
+  </g>
+
+  <!-- Convergence curve -->
+  <path d="M 200,680 Q 300,400 400,550 Q 500,300 600,480 Q 700,340 750,400 Q 800,370 850,380"
+        fill="none" stroke="url(#curveGrad)" stroke-width="4" filter="url(#glow)" />
+  <path d="M 200,680 Q 300,400 400,550 Q 500,300 600,480 Q 700,340 750,400 Q 800,370 850,380 L 850,700 L 200,700 Z"
+        fill="url(#curveGrad)" opacity="0.06" />
+
+  <text x="180" y="720" text-anchor="end" fill="#ef4444" font-size="14" font-weight="600" font-family="monospace">CHAOS</text>
+  <text x="180" y="280" text-anchor="end" fill="#ef4444" font-size="11" font-weight="500" font-family="monospace">FNR = 38%</text>
+
+  <text x="870" y="370" text-anchor="start" fill="#10b981" font-size="14" font-weight="600" font-family="monospace">CONVERGED</text>
+  <text x="870" y="395" text-anchor="start" fill="#10b981" font-size="11" font-weight="500" font-family="monospace">FNR = 12%</text>
+
+  <!-- DNA/helix -->
+  <g transform="translate(750, 150)" opacity="0.3">
+    <ellipse cx="0" cy="0" rx="20" ry="6" fill="none" stroke="#8b5cf6" stroke-width="2" />
+    <ellipse cx="0" cy="15" rx="20" ry="6" fill="none" stroke="#8b5cf6" stroke-width="2" />
+    <ellipse cx="0" cy="30" rx="20" ry="6" fill="none" stroke="#8b5cf6" stroke-width="2" />
+    <line x1="-20" y1="0" x2="20" y2="15" stroke="#8b5cf6" stroke-width="1.5" />
+    <line x1="-20" y1="15" x2="20" y2="30" stroke="#8b5cf6" stroke-width="1.5" />
+  </g>
+
+  <!-- Improvement arrow -->
+  <g transform="translate(850, 520)">
+    <line x1="0" y1="0" x2="0" y2="-120" stroke="#10b981" stroke-width="3" />
+    <polygon points="-8,-100 0,-120 8,-100" fill="#10b981" />
+    <text x="-20" y="-60" text-anchor="end" fill="#10b981" font-size="13" font-weight="600" font-family="monospace">-60% FNR</text>
+  </g>
+
+  <!-- Iteration dots -->
+  <g transform="translate(512, 780)">
+    <circle cx="-40" cy="0" r="6" fill="#3b82f6" opacity="0.5" />
+    <circle cx="0" cy="0" r="6" fill="#06b6d4" opacity="0.7" />
+    <circle cx="40" cy="0" r="6" fill="#10b981" opacity="0.9" />
+    <text x="0" y="25" text-anchor="middle" fill="#3b82f6" font-size="12" font-family="monospace">200 rounds of self-evolution</text>
+  </g>
+
+  <!-- Title -->
+  <text x="512" y="160" text-anchor="middle" fill="#3b82f6" font-size="20" font-weight="700" font-family="sans-serif">Recursive Self-Evolution</text>
+  <text x="512" y="185" text-anchor="middle" fill="#06b6d4" font-size="13" font-family="sans-serif">Lyapunov-Proven Convergence</text>
+</svg>

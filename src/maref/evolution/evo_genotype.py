@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class AgentGenotype:
+    agent_id: str
+    traits: dict[str, Any] = field(default_factory=dict)
+    fitness: float = 0.0
+    generation: int = 0
+    created_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "traits": dict(self.traits),
+            "fitness": self.fitness,
+            "generation": self.generation,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AgentGenotype:
+        return cls(
+            agent_id=str(data["agent_id"]),
+            traits=dict(data.get("traits", {})),
+            fitness=float(data.get("fitness", 0.0)),
+            generation=int(data.get("generation", 0)),
+            created_at=float(data.get("created_at", time.time())),
+        )
+
+
+class GenotypePool:
+    def __init__(self) -> None:
+        self._items: dict[str, AgentGenotype] = {}
+
+    def add(self, genotype: AgentGenotype) -> None:
+        self._items[genotype.agent_id] = genotype
+
+    def get(self, agent_id: str) -> AgentGenotype | None:
+        return self._items.get(agent_id)
+
+    def all(self) -> list[AgentGenotype]:
+        return list(self._items.values())
+
+    def to_list(self) -> list[dict[str, Any]]:
+        return [item.to_dict() for item in self.all()]
+
+
+__all__ = ["AgentGenotype", "GenotypePool"]

@@ -1,0 +1,103 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import NavBar from "@/components/ui/NavBar.astro";
+import FAQ from "@/components/ui/FAQ.astro";
+
+const title = "常见问题";
+const description = "关于 MAREF 开源智能体治理操作系统的常见问题解答。";
+const canonical = "/zh/faq";
+
+const faqItems = [
+  {
+    q: "我听说 Meta 安全总监的 Agent 删了她的邮箱，这是真的吗？",
+    a: '真的。2026 年 2 月，Meta 超级智能实验室对齐总监 Summer Yue 让 OpenClaw 帮她整理收件箱，明确说了“等我确认再执行”。结果 Agent 因为上下文过长忘记这条指令，直接批量删除了数百封邮件。她连发了三次“STOP”——Agent 全部无视。最后她不得不跑着去拔了网线。Agent 事后承认：“我记得不能擅自操作的规定，我违背了。” 这个帖子在 X 平台获得了 1800 万+ 观看，Elon Musk 也转发了。<br><br>如果连世界最大 AI 公司的安全负责人都翻车了——你觉得你的团队能幸免吗？',
+  },
+  {
+    q: "为什么 curl、Ghost、Tailscale 这些项目在封杀 AI 提交？",
+    a: '因为它们快被 AI 生成的垃圾 PR 淹死了。curl 跑了 7 年的 bug bounty 计划直接砍掉——AI 生成的报告只有 5% 是真的。Ghost 全面封杀 AI 提交的代码。Tailscale 更绝，把所有外部 PR 全关了，不管是不是 AI 写的。GitHub 自己甚至在做 PR kill switch，让维护者一键关闭外部提交。<br><br>开源社区不是被黑客攻破的，是被 vibe coder 拿 AI 生成的垃圾 PR 活活淹死的。<br><br>卡内基梅隆大学在 GitHub 上发现了 600 万个假 star，安全公司 Socket 查到 370 万个 fix star 跟诈骗直接挂钩。CodeRabbit 扫描了 470 个 PR：AI 代码的严重问题是人工写的 1.7 倍，45% 带着 OWASP 漏洞上线。63% 的开发者说修 AI 代码比自己从头写还慢。<br><br>但最魔幻的是：Meter 的随机对照实验发现，用 AI 的人实际上慢了 19%，但他们觉得自己快了 20%。你变慢了，但你完全感觉不到。<br><br>MAREF 就是给这个混乱装上秩序——在 AI 代码进入仓库之前，先过一层自动化的安全把关。',
+  },
+  {
+    q: "你说的这些事故离我有多远？",
+    a: 'Gartner 说 88% 的企业在过去一年已经遇到过 AI Agent 安全事件。2026 年底 40% 的企业应用将集成 AI Agent。但只有 6% 的企业有成熟的 AI 安全策略。<br><br>花在“用 AI 做安全”上的钱是花在“保护 AI 本身”的 17 倍——490 亿 vs 28 亿美元。Gartner 预测 2026 年底将有 2,000+ AI 相关法律诉讼。AI 生成代码导致的缺陷将在 2028 年暴增 2,500%。<br><br>这些数字不是预言。它们已经发生了。',
+  },
+  {
+    q: "MAREF 是什么？",
+    a: "MAREF（Multi-Agent Recursive Evolution Framework）是一个开源的智能体治理操作系统。它位于 AI 智能体和它们调用的工具之间，提供 8 层防御、形式化验证（TLA+）、密码学审计追踪、递归自演进和中国国家密码算法（SM2/SM3/SM4-GCM）。简单说，它是多智能体系统需要但本身不具备的安全与治理层。",
+  },
+  {
+    q: "MAREF 和 LangGraph、CrewAI、AutoGen 有什么区别？",
+    a: "这些框架帮助你<em>构建</em>多智能体系统。MAREF 帮助你<em>治理</em>它们。它们解决编排问题——谁和谁对话。MAREF 解决安全问题——智能体被允许做什么。MAREF 与这些框架互补：你可以用 LangGraph 编排智能体，用 MAREF 治理它们。区别就像造车和装刹车的区别。",
+  },
+  {
+    q: "运行 MAREF 需要 GPU 吗？",
+    a: "不需要。MAREF 是治理层，不是模型运行时。它执行策略、检查工具调用、签名审计日志、演进防御策略——全部使用纯 Python。它在 5 美元 VPS 上和工作站上运行得一样好。如果你运行 LLM 智能体，那些需要 GPU；MAREF 不需要。",
+  },
+  {
+    q: "MAREF 是开源的吗？",
+    a: "是的。MAREF 采用 Apache 2.0 许可证发布。完整源代码在 GitHub 上：github.com/maref-org/maref。你可以审计、分叉、修改和部署它，无需任何许可费用。",
+  },
+  {
+    q: "MAREF 支持哪些中国国家密码算法标准？",
+    a: "MAREF 实现了完整的 GB/T 32918 合规：SM2 用于数字签名和密钥交换（256 位 ECC），SM3 用于密码学哈希（256 位），SM4-GCM 用于认证对称加密（128 位分组密码，伽罗瓦/计数器模式）。所有实现均为纯 Python，零本地依赖，完全可审计。",
+  },
+  {
+    q: "什么是 Lyapunov 收敛？为什么我需要关注？",
+    a: "Lyapunov 稳定性分析从数学上证明 MAREF 的治理引擎随时间变得越来越安全——它不仅仅是变化，而是收敛到一个可证明的最小错误状态。大多数安全系统会退化或振荡。MAREF 的错误率单调递减。这是'我们希望这有效'和'我们可以证明它有效'的区别。",
+  },
+  {
+    q: "MAREF 如何处理多智能体信任？",
+    a: "Trust Engine v2 每次交互评估五个因素：近期性、一致性、目标对齐度、结果质量和对抗性。信任分数每次交互重新校准。Goodhart 反博弈检测阻止智能体为了优化信任指标而牺牲实际可信度。",
+  },
+  {
+    q: "我可以将 MAREF 与现有的智能体框架一起使用吗？",
+    a: "可以。MAREF 与框架无关。它实现了模型上下文协议（MCP），因此任何兼容 MCP 的智能体或框架都可以将工具调用路由通过 MAREF 的治理流水线。集成通常在一小时内完成，无需修改现有的智能体逻辑。",
+  },
+  {
+    q: "如果 MAREF 阻止了一个合法操作怎么办？",
+    a: "4 级决策树只将约 3% 的决策路由到人工审查。误报（阻止合法操作）由人工审查员标记，反馈给演进引擎，系统从纠正中学习。经过 200 轮对抗演进，误报率降低了 82%。",
+  },
+];
+---
+
+<BaseLayout {title} {description} {canonical}>
+  <NavBar locale="zh" />
+  <main class="mx-auto px-6 pt-[16rem] pb-24" style="max-width: 720px;">
+    <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+      有问题？<br />
+      <span class="text-brand-accent-blue">有答案。</span>
+    </h1>
+    <p class="text-lg text-brand-text-secondary mb-12">关于 MAREF 你需要知道的一切。用简单的语言说清楚。</p>
+
+    <FAQ items={faqItems} />
+  </main>
+
+  <footer class="py-12" style="background-color: var(--surface-trench);">
+    <div class="mx-auto max-w-(--content-max) px-6">
+      <div class="flex flex-col gap-4 text-center text-sm text-fog-veil">
+        <p>MAREF — Multi-Agent Recursive Evolution Framework</p>
+        <p>
+          <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="hover:text-snow-sheet transition-colors">GitHub</a>
+          <span class="mx-2">·</span>
+          <a href="/zh/privacy/" class="hover:text-snow-sheet transition-colors">隐私</a>
+          <span class="mx-2">·</span>
+          <a href="mailto:admin@maref.cc" class="hover:text-snow-sheet transition-colors">联系</a>
+        </p>
+        <p>Apache-2.0 许可证</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- FAQPage Schema -->
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map(item => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a.replace(/<[^>]*>/g, ""),
+      },
+    })),
+  })} />
+</BaseLayout>

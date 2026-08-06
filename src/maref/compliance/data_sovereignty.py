@@ -1,0 +1,762 @@
+"""
+数据主权管理器
+
+实现地理围栏和跨境数据流动控制，建立数据分类和保护策略。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any
+
+from maref.governance.audit import AuditLogger
+from maref.security.sanitizer import Sanitizer, SanitizeResult
+
+
+class DataCategory(Enum):
+    """数据分类"""
+
+    PUBLIC = "public"  # 公开数据
+    INTERNAL = "internal"  # 内部数据
+    CONFIDENTIAL = "confidential"  # 机密数据
+    RESTRICTED = "restricted"  # 受限数据
+    PERSONAL = "personal"  # 个人数据
+    SENSITIVE_PERSONAL = "sensitive_personal"  # 敏感个人数据
+    HEALTH = "health"  # 健康数据
+    FINANCIAL = "financial"  # 金融数据
+    CRITICAL_INFRASTRUCTURE = "critical_infrastructure"  # 关键基础设施数据
+
+
+class DataFlowDirection(Enum):
+    """数据流向"""
+
+    INBOUND = "inbound"  # 进入系统
+    OUTBOUND = "outbound"  # 离开系统
+    INTERNAL = "internal"  # 系统内部
+    CROSS_BORDER = "cross_border"  # 跨境
+
+
+class CountryCode(Enum):
+    """国家代码 (ISO 3166-1 alpha-2)"""
+
+    US = "US"  # 美国
+    CN = "CN"  # 中国
+    RU = "RU"  # 俄罗斯
+    IN = "IN"  # 印度
+    DE = "DE"  # 德国
+    FR = "FR"  # 法国
+    GB = "GB"  # 英国
+    JP = "JP"  # 日本
+    KR = "KR"  # 韩国
+    SG = "SG"  # 新加坡
+    AU = "AU"  # 澳大利亚
+    CA = "CA"  # 加拿大
+    BR = "BR"  # 巴西
+
+
+class DataSovereigntyStatus(Enum):
+    """数据主权状态"""
+
+    COMPLIANT = "compliant"  # 合规
+    NON_COMPLIANT = "non_compliant"  # 不合规
+    RESTRICTED = "restricted"  # 受限制
+    REQUIRES_APPROVAL = "requires_approval"  # 需要批准
+    BLOCKED = "blocked"  # 被阻止
+
+
+@dataclass
+class DataClass:
+    """数据类定义"""
+
+    id: str
+    name: str
+    category: DataCategory
+    classification_level: str
+    protection_requirements: list[str] = field(default_factory=list)
+    retention_period_days: int | None = None
+    encryption_required: bool = False
+    backup_required: bool = False
+    audit_required: bool = False
+    cross_border_allowed: bool = True
+    allowed_jurisdictions: list[str] = field(default_factory=list)
+
+
+@dataclass
+class GeographicRestriction:
+    """地理限制"""
+
+    id: str
+    name: str
+    countries_allowed: list[CountryCode] = field(default_factory=list)
+    countries_blocked: list[CountryCode] = field(default_factory=list)
+    regions_allowed: list[str] = field(default_factory=list)  # 例如: "EU", "ASEAN"
+    data_categories_affected: list[DataCategory] = field(default_factory=list)
+    expiration_date: datetime | None = None
+    requires_approval: bool = False
+
+
+@dataclass
+class DataTransferRequest:
+    """数据转移请求"""
+
+    request_id: str
+    data_classes: list[DataClass]
+    source_country: CountryCode
+    destination_country: CountryCode
+    transfer_purpose: str
+    data_volume_kb: int | None = None
+    encrypted: bool = False
+    timestamp: datetime = field(default_factory=datetime.now)
+    user_id: str | None = None
+    justification: str | None = None
+
+
+@dataclass
+class DataTransferDecision:
+    """数据转移决定"""
+
+    request_id: str
+    status: DataSovereigntyStatus
+    allowed: bool
+    restrictions: list[str] = field(default_factory=list)
+    conditions: list[str] = field(default_factory=list)
+    approval_required: bool = False
+    approval_authority: str | None = None
+    timestamp: datetime = field(default_factory=datetime.now)
+    expiration: datetime | None = None
+
+
+class DataSovereigntyManager:
+    """
+    数据主权管理器
+
+    负责管理:
+    1. 地理围栏 (Geofencing) - 控制数据在不同地理位置的存储和传输
+    2. 跨境数据流动控制 (Cross-border data flow control)
+    3. 数据分类和保护策略 (Data classification and protection policies)
+    """
+
+    def __init__(self, audit_logger: AuditLogger | None = None):
+        self.audit_logger = audit_logger or AuditLogger()
+        self.data_classes: dict[str, DataClass] = {}
+        self.geographic_restrictions: dict[str, GeographicRestriction] = {}
+        self.transfer_history: list[tuple[DataTransferRequest, DataTransferDecision]] = []
+
+        # 初始化默认配置
+        self._initialize_default_data_classes()
+        self._initialize_default_restrictions()
+
+        # 合规策略
+        self.compliance_policies = {
+            "gdpr": {
+                "requires_data_localization": False,
+                "restricts_cross_border": True,
+                "allowed_destinations": ["EU", "EEA", "adequate_countries"],
+                "requires_dpia_large_scale": True,
+            },
+            "china_csl": {
+                "requires_data_localization": True,
+                "restricts_cross_border": True,
+                "allowed_destinations": ["China"],
+                "requires_safety_assessment": True,
+            },
+            "russia_149fz": {
+                "requires_data_localization": True,
+                "restricts_cross_border": True,
+                "allowed_destinations": ["Russia"],
+                "requires_notification": True,
+            },
+        }
+
+    def _initialize_default_data_classes(self) -> None:
+        """初始化默认数据分类"""
+
+        # 公开数据
+        self.data_classes["public"] = DataClass(
+            id="public",
+            name="Public Data",
+            category=DataCategory.PUBLIC,
+            classification_level="PUBLIC",
+            protection_requirements=["No special protection"],
+            encryption_required=False,
+            cross_border_allowed=True,
+        )
+
+        # 内部数据
+        self.data_classes["internal"] = DataClass(
+            id="internal",
+            name="Internal Business Data",
+            category=DataCategory.INTERNAL,
+            classification_level="INTERNAL",
+            protection_requirements=["Access control", "Audit logging"],
+            encryption_required=True,
+            cross_border_allowed=True,
+        )
+
+        # 机密数据
+        self.data_classes["confidential"] = DataClass(
+            id="confidential",
+            name="Confidential Business Data",
+            category=DataCategory.CONFIDENTIAL,
+            classification_level="CONFIDENTIAL",
+            protection_requirements=[
+                "Strict access control",
+                "Encryption at rest and in transit",
+                "Audit logging",
+            ],
+            encryption_required=True,
+            cross_border_allowed=False,
+            allowed_jurisdictions=["EU", "US", "CN"],  # 只允许在特定司法管辖区
+        )
+
+        # 个人数据 (GDPR范畴)
+        self.data_classes["personal"] = DataClass(
+            id="personal",
+            name="Personal Data",
+            category=DataCategory.PERSONAL,
+            classification_level="PERSONAL",
+            protection_requirements=["Consent management", "Right to erasure", "Data minimization"],
+            retention_period_days=730,  # 2年
+            encryption_required=True,
+            audit_required=True,
+            cross_border_allowed=False,
+            allowed_jurisdictions=["EU"],  # GDPR限制
+        )
+
+        # 敏感个人数据
+        self.data_classes["sensitive_personal"] = DataClass(
+            id="sensitive_personal",
+            name="Sensitive Personal Data",
+            category=DataCategory.SENSITIVE_PERSONAL,
+            classification_level="RESTRICTED",
+            protection_requirements=[
+                "Explicit consent",
+                "Enhanced encryption",
+                "Regular security assessments",
+            ],
+            encryption_required=True,
+            backup_required=True,
+            audit_required=True,
+            cross_border_allowed=False,
+        )
+
+        # 健康数据 (HIPAA)
+        self.data_classes["health"] = DataClass(
+            id="health",
+            name="Health Information",
+            category=DataCategory.HEALTH,
+            classification_level="RESTRICTED",
+            protection_requirements=["HIPAA compliance", "Access logging", "Breach notification"],
+            encryption_required=True,
+            audit_required=True,
+            cross_border_allowed=False,
+            allowed_jurisdictions=["US"],  # HIPAA仅适用于美国
+        )
+
+        # 金融数据
+        self.data_classes["financial"] = DataClass(
+            id="financial",
+            name="Financial Data",
+            category=DataCategory.FINANCIAL,
+            classification_level="CONFIDENTIAL",
+            protection_requirements=["PCI DSS compliance", "Tokenization", "Regular audits"],
+            encryption_required=True,
+            audit_required=True,
+            cross_border_allowed=True,  # 国际金融交易可能需要
+        )
+
+        # 审计日志
+        self.audit_logger.log(
+            event_type="data_sovereignty_initialized",
+            actor="DataSovereigntyManager",
+            action="initialize_default_data_classes",
+            details="Initialized default data classes",
+            metadata={"num_classes": len(self.data_classes)},
+        )
+
+    def _initialize_default_restrictions(self) -> None:
+        """初始化默认地理限制"""
+
+        # GDPR跨境限制
+        self.geographic_restrictions["gdpr_cross_border"] = GeographicRestriction(
+            id="gdpr_cross_border",
+            name="GDPR Cross-Border Data Transfer Restriction",
+            countries_allowed=[CountryCode.DE, CountryCode.FR, CountryCode.GB],
+            countries_blocked=[CountryCode.CN, CountryCode.RU],
+            data_categories_affected=[DataCategory.PERSONAL, DataCategory.SENSITIVE_PERSONAL],
+            requires_approval=True,
+        )
+
+        # 中国网络安全法数据本地化要求
+        self.geographic_restrictions["china_data_localization"] = GeographicRestriction(
+            id="china_data_localization",
+            name="China Data Localization Requirement",
+            countries_allowed=[CountryCode.CN],
+            countries_blocked=[],  # 不允许出境
+            regions_allowed=["China"],
+            data_categories_affected=[DataCategory.PERSONAL, DataCategory.CRITICAL_INFRASTRUCTURE],
+            requires_approval=False,  # 直接禁止
+        )
+
+        # 俄罗斯联邦法律149-FZ
+        self.geographic_restrictions["russia_data_localization"] = GeographicRestriction(
+            id="russia_data_localization",
+            name="Russia Data Localization Requirement",
+            countries_allowed=[CountryCode.RU],
+            countries_blocked=[],
+            data_categories_affected=[DataCategory.PERSONAL, DataCategory.CRITICAL_INFRASTRUCTURE],
+            requires_approval=False,
+        )
+
+        # 美国出口控制
+        self.geographic_restrictions["us_export_control"] = GeographicRestriction(
+            id="us_export_control",
+            name="US Export Control Regulations",
+            countries_allowed=[
+                CountryCode.US,
+                CountryCode.CA,
+                CountryCode.GB,
+                CountryCode.DE,
+                CountryCode.FR,
+                CountryCode.JP,
+            ],
+            countries_blocked=[CountryCode.CN, CountryCode.RU, CountryCode.KR],
+            data_categories_affected=[
+                DataCategory.CRITICAL_INFRASTRUCTURE,
+                DataCategory.CONFIDENTIAL,
+            ],
+            requires_approval=True,
+        )
+
+        # 审计日志
+        self.audit_logger.log(
+            event_type="geographic_restrictions_initialized",
+            actor="DataSovereigntyManager",
+            action="initialize_default_restrictions",
+            details="Initialized default geographic restrictions",
+            metadata={"num_restrictions": len(self.geographic_restrictions)},
+        )
+
+    def sanitize_data(self, text: str, category: DataCategory) -> SanitizeResult:
+        """生产接线：数据主权链路按分类消毒（v0.52 M2-H1）。
+
+        C1（数据分类）→ C2（分类感知消毒）→ C3（授权还原）链路锚点：
+        委托 :class:`~maref.security.sanitizer.Sanitizer` 按 ``category``
+        选择 PII 规则集消毒文本，并记录审计事件。
+        """
+        result = Sanitizer().sanitize_by_category(text, category)
+        self.audit_logger.log(
+            event_type="data_sanitized",
+            actor="DataSovereigntyManager",
+            action="sanitize_data",
+            details=f"Sanitized data for category {category.value}",
+            metadata={
+                "category": category.value,
+                "pii_found": result.pii_found,
+                "num_tokens": len(result.tokens),
+                "blocked": result.blocked,
+            },
+        )
+        return result
+
+    def register_data_class(self, data_class: DataClass) -> None:
+        """注册数据分类"""
+        self.data_classes[data_class.id] = data_class
+
+        self.audit_logger.log(
+            event_type="data_class_registered",
+            actor="DataSovereigntyManager",
+            action="register_data_class",
+            details=f"Registered data class: {data_class.name}",
+            metadata={
+                "data_class_id": data_class.id,
+                "category": data_class.category.value,
+                "classification_level": data_class.classification_level,
+            },
+        )
+
+    def add_geographic_restriction(self, restriction: GeographicRestriction) -> None:
+        """添加地理限制"""
+        self.geographic_restrictions[restriction.id] = restriction
+
+        self.audit_logger.log(
+            event_type="geographic_restriction_added",
+            actor="DataSovereigntyManager",
+            action="add_geographic_restriction",
+            details=f"Added geographic restriction: {restriction.name}",
+            metadata={
+                "restriction_id": restriction.id,
+                "countries_allowed": [c.value for c in restriction.countries_allowed],
+                "countries_blocked": [c.value for c in restriction.countries_blocked],
+            },
+        )
+
+    def evaluate_data_transfer(self, request: DataTransferRequest) -> DataTransferDecision:
+        """
+        评估数据转移请求
+
+        检查:
+        1. 数据分类是否允许跨境传输
+        2. 是否符合地理限制
+        3. 是否需要特殊批准
+        """
+
+        restrictions: list[str] = []
+        conditions: list[str] = []
+        approval_required = False
+        approval_authority = None
+
+        # 检查每个数据类
+        for data_class in request.data_classes:
+            # 1. 检查数据类本身是否允许跨境
+            if not data_class.cross_border_allowed:
+                restrictions.append(
+                    f"Data class '{data_class.name}' does not allow cross-border transfer"
+                )
+                continue
+
+            # 2. 检查数据类是否有允许的司法管辖区限制
+            if data_class.allowed_jurisdictions:
+                destination_region = self._get_region_from_country(request.destination_country)
+                if destination_region not in data_class.allowed_jurisdictions:
+                    restrictions.append(
+                        f"Data class '{data_class.name}' only allowed in jurisdictions: "
+                        f"{', '.join(data_class.allowed_jurisdictions)}"
+                    )
+
+            # 3. 检查加密要求
+            if data_class.encryption_required and not request.encrypted:
+                conditions.append(f"Data class '{data_class.name}' requires encryption")
+
+            # 4. 应用相关的地理限制
+            for restriction in self.geographic_restrictions.values():
+                # 检查是否影响此数据类
+                if data_class.category in restriction.data_categories_affected:
+                    # 检查目标国家是否被允许
+                    if (
+                        restriction.countries_allowed
+                        and request.destination_country not in restriction.countries_allowed
+                    ):
+                        restrictions.append(
+                            f"Restriction '{restriction.name}' blocks transfer to {request.destination_country.value}"
+                        )
+
+                    # 检查目标国家是否被阻止
+                    if request.destination_country in restriction.countries_blocked:
+                        restrictions.append(
+                            f"Restriction '{restriction.name}' explicitly blocks {request.destination_country.value}"
+                        )
+
+                    # 检查是否需要批准
+                    if restriction.requires_approval:
+                        approval_required = True
+                        approval_authority = self._get_approval_authority(restriction.name)
+
+        # 检查特殊合规要求
+        # GDPR: 个人数据跨境传输
+        if request.source_country == CountryCode.DE and any(
+            dc.category in [DataCategory.PERSONAL, DataCategory.SENSITIVE_PERSONAL]
+            for dc in request.data_classes
+        ):
+            conditions.append("GDPR requires adequacy decision or appropriate safeguards")
+            approval_required = True
+            approval_authority = "Data Protection Officer"
+
+        # 中国网络安全法: 数据本地化
+        if (
+            request.source_country == CountryCode.CN
+            and request.destination_country != CountryCode.CN
+            and any(
+                dc.category in [DataCategory.PERSONAL, DataCategory.CRITICAL_INFRASTRUCTURE]
+                for dc in request.data_classes
+            )
+        ):
+            restrictions.append("China Cybersecurity Law requires data localization")
+
+        # 决定状态
+        if restrictions:
+            status = DataSovereigntyStatus.NON_COMPLIANT
+        elif approval_required:
+            status = DataSovereigntyStatus.REQUIRES_APPROVAL
+        elif conditions:
+            status = DataSovereigntyStatus.RESTRICTED
+        else:
+            status = DataSovereigntyStatus.COMPLIANT
+
+        # 创建决定
+        decision = DataTransferDecision(
+            request_id=request.request_id,
+            status=status,
+            allowed=(
+                status == DataSovereigntyStatus.COMPLIANT
+                or status == DataSovereigntyStatus.RESTRICTED
+            ),
+            restrictions=restrictions,
+            conditions=conditions,
+            approval_required=approval_required,
+            approval_authority=approval_authority,
+            expiration=datetime.now() + timedelta(days=30) if approval_required else None,
+        )
+
+        # 记录到历史
+        self.transfer_history.append((request, decision))
+
+        # 审计日志
+        self.audit_logger.log(
+            event_type="data_transfer_evaluated",
+            actor="DataSovereigntyManager",
+            action="evaluate_data_transfer",
+            details=f"Evaluated data transfer request {request.request_id}",
+            metadata={
+                "request_id": request.request_id,
+                "source_country": request.source_country.value,
+                "destination_country": request.destination_country.value,
+                "status": status.value,
+                "allowed": decision.allowed,
+                "num_restrictions": len(restrictions),
+                "num_conditions": len(conditions),
+            },
+        )
+
+        return decision
+
+    def get_cross_border_compliance_report(
+        self, source_country: CountryCode, destination_country: CountryCode
+    ) -> dict[str, Any]:
+        """获取跨境合规报告"""
+
+        applicable_restrictions = []
+        for restriction in self.geographic_restrictions.values():
+            # 检查是否适用于这些国家
+            if (
+                source_country in restriction.countries_allowed
+                or destination_country in restriction.countries_allowed
+            ):
+                applicable_restrictions.append(
+                    {
+                        "id": restriction.id,
+                        "name": restriction.name,
+                        "description": f"Applies to transfers from {source_country.value} to {destination_country.value}",
+                        "requires_approval": restriction.requires_approval,
+                        "expires": restriction.expiration_date.isoformat()
+                        if restriction.expiration_date
+                        else None,
+                    }
+                )
+
+        # 检查数据类限制
+        affected_categories = []
+        for data_class in self.data_classes.values():
+            if not data_class.cross_border_allowed:
+                affected_categories.append(
+                    {
+                        "id": data_class.id,
+                        "name": data_class.name,
+                        "category": data_class.category.value,
+                        "reason": "Cross-border transfer not allowed by data class policy",
+                    }
+                )
+            elif (
+                data_class.allowed_jurisdictions
+                and self._get_region_from_country(destination_country)
+                not in data_class.allowed_jurisdictions
+            ):
+                affected_categories.append(
+                    {
+                        "id": data_class.id,
+                        "name": data_class.name,
+                        "category": data_class.category.value,
+                        "reason": f"Only allowed in jurisdictions: {', '.join(data_class.allowed_jurisdictions)}",
+                    }
+                )
+
+        report = {
+            "source_country": source_country.value,
+            "destination_country": destination_country.value,
+            "evaluation_timestamp": datetime.now().isoformat(),
+            "applicable_restrictions": applicable_restrictions,
+            "affected_data_categories": affected_categories,
+            "recommendations": self._generate_cross_border_recommendations(
+                source_country, destination_country
+            ),
+        }
+
+        return report
+
+    def _get_region_from_country(self, country_code: CountryCode) -> str:
+        """从国家代码获取地区"""
+        region_map = {
+            CountryCode.DE: "EU",
+            CountryCode.FR: "EU",
+            CountryCode.GB: "EU",  # 尽管Brexit，仍视为欧洲区域
+            CountryCode.US: "US",
+            CountryCode.CA: "NAFTA",
+            CountryCode.CN: "China",
+            CountryCode.RU: "Russia",
+            CountryCode.IN: "India",
+            CountryCode.JP: "APAC",
+            CountryCode.KR: "APAC",
+            CountryCode.SG: "ASEAN",
+            CountryCode.AU: "APAC",
+            CountryCode.BR: "LATAM",
+        }
+        return region_map.get(country_code, "OTHER")
+
+    def _get_approval_authority(self, restriction_name: str) -> str:
+        """根据限制名称获取批准机构"""
+        authority_map = {
+            "GDPR Cross-Border Data Transfer Restriction": "Data Protection Officer",
+            "US Export Control Regulations": "Export Compliance Officer",
+            "China Data Localization Requirement": "Cybersecurity Administration of China",
+            "Russia Data Localization Requirement": "Roskomnadzor",
+        }
+        return authority_map.get(restriction_name, "Compliance Officer")
+
+    def _generate_cross_border_recommendations(
+        self, source_country: CountryCode, destination_country: CountryCode
+    ) -> list[str]:
+        """生成跨境传输建议"""
+        recommendations = []
+
+        # 通用建议
+        recommendations.append("Use encryption for all cross-border data transfers")
+        recommendations.append("Maintain detailed audit logs of all transfers")
+
+        # 具体司法管辖区建议
+        if source_country == CountryCode.CN or destination_country == CountryCode.CN:
+            recommendations.append(
+                "Consult with local legal counsel for China Cybersecurity Law compliance"
+            )
+            recommendations.append(
+                "Consider using data localization services for Chinese operations"
+            )
+
+        if source_country == CountryCode.RU or destination_country == CountryCode.RU:
+            recommendations.append(
+                "Ensure data processing agreements comply with Russian Federal Law 149-FZ"
+            )
+            recommendations.append(
+                "Register data processing activities with Roskomnadzor if required"
+            )
+
+        if source_country in [CountryCode.DE, CountryCode.FR] or destination_country in [
+            CountryCode.DE,
+            CountryCode.FR,
+        ]:
+            recommendations.append(
+                "Implement Standard Contractual Clauses (SCCs) for GDPR compliance"
+            )
+            recommendations.append(
+                "Conduct Data Protection Impact Assessment (DPIA) for high-risk transfers"
+            )
+
+        if source_country == CountryCode.US or destination_country == CountryCode.US:
+            recommendations.append("Review US export control regulations (EAR, ITAR)")
+            recommendations.append(
+                "Implement Privacy Shield or equivalent mechanism for EU-US transfers"
+            )
+
+        return recommendations
+
+    def get_transfer_history(self, limit: int = 100) -> list[dict[str, Any]]:
+        """获取数据转移历史"""
+        history = []
+        for request, decision in self.transfer_history[-limit:]:
+            history.append(
+                {
+                    "request_id": request.request_id,
+                    "timestamp": request.timestamp.isoformat(),
+                    "source_country": request.source_country.value,
+                    "destination_country": request.destination_country.value,
+                    "data_categories": [dc.category.value for dc in request.data_classes],
+                    "status": decision.status.value,
+                    "allowed": decision.allowed,
+                    "restrictions": decision.restrictions,
+                    "conditions": decision.conditions,
+                }
+            )
+        return history
+
+    def export_policy_configuration(self) -> dict[str, Any]:
+        """导出策略配置"""
+        config = {
+            "data_classes": [
+                {
+                    "id": dc.id,
+                    "name": dc.name,
+                    "category": dc.category.value,
+                    "classification_level": dc.classification_level,
+                    "cross_border_allowed": dc.cross_border_allowed,
+                    "allowed_jurisdictions": dc.allowed_jurisdictions,
+                    "encryption_required": dc.encryption_required,
+                }
+                for dc in self.data_classes.values()
+            ],
+            "geographic_restrictions": [
+                {
+                    "id": gr.id,
+                    "name": gr.name,
+                    "countries_allowed": [c.value for c in gr.countries_allowed],
+                    "countries_blocked": [c.value for c in gr.countries_blocked],
+                    "data_categories_affected": [cat.value for cat in gr.data_categories_affected],
+                    "requires_approval": gr.requires_approval,
+                }
+                for gr in self.geographic_restrictions.values()
+            ],
+            "compliance_policies": self.compliance_policies,
+            "export_timestamp": datetime.now().isoformat(),
+        }
+
+        return config
+
+    def import_policy_configuration(self, config: dict[str, Any]) -> None:
+        """导入策略配置"""
+        # 清空现有配置
+        self.data_classes.clear()
+        self.geographic_restrictions.clear()
+
+        # 导入数据类
+        for dc_config in config.get("data_classes", []):
+            data_class = DataClass(
+                id=dc_config["id"],
+                name=dc_config["name"],
+                category=DataCategory(dc_config["category"]),
+                classification_level=dc_config["classification_level"],
+                cross_border_allowed=dc_config.get("cross_border_allowed", True),
+                allowed_jurisdictions=dc_config.get("allowed_jurisdictions", []),
+                encryption_required=dc_config.get("encryption_required", False),
+            )
+            self.data_classes[data_class.id] = data_class
+
+        # 导入地理限制
+        for gr_config in config.get("geographic_restrictions", []):
+            restriction = GeographicRestriction(
+                id=gr_config["id"],
+                name=gr_config["name"],
+                countries_allowed=[CountryCode(c) for c in gr_config.get("countries_allowed", [])],
+                countries_blocked=[CountryCode(c) for c in gr_config.get("countries_blocked", [])],
+                data_categories_affected=[
+                    DataCategory(cat) for cat in gr_config.get("data_categories_affected", [])
+                ],
+                requires_approval=gr_config.get("requires_approval", False),
+            )
+            self.geographic_restrictions[restriction.id] = restriction
+
+        # 导入合规策略
+        if "compliance_policies" in config:
+            self.compliance_policies.update(config["compliance_policies"])
+
+        # 审计日志
+        self.audit_logger.log(
+            event_type="policy_configuration_imported",
+            actor="DataSovereigntyManager",
+            action="import_policy_configuration",
+            details="Imported policy configuration",
+            metadata={
+                "num_data_classes": len(self.data_classes),
+                "num_restrictions": len(self.geographic_restrictions),
+                "import_timestamp": config.get("export_timestamp", "unknown"),
+            },
+        )

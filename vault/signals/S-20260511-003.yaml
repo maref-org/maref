@@ -1,0 +1,14 @@
+signal_id: S-20260511-003
+topic: MAREF Competitive Landscape
+source_node: langgraph_competitor
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'LangGraph (LangChain) is the market leader: 307K daily downloads, StateGraph
+  DAG orchestration, Checkpointer for persistent state, built-in streaming and human-in-the-loop.
+  Strengths: largest community, production deployments at scale, LangSmith observability.
+  Weaknesses: no formal verification, governance is implicit (node transition rules),
+  no TLA+ safety proofs. Pricing: free open-source, LangSmith from $39/month.'
+summary: 'LangGraph (LangChain) is the market leader: 307K daily downloads, StateGraph
+  DAG orchestration, Checkpointer for persistent state, built-in streaming and human-in-the-loop.
+  Strengths: largest communit'
+harvested_at: '2026-05-11T21:58:41.301772'
+status: distilled

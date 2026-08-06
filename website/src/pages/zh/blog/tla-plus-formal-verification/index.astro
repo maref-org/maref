@@ -1,0 +1,100 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="zh"
+  title="不是「测过」，是「证过」——为什么 MAREF 用 TLA+ 形式化验证"
+  description="大多数安全工具是「测过」的。MAREF 是「证过」的——使用 TLA+ 模型检验、Lyapunov 稳定性分析和数学收敛性保证。这对 Agent 治理意味着什么。"
+  date="2026-06-16"
+  author="MAREF Engineering"
+  tags={["TLA+", "形式化验证", "形式化方法", "Agent 治理", "Lyapunov"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  「生产环境测试过」不是安全策略。当你的 Agent 可以删除数据库、签署合同、调用有真实后果的 API 时，测试是不够的。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  测试只告诉你一件事：<em>系统在你测的那些场景里没出事。</em>它没有告诉你系统不会在你没想到的场景里出事。对于多智能体系统，状态空间是无限的——你不可能用测试穷尽安全。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  这就是为什么 MAREF 不仅仅依赖测试。每个治理状态转换、每个安全不变量、每个收敛性保证都<strong>用 TLA+ 进行了形式化验证</strong>——这是用于验证亚马逊云服务、Raft 共识协议以及那些失败意味着失去生命的实时系统的模型检验语言。
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">什么是 TLA+？</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  TLA+（动作时序逻辑）是由 Leslie Lamport——2013 年图灵奖得主——创建的正式规约语言。它专为建模和验证并发、分布式和有状态系统而设计。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  关键洞察：TLA+ 不是测试单独的场景，而是<strong>穷尽检查系统的所有可能状态</strong>。如果模型检验器说没有反例存在，那么这个系统就<em>可证明地</em>满足该不变量——不是针对你测试的 100 个案例，而是针对所有可能的执行路径。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  亚马逊用 TLA+ 在 S3、DynamoDB 和 EBS 中发现了会导致数小时停机的隐蔽 Bug。如果它对 AWS 基础设施足够好，那它对 Agent 治理也足够好。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">MAREF 在 TLA+ 中验证什么</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF 的治理状态机——一个 10 状态格雷码 FSM——完全用 TLA+ 规约。模型检验器验证：
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>HALTAbsorbing 不变量</strong>：一旦停止，永远停止。没有 Agent 可以自我解除停止状态。</li>
+  <li><strong>LyapunovConvergence</strong>：治理引擎可证明地收敛到最小错误状态。每一轮自演进都让系统更安全，而不是只变得更不同。</li>
+  <li><strong>安全状态可达性</strong>：每个安全关键状态（HALT、RESTRICT、AUDIT）从任何操作状态都能在有限步内到达。</li>
+  <li><strong>无死锁</strong>：系统永远不会卡在一个没有有效转换的状态中。</li>
+</ul>
+
+<hr class="my-8 border-brand-border" />
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">实际差异：证明 vs. 测试</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  形式化验证给你测试给不了的东西：
+</p>
+
+<div class="border rounded-xl p-5 mb-4" style="background-color: var(--color-brand-bg-secondary); border-color: var(--color-brand-border);">
+  <p class="text-base font-semibold mb-1">测试：「我们检查了 100 个攻击场景」</p>
+  <p class="text-sm text-brand-text-muted">→ 第 101 个攻击可能有效。测试覆盖范围只到你想过的。</p>
+</div>
+
+<div class="border rounded-xl p-5 mb-4" style="background-color: var(--color-brand-bg-secondary); border-color: var(--color-brand-border);">
+  <p class="text-base font-semibold mb-1">TLA+ 验证：「在所有可能的状态转换中无反例存在」</p>
+  <p class="text-sm text-brand-text-muted">→ 不变量对所有执行路径都成立，包括你从没考虑过的路径。</p>
+</div>
+
+<div class="border rounded-xl p-5 mb-6" style="background-color: var(--color-brand-bg-secondary); border-color: var(--color-brand-border);">
+  <p class="text-base font-semibold mb-1">Lyapunov 证明：「系统可证明地收敛到更安全状态」</p>
+  <p class="text-sm text-brand-text-muted">→ 不是「我们希望演进有帮助」。是数学保证了错误率单调递减。</p>
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">关于 2026 年 5 月 CISA/五眼联盟指南</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  2026 年 5 月，CISA 和五眼联盟联合发布的智能体 AI 安全指南明确推荐使用形式化方法来保护智能体 AI 系统。理由：Agent 运行在高维状态空间中，经验性测试被证明是不够的。MAREF 的 TLA+ 验证直接满足这一建议。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">局限</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  需要明确：TLA+ 验证不是银弹。它验证的是<strong>规约</strong>——而不是实现。实现 TLA+ 规约的代码中的错误仍然可能存在。这就是为什么 MAREF 还用了 4,300+ 个单元和集成测试、运行时监控、对抗性演进和形式化运行时验证。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  但规约是基础。如果基础被数学证明，实现 Bug 的范围就大幅缩小——任何漏网之鱼也会被下层的防御层捕获。
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>📐 来源：Lamport, L. (2002). <strong>Specifying Systems: The TLA+ Language and Tools</strong>. Addison-Wesley. Amazon Web Services — "Use of Formal Methods at Amazon" (2014). CISA/五眼联盟 — "Securing Agentic AI Systems" 联合指南 (2026 年 5 月)。MAREF 技术白皮书 4.5 节（TLA+ 验证结果）。<a href="/zh/docs/quickstart/" class="text-brand-accent-blue hover:underline">5 分钟部署 MAREF</a>.</em>
+</p>
+
+</BlogLayout>

@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""
+pre-commit hook v5: 拦截含内部路径/密钥/专有文件名的提交（含 gitleaks 强校验）
+
+统一版本 (openclaw v4 gitleaks 增强同步至 public/maref，本仓为公开仓采用更严豁免清单)
+受 Athena 系统宪法约束。
+
+安装:
+  scripts/install-hooks.sh          # 从 .githooks/ 部署全部 hook
+  scripts/hooks-verify.sh           # 校验部署一致性
+
+检测内容:
+  - 内部卷路径 (/Volumes/1TB-M2)
+  - 用户名路径 (/Users/frankie)
+  - 私有组织名 (frankiehot-tech)
+  - API 密钥模式 (sk-*, nvapi-*, ark-*)
+  - Athena 专有文件名
+  - gitleaks protect --staged（100+ 规则，PEM/通用 secret 兜底）
+
+v5 改进（相对 v4）:
+  - 叠加 gitleaks 强校验（先于正则结果判定，拦截 PEM 私钥/未覆盖密钥格式）
+  - 源码版本化至 .githooks/pre-commit（v4 为孤儿 hook，无源码可重建/审计）
+"""
+
+import os
+import re
+import subprocess
+import sys
+
+# ── 路径模式（本地路径/用户名，脚本文件可豁免） ──────────
+
+PATH_PATTERNS: list[tuple[str, str, str]] = [
+    ("internal_volume_path", r"/Volumes/1TB-M2", "HIGH"),
+    ("username_path", r"/Users/(frankie|maref)", "HIGH"),
+    ("private_org", r"frankiehot-tech", "HIGH"),
+]
+
+# ── 密钥模式（全局强制，无豁免；gitleaks 兜底更多格式） ──
+# 负向前瞻与 oss-check.sh 的 mock 排除保持一致：测试 mock key（sk- 连续小写字母序列、
+# AWS 文档示例 AKIA…EXAMPLE）不视为泄露，避免测试代码无法提交。
+
+SECRET_PATTERNS: list[tuple[str, str, str]] = [
+    ("api_key_siliconflow", r"sk-(?![a-z]{20,}[0-9]+)[a-zA-Z0-9]{32,}", "CRITICAL"),
+    ("api_key_nvidia", r"nvapi-[a-zA-Z0-9_-]{30,}", "CRITICAL"),
+    ("api_key_ark", r"(?<![a-zA-Z])ark-[a-zA-Z0-9-]{20,}", "CRITICAL"),
+    ("api_key_deepseek", r"sk-[a-f0-9]{32}", "CRITICAL"),
+    ("aws_access_key", r"AKIA(?![0-9A-Z]*EXAMPLE)[0-9A-Z]{16}", "CRITICAL"),
+]
+
+# ── 禁止文件名 ─────────────────────────────────────────────
+
+FORBIDDEN_FILENAMES: list[str] = [
+    "SOUL.md",
+    "IDENTITY.md",
+    "HEARTBEAT.md",
+    "TOOLS.md",
+    "USER.md",
+]
+
+# ── 路径豁免（脚本文件可含本地路径，密钥检测与 gitleaks 仍然执行） ──
+ALLOWED_PATHS = [
+    ".githooks/",          # hook 源码含路径/密钥模式定义属正常内容
+    ".git/hooks/",
+    ".github/workflows/",
+    "scripts/",
+]
+
+
+def run_gitleaks_staged() -> tuple[bool, str]:
+    """用 gitleaks 扫描暂存区（PEM/通用 secret 兜底，100+ 规则）。
+
+    gitleaks 未安装或超时时跳过（由上方正则 SECRET_PATTERNS 兜底）。
+    返回 (是否通过, 扫描报告)。
+    """
+    try:
+        result = subprocess.run(
+            ["gitleaks", "protect", "--staged", "--no-banner", "--redact"],
+            capture_output=True, text=True, timeout=300,
+        )
+        if result.returncode != 0:
+            return False, result.stdout + result.stderr
+    except FileNotFoundError:
+        return True, ""
+    except subprocess.TimeoutExpired:
+        return True, ""
+    return True, ""
+
+
+def main() -> int:
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+        capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL,
+    )
+    if result.returncode != 0:
+        print("⚠️  git diff --cached 失败，跳过 pre-commit hook")
+        return 0
+
+    changed_files = [f.strip() for f in result.stdout.split("\n") if f.strip()]
+    if not changed_files:
+        return 0
+
+    violations: list[tuple[str, str, str]] = []
+
+    for filepath in changed_files:
+        is_path_exempt = any(filepath.startswith(allowed) for allowed in ALLOWED_PATHS)
+
+        filename = os.path.basename(filepath)
+        if filename in FORBIDDEN_FILENAMES:
+            violations.append((filepath, f"禁止的文件名: {filename}", "CRITICAL"))
+            continue
+
+        content_result = subprocess.run(
+            ["git", "diff", "--cached", "--", filepath],
+            capture_output=True, text=False, timeout=10, stdin=subprocess.DEVNULL,
+        )
+        if content_result.returncode != 0:
+            continue
+
+        # 跳过二进制文件
+        if b"\0" in content_result.stdout[:8192]:
+            continue
+
+        content = content_result.stdout.decode("utf-8", errors="replace")
+        for i, line in enumerate(content.split("\n"), 1):
+            if not line.startswith("+") or line.startswith("+++"):
+                continue
+            text = line[1:]
+            for pattern_name, pattern_regex, severity in SECRET_PATTERNS:
+                if re.search(pattern_regex, text):
+                    violations.append(
+                        (f"{filepath}:{i}", f"[{pattern_name}] {text.strip()[:120]}", severity)
+                    )
+            if not is_path_exempt:
+                for pattern_name, pattern_regex, severity in PATH_PATTERNS:
+                    if re.search(pattern_regex, text):
+                        violations.append(
+                            (f"{filepath}:{i}", f"[{pattern_name}] {text.strip()[:120]}", severity)
+                        )
+
+    # gitleaks 强校验（PEM/通用 secret，先于正则结果判定）
+    gitleaks_ok, gitleaks_report = run_gitleaks_staged()
+    if not gitleaks_ok:
+        print()
+        print("╔══════════════════════════════════════════════════════════╗")
+        print("║  ❌  gitleaks 检测到密钥泄漏，提交已阻止                  ║")
+        print("╚══════════════════════════════════════════════════════════╝")
+        print()
+        print(gitleaks_report[:3000])
+        print()
+        return 1
+
+    if not violations:
+        return 0
+
+    critical = [v for v in violations if v[2] == "CRITICAL"]
+    high = [v for v in violations if v[2] == "HIGH"]
+
+    print()
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║  ❌  pre-commit 检测到潜在泄漏，提交已阻止              ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print()
+
+    if critical:
+        print(f"🔴 严重违规 ({len(critical)} 项):")
+        for f, detail, _ in critical[:10]:
+            print(f"   {f}")
+            print(f"     -> {detail}")
+        if len(critical) > 10:
+            print(f"   ... 还有 {len(critical) - 10} 项")
+        print()
+
+    if high:
+        print(f"🟡 高危违规 ({len(high)} 项):")
+        for f, detail, _ in high[:10]:
+            print(f"   {f}")
+            print(f"     -> {detail}")
+        if len(high) > 10:
+            print(f"   ... 还有 {len(high) - 10} 项")
+        print()
+
+    if critical:
+        print("🔴 检测到严重违规，提交已阻止。请修复后再试。")
+        return 1
+
+    print(f"🟡 检测到高危违规 ({len(high)} 项，提交已阻止。请修复后再试。")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

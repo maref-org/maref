@@ -1,0 +1,154 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="zh"
+  title="GitHub 正在变成一个巨型 AI 代码垃圾场"
+  description="6.3 亿个仓库，一半新代码是 AI 写的，但信任度从 77% 暴跌到 60%。CMU 挖出 600 万假 star，CodeRabbit 发现 AI 代码的严重问题是人工的 1.7 倍，63% 的开发者说修 AI 代码比自己写还慢。更魔幻的是——你用 AI 变慢了，但你完全感觉不到。"
+  date="2026-06-13"
+  author="MAREF Engineering"
+  tags={["AI 代码", "GitHub", "vibe coding", "开源"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  现在 GitHub 上有 6.3 亿个仓库。将近一半的新代码是 AI 写的。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  听起来效率爆炸对吧？
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  但同一份报告里还有一个数字：开发者对 AI 代码的信任度，从 77% 直接跌到 60%。用的人越来越多，信的人越来越少。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  更狠的在后头。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">你刷到的几千 star 项目，一半是假的</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  卡内基梅隆大学扒出来的：GitHub 上有 <strong>600 万个假 star</strong>。安全公司 Socket 查到 <strong>370 万个 fix star</strong>，跟诈骗直接挂钩。你刷到那些几千 star 的 vibe coding 项目，搞不好一半都是刷出来的。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  这还不是最吓人的。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  CodeRabbit 扫描了 470 个 PR，AI 写的代码严重问题是人工写的 <strong>1.7 倍</strong>。<strong>45%</strong> 的 AI 代码，带着 OWASP 顶级漏洞就直接上线了。<strong>63%</strong> 的开发者说，修 AI 写的代码比自己从头写还慢。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  但最魔幻的是这个。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">你用 AI 变慢了，但你完全感觉不到</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Meter 做了一个随机对照实验。结果：用 AI 的人实际上慢了 <strong>19%</strong>，但他们觉得自己快了 <strong>20%</strong>。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  做完实验告诉他们数据了，他们还坚持说自己变快了。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+  这才是最可怕的。你变慢了，但你完全感觉不到。
+</p>
+
+<div class="border-l-4 pl-6 my-8 text-lg text-brand-text-secondary italic" style="border-color: var(--color-brand-accent-blue);">
+  "这是典型的元认知失调——工具给了你速度的幻觉，但现实给了你一记耳光。"
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">开源社区正在被垃圾 PR 淹死</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  看看各大项目在做什么：
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>curl</strong>——直接砍掉了跑了 7 年的 bug bounty 计划。AI 生成的 bug 报告只有 <strong>5%</strong> 是真的，剩下全是噪音。</li>
+  <li><strong>Ghost</strong>——全面封杀有 AI 提交的代码。</li>
+  <li><strong>Tailscale</strong>——更绝，把所有外部 PR 全关了。不管你是不是 AI 写的，一视同仁。</li>
+  <li><strong>GitHub 自己</strong>——在做 PR kill switch，让维护者一键关闭外部提交。</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  开源社区不是被黑客攻破的。是被 vibe coder 拿 AI 生成的垃圾 PR 活活淹死的。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">垃圾进，垃圾出</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  这才是整个链条里最讽刺的地方：
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  你让 AI 帮你写代码 → AI 去 GitHub 上搜参考 → 搜回来的全是别的 AI 生成的垃圾 → 垃圾喂垃圾，你猜最后写出来的是什么？
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  以前 GitHub 是代码仓库。现在它正在变成一个巨型 AI 代码垃圾场。
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">问题出在哪？不是 AI，是治理</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  AI 写代码本身不是问题。问题是：<strong>没有人审计 AI 做了什么。</strong>
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Vibe coding 的核心理念是"接受 AI 生成的一切，不审查，不修改"。这个理念在写一个 TODO 应用时没问题。在写生产代码时，就是在给自己埋定时炸弹。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  但话说回来，让人类逐行审查 AI 代码也不现实——既然 63% 的人说修比写还慢，那审查只会更慢。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  真正的解法不是"不用 AI"，也不是"全部人工审查"。而是 <strong>在 AI 代码进入仓库之前，有一层自动化的治理把关</strong>：
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li><strong>每次工具调用都被审计</strong>——AI 做了什么、改了哪个文件、调了什么 API，全部记录在案，密码学签名。</li>
+  <li><strong>危险操作被自动拦截</strong>——删除数据库？修改生产环境？先过 4 级决策树。97% 自动判定，3% 升级人工。</li>
+  <li><strong>安全策略持续演进</strong>——每次误报、每次绕过尝试，都反馈到治理引擎，让它变得更聪明。</li>
+  <li><strong>形式化验证</strong>——不是"我们希望这样更安全"，是从数学上证明系统向安全收敛。</li>
+</ul>
+
+<div class="border-l-4 pl-6 my-8 text-lg text-brand-text-secondary" style="border-color: var(--color-brand-accent-blue);">
+  <strong>这就是 MAREF。</strong> 开源智能体治理操作系统。给你的 AI Agent 装上刹车、安全带、行车记录仪，和一个永远不会累的安全审查员。
+</div>
+
+<h2 class="text-2xl font-bold tracking-tight mt-12 mb-4">治理不是减速，是让你真正敢加速</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  没有治理的 AI 代码，跑得越快，翻得越惨。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  那些封杀 AI 提交的项目（curl、Ghost、Tailscale）不是反 AI。他们在说同一个意思：<strong>"我们欢迎 AI 辅助，但受不了没有质量控制的垃圾。"</strong>
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  MAREF 就是这个质量控制层。不是挡在你和 AI 之间，而是挡在垃圾代码和生产环境之间。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  你仍然可以 vibe coding。你仍然可以让 AI 帮你写代码。只是在它把数据库删了之前，会有人拦住它。
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  <strong>你变慢了？不。是你终于能看清自己在写什么了。</strong>
+</p>
+
+<hr class="my-12 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <em>📊 数据来源：GitHub Octoverse 报告、卡内基梅隆大学假 star 研究、Socket 安全报告、CodeRabbit 470 PR 分析、Meter RCT 实验、curl/BT/Ghost/Tailscale 官方公告。MAREF 是开源智能体治理操作系统。<a href="/zh/docs/quickstart/" class="text-brand-accent-blue hover:underline">5 分钟快速上手</a>。</em>
+</p>
+
+</BlogLayout>

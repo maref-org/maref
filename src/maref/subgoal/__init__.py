@@ -1,0 +1,22 @@
+"""MAREF Subgoal Interceptor (G2).
+
+Monitors agent reasoning chains, detects control-seeking subgoals,
+tracks permission delegation, and integrates with SafetyGateV2 for
+runtime subgoal safety enforcement.
+"""
+
+from maref.subgoal.cot_monitor import CoTMonitor, CoTReport
+from maref.subgoal.delegation_graph import CreepReport, DelegationGraph
+from maref.subgoal.goal_inferencer import ControlRiskReport, GoalInferencer
+from maref.subgoal.interceptor import InterceptorAction, SubgoalInterceptor
+
+__all__ = [
+    "CoTMonitor",
+    "CoTReport",
+    "GoalInferencer",
+    "ControlRiskReport",
+    "DelegationGraph",
+    "CreepReport",
+    "SubgoalInterceptor",
+    "InterceptorAction",
+]

@@ -1,0 +1,15 @@
+signal_id: S-20260511-009
+topic: MAREF Product Readiness
+source_node: product_readiness_assessment
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'MAREF product readiness assessment: (1) Code quality: 0.771/10 composite,
+  contracts subsystem 0.825 best. (2) Test coverage: 88% for MAREF core, but ~1% for
+  surrounding openclaw ecosystem. (3) Documentation: wiki/ARCHITECTURE.md complete,
+  DECISIONS.md has 14 ADRs, CONCEPTS.md covers domain model. (4) Deployment: no Docker/K8s
+  config yet, no CI/CD pipeline. (5) Multi-tenant: not supported. Verdict: MAREF core
+  is alpha+ quality (88% coverage, TLA+ verified), surrounding infrastructure is pre-alpha.'
+summary: 'MAREF product readiness assessment: (1) Code quality: 0.771/10 composite,
+  contracts subsystem 0.825 best. (2) Test coverage: 88% for MAREF core, but ~1% for
+  surrounding openclaw ecosystem. (3) Documen'
+harvested_at: '2026-05-11T21:58:41.311309'
+status: distilled

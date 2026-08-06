@@ -1,0 +1,13 @@
+{
+  "governance": {
+    "sidecarUrl": "http://localhost:8000",
+    "mode": "enforcing",
+    "failClosed": true,
+    "cacheTtlMs": 30000,
+    "cacheBlockTtlMs": 60000
+  },
+  "backend": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+  }
+}

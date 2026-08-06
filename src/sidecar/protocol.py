@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+from uuid import UUID, uuid4
+
+
+class AgentState(Enum):
+    UNKNOWN = "unknown"
+    IDLE = "idle"
+    RUNNING = "running"
+    WAITING = "waiting"
+    OBSERVING = "observing"
+    ANALYZING = "analyzing"
+    PLANNING = "planning"
+    EXECUTING = "executing"
+    ERROR = "error"
+    DEGRADED = "degraded"
+    TERMINATED = "terminated"
+    HALT = "halt"
+
+
+class ObservationType(Enum):
+    STATE_SNAPSHOT = "state_snapshot"
+    ENTROPY_METRIC = "entropy_metric"
+    MESSAGE_FLOW = "message_flow"
+    RESOURCE_USAGE = "resource_usage"
+    EXCEPTION_EVENT = "exception_event"
+    ANOMALY = "anomaly"
+
+
+@dataclass(frozen=True)
+class AgentId:
+    namespace: str = "default"
+    name: str = ""
+    instance: str = ""
+
+    def __hash__(self) -> int:
+        return hash((self.namespace, self.name, self.instance))
+
+    def __str__(self) -> str:
+        base = f"{self.namespace}/{self.name}"
+        if self.instance:
+            return f"{base}#{self.instance}"
+        return base
+
+
+@dataclass
+class EntropyReading:
+    source: str = ""
+    value: float = 0.0
+    level: str = "normal"
+    threshold: float = 0.0
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source": self.source,
+            "value": self.value,
+            "level": self.level,
+            "threshold": self.threshold,
+            "timestamp": self.timestamp,
+        }
+
+
+@dataclass
+class StateSnapshot:
+    agent_id: AgentId
+    state: AgentState = AgentState.UNKNOWN
+    current_task: str = ""
+    task_progress: float = 0.0
+    pending_messages: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent_id": str(self.agent_id),
+            "state": self.state.name,
+            "current_task": self.current_task,
+            "task_progress": self.task_progress,
+            "pending_messages": self.pending_messages,
+            "metadata": self.metadata,
+            "timestamp": self.timestamp,
+        }
+
+
+@dataclass
+class Observation:
+    observation_id: UUID = field(default_factory=uuid4)
+    obs_type: ObservationType = ObservationType.STATE_SNAPSHOT
+    payload: Any = None
+    source: str = ""
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "observation_id": str(self.observation_id),
+            "type": self.obs_type.name,
+            "source": self.source,
+            "timestamp": self.timestamp,
+        }
+        if hasattr(self.payload, "to_dict"):
+            d["payload"] = self.payload.to_dict()
+        else:
+            d["payload"] = self.payload
+        return d
+
+
+@dataclass
+class GovernanceDecision:
+    target: AgentId
+    action: str = ""
+    reason: str = ""
+    priority: int = 0
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "target": str(self.target),
+            "action": self.action,
+            "reason": self.reason,
+            "priority": self.priority,
+            "timestamp": self.timestamp,
+        }
+
+
+class SidecarProtocol:
+    """Sidecar protocol handler stub."""
+
+    def __init__(self) -> None:
+        self.agent_id = AgentId(name="sidecar")
+
+    def serialize(self, message: Any) -> dict[str, Any]:
+        return {"agent_id": str(self.agent_id), "payload": message}
+
+    def deserialize(self, data: dict[str, Any]) -> Any:
+        return data.get("payload")

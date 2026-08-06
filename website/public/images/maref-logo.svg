@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- 规 — Circle (compass, boundary) · 矩 — Diamond (square, rule) -->
+
+  <defs>
+    <filter id="markGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Brand mark: circle encloses diamond -->
+  <g transform="translate(200, 120)" filter="url(#markGlow)">
+    <!-- 规 — Circle defines the boundary -->
+    <circle cx="0" cy="0" r="90" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.85" />
+    
+    <!-- 矩 — Diamond within the circle, representing square/rule -->
+    <rect x="-48" y="-48" width="96" height="96" rx="6"
+          transform="rotate(45)"
+          fill="none" stroke="#06b6d4" stroke-width="2.5" opacity="0.75" />
+    
+    <!-- Center point -->
+    <circle cx="0" cy="0" r="3" fill="#3b82f6" opacity="0.5" />
+  </g>
+
+  <!-- Brand name -->
+  <text x="200" y="260" text-anchor="middle" fill="#3b82f6" font-size="40" font-weight="900" font-family="sans-serif" letter-spacing="4">MAREF</text>
+
+  <!-- Subtitle -->
+  <text x="200" y="290" text-anchor="middle" fill="#06b6d4" font-size="11" font-weight="500" font-family="sans-serif" letter-spacing="3">GOVERNANCE OS</text>
+
+  <!-- Tagline -->
+  <text x="200" y="345" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="400" font-family="sans-serif" letter-spacing="5" opacity="0.45">有规 · 有矩</text>
+</svg>

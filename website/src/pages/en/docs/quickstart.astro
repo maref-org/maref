@@ -1,0 +1,109 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="en" title="Quickstart — 5 minutes to your first governed agent" description="Install MAREF, diagnose your system, run the demo, and see governance in action. No GPU required." section="docs">
+
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+    Your first governed agent.<br />
+    <span class="text-brand-accent-blue">In 5 minutes.</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-8">No GPU. No cloud account. Just a terminal and <code class="text-brand-accent-blue">pip install maref</code>.</p>
+
+  <div class="my-12 space-y-16">
+    <!-- Step 1 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">1</span>
+        <h2 class="text-2xl font-bold tracking-tight">Install</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        MAREF is a pure Python package. Zero native dependencies, zero GPU required. It installs on any modern
+        Python 3.11+ environment — macOS, Linux, Windows, or container.
+      </p>
+      <CodeBlock lang="bash" title="Install MAREF" code={`pip install maref`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        That's it. One command. ~2 MB download.
+      </p>
+    </div>
+
+    <!-- Step 2 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">2</span>
+        <h2 class="text-2xl font-bold tracking-tight">Diagnose</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        Run the built-in diagnosis to verify your environment is ready. It checks Python version,
+        detects your OS, tests SM4-GCM cryptography, and confirms all subsystems report healthy.
+      </p>
+      <CodeBlock lang="bash" title="Run diagnosis" code={`maref diagnose`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        Expect green ✅ across all checks. If something's missing, the diagnosis tells you exactly what to fix.
+      </p>
+    </div>
+
+    <!-- Step 3 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">3</span>
+        <h2 class="text-2xl font-bold tracking-tight">Launch the Demo</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        The demo starts a local web UI where you can watch governance decisions happen in real time.
+        No configuration needed — it runs with sensible defaults and a toy agent so you can see
+        every layer working before you connect your own agents.
+      </p>
+      <CodeBlock lang="bash" title="Launch demo" code={`maref demo --port 8080`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        Open <code class="text-brand-accent-blue">http://localhost:8080</code> in your browser. The dashboard shows
+        the 8-layer defense pipeline, trust scores, and audit log — all live.
+      </p>
+    </div>
+
+    <!-- Step 4 -->
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent-blue/20 text-sm font-bold text-brand-accent-blue">4</span>
+        <h2 class="text-2xl font-bold tracking-tight">Check Governance Status</h2>
+      </div>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+        See exactly how MAREF is protecting your system — which defense layers are active,
+        current trust scores, and recent governance decisions.
+      </p>
+      <CodeBlock lang="bash" title="Check governance status" code={`maref status`} />
+      <p class="mt-3 text-sm text-brand-text-muted">
+        The output shows each defense layer's state, recent BLOCK/ALLOW decisions,
+        and the current Lyapunov convergence indicator.
+      </p>
+    </div>
+  </div>
+
+  <div class="my-16 p-6 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <h3 class="font-semibold text-brand-text-primary mb-2">Next steps</h3>
+    <ul class="text-sm text-brand-text-secondary space-y-2">
+      <li>→ <a href="/en/features/governance/" class="text-brand-accent-blue hover:underline">Read the governance deep dive</a></li>
+      <li>→ <a href="https://github.com/maref-org/maref" target="_blank" rel="noopener noreferrer" class="text-brand-accent-blue hover:underline">Explore the source on GitHub</a></li>
+      <li>→ <a href="/en/faq/" class="text-brand-accent-blue hover:underline">FAQ — common questions answered</a></li>
+    </ul>
+  </div>
+
+  <div class="my-16 p-6 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-4">Requirements</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">Python</div>
+      <div class="text-brand-text-primary">3.11+</div>
+      <div class="text-brand-text-muted">OS</div>
+      <div class="text-brand-text-primary">macOS 13+ · Linux · Windows 11</div>
+      <div class="text-brand-text-muted">RAM</div>
+      <div class="text-brand-text-primary">512 MB (idle) · 2 GB (production)</div>
+      <div class="text-brand-text-muted">Disk</div>
+      <div class="text-brand-text-primary">~15 MB (package)</div>
+      <div class="text-brand-text-muted">GPU</div>
+      <div class="text-brand-text-primary">Not required</div>
+      <div class="text-brand-text-muted">Dependencies</div>
+      <div class="text-brand-text-primary">Zero native — pure Python</div>
+    </div>
+  </div>
+</DocLayout>

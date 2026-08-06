@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" /><feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+    <linearGradient id="lockGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+
+  <!-- Shield/Lock -->
+  <g transform="translate(512, 380)">
+    <path d="M 0,-180 L 160,-120 L 160,40 Q 160,180 0,240 Q -160,180 -160,40 L -160,-120 Z"
+          fill="url(#lockGrad)" stroke="#3b82f6" stroke-width="3" filter="url(#glow)" />
+    <path d="M 0,-160 L 140,-105 L 140,35 Q 140,160 0,215 Q -140,160 -140,35 L -140,-105 Z"
+          fill="none" stroke="#06b6d4" stroke-width="1" opacity="0.4" />
+
+    <path d="M -60,-60 L -60,-110 Q -60,-170 0,-170 Q 60,-170 60,-110 L 60,-60"
+          fill="none" stroke="#3b82f6" stroke-width="8" stroke-linecap="round" />
+    <path d="M -40,-60 L -40,-110 Q -40,-150 0,-150 Q 40,-150 40,-110 L 40,-60"
+          fill="none" stroke="#06b6d4" stroke-width="3" opacity="0.5" stroke-linecap="round" />
+
+    <circle cx="0" cy="-10" r="18" fill="#3b82f6" opacity="0.8" />
+    <rect x="-6" y="-10" width="12" height="30" rx="3" fill="#3b82f6" opacity="0.8" />
+    <circle cx="0" cy="-10" r="10" fill="#ffffff" />
+    <rect x="-4" y="-10" width="8" height="22" rx="2" fill="#ffffff" />
+    <circle cx="0" cy="0" r="60" fill="#10b981" opacity="0.08" />
+  </g>
+
+  <!-- Key -->
+  <g transform="translate(330, 680)">
+    <circle cx="0" cy="0" r="25" fill="none" stroke="#f59e0b" stroke-width="4" />
+    <line x1="20" y1="0" x2="120" y2="0" stroke="#f59e0b" stroke-width="4" />
+    <line x1="90" y1="0" x2="110" y2="-20" stroke="#f59e0b" stroke-width="3" />
+    <line x1="70" y1="0" x2="90" y2="-20" stroke="#f59e0b" stroke-width="3" />
+    <text x="60" y="45" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="600" font-family="monospace">SM2 Key</text>
+  </g>
+
+  <!-- Data streams -->
+  <g fill="#06b6d4" font-size="11" font-family="monospace" opacity="0.5">
+    <text x="120" y="350" fill="#3b82f6">0x7F3A...8B2C</text>
+    <text x="120" y="380" fill="#06b6d4">0xE451...9D1F</text>
+    <text x="120" y="410" fill="#8b5cf6">0x2B8F...C0E7</text>
+    <text x="740" y="350" fill="#3b82f6">0xA9C4...6D1E</text>
+    <text x="740" y="380" fill="#06b6d4">0x3F71...B5A2</text>
+    <text x="740" y="410" fill="#8b5cf6">0xD60B...E8F3</text>
+  </g>
+
+  <!-- Algorithm badges -->
+  <g transform="translate(512, 810)">
+    <rect x="-200" y="-20" width="120" height="36" rx="18" fill="#3b82f6" opacity="0.1" stroke="#3b82f6" stroke-width="1" />
+    <text x="-140" y="5" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="700" font-family="monospace">SM2</text>
+    <rect x="-60" y="-20" width="120" height="36" rx="18" fill="#06b6d4" opacity="0.1" stroke="#06b6d4" stroke-width="1" />
+    <text x="0" y="5" text-anchor="middle" fill="#06b6d4" font-size="14" font-weight="700" font-family="monospace">SM3</text>
+    <rect x="80" y="-20" width="140" height="36" rx="18" fill="#8b5cf6" opacity="0.1" stroke="#8b5cf6" stroke-width="1" />
+    <text x="150" y="5" text-anchor="middle" fill="#8b5cf6" font-size="14" font-weight="700" font-family="monospace">SM4-GCM</text>
+  </g>
+
+  <!-- Title -->
+  <text x="512" y="160" text-anchor="middle" fill="#3b82f6" font-size="20" font-weight="700" font-family="sans-serif">National Cryptography</text>
+  <text x="512" y="185" text-anchor="middle" fill="#06b6d4" font-size="13" font-family="sans-serif">GB/T 32918 · Fully Auditable</text>
+</svg>

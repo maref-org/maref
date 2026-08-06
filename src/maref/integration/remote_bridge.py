@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+from maref.integration.mcp_transport import (
+    HTTPTransport,
+    JSONRPCRequest,
+    JSONRPCResponse,
+    MCPTransport,
+    SSETransport,
+    StdioTransport,
+    TransportState,
+)
+
+
+class BridgeState(str, Enum):
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    ERROR = "error"
+
+
+@dataclass
+class RemoteCommand:
+    command: str
+    params: dict[str, Any] = field(default_factory=dict)
+    request_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+    def to_jsonrpc(self) -> JSONRPCRequest:
+        return JSONRPCRequest(
+            method=self.command,
+            params=self.params,
+            id=self.request_id,
+        )
+
+
+@dataclass
+class RemoteCommandResult:
+    success: bool
+    data: Any = None
+    error: str | None = None
+    request_id: str = ""
+
+    @classmethod
+    def from_jsonrpc(cls, response: JSONRPCResponse) -> RemoteCommandResult:
+        if response.is_error:
+            error_msg = ""
+            if response.error:
+                error_msg = response.error.get("message", "Unknown error")
+            return cls(
+                success=False,
+                error=error_msg,
+                request_id=str(response.id),
+            )
+        return cls(
+            success=True,
+            data=response.result,
+            request_id=str(response.id),
+        )
+
+
+class RemoteBridge:
+    def __init__(self, transport: MCPTransport | None = None) -> None:
+        self._transport: MCPTransport | None = transport
+        self._state = BridgeState.DISCONNECTED
+        self._connected_endpoint: str = ""
+
+    @property
+    def state(self) -> BridgeState:
+        return self._state
+
+    @property
+    def is_connected(self) -> bool:
+        return self._state == BridgeState.CONNECTED
+
+    def connect_http(self, endpoint: str) -> bool:
+        self._state = BridgeState.CONNECTING
+        self._connected_endpoint = endpoint
+        self._transport = HTTPTransport(endpoint)
+        try:
+            self._transport.connect()
+            if self._transport.state == TransportState.CONNECTED:
+                self._state = BridgeState.CONNECTED
+                return True
+        except Exception:
+            pass
+        self._state = BridgeState.ERROR
+        return False
+
+    def connect_sse(self, url: str) -> bool:
+        self._state = BridgeState.CONNECTING
+        self._connected_endpoint = url
+        self._transport = SSETransport(url)
+        try:
+            self._transport.connect()
+            if self._transport.state == TransportState.CONNECTED:
+                self._state = BridgeState.CONNECTED
+                return True
+        except Exception:
+            pass
+        self._state = BridgeState.ERROR
+        return False
+
+    def connect_stdio(self, command: list[str]) -> bool:
+        self._state = BridgeState.CONNECTING
+        self._connected_endpoint = " ".join(command)
+        self._transport = StdioTransport(command)
+        try:
+            self._transport.connect()
+            if self._transport.state == TransportState.CONNECTED:
+                self._state = BridgeState.CONNECTED
+                return True
+        except Exception:
+            pass
+        self._state = BridgeState.ERROR
+        return False
+
+    def disconnect(self) -> None:
+        if self._transport is not None:
+            try:
+                self._transport.disconnect()
+            except Exception:
+                pass
+        self._state = BridgeState.DISCONNECTED
+        self._connected_endpoint = ""
+
+    def send_command(
+        self, command: str, params: dict[str, Any] | None = None
+    ) -> RemoteCommandResult:
+        if not self.is_connected or self._transport is None:
+            return RemoteCommandResult(
+                success=False,
+                error="Remote bridge not connected",
+            )
+        try:
+            cmd = RemoteCommand(command=command, params=params or {})
+            response = self._transport.send(cmd.to_jsonrpc())
+            return RemoteCommandResult.from_jsonrpc(response)
+        except Exception as e:
+            return RemoteCommandResult(
+                success=False,
+                error=str(e),
+            )
+
+    def send_initialize(self, client_name: str = "maref") -> RemoteCommandResult:
+        if not self.is_connected or self._transport is None:
+            return RemoteCommandResult(success=False, error="Remote bridge not connected")
+        try:
+            response = self._transport.send_initialize(client_name)
+            return RemoteCommandResult.from_jsonrpc(response)
+        except Exception as e:
+            return RemoteCommandResult(success=False, error=str(e))
+
+    def send_tools_list(self) -> RemoteCommandResult:
+        if not self.is_connected or self._transport is None:
+            return RemoteCommandResult(success=False, error="Remote bridge not connected")
+        try:
+            response = self._transport.send_tools_list()
+            return RemoteCommandResult.from_jsonrpc(response)
+        except Exception as e:
+            return RemoteCommandResult(success=False, error=str(e))
+
+    def send_tool_call(self, tool_name: str, arguments: dict[str, Any]) -> RemoteCommandResult:
+        if not self.is_connected or self._transport is None:
+            return RemoteCommandResult(success=False, error="Remote bridge not connected")
+        try:
+            response = self._transport.send_tool_call(tool_name, arguments)
+            return RemoteCommandResult.from_jsonrpc(response)
+        except Exception as e:
+            return RemoteCommandResult(success=False, error=str(e))
+
+    def send_resources_list(self) -> RemoteCommandResult:
+        if not self.is_connected or self._transport is None:
+            return RemoteCommandResult(success=False, error="Remote bridge not connected")
+        try:
+            response = self._transport.send_resources_list()
+            return RemoteCommandResult.from_jsonrpc(response)
+        except Exception as e:
+            return RemoteCommandResult(success=False, error=str(e))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "state": self._state.value,
+            "endpoint": self._connected_endpoint,
+            "transport_type": type(self._transport).__name__ if self._transport else "None",
+        }

@@ -1,0 +1,78 @@
+name: Good First Issue
+description: A task suitable for new contributors to get started with MAREF
+title: "[Good First Issue] "
+labels:
+  - good-first-issue
+  - triage
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing to MAREF! This issue is designed for new contributors to get started.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done?
+      placeholder: A clear description of the task
+    validations:
+      required: true
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty
+      description: Estimated difficulty level
+      options:
+        - "1 - Easy (1-2 hours)"
+        - "2 - Medium (3-4 hours)"
+        - "3 - Intermediate (1 day)"
+    validations:
+      required: true
+  - type: textarea
+    id: estimated_time
+    attributes:
+      label: Estimated Time
+      description: How long should this take?
+      placeholder: e.g., 1-2 hours
+    validations:
+      required: false
+  - type: input
+    id: module
+    attributes:
+      label: Related Module
+      description: Which module does this relate to?
+      placeholder: e.g., maref.loop, maref.governance
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Complete
+      description: Step-by-step guide to complete this task
+      placeholder: |
+        1. First step
+        2. Second step
+        3. Third step
+    validations:
+      required: true
+  - type: textarea
+    id: code_anchor
+    attributes:
+      label: Code Anchor
+      description: File paths and line numbers where changes need to be made
+      placeholder: |
+        - src/maref/loop/convergent.py:120-140
+        - tests/test_loop.py:50-60
+    validations:
+      required: true
+  - type: textarea
+    id: hints
+    attributes:
+      label: Hints
+      description: Helpful hints for completing this task
+      placeholder: |
+        - Check the existing tests for patterns
+        - See the CONTRIBUTING.md for coding standards
+    validations:
+      required: false

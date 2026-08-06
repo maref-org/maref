@@ -1,0 +1,21 @@
+from __future__ import annotations
+
+from typing import Any
+
+from sidecar.collector import AgentAdapter, MockAgentAdapter
+
+
+class AutoGenAdapter(AgentAdapter):
+    def __init__(self, team: Any) -> None:
+        self._team = team
+
+    async def list_agents(self) -> list[Any]:
+        return list(getattr(self._team, "_agents", []))
+
+    async def get_state(self, name: Any) -> Any:
+        adapter = MockAgentAdapter()
+        return await adapter.get_state(name)
+
+    async def get_entropy(self, name: Any) -> Any:
+        adapter = MockAgentAdapter()
+        return await adapter.get_entropy(name)

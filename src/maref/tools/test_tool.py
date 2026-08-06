@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import asyncio
+import os
+import sys
+
+from pydantic import BaseModel, Field
+
+from maref.codegen.tool import (
+    Tool,
+    ToolContext,
+    ToolResult,
+    ValidationResult,
+)
+
+
+class TestInput(BaseModel):
+    file_path: str = Field(..., description="Path to the test file or directory")
+    extra_args: str = Field("", description="Extra pytest arguments")
+
+
+class TestOutput(BaseModel):
+    exit_code: int
+    stdout: str
+    stderr: str
+    passed_count: int = 0
+    failed_count: int = 0
+    total: int = 0
+
+
+class TestTool(Tool[TestInput, TestOutput]):
+    name = "Test"
+    description: str = "Run pytest on a test file or directory"
+
+    def is_read_only(self, input: TestInput) -> bool:
+        return True
+
+    def is_concurrency_safe(self, input: TestInput) -> bool:
+        return False
+
+    async def validate(self, input: TestInput) -> ValidationResult:
+        if not os.path.exists(input.file_path):
+            return ValidationResult(is_valid=False, message=f"Path not found: {input.file_path}")
+        return ValidationResult(is_valid=True)
+
+    async def call(self, input: TestInput, ctx: ToolContext) -> ToolResult[TestOutput]:
+        cwd = ctx.workspace_root or os.getcwd()
+        args = [sys.executable, "-m", "pytest", input.file_path, "-q", "--no-cov"]
+        if input.extra_args:
+            args.extend(input.extra_args.split())
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=cwd,
+            )
+
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    process.communicate(), timeout=120
+                )
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.wait()
+                return ToolResult(
+                    data=TestOutput(
+                        exit_code=-1,
+                        stdout="",
+                        stderr="Timed out after 120s",
+                    )
+                )
+
+            stdout = stdout_bytes.decode("utf-8", errors="replace")
+            stderr = stderr_bytes.decode("utf-8", errors="replace")
+
+            passed_count = stdout.count("PASSED")
+            failed_count = stdout.count("FAILED")
+
+            return ToolResult(
+                data=TestOutput(
+                    exit_code=process.returncode or 0,
+                    stdout=stdout,
+                    stderr=stderr,
+                    passed_count=passed_count,
+                    failed_count=failed_count,
+                )
+            )
+        except Exception as e:
+            return ToolResult(
+                data=TestOutput(
+                    exit_code=-1,
+                    stdout="",
+                    stderr=str(e),
+                )
+            )

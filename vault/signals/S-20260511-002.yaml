@@ -1,0 +1,15 @@
+signal_id: S-20260511-002
+topic: MAREF Competitive Landscape
+source_node: competitive_benchmark
+source_url: https://athena-knowledge-base/maref-research
+raw_text: 'MAREF governance scored 10/10 in competitive benchmarking vs LangGraph
+  (2/10), CrewAI (1/10), and Anthropic CCU (4/10). Unique advantage: only multi-agent
+  framework with formal verification. MAREF is positioned as ''Governance OS for Multi-Agent
+  Systems'' — a governance layer that sits beside existing agent frameworks rather
+  than replacing them. Weakness: community ecosystem 3/10 vs competitors 8-9/10, 0
+  GitHub stars vs CrewAI 22K stars.'
+summary: 'MAREF governance scored 10/10 in competitive benchmarking vs LangGraph (2/10),
+  CrewAI (1/10), and Anthropic CCU (4/10). Unique advantage: only multi-agent framework
+  with formal verification. MAREF is '
+harvested_at: '2026-05-11T21:58:41.300012'
+status: distilled

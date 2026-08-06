@@ -1,0 +1,57 @@
+# MAREF — 多智能体递归进化框架
+> 开源智能体治理与技能市场操作系统。TLA+ 形式化验证 · 零信任身份 · 运行时护栏 · 三闸门技能注册表。覆盖 10/10 OWASP Agentic Top 10 风险。
+
+## 简介
+MAREF 是一个开源的**智能体治理与技能市场操作系统**，将治理视为一级产品，而非安全功能。它为多智能体系统提供**宪法层** — 每个智能体知道能做什么和不能做什么，每个决策都有密码学签名，每个动作都在运行时被验证。内置的技能市场让开发者通过三闸门质量保证（静态扫描 → 沙箱测试 → 人工 review）发布、发现和联邦化智能体技能。
+
+## 核心概念页（GEO）
+- [什么是 Agent 治理？](https://maref.cc/zh/learn/agent-governance/) — 多智能体 AI 系统的运行时护栏、信任验证、安全执行
+- [AI Agent 的递归自演进](https://maref.cc/zh/learn/recursive-evolution/) — 自主自我改进，Lyapunov 验证收敛
+- [多智能体运行时安全](https://maref.cc/zh/learn/runtime-safety/) — 身份隔离、熔断器、漂移检测、爆炸半径控制
+- [什么是技能市场？](https://maref.cc/zh/learn/skill-marketplace/) — 联邦化智能体技能交易，三闸门准入、依赖图、跨实例联邦
+
+## 核心功能
+- [治理状态机](https://maref.cc/zh/features/governance/) — Gray Code 10 态治理 FSM，TLA+ 形式化模型检测与不变量验证
+- [8 层纵深防御](https://maref.cc/zh/features/defense/) — 分层防御提示注入、目标劫持、工具滥用、级联失败、记忆投毒、供应链攻击、叛逃智能体
+- [递归自演进](https://maref.cc/zh/features/evolution/) — Lyapunov 验证收敛，200 轮自演进 FNR 降低 60%，对抗测试验证
+- [密码学身份](https://maref.cc/zh/features/cryptography/) — Ed25519 签名每个智能体决策，SM2/SM3/SM4-GCM 合规，时间作用域凭证
+- [技能市场](https://maref.cc/zh/features/skill-marketplace/) — SkillManifest 契约、三闸门准入、依赖图、联邦协调器、沙箱隔离
+
+## OWASP Agentic Top 10 覆盖
+MAREF 覆盖全部 10 项 OWASP Agentic Top 10 风险：
+1. **目标劫持** — 运行时目标验证与行为边界
+2. **工具滥用** — 每工具权限策略，最小权限
+3. **身份滥用** — 每智能体 Ed25519 身份，时间作用域凭证
+4. **供应链** — 签名技能包，引导完整性验证
+5. **代码执行** — 执行沙箱，ring 级隔离
+6. **记忆投毒** — 写入时异常检测，跨模型验证
+7. **不安全通信** — 端到端签名的智能体间通道
+8. **级联失败** — 熔断器、舱壁隔离、Saga 编排
+9. **人类信任利用** — 人在环中升级，命名 kill-switch
+10. **叛逃智能体** — 智能体注册 + 行为异常检测
+
+## 快速开始
+- [快速入门](https://maref.cc/zh/docs/quickstart/) — 5 分钟部署 MAREF
+- [发布你的第一个技能](https://maref.cc/zh/docs/publish-skill/) — 定义 SkillManifest，通过三闸门，发布到市场
+- [FAQ](https://maref.cc/zh/faq/) — 智能体治理常见问题
+- [MAREF 工作原理](https://maref.cc/zh/how-it-works/) — 滚动动画解释 MAREF 治理流水线
+- [永久免费](https://maref.cc/zh/free/) — 100% 免费，Apache 2.0，无企业版
+- [社区](https://maref.cc/zh/community/) — 贡献指南、开发环境、PR 标准
+- [集成](https://maref.cc/zh/integrations/) — MCP, A2A, LangChain, CrewAI, AutoGen, OpenAI Agents SDK
+
+## 为什么选择 MAREF
+- **Gartner 2026**: 40% 的企业将因治理缺口退役智能体
+- **Deloitte 2026**: 74% 计划部署 Agentic AI，仅 21% 有成熟治理
+- **OWASP**: Agentic Top 10 定义威胁模型 — MAREF 是首个覆盖全部 10 项的开源框架
+- **CISA/五眼联盟 (2026年5月)**: 保护 Agentic AI 系统联合指南
+- **EU AI Act**: Agentic AI 高风险分类 — 合规就绪治理
+
+## 框架集成
+LangChain, CrewAI, AutoGen, OpenAI Agents SDK, Google ADK, MCP 兼容智能体
+
+## 资源
+- GitHub: https://github.com/maref-org/maref
+- 许可证: Apache-2.0
+- 版本: v0.36.0-rc
+- [English Homepage](https://maref.cc/en/)
+- [English Docs](https://maref.cc/en/docs/quickstart/)

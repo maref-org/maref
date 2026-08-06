@@ -1,0 +1,438 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore
+
+@dataclass
+class TrustFactor:
+    name: str
+    value: float
+    weight: float
+    normalized: float = 0.0
+    status: str = "normal"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "value": round(self.value, 4),
+            "weight": round(self.weight, 3),
+            "normalized": round(self.normalized, 3),
+            "status": self.status,
+        }
+
+
+@dataclass
+class GoodhartDetection:
+    is_detected: bool
+    suspicious_factors: list[str] = field(default_factory=list)
+    proxy_overoptimization: float = 0.0
+    measured_score: float = 0.0
+    true_score_estimate: float = 0.0
+    severity: str = "none"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "detected": self.is_detected,
+            "suspicious": self.suspicious_factors,
+            "proxy_overopt": round(self.proxy_overoptimization, 3),
+            "measured": round(self.measured_score, 3),
+            "true_estimate": round(self.true_score_estimate, 3),
+            "severity": self.severity,
+        }
+
+
+@dataclass
+class TrustScoreV2:
+    agent_id: str
+    overall_trust: float
+    factors: list[TrustFactor] = field(default_factory=list)
+    goodhart: GoodhartDetection | None = None
+    temporal_decay_factor: float = 1.0
+    trust_tier: str = "B"
+    confidence_interval: tuple[float, float] = (0.0, 0.0)
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "overall_trust": round(self.overall_trust, 2),
+            "tier": self.trust_tier,
+            "decay": round(self.temporal_decay_factor, 3),
+            "factors": [f.to_dict() for f in self.factors],
+            "goodhart": self.goodhart.to_dict() if self.goodhart else {},
+            "ci": (round(self.confidence_interval[0], 2), round(self.confidence_interval[1], 2)),
+        }
+
+    def _compute_tier(self) -> str:
+        if self.overall_trust >= 90:
+            return "AAA"
+        if self.overall_trust >= 85:
+            return "AA"
+        if self.overall_trust >= 80:
+            return "A"
+        if self.overall_trust >= 70:
+            return "BBB"
+        if self.overall_trust >= 60:
+            return "BB"
+        if self.overall_trust >= 50:
+            return "B"
+        if self.overall_trust >= 40:
+            return "C"
+        if self.overall_trust >= 30:
+            return "D"
+        return "F"
+
+    def finalize(self) -> None:
+        self.trust_tier = self._compute_tier()
+        margin = 5.0
+        self.confidence_interval = (
+            max(0, self.overall_trust - margin),
+            min(100, self.overall_trust + margin),
+        )
+
+    def to_audit_record(self, round_num: int = 42) -> UnifiedAuditRecord:
+        # 惰性导入：绕开 unified_audit → governance → identity → trust_engine_v2 循环
+        from maref.recursive.unified_audit import UnifiedAuditRecord, make_record_id
+
+        return UnifiedAuditRecord(
+            record_id=make_record_id("trustv2", hash(self.agent_id) % 100000),
+            timestamp=self.timestamp,
+            layer="evolution",
+            round=round_num,
+            event_type="trust_assessment_v2",
+            source_module="TrustEngineV2",
+            target_module=self.agent_id,
+            decision=f"tier_{self.trust_tier}",
+            justification=f"Trust={self.overall_trust:.1f}, {len(self.factors)} factors",
+            outcome="success" if self.overall_trust >= 50 else "warning",
+            context_refs=[self.agent_id],
+        )
+
+
+@dataclass
+class AgentProfileV2:
+    agent_id: str
+    framework: str = ""
+    registered_at: float = field(default_factory=time.time)
+    task_history: list[dict[str, Any]] = field(default_factory=list)
+    compliance_violations: int = 0
+    last_active_at: float = field(default_factory=time.time)
+    peer_ratings: dict[str, float] = field(default_factory=dict)
+    reputation_chain: list[str] = field(default_factory=list)
+    behavioral_consistency: float = 0.7
+    framework_baseline: float = 0.5
+    # Real-time load fields (Phase 2.2)
+    current_tasks: int = 0
+    max_tasks: int = 10
+    queue_depth: int = 0
+
+
+class TrustEngineV2:
+    FACTOR_WEIGHTS = {
+        "task_completion": 0.15,
+        "response_quality": 0.15,
+        "latency_performance": 0.10,
+        "error_rate": 0.10,
+        "compliance_adherence": 0.15,
+        "behavioral_consistency": 0.10,
+        "peer_reputation": 0.10,
+        "temporal_stability": 0.10,
+        "cooperation_score": 0.05,
+    }
+
+    GOODHART_THRESHOLD = 0.75
+    TEMPORAL_DECAY_HALF_LIFE = 720.0
+    CONSISTENCY_WINDOW = 5
+
+    def __init__(self, audit_store: UnifiedAuditStore | None = None) -> None:
+        from maref.recursive.unified_audit import UnifiedAuditStore
+
+        self._profiles: dict[str, AgentProfileV2] = {}
+        self._scores: dict[str, TrustScoreV2] = {}
+        self._audit_store = audit_store or UnifiedAuditStore()
+
+    def register_agent(
+        self, agent_id: str, framework: str = "", compliance_violations: int = 0
+    ) -> AgentProfileV2:
+        profile = AgentProfileV2(
+            agent_id=agent_id,
+            framework=framework,
+            compliance_violations=compliance_violations,
+        )
+        self._profiles[agent_id] = profile
+        return profile
+
+    def assess(self, agent_id: str) -> TrustScoreV2 | None:
+        profile = self._profiles.get(agent_id)
+        if profile is None:
+            return None
+
+        factors = self._compute_all_factors(profile)
+        overall = self._weighted_sum(factors)
+        decay = self._compute_temporal_decay(profile)
+        overall *= decay
+
+        # Apply load factor as multiplicative penalty (weight=0 means it was
+        # not included in weighted_sum; apply it here explicitly)
+        load_factor = next((f.value for f in factors if f.name == "load_factor"), 1.0)
+        overall *= load_factor
+
+        goodhart = self._detect_goodhart(factors, profile)
+
+        score = TrustScoreV2(
+            agent_id=agent_id,
+            overall_trust=round(max(0.0, min(100.0, overall)), 2),
+            factors=factors,
+            goodhart=goodhart,
+            temporal_decay_factor=decay,
+        )
+        score.finalize()
+
+        self._scores[agent_id] = score
+        self._audit_store.append(score.to_audit_record())
+        return score
+
+    def get_score(self, agent_id: str) -> TrustScoreV2 | None:
+        return self._scores.get(agent_id)
+
+    def compare(self, agent_a: str, agent_b: str) -> dict[str, Any]:
+        sa = self._scores.get(agent_a)
+        sb = self._scores.get(agent_b)
+        if sa is None or sb is None:
+            return {"error": "agent not assessed"}
+        return {
+            "agent_a": {"trust": sa.overall_trust, "tier": sa.trust_tier},
+            "agent_b": {"trust": sb.overall_trust, "tier": sb.trust_tier},
+            "difference": round(abs(sa.overall_trust - sb.overall_trust), 2),
+        }
+
+    def list_by_tier(self, tier: str = "A") -> list[TrustScoreV2]:
+        sorted_scores = sorted(
+            self._scores.values(),
+            key=lambda s: -s.overall_trust,
+        )
+        if tier == "ALL":
+            return sorted_scores
+        return [s for s in sorted_scores if s.trust_tier.startswith(tier) or s.trust_tier == tier]
+
+    def get_statistics(self) -> dict[str, Any]:
+        scores = list(self._scores.values())
+        if not scores:
+            return {"total_agents": 0, "avg_trust": 0.0}
+        trusts = [s.overall_trust for s in scores]
+        tiers = [s.trust_tier for s in scores]
+        avg = sum(trusts) / len(trusts)
+        return {
+            "total_agents": len(scores),
+            "avg_trust": round(avg, 1),
+            "highest_trust": round(max(trusts), 1),
+            "lowest_trust": round(min(trusts), 1),
+            "tier_distribution": {t: tiers.count(t) for t in sorted(set(tiers))},
+            "goodhart_flagged": sum(1 for s in scores if s.goodhart and s.goodhart.is_detected),
+        }
+
+    def update_compliance(self, agent_id: str, violations_delta: int) -> None:
+        profile = self._profiles.get(agent_id)
+        if profile:
+            profile.compliance_violations += violations_delta
+            profile.last_active_at = time.time()
+
+    def add_peer_rating(self, agent_id: str, rater_id: str, rating: float) -> None:
+        profile = self._profiles.get(agent_id)
+        if profile:
+            profile.peer_ratings[rater_id] = min(1.0, max(0.0, rating))
+
+    def adjust_behavioral_consistency(self, agent_id: str, delta: float) -> None:
+        """调整 agent 的行为一致性因子（S2 行为审计闭环反馈）。
+
+        行为异常探针据此将行为信号反馈到信任评分：delta 为带符号的
+        调整量（负值降信任），结果 clamp 到 [0.0, 1.0]。未注册 agent
+        自动注册以支持探针实时接入。
+
+        Args:
+            agent_id: 目标 agent 标识（DID 字符串或名称）。
+            delta: 行为一致性增量，如 -0.3（critical 异常）。
+        """
+        profile = self._profiles.get(agent_id)
+        if profile is None:
+            profile = self.register_agent(agent_id)
+        new_val = min(1.0, max(0.0, profile.behavioral_consistency + delta))
+        profile.behavioral_consistency = new_val
+        profile.last_active_at = time.time()
+
+    def record_task(
+        self,
+        agent_id: str,
+        task_id: str,
+        success: bool,
+        quality: float = 0.5,
+        latency_ms: float = 500.0,
+    ) -> None:
+        profile = self._profiles.get(agent_id)
+        if profile:
+            profile.task_history.append(
+                {
+                    "task_id": task_id,
+                    "success": success,
+                    "quality": quality,
+                    "latency_ms": latency_ms,
+                    "timestamp": time.time(),
+                }
+            )
+            profile.last_active_at = time.time()
+
+    def _compute_all_factors(self, profile: AgentProfileV2) -> list[TrustFactor]:
+        weights = self.FACTOR_WEIGHTS
+        tasks = profile.task_history[-50:]
+
+        completion = self._compute_completion(tasks)
+        quality = self._compute_quality(tasks)
+        latency = self._compute_latency(tasks)
+        errors = self._compute_errors(tasks)
+        compliance = self._compute_compliance(profile)
+        consistency = self._compute_consistency(profile)
+        reputation = self._compute_reputation(profile)
+        stability = self._compute_stability(profile)
+        cooperation = self._compute_cooperation(profile)
+        load_factor = self._compute_load_factor(profile)
+
+        factors = [
+            TrustFactor("task_completion", completion, weights["task_completion"]),
+            TrustFactor("response_quality", quality, weights["response_quality"]),
+            TrustFactor("latency_performance", latency, weights["latency_performance"]),
+            TrustFactor("error_rate", errors, weights["error_rate"]),
+            TrustFactor("compliance_adherence", compliance, weights["compliance_adherence"]),
+            TrustFactor("behavioral_consistency", consistency, weights["behavioral_consistency"]),
+            TrustFactor("peer_reputation", reputation, weights["peer_reputation"]),
+            TrustFactor("temporal_stability", stability, weights["temporal_stability"]),
+            TrustFactor("cooperation_score", cooperation, weights["cooperation_score"]),
+            TrustFactor("load_factor", load_factor, 0.0),  # applied as multiplicative penalty
+        ]
+
+        for f in factors:
+            f.normalized = f.value * f.weight * 100.0
+
+        return factors
+
+    @staticmethod
+    def _weighted_sum(factors: list[TrustFactor]) -> float:
+        return sum(f.value * f.weight for f in factors) * 100.0
+
+    @staticmethod
+    def _compute_completion(tasks: list[dict[str, Any]]) -> float:
+        if not tasks:
+            return 0.5
+        return sum(1.0 for t in tasks if t.get("success", False)) / len(tasks)
+
+    @staticmethod
+    def _compute_quality(tasks: list[dict[str, Any]]) -> float:
+        if not tasks:
+            return 0.5
+        return sum(t.get("quality", 0.5) for t in tasks) / len(tasks)
+
+    @staticmethod
+    def _compute_latency(tasks: list[dict[str, Any]]) -> float:
+        if not tasks:
+            return 0.5
+        latencies = [t.get("latency_ms", 500.0) for t in tasks]
+        avg_latency = sum(latencies) / len(latencies)
+        return max(0.0, min(1.0, 1.0 - avg_latency / 5000.0))
+
+    @staticmethod
+    def _compute_errors(tasks: list[dict[str, Any]]) -> float:
+        if not tasks:
+            return 0.5
+        failures = sum(1.0 for t in tasks if not t.get("success", False))
+        return max(0.0, min(1.0, 1.0 - failures / max(len(tasks), 1)))
+
+    @staticmethod
+    def _compute_compliance(profile: AgentProfileV2) -> float:
+        violations = profile.compliance_violations
+        return max(0.0, 1.0 - violations / 10.0)
+
+    @staticmethod
+    def _compute_consistency(profile: AgentProfileV2) -> float:
+        return profile.behavioral_consistency
+
+    @staticmethod
+    def _compute_reputation(profile: AgentProfileV2) -> float:
+        ratings = list(profile.peer_ratings.values())
+        if not ratings:
+            return 0.5
+        return sum(ratings) / len(ratings)
+
+    @staticmethod
+    def _compute_stability(profile: AgentProfileV2) -> float:
+        age_hours = max(1.0, (time.time() - profile.registered_at) / 3600.0)
+        idle = max(0.0, time.time() - profile.last_active_at) / 3600.0
+        stability = max(0.0, min(1.0, age_hours / (age_hours + idle + 1.0)))
+        return stability
+
+    @staticmethod
+    def _compute_cooperation(profile: AgentProfileV2) -> float:
+        chain_len = len(profile.reputation_chain)
+        return min(1.0, chain_len / 10.0)
+
+    @staticmethod
+    def _compute_load_factor(profile: AgentProfileV2) -> float:
+        """Compute load-based trust penalty.
+
+        High load (current_tasks / max_tasks >= 0.9) reduces trust
+        because overloaded agents are more likely to fail or timeout.
+        """
+        if profile.max_tasks <= 0:
+            return 1.0
+        ratio = profile.current_tasks / profile.max_tasks
+        if ratio >= 0.9:
+            return 0.5  # heavily penalized
+        if ratio >= 0.7:
+            return 0.75
+        if ratio >= 0.5:
+            return 0.9
+        return 1.0
+
+    def _detect_goodhart(
+        self, factors: list[TrustFactor], profile: AgentProfileV2
+    ) -> GoodhartDetection:
+        susp_names: list[str] = []
+        max_gap = 0.0
+        for f in factors:
+            if f.normalized > self.GOODHART_THRESHOLD * 100.0:
+                susp_names.append(f.name)
+            gap = abs(f.value - self._compute_stability(profile))
+            max_gap = max(max_gap, gap)
+
+        is_detected = len(susp_names) >= 2 or max_gap > 0.5
+
+        measured = sum(f.value * f.weight for f in factors)
+        true_est = measured * 0.9 if is_detected else measured
+
+        severity = "none"
+        if is_detected:
+            severity = "critical" if len(susp_names) >= 3 else "warning"
+
+        return GoodhartDetection(
+            is_detected=is_detected,
+            suspicious_factors=susp_names,
+            proxy_overoptimization=round(max_gap, 3),
+            measured_score=round(measured, 3),
+            true_score_estimate=round(true_est, 3),
+            severity=severity,
+        )
+
+    def _compute_temporal_decay(self, profile: AgentProfileV2) -> float:
+        idle = (time.time() - profile.last_active_at) / 3600.0
+        half_life = self.TEMPORAL_DECAY_HALF_LIFE
+        return max(0.0, 0.5 ** (idle / half_life))
+
+    @property
+    def agent_count(self) -> int:
+        return len(self._profiles)
+
+    def clear(self) -> None:
+        self._profiles.clear()
+        self._scores.clear()

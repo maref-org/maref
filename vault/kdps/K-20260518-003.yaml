@@ -1,0 +1,119 @@
+---
+kdp_id: "K-20260518-003"
+title: "Q3 DecisionMarket（联邦共识基线）"
+status: "approved"
+decision_date: "2026-05-18"
+author: "MAREF Core Team"
+reviewers: []
+related_kdps:
+  - "K-20260518-001"
+  - "K-20260518-002"
+
+## 1. 决策背景
+
+为支持 v0.6.0 生命态探索 (C31-C40) 的启动前置条件，需要实现第三个核心模块：Q3 DecisionMarket（联邦共识基线）。该模块是 Q1 EvolutionDSL 和 Q2 RuleFreezeZone 的补充，形成完整的自治进化闭环。
+
+## 2. 设计目标
+
+| 目标 | 描述 |
+|------|------|
+| 联邦共识 | 实现基于质押的分布式投票机制 |
+| 激励相容 | 投票者根据投票结果获得奖励或惩罚 |
+| 安全保护 | 与 RuleFreezeZone 集成，保护核心组件 |
+| 进化联动 | 共识通过的提案自动进入 EvolutionDSL 应用流程 |
+| 统一审计 | 接入 UnifiedAuditRecord 审计体系 |
+
+## 3. 核心组件
+
+### 3.1 MarketParticipant（市场参与者）
+- 管理参与者身份和质押余额
+- 支持存款、提款、锁定质押
+- 追踪奖励和惩罚记录
+
+### 3.2 MarketProposal（市场提案）
+- 定义进化提案的目标、当前值、提议值
+- 关联 EvolutionRule，支持自动应用
+- 管理提案状态（open/inconclusive/consensus_reached/consensus_failed）
+
+### 3.3 MarketVote（市场投票）
+- 记录投票者、投票值、质押金额
+- 支持 APPROVE/REJECT/ABSTAIN 三种投票类型
+
+### 3.4 DecisionMarket（决策市场主类）
+- 整合加权共识引擎（WeightedConsensusEngine）
+- 管理参与者注册和提案流程
+- 执行共识评估和奖励分配
+
+## 4. 共识机制
+
+### 4.1 质押要求
+- 提案者需质押最低额度（默认 1.0）
+- 投票者需锁定质押参与投票
+- 质押与投票权重挂钩
+
+### 4.2 共识阈值
+- 默认 quorum_threshold: 0.67（2/3 多数）
+- 支持自定义阈值配置
+- 参与率达到阈值时触发共识评估
+
+### 4.3 奖励分配
+- 奖励池 = 总质押 × 5%
+- 投票正确者按质押比例分享奖励池
+- 投票错误者（非弃权）扣除 10% 质押
+
+## 5. 与 Q1/Q2 的集成
+
+### 5.1 RuleFreezeZone 集成
+- 提案前自动检查冻结区
+- 冻结目标直接拒绝提案（抛出 ProposalFrozenError）
+- 保护核心组件不被修改
+
+### 5.2 EvolutionDSL 集成
+- 提案时自动创建 EvolutionRule
+- 共识通过且 APPROVE 时自动调用 EvolutionDSL.apply()
+- 拒绝的提案不进入进化流程
+
+### 5.3 统一审计
+- DecisionMarketAuditEntry 实现 to_unified()
+- layer: "decision_market"
+- 完整记录所有操作和决策
+
+## 6. 测试验证
+
+### 6.1 单元测试覆盖（66 个测试）
+- MarketParticipant: 存款、提款、质押锁定、奖励惩罚
+- MarketProposal: 提案创建、状态管理
+- MarketVote: 投票记录、权重计算
+- DecisionMarket: 参与者管理、提案流程、投票机制、共识评估
+- 集成测试: EvolutionDSL 联动、RuleFreezeZone 保护
+- 边界测试: 空投票、单参与者、平局等
+
+### 6.2 回归测试结果
+```
+单元测试 + 递归测试: 2231 passed, 1 skipped
+DecisionMarket 代码覆盖率: 88.33%
+```
+
+## 7. 安全考虑
+
+| 风险点 | 缓解措施 |
+|--------|----------|
+| 恶意提案 | 冻结区保护 + 质押门槛 |
+| Sybil 攻击 | 基于质押的权重机制 |
+| 投票贿赂 | 透明的审计追踪 |
+| 共识操纵 | 2/3 多数阈值 |
+
+## 8. 后续行动
+
+- [x] 实现 DecisionMarket 核心模块
+- [x] 集成 RuleFreezeZone 和 EvolutionDSL
+- [x] 编写单元测试
+- [x] 通过回归测试验证
+- [x] 归档 KDP 文档
+
+## 9. 状态
+
+Q3 DecisionMarket 已完成实现和验证，满足 v0.6.0 生命态探索的启动前置条件。
+
+---
+tags: ["v0.6.0", "decision_market", "federated_consensus", "staking"]

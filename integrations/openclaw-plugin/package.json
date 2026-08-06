@@ -1,0 +1,36 @@
+{
+  "name": "@maref/openclaw-plugin",
+  "version": "0.1.0",
+  "description": "MAREF Governance Plugin for OpenClaw — AI agent safety enforcement with fail-closed guardrails",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "keywords": [
+    "openclaw",
+    "maref",
+    "governance",
+    "plugin",
+    "ai-safety",
+    "guardrails"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@maref-org/sdk": "^0.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5",
+    "vitest": "^2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maref-org/maref.git"
+  }
+}

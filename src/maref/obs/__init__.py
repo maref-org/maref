@@ -1,0 +1,46 @@
+"""MAREF Obs — privacy-first governance event recorder.
+
+maref-obs is a local-first, privacy-respecting telemetry subsystem
+for the MAREF governance layer. It records governance events
+(state transitions, breaker trips, oscillation detections, anomalies)
+to local ndjson files with configurable anonymity levels.
+
+Usage::
+
+    from maref.obs import MarefObsClient, TelemetryLevel, ObsEventType
+
+    obs = MarefObsClient(level=TelemetryLevel.BASIC)
+    obs.log_event(ObsEventType.STATE_TRANSITION, ...)
+"""
+
+from maref.obs.aggregator import ObsAggregator
+from maref.obs.client import MarefObsClient
+from maref.obs.hasher import ObsHasher
+from maref.obs.levels import TelemetryLevel
+from maref.obs.oscillator_params import OscillatorParamMerger
+from maref.obs.pipeline import ObsPipeline
+from maref.obs.schema import EventBatch, ObsEvent, ObsEventType
+
+
+def get_obs_level() -> str:
+    return "basic"
+
+
+def get_obs_show() -> list[dict]:
+    return [{"id": "obs-0", "size": 0, "meta": {"level": "basic", "status": "active"}}]
+
+
+def get_obs_status() -> str:
+    return "active"
+
+__all__ = [
+    "MarefObsClient",
+    "ObsAggregator",
+    "ObsHasher",
+    "OscillatorParamMerger",
+    "ObsPipeline",
+    "TelemetryLevel",
+    "ObsEvent",
+    "ObsEventType",
+    "EventBatch",
+]

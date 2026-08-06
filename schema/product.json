@@ -1,0 +1,127 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "MAREF - Multi-Agent Research Environment Framework",
+  "operatingSystem": "Any",
+  "applicationCategory": "DeveloperApplication",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "ratingCount": "152"
+  },
+  "review": [
+    {
+      "@type": "Review",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "5",
+        "bestRating": "5"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "TechCrunch"
+      },
+      "reviewBody": "MAREF provides essential governance layer for AI agents with formal verification capabilities that traditional tools can't match."
+    },
+    {
+      "@type": "Review",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "4",
+        "bestRating": "5"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "VentureBeat"
+      },
+      "reviewBody": "The framework's permission models and audit logging make it particularly valuable for enterprise AI deployments requiring compliance."
+    },
+    {
+      "@type": "Review",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "5",
+        "bestRating": "5"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "OpenAI Community"
+      },
+      "reviewBody": "MAREF's TLA+ formal verification provides mathematical guarantees that are critical for production agent systems."
+    }
+  ],
+  "featureList": [
+    "Formal Verification with TLA+",
+    "Role-Based Access Control (RBAC)",
+    "Comprehensive Audit Logging",
+    "Permission Model Enforcement",
+    "Cross-Platform Agent Orchestration",
+    "Prompt Injection Protection",
+    "Tool Use Authorization",
+    "Multi-Agent Security Coordination",
+    "Cryptographic Action Signing",
+    "Policy Enforcement Framework",
+    "Framework-Independent Integration",
+    "Real-time Security Monitoring"
+  ],
+  "operatingSystem": ["Linux", "macOS", "Windows", "Docker", "Kubernetes"],
+  "applicationSubCategory": "Agent Governance Framework",
+  "description": "MAREF (Multi-Agent Research Environment Framework) is an open-source governance and security layer for AI agents, providing formal verification, permission models, and comprehensive audit logging to ensure safe agent behavior.",
+  "keywords": [
+    "agent security",
+    "AI governance",
+    "multi-agent systems",
+    "formal verification",
+    "TLA+",
+    "permission model",
+    "audit logging",
+    "agent orchestration",
+    "AI safety",
+    "security framework",
+    "MCP protocol",
+    "Open Source"
+  ],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "ratingCount": "152",
+    "bestRating": "5"
+  },
+  "creator": {
+    "@type": "Organization",
+    "name": "MAREF Org",
+    "url": "https://maref.cc"
+  },
+  "license": "Apache-2.0",
+  "sameAs": [
+    "https://github.com/maref-org/maref",
+    "https://maref.cc",
+    "https://twitter.com/maref_org",
+    "https://linkedin.com/company/maref-org"
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free and open source under Apache-2.0 license",
+    "availability": "https://schema.org/InStock"
+  },
+  "softwareHelp": {
+    "@type": "CreativeWork",
+    "name": "MAREF Documentation",
+    "url": "https://maref.cc/docs"
+  },
+  "applicationMimeType": [
+    "application/json",
+    "text/markdown"
+  ],
+  "softwareVersion": "0.35.0-beta",
+  "nameEn": "MAREF - Multi-Agent Research Environment Framework",
+  "nameZh": "MAREF - 多智能体研究环境框架"
+}

@@ -1,0 +1,213 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+type Layer = {
+  number: number;
+  name: string;
+  zhName: string;
+  color: string;
+  components: string[];
+  desc: {
+    en: string;
+    zh: string;
+  };
+};
+
+const layers: Layer[] = [
+  {
+    number: 1,
+    name: "Agent & Tools",
+    zhName: "智能体与工具层",
+    color: "text-brand-accent-blue",
+    components: ["Agent System", "Desktop Control", "Tool Registry"],
+    desc: { en: "Agent lifecycle management, desktop automation, and tool execution sandbox.", zh: "智能体生命周期管理、桌面自动化和工具执行沙箱。" },
+  },
+  {
+    number: 2,
+    name: "Orchestration",
+    zhName: "编排层",
+    color: "text-brand-accent-cyan",
+    components: ["TaskDAG", "Saga", "Self-* (8)"],
+    desc: { en: "Task decomposition, distributed transaction coordination, and self-* automation.", zh: "任务分解、分布式事务协调与 Self-* 自动化。" },
+  },
+  {
+    number: 3,
+    name: "Governance",
+    zhName: "治理层",
+    color: "text-brand-accent-green",
+    components: ["Gray Code FSM", "PolicyDecisionTree", "CircuitBreaker"],
+    desc: { en: "Governance-first gate. Every agent action passes through before execution.", zh: "治理优先门控。所有智能体动作执行前必经此层。" },
+  },
+  {
+    number: 4,
+    name: "Security & Compliance",
+    zhName: "安全与合规层",
+    color: "text-brand-accent-orange",
+    components: ["8-Layer Defense", "Trust Boundaries", "Compliance"],
+    desc: { en: "Defense-in-depth, zero-trust boundaries, and regulatory compliance (GDPR/SOC2/HIPAA/等保).", zh: "纵深防御、零信任边界和合规（GDPR/SOC2/HIPAA/等保）。" },
+  },
+  {
+    number: 5,
+    name: "Observability",
+    zhName: "可观测层",
+    color: "text-brand-accent-purple",
+    components: ["OpenTelemetry", "Audit Bus", "Telemetry"],
+    desc: { en: "Full telemetry, immutable action recording, and real-time monitoring.", zh: "完整遥测、不可变操作记录和实时监控。" },
+  },
+  {
+    number: 6,
+    name: "Evolution",
+    zhName: "演化层",
+    color: "text-brand-text-muted",
+    components: ["Recursive Evolution", "Red-Blue Teaming", "Chaos Engineering"],
+    desc: { en: "Self-evolution engine with adversarial training and resilience testing.", zh: "自演化引擎，具备对抗训练和韧性测试能力。" },
+  },
+];
+
+const t = {
+  en: { badge: "Architecture", title: "Six layers — Governance at the center." },
+  zh: { badge: "架构", title: "六层架构 — 治理在中心。" },
+};
+
+const lang = (locale === "zh" ? "zh" : "en") as "en" | "zh";
+const label = t[lang];
+---
+
+<div class="section-apple" id="architecture">
+  <div class="mx-auto max-w-(--content-max)">
+
+    <div class="text-center mb-20">
+      <h2 class="headline-apple-sm mb-2">{label.title}</h2>
+    </div>
+
+    <!-- Architecture visual -->
+    <div class="arch-visual mb-16">
+      <img
+        src="/images/architecture-layers.svg"
+        alt="MAREF six-layer architecture with Governance at the center"
+        loading="lazy"
+        class="w-full h-auto block"
+      />
+    </div>
+
+    <div class="layer-list">
+      {layers.map((layer) => (
+        <div class="layer-item" style={`--layer-color: ${layer.color === 'text-brand-accent-blue' ? '#3b82f6' : layer.color === 'text-brand-accent-cyan' ? '#06b6d4' : layer.color === 'text-brand-accent-green' ? '#10b981' : layer.color === 'text-brand-accent-orange' ? '#f97316' : layer.color === 'text-brand-accent-purple' ? '#8b5cf6' : '#71717a'}`}>
+          <div class="layer-indicator"></div>
+          <div class="layer-content">
+            <div class="layer-header">
+              <h3 class="layer-name">{lang === "en" ? layer.name : layer.zhName}</h3>
+              <span class="layer-name-alt">/ {lang === "en" ? layer.zhName : layer.name}</span>
+            </div>
+            <p class="layer-desc">
+              {lang === "en" ? layer.desc.en : layer.desc.zh}
+            </p>
+          </div>
+          <div class="layer-tags">
+            {layer.components.map((comp) => (
+              <span class="layer-tag">{comp}</span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .arch-visual {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    border: 1px solid var(--color-brand-border);
+    box-shadow: 0 0 60px rgba(16, 185, 129, 0.05);
+  }
+
+  .layer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .layer-item {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem 2rem;
+    border-radius: 1rem;
+    background-color: var(--color-brand-bg-secondary);
+    border: 1px solid var(--color-brand-border);
+    transition: all 0.3s ease;
+  }
+
+  .layer-item:hover {
+    border-color: var(--layer-color);
+    border-color: color-mix(in srgb, var(--layer-color) 40%, transparent);
+    transform: translateX(8px);
+  }
+
+  .layer-indicator {
+    width: 4px;
+    height: 3rem;
+    border-radius: 2px;
+    background-color: var(--layer-color);
+    flex-shrink: 0;
+  }
+
+  .layer-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .layer-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .layer-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .layer-name-alt {
+    font-size: 0.875rem;
+    color: var(--color-brand-text-muted);
+  }
+
+  .layer-desc {
+    font-size: 0.9375rem;
+    color: var(--color-brand-text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.5;
+  }
+
+  .layer-tags {
+    display: none;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .layer-tag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 980px;
+    background-color: var(--color-brand-bg-code);
+    border: 1px solid var(--color-brand-border);
+    color: var(--color-brand-text-secondary);
+    white-space: nowrap;
+  }
+
+  @media (min-width: 768px) {
+    .layer-tags {
+      display: flex;
+    }
+  }
+</style>

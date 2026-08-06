@@ -1,0 +1,126 @@
+MAREF PMM Research Skills — Self-Assessment Demo
+(Eating our own dog food: validating MAREF's positioning with our own Skills)
+
+======================================================================
+STUDY 1: Positioning Validation (7-question framework)
+======================================================================
+mode: self_assessment
+note: Self-assessment mode: no persona panel recruited. The scorecard below reflects a structured gap analysis using the product's own positioning artifacts, NOT market validation. A real validation requires a recruited panel (e.g., Ditto API or human study).
+
+Study design (7 questions):
+  Q1 [Competitive Alternatives]: When you think about agent governance for production deployments, what's the fir...
+  Q2 [Status Quo + Gaps]: Walk me through how you currently solve agent governance for production deployme...
+  Q3 [Value Resonance]: If I told you there was a product that TLA+ formal verification with 5 proven th...
+  Q4 [Market Category]: How would you describe MAREF to a colleague? What category would you put it in?...
+  Q5 [Competitive Differentiation]: Compared to LangGraph, CrewAI, AutoGen, what would make you choose a new option?...
+  Q6 [Primary Value Driver]: If MAREF could only do ONE thing brilliantly for you, what should that be? Why d...
+  Q7 [Adoption Barriers]: What would stop you from trying something like this? What would you need to see ...
+
+Positioning scorecard (1-5, self-assessment):
+  competitive_alternatives: 5/5 — Positioning names 3 competitors: ['LangGraph', 'CrewAI', 'AutoGen']
+  value_resonance: 5/5 — Value prop uses concrete verbs (verify, audit, govern) 
+  market_category: 5/5 — Description uses category word: yes
+  competitive_differentiation: 5/5 — Strong differentiation signals (formal verification)
+  primary_value_driver: 4/5 — Value driver inferred from unique_value_prop; real study would reveal which driver resonates most.
+  adoption_barriers: 3/5 — Adoption barriers not yet identified — requires real panel study to surface.
+
+Risk flags:
+  ⚠️  Adoption barriers unknown — self-assessment cannot surface them. Requires a recruited persona panel.
+
+Competitive alternative map:
+  LangGraph: named_in_positioning=True
+  CrewAI: named_in_positioning=True
+  AutoGen: named_in_positioning=True
+
+======================================================================
+STUDY 2: Messaging Testing (3 tagline variants)
+======================================================================
+mode: self_assessment
+note: Self-assessment mode: no persona panel. Ranking below is a heuristic assessment based on message structure, not market response. A real study requires a recruited panel.
+
+Message performance ranking:
+  #1 (variant=problem_led, score=3): 88% of companies had an AI agent incident last year. MAREF i...
+  #2 (variant=outcome_led, score=3): Build with LangGraph. Govern with MAREF. Ship to production ...
+  #3 (variant=capability_led, score=2): TLA+ verified. 10-state Gray Code. Three-gate skill marketpl...
+
+Recommended primary message: a
+
+======================================================================
+STUDY 3: Competitive Intelligence (MAREF vs 3 competitors)
+======================================================================
+mode: self_assessment
+note: Self-assessment mode: competitive perception is inferred from public competitor documentation, not from a recruited panel. A real study would surface perception gaps and landmine questions that this mode cannot.
+
+Competitive perception matrix:
+  LangGraph:
+    strength: graph-based orchestration, large ecosystem
+    weakness: no governance layer, no formal verification
+    maref_advantage: MAREF's entire purpose is governance; competitor bolted on none.
+  CrewAI:
+    strength: role-based agent design, easy to start
+    weakness: no runtime safety gates, no audit trail
+    maref_advantage: MAREF's entire purpose is governance; competitor bolted on none.
+  AutoGen:
+    strength: Microsoft-backed, multi-agent conversation
+    weakness: no circuit breakers, no skill marketplace
+    maref_advantage: MAREF's CircuitBreaker contains failures; competitor has none.
+
+Landmine questions (sales must prepare for):
+  💣 If LangGraph adds governance, why do I need MAREF?
+  💣 If CrewAI adds governance, why do I need MAREF?
+  💣 If AutoGen adds governance, why do I need MAREF?
+  💣 TLA+ sounds academic — can you show me a production incident it would have prevented?
+  💣 We're already on LangGraph/CrewAI — do we have to rip it out?
+
+Win themes:
+  ✅ Production governance gap: LangGraph/CrewAI/AutoGen have 0/10 OWASP coverage.
+  ✅ Formal verification: TLA+ proofs are unmatched; competitors have none.
+  ✅ Skill marketplace: three-gate admission is a supply-chain differentiator.
+
+Loss themes:
+  ❌ Migration anxiety: 'do we have to rip out our existing stack?'
+  ❌ Academic perception: TLA+ may feel theoretical to practitioner buyers.
+  ❌ Ecosystem size: LangGraph has more integrations and community.
+
+Battlecard (JSON):
+{
+  "product": "MAREF",
+  "positioning": "MAREF is the missing governance layer \u2014 use LangGraph to build, use MAREF to govern.",
+  "vs": {
+    "LangGraph": {
+      "their_strength": "graph-based orchestration, large ecosystem",
+      "their_weakness": "no governance layer, no formal verification",
+      "maref_wedge": "MAREF's entire purpose is governance; competitor bolted on none.",
+      "landmine": "If LangGraph adds governance, why do I need MAREF?"
+    },
+    "CrewAI": {
+      "their_strength": "role-based agent design, easy to start",
+      "their_weakness": "no runtime safety gates, no audit trail",
+      "maref_wedge": "MAREF's entire purpose is governance; competitor bolted on none.",
+      "landmine": "If CrewAI adds governance, why do I need MAREF?"
+    },
+    "AutoGen": {
+      "their_strength": "Microsoft-backed, multi-agent conversation",
+      "their_weakness": "no circuit breakers, no skill marketplace",
+      "maref_wedge": "MAREF's CircuitBreaker contains failures; competitor has none.",
+      "landmine": "If AutoGen adds governance, why do I need MAREF?"
+    }
+  }
+}
+
+======================================================================
+SUMMARY
+======================================================================
+All 3 PMM studies ran in self-assessment mode against MAREF.
+
+What this proves:
+  ✅ The 7-question frameworks are correctly encoded and runnable.
+  ✅ The Skills produce structured deliverables (scorecard, ranking, battlecard).
+  ✅ Self-assessment mode surfaces positioning gaps and risk flags.
+
+What this does NOT prove:
+  ❌ Market validation — requires a recruited persona panel (Ditto API or human study).
+  ❌ Real competitive perception — inferred from public docs, not panel responses.
+  ❌ Adoption barriers — self-assessment cannot surface these.
+
+Next step: acquire Ditto API key and re-run in panel_study mode.

@@ -1,0 +1,98 @@
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from maref.production.asset_scaffolder import AssetScaffolder
+from maref.production.character_factory import CharacterFactory
+from maref.production.content_assembler import ContentAssembler
+from maref.production.hypothesis_validator import HypothesisValidator, ValidationResult
+from maref.production.script_writer import ScriptWriter
+
+
+@dataclass
+class ProductionResult:
+    char_id: str
+    theme_id: str
+    profile: dict[str, Any]
+    scripts: list[dict[str, Any]]
+    assembled: dict[str, Any] | None
+    validation: ValidationResult | None
+    total_duration_s: float
+    steps: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "char_id": self.char_id,
+            "theme_id": self.theme_id,
+            "profile": self.profile,
+            "scripts": self.scripts,
+            "assembled": self.assembled,
+            "validation": self.validation.to_dict() if self.validation else None,
+            "total_duration_s": round(self.total_duration_s, 2),
+            "steps": self.steps,
+        }
+
+
+class ContentEngine:
+    """Full IP content production pipeline orchestrator.
+
+    Cycles per invocation: scaffold → generate character → write scripts → assemble → validate
+    """
+
+    def __init__(self) -> None:
+        self.scaffolder = AssetScaffolder()
+        self.char_factory = CharacterFactory()
+        self.script_writer = ScriptWriter()
+        self.assembler = ContentAssembler()
+        self.validator = HypothesisValidator()
+
+    def run_full_pipeline(
+        self, theme_id: str, char_id: str | None = None, episode_count: int = 2
+    ) -> ProductionResult:
+        t0 = time.perf_counter()
+        steps: list[str] = []
+
+        scaffold_result = self.scaffolder.scaffold()
+        steps.append(f"scaffold: {scaffold_result['directories_created']} dirs")
+
+        profile = self.char_factory.generate(theme_id=theme_id, char_id=char_id)
+        char_id = profile["char_id"]
+        steps.append(f"character: {profile['name']} ({profile['archetype']})")
+
+        scripts = []
+        for ep in range(1, episode_count + 1):
+            script_result = self.script_writer.generate(char_id=char_id, episode_number=ep)
+            scripts.append(script_result)
+            steps.append(f"script ep{ep}: {script_result['title']}")
+
+        assembled = self.assembler.assemble(char_id=char_id)
+        steps.append(f"assemble: {assembled['export_dir']}")
+
+        validation = self.validator.validate(char_id=char_id)
+        steps.append(f"validate: {'PASS' if validation.overall_pass else 'FAIL'}")
+
+        elapsed = time.perf_counter() - t0
+
+        return ProductionResult(
+            char_id=char_id,
+            theme_id=theme_id,
+            profile=profile,
+            scripts=scripts,
+            assembled=assembled,
+            validation=validation,
+            total_duration_s=elapsed,
+            steps=steps,
+        )
+
+    def run_character_only(self, theme_id: str, char_id: str | None = None) -> dict[str, Any]:
+        self.scaffolder.scaffold()
+        return self.char_factory.generate(theme_id=theme_id, char_id=char_id)
+
+    def run_script_only(self, char_id: str, episode: int = 1) -> dict[str, Any]:
+        return self.script_writer.generate(char_id=char_id, episode_number=episode)
+
+    def run_assemble_only(self, char_id: str, episode: int | None = None) -> dict[str, Any]:
+        return self.assembler.assemble(char_id=char_id, episode=episode)
+
+    def run_validate_only(self, char_id: str) -> ValidationResult:
+        return self.validator.validate(char_id=char_id)

@@ -1,0 +1,35 @@
+# AI crawler rules for maref.cc
+# AI search / citation bots — must be allowed for GEO
+
+# ChatGPT Search
+User-agent: OAI-SearchBot
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+# Claude web citations
+User-agent: ClaudeBot
+Allow: /
+
+# Google AI Overviews / Gemini
+User-agent: Google-Extended
+Allow: /
+
+# Training crawlers — blocked
+User-agent: GPTBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+# General
+User-agent: *
+Allow: /
+
+Sitemap: https://maref.cc/sitemap-index.xml
+LLMs: https://maref.cc/llms.txt

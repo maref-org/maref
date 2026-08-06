@@ -1,0 +1,92 @@
+---
+export interface Props {
+  locale: string;
+}
+
+const { locale } = Astro.props;
+
+const links = [
+  { href: `/${locale}/features/governance/`, label: locale === "zh" ? "功能" : "Features" },
+  { href: `/${locale}/docs/quickstart/`, label: locale === "zh" ? "文档" : "Docs" },
+  { href: `/${locale}/how-it-works/`, label: locale === "zh" ? "原理" : "How It Works" },
+  { href: `/${locale}/free/`, label: locale === "zh" ? "免费" : "Free" },
+  { href: `/${locale}/community/`, label: locale === "zh" ? "社区" : "Community" },
+  { href: `/${locale}/integrations/`, label: locale === "zh" ? "集成" : "Integrations" },
+  { href: `/${locale}/blog/`, label: locale === "zh" ? "博客" : "Blog" },
+  { href: `/${locale}/faq/`, label: "FAQ" },
+  { href: `/${locale}/about/`, label: locale === "zh" ? "关于" : "About" },
+  { href: "https://github.com/maref-org/maref", label: "GitHub", external: true },
+];
+---
+
+<nav class="nav-bar fixed top-0 left-0 right-0 z-50" style="background-color: var(--surface-abyss);">
+  <div class="mx-auto flex h-15 max-w-(--content-max) items-center justify-between px-6">
+    <a href={`/${locale}/`} class="text-sm font-medium tracking-wider text-snow-sheet uppercase shrink-0" style="letter-spacing: 1.44px;">
+      MAREF
+    </a>
+    <div class="flex items-center gap-2 min-w-0 relative">
+      <a
+        href={locale === "zh" ? "/en/" : "/zh/"}
+        class="text-xs font-medium uppercase tracking-wider text-snow-sheet px-3 py-1.5 rounded-[6px] border border-snow-sheet/30 hover:border-snow-sheet/60 transition-colors shrink-0"
+        style="letter-spacing: 1.44px;"
+      >
+        {locale === "zh" ? "EN" : "中文"}
+      </a>
+      <button id="theme-toggle" class="p-1 text-fog-veil hover:text-snow-sheet transition-colors shrink-0" aria-label="Toggle theme">
+        <svg id="theme-icon-sun" viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"/></svg>
+        <svg id="theme-icon-moon" viewBox="0 0 20 20" fill="currentColor" width="18" height="18" class="hidden"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+      </button>
+      <button id="nav-toggle" class="p-1 text-fog-veil hover:text-snow-sheet transition-colors shrink-0" aria-label="Toggle navigation menu">
+        <svg id="nav-icon-open" viewBox="0 0 20 20" fill="currentColor" width="24" height="24"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+        <svg id="nav-icon-close" viewBox="0 0 20 20" fill="currentColor" width="24" height="24" class="hidden"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+      <div id="nav-menu" class="nav-menu absolute right-0 top-full mt-2 w-56 rounded-[8px] border border-snow-sheet/10 shadow-xl" style="background-color: var(--surface-trench);">
+        <div class="flex flex-col gap-1 px-4 py-3">
+          {links.map((link) => (
+            <a
+              href={link.href}
+              target={link.external ? "_blank" : undefined}
+              rel={link.external ? "noopener noreferrer" : undefined}
+              class="text-xs font-medium uppercase tracking-wider text-fog-veil block rounded-[6px] px-3 py-2 hover:bg-surface-reef hover:text-snow-sheet transition-colors text-right"
+              style="letter-spacing: 1.44px;"
+            >
+              {link.label}
+            </a>
+          ))}
+          <a
+            href={locale === "zh" ? "/en/" : "/zh/"}
+            class="text-xs font-medium uppercase tracking-wider text-fog-veil block rounded-[6px] px-3 py-2 hover:bg-surface-reef hover:text-snow-sheet transition-colors text-right"
+            style="letter-spacing: 1.44px;"
+          >
+            {locale === "zh" ? "EN" : "中文"}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<style>
+  .nav-bar {
+    background-color: var(--surface-abyss);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+  }
+
+  .nav-menu {
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.3s ease;
+  }
+
+  .nav-menu.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+</style>
+
+<script is:inline>
+  (function(){var b=document.getElementById("nav-toggle"),m=document.getElementById("nav-menu"),o=document.getElementById("nav-icon-open"),c=document.getElementById("nav-icon-close");b&&m&&b.addEventListener("click",function(){m.classList.toggle("open");o&&o.classList.toggle("hidden");c&&c.classList.toggle("hidden")})})();
+</script>

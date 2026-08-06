@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
+
+from maref.consensus.vector_clock import VectorClock
+from maref.governance.types import GovernanceState
+from maref.identity.did_registry import AgentDID
+
+
+class JointState(str, Enum):
+    IDLE = "idle"
+    COORDINATING = "coordinating"
+    SYNCING = "syncing"
+    STABILIZING = "stabilizing"
+    COMPLETED = "completed"
+    HALTED = "halted"
+
+
+@dataclass
+class AgentSlot:
+    agent_did: AgentDID
+    maref_state: GovernanceState
+    last_sync: float
+    vector_clock: VectorClock
+
+
+class JointStateMachine:
+    def __init__(self, max_sync_deviation_ms: float = 10.0) -> None:
+        self._state = JointState.IDLE
+        self._slots: dict[AgentDID, AgentSlot] = {}
+        # Shared barrier clock: every agent sees the same causal frontier
+        self._barrier_clock = VectorClock()
+        self._max_deviation = max_sync_deviation_ms
+
+    def register_agent(
+        self, did: AgentDID, initial_state: GovernanceState = GovernanceState.INIT
+    ) -> None:
+        # Each agent starts with its own dimension at 0, merged with current barrier
+        agent_clock = self._barrier_clock.tick(did.did_string)
+        self._slots[did] = AgentSlot(
+            agent_did=did,
+            maref_state=initial_state,
+            last_sync=time.time(),
+            vector_clock=agent_clock,
+        )
+        self._state = JointState.COORDINATING
+
+    def sync_agent(self, did: AgentDID, new_state: GovernanceState) -> float:
+        if did not in self._slots:
+            raise ValueError(f"Unknown agent: {did.did_string}")
+        before = time.perf_counter()
+        slot = self._slots[did]
+        slot.maref_state = new_state
+        slot.last_sync = time.time()
+        # Tick this agent's logical clock on every sync
+        slot.vector_clock = slot.vector_clock.tick(did.did_string)
+        # Merge back into shared barrier so other agents observe causality
+        self._barrier_clock = self._barrier_clock.merge(slot.vector_clock)
+        delta_ms = (time.perf_counter() - before) * 1000
+        self._check_sync_deviation()
+        return delta_ms
+
+    def _check_sync_deviation(self) -> None:
+        sync_times = [slot.last_sync for slot in self._slots.values()]
+        if len(sync_times) <= 1:
+            return
+        max_time = max(sync_times)
+        min_time = min(sync_times)
+        deviation = (max_time - min_time) * 1000
+        if deviation > self._max_deviation:
+            self._state = JointState.STABILIZING
+            # Barrier advances by ticking a special "coordinator" dimension
+            self._barrier_clock = self._barrier_clock.tick("__coordinator__")
+            for slot in self._slots.values():
+                slot.vector_clock = slot.vector_clock.merge(self._barrier_clock)
+
+    def advance_barrier(self) -> VectorClock:
+        self._barrier_clock = self._barrier_clock.tick("__coordinator__")
+        for slot in self._slots.values():
+            slot.vector_clock = slot.vector_clock.merge(self._barrier_clock)
+            slot.last_sync = time.time()
+        self._state = JointState.SYNCING
+        return self._barrier_clock
+
+    def force_halt(self, reason: str = "") -> None:
+        self._state = JointState.HALTED
+        for slot in self._slots.values():
+            slot.maref_state = GovernanceState.HALT
+
+    def force_stabilize(self, reason: str = "") -> None:
+        self._state = JointState.STABILIZING
+        self._barrier_clock = self._barrier_clock.tick("__coordinator__")
+        for slot in self._slots.values():
+            slot.maref_state = GovernanceState.STABILIZE
+            slot.vector_clock = slot.vector_clock.merge(self._barrier_clock)
+
+    @property
+    def current_state(self) -> JointState:
+        return self._state
+
+    @property
+    def barrier_clock(self) -> VectorClock:
+        return self._barrier_clock
+
+    @property
+    def agent_count(self) -> int:
+        return len(self._slots)
+
+    def get_slot(self, did: AgentDID) -> AgentSlot | None:
+        return self._slots.get(did)
+
+    def causal_summary(self) -> dict[str, Any]:
+        """Return a serializable snapshot of current causal state."""
+        return {
+            "state": self._state.value,
+            "barrier_clock": self._barrier_clock.to_dict(),
+            "agents": {
+                did.did_string: {
+                    "maref_state": slot.maref_state.value,
+                    "last_sync": slot.last_sync,
+                    "vector_clock": slot.vector_clock.to_dict(),
+                }
+                for did, slot in self._slots.items()
+            },
+        }

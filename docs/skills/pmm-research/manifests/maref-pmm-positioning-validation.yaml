@@ -1,0 +1,111 @@
+# MAREF SkillManifest — PMM Positioning Validation
+#
+# Encodes Ditto's Positioning Validation 7-question framework as a MAREF Skill.
+# The study framework is publicly documented in Ditto's study-templates.md;
+# this Skill encodes the question design and deliverable structure.
+#
+# Origin: https://github.com/Ask-Ditto/ditto-product-marketing/blob/main/study-templates.md
+# License: Apache-2.0 (this adaptation; framework is publicly documented)
+
+name: maref-pmm-positioning-validation
+version: "1.0.0"
+description: >
+  Designs and runs a Positioning Validation study using Ditto's 7-question
+  framework (publicly documented). Tests how a product's positioning lands
+  with target customers: competitive alternatives, value resonance, market
+  category fit, differentiation, primary value driver, and adoption barriers.
+  Maps to April Dunford's 5+1 positioning framework. Produces a positioning
+  scorecard, competitive alternative map, and risk flags.
+
+input_schema:
+  type: object
+  properties:
+    product:
+      type: object
+      properties:
+        name: {type: string}
+        description: {type: string}
+        unique_value_prop: {type: string}
+      required: [name, description, unique_value_prop]
+    competitors:
+      type: array
+      items: {type: string}
+      description: "List of competitor names (e.g., ['LangGraph', 'CrewAI'])"
+    problem_space:
+      type: string
+      description: "The problem space the product addresses"
+    panel_responses:
+      type: array
+      description: >
+        Optional array of panel response objects. If omitted, the Skill runs
+        in 'self-assessment mode' using the product's own positioning artifacts
+        as inputs (NOT a substitute for a real persona study — see README).
+      items:
+        type: object
+        properties:
+          persona_id: {type: string}
+          answers:
+            type: object
+            description: "Map of question_number → answer text"
+  required: [product, competitors, problem_space]
+
+output_schema:
+  type: object
+  properties:
+    study_questions:
+      type: array
+      description: "The 7-question framework, populated with product context"
+      items:
+        type: object
+        properties:
+          number: {type: integer}
+          question: {type: string}
+          tests: {type: string}
+    positioning_scorecard:
+      type: object
+      description: "Scored assessment of the positioning across 7 dimensions"
+    competitive_alternative_map:
+      type: object
+      description: "How the product compares to stated competitors"
+    risk_flags:
+      type: array
+      items: {type: string}
+      description: "Adoption barriers and positioning risks identified"
+    mode:
+      type: string
+      enum: [self_assessment, panel_study]
+      description: "Whether this ran in self-assessment mode or with real panel responses"
+
+dependencies:
+  - "skill://maref-brand-positioning@1.0.0"
+
+author: MAREF Team
+license: Apache-2.0
+entrypoint: skills.pmm_research.study_runner:run_positioning_validation
+
+sandbox_config:
+  cpu_limit: "50%"
+  memory_mb: 256
+  timeout_s: 60
+  network: false
+  filesystem:
+    read: ["positioning/"]
+    write: ["studies/positioning_validation/"]
+
+test_cases:
+  - name: "self-assessment mode for MAREF"
+    input:
+      product:
+        name: "MAREF"
+        description: "Agent governance and skill marketplace OS"
+        unique_value_prop: "TLA+ formal verification + 10-state Gray Code governance FSM"
+      competitors: ["LangGraph", "CrewAI", "AutoGen"]
+      problem_space: "agent governance for production deployments"
+    expected:
+      mode: self_assessment
+      study_questions_count: 7
+
+governance:
+  safety_gate: false
+  audit_trail: true
+  state_machine_binding: false

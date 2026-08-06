@@ -1,0 +1,87 @@
+---
+import DocLayout from "@/layouts/DocLayout.astro";
+import DefenseLayers from "@/components/animations/DefenseLayers/DefenseLayers.astro";
+import DecisionTree from "@/components/animations/DecisionTree/DecisionTree.astro";
+import CodeBlock from "@/components/ui/CodeBlock.astro";
+---
+
+<DocLayout locale="zh" title="8 层纵深防御 — 智能体安全" description="八层独立防御体系。97% 自动化安全决策。HMAC 签名审计追踪。" section="features">
+
+  <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+    每条攻击路径。<br />
+    <span class="text-brand-accent-cyan">在开始之前被阻断。</span>
+  </h1>
+  <p class="text-lg text-brand-text-secondary mb-10">八层独立防御。四级决策树。97% 的安全决策无需人工介入。</p>
+
+  <DefenseLayers locale="zh" />
+
+  <div class="my-20 px-6 py-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+    <p class="text-base text-brand-text-secondary leading-relaxed">
+      大多数智能体安全只是一道墙：一次检查、一道门、一个单点故障。
+      MAREF 部署了 <strong class="text-brand-text-primary">八层独立防御</strong> —
+      攻击者必须突破每一层，但任何一层都能独立阻止威胁。
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-8 my-20">
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-cyan mb-2">八道屏障。一道即可。</h3>
+      <p class="text-sm text-brand-text-secondary">纵深防御。攻击者必须突破全部 8 层，但任何一层都可以独立拦截。</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-green mb-2">97% 自动。3% 升级。</h3>
+      <p class="text-sm text-brand-text-secondary">四级决策树过滤噪音。你的团队只看到真正需要人工判断的边缘案例。</p>
+    </div>
+    <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
+      <h3 class="font-semibold text-brand-accent-purple mb-2">签名。不可变。可审计。</h3>
+      <p class="text-sm text-brand-text-secondary">每个 MCP 工具调用和治理决策都经过 HMAC-SHA256 签名。审计追踪不可篡改。</p>
+    </div>
+  </div>
+
+  <div class="my-20 space-y-20">
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">深度胜过坚固。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        8 层防御架构意味着攻击必须突破每一层才能成功。但架构设计使得任何一层都能独立阻止威胁。
+        第 1-4 层过滤常规攻击，第 5 层（安全门控）是加固核心，第 6-8 层是最终围堵。
+        任一点失守，防线仍然完整。
+      </p>
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">四级决策。三级自动。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        决策树流经四级：规则（策略匹配）、模式（上下文检查）、安全门控（风险阈值）、人工（升级）。
+        97% 的决策在前三级自动完成。你的安全团队审查真正需要人工判断的 3%。
+      </p>
+      <DecisionTree locale="zh" />
+    </div>
+
+    <div>
+      <h2 class="text-2xl font-bold tracking-tight mb-6">审计。签名。不可篡改。</h2>
+      <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
+        每个 MCP 工具调用、每个治理决策、每个状态转换都使用 HMAC-SHA256 签名记录。
+        审计追踪不能被伪造、删除或篡改。当监管机构要求证据时，你随时可以提供。
+      </p>
+      <CodeBlock lang="python" title="审计记录" code={`{
+  "action": "tool_call",
+  "agent": "agent-7f3a",
+  "decision": "BLOCK",
+  "layer": "SafetyGate",
+  "signature": "hmac-sha256:ab12...",
+  "timestamp": "2026-06-13T12:00:00Z"
+}`} />
+    </div>
+  </div>
+
+  <div class="my-20 p-8 rounded-xl" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border);">
+    <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">技术规格</h3>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <div class="text-brand-text-muted">防御层数</div><div class="text-brand-text-primary">8 层独立防御</div>
+      <div class="text-brand-text-muted">决策树</div><div class="text-brand-text-primary">4 级：规则 → 模式 → 安全门控 → 人工</div>
+      <div class="text-brand-text-muted">自动决策率</div><div class="text-brand-text-primary">97%</div>
+      <div class="text-brand-text-muted">审计签名</div><div class="text-brand-text-primary">HMAC-SHA256</div>
+      <div class="text-brand-text-muted">关键拦截层</div><div class="text-brand-text-primary">第 5 层 — SafetyGate</div>
+    </div>
+  </div>
+</DocLayout>

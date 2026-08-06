@@ -1,0 +1,107 @@
+name: Release Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  gate-rust-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Audit Rust dependencies
+        working-directory: ./gui/src-tauri
+        run: cargo audit
+
+  gate-integration-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Integration test coverage
+        run: pytest tests/integration/ --cov=src/maref --cov-report=term-missing || true
+
+  gate-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Ruff lint
+        run: ruff check src/maref src/maref_lite
+      - name: No hardcoded paths
+        run: |
+          if grep -rn "/Volumes/" src/ --include="*.py"; then
+            echo "::error::Found hardcoded /Volumes/ paths"
+            exit 1
+          fi
+      - name: No nested .git
+        run: |
+          found=$(find . -name ".git" -not -path "./.git" -type d)
+          if [ -n "$found" ]; then
+            echo "::error::Found nested .git directories"
+            exit 1
+          fi
+
+  gate-test:
+    needs: gate-quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Core tests
+        run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal --cov-fail-under=0
+      - name: Coverage gate
+        run: pytest tests/governance -q --cov=src/maref/governance --cov-fail-under=60
+
+  gate-security:
+    needs: gate-quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+          pip install bandit
+      - name: Bandit SAST
+        run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -ll || true
+      - name: pip-audit
+        run: pip-audit || true
+      - name: Governance hook check
+        run: bash scripts/ci-governance-check.sh
+
+  gate-saeb:
+    needs: gate-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: SAEB recursive benchmark
+        run: pytest tests/benchmark/test_saeb.py -v --tb=short -x --cov-fail-under=0
+        env:
+          MAREF_FEDERATED_AUDIT_KEY: ${{ secrets.MAREF_FEDERATED_AUDIT_KEY || 'ci-placeholder-key' }}

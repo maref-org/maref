@@ -1,0 +1,86 @@
+---
+export interface Props {
+  locale?: string;
+}
+
+const { locale = "en" } = Astro.props;
+
+const content = {
+  en: {
+    badge: "Start small",
+    title: "Think MAREF is too much? Start with Lite.",
+    subtitle: "You don't need to write a state machine. One command, instant governance.",
+    steps: [
+      { cmd: "docker run maref/maref", desc: "One command to start", emoji: "🐳" },
+      { cmd: "12 pre-configured governance rules", desc: "Works out of the box", emoji: "📋" },
+      { cmd: "Auto-block high-risk operations", desc: "No need to define 'what's risky'", emoji: "🛡️" },
+      { cmd: "Links with your risk scan results", desc: "Scan finds issues → Lite auto-hardens", emoji: "🔗" },
+    ],
+    cta: "Learn more about MAREF Lite →",
+    ctaFull: "View the full MAREF framework →",
+  },
+  zh: {
+    badge: "降低门槛",
+    title: "觉得 MAREF 太复杂？先从 Lite 开始。",
+    subtitle: "不需要你写代码、配状态机。一条命令，即刻治理。",
+    steps: [
+      { cmd: "docker run maref/maref", desc: "一条命令启动", emoji: "🐳" },
+      { cmd: "12 条预配置治理规则", desc: "开箱即用", emoji: "📋" },
+      { cmd: "自动拦截高风险操作", desc: "不需要你定义「什么是高风险」", emoji: "🛡️" },
+      { cmd: "与风险扫描结果联动", desc: "体检发现问题 → Lite 自动针对性加固", emoji: "🔗" },
+    ],
+    cta: "了解 MAREF Lite →",
+    ctaFull: "查看完整 MAREF 框架 →",
+  },
+};
+
+type Lang = keyof typeof content;
+const t = content[(locale as Lang) || "en"];
+const docsPath = locale === "zh" ? "/zh/docs/quickstart/" : "/en/docs/quickstart/";
+---
+
+<div class="py-24 px-6">
+  <div class="mx-auto max-w-(--content-max)">
+
+    <div class="text-center mb-16">
+      <span class="inline-block text-xs font-semibold tracking-widest uppercase px-3 py-1 rounded-tags mb-4" style="background-color: var(--color-brand-bg-code); border: 1px solid var(--color-brand-border); color: var(--color-brand-accent-green);">
+        {t.badge}
+      </span>
+      <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-4">{t.title}</h2>
+      <p class="text-lg text-brand-text-secondary max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 max-w-3xl mx-auto mb-12">
+      {t.steps.map((s) => (
+        <div
+          class="rounded-cards p-5 border flex items-center gap-4"
+          style="background-color: var(--color-brand-bg-secondary); border-color: var(--color-brand-border);"
+        >
+          <span class="text-2xl shrink-0">{s.emoji}</span>
+          <div>
+            <code class="text-sm font-code" style="color: var(--color-brand-accent-green);">{s.cmd}</code>
+            <p class="text-xs text-brand-text-muted mt-0.5">{s.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a
+        href={docsPath}
+        class="inline-flex items-center gap-2 rounded-buttons px-6 py-3 font-semibold text-xs uppercase tracking-wider transition-all hover:opacity-90 text-surface-trench"
+        style="background: var(--gradient-current);"
+      >
+        {t.cta}
+      </a>
+      <a
+        href={`/${locale}/features/governance/`}
+        class="inline-flex items-center gap-2 rounded-buttons px-6 py-3 font-medium text-base transition-all hover:opacity-90 border text-brand-text-primary"
+        style="border-color: var(--color-brand-border);"
+      >
+        {t.ctaFull}
+      </a>
+    </div>
+
+  </div>
+</div>

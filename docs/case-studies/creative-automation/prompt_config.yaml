@@ -1,0 +1,51 @@
+# MAREF Creative-Automation Prompt Configuration
+#
+# Adapted from alexbeattie/creative-automation-pipeline's prompt_config.yaml,
+# kept as a separate hot-editable file so prompt shape can evolve without
+# invalidating past assets (each Asset records the template_version it was
+# rendered with, per upstream's idempotency contract).
+#
+# Origin: https://github.com/alexbeattie/creative-automation-pipeline/blob/main/prompt_config.yaml
+
+# Filename stem under prompt_templates/. Bumping this ships a new prompt
+# shape globally without invalidating past assets.
+default_template_version: skeleton_v1
+
+# Per-channel template overrides. Lets story / banner channels foreground
+# their specific layout constraints without forcing every channel to share
+# one shape.
+templates_by_channel:
+  social_feed_square: skeleton_v1
+  social_feed_portrait: skeleton_v1
+  story_vertical: skeleton_story_v1
+  display_landscape: skeleton_v1
+  display_banner: skeleton_banner_v1
+
+# Per-channel composition directive injected into the rendered prompt.
+# Required: every Channel value must be present (the loader back-fills
+# missing entries from code defaults and warns).
+composition_by_channel:
+  social_feed_square: >-
+    balanced centered composition for social feed; subject fills the safe area
+  social_feed_portrait: >-
+    vertical hero composition with the product offset slightly low for thumb-stop
+  story_vertical: >-
+    vertical full-bleed composition with clear headroom (top 20%) and footer
+    (bottom 20%) safe-areas for UI overlays
+  display_landscape: >-
+    wide editorial composition with the subject left-of-center and negative
+    space on the right
+  display_banner: >-
+    wide banner composition with strong horizontal eye-line and clean negative
+    space on the right for headline overlay
+
+# Always-on brand-hygiene rules merged into every asset's avoid_list,
+# independent of brand or locale. Brand-specific bans live in the brand
+# profile's must_avoid:. These are governance-neutral baseline rules —
+# SafetyGate enforcement happens at composition time, not at config load.
+safety_directives:
+  - no text, captions, or watermarks rendered into the image (except the
+    verified-by watermark declared in brand_profile.must_include)
+  - no faces of identifiable real public figures
+  - no logos other than implied product packaging
+  - no imagery suggesting weaponization, surveillance, or coercion
