@@ -607,7 +607,7 @@ class MemoryManager:
             "episodic": self.retention_policy.warm_max_age_seconds,
             "semantic": self.retention_policy.cold_max_age_seconds,
         }
-        stores = {
+        stores: dict[str, Any] = {
             "working": self.working,
             "episodic": self.episodic,
             "semantic": self.semantic,
