@@ -56,6 +56,12 @@ class HITLEvent:
     reviewer: str = ""
     reason: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    # v0.53 F6: 人工审批签名（Ed25519）。approve/reject 时由 reviewer 用
+    # 其私钥对 (event_id, 目标状态, 时间戳) 签名，router 用预注册公钥校验。
+    approval_signature: str = ""
+    signer_did: str = ""
+    signer_public_key: str = ""
+    signed_at: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -75,6 +81,10 @@ class HITLEvent:
             "reviewer": self.reviewer,
             "reason": self.reason,
             "metadata": self.metadata,
+            "approval_signature": self.approval_signature,
+            "signer_did": self.signer_did,
+            "signer_public_key": self.signer_public_key,
+            "signed_at": self.signed_at,
         }
 
 
@@ -111,6 +121,7 @@ class HITLRouter:
         tier_map: dict[str, HITLTier] | None = None,
         auto_approve_seconds: dict[HITLTier, float] | None = None,
         event_counter: int = 0,
+        reviewer_public_keys: dict[str, str] | None = None,
     ) -> None:
         self._tier_map = tier_map or dict(self.DEFAULT_TIER_MAP)
         self._auto_approve = auto_approve_seconds or dict(self.DEFAULT_AUTO_APPROVE)
@@ -120,6 +131,8 @@ class HITLRouter:
         self._tenant_index: dict[str, list[str]] = {}
         # GaaS pending-by-tier index: tenant_id -> {tier -> [event_id, ...]}
         self._pending_by_tier: dict[str, dict[HITLTier, list[str]]] = {}
+        # v0.53 F6: reviewer DID → Ed25519 公钥。配置后审批必须携带可验证签名。
+        self._reviewer_public_keys: dict[str, str] = dict(reviewer_public_keys or {})
 
     # ------------------------------------------------------------------
     # Create / route
@@ -175,51 +188,182 @@ class HITLRouter:
     # Approve / reject
     # ------------------------------------------------------------------
 
-    def approve(self, event_id: str, reviewer: str = "human") -> HITLStatus:
+    def _signature_payload(
+        self, event_id: str, target_status: HITLStatus, signed_at: float
+    ) -> bytes:
+        """Canonical payload a reviewer signs: event_id:status:timestamp (v0.53 F6)."""
+        return f"{event_id}:{target_status.value}:{signed_at}".encode()
+
+    def _verify_approval_signature(
+        self, event: HITLEvent, target_status: HITLStatus
+    ) -> bool:
+        """Verify the approval signature on ``event`` against registered keys.
+
+        When no reviewer keys are configured, returns True (legacy path —
+        signature is optional). When keys ARE configured:
+
+        - signer_did must be a registered reviewer
+        - approval_signature must verify under that reviewer's Ed25519 key
+        - the payload is ``event_id:target_status:signed_at``
+
+        Invalid/missing signature → False (fail-closed).
+        """
+        if not self._reviewer_public_keys:
+            return True
+        if not event.signer_did or not event.approval_signature:
+            return False
+        public_key = self._reviewer_public_keys.get(event.signer_did)
+        if public_key is None:
+            return False
+        signed_at = event.signed_at or event.resolved_at or time.time()
+        payload = self._signature_payload(event.event_id, target_status, signed_at)
+        try:
+            from maref.signing.signing_key import ReportSigningKey
+
+            return ReportSigningKey.verify_signature(
+                public_key, event.approval_signature, payload
+            )
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _log_approval(self, event_type: str, event: HITLEvent, ok: bool) -> None:
+        try:
+            from maref.governance.audit import AuditLogger
+
+            AuditLogger().log(
+                event_type=event_type,
+                actor=event.signer_did or event.reviewer or "unknown",
+                action=event.action,
+                details=f"{event.event_id} verified={ok}",
+                metadata={
+                    "hitl_event_id": event.event_id,
+                    "signer_did": event.signer_did,
+                    "tenant_id": event.tenant_id,
+                    "tier": event.tier.value,
+                },
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    def approve(
+        self,
+        event_id: str,
+        reviewer: str = "human",
+        signature: str = "",
+        signer_did: str = "",
+        signer_public_key: str = "",
+        signed_at: float | None = None,
+    ) -> HITLStatus:
         event = self._events.get(event_id)
         if not event or event.status != HITLStatus.PENDING:
             return HITLStatus.PENDING if not event else event.status
+        if signature:
+            event.approval_signature = signature
+            event.signer_did = signer_did
+            event.signer_public_key = signer_public_key
+            event.signed_at = signed_at if signed_at is not None else time.time()
+        if not self._verify_approval_signature(event, HITLStatus.APPROVED):
+            self._log_approval("hitl.approve_signature_invalid", event, False)
+            return HITLStatus.REJECTED
         event.status = HITLStatus.APPROVED
         event.resolved_at = time.time()
         event.reviewer = reviewer
         self._remove_from_pending(event)
+        if signature:
+            self._log_approval("hitl.approve_signed", event, True)
         return event.status
 
-    def gaas_approve(self, tenant_id: str, event_id: str, reviewer: str = "human") -> HITLStatus:
+    def gaas_approve(
+        self,
+        tenant_id: str,
+        event_id: str,
+        reviewer: str = "human",
+        signature: str = "",
+        signer_did: str = "",
+        signer_public_key: str = "",
+        signed_at: float | None = None,
+    ) -> HITLStatus:
         """Approve a pending event with tenant-id verification (GaaS path)."""
         event = self._events.get(event_id)
         if not event or event.tenant_id != tenant_id:
             return HITLStatus.REJECTED
         if event.status != HITLStatus.PENDING:
             return event.status
+        if signature:
+            event.approval_signature = signature
+            event.signer_did = signer_did
+            event.signer_public_key = signer_public_key
+            event.signed_at = signed_at if signed_at is not None else time.time()
+        if not self._verify_approval_signature(event, HITLStatus.APPROVED):
+            self._log_approval("hitl.approve_signature_invalid", event, False)
+            return HITLStatus.REJECTED
         event.status = HITLStatus.APPROVED
         event.resolved_at = time.time()
         event.reviewer = reviewer
         self._remove_from_pending(event)
+        if signature:
+            self._log_approval("hitl.approve_signed", event, True)
         return event.status
 
-    def reject(self, event_id: str, reason: str = "") -> HITLStatus:
+    def reject(
+        self,
+        event_id: str,
+        reason: str = "",
+        signature: str = "",
+        signer_did: str = "",
+        signer_public_key: str = "",
+        signed_at: float | None = None,
+    ) -> HITLStatus:
         event = self._events.get(event_id)
         if not event or event.status != HITLStatus.PENDING:
             return HITLStatus.PENDING if not event else event.status
+        if signature:
+            event.approval_signature = signature
+            event.signer_did = signer_did
+            event.signer_public_key = signer_public_key
+            event.signed_at = signed_at if signed_at is not None else time.time()
+        if not self._verify_approval_signature(event, HITLStatus.REJECTED):
+            self._log_approval("hitl.reject_signature_invalid", event, False)
+            return HITLStatus.REJECTED
         event.status = HITLStatus.REJECTED
         event.resolved_at = time.time()
         event.reason = reason
         event.metadata["reject_reason"] = reason
         self._remove_from_pending(event)
+        if signature:
+            self._log_approval("hitl.reject_signed", event, True)
         return event.status
 
-    def gaas_reject(self, tenant_id: str, event_id: str, reason: str = "") -> HITLStatus:
+    def gaas_reject(
+        self,
+        tenant_id: str,
+        event_id: str,
+        reason: str = "",
+        signature: str = "",
+        signer_did: str = "",
+        signer_public_key: str = "",
+        signed_at: float | None = None,
+    ) -> HITLStatus:
         """Reject a pending event with tenant-id verification (GaaS path)."""
         event = self._events.get(event_id)
         if not event or event.tenant_id != tenant_id:
             return HITLStatus.REJECTED
         if event.status != HITLStatus.PENDING:
             return event.status
+        if signature:
+            event.approval_signature = signature
+            event.signer_did = signer_did
+            event.signer_public_key = signer_public_key
+            event.signed_at = signed_at if signed_at is not None else time.time()
+        if not self._verify_approval_signature(event, HITLStatus.REJECTED):
+            self._log_approval("hitl.reject_signature_invalid", event, False)
+            return HITLStatus.REJECTED
         event.status = HITLStatus.REJECTED
         event.resolved_at = time.time()
         event.reason = reason
         self._remove_from_pending(event)
+        if signature:
+            self._log_approval("hitl.reject_signed", event, True)
         return event.status
 
     # ------------------------------------------------------------------
