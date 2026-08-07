@@ -129,6 +129,8 @@ def consensus_vote(
         choice=choice,
         reason=body.get("reason", ""),
     )
+    # v0.53 F3: 投票后自动尝试结算，使提案在达 quorum / 过期时即时进入终态。
+    consensus.resolve(proposal_id)
     proposal = consensus.get_proposal(proposal_id)
     return {
         "accepted": accepted,
@@ -136,6 +138,26 @@ def consensus_vote(
         "status": proposal.state.value if proposal else "unknown",
         "approve_count": proposal.approve_count if proposal else 0,
         "reject_count": proposal.reject_count if proposal else 0,
+    }
+
+
+@router.post("/consensus/{proposal_id}/resolve")
+@require_auth(scope="federation:write")
+def consensus_resolve(request: Request, proposal_id: str) -> dict[str, Any]:
+    """手动触发提案结算（v0.53 F3）。
+
+    达 quorum → ACCEPTED/REJECTED；过期 → EXPIRED；票数不足/平票 → 保持 OPEN。
+    """
+    consensus = _governed(request).consensus
+    if consensus.get_proposal(proposal_id) is None:
+        raise HTTPException(status_code=404, detail=f"Proposal not found: {proposal_id}")
+    proposal = consensus.resolve(proposal_id)
+    return {
+        "proposal_id": proposal_id,
+        "status": proposal.state.value if proposal else "unknown",
+        "approve_count": proposal.approve_count if proposal else 0,
+        "reject_count": proposal.reject_count if proposal else 0,
+        "resolution_signature": getattr(proposal, "resolution_signature", "") or "",
     }
 
 
