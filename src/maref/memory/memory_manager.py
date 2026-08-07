@@ -10,13 +10,22 @@ Design principles:
 
 from __future__ import annotations
 
-import re
+import hashlib
+import hmac
+import os
 import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, cast
+from typing import Any
+
+_SALT_ENV = "MAREF_MEMORY_DEIDENTIFY_SALT"
+
+
+def _deidentify_value(value: str, salt: bytes) -> str:
+    """Replace a sensitive identifier with a salted HMAC hash (S3 deidentify)."""
+    return "did:" + hmac.new(salt, value.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
 
 
 class ConfidenceLabel(Enum):
@@ -37,156 +46,6 @@ class SourceAnnotation(Enum):
     EXTERNAL_API = "api"  # External system
     OBSERVATION = "observation"  # System observation
     DERIVED = "derived"  # Derived/computed
-
-
-class PiiCategory(Enum):
-    """v0.53 S3 记忆治理 — 个人敏感信息（PII）类别（个保法/AI Act）。"""
-
-    EMAIL = "email"
-    PHONE = "phone"
-    ID_CARD = "id_card"
-    SSN = "ssn"
-    CREDIT_CARD = "credit_card"
-    IP_ADDRESS = "ip_address"
-    NAME = "name"
-
-
-_PII_PATTERNS: dict[PiiCategory, str] = {
-    PiiCategory.EMAIL: r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
-    # 支持 +86 国际前缀与 -/ 分隔符：13812345678 / 138-1234-5678 / +86 138-1234-5678
-    PiiCategory.PHONE: r"(?<!\d)(?:\+?86[- ]?)?(?:1[3-9]\d{9}|1[3-9]\d[- ]?\d{4}[- ]?\d{4})(?!\d)",
-    PiiCategory.ID_CARD: r"(?<!\d)\d{17}[\dXx](?!\d)",
-    PiiCategory.SSN: r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)",
-    PiiCategory.CREDIT_CARD: r"(?<!\d)\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}(?!\d)",
-    PiiCategory.IP_ADDRESS: r"(?<!\d)(?:\d{1,3}\.){3}\d{1,3}(?!\d)",
-}
-
-# NAME 类无正则模式，仅按字段键识别
-_PII_FIELD_KEYS: dict[PiiCategory, tuple[str, ...]] = {
-    PiiCategory.EMAIL: ("email", "mail"),
-    PiiCategory.PHONE: ("phone", "mobile", "tel", "contact"),
-    PiiCategory.ID_CARD: ("id_card", "passport", "national_id", "ssn", "identity_number"),
-    PiiCategory.CREDIT_CARD: ("credit_card", "card_number", "card_no", "pan"),
-    PiiCategory.IP_ADDRESS: ("ip", "ip_address", "client_ip", "remote_ip"),
-    PiiCategory.NAME: ("full_name", "real_name", "display_name"),
-}
-
-# 常见带连接词的键映射：email_address/phoneNumber → 类别
-_KEY_SUFFIX_ALIASES: dict[str, PiiCategory] = {}
-
-
-def _category_for_key(key: str) -> PiiCategory | None:
-    """字段键 → PII 类别（归一化后精确/后缀匹配，避免 id_card 误入 card 类）。"""
-    if not isinstance(key, str):
-        return None
-    normalized = key.lower().replace("_", "").replace("-", "")
-    for cat, keys in _PII_FIELD_KEYS.items():
-        for k in keys:
-            norm = k.replace("_", "").replace("-", "")
-            # 精确 / 后缀（id_card → idcard） / 单词包含（email_address → emailaddress）
-            if normalized == norm or normalized.endswith(norm) or norm in normalized:
-                return cat
-    return None
-
-
-def _mask(text: str, category: PiiCategory) -> str:
-    if category is PiiCategory.EMAIL:
-        local, _, domain = text.partition("@")
-        shown = local[0] if local else "*"
-        return f"{shown}***@{domain}"
-    if category is PiiCategory.PHONE:
-        digits = re.sub(r"\D", "", text)
-        if len(digits) >= 7:
-            return f"{digits[:3]}{'*' * (len(digits) - 7)}{digits[-4:]}"
-        return "*" * len(text)
-    if category in (PiiCategory.ID_CARD, PiiCategory.SSN):
-        if len(text) > 10:
-            return f"{text[:6]}{'*' * (len(text) - 10)}{text[-4:]}"
-        return "*" * len(text)
-    if category is PiiCategory.CREDIT_CARD:
-        digits = re.sub(r"\D", "", text)
-        return f"****-****-****-{digits[-4:]}"
-    if category is PiiCategory.IP_ADDRESS:
-        parts = text.split(".")
-        if len(parts) == 4:
-            return f"{parts[0]}.{parts[1]}.*.*"
-        return "*" * len(text)
-    # NAME
-    return f"{text[0]}{'*' * (len(text) - 1)}" if text else text
-
-
-def _mask_string(text: str) -> tuple[str, dict[PiiCategory, list[str]]]:
-    """掩码一字符串中所有 pattern 类 PII，返回 (脱敏文本, 命中值)。"""
-    hits: dict[PiiCategory, list[str]] = {}
-    out = text
-    for cat, pattern in _PII_PATTERNS.items():
-        matches = list(re.finditer(pattern, out))
-        if matches:
-            hits[cat] = [m.group() for m in matches]
-            for m in reversed(matches):
-                out = out[: m.start()] + _mask(m.group(), cat) + out[m.end() :]
-    return out, hits
-
-
-def _scan_content(node: Any, mask: bool) -> tuple[Any, dict[PiiCategory, list[str]]]:
-    """递归扫描 dict/list/str，detect（mask=False）或去识别（mask=True）。"""
-    hits: dict[PiiCategory, list[str]] = {}
-
-    def add(cat: PiiCategory, values: list[str]) -> None:
-        bucket = hits.setdefault(cat, [])
-        for v in values:
-            if v and v not in bucket:
-                bucket.append(v)
-
-    if isinstance(node, dict):
-        out: Any = {}
-        for key, value in node.items():
-            cat = _category_for_key(key)
-            if cat is not None and isinstance(value, str):
-                masked, sub_hits = _mask_string(value)
-                if mask:
-                    # NAME 无 pattern，或字段键断言的值未被任何 pattern 命中时，
-                    # 对整个值做类别掩码兜底，保证 detect 与去识别行为一致。
-                    if cat is PiiCategory.NAME or cat not in sub_hits:
-                        masked = _mask(value, cat)
-                    out[key] = masked
-                for c, values in sub_hits.items():
-                    add(c, values)
-                add(cat, [value])
-            else:
-                new_value, sub = _scan_content(value, mask)
-                out[key] = new_value
-                for c, values in sub.items():
-                    add(c, values)
-        return out, hits
-    if isinstance(node, list):
-        out = []
-        for value in node:
-            new_value, sub = _scan_content(value, mask)
-            out.append(new_value)
-            for c, values in sub.items():
-                add(c, values)
-        return out, hits
-    if isinstance(node, str):
-        if mask:
-            return _mask_string(node)
-        for cat, pattern in _PII_PATTERNS.items():
-            values = re.findall(pattern, node)
-            if values:
-                add(cat, values)
-        return node, hits
-    return node, hits
-
-
-def detect_pii(content: Any) -> dict[PiiCategory, list[str]]:
-    """静态扫描内容中的 PII，返回 {类别: [匹配到的原始值]}。"""
-    return _scan_content(content, mask=False)[1]
-
-
-def deidentify_content(content: Any) -> tuple[Any, list[PiiCategory]]:
-    """对内容做去识别掩码，返回 (脱敏后的副本, 发现的 PII 类别)。不修改入参。"""
-    out, hits = _scan_content(content, mask=True)
-    return out, list(hits.keys())
 
 
 class UserIsolationTag:
@@ -223,8 +82,8 @@ class MemoryRecord:
     last_accessed_at: float = field(default_factory=time.time)
     linked_task_ids: list[str] = field(default_factory=list)
     summary: str = ""  # For compressed/archive form
-    retention_days: int = 0  # 0 = use store default
-    pii_categories: list[str] = field(default_factory=list)
+    # v0.53 S3: 软删除标记（forget 后置位，retention 清理前可见性为 false）
+    deleted: bool = False
 
     def is_expired(self) -> bool:
         if self.expires_at == 0:
@@ -249,8 +108,7 @@ class MemoryRecord:
             "last_accessed_at": self.last_accessed_at,
             "linked_task_ids": self.linked_task_ids,
             "summary": self.summary,
-            "retention_days": self.retention_days,
-            "pii_categories": self.pii_categories,
+            "deleted": self.deleted,
         }
 
 
@@ -335,41 +193,6 @@ class WorkingMemoryStore:
             self._store.pop(mid, None)
         return len(expired)
 
-    def deidentify(self, memory_id: str) -> bool:
-        """Mask PII in a record's content in place. Returns True if PII found."""
-        record = self._store.get(memory_id)
-        if record is None:
-            return False
-        content, categories = deidentify_content(record.content)
-        if not categories:
-            return False
-        record.content = cast(dict[str, Any], content)
-        record.pii_categories = [c.value for c in categories]
-        return True
-
-    def erase_by_user(self, user_id: str) -> int:
-        """Erase all records of a user (GDPR Art.17 right to erasure). Returns count."""
-        ids = [mid for mid, r in self._store.items() if r.user_tag.user_id == user_id]
-        for mid in ids:
-            self._store.pop(mid, None)
-        return len(ids)
-
-    def purge_expired_retention(self, default_days: int = 90) -> int:
-        """Remove records whose retention period elapsed. Returns count.
-
-        基于 last_accessed_at（最近活跃），避免热层被频繁访问的记录
-        因 created_at 老化而误清。
-        """
-        now = time.time()
-        ids = [
-            mid
-            for mid, r in self._store.items()
-            if r.last_accessed_at + (r.retention_days or default_days) * 86400 < now
-        ]
-        for mid in ids:
-            self._store.pop(mid, None)
-        return len(ids)
-
     def checkpoint(self) -> dict[str, Any]:
         """Serialize all non-expired records for recovery."""
         return {mid: r.to_dict() for mid, r in self._store.items() if not r.is_expired()}
@@ -389,8 +212,6 @@ class WorkingMemoryStore:
                 last_accessed_at=d.get("last_accessed_at", time.time()),
                 linked_task_ids=d.get("linked_task_ids", []),
                 summary=d.get("summary", ""),
-                retention_days=d.get("retention_days", 0),
-                pii_categories=d.get("pii_categories", []),
             )
             self._store[mid] = record
 
@@ -403,6 +224,13 @@ class WorkingMemoryStore:
 
     def __len__(self) -> int:
         return len(self._store)
+
+    # v0.53 S3: 治理辅助
+    def all_records(self) -> list[MemoryRecord]:
+        return list(self._store.values())
+
+    def purge(self, memory_id: str) -> bool:
+        return self._store.pop(memory_id, None) is not None
 
 
 # --------------------------------------------------------------------------- #
@@ -508,43 +336,17 @@ class EpisodicMemoryStore:
         self._records = remaining
         return archived
 
-    def deidentify(self, memory_id: str) -> bool:
-        """Mask PII in a record's content in place. Returns True if PII found."""
-        for record in self._records:
-            if record.memory_id == memory_id:
-                content, categories = deidentify_content(record.content)
-                if not categories:
-                    return False
-                record.content = cast(dict[str, Any], content)
-                record.pii_categories = [c.value for c in categories]
-                return True
-        return False
-
-    def erase(self, memory_id: str) -> bool:
-        """Erase a single record."""
-        before = len(self._records)
-        self._records = [r for r in self._records if r.memory_id != memory_id]
-        return before != len(self._records)
-
-    def erase_by_user(self, user_id: str) -> int:
-        """Erase all records of a user (GDPR Art.17 right to erasure). Returns count."""
-        before = len(self._records)
-        self._records = [r for r in self._records if r.user_tag.user_id != user_id]
-        return before - len(self._records)
-
-    def purge_expired_retention(self, default_days: int = 90) -> int:
-        """Remove records whose retention period elapsed. Returns count."""
-        now = time.time()
-        before = len(self._records)
-        self._records = [
-            r
-            for r in self._records
-            if r.created_at + (r.retention_days or default_days) * 86400 >= now
-        ]
-        return before - len(self._records)
-
     def __len__(self) -> int:
         return len(self._records)
+
+    # v0.53 S3: 治理辅助
+    def all_records(self) -> list[MemoryRecord]:
+        return list(self._records)
+
+    def purge(self, memory_id: str) -> bool:
+        before = len(self._records)
+        self._records = [r for r in self._records if r.memory_id != memory_id]
+        return len(self._records) < before
 
 
 # --------------------------------------------------------------------------- #
@@ -590,43 +392,29 @@ class SemanticMemoryStore:
         """Retrieve knowledge about a specific concept."""
         return [r for r in self._records.values() if r.content.get("concept") == concept]
 
-    def deidentify(self, memory_id: str) -> bool:
-        """Mask PII in a record's content in place. Returns True if PII found."""
-        record = self._records.get(memory_id)
-        if record is None:
-            return False
-        content, categories = deidentify_content(record.content)
-        if not categories:
-            return False
-        record.content = cast(dict[str, Any], content)
-        record.pii_categories = [c.value for c in categories]
-        return True
-
-    def erase(self, memory_id: str) -> bool:
-        """Erase a single record."""
-        return self._records.pop(memory_id, None) is not None
-
-    def erase_by_user(self, user_id: str) -> int:
-        """Erase all records of a user (GDPR Art.17 right to erasure). Returns count."""
-        ids = [mid for mid, r in self._records.items() if r.user_tag.user_id == user_id]
-        for mid in ids:
-            self._records.pop(mid, None)
-        return len(ids)
-
-    def purge_expired_retention(self, default_days: int = 90) -> int:
-        """Remove records whose retention period elapsed. Returns count."""
-        now = time.time()
-        ids = [
-            mid
-            for mid, r in self._records.items()
-            if r.created_at + (r.retention_days or default_days) * 86400 < now
-        ]
-        for mid in ids:
-            self._records.pop(mid, None)
-        return len(ids)
-
     def __len__(self) -> int:
         return len(self._records)
+
+    # v0.53 S3: 治理辅助
+    def all_records(self) -> list[MemoryRecord]:
+        return list(self._records.values())
+
+    def purge(self, memory_id: str) -> bool:
+        return self._records.pop(memory_id, None) is not None
+
+
+@dataclass
+class MemoryRetentionPolicy:
+    """Retention policy per memory tier (v0.53 S3).
+
+    ``hot_max_age_seconds`` / ``warm_max_age_seconds`` / ``cold_max_age_seconds``
+    bound how long records may live before automatic demotion/deletion.
+    A value of 0 means no retention bound (keep forever).
+    """
+
+    hot_max_age_seconds: float = 0.0
+    warm_max_age_seconds: float = 0.0
+    cold_max_age_seconds: float = 0.0
 
 
 # --------------------------------------------------------------------------- #
@@ -651,17 +439,40 @@ class MemoryManager:
 
     def __init__(
         self,
-        on_governance_event: Callable[[str, dict[str, Any]], None] | None = None,
+        retention_policy: MemoryRetentionPolicy | None = None,
+        audit_logger: Any | None = None,
     ) -> None:
         self.working = WorkingMemoryStore()
         self.episodic = EpisodicMemoryStore()
         self.semantic = SemanticMemoryStore()
-        self._on_governance_event = on_governance_event
+        self.retention_policy = retention_policy or MemoryRetentionPolicy()
+        self._audit_logger = audit_logger
 
-    def _emit_governance_event(self, name: str, **payload: Any) -> None:
-        """发治理事件（去识别/擦除/保留期清理），供审计总线订阅。"""
-        if self._on_governance_event is not None:
-            self._on_governance_event(name, payload)
+    def _log(self, event_type: str, memory_id: str, details: str) -> None:
+        try:
+            if self._audit_logger is not None:
+                self._audit_logger.log(
+                    event_type=event_type,
+                    actor="memory_manager",
+                    action=memory_id,
+                    details=details,
+                    layer="memory",
+                )
+            else:
+                from maref.governance.audit import AuditLogger
+
+                AuditLogger().log(
+                    event_type=event_type,
+                    actor="memory_manager",
+                    action=memory_id,
+                    details=details,
+                    layer="memory",
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _all_stores(self) -> list[Any]:
+        return [self.working, self.episodic, self.semantic]
 
     def create_record(
         self,
@@ -706,44 +517,112 @@ class MemoryManager:
             "episodic_archived": len(archived),
         }
 
-    def deidentify(self, memory_id: str) -> dict[str, bool]:
-        """Mask PII across all tiers for a memory id. Returns per-tier results."""
-        stats = {
-            "working": self.working.deidentify(memory_id),
-            "episodic": self.episodic.deidentify(memory_id),
-            "semantic": self.semantic.deidentify(memory_id),
-        }
-        if any(stats.values()):
-            self._emit_governance_event("memory.deidentify", memory_id=memory_id, **stats)
-        return stats
-
-    def forget(self, user_id: str) -> dict[str, int]:
-        """GDPR Art.17 遗忘权：擦除某用户全部记忆（三个 tier）。返回各层擦除数。
-
-        注意: 仅擦除显式携带该 user_id 的 user_tag 记录；共享标签（空 user_id）
-        不属于单个用户，保留不动（需由管理员按系统级策略处理）。
-        """
-        stats = {
-            "working": self.working.erase_by_user(user_id),
-            "episodic": self.episodic.erase_by_user(user_id),
-            "semantic": self.semantic.erase_by_user(user_id),
-        }
-        self._emit_governance_event("memory.forget", user_id=user_id, **stats)
-        return stats
-
-    def purge_expired_retention(self, default_days: int = 90) -> dict[str, int]:
-        """按保留期清理各层过期记忆。返回各层清理数。"""
-        stats = {
-            "working": self.working.purge_expired_retention(default_days),
-            "episodic": self.episodic.purge_expired_retention(default_days),
-            "semantic": self.semantic.purge_expired_retention(default_days),
-        }
-        self._emit_governance_event("memory.retention_purge", default_days=default_days, **stats)
-        return stats
-
     def get_stats(self) -> dict[str, Any]:
         return {
             "working_count": len(self.working),
             "episodic_count": len(self.episodic),
             "semantic_count": len(self.semantic),
         }
+
+    # ------------------------------------------------------------------ #
+    # v0.53 S3: 记忆治理
+    # ------------------------------------------------------------------ #
+
+    def deidentify(self, agent_id: str, subject_key: str = "agent_id") -> int:
+        """S3 deidentify: replace every occurrence of ``agent_id`` in memory
+        content (and isolation tags) with an irreversible salted HMAC hash.
+
+        The salt is read from ``MAREF_MEMORY_DEIDENTIFY_SALT`` (random when
+        unset). Returns the number of records rewritten.
+        """
+        salt = os.environ.get(_SALT_ENV, "").encode("utf-8") or os.urandom(16)
+        rewritten = 0
+        for store in self._all_stores():
+            for record in store.all_records():
+                if record.deleted:
+                    continue
+                mutated = False
+                content = dict(record.content)
+                for key, value in list(content.items()):
+                    if key == subject_key and isinstance(value, str) and value == agent_id:
+                        content[key] = _deidentify_value(value, salt)
+                        mutated = True
+                    elif isinstance(value, list):
+                        content[key] = [
+                            _deidentify_value(item, salt)
+                            if isinstance(item, str) and item == agent_id
+                            else item
+                            for item in value
+                        ]
+                        mutated = mutated or any(
+                            isinstance(item, str) and item == agent_id for item in value
+                        )
+                if record.user_tag.user_id == agent_id:
+                    record.user_tag = UserIsolationTag(
+                        user_id=_deidentify_value(agent_id, salt),
+                        session_id=record.user_tag.session_id,
+                    )
+                    mutated = True
+                if mutated:
+                    record.content = content
+                    rewritten += 1
+        self._log("memory.deidentify", agent_id, f"deidentified {rewritten} records")
+        return rewritten
+
+    def forget(self, memory_id: str) -> bool:
+        """S3 forget: soft-delete a record across all tiers (visibility off,
+        retention purge will hard-delete later)."""
+        for store in self._all_stores():
+            for record in store.all_records():
+                if record.memory_id == memory_id and not record.deleted:
+                    record.deleted = True
+                    self._log("memory.forget", memory_id, "soft-deleted")
+                    return True
+        return False
+
+    def erasure(self, memory_id: str) -> bool:
+        """S3 erasure: hard-delete a record irrecoverably from all tiers,
+        with an audit trail entry."""
+        removed = False
+        for store in self._all_stores():
+            if store.purge(memory_id):
+                removed = True
+        if removed:
+            self._log("memory.erasure", memory_id, "hard-deleted irrecoverably")
+        return removed
+
+    def apply_retention(self) -> dict[str, int]:
+        """S3 retention: enforce the configured retention policy.
+
+        - hot tier: records older than ``hot_max_age_seconds`` are removed
+        - warm tier: records older than ``warm_max_age_seconds`` are removed
+        - cold tier: records older than ``cold_max_age_seconds`` are removed
+
+        Returns counts of records removed per tier.
+        """
+        now = time.time()
+        removed = {"working": 0, "episodic": 0, "semantic": 0}
+        bounds = {
+            "working": self.retention_policy.hot_max_age_seconds,
+            "episodic": self.retention_policy.warm_max_age_seconds,
+            "semantic": self.retention_policy.cold_max_age_seconds,
+        }
+        stores = {
+            "working": self.working,
+            "episodic": self.episodic,
+            "semantic": self.semantic,
+        }
+        for tier, max_age in bounds.items():
+            if max_age <= 0:
+                continue
+            cutoff = now - max_age
+            for record in list(stores[tier].all_records()):
+                if record.created_at < cutoff:
+                    if stores[tier].purge(record.memory_id):
+                        removed[tier] += 1
+                        self._log(
+                            "memory.retention_purge",
+                            record.memory_id,
+                            f"expired {tier} retention ({max_age}s)",
+                        )
+        return removed
