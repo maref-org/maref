@@ -133,6 +133,11 @@ class GovernancePipeline:
         # 记录后追加链级评估; 未注入则行为完全不变 (向后兼容)。
         intent_tracker: Any | None = None,
         intent_gate: Any | None = None,
+        # v0.53 S7: 可选预算熔断器 / 破坏性操作门。注入后 govern 在
+        # TrustBoundary 之后追加预算超限 DENY 与破坏性操作 HITL 升级;
+        # 未注入则行为完全不变 (向后兼容)。
+        budget_breaker: Any | None = None,
+        destructive_gate: Any | None = None,
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
 
@@ -149,6 +154,8 @@ class GovernancePipeline:
         self._boundary = boundary
         self._intent_tracker = intent_tracker
         self._intent_gate = intent_gate
+        self._budget_breaker = budget_breaker
+        self._destructive_gate = destructive_gate
 
     @staticmethod
     def _default_policy_rules() -> list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]]:
@@ -260,6 +267,81 @@ class GovernancePipeline:
                         "pipeline:irreversible_hitl",
                     )
                 return result
+
+        # 0.5. v0.53 S7: 预算熔断器 — agent 预算超限直接 DENY。
+        if self._budget_breaker is not None:
+            try:
+                budget_ok = self._budget_breaker.is_open(req.agent_id) is False and (
+                    self._budget_breaker.check_agent_budget(
+                        req.agent_id,
+                        self._budget_breaker.get_agent_spend(req.agent_id),
+                    )
+                )
+            except Exception:
+                budget_ok = True
+            if not budget_ok:
+                result = GovernanceResult(
+                    verdict=Verdict.DENY,
+                    reason=f"Budget breaker open for agent '{req.agent_id}'",
+                    matched_rule="budget_breaker",
+                )
+                result.latency_ms = int((time.time() - start) * 1000)
+                if self._audit_callback:
+                    self._audit_callback(req, result)
+                if self._cb_record_callback:
+                    self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
+                return result
+
+        # 0.6. v0.53 S7: 破坏性操作门 — 命中破坏性模式时升级 HITL。
+        if self._destructive_gate is not None and self._destructive_gate.enabled:
+            try:
+                gate_decision = self._destructive_gate.evaluate(
+                    operation=req.action,
+                    tool_name=req.action.split(".")[0],
+                    args=req.parameters,
+                    agent_id=req.agent_id,
+                )
+            except Exception:
+                gate_decision = None
+            if gate_decision is not None:
+                from maref.governance.destructive_gate import GateVerdict
+
+                if gate_decision.verdict == GateVerdict.BLOCK:
+                    result = GovernanceResult(
+                        verdict=Verdict.DENY,
+                        reason=f"Destructive gate BLOCK: {gate_decision.reason}",
+                        matched_rule="destructive_gate",
+                    )
+                    result.latency_ms = int((time.time() - start) * 1000)
+                    if self._audit_callback:
+                        self._audit_callback(req, result)
+                    if self._cb_record_callback:
+                        self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
+                    return result
+                if gate_decision.verdict == GateVerdict.HITL_REQUIRED:
+                    from maref.integration.hitl import HITLTier as _HITLTier
+
+                    hitl_event = self._hitl.request(
+                        tenant_id=req.tenant_id or "default",
+                        agent_id=req.agent_id,
+                        action=req.action,
+                        description=f"破坏性操作需人工确认: {gate_decision.reason}",
+                        parameters=req.parameters,
+                        tier=_HITLTier.P0_RESPONSE,
+                    )
+                    result = GovernanceResult(
+                        verdict=Verdict.ASK_USER,
+                        reason=f"破坏性操作升级人工审批: {gate_decision.reason}",
+                        hitl_tier=_HITLTier.P0_RESPONSE,
+                        hitl_event_id=hitl_event.event_id,
+                        matched_rule="destructive_gate_hitl",
+                    )
+                    result.latency_ms = int((time.time() - start) * 1000)
+                    if self._audit_callback:
+                        self._audit_callback(req, result)
+                    if self._cb_record_callback:
+                        self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
+                    return result
 
         # 1. Circuit breaker depth check
         if self._cb_check_callback:
