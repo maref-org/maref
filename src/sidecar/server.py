@@ -222,6 +222,27 @@ def create_a2a_bridge() -> A2ABridge:
     )
 
 
+def _load_peer_public_keys() -> dict[str, str]:
+    """Load A2A peer Ed25519 public keys from ``MAREF_A2A_PEER_PUBLIC_KEYS``.
+
+    JSON object: ``{"agent_id": "ed25519_public_key_pem", ...}``. Missing or
+    invalid config yields an empty dict (v0.53 I2: 不配置则 A2A 验签保持
+    legacy 未启用, 配置后强制验签).
+    """
+    import json
+
+    raw = os.environ.get("MAREF_A2A_PEER_PUBLIC_KEYS", "")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {str(k): str(v) for k, v in parsed.items()}
+
+
 def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, a2a_bridge: A2ABridge | None = None) -> None:
     _metric_store = MetricStore()
     _cost_tracker = CostTracker(metric_store=_metric_store)
@@ -1013,7 +1034,11 @@ class SidecarFastAPI(FastAPI):
         self.include_router(org_governance_router)
         a2a_bridge = create_a2a_bridge()
         _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
-        self.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
+        self.include_router(create_a2a_router(
+            a2a_bridge,
+            signing_key=_signing_key,
+            peer_public_keys=_load_peer_public_keys(),
+        ))
         if federated:
             self.include_router(federation_router)
         _setup_routes(self, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
@@ -1039,7 +1064,11 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     app.include_router(org_governance_router)
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
-    app.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
+    app.include_router(create_a2a_router(
+        a2a_bridge,
+        signing_key=_signing_key,
+        peer_public_keys=_load_peer_public_keys(),
+    ))
     if federated:
         app.include_router(federation_router)
     _setup_routes(app, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
