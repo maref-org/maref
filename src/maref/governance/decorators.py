@@ -85,12 +85,28 @@ def governed(
             if pipeline is None:
                 pipeline = _default_pipeline
             if pipeline is None:
-                logger.warning(
-                    "No governance pipeline set for @governed(%s) on %s — allowing",
-                    action_name,
-                    func.__qualname__,
+                # v0.53 S8: fail-closed — 无治理管线时拒绝执行而非静默放行。
+                # 审计该事件，供启动时配置审计发现未接线的 @governed 调用点。
+                try:
+                    from maref.governance.audit import AuditLogger
+
+                    AuditLogger().log(
+                        event_type="governed_no_pipeline",
+                        actor=agent_id,
+                        action=action_name,
+                        details=f"@governed({action_name}) on {func.__qualname__} invoked without pipeline",
+                        tenant_id=tenant_id,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+                logger.error(
+                    "No governance pipeline set for @governed(%s) on %s — denying (fail-closed)",
+                    action_name, func.__qualname__,
                 )
-                return func(*args, **kwargs)
+                raise GovernanceDeniedError(
+                    f"no governance pipeline configured for {action_name} "
+                    f"(@governed on {func.__qualname__})"
+                )
 
             request = GovernanceRequest(
                 action=action_name,
@@ -106,9 +122,7 @@ def governed(
                 event = result.hitl_event_id
                 logger.info(
                     "HITL requested for %s on %s (event=%s)",
-                    action_name,
-                    func.__qualname__,
-                    event,
+                    action_name, func.__qualname__, event,
                 )
 
             return func(*args, **kwargs)

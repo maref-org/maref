@@ -71,14 +71,15 @@ def test_governed_decorator_with_custom_pipeline():
 
 
 def test_governed_no_pipeline_fallback():
-    """Without any pipeline, @governed should warn but not block."""
+    """Without any pipeline, @governed must fail closed (v0.53 S8)."""
     set_default_pipeline(None)  # ensure None
 
     @governed(require="file.write")
     def write(path):
         return "written"
 
-    assert write("/tmp/test.txt") == "written"
+    with pytest.raises(GovernanceDeniedError):
+        write("/tmp/test.txt")
 
 
 def test_governed_asks_user_does_not_block():
