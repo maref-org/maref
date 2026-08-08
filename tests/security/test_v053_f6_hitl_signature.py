@@ -57,6 +57,26 @@ class TestSignatureRequired:
     def test_no_signature_rejected(self, router: HITLRouter):
         event = router.request("t1", "agent-a", "shell.exec", "run")
         assert router.approve(event.event_id) == HITLStatus.REJECTED
+        # C2: 验签失败后事件应为终态 REJECTED，且移出 pending（不可二次批准）
+        assert event.status == HITLStatus.REJECTED
+        assert router.get_pending() == []
+
+    def test_invalid_signature_terminates_event(self, router: HITLRouter):
+        """C2 回归: 伪造签名被拒后，事件终态化，合法签名也无法再批准。"""
+        event = router.request("t1", "agent-a", "shell.exec", "run")
+        forged = ReportSigningKey.generate()
+        sig = _sign(forged, event.event_id, HITLStatus.APPROVED, time.time())
+        status = router.approve(
+            event.event_id,
+            signature=sig,
+            signer_did="rev-1",
+            signer_public_key=forged.public_key_pem,
+        )
+        assert status == HITLStatus.REJECTED
+        assert event.status == HITLStatus.REJECTED
+        assert router.get_pending() == []
+        # 二次合法签名不得翻案
+        assert router.approve(event.event_id) == HITLStatus.REJECTED
 
     def test_forged_signature_rejected(self, router: HITLRouter):
         event = router.request("t1", "agent-a", "shell.exec", "run")

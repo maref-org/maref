@@ -16,6 +16,8 @@ has been merged here. See governance_router.py for GaaS integration.
 
 from __future__ import annotations
 
+import json
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -86,6 +88,31 @@ class HITLEvent:
             "signer_public_key": self.signer_public_key,
             "signed_at": self.signed_at,
         }
+
+
+# v0.53 F6 / I1: reviewer 公钥注入点。与 sidecar 的 A2A peer keys 对称，
+# 从环境变量 ``MAREF_HITL_REVIEWER_PUBLIC_KEYS`` 加载 {"reviewer_did": "ed25519_pem"}。
+# 未配置时返回空 dict → HITLRouter 保持 legacy（不强制验签），向后兼容。
+_REVIEWER_KEYS_ENV = "MAREF_HITL_REVIEWER_PUBLIC_KEYS"
+
+
+def load_reviewer_public_keys_from_env() -> dict[str, str]:
+    """Load HITL reviewer Ed25519 public keys from environment.
+
+    JSON object: ``{"reviewer_did": "ed25519_public_key_pem", ...}``. Missing,
+    empty, or invalid config yields an empty dict (v0.53 I1: 不配置则审批保持
+    legacy 无签名路径; 配置后强制验签，fail-closed)。
+    """
+    raw = os.environ.get(_REVIEWER_KEYS_ENV, "")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {str(k): str(v) for k, v in parsed.items()}
 
 
 class HITLRouter:
@@ -245,6 +272,19 @@ class HITLRouter:
         except Exception:  # noqa: BLE001
             pass
 
+    def _reject_invalid_signature(self, event: HITLEvent, reason: str) -> HITLStatus:
+        """Terminate an event whose approval signature failed verification.
+
+        The event is moved to REJECTED (final state) so a later valid
+        signature cannot silently re-approve it (v0.53 F6 / C2). The recorded
+        signature/signer fields are kept for audit forensics.
+        """
+        event.status = HITLStatus.REJECTED
+        event.resolved_at = time.time()
+        event.reason = reason
+        self._remove_from_pending(event)
+        return event.status
+
     def approve(
         self,
         event_id: str,
@@ -264,7 +304,7 @@ class HITLRouter:
             event.signed_at = signed_at if signed_at is not None else time.time()
         if not self._verify_approval_signature(event, HITLStatus.APPROVED):
             self._log_approval("hitl.approve_signature_invalid", event, False)
-            return HITLStatus.REJECTED
+            return self._reject_invalid_signature(event, "invalid approval signature")
         event.status = HITLStatus.APPROVED
         event.resolved_at = time.time()
         event.reviewer = reviewer
@@ -296,7 +336,7 @@ class HITLRouter:
             event.signed_at = signed_at if signed_at is not None else time.time()
         if not self._verify_approval_signature(event, HITLStatus.APPROVED):
             self._log_approval("hitl.approve_signature_invalid", event, False)
-            return HITLStatus.REJECTED
+            return self._reject_invalid_signature(event, "invalid approval signature")
         event.status = HITLStatus.APPROVED
         event.resolved_at = time.time()
         event.reviewer = reviewer
@@ -324,7 +364,7 @@ class HITLRouter:
             event.signed_at = signed_at if signed_at is not None else time.time()
         if not self._verify_approval_signature(event, HITLStatus.REJECTED):
             self._log_approval("hitl.reject_signature_invalid", event, False)
-            return HITLStatus.REJECTED
+            return self._reject_invalid_signature(event, reason or "invalid rejection signature")
         event.status = HITLStatus.REJECTED
         event.resolved_at = time.time()
         event.reason = reason
@@ -357,7 +397,7 @@ class HITLRouter:
             event.signed_at = signed_at if signed_at is not None else time.time()
         if not self._verify_approval_signature(event, HITLStatus.REJECTED):
             self._log_approval("hitl.reject_signature_invalid", event, False)
-            return HITLStatus.REJECTED
+            return self._reject_invalid_signature(event, reason or "invalid rejection signature")
         event.status = HITLStatus.REJECTED
         event.resolved_at = time.time()
         event.reason = reason

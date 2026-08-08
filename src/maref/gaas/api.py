@@ -49,7 +49,7 @@ from maref.gaas.session_manager import (
 )
 from maref.gaas.tenant import TenantManager
 from maref.gaas.trust_service import TrustScoreService
-from maref.integration.hitl import HITLRouter
+from maref.integration.hitl import HITLRouter, load_reviewer_public_keys_from_env
 
 router = APIRouter(prefix="/api/v1/gaas", tags=["gaas"])
 
@@ -74,7 +74,9 @@ def _ensure_services() -> None:
         return
     _tenant_manager = TenantManager()
     _cb_pool = CircuitBreakerPool()
-    _hitl_service = HITLRouter()
+    _hitl_service = HITLRouter(
+        reviewer_public_keys=load_reviewer_public_keys_from_env()
+    )
     _audit_service = AuditLogService()
     _trust_service = TrustScoreService()
     _governance_router = GovernanceRouter(
