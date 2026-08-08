@@ -27,7 +27,7 @@ jobs:
           
       - name: Install dependencies
         run: |
-          pip install -e ".[dev]"
+          pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
           
       - name: Run meta-monitor — M0 Survivability
         env:
