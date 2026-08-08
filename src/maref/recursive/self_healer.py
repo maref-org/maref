@@ -206,7 +206,7 @@ class SelfHealer:
                 # Measure baseline test collection time
                 t0 = _time.monotonic()
                 result = subprocess.run(
-                    [sys.executable, "-m", "pytest", "tests/", "--co", "-q"],
+                    [sys.executable, "-m", "pytest", "-p", "no:asyncio", "tests/", "--co", "-q"],
                     capture_output=True,
                     text=True,
                     timeout=60,

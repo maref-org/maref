@@ -170,7 +170,7 @@ class MAREFSelfAdapter(AgentAdapter):
 
         # Phase 1: Run tests to see what's broken
         pytest_result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/", "--tb=short", "-q", "--no-header"],
+            [sys.executable, "-m", "pytest", "-p", "no:asyncio", "tests/", "--tb=short", "-q", "--no-header"],
             capture_output=True, text=True, timeout=60,
             cwd=scenario.workdir,
         )
@@ -192,7 +192,7 @@ class MAREFSelfAdapter(AgentAdapter):
 
         # Phase 4: Verify fix by running tests again
         verify = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/", "-q", "--no-header"],
+            [sys.executable, "-m", "pytest", "-p", "no:asyncio", "tests/", "-q", "--no-header"],
             capture_output=True, text=True, timeout=60,
             cwd=scenario.workdir,
         )

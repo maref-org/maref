@@ -51,7 +51,7 @@ class SAEBMetricsCollector:
     def _collect_pytest(self, m: SAEBMetrics) -> None:
         env = {**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1"}
         cmd = [
-            sys.executable, "-m", "pytest", "tests/",
+            sys.executable, "-m", "pytest", "-p", "no:asyncio", "tests/",
             "--tb=no", "-q", "--no-header",
         ]
         result = subprocess.run(

@@ -174,3 +174,7 @@ class VectorKnowledgeStore:
     @property
     def collection_name(self) -> str:
         return self._collection_name
+
+
+# 兼容别名：旧代码引用 VectorStore，实际实现为 VectorKnowledgeStore
+VectorStore = VectorKnowledgeStore

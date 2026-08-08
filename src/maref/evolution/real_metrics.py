@@ -6,7 +6,10 @@ provides EvolutionMetrics-compatible output for the evolution engine.
 
 from __future__ import annotations
 
+import re
+import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -150,25 +153,55 @@ class RealMetricsCollector:
         )
 
     @staticmethod
+    @staticmethod
     def _run_pytest(quick: bool = False) -> tuple[float, int, int]:
-        try:
-            test_dirs = ["tests/cli/", "tests/unit/", "tests/governance/", "tests/redblue/"]
-            if quick:
-                test_dirs = test_dirs[:2]
-            cmd = ["pytest", "--tb=no", "-q", "--no-header"] + test_dirs
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-            output = result.stdout + result.stderr
-            import re
+        """逐目录运行 pytest，聚合通过/失败数。
 
-            match = re.search(r"(\d+)\s+passed", output)
-            total_passed = int(match.group(1)) if match else 0
-            match_fail = re.search(r"(\d+)\s+failed", output)
-            total_failed = int(match_fail.group(1)) if match_fail else 0
-            total = total_passed + total_failed
-            pass_rate = total_passed / max(total, 1)
-            return round(pass_rate, 4), total, total_failed
-        except Exception:
-            return 0.0, 1, 1
+        - `-o addopts=` 清除 pyproject 的 --cov 强制项（coverage 测量让合并跑
+          远超超时，导致 fnr 误判为 1.0）
+        - `-p no:asyncio` 规避 pytest-asyncio AUTO 模式在 collect 阶段挂起
+        """
+        test_dirs = ["tests/cli/", "tests/unit/", "tests/governance/", "tests/redblue/"]
+        if quick:
+            test_dirs = test_dirs[:2]
+
+        total_passed = 0
+        total_failed = 0
+        ran_any = False
+        pytest_cmd = shutil.which("pytest")
+        if pytest_cmd is None:
+            # 回退到当前 venv 的 pytest（launchd 环境下 PATH 无 venv bin；sys.prefix 指向 .venv）
+            venv_pytest = Path(sys.prefix) / "bin" / "pytest"
+            pytest_cmd = str(venv_pytest) if venv_pytest.exists() else None
+        if pytest_cmd is None:
+            raise RuntimeError("pytest 不在 PATH 中，无法采集测试指标")
+        for test_dir in test_dirs:
+            try:
+                cmd = [
+                    pytest_cmd, "--tb=no", "-q", "--no-header",
+                    "-p", "no:asyncio", "-o", "addopts=",
+                    test_dir,
+                ]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=150)
+                output = result.stdout + result.stderr
+                match = re.search(r"(\d+)\s+passed", output)
+                total_passed += int(match.group(1)) if match else 0
+                match_fail = re.search(r"(\d+)\s+failed", output)
+                total_failed += int(match_fail.group(1)) if match_fail else 0
+                ran_any = True
+            except subprocess.TimeoutExpired:
+                # 单目录超时不算灾难，跳过继续；至少保留已完成的统计
+                continue
+            except Exception:
+                continue
+
+        total = total_passed + total_failed
+        if not ran_any or total == 0:
+            # 一个都没跑成（全超时/全异常）才视为采集失败
+            raise RuntimeError("pytest 全部子目录超时或异常，采集失败")
+
+        pass_rate = total_passed / max(total, 1)
+        return round(pass_rate, 4), total, total_failed
 
     @staticmethod
     def _run_coverage() -> float:

@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from research.autoresearch_loop import MAREFAutoResearch as Phase8AutoResearch
-from research.autoresearch_phase9 import Phase9AutoResearch
 from research.autoresearch_phase10 import Phase10AutoResearch
 
 
@@ -84,6 +82,7 @@ class ExperimentRegistry:
         return {name: meta for name, (_, meta) in self._experiments.items()}
 
     async def _run_random_walk(self, exp_id: int) -> Any:
+        from research.autoresearch_loop import MAREFAutoResearch as Phase8AutoResearch
         research = Phase8AutoResearch(output_dir=Path('/tmp'), experiments_per_day=1)
         try:
             return await research._experiment_random_walk(exp_id)
@@ -91,6 +90,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_gray_code_test(self, exp_id: int) -> Any:
+        from research.autoresearch_loop import MAREFAutoResearch as Phase8AutoResearch
         research = Phase8AutoResearch(output_dir=Path('/tmp'), experiments_per_day=1)
         try:
             return await research._experiment_gray_code_fault_tolerance(exp_id)
@@ -98,6 +98,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_self_observation(self, exp_id: int) -> Any:
+        from research.autoresearch_loop import MAREFAutoResearch as Phase8AutoResearch
         research = Phase8AutoResearch(output_dir=Path('/tmp'), experiments_per_day=1)
         try:
             return await research._experiment_self_observation(exp_id)
@@ -105,6 +106,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_adaptive_threshold(self, exp_id: int) -> Any:
+        from research.autoresearch_loop import MAREFAutoResearch as Phase8AutoResearch
         research = Phase8AutoResearch(output_dir=Path('/tmp'), experiments_per_day=1)
         try:
             return await research._experiment_adaptive_threshold(exp_id)
@@ -112,6 +114,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_emergence_detection(self, exp_id: int) -> Any:
+        from research.autoresearch_loop import MAREFAutoResearch as Phase8AutoResearch
         research = Phase8AutoResearch(output_dir=Path('/tmp'), experiments_per_day=1)
         try:
             return await research._experiment_emergence_detection(exp_id)
@@ -119,6 +122,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_policy_lifecycle(self, exp_id: int) -> Any:
+        from research.autoresearch_phase9 import Phase9AutoResearch
         research = Phase9AutoResearch(output_dir=Path('/tmp'), experiments=1)
         try:
             return await research._experiment_policy_lifecycle(exp_id)
@@ -126,6 +130,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_rollback_safety(self, exp_id: int) -> Any:
+        from research.autoresearch_phase9 import Phase9AutoResearch
         research = Phase9AutoResearch(output_dir=Path('/tmp'), experiments=1)
         try:
             return await research._experiment_rollback_safety(exp_id)
@@ -133,6 +138,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_ab_test(self, exp_id: int) -> Any:
+        from research.autoresearch_phase9 import Phase9AutoResearch
         research = Phase9AutoResearch(output_dir=Path('/tmp'), experiments=1)
         try:
             return await research._experiment_ab_test_winner(exp_id)
@@ -140,6 +146,7 @@ class ExperimentRegistry:
             await research.close()
 
     async def _run_degradation_prevention(self, exp_id: int) -> Any:
+        from research.autoresearch_phase9 import Phase9AutoResearch
         research = Phase9AutoResearch(output_dir=Path('/tmp'), experiments=1)
         try:
             return await research._experiment_degradation_prevention(exp_id)

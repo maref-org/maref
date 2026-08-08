@@ -82,3 +82,7 @@ class ExperimentOrchestrator:
             return {'total_experiments': self.registry.get_total_experiments(), 'best_score': self._best_score, 'no_improvement_count': self._no_improvement_count, 'elapsed_time': time.time() - self._start_time, 'batch_size': len(self._batch_results)}  # type: ignore[attr-defined]
         except Exception:
             return {}
+
+
+# 兼容别名：旧代码引用 Orchestrator，实际实现为 ExperimentOrchestrator
+Orchestrator = ExperimentOrchestrator
