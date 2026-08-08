@@ -10,9 +10,27 @@ import time
 from contextvars import ContextVar
 from typing import Any
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
-from starlette.responses import Response
+try:
+    from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+    from starlette.requests import Request
+    from starlette.responses import Response
+    _STARLETTE_AVAILABLE = True
+except ImportError:  # pragma: no cover - starlette 是 optional 依赖
+    _STARLETTE_AVAILABLE = False
+
+    class BaseHTTPMiddleware:  # type: ignore[no-redef]
+        """占位基类，starlette 未安装时避免 import 崩溃（用于非 FastAPI 环境）。"""
+
+        async def __call__(self, scope, receive, send):  # type: ignore[no-untyped-def]
+            pass
+
+    class Request:  # type: ignore[no-redef]
+        pass
+
+    class Response:  # type: ignore[no-redef]
+        pass
+
+    RequestResponseEndpoint = Any  # type: ignore[misc]
 
 from maref.observability.red_metrics import REDMetricsCollector
 from maref.observability.trace_context import set_trace_context
