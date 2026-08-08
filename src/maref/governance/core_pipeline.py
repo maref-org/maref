@@ -269,16 +269,17 @@ class GovernancePipeline:
                 return result
 
         # 0.5. v0.53 S7: 预算熔断器 — agent 预算超限直接 DENY。
+        # I2: 直接调用 check_agent_budget（其内部处理 OPEN→HALF_OPEN 探针与
+        # CLOSED 检查），避免 `is_open is False` 短路使恢复逻辑成为死代码。
+        # I3: 熔断器异常时 fail-closed（无法确认预算安全 → 拒绝并审计）。
         if self._budget_breaker is not None:
             try:
-                budget_ok = self._budget_breaker.is_open(req.agent_id) is False and (
-                    self._budget_breaker.check_agent_budget(
-                        req.agent_id,
-                        self._budget_breaker.get_agent_spend(req.agent_id),
-                    )
+                budget_ok = self._budget_breaker.check_agent_budget(
+                    req.agent_id,
+                    self._budget_breaker.get_agent_spend(req.agent_id),
                 )
             except Exception:
-                budget_ok = True
+                budget_ok = False
             if not budget_ok:
                 result = GovernanceResult(
                     verdict=Verdict.DENY,
@@ -302,7 +303,23 @@ class GovernancePipeline:
                     agent_id=req.agent_id,
                 )
             except Exception:
+                # I3: 门自身异常时 fail-closed — 无法确认操作安全性则拒绝。
                 gate_decision = None
+                gate_error = True
+            else:
+                gate_error = False
+            if gate_error:
+                result = GovernanceResult(
+                    verdict=Verdict.DENY,
+                    reason="Destructive gate evaluation error (fail-closed)",
+                    matched_rule="destructive_gate_error",
+                )
+                result.latency_ms = int((time.time() - start) * 1000)
+                if self._audit_callback:
+                    self._audit_callback(req, result)
+                if self._cb_record_callback:
+                    self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
+                return result
             if gate_decision is not None:
                 from maref.governance.destructive_gate import GateVerdict
 

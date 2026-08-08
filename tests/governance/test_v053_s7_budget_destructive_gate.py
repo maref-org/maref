@@ -48,6 +48,25 @@ class TestBudgetBreaker:
         pipe = GovernancePipeline()
         assert pipe.govern(_req()).verdict == Verdict.ALLOW
 
+    def test_open_breaker_recovers_via_half_open(self):
+        """I2 回归: OPEN 状态冷却后 check_agent_budget 应触发 HALF_OPEN 探针，
+        而非被 `is_open is False` 短路永久 DENY。"""
+        import time
+
+        breaker = BudgetBreaker(max_per_agent=10.0, max_per_task=5.0, cooldown_seconds=0.0)
+        breaker.record_spend("agent-a", "task-1", 50.0)
+        # 首次 check 超限 → trip → OPEN
+        assert breaker.check_agent_budget("agent-a", breaker.get_agent_spend("agent-a")) is False
+        assert breaker.get_stats("agent-a")["state"] == "open"
+        # 冷却已过（cooldown=0 + 设置 last_trip 为过去）
+        breaker._last_trip_time["agent-a"] = time.time() - 100
+
+        pipe = GovernancePipeline(budget_breaker=breaker)
+        # 探针放行（进入 HALF_OPEN），不再永久 DENY
+        result = pipe.govern(_req("file.read", "agent-a"))
+        assert breaker.get_stats("agent-a")["state"] == "half_open"
+        assert result.verdict != Verdict.DENY
+
 
 class TestDestructiveGate:
     def test_block_denied(self):
