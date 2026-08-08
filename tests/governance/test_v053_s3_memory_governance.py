@@ -63,10 +63,33 @@ class TestForgetAndErasure:
         mm = MemoryManager()
         rec = _seed(mm)
         assert mm.forget(rec.memory_id) is True
-        updated = mm.working.get(rec.memory_id)
-        assert updated is not None
-        assert updated.deleted is True
+        # 内部治理接口（all_records）仍保留该记录并标记 deleted（供 retention 硬删）
+        internal = [r for r in mm.working.all_records() if r.memory_id == rec.memory_id]
+        assert len(internal) == 1
+        assert internal[0].deleted is True
         assert mm.forget("missing") is False
+
+    def test_forget_hides_record_from_reads(self):
+        """C1 回归: forget 后正常读取路径不可见（隐私治理核心）。"""
+        mm = MemoryManager()
+        rec = _seed(mm)
+        mm.forget(rec.memory_id)
+        # working: get / query 均不可见
+        assert mm.working.get(rec.memory_id) is None
+        assert mm.working.query(
+            __import__("maref.memory.memory_manager", fromlist=["MemoryQuery"]).MemoryQuery(keywords=["research"])
+        ) == []
+        # episodic / semantic: query / retrieve / get_agent_history 均不可见
+        mm.episodic.append(rec)
+        mm.semantic.store(rec)
+        assert mm.episodic.query(
+            __import__("maref.memory.memory_manager", fromlist=["MemoryQuery"]).MemoryQuery()
+        ) == []
+        assert mm.episodic.get_agent_history("agent-007") == []
+        assert mm.semantic.retrieve(rec.memory_id) is None
+        assert mm.semantic.query(
+            __import__("maref.memory.memory_manager", fromlist=["MemoryQuery"]).MemoryQuery(keywords=["research"])
+        ) == []
 
     def test_erasure_hard_deletes(self):
         mm = MemoryManager()
