@@ -139,6 +139,7 @@ from maref.recursive.distributed_bft import (
 from maref.recursive.distributed_bft import (
     ConsensusResult as BFTConsensusResult,
 )
+
 try:
     from maref.recursive.distributed_crdt import (
         CRDTNode,
@@ -230,6 +231,7 @@ from maref.recursive.kakeya_completeness import (
     KakeyaCompletenessChecker,
     assess_and_check,
 )
+
 try:
     from maref.recursive.live_migration import (
         LiveMigration,
