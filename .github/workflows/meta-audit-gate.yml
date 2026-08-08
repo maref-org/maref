@@ -35,6 +35,7 @@ jobs:
           MAREF_ED25519_PRIVATE_KEY: ${{ secrets.MAREF_ED25519_PRIVATE_KEY || '' }}
           MAREF_GAAS_ENABLED: 'false'
           MAREF_META_PATH: '.openclaw'
+          MAREF_CI_SKIP_AGENTS: '1'
         run: |
           python -m maref.observability.meta_monitor --single-run
           

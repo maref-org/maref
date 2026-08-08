@@ -357,7 +357,21 @@ def check_managed_agents() -> dict[str, Any]:
     alive) is present, then checks launchd for core com.maref infrastructure.
     Agents on external volumes (macOS security restriction prevents launchd
     from executing them) are reported as degraded but not blocking.
+
+    干净 CI 环境（GitHub Actions runner）无本机 com.maref.* 代理，此检查必然失败。
+    设 MAREF_CI_SKIP_AGENTS=1 时跳过（视为无状态环境，不阻塞）。
     """
+    if os.environ.get("MAREF_CI_SKIP_AGENTS", "").lower() in ("1", "true", "yes"):
+        return {
+            "passed": True,
+            "detail": "skipped (MAREF_CI_SKIP_AGENTS)",
+            "configured": [],
+            "running": [],
+            "dead": [],
+            "unknown": [],
+            "core_survival": {"survival_rate": 1.0, "running": [], "dead": [], "total": 2},
+            "survival_rate": 1.0,
+        }
     results: dict[str, Any] = {
         "passed": True,
         "configured": [],
