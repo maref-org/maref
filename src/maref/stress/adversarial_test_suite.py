@@ -30,9 +30,9 @@ from maref.stress.volc_ark_code_agent import VolcArkCodeAgent
 
 # ─── Volcengine Ark Configuration ────────────────────────────────────────
 # 密钥从环境变量读取，使用 macOS Keychain 管理: maref-volc-ark-api-key
-VOLC_ARK_API_KEY = os.environ.get("VOLC_ARK_API_KEY", "")
-VOLC_ARK_MODEL = "doubao-seed-code-preview-latest"
-VOLC_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding"
+VOLCANO_API_KEY = os.environ.get("VOLCANO_API_KEY", "")
+VOLC_ARK_MODEL = "ark-code-latest"
+VOLC_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/plan"
 
 # ─── Test Prompts for Adversarial Testing ────────────────────────────────
 ADVERSARIAL_PROMPTS = [
@@ -352,7 +352,7 @@ def test_adversarial_code_generation() -> list[AdversarialResult]:
 
     try:
         agent = VolcArkCodeAgent(
-            api_key=VOLC_ARK_API_KEY,
+            api_key=VOLCANO_API_KEY,
             base_url=VOLC_ARK_BASE_URL,
             default_model=VOLC_ARK_MODEL,
         )
