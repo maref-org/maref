@@ -139,13 +139,18 @@ from maref.recursive.distributed_bft import (
 from maref.recursive.distributed_bft import (
     ConsensusResult as BFTConsensusResult,
 )
-from maref.recursive.distributed_crdt import (
-    CRDTNode,
-    CRDTOp,
-    DistributedCRDT,
-    GossipMessage,
-    PartitionEvent,
-)
+
+try:
+    from maref.recursive.distributed_crdt import (
+        CRDTNode,
+        CRDTOp,
+        DistributedCRDT,
+        GossipMessage,
+        PartitionEvent,
+    )
+except ImportError:
+    # 闭源专有模块（宪法第四-A条排除清单），开源版降级为 None
+    CRDTNode = CRDTOp = DistributedCRDT = GossipMessage = PartitionEvent = None
 from maref.recursive.eight_trigrams_governance import (
     EightTrigramsGovernance,
     TrigramsGovernance,
@@ -226,12 +231,17 @@ from maref.recursive.kakeya_completeness import (
     KakeyaCompletenessChecker,
     assess_and_check,
 )
-from maref.recursive.live_migration import (
-    LiveMigration,
-    MigrationPlan,
-    MigrationStep,
-    VersionCompatibilityMatrix,
-)
+
+try:
+    from maref.recursive.live_migration import (
+        LiveMigration,
+        MigrationPlan,
+        MigrationStep,
+        VersionCompatibilityMatrix,
+    )
+except ImportError:
+    # 闭源专有模块（宪法第四-A条排除清单），开源版降级为 None
+    LiveMigration = MigrationPlan = MigrationStep = VersionCompatibilityMatrix = None
 from maref.recursive.llm_code_generator import (
     ASTModuleSummary,
     CodeContextBuilder,
