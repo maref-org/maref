@@ -153,7 +153,6 @@ class RealMetricsCollector:
         )
 
     @staticmethod
-    @staticmethod
     def _run_pytest(quick: bool = False) -> tuple[float, int, int]:
         """逐目录运行 pytest，聚合通过/失败数。
 
