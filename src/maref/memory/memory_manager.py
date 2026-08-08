@@ -149,12 +149,14 @@ class WorkingMemoryStore:
         return record
 
     def get(self, memory_id: str) -> MemoryRecord | None:
-        """Retrieve a record, returning None if expired."""
+        """Retrieve a record, returning None if expired or forgotten."""
         record = self._store.get(memory_id)
         if record is None:
             return None
         if record.is_expired():
             self._store.pop(memory_id, None)
+            return None
+        if record.deleted:
             return None
         record.touch()
         return record
@@ -165,6 +167,8 @@ class WorkingMemoryStore:
         for record in list(self._store.values()):
             if record.is_expired():
                 self._store.pop(record.memory_id, None)
+                continue
+            if record.deleted:
                 continue
             if not record.user_tag.matches(query.user_tag):
                 continue
@@ -253,6 +257,8 @@ class EpisodicMemoryStore:
         """Query episodic memory with filtering."""
         results: list[MemoryRecord] = []
         for record in self._records:
+            if record.deleted:
+                continue
             if not record.user_tag.matches(query.user_tag):
                 continue
             if query.task_id and query.task_id not in record.linked_task_ids:
@@ -280,7 +286,7 @@ class EpisodicMemoryStore:
         results = [
             r
             for r in self._records
-            if r.user_tag.matches(tag) and r.content.get("agent_id") == agent_id
+            if not r.deleted and r.user_tag.matches(tag) and r.content.get("agent_id") == agent_id
         ]
         results.sort(key=lambda r: r.created_at, reverse=True)
         return results[:limit]
@@ -299,7 +305,7 @@ class EpisodicMemoryStore:
         episodes = [
             r
             for r in self._records
-            if r.user_tag.matches(tag) and r.content.get("task_type") == task_type
+            if not r.deleted and r.user_tag.matches(tag) and r.content.get("task_type") == task_type
         ]
         episodes.sort(key=lambda r: r.created_at, reverse=True)
         episodes = episodes[:limit]
@@ -370,6 +376,8 @@ class SemanticMemoryStore:
     def retrieve(self, memory_id: str) -> MemoryRecord | None:
         """Retrieve by ID."""
         record = self._records.get(memory_id)
+        if record and record.deleted:
+            return None
         if record:
             record.touch()
         return record
@@ -378,6 +386,8 @@ class SemanticMemoryStore:
         """Semantic query by keywords (placeholder for vector search)."""
         results: list[tuple[float, MemoryRecord]] = []
         for record in self._records.values():
+            if record.deleted:
+                continue
             if not record.user_tag.matches(query.user_tag):
                 continue
             # Simple keyword relevance scoring
@@ -390,7 +400,10 @@ class SemanticMemoryStore:
 
     def get_ontology(self, concept: str) -> list[MemoryRecord]:
         """Retrieve knowledge about a specific concept."""
-        return [r for r in self._records.values() if r.content.get("concept") == concept]
+        return [
+            r for r in self._records.values()
+            if not r.deleted and r.content.get("concept") == concept
+        ]
 
     def __len__(self) -> int:
         return len(self._records)
