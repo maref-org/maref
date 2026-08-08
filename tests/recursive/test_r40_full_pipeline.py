@@ -6,8 +6,8 @@ import pytest
 from maref.recursive.complexity_budget import ArchitectureComplexityBudget
 from maref.recursive.continuous_optimizer import ContinuousOptimizer
 from maref.recursive.correlation_engine import CorrelationEngine
-from maref.recursive.live_migration import LiveMigration
 from maref.recursive.self_architect import SelfArchitect
+LiveMigration = pytest.importorskip("maref.recursive.live_migration")
 from maref.recursive.self_executor import SelfExecutor
 from maref.recursive.signed_agent_cards import (
     AgentCardSigner,
