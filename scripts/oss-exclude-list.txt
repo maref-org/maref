@@ -11,6 +11,16 @@
 # ---------- [secrets] 密钥与凭证（双保险，.gitignore 已兜底） ----------
 # 注意: .env.example 是公开模板，保留公开。
 .env
+
+# ---------- [pollution-guard] 污染文件防回潮（2026-08-09 审计修复） ----------
+# 个人模型路由知识库（含火山订阅套餐/价格表/endpoint，非 MAREF 框架代码）
+src/research/model_registry.py
+**/model_registry.py
+# 编辑器/工具备份残留（*.bak-* 为时间戳备份）
+*.bak
+*.bak-*
+# 营销分发资产（2026-08-09 决策：移出公开仓库 main，公开分支禁止含营销分发文档）
+docs/marketing/**
 .env.local
 .env.maref
 .maraf_hmac_key
