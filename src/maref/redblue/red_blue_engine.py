@@ -15,6 +15,17 @@ from maref.redblue.attack_vector import (
     RedLevel,
 )
 
+# 蓝方等级 → 反隐蔽系数（对抗 stealth 攻击的基线能力）
+COUNTER_STEALTH_BY_LEVEL = {
+    1: 0.05,
+    2: 0.15,
+    3: 0.30,
+    4: 0.45,
+    5: 0.60,
+}
+# 历史记忆对有效隐蔽的最大抵扣
+MAX_MEMORY_STEALTH_BENEFIT = 0.15
+
 
 @dataclass
 class RedBlueResult:
@@ -200,15 +211,36 @@ class RedBlueEngine:
         base += audit_bonus
         # ───────────────────────────────────────────────────────────────
 
-        stealth_penalty = attack.stealth * 15
+        # ── 隐蔽面对抗（反隐蔽能力）──────────────────────────────
+        # 蓝方等级越高，对 stealth 攻击的反制越强；记忆库则沉淀同类威胁画像。
+        # 有效隐蔽 = 攻击 stealth 减去蓝方反隐蔽系数与历史记忆收益。
+        counter_stealth = COUNTER_STEALTH_BY_LEVEL.get(blue.numeric, 0.0)
+        memory_benefit = min(
+            self._blue_memory.get(attack.category.value[0], 0.0) * 0.15,
+            MAX_MEMORY_STEALTH_BENEFIT,
+        )
+        effective_stealth = max(0.0, attack.stealth - counter_stealth - memory_benefit)
+
+        # 专项隐蔽攻击检测面（蓝方对抗 stealth 的技能叠加）
+        if blue.numeric >= 3 and attack.stealth > 0.5:
+            base += 3  # 行为基线检测：识别低噪声隐蔽行为
+        if blue.numeric >= 4 and attack.stealth > 0.6:
+            base += 3  # 威胁情报交叉关联
+        if blue.numeric >= 5 and attack.stealth > 0.7:
+            base += 2  # 蜜罐/取证层：诱捕隐蔽载荷
+
+        stealth_penalty = effective_stealth * 15
         score = max(0, base - stealth_penalty)
         score = min(30, score)
 
-        detect_time = random.uniform(10, 200) * attack.stealth + random.uniform(1, 20)
-        if attack.stealth > 0.8:
+        detect_time = random.uniform(10, 200) * effective_stealth + random.uniform(1, 20)
+        if effective_stealth > 0.8:
             errors.append(f"stealth_evasion: {attack.name}")
         if attack.intensity > 0.8 and score < 10:
             errors.append(f"high_intensity_undetected: {attack.name}")
+
+        result.metadata["counter_stealth"] = round(counter_stealth, 2)
+        result.metadata["effective_stealth"] = round(effective_stealth, 2)
 
         return score, detect_time, errors
 
