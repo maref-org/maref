@@ -1,6 +1,6 @@
 """Health snapshot writer for M0 survivability assertion.
 
-Periodically writes a JSON health snapshot to .governance/health_snapshot.json.
+Periodically writes a JSON health snapshot to .openclaw/health_snapshot.json.
 The meta-monitor checks freshness (mtime <= 120s) to assert the system is alive.
 """
 
@@ -26,7 +26,7 @@ class HealthSnapshotWriter:
         interval_seconds: float = 60.0,
     ) -> None:
         if snapshot_path is None:
-            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".openclaw"))
             self._path = base / "health_snapshot.json"
         else:
             self._path = Path(snapshot_path)
