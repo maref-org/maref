@@ -57,12 +57,14 @@ SENSITIVE_PREFIXES=(
   src/maref/federation/tla_engine/ src/maref/trustgnn/
   src/maref/cost_scheduler/ src/maref/multimodal_guard/
   src/maref/recursive/distributed_crdt.py src/maref/recursive/live_migration.py
+  # 污染防护（2026-08-09 审计）: 个人模型注册表 + 备份残留 + 营销分发，防误推公开分支
+  model_registry.py *.bak *.bak-* docs/marketing/
 )
 SENSITIVE_ROOT_PREFIXES=(
   data/ data-original/
 )
 
-FILES="$(git -C "$ROOT" ls-tree -r --name-only "$TREE" 2>/dev/null)"
+FILES="$(git -C "$ROOT" -c core.quotePath=false ls-tree -r --name-only "$TREE" 2>/dev/null)"
 if [ $? -ne 0 ]; then
   echo -e "${RED}[oss-check] 无法解析 tree: $TREE${NC}" >&2
   exit 2
@@ -126,7 +128,7 @@ while IFS= read -r hit; do
   [ "$skip" -eq 1 ] && continue
   echo -e "  ${RED}✗${NC} 内容命中敏感模式: $hit"
   CONTENT_HIT=$((CONTENT_HIT + 1))
-done <<< "$(git grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
+done <<< "$(git -C "$ROOT" -c core.quotePath=false grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
 
 # ── PEM 私钥配对检测 ─────────────────────────────────────
 # 真实 PEM 私钥泄露必然同文件同时出现 BEGIN+END 头尾。
@@ -136,8 +138,8 @@ done <<< "$(git grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
 _PEM_PREFIX='-----BEGIN [A-Z0-9 ]*PRIVATE'
 PEM_BEGIN="${_PEM_PREFIX} KEY-----"
 PEM_END="-----END [A-Z0-9 ]*PRIVATE KEY-----"
-BEGIN_FILES=$(git grep -I -l -P -e "$PEM_BEGIN" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
-END_FILES=$(git grep -I -l -P -e "$PEM_END" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
+BEGIN_FILES=$(git -C "$ROOT" -c core.quotePath=false grep -I -l -P -e "$PEM_BEGIN" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
+END_FILES=$(git -C "$ROOT" -c core.quotePath=false grep -I -l -P -e "$PEM_END" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
 while IFS= read -r path; do
   [ -z "$path" ] && continue
   skip=0
