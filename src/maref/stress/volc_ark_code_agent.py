@@ -1,12 +1,12 @@
 """VolcArkCodeAgent: real code generation via Volcengine Ark Coding Plan API.
 
 Uses Volcengine's Anthropic-compatible endpoint:
-  base_url: https://ark.cn-beijing.volces.com/api/coding
+  base_url: https://ark.cn-beijing.volces.com/api/plan
   api_key: ark-xxx
 
-Supports models:
-  - doubao-seed-code-preview-latest
-  - ark-code-latest (DeepSeek V3.2)
+Supports models (Medium 套餐):
+  - ark-code-latest (Auto 路由)
+  - kimi-k3 / glm-5.2 / minimax-m3 / deepseek-v4-{flash,pro}
 
 Produces CodeGenerationResult compatible with CodeServiceSQI.
 """
@@ -78,13 +78,13 @@ class VolcArkCodeAgent:
         agent = VolcArkCodeAgent(api_key="ark-xxx")
         result = agent.generate_code(
             prompt="Write a Python function to calculate fibonacci",
-            model="doubao-seed-code-preview-latest",
+            model="ark-code-latest",
             language="python",
         )
     """
 
-    DEFAULT_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding"
-    DEFAULT_MODEL = "doubao-seed-code-preview-latest"
+    DEFAULT_BASE_URL = "https://ark.cn-beijing.volces.com/api/plan"
+    DEFAULT_MODEL = "ark-code-latest"
     DEFAULT_TIMEOUT = 300.0  # 5 minutes for code generation
     DEFAULT_MAX_TOKENS = 4096  # Reduced from 8192 for faster generation
 

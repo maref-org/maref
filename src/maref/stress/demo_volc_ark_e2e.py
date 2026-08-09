@@ -1,9 +1,9 @@
 """End-to-end verification: VolcArkCodeAgent + dynamic SQI + aggressive convergence.
 
 Uses Volcengine Ark Coding Plan (Anthropic-compatible API):
-  base_url: https://ark.cn-beijing.volces.com/api/coding
+  base_url: https://ark.cn-beijing.volces.com/api/plan
   api_key: ark-xxx
-  models: doubao-seed-code-preview-latest, ark-code-latest
+  models: ark-code-latest (Auto 路由)
 
 Addresses:
   Q1: Real code generation via Volcengine Ark API
@@ -27,9 +27,9 @@ from maref.stress.volc_ark_code_agent import VolcArkCodeAgent
 
 # ─── Volcengine Ark Configuration ────────────────────────────────────────
 # 密钥从环境变量读取，使用 macOS Keychain 管理: maref-volc-ark-api-key
-VOLC_ARK_API_KEY = os.environ.get("VOLC_ARK_API_KEY", "")
-VOLC_ARK_MODEL = "doubao-seed-code-preview-latest"
-VOLC_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding"
+VOLCANO_API_KEY = os.environ.get("VOLCANO_API_KEY", "")
+VOLC_ARK_MODEL = "ark-code-latest"
+VOLC_ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/plan"
 
 
 # ─── Code Generation Prompts ─────────────────────────────────────────────
@@ -67,7 +67,7 @@ def demo_q1_real_code_generation() -> dict:
 
     try:
         agent = VolcArkCodeAgent(
-            api_key=VOLC_ARK_API_KEY,
+            api_key=VOLCANO_API_KEY,
             base_url=VOLC_ARK_BASE_URL,
             default_model=VOLC_ARK_MODEL,
         )
@@ -267,8 +267,8 @@ def demo_full_integration() -> dict:
 
 if __name__ == "__main__":
     print("MAREF + Volcengine Ark Code Service Factory")
-    print("Base URL: https://ark.cn-beijing.volces.com/api/coding")
-    print("Model: doubao-seed-code-preview-latest")
+    print("Base URL: https://ark.cn-beijing.volces.com/api/plan")
+    print("Model: ark-code-latest")
 
     results = demo_full_integration()
 
