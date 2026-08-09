@@ -9,7 +9,7 @@ project:
   rsi_score: 79.5
   rsi_report: docs/rsi/l2-acceptance-report-20260702.md
   stage: S0 (学术借力) -> P0 (开源启动) -> S1 (开源运营启动)
-  constitution_version: v1.8
+  constitution_version: v2.1
   phase_gate_enforcement:
     enabled: true
     constitution_article: 第三十四-E条
