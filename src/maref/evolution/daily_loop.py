@@ -405,7 +405,10 @@ class DailyEvolutionLoop:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run MAREF daily recursive evolution loop")
     parser.add_argument("--vault", default=".evolution_vault")
-    parser.add_argument("--dry-run", action="store_true", default=True)
+    parser.add_argument("--dry-run", dest="dry_run", action="store_true", default=True,
+                        help="dry-run 模式（默认），真实运行需 --no-dry-run")
+    parser.add_argument("--no-dry-run", dest="dry_run", action="store_false",
+                        help="真实执行进化循环")
     args = parser.parse_args()
     result = DailyEvolutionLoop(vault_dir=args.vault, dry_run=args.dry_run).run_once()
     print(result.to_dict() if result else "{}")
