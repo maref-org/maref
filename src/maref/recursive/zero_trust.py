@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import os
 import time
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -26,6 +27,8 @@ class AgentMessage:
     signature: str = ""
     nonce: str = ""
     timestamp: float = field(default_factory=time.time)
+    trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    source_agent: str = ""
     context_scope: str = ""
     ttl_seconds: float = 60.0
 
@@ -41,6 +44,8 @@ class AgentMessage:
             "signature": self.signature,
             "nonce": self.nonce,
             "timestamp": self.timestamp,
+            "trace_id": self.trace_id,
+            "source_agent": self.source_agent or self.sender_id,
             "context_scope": self.context_scope,
             "ttl_seconds": self.ttl_seconds,
         }
