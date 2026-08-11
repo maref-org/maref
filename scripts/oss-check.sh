@@ -57,6 +57,8 @@ SENSITIVE_PREFIXES=(
   src/maref/federation/tla_engine/ src/maref/trustgnn/
   src/maref/cost_scheduler/ src/maref/multimodal_guard/
   src/maref/recursive/distributed_crdt.py src/maref/recursive/live_migration.py
+  # 污染防护（2026-08-09 审计）: 个人模型注册表 + 备份残留 + 营销分发，防误推公开分支
+  model_registry.py *.bak *.bak-* docs/marketing/
 )
 SENSITIVE_ROOT_PREFIXES=(
   data/ data-original/
