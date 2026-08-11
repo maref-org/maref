@@ -8,11 +8,13 @@ import os
 import signal
 import sys
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from maref.evolution.bottleneck_diagnosis import allocate_for_channel, diagnose
 from maref.evolution.daily_loop import DailyEvolutionLoop, DailyEvolutionResult
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,8 @@ class DaemonConfig:
     dry_run: bool = True
     real_writes: bool = False
     engine: str = "daily"
+    diagnosis_enabled: bool = False
+    diagnosis_interval: int = 3
 
 
 @dataclass
@@ -35,9 +39,15 @@ class DaemonState:
     last_run: str = ""
     total_runs: int = 0
     failed_runs: int = 0
+    last_diagnosis: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {"last_run": self.last_run, "total_runs": self.total_runs, "failed_runs": self.failed_runs}
+        return {
+            "last_run": self.last_run,
+            "total_runs": self.total_runs,
+            "failed_runs": self.failed_runs,
+            "last_diagnosis": self.last_diagnosis,
+        }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DaemonState:
@@ -45,6 +55,7 @@ class DaemonState:
             last_run=data.get("last_run", ""),
             total_runs=data.get("total_runs", 0),
             failed_runs=data.get("failed_runs", 0),
+            last_diagnosis=data.get("last_diagnosis", ""),
         )
 
 
@@ -74,6 +85,7 @@ class EvolutionDaemon:
                 dry_run=config.dry_run,
                 real_writes=config.real_writes,
             )
+        self._diagnosis_buffer: list[dict[str, Any]] = []
 
     # ── Core loop ────────────────────────────────────────────────────
 
@@ -137,8 +149,28 @@ class EvolutionDaemon:
             result = None
 
         self._state.last_run = datetime.now(timezone.utc).isoformat()
+        self._run_diagnosis(result)
         self._save_state()
         return result
+
+    def _run_diagnosis(self, result: DailyEvolutionResult | None) -> None:
+        if not self._config.diagnosis_enabled or result is None:
+            return
+        self._diagnosis_buffer.append(result.to_dict())
+        if len(self._diagnosis_buffer) < self._config.diagnosis_interval:
+            return
+        diag = diagnose(self._diagnosis_buffer, trace_id=uuid.uuid4().hex[:12])
+        allocation = allocate_for_channel(diag.bottleneck)
+        self._state.last_diagnosis = json.dumps(
+            {"diagnosis": diag.to_dict(), "allocation": allocation.to_dict()},
+            ensure_ascii=False,
+        )
+        logger.info(
+            "Bottleneck diagnosis: bottleneck=%s allocation=%s",
+            diag.bottleneck.value if diag.bottleneck else "balanced",
+            allocation.channel.value if allocation.channel else "balanced",
+        )
+        self._diagnosis_buffer.clear()
 
     # ── State persistence ────────────────────────────────────────────
 

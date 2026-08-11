@@ -17,6 +17,7 @@ class MAREFConfig:
     max_depth: int = 5
     max_trips: int = 10
     governance_enabled: bool = True
+    topology_enabled: bool = False
     extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -42,4 +43,5 @@ class MAREFConfig:
         except ValueError:
             max_trips = 10
         governance_enabled = os.environ.get('MAREF_GOVERNANCE', 'true').lower() != 'false'
-        return cls(home_dir=home, log_dir=log_dir, data_dir=data_dir, audit_path=audit_path, kg_storage_path=kg_storage_path, max_depth=max_depth, max_trips=max_trips, governance_enabled=governance_enabled)
+        topology_enabled = os.environ.get('MAREF_TOPOLOGY', 'false').lower() == 'true'
+        return cls(home_dir=home, log_dir=log_dir, data_dir=data_dir, audit_path=audit_path, kg_storage_path=kg_storage_path, max_depth=max_depth, max_trips=max_trips, governance_enabled=governance_enabled, topology_enabled=topology_enabled)
