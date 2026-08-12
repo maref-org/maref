@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -34,6 +35,9 @@ class RemoteCommand:
             method=self.command,
             params=self.params,
             id=self.request_id,
+            trace_id=str(uuid.uuid4()),
+            source_agent="maref",
+            timestamp=time.time(),
         )
 
 

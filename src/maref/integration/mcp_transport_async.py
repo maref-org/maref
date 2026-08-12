@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -49,6 +51,9 @@ class AsyncMCPTransport(ABC):
                     "clientInfo": {"name": client_name, "version": "0.9.0"},
                 },
                 id=1,
+                trace_id=str(uuid.uuid4()),
+                source_agent=client_name,
+                timestamp=time.time(),
             )
         )
 
@@ -63,6 +68,9 @@ class AsyncMCPTransport(ABC):
                 method="tools/call",
                 params={"name": tool_name, "arguments": arguments},
                 id=3,
+                trace_id=str(uuid.uuid4()),
+                source_agent="maref-client",
+                timestamp=time.time(),
             )
         )
 

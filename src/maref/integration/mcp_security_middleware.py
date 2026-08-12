@@ -148,6 +148,8 @@ class MCPAuditMiddleware:
             "agent_id": agent_id,
             "method": request.method,
             "id": request.id,
+            "trace_id": request.trace_id,
+            "source_agent": request.source_agent or agent_id,
             "verdict": verdict,
             "reason": reason,
         }

@@ -30,6 +30,10 @@ class JSONRPCRequest:
     method: str = ""
     params: dict[str, Any] | None = None
     id: int | str = 0
+    # 第十五-A条: MCP 消息信封
+    trace_id: str = ""
+    source_agent: str = ""
+    timestamp: float | None = None
 
     def to_json(self) -> str:
         payload: dict[str, Any] = {
@@ -37,6 +41,12 @@ class JSONRPCRequest:
             "method": self.method,
             "id": self.id,
         }
+        if self.trace_id:
+            payload["trace_id"] = self.trace_id
+        if self.source_agent:
+            payload["source_agent"] = self.source_agent
+        if self.timestamp is not None:
+            payload["timestamp"] = self.timestamp
         if self.params is not None:
             payload["params"] = self.params
         return json.dumps(payload)

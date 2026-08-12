@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import time
+import uuid
 from typing import Any
 
+from maref.mcp.envelope import enrich_envelope
 from maref.tool.base import Tool
 from maref.tool.context import ToolUseContext
 from maref.tool.registry import ToolRegistry
 
 
 def tool_to_mcp_definition(tool: Tool[Any]) -> dict[str, Any]:
+    schema = dict(tool.input_schema)
+    schema.setdefault("api_version", "1.0.0")
     return {
         "name": tool.name,
         "description": tool.description,
-        "inputSchema": tool.input_schema,
+        "inputSchema": schema,
     }
 
 
@@ -40,22 +45,31 @@ class MCPServerAdapter:
     def handle_tool_call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         tool = self._registry.get(name)
         if tool is None:
-            return {
-                "isError": True,
-                "content": [{"type": "text", "text": f"Unknown tool: {name}"}],
-            }
+            return enrich_envelope(
+                {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {name}"}]},
+                trace_id=str(uuid.uuid4()),
+                source_agent=self._context.agent_id,
+                timestamp=time.time(),
+            )
         try:
             result = _run_async_from_sync(tool.execute(arguments, self._context))
             if result.error:
-                return {
-                    "isError": True,
-                    "content": [{"type": "text", "text": result.error}],
-                }
-            return {
-                "content": [{"type": "text", "text": str(result.data)}],
-            }
+                return enrich_envelope(
+                    {"isError": True, "content": [{"type": "text", "text": result.error}]},
+                    trace_id=str(uuid.uuid4()),
+                    source_agent=self._context.agent_id,
+                    timestamp=time.time(),
+                )
+            return enrich_envelope(
+                {"content": [{"type": "text", "text": str(result.data)}]},
+                trace_id=str(uuid.uuid4()),
+                source_agent=self._context.agent_id,
+                timestamp=time.time(),
+            )
         except Exception as e:
-            return {
-                "isError": True,
-                "content": [{"type": "text", "text": f"Tool execution failed: {e}"}],
-            }
+            return enrich_envelope(
+                {"isError": True, "content": [{"type": "text", "text": f"Tool execution failed: {e}"}]},
+                trace_id=str(uuid.uuid4()),
+                source_agent=self._context.agent_id,
+                timestamp=time.time(),
+            )
