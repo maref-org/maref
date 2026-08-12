@@ -11,6 +11,16 @@
 # ---------- [secrets] 密钥与凭证（双保险，.gitignore 已兜底） ----------
 # 注意: .env.example 是公开模板，保留公开。
 .env
+
+# ---------- [pollution-guard] 污染文件防回潮（2026-08-09 审计修复） ----------
+# 个人模型路由知识库（含火山订阅套餐/价格表/endpoint，非 MAREF 框架代码）
+src/research/model_registry.py
+**/model_registry.py
+# 编辑器/工具备份残留（*.bak-* 为时间戳备份）
+*.bak
+*.bak-*
+# 营销分发资产（2026-08-09 决策：移出公开仓库 main，公开分支禁止含营销分发文档）
+docs/marketing/**
 .env.local
 .env.maref
 .maraf_hmac_key
@@ -56,8 +66,68 @@ data-original/**
 **/credentials/**
 
 # ---------- [closed-source] 闭源实现（现网，技术清单见 openclaw 内部深水区登记表） ----------
+# 2026-08-12 泄漏事件（track-a-pr-creator 借道公开仓 PR 泄漏 llm_router/phone/verifier）
+# 后追加：纯闭源目录整目录拦截 + 混合目录精确文件拦截（宪法第十一条 11.4 落地）。
+#
+# [纯闭源目录] public 树中无同名合法模块，整目录拦截（创建即阻断）：
+phone/**
+verifier/**
+flywheel/**
+browser/**
+promotion/**
+primitives/**
+scrapling/**
+infra/**
+# [LLM 路由层] openclaw 专有模块（public/maref 不包含）
+src/research/llm_router.py
+src/research/llm_quality.py
+src/research/llm_router_example.py
+src/research/llm_cache.py
+# [混合目录] loop/recursive/context 在 public 有合法公开文件，
+# 目录级 glob 会误伤，故仅拦截 openclaw 专属文件（精确路径）：
+src/maref/loop/agent_adapter.py
+src/maref/loop/aitoearn_agent_adapter.py
+src/maref/loop/audit_bridge.py
+src/maref/loop/auditor.py
+src/maref/loop/code_agent_loop.py
+src/maref/loop/engine.py
+src/maref/loop/github_agent_loop.py
+src/maref/loop/governed.py
+src/maref/loop/halting.py
+src/maref/loop/oss_growth_loop.py
+src/maref/loop/policy.py
+src/maref/loop/skill_recursion.py
+src/maref/loop/social_agent_loop.py
+src/maref/loop/state.py
+src/maref/loop/tracking.py
+src/maref/loop/verification.py
+src/maref/recursive/README.md
+src/maref/recursive/agent_gossip.py
+src/maref/recursive/agent_message.py
+src/maref/recursive/agent_state_view.py
+src/maref/recursive/alert_manager.py
+src/maref/recursive/autonomy_metrics.py
+src/maref/recursive/behavior_learner.py
+src/maref/recursive/chaos_daemon.py
+src/maref/recursive/convergence_verifier.py
+src/maref/recursive/daemon_watchdog.py
 src/maref/recursive/distributed_crdt.py
+src/maref/recursive/entropy_injector.py
+src/maref/recursive/governance_agent_scheduler.py
 src/maref/recursive/live_migration.py
+src/maref/recursive/milestone_scheduler.py
+src/maref/recursive/p2p_regression_gate.py
+src/maref/recursive/patrol_agent.py
+src/maref/recursive/phase0_runner.py
+src/maref/recursive/recursive_self_pipeline.py
+src/maref/recursive/stuck_task_detector.py
+src/maref/recursive/system_healer.py
+src/maref/recursive/system_maintainer.py
+src/maref/recursive/system_snapshot.py
+src/maref/recursive/tech_debt_ledger.py
+src/maref/recursive/topology.py
+src/maref/context/__init__.py
+src/maref/context/repo_context.py
 # 深水区对应的公开仓坏测试（import 已被剔除的模块，避免公开仓测试失败）
 tests/recursive/test_r46_distributed_crdt.py
 tests/recursive/test_r35_live_migration.py

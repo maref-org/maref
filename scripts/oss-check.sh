@@ -36,7 +36,16 @@ while IFS= read -r line; do
   [ -z "$line" ] && continue
   PATTERNS+=("$line")
   case "$line" in
-    *[\*\?\[\]]*|*/) ;;                     # 含通配符或目录尾斜杠：保持原样
+    *[\*\?\[\]]*|*/)
+      # 目录尾斜杠条目（如 phone/）: 仅保留原样 glob 无法命中其子树文件
+      # （bash glob 中 '**' 在本上下文等价单 '*'，可跨目录层级）。
+      # 补 '**/<dir>/**' 变体，使 src/maref/phone/__init__.py 这类子路径可被拦截
+      # （2026-08-12 泄漏事件中 src/maref/phone/__init__.py 漏网即此因）。
+      PATTERNS+=("**/${line}**")
+      # 纯闭源目录（public 树中无同名合法模块）允许整目录拦截；
+      # 混合目录（loop/recursive/context 等 public 有合法公开文件）由清单内
+      # 精确文件条目承担拦截职责，目录级 glob 不会误伤——二者分层共存。
+      ;;
     *) PATTERNS+=("**/${line}") ;;          # 无通配符：补任意层级匹配（防 config/.env 绕过）
   esac
 done < "$EXCLUDE_LIST"
@@ -57,6 +66,8 @@ SENSITIVE_PREFIXES=(
   src/maref/federation/tla_engine/ src/maref/trustgnn/
   src/maref/cost_scheduler/ src/maref/multimodal_guard/
   src/maref/recursive/distributed_crdt.py src/maref/recursive/live_migration.py
+  # 污染防护（2026-08-09 审计）: 个人模型注册表 + 备份残留 + 营销分发，防误推公开分支
+  model_registry.py *.bak *.bak-* docs/marketing/
 )
 SENSITIVE_ROOT_PREFIXES=(
   data/ data-original/
