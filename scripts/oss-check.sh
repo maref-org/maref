@@ -151,6 +151,8 @@ while IFS= read -r hit; do
   # git grep 输出格式: <tree>:<path>:<linenum>:<content>
   rest="${hit#*:}"
   path="${rest%%:*}"
+  # 跳过关键词定义文件自身（本脚本），防止扫描器命中自己的 DEEPWATER_RE 定义
+  [ "$path" = "scripts/oss-check.sh" ] && continue
   skip=0
   for pat in "${PATTERNS[@]}"; do
     if [[ "$path" == $pat ]]; then skip=1; break; fi
