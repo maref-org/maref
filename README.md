@@ -10,9 +10,21 @@
   <a href="https://github.com/maref-org/maref/releases"><img src="https://img.shields.io/github/v/release/maref-org/maref?style=for-the-badge&logo=github&color=red" alt="Release"></a>
 </p>
 
-> The only open-source framework that treats **agent governance** as a first-class product, not a security feature. TLA+ formal model checking, 10/10 OWASP Agentic Top 10 risk coverage, and per-agent cryptographic identity — production-ready, Apache 2.0.
+> **Guardrails for your agents. Formal verification for your autonomy.**
+> The only open-source framework that treats **agent governance** as a first-class product, not a security feature — TLA+ formal model checking, 10/10 OWASP Agentic Top 10 risk coverage, and per-agent cryptographic identity. Production-ready, Apache 2.0.
 
-**Website:** [maref.cc](https://maref.cc)
+**Website:** [maref.cc](https://maref.cc) · **[5-Minute Guide](#quick-start)** · **[Why MAREF?](#why-maref)** · **[Competitive Analysis](#competitive-analysis)**
+
+> [!TIP]
+> Your agents already build things. MAREF makes sure they don't *break* things. Add a governance layer to LangGraph/CrewAI/AutoGen in **5 lines of code**:
+>
+> ```python
+> from maref.loop import GovernedLoop
+>
+> # Wrap ANY agent framework in a governance loop
+> loop = GovernedLoop(governance=MAREF_OVERLAY)   # TLA+-verified FSM, circuit breaker, audit
+> result = await loop.run(agent=my_crewai_crew)    # returns: pass | retry | halt
+> ```
 
 ## Why MAREF?
 
