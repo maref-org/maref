@@ -51,7 +51,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 |----------|--------|
 | **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails covering 10/10 OWASP Agentic Top 10 risks. |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
-| **Is it production-ready?** | Yes. 11,000+ tests, Apache 2.0, v0.38.0. |
+| **Is it production-ready?** | Yes. 11,000+ tests, Apache 2.0, v0.50.0. |
 | **Does it work with my stack?** | Python 3.10+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
@@ -75,7 +75,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 ## Core Capabilities
 
 ### Governance Layer (World-Leading)
-- **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library (v0.38.0)
+- **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library (v0.50.0)
 - **10-State Gray Code Governance State Machine** — Mathematically provable convergence (4-bit, Hamming distance=1)
 - **TLA+ Formal Verification** — 5 model-checked invariants (state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability)
 - **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
@@ -292,7 +292,7 @@ python examples/simple_integration_demo.py
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
 | **Python** | ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg) |
 | **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
-| **Version** | ![v0.38.0](https://img.shields.io/badge/version-v0.38.0-blue) |
+| **Version** | ![v0.50.0](https://img.shields.io/badge/version-v0.50.0-blue) |
 
 ---
 
