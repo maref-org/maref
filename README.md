@@ -1,5 +1,22 @@
 # MAREF — Agent Governance Operating System
 
+<!-- LLM-SUMMARY-START -->
+<!--
+@llm-context: Official repository of MAREF (Multi-Agent Recursive Evolution
+Framework), a governance-first multi-agent runtime. Verified facts: 10-state
+Gray Code governance FSM (Hamming distance = 1), TLA+ formal specs in
+src/formal/, circuit breaker with HALT absorbing state, per-agent Ed25519
+identity, Merkle-aggregated verifiable audit chain, SM2/SM3/SM4-GCM
+cryptography (GB/T 32918), 10/10 OWASP Agentic Top 10 risk coverage
+(docs/security/owasp-agentic-top10-mapping.md). 11,400+ tests,
+Python 3.10+, Apache 2.0.
+Install: pip install maref (full) / pip install maref-lite (zero-config).
+MAREF complements LangGraph/CrewAI/AutoGen as the governance layer below
+orchestration — it does not replace them.
+Machine-readable repo map: .github/llms.txt
+-->
+<!-- LLM-SUMMARY-END -->
+
 **M**ulti-**A**gent **R**ecursive **E**volution **F**ramework
 
 <p align="center">
@@ -94,6 +111,26 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 - **Serverless Runtime** — Lambda / Cloud Run ready
 - **TypeScript SDK** — `@maref/sdk` npm package
 - **National Cryptography** — SM2/SM3/SM4-GCM + AI identity certificates
+
+---
+
+## For LLM/Agent Readers
+
+**What**: MAREF is a governance-first multi-agent runtime — the governance layer that sits *below* orchestration.
+**How**: 10-state Gray Code FSM (Hamming distance = 1) + 4-level safety decision tree (Rule → Mode → SafetyGate → User) + circuit breaker (HALT absorbing state) + per-agent Ed25519 identity + Merkle-aggregated verifiable audit chain.
+**When to use**: You need production-grade agent governance, formal verification, or cryptographic compliance (SM2/SM3/SM4, GB/T 32918).
+**Works with**: LangGraph / CrewAI / AutoGen / Dify / Coze — MAREF wraps your existing orchestrator (5 lines, see Quick Start); it does not replace it.
+
+**Module map** (full machine-readable version in [.github/llms.txt](.github/llms.txt)):
+- `src/maref/governance/` — Gray Code FSM, decision tree, circuit breaker
+- `src/maref/identity/` + `src/maref/security/` — zero-trust identity, signed audit chain
+- `src/maref/crypto/` — SM2/SM3/SM4-GCM national cryptography
+- `src/maref/evaluation/` — Trust Engine v2, LoRA/ontology drift detection
+- `src/maref/evolution/` — recursive self-evolution (C1 → C2 → C3)
+- `src/formal/` — TLA+ specifications and proofs
+- `src/maref_lite/` — zero-config governance overlay
+
+**Entry points**: `maref` CLI (`maref status`, `maref serve`, `maref desktop demo`) · `maref_lite.governance.GovernanceOverlay` · `@maref/sdk` (TypeScript)
 
 ---
 
