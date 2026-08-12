@@ -139,6 +139,29 @@ while IFS= read -r hit; do
   CONTENT_HIT=$((CONTENT_HIT + 1))
 done <<< "$(git grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
 
+# ── 深水区资产关键词扫描（宪法第十一条 11.1，2026-08-12 补强） ──────────
+# 防止深水区资产代码（联邦 TLA+ 验证引擎/跨 Agent 信任传播/成本博弈调度器/
+# Agent 供应链安全扫描/多模态攻击检测/边缘分裂脑自愈）写入非排除路径文件绕过
+# 路径清单。关键词与 openclaw `scripts/oss-exclude-list.json` 6 资产登记同步。
+# 命中且路径不在排除清单 -> 视为泄露，标记 [安全违规-第十一条]。
+DEEPWATER_RE='联邦 TLA\+ 验证引擎|组合剪枝|增量验证|跨 Agent 信任传播|密码学信任根|前向安全|成本博弈调度器|机制设计|Agent 供应链安全扫描|漏洞传播模拟|多模态攻击检测|VLM 微调|跨模态对齐|边缘分裂脑自愈|国密 HSM'
+DEEPWATER_HIT=0
+while IFS= read -r hit; do
+  [ -z "$hit" ] && continue
+  # git grep 输出格式: <tree>:<path>:<linenum>:<content>
+  rest="${hit#*:}"
+  path="${rest%%:*}"
+  # 跳过关键词定义文件自身（本脚本），防止扫描器命中自己的 DEEPWATER_RE 定义
+  [ "$path" = "scripts/oss-check.sh" ] && continue
+  skip=0
+  for pat in "${PATTERNS[@]}"; do
+    if [[ "$path" == $pat ]]; then skip=1; break; fi
+  done
+  [ "$skip" -eq 1 ] && continue
+  echo -e "  ${RED}✗${NC} 深水区资产关键词命中: $hit"
+  DEEPWATER_HIT=$((DEEPWATER_HIT + 1))
+done <<< "$(git grep -I -n -P -e "$DEEPWATER_RE" "$TREE" 2>/dev/null)"
+
 # ── PEM 私钥配对检测 ─────────────────────────────────────
 # 真实 PEM 私钥泄露必然同文件同时出现 BEGIN+END 头尾。
 # 单出现 BEGIN（如测试断言引用私钥头）是引用而非泄露，不告警。
@@ -160,11 +183,11 @@ while IFS= read -r path; do
   PEM_HIT=$((PEM_HIT + 1))
 done <<< "$(comm -12 <(printf '%s\n' "$BEGIN_FILES" | grep -v '^$') <(printf '%s\n' "$END_FILES" | grep -v '^$'))"
 
-if [ "$HIT" -gt 0 ] || [ "$CONTENT_HIT" -gt 0 ] || [ "$PEM_HIT" -gt 0 ]; then
-  echo -e "${RED}[oss-check] 发现 $HIT 个闭源/敏感路径、$CONTENT_HIT 处内容命中敏感模式、$PEM_HIT 个配对 PEM 私钥文件，位于 tree($TREE) —— 禁止发布/推送！${NC}" >&2
+if [ "$HIT" -gt 0 ] || [ "$CONTENT_HIT" -gt 0 ] || [ "$PEM_HIT" -gt 0 ] || [ "$DEEPWATER_HIT" -gt 0 ]; then
+  echo -e "${RED}[oss-check] 发现 $HIT 个闭源/敏感路径、$CONTENT_HIT 处内容命中敏感模式、$DEEPWATER_HIT 处深水区关键词命中、$PEM_HIT 个配对 PEM 私钥文件，位于 tree($TREE) —— 禁止发布/推送！${NC}" >&2
   echo -e "${RED}[oss-check] 请使用 scripts/oss-publish.sh 生成裁剪后的 oss-release 分支，或调整排除清单。${NC}" >&2
   exit 1
 fi
 
-echo -e "${GREEN}[oss-check] tree($TREE) 无闭源/敏感路径，且无内容敏感命中，放行${NC}"
+echo -e "${GREEN}[oss-check] tree($TREE) 无闭源/敏感路径、无内容敏感命中、无深水区关键词命中，放行${NC}"
 exit 0
