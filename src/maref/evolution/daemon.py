@@ -37,7 +37,11 @@ class DaemonState:
     failed_runs: int = 0
 
     def to_dict(self) -> dict[str, Any]:
-        return {"last_run": self.last_run, "total_runs": self.total_runs, "failed_runs": self.failed_runs}
+        return {
+            "last_run": self.last_run,
+            "total_runs": self.total_runs,
+            "failed_runs": self.failed_runs,
+        }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DaemonState:
@@ -55,18 +59,23 @@ class EvolutionDaemon:
         self._shutdown = False
         if config.engine == "rel":
             from maref.evolution.rel_adapter import RELAdapter
+
             self._loop: Any = RELAdapter(dry_run=config.dry_run)
         elif config.engine == "multi":
             from maref.evolution.multi_adapter import MultiAdapter
+
             self._loop = MultiAdapter(dry_run=config.dry_run)
         elif config.engine == "continuous":
             from maref.evolution.continuous_adapter import ContinuousAdapter
+
             self._loop = ContinuousAdapter(dry_run=config.dry_run)
         elif config.engine == "saeb":
             from maref.evolution.saeb_adapter import SAEBAdapter
+
             self._loop = SAEBAdapter(dry_run=config.dry_run)
         elif config.engine == "tla":
             from maref.evolution.tla_adapter import TLAAdapter
+
             self._loop = TLAAdapter(dry_run=config.dry_run)
         else:
             self._loop = DailyEvolutionLoop(
@@ -291,8 +300,12 @@ def main() -> None:
         description="MAREF evolution daemon — periodic self-evolution loop"
     )
     parser.add_argument("--vault", default=".evolution_vault", help="Evolution vault directory")
-    parser.add_argument("--max-runs", type=int, default=0, help="Max evolution cycles (0 = infinite)")
-    parser.add_argument("--dry-run", action="store_true", default=True, help="Dry-run mode (default: on)")
+    parser.add_argument(
+        "--max-runs", type=int, default=0, help="Max evolution cycles (0 = infinite)"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", default=True, help="Dry-run mode (default: on)"
+    )
     parser.add_argument(
         "--no-dry-run",
         action="store_false",
@@ -305,7 +318,9 @@ def main() -> None:
         default=False,
         help="Production mode: --no-dry-run + real_writes enabled",
     )
-    parser.add_argument("--state-file", default=".evolution_daemon_state.json", help="Daemon state file")
+    parser.add_argument(
+        "--state-file", default=".evolution_daemon_state.json", help="Daemon state file"
+    )
     parser.add_argument(
         "--pid-file",
         default="/tmp/maref-evolution-daemon.pid",

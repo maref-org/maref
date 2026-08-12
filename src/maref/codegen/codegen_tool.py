@@ -92,7 +92,8 @@ class CodeGenTool:
             return pipeline
 
         edit_results = [
-            e for e in pipeline.events
+            e
+            for e in pipeline.events
             if e.type == "tool_result"
             and isinstance(e.payload, dict)
             and e.payload.get("name") == "Edit"
@@ -137,6 +138,7 @@ class CodeGenTool:
     async def _run_lint(self, file_path: str, tool_name: str = "ruff") -> bool:
         try:
             from maref.tools.lint_tool import LintInput, LintTool
+
             tool = LintTool()
             result = await tool.call(
                 LintInput(file_path=file_path, tool_name=tool_name),
@@ -150,6 +152,7 @@ class CodeGenTool:
     async def _run_test(self, file_path: str) -> bool:
         try:
             from maref.tools.test_tool import TestInput, TestTool
+
             tool = TestTool()
             result = await tool.call(
                 TestInput(file_path=file_path, extra_args=""),
@@ -165,6 +168,7 @@ class CodeGenTool:
             from pathlib import Path
 
             from maref.tools.immune_tool import ImmuneScanInput, ImmuneScanTool
+
             tool = ImmuneScanTool()
             code = Path(file_path).read_text(encoding="utf-8")
             result = await tool.call(

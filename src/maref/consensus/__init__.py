@@ -3,6 +3,7 @@
 Exports vector clocks, NACK message building/handling, consistency-level
 DSL primitives, and the dynamic consistency degrader.
 """
+
 from __future__ import annotations
 
 from maref.consensus.consistency_dsl import (

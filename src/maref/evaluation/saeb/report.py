@@ -7,7 +7,9 @@ from typing import Any
 from maref.evaluation.saeb.runner import SAEBResult
 
 
-def generate_comparison_report(results: list[SAEBResult], output_path: str | Path | None = None) -> str:
+def generate_comparison_report(
+    results: list[SAEBResult], output_path: str | Path | None = None
+) -> str:
     lines = []
     lines.append("# SAEB Cross-Agent Comparison Report")
     lines.append(f"\nAgents compared: {len(results)}")
@@ -67,7 +69,9 @@ def generate_comparison_report(results: list[SAEBResult], output_path: str | Pat
             if m.fnr > 0:
                 events.append(f"  R{m.round} ({m.label}): FNR={m.fnr}")
             if m.errors > 0:
-                events.append(f"  R{m.round} ({m.label}): compilation_error_rate={m.compilation_error_rate}")
+                events.append(
+                    f"  R{m.round} ({m.label}): compilation_error_rate={m.compilation_error_rate}"
+                )
             if m.lint_violation_count > 3:
                 events.append(f"  R{m.round} ({m.label}): {m.lint_violation_count} lint violations")
         if events:
@@ -81,25 +85,26 @@ def generate_comparison_report(results: list[SAEBResult], output_path: str | Pat
 
     if len(results) >= 2:
         # Best convergence
-        best_conv = min(results, key=lambda r: (
-            r.convergence_round if r.convergence_round >= 0 else 999
-        ))
-        lines.append(f"- **Best convergence**: {best_conv.agent_name} "
-                     f"(round {best_conv.convergence_round})")
+        best_conv = min(
+            results, key=lambda r: r.convergence_round if r.convergence_round >= 0 else 999
+        )
+        lines.append(
+            f"- **Best convergence**: {best_conv.agent_name} (round {best_conv.convergence_round})"
+        )
 
         # Lowest oscillation
         best_osc = min(results, key=lambda r: r.oscillation_count)
-        lines.append(f"- **Most stable (fewest oscillations)**: {best_osc.agent_name} "
-                     f"({best_osc.oscillation_count} oscillations)")
+        lines.append(
+            f"- **Most stable (fewest oscillations)**: {best_osc.agent_name} "
+            f"({best_osc.oscillation_count} oscillations)"
+        )
 
         # Fastest
         fastest = min(results, key=lambda r: r.total_time_s)
         lines.append(f"- **Fastest**: {fastest.agent_name} ({fastest.total_time_s:.1f}s)")
 
         # Best defect detection
-        best_detect = max(results, key=lambda r: sum(
-            1 for v in r.acceptance.values() if v
-        ))
+        best_detect = max(results, key=lambda r: sum(1 for v in r.acceptance.values() if v))
         lines.append(f"- **Best overall acceptance**: {best_detect.agent_name}")
 
     lines.append("")
@@ -141,44 +146,50 @@ def check_degradation(
 
     conv_diff = current.convergence_round - previous.convergence_round
     if conv_diff > 2:
-        metrics['convergence_round'] = 'regressed'
-        alerts.append(f"Convergence round increased by {conv_diff} (previous: {previous.convergence_round}, current: {current.convergence_round})")
+        metrics["convergence_round"] = "regressed"
+        alerts.append(
+            f"Convergence round increased by {conv_diff} (previous: {previous.convergence_round}, current: {current.convergence_round})"
+        )
         degraded = True
     elif conv_diff < -1:
-        metrics['convergence_round'] = 'improved'
+        metrics["convergence_round"] = "improved"
     else:
-        metrics['convergence_round'] = 'unchanged'
+        metrics["convergence_round"] = "unchanged"
 
     if current.oscillation_count > previous.oscillation_count:
-        metrics['oscillation_count'] = 'regressed'
-        alerts.append(f"Oscillation count increased from {previous.oscillation_count} to {current.oscillation_count}")
+        metrics["oscillation_count"] = "regressed"
+        alerts.append(
+            f"Oscillation count increased from {previous.oscillation_count} to {current.oscillation_count}"
+        )
         degraded = True
     elif current.oscillation_count < previous.oscillation_count:
-        metrics['oscillation_count'] = 'improved'
+        metrics["oscillation_count"] = "improved"
     else:
-        metrics['oscillation_count'] = 'unchanged'
+        metrics["oscillation_count"] = "unchanged"
 
     if current.total_time_s > previous.total_time_s * 1.5 and previous.total_time_s > 0:
-        metrics['total_time'] = 'regressed'
-        alerts.append(f"Total time increased by {((current.total_time_s / previous.total_time_s) - 1) * 100:.0f}%")
+        metrics["total_time"] = "regressed"
+        alerts.append(
+            f"Total time increased by {((current.total_time_s / previous.total_time_s) - 1) * 100:.0f}%"
+        )
         degraded = True
     else:
-        metrics['total_time'] = 'unchanged'
+        metrics["total_time"] = "unchanged"
 
     for key in current.acceptance:
         prev_val = previous.acceptance.get(key, True)
         curr_val = current.acceptance.get(key, True)
         if prev_val and not curr_val:
-            metrics[f'acceptance.{key}'] = 'regressed'
+            metrics[f"acceptance.{key}"] = "regressed"
             alerts.append(f"Acceptance metric '{key}' regressed from {prev_val} to {curr_val}")
             degraded = True
 
     return {
-        'degraded': degraded,
-        'metrics': metrics,
-        'alerts': alerts,
-        'previous_convergence': previous.convergence_round,
-        'current_convergence': current.convergence_round,
+        "degraded": degraded,
+        "metrics": metrics,
+        "alerts": alerts,
+        "previous_convergence": previous.convergence_round,
+        "current_convergence": current.convergence_round,
     }
 
 

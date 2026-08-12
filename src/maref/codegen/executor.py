@@ -77,7 +77,9 @@ class ToolExecutor:
     ) -> AsyncGenerator[tuple[int, ToolResult[Any]], None]:
         sem = asyncio.Semaphore(self.MAX_CONCURRENCY)
 
-        async def _run_one(idx: int, name: str, inp: Any, ctx: ToolContext) -> tuple[int, ToolResult[Any]]:
+        async def _run_one(
+            idx: int, name: str, inp: Any, ctx: ToolContext
+        ) -> tuple[int, ToolResult[Any]]:
             async with sem:
                 try:
                     tool = self._registry.get(name)

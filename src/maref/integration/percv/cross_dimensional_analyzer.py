@@ -32,9 +32,7 @@ class CrossDimensionalAnalyzer:
 
     def __init__(self, history: list[Any] | None = None):
         self.history = history or []
-        self.interaction_matrix = {
-            k: dict(v) for k, v in self.INTERACTION_MATRIX.items()
-        }
+        self.interaction_matrix = {k: dict(v) for k, v in self.INTERACTION_MATRIX.items()}
 
     def detect_cross_effects(self, window: int = 20) -> list[CrossEffect]:
         recent = self.history[-window:] if len(self.history) > window else self.history
@@ -47,13 +45,15 @@ class CrossDimensionalAnalyzer:
             for target, _expected in targets.items():
                 actual = self._correlate(recent, source, target)
                 if abs(actual) > 0.1:
-                    effects.append(CrossEffect(
-                        source_dim=source,
-                        target_dim=target,
-                        effect_size=actual,
-                        confidence=min(abs(actual), 1.0),
-                        samples=len(recent),
-                    ))
+                    effects.append(
+                        CrossEffect(
+                            source_dim=source,
+                            target_dim=target,
+                            effect_size=actual,
+                            confidence=min(abs(actual), 1.0),
+                            samples=len(recent),
+                        )
+                    )
 
         return effects
 
@@ -96,6 +96,7 @@ class CrossDimensionalAnalyzer:
             return 0.0
         try:
             import numpy as np
+
             return float(np.corrcoef(a_scores, b_scores)[0, 1])
         except ImportError:
             return self._pearson(a_scores, b_scores)

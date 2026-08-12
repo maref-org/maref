@@ -109,9 +109,7 @@ def verify_report_signature(
         canonical payload.  Never raises.
     """
     signature = getattr(report, "signature", "")
-    key_id = getattr(report, "signer_key_id", "") or getattr(
-        report, "source_server", ""
-    )
+    key_id = getattr(report, "signer_key_id", "") or getattr(report, "source_server", "")
     if not signature or not key_id:
         return False
     public_key_pem = trusted_public_keys.get(key_id)

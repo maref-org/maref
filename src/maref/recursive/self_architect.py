@@ -380,7 +380,9 @@ class SelfArchitect:
     def to_llm_plan(self, proposal: ArchitectureProposal) -> dict[str, Any]:
         return {
             "proposal_id": proposal.proposal_id,
-            "change_type": proposal.change_type.value if hasattr(proposal.change_type, "value") else str(proposal.change_type),
+            "change_type": proposal.change_type.value
+            if hasattr(proposal.change_type, "value")
+            else str(proposal.change_type),
             "rationale": proposal.rationale,
             "target_files": list(proposal.target_files),
             "affected_symbols": list(proposal.affected_symbols),
@@ -395,24 +397,22 @@ class SelfArchitect:
                 continue
             try:
                 tree = ast.parse(path.read_text())
-                classes = [
-                    n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)
-                ]
-                functions = [
-                    n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
-                ]
+                classes = [n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
+                functions = [n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
                 imports = [
                     (n.names[0].name if isinstance(n, ast.Import) else n.module)
                     for n in ast.walk(tree)
                     if isinstance(n, (ast.Import, ast.ImportFrom))
                 ][:30]
-                summaries.append({
-                    "file_path": fp,
-                    "classes": classes,
-                    "functions": functions,
-                    "imports": imports,
-                    "line_count": len(tree.body),
-                })
+                summaries.append(
+                    {
+                        "file_path": fp,
+                        "classes": classes,
+                        "functions": functions,
+                        "imports": imports,
+                        "line_count": len(tree.body),
+                    }
+                )
             except (SyntaxError, OSError):
                 continue
         return summaries

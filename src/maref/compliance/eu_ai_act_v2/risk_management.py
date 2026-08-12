@@ -165,8 +165,7 @@ class RiskManagementSystem:
         """Seed the catalog with standard EU AI Act Art.9 foreseeable risks."""
         default_risks: list[RiskAssessment] = [
             RiskAssessment(
-                description="Algorithmic bias leading to discrimination "
-                "against protected groups",
+                description="Algorithmic bias leading to discrimination against protected groups",
                 category="discrimination",
                 severity=RiskSeverity.SIGNIFICANT,
                 likelihood=RiskLikelihood.OCCASIONAL,
@@ -175,28 +174,21 @@ class RiskManagementSystem:
                 ),
             ),
             RiskAssessment(
-                description="Lack of transparency and explainability "
-                "in decision-making",
+                description="Lack of transparency and explainability in decision-making",
                 category="transparency",
                 severity=RiskSeverity.MODERATE,
                 likelihood=RiskLikelihood.PROBABLE,
-                risk_score=self._compute_risk_score(
-                    RiskSeverity.MODERATE, RiskLikelihood.PROBABLE
-                ),
+                risk_score=self._compute_risk_score(RiskSeverity.MODERATE, RiskLikelihood.PROBABLE),
             ),
             RiskAssessment(
-                description="Safety failure in critical operations "
-                "causing physical harm",
+                description="Safety failure in critical operations causing physical harm",
                 category="safety",
                 severity=RiskSeverity.SEVERE,
                 likelihood=RiskLikelihood.REMOTE,
-                risk_score=self._compute_risk_score(
-                    RiskSeverity.SEVERE, RiskLikelihood.REMOTE
-                ),
+                risk_score=self._compute_risk_score(RiskSeverity.SEVERE, RiskLikelihood.REMOTE),
             ),
             RiskAssessment(
-                description="Data privacy violation through unauthorized "
-                "processing",
+                description="Data privacy violation through unauthorized processing",
                 category="privacy",
                 severity=RiskSeverity.MODERATE,
                 likelihood=RiskLikelihood.OCCASIONAL,
@@ -205,8 +197,7 @@ class RiskManagementSystem:
                 ),
             ),
             RiskAssessment(
-                description="Inadequate human oversight leading to "
-                "automated harmful decisions",
+                description="Inadequate human oversight leading to automated harmful decisions",
                 category="human_oversight",
                 severity=RiskSeverity.SIGNIFICANT,
                 likelihood=RiskLikelihood.REMOTE,
@@ -215,14 +206,11 @@ class RiskManagementSystem:
                 ),
             ),
             RiskAssessment(
-                description="Negative impact on cognitive development "
-                "and well-being of minors",
+                description="Negative impact on cognitive development and well-being of minors",
                 category="minors",
                 severity=RiskSeverity.SEVERE,
                 likelihood=RiskLikelihood.OCCASIONAL,
-                risk_score=self._compute_risk_score(
-                    RiskSeverity.SEVERE, RiskLikelihood.OCCASIONAL
-                ),
+                risk_score=self._compute_risk_score(RiskSeverity.SEVERE, RiskLikelihood.OCCASIONAL),
             ),
             RiskAssessment(
                 description="Negative impact on vulnerable groups "
@@ -361,141 +349,148 @@ class RiskManagementSystem:
         measures: list[RiskMitigationMeasure] = []
 
         if risk.category == "safety" or risk.category == "health":
-            measures.extend([
-                RiskMitigationMeasure(
-                    description="Implement fail-safe mechanisms and redundant "
-                    "safety checks",
-                    category="technical",
-                    effectiveness=0.85,
-                ),
-                RiskMitigationMeasure(
-                    description="Deploy continuous monitoring with automated "
-                    "shutdown triggers",
-                    category="technical",
-                    effectiveness=0.75,
-                ),
-                RiskMitigationMeasure(
-                    description="Conduct regular safety audits and penetration testing",
-                    category="procedural",
-                    effectiveness=0.70,
-                ),
-            ])
+            measures.extend(
+                [
+                    RiskMitigationMeasure(
+                        description="Implement fail-safe mechanisms and redundant safety checks",
+                        category="technical",
+                        effectiveness=0.85,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Deploy continuous monitoring with automated shutdown triggers",
+                        category="technical",
+                        effectiveness=0.75,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Conduct regular safety audits and penetration testing",
+                        category="procedural",
+                        effectiveness=0.70,
+                    ),
+                ]
+            )
 
         if risk.category == "discrimination" or risk.category == "fundamental_rights":
-            measures.extend([
-                RiskMitigationMeasure(
-                    description="Implement bias detection and fairness metrics "
-                    "in training pipeline",
-                    category="technical",
-                    effectiveness=0.80,
-                ),
-                RiskMitigationMeasure(
-                    description="Regular fairness audits with diverse stakeholder input",
-                    category="procedural",
-                    effectiveness=0.75,
-                ),
-                RiskMitigationMeasure(
-                    description="Maintain demographic parity and equal opportunity "
-                    "thresholds",
-                    category="technical",
-                    effectiveness=0.70,
-                ),
-            ])
+            measures.extend(
+                [
+                    RiskMitigationMeasure(
+                        description="Implement bias detection and fairness metrics "
+                        "in training pipeline",
+                        category="technical",
+                        effectiveness=0.80,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Regular fairness audits with diverse stakeholder input",
+                        category="procedural",
+                        effectiveness=0.75,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Maintain demographic parity and equal opportunity thresholds",
+                        category="technical",
+                        effectiveness=0.70,
+                    ),
+                ]
+            )
 
         if risk.category == "privacy":
-            measures.extend([
-                RiskMitigationMeasure(
-                    description="Apply data minimization and pseudonymization "
-                    "techniques",
-                    category="technical",
-                    effectiveness=0.85,
-                ),
-                RiskMitigationMeasure(
-                    description="Implement differential privacy in training data",
-                    category="technical",
-                    effectiveness=0.80,
-                ),
-                RiskMitigationMeasure(
-                    description="Conduct Data Protection Impact Assessment (DPIA)",
-                    category="procedural",
-                    effectiveness=0.75,
-                ),
-            ])
+            measures.extend(
+                [
+                    RiskMitigationMeasure(
+                        description="Apply data minimization and pseudonymization techniques",
+                        category="technical",
+                        effectiveness=0.85,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Implement differential privacy in training data",
+                        category="technical",
+                        effectiveness=0.80,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Conduct Data Protection Impact Assessment (DPIA)",
+                        category="procedural",
+                        effectiveness=0.75,
+                    ),
+                ]
+            )
 
         if risk.category == "transparency":
-            measures.extend([
-                RiskMitigationMeasure(
-                    description="Provide clear documentation of system "
-                    "capabilities and limitations",
-                    category="procedural",
-                    effectiveness=0.80,
-                ),
-                RiskMitigationMeasure(
-                    description="Implement explainable AI (XAI) techniques "
-                    "for decision outputs",
-                    category="technical",
-                    effectiveness=0.75,
-                ),
-            ])
+            measures.extend(
+                [
+                    RiskMitigationMeasure(
+                        description="Provide clear documentation of system "
+                        "capabilities and limitations",
+                        category="procedural",
+                        effectiveness=0.80,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Implement explainable AI (XAI) techniques "
+                        "for decision outputs",
+                        category="technical",
+                        effectiveness=0.75,
+                    ),
+                ]
+            )
 
         if risk.category == "human_oversight":
-            measures.extend([
-                RiskMitigationMeasure(
-                    description="Design human-in-the-loop verification "
-                    "for all critical decisions",
-                    category="technical",
-                    effectiveness=0.90,
-                ),
-                RiskMitigationMeasure(
-                    description="Provide override capabilities and clear "
-                    "escalation procedures",
-                    category="technical",
-                    effectiveness=0.85,
-                ),
-                RiskMitigationMeasure(
-                    description="Train human operators on system limitations "
-                    "and override protocols",
-                    category="training",
-                    effectiveness=0.75,
-                ),
-            ])
+            measures.extend(
+                [
+                    RiskMitigationMeasure(
+                        description="Design human-in-the-loop verification "
+                        "for all critical decisions",
+                        category="technical",
+                        effectiveness=0.90,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Provide override capabilities and clear escalation procedures",
+                        category="technical",
+                        effectiveness=0.85,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Train human operators on system limitations "
+                        "and override protocols",
+                        category="training",
+                        effectiveness=0.75,
+                    ),
+                ]
+            )
 
         if risk.category == "minors" or risk.category == "vulnerable_groups":
-            measures.extend([
-                RiskMitigationMeasure(
-                    description="Implement age verification and content "
-                    "filtering mechanisms",
-                    category="technical",
-                    effectiveness=0.85,
-                ),
-                RiskMitigationMeasure(
-                    description="Conduct child rights impact assessment "
-                    "per UNCRC General Comment No.25",
-                    category="procedural",
-                    effectiveness=0.80,
-                ),
-                RiskMitigationMeasure(
-                    description="Design accessible interfaces per WCAG 2.2 "
-                    "for persons with disabilities",
-                    category="technical",
-                    effectiveness=0.75,
-                ),
-            ])
+            measures.extend(
+                [
+                    RiskMitigationMeasure(
+                        description="Implement age verification and content filtering mechanisms",
+                        category="technical",
+                        effectiveness=0.85,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Conduct child rights impact assessment "
+                        "per UNCRC General Comment No.25",
+                        category="procedural",
+                        effectiveness=0.80,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Design accessible interfaces per WCAG 2.2 "
+                        "for persons with disabilities",
+                        category="technical",
+                        effectiveness=0.75,
+                    ),
+                ]
+            )
 
         if risk.category == "environmental":
-            measures.extend([
-                RiskMitigationMeasure(
-                    description="Monitor and report energy consumption and "
-                    "carbon footprint",
-                    category="technical",
-                    effectiveness=0.70,
-                ),
-                RiskMitigationMeasure(
-                    description="Optimize model architecture for energy efficiency",
-                    category="technical",
-                    effectiveness=0.65,
-                ),
-            ])
+            measures.extend(
+                [
+                    RiskMitigationMeasure(
+                        description="Monitor and report energy consumption and carbon footprint",
+                        category="technical",
+                        effectiveness=0.70,
+                    ),
+                    RiskMitigationMeasure(
+                        description="Optimize model architecture for energy efficiency",
+                        category="technical",
+                        effectiveness=0.65,
+                    ),
+                ]
+            )
 
         if not measures:
             measures.append(
@@ -567,8 +562,7 @@ class RiskManagementSystem:
 
         total_measures = sum(len(ms) for ms in self.mitigations.values())
         implemented_measures = sum(
-            sum(1 for m in ms if m.implemented)
-            for ms in self.mitigations.values()
+            sum(1 for m in ms if m.implemented) for ms in self.mitigations.values()
         )
 
         scores = [r.risk_score for r in self.catalog.values()] if self.catalog else [0]
@@ -582,9 +576,7 @@ class RiskManagementSystem:
             "total_mitigation_measures": total_measures,
             "implemented_measures": implemented_measures,
             "measures_implementation_rate": (
-                round(implemented_measures / total_measures, 2)
-                if total_measures > 0
-                else 0.0
+                round(implemented_measures / total_measures, 2) if total_measures > 0 else 0.0
             ),
             "average_risk_score": round(sum(scores) / len(scores), 2),
             "highest_risk_score": max(scores),
@@ -616,9 +608,7 @@ class RiskManagementSystem:
             row: dict[str, int] = {}
             for like in likelihoods:
                 count = sum(
-                    1
-                    for r in self.catalog.values()
-                    if r.severity == sev and r.likelihood == like
+                    1 for r in self.catalog.values() if r.severity == sev and r.likelihood == like
                 )
                 row[like.value] = count
             matrix[sev.value] = row
@@ -635,12 +625,8 @@ class RiskManagementSystem:
             Dict containing vulnerable group risk details, overall
             risk level, and recommended actions.
         """
-        minors_risks = [
-            r for r in self.catalog.values() if r.category == "minors"
-        ]
-        vulnerable_risks = [
-            r for r in self.catalog.values() if r.category == "vulnerable_groups"
-        ]
+        minors_risks = [r for r in self.catalog.values() if r.category == "minors"]
+        vulnerable_risks = [r for r in self.catalog.values() if r.category == "vulnerable_groups"]
 
         all_vulnerable = minors_risks + vulnerable_risks
 
@@ -683,12 +669,10 @@ class RiskManagementSystem:
 
         if overall in ("critical", "high"):
             recommendations.append(
-                "Engage child rights and disability advocacy organizations "
-                "in mitigation design."
+                "Engage child rights and disability advocacy organizations in mitigation design."
             )
             recommendations.append(
-                "Document vulnerable group impact assessment in conformity "
-                "report per Art.16."
+                "Document vulnerable group impact assessment in conformity report per Art.16."
             )
 
         return {

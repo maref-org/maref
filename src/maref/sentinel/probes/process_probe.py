@@ -144,9 +144,7 @@ class ProcessProbe(Probe):
 
         return events
 
-    async def _check_ptrace(
-        self, proc: psutil.Process, pid: int
-    ) -> ObservationEvent | None:
+    async def _check_ptrace(self, proc: psutil.Process, pid: int) -> ObservationEvent | None:
         """检测 ptrace/debugger 附加 — Linux 读 /proc/<pid>/status TracerPid"""
         # Linux: /proc/<pid>/status 含 TracerPid 字段
         status_path = f"/proc/{pid}/status"
@@ -226,9 +224,7 @@ class ProcessProbe(Probe):
                 )
         return events
 
-    async def _check_status(
-        self, proc: psutil.Process, pid: int
-    ) -> ObservationEvent | None:
+    async def _check_status(self, proc: psutil.Process, pid: int) -> ObservationEvent | None:
         """检测进程状态异常 (stopped 可能被调试器暂停)"""
         try:
             status = await asyncio.to_thread(lambda: proc.status())

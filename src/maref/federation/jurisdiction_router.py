@@ -209,9 +209,7 @@ class JurisdictionPolicyRouter:
 
     def _load_from_disk(self) -> None:
         assert self._db is not None
-        rows = self._db.fetchall(
-            "SELECT data FROM jurisdiction_decisions ORDER BY seq"
-        )
+        rows = self._db.fetchall("SELECT data FROM jurisdiction_decisions ORDER BY seq")
         for row in rows:
             self._decision_log.append(json.loads(row["data"]))
 
@@ -354,9 +352,7 @@ class JurisdictionPolicyRouter:
     ) -> JurisdictionEvaluation:
         """Evaluate an action in a single jurisdiction."""
         trigram_allowed = (
-            True
-            if not config.allowed_trigrams
-            else trigram in config.allowed_trigrams
+            True if not config.allowed_trigrams else trigram in config.allowed_trigrams
         )
 
         if not trigram_allowed:
@@ -496,16 +492,16 @@ class JurisdictionPolicyRouter:
         compatible: list[dict[str, Any]] = []
         for name, config in self._configs.items():
             allowed = (
-                True
-                if not config.allowed_trigrams
-                else trigram_str in config.allowed_trigrams
+                True if not config.allowed_trigrams else trigram_str in config.allowed_trigrams
             )
             if allowed:
-                compatible.append({
-                    "name": name,
-                    "description": config.description,
-                    "weight": config.weight,
-                })
+                compatible.append(
+                    {
+                        "name": name,
+                        "description": config.description,
+                        "weight": config.weight,
+                    }
+                )
         return compatible
 
     def suggest_jurisdiction(
@@ -660,9 +656,7 @@ class JurisdictionPolicyRouter:
         return {
             "generated_at": time.time(),
             "total_decisions": len(self._decision_log),
-            "conflicts_detected": sum(
-                1 for e in self._decision_log if e["conflict_detected"]
-            ),
+            "conflicts_detected": sum(1 for e in self._decision_log if e["conflict_detected"]),
             "jurisdictions": jurisdiction_stats,
             "recent_decisions": self.decision_log(limit=limit),
         }
@@ -699,8 +693,7 @@ class JurisdictionPolicyRouter:
                 actor=f"trigram:{result.agent_trigram}",
                 action=result.action,
                 details=(
-                    f"final={result.final_decision.value} "
-                    f"conflict={result.conflict_detected}"
+                    f"final={result.final_decision.value} conflict={result.conflict_detected}"
                 ),
                 metadata={
                     "final_decision": result.final_decision.value,

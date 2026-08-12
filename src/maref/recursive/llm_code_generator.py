@@ -49,10 +49,12 @@ class OpenAIProvider:
     ) -> str:
         if self._client is None:
             from openai import AsyncOpenAI
+
             kwargs: dict[str, Any] = {"api_key": self._api_key}
             if self._base_url:
                 kwargs["base_url"] = self._base_url
             import httpx
+
             self._client = AsyncOpenAI(**kwargs, timeout=httpx.Timeout(120.0, connect=30.0))
         kwargs: dict[str, Any] = {  # type: ignore[no-redef]
             "model": self._model,
@@ -63,9 +65,7 @@ class OpenAIProvider:
             "max_tokens": max_tokens,
         }
         if system_prompt:
-            kwargs["messages"].insert(
-                0, {"role": "system", "content": system_prompt}
-            )
+            kwargs["messages"].insert(0, {"role": "system", "content": system_prompt})
         response = await self._client.chat.completions.create(**kwargs)
         return response.choices[0].message.content or ""
 
@@ -94,7 +94,10 @@ class AnthropicProvider:
         if self._client is None:
             import httpx
             from anthropic import AsyncAnthropic
-            self._client = AsyncAnthropic(api_key=self._api_key, timeout=httpx.Timeout(120.0, connect=30.0))
+
+            self._client = AsyncAnthropic(
+                api_key=self._api_key, timeout=httpx.Timeout(120.0, connect=30.0)
+            )
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": max_tokens,
@@ -167,10 +170,10 @@ class CodeContextBuilder:
         "- react-hooks/static-components: NEVER assign a component to a variable\n"
         "  then render it as <Var />. The rule forbids dynamic component lookup\n"
         "  during render. Instead use static conditional rendering:\n"
-        "    // BAD: const Icon = map[ext]; return <Icon className=\"x\" />;\n"
+        '    // BAD: const Icon = map[ext]; return <Icon className="x" />;\n'
         "    // GOOD: if (ext === '.ts') return <FileCode className=\"x\" />;\n"
         "    //        if (ext === '.json') return <FileJson className=\"x\" />;\n"
-        "    //        return <File className=\"x\" />;\n"
+        '    //        return <File className="x" />;\n'
         "- react-hooks/set-state-in-effect: NEVER call setState unconditionally\n"
         "  inside useEffect. Guard with a ref or condition to avoid infinite loop.\n"
         "- react-hooks/exhaustive-deps: list ALL reactive dependencies in the\n"
@@ -200,10 +203,7 @@ class CodeContextBuilder:
                 user_lines.append(f"#   - {sym}")
 
         # Detect TypeScript targets to pick the right system prompt
-        is_ts = bool(
-            affected_files
-            and any(f.endswith((".ts", ".tsx")) for f in affected_files)
-        )
+        is_ts = bool(affected_files and any(f.endswith((".ts", ".tsx")) for f in affected_files))
 
         if affected_files:
             for fp in affected_files:
@@ -219,7 +219,7 @@ class CodeContextBuilder:
                         # Determine the last error line for this file from
                         # affected_symbols (format: "L{n}:rule — msg").
                         max_err_line = 0
-                        for sym in (proposal.affected_symbols or []):
+                        for sym in proposal.affected_symbols or []:
                             try:
                                 prefix = sym.split(":", 1)[0]  # e.g. "L109"
                                 if prefix.startswith("L"):
@@ -248,7 +248,7 @@ class CodeContextBuilder:
                             lines = f.readlines()
                         # Same max_err_line logic as TS files (Fix 19)
                         max_err_line = 0
-                        for sym in (proposal.affected_symbols or []):
+                        for sym in proposal.affected_symbols or []:
                             try:
                                 prefix = sym.split(":", 1)[0]  # e.g. "L109"
                                 if prefix.startswith("L"):
@@ -263,6 +263,7 @@ class CodeContextBuilder:
                             user_lines.append(line.rstrip("\n"))
                         # AST summary as structured overview (bonus context)
                         import ast as _ast
+
                         try:
                             content = "".join(lines)
                             tree = _ast.parse(content)
@@ -334,14 +335,16 @@ class FallbackProvider:
                     return result
                 msg = f"{provider.name} returned empty response"
                 errors.append(msg)
-                logger.warning("FallbackProvider: %s (attempt %d/%d)", msg, i + 1, len(self._providers))
+                logger.warning(
+                    "FallbackProvider: %s (attempt %d/%d)", msg, i + 1, len(self._providers)
+                )
             except Exception as e:
                 msg = f"{provider.name} error: {e}"
                 errors.append(msg)
-                logger.warning("FallbackProvider: %s (attempt %d/%d)", msg, i + 1, len(self._providers))
-        raise RuntimeError(
-            f"All {len(self._providers)} providers failed: {'; '.join(errors)}"
-        )
+                logger.warning(
+                    "FallbackProvider: %s (attempt %d/%d)", msg, i + 1, len(self._providers)
+                )
+        raise RuntimeError(f"All {len(self._providers)} providers failed: {'; '.join(errors)}")
 
     @property
     def name(self) -> str:
@@ -395,12 +398,14 @@ class LLMCodeGenerator:
         if os.environ.get("OPENAI_API_KEY"):
             try:
                 import openai  # noqa: F401
+
                 providers.append(OpenAIProvider())
             except ImportError:
                 pass
         if os.environ.get("ANTHROPIC_API_KEY"):
             try:
                 import anthropic  # noqa: F401
+
                 providers.append(AnthropicProvider())
             except ImportError:
                 pass
@@ -410,7 +415,8 @@ class LLMCodeGenerator:
             return providers[0]
         logger.info(
             "LLMCodeGenerator: using FallbackProvider with %d providers: %s",
-            len(providers), [p.name for p in providers],
+            len(providers),
+            [p.name for p in providers],
         )
         return FallbackProvider(providers)
 
@@ -475,17 +481,14 @@ class LLMCodeGenerator:
         return result
 
     def estimate_cost(self, proposal: ArchitectureProposal) -> float:
-        prompt_chars = (
-            len(proposal.rationale)
-            + sum(len(tf) for tf in getattr(proposal, "target_files", []) or [])
+        prompt_chars = len(proposal.rationale) + sum(
+            len(tf) for tf in getattr(proposal, "target_files", []) or []
         )
         est_tokens = prompt_chars // 4
         input_cost, output_cost = self._provider.cost_per_token
         return est_tokens * input_cost + 200 * output_cost
 
-    def _create_generated_code(
-        self, content: str, proposal: ArchitectureProposal
-    ) -> Any:
+    def _create_generated_code(self, content: str, proposal: ArchitectureProposal) -> Any:
         from maref.recursive.self_executor import GeneratedCode
 
         target = (

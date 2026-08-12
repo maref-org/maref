@@ -70,7 +70,9 @@ class JudgeProvider(Protocol):
     ``decision``（pass/flag/block）、``reasoning``、``confidence``。
     """
 
-    def arbitrate(self, trace: Trace, verdict_schema: dict[str, Any] | None = None) -> dict[str, Any]: ...
+    def arbitrate(
+        self, trace: Trace, verdict_schema: dict[str, Any] | None = None
+    ) -> dict[str, Any]: ...
 
 
 # 越权/违规模式：命中即 BLOCK。

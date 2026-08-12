@@ -34,6 +34,7 @@ from maref.executor.workflow.types import (
 
 # ── Fake GovernanceBridge ────────────────────────────────────────────
 
+
 class FakeGovernance:
     def __init__(self, allow: bool = True):
         self.allow = allow
@@ -49,8 +50,10 @@ class FakeGovernance:
 
 # ── Helper: 创建 WorkerPool ─────────────────────────────────────────
 
+
 def _make_pool(db_path: str, handlers: dict[str, Callable] | None = None) -> WorkerPool:
     from maref.executor.queue import TaskQueue
+
     queue = TaskQueue(db_path)
     pool = WorkerPool(queue, num_workers=2)
     if handlers:
@@ -62,6 +65,7 @@ def _make_pool(db_path: str, handlers: dict[str, Callable] | None = None) -> Wor
 # ====================================================================
 # types.py
 # ====================================================================
+
 
 class TestWorkflowStep:
     def test_to_dict_roundtrip(self):
@@ -210,6 +214,7 @@ class TestWorkflowCheckpoint:
 # ====================================================================
 # engine.py
 # ====================================================================
+
 
 class TestTopologicalSort:
     def test_no_deps(self):
@@ -522,9 +527,7 @@ class TestWorkflowEngine:
                 executed.append("c")
                 task.payload["result"] = {"output": "c"}
 
-            pool = _make_pool(
-                db, {"h_a": handler_a, "h_b": handler_b, "h_c": handler_c}
-            )
+            pool = _make_pool(db, {"h_a": handler_a, "h_b": handler_b, "h_c": handler_c})
             engine = WorkflowEngine(pool, checkpoint_dir=cp_dir)
 
             script = WorkflowScript(
@@ -582,6 +585,7 @@ class TestWorkflowEngine:
 # generator.py
 # ====================================================================
 
+
 class TestParseJson:
     def test_direct_json(self):
         result = _parse_json('{"name": "test"}')
@@ -596,7 +600,7 @@ class TestParseJson:
         assert result == {"name": "test"}
 
     def test_embedded_json(self):
-        result = _parse_json("Some text\n{\"name\": \"test\"}\nmore text")
+        result = _parse_json('Some text\n{"name": "test"}\nmore text')
         assert result == {"name": "test"}
 
     def test_invalid_input(self):
@@ -636,23 +640,25 @@ class TestWorkflowScriptGenerator:
     def test_generate_with_fake_model(self):
         class FakeModel:
             def complete(self, prompt: str) -> str:
-                return json.dumps({
-                    "name": "generated",
-                    "description": "auto-generated",
-                    "steps": [
-                        {
-                            "name": "analyze",
-                            "agent_role": "analyzer",
-                            "input_template": "analyze the input",
-                            "validator_prompt": "",
-                            "timeout_seconds": 120,
-                            "max_retries": 1,
-                            "depends_on": [],
-                            "fallback_step": "",
-                            "parallel_group": "",
-                        }
-                    ],
-                })
+                return json.dumps(
+                    {
+                        "name": "generated",
+                        "description": "auto-generated",
+                        "steps": [
+                            {
+                                "name": "analyze",
+                                "agent_role": "analyzer",
+                                "input_template": "analyze the input",
+                                "validator_prompt": "",
+                                "timeout_seconds": 120,
+                                "max_retries": 1,
+                                "depends_on": [],
+                                "fallback_step": "",
+                                "parallel_group": "",
+                            }
+                        ],
+                    }
+                )
 
         gen = WorkflowScriptGenerator(model_adapter=FakeModel())
         script = gen.generate("test task")
@@ -665,24 +671,27 @@ class TestWorkflowScriptGenerator:
 # Integration: engine + generator
 # ====================================================================
 
+
 class TestWorkflowIntegration:
     def test_generated_script_executes(self):
-        script = WorkflowScriptGenerator.from_dict({
-            "name": "integrated",
-            "steps": [
-                {
-                    "name": "step1",
-                    "agent_role": "worker",
-                    "input_template": "do work",
-                    "timeout_seconds": 30,
-                    "max_retries": 0,
-                    "depends_on": [],
-                    "fallback_step": "",
-                    "parallel_group": "",
-                    "validator_prompt": "",
-                }
-            ],
-        })
+        script = WorkflowScriptGenerator.from_dict(
+            {
+                "name": "integrated",
+                "steps": [
+                    {
+                        "name": "step1",
+                        "agent_role": "worker",
+                        "input_template": "do work",
+                        "timeout_seconds": 30,
+                        "max_retries": 0,
+                        "depends_on": [],
+                        "fallback_step": "",
+                        "parallel_group": "",
+                        "validator_prompt": "",
+                    }
+                ],
+            }
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             db = os.path.join(tmp, "test.db")

@@ -226,9 +226,7 @@ class DIDRegistry:
             return True
         return False
 
-    def _notify_revocation(
-        self, did: AgentDID, reason: str, signer: str
-    ) -> None:
+    def _notify_revocation(self, did: AgentDID, reason: str, signer: str) -> None:
         """向所有监听器广播撤销事件；单个监听器异常不影响其余与主流程。"""
         for listener in list(self._revocation_listeners):
             try:
@@ -349,7 +347,9 @@ class DIDRegistry:
         self._persist(record)
         return record
 
-    def deactivate(self, did: AgentDID, reason: str = "", signer: str = "") -> AgentIdentityRecord | None:
+    def deactivate(
+        self, did: AgentDID, reason: str = "", signer: str = ""
+    ) -> AgentIdentityRecord | None:
         """将 DID 置为不可逆的 deactivated 终态（方案 E）。"""
         record = self._agents.get(did)
         if record is None:

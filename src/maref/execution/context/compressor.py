@@ -11,7 +11,9 @@ class ContextCompressor:
     def estimate_tokens(self, text: str) -> int:
         return max(1, int(len(text) / _TOKEN_RATIO))
 
-    def compress(self, context: str, budget: int, protected_sections: list[str] | None = None) -> str:
+    def compress(
+        self, context: str, budget: int, protected_sections: list[str] | None = None
+    ) -> str:
         if self.estimate_tokens(context) <= budget:
             return context
 

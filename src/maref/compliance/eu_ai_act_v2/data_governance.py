@@ -260,12 +260,12 @@ class DataGovernanceManager:
         )
 
         quality_passed_count = sum(
-            1 for ds in self._datasets.values()
+            1
+            for ds in self._datasets.values()
             if ds.quality_metrics is not None and ds.quality_metrics.passed
         )
         total_with_metrics = sum(
-            1 for ds in self._datasets.values()
-            if ds.quality_metrics is not None
+            1 for ds in self._datasets.values() if ds.quality_metrics is not None
         )
 
         return {

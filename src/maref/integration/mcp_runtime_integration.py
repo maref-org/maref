@@ -37,15 +37,19 @@ class _MetricsCollector:
     def __init__(self) -> None:
         self._calls: list[dict[str, Any]] = []
 
-    def record(self, agent_id: str, mcp_server: str, tool_name: str, verdict: str, duration_ms: float) -> None:
-        self._calls.append({
-            "agent_id": agent_id,
-            "mcp_server": mcp_server,
-            "tool_name": tool_name,
-            "verdict": verdict,
-            "duration_ms": duration_ms,
-            "timestamp": time.time(),
-        })
+    def record(
+        self, agent_id: str, mcp_server: str, tool_name: str, verdict: str, duration_ms: float
+    ) -> None:
+        self._calls.append(
+            {
+                "agent_id": agent_id,
+                "mcp_server": mcp_server,
+                "tool_name": tool_name,
+                "verdict": verdict,
+                "duration_ms": duration_ms,
+                "timestamp": time.time(),
+            }
+        )
 
     def get_summary(self, window_hours: float = 1.0) -> dict[str, Any]:
         cutoff = time.time() - (window_hours * 3600)
@@ -140,7 +144,9 @@ class SecureMCPExecutor:
     def get_metrics(self) -> dict[str, Any]:
         return self._metrics.get_summary()
 
-    def _execute_tool(self, mcp_server: str, tool_name: str, args: dict[str, Any]) -> dict[str, Any] | None:
+    def _execute_tool(
+        self, mcp_server: str, tool_name: str, args: dict[str, Any]
+    ) -> dict[str, Any] | None:
         if self._tool_executor is None:
             return {"ok": True, "tool": f"{mcp_server}/{tool_name}", "args": args}
         try:

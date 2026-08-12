@@ -51,9 +51,7 @@ class OIDCProviderConfig:
     client_id: str
     client_secret: str = ""
     jwks_url: str = ""
-    scopes: list[str] = field(
-        default_factory=lambda: ["openid", "profile", "email"]
-    )
+    scopes: list[str] = field(default_factory=lambda: ["openid", "profile", "email"])
     claim_mapping: dict[str, str] = field(
         default_factory=lambda: {
             "sub": "user_id",
@@ -236,8 +234,7 @@ class TenantValidator(Protocol):
     tenant validation on :meth:`SSOManager.map_user`.
     """
 
-    def get_by_id(self, tenant_id: str) -> Any | None:
-        ...
+    def get_by_id(self, tenant_id: str) -> Any | None: ...
 
 
 class SSOManager:
@@ -248,9 +245,7 @@ class SSOManager:
     with a set of roles.
     """
 
-    def __init__(
-        self, tenant_validator: TenantValidator | None = None
-    ) -> None:
+    def __init__(self, tenant_validator: TenantValidator | None = None) -> None:
         self._providers: dict[str, OIDCProviderConfig] = {}
         self._verifiers: dict[str, OIDCTokenVerifier] = {}
         self._mappings: dict[str, SSOUserMapping] = {}
@@ -261,9 +256,7 @@ class SSOManager:
         self._providers[config.provider_id] = config
         self._verifiers[config.provider_id] = OIDCTokenVerifier(config)
 
-    def authenticate(
-        self, provider_id: str, id_token: str
-    ) -> SSOUserInfo | None:
+    def authenticate(self, provider_id: str, id_token: str) -> SSOUserInfo | None:
         """Authenticate a user via OIDC ID token.
 
         Returns :class:`SSOUserInfo` if successful, None otherwise.
@@ -301,9 +294,7 @@ class SSOManager:
         self._mappings[key] = mapping
         return mapping
 
-    def resolve_user(
-        self, provider_id: str, sso_user_id: str
-    ) -> SSOUserMapping | None:
+    def resolve_user(self, provider_id: str, sso_user_id: str) -> SSOUserMapping | None:
         """Resolve an SSO user to their tenant mapping."""
         key = f"{provider_id}:{sso_user_id}"
         return self._mappings.get(key)
@@ -367,12 +358,8 @@ def _create_test_id_token(
         "exp": int(time.time() + expires_in),
         "iat": int(time.time()),
     }
-    header_b64 = base64.urlsafe_b64encode(
-        json.dumps(header).encode()
-    ).rstrip(b"=").decode()
-    payload_b64 = base64.urlsafe_b64encode(
-        json.dumps(payload).encode()
-    ).rstrip(b"=").decode()
+    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(b"=").decode()
+    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
     # Unsigned token: empty signature
     return f"{header_b64}.{payload_b64}."
 

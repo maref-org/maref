@@ -230,7 +230,10 @@ def generate_readme(project_name: str, output_dir: str = ".", **kwargs) -> str:
         "project_name": project_name,
         "repo_name": repo_name,
         "tagline": kwargs.get("tagline", f"{project_name} — SkillOS 模块"),
-        "description": kwargs.get("description", f"{project_name} 是 MAREF 生态中的一个 SkillOS 模块，提供标准化的能力集成。"),
+        "description": kwargs.get(
+            "description",
+            f"{project_name} 是 MAREF 生态中的一个 SkillOS 模块，提供标准化的能力集成。",
+        ),
         "feature_1": kwargs.get("feature_1", "标准化接口 — 统一的模块接入规范"),
         "feature_2": kwargs.get("feature_2", "可插拔设计 — 支持动态加载和热替换"),
         "feature_3": kwargs.get("feature_3", "开箱即用 — 完整的 CLI 和 API 支持"),
@@ -248,10 +251,13 @@ def generate_readme(project_name: str, output_dir: str = ".", **kwargs) -> str:
         "license_name": kwargs.get("license_name", "Apache 2.0"),
         "maintainer": kwargs.get("maintainer", "MAREF Team"),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "config_example": kwargs.get("config_example", f"""# {repo_name} 配置
+        "config_example": kwargs.get(
+            "config_example",
+            f"""# {repo_name} 配置
 version: '1.0'
 mode: production
-log_level: info"""),
+log_level: info""",
+        ),
     }
 
     readme = SKILLOS_README_TEMPLATE.format(**defaults)
@@ -329,9 +335,9 @@ def print_checklist(checklist_type: str = "release"):
     }
 
     title, checklist = checklists.get(checklist_type, ("未知", {}))
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     total = 0
     blocker = 0
@@ -349,6 +355,7 @@ def print_checklist(checklist_type: str = "release"):
 
 
 # ── README 验证 ─────────────────────────────────────────────
+
 
 def validate_readme(readme_path: str) -> dict:
     """验证 README.md 的完整性和质量"""
@@ -407,6 +414,7 @@ def validate_readme(readme_path: str) -> dict:
 
 # ── CLI ─────────────────────────────────────────────────────
 
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -416,7 +424,9 @@ def main():
 
     if cmd == "init":
         if len(sys.argv) < 3:
-            print("用法: readme_template_generator.py init <project-name> [--dir ./output] [options]")
+            print(
+                "用法: readme_template_generator.py init <project-name> [--dir ./output] [options]"
+            )
             sys.exit(1)
         project = sys.argv[2]
         output = "./"
@@ -452,7 +462,9 @@ def main():
             for w in result["warnings"]:
                 print(f"  ⚠️  {w}")
         if result["valid"]:
-            print(f"\n✅ README 验证通过! ({result['lines']} 行, {result['code_blocks']} 个代码示例)")
+            print(
+                f"\n✅ README 验证通过! ({result['lines']} 行, {result['code_blocks']} 个代码示例)"
+            )
 
     else:
         print(f"未知命令: {cmd}")

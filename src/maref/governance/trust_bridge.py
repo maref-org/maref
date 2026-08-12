@@ -128,7 +128,9 @@ class GovernanceBridge:
             try:
                 hook(event)
             except Exception:
-                logger.exception("Governance hook %s failed, isolating", getattr(hook, '__name__', str(hook)))
+                logger.exception(
+                    "Governance hook %s failed, isolating", getattr(hook, "__name__", str(hook))
+                )
 
         return handled
 

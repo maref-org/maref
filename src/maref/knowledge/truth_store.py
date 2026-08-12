@@ -53,12 +53,14 @@ class TruthStore:
             try:
                 with open(fpath) as f:
                     data = json.load(f)
-                pages.append({
-                    "entity_id": data.get("entity_id", ""),
-                    "confidence": data.get("compiled_truth", {}).get("confidence", 0),
-                    "updated_at": data.get("compiled_truth", {}).get("last_updated", 0),
-                    "evidence_count": len(data.get("evidence_trail", [])),
-                })
+                pages.append(
+                    {
+                        "entity_id": data.get("entity_id", ""),
+                        "confidence": data.get("compiled_truth", {}).get("confidence", 0),
+                        "updated_at": data.get("compiled_truth", {}).get("last_updated", 0),
+                        "evidence_count": len(data.get("evidence_trail", [])),
+                    }
+                )
             except (json.JSONDecodeError, OSError):
                 continue
         return pages

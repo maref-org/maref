@@ -118,7 +118,9 @@ class AuditEntry:
             payload["round"] = self.round
         return json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
 
-    def to_unified(self, layer: str | None = None, round_num: int | None = None) -> UnifiedAuditRecord:
+    def to_unified(
+        self, layer: str | None = None, round_num: int | None = None
+    ) -> UnifiedAuditRecord:
         from maref.recursive.unified_audit import UnifiedAuditRecord
 
         outcome: str | None = None
@@ -195,6 +197,7 @@ class AuditLogger:
             env_ed25519 = os.environ.get(_ED25519_KEY_ENV)
             if env_ed25519:
                 from maref.crypto.ed25519_keys import Ed25519KeyPair
+
                 resolved_keypair = Ed25519KeyPair.from_private_pem(env_ed25519)
         self._ed25519_keypair = resolved_keypair
 
@@ -300,9 +303,7 @@ class AuditLogger:
         if self._path is not None:
             candidates.append(self._path.parent.parent / ".maraf_hmac_key")
             candidates.append(self._path.parent.parent / ".gaas_api_key")
-        candidates.extend(
-            [Path.cwd() / ".maraf_hmac_key", Path.cwd() / ".gaas_api_key"]
-        )
+        candidates.extend([Path.cwd() / ".maraf_hmac_key", Path.cwd() / ".gaas_api_key"])
         for candidate in candidates:
             try:
                 return candidate.read_text().strip().encode("utf-8")
@@ -321,13 +322,19 @@ class AuditLogger:
             return False
         if Ed25519KeyPair.verify(pub_key, sig_bytes, entry._payload_for_signing().encode("utf-8")):
             return True
-        return Ed25519KeyPair.verify(pub_key, sig_bytes, self._legacy_payload(entry).encode("utf-8"))
+        return Ed25519KeyPair.verify(
+            pub_key, sig_bytes, self._legacy_payload(entry).encode("utf-8")
+        )
 
     def _verify_hmac_signature(self, entry: AuditEntry, hmac_key: bytes) -> bool:
-        current = hmac.new(hmac_key, entry._payload_for_signing().encode("utf-8"), hashlib.sha256).hexdigest()
+        current = hmac.new(
+            hmac_key, entry._payload_for_signing().encode("utf-8"), hashlib.sha256
+        ).hexdigest()
         if hmac.compare_digest(current, entry.hmac_signature):
             return True
-        legacy = hmac.new(hmac_key, self._legacy_payload(entry).encode("utf-8"), hashlib.sha256).hexdigest()
+        legacy = hmac.new(
+            hmac_key, self._legacy_payload(entry).encode("utf-8"), hashlib.sha256
+        ).hexdigest()
         return hmac.compare_digest(legacy, entry.hmac_signature)
 
     def _verify_chain_hash(self, entry: AuditEntry) -> bool:

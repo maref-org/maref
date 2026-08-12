@@ -406,7 +406,9 @@ class RecursiveEvolutionEngine:
                 self._vault.record_round(
                     round_num=snapshot.get("round", -1),
                     cycle_id=snapshot.get("cycle_id", "unknown"),
-                    metrics=real_metrics if real_metrics else {
+                    metrics=real_metrics
+                    if real_metrics
+                    else {
                         "fnr": snapshot.get("fnr"),
                         "fpr": snapshot.get("fpr"),
                         "test_pass_rate": None,

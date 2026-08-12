@@ -55,8 +55,7 @@ class LoopBase(ABC):
         return self._tool_boundary
 
     @abstractmethod
-    async def run(self, *args: Any, **kwargs: Any) -> LoopResult[Any]:
-        ...
+    async def run(self, *args: Any, **kwargs: Any) -> LoopResult[Any]: ...
 
     def _check_stop(self) -> LoopStopReason | None:
         if self._state.round >= self._max_rounds:

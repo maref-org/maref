@@ -318,8 +318,7 @@ def create_default_federation(
 
     member_count = (
         len(consensus_membership.members_summary())
-        if consensus_membership is not None
-        and hasattr(consensus_membership, "members_summary")
+        if consensus_membership is not None and hasattr(consensus_membership, "members_summary")
         else 3
     )
     quorum_size = consensus_quorum_size or max(2, member_count // 2 + 1)

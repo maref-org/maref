@@ -35,16 +35,27 @@ async def _slack_send_message(channel: str, text: str) -> dict[str, Any]:
             response.raise_for_status()
             data = response.json()
             if not data.get("ok"):
-                return {"isError": True, "content": [{"type": "text", "text": f"Slack error: {data.get('error', 'unknown')}"}]}
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": f"Slack error: {data.get('error', 'unknown')}"}
+                    ],
+                }
             return {
                 "channel": data["channel"],
                 "ts": data["ts"],
                 "message": {"text": data.get("message", {}).get("text", "")},
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Slack API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Slack API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Slack request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Slack request failed: {exc}"}],
+        }
 
 
 async def _slack_list_channels() -> dict[str, Any]:
@@ -59,7 +70,12 @@ async def _slack_list_channels() -> dict[str, Any]:
             response.raise_for_status()
             data = response.json()
             if not data.get("ok"):
-                return {"isError": True, "content": [{"type": "text", "text": f"Slack error: {data.get('error', 'unknown')}"}]}
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": f"Slack error: {data.get('error', 'unknown')}"}
+                    ],
+                }
             return {
                 "channels": [
                     {
@@ -75,9 +91,15 @@ async def _slack_list_channels() -> dict[str, Any]:
                 "count": len(data.get("channels", [])),
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Slack API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Slack API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Slack request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Slack request failed: {exc}"}],
+        }
 
 
 async def _slack_search_messages(query: str) -> dict[str, Any]:
@@ -92,7 +114,12 @@ async def _slack_search_messages(query: str) -> dict[str, Any]:
             response.raise_for_status()
             data = response.json()
             if not data.get("ok"):
-                return {"isError": True, "content": [{"type": "text", "text": f"Slack error: {data.get('error', 'unknown')}"}]}
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": f"Slack error: {data.get('error', 'unknown')}"}
+                    ],
+                }
             matches = data.get("messages", {}).get("matches", [])
             return {
                 "messages": [
@@ -108,9 +135,15 @@ async def _slack_search_messages(query: str) -> dict[str, Any]:
                 "count": len(matches),
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Slack API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Slack API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Slack request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Slack request failed: {exc}"}],
+        }
 
 
 TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
@@ -130,12 +163,21 @@ def get_tool_definition() -> ToolDefinition:
         tools=list(TOOL_HANDLERS.keys()),
         tool_parameters={
             "slack_send_message": [
-                ToolParameter(name="channel", type="string", description="Slack channel ID or name", required=True),
-                ToolParameter(name="text", type="string", description="Message text", required=True),
+                ToolParameter(
+                    name="channel",
+                    type="string",
+                    description="Slack channel ID or name",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="text", type="string", description="Message text", required=True
+                ),
             ],
             "slack_list_channels": [],
             "slack_search_messages": [
-                ToolParameter(name="query", type="string", description="Search query", required=True),
+                ToolParameter(
+                    name="query", type="string", description="Search query", required=True
+                ),
             ],
         },
         security_controls=["EnvVarCheck"],
@@ -150,7 +192,10 @@ def execute_tool(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
 
     handler = TOOL_HANDLERS.get(tool_name)
     if handler is None:
-        return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}],
+        }
     try:
         return asyncio.run(handler(**args))
     except RuntimeError as exc:

@@ -317,9 +317,7 @@ class GeoPoliticalRiskAssessor:
                 overall_risk = flow_risk.risk_level
 
             if flow_risk.risk_level >= RiskLevel.HIGH:
-                recommendations.append(
-                    f"Review data flow {source}->{target}: {flow_risk.reason}"
-                )
+                recommendations.append(f"Review data flow {source}->{target}: {flow_risk.reason}")
 
         # 3. 生成建议
         if overall_risk >= RiskLevel.CRITICAL:

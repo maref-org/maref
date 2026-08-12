@@ -172,13 +172,13 @@ class CrossOrgHITL:
         for row in rows:
             request = CrossOrgApprovalRequest.from_dict(json.loads(row["data"]))
             self._requests[request.request_id] = request
-            self._by_requesting_org.setdefault(
-                request.requesting_org, []
-            ).append(request.request_id)
+            self._by_requesting_org.setdefault(request.requesting_org, []).append(
+                request.request_id
+            )
             if request.is_pending:
-                self._pending_by_org.setdefault(
-                    request.reviewing_org, set()
-                ).add(request.request_id)
+                self._pending_by_org.setdefault(request.reviewing_org, set()).add(
+                    request.request_id
+                )
 
     def _persist(self, request: CrossOrgApprovalRequest) -> None:
         if self._db is None:
@@ -265,9 +265,7 @@ class CrossOrgHITL:
         self._persist(request)
         return True
 
-    def reject(
-        self, request_id: str, reason: str = ""
-    ) -> bool:
+    def reject(self, request_id: str, reason: str = "") -> bool:
         """Reject a pending or escalated request."""
         request = self._requests.get(request_id)
         if request is None or not request.is_pending:
@@ -300,12 +298,17 @@ class CrossOrgHITL:
             # Use escalated_at as the clock base once escalated, so the
             # escalation org gets the full timeout window. created_at is
             # immutable and preserves the original submission time.
-            clock_base = request.escalated_at if request.escalated_at is not None else request.created_at
+            clock_base = (
+                request.escalated_at if request.escalated_at is not None else request.created_at
+            )
             elapsed = current - clock_base
             if elapsed < request.timeout_seconds:
                 continue
 
-            if request.escalation_org is not None and request.status == CrossOrgApprovalStatus.PENDING:
+            if (
+                request.escalation_org is not None
+                and request.status == CrossOrgApprovalStatus.PENDING
+            ):
                 # Escalate: re-route to escalation org.
                 self._remove_from_pending(request)
                 request.status = CrossOrgApprovalStatus.ESCALATED
@@ -343,9 +346,7 @@ class CrossOrgHITL:
     def get_request(self, request_id: str) -> CrossOrgApprovalRequest | None:
         return self._requests.get(request_id)
 
-    def get_pending(
-        self, reviewing_org: str | None = None
-    ) -> list[CrossOrgApprovalRequest]:
+    def get_pending(self, reviewing_org: str | None = None) -> list[CrossOrgApprovalRequest]:
         """Get pending (and escalated) requests.
 
         If ``reviewing_org`` is given, only requests routed to that org
@@ -355,9 +356,7 @@ class CrossOrgHITL:
             ids = self._pending_by_org.get(reviewing_org, set())
             return [self._requests[i] for i in ids if self._requests[i].is_pending]
 
-        return [
-            r for r in self._requests.values() if r.is_pending
-        ]
+        return [r for r in self._requests.values() if r.is_pending]
 
     def get_history(
         self,
@@ -371,7 +370,8 @@ class CrossOrgHITL:
         """
         if org is not None:
             requests = [
-                r for r in self._requests.values()
+                r
+                for r in self._requests.values()
                 if r.requesting_org == org or r.reviewing_org == org
             ]
         else:
@@ -407,9 +407,7 @@ class CrossOrgHITL:
             "total_requests": len(requests),
             "status_counts": status_counts,
             "total_orgs": len(orgs),
-            "pending_count": sum(
-                1 for r in requests if r.is_pending
-            ),
+            "pending_count": sum(1 for r in requests if r.is_pending),
         }
 
     # ------------------------------------------------------------------

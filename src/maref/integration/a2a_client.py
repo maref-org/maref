@@ -137,9 +137,7 @@ class A2AClient:
         except Exception:
             return False
 
-    async def push_state(
-        self, agent_url: str, task_id: str, state: str
-    ) -> bool:
+    async def push_state(self, agent_url: str, task_id: str, state: str) -> bool:
         try:
             payload = {
                 "task_id": task_id,
@@ -173,15 +171,16 @@ class A2AClient:
     def get_active_tasks(self) -> dict[str, dict[str, Any]]:
         return dict(self._active_tasks)
 
-    async def subscribe(
-        self, agent_url: str, task_id: str, callback: Callable[[str], Any]
-    ) -> None:
+    async def subscribe(self, agent_url: str, task_id: str, callback: Callable[[str], Any]) -> None:
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=5.0, read=None)) as client, client.stream(
-                "GET",
-                f"{agent_url.rstrip('/')}/api/a2a/task/{task_id}/stream",
-                headers=self._headers(),
-            ) as response:
+            async with (
+                httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=5.0, read=None)) as client,
+                client.stream(
+                    "GET",
+                    f"{agent_url.rstrip('/')}/api/a2a/task/{task_id}/stream",
+                    headers=self._headers(),
+                ) as response,
+            ):
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data = line[6:]

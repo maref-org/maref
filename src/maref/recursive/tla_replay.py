@@ -95,7 +95,12 @@ class TLAReplayValidator:
                 "description": "Beyond first-order Lyapunov: variance, skewness, kurtosis all converged",
                 "expression": "mean_converged AND variance_converged AND distribution_symmetric AND no_extreme_outliers",
                 "check_type": "empirical",
-                "tolerance": {"mean_slope": 0.005, "variance": 0.05, "skewness": 0.5, "kurtosis": 1.0},
+                "tolerance": {
+                    "mean_slope": 0.005,
+                    "variance": 0.05,
+                    "skewness": 0.5,
+                    "kurtosis": 1.0,
+                },
             },
             {
                 "name": "SafetyGateIntegrity",
@@ -400,16 +405,18 @@ class TLAReplayRunner:
             self._invariants = []
             return
 
-        inv_pattern = re.compile(r'^(\w+Inv)\s*==', re.MULTILINE)
+        inv_pattern = re.compile(r"^(\w+Inv)\s*==", re.MULTILINE)
         names = inv_pattern.findall(text)
 
         self._invariants = []
         for name in names:
-            self._invariants.append({
-                "name": name,
-                "description": f"Invariant {name}",
-                "expression": "",
-            })
+            self._invariants.append(
+                {
+                    "name": name,
+                    "description": f"Invariant {name}",
+                    "expression": "",
+                }
+            )
 
     @property
     def invariants(self) -> list[dict[str, Any]]:

@@ -184,7 +184,7 @@ class MemoryBridge:
             if conf >= min_confidence:
                 insights.append(
                     KnowledgeInsight(
-                        insight_id=f"insi-{time.time():.0f}-{hypo.get('id','?')}",
+                        insight_id=f"insi-{time.time():.0f}-{hypo.get('id', '?')}",
                         insight_type="hypothesis",
                         summary=hypo.get("description", ""),
                         evidence_strength=conf,

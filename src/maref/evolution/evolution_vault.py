@@ -15,6 +15,7 @@ from typing import Any
 
 # ── YAML-based vault (original, used by DailyEvolutionLoop) ──────────
 
+
 class EvolutionVault:
     def __init__(self, base_dir: str | Path = ".evolution_vault") -> None:
         self._base_dir = Path(base_dir)
@@ -44,20 +45,26 @@ class EvolutionVault:
 
     def write_daily_report(self, day: str, report: Any) -> None:
         path = self._base_dir / day / "report.yaml"
-        self._write_yaml(path, report.to_dict() if hasattr(report, "to_dict") else {"report": str(report)})
+        self._write_yaml(
+            path, report.to_dict() if hasattr(report, "to_dict") else {"report": str(report)}
+        )
 
     def write_next_plan(self, day_dir: Path, plan: Any) -> None:
-        self._write_yaml(day_dir / "next_plan.yaml", plan if isinstance(plan, dict) else {"plan": str(plan)})
+        self._write_yaml(
+            day_dir / "next_plan.yaml", plan if isinstance(plan, dict) else {"plan": str(plan)}
+        )
 
     @staticmethod
     def _read_yaml(path: str | Path) -> dict[str, Any]:
         import yaml
+
         with open(path) as f:
             return yaml.safe_load(f) or {}
 
     @staticmethod
     def _write_yaml(path: str | Path, data: Any) -> None:
         import yaml
+
         with open(path, "w") as f:
             yaml.dump(data, f, default_flow_style=False)
 
@@ -111,8 +118,9 @@ class RoundVault:
         c.row_factory = sqlite3.Row
         return c
 
-    def record_round(self, round_num: int, cycle_id: str, metrics: dict[str, Any],
-                     stop_reason: str = "") -> int:
+    def record_round(
+        self, round_num: int, cycle_id: str, metrics: dict[str, Any], stop_reason: str = ""
+    ) -> int:
         conn = self._conn()
         try:
             cur = conn.execute(
@@ -121,14 +129,24 @@ class RoundVault:
                    total_lines, git_commits_30d, module_count, governance_state,
                    cb_state, stop_reason, meta_json)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (round_num, cycle_id, time.time(),
-                 metrics.get("fnr"), metrics.get("fpr"),
-                 metrics.get("test_pass_rate"), metrics.get("coverage_pct"),
-                 metrics.get("total_tests"), metrics.get("source_file_count"),
-                 metrics.get("total_lines"), metrics.get("git_commit_count_30d"),
-                 metrics.get("module_count"), metrics.get("governance_state"),
-                 metrics.get("cb_state"), stop_reason,
-                 json.dumps(metrics)),
+                (
+                    round_num,
+                    cycle_id,
+                    time.time(),
+                    metrics.get("fnr"),
+                    metrics.get("fpr"),
+                    metrics.get("test_pass_rate"),
+                    metrics.get("coverage_pct"),
+                    metrics.get("total_tests"),
+                    metrics.get("source_file_count"),
+                    metrics.get("total_lines"),
+                    metrics.get("git_commit_count_30d"),
+                    metrics.get("module_count"),
+                    metrics.get("governance_state"),
+                    metrics.get("cb_state"),
+                    stop_reason,
+                    json.dumps(metrics),
+                ),
             )
             conn.commit()
             return cur.lastrowid or 0
@@ -144,18 +162,29 @@ class RoundVault:
             conn.close()
 
     def get_trend(self, metric: str, last_n: int = 20) -> list[dict[str, Any]]:
-        valid = {"fnr", "fpr", "test_pass_rate", "coverage_pct", "total_tests",
-                 "source_files", "total_lines", "git_commits_30d"}
+        valid = {
+            "fnr",
+            "fpr",
+            "test_pass_rate",
+            "coverage_pct",
+            "total_tests",
+            "source_files",
+            "total_lines",
+            "git_commits_30d",
+        }
         if metric not in valid:
             return []
         conn = self._conn()
         try:
             rows = conn.execute(
                 f"SELECT round_num, {metric} AS val, timestamp FROM rounds "
-                f"WHERE {metric} IS NOT NULL ORDER BY id DESC LIMIT ?", (last_n,)
+                f"WHERE {metric} IS NOT NULL ORDER BY id DESC LIMIT ?",
+                (last_n,),
             ).fetchall()
-            return [{"round": r["round_num"], "value": r["val"], "timestamp": r["timestamp"]}
-                    for r in reversed(rows)]
+            return [
+                {"round": r["round_num"], "value": r["val"], "timestamp": r["timestamp"]}
+                for r in reversed(rows)
+            ]
         finally:
             conn.close()
 

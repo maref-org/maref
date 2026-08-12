@@ -87,6 +87,7 @@ class WeightAuditorAdapter:
     def __init__(self) -> None:
         try:
             import transformer_lens  # noqa: F401
+
             self._available = True
             self._tl_module = transformer_lens
         except ImportError:
@@ -120,10 +121,7 @@ class WeightAuditorAdapter:
                 backdoor_suspected=False,
                 anomalous_activations=[],
                 confidence=0.0,
-                details=(
-                    "transformer_lens not installed; "
-                    "install with `pip install maref[audit]`"
-                ),
+                details=("transformer_lens not installed; install with `pip install maref[audit]`"),
             )
 
         # 真实审计逻辑（当 transformer_lens 可用时）
@@ -138,9 +136,7 @@ class WeightAuditorAdapter:
 
             for trigger in triggers:
                 # 跑前向传播并缓存激活
-                with model.hooks(
-                    fwd_hooks=self._build_activation_hooks(anomalous, trigger)
-                ):
+                with model.hooks(fwd_hooks=self._build_activation_hooks(anomalous, trigger)):
                     model.run_with_cache(
                         trigger,
                         names_filter=lambda name: "mlp" in name or "attn" in name,
@@ -177,6 +173,7 @@ class WeightAuditorAdapter:
 
         这是一个简化实现：真实场景下需要更复杂的统计基线。
         """
+
         def hook_fn(name: str) -> Any:
             def hook(activation: Any, hook: Any) -> Any:
                 # 检测激活值是否超出 3σ（简化版）
@@ -189,6 +186,7 @@ class WeightAuditorAdapter:
                         if anomalies.any():
                             anomalous_list.append(f"{name}:{trigger_label}")
                 return activation
+
             return hook
 
         return [("blocks.0.mlp.hook_post", hook_fn("blocks.0.mlp.hook_post"))]

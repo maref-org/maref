@@ -81,6 +81,7 @@ class BrowserSessionPool:
             cls._lock = asyncio.Lock()
             try:
                 import playwright  # noqa: F401
+
                 cls._instance._playwright_available = True
             except ImportError:
                 pass
@@ -90,7 +91,9 @@ class BrowserSessionPool:
     def is_available(self) -> bool:
         return self._playwright_available
 
-    async def acquire(self, session_id: str, browser_type: BrowserType = BrowserType.CHROMIUM) -> BrowserSession:
+    async def acquire(
+        self, session_id: str, browser_type: BrowserType = BrowserType.CHROMIUM
+    ) -> BrowserSession:
         if not self._playwright_available:
             raise PlaywrightNotAvailableError("playwright not installed")
 
@@ -170,7 +173,11 @@ class BrowserSessionPool:
             while True:
                 await asyncio.sleep(30)
                 async with self._lock:
-                    expired = [sid for sid, s in self._sessions.items() if s.is_expired and s.ref_count == 0]
+                    expired = [
+                        sid
+                        for sid, s in self._sessions.items()
+                        if s.is_expired and s.ref_count == 0
+                    ]
                     for sid in expired:
                         logger.debug("cleaning up expired session %s", sid)
                         await self._evict(sid)

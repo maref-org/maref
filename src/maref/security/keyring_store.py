@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import keyring
+
     HAS_KEYRING = True
 except ImportError:
     HAS_KEYRING = False

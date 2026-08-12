@@ -561,8 +561,7 @@ class SeccompFilter:
             if result != 0:
                 errno_val = ctypes.get_errno()
                 raise SeccompFilterError(
-                    f"prctl(PR_SET_SECCOMP) failed for pid {effective_pid}: "
-                    f"errno={errno_val}"
+                    f"prctl(PR_SET_SECCOMP) failed for pid {effective_pid}: errno={errno_val}"
                 )
         else:
             # 对其他进程: 需要先 attach 再执行 prctl

@@ -16,8 +16,9 @@ from maref.executor.workflow.types import WorkflowScript, WorkflowStep
 @dataclass
 class GenerateFilterConfig:
     """生成过滤配置。"""
+
     n_generate: int = 10  # 生成候选数
-    n_keep: int = 3       # 保留数
+    n_keep: int = 3  # 保留数
     diversity: float = 0.7
     filter_criteria: str = "relevance, quality, feasibility"
     generate_prompt_template: str = "Generate {n} diverse ideas for: {task}"
@@ -70,16 +71,12 @@ class GenerateFilterPattern:
             },
         )
 
-    def _generate(
-        self, task: str, config: GenerateFilterConfig
-    ) -> list[dict[str, Any]]:
+    def _generate(self, task: str, config: GenerateFilterConfig) -> list[dict[str, Any]]:
         handler = self._get_handler(self._generator_handler)
         if handler is None:
             return [{"error": f"No generator handler '{self._generator_handler}'"}]
 
-        prompt = config.generate_prompt_template.format(
-            n=config.n_generate, task=task
-        )
+        prompt = config.generate_prompt_template.format(n=config.n_generate, task=task)
         t = Task(
             name="generate",
             priority=TaskPriority.HIGH,
@@ -145,7 +142,9 @@ class GenerateFilterPattern:
             return self._pool._handlers.get(name)
         return None
 
-    def to_workflow_script(self, task: str, config: GenerateFilterConfig | None = None) -> WorkflowScript:
+    def to_workflow_script(
+        self, task: str, config: GenerateFilterConfig | None = None
+    ) -> WorkflowScript:
         config = config or GenerateFilterConfig()
         return WorkflowScript(
             name=f"genfilter:{task[:40]}",

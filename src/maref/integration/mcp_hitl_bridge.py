@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MCPApprovalRequest:
     """An MCP-specific approval request that wraps a HITL event."""
+
     request_id: str
     hitl_event_id: str
     agent_id: str
@@ -88,9 +89,9 @@ class MCPHITLBridge:
     # Default timeout configuration (seconds)
     DEFAULT_TIMEOUTS = {
         HITLTier.P0_RESPONSE: 300,  # 5 minutes for critical
-        HITLTier.P1_ESCALATE: 30,   # 30 seconds for warnings
-        HITLTier.P2_LOG: 0,         # No timeout for log-only
-        HITLTier.P3_OBSERVE: 0,     # No timeout for observe-only
+        HITLTier.P1_ESCALATE: 30,  # 30 seconds for warnings
+        HITLTier.P2_LOG: 0,  # No timeout for log-only
+        HITLTier.P3_OBSERVE: 0,  # No timeout for observe-only
     }
 
     # Auto-approve on timeout (true for P1, false for P0)
@@ -109,7 +110,9 @@ class MCPHITLBridge:
     ):
         self.hitl_router = hitl_router or HITLRouter()
         self.timeouts = timeouts or dict(self.DEFAULT_TIMEOUTS)
-        self.auto_approve_on_timeout = auto_approve_on_timeout or dict(self.DEFAULT_AUTO_APPROVE_ON_TIMEOUT)
+        self.auto_approve_on_timeout = auto_approve_on_timeout or dict(
+            self.DEFAULT_AUTO_APPROVE_ON_TIMEOUT
+        )
 
         self._requests: dict[str, MCPApprovalRequest] = {}
         self._hitl_to_mcp: dict[str, str] = {}  # hitl_event_id -> request_id
@@ -233,7 +236,8 @@ class MCPHITLBridge:
         now = time.time()
 
         requests_to_check = (
-            [self._requests[request_id]] if request_id and request_id in self._requests
+            [self._requests[request_id]]
+            if request_id and request_id in self._requests
             else [r for r in self._requests.values() if r.status == "pending"]
         )
 
@@ -369,4 +373,6 @@ def request_mcp_approval(
         MCPApprovalRequest with the HITL event and request information.
     """
     bridge = get_mcp_hitl_bridge()
-    return bridge.create_approval_request(agent_id, mcp_server, tool_name, args, risk_score, hitl_type)
+    return bridge.create_approval_request(
+        agent_id, mcp_server, tool_name, args, risk_score, hitl_type
+    )

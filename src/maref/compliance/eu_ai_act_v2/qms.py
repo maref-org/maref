@@ -86,10 +86,7 @@ class QMSManager:
         If a document with the same title already exists and is not superseded,
         the new version supersedes the old one (auto-increment major version).
         """
-        existing = [
-            d for d in self._documents.values()
-            if d.title == title and not d.superseded_by
-        ]
+        existing = [d for d in self._documents.values() if d.title == title and not d.superseded_by]
         if existing:
             old = existing[0]
             parts = old.version.split(".")
@@ -195,11 +192,7 @@ class QMSManager:
             "deployment_config_change",
         ]
         detected = [c for c in high_risk_capabilities if capabilities.get(c, False)]
-        risk_level = (
-            "high" if len(detected) >= 2
-            else "medium" if len(detected) == 1
-            else "low"
-        )
+        risk_level = "high" if len(detected) >= 2 else "medium" if len(detected) == 1 else "low"
 
         recommended_actions: list[str] = []
         if risk_level == "high":
@@ -219,8 +212,10 @@ class QMSManager:
         """Generate an overall QMS summary."""
         total_findings = sum(len(a.findings) for a in self._audits.values())
         open_findings = sum(
-            1 for a in self._audits.values()
-            for f in a.findings if f.get("status", "open") != "closed"
+            1
+            for a in self._audits.values()
+            for f in a.findings
+            if f.get("status", "open") != "closed"
         )
 
         return {
@@ -239,8 +234,10 @@ class QMSManager:
         total_audits = len(self._audits)
         total_findings = sum(len(a.findings) for a in self._audits.values())
         open_findings = sum(
-            1 for a in self._audits.values()
-            for f in a.findings if f.get("status", "open") != "closed"
+            1
+            for a in self._audits.values()
+            for f in a.findings
+            if f.get("status", "open") != "closed"
         )
         closed_findings = total_findings - open_findings
 

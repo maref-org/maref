@@ -117,7 +117,9 @@ class MultiAgentCoordinator:
 
     # -- 执行 --
 
-    def run_all(self, task: str = "", parallel: bool = False, config: HarnessConfig | None = None) -> dict[str, HarnessResult]:
+    def run_all(
+        self, task: str = "", parallel: bool = False, config: HarnessConfig | None = None
+    ) -> dict[str, HarnessResult]:
         if parallel:
             return self._run_parallel(task, config)
         return self._run_sequential(task, config)
@@ -188,10 +190,15 @@ class MultiAgentCoordinator:
         total = len(results)
         succeeded = sum(1 for r in results.values() if r.status == HarnessStatus.SUCCEEDED)
         failed = sum(1 for r in results.values() if r.status == HarnessStatus.FAILED)
-        total_duration = max(
-            (self._agents[aid].finished_at - self._agents[aid].started_at)
-            for aid in results if aid in self._agents
-        ) if results else 0.0
+        total_duration = (
+            max(
+                (self._agents[aid].finished_at - self._agents[aid].started_at)
+                for aid in results
+                if aid in self._agents
+            )
+            if results
+            else 0.0
+        )
 
         per_agent: dict[str, dict[str, Any]] = {}
         for aid, r in results.items():

@@ -294,9 +294,7 @@ class ConstitutionGuard:
 
         # RL-012: Jurisdiction compliance — sanctioned jurisdictions blocked
         if juris is not None and juris.sanctions_active:
-            violations.append(
-                f"RL-012: jurisdiction {jurisdiction} is under sanctions"
-            )
+            violations.append(f"RL-012: jurisdiction {jurisdiction} is under sanctions")
             invariant_codes.append(InvariantCode.RL_012_JURISDICTION_COMPLIANCE)
 
         # RL-009: Data localization — data sovereignty jurisdictions require local residency

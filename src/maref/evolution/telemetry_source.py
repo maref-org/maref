@@ -117,8 +117,12 @@ class TelemetryAggregator:
     def recompute_globals(self) -> GlobalMetrics:
         if not self._batches:
             return GlobalMetrics(
-                deployments=0, total_events=0, time_window_hours=0.0,
-                global_fnr=0.0, global_fpr=0.0, global_avg_entropy=0.0,
+                deployments=0,
+                total_events=0,
+                time_window_hours=0.0,
+                global_fnr=0.0,
+                global_fpr=0.0,
+                global_avg_entropy=0.0,
             )
 
         deployments = len({b.deployment_id for b in self._batches})
@@ -127,9 +131,9 @@ class TelemetryAggregator:
 
         weighted_fnr = sum(b.fnr * b.total_entries for b in self._batches) / max(total_events, 1)
         weighted_fpr = sum(b.fpr * b.total_entries for b in self._batches) / max(total_events, 1)
-        weighted_entropy = sum(
-            b.avg_entropy * b.total_entries for b in self._batches
-        ) / max(total_events, 1)
+        weighted_entropy = sum(b.avg_entropy * b.total_entries for b in self._batches) / max(
+            total_events, 1
+        )
 
         fnr_trend = self._compute_trend(self._fnr_history)
         fpr_trend = self._compute_trend(self._fpr_history)
@@ -146,7 +150,9 @@ class TelemetryAggregator:
         )
 
     @staticmethod
-    def _compute_trend(history: list[float], window: int = 5) -> Literal["improving", "stable", "degrading"]:
+    def _compute_trend(
+        history: list[float], window: int = 5
+    ) -> Literal["improving", "stable", "degrading"]:
         if len(history) < window:
             return "stable"
         recent = history[-window:]

@@ -87,7 +87,8 @@ def governed(
             if pipeline is None:
                 logger.warning(
                     "No governance pipeline set for @governed(%s) on %s — allowing",
-                    action_name, func.__qualname__,
+                    action_name,
+                    func.__qualname__,
                 )
                 return func(*args, **kwargs)
 
@@ -105,7 +106,9 @@ def governed(
                 event = result.hitl_event_id
                 logger.info(
                     "HITL requested for %s on %s (event=%s)",
-                    action_name, func.__qualname__, event,
+                    action_name,
+                    func.__qualname__,
+                    event,
                 )
 
             return func(*args, **kwargs)

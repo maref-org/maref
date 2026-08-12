@@ -139,7 +139,7 @@ class ScreenshotVerifier:
         return VerificationResult(
             passed=passed,
             method=VerificationMethod.SCREENSHOT_DIFF,
-            details=f"Diff: {diff_pct*100:.2f}% ({diff_pixels}/{total_pixels} pixels)",
+            details=f"Diff: {diff_pct * 100:.2f}% ({diff_pixels}/{total_pixels} pixels)",
             before_image=before,
             after_image=after,
             diff_image=diff_img,

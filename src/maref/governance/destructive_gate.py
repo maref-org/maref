@@ -36,39 +36,72 @@ class GateVerdict(str, Enum):
 # names and stringified arguments. These fire the gate by default.
 DESTRUCTIVE_PATTERNS: list[str] = [
     # File system destruction
-    "rm ", "rm -rf", "rmdir", "unlink",
+    "rm ",
+    "rm -rf",
+    "rmdir",
+    "unlink",
     # Database destruction
-    "drop ", "drop table", "drop database",
-    "delete ", "delete from", "truncate",
+    "drop ",
+    "drop table",
+    "drop database",
+    "delete ",
+    "delete from",
+    "truncate",
     # Storage destruction
-    "format", "mkfs", "fdisk", "dd ",
+    "format",
+    "mkfs",
+    "fdisk",
+    "dd ",
     # Permission escalation
-    "chmod 0", "chmod 777", "chown",
+    "chmod 0",
+    "chmod 777",
+    "chown",
     # Bulk mutation
-    "update ", "update set",
+    "update ",
+    "update set",
     # Infrastructure destruction
-    "terraform destroy", "kubectl delete",
-    "aws s3 rb", "gsutil rm",
+    "terraform destroy",
+    "kubectl delete",
+    "aws s3 rb",
+    "gsutil rm",
     # Resource control
-    "sudo ", "su ",
+    "sudo ",
+    "su ",
     # Agent self-modification
-    "uninstall", "remove --purge",
+    "uninstall",
+    "remove --purge",
     # Federation-level destructive
-    "expel", "decommission", "secede",
+    "expel",
+    "decommission",
+    "secede",
 ]
 
 DESTRUCTIVE_TOOL_NAMES: list[str] = [
-    "shell", "bash", "exec", "system", "spawn",
-    "delete_file", "remove_file", "write_file",
-    "execute_sql", "run_query",
-    "deploy", "destroy", "terminate",
-    "batch_update", "bulk_delete",
+    "shell",
+    "bash",
+    "exec",
+    "system",
+    "spawn",
+    "delete_file",
+    "remove_file",
+    "write_file",
+    "execute_sql",
+    "run_query",
+    "deploy",
+    "destroy",
+    "terminate",
+    "batch_update",
+    "bulk_delete",
 ]
 
 # Operations that get HITL_REQUIRED automatically
 HIGH_RISK_TOOLS: list[str] = [
-    "shell", "bash", "exec", "system",
-    "terraform", "kubectl",
+    "shell",
+    "bash",
+    "exec",
+    "system",
+    "terraform",
+    "kubectl",
 ]
 
 
@@ -106,17 +139,21 @@ class GateDecision:
 
     def evidence_message(self) -> bytes:
         """Canonical evidence message for Ed25519 signing."""
-        return json.dumps({
-            "decision_id": self.decision_id,
-            "operation": self.operation,
-            "tool_name": self.tool_name,
-            "verdict": self.verdict.value,
-            "severity": self.severity,
-            "reason": self.reason,
-            "agent_id": self.agent_id,
-            "timestamp": self.timestamp,
-            "hitl_approved": self.hitl_approved,
-        }, sort_keys=True, separators=(",", ":")).encode()
+        return json.dumps(
+            {
+                "decision_id": self.decision_id,
+                "operation": self.operation,
+                "tool_name": self.tool_name,
+                "verdict": self.verdict.value,
+                "severity": self.severity,
+                "reason": self.reason,
+                "agent_id": self.agent_id,
+                "timestamp": self.timestamp,
+                "hitl_approved": self.hitl_approved,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
 
     def verify_evidence(self, public_key_pem: str) -> bool:
         """Verify the Ed25519 signature on this decision.
@@ -130,6 +167,7 @@ class GateDecision:
         if not self.signature or self.signature in ("unsigned", "sign_error"):
             return False
         from maref.crypto.ed25519_keys import Ed25519KeyPair
+
         try:
             return Ed25519KeyPair.verify(
                 public_key_pem,
@@ -307,8 +345,7 @@ class DestructiveOperationGate:
         decision.hitl_approved = approved
         decision.verdict = GateVerdict.ALLOW if approved else GateVerdict.BLOCK
         decision.reason = (
-            f"Human {approver_id} approved" if approved
-            else f"Human {approver_id} denied"
+            f"Human {approver_id} approved" if approved else f"Human {approver_id} denied"
         )
         decision.timestamp = time.time()
 
@@ -336,7 +373,9 @@ class DestructiveOperationGate:
             pass
 
     def recent_decisions(
-        self, count: int = 10, verdict: GateVerdict | None = None,
+        self,
+        count: int = 10,
+        verdict: GateVerdict | None = None,
     ) -> list[GateDecision]:
         """Return recent decisions, optionally filtered by verdict."""
         filtered = self._decisions

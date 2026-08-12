@@ -39,7 +39,9 @@ class LintTool(Tool[LintInput, LintOutput]):
 
     async def validate(self, input: LintInput) -> ValidationResult:
         if input.tool_name not in {"ruff", "mypy"}:
-            return ValidationResult(is_valid=False, message=f"Unsupported lint tool: {input.tool_name}")
+            return ValidationResult(
+                is_valid=False, message=f"Unsupported lint tool: {input.tool_name}"
+            )
         if not os.path.exists(input.file_path):
             return ValidationResult(is_valid=False, message=f"Path not found: {input.file_path}")
         return ValidationResult(is_valid=True)
@@ -50,14 +52,21 @@ class LintTool(Tool[LintInput, LintOutput]):
         try:
             if input.tool_name == "ruff":
                 process = await asyncio.create_subprocess_exec(
-                    sys.executable, "-m", "ruff", "check", input.file_path,
+                    sys.executable,
+                    "-m",
+                    "ruff",
+                    "check",
+                    input.file_path,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
                 )
             else:
                 process = await asyncio.create_subprocess_exec(
-                    sys.executable, "-m", "mypy", input.file_path,
+                    sys.executable,
+                    "-m",
+                    "mypy",
+                    input.file_path,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,

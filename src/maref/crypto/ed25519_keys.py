@@ -96,7 +96,9 @@ class Ed25519KeyPair:
             ) from None
 
     @classmethod
-    def from_private_key_file(cls, path: str | Path, check_permissions: bool = True) -> Ed25519KeyPair:
+    def from_private_key_file(
+        cls, path: str | Path, check_permissions: bool = True
+    ) -> Ed25519KeyPair:
         """Load a key pair from a PEM-encoded private key file.
 
         Args:

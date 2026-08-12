@@ -42,8 +42,9 @@ class SubgoalInterceptor:
         self._rollback_manager = SubgoalRollbackManager()
         self._interception_history: list[dict[str, Any]] = []
 
-    def intercept(self, session_id: str, token_stream: list[str],
-                  task_description: str = "root") -> tuple[InterceptorAction, dict[str, Any]]:
+    def intercept(
+        self, session_id: str, token_stream: list[str], task_description: str = "root"
+    ) -> tuple[InterceptorAction, dict[str, Any]]:
         cot_report = self._cot_monitor.monitor_stream(session_id, token_stream)
         goal_dag = self._goal_inferencer.expand_goals(cot_report)
         control_risk = self._goal_inferencer.detect_control_subgoal(goal_dag)
@@ -51,9 +52,7 @@ class SubgoalInterceptor:
         # P5.2: register DAG and snapshot each node for cascade rollback
         self._rollback_manager.register_dag(goal_dag)
         for node_id in goal_dag.nodes:
-            self._rollback_manager.snapshot(
-                node_id, self._circuit_breaker, self._state_machine
-            )
+            self._rollback_manager.snapshot(node_id, self._circuit_breaker, self._state_machine)
 
         sg_assessment: ThreatAssessment | None = None
         if self._safety_gate:
@@ -63,14 +62,9 @@ class SubgoalInterceptor:
                 capabilities=capabilities,
             )
 
-        action, metadata = self._decide_action(
-            cot_report, control_risk, sg_assessment
-        )
+        action, metadata = self._decide_action(cot_report, control_risk, sg_assessment)
         # P5.2: escalate HALT to ROLLBACK when snapshots exist for cascade
-        if (
-            action == InterceptorAction.HALT
-            and self._rollback_manager.snapshot_count > 0
-        ):
+        if action == InterceptorAction.HALT and self._rollback_manager.snapshot_count > 0:
             action = InterceptorAction.ROLLBACK
             metadata["escalated_from"] = "halt"
         self._apply_governance_action(action, control_risk, cot_report)
@@ -91,8 +85,9 @@ class SubgoalInterceptor:
     def get_history(self) -> list[dict[str, Any]]:
         return list(self._interception_history)
 
-    def _decide_action(self, cot: CoTReport, control: ControlRiskReport,
-                        sg: ThreatAssessment | None) -> tuple[InterceptorAction, dict[str, Any]]:
+    def _decide_action(
+        self, cot: CoTReport, control: ControlRiskReport, sg: ThreatAssessment | None
+    ) -> tuple[InterceptorAction, dict[str, Any]]:
         risk = max(cot.risk_score, control.risk_score)
 
         if sg is not None and sg.blocked:
@@ -105,14 +100,16 @@ class SubgoalInterceptor:
 
         creep = self._delegation_graph.detect_scope_creep("active")
         if creep.requires_cooldown and control.control_goal_count > 0:
-            return InterceptorAction.SLOW, {"reason": "delegation_scope_creep",
-                                            "delegation_creep": True}
+            return InterceptorAction.SLOW, {
+                "reason": "delegation_scope_creep",
+                "delegation_creep": True,
+            }
 
         return InterceptorAction.ALLOW, {"reason": "low_risk"}
 
-    def _apply_governance_action(self, action: InterceptorAction,
-                                  control: ControlRiskReport,
-                                  cot: CoTReport) -> None:
+    def _apply_governance_action(
+        self, action: InterceptorAction, control: ControlRiskReport, cot: CoTReport
+    ) -> None:
         if action == InterceptorAction.ALLOW:
             return
 

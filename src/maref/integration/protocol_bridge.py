@@ -79,7 +79,9 @@ class MCPToA2ABridge:
         # 2. 调用 MCP Tool — 宪法第十五-A条: 注入 MCP 消息信封
         req = JSONRPCRequest(
             method="tools/call",
-            params=inject_envelope({"name": tool_name, "arguments": arguments}, source_agent="protocol-bridge"),
+            params=inject_envelope(
+                {"name": tool_name, "arguments": arguments}, source_agent="protocol-bridge"
+            ),
             id=1,
         )
         resp = self.mcp_server.handle_request(req)

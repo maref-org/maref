@@ -64,8 +64,10 @@ class GovernedPipeline:
         # 1. Audit logger with HMAC
         hmac_key = hmac_key or os.environ.get("MAREF_HMAC_SECRET_KEY")
         resolved_key: bytes | None = (
-            hmac_key.encode("utf-8") if isinstance(hmac_key, str) else hmac_key
-        ) if hmac_key else None
+            (hmac_key.encode("utf-8") if isinstance(hmac_key, str) else hmac_key)
+            if hmac_key
+            else None
+        )
         self.audit = AuditLogger(
             log_path=audit_path or Path("governance_audit.jsonl"),
             hmac_key=resolved_key,
@@ -80,9 +82,14 @@ class GovernedPipeline:
         self.permission = permission or PermissionMatrix()
 
         # 4. Circuit breaker pool (per-tenant/per-agent/per-action)
-        self.cb_pool = cb_pool or (lambda: (
-            __import__("maref.gaas.cb_pool", fromlist=["CircuitBreakerPool"]).CircuitBreakerPool()
-        ))()
+        self.cb_pool = (
+            cb_pool
+            or (
+                lambda: __import__(
+                    "maref.gaas.cb_pool", fromlist=["CircuitBreakerPool"]
+                ).CircuitBreakerPool()
+            )()
+        )
 
         # 5. v0.47/v0.48 governance gates (W1: unified closed-loop assembly)
         from maref.governance.audit_bus import AuditBus
@@ -93,9 +100,7 @@ class GovernedPipeline:
         # the pipeline audits into, closing the loop (W2).
         self.audit_bus = AuditBus()
         self.boundary = boundary if boundary is not None else TrustBoundaryManager()
-        self.task_preflight = (
-            task_preflight if task_preflight is not None else TaskPreflight()
-        )
+        self.task_preflight = task_preflight if task_preflight is not None else TaskPreflight()
         if behavior_probe is not None:
             self.behavior_probe = behavior_probe
         else:
@@ -103,9 +108,7 @@ class GovernedPipeline:
                 assemble_runtime_behavior_probe,
             )
 
-            self.behavior_probe = assemble_runtime_behavior_probe(
-                audit_bus=self.audit_bus
-            )
+            self.behavior_probe = assemble_runtime_behavior_probe(audit_bus=self.audit_bus)
         if consensus is not None:
             self.consensus = consensus
         else:

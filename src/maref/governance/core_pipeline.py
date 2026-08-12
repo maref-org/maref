@@ -80,7 +80,10 @@ class GovernancePipeline:
         trust_callback: Callable[[str, str, float, str], None] | None = None,
         cb_check_callback: Callable[[str, str, str, int], bool] | None = None,
         cb_record_callback: Callable[[str, str, str, bool], None] | None = None,
-        policy_rules: list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]] | None = None,
+        policy_rules: list[
+            tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]
+        ]
+        | None = None,
         boundary: Any | None = None,
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
@@ -98,7 +101,9 @@ class GovernancePipeline:
         self._boundary = boundary
 
     @staticmethod
-    def _default_policy_rules() -> list[tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]]:
+    def _default_policy_rules() -> list[
+        tuple[int, Callable[[GovernanceRequest], tuple[Verdict, str, HITLTier | None]]]
+    ]:
         """Default policy rules, highest priority first."""
 
         from maref.integration.hitl import HITLTier as _HITLTier
@@ -107,7 +112,11 @@ class GovernancePipeline:
             dangerous = {"file.delete", "shell.exec", "system.shutdown", "registry.modify"}
             if req.action in dangerous:
                 if req.trust_score < 70:
-                    return Verdict.ASK_USER, "Dangerous action requires approval", _HITLTier.P0_RESPONSE
+                    return (
+                        Verdict.ASK_USER,
+                        "Dangerous action requires approval",
+                        _HITLTier.P0_RESPONSE,
+                    )
                 return Verdict.ALLOW, "Dangerous action allowed for trusted agent", None
             return Verdict.ALLOW, "", None
 
@@ -119,18 +128,30 @@ class GovernancePipeline:
         def p1_git_commit(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.action == "git.commit":
                 if req.trust_score < 80:
-                    return Verdict.ASK_USER, "git.commit requires approval for untrusted agents", _HITLTier.P1_ESCALATE
+                    return (
+                        Verdict.ASK_USER,
+                        "git.commit requires approval for untrusted agents",
+                        _HITLTier.P1_ESCALATE,
+                    )
                 return Verdict.ALLOW, "git.commit allowed for trusted agent", None
             return Verdict.ALLOW, "", None
 
         def p1_recursion_depth(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.recursion_depth > 2:
-                return Verdict.ASK_USER, f"High recursion depth ({req.recursion_depth})", _HITLTier.P1_ESCALATE
+                return (
+                    Verdict.ASK_USER,
+                    f"High recursion depth ({req.recursion_depth})",
+                    _HITLTier.P1_ESCALATE,
+                )
             return Verdict.ALLOW, "", None
 
         def p2_low_trust(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
             if req.trust_score < 30:
-                return Verdict.DENY, f"Trust score too low ({req.trust_score:.0f})", _HITLTier.P2_LOG
+                return (
+                    Verdict.DENY,
+                    f"Trust score too low ({req.trust_score:.0f})",
+                    _HITLTier.P2_LOG,
+                )
             return Verdict.ALLOW, "", None
 
         def p3_default_allow(req: GovernanceRequest) -> tuple[Verdict, str, HITLTier | None]:
@@ -249,13 +270,19 @@ class GovernancePipeline:
         # 7. Trust score update
         if self._trust_callback:
             if verdict == Verdict.ALLOW:
-                self._trust_callback(req.tenant_id, req.agent_id, min(100.0, req.trust_score + 0.5), "pipeline:allow")
+                self._trust_callback(
+                    req.tenant_id, req.agent_id, min(100.0, req.trust_score + 0.5), "pipeline:allow"
+                )
             elif verdict == Verdict.DENY:
-                self._trust_callback(req.tenant_id, req.agent_id, max(0.0, req.trust_score - 1.0), "pipeline:deny")
+                self._trust_callback(
+                    req.tenant_id, req.agent_id, max(0.0, req.trust_score - 1.0), "pipeline:deny"
+                )
 
         # 8. Circuit breaker record
         if self._cb_record_callback:
-            self._cb_record_callback(req.tenant_id, req.agent_id, req.action, verdict == Verdict.ALLOW)
+            self._cb_record_callback(
+                req.tenant_id, req.agent_id, req.action, verdict == Verdict.ALLOW
+            )
 
         result.latency_ms = int((time.time() - start) * 1000)
         return result

@@ -220,18 +220,12 @@ class FederationCascadeBreaker:
     def degraded_agents(self) -> list[str]:
         """Return agents currently in the ``DEGRADED`` state."""
         with self._lock:
-            return [
-                aid for aid, s in self._states.items()
-                if s == CascadeStatus.DEGRADED
-            ]
+            return [aid for aid, s in self._states.items() if s == CascadeStatus.DEGRADED]
 
     def isolated_agents(self) -> list[str]:
         """Return agents currently in the ``ISOLATED`` state."""
         with self._lock:
-            return [
-                aid for aid, s in self._states.items()
-                if s == CascadeStatus.ISOLATED
-            ]
+            return [aid for aid, s in self._states.items() if s == CascadeStatus.ISOLATED]
 
     def summary(self) -> dict[str, Any]:
         """Return a summary of the cascade breaker state."""
@@ -242,9 +236,7 @@ class FederationCascadeBreaker:
             return {
                 "total_agents": len(self._states),
                 "status_counts": counts,
-                "dependency_edges": sum(
-                    len(u) for u in self._dependencies.values()
-                ),
+                "dependency_edges": sum(len(u) for u in self._dependencies.values()),
                 "propagate_secondary": self._propagate_secondary,
                 "cooldown_seconds": self._cooldown,
                 "max_failures": self._max_failures,
@@ -297,8 +289,7 @@ class FederationCascadeBreaker:
             event_type="federation_cascade_isolated",
             actor="FederationCascadeBreaker",
             action="isolate",
-            details=f"Isolated agent {agent_id}: {reason}; "
-                    f"affected {len(affected) - 1} dependents",
+            details=f"Isolated agent {agent_id}: {reason}; affected {len(affected) - 1} dependents",
             metadata={
                 "agent_id": agent_id,
                 "reason": reason,
@@ -339,9 +330,7 @@ class FederationCascadeBreaker:
         import random
 
         jitter = random.uniform(0, self._cooldown * 0.2)
-        return (time.time() - self._last_trip_time.get(agent_id, 0.0)) > (
-            self._cooldown + jitter
-        )
+        return (time.time() - self._last_trip_time.get(agent_id, 0.0)) > (self._cooldown + jitter)
 
     def _audit(
         self,

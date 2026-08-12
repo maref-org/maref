@@ -177,9 +177,7 @@ class SentinelMitmAddon:
                 resp_headers = {k.lower(): v for k, v in response.headers.items()}
                 status_code = response.status_code
                 if not self._degraded:
-                    resp_body = bytes(response.get_content() or b"")[
-                        : self._max_body_capture
-                    ]
+                    resp_body = bytes(response.get_content() or b"")[: self._max_body_capture]
 
             return FlowRecord(
                 flow_id=str(uuid.uuid4()),

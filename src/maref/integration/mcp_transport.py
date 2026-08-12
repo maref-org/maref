@@ -345,9 +345,7 @@ class SSETransport(MCPTransport):
 
                         if line == "":
                             if current_event and current_data:
-                                self._process_event(
-                                    current_event, "\n".join(current_data)
-                                )
+                                self._process_event(current_event, "\n".join(current_data))
                             current_event = ""
                             current_data = []
                         elif line.startswith("event:"):
@@ -356,9 +354,7 @@ class SSETransport(MCPTransport):
                             current_data.append(line[5:].strip())
 
                     if current_event and current_data:
-                        self._process_event(
-                            current_event, "\n".join(current_data)
-                        )
+                        self._process_event(current_event, "\n".join(current_data))
 
                 # Connection closed cleanly — reconnect if still running
                 if self._running.is_set():

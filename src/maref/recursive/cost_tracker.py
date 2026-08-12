@@ -186,7 +186,9 @@ class BudgetGuard:
     emergency halting, and optional MetricStore persistence.
     """
 
-    def __init__(self, default_budget: float = 100.0, metric_store: MetricStore | None = None) -> None:
+    def __init__(
+        self, default_budget: float = 100.0, metric_store: MetricStore | None = None
+    ) -> None:
         """Initialize the budget guard.
 
         Args:
@@ -321,11 +323,7 @@ class BudgetGuard:
             period: Period identifier (e.g. 'daily', 'monthly').
         """
         self._force_breaks.clear()
-        stale = [
-            aid
-            for aid, alloc in self._allocations.items()
-            if agent_id in alloc.task_id
-        ]
+        stale = [aid for aid, alloc in self._allocations.items() if agent_id in alloc.task_id]
         for aid in stale:
             self._allocations.pop(aid, None)
         if agent_id in self._agent_budgets:
@@ -393,8 +391,14 @@ class CostTracker:
         self._metric_store = metric_store
 
     def track(
-        self, operation: str, cost: float, agent_id: str, task_id: str = "",
-        allocation_id: str = "", team: str = "", project: str = "",
+        self,
+        operation: str,
+        cost: float,
+        agent_id: str,
+        task_id: str = "",
+        allocation_id: str = "",
+        team: str = "",
+        project: str = "",
     ) -> None:
         """Record a cost tracking event.
 
@@ -426,9 +430,16 @@ class CostTracker:
         if self._metric_store:
             try:
                 self._metric_store.record(
-                    "cost", cost,
-                    labels={"operation": operation, "task_id": task_id, "team": team, "project": project},
-                    agent_id=agent_id, table="cost_metrics",
+                    "cost",
+                    cost,
+                    labels={
+                        "operation": operation,
+                        "task_id": task_id,
+                        "team": team,
+                        "project": project,
+                    },
+                    agent_id=agent_id,
+                    table="cost_metrics",
                 )
             except Exception as exc:
                 logger.warning("Failed to record cost metric: %s", exc)
@@ -532,7 +543,9 @@ class CostTracker:
 
         return flags
 
-    def get_cost_report(self, agent_id: str | None = None, since: str | None = None) -> dict[str, Any]:
+    def get_cost_report(
+        self, agent_id: str | None = None, since: str | None = None
+    ) -> dict[str, Any]:
         """Get a cost report, optionally from MetricStore persistence.
 
         Args:
@@ -544,7 +557,9 @@ class CostTracker:
         """
         if self._metric_store:
             try:
-                results = self._metric_store.query("cost", agent_id=agent_id, since=since, table="cost_metrics")
+                results = self._metric_store.query(
+                    "cost", agent_id=agent_id, since=since, table="cost_metrics"
+                )
                 return {
                     "agent_id": agent_id or "all",
                     "total_cost": sum(r["value"] for r in results),

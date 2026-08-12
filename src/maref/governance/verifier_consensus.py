@@ -114,8 +114,10 @@ class VerifierConsensus:
             total_weight += weight
 
         passed = self._apply_strategy(
-            approvals, len(verifiers),
-            weighted_approvals, total_weight,
+            approvals,
+            len(verifiers),
+            weighted_approvals,
+            total_weight,
             strategy,
         )
         agreement = weighted_approvals / total_weight if total_weight > 0 else 0.0

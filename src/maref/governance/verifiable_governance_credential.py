@@ -71,9 +71,7 @@ class VerifiableGovernanceCredential:
             if dim not in GOVERNANCE_SCOPES:
                 raise ValueError(f"未知治理维度: {dim!r}")
         proof_dict = (
-            merkle_proof.to_dict()
-            if isinstance(merkle_proof, FederatedProof)
-            else merkle_proof
+            merkle_proof.to_dict() if isinstance(merkle_proof, FederatedProof) else merkle_proof
         )
         now = time.time()
         cred = cls(
@@ -158,9 +156,7 @@ class VerifiableGovernanceCredential:
     ) -> None:
         """以新审计证明刷新凭证，反映最新治理状态；保留 credential_id 以保证可追溯。"""
         self.merkle_proof = (
-            merkle_proof.to_dict()
-            if isinstance(merkle_proof, FederatedProof)
-            else merkle_proof
+            merkle_proof.to_dict() if isinstance(merkle_proof, FederatedProof) else merkle_proof
         )
         self.renew(signing_key, ttl_seconds=ttl_seconds)
 
@@ -267,9 +263,7 @@ class GovernanceCredentialStore:
     def get(self, credential_id: str) -> VerifiableGovernanceCredential | None:
         return self._credentials.get(credential_id)
 
-    def revoke(
-        self, credential_id: str, reason: str = "unspecified", source: str = ""
-    ) -> None:
+    def revoke(self, credential_id: str, reason: str = "unspecified", source: str = "") -> None:
         if credential_id not in self._credentials:
             raise ValueError(f"凭证 {credential_id} 不存在")
         self._revoked[credential_id] = reason
@@ -365,17 +359,11 @@ class GovernanceCredentialStore:
         pub = data.get("signer_public_key_pem", "")
         if not sig or not pub:
             return False
-        body = {
-            k: v
-            for k, v in data.items()
-            if k not in ("signature", "signer_public_key_pem")
-        }
+        body = {k: v for k, v in data.items() if k not in ("signature", "signer_public_key_pem")}
         payload = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
         return ReportSigningKey.verify_signature(pub, sig, payload)
 
-    def list_valid(
-        self, now: float | None = None
-    ) -> list[VerifiableGovernanceCredential]:
+    def list_valid(self, now: float | None = None) -> list[VerifiableGovernanceCredential]:
         cur = now if now is not None else time.time()
         return [
             c
@@ -389,9 +377,7 @@ class GovernanceCredentialStore:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "credentials": {
-                cid: c.to_dict() for cid, c in self._credentials.items()
-            },
+            "credentials": {cid: c.to_dict() for cid, c in self._credentials.items()},
             "revoked": dict(self._revoked),
             "revoked_sources": dict(self._revoked_sources),
         }
@@ -436,9 +422,7 @@ class GovernanceCredentialStore:
         """以权威快照覆盖本地吊销表（外部列表是全量真值，非增量）。"""
         self._revoked = dict(json.loads(Path(path).read_text(encoding="utf-8")))
 
-    def load_signed_revocation_list(
-        self, path: str | Path
-    ) -> dict[str, Any]:
+    def load_signed_revocation_list(self, path: str | Path) -> dict[str, Any]:
         """读取并校验签名吊销列表，无效时抛 ValueError；有效则覆盖本地吊销表。"""
         data = json.loads(Path(path).read_text(encoding="utf-8"))
         if not self.verify_signed_revocation_list(data):

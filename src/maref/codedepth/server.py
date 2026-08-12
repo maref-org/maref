@@ -77,7 +77,14 @@ def create_code_depth_server(
     def _references(args: dict[str, Any]) -> dict[str, Any]:
         sym = (args.get("symbol_name") or "").strip()
         if not sym:
-            return {"error": "symbol_name is required", "symbol": "", "calls": [], "imports": [], "definitions": [], "total": 0}
+            return {
+                "error": "symbol_name is required",
+                "symbol": "",
+                "calls": [],
+                "imports": [],
+                "definitions": [],
+                "total": 0,
+            }
         return indexer.get_references(sym)
 
     server.register_tool(
@@ -99,7 +106,11 @@ def create_code_depth_server(
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "符号名称搜索关键词"},
-                "kind": {"type": "string", "description": "过滤类型: function, class, method, import", "enum": ["function", "class", "method", "import", ""]},
+                "kind": {
+                    "type": "string",
+                    "description": "过滤类型: function, class, method, import",
+                    "enum": ["function", "class", "method", "import", ""],
+                },
                 "limit": {"type": "integer", "description": "最大返回数"},
             },
             "required": ["query"],
@@ -112,7 +123,10 @@ def create_code_depth_server(
         {
             "type": "object",
             "properties": {
-                "file_path": {"type": "string", "description": "文件路径（相对于仓库根或绝对路径）"},
+                "file_path": {
+                    "type": "string",
+                    "description": "文件路径（相对于仓库根或绝对路径）",
+                },
             },
             "required": ["file_path"],
         },
@@ -160,12 +174,15 @@ def create_code_depth_server(
 
 # ── 独立 stdio 入口 ────────────────────────────────────────
 
+
 def _stdio_handle(server: MCPServer, raw: str) -> str | None:
     """处理单个 JSON-RPC 请求，返回响应 JSON 字符串（或 None 表示通知）。"""
     try:
         msg = json.loads(raw)
     except json.JSONDecodeError:
-        return json.dumps({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None})
+        return json.dumps(
+            {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}
+        )
 
     req_id = msg.get("id", 0)
     method = msg.get("method", "")
@@ -173,20 +190,37 @@ def _stdio_handle(server: MCPServer, raw: str) -> str | None:
     if method == "initialize":
         client_version = (msg.get("params") or {}).get("protocolVersion", "2024-11-05")
         protocol_version = (
-            client_version if client_version in SUPPORTED_PROTOCOL_VERSIONS else SUPPORTED_PROTOCOL_VERSIONS[0]
+            client_version
+            if client_version in SUPPORTED_PROTOCOL_VERSIONS
+            else SUPPORTED_PROTOCOL_VERSIONS[0]
         )
-        return json.dumps({
-            "jsonrpc": "2.0", "id": req_id,
-            "result": {"protocolVersion": protocol_version, "serverInfo": {"name": "maref-codedepth", "version": "0.1.0"}},
-        })
+        return json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "protocolVersion": protocol_version,
+                    "serverInfo": {"name": "maref-codedepth", "version": "0.1.0"},
+                },
+            }
+        )
     if method == "server/discover":
-        return json.dumps({
-            "jsonrpc": "2.0", "id": req_id,
-            "result": {"protocolVersions": SUPPORTED_PROTOCOL_VERSIONS, "capabilities": {"tools": {}}, "serverInfo": {"name": "maref-codedepth", "version": "0.1.0"}},
-        })
+        return json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "protocolVersions": SUPPORTED_PROTOCOL_VERSIONS,
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "maref-codedepth", "version": "0.1.0"},
+                },
+            }
+        )
     if method == "tools/list":
-        tools = [{"name": t.name, "description": t.description, "inputSchema": t.input_schema}
-                 for t in server._tools.values()]
+        tools = [
+            {"name": t.name, "description": t.description, "inputSchema": t.input_schema}
+            for t in server._tools.values()
+        ]
         return json.dumps({"jsonrpc": "2.0", "id": req_id, "result": {"tools": tools}})
     if method == "tools/call":
         params = msg.get("params", {})
@@ -194,18 +228,24 @@ def _stdio_handle(server: MCPServer, raw: str) -> str | None:
         args = params.get("arguments", {})
         tool = server._tools.get(tool_name)
         if not tool:
-            return json.dumps({
-                "jsonrpc": "2.0", "id": req_id,
-                "error": {"code": -32601, "message": f"Tool not found: {tool_name}"},
-            })
+            return json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32601, "message": f"Tool not found: {tool_name}"},
+                }
+            )
         try:
             result = tool.handler(args)
             return json.dumps({"jsonrpc": "2.0", "id": req_id, "result": result})
         except RuntimeError as e:
-            return json.dumps({
-                "jsonrpc": "2.0", "id": req_id,
-                "error": {"code": -32000, "message": str(e)},
-            })
+            return json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32000, "message": str(e)},
+                }
+            )
     # 通知 / 其他方法 — 静默忽略
     return None
 

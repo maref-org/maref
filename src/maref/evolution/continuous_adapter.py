@@ -36,9 +36,12 @@ class ContinuousAdapter:
 
         try:
             import subprocess
+
             result = subprocess.run(
                 ["git", "status", "--short"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             current_metrics = {
                 "dirty_files": float(len(result.stdout.strip()) > 0),

@@ -221,9 +221,7 @@ class AICIdentityAdapter:
         aic_key = aic.aic_string
         existing_did = self._aic_to_did.get(aic_key)
         if existing_did is not None and existing_did != did:
-            raise ValueError(
-                f"AIC {aic_key} already bound to DID {existing_did.did_string}"
-            )
+            raise ValueError(f"AIC {aic_key} already bound to DID {existing_did.did_string}")
 
         self._did_to_aic[did] = aic
         self._aic_to_did[aic_key] = did
@@ -307,8 +305,7 @@ class AICIdentityAdapter:
     def list_mappings(self) -> list[dict[str, str]]:
         """Return all registered DID ↔ AIC mappings."""
         return [
-            {"did": did.did_string, "aic": aic.aic_string}
-            for did, aic in self._did_to_aic.items()
+            {"did": did.did_string, "aic": aic.aic_string} for did, aic in self._did_to_aic.items()
         ]
 
     @property
@@ -372,9 +369,7 @@ def compute_aic_checksum(
     Returns:
         Base36-encoded CRC-16 checksum string (lowercase, no padding).
     """
-    payload_str = ".".join(
-        [AIC_OID_ROOT, arsp, provider_id, ontology_seq, entity_seq, version]
-    )
+    payload_str = ".".join([AIC_OID_ROOT, arsp, provider_id, ontology_seq, entity_seq, version])
     crc = _crc16_ccitt_false(payload_str.encode("utf-8"))
     return _base36_encode(crc)
 
@@ -396,7 +391,7 @@ def _base36_encode(value: int) -> str:
 def _generate_entity_seq() -> str:
     """Generate a random entity sequence (Base36, fixed length)."""
     # Generate a random integer in [0, 36^9) and encode as Base36.
-    max_value = 36 ** _ENTITY_SEQ_LENGTH
+    max_value = 36**_ENTITY_SEQ_LENGTH
     value = secrets.randbelow(max_value)
     encoded = _base36_encode(value)
     # Left-pad with '0' to maintain fixed length.

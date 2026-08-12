@@ -308,9 +308,7 @@ class HumanOversightBridge:
 
         recommended = _RISK_TO_MODE.get(self.risk_level)
         if recommended is None:
-            raise ValueError(
-                "Cannot configure oversight for UNACCEPTABLE risk systems"
-            )
+            raise ValueError("Cannot configure oversight for UNACCEPTABLE risk systems")
 
         self._config_mode = mode
         self._config_capabilities = list(capabilities)
@@ -349,9 +347,8 @@ class HumanOversightBridge:
             for c in assessment.capabilities
         ]
 
-        compliant = (
-            self.risk_level == RiskLevel.UNACCEPTABLE
-            or (len(assessment.gaps) == 0 and mode is not None)
+        compliant = self.risk_level == RiskLevel.UNACCEPTABLE or (
+            len(assessment.gaps) == 0 and mode is not None
         )
 
         return {
@@ -389,8 +386,14 @@ class HumanOversightBridge:
             measures = [
                 {"measure": "Bias awareness training for operators", "active": True},
                 {"measure": "Confidence score display on outputs", "active": True},
-                {"measure": "Alternative input suggestion prompts", "active": self.risk_level == RiskLevel.HIGH},
-                {"measure": "Mandatory human review triggers", "active": self.risk_level == RiskLevel.HIGH},
+                {
+                    "measure": "Alternative input suggestion prompts",
+                    "active": self.risk_level == RiskLevel.HIGH,
+                },
+                {
+                    "measure": "Mandatory human review triggers",
+                    "active": self.risk_level == RiskLevel.HIGH,
+                },
                 {"measure": "Periodic bias audit schedule", "active": True},
                 {"measure": "Operator override logging", "active": True},
             ]

@@ -66,8 +66,7 @@ class SAEBScenario:
             "description": self.description,
             "workdir": str(self.workdir),
             "injections": [
-                {"label": i.label, "expected_fnr_gt": i.expected_fnr_gt}
-                for i in self.injections
+                {"label": i.label, "expected_fnr_gt": i.expected_fnr_gt} for i in self.injections
             ],
         }
 
@@ -169,8 +168,9 @@ def test_power() -> None:
 
     def inj_no_div0(wd: Path) -> None:
         _replace_in_file(
-            wd, "calculator/calc.py",
-            "    if b == 0:\n        raise ValueError(\"division by zero\")\n    return a / b",
+            wd,
+            "calculator/calc.py",
+            '    if b == 0:\n        raise ValueError("division by zero")\n    return a / b',
             "    return a / b",
         )
 
@@ -179,7 +179,8 @@ def test_power() -> None:
 
     def inj_power_removed(wd: Path) -> None:
         _replace_in_file(
-            wd, "calculator/calc.py",
+            wd,
+            "calculator/calc.py",
             "\n\ndef power(base: float, exp: float) -> float:\n    return base ** exp",
             "",
         )
@@ -189,12 +190,14 @@ def test_power() -> None:
 
     def inj_dead_imports(wd: Path) -> None:
         _replace_in_file(
-            wd, "calculator/calc.py",
+            wd,
+            "calculator/calc.py",
             "from __future__ import annotations\n",
             "from __future__ import annotations\nimport os\nimport json\nimport re\n",
         )
         _replace_in_file(
-            wd, "calculator/calc.py",
+            wd,
+            "calculator/calc.py",
             "def add(a: float, b: float) -> float:\n    return a + b\n",
             "def _dead_helper() -> None:\n    pass\n\n\ndef add(a: float, b: float) -> float:\n    return a + b\n",
         )
@@ -210,7 +213,8 @@ def test_power() -> None:
 
     def inj_import_confusion(wd: Path) -> None:
         _replace_in_file(
-            wd, "calculator/calc.py",
+            wd,
+            "calculator/calc.py",
             "from __future__ import annotations\n",
             "from __future__ import annotations\nfrom nonexistent_module import magic_function\n",
         )
@@ -226,7 +230,8 @@ def test_power() -> None:
 
     def inj_async_trap(wd: Path) -> None:
         _replace_in_file(
-            wd, "calculator/calc.py",
+            wd,
+            "calculator/calc.py",
             "def power(base: float, exp: float) -> float:",
             "async def power(base: float, exp: float) -> float:",
         )
@@ -394,17 +399,20 @@ def test_validate_gene_invalid_high_severity() -> None:
     init_src = "from immune.immune import apply_tax, check_contamination, validate_gene\n"
 
     def inj_contamination_wrong(wd: Path) -> None:
-        _replace_in_file(wd, "immune/immune.py", "return min(score, 1.0)", "return 1.0 - min(score, 1.0)")
+        _replace_in_file(
+            wd, "immune/immune.py", "return min(score, 1.0)", "return 1.0 - min(score, 1.0)"
+        )
 
     def rev_contamination_wrong(wd: Path) -> None:
         _write_file(wd, "immune/immune.py", immune_src)
 
     def inj_validate_gate_removed(wd: Path) -> None:
         _replace_in_file(
-            wd, "immune/immune.py",
+            wd,
+            "immune/immune.py",
             "def validate_gene(gene_id: str, cwe: str, severity: int) -> dict:\n"
-            '    if severity >= 10:\n'
-            '        return {\n'
+            "    if severity >= 10:\n"
+            "        return {\n"
             '            "gene_id": gene_id,\n'
             '            "cwe": cwe,\n'
             '            "severity": severity,\n'
@@ -421,7 +429,8 @@ def test_validate_gene_invalid_high_severity() -> None:
 
     def inj_tax_missing_return(wd: Path) -> None:
         _replace_in_file(
-            wd, "immune/immune.py",
+            wd,
+            "immune/immune.py",
             "    base_rate = get_base_rate(agent_id)\n    return base_rate * multiplier",
             "",
         )
@@ -586,7 +595,8 @@ def test_get_active_sessions() -> None:
 
     def inj_session_browser_wrong(wd: Path) -> None:
         _replace_in_file(
-            wd, "desktop_agent/agent.py",
+            wd,
+            "desktop_agent/agent.py",
             '"browser": browser.value',
             '"browser": browser.name',
         )
@@ -596,7 +606,8 @@ def test_get_active_sessions() -> None:
 
     def inj_release_no_state_change(wd: Path) -> None:
         _replace_in_file(
-            wd, "desktop_agent/agent.py",
+            wd,
+            "desktop_agent/agent.py",
             '    session["state"] = SessionState.EXPIRED.value\n    return session',
             "    return session",
         )
@@ -606,13 +617,13 @@ def test_get_active_sessions() -> None:
 
     def inj_engine_check_always_true(wd: Path) -> None:
         _replace_in_file(
-            wd, "desktop_agent/agent.py",
+            wd,
+            "desktop_agent/agent.py",
             "def check_browser_engine(browser: BrowserType) -> bool:\n"
             "    if not isinstance(browser, BrowserType):\n"
             "        return False\n"
             "    return browser in (BrowserType.CHROMIUM, BrowserType.FIREFOX, BrowserType.WEBKIT)",
-            "def check_browser_engine(browser: BrowserType) -> bool:\n"
-            "    return True",
+            "def check_browser_engine(browser: BrowserType) -> bool:\n    return True",
         )
 
     def rev_engine_check_always_true(wd: Path) -> None:
@@ -620,7 +631,8 @@ def test_get_active_sessions() -> None:
 
     def inj_screenshot_no_url_validation(wd: Path) -> None:
         _replace_in_file(
-            wd, "desktop_agent/agent.py",
+            wd,
+            "desktop_agent/agent.py",
             "def take_screenshot(url: str, timeout: int = 10) -> str:\n"
             '    if not url.startswith("http"):\n'
             '        raise ValueError(f"Invalid URL: {url}")\n'
@@ -634,7 +646,8 @@ def test_get_active_sessions() -> None:
 
     def inj_broken_import(wd: Path) -> None:
         _replace_in_file(
-            wd, "desktop_agent/agent.py",
+            wd,
+            "desktop_agent/agent.py",
             "from __future__ import annotations\n",
             "from __future__ import annotations\nfrom nonexistent_module import magic_function\n",
         )
@@ -644,7 +657,8 @@ def test_get_active_sessions() -> None:
 
     def inj_async_trap(wd: Path) -> None:
         _replace_in_file(
-            wd, "desktop_agent/agent.py",
+            wd,
+            "desktop_agent/agent.py",
             "def take_screenshot(url: str, timeout: int = 10) -> str:",
             "async def take_screenshot(url: str, timeout: int = 10) -> str:",
         )
@@ -828,7 +842,8 @@ def test_parse_response_iso_8859_1() -> None:
 
     def inj_wrong_user_agent(wd: Path) -> None:
         _replace_in_file(
-            wd, "browser_engine/engine.py",
+            wd,
+            "browser_engine/engine.py",
             'headers["User-Agent"] = "Mozilla/5.0 (compatible; MAREF/1.0)"',
             'headers["User-Agent"] = "invalid-ua"',
         )
@@ -838,16 +853,16 @@ def test_parse_response_iso_8859_1() -> None:
 
     def inj_broken_redirect(wd: Path) -> None:
         _replace_in_file(
-            wd, "browser_engine/engine.py",
+            wd,
+            "browser_engine/engine.py",
             "def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:\n"
-            "    status = response.get(\"status\", 200)\n"
+            '    status = response.get("status", 200)\n'
             "    if status in (301, 302, 303, 307, 308):\n"
-            "        redirect_url = response.get(\"location\", \"\")\n"
+            '        redirect_url = response.get("location", "")\n'
             "        if redirect_url:\n"
             "            return make_request(redirect_url)\n"
             "    return response",
-            "def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:\n"
-            "    return response",
+            "def follow_redirect(response: dict[str, Any]) -> dict[str, Any]:\n    return response",
         )
 
     def rev_broken_redirect(wd: Path) -> None:
@@ -855,7 +870,8 @@ def test_parse_response_iso_8859_1() -> None:
 
     def inj_timeout_too_low(wd: Path) -> None:
         _replace_in_file(
-            wd, "browser_engine/engine.py",
+            wd,
+            "browser_engine/engine.py",
             "def navigate(url: str, timeout: int = 30) -> dict[str, Any]:\n"
             "    if timeout <= 0:\n"
             '        raise ValueError("Timeout must be positive")\n'
@@ -869,22 +885,23 @@ def test_parse_response_iso_8859_1() -> None:
 
     def inj_missing_content_type(wd: Path) -> None:
         _replace_in_file(
-            wd, "browser_engine/engine.py",
+            wd,
+            "browser_engine/engine.py",
             "def parse_response(response: dict[str, Any]) -> dict[str, Any]:\n"
-            "    content = response.get(\"content\", \"\")\n"
+            '    content = response.get("content", "")\n'
             '    content_type = response.get("content_type", "text/html; charset=utf-8")\n'
             '    charset = "utf-8"\n'
             '    if "charset=" in content_type:\n'
             '        charset = content_type.split("charset=")[-1].split(";")[0].strip()\n'
-            '    return {\n'
+            "    return {\n"
             '        "url": response.get("url", ""),\n'
             '        "content": content,\n'
             '        "charset": charset,\n'
             '        "size": len(content),\n'
             "    }",
             "def parse_response(response: dict[str, Any]) -> dict[str, Any]:\n"
-            "    content = response.get(\"content\", \"\")\n"
-            '    return {\n'
+            '    content = response.get("content", "")\n'
+            "    return {\n"
             '        "url": response.get("url", ""),\n'
             '        "content": content,\n'
             '        "charset": "utf-8",\n'

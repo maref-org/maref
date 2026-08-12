@@ -75,12 +75,7 @@ class OrgDID:
         Raises ``ValueError`` for malformed identifiers (fail-closed).
         """
         parts = did_string.split(":")
-        if (
-            len(parts) != 5
-            or parts[0] != "did"
-            or parts[1] != "maref"
-            or parts[2] != "org"
-        ):
+        if len(parts) != 5 or parts[0] != "did" or parts[1] != "maref" or parts[2] != "org":
             raise ValueError(f"Invalid MAREF org DID: {did_string}")
         org_name, org_id = parts[3], parts[4]
         if not _ORG_NAME_RE.match(org_name):
@@ -93,9 +88,7 @@ class OrgDID:
     def generate(cls, org_name: str) -> OrgDID:
         """Create a new org DID with a random 8-hex-char org_id."""
         if not _ORG_NAME_RE.match(org_name):
-            raise ValueError(
-                "org_name must be 1-32 lowercase alphanumeric characters"
-            )
+            raise ValueError("org_name must be 1-32 lowercase alphanumeric characters")
         return cls(org_name=org_name, org_id=secrets.token_hex(4))
 
     def to_did_document(
@@ -263,9 +256,7 @@ class OrgDIDRegistry:
         assert self._db is not None
         rows = self._db.fetchall("SELECT did, data FROM org_certificates")
         for row in rows:
-            self._certificates[row["did"]] = OrgCertificate.from_dict(
-                json.loads(row["data"])
-            )
+            self._certificates[row["did"]] = OrgCertificate.from_dict(json.loads(row["data"]))
 
     def _persist(self, cert: OrgCertificate) -> None:
         if self._db is None:
@@ -290,9 +281,7 @@ class OrgDIDRegistry:
         callers controlling real org keys should pass ``public_key`` explicitly.
         """
         org_did = OrgDID.generate(org_name)
-        org_key = (
-            Ed25519KeyPair.generate() if public_key is None else public_key
-        )
+        org_key = Ed25519KeyPair.generate() if public_key is None else public_key
         cert = OrgCertificate(
             did=org_did.did_string,
             name=name or org_name,
@@ -381,9 +370,7 @@ class OrgDIDRegistry:
     def org_count(self) -> int:
         return len(self._certificates)
 
-    def resolve_did_document(
-        self, org_did: OrgDID
-    ) -> dict[str, Any]:
+    def resolve_did_document(self, org_did: OrgDID) -> dict[str, Any]:
         """W3C DID Resolution result for a registered org."""
         cert = self._certificates.get(org_did.did_string)
         if cert is None:
@@ -391,7 +378,11 @@ class OrgDIDRegistry:
         doc = org_did.to_did_document(
             ed25519_public_key_pem=cert.public_key,
             service_endpoints=[
-                {"id": f"{org_did.did_string}#governance", "type": "Governance", "serviceEndpoint": ""}
+                {
+                    "id": f"{org_did.did_string}#governance",
+                    "type": "Governance",
+                    "serviceEndpoint": "",
+                }
             ],
         )
         return {

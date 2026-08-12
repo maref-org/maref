@@ -39,9 +39,11 @@ logger = logging.getLogger("behavior_analysis")
 
 # ── 数据模型 ────────────────────────────────────────────────
 
+
 @dataclass
 class AgentEvent:
     """Agent 行为事件"""
+
     timestamp: str
     agent_id: str
     action: str
@@ -63,6 +65,7 @@ class AgentEvent:
 @dataclass
 class BehaviorBaseline:
     """Agent 行为基线"""
+
     agent_id: str
     sampled_events: int = 0
     avg_duration_ms: float = 0.0
@@ -83,8 +86,8 @@ class BehaviorBaseline:
 
 @dataclass
 class Anomaly:
-    anomaly_type: str       # acceleration | tool_abuse | rollback_storm | drift
-    severity: str           # critical | high | medium | low
+    anomaly_type: str  # acceleration | tool_abuse | rollback_storm | drift
+    severity: str  # critical | high | medium | low
     agent_id: str
     description: str
     metric_before: float = 0.0
@@ -98,6 +101,7 @@ class Anomaly:
 
 # ── Step 1: 建立行为基线 ───────────────────────────────────
 
+
 def build_baseline(events: list[AgentEvent]) -> BehaviorBaseline:
     """从历史事件建立行为基线"""
     if not events:
@@ -108,11 +112,15 @@ def build_baseline(events: list[AgentEvent]) -> BehaviorBaseline:
 
     durations = [e.duration_ms for e in events if e.duration_ms > 0]
     avg_dur = sum(durations) / len(durations) if durations else 0
-    std_dur = math.sqrt(sum((d - avg_dur) ** 2 for d in durations) / len(durations)) if durations else 0
+    std_dur = (
+        math.sqrt(sum((d - avg_dur) ** 2 for d in durations) / len(durations)) if durations else 0
+    )
 
     tools_per = [len(e.tools_used) for e in events]
     avg_tools = sum(tools_per) / len(tools_per) if tools_per else 0
-    std_tools = math.sqrt(sum((t - avg_tools) ** 2 for t in tools_per) / len(tools_per)) if tools_per else 0
+    std_tools = (
+        math.sqrt(sum((t - avg_tools) ** 2 for t in tools_per) / len(tools_per)) if tools_per else 0
+    )
 
     successes = sum(1 for e in events if e.status == "success")
     retries = sum(1 for e in events if e.status == "retry")
@@ -142,7 +150,10 @@ def build_baseline(events: list[AgentEvent]) -> BehaviorBaseline:
 
 # ── Step 2-3: 采集 + 检测异常 ─────────────────────────────
 
-def detect_anomalies(events: list[AgentEvent], baseline: BehaviorBaseline | None = None) -> list[Anomaly]:
+
+def detect_anomalies(
+    events: list[AgentEvent], baseline: BehaviorBaseline | None = None
+) -> list[Anomaly]:
     """检测 Agent 行为异常"""
     if not events:
         return []
@@ -168,16 +179,18 @@ def detect_anomalies(events: list[AgentEvent], baseline: BehaviorBaseline | None
         deviation = (f_avg - s_avg) / f_avg * 100
         if deviation > 30:  # 下降超过 30%
             sev = "critical" if deviation > 50 else ("high" if deviation > 40 else "medium")
-            anomalies.append(Anomaly(
-                anomaly_type="acceleration",
-                severity=sev,
-                agent_id=agent_id,
-                description=f"平均决策时间下降 {deviation:.1f}% ({f_avg:.0f}ms → {s_avg:.0f}ms)",
-                metric_before=f_avg,
-                metric_after=s_avg,
-                deviation_pct=round(deviation, 1),
-                recommendation="检查 Agent 是否跳过了关键推理步骤",
-            ))
+            anomalies.append(
+                Anomaly(
+                    anomaly_type="acceleration",
+                    severity=sev,
+                    agent_id=agent_id,
+                    description=f"平均决策时间下降 {deviation:.1f}% ({f_avg:.0f}ms → {s_avg:.0f}ms)",
+                    metric_before=f_avg,
+                    metric_after=s_avg,
+                    deviation_pct=round(deviation, 1),
+                    recommendation="检查 Agent 是否跳过了关键推理步骤",
+                )
+            )
 
     # ── 2. Tool Abuse — 工具滥用 ──
     f_tools = [t for e in first_half for t in e.tools_used]
@@ -186,16 +199,18 @@ def detect_anomalies(events: list[AgentEvent], baseline: BehaviorBaseline | None
         top_f = Counter(f_tools).most_common(1)[0][1] / len(first_half)
         top_s = Counter(s_tools).most_common(1)[0][1] / len(second_half) if s_tools else 0
         if top_f > 0 and top_s > top_f * 2:
-            anomalies.append(Anomaly(
-                anomaly_type="tool_abuse",
-                severity="high",
-                agent_id=agent_id,
-                description=f"工具 {Counter(s_tools).most_common(1)[0][0]} 调用频率翻倍",
-                metric_before=top_f,
-                metric_after=top_s,
-                deviation_pct=round((top_s - top_f) / top_f * 100, 1),
-                recommendation="检查 Agent 是否陷入工具调用循环",
-            ))
+            anomalies.append(
+                Anomaly(
+                    anomaly_type="tool_abuse",
+                    severity="high",
+                    agent_id=agent_id,
+                    description=f"工具 {Counter(s_tools).most_common(1)[0][0]} 调用频率翻倍",
+                    metric_before=top_f,
+                    metric_after=top_s,
+                    deviation_pct=round((top_s - top_f) / top_f * 100, 1),
+                    recommendation="检查 Agent 是否陷入工具调用循环",
+                )
+            )
 
     # ── 3. Rollback Storm — 回退风暴 ──
     f_retries = sum(1 for e in first_half if e.status == "retry")
@@ -203,41 +218,47 @@ def detect_anomalies(events: list[AgentEvent], baseline: BehaviorBaseline | None
     f_rate = f_retries / len(first_half)
     s_rate = s_retries / len(second_half)
     if f_rate > 0 and s_rate > f_rate * 2 and s_rate > 0.1:
-        anomalies.append(Anomaly(
-            anomaly_type="rollback_storm",
-            severity="critical",
-            agent_id=agent_id,
-            description=f"回退率从 {f_rate*100:.1f}% 升至 {s_rate*100:.1f}%",
-            metric_before=f_rate,
-            metric_after=s_rate,
-            deviation_pct=round((s_rate - f_rate) / f_rate * 100, 1),
-            recommendation="检查 Agent 是否遇到无法处理的输入或系统故障",
-        ))
+        anomalies.append(
+            Anomaly(
+                anomaly_type="rollback_storm",
+                severity="critical",
+                agent_id=agent_id,
+                description=f"回退率从 {f_rate * 100:.1f}% 升至 {s_rate * 100:.1f}%",
+                metric_before=f_rate,
+                metric_after=s_rate,
+                deviation_pct=round((s_rate - f_rate) / f_rate * 100, 1),
+                recommendation="检查 Agent 是否遇到无法处理的输入或系统故障",
+            )
+        )
 
     # ── 4. Behavior Drift — 行为漂移 ──
     if baseline.std_duration_ms > 0:
-        recent = events[-min(20, len(events)):]
+        recent = events[-min(20, len(events)) :]
         recent_avg = sum(e.duration_ms for e in recent) / len(recent)
         z_score = (recent_avg - baseline.avg_duration_ms) / max(baseline.std_duration_ms, 1)
         if abs(z_score) > 2.0:
-            anomalies.append(Anomaly(
-                anomaly_type="drift",
-                severity="high" if abs(z_score) > 3.0 else "medium",
-                agent_id=agent_id,
-                description=f"行为漂移检测: z-score={z_score:.2f} (阈值±2σ)",
-                metric_before=baseline.avg_duration_ms,
-                metric_after=recent_avg,
-                deviation_pct=round(abs(z_score) * 10, 1),
-                recommendation="最近 20 个事件偏离基线超过 2σ，建议审查 Agent 配置",
-            ))
+            anomalies.append(
+                Anomaly(
+                    anomaly_type="drift",
+                    severity="high" if abs(z_score) > 3.0 else "medium",
+                    agent_id=agent_id,
+                    description=f"行为漂移检测: z-score={z_score:.2f} (阈值±2σ)",
+                    metric_before=baseline.avg_duration_ms,
+                    metric_after=recent_avg,
+                    deviation_pct=round(abs(z_score) * 10, 1),
+                    recommendation="最近 20 个事件偏离基线超过 2σ，建议审查 Agent 配置",
+                )
+            )
 
     return anomalies
 
 
 # ── Step 4-5: 关联分析 + 生成报告 ─────────────────────────
 
-def generate_report(events: list[AgentEvent], baseline: BehaviorBaseline,
-                    anomalies: list[Anomaly]) -> dict:
+
+def generate_report(
+    events: list[AgentEvent], baseline: BehaviorBaseline, anomalies: list[Anomaly]
+) -> dict:
     """生成完整行为分析报告"""
     # 异常关联分析
     anomaly_types = Counter(a.anomaly_type for a in anomalies)
@@ -256,7 +277,9 @@ def generate_report(events: list[AgentEvent], baseline: BehaviorBaseline,
         "baseline": baseline.to_dict(),
         "anomalies_detected": len(anomalies),
         "risk_score": risk_score,
-        "risk_level": "critical" if risk_score > 20 else ("high" if risk_score > 10 else ("medium" if risk_score > 5 else "low")),
+        "risk_level": "critical"
+        if risk_score > 20
+        else ("high" if risk_score > 10 else ("medium" if risk_score > 5 else "low")),
         "anomaly_summary": {
             "by_type": dict(anomaly_types),
             "by_severity": dict(severity_counts),
@@ -292,6 +315,7 @@ def generate_report(events: list[AgentEvent], baseline: BehaviorBaseline,
 
 # ── 示例数据生成 ───────────────────────────────────────────
 
+
 def generate_sample_events(agent_id: str = "agent-ghost-001", n: int = 100) -> list[AgentEvent]:
     """生成模拟 Agent 行为数据用于测试"""
     actions = ["code_review", "file_read", "search", "analyze", "summarize", "generate"]
@@ -306,24 +330,30 @@ def generate_sample_events(agent_id: str = "agent-ghost-001", n: int = 100) -> l
         is_abnormal = i > n * 0.8  # last 20% show anomalies
         if is_abnormal:
             dur = random.gauss(50, 20)  # much faster = acceleration
-            t_used = random.choices(tools, k=random.randint(3, 6)) if random.random() < 0.7 else random.choices(tools, k=random.randint(1, 2))
+            t_used = (
+                random.choices(tools, k=random.randint(3, 6))
+                if random.random() < 0.7
+                else random.choices(tools, k=random.randint(1, 2))
+            )
             status = random.choices(["success", "retry", "failure"], weights=[0.5, 0.4, 0.1])[0]
         else:
             dur = random.gauss(350, 80)
             t_used = random.choices(tools, k=random.randint(1, 3))
             status = random.choices(["success", "retry", "failure"], weights=[0.9, 0.08, 0.02])[0]
 
-        events.append(AgentEvent(
-            timestamp=(base_time + timedelta(hours=i * 2)).isoformat(),
-            agent_id=agent_id,
-            action=random.choice(actions),
-            duration_ms=max(10, dur),
-            tools_used=t_used,
-            decision=random.choice(decisions),
-            confidence=round(random.uniform(0.7, 0.99), 2),
-            tokens_consumed=random.randint(500, 5000),
-            status=status,
-        ))
+        events.append(
+            AgentEvent(
+                timestamp=(base_time + timedelta(hours=i * 2)).isoformat(),
+                agent_id=agent_id,
+                action=random.choice(actions),
+                duration_ms=max(10, dur),
+                tools_used=t_used,
+                decision=random.choice(decisions),
+                confidence=round(random.uniform(0.7, 0.99), 2),
+                tokens_consumed=random.randint(500, 5000),
+                status=status,
+            )
+        )
 
     return events
 
@@ -464,8 +494,7 @@ class RuntimeBehaviorProbe:
     def _is_behavioral_event(self, entry: Any) -> bool:
         event_type = str(entry.event_type)
         return any(
-            event_type.startswith(p) or event_type.endswith(p)
-            for p in _BEHAVIOR_EVENT_PREFIXES
+            event_type.startswith(p) or event_type.endswith(p) for p in _BEHAVIOR_EVENT_PREFIXES
         )
 
     def _on_event(self, entry: Any) -> None:
@@ -475,7 +504,9 @@ class RuntimeBehaviorProbe:
             event = audit_entry_to_agent_event(entry)
         except Exception:
             # 单条事件适配失败不应击穿审计发布链路。
-            logger.warning("behavior probe: 审计事件适配失败 event_type=%s", getattr(entry, "event_type", "?"))
+            logger.warning(
+                "behavior probe: 审计事件适配失败 event_type=%s", getattr(entry, "event_type", "?")
+            )
             return
         events = self._events.setdefault(event.agent_id, [])
         events.append(event)
@@ -490,7 +521,7 @@ class RuntimeBehaviorProbe:
         self._baselines[agent_id] = baseline
         anomalies = detect_anomalies(events, baseline)
         # 滑动窗口：保留后半段用于下次检测
-        self._events[agent_id] = events[len(events) // 2:]
+        self._events[agent_id] = events[len(events) // 2 :]
         for anomaly in anomalies:
             self._apply_anomaly(anomaly)
 
@@ -501,15 +532,8 @@ class RuntimeBehaviorProbe:
         self._anomaly_counts[anomaly.agent_id] = count
         # 仅 critical 异常触发全局熔断降级；非 critical 只扣信任分，
         # 避免任一 agent 的低危异常拖累整个联邦。
-        if (
-            self._cb is not None
-            and anomaly.severity in _TRIP_SEVERITIES
-            and not self._cb.is_open
-        ):
-            self._cb.force_open(
-                f"behavior_anomaly:{anomaly.anomaly_type}"
-                f":agent={anomaly.agent_id}"
-            )
+        if self._cb is not None and anomaly.severity in _TRIP_SEVERITIES and not self._cb.is_open:
+            self._cb.force_open(f"behavior_anomaly:{anomaly.anomaly_type}:agent={anomaly.agent_id}")
 
     # -- 查询 --
 
@@ -568,6 +592,7 @@ def assemble_runtime_behavior_probe(
 
 # ── CLI ─────────────────────────────────────────────────────
 
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -595,9 +620,11 @@ def main():
             baseline = build_baseline(events)
             print(f"\n📊 行为基线 [{baseline.agent_id}]")
             print(f"  采样: {baseline.sampled_events} 事件")
-            print(f"  平均决策时间: {baseline.avg_duration_ms:.0f}ms (±{baseline.std_duration_ms:.0f}ms)")
-            print(f"  成功率: {baseline.success_rate*100:.1f}%")
-            print(f"  回退率: {baseline.retry_rate*100:.1f}%")
+            print(
+                f"  平均决策时间: {baseline.avg_duration_ms:.0f}ms (±{baseline.std_duration_ms:.0f}ms)"
+            )
+            print(f"  成功率: {baseline.success_rate * 100:.1f}%")
+            print(f"  回退率: {baseline.retry_rate * 100:.1f}%")
 
             # Step 2-3: Detect
             anomalies = detect_anomalies(events, baseline)
@@ -626,10 +653,10 @@ def main():
         try:
             with open(report_file) as f:
                 report = json.load(f)
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("  Agent 行为分析报告")
             print(f"  ID: {report['report_id']}")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
             print(f"  Agent: {report['agent_id']}")
             print(f"  分析事件: {report['events_analyzed']}")
             print(f"  风险评分: {report['risk_score']} ({report['risk_level']})")

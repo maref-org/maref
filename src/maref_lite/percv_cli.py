@@ -37,7 +37,11 @@ def research_cycle(
     orch = PERCVResearchOrchestrator()
     result = orch.run_research_cycle(topic=topic)
 
-    console.print(Panel(f"[bold cyan]Research Cycle Complete[/bold cyan]\nTopic: {topic}\nBudget: {budget} tokens"))
+    console.print(
+        Panel(
+            f"[bold cyan]Research Cycle Complete[/bold cyan]\nTopic: {topic}\nBudget: {budget} tokens"
+        )
+    )
     console.print(f"Cycle: {result.cycle_id} | Phase: {result.phase.value}")
 
 
@@ -54,11 +58,17 @@ def status(
     history = getattr(orch, "get_history", lambda: [])()
 
     if json_output:
-        console.print_json(json.dumps({
-            "status": str(status_val),
-            "cycle_count": cycle_count,
-            "history": history,
-        }, indent=2, default=str))
+        console.print_json(
+            json.dumps(
+                {
+                    "status": str(status_val),
+                    "cycle_count": cycle_count,
+                    "history": history,
+                },
+                indent=2,
+                default=str,
+            )
+        )
         return
 
     table = Table(title="PERCV Orchestrator Status")
@@ -108,7 +118,9 @@ def auto_cycle(
         orch.run_evolve_cycle(candidate_id=candidate_id)
         orch.run_verify_cycle(agent_id=agent_id)
 
-        console.print(f"  [green]✓[/green] Cycle {i + 1} complete — total cycles: {orch.cycle_count}")
+        console.print(
+            f"  [green]✓[/green] Cycle {i + 1} complete — total cycles: {orch.cycle_count}"
+        )
 
     directions = orch.get_research_directions()
     if directions:
@@ -125,7 +137,9 @@ def develop_feature(
     feature_doc: str = typer.Argument(..., help="Path to feature document"),
     iterations: int = typer.Option(3, "--iterations", "-i", help="Max iteration rounds"),
     output_dir: str = typer.Option("", "--output", "-o", help="Output directory"),
-    verify: bool = typer.Option(True, "--verify/--no-verify", help="Run verification after development"),
+    verify: bool = typer.Option(
+        True, "--verify/--no-verify", help="Run verification after development"
+    ),
 ) -> None:
     doc_path = Path(feature_doc)
     if not doc_path.exists():
@@ -235,15 +249,26 @@ def cross_analyze_command(
     effects = analyzer.detect_cross_effects(window=window)
 
     if json_output:
-        console.print_json(json.dumps([
-            {"source": e.source_dim, "target": e.target_dim,
-             "effect_size": round(e.effect_size, 4), "confidence": round(e.confidence, 4)}
-            for e in effects
-        ], indent=2))
+        console.print_json(
+            json.dumps(
+                [
+                    {
+                        "source": e.source_dim,
+                        "target": e.target_dim,
+                        "effect_size": round(e.effect_size, 4),
+                        "confidence": round(e.confidence, 4),
+                    }
+                    for e in effects
+                ],
+                indent=2,
+            )
+        )
         return
 
     if not effects:
-        console.print("[yellow]No significant cross-dimensional effects detected (window too small or no history).[/yellow]")
+        console.print(
+            "[yellow]No significant cross-dimensional effects detected (window too small or no history).[/yellow]"
+        )
         return
 
     table = Table(title=f"Cross-Dimensional Effects (window={window})")
@@ -255,13 +280,23 @@ def cross_analyze_command(
 
     for e in effects:
         color = "red" if e.effect_size < 0 else "green"
-        table.add_row(e.source_dim, e.target_dim,
-                      f"[{color}]{e.effect_size:.4f}[/{color}]",
-                      f"{e.confidence:.2f}", str(e.samples))
+        table.add_row(
+            e.source_dim,
+            e.target_dim,
+            f"[{color}]{e.effect_size:.4f}[/{color}]",
+            f"{e.confidence:.2f}",
+            str(e.samples),
+        )
     console.print(table)
 
     pareto = analyzer.recommend_multi_objective(
-        current_weights={"correctness": 0.3, "testing": 0.3, "performance": 0.2, "code_quality": 0.1, "security": 0.1}
+        current_weights={
+            "correctness": 0.3,
+            "testing": 0.3,
+            "performance": 0.2,
+            "code_quality": 0.1,
+            "security": 0.1,
+        }
     )
     if pareto:
         console.print("\n[bold]Pareto Front Recommendation:[/bold]")
@@ -285,18 +320,27 @@ def meta_diagnose_command(
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     meta = MetaRatchet()
-    t = ImprovementTarget(target) if target in {e.value for e in ImprovementTarget} else ImprovementTarget.PROMPT_DISTILL
+    t = (
+        ImprovementTarget(target)
+        if target in {e.value for e in ImprovementTarget}
+        else ImprovementTarget.PROMPT_DISTILL
+    )
 
     diag = meta.diagnose_stagnation(t)
 
     if json_output:
-        console.print_json(json.dumps({
-            "target": target,
-            "diagnosis_type": diag.diagnosis_type,
-            "severity": diag.severity,
-            "details": diag.details,
-            "suggested_action": diag.suggested_action,
-        }, indent=2))
+        console.print_json(
+            json.dumps(
+                {
+                    "target": target,
+                    "diagnosis_type": diag.diagnosis_type,
+                    "severity": diag.severity,
+                    "details": diag.details,
+                    "suggested_action": diag.suggested_action,
+                },
+                indent=2,
+            )
+        )
         return
 
     console.print(Panel(f"[bold]MetaRatchet Diagnosis[/bold]\nTarget: {target}", expand=False))
@@ -304,7 +348,9 @@ def meta_diagnose_command(
     table.add_column("Property", style="cyan")
     table.add_column("Value", style="green")
     table.add_row("Diagnosis Type", diag.diagnosis_type)
-    severity_color = "red" if diag.severity == "high" else "yellow" if diag.severity == "medium" else "green"
+    severity_color = (
+        "red" if diag.severity == "high" else "yellow" if diag.severity == "medium" else "green"
+    )
     table.add_row("Severity", f"[{severity_color}]{diag.severity}[/{severity_color}]")
     table.add_row("Details", diag.details)
     table.add_row("Suggested Action", diag.suggested_action)
@@ -318,7 +364,9 @@ def meta_diagnose_command(
         ct.add_column("Old", style="yellow")
         ct.add_column("New", style="green")
         ct.add_column("Rationale", style="white")
-        ct.add_row(change.config_key, str(change.old_value), str(change.new_value), change.rationale)
+        ct.add_row(
+            change.config_key, str(change.old_value), str(change.new_value), change.rationale
+        )
         console.print(ct)
     else:
         console.print("[dim]No protocol change proposed.[/dim]")
@@ -333,7 +381,9 @@ def meta_diagnose_command(
 
 @app.command(name="meta-sandbox")
 def meta_sandbox_command(
-    config_key: str = typer.Option("max_consecutive_discards", "--config-key", "-k", help="Config key to test"),
+    config_key: str = typer.Option(
+        "max_consecutive_discards", "--config-key", "-k", help="Config key to test"
+    ),
     old_value: str = typer.Option("5", "--old", "-o", help="Old value"),
     new_value: str = typer.Option("4", "--new", "-n", help="New value"),
     rounds: int = typer.Option(10, "--rounds", "-r", help="Number of sandbox rounds"),
@@ -352,29 +402,46 @@ def meta_sandbox_command(
     result = meta.sandbox_test(change, n_rounds=rounds)
 
     if json_output:
-        console.print_json(json.dumps({
-            "config_key": config_key,
-            "old_avg_score": round(result.old_avg_score, 4),
-            "new_avg_score": round(result.new_avg_score, 4),
-            "improvement": round(result.improvement, 4),
-            "adopted": result.adopted,
-            "production_safe": result.is_production_safe,
-        }, indent=2))
+        console.print_json(
+            json.dumps(
+                {
+                    "config_key": config_key,
+                    "old_avg_score": round(result.old_avg_score, 4),
+                    "new_avg_score": round(result.new_avg_score, 4),
+                    "improvement": round(result.improvement, 4),
+                    "adopted": result.adopted,
+                    "production_safe": result.is_production_safe,
+                },
+                indent=2,
+            )
+        )
         return
 
     improvement_pct = result.improvement * 100
     color = "green" if result.adopted else "red"
-    console.print(Panel(f"[bold]Sandbox Test Results[/bold]\n{config_key}: {old_value} → {new_value} ({rounds} rounds)"))
+    console.print(
+        Panel(
+            f"[bold]Sandbox Test Results[/bold]\n{config_key}: {old_value} → {new_value} ({rounds} rounds)"
+        )
+    )
     table = Table()
     table.add_column("Metric", style="cyan")
     table.add_column("Before", style="yellow")
     table.add_column("After", style="green")
     table.add_column("Delta", style="white")
-    table.add_row("Score", f"{result.old_avg_score:.4f}", f"{result.new_avg_score:.4f}",
-                  f"[{color}]{improvement_pct:+.2f}%[/{color}]")
+    table.add_row(
+        "Score",
+        f"{result.old_avg_score:.4f}",
+        f"{result.new_avg_score:.4f}",
+        f"[{color}]{improvement_pct:+.2f}%[/{color}]",
+    )
     console.print(table)
-    console.print(f"Adopted: [{'green' if result.adopted else 'red'}]{result.adopted}[/{'green' if result.adopted else 'red'}]")
-    console.print(f"Production Safe: [{'green' if result.is_production_safe else 'red'}]{result.is_production_safe}[/]")
+    console.print(
+        f"Adopted: [{'green' if result.adopted else 'red'}]{result.adopted}[/{'green' if result.adopted else 'red'}]"
+    )
+    console.print(
+        f"Production Safe: [{'green' if result.is_production_safe else 'red'}]{result.is_production_safe}[/]"
+    )
 
 
 # ── rsi-report command (实装) ───────────────────────────────────────────
@@ -393,9 +460,17 @@ def rsi_report_command(
         console.print_json(json.dumps(summary, indent=2, default=str))
         return
 
-    console.print(Panel(f"[bold cyan]RSI EvolutionVault Report[/bold cyan]\nVault: {vault_path}", expand=False))
-    console.print(f"Total Records: {summary['total_records']} | Targets: {summary['total_targets']}")
-    console.print(f"Keep Rate: {summary['keep_rate']:.1%} ({summary['keeps']} keeps / {summary['discards']} discards)")
+    console.print(
+        Panel(
+            f"[bold cyan]RSI EvolutionVault Report[/bold cyan]\nVault: {vault_path}", expand=False
+        )
+    )
+    console.print(
+        f"Total Records: {summary['total_records']} | Targets: {summary['total_targets']}"
+    )
+    console.print(
+        f"Keep Rate: {summary['keep_rate']:.1%} ({summary['keeps']} keeps / {summary['discards']} discards)"
+    )
 
     if not targets:
         console.print("[yellow]No targets found in vault — run RSI cycles first.[/yellow]")
@@ -412,10 +487,18 @@ def rsi_report_command(
 
     for t in targets:
         trend = vault.get_trend(t)
-        trend_icon = "↑" if trend.score_trend == "improving" else "↓" if trend.score_trend == "declining" else "→"
+        trend_icon = (
+            "↑"
+            if trend.score_trend == "improving"
+            else "↓"
+            if trend.score_trend == "declining"
+            else "→"
+        )
         table.add_row(
-            t, str(trend.total_runs),
-            f"{trend.avg_score:.4f}", f"{trend.best_score:.4f}",
+            t,
+            str(trend.total_runs),
+            f"{trend.avg_score:.4f}",
+            f"{trend.best_score:.4f}",
             f"{trend.latest_score:.4f}",
             f"{trend_icon} {trend.score_trend}",
             f"{trend.keep_rate:.0%}",
@@ -448,6 +531,7 @@ def vault_dashboard_command(
 
     if open_browser:
         import webbrowser
+
         webbrowser.open(f"file://{Path(out_path).resolve()}")
         console.print("[green]Dashboard opened in browser.[/green]")
 
@@ -457,7 +541,9 @@ def vault_dashboard_command(
 
 @app.command()
 def redlines(
-    config_path: str = typer.Option("configs/rsi_redlines.yaml", "--config", "-c", help="Redlines YAML path"),
+    config_path: str = typer.Option(
+        "configs/rsi_redlines.yaml", "--config", "-c", help="Redlines YAML path"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     import yaml
@@ -488,7 +574,9 @@ def redlines(
     severity_colors = {"CRITICAL": "red", "HIGH": "yellow", "MEDIUM": "blue"}
     for rule in rules:
         sev = rule.get("severity", "")
-        sev_colored = f"[{severity_colors.get(sev, 'white')}]{sev}[/{severity_colors.get(sev, 'white')}]"
+        sev_colored = (
+            f"[{severity_colors.get(sev, 'white')}]{sev}[/{severity_colors.get(sev, 'white')}]"
+        )
         table.add_row(
             rule.get("rule_id", ""),
             sev_colored,
@@ -528,7 +616,7 @@ def _score_bar(score: float, width: int = 20) -> str:
 
 def _print_convergence_report(result: object) -> None:
     if isinstance(result, OrchestratorCycleResult):
-        phase = getattr(result, 'phase', 'unknown')
+        phase = getattr(result, "phase", "unknown")
         console.print(f"Convergence: {phase.value if hasattr(phase, 'value') else phase}")
 
 

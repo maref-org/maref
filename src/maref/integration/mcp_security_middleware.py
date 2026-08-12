@@ -210,10 +210,7 @@ class DataSovereigntyMiddleware:
                 reason=f"invalid data_transfer context: {exc}",
             )
         requested_ids = dt.get("data_class_ids", [])
-        unknown_ids = [
-            dc_id for dc_id in requested_ids
-            if dc_id not in self._manager.data_classes
-        ]
+        unknown_ids = [dc_id for dc_id in requested_ids if dc_id not in self._manager.data_classes]
         if unknown_ids:
             return MiddlewareResult(
                 is_allowed=False,

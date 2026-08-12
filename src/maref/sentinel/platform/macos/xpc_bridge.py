@@ -144,11 +144,7 @@ class ESFEvent:
     def _compute_hash(self, hmac_key: bytes) -> str:
         """计算 HMAC-SHA256(payload) — payload = event_id|seq|timestamp|pid|event_type"""
         payload = (
-            f"{self.event_id}|"
-            f"{self.seq}|"
-            f"{self.timestamp:.6f}|"
-            f"{self.pid}|"
-            f"{self.event_type.value}"
+            f"{self.event_id}|{self.seq}|{self.timestamp:.6f}|{self.pid}|{self.event_type.value}"
         )
         return hmac.new(hmac_key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
@@ -371,7 +367,9 @@ class XPCBridge:
         except Exception:
             return False
 
-    def update_targets(self, pids: list[int] | None = None, agent_ids: list[str] | None = None) -> None:
+    def update_targets(
+        self, pids: list[int] | None = None, agent_ids: list[str] | None = None
+    ) -> None:
         """更新目标 Agent PID/ID 列表 (运行时动态调整)"""
         if pids is not None:
             self._target_pids = list(pids)
@@ -409,8 +407,10 @@ class XPCBridge:
 
         cmd = [
             self._esf_client_binary,
-            "--socket", self._socket_path,
-            "--events", ",".join(e.value for e in self._subscribe_events),
+            "--socket",
+            self._socket_path,
+            "--events",
+            ",".join(e.value for e in self._subscribe_events),
         ]
         if self._target_pids:
             cmd.extend(["--pids", ",".join(str(p) for p in self._target_pids)])
@@ -425,7 +425,9 @@ class XPCBridge:
             )
         except Exception as exc:
             self._state = XPCBridgeState.DEGRADED
-            raise ESFClientError(f"failed to start ESF client: {type(exc).__name__}: {exc}") from exc
+            raise ESFClientError(
+                f"failed to start ESF client: {type(exc).__name__}: {exc}"
+            ) from exc
 
     async def _listen_loop(self) -> None:
         """事件监听主循环 — accept ESF client + 读取 JSON lines"""
