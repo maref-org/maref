@@ -1,0 +1,57 @@
+# MAREF Repository — LLM Navigation Guide
+
+> MAREF (Multi-Agent Recursive Evolution Framework) is a governance-first
+> multi-agent runtime: TLA+ formally verified Gray Code governance FSM,
+> circuit breaker, drift detection, per-agent Ed25519 identity, verifiable
+> Merkle audit chain, and SM2/SM3/SM4-GCM cryptography. Apache 2.0.
+> Package: `pip install maref` (full) / `pip install maref-lite` (zero-config).
+> Site: https://maref.cc
+
+## Repository Structure (verified 2026-08-12)
+
+- /src/maref/ — Core framework (Python 3.10+)
+  - governance/ — Gray Code FSM, 4-level safety decision tree, circuit_breaker.py
+  - identity/ — Zero-trust per-agent Ed25519 identity, HMAC-signed decisions
+  - security/ — Audit chain signing; Merkle aggregation (see tests/test_merkle_auditor.py)
+  - crypto/ — SM2/SM3/SM4-GCM national cryptography (GB/T 32918)
+  - orchestration/ — TaskDAG decomposition, 5D agent dispatch, Saga compensation
+  - evaluation/ — Trust Engine v2 (5-factor, Goodhart-resistant), LoRA/ontology drift (KL/JS/Hellinger)
+  - evolution/ — Recursive self-evolution engine (C1 observe → C2 optimize → C3 converge)
+  - redblue/ — Red-blue adversarial harness (200 rounds, 5 phases)
+  - mcp/ — MCP protocol implementation (6 transports); A2A v0.3 bridge
+  - integration/ — Cross-framework adapters: AutoGen, CrewAI, LangGraph, Dify, Coze
+  - observability/ + obs/ — OpenTelemetry, Prometheus/Grafana, audit bus
+  - desktop/ — Desktop control loop, Playwright browser automation, mobile bridge
+  - federation/ — Federated Merkle root aggregation
+- /src/maref_lite/ — MAREF Lite: zero-config governance overlay (governance.py, state_machine.py, policy.py)
+- /src/formal/ — TLA+ specs (MarefJoint34.tla, MAREF_InternetInvariants.tla, MarefLite.tla, *Proof.tla)
+- /tests/ — 11,400+ tests (governance/, formal/, chaos/, redblue/, compliance/, security/ ...)
+- /docs/ — Documentation (security/owasp-agentic-top10-mapping.md, api.md, adr)
+
+## Key Design Decisions
+
+- Every agent action passes through the governance FSM before execution
+- Gray Code state encoding keeps Hamming distance = 1 between adjacent states
+- Self-evolution convergence is Lyapunov-proven; TLA+ specs in /src/formal/
+- Cryptography defaults to SM2/SM3/SM4 (ISO-ready, China-compliant)
+- MAREF complements orchestration frameworks (LangGraph/CrewAI/AutoGen) — it is
+  the governance layer below them, not a replacement
+
+## Common Tasks for Agents
+
+- "Add a custom governance rule" → /src/maref/governance/ (+ tests/governance/)
+- "How does the circuit breaker work?" → /src/maref/governance/circuit_breaker.py
+- "Where are the TLA+ specs?" → /src/formal/ (model checking tests in /tests/formal/)
+- "Quick start without config" → /src/maref_lite/ (README.md inside)
+- "API surface" → /docs/api.md
+- "Run tests" → `pytest tests/` (full) · `pytest tests/governance/` (scoped)
+
+## Entry Points
+
+- `maref` CLI — see /src/maref/__main__.py (`maref status`, `maref serve`, `maref desktop demo`)
+- `maref_lite.governance.GovernanceOverlay` — 5-line governance wrap for any agent framework
+- TypeScript SDK: `@maref/sdk` (npm)
+
+## License
+
+Apache 2.0 — /LICENSE
