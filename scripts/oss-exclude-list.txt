@@ -163,3 +163,26 @@ results/experiments/**
 .coverage
 coverage.json
 coverage_full.json
+
+# ---------- [closed-source-sync] 自动补全（check-exclude-list-sync.sh --repair, 2026-08-12） ----------
+apps/athena-android/app/src/main/java/com/athena/partner/agent/loop/AgentLoopEngine.kt
+apps/athena-android/app/src/main/java/com/athena/partner/agent/loop/CycleState.kt
+src/maref/tools/github_email_listener.py
+src/maref/tools/github_email_parser.py
+src/maref/tools/github_email_responder.py
+src/maref/tools/cookie_manager.py
+src/maref/marketplace/discovery.py
+src/maref/marketplace/skill_bridge.py
+src/maref/opc/telemetry_exporter.py
+src/maref/opc/sanitizer.py
+src/maref/_paths.py
+src/maref/mailer.py
+src/maref/desktop/mcp_client.py
+src/maref/desktop/scrcpy_executor.py
+src/maref/desktop/screen_analyzer.py
+src/maref/governance/federated_audit.py
+src/maref/governance/review_surface.py
+src/maref/learning/bridge.py
+src/maref/tools/batch_browser.py
+src/maref/knowledge/visibility.py
+src/maref/knowledge/project_inferer.py
