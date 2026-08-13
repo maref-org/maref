@@ -77,6 +77,10 @@ jobs:
   dast-scan:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    env:
+      # `maref serve` 需要 HMAC/Ed25519 密钥才能启动 AuditLogger；
+      # 沿用 docker.yml 惯例：未配置 secrets 时 fallback 到 CI 测试 key。
+      MAREF_HMAC_SECRET_KEY: ${{ secrets.MAREF_HMAC_SECRET_KEY || 'ci-hmac-key' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
