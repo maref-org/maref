@@ -68,7 +68,10 @@ jobs:
       - name: Core tests
         run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal --cov-fail-under=0
       - name: Coverage gate
-        run: pytest tests/governance -q --cov=src/maref/governance --cov-fail-under=60
+        # pytest-cov 的 --cov 是 append 语义：addopts 的 `--cov=src` 与命令行
+        # `--cov=src/maref/governance` 累积，会把整个 src 计入测量（TOTAL 19.45%）。
+        # 用 `-o addopts` 覆盖 addopts，使本 step 只测 governance（本地实测 88%+）。
+        run: pytest tests/governance -q -o addopts="--strict-markers" --cov=src/maref/governance --cov-fail-under=60
 
   gate-security:
     needs: gate-quality
