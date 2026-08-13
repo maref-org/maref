@@ -112,7 +112,7 @@ def check_screen_resolution() -> dict[str, Any]:
 
         w, h = pyautogui.size()
         return {"width": w, "height": h, "adequate": w >= 1024 and h >= 768}
-    except ImportError:
+    except Exception:
         return {"width": 0, "height": 0, "adequate": False}
 
 
