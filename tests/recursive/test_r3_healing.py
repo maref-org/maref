@@ -15,6 +15,37 @@ from maref.recursive.self_healer import (
 from maref.recursive.self_observer import SystemSnapshot
 
 
+@pytest.fixture(autouse=True)
+def _mock_env_heavy_probes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """desktop/gui_build 是环境相关 heavy probe,真实测量在无 pnpm/桌面环境的
+    CI 上会把正常快照误判为 CRITICAL。mock 成 NORMAL 让诊断测试跨环境确定。
+
+    替换后的 measure 是无 __func__ 的闭包,SelfDiagnostician._heavy_measure
+    会走直接调用分支并绕过类级 _heavy_probe_cache,避免跨测试缓存污染。
+    """
+    from maref.observation.probes import ProbeReading, ProbeSeverity
+
+    def _normal(name: str):
+        def _measure(context: dict | None = None) -> ProbeReading:
+            return ProbeReading(
+                probe_name=name,
+                severity=ProbeSeverity.NORMAL,
+                value=1.0,
+                threshold=0.3,
+            )
+
+        return _measure
+
+    monkeypatch.setattr(
+        "maref.recursive.self_diagnostician.DesktopProbe.measure",
+        _normal("desktop"),
+    )
+    monkeypatch.setattr(
+        "maref.recursive.self_diagnostician.GUIBuildProbe.measure",
+        _normal("gui_build"),
+    )
+
+
 def _mock_executor(strategy: str, problem_type: str) -> HealAction:
     return HealAction(
         problem_type=problem_type,
@@ -198,7 +229,10 @@ class TestSelfHealer:
         assert unified[1].outcome == "failure"
 
     @pytest.mark.slow
+    @pytest.mark.real
     def test_real_executor_rerun_tests(self, healer_real: SelfHealer) -> None:
+        # 真实 executor 会在仓库根跑全仓 `pytest -v`(timeout=120s),
+        # 15000+ 测试必然超时,归入 `real` 由 CI 的 `-m "not real"` 排除。
         actions = healer_real.heal(["test_failure"])
         assert len(actions) == 1
         assert actions[0].applied is True

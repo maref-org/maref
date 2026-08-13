@@ -5,17 +5,13 @@ from unittest.mock import patch
 import pytest
 
 from maref.recursive.event_trigger import EventTrigger
-from maref.recursive.llm_code_generator import LLMCodeGenerator, MockProvider
 from maref.recursive.recursive_evolution_loop import (
+    RecursiveEvolutionLoop,
     RELConvergenceDetector,
     RELSafetyGovernor,
     RELState,
-    RELStateMachine,
-    RELTransactionManager,
-    RecursiveEvolutionLoop,
     SafetyGovernorConfig,
 )
-from maref.recursive.self_architect import ArchitectureProposal, ChangeType
 
 
 class TestRecursiveEvolutionLoop:
@@ -71,7 +67,7 @@ class TestRecursiveEvolutionLoop:
 
         tx = loop.transaction_manager.begin(["test_converge.py"])
 
-        verdict = loop.complete_round(
+        loop.complete_round(
             metrics_before={"test_pass_rate": 0.8, "coverage_pct": 70.0},
             metrics_after={"test_pass_rate": 0.9, "coverage_pct": 75.0},
             tx=tx,
@@ -114,11 +110,13 @@ class TestRecursiveEvolutionLoop:
 
     def test_multiple_rounds_without_convergence(self) -> None:
         loop = RecursiveEvolutionLoop()
-        for i in range(3):
+        # 递增的 pass_rate：不触发 H5 baseline regression（从不低于 best），
+        # 且每轮边际增益 ≥ 0.05，不满足收敛判定。
+        for i, pr in enumerate([0.90, 0.96, 1.00]):
             tx = loop.transaction_manager.begin([f"test_round_{i}.py"])
-            verdict = loop.complete_round(
-                metrics_before={"test_pass_rate": 0.95 - i * 0.05},
-                metrics_after={"test_pass_rate": 0.93 - i * 0.05},
+            loop.complete_round(
+                metrics_before={"test_pass_rate": 0.85},
+                metrics_after={"test_pass_rate": pr},
                 tx=tx,
             )
         assert loop.current_round == 3
@@ -131,7 +129,7 @@ class TestRecursiveEvolutionLoop:
         loop.start()
         for i in range(2):
             tx = loop.transaction_manager.begin([f"test_gov_round_{i}.py"])
-            verdict = loop.complete_round(
+            loop.complete_round(
                 metrics_before={"test_pass_rate": 0.8},
                 metrics_after={"test_pass_rate": 0.85},
                 tx=tx,
@@ -143,8 +141,15 @@ class TestRecursiveEvolutionLoopRunSession:
     @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_run_session_returns_result(self) -> None:
-        loop = RecursiveEvolutionLoop()
-        with patch.object(loop, "_execute_state_actions", return_value=None):
+        # 限制轮数避免真实 metrics 采集(每轮 ~30s)拖爆 timeout。
+        config = SafetyGovernorConfig(max_rounds_per_session=2)
+        governor = RELSafetyGovernor(config=config)
+        loop = RecursiveEvolutionLoop(safety_governor=governor)
+        with patch.object(loop, "_execute_state_actions", return_value=None), \
+                patch.object(loop, "_collect_current_metrics", return_value={
+                    "test_pass_rate": 0.9,
+                    "coverage_pct": 75.0,
+                }):
             result = await loop.run_session()
         assert isinstance(result.success, bool)
         assert isinstance(result.reason, str)
@@ -161,15 +166,25 @@ class TestRecursiveEvolutionLoopRunSession:
         async def do_nothing() -> None:
             pass
 
-        with patch.object(loop, "_execute_state_actions", side_effect=do_nothing):
+        with patch.object(loop, "_execute_state_actions", side_effect=do_nothing), \
+                patch.object(loop, "_collect_current_metrics", return_value={
+                    "test_pass_rate": 0.9,
+                    "coverage_pct": 75.0,
+                }):
             result = await loop.run_session()
         assert result.round_count <= 2
 
     @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_run_session_idempotent(self) -> None:
-        loop = RecursiveEvolutionLoop()
-        with patch.object(loop, "_execute_state_actions", return_value=None):
+        config = SafetyGovernorConfig(max_rounds_per_session=2)
+        governor = RELSafetyGovernor(config=config)
+        loop = RecursiveEvolutionLoop(safety_governor=governor)
+        with patch.object(loop, "_execute_state_actions", return_value=None), \
+                patch.object(loop, "_collect_current_metrics", return_value={
+                    "test_pass_rate": 0.9,
+                    "coverage_pct": 75.0,
+                }):
             result1 = await loop.run_session()
             result2 = await loop.run_session()
         assert isinstance(result1, type(result2))

@@ -27,7 +27,8 @@ def _check_import(name: str, package: str) -> dict[str, Any]:
     try:
         __import__(name)
         return {"available": True, "error": None}
-    except ImportError as e:
+    except (ImportError, KeyError, OSError) as e:
+        # headless CI: pyautogui→mouseinfo 模块级读 $DISPLAY 抛 KeyError
         return {"available": False, "error": str(e), "hint": f"pip install {package}"}
 
 
@@ -112,7 +113,7 @@ def check_screen_resolution() -> dict[str, Any]:
 
         w, h = pyautogui.size()
         return {"width": w, "height": h, "adequate": w >= 1024 and h >= 768}
-    except ImportError:
+    except Exception:
         return {"width": 0, "height": 0, "adequate": False}
 
 

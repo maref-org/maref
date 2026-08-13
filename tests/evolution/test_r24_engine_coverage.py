@@ -35,6 +35,7 @@ class TestStopDuringRun:
             config = EvolutionConfig(
                 cycles={"c1": CycleSpec(name="C1", rounds=5, description="baseline")},
                 max_total_rounds=10,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config, seed=1)
@@ -57,6 +58,7 @@ class TestStopDuringRun:
             config = EvolutionConfig(
                 cycles={"c1": CycleSpec(name="C1", rounds=5, description="baseline")},
                 max_total_rounds=10,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config, seed=1)
@@ -173,6 +175,7 @@ class TestResumeFromCycle:
                 max_total_rounds=10,
                 resume_from_cycle="c2",
                 resume_from_round=0,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config, seed=1)
@@ -191,6 +194,7 @@ class TestResumeFromCycle:
                 max_total_rounds=10,
                 resume_from_cycle="c2",
                 resume_from_round=3,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config, seed=1)

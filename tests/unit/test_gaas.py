@@ -15,7 +15,6 @@ from maref.gaas.audit_service import AuditLogService
 from maref.gaas.billing import BillingService
 from maref.gaas.cb_pool import CircuitBreakerPool
 from maref.gaas.governance_router import GovernanceRouter
-from maref.integration.hitl import HITLRouter, HITLStatus
 from maref.gaas.models import (
     CircuitBreakerState,
     GovernanceContext,
@@ -27,6 +26,7 @@ from maref.gaas.models import (
 )
 from maref.gaas.tenant import Tenant, TenantManager
 from maref.gaas.trust_service import TrustScoreService
+from maref.integration.hitl import HITLRouter, HITLStatus
 
 # ------------------------------------------------------------------
 # TenantManager
@@ -104,17 +104,22 @@ class TestCircuitBreakerPool:
 
 @pytest.fixture(autouse=True)
 def _set_env_secret():
-    """Set HMAC secret for AuditLogService in all tests."""
+    """Set HMAC secret for AuditLogService in all tests, restoring the prior value."""
+    saved = os.environ.get("MAREF_HMAC_SECRET_KEY")
     os.environ["MAREF_HMAC_SECRET_KEY"] = "test-secret-for-testing"
     yield
-    os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+    if saved:
+        os.environ["MAREF_HMAC_SECRET_KEY"] = saved
+    else:
+        os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
 
 
 class TestAuditLogService:
     def test_log_and_query(self) -> None:
         svc = AuditLogService()
         entry = svc.log("t1", "a1", "file.read", "ALLOW")
-        assert entry.verify(svc._secret) is True
+        assert entry.action == "file.read"
+        assert svc.verify_integrity("t1") is True
         results, total = svc.query("t1")
         assert total == 1
         assert results[0].action == "file.read"
@@ -137,14 +142,18 @@ class TestAuditLogService:
         assert svc.verify_integrity("t1") is True
         assert svc.verify_integrity("t2") is True  # No entries = vacuously true
 
-    def test_no_secret_raises(self) -> None:
+    def test_no_secret_signs_with_empty_hmac(self) -> None:
+        """No secret → service still works but entries carry no HMAC signature."""
         saved = os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
         try:
-            with pytest.raises(ValueError):
-                AuditLogService()
+            svc = AuditLogService()
+            entry = svc.log("t1", "a1", "file.read", "ALLOW")
+            assert entry.hmac_signature == ""
         finally:
             if saved:
                 os.environ["MAREF_HMAC_SECRET_KEY"] = saved
+            else:
+                os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
 
 
 # ------------------------------------------------------------------

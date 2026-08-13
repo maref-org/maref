@@ -14,6 +14,7 @@ from maref.codegen.tool import (
     ToolResultStatus,
     ValidationResult,
 )
+from maref.security.tool_sandbox import ToolSandbox
 
 
 class BashInput(BaseModel):
@@ -35,8 +36,13 @@ class BashTool(Tool[BashInput, BashOutput]):
     description: str = "Execute shell commands with safety validation"
     requires_user_interaction: bool = True
 
-    def __init__(self, validator: BashValidator | None = None) -> None:
+    def __init__(
+        self,
+        validator: BashValidator | None = None,
+        sandbox: ToolSandbox | None = None,
+    ) -> None:
         self._validator = validator or BashValidator()
+        self._sandbox = sandbox or ToolSandbox()
 
     def is_read_only(self, input: BashInput) -> bool:
         tokens = shlex.split(input.command)
@@ -65,15 +71,29 @@ class BashTool(Tool[BashInput, BashOutput]):
     async def call(self, input: BashInput, ctx: ToolContext) -> ToolResult[BashOutput]:
         import time
 
-        cwd = input.workdir or ctx.workspace_root or os.getcwd()
+        workspace_root = ctx.workspace_root or os.getcwd()
         start = time.monotonic()
+
+        sandbox_result = self._sandbox.validate(
+            workdir=input.workdir,
+            workspace_root=workspace_root,
+            timeout=input.timeout,
+            command=input.command,
+        )
+        if sandbox_result.blocked:
+            return ToolResult(
+                status=ToolResultStatus.ERROR,
+                error=sandbox_result.reason,
+            )
+        env = self._sandbox.clean_env()
 
         try:
             process = await asyncio.create_subprocess_shell(
                 input.command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
+                cwd=sandbox_result.workdir,
+                env=env,
             )
 
             try:
@@ -83,6 +103,13 @@ class BashTool(Tool[BashInput, BashOutput]):
                 duration_ms = (time.monotonic() - start) * 1000
                 stdout = stdout_bytes.decode("utf-8", errors="replace")
                 stderr = stderr_bytes.decode("utf-8", errors="replace")
+                truncated = False
+                if len(stdout) > sandbox_result.max_output:
+                    stdout = stdout[: sandbox_result.max_output]
+                    truncated = True
+                if len(stderr) > sandbox_result.max_output:
+                    stderr = stderr[: sandbox_result.max_output]
+                    truncated = True
 
                 return ToolResult(
                     data=BashOutput(
@@ -91,20 +118,22 @@ class BashTool(Tool[BashInput, BashOutput]):
                         stderr=stderr,
                         timed_out=False,
                         duration_ms=duration_ms,
-                    )
+                    ),
+                    truncated=truncated,
                 )
             except asyncio.TimeoutError:
                 process.kill()
                 await process.wait()
                 duration_ms = (time.monotonic() - start) * 1000
                 return ToolResult(
+                    status=ToolResultStatus.TIMEOUT,
                     data=BashOutput(
                         exit_code=-1,
                         stdout="",
                         stderr=f"Command timed out after {input.timeout}s",
                         timed_out=True,
                         duration_ms=duration_ms,
-                    )
+                    ),
                 )
         except Exception as e:
             return ToolResult(

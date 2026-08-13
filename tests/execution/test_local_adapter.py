@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins
+import sys
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -45,9 +46,7 @@ class TestLocalModelAdapter:
         adapter._tokenizer = mock_tokenizer
         adapter._model = mock_model
 
-        with patch("torch.no_grad") as mock_no_grad:
-            mock_no_grad.return_value.__enter__ = MagicMock()
-            mock_no_grad.return_value.__exit__ = MagicMock()
+        with patch.dict(sys.modules, {"torch": MagicMock()}):
             result = adapter.complete("hello", max_length=50)
 
         assert result == "generated response"
@@ -94,7 +93,8 @@ class TestLocalModelAdapter:
         adapter._model = MagicMock()
 
         with patch.object(adapter, "_lazy_init") as mock_lazy:
-            adapter.count_tokens("test")
-            adapter.count_tokens("test again")
-            adapter.complete("hello")
+            with patch.dict(sys.modules, {"torch": MagicMock()}):
+                adapter.count_tokens("test")
+                adapter.count_tokens("test again")
+                adapter.complete("hello")
             assert mock_lazy.call_count == 3

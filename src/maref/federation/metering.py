@@ -164,7 +164,7 @@ class TaskMeteringEngine:
                 complexity_score=row["complexity_score"],
                 timestamp=row["timestamp"],
                 metadata=json.loads(row["metadata"]),
-                caller_did=row.get("caller_did", ""),  # type: ignore[attr-defined]
+                caller_did=row["caller_did"] if "caller_did" in row else "",  # noqa: SIM401 — sqlite3.Row 无 .get()
             )
             idx = len(self._metrics)
             self._metrics.append(metric)

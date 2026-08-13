@@ -303,7 +303,8 @@ class TestOAuthTokenProvider:
             token = provider.get_token("https://server.example.com")
             assert token == "new-token"
 
-    def test_unsupported_flow_raises_error(self):
+    def test_authorization_code_without_stored_code_raises(self):
+        """authorization_code flow 需要先 store_authorization_code()，否则抛 RuntimeError。"""
         provider = OAuthTokenProvider(
             token_url="https://auth.example.com/oauth/token",
             client_id="test-client",
@@ -312,9 +313,9 @@ class TestOAuthTokenProvider:
         )
         try:
             provider.get_token("https://server.example.com")
-            raise AssertionError("Should have raised NotImplementedError")
-        except NotImplementedError:
-            pass
+            raise AssertionError("Should have raised RuntimeError")
+        except RuntimeError as e:
+            assert "store_authorization_code" in str(e)
 
     def test_invalid_flow_raises_value_error(self):
         provider = OAuthTokenProvider(

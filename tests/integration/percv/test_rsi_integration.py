@@ -26,9 +26,15 @@ class TestRSIIntegration:
         assert target in mtr.targets
 
         result = ExperimentResult(
-            commit="test123", metric_value=0.85, previous_best=0.80,
-            delta=0.05, status="keep", description="improved", memory_mb=128.0,
-            mas_ts_score=87.0, mas_ts_level="L0",
+            commit="test123",
+            metric_value=0.85,
+            previous_best=0.80,
+            delta=0.05,
+            status="keep",
+            description="improved",
+            memory_mb=128.0,
+            mas_ts_score=87.0,
+            mas_ts_level="L0",
         )
         mtr.record_result(target, result)
         assert len(mtr.history[target.value]) == 1
@@ -63,10 +69,16 @@ class TestRSIIntegration:
         bridge = MagicMock()
         bridge.get_history.return_value = [
             MagicMock(
-                iteration=i, score=0.5, approved=False, best_score=0.5,
-                best_iteration=None, duration_s=1.0, status="discard",
+                iteration=i,
+                score=0.5,
+                approved=False,
+                best_score=0.5,
+                best_iteration=None,
+                duration_s=1.0,
+                status="discard",
                 target=ImprovementTarget.PROMPT_DISTILL.value,
-                mas_ts_score=0, mas_ts_level="",
+                mas_ts_score=0,
+                mas_ts_level="",
             )
             for i in range(5)
         ]
@@ -83,16 +95,22 @@ class TestRSIIntegration:
     def test_cross_dimensional_analyzer_works_with_experiment_results(self) -> None:
         history = []
         for i in range(5):
-            history.append(ExperimentResult(
-                commit=f"abc{i}", metric_value=0.7 + i * 0.05,
-                previous_best=0.7, delta=i * 0.05, status="keep",
-                description="", memory_mb=100.0,
-                dimension_scores={
-                    "correctness": 0.7 + i * 0.05,
-                    "testing": 0.6 + i * 0.02,
-                    "code_quality": 0.5 + i * 0.01,
-                },
-            ))
+            history.append(
+                ExperimentResult(
+                    commit=f"abc{i}",
+                    metric_value=0.7 + i * 0.05,
+                    previous_best=0.7,
+                    delta=i * 0.05,
+                    status="keep",
+                    description="",
+                    memory_mb=100.0,
+                    dimension_scores={
+                        "correctness": 0.7 + i * 0.05,
+                        "testing": 0.6 + i * 0.02,
+                        "code_quality": 0.5 + i * 0.01,
+                    },
+                )
+            )
         cda = CrossDimensionalAnalyzer(history)
         effects = cda.detect_cross_effects(window=5)
         assert isinstance(effects, list)
@@ -115,7 +133,9 @@ class TestRSIIntegration:
         meta = MetaRatchet()
         change = ProtocolChange(
             config_key="max_consecutive_discards",
-            old_value=5, new_value=4, rationale="test reduction",
+            old_value=5,
+            new_value=4,
+            rationale="test reduction",
         )
         result = meta.sandbox_test(change, n_rounds=10)
         assert isinstance(result.improvement, float)
@@ -132,14 +152,18 @@ class TestRSIIntegration:
             mock_result.stderr = ""
             mock_run.return_value = mock_result
             with patch.object(bridge, "_get_git_diff", return_value=""):
-                iterations = bridge.run_improvement_cycle(budget=3)
+                iterations = bridge.run_improvement_cycle(
+                    budget=3, use_mas_ts=True, mas_ts_card="test_card.yaml"
+                )
         assert len(iterations) == 3
         assert iterations[0].mas_ts_score == 50.0
         assert iterations[0].status == "discard"
 
     def test_weight_registry_drives_multi_target_selection(self) -> None:
         targets = [ImprovementTarget.PROMPT_DISTILL, ImprovementTarget.PROMPT_PROJECT]
-        mtr = MultiTargetRatchet(targets=targets, config=MultiTargetConfig(rotation_mode="weighted"))
+        mtr = MultiTargetRatchet(
+            targets=targets, config=MultiTargetConfig(rotation_mode="weighted")
+        )
         registry = SimpleWeightRegistry()
         registry.set("correctness", 0.9)
         registry.set("testing", 0.3)

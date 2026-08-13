@@ -328,6 +328,7 @@ class TestStopDuringRunExt:
         config = EvolutionConfig(
             cycles={"c1": CycleSpec(name="C1", rounds=50, description="baseline")},
             max_total_rounds=1,
+            metrics_mode="simulated",
         )
         engine = RecursiveEvolutionEngine(config=config, seed=42)
         import asyncio
