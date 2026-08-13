@@ -8,7 +8,9 @@
     ingest immune  → .evolution_vault/gene_updates.jsonl（绕过案例 → 基因库候选）
 
 设计要点:
-    - 幂等: 按 date + run id 去重，重复 ingest 不产生脏数据
+    - 幂等: 按 date + 内容指纹去重，重复 ingest 不产生脏数据（同日同内容只入库一次）
+    - 语义说明: id 含 YYYYMMDD 前缀 → 幂等实为「每日一次」；跨日重跑同内容会再次入库
+        （设计如此，便于按日对比数据演进）
     - 本地优先: 一律落 .evolution_vault/ 等 gitignore 目录，不入 OSS 发布
     - schema 对齐: 字段名与 openclaw nightly_evolution.py 输出一致
 
@@ -56,12 +58,21 @@ def get_conn() -> sqlite3.Connection:
     return conn
 
 
+# 需从内容指纹中剥离的 volatile 字段（时间/耗时类，每跑必变，否则幂等失效）
+_VOLATILE_KEYS = {"timestamp", "duration_ms", "generated_at"}
+
+
 def _run_id(part: str, payload: dict) -> str:
+    """幂等键 = date + part + 内容指纹。
+
+    指纹只基于业务结果字段（剔除 volatile 时间戳），因此同一结果重复调度只入库一次；
+    结果变化（如混沌失败数不同）则生成新 id，保留数据演进差异。
+    """
     run = payload.get("run") or payload.get("update") or {}
     date = datetime.now(timezone.utc).strftime("%Y%m%d")
-    # 内容指纹作幂等键：同一 payload 只入库一次（跨进程/重复调度天然幂等）
+    digest_source = {k: v for k, v in run.items() if k not in _VOLATILE_KEYS}
     digest = hashlib.sha256(
-        json.dumps(run, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        json.dumps(digest_source, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()[:16]
     return f"{date}-{part}-{digest}"
 
@@ -78,6 +89,17 @@ def cmd_add(part: str, payload_raw: str) -> int:
 
     rid = _run_id(part, payload)
     conn = get_conn()
+
+    # schema 必填键校验（缺 key 时拒绝入库，避免静默空 dict 污染数据）
+    wrap_key, required_keys = SCHEMA[part]
+    payload_run = payload.get(wrap_key) or {}
+    missing = [k for k in required_keys if k not in payload_run]
+    if missing:
+        print(f"❌ [{part}] payload 缺少必填键: {', '.join(missing)}", file=sys.stderr)
+        conn.close()
+        return 2
+
+    # INSERT OR IGNORE: 并发双 MISS 时由主键兜底，杜绝 IntegrityError 裸崩
     cur = conn.execute("SELECT 1 FROM rounds WHERE id = ?", (rid,))
     if cur.fetchone():
         print(f"  [ingest:{part}] 幂等跳过（已存在 {rid}）")
@@ -85,7 +107,7 @@ def cmd_add(part: str, payload_raw: str) -> int:
         return 0
 
     conn.execute(
-        "INSERT INTO rounds (id, part, payload, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO rounds (id, part, payload, created_at) VALUES (?, ?, ?, ?)",
         (rid, part, json.dumps(payload, ensure_ascii=False),
          datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")),
     )

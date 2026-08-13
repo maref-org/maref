@@ -24,10 +24,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -54,6 +55,10 @@ CHAOS_TEST_PATH = "tests/chaos/test_chaos_scenarios.py"
 INGEST_SCRIPT = SCRIPTS_DIR / "evolution_ingest.py"
 
 
+def now_utc() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def run_redblue(rounds_per_phase: int = 4) -> dict:
     """红蓝对抗 5 阶段采样（红 R1→R5 / 蓝 B1→B5 递增），对齐 openclaw 版。"""
     engine = RedBlueEngine()
@@ -65,7 +70,12 @@ def run_redblue(rounds_per_phase: int = 4) -> dict:
         (PHASE5_ATTACKS, RedLevel.R5, BlueLevel.B5),
     ]
     for pi, (attacks, red_level, blue_level) in enumerate(phases):
-        for i, attack in enumerate(attacks[:rounds_per_phase]):
+        # 轮转采样: 从本轮起始偏移开始循环取 rounds_per_phase 个攻击，
+        # 避免顺序切片只覆盖数组前 N 个、其余攻击永不参与演练
+        n_attack = len(attacks)
+        offset = pi % max(n_attack, 1)
+        for i in range(rounds_per_phase):
+            attack = attacks[(offset + i) % n_attack]
             engine.run_round(
                 round_id=f"RB{100 + pi * 100 + i}",
                 phase=pi + 1,
@@ -93,53 +103,84 @@ def run_redblue(rounds_per_phase: int = 4) -> dict:
 
 
 def run_chaos() -> dict:
-    """运行混沌测试套件（SIMULATE 场景），返回报告 dict（对齐 openclaw chaos_report schema）。"""
+    """运行混沌测试套件（SIMULATE 场景），返回报告 dict（对齐 openclaw chaos_report schema）。
+
+    失败（超时/returncode!=0）返回 {"success": False, "error": ...}，绝不裸崩；
+    已跑完的红蓝结果保留在 report 中。
+    """
     cmd = [
         sys.executable, "-m", "pytest", CHAOS_TEST_PATH, "-q",
         "--no-header", "--tb=no", "--no-cov",
     ]
     t1 = time.time()
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    stdout = proc.stdout + proc.stderr
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=300,
+            cwd=str(REPO_ROOT),  # 消除对调用方 cwd 的隐式依赖
+        )
+    except subprocess.TimeoutExpired as e:
+        return {
+            "test_suite": CHAOS_TEST_PATH,
+            "timestamp": now_utc(),
+            "passed": 0,
+            "failed": 0,
+            "total": 0,
+            "success": False,
+            "error": f"timeout 300s 已中止: {e}",
+            "duration_ms": round((time.time() - t1) * 1000),
+        }
+    stdout = (proc.stdout or "") + (proc.stderr or "")
     passed = failed = 0
     # 解析 pytest 汇总行:「N passed, M failed in Xs」
-    import re
     m = re.search(r"(\d+) passed", stdout)
     if m:
         passed = int(m.group(1))
     m = re.search(r"(\d+) failed", stdout)
     if m:
         failed = int(m.group(1))
-    return {
+
+    report = {
         "test_suite": CHAOS_TEST_PATH,
-        "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp": now_utc(),
         "passed": passed,
         "failed": failed,
         "total": passed + failed,
         "success": proc.returncode == 0,
         "duration_ms": round((time.time() - t1) * 1000),
     }
+    # 失败诊断：带 stderr 尾部，避免 launchd 日志里只有 success=False 无从排查
+    if proc.returncode != 0:
+        report["error"] = (proc.stderr or "")[-800:]
+        # 兜底：no tests ran / 收集失败（exit 5）解析会得到 0/0/0
+        if passed == 0 and failed == 0:
+            report["note"] = "pytest 未报告任何测试结果（可能收集失败或 no tests ran）"
+    return report
 
 
-def ingest(part: str, payload: dict) -> None:
-    """经 evolution_ingest.py 幂等落盘（--dry-run 时跳过）。"""
+def ingest(part: str, payload: dict) -> bool:
+    """经 evolution_ingest.py 幂等落盘（--dry-run 时跳过）。
+
+    返回 True 表示落盘成功（含幂等跳过）；失败返回 False 供 main 决定退出码。
+    """
     proc = subprocess.run(
         [sys.executable, str(INGEST_SCRIPT), "add", "--part", part,
          "--json", json.dumps(payload, ensure_ascii=False)],
         capture_output=True, text=True,
     )
     if proc.returncode != 0:
-        print(f"  [ingest:{part}] 失败: {proc.stderr[-500:]}")
+        print(f"  [ingest:{part}] 失败: {(proc.stderr or '')[-500:]}")
+        return False
+    return True
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Track B 夜间进化流水线")
     parser.add_argument("--rounds", type=int, default=4, help="红蓝每阶段轮数（5 阶段）")
-    parser.add_argument("--dry-run", action="store_true", help="只生成报告不落盘 DB")
+    parser.add_argument("--dry-run", action="store_true", help="完整跑但跳过 DB/文件落盘（验证用）")
     parser.add_argument("--skip-chaos", action="store_true")
     args = parser.parse_args()
 
-    report = {"generated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")}
+    report = {"generated_at": now_utc()}
     t0 = time.time()
 
     print("== 1/2 红蓝对抗 ==")
@@ -150,22 +191,29 @@ def main() -> None:
     report["chaos"] = chaos
     print(f"  混沌: {chaos.get('success') if chaos else 'skipped'}")
 
+    ingest_ok = True
     if not args.dry_run:
         VAULT_DIR.mkdir(parents=True, exist_ok=True)
         if rb:
-            ingest("redblue", {"run": rb})
+            ingest_ok &= ingest("redblue", {"run": rb})
         if chaos:
-            ingest("chaos", {"run": chaos})
-        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            ingest_ok &= ingest("chaos", {"run": chaos})
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         CHAOS_REPORT_DIR.mkdir(parents=True, exist_ok=True)
         (CHAOS_REPORT_DIR / f"nightly-run-{stamp}.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     else:
-        print("  [dry-run] 未写 DB / 未落盘报告")
+        print("  [dry-run] 完成全链路但未写 DB / 未落盘报告文件")
 
     print(f"总耗时: {time.time() - t0:.1f}s")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
+    # 落盘失败必须反映到退出码，避免 launchd 下 false-green
+    if not args.dry_run and not ingest_ok:
+        print("  ⚠️ 存在 ingest 落盘失败，进程以非零码退出", file=sys.stderr)
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
