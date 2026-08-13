@@ -63,7 +63,9 @@ jobs:
       - name: Bandit SAST
         run: bandit -r src/ -c pyproject.toml || true
       - name: pip-audit
-        run: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit
       - name: TruffleHog Secret Scan
         run: |
           pip install trufflehog
@@ -85,7 +87,8 @@ jobs:
       - name: Check for remaining 64-state claims
         run: |
           # 禁止"64-state"夸大声明
-          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
+          # 豁免 execution-logs/ 与 INTEGRITY_DECLARATION.md：其仅记录"64-state→34-state 已修正"历史
+          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null | grep -vE "execution-logs|INTEGRITY_DECLARATION" || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining '64-state' claims in:"
             echo "$FILES"
