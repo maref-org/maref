@@ -327,9 +327,7 @@ class NetworkEgressProbe(Probe):
         # 规则 2: 同一响应中 / 和 - 日期共存 (强信号)
         dash_matches = _DATE_DASH_PATTERN.findall(body)
         if slash_matches and dash_matches:
-            signals.append(
-                f"mixed_separators:slash={len(slash_matches)},dash={len(dash_matches)}"
-            )
+            signals.append(f"mixed_separators:slash={len(slash_matches)},dash={len(dash_matches)}")
 
         # 规则 3: 日期字段中出现 / (HTTP 头 Date/Last-Modified/Expires)
         date_headers = ("date", "last-modified", "expires", "if-modified-since")
@@ -351,9 +349,7 @@ class NetworkEgressProbe(Probe):
 
         # 混合分隔符 (规则 2) 或日期头含 / (规则 3) → CRITICAL
         # 单独 / 分隔 → HIGH
-        has_strong = any(
-            "mixed_separators" in s or "date_header_slash" in s for s in signals
-        )
+        has_strong = any("mixed_separators" in s or "date_header_slash" in s for s in signals)
         severity = Severity.CRITICAL if has_strong else Severity.HIGH
         return [
             self._make_event(

@@ -241,9 +241,7 @@ class FederationPolicyEngine:
         for row in rows:
             rule = PolicyRule.from_dict(json.loads(row["data"]))
             self._rules_for_scope(rule.scope)[rule.rule_id] = rule
-        decision_rows = self._db.fetchall(
-            "SELECT data FROM policy_decisions ORDER BY seq"
-        )
+        decision_rows = self._db.fetchall("SELECT data FROM policy_decisions ORDER BY seq")
         for row in decision_rows:
             self._decision_log.append(json.loads(row["data"]))
 
@@ -436,11 +434,7 @@ class FederationPolicyEngine:
 
         if not conflict:
             # Agreement — use the higher-priority rule.
-            winner = (
-                fed_winner
-                if fed_winner.priority >= local_winner.priority
-                else local_winner
-            )
+            winner = fed_winner if fed_winner.priority >= local_winner.priority else local_winner
             return PolicyEvaluationResult(
                 action=action,
                 decision=winner.decision,
@@ -485,9 +479,7 @@ class FederationPolicyEngine:
             ),
         )
 
-    def _resolve_conflict(
-        self, fed_rule: PolicyRule, local_rule: PolicyRule
-    ) -> PolicyRule:
+    def _resolve_conflict(self, fed_rule: PolicyRule, local_rule: PolicyRule) -> PolicyRule:
         """Resolve a conflict between federation and local rules."""
         if self._conflict_strategy == ConflictStrategy.FEDERATION_WINS:
             return fed_rule
@@ -508,9 +500,7 @@ class FederationPolicyEngine:
             return fed_rule
         return local_rule
 
-    def _rules_for_scope(
-        self, scope: PolicyScope
-    ) -> dict[str, PolicyRule]:
+    def _rules_for_scope(self, scope: PolicyScope) -> dict[str, PolicyRule]:
         """Return the rule dict for a given scope."""
         if scope == PolicyScope.FEDERATION:
             return self._federation_rules
@@ -540,9 +530,7 @@ class FederationPolicyEngine:
             "local_rules": len(self._local_rules),
             "adhoc_rules": len(self._adhoc_rules),
             "total_rules": (
-                len(self._federation_rules)
-                + len(self._local_rules)
-                + len(self._adhoc_rules)
+                len(self._federation_rules) + len(self._local_rules) + len(self._adhoc_rules)
             ),
         }
 

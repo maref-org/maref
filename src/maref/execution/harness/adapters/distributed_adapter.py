@@ -29,7 +29,9 @@ class DistributedHarnessAdapter(BaseHarness):
         level = _parse_level(config.level)
         start = time.time()
         try:
-            worker_results = self._harness.run_concurrent(level, self._rounds_per_worker, max(config.duration_minutes, 0.3))
+            worker_results = self._harness.run_concurrent(
+                level, self._rounds_per_worker, max(config.duration_minutes, 0.3)
+            )
             aggregated = self._harness.aggregate(worker_results)
             elapsed = time.time() - start
             errors: list[str] = []

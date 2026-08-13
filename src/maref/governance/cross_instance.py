@@ -160,9 +160,7 @@ class CrossInstanceGovernor:
             return SyncResult.INSTANCE_UNREACHABLE
 
         if policy.requires_consensus:
-            consensus_ok = self._run_consensus(
-                data_type.value, target_instance, payload
-            )
+            consensus_ok = self._run_consensus(data_type.value, target_instance, payload)
             if not consensus_ok:
                 self._audit_log.record(
                     event_type=AuditEventType.CONSENSUS_FAILED,
@@ -184,9 +182,7 @@ class CrossInstanceGovernor:
         return SyncResult.SUCCESS
 
     @security_critical
-    def register_consensus_validator(
-        self, validator: Callable[[str, str, Any], bool]
-    ) -> None:
+    def register_consensus_validator(self, validator: Callable[[str, str, Any], bool]) -> None:
         self._consensus_validators.append(validator)
 
     @security_critical
@@ -216,32 +212,24 @@ class CrossInstanceGovernor:
 
         return snapshot
 
-    def get_weight_snapshots(
-        self, instance_id: str, limit: int = 10
-    ) -> list[WeightSnapshot]:
+    def get_weight_snapshots(self, instance_id: str, limit: int = 10) -> list[WeightSnapshot]:
         snapshots = self._weight_snapshots.get(instance_id, [])
         return snapshots[-limit:]
 
-    def get_instances(
-        self, status: InstanceStatus | None = None
-    ) -> list[InstanceInfo]:
+    def get_instances(self, status: InstanceStatus | None = None) -> list[InstanceInfo]:
         instances = list(self._instances.values())
         if status:
             instances = [i for i in instances if i.status == status]
         return instances
 
-    def set_instance_status(
-        self, instance_id: str, status: InstanceStatus
-    ) -> bool:
+    def set_instance_status(self, instance_id: str, status: InstanceStatus) -> bool:
         instance = self._instances.get(instance_id)
         if instance is None:
             return False
         instance.status = status
         return True
 
-    def _run_consensus(
-        self, data_type: str, target: str, _payload: Any
-    ) -> bool:
+    def _run_consensus(self, data_type: str, target: str, _payload: Any) -> bool:
         for validator in self._consensus_validators:
             if not validator(self._local_id, target, data_type):
                 return False
@@ -262,9 +250,7 @@ class CrossInstanceGovernor:
 
 class WeightPoisonDetector:
     @security_critical
-    def detect_poisoning(
-        self, all_weights: dict[str, dict[str, float]]
-    ) -> list[dict[str, Any]]:
+    def detect_poisoning(self, all_weights: dict[str, dict[str, float]]) -> list[dict[str, Any]]:
         poisoned: list[dict[str, Any]] = []
         if len(all_weights) < 3:
             return poisoned
@@ -294,13 +280,15 @@ class WeightPoisonDetector:
                     continue
                 modified_z = 0.6745 * abs(weights[key] - median) / mad
                 if modified_z > 3.0:
-                    poisoned.append({
-                        "instance_id": instance_id,
-                        "key": key,
-                        "value": weights[key],
-                        "median": round(median, 4),
-                        "modified_z_score": round(modified_z, 4),
-                        "severity": "high" if modified_z > 5.0 else "medium",
-                    })
+                    poisoned.append(
+                        {
+                            "instance_id": instance_id,
+                            "key": key,
+                            "value": weights[key],
+                            "median": round(median, 4),
+                            "modified_z_score": round(modified_z, 4),
+                            "severity": "high" if modified_z > 5.0 else "medium",
+                        }
+                    )
 
         return poisoned

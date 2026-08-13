@@ -168,7 +168,11 @@ def run_benchmark() -> dict:
     t_start = time.perf_counter()
 
     for idx, task in enumerate(BENCHMARK_PROMPTS, 1):
-        print(f"  [{idx:2d}/{len(BENCHMARK_PROMPTS)}] [{task['category']}] {task['title']}... ", end="", flush=True)
+        print(
+            f"  [{idx:2d}/{len(BENCHMARK_PROMPTS)}] [{task['category']}] {task['title']}... ",
+            end="",
+            flush=True,
+        )
 
         result = agent.generate_with_retry(
             prompt=task["prompt"],
@@ -178,12 +182,14 @@ def run_benchmark() -> dict:
         )
 
         if result.success:
-            print(f"OK {len(result.code):>5} chars, "
-                  f"tests={'Y' if result.has_tests else 'N'}, "
-                  f"docs={'Y' if result.has_docstrings else 'N'}, "
-                  f"types={'Y' if result.has_type_hints else 'N'}, "
-                  f"{result.duration_ms/1000:>5.1f}s, "
-                  f"{result.total_tokens:>5} tokens")
+            print(
+                f"OK {len(result.code):>5} chars, "
+                f"tests={'Y' if result.has_tests else 'N'}, "
+                f"docs={'Y' if result.has_docstrings else 'N'}, "
+                f"types={'Y' if result.has_type_hints else 'N'}, "
+                f"{result.duration_ms / 1000:>5.1f}s, "
+                f"{result.total_tokens:>5} tokens"
+            )
         else:
             print(f"FAIL {result.error}")
 
@@ -234,8 +240,12 @@ def run_benchmark() -> dict:
             "total": len(cat_results),
             "success": len(cat_success),
             "success_rate": len(cat_success) / len(cat_results),
-            "avg_duration_ms": statistics.mean([r["duration_ms"] for r in cat_success]) if cat_success else 0,
-            "avg_tokens": statistics.mean([r["total_tokens"] for r in cat_success]) if cat_success else 0,
+            "avg_duration_ms": statistics.mean([r["duration_ms"] for r in cat_success])
+            if cat_success
+            else 0,
+            "avg_tokens": statistics.mean([r["total_tokens"] for r in cat_success])
+            if cat_success
+            else 0,
             "tests_rate": sum(1 for r in cat_success if r["has_tests"]) / max(len(cat_success), 1),
         }
 
@@ -245,19 +255,27 @@ def run_benchmark() -> dict:
     print("=" * 70)
 
     print("\n  Overall:")
-    print(f"    Success rate:      {success_count}/{total_count} ({success_count/total_count*100:.0f}%)")
-    print(f"    Total duration:    {total_duration/1000:.0f}s ({total_duration/1000/60:.1f} min)")
+    print(
+        f"    Success rate:      {success_count}/{total_count} ({success_count / total_count * 100:.0f}%)"
+    )
+    print(
+        f"    Total duration:    {total_duration / 1000:.0f}s ({total_duration / 1000 / 60:.1f} min)"
+    )
     print(f"    Total tokens:      {sum(r['total_tokens'] for r in success_results):,}")
 
     if durations:
         print("\n  Duration:")
-        print(f"    Mean:              {statistics.mean(durations)/1000:.1f}s")
-        print(f"    Median (P50):      {percentile(durations, 50)/1000:.1f}s")
-        print(f"    P95:               {percentile(durations, 95)/1000:.1f}s")
-        print(f"    P99:               {percentile(durations, 99)/1000:.1f}s")
-        print(f"    Std Dev:           {statistics.stdev(durations)/1000:.1f}s" if len(durations) > 1 else "")
-        print(f"    Min:               {min(durations)/1000:.1f}s")
-        print(f"    Max:               {max(durations)/1000:.1f}s")
+        print(f"    Mean:              {statistics.mean(durations) / 1000:.1f}s")
+        print(f"    Median (P50):      {percentile(durations, 50) / 1000:.1f}s")
+        print(f"    P95:               {percentile(durations, 95) / 1000:.1f}s")
+        print(f"    P99:               {percentile(durations, 99) / 1000:.1f}s")
+        print(
+            f"    Std Dev:           {statistics.stdev(durations) / 1000:.1f}s"
+            if len(durations) > 1
+            else ""
+        )
+        print(f"    Min:               {min(durations) / 1000:.1f}s")
+        print(f"    Max:               {max(durations) / 1000:.1f}s")
 
     if tokens:
         print("\n  Token Usage:")
@@ -272,15 +290,23 @@ def run_benchmark() -> dict:
         print(f"    Median (P50):      {percentile(code_lengths, 50):,.0f} chars")
 
     print("\n  Quality Metrics:")
-    print(f"    Tests included:    {has_tests_count}/{success_count} ({has_tests_count/success_count*100:.0f}%)")
-    print(f"    Docstrings:        {has_docs_count}/{success_count} ({has_docs_count/success_count*100:.0f}%)")
-    print(f"    Type hints:        {has_types_count}/{success_count} ({has_types_count/success_count*100:.0f}%)")
+    print(
+        f"    Tests included:    {has_tests_count}/{success_count} ({has_tests_count / success_count * 100:.0f}%)"
+    )
+    print(
+        f"    Docstrings:        {has_docs_count}/{success_count} ({has_docs_count / success_count * 100:.0f}%)"
+    )
+    print(
+        f"    Type hints:        {has_types_count}/{success_count} ({has_types_count / success_count * 100:.0f}%)"
+    )
 
     print("\n  By Category:")
     for cat, stats in sorted(category_stats.items()):
-        print(f"    {cat:<15} {stats['success']}/{stats['total']} success, "
-              f"{stats['avg_duration_ms']/1000:.1f}s avg, "
-              f"tests={stats['tests_rate']*100:.0f}%")
+        print(
+            f"    {cat:<15} {stats['success']}/{stats['total']} success, "
+            f"{stats['avg_duration_ms'] / 1000:.1f}s avg, "
+            f"tests={stats['tests_rate'] * 100:.0f}%"
+        )
 
     return {
         "model": VOLC_ARK_MODEL,
@@ -317,7 +343,9 @@ def run_benchmark() -> dict:
 if __name__ == "__main__":
     results = run_benchmark()
 
-    output_path = Path(__file__).parent.parent.parent / "tests" / "stress" / "volc_ark_baseline_results.json"
+    output_path = (
+        Path(__file__).parent.parent.parent / "tests" / "stress" / "volc_ark_baseline_results.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2, default=str)

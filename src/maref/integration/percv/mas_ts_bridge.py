@@ -37,9 +37,7 @@ class MasTSBridge:
             card_path=card_path,
         )
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=120
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
             if result.returncode != 0:
                 raise MasTSError(f"MAS-TS L0 failed: {result.stderr}")
             return json.loads(result.stdout)

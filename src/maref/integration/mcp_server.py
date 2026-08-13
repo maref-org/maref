@@ -161,7 +161,9 @@ class MCPServer:
     def _handle_initialize(self, req_id: int | str, params: dict[str, Any]) -> JSONRPCResponse:
         client_version = params.get("protocolVersion", "2024-11-05")
         protocol_version = (
-            client_version if client_version in SUPPORTED_PROTOCOL_VERSIONS else SUPPORTED_PROTOCOL_VERSIONS[0]
+            client_version
+            if client_version in SUPPORTED_PROTOCOL_VERSIONS
+            else SUPPORTED_PROTOCOL_VERSIONS[0]
         )
         if protocol_version != client_version:
             logger.warning(

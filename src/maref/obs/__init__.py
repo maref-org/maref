@@ -33,6 +33,7 @@ def get_obs_show() -> list[dict]:
 def get_obs_status() -> str:
     return "active"
 
+
 __all__ = [
     "MarefObsClient",
     "ObsAggregator",

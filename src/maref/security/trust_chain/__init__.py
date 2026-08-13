@@ -147,9 +147,7 @@ class DelegationChain:
         policy_version: str = "1.0",
     ) -> DelegationChain:
         """Create a chain whose root node carries a signature from the root agent."""
-        chain = cls.create(
-            root_agent_id, max_depth=max_depth, policy_version=policy_version
-        )
+        chain = cls.create(root_agent_id, max_depth=max_depth, policy_version=policy_version)
         chain._sign_node(chain.nodes[0], root_agent_id, root_signing_key)
         return chain
 

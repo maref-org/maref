@@ -50,17 +50,13 @@ class AgentCardSignature:
                 self.verified = False
             return self.verified
 
-        computed_hash = hashlib.sha256(
-            json.dumps(card_data, sort_keys=True).encode()
-        ).hexdigest()
+        computed_hash = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
         try:
             signature_bytes = bytes.fromhex(self.signature_value)
         except ValueError:
             self.verified = False
             return False
-        sig_valid = Ed25519KeyPair.verify(
-            public_key_pem, signature_bytes, computed_hash.encode()
-        )
+        sig_valid = Ed25519KeyPair.verify(public_key_pem, signature_bytes, computed_hash.encode())
         self.verified = sig_valid and (time.time() < self.expires_at)
         return self.verified
 
@@ -115,6 +111,7 @@ class SignedAgentCard:
 @dataclass
 class CapabilityDriftReport:
     """声明 vs 实际能力偏离报告"""
+
     agent_id: str
     drift_detected: bool
     declared_capabilities: set[str]
@@ -143,15 +140,11 @@ class AgentCardSigner:
 
     def sign_card(self, card: SignedAgentCard, private_key_pem: str) -> AgentCardSignature:
         card_data = card.to_card_data()
-        card_hash = hashlib.sha256(
-            json.dumps(card_data, sort_keys=True).encode()
-        ).hexdigest()
+        card_hash = hashlib.sha256(json.dumps(card_data, sort_keys=True).encode()).hexdigest()
 
         if self._legacy_mode:
             algorithm = "ed25519-sim"
-            signature_value = hashlib.sha256(
-                (card_hash + private_key_pem).encode()
-            ).hexdigest()
+            signature_value = hashlib.sha256((card_hash + private_key_pem).encode()).hexdigest()
         else:
             key_pair = Ed25519KeyPair.from_private_pem(private_key_pem)
             signature_bytes = key_pair.sign(card_hash.encode())
@@ -160,9 +153,7 @@ class AgentCardSigner:
 
         public_key_pem = self._key_registry.get(card.agent_id, "")
         fingerprint = (
-            hashlib.sha256(public_key_pem.encode()).hexdigest()[:16]
-            if public_key_pem
-            else ""
+            hashlib.sha256(public_key_pem.encode()).hexdigest()[:16] if public_key_pem else ""
         )
 
         sig = AgentCardSignature(
@@ -335,16 +326,17 @@ class SignedAgentCardStore:
         # 检测偏离：观测到但未声明的能力
         unauthorized = observed_caps - declared
         unauthorized_syscalls = {
-            sc for sc in observed_syscalls
+            sc
+            for sc in observed_syscalls
             if sc in syscall_to_cap and syscall_to_cap[sc] in unauthorized
         }
-        unauthorized_domains = (
-            observed_domains if "network" in unauthorized else set()
-        )
+        unauthorized_domains = observed_domains if "network" in unauthorized else set()
 
         drift = bool(unauthorized)
         if drift:
-            severity = "CRITICAL" if "execute" in unauthorized or "debug" in unauthorized else "HIGH"
+            severity = (
+                "CRITICAL" if "execute" in unauthorized or "debug" in unauthorized else "HIGH"
+            )
         else:
             severity = "LOW"
 
@@ -358,7 +350,8 @@ class SignedAgentCardStore:
             severity=severity,
             reason=(
                 f"observed capabilities {observed_caps} exceed declared {declared}"
-                if drift else "all observed capabilities match declared"
+                if drift
+                else "all observed capabilities match declared"
             ),
         )
 

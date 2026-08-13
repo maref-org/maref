@@ -94,6 +94,7 @@ class AuditLogService:
     ) -> None:
         if bus is None:
             from maref.governance.audit import AuditLogger
+
             logger = AuditLogger(
                 log_path=Path(log_path) if log_path else None,
                 hmac_key=secret,

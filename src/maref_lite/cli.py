@@ -175,7 +175,9 @@ def rollback(
     try:
         result = subprocess.run(
             ["git", "tag", "--sort=-version:refname"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         for tag in result.stdout.strip().split("\n")[:10]:
             marker = " ← current" if tag == f"v{current}" else ""
@@ -314,7 +316,11 @@ def desktop_run(
 
     dry_run = not live
     if live:
-        _log_bypass("live", "desktop run", reason=f"Desktop task executed with real mouse/keyboard: {task[:60]}")
+        _log_bypass(
+            "live",
+            "desktop run",
+            reason=f"Desktop task executed with real mouse/keyboard: {task[:60]}",
+        )
     console.print(f"[bold]MAREF Desktop Agent[/bold] ({'LIVE' if live else 'dry-run'})")
     console.print(f"Task: {task or '(demo)'}")
 
@@ -540,7 +546,9 @@ def audit_show(
 @audit_app.command("verify")
 def audit_verify(
     file: str = typer.Option("", "--file", "-f", help="Audit log file path"),
-    pubkey: str = typer.Option("", "--pubkey", "-k", help="Ed25519 public key PEM file for signature verification"),
+    pubkey: str = typer.Option(
+        "", "--pubkey", "-k", help="Ed25519 public key PEM file for signature verification"
+    ),
 ) -> None:
     """Verify integrity of an audit log file.
 
@@ -575,7 +583,9 @@ def audit_verify(
     if intact:
         console.print(f"[green]VERIFIED: {valid}/{total} entries valid[/green]")
     else:
-        console.print(f"[red]FAILED: {len(tampered)}/{total} entries tampered or unverifiable[/red]")
+        console.print(
+            f"[red]FAILED: {len(tampered)}/{total} entries tampered or unverifiable[/red]"
+        )
         for eid in tampered[:10]:
             console.print(f"  [red]✗ {eid}[/red]")
         if len(tampered) > 10:
@@ -634,9 +644,15 @@ def audit_export(
 @federated_app.command("verify")
 def federated_verify(
     proof: str = typer.Argument(..., help="Path to FederatedProof JSON file"),
-    pubkey: str = typer.Option("", "--pubkey", "-k", help="Ed25519 public key PEM to verify proof signature"),
-    batch: bool = typer.Option(False, "--batch", help="Treat proof as glob pattern for batch verification"),
-    pubkey_dir: str = typer.Option("", "--pubkey-dir", help="Directory of .pem files matched by org_id"),
+    pubkey: str = typer.Option(
+        "", "--pubkey", "-k", help="Ed25519 public key PEM to verify proof signature"
+    ),
+    batch: bool = typer.Option(
+        False, "--batch", help="Treat proof as glob pattern for batch verification"
+    ),
+    pubkey_dir: str = typer.Option(
+        "", "--pubkey-dir", help="Directory of .pem files matched by org_id"
+    ),
 ) -> None:
     """Verify a federated Merkle proof.
 
@@ -660,7 +676,6 @@ def federated_verify(
         raise typer.Exit(1)
 
     if len(files) > 1 or batch:
-
         passed = 0
         failed = 0
         for f in sorted(files):
@@ -677,8 +692,14 @@ def federated_verify(
 
             ok = m_ok and (sig_ok is None or sig_ok)
             status = "✅" if ok else "❌"
-            sig_tag = f" sig={'✅' if sig_ok else ('❌' if sig_ok is False else '—')}" if pubkey or pubkey_dir else ""
-            console.print(f"  {status} {fp.org_id:20s} merkle={'✅' if m_ok else '❌'}{sig_tag}  ({f})")
+            sig_tag = (
+                f" sig={'✅' if sig_ok else ('❌' if sig_ok is False else '—')}"
+                if pubkey or pubkey_dir
+                else ""
+            )
+            console.print(
+                f"  {status} {fp.org_id:20s} merkle={'✅' if m_ok else '❌'}{sig_tag}  ({f})"
+            )
             if ok:
                 passed += 1
             else:
@@ -728,7 +749,9 @@ def federated_verify(
 
 @federated_app.command("reconcile")
 def federated_reconcile(
-    replicas: Annotated[list[str], typer.Argument(help="Replica log files (format: replica_id=path)")],
+    replicas: Annotated[
+        list[str], typer.Argument(help="Replica log files (format: replica_id=path)")
+    ],
 ) -> None:
     """Reconcile audit logs across replicas.
 
@@ -741,11 +764,21 @@ def federated_reconcile(
 
 @federated_app.command("reconcile-daemon")
 def federated_reconcile_daemon(
-    replicas: Annotated[list[str], typer.Argument(help="Replica log files (format: replica_id=path)")],
-    interval: float = typer.Option(300.0, "--interval", "-i", help="Reconciliation interval in seconds"),
-    alert_on_discrepancy: bool = typer.Option(False, "--alert", help="Exit with code 1 on first discrepancy"),
-    webhook: str = typer.Option("", "--webhook", "-w", help="POST discrepancies to this webhook URL"),
-    webhook_interval: int = typer.Option(300, "--webhook-interval", help="Min seconds between webhook alerts"),
+    replicas: Annotated[
+        list[str], typer.Argument(help="Replica log files (format: replica_id=path)")
+    ],
+    interval: float = typer.Option(
+        300.0, "--interval", "-i", help="Reconciliation interval in seconds"
+    ),
+    alert_on_discrepancy: bool = typer.Option(
+        False, "--alert", help="Exit with code 1 on first discrepancy"
+    ),
+    webhook: str = typer.Option(
+        "", "--webhook", "-w", help="POST discrepancies to this webhook URL"
+    ),
+    webhook_interval: int = typer.Option(
+        300, "--webhook-interval", help="Min seconds between webhook alerts"
+    ),
 ) -> None:
     """Continuously reconcile audit logs across replicas.
 
@@ -783,19 +816,22 @@ def federated_reconcile_daemon(
             if webhook and report.discrepancies:
                 critical = [d for d in report.discrepancies if d.get("severity") != "info"]
                 if critical and time.time() - last_webhook > webhook_interval:
-                    payload = json.dumps({
-                        "event": "reconcile_discrepancy",
-                        "timestamp": time.time(),
-                        "timestmap_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                        "replicas": list(report.total_entries.keys()),
-                        "entry_counts": report.total_entries,
-                        "total_discrepancies": len(report.discrepancies),
-                        "critical_count": len(critical),
-                        "discrepancies": report.discrepancies,
-                    }).encode()
+                    payload = json.dumps(
+                        {
+                            "event": "reconcile_discrepancy",
+                            "timestamp": time.time(),
+                            "timestmap_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                            "replicas": list(report.total_entries.keys()),
+                            "entry_counts": report.total_entries,
+                            "total_discrepancies": len(report.discrepancies),
+                            "critical_count": len(critical),
+                            "discrepancies": report.discrepancies,
+                        }
+                    ).encode()
                     try:
                         req = urllib.request.Request(
-                            webhook, data=payload,
+                            webhook,
+                            data=payload,
                             headers={"Content-Type": "application/json"},
                         )
                         urllib.request.urlopen(req, timeout=10)
@@ -873,7 +909,10 @@ def federated_submit(
     org_id: str = typer.Option(..., "--org-id", "-o", help="Organization identifier"),
     root_hash: str = typer.Option(..., "--root-hash", "-r", help="Merkle root hash"),
     state_file: str = typer.Option(
-        ".maref/federated-state.json", "--state", "-s", help="Aggregator state file",
+        ".maref/federated-state.json",
+        "--state",
+        "-s",
+        help="Aggregator state file",
     ),
     tree_size: int = typer.Option(0, "--tree-size", "-n", help="Number of evidence leaves"),
     metadata: str = typer.Option("", "--metadata", "-m", help="JSON metadata string"),
@@ -903,7 +942,9 @@ def federated_submit(
 
     summary = agg.summary()
     console.print(f"[green]Submitted root for {org_id}[/green]")
-    console.print(f"  Federated root: {summary['federated_root'][:16] if summary['federated_root'] else '—'}...")
+    console.print(
+        f"  Federated root: {summary['federated_root'][:16] if summary['federated_root'] else '—'}..."
+    )
     console.print(f"  Organizations: {summary['org_count']}")
     console.print(f"  State saved to: {state_file}")
 
@@ -911,7 +952,10 @@ def federated_submit(
 @federated_app.command("status")
 def federated_status(
     state_file: str = typer.Option(
-        ".maref/federated-state.json", "--state", "-s", help="Aggregator state file",
+        ".maref/federated-state.json",
+        "--state",
+        "-s",
+        help="Aggregator state file",
     ),
     proof_for: str = typer.Option("", "--proof", "-p", help="Generate proof for this org"),
     sign: str = typer.Option("", "--sign", help="Sign proof with Ed25519 private key PEM"),
@@ -939,8 +983,16 @@ def federated_status(
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="white")
     table.add_row("Organizations", str(summary["org_count"]))
-    table.add_row("Federated root", summary["federated_root"][:32] + "..." if summary["federated_root"] else "—")
-    table.add_row("Last aggregated", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(summary["last_aggregated"])) if summary["last_aggregated"] else "—")
+    table.add_row(
+        "Federated root",
+        summary["federated_root"][:32] + "..." if summary["federated_root"] else "—",
+    )
+    table.add_row(
+        "Last aggregated",
+        time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(summary["last_aggregated"]))
+        if summary["last_aggregated"]
+        else "—",
+    )
     table.add_row("Total evidence", str(summary["total_evidence_count"]))
     console.print(table)
 
@@ -972,6 +1024,7 @@ def federated_status(
                 console.print(f"[red]Key file not found: {sign}[/red]")
                 raise typer.Exit(1)
             from maref.crypto.ed25519_keys import Ed25519KeyPair
+
             kp = Ed25519KeyPair.from_private_pem(key_path.read_text())
             proof.sign(kp)
             console.print(f"[green]Proof signed by {kp.fingerprint[:16]}...[/green]")
@@ -1059,11 +1112,15 @@ def governance_credential(
     key_pem: str = typer.Option("", "--key", help="Ed25519 私钥 PEM 路径；缺省生成临时密钥"),
     ttl: float = typer.Option(86400.0, "--ttl", help="凭证有效期（秒）"),
     out: str = typer.Option("", "--out", help="输出凭证/吊销列表文件路径"),
-    store_path: str = typer.Option("", "--store", help="store JSON 路径（默认 .maref/credentials_store.json）"),
+    store_path: str = typer.Option(
+        "", "--store", help="store JSON 路径（默认 .maref/credentials_store.json）"
+    ),
     credential_file: str = typer.Option("", "--file", help="待验证的凭证 JSON 文件"),
     credential_id: str = typer.Option("", "--id", help="要吊销的凭证 ID"),
     reason: str = typer.Option("unspecified", "--reason", help="吊销原因"),
-    revocations: str = typer.Option("", "--revocations", help="外部吊销列表 JSON 路径（verify 时加载）"),
+    revocations: str = typer.Option(
+        "", "--revocations", help="外部吊销列表 JSON 路径（verify 时加载）"
+    ),
 ) -> None:
     """Issue / verify / revoke / export verifiable governance credentials."""
     from pathlib import Path
@@ -1322,7 +1379,11 @@ def self_heal_start(
     from maref_lite.self_healing_loop import SelfHealingConfig, SelfHealingLoop
 
     if execute_proposals:
-        _log_bypass("execute-proposals", "self-heal start", reason="SelfExecutor write bypassed proposal dry-run")
+        _log_bypass(
+            "execute-proposals",
+            "self-heal start",
+            reason="SelfExecutor write bypassed proposal dry-run",
+        )
     config = SelfHealingConfig(
         check_interval_seconds=interval,  # type: ignore[arg-type]
         proposal_dry_run=not execute_proposals,
@@ -1406,8 +1467,16 @@ def self_heal_config() -> None:
 
     table.add_row("check_interval_seconds", str(config.check_interval_seconds), "巡检间隔（秒）")
     table.add_row("max_heal_iterations", str(config.max_heal_iterations), "单次最大修复迭代次数")
-    table.add_row("enable_architecture_proposals", str(config.enable_architecture_proposals), "是否启用架构改进提案")
-    table.add_row("arch_proposal_interval_cycles", str(config.arch_proposal_interval_cycles), "架构提案间隔（巡检次数）")
+    table.add_row(
+        "enable_architecture_proposals",
+        str(config.enable_architecture_proposals),
+        "是否启用架构改进提案",
+    )
+    table.add_row(
+        "arch_proposal_interval_cycles",
+        str(config.arch_proposal_interval_cycles),
+        "架构提案间隔（巡检次数）",
+    )
 
     console.print(table)
     console.print()
@@ -1422,11 +1491,19 @@ app.add_typer(daemon_app, name="daemon")
 
 @daemon_app.command("start")
 def daemon_start(
-    interval: float = typer.Option(0.0, "--interval", "-i", help="Polling interval in hours (0 = no sleep between runs)"),
-    max_runs: int = typer.Option(100, "--max-runs", "-n", help="Max evolution cycles (0 = infinite)"),
-    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    interval: float = typer.Option(
+        0.0, "--interval", "-i", help="Polling interval in hours (0 = no sleep between runs)"
+    ),
+    max_runs: int = typer.Option(
+        100, "--max-runs", "-n", help="Max evolution cycles (0 = infinite)"
+    ),
+    engine: str = typer.Option(
+        "daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'
+    ),
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
-    vault: str = typer.Option(".evolution_vault", "--vault", "-v", help="Evolution vault directory"),
+    vault: str = typer.Option(
+        ".evolution_vault", "--vault", "-v", help="Evolution vault directory"
+    ),
 ) -> None:
     """启动演进守护进程，连续运行指定次数的递归演进。"""
     import asyncio
@@ -1434,7 +1511,9 @@ def daemon_start(
     from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
 
     if not dry_run:
-        _log_bypass("no-dry-run", "daemon start", reason="Evolution daemon running with real writes enabled")
+        _log_bypass(
+            "no-dry-run", "daemon start", reason="Evolution daemon running with real writes enabled"
+        )
     config = DaemonConfig(
         interval_hours=interval,
         max_runs=max_runs,
@@ -1449,7 +1528,9 @@ def daemon_start(
         console.print(f"  Engine:    [cyan]{engine}[/cyan]")
         console.print(f"  Vault:     [dim]{vault}[/dim]")
         console.print()
-        console.print("[green]✓[/green] Configuration valid. Run with --no-dry-run to enable real writes.")
+        console.print(
+            "[green]✓[/green] Configuration valid. Run with --no-dry-run to enable real writes."
+        )
         return
 
     daemon = EvolutionDaemon(config)
@@ -1470,9 +1551,13 @@ def daemon_start(
 
 @daemon_app.command("run-once")
 def daemon_run_once(
-    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    engine: str = typer.Option(
+        "daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'
+    ),
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
-    vault: str = typer.Option(".evolution_vault", "--vault", "-v", help="Evolution vault directory"),
+    vault: str = typer.Option(
+        ".evolution_vault", "--vault", "-v", help="Evolution vault directory"
+    ),
 ) -> None:
     """执行单次演进循环并报告结果。"""
     from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
@@ -1490,6 +1575,7 @@ def daemon_run_once(
     )
     daemon = EvolutionDaemon(config)
     import asyncio
+
     result = asyncio.run(daemon.run_once())
 
     if result is None:
@@ -1505,11 +1591,14 @@ def daemon_run_once(
 @daemon_app.command("install-launchd")
 def daemon_install_launchd(
     interval: float = typer.Option(6.0, "--interval", "-i", help="Polling interval in hours"),
-    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    engine: str = typer.Option(
+        "daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'
+    ),
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
     output: str = typer.Option(
         os.path.expanduser("~/Library/LaunchAgents/com.maref.evolution-daemon.plist"),
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Output path for launchd plist",
     ),
 ) -> None:
@@ -1531,11 +1620,14 @@ def daemon_install_launchd(
 @daemon_app.command("install-systemd")
 def daemon_install_systemd(
     interval: float = typer.Option(6.0, "--interval", "-i", help="Polling interval in hours"),
-    engine: str = typer.Option("daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'),
+    engine: str = typer.Option(
+        "daily", "--engine", "-e", help='Evolution engine: "daily" or "rel"'
+    ),
     dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Dry-run mode (read-only)"),
     output: str = typer.Option(
         "/etc/systemd/system/maref-evolution-daemon.service",
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Output path for systemd unit",
     ),
 ) -> None:
@@ -1565,6 +1657,7 @@ def daemon_status() -> None:
         return
 
     import json
+
     state = json.loads(state_path.read_text())
     console.print("[bold]Evolution Daemon Status[/bold]")
     console.print(f"  Last run:  [cyan]{state.get('last_run', 'never')}[/cyan]")
@@ -1583,8 +1676,12 @@ def daemon_status() -> None:
 @report_app.command("generate")
 def report_generate(
     audit_log: str = typer.Option("", "--audit-log", "-a", help="Audit log JSONL file path"),
-    signing_key: str = typer.Option("", "--signing-key", "-k", help="Report signing key PEM file path"),
-    output: str = typer.Option("governance-report.json", "--output", "-o", help="Output report JSON file path"),
+    signing_key: str = typer.Option(
+        "", "--signing-key", "-k", help="Report signing key PEM file path"
+    ),
+    output: str = typer.Option(
+        "governance-report.json", "--output", "-o", help="Output report JSON file path"
+    ),
     since: str = typer.Option("", "--since", help="ISO timestamp for incremental generation"),
     state: str = typer.Option("", "--state", help="Governance state override (e.g. VERIFY)"),
 ) -> None:
@@ -1601,7 +1698,9 @@ def report_generate(
             raise typer.Exit(1)
         key = ReportSigningKey.from_private_key_file(key_path)
     else:
-        console.print("[yellow]No signing key provided — generating ephemeral key for testing[/yellow]")
+        console.print(
+            "[yellow]No signing key provided — generating ephemeral key for testing[/yellow]"
+        )
         key = ReportSigningKey.generate()
 
     sys_state = None
@@ -1611,6 +1710,7 @@ def report_generate(
     since_ts: float | None = None
     if since:
         from datetime import datetime
+
         since_ts = datetime.fromisoformat(since).timestamp()
 
     log_path = Path(audit_log) if audit_log else _default_audit_log_path()
@@ -1637,8 +1737,12 @@ def report_generate(
 
 @report_app.command("verify")
 def report_verify(
-    file: str = typer.Option("governance-report.json", "--file", "-f", help="GovernanceReport JSON file path"),
-    pubkey: str = typer.Option("", "--pubkey", "-k", help="Ed25519 public key PEM file for signature verification"),
+    file: str = typer.Option(
+        "governance-report.json", "--file", "-f", help="GovernanceReport JSON file path"
+    ),
+    pubkey: str = typer.Option(
+        "", "--pubkey", "-k", help="Ed25519 public key PEM file for signature verification"
+    ),
 ) -> None:
     """Verify a GovernanceReport file offline.
 
@@ -1669,6 +1773,7 @@ def report_verify(
         result = ReportVerifier.verify_report(report, ed25519_pubkey_pem)
     else:
         from maref.reporting.verifier import VerificationResult
+
         basic = report.signature != ""
         result = VerificationResult(
             passed=basic,
@@ -1683,6 +1788,7 @@ def report_verify(
         console.print(f"[red]FAILED: {result.report_id}[/red]")
 
     from rich.table import Table
+
     table = Table(title="Verification Report")
     table.add_column("Check", style="cyan")
     table.add_column("Status", style="white")
@@ -1701,7 +1807,9 @@ def report_verify(
 
 @report_app.command("export")
 def report_export(
-    file: str = typer.Option("governance-report.json", "--file", "-f", help="GovernanceReport JSON file path"),
+    file: str = typer.Option(
+        "governance-report.json", "--file", "-f", help="GovernanceReport JSON file path"
+    ),
     output: str = typer.Option("", "--output", "-o", help="Output file path"),
     fmt: str = typer.Option("json", "--format", help="Export format: json or html"),
 ) -> None:
@@ -1722,6 +1830,7 @@ def report_export(
 
     elif fmt == "html":
         from maref.reporting.exporter import ReportExporter
+
         out = Path(output or "governance-report.html")
         exporter = ReportExporter()
         exporter.export_report(report, out)
@@ -1734,8 +1843,12 @@ def report_export(
 
 @report_app.command("signing-key-init")
 def report_signing_key_init(
-    output_dir: str = typer.Option(".", "--output-dir", "-o", help="Output directory for key files"),
-    encrypt: bool = typer.Option(False, "--encrypt", "-e", help="Encrypt private key with password"),
+    output_dir: str = typer.Option(
+        ".", "--output-dir", "-o", help="Output directory for key files"
+    ),
+    encrypt: bool = typer.Option(
+        False, "--encrypt", "-e", help="Encrypt private key with password"
+    ),
 ) -> None:
     """Generate a new maref-report-signing Ed25519 key pair.
 
@@ -1752,12 +1865,18 @@ def report_signing_key_init(
 
     console.print(f"[green]Signing key pair generated in: {out}[/green]")
     enc_label = " (encrypted)" if encrypt else ""
-    console.print(f"  Private key: [cyan]{out / 'maref-report-signing.pem'}[/cyan] (chmod 600){enc_label}")
+    console.print(
+        f"  Private key: [cyan]{out / 'maref-report-signing.pem'}[/cyan] (chmod 600){enc_label}"
+    )
     console.print(f"  Public key:  [cyan]{out / 'maref-report-signing.pub'}[/cyan]")
     console.print(f"  Fingerprint: [cyan]{key.fingerprint}[/cyan]")
     console.print()
-    console.print("[yellow]Store the private key securely. The fingerprint should be published[/yellow]")
-    console.print("[yellow]at maref.cc/verify/fingerprint.txt for third-party verification.[/yellow]")
+    console.print(
+        "[yellow]Store the private key securely. The fingerprint should be published[/yellow]"
+    )
+    console.print(
+        "[yellow]at maref.cc/verify/fingerprint.txt for third-party verification.[/yellow]"
+    )
 
 
 # ── Serve command ────────────────────────────────────────────────────
@@ -1784,7 +1903,9 @@ def start(
         console.print(f"  [green]MCP config:[/green] {opencode_config}")
         console.print("  [green]opencode[/green] will discover MAREF tools on next launch.")
     else:
-        console.print("  [yellow]Warning:[/yellow] opencode.json not found — MCP auto-registration unavailable.")
+        console.print(
+            "  [yellow]Warning:[/yellow] opencode.json not found — MCP auto-registration unavailable."
+        )
     serve(port=port, gui=gui)
 
 
@@ -1846,7 +1967,12 @@ def serve(
         collector = ObservationCollector(adapter=MockAgentAdapter())
         monitor = CompositeMonitor()
         obs_bridge = ObsBridge(client=MarefObsClient.get_default()) if telemetry else None
-        uvicorn.run(create_app(collector, monitor, obs_bridge=obs_bridge, federated=federated), host=host, port=port, log_level="info")
+        uvicorn.run(
+            create_app(collector, monitor, obs_bridge=obs_bridge, federated=federated),
+            host=host,
+            port=port,
+            log_level="info",
+        )
     except ImportError:
         console.print(f"[dim]Sidecar server mock — http://0.0.0.0:{port}[/dim]")
 

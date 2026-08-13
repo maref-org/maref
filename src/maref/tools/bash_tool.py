@@ -40,7 +40,17 @@ class BashTool(Tool[BashInput, BashOutput]):
 
     def is_read_only(self, input: BashInput) -> bool:
         tokens = shlex.split(input.command)
-        read_only_commands = {"ls", "cat", "head", "tail", "echo", "pwd", "which", "type", "printenv"}
+        read_only_commands = {
+            "ls",
+            "cat",
+            "head",
+            "tail",
+            "echo",
+            "pwd",
+            "which",
+            "type",
+            "printenv",
+        }
         return bool(tokens and tokens[0] in read_only_commands)
 
     def is_concurrency_safe(self, input: BashInput) -> bool:

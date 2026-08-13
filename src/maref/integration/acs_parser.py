@@ -201,9 +201,7 @@ class ACSParser:
         """
         errors = self._collect_validation_errors(raw)
         if errors:
-            raise ACSParseError(
-                "Invalid ACS document: " + "; ".join(errors)
-            )
+            raise ACSParseError("Invalid ACS document: " + "; ".join(errors))
 
         provider_raw = raw.get("provider")
         provider = None
@@ -387,9 +385,7 @@ class ACSParser:
                 else:
                     for sec in security:
                         if sec not in _VALID_SECURITY_SCHEMES:
-                            errors.append(
-                                f"endpoints[{i}].security contains unknown scheme: {sec}"
-                            )
+                            errors.append(f"endpoints[{i}].security contains unknown scheme: {sec}")
 
         skills = raw.get("skills", [])
         if not isinstance(skills, list):

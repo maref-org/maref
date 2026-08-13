@@ -22,6 +22,7 @@ from typing import Any
 @dataclass
 class AlertRecord:
     """A tracked alert with its lifecycle state."""
+
     alert_id: str
     name: str
     severity: str
@@ -150,15 +151,18 @@ class AlertFeedbackTracker:
 
         # Dedup: if same name within 600s, increment repeat count
         for existing in self._alerts.values():
-            if (existing.name == name
-                    and existing.severity == severity
-                    and existing.is_open
-                    and now - existing.triggered_at < 600):
+            if (
+                existing.name == name
+                and existing.severity == severity
+                and existing.is_open
+                and now - existing.triggered_at < 600
+            ):
                 existing.repeat_count += 1
                 self._save()
                 return existing
 
         import uuid
+
         record = AlertRecord(
             alert_id=uuid.uuid4().hex[:12],
             name=name,
@@ -210,10 +214,7 @@ class AlertFeedbackTracker:
     def get_recently_closed(self, window_hours: float = 24) -> list[AlertRecord]:
         """Get alerts closed in the given time window."""
         cutoff = time.time() - window_hours * 3600
-        return [
-            r for r in self._alerts.values()
-            if not r.is_open and (r.verified_at or 0) > cutoff
-        ]
+        return [r for r in self._alerts.values() if not r.is_open and (r.verified_at or 0) > cutoff]
 
     def repeat_alert_rate(self, window_hours: float = 24) -> dict[str, Any]:
         """Calculate repeat alert rate in the given window.
@@ -258,15 +259,15 @@ class AlertFeedbackTracker:
         result = {
             "passed": len(recent) > 0,
             "last_alert_seconds_ago": round(now - self._alert_timestamps[-1], 1)
-            if self._alert_timestamps else None,
+            if self._alert_timestamps
+            else None,
             "alerts_in_window": len(recent),
             "silence_window_seconds": silence_window,
         }
 
         if self._alert_timestamps and now - self._alert_timestamps[-1] > silence_window:
             result["detail"] = (
-                f"No alerts in {silence_window / 60:.0f}min — "
-                f"alert system may be silent/silenced"
+                f"No alerts in {silence_window / 60:.0f}min — alert system may be silent/silenced"
             )
         elif not self._alert_timestamps:
             result["detail"] = "No alerts ever recorded — tracking may be uninitialized"

@@ -36,7 +36,7 @@ from typing import Any
 CAPABILITY_TO_SANDBOX_RULES: dict[str, dict[str, list[str]]] = {
     "network_read": {
         "allow": [
-            '(allow network-outbound (remote tcp))',
+            "(allow network-outbound (remote tcp))",
             '(allow network* (remote udp "127.0.0.1:53"))',  # DNS
         ],
         "deny": [],
@@ -44,7 +44,7 @@ CAPABILITY_TO_SANDBOX_RULES: dict[str, dict[str, list[str]]] = {
     "network_write": {
         # network_write = server mode, allow inbound
         "allow": [
-            '(allow network-inbound (local tcp))',
+            "(allow network-inbound (local tcp))",
         ],
         "deny": [],
     },
@@ -85,7 +85,7 @@ CAPABILITY_TO_SANDBOX_RULES: dict[str, dict[str, list[str]]] = {
     "process_spawn": {
         # process_spawn = 允许 fork/posix_spawn
         "allow": [
-            '(allow process-fork)',
+            "(allow process-fork)",
         ],
         "deny": [],
     },
@@ -114,44 +114,44 @@ CAPABILITY_TO_SANDBOX_RULES: dict[str, dict[str, list[str]]] = {
     "ptrace": {
         # ptrace 通常应被拒绝;只有声明此能力的 Agent 才允许
         "allow": [
-            '(allow process-kill (target same-bin))',
-            '(allow signal (target same-bin))',
+            "(allow process-kill (target same-bin))",
+            "(allow signal (target same-bin))",
         ],
         "deny": [],
     },
     "env_read": {
         # env_read 通常默认允许 (敏感变量在 ForensicSnapshot 层脱敏)
         "allow": [
-            '(allow sysctl-read*)',
+            "(allow sysctl-read*)",
         ],
         "deny": [],
     },
     "env_write": {
         # env_write = 允许 setenv,通常用于子进程环境
         "allow": [
-            '(allow process-info-set (target same-bin))',
+            "(allow process-info-set (target same-bin))",
         ],
         "deny": [],
     },
     "ipc_posix": {
         # IPC: POSIX shared memory / message queue / semaphore
         "allow": [
-            '(allow ipc-posix*)',
+            "(allow ipc-posix*)",
         ],
         "deny": [],
     },
     "ipc_mach": {
         # IPC: Mach ports (macOS native IPC)
         "allow": [
-            '(allow ipc-mig*)',
-            '(allow mach-lookup)',
+            "(allow ipc-mig*)",
+            "(allow mach-lookup)",
         ],
         "deny": [],
     },
     "device_io": {
         # 设备 I/O (磁盘/USB/摄像头等)
         "allow": [
-            '(allow iokit-open)',
+            "(allow iokit-open)",
         ],
         "deny": [],
     },
@@ -159,7 +159,7 @@ CAPABILITY_TO_SANDBOX_RULES: dict[str, dict[str, list[str]]] = {
 
 # 基线放行规则 — 任何 Agent 都需要的最小权限 (macOS 进程基础)
 _BASELINE_ALLOW_RULES: tuple[str, ...] = (
-    '(allow signal (target same-bin))',
+    "(allow signal (target same-bin))",
     '(allow sysctl-read "kern.proc.pid")',
     '(allow sysctl-read "kern.osversion")',
     '(allow sysctl-read "kern.ostype")',
@@ -169,7 +169,7 @@ _BASELINE_ALLOW_RULES: tuple[str, ...] = (
     '(allow file-read* (literal "/etc/localtime"))',  # 时区读取 (受 TimezoneProbe 监控)
     '(allow file-read* (literal "/etc/resolv.conf"))',
     '(allow network-outbound (remote udp "127.0.0.1:53"))',  # DNS 基线
-    '(allow process-info* (target same-bin))',
+    "(allow process-info* (target same-bin))",
 )
 
 # 任何情况下都拒绝的危险操作

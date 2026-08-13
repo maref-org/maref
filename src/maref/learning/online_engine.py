@@ -27,8 +27,10 @@ class OnlineWeightRecord:
         n = self.sample_count
         if n < 2:
             return 0.0
-        std = (self.alpha * self.beta) / ((self.alpha + self.beta) ** 2 * (self.alpha + self.beta + 1))
-        return 1.0 / (1.0 + std ** 0.5)
+        std = (self.alpha * self.beta) / (
+            (self.alpha + self.beta) ** 2 * (self.alpha + self.beta + 1)
+        )
+        return 1.0 / (1.0 + std**0.5)
 
 
 class OnlineLearningEngine:

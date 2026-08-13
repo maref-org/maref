@@ -404,9 +404,7 @@ class FederatedPolicySubscriber:
             public_key, event.signature, self._signing_payload(event)
         )
 
-    def sign_event(
-        self, event: PolicyPushEvent, signing_key: Any, publisher_org: str
-    ) -> None:
+    def sign_event(self, event: PolicyPushEvent, signing_key: Any, publisher_org: str) -> None:
         """Attach an Ed25519 signature to an event on behalf of an org."""
         event.publisher_org = publisher_org
         event.signature = signing_key.sign_report(self._signing_payload(event))
@@ -471,9 +469,7 @@ class FederatedPolicySubscriber:
     # Event handlers
     # ------------------------------------------------------------------
 
-    def add_event_handler(
-        self, handler: Callable[[PolicyPushEvent], None]
-    ) -> None:
+    def add_event_handler(self, handler: Callable[[PolicyPushEvent], None]) -> None:
         """Register a callback for incoming push events."""
         self._event_handlers.append(handler)
 
@@ -503,22 +499,24 @@ class FederatedPolicySubscriber:
         drift: list[dict[str, Any]] = []
         for pub in published:
             local_id = f"imported:{publisher_org}:{pub.rule_id}"
-            imported_rule = next(
-                (r for r in imported if r.rule_id == local_id), None
-            )
+            imported_rule = next((r for r in imported if r.rule_id == local_id), None)
             if imported_rule is None:
-                drift.append({
-                    "rule_id": pub.rule_id,
-                    "issue": "missing_import",
-                    "published_decision": pub.decision.value,
-                })
+                drift.append(
+                    {
+                        "rule_id": pub.rule_id,
+                        "issue": "missing_import",
+                        "published_decision": pub.decision.value,
+                    }
+                )
             elif imported_rule.decision != pub.decision:
-                drift.append({
-                    "rule_id": pub.rule_id,
-                    "issue": "decision_mismatch",
-                    "published_decision": pub.decision.value,
-                    "local_decision": imported_rule.decision.value,
-                })
+                drift.append(
+                    {
+                        "rule_id": pub.rule_id,
+                        "issue": "decision_mismatch",
+                        "published_decision": pub.decision.value,
+                        "local_decision": imported_rule.decision.value,
+                    }
+                )
         return drift
 
     # ------------------------------------------------------------------
@@ -551,12 +549,9 @@ class FederatedPolicySubscriber:
     def subscriber_summary(self) -> dict[str, Any]:
         """Return a summary of the subscriber state."""
         active = sum(
-            1 for s in self._subscriptions.values()
-            if s.status == SubscriptionStatus.ACTIVE
+            1 for s in self._subscriptions.values() if s.status == SubscriptionStatus.ACTIVE
         )
-        imported_count = sum(
-            len(s.imported_rule_ids) for s in self._subscriptions.values()
-        )
+        imported_count = sum(len(s.imported_rule_ids) for s in self._subscriptions.values())
         return {
             "local_org": self._local_org,
             "total_subscriptions": len(self._subscriptions),

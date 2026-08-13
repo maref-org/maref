@@ -63,7 +63,13 @@ _governance_router: GovernanceRouter | None = None
 
 
 def _ensure_services() -> None:
-    global _tenant_manager, _cb_pool, _hitl_service, _audit_service, _trust_service, _governance_router
+    global \
+        _tenant_manager, \
+        _cb_pool, \
+        _hitl_service, \
+        _audit_service, \
+        _trust_service, \
+        _governance_router
     if _governance_router is not None:
         return
     _tenant_manager = TenantManager()

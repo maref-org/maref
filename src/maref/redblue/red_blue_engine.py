@@ -64,10 +64,14 @@ class RedBlueEngine:
         self._real_cb = CircuitBreaker(
             max_depth=3, max_consecutive_failures=3, cooldown_seconds=30.0
         )
-        self._audit_logger = AuditLogger(
-            log_path=audit_log_path,
-            hmac_key="redblue-internal",
-        ) if audit_log_path else None
+        self._audit_logger = (
+            AuditLogger(
+                log_path=audit_log_path,
+                hmac_key="redblue-internal",
+            )
+            if audit_log_path
+            else None
+        )
 
     def run_round(
         self,
@@ -161,8 +165,8 @@ class RedBlueEngine:
         real_state_bonus = 0.0
         try:
             sm = self._real_sm
-            state_idx = sm.current_state.value if hasattr(sm.current_state, 'value') else 0
-            t_count = getattr(sm, 'transition_count', 0)
+            state_idx = sm.current_state.value if hasattr(sm.current_state, "value") else 0
+            t_count = getattr(sm, "transition_count", 0)
 
             # Higher governance states = better detection posture
             state_bonus = min(state_idx * 1.5, 15.0)

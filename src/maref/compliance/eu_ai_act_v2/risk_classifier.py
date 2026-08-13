@@ -155,7 +155,9 @@ class RiskClassifier:
             gpai_threshold=compute_threshold,
         )
 
-        exemptions_list = [e.value if isinstance(e, ExemptionReason) else e for e in (exemptions or [])]
+        exemptions_list = [
+            e.value if isinstance(e, ExemptionReason) else e for e in (exemptions or [])
+        ]
         str_categories = [c.value if isinstance(c, AnnexIIICategory) else c for c in categories]
 
         detail.matched_categories = [c for c in str_categories if c in _ANNEX_III_SET]
@@ -189,9 +191,7 @@ class RiskClassifier:
 
             if can_exempt and exemptions_list:
                 detail.risk_level = RiskLevel.MINIMAL
-                detail.reasons.append(
-                    f"Exempted from high-risk: {', '.join(exemptions_list)}"
-                )
+                detail.reasons.append(f"Exempted from high-risk: {', '.join(exemptions_list)}")
                 # Even if exempted, check limited risk
                 return detail
 

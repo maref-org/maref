@@ -220,10 +220,7 @@ class PipelineGovernor:
         Returns:
             Sorted list of matching pipelines (best first by tier + verified status).
         """
-        candidates = [
-            r for r in self._registry.values()
-            if task_type in r.tags
-        ]
+        candidates = [r for r in self._registry.values() if task_type in r.tags]
         candidates.sort(key=lambda r: (r.quality_tier.value, 0 if r.verified else 1))
         return candidates
 

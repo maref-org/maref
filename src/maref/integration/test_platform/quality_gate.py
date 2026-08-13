@@ -325,16 +325,10 @@ class EvolutionQualityGate:
 
         if passed:
             verdict = EvolutionVerdict.APPROVED
-            reason = (
-                f"L2 APPROVED: score={score:.1f}, "
-                f"dims={dim_count}/{self._config.l2_dim_count}"
-            )
+            reason = f"L2 APPROVED: score={score:.1f}, dims={dim_count}/{self._config.l2_dim_count}"
         else:
             verdict = EvolutionVerdict.REJECTED
-            reason = (
-                f"L2 REJECTED: score={score:.1f}, "
-                f"dims={dim_count}/{self._config.l2_dim_count}"
-            )
+            reason = f"L2 REJECTED: score={score:.1f}, dims={dim_count}/{self._config.l2_dim_count}"
 
         result = QualityGateResult(
             cycle_id="l2",
@@ -377,7 +371,13 @@ class EvolutionQualityGate:
                 score=dim_score,
                 reason=f"{dim}: {'PASS' if dim_ok else 'FAIL'} (score={dim_score})",
                 passed=dim_ok,
-                details={dim: {"score": dim_score, "threshold": self._config.l2_min_dim_score, "passed": dim_ok}},
+                details={
+                    dim: {
+                        "score": dim_score,
+                        "threshold": self._config.l2_min_dim_score,
+                        "passed": dim_ok,
+                    }
+                },
                 scores={dim: dim_score},
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )

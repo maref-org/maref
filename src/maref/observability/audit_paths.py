@@ -79,73 +79,89 @@ def verify_path_consistency(subsystem: str | None = None) -> list[dict[str, Any]
             continue
         write_path_obj = Path(write_path)
         if not write_path_obj.exists():
-            issues.append({
-                "subsystem": name,
-                "issue": "write_path_missing",
-                "path": write_path,
-            })
+            issues.append(
+                {
+                    "subsystem": name,
+                    "issue": "write_path_missing",
+                    "path": write_path,
+                }
+            )
         for read_path in entry.read_paths:
             resolved_read = _resolve(read_path)
             read_path_obj = Path(resolved_read)
             if not read_path_obj.exists():
-                issues.append({
-                    "subsystem": name,
-                    "issue": "read_path_missing",
-                    "path": resolved_read,
-                })
+                issues.append(
+                    {
+                        "subsystem": name,
+                        "issue": "read_path_missing",
+                        "path": resolved_read,
+                    }
+                )
     return issues
 
 
-register(AuditPathEntry(
-    subsystem="health_snapshot",
-    description="Health snapshot for M0 survivability assertion",
-    write_path="{MAREF_AUDIT_PATH}/health_snapshot.json",
-    read_paths=("{MAREF_AUDIT_PATH}/health_snapshot.json",),
-    file_pattern="*.json",
-    expected_format="json",
-))
+register(
+    AuditPathEntry(
+        subsystem="health_snapshot",
+        description="Health snapshot for M0 survivability assertion",
+        write_path="{MAREF_AUDIT_PATH}/health_snapshot.json",
+        read_paths=("{MAREF_AUDIT_PATH}/health_snapshot.json",),
+        file_pattern="*.json",
+        expected_format="json",
+    )
+)
 
-register(AuditPathEntry(
-    subsystem="audit_logger",
-    description="GovernanceStateMachine audit trail",
-    write_path="{MAREF_AUDIT_PATH}/governance_audit.jsonl",
-    read_paths=("{MAREF_AUDIT_PATH}/governance_audit.jsonl",),
-    file_pattern="*.jsonl",
-    expected_format="jsonl",
-))
+register(
+    AuditPathEntry(
+        subsystem="audit_logger",
+        description="GovernanceStateMachine audit trail",
+        write_path="{MAREF_AUDIT_PATH}/governance_audit.jsonl",
+        read_paths=("{MAREF_AUDIT_PATH}/governance_audit.jsonl",),
+        file_pattern="*.jsonl",
+        expected_format="jsonl",
+    )
+)
 
-register(AuditPathEntry(
-    subsystem="pulse_writer",
-    description="Agent heartbeat pulse files",
-    write_path="{MAREF_AUDIT_PATH}/pulses/",
-    read_paths=("{MAREF_AUDIT_PATH}/pulses/",),
-    file_pattern="*.json",
-    expected_format="json",
-))
+register(
+    AuditPathEntry(
+        subsystem="pulse_writer",
+        description="Agent heartbeat pulse files",
+        write_path="{MAREF_AUDIT_PATH}/pulses/",
+        read_paths=("{MAREF_AUDIT_PATH}/pulses/",),
+        file_pattern="*.json",
+        expected_format="json",
+    )
+)
 
-register(AuditPathEntry(
-    subsystem="meta_monitor",
-    description="Meta-monitor self report",
-    write_path="{MAREF_META_PATH}/meta-monitor-report.json",
-    read_paths=("{MAREF_META_PATH}/meta-monitor-report.json",),
-    file_pattern="*.json",
-    expected_format="json",
-))
+register(
+    AuditPathEntry(
+        subsystem="meta_monitor",
+        description="Meta-monitor self report",
+        write_path="{MAREF_META_PATH}/meta-monitor-report.json",
+        read_paths=("{MAREF_META_PATH}/meta-monitor-report.json",),
+        file_pattern="*.json",
+        expected_format="json",
+    )
+)
 
-register(AuditPathEntry(
-    subsystem="notifications",
-    description="Alert notification files",
-    write_path="{MAREF_META_PATH}/notifications/",
-    read_paths=("{MAREF_META_PATH}/notifications/",),
-    file_pattern="*.json",
-    expected_format="json",
-))
+register(
+    AuditPathEntry(
+        subsystem="notifications",
+        description="Alert notification files",
+        write_path="{MAREF_META_PATH}/notifications/",
+        read_paths=("{MAREF_META_PATH}/notifications/",),
+        file_pattern="*.json",
+        expected_format="json",
+    )
+)
 
-register(AuditPathEntry(
-    subsystem="gaas_audit",
-    description="GaaS multi-tenant audit log",
-    write_path="{MAREF_AUDIT_PATH}/gaas_audit.jsonl",
-    read_paths=("{MAREF_AUDIT_PATH}/gaas_audit.jsonl",),
-    file_pattern="*.jsonl",
-    expected_format="jsonl",
-))
+register(
+    AuditPathEntry(
+        subsystem="gaas_audit",
+        description="GaaS multi-tenant audit log",
+        write_path="{MAREF_AUDIT_PATH}/gaas_audit.jsonl",
+        read_paths=("{MAREF_AUDIT_PATH}/gaas_audit.jsonl",),
+        file_pattern="*.jsonl",
+        expected_format="jsonl",
+    )
+)

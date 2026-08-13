@@ -126,13 +126,9 @@ class AgentIdentityService:
         record = self._did_registry.resolve(did)
         registered_key = record.ed25519_public_key() if record is not None else ""
         if not registered_key:
-            raise ValueError(
-                f"DID {subject_did} 未注册公钥，拒绝签发凭证（A7 fail-closed）"
-            )
+            raise ValueError(f"DID {subject_did} 未注册公钥，拒绝签发凭证（A7 fail-closed）")
         if key.public_key_pem != registered_key:
-            raise ValueError(
-                f"签发密钥与该 DID 注册公钥不匹配，拒绝签发凭证: {subject_did}"
-            )
+            raise ValueError(f"签发密钥与该 DID 注册公钥不匹配，拒绝签发凭证: {subject_did}")
 
         cred = VerifiableGovernanceCredential.issue(
             subject_did=subject_did,
@@ -178,9 +174,7 @@ class AgentIdentityService:
             result["subject_inactive"] = True
         result["credential_id"] = credential.credential_id
         result["subject_did"] = credential.subject_did
-        result["revoked_reason"] = self._credential_store.revoked_reason(
-            credential.credential_id
-        )
+        result["revoked_reason"] = self._credential_store.revoked_reason(credential.credential_id)
         return result
 
     # ------------------------------------------------------------------
@@ -204,9 +198,7 @@ class AgentIdentityService:
         if record is None:
             return {"revoked": False, "reason": f"DID {did_string} 未注册"}
         # 撤销联动（I1）：监听器已吊销该主体凭证，统计本次被吊销的数量。
-        credentials_revoked = self._credential_store.revoked_count_for_subject(
-            did_string
-        )
+        credentials_revoked = self._credential_store.revoked_count_for_subject(did_string)
         card = self._agent_dns.resolve(did)
         return {
             "revoked": True,
@@ -235,12 +227,14 @@ class AgentIdentityService:
         for did in self._did_registry.list_all():
             if active_only and did.status != "active":
                 continue
-            result.append({
-                "did": did.did.did_string,
-                "status": did.status,
-                "version": did.version,
-                "roles": list(did.roles),
-            })
+            result.append(
+                {
+                    "did": did.did.did_string,
+                    "status": did.status,
+                    "version": did.version,
+                    "roles": list(did.roles),
+                }
+            )
         return result
 
     def summary(self) -> dict[str, Any]:

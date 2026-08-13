@@ -132,6 +132,7 @@ class FederatedAgent:
 
         if raw_acs_document is not None:
             from maref.crypto.ed25519_keys import Ed25519KeyPair
+
             acs_bytes = json.dumps(raw_acs_document, sort_keys=True).encode()
             try:
                 return Ed25519KeyPair.verify(
@@ -222,10 +223,7 @@ class FederationGateway:
             return FederationResponse(
                 success=False,
                 aic_string=request.aic_string,
-                error=(
-                    f"AIC mismatch: request AIC '{request.aic_string}' "
-                    f"!= ACS AIC '{acs.aic}'"
-                ),
+                error=(f"AIC mismatch: request AIC '{request.aic_string}' != ACS AIC '{acs.aic}'"),
             )
 
         # ACS Ed25519 signature verification

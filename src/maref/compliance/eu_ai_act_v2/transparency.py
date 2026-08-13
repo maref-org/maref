@@ -336,45 +336,53 @@ class TransparencyManager:
         else:
             lines.append("No metrics provided.")
 
-        lines.extend([
-            "",
-            "## 4. Known Limitations",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 4. Known Limitations",
+            ]
+        )
         if inst.limitations:
             for lim in inst.limitations:
                 lines.append(f"- {lim}")
         else:
             lines.append("No limitations documented.")
 
-        lines.extend([
-            "",
-            "## 5. Human Oversight Requirements",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 5. Human Oversight Requirements",
+            ]
+        )
         if inst.oversight_requirements:
             for req in inst.oversight_requirements:
                 lines.append(f"- {req}")
         else:
             lines.append("No oversight requirements documented.")
 
-        lines.extend([
-            "",
-            "## 6. Resource Requirements",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 6. Resource Requirements",
+            ]
+        )
         if inst.resource_requirements:
             for key, value in inst.resource_requirements.items():
                 lines.append(f"- **{key}:** {value}")
         else:
             lines.append("No resource requirements documented.")
 
-        lines.extend([
-            "",
-            "## 7. Lifetime and Maintenance",
-            f"- **Expected lifetime:** {inst.lifetime or 'Not specified'}",
-            f"- **Maintenance schedule:** {inst.maintenance_schedule or 'Not specified'}",
-            "",
-            "---",
-            f"*Generated at: {inst.generated_at} | Version: {inst.version}*",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 7. Lifetime and Maintenance",
+                f"- **Expected lifetime:** {inst.lifetime or 'Not specified'}",
+                f"- **Maintenance schedule:** {inst.maintenance_schedule or 'Not specified'}",
+                "",
+                "---",
+                f"*Generated at: {inst.generated_at} | Version: {inst.version}*",
+            ]
+        )
 
         return "\n".join(lines)
 

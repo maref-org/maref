@@ -56,11 +56,13 @@ class StateMergeController:
             if result.status == TaskResultStatus.FAILED:
                 all_passed = False
                 rework_tasks.append(result.task_id)
-                conflicts.append(Conflict(
-                    task_ids=[result.task_id],
-                    description=f"Task {result.task_id} failed: {result.summary}",
-                    severity="high",
-                ))
+                conflicts.append(
+                    Conflict(
+                        task_ids=[result.task_id],
+                        description=f"Task {result.task_id} failed: {result.summary}",
+                        severity="high",
+                    )
+                )
 
             if result.status == TaskResultStatus.NEEDS_REWORK:
                 all_passed = False
@@ -75,12 +77,14 @@ class StateMergeController:
             for risk in result.risks:
                 if risk.severity in ("high", "critical"):
                     rework_tasks.append(result.task_id)
-                    conflicts.append(Conflict(
-                        task_ids=[result.task_id],
-                        description=f"Risk in {result.task_id}: {risk.description}",
-                        severity=risk.severity,
-                        mitigation=risk.mitigation,
-                    ))
+                    conflicts.append(
+                        Conflict(
+                            task_ids=[result.task_id],
+                            description=f"Risk in {result.task_id}: {risk.description}",
+                            severity=risk.severity,
+                            mitigation=risk.mitigation,
+                        )
+                    )
 
         # Cross-task conflict detection
         if len(results) > 1:
@@ -89,9 +93,9 @@ class StateMergeController:
 
         avg_quality = total_quality / max(len(results), 1)
 
-        needs_human = any(
-            r.needs_human_review for r in results
-        ) or any(c.severity == "critical" for c in conflicts)
+        needs_human = any(r.needs_human_review for r in results) or any(
+            c.severity == "critical" for c in conflicts
+        )
 
         return MergeResult(
             merged=all_passed and not rework_tasks,
@@ -111,24 +115,28 @@ class StateMergeController:
         conflicts: list[Conflict] = []
 
         for i, a in enumerate(results):
-            for b in results[i + 1:]:
+            for b in results[i + 1 :]:
                 # Same task submitted by different agents
                 if a.task_id == b.task_id:
-                    conflicts.append(Conflict(
-                        task_ids=[a.task_id, b.task_id],
-                        description=f"Duplicate task_id {a.task_id} from parallel agents",
-                        severity="high",
-                    ))
+                    conflicts.append(
+                        Conflict(
+                            task_ids=[a.task_id, b.task_id],
+                            description=f"Duplicate task_id {a.task_id} from parallel agents",
+                            severity="high",
+                        )
+                    )
 
                 # Contradictory next steps
                 if a.next_steps and b.next_steps:
                     common = set(a.next_steps) & set(b.next_steps)
                     if not common and len(a.next_steps) > 0 and len(b.next_steps) > 0:
-                        conflicts.append(Conflict(
-                            task_ids=[a.task_id, b.task_id],
-                            description=f"Divergent next steps between {a.task_id} and {b.task_id}",
-                            severity="low",
-                        ))
+                        conflicts.append(
+                            Conflict(
+                                task_ids=[a.task_id, b.task_id],
+                                description=f"Divergent next steps between {a.task_id} and {b.task_id}",
+                                severity="low",
+                            )
+                        )
 
         return conflicts
 

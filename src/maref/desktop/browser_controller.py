@@ -161,7 +161,9 @@ class BrowserController:
     def extract_links(self) -> BrowserResult:
         if self._dry_run:
             result = BrowserResult(
-                success=True, action=BrowserAction.EXTRACT_LINKS, links=[{"href": "https://example.com", "text": "Example"}]
+                success=True,
+                action=BrowserAction.EXTRACT_LINKS,
+                links=[{"href": "https://example.com", "text": "Example"}],
             )
         else:
             result = self._do_extract_links()
@@ -205,7 +207,9 @@ class BrowserController:
 
     def go_back(self) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.GO_BACK, text="[DRY RUN] Go back")
+            result = BrowserResult(
+                success=True, action=BrowserAction.GO_BACK, text="[DRY RUN] Go back"
+            )
         else:
             result = self._do_go_back()
         self._operation_log.append(result)
@@ -213,7 +217,9 @@ class BrowserController:
 
     def go_forward(self) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.GO_FORWARD, text="[DRY RUN] Go forward")
+            result = BrowserResult(
+                success=True, action=BrowserAction.GO_FORWARD, text="[DRY RUN] Go forward"
+            )
         else:
             result = self._do_go_forward()
         self._operation_log.append(result)
@@ -221,7 +227,9 @@ class BrowserController:
 
     def reload_page(self) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.RELOAD, text="[DRY RUN] Reload page")
+            result = BrowserResult(
+                success=True, action=BrowserAction.RELOAD, text="[DRY RUN] Reload page"
+            )
         else:
             result = self._do_reload_page()
         self._operation_log.append(result)
@@ -229,7 +237,11 @@ class BrowserController:
 
     def get_element_text(self, selector: str) -> BrowserResult:
         if self._dry_run:
-            result = BrowserResult(success=True, action=BrowserAction.GET_ELEMENT_TEXT, text=f"[DRY RUN] Get text for {selector}")
+            result = BrowserResult(
+                success=True,
+                action=BrowserAction.GET_ELEMENT_TEXT,
+                text=f"[DRY RUN] Get text for {selector}",
+            )
         else:
             result = self._do_get_element_text(selector)
         self._operation_log.append(result)
@@ -274,9 +286,7 @@ class BrowserController:
 
             async def _nav():
                 self._playwright = await async_playwright().start()
-                self._browser = await getattr(
-                    self._playwright, self.browser_type.value
-                ).launch()
+                self._browser = await getattr(self._playwright, self.browser_type.value).launch()
                 self._page = await self._browser.new_page()
                 await self._page.goto(url)
                 text = await self._page.inner_text("body")
@@ -338,9 +348,7 @@ class BrowserController:
         async def _init():
             p = await async_playwright().start()
             self._playwright = p
-            self._browser = await getattr(
-                p, self.browser_type.value
-            ).launch()
+            self._browser = await getattr(p, self.browser_type.value).launch()
             self._page = await self._browser.new_page()
 
         asyncio.run(_init())
@@ -351,14 +359,18 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.CLICK, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.CLICK,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _click():
                 await self._page.click(selector, timeout=5000)
 
             asyncio.run(_click())
-            return BrowserResult(success=True, action=BrowserAction.CLICK, text=f"Clicked {selector}")
+            return BrowserResult(
+                success=True, action=BrowserAction.CLICK, text=f"Clicked {selector}"
+            )
         except Exception as e:
             return BrowserResult(success=False, action=BrowserAction.CLICK, error=str(e))
 
@@ -368,7 +380,9 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.TYPE, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.TYPE,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _type():
@@ -379,7 +393,9 @@ class BrowserController:
                     await self._page.type(selector, text)
 
             asyncio.run(_type())
-            return BrowserResult(success=True, action=BrowserAction.TYPE, text=f"Typed into {selector}")
+            return BrowserResult(
+                success=True, action=BrowserAction.TYPE, text=f"Typed into {selector}"
+            )
         except Exception as e:
             return BrowserResult(success=False, action=BrowserAction.TYPE, error=str(e))
 
@@ -389,7 +405,9 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.EXTRACT_TEXT, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.EXTRACT_TEXT,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _extract():
@@ -406,7 +424,9 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.EXTRACT_LINKS, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.EXTRACT_LINKS,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _extract():
@@ -425,7 +445,9 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.SCREENSHOT, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.SCREENSHOT,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _shot():
@@ -448,7 +470,9 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.EXECUTE_JS, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.EXECUTE_JS,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _exec():
@@ -462,8 +486,13 @@ class BrowserController:
     def _do_go_back(self) -> BrowserResult:
         try:
             import asyncio
+
             if self._page is None:
-                return BrowserResult(success=False, action=BrowserAction.GO_BACK, error="No active page. Call navigate() first.")
+                return BrowserResult(
+                    success=False,
+                    action=BrowserAction.GO_BACK,
+                    error="No active page. Call navigate() first.",
+                )
 
             async def _run():
                 await self._page.go_back()
@@ -476,22 +505,34 @@ class BrowserController:
     def _do_go_forward(self) -> BrowserResult:
         try:
             import asyncio
+
             if self._page is None:
-                return BrowserResult(success=False, action=BrowserAction.GO_FORWARD, error="No active page. Call navigate() first.")
+                return BrowserResult(
+                    success=False,
+                    action=BrowserAction.GO_FORWARD,
+                    error="No active page. Call navigate() first.",
+                )
 
             async def _run():
                 await self._page.go_forward()
 
             asyncio.run(_run())
-            return BrowserResult(success=True, action=BrowserAction.GO_FORWARD, text="Navigated forward")
+            return BrowserResult(
+                success=True, action=BrowserAction.GO_FORWARD, text="Navigated forward"
+            )
         except Exception as e:
             return BrowserResult(success=False, action=BrowserAction.GO_FORWARD, error=str(e))
 
     def _do_reload_page(self) -> BrowserResult:
         try:
             import asyncio
+
             if self._page is None:
-                return BrowserResult(success=False, action=BrowserAction.RELOAD, error="No active page. Call navigate() first.")
+                return BrowserResult(
+                    success=False,
+                    action=BrowserAction.RELOAD,
+                    error="No active page. Call navigate() first.",
+                )
 
             async def _run():
                 await self._page.reload()
@@ -504,8 +545,13 @@ class BrowserController:
     def _do_get_element_text(self, selector: str) -> BrowserResult:
         try:
             import asyncio
+
             if self._page is None:
-                return BrowserResult(success=False, action=BrowserAction.GET_ELEMENT_TEXT, error="No active page. Call navigate() first.")
+                return BrowserResult(
+                    success=False,
+                    action=BrowserAction.GET_ELEMENT_TEXT,
+                    error="No active page. Call navigate() first.",
+                )
 
             async def _run():
                 return await self._page.locator(selector).inner_text()

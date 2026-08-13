@@ -16,8 +16,7 @@ from maref.orchestration.task_graph import (
 class LLMBackend(Protocol):
     """Protocol for LLM-based task decomposition."""
 
-    def generate(self, prompt: str, schema: dict[str, Any] | None = None) -> dict[str, Any]:
-        ...
+    def generate(self, prompt: str, schema: dict[str, Any] | None = None) -> dict[str, Any]: ...
 
 
 class ParallelStrategy(Enum):
@@ -132,8 +131,7 @@ class TaskDAG:
             # insert FORK before and JOIN after
             if len(nids) > 1:
                 all_parallel = all(
-                    self._nodes[nid].risk_level in (RiskLevel.LOW, RiskLevel.MEDIUM)
-                    for nid in nids
+                    self._nodes[nid].risk_level in (RiskLevel.LOW, RiskLevel.MEDIUM) for nid in nids
                 )
                 if all_parallel:
                     fork_id = f"fork_layer_{layer_num}"
@@ -209,50 +207,145 @@ Return JSON matching the schema."""
 
 _DECOMPOSITION_TEMPLATES: dict[str, list[dict[str, Any]]] = {
     "analyze_report": [
-        {"description": "Gather data and context", "complexity": 0.3, "depends_on": [],
-         "risk": "low", "parallel_group": 0},
-        {"description": "Analyze findings", "complexity": 0.6, "depends_on": [0],
-         "risk": "medium", "parallel_group": 1},
-        {"description": "Cross-validate results", "complexity": 0.5, "depends_on": [0],
-         "risk": "low", "parallel_group": 1},
-        {"description": "Generate report", "complexity": 0.4, "depends_on": [1, 2],
-         "risk": "medium", "parallel_group": 2},
-        {"description": "Review and finalize", "complexity": 0.3, "depends_on": [3],
-         "risk": "high", "parallel_group": 3},
+        {
+            "description": "Gather data and context",
+            "complexity": 0.3,
+            "depends_on": [],
+            "risk": "low",
+            "parallel_group": 0,
+        },
+        {
+            "description": "Analyze findings",
+            "complexity": 0.6,
+            "depends_on": [0],
+            "risk": "medium",
+            "parallel_group": 1,
+        },
+        {
+            "description": "Cross-validate results",
+            "complexity": 0.5,
+            "depends_on": [0],
+            "risk": "low",
+            "parallel_group": 1,
+        },
+        {
+            "description": "Generate report",
+            "complexity": 0.4,
+            "depends_on": [1, 2],
+            "risk": "medium",
+            "parallel_group": 2,
+        },
+        {
+            "description": "Review and finalize",
+            "complexity": 0.3,
+            "depends_on": [3],
+            "risk": "high",
+            "parallel_group": 3,
+        },
     ],
     "research": [
-        {"description": "Search and collect information", "complexity": 0.4, "depends_on": [],
-         "risk": "low", "parallel_group": 0},
-        {"description": "Synthesize research findings", "complexity": 0.5, "depends_on": [0],
-         "risk": "medium", "parallel_group": 1},
-        {"description": "Draft research summary", "complexity": 0.3, "depends_on": [1],
-         "risk": "medium", "parallel_group": 2},
+        {
+            "description": "Search and collect information",
+            "complexity": 0.4,
+            "depends_on": [],
+            "risk": "low",
+            "parallel_group": 0,
+        },
+        {
+            "description": "Synthesize research findings",
+            "complexity": 0.5,
+            "depends_on": [0],
+            "risk": "medium",
+            "parallel_group": 1,
+        },
+        {
+            "description": "Draft research summary",
+            "complexity": 0.3,
+            "depends_on": [1],
+            "risk": "medium",
+            "parallel_group": 2,
+        },
     ],
     "develop_feature": [
-        {"description": "Design architecture", "complexity": 0.5, "depends_on": [],
-         "risk": "high", "parallel_group": 0},
-        {"description": "Implement backend logic", "complexity": 0.6, "depends_on": [0],
-         "risk": "medium", "parallel_group": 1},
-        {"description": "Implement frontend UI", "complexity": 0.5, "depends_on": [0],
-         "risk": "medium", "parallel_group": 1},
-        {"description": "Write unit tests", "complexity": 0.3, "depends_on": [0],
-         "risk": "low", "parallel_group": 1},
-        {"description": "Run integration tests", "complexity": 0.3, "depends_on": [1, 2, 3],
-         "risk": "high", "parallel_group": 2},
-        {"description": "Deploy and verify", "complexity": 0.2, "depends_on": [4],
-         "risk": "critical", "parallel_group": 3},
+        {
+            "description": "Design architecture",
+            "complexity": 0.5,
+            "depends_on": [],
+            "risk": "high",
+            "parallel_group": 0,
+        },
+        {
+            "description": "Implement backend logic",
+            "complexity": 0.6,
+            "depends_on": [0],
+            "risk": "medium",
+            "parallel_group": 1,
+        },
+        {
+            "description": "Implement frontend UI",
+            "complexity": 0.5,
+            "depends_on": [0],
+            "risk": "medium",
+            "parallel_group": 1,
+        },
+        {
+            "description": "Write unit tests",
+            "complexity": 0.3,
+            "depends_on": [0],
+            "risk": "low",
+            "parallel_group": 1,
+        },
+        {
+            "description": "Run integration tests",
+            "complexity": 0.3,
+            "depends_on": [1, 2, 3],
+            "risk": "high",
+            "parallel_group": 2,
+        },
+        {
+            "description": "Deploy and verify",
+            "complexity": 0.2,
+            "depends_on": [4],
+            "risk": "critical",
+            "parallel_group": 3,
+        },
     ],
     "security_audit": [
-        {"description": "Scan dependencies for CVEs", "complexity": 0.3, "depends_on": [],
-         "risk": "low", "parallel_group": 0},
-        {"description": "Static code analysis", "complexity": 0.5, "depends_on": [],
-         "risk": "low", "parallel_group": 0},
-        {"description": "Penetration test", "complexity": 0.7, "depends_on": [0, 1],
-         "risk": "high", "parallel_group": 1},
-        {"description": "Remediate findings", "complexity": 0.6, "depends_on": [2],
-         "risk": "critical", "parallel_group": 2},
-        {"description": "Final verification", "complexity": 0.3, "depends_on": [3],
-         "risk": "high", "parallel_group": 3},
+        {
+            "description": "Scan dependencies for CVEs",
+            "complexity": 0.3,
+            "depends_on": [],
+            "risk": "low",
+            "parallel_group": 0,
+        },
+        {
+            "description": "Static code analysis",
+            "complexity": 0.5,
+            "depends_on": [],
+            "risk": "low",
+            "parallel_group": 0,
+        },
+        {
+            "description": "Penetration test",
+            "complexity": 0.7,
+            "depends_on": [0, 1],
+            "risk": "high",
+            "parallel_group": 1,
+        },
+        {
+            "description": "Remediate findings",
+            "complexity": 0.6,
+            "depends_on": [2],
+            "risk": "critical",
+            "parallel_group": 2,
+        },
+        {
+            "description": "Final verification",
+            "complexity": 0.3,
+            "depends_on": [3],
+            "risk": "high",
+            "parallel_group": 3,
+        },
     ],
 }
 
@@ -415,8 +508,7 @@ class TaskDecomposer:
         elif self._parallel_strategy == ParallelStrategy.FORCE_PARALLEL:
             # Make all non-dependent nodes run in parallel
             remaining = graph.topological_order()
-            roots = [nid for nid in remaining
-                     if not graph.get_dependencies(nid)]
+            roots = [nid for nid in remaining if not graph.get_dependencies(nid)]
             if len(roots) > 1:
                 fork_id = "force_fork"
                 join_id = "force_join"
@@ -468,27 +560,66 @@ class TaskDecomposer:
         # Fallback: basic keyword matching
         if "analyze" in lower and "report" in lower:
             return [
-                {"description": "Gather data and context", "complexity": 0.3,
-                 "depends_on": [], "risk": "low", "parallel_group": 0},
-                {"description": "Analyze findings", "complexity": 0.6,
-                 "depends_on": [0], "risk": "medium", "parallel_group": 1},
-                {"description": "Cross-validate results", "complexity": 0.5,
-                 "depends_on": [0], "risk": "low", "parallel_group": 1},
-                {"description": "Generate report", "complexity": 0.4,
-                 "depends_on": [1, 2], "risk": "medium", "parallel_group": 2},
-                {"description": "Review and finalize", "complexity": 0.3,
-                 "depends_on": [3], "risk": "high", "parallel_group": 3},
+                {
+                    "description": "Gather data and context",
+                    "complexity": 0.3,
+                    "depends_on": [],
+                    "risk": "low",
+                    "parallel_group": 0,
+                },
+                {
+                    "description": "Analyze findings",
+                    "complexity": 0.6,
+                    "depends_on": [0],
+                    "risk": "medium",
+                    "parallel_group": 1,
+                },
+                {
+                    "description": "Cross-validate results",
+                    "complexity": 0.5,
+                    "depends_on": [0],
+                    "risk": "low",
+                    "parallel_group": 1,
+                },
+                {
+                    "description": "Generate report",
+                    "complexity": 0.4,
+                    "depends_on": [1, 2],
+                    "risk": "medium",
+                    "parallel_group": 2,
+                },
+                {
+                    "description": "Review and finalize",
+                    "complexity": 0.3,
+                    "depends_on": [3],
+                    "risk": "high",
+                    "parallel_group": 3,
+                },
             ]
         if "research" in lower:
             return [
-                {"description": "Search and collect information", "complexity": 0.4,
-                 "depends_on": [], "risk": "low", "parallel_group": 0},
-                {"description": "Synthesize research findings", "complexity": 0.5,
-                 "depends_on": [0], "risk": "medium", "parallel_group": 1},
-                {"description": "Draft research summary", "complexity": 0.3,
-                 "depends_on": [1], "risk": "medium", "parallel_group": 2},
+                {
+                    "description": "Search and collect information",
+                    "complexity": 0.4,
+                    "depends_on": [],
+                    "risk": "low",
+                    "parallel_group": 0,
+                },
+                {
+                    "description": "Synthesize research findings",
+                    "complexity": 0.5,
+                    "depends_on": [0],
+                    "risk": "medium",
+                    "parallel_group": 1,
+                },
+                {
+                    "description": "Draft research summary",
+                    "complexity": 0.3,
+                    "depends_on": [1],
+                    "risk": "medium",
+                    "parallel_group": 2,
+                },
             ]
         return [
-            {"description": description, "complexity": 0.5,
-             "depends_on": [], "risk": "medium"},
+            {"description": description, "complexity": 0.5, "depends_on": [], "risk": "medium"},
         ]

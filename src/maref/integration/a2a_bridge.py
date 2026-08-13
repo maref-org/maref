@@ -229,15 +229,11 @@ class A2ABridge:
         agent_did = self._agent_did
         assert agent_dns is not None
         if agent_did is None:
-            raise CommunicationBlockedError(
-                "agent_did 未配置，无法经 AgentDNS 生成 Agent Card"
-            )
+            raise CommunicationBlockedError("agent_did 未配置，无法经 AgentDNS 生成 Agent Card")
         try:
             did = AgentDID.parse(agent_did)
         except ValueError as exc:
-            raise CommunicationBlockedError(
-                f"agent_did 配置非法: {self._agent_did!r}"
-            ) from exc
+            raise CommunicationBlockedError(f"agent_did 配置非法: {self._agent_did!r}") from exc
         card = agent_dns.resolve(did)
         if card is None:
             raise CommunicationBlockedError(
@@ -297,8 +293,7 @@ class A2ABridge:
             {
                 "name": cap.id,
                 "description": cap.description,
-                "inputSchema": cap.input_schema
-                or {"type": "object", "properties": {}},
+                "inputSchema": cap.input_schema or {"type": "object", "properties": {}},
                 "sourceProtocol": "a2a",
                 "targetA2AAction": cap.a2a_action or "execute_task",
             }
@@ -403,6 +398,7 @@ class A2ABridge:
         self._trajectory.record_delegation(task_id, target_agent_url)
         try:
             import asyncio
+
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 client = A2AClient(signing_key=self._signing_key)

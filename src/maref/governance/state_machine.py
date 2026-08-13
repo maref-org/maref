@@ -127,7 +127,8 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
                 "event_type": "state_transition",
                 "actor": actor,
                 "action": f"{event.from_state.name}_to_{event.to_state.name}",
-                "details": event.reason or f"Gray code transition {event.from_state.name} → {event.to_state.name}",
+                "details": event.reason
+                or f"Gray code transition {event.from_state.name} → {event.to_state.name}",
                 "metadata": {
                     "from_state": event.from_state.name,
                     "from_state_id": event.from_state.value,
@@ -159,7 +160,9 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
     except Exception:
         logger.exception("Audit write failed, falling back to stdout")
         import sys
+
         _append_record_locked(sys.stdout, record)
+
 
 _ENTROPY_LEVELS: dict[GovernanceState, int] = {
     GovernanceState(s): e for s, e in _ENTROPY_LEVELS_INT.items()
@@ -290,9 +293,7 @@ class GovernanceStateMachine:
             RuntimeError: If ``enforce`` is True but ``authorizer`` is None.
         """
         if enforce and authorizer is None:
-            raise RuntimeError(
-                "force_authorization enforce=True requires an authorizer callable"
-            )
+            raise RuntimeError("force_authorization enforce=True requires an authorizer callable")
         self._enforce_force_authorization = enforce
         self._force_authorizer = authorizer
 
@@ -308,7 +309,9 @@ class GovernanceStateMachine:
                 f"force-transition (reason={reason!r})"
             )
 
-    def force_stabilize(self, reason: str = "entropy_threshold", actor: str = "state_machine") -> bool:
+    def force_stabilize(
+        self, reason: str = "entropy_threshold", actor: str = "state_machine"
+    ) -> bool:
         """
         Force transition to STABILIZE via BFS shortest path.
 
@@ -438,7 +441,7 @@ class GovernanceStateMachine:
             try:
                 cb(event)
             except Exception:
-                logger.exception("Callback %s failed, isolating", getattr(cb, '__name__', str(cb)))
+                logger.exception("Callback %s failed, isolating", getattr(cb, "__name__", str(cb)))
 
     def __repr__(self) -> str:
         return (

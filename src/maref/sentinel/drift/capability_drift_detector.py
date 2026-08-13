@@ -476,12 +476,14 @@ class CapabilityDriftDetector:
 
         # 未声明 network_read/network_write → connect 是漂移
         if "network_read" not in cap_set and "network_write" not in cap_set:
-            drifts.append(self._make_drift(
-                event=event,
-                drift_type=DriftType.UNDECLARED_NETWORK,
-                expected_capability="network_read",
-                observed_behavior=f"connect to {event.remote_addr}:{event.remote_port}",
-            ))
+            drifts.append(
+                self._make_drift(
+                    event=event,
+                    drift_type=DriftType.UNDECLARED_NETWORK,
+                    expected_capability="network_read",
+                    observed_behavior=f"connect to {event.remote_addr}:{event.remote_port}",
+                )
+            )
             return drifts
 
         # 端点漂移 — 连接未声明的端点
@@ -490,16 +492,17 @@ class CapabilityDriftDetector:
             if observed_endpoint not in endpoint_set and event.remote_addr not in endpoint_set:
                 # 检查 partial match (域名匹配)
                 matched = any(
-                    ep in observed_endpoint or observed_endpoint in ep
-                    for ep in endpoint_set
+                    ep in observed_endpoint or observed_endpoint in ep for ep in endpoint_set
                 )
                 if not matched:
-                    drifts.append(self._make_drift(
-                        event=event,
-                        drift_type=DriftType.ENDPOINT_DRIFT,
-                        expected_capability=f"network_read to {observed_endpoint}",
-                        observed_behavior=f"connect to undeclared endpoint {observed_endpoint}",
-                    ))
+                    drifts.append(
+                        self._make_drift(
+                            event=event,
+                            drift_type=DriftType.ENDPOINT_DRIFT,
+                            expected_capability=f"network_read to {observed_endpoint}",
+                            observed_behavior=f"connect to undeclared endpoint {observed_endpoint}",
+                        )
+                    )
         return drifts
 
     def _check_bind_drift(
@@ -509,12 +512,14 @@ class CapabilityDriftDetector:
     ) -> list[DriftItem]:
         """检测 bind 事件漂移 — bind = inbound = network_write"""
         if "network_write" not in cap_set:
-            return [self._make_drift(
-                event=event,
-                drift_type=DriftType.UNDECLARED_NETWORK_WRITE,
-                expected_capability="network_write",
-                observed_behavior=f"bind (inbound server) on port {event.remote_port}",
-            )]
+            return [
+                self._make_drift(
+                    event=event,
+                    drift_type=DriftType.UNDECLARED_NETWORK_WRITE,
+                    expected_capability="network_write",
+                    observed_behavior=f"bind (inbound server) on port {event.remote_port}",
+                )
+            ]
         return []
 
     def _check_exec_drift(
@@ -524,12 +529,14 @@ class CapabilityDriftDetector:
     ) -> list[DriftItem]:
         """检测 exec 事件漂移"""
         if "process_exec" not in cap_set:
-            return [self._make_drift(
-                event=event,
-                drift_type=DriftType.UNDECLARED_PROCESS_EXEC,
-                expected_capability="process_exec",
-                observed_behavior=f"exec {event.path} argv={event.argv}",
-            )]
+            return [
+                self._make_drift(
+                    event=event,
+                    drift_type=DriftType.UNDECLARED_PROCESS_EXEC,
+                    expected_capability="process_exec",
+                    observed_behavior=f"exec {event.path} argv={event.argv}",
+                )
+            ]
         return []
 
     def _check_fork_drift(
@@ -539,12 +546,14 @@ class CapabilityDriftDetector:
     ) -> list[DriftItem]:
         """检测 fork 事件漂移"""
         if "process_spawn" not in cap_set and "process_exec" not in cap_set:
-            return [self._make_drift(
-                event=event,
-                drift_type=DriftType.UNDECLARED_FORK,
-                expected_capability="process_spawn",
-                observed_behavior=f"fork child pid={event.ppid}",
-            )]
+            return [
+                self._make_drift(
+                    event=event,
+                    drift_type=DriftType.UNDECLARED_FORK,
+                    expected_capability="process_spawn",
+                    observed_behavior=f"fork child pid={event.ppid}",
+                )
+            ]
         return []
 
     def _check_open_drift(
@@ -562,19 +571,23 @@ class CapabilityDriftDetector:
         is_write = "WRONLY" in str(flags).upper() or "RDWR" in str(flags).upper()
 
         if is_write and "file_write" not in cap_set:
-            return [self._make_drift(
-                event=event,
-                drift_type=DriftType.UNDECLARED_FILE_WRITE,
-                expected_capability="file_write",
-                observed_behavior=f"open for write: {event.path} flags={flags}",
-            )]
+            return [
+                self._make_drift(
+                    event=event,
+                    drift_type=DriftType.UNDECLARED_FILE_WRITE,
+                    expected_capability="file_write",
+                    observed_behavior=f"open for write: {event.path} flags={flags}",
+                )
+            ]
         if not is_write and "file_read" not in cap_set:
-            return [self._make_drift(
-                event=event,
-                drift_type=DriftType.CAPABILITY_OVERFLOW,
-                expected_capability="file_read",
-                observed_behavior=f"open for read: {event.path} flags={flags}",
-            )]
+            return [
+                self._make_drift(
+                    event=event,
+                    drift_type=DriftType.CAPABILITY_OVERFLOW,
+                    expected_capability="file_read",
+                    observed_behavior=f"open for read: {event.path} flags={flags}",
+                )
+            ]
         return []
 
     def _check_setuid_drift(
@@ -584,12 +597,14 @@ class CapabilityDriftDetector:
     ) -> list[DriftItem]:
         """检测 setuid 事件漂移 — 权限提升是 CRITICAL"""
         if "setuid" not in cap_set:
-            return [self._make_drift(
-                event=event,
-                drift_type=DriftType.UNDECLARED_SETUID,
-                expected_capability="setuid",
-                observed_behavior=f"setuid to uid={event.evidence.get('uid', '?')}",
-            )]
+            return [
+                self._make_drift(
+                    event=event,
+                    drift_type=DriftType.UNDECLARED_SETUID,
+                    expected_capability="setuid",
+                    observed_behavior=f"setuid to uid={event.evidence.get('uid', '?')}",
+                )
+            ]
         return []
 
     def _check_signal_drift(
@@ -602,12 +617,14 @@ class CapabilityDriftDetector:
             sig = event.evidence.get("signal", "?")
             # SIGSTOP/SIGCONT 常用于 ptrace 攻击
             if sig in ("SIGSTOP", "SIGCONT", "SIGTRAP", 17, 18, 19, 5):
-                return [self._make_drift(
-                    event=event,
-                    drift_type=DriftType.UNDECLARED_PTRACE,
-                    expected_capability="ptrace",
-                    observed_behavior=f"signal {sig} to pid={event.ppid}",
-                )]
+                return [
+                    self._make_drift(
+                        event=event,
+                        drift_type=DriftType.UNDECLARED_PTRACE,
+                        expected_capability="ptrace",
+                        observed_behavior=f"signal {sig} to pid={event.ppid}",
+                    )
+                ]
         return []
 
     def _make_drift(

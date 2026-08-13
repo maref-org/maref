@@ -66,8 +66,12 @@ class MetricStore:
         conn.commit()
 
     def record(
-        self, name: str, value: float, labels: dict[str, Any] | None = None,
-        agent_id: str | None = None, table: str = "telemetry_metrics",
+        self,
+        name: str,
+        value: float,
+        labels: dict[str, Any] | None = None,
+        agent_id: str | None = None,
+        table: str = "telemetry_metrics",
     ) -> None:
         """Record a metric entry.
 
@@ -94,8 +98,13 @@ class MetricStore:
         conn.commit()
 
     def query(
-        self, name: str, since: str | None = None, until: str | None = None,
-        agent_id: str | None = None, limit: int = 1000, table: str | None = None,
+        self,
+        name: str,
+        since: str | None = None,
+        until: str | None = None,
+        agent_id: str | None = None,
+        limit: int = 1000,
+        table: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query metric entries by name with optional filters.
 
@@ -135,19 +144,25 @@ class MetricStore:
             query = " ".join(parts)
             rows = conn.execute(query, params).fetchall()
             for row in rows:
-                results.append({
-                    "id": row["id"],
-                    "timestamp": row["timestamp"],
-                    "name": row["name"],
-                    "value": row["value"],
-                    "labels": json.loads(row["labels"]) if row["labels"] else {},
-                    "agent_id": row["agent_id"],
-                })
+                results.append(
+                    {
+                        "id": row["id"],
+                        "timestamp": row["timestamp"],
+                        "name": row["name"],
+                        "value": row["value"],
+                        "labels": json.loads(row["labels"]) if row["labels"] else {},
+                        "agent_id": row["agent_id"],
+                    }
+                )
         results.sort(key=lambda r: r["timestamp"], reverse=True)
         return results[:limit]
 
     def query_aggregate(
-        self, name: str, operation: str = "avg", since: str | None = None, table: str | None = None,
+        self,
+        name: str,
+        operation: str = "avg",
+        since: str | None = None,
+        table: str | None = None,
     ) -> float:
         """Run an aggregate query (AVG, SUM, MAX, MIN, COUNT) on a metric.
 
@@ -189,7 +204,9 @@ class MetricStore:
             Total number of rows deleted across all tables.
         """
         conn = self._get_conn()
-        cutoff = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - retention_days * 86400))
+        cutoff = time.strftime(
+            "%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - retention_days * 86400)
+        )
         total = 0
         for table in TABLES:
             cursor = conn.execute(f"DELETE FROM {table} WHERE timestamp < ?", (cutoff,))

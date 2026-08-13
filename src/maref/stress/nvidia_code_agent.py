@@ -18,6 +18,7 @@ from typing import Any
 
 try:
     from openai import APIError, OpenAI, RateLimitError
+
     _OPENAI_AVAILABLE = True
 except ImportError:
     _OPENAI_AVAILABLE = False
@@ -280,7 +281,20 @@ Language: {language}
     @staticmethod
     def _has_type_hints(code: str) -> bool:
         lines = code.split("\n")
-        return any("->" in line or (": " in line and "str" in line or "int" in line or "float" in line or "bool" in line or "list" in line or "dict" in line) for line in lines if line.strip())
+        return any(
+            "->" in line
+            or (
+                ": " in line
+                and "str" in line
+                or "int" in line
+                or "float" in line
+                or "bool" in line
+                or "list" in line
+                or "dict" in line
+            )
+            for line in lines
+            if line.strip()
+        )
 
     def list_available_models(self) -> list[str]:
         try:

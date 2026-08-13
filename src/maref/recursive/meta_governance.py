@@ -40,9 +40,7 @@ class MetaCircuitBreaker:
     underlying state machine to ``CircuitBreaker``.
     """
 
-    def __init__(
-        self, inner_trip_threshold: int = 3, cooldown_seconds: float = 30.0
-    ) -> None:
+    def __init__(self, inner_trip_threshold: int = 3, cooldown_seconds: float = 30.0) -> None:
         self.inner_trip_threshold = inner_trip_threshold
         self.inner_trip_count: int = 0
         self.last_open_time: float = 0.0

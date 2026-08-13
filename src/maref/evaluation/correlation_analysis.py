@@ -20,10 +20,7 @@ class RoundScore:
         if not self.human_scores:
             return {}
         dims = self.human_scores[0].keys()
-        return {
-            dim: mean(r[dim] for r in self.human_scores)
-            for dim in dims
-        }
+        return {dim: mean(r[dim] for r in self.human_scores) for dim in dims}
 
 
 @dataclass
@@ -69,6 +66,7 @@ def compute_spearman_rank(x: list[float], y: list[float]) -> tuple[float, float]
     t_stat = rho * math.sqrt((n - 2) / max(1 - rho * rho, 1e-10))
     try:
         from scipy.stats import t as t_dist
+
         p_value = 2 * (1 - t_dist.cdf(abs(t_stat), n - 2))
     except ImportError:
         p_value = 0.05 if abs(rho) < 0.5 else 0.01
@@ -92,15 +90,16 @@ def compute_correlation_report(scores: list[RoundScore]) -> CorrelationReport:
                 human_vals.append(s.mean_human_scores[dim])
 
         rho, p = compute_spearman_rank(auto_vals, human_vals)
-        interpretation = (
-            "strong" if abs(rho) >= 0.7
-            else "moderate" if abs(rho) >= 0.4
-            else "weak"
+        interpretation = "strong" if abs(rho) >= 0.7 else "moderate" if abs(rho) >= 0.4 else "weak"
+        results.append(
+            CorrelationResult(
+                dimension=dim,
+                spearman_r=rho,
+                p_value=p,
+                sample_count=len(auto_vals),
+                interpretation=interpretation,
+            )
         )
-        results.append(CorrelationResult(
-            dimension=dim, spearman_r=rho, p_value=p,
-            sample_count=len(auto_vals), interpretation=interpretation,
-        ))
 
     all_auto = []
     all_human = []
@@ -128,9 +127,11 @@ def load_scores_from_yaml(path: str) -> list[RoundScore]:
         return scores
 
     for entry in data:
-        scores.append(RoundScore(
-            round_id=entry["round_id"],
-            automated_scores=entry["automated_scores"],
-            human_scores=entry.get("human_scores", []),
-        ))
+        scores.append(
+            RoundScore(
+                round_id=entry["round_id"],
+                automated_scores=entry["automated_scores"],
+                human_scores=entry.get("human_scores", []),
+            )
+        )
     return scores

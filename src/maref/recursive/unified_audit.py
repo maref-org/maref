@@ -106,13 +106,12 @@ class UnifiedAuditStore:
         self._by_module: dict[str, list[int]] = defaultdict(list)
         self._by_event_type: dict[str, list[int]] = defaultdict(list)
         self._by_round: dict[int, list[int]] = defaultdict(list)
-        self._persist_path: Path | None = (
-            Path(persist_path) if persist_path else None
-        )
+        self._persist_path: Path | None = Path(persist_path) if persist_path else None
         if audit_bus is not None:
             self._audit_bus = audit_bus
         elif self._persist_path is not None:
             from maref.governance.audit import AuditLogger
+
             self._audit_bus = AuditBus(AuditLogger(self._persist_path))
         else:
             self._audit_bus = AuditBus()
@@ -144,9 +143,7 @@ class UnifiedAuditStore:
     def query_by_round(self, round_num: int) -> list[UnifiedAuditRecord]:
         return [self._records[i] for i in self._by_round.get(round_num, [])]
 
-    def query_decision_chain(
-        self, record_id: str, max_depth: int = 10
-    ) -> list[UnifiedAuditRecord]:
+    def query_decision_chain(self, record_id: str, max_depth: int = 10) -> list[UnifiedAuditRecord]:
         chain: list[UnifiedAuditRecord] = []
         visited: set[str] = set()
         queue = [record_id]

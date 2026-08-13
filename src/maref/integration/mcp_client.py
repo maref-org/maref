@@ -24,6 +24,7 @@ MAX_RETRIES = 1
 
 class FailMode(str, Enum):
     """宪法第七条: 跨边界 MCP 调用降级策略"""
+
     OPEN = "open"
     """MCP 服务不可用时降级到快速通道，标记 governance_bypassed=true"""
     CLOSED = "closed"

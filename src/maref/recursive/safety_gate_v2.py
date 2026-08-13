@@ -432,9 +432,7 @@ class SafetyGateV2:
         """附加 sentinel 观测器。"""
         self._sentinel_observer = observer
 
-    def validate_runtime_behavior(
-        self, agent_id: str, session: Any = None
-    ) -> ThreatAssessment:
+    def validate_runtime_behavior(self, agent_id: str, session: Any = None) -> ThreatAssessment:
         """运行时行为验证 — M4 综合评估。
 
         Args:
@@ -482,5 +480,9 @@ class SafetyGateV2:
                 blocked=blocked,
             )
         return ThreatAssessment(
-            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+            threat_detected=False,
+            threat_type="",
+            severity="NONE",
+            reason="",
+            blocked=False,
         )

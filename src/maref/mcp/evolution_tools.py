@@ -22,15 +22,22 @@ class ObserveTool(Tool[str]):
 
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
         from maref.recursive.self_observer import SelfObserver
+
         observer = SelfObserver()
         snapshot = observer.snapshot()
-        return ToolResult(data=json.dumps({
-            "timestamp": snapshot.timestamp,
-            "source_file_count": snapshot.source_file_count,
-            "total_lines": snapshot.total_lines,
-            "test_stats": snapshot.test_stats,
-            "probe_count": len(snapshot.probe_readings),
-        }, indent=2, default=str))
+        return ToolResult(
+            data=json.dumps(
+                {
+                    "timestamp": snapshot.timestamp,
+                    "source_file_count": snapshot.source_file_count,
+                    "total_lines": snapshot.total_lines,
+                    "test_stats": snapshot.test_stats,
+                    "probe_count": len(snapshot.probe_readings),
+                },
+                indent=2,
+                default=str,
+            )
+        )
 
     def is_read_only(self) -> bool:
         return True
@@ -55,16 +62,27 @@ class DiagnoseTool(Tool[str]):
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
         from maref.recursive.self_diagnostician import SelfDiagnostician
         from maref.recursive.self_observer import SelfObserver
+
         observer = SelfObserver()
         snapshot = observer.snapshot()
         doc = SelfDiagnostician()
         report = doc.diagnose(snapshot)
-        return ToolResult(data=json.dumps({
-            "overall_risk": report.overall_risk.value if hasattr(report.overall_risk, "value") else str(report.overall_risk),
-            "cb_status": report.cb_status,
-            "recommendations": report.recommendations,
-            "risk_matrix": {k: v.value if hasattr(v, "value") else str(v) for k, v in report.risk_matrix.items()},
-        }, indent=2))
+        return ToolResult(
+            data=json.dumps(
+                {
+                    "overall_risk": report.overall_risk.value
+                    if hasattr(report.overall_risk, "value")
+                    else str(report.overall_risk),
+                    "cb_status": report.cb_status,
+                    "recommendations": report.recommendations,
+                    "risk_matrix": {
+                        k: v.value if hasattr(v, "value") else str(v)
+                        for k, v in report.risk_matrix.items()
+                    },
+                },
+                indent=2,
+            )
+        )
 
     def is_read_only(self) -> bool:
         return True
@@ -89,16 +107,27 @@ class ArchitectTool(Tool[str]):
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
         from maref.recursive.audit_store import UnifiedAuditStore
         from maref.recursive.self_architect import SelfArchitect
+
         store = UnifiedAuditStore()
         arch = SelfArchitect(audit_store=store)
         proposals = arch.propose_all()
-        return ToolResult(data=json.dumps([{
-            "proposal_id": p.proposal_id,
-            "change_type": p.change_type.value if hasattr(p.change_type, "value") else str(p.change_type),
-            "rationale": p.rationale,
-            "confidence": p.confidence,
-            "target_files": p.target_files,
-        } for p in proposals], indent=2))
+        return ToolResult(
+            data=json.dumps(
+                [
+                    {
+                        "proposal_id": p.proposal_id,
+                        "change_type": p.change_type.value
+                        if hasattr(p.change_type, "value")
+                        else str(p.change_type),
+                        "rationale": p.rationale,
+                        "confidence": p.confidence,
+                        "target_files": p.target_files,
+                    }
+                    for p in proposals
+                ],
+                indent=2,
+            )
+        )
 
     def is_read_only(self) -> bool:
         return True
@@ -124,8 +153,10 @@ class CodegenTool(Tool[str]):
         import uuid
 
         from maref.recursive.llm_code_generator import LLMCodeGenerator
+
         gen = LLMCodeGenerator()
         from maref.recursive.self_architect import ArchitectureProposal
+
         proposal = ArchitectureProposal(
             proposal_id=input.get("proposal_id", str(uuid.uuid4())),
             timestamp=__import__("time").time(),
@@ -136,11 +167,16 @@ class CodegenTool(Tool[str]):
             confidence=0.8,
         )
         result = await gen.generate(proposal)
-        return ToolResult(data=json.dumps({
-            "success": result.success,
-            "generated_count": len(result.generated),
-            "validation_errors": result.validation_errors,
-        }, indent=2))
+        return ToolResult(
+            data=json.dumps(
+                {
+                    "success": result.success,
+                    "generated_count": len(result.generated),
+                    "validation_errors": result.validation_errors,
+                },
+                indent=2,
+            )
+        )
 
     def is_read_only(self) -> bool:
         return False
@@ -160,7 +196,10 @@ class DeployTool(Tool[str]):
 
     @property
     def input_schema(self) -> dict[str, Any]:
-        return {"type": "object", "properties": {"proposal_json": {"type": "string"}, "dry_run": {"type": "boolean"}}}
+        return {
+            "type": "object",
+            "properties": {"proposal_json": {"type": "string"}, "dry_run": {"type": "boolean"}},
+        }
 
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
         import json as _json
@@ -168,6 +207,7 @@ class DeployTool(Tool[str]):
 
         from maref.recursive.self_architect import ArchitectureProposal
         from maref.recursive.self_executor import SelfExecutor
+
         proposal_data = _json.loads(input.get("proposal_json", "{}"))
         proposal = ArchitectureProposal(
             proposal_id=proposal_data.get("proposal_id", str(uuid.uuid4())),
@@ -180,12 +220,17 @@ class DeployTool(Tool[str]):
         )
         exec_ = SelfExecutor()
         pipeline = exec_.execute(proposal)
-        return ToolResult(data=_json.dumps({
-            "pipeline_id": pipeline.pipeline_id,
-            "success": pipeline.final_state == "complete",
-            "final_state": pipeline.final_state,
-            "rollback_performed": pipeline.rollback_performed,
-        }, indent=2))
+        return ToolResult(
+            data=_json.dumps(
+                {
+                    "pipeline_id": pipeline.pipeline_id,
+                    "success": pipeline.final_state == "complete",
+                    "final_state": pipeline.final_state,
+                    "rollback_performed": pipeline.rollback_performed,
+                },
+                indent=2,
+            )
+        )
 
     def is_read_only(self) -> bool:
         return False
@@ -210,18 +255,26 @@ class VerifyTool(Tool[str]):
     async def execute(self, input: dict[str, Any], context: ToolUseContext) -> ToolResult[str]:
         import json as _json
         import subprocess
+
         target = input.get("target", "tests/")
         result = subprocess.run(
             ["python", "-m", "pytest", target, "-v", "--tb=short", "--no-header", "-q"],
-            capture_output=True, text=True, timeout=300,
+            capture_output=True,
+            text=True,
+            timeout=300,
         )
         rc = result.returncode
-        return ToolResult(data=_json.dumps({
-            "return_code": rc,
-            "passed": rc == 0,
-            "stdout": result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout,
-            "stderr": result.stderr[-1000:] if len(result.stderr) > 1000 else result.stderr,
-        }, indent=2))
+        return ToolResult(
+            data=_json.dumps(
+                {
+                    "return_code": rc,
+                    "passed": rc == 0,
+                    "stdout": result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout,
+                    "stderr": result.stderr[-1000:] if len(result.stderr) > 1000 else result.stderr,
+                },
+                indent=2,
+            )
+        )
 
     def is_read_only(self) -> bool:
         return True

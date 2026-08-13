@@ -328,8 +328,7 @@ class OmniParserInterface:
         global _OMNI_PARSER_AVAILABLE
         if not _transformers_available:
             raise RuntimeError(
-                "transformers library required for OmniParser. "
-                "Install with: pip install maref[ml]"
+                "transformers library required for OmniParser. Install with: pip install maref[ml]"
             )
 
         model_id = self._config.get("model_id", "microsoft/OmniParser-v2.0")
@@ -395,6 +394,7 @@ class OmniParserInterface:
         )
 
         import torch
+
         with torch.no_grad():
             generated_ids = self._model.generate(**inputs, max_new_tokens=1024)
 
@@ -506,7 +506,7 @@ class OmniParserInterface:
         global _COG_AGENT_AVAILABLE
         if not _transformers_available:
             raise RuntimeError(
-                "transformers library required for CogAgent. " "Install with: pip install maref[ml]"
+                "transformers library required for CogAgent. Install with: pip install maref[ml]"
             )
 
         model_id = self._config.get("model_id", "THUDM/cogagent-vqa-hf")

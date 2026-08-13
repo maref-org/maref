@@ -77,7 +77,9 @@ def parse_skill_file(path: str | Path) -> MarefSkill | None:
         title=title,
         body=body,
         source_path=str(path),
-        metadata={k: v for k, v in fm.items() if k not in ("name", "role_affinity", "hexagram_trigger")},
+        metadata={
+            k: v for k, v in fm.items() if k not in ("name", "role_affinity", "hexagram_trigger")
+        },
     )
 
 

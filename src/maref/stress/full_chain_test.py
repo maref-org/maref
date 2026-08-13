@@ -37,6 +37,7 @@ from maref.stress.volc_ark_benchmark import run_benchmark
 @dataclass
 class PhaseResult:
     """单个测试阶段的结果。"""
+
     phase_name: str
     success: bool
     duration_ms: float
@@ -77,19 +78,23 @@ def run_pressure_test(num_runs: int = 100) -> PhaseResult:
         sqi_report = sqi.compute(code_metrics=metrics, round_id=f"pressure-{batch_idx}")
         tracker.record_round(f"pressure-{batch_idx}", sqi_report)
 
-        batch_results.append({
-            "batch": batch_idx,
-            "success_rate": report.success_rate,
-            "avg_duration_ms": report.avg_duration_ms,
-            "avg_coverage": report.avg_test_coverage,
-            "sqi_score": sqi_report.overall_score,
-            "batch_duration_ms": batch_duration,
-        })
+        batch_results.append(
+            {
+                "batch": batch_idx,
+                "success_rate": report.success_rate,
+                "avg_duration_ms": report.avg_duration_ms,
+                "avg_coverage": report.avg_test_coverage,
+                "sqi_score": sqi_report.overall_score,
+                "batch_duration_ms": batch_duration,
+            }
+        )
 
-        print(f"  Batch {batch_idx}: success={report.success_rate:.1%}, "
-              f"coverage={report.avg_test_coverage:.1f}%, "
-              f"SQI={sqi_report.overall_score:.1f}, "
-              f"duration={batch_duration/1000:.1f}s")
+        print(
+            f"  Batch {batch_idx}: success={report.success_rate:.1%}, "
+            f"coverage={report.avg_test_coverage:.1f}%, "
+            f"SQI={sqi_report.overall_score:.1f}, "
+            f"duration={batch_duration / 1000:.1f}s"
+        )
 
     t_end = time.perf_counter()
     total_duration = (t_end - t_start) * 1000
@@ -103,10 +108,12 @@ def run_pressure_test(num_runs: int = 100) -> PhaseResult:
 
     print("\n  Pressure Test Summary:")
     print(f"    Total runs:          {num_runs}")
-    print(f"    Total duration:      {total_duration/1000:.1f}s")
+    print(f"    Total duration:      {total_duration / 1000:.1f}s")
     print(f"    Avg success rate:    {statistics.mean(success_rates):.1%}")
     print(f"    Avg SQI:             {statistics.mean(sqi_scores):.1f}")
-    print(f"    SQI std dev:         {statistics.stdev(sqi_scores) if len(sqi_scores) > 1 else 0:.2f}")
+    print(
+        f"    SQI std dev:         {statistics.stdev(sqi_scores) if len(sqi_scores) > 1 else 0:.2f}"
+    )
     print(f"    Converged to 90.0:   {'YES' if convergence_state.is_converged else 'NO'}")
 
     return PhaseResult(
@@ -144,27 +151,31 @@ def run_full_chain_test() -> dict[str, Any]:
     t_phase = time.perf_counter()
     try:
         benchmark_results = run_benchmark()
-        phase_results.append(PhaseResult(
-            phase_name="baseline_benchmark",
-            success=benchmark_results["success_rate"] > 0.8,
-            duration_ms=(time.perf_counter() - t_phase) * 1000,
-            metrics={
-                "success_rate": benchmark_results["success_rate"],
-                "total_tasks": benchmark_results["total_tasks"],
-                "total_tokens": benchmark_results["total_tokens"],
-                "avg_duration_ms": benchmark_results["duration_stats"]["mean_ms"],
-                "quality_metrics": benchmark_results["quality_metrics"],
-            },
-            details=f"{benchmark_results['success_count']}/{benchmark_results['total_tasks']} tasks succeeded",
-        ))
+        phase_results.append(
+            PhaseResult(
+                phase_name="baseline_benchmark",
+                success=benchmark_results["success_rate"] > 0.8,
+                duration_ms=(time.perf_counter() - t_phase) * 1000,
+                metrics={
+                    "success_rate": benchmark_results["success_rate"],
+                    "total_tasks": benchmark_results["total_tasks"],
+                    "total_tokens": benchmark_results["total_tokens"],
+                    "avg_duration_ms": benchmark_results["duration_stats"]["mean_ms"],
+                    "quality_metrics": benchmark_results["quality_metrics"],
+                },
+                details=f"{benchmark_results['success_count']}/{benchmark_results['total_tasks']} tasks succeeded",
+            )
+        )
     except Exception as e:
         print(f"\n  PHASE 1 FAILED: {e}")
-        phase_results.append(PhaseResult(
-            phase_name="baseline_benchmark",
-            success=False,
-            duration_ms=(time.perf_counter() - t_phase) * 1000,
-            error=str(e),
-        ))
+        phase_results.append(
+            PhaseResult(
+                phase_name="baseline_benchmark",
+                success=False,
+                duration_ms=(time.perf_counter() - t_phase) * 1000,
+                error=str(e),
+            )
+        )
 
     # ═══════════════════════════════════════════════════════════
     # Phase 2: 端到端验证（Q1/Q2/Q3）
@@ -203,17 +214,20 @@ def run_full_chain_test() -> dict[str, Any]:
         print(f"\n  Q3 FAILED: {e}")
         e2e_results["q3"] = {"error": str(e)}
 
-    phase_results.append(PhaseResult(
-        phase_name="e2e_verification",
-        success=e2e_results.get("q1", {}).get("success_rate", 0) > 0 and e2e_results.get("q3", {}).get("reached_target", False),
-        duration_ms=(time.perf_counter() - t_phase) * 1000,
-        metrics={
-            "q1_success_rate": e2e_results.get("q1", {}).get("success_rate", 0),
-            "q3_final_sqi": e2e_results.get("q3", {}).get("final_sqi", 0),
-            "q3_reached_target": e2e_results.get("q3", {}).get("reached_target", False),
-        },
-        details=f"Q1={e2e_results.get('q1', {}).get('success_rate', 0):.0%}, Q3 final SQI={e2e_results.get('q3', {}).get('final_sqi', 0):.1f}",
-    ))
+    phase_results.append(
+        PhaseResult(
+            phase_name="e2e_verification",
+            success=e2e_results.get("q1", {}).get("success_rate", 0) > 0
+            and e2e_results.get("q3", {}).get("reached_target", False),
+            duration_ms=(time.perf_counter() - t_phase) * 1000,
+            metrics={
+                "q1_success_rate": e2e_results.get("q1", {}).get("success_rate", 0),
+                "q3_final_sqi": e2e_results.get("q3", {}).get("final_sqi", 0),
+                "q3_reached_target": e2e_results.get("q3", {}).get("reached_target", False),
+            },
+            details=f"Q1={e2e_results.get('q1', {}).get('success_rate', 0):.0%}, Q3 final SQI={e2e_results.get('q3', {}).get('final_sqi', 0):.1f}",
+        )
+    )
 
     # ═══════════════════════════════════════════════════════════
     # Phase 3: 混沌+红蓝对抗测试
@@ -225,26 +239,30 @@ def run_full_chain_test() -> dict[str, Any]:
     t_phase = time.perf_counter()
     try:
         adversarial_results = run_full_adversarial_suite()
-        phase_results.append(PhaseResult(
-            phase_name="adversarial_testing",
-            success=adversarial_results["pass_rate"] > 0.7,
-            duration_ms=adversarial_results["total_duration_ms"],
-            metrics={
-                "total_tests": adversarial_results["total_tests"],
-                "passed_tests": adversarial_results["passed_tests"],
-                "pass_rate": adversarial_results["pass_rate"],
-                "avg_detection_rate": adversarial_results["avg_detection_rate"],
-            },
-            details=f"{adversarial_results['passed_tests']}/{adversarial_results['total_tests']} tests passed",
-        ))
+        phase_results.append(
+            PhaseResult(
+                phase_name="adversarial_testing",
+                success=adversarial_results["pass_rate"] > 0.7,
+                duration_ms=adversarial_results["total_duration_ms"],
+                metrics={
+                    "total_tests": adversarial_results["total_tests"],
+                    "passed_tests": adversarial_results["passed_tests"],
+                    "pass_rate": adversarial_results["pass_rate"],
+                    "avg_detection_rate": adversarial_results["avg_detection_rate"],
+                },
+                details=f"{adversarial_results['passed_tests']}/{adversarial_results['total_tests']} tests passed",
+            )
+        )
     except Exception as e:
         print(f"\n  PHASE 3 FAILED: {e}")
-        phase_results.append(PhaseResult(
-            phase_name="adversarial_testing",
-            success=False,
-            duration_ms=(time.perf_counter() - t_phase) * 1000,
-            error=str(e),
-        ))
+        phase_results.append(
+            PhaseResult(
+                phase_name="adversarial_testing",
+                success=False,
+                duration_ms=(time.perf_counter() - t_phase) * 1000,
+                error=str(e),
+            )
+        )
 
     # ═══════════════════════════════════════════════════════════
     # Phase 4: SQI收敛追踪（单独运行，15轮）
@@ -260,7 +278,7 @@ def run_full_chain_test() -> dict[str, Any]:
         round_records = []
 
         print(f"\n  {'Round':<6} {'SQI':<6} {'Delta':<7} {'Success':<8} {'Coverage':<9} {'Trend'}")
-        print(f"  {'-'*65}")
+        print(f"  {'-' * 65}")
 
         for round_idx in range(15):
             base_quality = min(0.98, 0.75 + round_idx * 0.05)
@@ -281,17 +299,21 @@ def run_full_chain_test() -> dict[str, Any]:
 
             state = tracker.check_convergence()
 
-            round_records.append({
-                "round": round_idx,
-                "sqi": sqi_report.overall_score,
-                "delta": record.delta,
-                "success_rate": conv_report.success_rate,
-                "coverage": conv_report.avg_test_coverage,
-                "trend": state.trend,
-            })
+            round_records.append(
+                {
+                    "round": round_idx,
+                    "sqi": sqi_report.overall_score,
+                    "delta": record.delta,
+                    "success_rate": conv_report.success_rate,
+                    "coverage": conv_report.avg_test_coverage,
+                    "trend": state.trend,
+                }
+            )
 
-            print(f"  {round_idx:<6} {sqi_report.overall_score:<6.1f} {record.delta:+6.1f}  "
-                  f"{conv_report.success_rate:<7.1%} {conv_report.avg_test_coverage:<8.1f}% {state.trend}")
+            print(
+                f"  {round_idx:<6} {sqi_report.overall_score:<6.1f} {record.delta:+6.1f}  "
+                f"{conv_report.success_rate:<7.1%} {conv_report.avg_test_coverage:<8.1f}% {state.trend}"
+            )
 
             if state.is_converged:
                 print(f"\n  CONVERGED at round {round_idx}!")
@@ -300,29 +322,33 @@ def run_full_chain_test() -> dict[str, Any]:
         final_state = tracker.check_convergence()
         summary = tracker.summary()
 
-        phase_results.append(PhaseResult(
-            phase_name="sqi_convergence",
-            success=summary.get("current", 0) >= 85.0,
-            duration_ms=(time.perf_counter() - t_phase) * 1000,
-            metrics={
-                "final_sqi": summary.get("current", 0),
-                "initial_sqi": summary.get("initial", 0),
-                "total_improvement": summary.get("total_improvement", 0),
-                "converged": final_state.is_converged,
-                "trend": final_state.trend,
-                "rounds_tracked": final_state.rounds_tracked,
-                "round_records": round_records,
-            },
-            details=f"Final SQI={summary.get('current', 0):.1f}, converged={final_state.is_converged}",
-        ))
+        phase_results.append(
+            PhaseResult(
+                phase_name="sqi_convergence",
+                success=summary.get("current", 0) >= 85.0,
+                duration_ms=(time.perf_counter() - t_phase) * 1000,
+                metrics={
+                    "final_sqi": summary.get("current", 0),
+                    "initial_sqi": summary.get("initial", 0),
+                    "total_improvement": summary.get("total_improvement", 0),
+                    "converged": final_state.is_converged,
+                    "trend": final_state.trend,
+                    "rounds_tracked": final_state.rounds_tracked,
+                    "round_records": round_records,
+                },
+                details=f"Final SQI={summary.get('current', 0):.1f}, converged={final_state.is_converged}",
+            )
+        )
     except Exception as e:
         print(f"\n  PHASE 4 FAILED: {e}")
-        phase_results.append(PhaseResult(
-            phase_name="sqi_convergence",
-            success=False,
-            duration_ms=(time.perf_counter() - t_phase) * 1000,
-            error=str(e),
-        ))
+        phase_results.append(
+            PhaseResult(
+                phase_name="sqi_convergence",
+                success=False,
+                duration_ms=(time.perf_counter() - t_phase) * 1000,
+                error=str(e),
+            )
+        )
 
     # ═══════════════════════════════════════════════════════════
     # Phase 5: 压力测试（100次连续运行）
@@ -332,12 +358,14 @@ def run_full_chain_test() -> dict[str, Any]:
         phase_results.append(pressure_result)
     except Exception as e:
         print(f"\n  PHASE 5 FAILED: {e}")
-        phase_results.append(PhaseResult(
-            phase_name="pressure_test",
-            success=False,
-            duration_ms=0,
-            error=str(e),
-        ))
+        phase_results.append(
+            PhaseResult(
+                phase_name="pressure_test",
+                success=False,
+                duration_ms=0,
+                error=str(e),
+            )
+        )
 
     # ═══════════════════════════════════════════════════════════
     # 最终综合报告
@@ -354,27 +382,37 @@ def run_full_chain_test() -> dict[str, Any]:
 
     print("\n  Test Chain Summary:")
     print(f"    Total phases:      {total_phases}")
-    print(f"    Passed phases:     {passed_phases}/{total_phases} ({passed_phases/total_phases*100:.0f}%)")
-    print(f"    Total duration:    {total_chain_duration/1000:.0f}s ({total_chain_duration/1000/60:.1f} min)")
+    print(
+        f"    Passed phases:     {passed_phases}/{total_phases} ({passed_phases / total_phases * 100:.0f}%)"
+    )
+    print(
+        f"    Total duration:    {total_chain_duration / 1000:.0f}s ({total_chain_duration / 1000 / 60:.1f} min)"
+    )
 
     print("\n  Phase Details:")
     for phase in phase_results:
         status = "PASS" if phase.success else "FAIL"
-        print(f"    [{status}] {phase.phase_name:<25} "
-              f"{phase.duration_ms/1000:>8.1f}s  "
-              f"{phase.details[:50]}")
+        print(
+            f"    [{status}] {phase.phase_name:<25} "
+            f"{phase.duration_ms / 1000:>8.1f}s  "
+            f"{phase.details[:50]}"
+        )
 
     # 关键指标汇总
     benchmark_phase = next((p for p in phase_results if p.phase_name == "baseline_benchmark"), None)
     e2e_phase = next((p for p in phase_results if p.phase_name == "e2e_verification"), None)
-    adversarial_phase = next((p for p in phase_results if p.phase_name == "adversarial_testing"), None)
+    adversarial_phase = next(
+        (p for p in phase_results if p.phase_name == "adversarial_testing"), None
+    )
     convergence_phase = next((p for p in phase_results if p.phase_name == "sqi_convergence"), None)
     pressure_phase = next((p for p in phase_results if p.phase_name == "pressure_test"), None)
 
     print("\n  Key Metrics:")
     if benchmark_phase and benchmark_phase.metrics:
         print(f"    Benchmark success rate:   {benchmark_phase.metrics.get('success_rate', 0):.0%}")
-        print(f"    Benchmark avg duration:   {benchmark_phase.metrics.get('avg_duration_ms', 0)/1000:.1f}s")
+        print(
+            f"    Benchmark avg duration:   {benchmark_phase.metrics.get('avg_duration_ms', 0) / 1000:.1f}s"
+        )
 
     if e2e_phase and e2e_phase.metrics:
         print(f"    Q1 code gen success:      {e2e_phase.metrics.get('q1_success_rate', 0):.0%}")
@@ -382,14 +420,18 @@ def run_full_chain_test() -> dict[str, Any]:
 
     if adversarial_phase and adversarial_phase.metrics:
         print(f"    Adversarial pass rate:    {adversarial_phase.metrics.get('pass_rate', 0):.0%}")
-        print(f"    Avg detection rate:       {adversarial_phase.metrics.get('avg_detection_rate', 0):.0%}")
+        print(
+            f"    Avg detection rate:       {adversarial_phase.metrics.get('avg_detection_rate', 0):.0%}"
+        )
 
     if convergence_phase and convergence_phase.metrics:
         print(f"    Convergence final SQI:    {convergence_phase.metrics.get('final_sqi', 0):.1f}")
         print(f"    Converged:                {convergence_phase.metrics.get('converged', False)}")
 
     if pressure_phase and pressure_phase.metrics:
-        print(f"    Pressure avg success:     {pressure_phase.metrics.get('avg_success_rate', 0):.0%}")
+        print(
+            f"    Pressure avg success:     {pressure_phase.metrics.get('avg_success_rate', 0):.0%}"
+        )
         print(f"    Pressure SQI std dev:     {pressure_phase.metrics.get('sqi_std_dev', 0):.2f}")
 
     # 构建最终报告
@@ -412,12 +454,20 @@ def run_full_chain_test() -> dict[str, Any]:
             for p in phase_results
         ],
         "key_metrics": {
-            "benchmark_success_rate": benchmark_phase.metrics.get("success_rate", 0) if benchmark_phase else 0,
+            "benchmark_success_rate": benchmark_phase.metrics.get("success_rate", 0)
+            if benchmark_phase
+            else 0,
             "q1_success_rate": e2e_phase.metrics.get("q1_success_rate", 0) if e2e_phase else 0,
             "q3_final_sqi": e2e_phase.metrics.get("q3_final_sqi", 0) if e2e_phase else 0,
-            "adversarial_pass_rate": adversarial_phase.metrics.get("pass_rate", 0) if adversarial_phase else 0,
-            "convergence_final_sqi": convergence_phase.metrics.get("final_sqi", 0) if convergence_phase else 0,
-            "pressure_avg_success_rate": pressure_phase.metrics.get("avg_success_rate", 0) if pressure_phase else 0,
+            "adversarial_pass_rate": adversarial_phase.metrics.get("pass_rate", 0)
+            if adversarial_phase
+            else 0,
+            "convergence_final_sqi": convergence_phase.metrics.get("final_sqi", 0)
+            if convergence_phase
+            else 0,
+            "pressure_avg_success_rate": pressure_phase.metrics.get("avg_success_rate", 0)
+            if pressure_phase
+            else 0,
         },
     }
 
@@ -432,12 +482,14 @@ if __name__ == "__main__":
     report = run_full_chain_test()
 
     # 保存结果
-    output_path = Path(__file__).parent.parent.parent / "tests" / "stress" / "full_chain_results.json"
+    output_path = (
+        Path(__file__).parent.parent.parent / "tests" / "stress" / "full_chain_results.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w") as f:
         json.dump(report, f, indent=2, default=str)
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"Results saved to: {output_path}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")

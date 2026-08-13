@@ -223,9 +223,7 @@ class ProtocolBridge:
         """
         start_time = time.perf_counter()
 
-        task = self._adapters["mcp-to-a2a"].convert(
-            mcp_message, target_agent=target_agent
-        )
+        task = self._adapters["mcp-to-a2a"].convert(mcp_message, target_agent=target_agent)
 
         # 记录映射关系
         self._task_to_message_map[task.task_id] = mcp_message.message_id
@@ -250,9 +248,7 @@ class ProtocolBridge:
         # 查找原始消息 ID
         message_id = self._task_to_message_map.get(a2a_task.task_id, a2a_task.task_id)
 
-        response = self._adapters["a2a-to-mcp"].convert(
-            a2a_task, message_id=message_id
-        )
+        response = self._adapters["a2a-to-mcp"].convert(a2a_task, message_id=message_id)
 
         latency_ms = (time.perf_counter() - start_time) * 1000
         self.metrics.record_conversion(BridgeDirection.A2A_TO_MCP, latency_ms, True)

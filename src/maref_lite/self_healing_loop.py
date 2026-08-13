@@ -13,6 +13,7 @@ from maref.recursive.unified_audit import UnifiedAudit
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class SelfHealingConfig:
     max_cycles: int = 10
@@ -23,6 +24,7 @@ class SelfHealingConfig:
     max_heal_iterations: int = 5
     enable_architecture_proposals: bool = False
     arch_proposal_interval_cycles: int = 10
+
 
 @dataclass
 class HealingCycleReport:
@@ -35,9 +37,9 @@ class HealingCycleReport:
     actions_taken: list[dict[str, Any]] = field(default_factory=list)
     duration_ms: float = 0.0
 
-class SelfHealingLoop:
 
-    def __init__(self, config: SelfHealingConfig | None=None) -> None:
+class SelfHealingLoop:
+    def __init__(self, config: SelfHealingConfig | None = None) -> None:
         self.config = config or SelfHealingConfig()
         self._running: bool = False
         self._history: list[HealingCycleReport] = []
@@ -177,4 +179,11 @@ class SelfHealingLoop:
         return cycle_report
 
     def to_dict(self) -> dict[str, Any]:
-        return {'running': self._running, 'cycle_count': self._cycle_count, 'history': [{'cycle_id': r.cycle_id, 'status': r.status, 'details': r.details} for r in self._history]}
+        return {
+            "running": self._running,
+            "cycle_count": self._cycle_count,
+            "history": [
+                {"cycle_id": r.cycle_id, "status": r.status, "details": r.details}
+                for r in self._history
+            ],
+        }

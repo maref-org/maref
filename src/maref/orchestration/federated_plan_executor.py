@@ -328,9 +328,7 @@ class FederatedPlanExecutor:
             # actually chose an agent).
             if cached.agent_did:
                 score = self._trust.assess(cached.agent_did)
-                trust_snapshots[cached.agent_did] = round(
-                    score.effective_score, 2
-                )
+                trust_snapshots[cached.agent_did] = round(score.effective_score, 2)
 
         # Generate billing entries from accumulated metrics.
         billing_entries = self._platform.settlement.generate_billing_from_metering()
@@ -350,9 +348,7 @@ class FederatedPlanExecutor:
     # ------------------------------------------------------------------ #
     # Internal: per-step federation dispatch                              #
     # ------------------------------------------------------------------ #
-    def _dispatch_step(
-        self, action: str, params: dict[str, Any]
-    ) -> FederationDispatchRecord:
+    def _dispatch_step(self, action: str, params: dict[str, Any]) -> FederationDispatchRecord:
         """Perform a single federation dispatch for a plan step.
 
         Expected params:
@@ -419,9 +415,7 @@ class FederatedPlanExecutor:
             record.agent_did = agent.did.did_string
             record.agent_aic = agent.aic.aic_string
             record.provider_org = (
-                agent.acs.provider.organization
-                if agent.acs.provider
-                else provider_org
+                agent.acs.provider.organization if agent.acs.provider else provider_org
             )
             record.remote = remote
 
@@ -465,9 +459,7 @@ class FederatedPlanExecutor:
 
         return record
 
-    def _find_local_agent(
-        self, capability: str, provider_org: str
-    ) -> FederatedAgent | None:
+    def _find_local_agent(self, capability: str, provider_org: str) -> FederatedAgent | None:
         """Find a local federated agent matching the capability and org."""
         agents = self._gateway.discover_by_capability(capability)
         if not agents:
@@ -479,17 +471,13 @@ class FederatedPlanExecutor:
                 return agent
         return None
 
-    def _find_remote_agent(
-        self, capability: str, provider_org: str
-    ) -> FederatedAgent | None:
+    def _find_remote_agent(self, capability: str, provider_org: str) -> FederatedAgent | None:
         """Find a federated agent via ADP discovery across peers.
 
         Only returns agents from **peer** servers (``hop_count > 0``),
         not local agents re-listed by the discovery layer.
         """
-        results = self._platform.discovery.discover(
-            capability=capability, include_remote=True
-        )
+        results = self._platform.discovery.discover(capability=capability, include_remote=True)
         remote_results = [r for r in results if r.hop_count > 0]
         if not remote_results:
             return None

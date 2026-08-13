@@ -147,8 +147,7 @@ class FederatedAuditStore:
         conn = self._conn()
         try:
             last = conn.execute(
-                "SELECT federated_root_hash, org_count FROM snapshots "
-                "ORDER BY id DESC LIMIT 1"
+                "SELECT federated_root_hash, org_count FROM snapshots ORDER BY id DESC LIMIT 1"
             ).fetchone()
         finally:
             conn.close()
@@ -156,9 +155,8 @@ class FederatedAuditStore:
         if last is None:
             return True
         current_root = self._agg.get_federated_root()
-        return (
-            last["federated_root_hash"] == current_root
-            and last["org_count"] == len(self._agg._entries)
+        return last["federated_root_hash"] == current_root and last["org_count"] == len(
+            self._agg._entries
         )
 
     # ── Delegated aggregator methods ─────────────────────────

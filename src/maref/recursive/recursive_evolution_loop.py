@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-
     pass
 
 logger = logging.getLogger(__name__)
@@ -79,9 +78,7 @@ class RELStateMachine:
 
     def transition(self, target: RELState) -> None:
         if not can_transition(self._state, target):
-            raise IllegalTransitionError(
-                f"Illegal transition: {self._state.name} -> {target.name}"
-            )
+            raise IllegalTransitionError(f"Illegal transition: {self._state.name} -> {target.name}")
         self._transition_history.append((self._state, target, time.time()))
         self._state = target
 
@@ -179,10 +176,9 @@ class RELConvergenceDetector:
             prev = self._select_primary_metric(self._history[i - 1])
             deltas.append(metric - prev)
 
-        trailing = deltas[-(self._oscillation_threshold + 1):]
+        trailing = deltas[-(self._oscillation_threshold + 1) :]
         sign_changes = sum(
-            1 for i in range(1, len(trailing))
-            if (trailing[i] > 0) != (trailing[i - 1] > 0)
+            1 for i in range(1, len(trailing)) if (trailing[i] > 0) != (trailing[i - 1] > 0)
         )
         return sign_changes >= self._oscillation_threshold
 
@@ -196,7 +192,7 @@ class RELConvergenceDetector:
             prev = self._select_primary_metric(self._history[i - 1])
             deltas.append(abs(metric - prev))
 
-        trailing = deltas[-self._round_decay_window:]
+        trailing = deltas[-self._round_decay_window :]
         return all(d < self._gain_threshold for d in trailing)
 
     def _select_primary_metric(self, metrics: dict[str, float]) -> float:
@@ -323,7 +319,7 @@ class RELTransactionManager:
         matching = [(tid, tx) for tid, tx in self._txs.items() if tx.state == state]
         if len(matching) > max_count:
             to_remove = sorted(matching, key=lambda item: item[1].round_number)[
-                :len(matching) - max_count
+                : len(matching) - max_count
             ]
             for tid, _tx in to_remove:
                 tx_dir = os.path.join(self._SNAPSHOT_DIR, tid)
@@ -520,6 +516,7 @@ class RecursiveEvolutionLoop:
         self._governor.start_session()
         self._sm.transition(RELState.TRIGGERED)
         from maref.recursive.agent_health import PulseWriter
+
         self._pulse_writer = PulseWriter(
             agent_id=self._agent_id,
             interval_seconds=30.0,
@@ -566,6 +563,7 @@ class RecursiveEvolutionLoop:
         new_baseline = metrics_after.get("test_pass_rate", 1.0)
         if self._best_baseline > 0.0:
             from maref.integration.percv.meta_ratchet_auditor import MetaRatchetAuditor
+
             _ra = MetaRatchetAuditor()
             baseline_verdict = _ra.audit_baseline(self._best_baseline, new_baseline)
             if baseline_verdict.blocked:
@@ -719,6 +717,7 @@ class RecursiveEvolutionLoop:
 
             elif state == RELState.OBSERVE:
                 from maref.recursive.self_observer import SelfObserver
+
                 observer = SelfObserver()
                 snapshot = observer.snapshot(collect_only=True)
                 self._current_snapshot = snapshot
@@ -727,6 +726,7 @@ class RecursiveEvolutionLoop:
 
             elif state == RELState.DIAGNOSE:
                 from maref.recursive.self_diagnostician import SelfDiagnostician
+
                 diagnostician = SelfDiagnostician()
                 if self._current_snapshot is not None:
                     self._current_report = diagnostician.diagnose(self._current_snapshot)
@@ -736,6 +736,7 @@ class RecursiveEvolutionLoop:
             elif state == RELState.ARCHITECT:
                 from maref.recursive.self_architect import SelfArchitect
                 from maref.recursive.unified_audit import UnifiedAuditStore
+
                 architect = SelfArchitect(audit_store=UnifiedAuditStore())
                 proposals = architect.propose_all()
                 self._current_proposal = proposals[0] if proposals else None
@@ -745,10 +746,13 @@ class RecursiveEvolutionLoop:
                     target_files = getattr(self._current_proposal, "target_files", []) or []
                     for tf in target_files:
                         from maref.integration.percv.meta_ratchet_auditor import MetaRatchetAuditor
+
                         _ra = MetaRatchetAuditor()
                         verdict = _ra.audit_file_change(str(tf))
                         if verdict.blocked:
-                            logger.error("REL ratchet audit blocked proposal: %s — %s", tf, verdict.reason)
+                            logger.error(
+                                "REL ratchet audit blocked proposal: %s — %s", tf, verdict.reason
+                            )
                             self.halt(f"ratchet_audit_architect: {verdict.reason}")
                             return
 
@@ -757,6 +761,7 @@ class RecursiveEvolutionLoop:
 
             elif state == RELState.CODEGEN:
                 from maref.recursive.llm_code_generator import LLMCodeGenerator
+
                 generator = LLMCodeGenerator()
                 if self._current_proposal is not None:
                     result = await generator.generate(self._current_proposal)
@@ -777,13 +782,16 @@ class RecursiveEvolutionLoop:
                         from maref.immunity.immune_checker import ImmuneChecker
                         from maref.immunity.negative_gene_bank import NegativeGeneBank
                         from maref.immunity.seed_genes import seed_all
+
                         bank = NegativeGeneBank()
                         seed_all(bank)
                         checker = ImmuneChecker(gene_bank=bank)
                         immune_hits = checker.scan(code_str) + checker.scan_ast(code_str)
                         blocked_hits = [h for h in immune_hits if h.blocked]
                         if blocked_hits:
-                            reasons = "; ".join(f"{h.gene_id}:{h.gene_title}" for h in blocked_hits[:5])
+                            reasons = "; ".join(
+                                f"{h.gene_id}:{h.gene_title}" for h in blocked_hits[:5]
+                            )
                             self.halt(f"immune: {reasons}")
                     except ImportError:
                         logger.info("ImmuneChecker not available, skipping")
@@ -791,15 +799,19 @@ class RecursiveEvolutionLoop:
                         logger.exception("ImmuneChecker scan failed, continuing")
                     if self._sm.state == RELState.SAFETY:
                         from maref.recursive.safety_gate_v2 import SafetyGateV2
+
                         gate = SafetyGateV2()
                         threat = gate.detect_core_removal(code_str)
                         if threat.blocked:
                             self.halt(f"safety: {threat.reason}")
-                if self._sm.state == RELState.SAFETY and can_transition(self._sm.state, RELState.DEPLOY):
+                if self._sm.state == RELState.SAFETY and can_transition(
+                    self._sm.state, RELState.DEPLOY
+                ):
                     self._sm.transition(RELState.DEPLOY)
 
             elif state == RELState.DEPLOY:
                 from maref.recursive.self_executor import SelfExecutor
+
                 executor = SelfExecutor()
                 if self._current_code is not None:
                     deploy_result = executor.deploy(self._current_code)
@@ -814,10 +826,15 @@ class RecursiveEvolutionLoop:
                             from maref.integration.percv.meta_ratchet_auditor import (
                                 MetaRatchetAuditor,
                             )
+
                             _ra = MetaRatchetAuditor()
                             verdict = _ra.audit_file_change(str(f_path))
                             if verdict.blocked:
-                                logger.error("REL ratchet audit blocked deploy: %s — %s", f_path, verdict.reason)
+                                logger.error(
+                                    "REL ratchet audit blocked deploy: %s — %s",
+                                    f_path,
+                                    verdict.reason,
+                                )
                                 self.halt(f"ratchet_audit_deploy: {verdict.reason}")
                                 return
 
@@ -832,10 +849,13 @@ class RecursiveEvolutionLoop:
                     f_path = getattr(self._current_code, "file_path", None)
                     if f_path:
                         from maref.integration.percv.meta_ratchet_auditor import MetaRatchetAuditor
+
                         _ra = MetaRatchetAuditor()
                         verdict = _ra.audit_file_change(str(f_path))
                         if verdict.blocked:
-                            logger.error("REL ratchet audit blocked: %s — %s", f_path, verdict.reason)
+                            logger.error(
+                                "REL ratchet audit blocked: %s — %s", f_path, verdict.reason
+                            )
                             self.halt(f"ratchet_audit: {verdict.reason}")
                             return
 
@@ -846,7 +866,9 @@ class RecursiveEvolutionLoop:
                 logger.warning("REL: state stuck at %s, breaking", state.name)
                 break
         else:
-            logger.warning("REL: state machine did not reach EVALUATE within %d iterations", max_iterations)
+            logger.warning(
+                "REL: state machine did not reach EVALUATE within %d iterations", max_iterations
+            )
 
         if self._sm.state not in (RELState.EVALUATE, RELState.HALT):
             if can_transition(self._sm.state, RELState.EVALUATE):
@@ -858,19 +880,30 @@ class RecursiveEvolutionLoop:
     def _collect_current_metrics(self) -> dict[str, float]:
         try:
             from maref.recursive.self_observer import SelfObserver
+
             observer = SelfObserver()
             snapshot = observer.snapshot(collect_only=True)
             return {
-                "test_pass_rate": float(snapshot.test_pass_rate) if hasattr(snapshot, "test_pass_rate") and snapshot.test_pass_rate else 1.0,
-                "coverage_pct": float(snapshot.coverage_pct) if hasattr(snapshot, "coverage_pct") else 0.0,
-                "source_file_count": float(snapshot.source_file_count) if hasattr(snapshot, "source_file_count") else 0.0,
-                "test_count": float(snapshot.test_count) if hasattr(snapshot, "test_count") else 0.0,
+                "test_pass_rate": float(snapshot.test_pass_rate)
+                if hasattr(snapshot, "test_pass_rate") and snapshot.test_pass_rate
+                else 1.0,
+                "coverage_pct": float(snapshot.coverage_pct)
+                if hasattr(snapshot, "coverage_pct")
+                else 0.0,
+                "source_file_count": float(snapshot.source_file_count)
+                if hasattr(snapshot, "source_file_count")
+                else 0.0,
+                "test_count": float(snapshot.test_count)
+                if hasattr(snapshot, "test_count")
+                else 0.0,
             }
         except Exception:
             try:
                 result = subprocess.run(
                     ["git", "status", "--short"],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 dirty = float(len(result.stdout.strip()) > 0)
             except Exception:

@@ -460,6 +460,7 @@ try:
     from maref.codegen.registry import ToolRegistry as CodegenToolRegistry  # noqa: F401
     from maref.codegen.tool import Tool, ToolResult  # noqa: F401
     from maref.codegen.tool import ValidationResult as CodegenValidationResult
+
     _CODEGEN_AVAILABLE = True
 except ImportError:
     _CODEGEN_AVAILABLE = False

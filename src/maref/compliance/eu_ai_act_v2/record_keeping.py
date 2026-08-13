@@ -22,8 +22,7 @@ class AuditChainBridge(Protocol):
     Avoids hard cross-layer import from eivl/merkle_auditor.
     """
 
-    def record_audit_entry(self, entry: Any) -> str:
-        ...
+    def record_audit_entry(self, entry: Any) -> str: ...
 
 
 @dataclass
@@ -78,9 +77,11 @@ class _AIActToAuditAdapter:
 
     def __init__(self, entry: AIActLogEntry, system_id: str) -> None:
         self.id = entry.entry_id
-        self.timestamp = time.mktime(
-            datetime.fromisoformat(entry.event_timestamp_utc).timetuple()
-        ) if "T" in entry.event_timestamp_utc else time.time()
+        self.timestamp = (
+            time.mktime(datetime.fromisoformat(entry.event_timestamp_utc).timetuple())
+            if "T" in entry.event_timestamp_utc
+            else time.time()
+        )
         self.event_type = "ai_act_log"
         self.actor = system_id
         self.action = entry.decision_type or "log_event"
@@ -149,8 +150,13 @@ class AIActLogger:
             The newly created AIActLogEntry.
         """
         valid_fields = {f.name for f in fields(AIActLogEntry)} - {
-            "entry_id", "system_id", "system_version", "session_id",
-            "event_timestamp_utc", "use_period_start", "use_period_end",
+            "entry_id",
+            "system_id",
+            "system_version",
+            "session_id",
+            "event_timestamp_utc",
+            "use_period_start",
+            "use_period_end",
             "input_data_hash",
         }
         unknown = set(kwargs) - valid_fields
@@ -217,7 +223,13 @@ class AIActLogger:
         if system_id is not None:
             results = [e for e in results if e.system_id == system_id]
 
-        valid_query_fields = {"risk_event", "anomaly_flag", "session_id", "entry_id", "decision_type"}
+        valid_query_fields = {
+            "risk_event",
+            "anomaly_flag",
+            "session_id",
+            "entry_id",
+            "decision_type",
+        }
         for key, value in filters.items():
             if key not in valid_query_fields:
                 raise ValueError(f"Unknown query filter field: {key}")
@@ -295,9 +307,16 @@ class RegulatoryLogExporter:
             return "No log entries to export."
 
         header_fields = [
-            "entry_id", "system_id", "session_id", "event_timestamp_utc",
-            "use_period_start", "use_period_end", "decision_type",
-            "confidence_score", "risk_event", "anomaly_flag",
+            "entry_id",
+            "system_id",
+            "session_id",
+            "event_timestamp_utc",
+            "use_period_start",
+            "use_period_end",
+            "decision_type",
+            "confidence_score",
+            "risk_event",
+            "anomaly_flag",
             "human_oversight_action",
         ]
         header = "| " + " | ".join(header_fields) + " |"

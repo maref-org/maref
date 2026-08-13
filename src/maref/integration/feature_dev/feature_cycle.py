@@ -264,11 +264,11 @@ class FeatureDevelopmentCycle:
         chars = artifacts.get("characters", [])
         scripts = artifacts.get("scripts", [])
         char_str = "\n".join(
-            f"- {c.get('name','?')} ({c.get('archetype','?')}): backstory={c.get('backstory','')[:80]}"
+            f"- {c.get('name', '?')} ({c.get('archetype', '?')}): backstory={c.get('backstory', '')[:80]}"
             for c in chars[:3]
         )
         script_str = "\n".join(
-            f"- {s.get('title','?')} ({s.get('total_duration_s',0)}s, {s.get('scene_count',0)} scenes)"
+            f"- {s.get('title', '?')} ({s.get('total_duration_s', 0)}s, {s.get('scene_count', 0)} scenes)"
             for s in scripts[:5]
         )
         prompt = (

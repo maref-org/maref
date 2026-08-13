@@ -35,6 +35,7 @@ from maref.recursive.agent_health import PulseWriter
 def _default_audit_base() -> Path:
     return Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
 
+
 _NOTIFICATIONS_DIR: Path | None = None
 _REPORT_PATH: Path | None = None
 
@@ -164,7 +165,8 @@ def check_health_snapshot_freshness(
     passed = age <= max_age
     if not passed:
         _write_notification(
-            "M0 Fail", "critical",
+            "M0 Fail",
+            "critical",
             f"Health snapshot stale: {age:.0f}s > {max_age:.0f}s max",
         )
     return {
@@ -199,8 +201,13 @@ def check_audit_log_growth(
     governance state machine may not be actively transitioning.
     """
     base = _audit_log_base(audit_base)
-    patterns = ["governance_audit.jsonl", "governance_audit_state_machine.jsonl",
-                "audit.jsonl", "gaas_audit.jsonl", "*.jsonl"]
+    patterns = [
+        "governance_audit.jsonl",
+        "governance_audit_state_machine.jsonl",
+        "audit.jsonl",
+        "gaas_audit.jsonl",
+        "*.jsonl",
+    ]
 
     def _find_newest() -> tuple[str | None, float]:
         nm: float = 0.0
@@ -237,7 +244,8 @@ def check_audit_log_growth(
     passed = age <= max_age
     if not passed:
         _write_notification(
-            "M0 Fail", "critical",
+            "M0 Fail",
+            "critical",
             f"Audit log stale: newest={newest_path}, age={age:.0f}s > {max_age:.0f}s",
         )
     return {
@@ -266,7 +274,8 @@ def check_pulse_freshness(
     if not passed and total > 0:
         stale_agents = result.get("stale_agents", [])
         _write_notification(
-            "M0 Fail", "critical",
+            "M0 Fail",
+            "critical",
             f"Pulse staleness: {stale}/{total} stale (ratio={stale_ratio}), agents={stale_agents[:5]}",
             subsystem="pulse",
         )
@@ -287,7 +296,8 @@ def check_hmac_key() -> dict[str, Any]:
     passed = bool(hmac_key or ed25519_key)
     if not passed:
         _write_notification(
-            "M0 Warning", "warning",
+            "M0 Warning",
+            "warning",
             "No audit signing key configured (MAREF_HMAC_SECRET_KEY or MAREF_ED25519_PRIVATE_KEY)",
         )
     return {
@@ -312,10 +322,12 @@ def _find_all_plist_labels() -> set[str]:
         Path.home() / "Library/LaunchAgents",
     ]
     if sys.platform == "darwin":
-        search_dirs.extend([
-            Path("/Library/LaunchAgents"),
-            Path("/Library/LaunchDaemons"),
-        ])
+        search_dirs.extend(
+            [
+                Path("/Library/LaunchAgents"),
+                Path("/Library/LaunchDaemons"),
+            ]
+        )
     for d in search_dirs:
         if d.exists():
             for p in d.glob("com.maref.*.plist"):
@@ -324,12 +336,14 @@ def _find_all_plist_labels() -> set[str]:
 
 
 def _get_launchd_maref_agents() -> list[tuple[str, bool]]:
-    """Query launchd for all com.maref.* agents. Returns [(label, is_running)]. """
+    """Query launchd for all com.maref.* agents. Returns [(label, is_running)]."""
     agents: list[tuple[str, bool]] = []
     try:
         r = subprocess.run(
             ["launchctl", "list"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         for line in r.stdout.strip().splitlines():
             if "com.maref." in line:
@@ -384,8 +398,15 @@ def check_managed_agents() -> dict[str, Any]:
                     try:
                         pid = int(pid_file.read_text().strip())
                         # Check if process is alive
-                        pid_alive = os.path.exists(f"/proc/{pid}") if sys.platform == "linux" else (
-                            subprocess.run(["kill", "-0", str(pid)], capture_output=True, timeout=2).returncode == 0
+                        pid_alive = (
+                            os.path.exists(f"/proc/{pid}")
+                            if sys.platform == "linux"
+                            else (
+                                subprocess.run(
+                                    ["kill", "-0", str(pid)], capture_output=True, timeout=2
+                                ).returncode
+                                == 0
+                            )
                         )
                         is_running = pid_alive
                     except (OSError, ValueError, subprocess.TimeoutExpired):
@@ -408,7 +429,9 @@ def check_managed_agents() -> dict[str, Any]:
             try:
                 r = subprocess.run(
                     ["systemctl", "is-active", label],
-                    capture_output=True, text=True, timeout=5,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 if r.stdout.strip() == "active":
                     results["running"].append(label)
@@ -455,14 +478,16 @@ def check_managed_agents() -> dict[str, Any]:
     if core_survival < threshold:
         results["passed"] = False
         _write_notification(
-            "M0 Fail", "critical",
+            "M0 Fail",
+            "critical",
             f"Core agent survival rate {core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"threshold={threshold:.0%}, dead: {core_dead}",
             subsystem="agents",
         )
     elif results["dead"]:
         _write_notification(
-            "M0 Degraded", "warning",
+            "M0 Degraded",
+            "warning",
             f"Agent survival rate {survival_rate:.0%} ({running}/{total}), "
             f"core={core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"dead (non-core): {[l for l in results['dead'] if l not in _CORE_MAREF_AGENTS][:5]}",
@@ -495,10 +520,16 @@ def check_m0(audit_base: Path | None = None) -> dict[str, Any]:
         "pulse_freshness": check_pulse_freshness(audit_base=audit_base),
         "managed_agents": check_managed_agents(),
         "hmac_key": check_hmac_key(),
-        "gaas_health": check_gaas_health() if gaas_enabled else {"passed": True, "detail": "skipped (MAREF_GAAS_ENABLED not set)"},
+        "gaas_health": check_gaas_health()
+        if gaas_enabled
+        else {"passed": True, "detail": "skipped (MAREF_GAAS_ENABLED not set)"},
     }
-    blocking = ["health_snapshot_freshness", "audit_log_growth", "pulse_freshness",
-                "managed_agents"]
+    blocking = [
+        "health_snapshot_freshness",
+        "audit_log_growth",
+        "pulse_freshness",
+        "managed_agents",
+    ]
     if gaas_enabled:
         blocking.append("gaas_health")
     non_blocking = ["hmac_key"]
@@ -557,7 +588,8 @@ def check_notification_staleness(
     passed = stale_72h == 0 and stale_24h <= 3
     if stale_72h > 0:
         _write_notification(
-            "M2 Fail", "critical",
+            "M2 Fail",
+            "critical",
             f"{stale_72h} notifications stale >72h — feedback loop broken",
             subsystem="feedback-loop",
         )
@@ -744,6 +776,7 @@ def run_loop(interval: float = 300.0) -> None:
 def main() -> None:
     """CLI entry point."""
     import argparse
+
     parser = argparse.ArgumentParser(description="MAREF Meta-Monitor")
     parser.add_argument("--single-run", action="store_true", help="Run once and exit")
     parser.add_argument("--daemon", action="store_true", help="Run as daemon loop")

@@ -87,8 +87,7 @@ class MetaRatchetAuditor:
                 verdict = AuditVerdict(
                     blocked=True,
                     reason=(
-                        f"trigger threshold relaxed for '{target_key}': "
-                        f"{old_value} -> {new_value}"
+                        f"trigger threshold relaxed for '{target_key}': {old_value} -> {new_value}"
                     ),
                 )
                 self._log("config", target_key, verdict, source)
@@ -123,8 +122,7 @@ class MetaRatchetAuditor:
                     verdict = AuditVerdict(
                         blocked=True,
                         reason=(
-                            f"ratchet source file '{protected}' "
-                            "protected from recursive evolution"
+                            f"ratchet source file '{protected}' protected from recursive evolution"
                         ),
                     )
                 else:
@@ -135,9 +133,7 @@ class MetaRatchetAuditor:
                 self._log("file", file_path, verdict, source)
                 return verdict
 
-        return AuditVerdict(
-            blocked=False, warning=False, reason="not a ratchet file"
-        )
+        return AuditVerdict(blocked=False, warning=False, reason="not a ratchet file")
 
     def audit_baseline(
         self,
@@ -153,17 +149,13 @@ class MetaRatchetAuditor:
             )
             self._log("baseline", "best_score", verdict, source)
             return verdict
-        verdict = AuditVerdict(
-            blocked=False, reason="baseline maintained or improved"
-        )
+        verdict = AuditVerdict(blocked=False, reason="baseline maintained or improved")
         self._log("baseline", "best_score", verdict, source)
         return verdict
 
     def _is_threshold_relaxed(self, old_value: Any, new_value: Any) -> bool:
         """Check if a threshold change relaxes the ratchet constraint."""
-        if isinstance(old_value, (int, float)) and isinstance(
-            new_value, (int, float)
-        ):
+        if isinstance(old_value, (int, float)) and isinstance(new_value, (int, float)):
             return new_value > old_value
         if isinstance(old_value, dict) and isinstance(new_value, dict):
             old_t = old_value.get("threshold", 0)

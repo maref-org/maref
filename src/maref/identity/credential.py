@@ -86,7 +86,7 @@ class AuthorizationScope:
         prefix = scope_action.rstrip(":")
         if not action.startswith(prefix):
             return False
-        rest = action[len(prefix):]
+        rest = action[len(prefix) :]
         # 前缀后必须为分隔符或已结束；空 rest 表示完全相等（由 action==a 覆盖）。
         return rest.startswith(":") or rest.startswith(".")
 
@@ -132,7 +132,6 @@ class AuthorizationScope:
             jurisdiction=jurisdiction,
             issuer=issuer,
         )
-
 
 
 @dataclass

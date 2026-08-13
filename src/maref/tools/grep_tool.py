@@ -63,8 +63,10 @@ class GrepTool(Tool[GrepInput, GrepOutput]):
             "rg",
             "--no-heading",
             "--line-number",
-            "--color", "never",
-            "-E", "utf-8",
+            "--color",
+            "never",
+            "-E",
+            "utf-8",
         ]
         if input.context_lines > 0:
             args.extend(["-C", str(input.context_lines)])
@@ -122,7 +124,13 @@ class GrepTool(Tool[GrepInput, GrepOutput]):
 
     async def _call_python(self, input: GrepInput, ctx: ToolContext) -> ToolResult[GrepOutput]:
         regex = re.compile(input.pattern)
-        search_root = Path(input.path) if input.path else Path(ctx.workspace_root) if ctx.workspace_root else Path.cwd()
+        search_root = (
+            Path(input.path)
+            if input.path
+            else Path(ctx.workspace_root)
+            if ctx.workspace_root
+            else Path.cwd()
+        )
 
         matches: list[dict[str, Any]] = []
         truncated = False

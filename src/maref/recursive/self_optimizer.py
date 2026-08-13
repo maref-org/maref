@@ -237,6 +237,7 @@ class SelfOptimizer:
         adopted: bool,
     ) -> OptimizationHypothesis:
         import uuid
+
         hypothesis = OptimizationHypothesis(
             hypothesis_id=f"rel_round_{round_number}_{uuid.uuid4().hex[:6]}",
             description=f"REL round {round_number} evolution result",

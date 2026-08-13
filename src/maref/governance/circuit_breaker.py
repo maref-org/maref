@@ -155,7 +155,9 @@ class CircuitBreaker:
             if flips >= self._rsi_max_flip_flops:
                 self._trip(
                     f"rsi_oscillation:{flips}>={self._rsi_max_flip_flops}",
-                    0, 0, "",
+                    0,
+                    0,
+                    "",
                 )
                 return False
             return True
@@ -169,12 +171,14 @@ class CircuitBreaker:
                 return False
             if len(scores) < self._rsi_quality_window:
                 return True
-            recent = scores[-self._rsi_quality_window:]
+            recent = scores[-self._rsi_quality_window :]
             avg = sum(recent) / len(recent)
             if avg < self._rsi_min_quality:
                 self._trip(
                     f"rsi_quality_degradation:avg={avg:.2f}<{self._rsi_min_quality}",
-                    0, 0, "",
+                    0,
+                    0,
+                    "",
                 )
                 return False
             return True
@@ -232,7 +236,12 @@ class CircuitBreaker:
                 "state": self._state.value,
                 "trip_count": len(self._trips),
                 "recent_trips": [
-                    {"timestamp": t.timestamp, "reason": t.reason, "depth": t.depth, "entropy": t.entropy}
+                    {
+                        "timestamp": t.timestamp,
+                        "reason": t.reason,
+                        "depth": t.depth,
+                        "entropy": t.entropy,
+                    }
                     for t in self._trips[-5:]
                 ],
             }

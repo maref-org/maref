@@ -256,8 +256,7 @@ class HITLRouter:
         """Get pending events for a tenant, optionally filtered by tier (GaaS path)."""
         event_ids = self._tenant_index.get(tenant_id, [])
         events = [
-            self._events[eid] for eid in event_ids
-            if self._events[eid].status == HITLStatus.PENDING
+            self._events[eid] for eid in event_ids if self._events[eid].status == HITLStatus.PENDING
         ]
         if tier:
             events = [e for e in events if e.tier == tier]
@@ -265,8 +264,10 @@ class HITLRouter:
 
     def get_history(self, limit: int = 50, offset: int = 0) -> list[HITLEvent]:
         completed = [
-            e for e in self._events.values()
-            if e.status in (
+            e
+            for e in self._events.values()
+            if e.status
+            in (
                 HITLStatus.APPROVED,
                 HITLStatus.REJECTED,
                 HITLStatus.AUTO_APPROVED,
@@ -284,8 +285,7 @@ class HITLRouter:
         """Get resolved events for a tenant (GaaS path)."""
         event_ids = self._tenant_index.get(tenant_id, [])
         resolved = [
-            self._events[eid] for eid in event_ids
-            if self._events[eid].status != HITLStatus.PENDING
+            self._events[eid] for eid in event_ids if self._events[eid].status != HITLStatus.PENDING
         ]
         resolved.sort(key=lambda e: e.timestamp, reverse=True)
         return resolved[offset : offset + limit]

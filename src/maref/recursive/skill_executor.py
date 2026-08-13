@@ -72,7 +72,9 @@ class LLMGuidedHandler:
             return result
         raise RuntimeError("All LLM providers failed")
 
-    def _try_anthropic(self, prompt: str, model: str | None, temperature: float) -> dict[str, Any] | None:
+    def _try_anthropic(
+        self, prompt: str, model: str | None, temperature: float
+    ) -> dict[str, Any] | None:
         if not self._anthropic_key:
             return None
         try:
@@ -90,25 +92,34 @@ class LLMGuidedHandler:
                 messages=[{"role": "user", "content": prompt}],
             )
             t = ""
-            for b in (r.content or []):
+            for b in r.content or []:
                 if hasattr(b, "text") and b.text:
                     t = b.text
                     break
             if not t:
                 return None
-            return {"content": t, "provider": f"anthropic/{model or self._anthropic_model}", "success": True}
+            return {
+                "content": t,
+                "provider": f"anthropic/{model or self._anthropic_model}",
+                "success": True,
+            }
         except Exception as e:
             logger.warning("LLMGuidedHandler: Anthropic failed: %s", e)
             return None
 
-    def _try_openai(self, prompt: str, model: str | None, temperature: float) -> dict[str, Any] | None:
+    def _try_openai(
+        self, prompt: str, model: str | None, temperature: float
+    ) -> dict[str, Any] | None:
         if not self._openai_key:
             return None
         try:
             import httpx
             from openai import OpenAI
 
-            kw: dict[str, Any] = {"api_key": self._openai_key, "timeout": httpx.Timeout(120.0, connect=30.0)}
+            kw: dict[str, Any] = {
+                "api_key": self._openai_key,
+                "timeout": httpx.Timeout(120.0, connect=30.0),
+            }
             if self._openai_base_url:
                 kw["base_url"] = self._openai_base_url
             c = OpenAI(**kw)
@@ -120,7 +131,11 @@ class LLMGuidedHandler:
             t = (r.choices[0].message.content or "").strip()
             if not t:
                 return None
-            return {"content": t, "provider": f"openai/{model or self._openai_model}", "success": True}
+            return {
+                "content": t,
+                "provider": f"openai/{model or self._openai_model}",
+                "success": True,
+            }
         except Exception as e:
             logger.warning("LLMGuidedHandler: OpenAI failed: %s", e)
             return None

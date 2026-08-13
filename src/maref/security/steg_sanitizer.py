@@ -55,9 +55,7 @@ KNOWN_STEGO_CODEPOINTS: frozenset[int] = frozenset(
 
 # 允许的 Unicode 通用类别（参照报告建议）
 # Lu=大写字母 Ll=小写字母 Nd=数字 Po=其他标点 Zs=空格分隔 Ps=开括号 Pe=闭括号
-ALLOWED_CATEGORIES: frozenset[str] = frozenset(
-    {"Lu", "Ll", "Nd", "Po", "Zs", "Ps", "Pe"}
-)
+ALLOWED_CATEGORIES: frozenset[str] = frozenset({"Lu", "Ll", "Nd", "Po", "Zs", "Ps", "Pe"})
 
 # 已知同形字映射（Cyrillic/Greek 与 Latin 视觉相似，可被用于隐写）
 # key=可疑 codepoint, value=视觉等价的 Latin 字符
@@ -263,8 +261,7 @@ class StegSanitizer:
             severity=ThreatSeverity.CRITICAL,
             title="Unicode steganography injection detected",
             description=(
-                f"Output contains {len(anomalies)} anomalous Unicode characters. "
-                f"Samples: {sample}"
+                f"Output contains {len(anomalies)} anomalous Unicode characters. Samples: {sample}"
             ),
             detected_at=datetime.datetime.now(),
             affected_assets=["model_output"],

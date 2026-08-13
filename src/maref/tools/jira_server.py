@@ -51,7 +51,9 @@ async def _jira_get_issue(issue_key: str) -> dict[str, Any]:
                 "summary": fields.get("summary", ""),
                 "description": fields.get("description", ""),
                 "status": fields.get("status", {}).get("name", ""),
-                "assignee": fields.get("assignee", {}).get("displayName", "") if fields.get("assignee") else None,
+                "assignee": fields.get("assignee", {}).get("displayName", "")
+                if fields.get("assignee")
+                else None,
                 "reporter": fields.get("reporter", {}).get("displayName", ""),
                 "priority": fields.get("priority", {}).get("name", ""),
                 "issuetype": fields.get("issuetype", {}).get("name", ""),
@@ -60,9 +62,15 @@ async def _jira_get_issue(issue_key: str) -> dict[str, Any]:
                 "url": f"{base_url}/browse/{issue['key']}",
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Jira API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Jira API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Jira request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Jira request failed: {exc}"}],
+        }
 
 
 async def _jira_search_issues(jql: str) -> dict[str, Any]:
@@ -95,9 +103,15 @@ async def _jira_search_issues(jql: str) -> dict[str, Any]:
                 "count": len(issues),
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Jira API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Jira API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Jira request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Jira request failed: {exc}"}],
+        }
 
 
 async def _jira_create_issue(project: str, summary: str, description: str) -> dict[str, Any]:
@@ -133,9 +147,15 @@ async def _jira_create_issue(project: str, summary: str, description: str) -> di
                 "url": f"{base_url}/browse/{issue['key']}",
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Jira API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Jira API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Jira request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Jira request failed: {exc}"}],
+        }
 
 
 TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
@@ -155,15 +175,31 @@ def get_tool_definition() -> ToolDefinition:
         tools=list(TOOL_HANDLERS.keys()),
         tool_parameters={
             "jira_get_issue": [
-                ToolParameter(name="issue_key", type="string", description="Jira issue key (e.g. PROJ-123)", required=True),
+                ToolParameter(
+                    name="issue_key",
+                    type="string",
+                    description="Jira issue key (e.g. PROJ-123)",
+                    required=True,
+                ),
             ],
             "jira_search_issues": [
-                ToolParameter(name="jql", type="string", description="JQL query string", required=True),
+                ToolParameter(
+                    name="jql", type="string", description="JQL query string", required=True
+                ),
             ],
             "jira_create_issue": [
-                ToolParameter(name="project", type="string", description="Project key", required=True),
-                ToolParameter(name="summary", type="string", description="Issue summary", required=True),
-                ToolParameter(name="description", type="string", description="Issue description", required=True),
+                ToolParameter(
+                    name="project", type="string", description="Project key", required=True
+                ),
+                ToolParameter(
+                    name="summary", type="string", description="Issue summary", required=True
+                ),
+                ToolParameter(
+                    name="description",
+                    type="string",
+                    description="Issue description",
+                    required=True,
+                ),
             ],
         },
         security_controls=["EnvVarCheck"],
@@ -178,7 +214,10 @@ def execute_tool(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
 
     handler = TOOL_HANDLERS.get(tool_name)
     if handler is None:
-        return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}],
+        }
     try:
         return asyncio.run(handler(**args))
     except RuntimeError as exc:
