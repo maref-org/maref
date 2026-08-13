@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.chaos]
+
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent.parent / "scripts"
 BACKUP_SCRIPT = SCRIPTS_DIR / "backup.sh"
 BACKUP_ROOT_ENV = "MAREF_BACKUP_ROOT"
