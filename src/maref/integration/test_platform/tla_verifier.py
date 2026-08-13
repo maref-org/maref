@@ -254,15 +254,21 @@ class TLATheoremVerifier:
 
         cb_config = cb.get_config()
         required_cb_keys = [
-            "max_depth", "max_oscillation_rate", "max_consecutive_failures",
-            "cooldown_seconds", "state",
+            "max_depth",
+            "max_oscillation_rate",
+            "max_consecutive_failures",
+            "cooldown_seconds",
+            "state",
         ]
         missing_cb = [k for k in required_cb_keys if k not in cb_config]
 
         sm_health = sm.health_check()
         required_sm_keys = [
-            "current_state", "current_entropy", "transition_count",
-            "is_terminal", "valid_next_states",
+            "current_state",
+            "current_entropy",
+            "transition_count",
+            "is_terminal",
+            "valid_next_states",
         ]
         missing_sm = [k for k in required_sm_keys if k not in sm_health]
 
@@ -324,11 +330,10 @@ class TLATheoremVerifier:
         return TheoremResult(
             theorem_name="StenoDetectionComplete",
             passed=passed,
-            details=(
-                f"Detected {len(anomalies)} stego markers; "
-                f"expected HALT, got {current.name}"
-            ),
-            counterexample=None if passed else {
+            details=(f"Detected {len(anomalies)} stego markers; expected HALT, got {current.name}"),
+            counterexample=None
+            if passed
+            else {
                 "stego_count": len(anomalies),
                 "sample": [a.to_dict() for a in anomalies[:5]],
                 "expected_state": "HALT",

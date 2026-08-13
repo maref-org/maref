@@ -223,7 +223,7 @@ class MAREFInstanceCloner:
             relations=[
                 {
                     "from": f"kg_node_{i}",
-                    "to": f"kg_node_{i+1}",
+                    "to": f"kg_node_{i + 1}",
                     "type": "depends_on",
                     "strength": 0.8,
                 }

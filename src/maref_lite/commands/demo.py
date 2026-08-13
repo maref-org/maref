@@ -169,9 +169,21 @@ def governed_review(
             safety_passed += 1
 
         checks = [
-            ("Core Removal Detection", not sa_check.blocked, sa_check.reason or "No core components affected"),
-            ("Decomposition Validation", not decomp_check.blocked, decomp_check.reason or "Subtask count within limits"),
-            ("Capability Assignment", not cap_check.blocked, cap_check.reason or "All capabilities properly assigned"),
+            (
+                "Core Removal Detection",
+                not sa_check.blocked,
+                sa_check.reason or "No core components affected",
+            ),
+            (
+                "Decomposition Validation",
+                not decomp_check.blocked,
+                decomp_check.reason or "Subtask count within limits",
+            ),
+            (
+                "Capability Assignment",
+                not cap_check.blocked,
+                cap_check.reason or "All capabilities properly assigned",
+            ),
         ]
         console.print(_build_check_tree(checks))
 
@@ -223,7 +235,9 @@ def governed_review(
         console.print(mcp_tree)
 
         rprint("[green]✓[/green] Task delegated to Code Review Specialist")
-        rprint(f"[green]✓[/green] Findings received and synced: state=[cyan]{maref_state.name}[/cyan]")
+        rprint(
+            f"[green]✓[/green] Findings received and synced: state=[cyan]{maref_state.name}[/cyan]"
+        )
 
         # ── Phase 4: Safety Gate Check ─────────────────────────────────
         console.print()
@@ -302,7 +316,9 @@ def governed_review(
                 },
             )
         else:
-            hitl_approved = typer.confirm("Approve this code review and continue to report?", default=True)
+            hitl_approved = typer.confirm(
+                "Approve this code review and continue to report?", default=True
+            )
 
             audit.log(
                 event_type="hitl_decision",
@@ -396,9 +412,18 @@ def governed_review(
         summary_table.add_row("Governance States", f"INIT → {sm.current_state.name}")
         summary_table.add_row("Safety Checks Passed", f"{safety_passed}/3")
         summary_table.add_row("Audit Entries", str(len(all_entries)))
-        summary_table.add_row("Audit Integrity", f"{'[green]INTACT[/green]' if integrity_ok else '[red]COMPROMISED[/red]'}")
-        summary_table.add_row("HITL Decision", f"{'[green]APPROVED[/green]' if hitl_approved else '[yellow]REJECTED[/yellow]'}")
-        summary_table.add_row("Terminal State", f"{'[green]YES[/green]' if sm.is_terminal() else '[yellow]NO[/yellow]'}")
+        summary_table.add_row(
+            "Audit Integrity",
+            f"{'[green]INTACT[/green]' if integrity_ok else '[red]COMPROMISED[/red]'}",
+        )
+        summary_table.add_row(
+            "HITL Decision",
+            f"{'[green]APPROVED[/green]' if hitl_approved else '[yellow]REJECTED[/yellow]'}",
+        )
+        summary_table.add_row(
+            "Terminal State",
+            f"{'[green]YES[/green]' if sm.is_terminal() else '[yellow]NO[/yellow]'}",
+        )
         console.print(summary_table)
 
         console.print()

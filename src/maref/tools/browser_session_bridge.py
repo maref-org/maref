@@ -33,14 +33,14 @@ class BrowserSessionBridge:
         return None
 
     def has_active_session(self) -> bool:
-        return any(
-            c.pool.get_active_page(sid) is not None
-            for sid, c in self._controllers.items()
-        )
+        return any(c.pool.get_active_page(sid) is not None for sid, c in self._controllers.items())
 
     def screenshot_url(self, url: str, session_id: str | None = None) -> dict[str, Any] | None:
         controller = self.get_controller(session_id)
-        if controller is not None and controller.pool.get_active_page(controller.session_id) is not None:
+        if (
+            controller is not None
+            and controller.pool.get_active_page(controller.session_id) is not None
+        ):
             if not controller.is_safe_domain(url):
                 return {"url": url, "error": f"Domain not in safe list: {url}"}
             nav = controller.navigate(url)

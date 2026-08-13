@@ -17,25 +17,29 @@ class RecursiveGovernanceConfig:
     convergence_threshold: float = 0.01
     oscillation_detection_window: int = 10
 
-class MAREFSelfAdapter:
 
+class MAREFSelfAdapter:
     def __init__(self, config: RecursiveGovernanceConfig) -> None:
         self.config = config
         self.iteration_count: int = 0
         self.history: list[float] = []
 
     def to_dict(self) -> dict[str, typing.Any]:
-        return {'config': dataclasses.asdict(self.config), 'iteration_count': self.iteration_count, 'history': self.history}
+        return {
+            "config": dataclasses.asdict(self.config),
+            "iteration_count": self.iteration_count,
+            "history": self.history,
+        }
 
     def _detect_oscillation(self) -> bool:
         if len(self.history) < self.config.oscillation_detection_window:
             return False
-        window = self.history[-self.config.oscillation_detection_window:]
+        window = self.history[-self.config.oscillation_detection_window :]
         diffs = [abs(window[i] - window[i - 1]) for i in range(1, len(window))]
         return all(d < self.config.convergence_threshold for d in diffs)
 
-class RecursiveGovernanceOverlay:
 
+class RecursiveGovernanceOverlay:
     def __init__(self, config: RecursiveGovernanceConfig) -> None:
         self.config = config
         self.adapter = MAREFSelfAdapter(config)

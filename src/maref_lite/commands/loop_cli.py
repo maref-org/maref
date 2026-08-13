@@ -24,9 +24,7 @@ console = Console()
 
 @loop_app.command("run")
 def loop_run(
-    loop_type: str = typer.Argument(
-        ..., help="Loop type: convergent, exploratory, interactive"
-    ),
+    loop_type: str = typer.Argument(..., help="Loop type: convergent, exploratory, interactive"),
     input_data: str = typer.Argument(
         "", help="Input for the loop (seed topic for exploratory, initial input for convergent)"
     ),
@@ -40,7 +38,9 @@ def loop_run(
     coverage_target: float = typer.Option(
         0.8, "--coverage", "-c", help="Coverage target (exploratory only)"
     ),
-    max_tokens: int = typer.Option(10000, "--max-tokens", "-m", help="Max tokens (exploratory only)"),
+    max_tokens: int = typer.Option(
+        10000, "--max-tokens", "-m", help="Max tokens (exploratory only)"
+    ),
     budget: float = typer.Option(0.0, "--budget", "-b", help="Agent budget hard limit"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output"),
 ) -> None:
@@ -65,11 +65,16 @@ def loop_run(
     if loop_type == "convergent":
         _run_convergent(input_data, max_rounds, convergence_threshold, verbose)
     elif loop_type == "exploratory":
-        _run_exploratory(input_data, max_rounds, diversity_threshold, coverage_target, max_tokens, verbose)
+        _run_exploratory(
+            input_data, max_rounds, diversity_threshold, coverage_target, max_tokens, verbose
+        )
 
 
 def _run_convergent(
-    input_data: str, max_rounds: int, threshold: float, verbose: bool,
+    input_data: str,
+    max_rounds: int,
+    threshold: float,
+    verbose: bool,
 ) -> None:
     from maref.loop import ConvergentLoop, LoopGovernanceBridge
 
@@ -81,6 +86,7 @@ def _run_convergent(
 
         def evaluator(result: Any) -> Any:
             from maref.loop.protocols import EvaluationResult
+
             return EvaluationResult(score=0.5)
 
         loop = ConvergentLoop(
@@ -103,8 +109,12 @@ def _run_convergent(
 
 
 def _run_exploratory(
-    seed: str, max_rounds: int, diversity: float, coverage: float,
-    max_tokens: int, verbose: bool,
+    seed: str,
+    max_rounds: int,
+    diversity: float,
+    coverage: float,
+    max_tokens: int,
+    verbose: bool,
 ) -> None:
     from maref.loop import ExploratoryLoop, LoopGovernanceBridge
 
@@ -113,6 +123,7 @@ def _run_exploratory(
 
         def generator(discoveries: list[Any], branch: int) -> list[Any]:
             from maref.loop.protocols import Discovery
+
             topics = [
                 Discovery(content=f"{seed}: aspect-{i}", tags=[seed, f"tag-{i}"])
                 for i in range(branch)

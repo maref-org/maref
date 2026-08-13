@@ -90,14 +90,18 @@ class Harness:
             loop_task.started_at = time.time()
             try:
                 result = await self._bridge.run_governed(
-                    loop, input_data, task_id=loop_task.id,
+                    loop,
+                    input_data,
+                    task_id=loop_task.id,
                 )
                 loop_task.status = LoopTaskStatus.COMPLETED
                 loop_task.rounds_completed = result.rounds_completed
                 loop_task.stop_reason = result.stop_reason.value
                 logger.info(
                     "Harness completed task=%s rounds=%d reason=%s",
-                    loop_task.id, result.rounds_completed, result.stop_reason,
+                    loop_task.id,
+                    result.rounds_completed,
+                    result.stop_reason,
                 )
             except asyncio.CancelledError:
                 loop_task.status = LoopTaskStatus.CANCELLED
@@ -162,4 +166,5 @@ class Harness:
 
 def _new_id() -> str:
     import uuid
+
     return uuid.uuid4().hex[:12]

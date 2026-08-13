@@ -50,6 +50,7 @@ def _ensure_hmac_key() -> bytes:
         return _HMAC_KEY
     try:
         import keyring
+
         stored = keyring.get_password("system", "maref-federated-audit-key")
         if stored:
             _HMAC_KEY = stored.encode("utf-8")

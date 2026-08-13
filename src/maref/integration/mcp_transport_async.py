@@ -38,9 +38,7 @@ class AsyncMCPTransport(ABC):
     @abstractmethod
     async def send(self, request: JSONRPCRequest) -> JSONRPCResponse: ...
 
-    async def send_initialize(
-        self, client_name: str = "maref"
-    ) -> JSONRPCResponse:
+    async def send_initialize(self, client_name: str = "maref") -> JSONRPCResponse:
         return await self.send(
             JSONRPCRequest(
                 method="initialize",
@@ -55,9 +53,7 @@ class AsyncMCPTransport(ABC):
     async def send_tools_list(self) -> JSONRPCResponse:
         return await self.send(JSONRPCRequest(method="tools/list", id=2))
 
-    async def send_tool_call(
-        self, tool_name: str, arguments: dict[str, Any]
-    ) -> JSONRPCResponse:
+    async def send_tool_call(self, tool_name: str, arguments: dict[str, Any]) -> JSONRPCResponse:
         return await self.send(
             JSONRPCRequest(
                 method="tools/call",
@@ -116,14 +112,11 @@ class AsyncSSETransport(AsyncMCPTransport):
         self._sse_task = asyncio.ensure_future(self._sse_reader())
 
         try:
-            await asyncio.wait_for(
-                self._endpoint_received.wait(), timeout=self._timeout
-            )
+            await asyncio.wait_for(self._endpoint_received.wait(), timeout=self._timeout)
         except asyncio.TimeoutError as exc:
             await self.disconnect()
             raise ConnectionError(
-                f"SSE connection timeout to {self._sse_url} "
-                f"— no endpoint event received"
+                f"SSE connection timeout to {self._sse_url} — no endpoint event received"
             ) from exc
 
         self.set_state(TransportState.CONNECTED)
@@ -209,8 +202,7 @@ class AsyncSSETransport(AsyncMCPTransport):
                 return JSONRPCResponse(
                     error={
                         "code": -32000,
-                        "message": "SSE response timeout — "
-                        "no response event received",
+                        "message": "SSE response timeout — no response event received",
                     },
                     id=request.id,
                 )
@@ -265,9 +257,7 @@ class AsyncSSETransport(AsyncMCPTransport):
 
                         if line == "":
                             if current_event and current_data:
-                                self._process_event(
-                                    current_event, "\n".join(current_data)
-                                )
+                                self._process_event(current_event, "\n".join(current_data))
                             current_event = ""
                             current_data = []
                         elif line.startswith("event:"):
@@ -276,9 +266,7 @@ class AsyncSSETransport(AsyncMCPTransport):
                             current_data.append(line[5:].strip())
 
                     if current_event and current_data:
-                        self._process_event(
-                            current_event, "\n".join(current_data)
-                        )
+                        self._process_event(current_event, "\n".join(current_data))
 
                 # Connection closed cleanly — reconnect if still running
                 if self._running.is_set():
@@ -422,9 +410,7 @@ class AsyncInProcessTransport(AsyncMCPTransport):
 
     def __init__(
         self,
-        message_handler: Callable[
-            [JSONRPCRequest], JSONRPCResponse | Awaitable[JSONRPCResponse]
-        ]
+        message_handler: Callable[[JSONRPCRequest], JSONRPCResponse | Awaitable[JSONRPCResponse]]
         | None = None,
     ) -> None:
         super().__init__()
@@ -466,7 +452,11 @@ class AsyncInProcessTransport(AsyncMCPTransport):
 
     @staticmethod
     def _default_handler(request: JSONRPCRequest) -> JSONRPCResponse:
-        result: dict[str, Any] = {"status": "ok", "method": request.method, "via": "async-inprocess"}
+        result: dict[str, Any] = {
+            "status": "ok",
+            "method": request.method,
+            "via": "async-inprocess",
+        }
         if request.params is not None:
             result["params"] = request.params
         return JSONRPCResponse(

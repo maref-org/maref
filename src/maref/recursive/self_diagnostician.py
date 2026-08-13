@@ -132,7 +132,9 @@ class SelfDiagnostician:
         # ── Playwright: browser engine install status ──────────
         playwright_reading = self._playwright_probe.measure()
         probe_results["playwright"] = [playwright_reading]
-        diagnostic_context["playwright_installed"] = playwright_reading.context.get("installed", False)
+        diagnostic_context["playwright_installed"] = playwright_reading.context.get(
+            "installed", False
+        )
         diagnostic_context["playwright_browsers"] = sum(
             playwright_reading.context.get(k, False)
             for k in ("chromium_available", "firefox_available", "webkit_available")

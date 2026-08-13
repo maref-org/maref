@@ -92,14 +92,16 @@ class TruthPage:
         old_best = self.compiled_truth.current_best
         old_confidence = self.compiled_truth.confidence
 
-        self.evidence_trail.append(EvidenceEntry(
-            citation_id=f"ev_{int(time.time())}",
-            text=old_best,
-            source=self.compiled_truth.updated_by,
-            confidence=old_confidence,
-            timestamp=self.compiled_truth.last_updated,
-            superseded_by="",
-        ))
+        self.evidence_trail.append(
+            EvidenceEntry(
+                citation_id=f"ev_{int(time.time())}",
+                text=old_best,
+                source=self.compiled_truth.updated_by,
+                confidence=old_confidence,
+                timestamp=self.compiled_truth.last_updated,
+                superseded_by="",
+            )
+        )
 
         self.compiled_truth.current_best = new_best
         self.compiled_truth.last_updated = time.time()

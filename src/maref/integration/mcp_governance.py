@@ -50,7 +50,7 @@ def _require_hmac_key() -> bytes:
         raise RuntimeError(
             "MAREF_HMAC_SECRET_KEY environment variable must be set. "
             "This is required for audit log integrity. "
-            "Generate a key with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            'Generate a key with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
     return _hmac_key
 
@@ -149,7 +149,7 @@ class MCPCircuitBreakerMonitor:
         if stats.max_latency > self._max_avg_latency_ms / 1000.0:
             return (
                 True,
-                f"max_latency={stats.max_latency:.2f}s > max={self._max_avg_latency_ms/1000:.2f}s",
+                f"max_latency={stats.max_latency:.2f}s > max={self._max_avg_latency_ms / 1000:.2f}s",
             )
 
         return False, ""

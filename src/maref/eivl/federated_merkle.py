@@ -86,13 +86,9 @@ class FederatedProof:
         current_hash = self.org_root_hash
         for sibling_hash, direction in self.proof_path:
             if direction == "left":
-                current_hash = FederatedMerkleAggregator._hash_pair(
-                    sibling_hash, current_hash
-                )
+                current_hash = FederatedMerkleAggregator._hash_pair(sibling_hash, current_hash)
             else:
-                current_hash = FederatedMerkleAggregator._hash_pair(
-                    current_hash, sibling_hash
-                )
+                current_hash = FederatedMerkleAggregator._hash_pair(current_hash, sibling_hash)
         return current_hash == self.federated_root_hash
 
     def to_dict(self) -> dict[str, Any]:

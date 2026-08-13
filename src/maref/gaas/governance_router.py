@@ -161,7 +161,7 @@ class GovernanceRouter:
             parameters=request.parameters,
             context=audit_context,
         )
-        self._last_audit_log_id = entry.log_id if hasattr(entry, 'log_id') else ""
+        self._last_audit_log_id = entry.log_id if hasattr(entry, "log_id") else ""
 
     # ------------------------------------------------------------------
     # Internal
@@ -180,7 +180,7 @@ class GovernanceRouter:
         return GovernResponse(
             verdict=mapped_verdict,
             circuit_breaker_state=CircuitBreakerState.CLOSED,
-            audit_log_id=getattr(self, '_last_audit_log_id', ''),
+            audit_log_id=getattr(self, "_last_audit_log_id", ""),
             required_hitl_tier=(
                 self._map_tier_for_response(core_result.hitl_tier)
                 if core_result.hitl_tier and mapped_verdict == Verdict.ASK_USER

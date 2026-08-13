@@ -412,6 +412,7 @@ class MultiAgentEvolutionEngine:
         if self._config.base_config.metrics_mode == "real":
             try:
                 from maref.evolution.real_metrics import RealMetricsCollector
+
                 collector = RealMetricsCollector()
                 metrics = collector.collect_incremental()
                 return metrics.fnr, metrics.fpr

@@ -52,9 +52,7 @@ class MultiTargetRatchet:
         ]
         self.config = config or MultiTargetConfig()
         self.current_index = 0
-        self.history: dict[str, list[ExperimentResult]] = {
-            t.value: [] for t in self.targets
-        }
+        self.history: dict[str, list[ExperimentResult]] = {t.value: [] for t in self.targets}
         self._round_count: dict[str, int] = {t.value: 0 for t in self.targets}
 
     def next_target(self) -> ImprovementTarget:
@@ -76,6 +74,7 @@ class MultiTargetRatchet:
             return self._registry_weighted_select(registry)
 
         from random import choices
+
         weights = []
         for t in self.targets:
             recent = self.history.get(t.value, [])[-5:]
@@ -86,7 +85,9 @@ class MultiTargetRatchet:
                 weights.append(1.0 - discard_rate)
         total = sum(weights) or 1.0
         probs = [w / total for w in weights]
-        return self.targets[0] if len(self.targets) == 1 else choices(self.targets, weights=probs)[0]
+        return (
+            self.targets[0] if len(self.targets) == 1 else choices(self.targets, weights=probs)[0]
+        )
 
     def _registry_weighted_select(self, registry: Any) -> ImprovementTarget:
         weights = registry.get_all_weights()
@@ -109,6 +110,7 @@ class MultiTargetRatchet:
             return self.targets[0]
 
         from random import choices
+
         targets_w = [c[0] for c in candidates]
         weights_w = [max(c[1], 0.01) for c in candidates]
         return choices(targets_w, weights=weights_w)[0]
@@ -138,6 +140,7 @@ class MultiTargetRatchet:
                 "avg_score": sum(scores) / len(scores) if scores else 0.0,
                 "best_score": max(scores) if scores else 0.0,
                 "discard_rate": discards / len(hist) if hist else 0.0,
-                "mas_ts_avg": sum(r.mas_ts_score for r in hist if r.mas_ts_score) / max(sum(1 for r in hist if r.mas_ts_score), 1),
+                "mas_ts_avg": sum(r.mas_ts_score for r in hist if r.mas_ts_score)
+                / max(sum(1 for r in hist if r.mas_ts_score), 1),
             }
         return summary

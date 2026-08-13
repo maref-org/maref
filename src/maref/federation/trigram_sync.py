@@ -233,9 +233,7 @@ class TrigramStateSynchronizer:
             self._local_root = None
             return
 
-        hashes = sorted(
-            snap.compute_hash() for snap in self._snapshots.values()
-        )
+        hashes = sorted(snap.compute_hash() for snap in self._snapshots.values())
         self._local_tree = [hashes]
         current = hashes
 
@@ -246,9 +244,7 @@ class TrigramStateSynchronizer:
                 left = current[i]
                 if i + 1 < len(current):
                     right = current[i + 1]
-                    nxt.append(
-                        hashlib.sha256((left + right).encode()).hexdigest()
-                    )
+                    nxt.append(hashlib.sha256((left + right).encode()).hexdigest())
                 else:
                     nxt.append(left)
                 i += 2
@@ -279,9 +275,7 @@ class TrigramStateSynchronizer:
 
             snap = self._snapshots[agent_id]
             target_hash = snap.compute_hash()
-            all_hashes = sorted(
-                s.compute_hash() for s in self._snapshots.values()
-            )
+            all_hashes = sorted(s.compute_hash() for s in self._snapshots.values())
             try:
                 idx = all_hashes.index(target_hash)
             except ValueError:
@@ -404,9 +398,7 @@ class TrigramStateSynchronizer:
         """
         drift: list[dict[str, Any]] = []
         with self._lock:
-            orgs_to_check = (
-                [org_id] if org_id else list(self._remote_snapshots.keys())
-            )
+            orgs_to_check = [org_id] if org_id else list(self._remote_snapshots.keys())
             for rid in orgs_to_check:
                 remote = self._remote_snapshots.get(rid, {})
                 for agent_id, local_snap in self._snapshots.items():
@@ -417,15 +409,17 @@ class TrigramStateSynchronizer:
                         local_snap.trigram != remote_snap.trigram
                         or abs(local_snap.trust_score - remote_snap.trust_score) > 0.02
                     )
-                    drift.append({
-                        "agent_id": agent_id,
-                        "org_id": rid,
-                        "local_trigram": local_snap.trigram,
-                        "local_trust": local_snap.trust_score,
-                        "remote_trigram": remote_snap.trigram,
-                        "remote_trust": remote_snap.trust_score,
-                        "drift_detected": drifted,
-                    })
+                    drift.append(
+                        {
+                            "agent_id": agent_id,
+                            "org_id": rid,
+                            "local_trigram": local_snap.trigram,
+                            "local_trust": local_snap.trust_score,
+                            "remote_trigram": remote_snap.trigram,
+                            "remote_trust": remote_snap.trust_score,
+                            "drift_detected": drifted,
+                        }
+                    )
         return drift
 
     def get_remote_snapshots(
@@ -447,17 +441,9 @@ class TrigramStateSynchronizer:
         with self._lock:
             local_agents = len(self._snapshots)
             remote_orgs = len(self._remote_snapshots)
-            remote_agents = sum(
-                len(v) for v in self._remote_snapshots.values()
-            )
-            drift_count = sum(
-                1 for d in self.detect_drift() if d["drift_detected"]
-            )
-            fed_root = (
-                self._aggregator.get_federated_root()
-                if self._aggregator
-                else None
-            )
+            remote_agents = sum(len(v) for v in self._remote_snapshots.values())
+            drift_count = sum(1 for d in self.detect_drift() if d["drift_detected"])
+            fed_root = self._aggregator.get_federated_root() if self._aggregator else None
             return {
                 "org_id": self.org_id,
                 "local_agent_count": local_agents,

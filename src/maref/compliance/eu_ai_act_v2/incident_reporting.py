@@ -247,10 +247,7 @@ class IncidentManager:
         Returns:
             List of open IncidentRecord objects.
         """
-        return [
-            r for r in self._incidents.values()
-            if r.status != IncidentStatus.CLOSED
-        ]
+        return [r for r in self._incidents.values() if r.status != IncidentStatus.CLOSED]
 
     def get_incident_summary(self) -> dict[str, Any]:
         """Get summary statistics for all incidents.

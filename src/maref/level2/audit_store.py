@@ -123,9 +123,7 @@ class PersistentAuditStore:
 
     def replay(self) -> list[FrameworkAuditEvent]:
         """Reconstruct all persisted events in insertion order."""
-        rows = self._db.fetchall(
-            "SELECT * FROM audit_events ORDER BY id ASC"
-        )
+        rows = self._db.fetchall("SELECT * FROM audit_events ORDER BY id ASC")
         return [
             FrameworkAuditEvent(
                 event_type=r["event_type"],

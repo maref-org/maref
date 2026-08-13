@@ -451,11 +451,7 @@ class AIPAdapter:
             AIPTaskState.CANCELED,
             AIPTaskState.REJECTED,
         }
-        return [
-            task_id
-            for task_id, state in self._task_states.items()
-            if state not in terminal
-        ]
+        return [task_id for task_id, state in self._task_states.items() if state not in terminal]
 
     def clear_finished_tasks(self) -> int:
         """Remove terminal-state tasks from the registry.
@@ -469,11 +465,7 @@ class AIPAdapter:
             AIPTaskState.CANCELED,
             AIPTaskState.REJECTED,
         }
-        to_remove = [
-            task_id
-            for task_id, state in self._task_states.items()
-            if state in terminal
-        ]
+        to_remove = [task_id for task_id, state in self._task_states.items() if state in terminal]
         for task_id in to_remove:
             self._task_states.pop(task_id, None)
             self._subtasks.pop(task_id, None)

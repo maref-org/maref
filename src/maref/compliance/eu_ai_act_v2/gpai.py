@@ -395,14 +395,12 @@ class GPAIComplianceManager:
 
         if "technical_documentation" in all_data:
             td = all_data["technical_documentation"]
-            package["artifacts"]["technical_documentation"] = (
-                self.create_technical_documentation(
-                    model_name=model_name,
-                    version=td.get("version", "1.0.0"),
-                    description=td.get("description", ""),
-                    training_methodology=td.get("training_methodology", {}),
-                    evaluation_results=td.get("evaluation_results", {}),
-                )
+            package["artifacts"]["technical_documentation"] = self.create_technical_documentation(
+                model_name=model_name,
+                version=td.get("version", "1.0.0"),
+                description=td.get("description", ""),
+                training_methodology=td.get("training_methodology", {}),
+                evaluation_results=td.get("evaluation_results", {}),
             )
 
         if "copyright_policy" in all_data:
@@ -414,26 +412,22 @@ class GPAIComplianceManager:
 
         if "training_data_summary" in all_data:
             tds = all_data["training_data_summary"]
-            package["artifacts"]["training_data_summary"] = (
-                self.create_training_data_summary(
-                    data_sources=tds.get("data_sources", []),
-                    data_categories=tds.get("data_categories", []),
-                    size_estimate=tds.get("size_estimate", ""),
-                )
+            package["artifacts"]["training_data_summary"] = self.create_training_data_summary(
+                data_sources=tds.get("data_sources", []),
+                data_categories=tds.get("data_categories", []),
+                size_estimate=tds.get("size_estimate", ""),
             )
 
         if "downstream_transparency" in all_data:
             dt = all_data["downstream_transparency"]
-            package["artifacts"]["downstream_transparency"] = (
-                self.create_downstream_transparency(
-                    model_name=model_name,
-                    version=dt.get("version", "1.0.0"),
-                    capable_tasks=dt.get("capable_tasks", []),
-                    limitations=dt.get("limitations", []),
-                    integration_guide=dt.get("integration_guide", ""),
-                    hardware_requirements=dt.get("hardware_requirements", {}),
-                    evaluation_results=dt.get("evaluation_results", {}),
-                )
+            package["artifacts"]["downstream_transparency"] = self.create_downstream_transparency(
+                model_name=model_name,
+                version=dt.get("version", "1.0.0"),
+                capable_tasks=dt.get("capable_tasks", []),
+                limitations=dt.get("limitations", []),
+                integration_guide=dt.get("integration_guide", ""),
+                hardware_requirements=dt.get("hardware_requirements", {}),
+                evaluation_results=dt.get("evaluation_results", {}),
             )
 
         if "systemic_risk_assessment" in all_data:
@@ -457,13 +451,11 @@ class GPAIComplianceManager:
 
         if "energy_efficiency_report" in all_data:
             eer = all_data["energy_efficiency_report"]
-            package["artifacts"]["energy_efficiency_report"] = (
-                self.create_energy_efficiency_report(
-                    training_energy_mwh=eer.get("training_energy_mwh", 0.0),
-                    inference_energy_mwh=eer.get("inference_energy_mwh", 0.0),
-                    carbon_emissions_tco2=eer.get("carbon_emissions_tco2", 0.0),
-                    hardware_utilization=eer.get("hardware_utilization", 0.0),
-                )
+            package["artifacts"]["energy_efficiency_report"] = self.create_energy_efficiency_report(
+                training_energy_mwh=eer.get("training_energy_mwh", 0.0),
+                inference_energy_mwh=eer.get("inference_energy_mwh", 0.0),
+                carbon_emissions_tco2=eer.get("carbon_emissions_tco2", 0.0),
+                hardware_utilization=eer.get("hardware_utilization", 0.0),
             )
 
         return package

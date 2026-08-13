@@ -53,9 +53,15 @@ async def _github_list_repos(username: str) -> dict[str, Any]:
                 "count": len(repos),
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}],
+        }
 
 
 async def _github_get_issue(owner: str, repo: str, issue_number: int) -> dict[str, Any]:
@@ -81,9 +87,15 @@ async def _github_get_issue(owner: str, repo: str, issue_number: int) -> dict[st
                 "url": issue["html_url"],
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}],
+        }
 
 
 async def _github_create_issue(owner: str, repo: str, title: str, body: str) -> dict[str, Any]:
@@ -104,9 +116,15 @@ async def _github_create_issue(owner: str, repo: str, title: str, body: str) -> 
                 "url": issue["html_url"],
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}],
+        }
 
 
 async def _github_search_code(query: str) -> dict[str, Any]:
@@ -133,9 +151,15 @@ async def _github_search_code(query: str) -> dict[str, Any]:
                 ],
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"GitHub request failed: {exc}"}],
+        }
 
 
 TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
@@ -156,21 +180,37 @@ def get_tool_definition() -> ToolDefinition:
         tools=list(TOOL_HANDLERS.keys()),
         tool_parameters={
             "github_list_repos": [
-                ToolParameter(name="username", type="string", description="GitHub username", required=True),
+                ToolParameter(
+                    name="username", type="string", description="GitHub username", required=True
+                ),
             ],
             "github_get_issue": [
-                ToolParameter(name="owner", type="string", description="Repository owner", required=True),
-                ToolParameter(name="repo", type="string", description="Repository name", required=True),
-                ToolParameter(name="issue_number", type="integer", description="Issue number", required=True),
+                ToolParameter(
+                    name="owner", type="string", description="Repository owner", required=True
+                ),
+                ToolParameter(
+                    name="repo", type="string", description="Repository name", required=True
+                ),
+                ToolParameter(
+                    name="issue_number", type="integer", description="Issue number", required=True
+                ),
             ],
             "github_create_issue": [
-                ToolParameter(name="owner", type="string", description="Repository owner", required=True),
-                ToolParameter(name="repo", type="string", description="Repository name", required=True),
-                ToolParameter(name="title", type="string", description="Issue title", required=True),
+                ToolParameter(
+                    name="owner", type="string", description="Repository owner", required=True
+                ),
+                ToolParameter(
+                    name="repo", type="string", description="Repository name", required=True
+                ),
+                ToolParameter(
+                    name="title", type="string", description="Issue title", required=True
+                ),
                 ToolParameter(name="body", type="string", description="Issue body", required=True),
             ],
             "github_search_code": [
-                ToolParameter(name="query", type="string", description="Search query", required=True),
+                ToolParameter(
+                    name="query", type="string", description="Search query", required=True
+                ),
             ],
         },
         security_controls=["EnvVarCheck"],
@@ -185,7 +225,10 @@ def execute_tool(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
 
     handler = TOOL_HANDLERS.get(tool_name)
     if handler is None:
-        return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}],
+        }
     try:
         return asyncio.run(handler(**args))
     except RuntimeError as exc:

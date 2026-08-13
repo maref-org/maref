@@ -37,11 +37,11 @@ def demo_baseline_vs_governed() -> dict[str, Any]:
     # Without governance, agent quality varies wildly round-to-round
     baseline_configs = [
         # [gen, test, review, merge] quality rates
-        [0.80, 0.85, 0.75, 0.90],   # Round 0: good
-        [0.30, 0.40, 0.35, 0.60],    # Round 1: bad
-        [0.70, 0.60, 0.50, 0.80],    # Round 2: medium
-        [0.90, 0.95, 0.85, 0.98],    # Round 3: excellent
-        [0.40, 0.50, 0.45, 0.55],    # Round 4: poor
+        [0.80, 0.85, 0.75, 0.90],  # Round 0: good
+        [0.30, 0.40, 0.35, 0.60],  # Round 1: bad
+        [0.70, 0.60, 0.50, 0.80],  # Round 2: medium
+        [0.90, 0.95, 0.85, 0.98],  # Round 3: excellent
+        [0.40, 0.50, 0.45, 0.55],  # Round 4: poor
     ]
     for i in range(5):
         conf = baseline_configs[i]
@@ -53,12 +53,16 @@ def demo_baseline_vs_governed() -> dict[str, Any]:
         ]
         harness = CodeServiceHarness(agents=agents, seed=42)
         report = harness.run(num_runs=100, round_id=f"baseline-{i}")
-        results["baseline"].append({
-            "round": i,
-            "success_rate": round(report.success_rate, 3),
-            "avg_coverage": round(report.avg_test_coverage, 1),
-        })
-        print(f"  Round {i}: success_rate={report.success_rate:.1%}, coverage={report.avg_test_coverage:.1f}%")
+        results["baseline"].append(
+            {
+                "round": i,
+                "success_rate": round(report.success_rate, 3),
+                "avg_coverage": round(report.avg_test_coverage, 1),
+            }
+        )
+        print(
+            f"  Round {i}: success_rate={report.success_rate:.1%}, coverage={report.avg_test_coverage:.1f}%"
+        )
 
     # Phase 2: Governed - MAREF harness with continuous improvement
     print("\n" + "=" * 60)
@@ -73,14 +77,30 @@ def demo_baseline_vs_governed() -> dict[str, Any]:
         # Each failure is captured → becomes SOP → agent quality improves
         base_quality = 0.65 + i * 0.03  # Steady improvement
         agents = [
-            AgentConfig(name="gen", quality_rate=min(0.98, base_quality),
-                       speed_ms_mean=500, speed_ms_std=100),
-            AgentConfig(name="test", quality_rate=min(0.99, base_quality + 0.05),
-                       speed_ms_mean=300, speed_ms_std=80),
-            AgentConfig(name="review", quality_rate=min(0.97, base_quality - 0.05),
-                       speed_ms_mean=400, speed_ms_std=120),
-            AgentConfig(name="merge", quality_rate=min(0.99, base_quality + 0.1),
-                       speed_ms_mean=200, speed_ms_std=50),
+            AgentConfig(
+                name="gen",
+                quality_rate=min(0.98, base_quality),
+                speed_ms_mean=500,
+                speed_ms_std=100,
+            ),
+            AgentConfig(
+                name="test",
+                quality_rate=min(0.99, base_quality + 0.05),
+                speed_ms_mean=300,
+                speed_ms_std=80,
+            ),
+            AgentConfig(
+                name="review",
+                quality_rate=min(0.97, base_quality - 0.05),
+                speed_ms_mean=400,
+                speed_ms_std=120,
+            ),
+            AgentConfig(
+                name="merge",
+                quality_rate=min(0.99, base_quality + 0.1),
+                speed_ms_mean=200,
+                speed_ms_std=50,
+            ),
         ]
         harness = CodeServiceHarness(agents=agents, seed=42)
         report = harness.run(num_runs=100, round_id=f"governed-{i}")
@@ -88,16 +108,20 @@ def demo_baseline_vs_governed() -> dict[str, Any]:
         sqi_report = sqi.compute(code_metrics=metrics, round_id=f"sqi-{i}")
         tracker.record_round(f"r{i}", sqi_report)
 
-        results["governed"].append({
-            "round": i,
-            "success_rate": round(report.success_rate, 3),
-            "avg_coverage": round(report.avg_test_coverage, 1),
-            "sqi_score": round(sqi_report.overall_score, 1),
-            "sqi_variance": round(sqi_report.variance, 1),
-        })
-        print(f"  Round {i}: success_rate={report.success_rate:.1%}, "
-              f"coverage={report.avg_test_coverage:.1f}%, "
-              f"SQI={sqi_report.overall_score:.1f}")
+        results["governed"].append(
+            {
+                "round": i,
+                "success_rate": round(report.success_rate, 3),
+                "avg_coverage": round(report.avg_test_coverage, 1),
+                "sqi_score": round(sqi_report.overall_score, 1),
+                "sqi_variance": round(sqi_report.variance, 1),
+            }
+        )
+        print(
+            f"  Round {i}: success_rate={report.success_rate:.1%}, "
+            f"coverage={report.avg_test_coverage:.1f}%, "
+            f"SQI={sqi_report.overall_score:.1f}"
+        )
 
     # Phase 3: Convergence proof
     print("\n" + "=" * 60)
@@ -119,18 +143,28 @@ def demo_baseline_vs_governed() -> dict[str, Any]:
     }
 
     print(f"  Converged: {state.is_converged}")
-    print(f"  Score: {summary.get('initial', 0):.1f} -> {summary.get('current', 0):.1f} "
-          f"(+{summary.get('total_improvement', 0):.1f})")
+    print(
+        f"  Score: {summary.get('initial', 0):.1f} -> {summary.get('current', 0):.1f} "
+        f"(+{summary.get('total_improvement', 0):.1f})"
+    )
     print(f"  Trend: {state.trend}")
 
     # Key insight: variance comparison
     baseline_success_rates = [r["success_rate"] for r in results["baseline"]]
     governed_success_rates = [r["success_rate"] for r in results["governed"]]
 
-    baseline_variance = statistics.variance(baseline_success_rates) if len(baseline_success_rates) > 1 else 0.0
-    governed_variance = statistics.variance(governed_success_rates) if len(governed_success_rates) > 1 else 0.0
+    baseline_variance = (
+        statistics.variance(baseline_success_rates) if len(baseline_success_rates) > 1 else 0.0
+    )
+    governed_variance = (
+        statistics.variance(governed_success_rates) if len(governed_success_rates) > 1 else 0.0
+    )
 
-    variance_reduction = (1 - governed_variance / max(baseline_variance, 0.0001)) * 100 if baseline_variance > 0 else 0
+    variance_reduction = (
+        (1 - governed_variance / max(baseline_variance, 0.0001)) * 100
+        if baseline_variance > 0
+        else 0
+    )
 
     results["convergence_proof"]["baseline_variance"] = round(baseline_variance, 6)
     results["convergence_proof"]["governed_variance"] = round(governed_variance, 6)
@@ -144,8 +178,12 @@ def demo_baseline_vs_governed() -> dict[str, Any]:
     print("\n" + "=" * 60)
     print("CONCLUSION: MAREF + Harness provides deterministic delivery")
     print("=" * 60)
-    print(f"  Without Harness: Success rate varies wildly ({min(baseline_success_rates):.1%} - {max(baseline_success_rates):.1%})")
-    print(f"  With Harness: Success rate converges ({min(governed_success_rates):.1%} - {max(governed_success_rates):.1%})")
+    print(
+        f"  Without Harness: Success rate varies wildly ({min(baseline_success_rates):.1%} - {max(baseline_success_rates):.1%})"
+    )
+    print(
+        f"  With Harness: Success rate converges ({min(governed_success_rates):.1%} - {max(governed_success_rates):.1%})"
+    )
     print(f"  Variance reduced by: {variance_reduction:.1f}%")
 
     return results

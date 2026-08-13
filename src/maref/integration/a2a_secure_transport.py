@@ -201,9 +201,7 @@ class A2ASecureTransport:
             return False
         from maref.signing.signing_key import ReportSigningKey
 
-        return ReportSigningKey.verify_signature(
-            self.peer_public_key, signature, payload
-        )
+        return ReportSigningKey.verify_signature(self.peer_public_key, signature, payload)
 
     def verify_peer_identity(self, peer_cert: dict[str, Any]) -> bool:
         """验证对等方身份。

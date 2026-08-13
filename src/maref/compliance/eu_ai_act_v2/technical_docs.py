@@ -94,9 +94,7 @@ class TechnicalDocumentation:
     def set_general_description(self, description: dict[str, str]) -> None:
         self._general_description = description
 
-    def set_development_methodology(
-        self, methodology: DevelopmentMethodology
-    ) -> None:
+    def set_development_methodology(self, methodology: DevelopmentMethodology) -> None:
         self._development_methodology = methodology
 
     def set_system_architecture(self, architecture: SystemArchitecture) -> None:
@@ -108,27 +106,19 @@ class TechnicalDocumentation:
     def set_human_oversight(self, oversight: dict[str, Any]) -> None:
         self._human_oversight = oversight
 
-    def set_validation_procedure(
-        self, procedure: ValidationProcedure
-    ) -> None:
+    def set_validation_procedure(self, procedure: ValidationProcedure) -> None:
         self._validation_procedure = procedure
 
     def set_cybersecurity_measures(self, measures: list[str]) -> None:
         self._cybersecurity_measures = measures
 
-    def set_risk_management_summary(
-        self, summary: dict[str, Any]
-    ) -> None:
+    def set_risk_management_summary(self, summary: dict[str, Any]) -> None:
         self._risk_management_summary = summary
 
-    def set_post_market_monitoring(
-        self, plan: PostMarketMonitoringPlan
-    ) -> None:
+    def set_post_market_monitoring(self, plan: PostMarketMonitoringPlan) -> None:
         self._post_market_monitoring = plan
 
-    def set_performance_metrics(
-        self, metrics: dict[str, float | str]
-    ) -> None:
+    def set_performance_metrics(self, metrics: dict[str, float | str]) -> None:
         self._performance_metrics = metrics
 
     # ------------------------------------------------------------------ #
@@ -138,9 +128,7 @@ class TechnicalDocumentation:
     def set_risk_classification(self, risk_level: RiskLevel) -> None:
         self._risk_level = risk_level
 
-    def set_audit_evidence(
-        self, merkle_root: str, evidence_ids: list[str] | None = None
-    ) -> None:
+    def set_audit_evidence(self, merkle_root: str, evidence_ids: list[str] | None = None) -> None:
         self._merkle_anchor = merkle_root
         if evidence_ids is not None:
             self._evidence_ids = evidence_ids
@@ -277,33 +265,21 @@ class TechnicalDocumentation:
         missing: dict[str, list[str]] = {}
 
         if not self._general_description:
-            missing["general_description"] = [
-                "No general description provided (Annex IV §1)"
-            ]
+            missing["general_description"] = ["No general description provided (Annex IV §1)"]
         if self._development_methodology is None:
             missing["development_methodology"] = [
                 "No development methodology provided (Annex IV §2)"
             ]
         if self._system_architecture is None:
-            missing["system_architecture"] = [
-                "No system architecture provided (Annex IV §3)"
-            ]
+            missing["system_architecture"] = ["No system architecture provided (Annex IV §3)"]
         if self._data_governance is None:
-            missing["data_governance"] = [
-                "No data governance provided (Annex IV §4)"
-            ]
+            missing["data_governance"] = ["No data governance provided (Annex IV §4)"]
         if not self._human_oversight:
-            missing["human_oversight"] = [
-                "No human oversight assessment provided (Annex IV §5)"
-            ]
+            missing["human_oversight"] = ["No human oversight assessment provided (Annex IV §5)"]
         if self._validation_procedure is None:
-            missing["validation_procedure"] = [
-                "No validation procedure provided (Annex IV §6)"
-            ]
+            missing["validation_procedure"] = ["No validation procedure provided (Annex IV §6)"]
         if not self._cybersecurity_measures:
-            missing["cybersecurity_measures"] = [
-                "No cybersecurity measures provided (Annex IV §7)"
-            ]
+            missing["cybersecurity_measures"] = ["No cybersecurity measures provided (Annex IV §7)"]
         if not self._risk_management_summary:
             missing["risk_management_summary"] = [
                 "No risk management summary provided (Annex IV §8)"
@@ -313,14 +289,13 @@ class TechnicalDocumentation:
                 "No post-market monitoring plan provided (Annex IV §9)"
             ]
         if not self._performance_metrics:
-            missing["performance_metrics"] = [
-                "No performance metrics provided (Annex IV §10)"
-            ]
+            missing["performance_metrics"] = ["No performance metrics provided (Annex IV §10)"]
 
         return missing
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the full state to a JSON-compatible dict."""
+
         def _serialize(obj: Any) -> Any:
             if isinstance(obj, datetime):
                 return obj.isoformat()
@@ -350,9 +325,7 @@ class TechnicalDocumentation:
             "risk_management_summary": self._risk_management_summary,
             "post_market_monitoring": _serialize(self._post_market_monitoring),
             "performance_metrics": self._performance_metrics,
-            "risk_level": (
-                self._risk_level.value if self._risk_level else None
-            ),
+            "risk_level": (self._risk_level.value if self._risk_level else None),
             "merkle_anchor": self._merkle_anchor,
             "evidence_ids": self._evidence_ids,
         }

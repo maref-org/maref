@@ -118,11 +118,15 @@ class FRIAManager:
         return assessment
 
     def generate_report(self, reviewed_by: str = "") -> FRIAReport:
-        scope = self._scope if self._scope is not None else FRIAScope(
-            system_name="",
-            system_version="",
-            deployment_context="",
-            affected_population_description="",
+        scope = (
+            self._scope
+            if self._scope is not None
+            else FRIAScope(
+                system_name="",
+                system_version="",
+                deployment_context="",
+                affected_population_description="",
+            )
         )
         ratings = [a.risk_rating for a in self._assessments]
         overall = _max_risk(ratings)
@@ -139,8 +143,7 @@ class FRIAManager:
 
     def get_high_risk_rights(self) -> list[FundamentalRightAssessment]:
         return [
-            a for a in self._assessments
-            if a.risk_rating in (RiskRating.HIGH, RiskRating.CRITICAL)
+            a for a in self._assessments if a.risk_rating in (RiskRating.HIGH, RiskRating.CRITICAL)
         ]
 
     def get_fria_summary(self) -> dict[str, Any]:

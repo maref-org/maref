@@ -107,8 +107,7 @@ class TrustEngine:
         # Task success/failure feeds the V2 task history.
         success = d.get("success")
         is_failure = success is False or (
-            success is None
-            and ("fail" in event_type.lower() or "halt" in event_type.lower())
+            success is None and ("fail" in event_type.lower() or "halt" in event_type.lower())
         )
         if success is not None or is_failure:
             self._v2.record_task(

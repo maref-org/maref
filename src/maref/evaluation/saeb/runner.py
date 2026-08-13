@@ -68,12 +68,10 @@ class SAEBResult:
 
 class AgentAdapter(ABC):
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @abstractmethod
-    def iterate(self, scenario: SAEBScenario, round_num: int, label: str) -> bool:
-        ...
+    def iterate(self, scenario: SAEBScenario, round_num: int, label: str) -> bool: ...
 
 
 class NoopAdapter(AgentAdapter):
@@ -100,7 +98,9 @@ class SubprocessAdapter(AgentAdapter):
             result = subprocess.run(
                 self._command,
                 cwd=scenario.workdir,
-                capture_output=True, text=True, timeout=120,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             return result.returncode == 0
         except subprocess.TimeoutExpired:
@@ -150,14 +150,14 @@ class MAREFSelfAdapter(AgentAdapter):
                             changes_made = True
         except ImportError:
             import logging
+
             logging.getLogger("maref.saeb").warning(
                 "Recursive pipeline modules not available", exc_info=True
             )
         except Exception:
             import logging
-            logging.getLogger("maref.saeb").warning(
-                "Recursive pipeline error", exc_info=True
-            )
+
+            logging.getLogger("maref.saeb").warning("Recursive pipeline error", exc_info=True)
 
         return changes_made
 
@@ -171,7 +171,9 @@ class MAREFSelfAdapter(AgentAdapter):
         # Phase 1: Run tests to see what's broken
         pytest_result = subprocess.run(
             [sys.executable, "-m", "pytest", "tests/", "--tb=short", "-q", "--no-header"],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True,
+            text=True,
+            timeout=60,
             cwd=scenario.workdir,
         )
         output = (pytest_result.stdout + pytest_result.stderr).split("\n")
@@ -193,7 +195,9 @@ class MAREFSelfAdapter(AgentAdapter):
         # Phase 4: Verify fix by running tests again
         verify = subprocess.run(
             [sys.executable, "-m", "pytest", "tests/", "-q", "--no-header"],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True,
+            text=True,
+            timeout=60,
             cwd=scenario.workdir,
         )
         return verify.returncode == 0
@@ -206,7 +210,9 @@ class MAREFSelfAdapter(AgentAdapter):
         m = re.match(r"test_([a-zA-Z]+)", test_name)
         return m.group(1) if m else test_name
 
-    def _parse_failures(self, lines: list[str], scenario: SAEBScenario) -> list[tuple[str, str, dict[str, Any]]]:
+    def _parse_failures(
+        self, lines: list[str], scenario: SAEBScenario
+    ) -> list[tuple[str, str, dict[str, Any]]]:
         """Parse pytest output into (function_name, error_type, details) tuples."""
         failures: list[tuple[str, str, dict[str, Any]]] = []
         test_file = scenario.workdir / "tests" / "test_calc.py"
@@ -261,14 +267,22 @@ class MAREFSelfAdapter(AgentAdapter):
             m = re.search(r"cannot import name '(\w+)'", err_text)
             if m:
                 func_name = m.group(1)
-                failures.append((func_name, "ImportError", {"test_name": "", "test_code": test_code}))
+                failures.append(
+                    (func_name, "ImportError", {"test_name": "", "test_code": test_code})
+                )
             else:
                 # Generic fallback: try to find ANY referenced function not in source
                 src_file = scenario.workdir / self._src_dir / "calc.py"
                 src_text = src_file.read_text() if src_file.exists() else ""
                 for name_candidate in ["power", "add", "subtract", "multiply", "divide"]:
                     if f"def {name_candidate}(" not in src_text:
-                        failures.append((name_candidate, "ImportError", {"test_name": "", "test_code": test_code}))
+                        failures.append(
+                            (
+                                name_candidate,
+                                "ImportError",
+                                {"test_name": "", "test_code": test_code},
+                            )
+                        )
                         break
 
         # Deduplicate by function name
@@ -280,7 +294,9 @@ class MAREFSelfAdapter(AgentAdapter):
                 unique.append((func_name, etype, det))
         return unique
 
-    def _fix_function(self, scenario: SAEBScenario, func_name: str, error_type: str, details: dict[str, Any]) -> bool:
+    def _fix_function(
+        self, scenario: SAEBScenario, func_name: str, error_type: str, details: dict[str, Any]
+    ) -> bool:
         """Fix a single failing function. Returns True if a fix was applied."""
         src_file = scenario.workdir / self._src_dir / "calc.py"
         if not src_file.exists():
@@ -349,7 +365,9 @@ class MAREFSelfAdapter(AgentAdapter):
                             return True
         return False
 
-    def _fix_missing_exception(self, scenario: SAEBScenario, func_name: str, src_file: Path) -> bool:
+    def _fix_missing_exception(
+        self, scenario: SAEBScenario, func_name: str, src_file: Path
+    ) -> bool:
         """Replace a function body with the reference version (text-based)."""
         ref = scenario.reference_files.get(f"{self._src_dir}/calc.py", "")
         if not ref:
@@ -369,7 +387,9 @@ class MAREFSelfAdapter(AgentAdapter):
         src_file.write_text(src)
         return True
 
-    def _fix_logic_bug(self, scenario: SAEBScenario, func_name: str, details: dict[str, Any], src_file: Path) -> bool:
+    def _fix_logic_bug(
+        self, scenario: SAEBScenario, func_name: str, details: dict[str, Any], src_file: Path
+    ) -> bool:
         """Fix a logic bug by inferring correct implementation from test assertions."""
         test_code = details.get("test_code", "")
         test_name = details.get("test_name", "")
@@ -422,7 +442,9 @@ class MAREFSelfAdapter(AgentAdapter):
         return True
 
     @staticmethod
-    def _try_infer_fix(func_node: ast.FunctionDef, expectations: list[tuple[list[str], str]]) -> str | None:
+    def _try_infer_fix(
+        func_node: ast.FunctionDef, expectations: list[tuple[list[str], str]]
+    ) -> str | None:
         """Try to infer the correct function body from test expectations."""
         if len(func_node.body) != 1:
             return None
@@ -434,7 +456,11 @@ class MAREFSelfAdapter(AgentAdapter):
             return None
 
         # Strategy 1: Binary operation fix (a OP b)
-        if isinstance(ret_val, ast.BinOp) and isinstance(ret_val.left, ast.Name) and isinstance(ret_val.right, ast.Name):
+        if (
+            isinstance(ret_val, ast.BinOp)
+            and isinstance(ret_val.left, ast.Name)
+            and isinstance(ret_val.right, ast.Name)
+        ):
             left = ret_val.left.id
             right = ret_val.right.id
 
@@ -462,7 +488,7 @@ class MAREFSelfAdapter(AgentAdapter):
                         elif op_sym == "/":
                             result = a_val / b_val if b_val != 0 else float("inf")
                         elif op_sym == "**":
-                            result = a_val ** b_val
+                            result = a_val**b_val
                         else:
                             result = None
                         if abs(result - float(expected)) > 1e-9:
@@ -545,7 +571,7 @@ def run_saeb(
     # Convergence: first round where FNR stabilizes near 0
     conv = -1
     for i in range(len(fnrs)):
-        if i >= 3 and all(f < 0.05 for f in fnrs[i - 2:i + 1]):
+        if i >= 3 and all(f < 0.05 for f in fnrs[i - 2 : i + 1]):
             conv = i
             break
 

@@ -28,78 +28,165 @@ logger = logging.getLogger("percv_scanner")
 
 # ── 数据模型 ────────────────────────────────────────────────
 
+
 @dataclass
 class SecurityCheckResult:
     check_id: str
     name: str
     category: str  # protect | evaluate | respond | contain | verify
     severity: str  # critical | high | medium | low
-    status: str    # pass | fail | warn | skip
+    status: str  # pass | fail | warn | skip
     detail: str = ""
     recommendation: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 # ── PERCV 安全框架核心 ─────────────────────────────────────
 
 PERCV_CHECKS = [
     # P — Protect
-    SecurityCheckResult("P-01", "提示注入边界检测", "protect", "critical", "skip",
-                        "检查 Agent 是否有输入净化层和指令边界检测机制",
-                        "实现输入净化层，使用指令边界标记 '<|im_start|>' 隔离用户输入"),
-    SecurityCheckResult("P-02", "最小权限原则", "protect", "high", "skip",
-                        "检查 Agent 权限是否遵循最小必要原则",
-                        "审计 Agent 权限声明，移除与任务无关的权限"),
-    SecurityCheckResult("P-03", "数据访问控制", "protect", "high", "skip",
-                        "检查 Agent 是否有数据访问边界控制",
-                        "实施基于角色的数据访问控制 (RBAC)"),
-
+    SecurityCheckResult(
+        "P-01",
+        "提示注入边界检测",
+        "protect",
+        "critical",
+        "skip",
+        "检查 Agent 是否有输入净化层和指令边界检测机制",
+        "实现输入净化层，使用指令边界标记 '<|im_start|>' 隔离用户输入",
+    ),
+    SecurityCheckResult(
+        "P-02",
+        "最小权限原则",
+        "protect",
+        "high",
+        "skip",
+        "检查 Agent 权限是否遵循最小必要原则",
+        "审计 Agent 权限声明，移除与任务无关的权限",
+    ),
+    SecurityCheckResult(
+        "P-03",
+        "数据访问控制",
+        "protect",
+        "high",
+        "skip",
+        "检查 Agent 是否有数据访问边界控制",
+        "实施基于角色的数据访问控制 (RBAC)",
+    ),
     # E — Evaluate
-    SecurityCheckResult("E-01", "行为基线检测", "evaluate", "medium", "skip",
-                        "建立 Agent 正常行为基线，检测偏离",
-                        "收集 7 天运行数据建立基线，设 ±2σ 告警阈值"),
-    SecurityCheckResult("E-02", "安全配置审计", "evaluate", "high", "skip",
-                        "检查 Agent 安全配置是否符合最佳实践",
-                        "对照 OWASP Agentic Top 10 逐项审计"),
-
+    SecurityCheckResult(
+        "E-01",
+        "行为基线检测",
+        "evaluate",
+        "medium",
+        "skip",
+        "建立 Agent 正常行为基线，检测偏离",
+        "收集 7 天运行数据建立基线，设 ±2σ 告警阈值",
+    ),
+    SecurityCheckResult(
+        "E-02",
+        "安全配置审计",
+        "evaluate",
+        "high",
+        "skip",
+        "检查 Agent 安全配置是否符合最佳实践",
+        "对照 OWASP Agentic Top 10 逐项审计",
+    ),
     # R — Respond
-    SecurityCheckResult("R-01", "安全事件响应", "respond", "critical", "skip",
-                        "检查是否有安全事件响应流程",
-                        "制定安全事件响应计划，包含：检测→分析→遏制→恢复→复盘"),
-    SecurityCheckResult("R-02", "自动回滚机制", "respond", "medium", "skip",
-                        "检测异常行为时是否有自动回滚能力",
-                        "实现自动回滚触发器，保存前 N 个稳定状态"),
-
+    SecurityCheckResult(
+        "R-01",
+        "安全事件响应",
+        "respond",
+        "critical",
+        "skip",
+        "检查是否有安全事件响应流程",
+        "制定安全事件响应计划，包含：检测→分析→遏制→恢复→复盘",
+    ),
+    SecurityCheckResult(
+        "R-02",
+        "自动回滚机制",
+        "respond",
+        "medium",
+        "skip",
+        "检测异常行为时是否有自动回滚能力",
+        "实现自动回滚触发器，保存前 N 个稳定状态",
+    ),
     # C — Contain
-    SecurityCheckResult("C-01", "攻击影响隔离", "contain", "high", "skip",
-                        "单个 Agent 被攻破时能否隔离影响范围",
-                        "实施 Agent 沙箱化，限制横向移动能力"),
-    SecurityCheckResult("C-02", "权限即时回收", "contain", "medium", "skip",
-                        "检测到异常时能否即时回收 Agent 权限",
-                        "实现动态权限回收机制，支持手动和自动触发"),
-
+    SecurityCheckResult(
+        "C-01",
+        "攻击影响隔离",
+        "contain",
+        "high",
+        "skip",
+        "单个 Agent 被攻破时能否隔离影响范围",
+        "实施 Agent 沙箱化，限制横向移动能力",
+    ),
+    SecurityCheckResult(
+        "C-02",
+        "权限即时回收",
+        "contain",
+        "medium",
+        "skip",
+        "检测到异常时能否即时回收 Agent 权限",
+        "实现动态权限回收机制，支持手动和自动触发",
+    ),
     # V — Verify
-    SecurityCheckResult("V-01", "安全措施有效性验证", "verify", "high", "skip",
-                        "安全措施是否真正有效，而非形同虚设",
-                        "定期进行红蓝对抗演练，验证安全防线"),
-    SecurityCheckResult("V-02", "第三方依赖安全", "verify", "medium", "skip",
-                        "Agent 的第三方依赖是否存在已知漏洞",
-                        "集成 Snyk/Dependabot，自动检测依赖安全"),
-
+    SecurityCheckResult(
+        "V-01",
+        "安全措施有效性验证",
+        "verify",
+        "high",
+        "skip",
+        "安全措施是否真正有效，而非形同虚设",
+        "定期进行红蓝对抗演练，验证安全防线",
+    ),
+    SecurityCheckResult(
+        "V-02",
+        "第三方依赖安全",
+        "verify",
+        "medium",
+        "skip",
+        "Agent 的第三方依赖是否存在已知漏洞",
+        "集成 Snyk/Dependabot，自动检测依赖安全",
+    ),
     # 快速检查清单 (Quick Checklist)
-    SecurityCheckResult("Q-01", "Agent 数字身份", "protect", "high", "skip",
-                        "Agent 是否有唯一可验证的数字身份",
-                        "为每个 Agent 分配公私钥对，操作签名验证"),
-    SecurityCheckResult("Q-02", "审计日志完整性", "evaluate", "critical", "skip",
-                        "所有 Agent 操作是否都有不可篡改的审计日志",
-                        "集成 Runtime Audit Log，日志写入前签名"),
-    SecurityCheckResult("Q-03", "漂移检测运行中", "evaluate", "medium", "skip",
-                        "Agent 行为漂移检测是否持续运行",
-                        "使用 RSI 收敛检测，配置漂移阈值告警"),
-    SecurityCheckResult("Q-04", "数据泄露防护", "protect", "critical", "skip",
-                        "是否有数据泄露防护措施",
-                        "实施敏感数据脱敏 + 输出过滤 + 日志审查"),
+    SecurityCheckResult(
+        "Q-01",
+        "Agent 数字身份",
+        "protect",
+        "high",
+        "skip",
+        "Agent 是否有唯一可验证的数字身份",
+        "为每个 Agent 分配公私钥对，操作签名验证",
+    ),
+    SecurityCheckResult(
+        "Q-02",
+        "审计日志完整性",
+        "evaluate",
+        "critical",
+        "skip",
+        "所有 Agent 操作是否都有不可篡改的审计日志",
+        "集成 Runtime Audit Log，日志写入前签名",
+    ),
+    SecurityCheckResult(
+        "Q-03",
+        "漂移检测运行中",
+        "evaluate",
+        "medium",
+        "skip",
+        "Agent 行为漂移检测是否持续运行",
+        "使用 RSI 收敛检测，配置漂移阈值告警",
+    ),
+    SecurityCheckResult(
+        "Q-04",
+        "数据泄露防护",
+        "protect",
+        "critical",
+        "skip",
+        "是否有数据泄露防护措施",
+        "实施敏感数据脱敏 + 输出过滤 + 日志审查",
+    ),
 ]
 
 
@@ -142,15 +229,17 @@ def run_scan(config_file: str | None = None) -> dict:
 
     for check in checks:
         # Mark all as "pending" — real integration would run actual checks
-        results.append({
-            "check_id": check.check_id,
-            "name": check.name,
-            "category": check.category,
-            "severity": check.severity,
-            "status": "pending",
-            "detail": check.detail,
-            "recommendation": check.recommendation,
-        })
+        results.append(
+            {
+                "check_id": check.check_id,
+                "name": check.name,
+                "category": check.category,
+                "severity": check.severity,
+                "status": "pending",
+                "detail": check.detail,
+                "recommendation": check.recommendation,
+            }
+        )
 
     report = {
         "scanner": "PERCV Security Baseline Scanner",
@@ -173,23 +262,27 @@ def run_scan(config_file: str | None = None) -> dict:
     if results:
         severity_weights = {"critical": 1.0, "high": 0.8, "medium": 0.5, "low": 0.3}
         total_weight = sum(severity_weights.get(c["severity"], 0.5) for c in results)
-        pending_weight = sum(severity_weights.get(c["severity"], 0.5)
-                            for c in results if c["status"] == "pending")
-        report["summary"]["score"] = round(
-            (1 - pending_weight / max(total_weight, 1)) * 100, 1
-        ) if total_weight > 0 else 0.0
+        pending_weight = sum(
+            severity_weights.get(c["severity"], 0.5) for c in results if c["status"] == "pending"
+        )
+        report["summary"]["score"] = (
+            round((1 - pending_weight / max(total_weight, 1)) * 100, 1) if total_weight > 0 else 0.0
+        )
 
-    logger.info("✅ 扫描完成: %d 项检查, 安全评分: %.1f/100",
-                report["summary"]["total"], report["summary"]["score"])
+    logger.info(
+        "✅ 扫描完成: %d 项检查, 安全评分: %.1f/100",
+        report["summary"]["total"],
+        report["summary"]["score"],
+    )
     return report
 
 
 def print_report(report: dict):
     """打印人类可读的安全报告"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  PERCV 安全基线扫描报告")
     print(f"  ID: {report['scan_id']}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  框架: {report['framework']}")
     print(f"  时间: {report['scanned_at'][:19]}")
     print(f"  评分: {report['summary']['score']}/100")
@@ -210,6 +303,7 @@ def print_report(report: dict):
 
 
 # ── CLI ─────────────────────────────────────────────────────
+
 
 def main():
     if len(sys.argv) < 2:

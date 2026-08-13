@@ -42,7 +42,9 @@ class _LspClient:
             return True
         try:
             self._process = await asyncio.create_subprocess_exec(
-                sys.executable, "-m", "pylsp",
+                sys.executable,
+                "-m",
+                "pylsp",
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -53,17 +55,20 @@ class _LspClient:
             return False
 
         self._reader_task = asyncio.create_task(self._reader())
-        result = await self._request("initialize", {
-            "processId": None,
-            "capabilities": {
-                "textDocument": {
-                    "hover": {"contentFormat": ["plaintext"]},
-                    "completion": {"completionItem": {"snippetSupport": False}},
-                    "definition": {},
-                    "references": {},
+        result = await self._request(
+            "initialize",
+            {
+                "processId": None,
+                "capabilities": {
+                    "textDocument": {
+                        "hover": {"contentFormat": ["plaintext"]},
+                        "completion": {"completionItem": {"snippetSupport": False}},
+                        "definition": {},
+                        "references": {},
+                    },
                 },
             },
-        })
+        )
         if result is None:
             return False
         await self._notify("initialized", {})
@@ -111,12 +116,14 @@ class _LspClient:
     async def _request(self, method: str, params: dict[str, Any]) -> dict[str, Any] | None:
         self._request_id += 1
         msg_id = self._request_id
-        body = json.dumps({
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "method": method,
-            "params": params,
-        })
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "method": method,
+                "params": params,
+            }
+        )
         future: asyncio.Future[dict[str, Any]] = asyncio.Future()
         self._pending[msg_id] = future
         await self._send(body)
@@ -127,11 +134,13 @@ class _LspClient:
             return None
 
     async def _notify(self, method: str, params: dict[str, Any]) -> None:
-        body = json.dumps({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-        })
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": method,
+                "params": params,
+            }
+        )
         await self._send(body)
 
     async def _send(self, body: str) -> None:
@@ -143,27 +152,36 @@ class _LspClient:
 
     async def did_open(self, file_path: str, source: str) -> None:
         uri = Path(file_path).absolute().as_uri()
-        await self._notify("textDocument/didOpen", {
-            "textDocument": {
-                "uri": uri,
-                "languageId": "python",
-                "version": 1,
-                "text": source,
+        await self._notify(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": "python",
+                    "version": 1,
+                    "text": source,
+                },
             },
-        })
+        )
 
     async def did_close(self, file_path: str) -> None:
         uri = Path(file_path).absolute().as_uri()
-        await self._notify("textDocument/didClose", {
-            "textDocument": {"uri": uri},
-        })
+        await self._notify(
+            "textDocument/didClose",
+            {
+                "textDocument": {"uri": uri},
+            },
+        )
 
     async def hover(self, file_path: str, line: int, character: int) -> list[dict[str, Any]]:
         uri = Path(file_path).absolute().as_uri()
-        result = await self._request("textDocument/hover", {
-            "textDocument": {"uri": uri},
-            "position": {"line": line - 1, "character": character},
-        })
+        result = await self._request(
+            "textDocument/hover",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line - 1, "character": character},
+            },
+        )
         if result is None:
             return []
         content = result.get("result")
@@ -177,15 +195,20 @@ class _LspClient:
         return [{"contents": str(contents)}]
 
     async def diagnostics(self, file_path: str) -> list[dict[str, Any]]:
-        result = await self._request("textDocument/diagnostic", {
-            "textDocument": {"uri": Path(file_path).absolute().as_uri()},
-        })
+        result = await self._request(
+            "textDocument/diagnostic",
+            {
+                "textDocument": {"uri": Path(file_path).absolute().as_uri()},
+            },
+        )
         if result is None:
             return []
         diags = result.get("result", {}).get("items", [])
         return [
             {
-                "severity": {1: "error", 2: "warning", 3: "info", 4: "hint"}.get(d.get("severity"), "info"),
+                "severity": {1: "error", 2: "warning", 3: "info", 4: "hint"}.get(
+                    d.get("severity"), "info"
+                ),
                 "message": d.get("message", ""),
                 "line": (d.get("range", {}) or {}).get("start", {}).get("line", 0) + 1,
             }
@@ -194,10 +217,13 @@ class _LspClient:
 
     async def definition(self, file_path: str, line: int, character: int) -> list[dict[str, Any]]:
         uri = Path(file_path).absolute().as_uri()
-        result = await self._request("textDocument/definition", {
-            "textDocument": {"uri": uri},
-            "position": {"line": line - 1, "character": character},
-        })
+        result = await self._request(
+            "textDocument/definition",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line - 1, "character": character},
+            },
+        )
         if result is None:
             return []
         locs = result.get("result")
@@ -215,11 +241,14 @@ class _LspClient:
 
     async def references(self, file_path: str, line: int, character: int) -> list[dict[str, Any]]:
         uri = Path(file_path).absolute().as_uri()
-        result = await self._request("textDocument/references", {
-            "textDocument": {"uri": uri},
-            "position": {"line": line - 1, "character": character},
-            "context": {"includeDeclaration": True},
-        })
+        result = await self._request(
+            "textDocument/references",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line - 1, "character": character},
+                "context": {"includeDeclaration": True},
+            },
+        )
         if result is None:
             return []
         refs = result.get("result", [])
@@ -233,10 +262,13 @@ class _LspClient:
 
     async def completion(self, file_path: str, line: int, character: int) -> list[dict[str, Any]]:
         uri = Path(file_path).absolute().as_uri()
-        result = await self._request("textDocument/completion", {
-            "textDocument": {"uri": uri},
-            "position": {"line": line - 1, "character": character},
-        })
+        result = await self._request(
+            "textDocument/completion",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line - 1, "character": character},
+            },
+        )
         if result is None:
             return []
         items = result.get("result", {})
@@ -264,7 +296,9 @@ class _LspClient:
 
 class LSPInput(BaseModel):
     file_path: str = Field(..., description="Path to the source file")
-    action: str = Field("hover", description="LSP action: hover, completion, references, diagnostics, definition")
+    action: str = Field(
+        "hover", description="LSP action: hover, completion, references, diagnostics, definition"
+    )
     line: int = Field(1, description="Line number")
     character: int = Field(0, description="Character offset on the line")
 
@@ -348,38 +382,41 @@ class LSPTool(Tool[LSPInput, LSPOutput]):
         if input.action == "hover":
             symbol = self._find_symbol_at(source, input.line, input.character)
             if symbol:
-                results.append({
-                    "symbol": symbol,
-                    "kind": "identifier",
-                    "file": input.file_path,
-                    "line": input.line,
-                })
+                results.append(
+                    {
+                        "symbol": symbol,
+                        "kind": "identifier",
+                        "file": input.file_path,
+                        "line": input.line,
+                    }
+                )
         elif input.action == "diagnostics":
             try:
                 ast.parse(source)
                 results.append({"severity": "ok", "message": "No syntax errors"})
             except SyntaxError as e:
-                results.append({
-                    "severity": "error",
-                    "message": str(e),
-                    "line": e.lineno or 0,
-                })
+                results.append(
+                    {
+                        "severity": "error",
+                        "message": str(e),
+                        "line": e.lineno or 0,
+                    }
+                )
         elif input.action == "definition":
             symbol = self._find_symbol_at(source, input.line, input.character)
             if symbol:
-                results.append({
-                    "symbol": symbol,
-                    "file": input.file_path,
-                    "line": input.line,
-                })
+                results.append(
+                    {
+                        "symbol": symbol,
+                        "file": input.file_path,
+                        "line": input.line,
+                    }
+                )
         elif input.action == "references":
             symbol = self._find_symbol_at(source, input.line, input.character)
             if symbol:
                 refs = self._find_references(source, symbol)
-                results = [
-                    {"symbol": symbol, "file": input.file_path, "line": r}
-                    for r in refs
-                ]
+                results = [{"symbol": symbol, "file": input.file_path, "line": r} for r in refs]
         elif input.action == "completion":
             completions = self._get_completions(source, input.line, input.character)
             results = [{"label": c, "kind": "keyword"} for c in completions]
@@ -475,7 +512,9 @@ class CodeCompletionTool(Tool[CodeCompletionInput, CodeCompletionOutput]):
     async def validate(self, input: CodeCompletionInput) -> ValidationResult:
         return ValidationResult(is_valid=True)
 
-    async def call(self, input: CodeCompletionInput, ctx: ToolContext) -> ToolResult[CodeCompletionOutput]:
+    async def call(
+        self, input: CodeCompletionInput, ctx: ToolContext
+    ) -> ToolResult[CodeCompletionOutput]:
         nearby_symbols: list[str] = []
         if self._code_indexer is not None:
             try:
@@ -495,7 +534,9 @@ class CodeCompletionTool(Tool[CodeCompletionInput, CodeCompletionOutput]):
         if self._llm_backend is not None:
             try:
                 result = self._llm_backend.generate(prompt)
-                generated = result.get("completion", "") if isinstance(result, dict) else str(result)
+                generated = (
+                    result.get("completion", "") if isinstance(result, dict) else str(result)
+                )
             except Exception:
                 generated = self._fallback_completion(input.context_before, input.context_after)
         else:

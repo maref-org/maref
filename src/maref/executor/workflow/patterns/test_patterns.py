@@ -23,6 +23,7 @@ from maref.executor.workflow.patterns.generate_filter import (
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
+
 def _make_pool(
     db_path: str,
     handlers: dict[str, Callable] | None = None,
@@ -38,6 +39,7 @@ def _make_pool(
 # ====================================================================
 # FanOutPattern
 # ====================================================================
+
 
 class TestFanOutPattern:
     def test_fan_out_basic(self):
@@ -121,6 +123,7 @@ class TestFanOutPattern:
 # TournamentPattern
 # ====================================================================
 
+
 class TestTournamentPattern:
     def test_tournament_basic(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -203,16 +206,14 @@ class TestTournamentPattern:
 # GenerateFilterPattern
 # ====================================================================
 
+
 class TestGenerateFilterPattern:
     def test_generate_filter_basic(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = os.path.join(tmp, "test.db")
 
             def generator(task: Task) -> None:
-                task.payload["result"] = [
-                    {"item": f"idea {i}", "score": 10 - i}
-                    for i in range(5)
-                ]
+                task.payload["result"] = [{"item": f"idea {i}", "score": 10 - i} for i in range(5)]
 
             def filter_handler(task: Task) -> None:
                 candidates = task.payload.get("candidates", [])
@@ -234,9 +235,7 @@ class TestGenerateFilterPattern:
             db = os.path.join(tmp, "test.db")
 
             def generator(task: Task) -> None:
-                task.payload["result"] = [
-                    {"item": f"idea {i}"} for i in range(5)
-                ]
+                task.payload["result"] = [{"item": f"idea {i}"} for i in range(5)]
 
             pool = _make_pool(db, {"generator": generator})
             pattern = GenerateFilterPattern(pool)
@@ -278,7 +277,9 @@ class TestGenerateFilterPattern:
             pool = _make_pool(db)
             pattern = GenerateFilterPattern(pool)
 
-            script = pattern.to_workflow_script("ideas", GenerateFilterConfig(n_generate=5, n_keep=2))
+            script = pattern.to_workflow_script(
+                "ideas", GenerateFilterConfig(n_generate=5, n_keep=2)
+            )
             assert script.name.startswith("genfilter:")
             assert len(script.steps) == 2
 
@@ -286,6 +287,7 @@ class TestGenerateFilterPattern:
 # ====================================================================
 # PatternResult
 # ====================================================================
+
 
 class TestPatternResult:
     def test_default_completed_at(self):

@@ -95,10 +95,10 @@ class ContributionScore:
 
 # Contribution weights — sum to 1.0.
 _CONTRIBUTION_WEIGHTS: dict[str, float] = {
-    "duration": 0.30,   # longer work = more contribution
-    "tokens": 0.25,     # more tokens processed = more contribution
-    "complexity": 0.30, # higher complexity = more contribution
-    "success": 0.15,    # successful completion bonus
+    "duration": 0.30,  # longer work = more contribution
+    "tokens": 0.25,  # more tokens processed = more contribution
+    "complexity": 0.30,  # higher complexity = more contribution
+    "success": 0.15,  # successful completion bonus
 }
 
 
@@ -235,9 +235,7 @@ class TaskMeteringEngine:
         indices = self._index_by_task.get(task_id, [])
         return [self._metrics[i] for i in indices]
 
-    def get_org_metrics(
-        self, org: str, since: float | None = None
-    ) -> list[TaskMetric]:
+    def get_org_metrics(self, org: str, since: float | None = None) -> list[TaskMetric]:
         """Return all metrics involving ``org`` (as provider or consumer).
 
         If ``since`` is given, only metrics at or after that timestamp
@@ -310,9 +308,7 @@ class TaskMeteringEngine:
                 "success": 1.0 if any_success else 0.0,
             }
             factor_breakdown[did] = factors_raw
-            raw_weights[did] = sum(
-                factors_raw[f] * _CONTRIBUTION_WEIGHTS[f] for f in factors_raw
-            )
+            raw_weights[did] = sum(factors_raw[f] * _CONTRIBUTION_WEIGHTS[f] for f in factors_raw)
 
         # Normalise weights so they sum to 1.0 across all agents.
         total_weight = sum(raw_weights.values())
@@ -346,9 +342,7 @@ class TaskMeteringEngine:
         org was provider or consumer.
         """
         metrics = [
-            m
-            for m in self.get_org_metrics(org)
-            if period_start <= m.timestamp <= period_end
+            m for m in self.get_org_metrics(org) if period_start <= m.timestamp <= period_end
         ]
 
         provided = [m for m in metrics if m.provider_org == org]

@@ -27,28 +27,50 @@ class AgentCardConfig:
             return False
 
     def to_dict(self) -> dict[str, Any]:
-        return {'agent_urn': self.agent_urn, 'agent_name': self.agent_name, 'agent_version': self.agent_version, 'agent_description': self.agent_description, 'agent_endpoints': self.agent_endpoints, 'agent_capabilities': self.agent_capabilities, 'agent_authentication': self.agent_authentication, 'agent_metadata': self.agent_metadata, 'agent_ttl': self.agent_ttl, 'agent_max_retries': self.agent_max_retries, 'agent_timeout': self.agent_timeout}
+        return {
+            "agent_urn": self.agent_urn,
+            "agent_name": self.agent_name,
+            "agent_version": self.agent_version,
+            "agent_description": self.agent_description,
+            "agent_endpoints": self.agent_endpoints,
+            "agent_capabilities": self.agent_capabilities,
+            "agent_authentication": self.agent_authentication,
+            "agent_metadata": self.agent_metadata,
+            "agent_ttl": self.agent_ttl,
+            "agent_max_retries": self.agent_max_retries,
+            "agent_timeout": self.agent_timeout,
+        }
+
 
 def validate_agent_urn(urn: str) -> None:
-    if not re.match('^urn:[a-zA-Z0-9\\-]+:[a-zA-Z0-9\\-]+$', urn):
-        raise ValueError(f'Invalid URN format: {urn}')
+    if not re.match("^urn:[a-zA-Z0-9\\-]+:[a-zA-Z0-9\\-]+$", urn):
+        raise ValueError(f"Invalid URN format: {urn}")
+
 
 def get_default_card_config() -> AgentCardConfig:
-    return AgentCardConfig(agent_urn='urn:maref:default', agent_name='default', agent_version='1.0.0', agent_description='Default agent card configuration')
+    return AgentCardConfig(
+        agent_urn="urn:maref:default",
+        agent_name="default",
+        agent_version="1.0.0",
+        agent_description="Default agent card configuration",
+    )
+
 
 def validate_endpoint_consistency(endpoints: list[dict[str, Any]]) -> None:
     for endpoint in endpoints:
-        if 'url' not in endpoint:
+        if "url" not in endpoint:
             raise ValueError("Endpoint missing required 'url' field")
-        if 'protocol' not in endpoint:
+        if "protocol" not in endpoint:
             raise ValueError("Endpoint missing required 'protocol' field")
+
 
 def validate_capabilities_completeness(capabilities: list[str]) -> None:
     if not capabilities:
-        raise ValueError('At least one capability is required')
+        raise ValueError("At least one capability is required")
     for cap in capabilities:
         if not isinstance(cap, str) or not cap.strip():
-            raise ValueError(f'Invalid capability: {cap}')
+            raise ValueError(f"Invalid capability: {cap}")
+
 
 MAS_CAPABILITIES: list[dict[str, Any]] = [
     {

@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 # Capability Types
 # ---------------------------------------------------------------------------
 
+
 class CapabilityType(Enum):
     MCP_TOOL = "mcp_tool"
     HARNESS = "harness"
@@ -47,6 +48,7 @@ class ExecutionMode(Enum):
 @dataclass
 class ToolCallContext:
     """Context passed to every tool execution."""
+
     caller_id: str = ""
     round_id: str = ""
     role: str = ""
@@ -57,6 +59,7 @@ class ToolCallContext:
 @dataclass
 class ToolCallRecord:
     """Immutable audit record for a tool invocation."""
+
     tool_id: str
     capability_type: CapabilityType
     caller_id: str
@@ -92,17 +95,16 @@ class PermissionMiddleware(ABC):
     """Base class for permission middleware in the execution chain."""
 
     @abstractmethod
-    def check(self, request: PermissionRequest) -> PermissionVerdict:
-        ...
+    def check(self, request: PermissionRequest) -> PermissionVerdict: ...
 
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
 
 # ---------------------------------------------------------------------------
 # Unified Capability Interface
 # ---------------------------------------------------------------------------
+
 
 class Capability(Protocol):
     """Minimal interface all capabilities must implement.
@@ -110,40 +112,46 @@ class Capability(Protocol):
     Uses Protocol (structural subtyping) so existing classes like
     MCPServer, StressHarness, etc. can be adapted without inheritance.
     """
+
     capability_id: str
     capability_type: CapabilityType
     definition: ToolDefinition
 
-    def execute(self, method_name: str, arguments: dict[str, Any],
-                context: ToolCallContext) -> dict[str, Any]:
-        ...
+    def execute(
+        self, method_name: str, arguments: dict[str, Any], context: ToolCallContext
+    ) -> dict[str, Any]: ...
 
-    def list_methods(self) -> list[str]:
-        ...
+    def list_methods(self) -> list[str]: ...
 
 
 # ---------------------------------------------------------------------------
 # Capability Adapters
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class MCPCapabilityAdapter:
     """Adapt an MCPServer to the Capability interface."""
+
     capability_id: str
     server: Any  # MCPServer
     definition: ToolDefinition
     capability_type: CapabilityType = CapabilityType.MCP_TOOL
 
-    def execute(self, method_name: str, arguments: dict[str, Any],
-                context: ToolCallContext) -> dict[str, Any]:
+    def execute(
+        self, method_name: str, arguments: dict[str, Any], context: ToolCallContext
+    ) -> dict[str, Any]:
         transport = self.server.get_inprocess_transport()
         request_id = int(time.time() * 1000)
         from maref.integration.mcp_transport import JSONRPCRequest
-        response = transport.call(JSONRPCRequest(
-            id=request_id,
-            method="tools/call",
-            params={"name": method_name, "arguments": arguments},
-        ))
+
+        response = transport.call(
+            JSONRPCRequest(
+                id=request_id,
+                method="tools/call",
+                params={"name": method_name, "arguments": arguments},
+            )
+        )
         if response.error:
             return {"error": response.error["message"], "success": False}
         return {"result": response.result, "success": True}
@@ -155,13 +163,15 @@ class MCPCapabilityAdapter:
 @dataclass
 class HarnessCapabilityAdapter:
     """Adapt a Harness (StressHarness, EmergenceTestHarness) to Capability."""
+
     capability_id: str
     harness: Any
     definition: ToolDefinition
     capability_type: CapabilityType = CapabilityType.HARNESS
 
-    def execute(self, method_name: str, arguments: dict[str, Any],
-                context: ToolCallContext) -> dict[str, Any]:
+    def execute(
+        self, method_name: str, arguments: dict[str, Any], context: ToolCallContext
+    ) -> dict[str, Any]:
         method = getattr(self.harness, method_name, None)
         if method is None:
             return {"error": f"Unknown method: {method_name}", "success": False}
@@ -174,20 +184,25 @@ class HarnessCapabilityAdapter:
             return {"error": str(e), "success": False}
 
     def list_methods(self) -> list[str]:
-        return [m for m in dir(self.harness)
-                if not m.startswith("_") and callable(getattr(self.harness, m))]
+        return [
+            m
+            for m in dir(self.harness)
+            if not m.startswith("_") and callable(getattr(self.harness, m))
+        ]
 
 
 @dataclass
 class FunctionCapabilityAdapter:
     """Adapt a plain Python function to Capability."""
+
     capability_id: str
     func: Any
     definition: ToolDefinition
     capability_type: CapabilityType = CapabilityType.BUILTIN
 
-    def execute(self, method_name: str, arguments: dict[str, Any],
-                context: ToolCallContext) -> dict[str, Any]:
+    def execute(
+        self, method_name: str, arguments: dict[str, Any], context: ToolCallContext
+    ) -> dict[str, Any]:
         if method_name != self.definition.name:
             return {"error": f"Unknown method: {method_name}", "success": False}
         try:
@@ -204,6 +219,7 @@ class FunctionCapabilityAdapter:
 # Role Definitions
 # ---------------------------------------------------------------------------
 
+
 class AgentRole(Enum):
     ARCHITECT = "architect"
     DEVELOPER = "developer"
@@ -215,12 +231,22 @@ class AgentRole(Enum):
 
 # Default role → allowed capability types mapping
 ROLE_CAPABILITY_ALLOWLIST: dict[AgentRole, set[CapabilityType]] = {
-    AgentRole.ARCHITECT: {CapabilityType.MCP_TOOL, CapabilityType.HARNESS, CapabilityType.BUILTIN, CapabilityType.CUSTOM},
+    AgentRole.ARCHITECT: {
+        CapabilityType.MCP_TOOL,
+        CapabilityType.HARNESS,
+        CapabilityType.BUILTIN,
+        CapabilityType.CUSTOM,
+    },
     AgentRole.DEVELOPER: {CapabilityType.MCP_TOOL, CapabilityType.BUILTIN},
     AgentRole.TESTER: {CapabilityType.HARNESS, CapabilityType.MCP_TOOL},
     AgentRole.AUDITOR: {CapabilityType.MCP_TOOL, CapabilityType.HARNESS},
     AgentRole.OPERATOR: {CapabilityType.MCP_TOOL, CapabilityType.BUILTIN},
-    AgentRole.ADMIN: {CapabilityType.MCP_TOOL, CapabilityType.HARNESS, CapabilityType.BUILTIN, CapabilityType.CUSTOM},
+    AgentRole.ADMIN: {
+        CapabilityType.MCP_TOOL,
+        CapabilityType.HARNESS,
+        CapabilityType.BUILTIN,
+        CapabilityType.CUSTOM,
+    },
 }
 
 # Default role → risk level ceiling
@@ -230,13 +256,19 @@ ROLE_RISK_CEILING: dict[AgentRole, set[ToolRiskLevel]] = {
     AgentRole.TESTER: {ToolRiskLevel.LOW, ToolRiskLevel.MEDIUM},
     AgentRole.AUDITOR: {ToolRiskLevel.LOW, ToolRiskLevel.MEDIUM},
     AgentRole.OPERATOR: {ToolRiskLevel.LOW},
-    AgentRole.ADMIN: {ToolRiskLevel.LOW, ToolRiskLevel.MEDIUM, ToolRiskLevel.HIGH, ToolRiskLevel.CRITICAL},
+    AgentRole.ADMIN: {
+        ToolRiskLevel.LOW,
+        ToolRiskLevel.MEDIUM,
+        ToolRiskLevel.HIGH,
+        ToolRiskLevel.CRITICAL,
+    },
 }
 
 
 # ---------------------------------------------------------------------------
 # Built-in Permission Middlewares
 # ---------------------------------------------------------------------------
+
 
 class RoleCapabilityFilter(PermissionMiddleware):
     """Block tool types not allowed for the caller's role."""
@@ -316,6 +348,7 @@ class TrustLevelOverride(PermissionMiddleware):
 # Unified Registry
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RegisteredCapability:
     capability: Capability
@@ -353,8 +386,9 @@ class UnifiedToolRegistry:
 
     # ---- Registration ----
 
-    def register(self, capability: Capability, tags: list[str] | None = None,
-                 enabled: bool = True) -> str:
+    def register(
+        self, capability: Capability, tags: list[str] | None = None, enabled: bool = True
+    ) -> str:
         """Register a capability. Returns capability_id."""
         cap_id = capability.capability_id
         if cap_id in self._capabilities:
@@ -367,9 +401,9 @@ class UnifiedToolRegistry:
         )
         return cap_id
 
-    def register_mcp_server(self, name: str, server: Any,
-                            definition: ToolDefinition,
-                            tags: list[str] | None = None) -> str:
+    def register_mcp_server(
+        self, name: str, server: Any, definition: ToolDefinition, tags: list[str] | None = None
+    ) -> str:
         """Register an MCPServer as a capability."""
         adapter = MCPCapabilityAdapter(
             capability_id=name,
@@ -378,9 +412,9 @@ class UnifiedToolRegistry:
         )
         return self.register(adapter, tags=tags)
 
-    def register_harness(self, name: str, harness: Any,
-                         definition: ToolDefinition,
-                         tags: list[str] | None = None) -> str:
+    def register_harness(
+        self, name: str, harness: Any, definition: ToolDefinition, tags: list[str] | None = None
+    ) -> str:
         """Register a Harness (StressHarness, etc.) as a capability."""
         adapter = HarnessCapabilityAdapter(
             capability_id=name,
@@ -389,8 +423,7 @@ class UnifiedToolRegistry:
         )
         return self.register(adapter, tags=tags)
 
-    def register_function(self, name: str, func: Any,
-                          definition: ToolDefinition) -> str:
+    def register_function(self, name: str, func: Any, definition: ToolDefinition) -> str:
         """Register a plain function as a capability."""
         adapter = FunctionCapabilityAdapter(
             capability_id=name,
@@ -466,12 +499,14 @@ class UnifiedToolRegistry:
                 continue
             if risk not in allowed_risks:
                 continue
-            visible.append({
-                "id": cap_id,
-                "type": cap_type.value,
-                "definition": rc.capability.definition.to_dict(),
-                "tags": rc.tags,
-            })
+            visible.append(
+                {
+                    "id": cap_id,
+                    "type": cap_type.value,
+                    "definition": rc.capability.definition.to_dict(),
+                    "tags": rc.tags,
+                }
+            )
         return visible
 
     def get(self, capability_id: str) -> Capability | None:
@@ -488,9 +523,13 @@ class UnifiedToolRegistry:
 
     # ---- Execution ----
 
-    def execute(self, capability_id: str, method_name: str,
-                arguments: dict[str, Any],
-                context: ToolCallContext | None = None) -> dict[str, Any]:
+    def execute(
+        self,
+        capability_id: str,
+        method_name: str,
+        arguments: dict[str, Any],
+        context: ToolCallContext | None = None,
+    ) -> dict[str, Any]:
         """Execute a capability method with full permission chain and audit."""
         rc = self._capabilities.get(capability_id)
         if rc is None:
@@ -545,17 +584,19 @@ class UnifiedToolRegistry:
                 rc.error_count += 1
 
             # Audit
-            self._record_call(ToolCallRecord(
-                tool_id=capability_id,
-                capability_type=capability.capability_type,
-                caller_id=ctx.caller_id,
-                method_name=method_name,
-                arguments=arguments,
-                timestamp=time.time(),
-                duration_ms=duration_ms,
-                success=success,
-                error=error,
-            ))
+            self._record_call(
+                ToolCallRecord(
+                    tool_id=capability_id,
+                    capability_type=capability.capability_type,
+                    caller_id=ctx.caller_id,
+                    method_name=method_name,
+                    arguments=arguments,
+                    timestamp=time.time(),
+                    duration_ms=duration_ms,
+                    success=success,
+                    error=error,
+                )
+            )
 
             return result
 
@@ -564,17 +605,19 @@ class UnifiedToolRegistry:
             rc.call_count += 1
             rc.error_count += 1
 
-            self._record_call(ToolCallRecord(
-                tool_id=capability_id,
-                capability_type=capability.capability_type,
-                caller_id=ctx.caller_id,
-                method_name=method_name,
-                arguments=arguments,
-                timestamp=time.time(),
-                duration_ms=duration_ms,
-                success=False,
-                error=str(e),
-            ))
+            self._record_call(
+                ToolCallRecord(
+                    tool_id=capability_id,
+                    capability_type=capability.capability_type,
+                    caller_id=ctx.caller_id,
+                    method_name=method_name,
+                    arguments=arguments,
+                    timestamp=time.time(),
+                    duration_ms=duration_ms,
+                    success=False,
+                    error=str(e),
+                )
+            )
 
             return {"error": str(e), "success": False}
 
@@ -583,7 +626,7 @@ class UnifiedToolRegistry:
     def _record_call(self, record: ToolCallRecord) -> None:
         self._call_log.append(record)
         if len(self._call_log) > self._max_call_log:
-            self._call_log = self._call_log[-self._max_call_log:]
+            self._call_log = self._call_log[-self._max_call_log :]
 
         if self._audit_logger:
             self._audit_logger.log(
