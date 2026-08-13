@@ -137,10 +137,16 @@ class TestLangChainInterop:
             handler=echo_handler,
         )
 
-        # 模拟 LangChain 风格调用（传入字典参数）
+        # 模拟 LangChain 风格调用（传入字典参数）；tools/call 需带 MCP 消息信封
+        from maref.integration.mcp_envelope import make_envelope
+
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": "echo", "arguments": {"text": "hello langchain"}},
+            params={
+                **make_envelope("langchain-tool"),
+                "name": "echo",
+                "arguments": {"text": "hello langchain"},
+            },
             id=1,
         )
         resp = server.handle_request(req)
