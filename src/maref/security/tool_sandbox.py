@@ -93,9 +93,7 @@ class ToolSandbox:
             wd = workdir_path.resolve()
             if wd != root and not wd.is_relative_to(root):
                 result.blocked = True
-                result.reason = (
-                    f"Sandbox: workdir {wd} escapes workspace root {root}"
-                )
+                result.reason = f"Sandbox: workdir {wd} escapes workspace root {root}"
                 return result
             result.workdir = str(wd)
         else:
@@ -104,8 +102,7 @@ class ToolSandbox:
         if not (0 < timeout <= self.limits.max_runtime_seconds):
             result.blocked = True
             result.reason = (
-                f"Sandbox: timeout {timeout}s exceeds limit "
-                f"{self.limits.max_runtime_seconds}s"
+                f"Sandbox: timeout {timeout}s exceeds limit {self.limits.max_runtime_seconds}s"
             )
             return result
         result.timeout = timeout
@@ -118,8 +115,7 @@ class ToolSandbox:
         if len(tokens) > self.limits.max_args:
             result.blocked = True
             result.reason = (
-                f"Sandbox: argument count {len(tokens)} exceeds "
-                f"limit {self.limits.max_args}"
+                f"Sandbox: argument count {len(tokens)} exceeds limit {self.limits.max_args}"
             )
             return result
 
@@ -139,10 +135,7 @@ class ToolSandbox:
             if key in self.limits.allow_env_keys:
                 continue
             lowered = key.casefold()
-            if any(
-                needle.casefold() in lowered
-                for needle in self.limits.deny_env_keys
-            ):
+            if any(needle.casefold() in lowered for needle in self.limits.deny_env_keys):
                 denied.add(key)
         for key in denied:
             env.pop(key, None)

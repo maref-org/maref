@@ -738,9 +738,7 @@ class MemoryManager:
             "episodic": self.episodic.purge_expired_retention(default_days),
             "semantic": self.semantic.purge_expired_retention(default_days),
         }
-        self._emit_governance_event(
-            "memory.retention_purge", default_days=default_days, **stats
-        )
+        self._emit_governance_event("memory.retention_purge", default_days=default_days, **stats)
         return stats
 
     def get_stats(self) -> dict[str, Any]:
