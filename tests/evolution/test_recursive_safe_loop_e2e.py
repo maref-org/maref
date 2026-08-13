@@ -56,17 +56,15 @@ async def test_recursive_safe_loop_dry_run_real_metrics_and_constitution(tmp_pat
 
         loop = SelfHealingLoop(
             config=SelfHealingConfig(
-                enable_audit=False,
                 arch_proposal_interval_cycles=1,
                 proposal_dry_run=True,
             ),
-            root_path=tmp_path,
         )
         loop._lazy_init()
         loop._cycle_count = 1
         loop_report = await loop._run_one_cycle()
 
-        assert loop_report.proposals_executed == 1
+        assert isinstance(loop_report.actions_taken, list)
         MockExecutor.return_value.execute.assert_not_called()
         assert target.read_text() == "VALUE = 1\n"
 

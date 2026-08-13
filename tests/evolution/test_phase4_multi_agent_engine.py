@@ -232,6 +232,7 @@ class TestMultiAgentEvolutionEngine:
     def test_dry_run_succeeds(self) -> None:
         config = MultiAgentEvolutionConfig.with_default_agents()
         config.base_config.dry_run = True
+        config.base_config.metrics_mode = "simulated"
         engine = MultiAgentEvolutionEngine(config)
         result = asyncio.run(engine.run())
         assert isinstance(result, MultiAgentEvolutionResult)
@@ -240,6 +241,7 @@ class TestMultiAgentEvolutionEngine:
     def test_dry_run_empty_engine(self) -> None:
         config = MultiAgentEvolutionConfig()
         config.base_config.dry_run = True
+        config.base_config.metrics_mode = "simulated"
         engine = MultiAgentEvolutionEngine(config)
         result = asyncio.run(engine.run())
         assert isinstance(result, MultiAgentEvolutionResult)
@@ -249,7 +251,7 @@ class TestMultiAgentEvolutionEngine:
         """Dry run with multiple rounds."""
         from maref.evolution.metrics import CycleSpec
 
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         base.cycles["c1"] = CycleSpec(name="test", rounds=3, description="test")
         config = MultiAgentEvolutionConfig(
             base_config=base,
@@ -285,6 +287,7 @@ class TestMultiAgentEvolutionEngine:
     def test_experience_store_tracks_role_rewards(self) -> None:
         config = MultiAgentEvolutionConfig.with_default_agents()
         config.base_config.dry_run = False
+        config.base_config.metrics_mode = "simulated"
         config.base_config.cycles["c1"] = __import__(
             "maref.evolution.metrics", fromlist=["CycleSpec"]
         ).CycleSpec(name="test", rounds=6, description="test")
@@ -308,7 +311,7 @@ class TestIntegration:
         """Run a complete evolution cycle and verify policy updates occur."""
         from maref.evolution.metrics import CycleSpec
 
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         base.cycles["c1"] = CycleSpec(name="test", rounds=10, description="test")
         base.cycles["c2"] = CycleSpec(
             name="test", rounds=10, description="test", meta_learning_enabled=True
@@ -347,7 +350,7 @@ class TestIntegration:
         """Verify constitution guard tracks violations during evolution."""
         from maref.evolution.metrics import CycleSpec
 
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         base.cycles["c1"] = CycleSpec(name="test", rounds=10, description="test")
         base.cycles["c2"] = CycleSpec(
             name="test", rounds=10, description="test", meta_learning_enabled=True
