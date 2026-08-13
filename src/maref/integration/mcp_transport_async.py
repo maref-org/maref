@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from maref.integration.mcp_envelope import inject_envelope
 from maref.integration.mcp_transport import (
     MCP_JSONRPC_VERSION,
     JSONRPCRequest,
@@ -54,10 +55,11 @@ class AsyncMCPTransport(ABC):
         return await self.send(JSONRPCRequest(method="tools/list", id=2))
 
     async def send_tool_call(self, tool_name: str, arguments: dict[str, Any]) -> JSONRPCResponse:
+        # 宪法第十五-A条: 工具调用需带 MCP 消息信封（trace_id/timestamp/source_agent）
         return await self.send(
             JSONRPCRequest(
                 method="tools/call",
-                params={"name": tool_name, "arguments": arguments},
+                params=inject_envelope({"name": tool_name, "arguments": arguments}),
                 id=3,
             )
         )

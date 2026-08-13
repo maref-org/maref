@@ -1,0 +1,2 @@
+# TruffleHog Lob detector 误报：test_ 前缀的测试函数名被误判为 Lob API key
+tests/security/test_v053_s2_tool_sandbox.py

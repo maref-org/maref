@@ -22,7 +22,7 @@ jobs:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --only-verified
+          extra_args: --only-verified --exclude-paths .trufflehogignore
       - name: TruffleHog filesystem scan
         if: github.event_name != 'pull_request'
         run: |

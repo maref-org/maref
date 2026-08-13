@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import threading
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -19,10 +19,10 @@ from maref.integration.mcp_transport import (
     TransportState,
 )
 
-
 # =============================================================================
 # TransportState
 # =============================================================================
+
 
 class TestTransportState:
     def test_values(self) -> None:
@@ -39,6 +39,7 @@ class TestTransportState:
 # =============================================================================
 # JSONRPCRequest
 # =============================================================================
+
 
 class TestJSONRPCRequest:
     def test_default_construction(self) -> None:
@@ -87,6 +88,7 @@ class TestJSONRPCRequest:
 # =============================================================================
 # JSONRPCResponse
 # =============================================================================
+
 
 class TestJSONRPCResponse:
     def test_default_construction(self) -> None:
@@ -143,7 +145,9 @@ class TestJSONRPCResponse:
         assert resp.id == 1
 
     def test_from_json_with_error(self) -> None:
-        raw = '{"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": 1}'
+        raw = (
+            '{"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": 1}'
+        )
         resp = JSONRPCResponse.from_json(raw)
         assert resp.jsonrpc == "2.0"
         assert resp.result is None
@@ -175,6 +179,7 @@ class TestJSONRPCResponse:
 # =============================================================================
 # MCPTransport (abstract base)
 # =============================================================================
+
 
 class TestMCPTransport:
     def test_state_property_default(self) -> None:
@@ -213,10 +218,13 @@ class TestMCPTransport:
         resp = transport.send_tool_call("my_tool", {"x": 1})
         assert transport._last_request is not None
         assert transport._last_request.method == "tools/call"
-        assert transport._last_request.params == {
-            "name": "my_tool",
-            "arguments": {"x": 1},
-        }
+        params = transport._last_request.params
+        assert params["name"] == "my_tool"
+        assert params["arguments"] == {"x": 1}
+        # 宪法第十五-A条: 工具调用请求需带 MCP 消息信封
+        assert params["trace_id"]
+        assert params["source_agent"]
+        assert params["timestamp"]
         assert transport._last_request.id == 3
         assert resp.id == 3
 
@@ -255,6 +263,7 @@ class _ConcreteTransport(MCPTransport):
 # =============================================================================
 # InProcessTransport
 # =============================================================================
+
 
 class TestInProcessTransport:
     def test_default_construction(self) -> None:
@@ -367,6 +376,7 @@ class TestInProcessTransport:
 # HTTPTransport
 # =============================================================================
 
+
 class TestHTTPTransport:
     def test_construction(self) -> None:
         t = HTTPTransport("http://localhost:8000/mcp")
@@ -381,9 +391,7 @@ class TestHTTPTransport:
             t = HTTPTransport("http://localhost:8000/mcp")
             t.connect()
             assert t.state == TransportState.CONNECTED
-            mock_get.assert_called_once_with(
-                "http://localhost:8000/mcp", timeout=5.0
-            )
+            mock_get.assert_called_once_with("http://localhost:8000/mcp", timeout=5.0)
 
     def test_connect_http_error_status(self) -> None:
         with patch("httpx.get") as mock_get:
@@ -469,6 +477,7 @@ class TestHTTPTransport:
 # StdioTransport
 # =============================================================================
 
+
 class TestStdioTransport:
     def test_construction(self) -> None:
         t = StdioTransport(["python", "-m", "some_server"])
@@ -549,7 +558,9 @@ class TestStdioTransport:
             mock_process.poll.return_value = None
             mock_stdin = MagicMock()
             mock_stdout = MagicMock()
-            mock_stdout.readline.return_value = b'{"jsonrpc": "2.0", "result": {"ok": true}, "id": 1}\n'
+            mock_stdout.readline.return_value = (
+                b'{"jsonrpc": "2.0", "result": {"ok": true}, "id": 1}\n'
+            )
             mock_process.stdin = mock_stdin
             mock_process.stdout = mock_stdout
             mock_popen.return_value = mock_process
@@ -561,7 +572,9 @@ class TestStdioTransport:
             resp = t.send(req)
             assert resp.result == {"ok": True}
             assert resp.id == 1
-            mock_stdin.write.assert_called_once_with(b'{"jsonrpc": "2.0", "method": "ping", "id": 1}\n')
+            mock_stdin.write.assert_called_once_with(
+                b'{"jsonrpc": "2.0", "method": "ping", "id": 1}\n'
+            )
             mock_stdin.flush.assert_called_once()
 
     def test_send_process_dead(self) -> None:
@@ -625,6 +638,7 @@ class TestStdioTransport:
 # =============================================================================
 # SSETransport
 # =============================================================================
+
 
 class TestSSETransport:
     def test_construction(self) -> None:
@@ -912,8 +926,10 @@ class TestSSETransport:
 
     def test_process_event_callback_exception_does_not_crash(self) -> None:
         t = SSETransport("http://localhost:8000/sse")
+
         def failing_cb(_: str) -> None:
             raise ValueError("boom")
+
         ok_cb = MagicMock()
         t.on_event("message", failing_cb)
         t.on_event("message", ok_cb)
@@ -975,5 +991,3 @@ class TestSSETransport:
         result = t.send(req)
         assert result.result == {"from": "sse"}
         assert result.id == rid
-
-

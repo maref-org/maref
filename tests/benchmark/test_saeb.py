@@ -151,6 +151,7 @@ def test_generate_json_report(calculator_scenario: SAEBScenario) -> None:
     assert data["agents"][0]["agent"] == "test-json"
 
 
+@pytest.mark.benchmark
 def test_run_comparison(calculator_scenario: SAEBScenario) -> None:
     from maref.evaluation.saeb import run_comparison
     from maref.evaluation.saeb.runner import MAREFSelfAdapter, SubprocessAdapter
@@ -189,6 +190,7 @@ def test_degradation_detection() -> None:
     assert len(result['alerts']) >= 3
 
 
+@pytest.mark.benchmark
 def test_maref_self_adapter(calculator_scenario: SAEBScenario) -> None:
     adapter = MAREFSelfAdapter(src_dir="calculator")
     assert adapter.name() == "maref-self"

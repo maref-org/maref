@@ -30,7 +30,6 @@ from maref.evolution.reporter import (
     generate_final_report,
 )
 from maref.learning.replay import DecisionOutcome
-from maref_lite.meta_learning import MetaLearner
 
 ROUND_SEED = 42
 
@@ -137,6 +136,10 @@ class RecursiveEvolutionEngine:
             cooldown_seconds=30.0,
         )
         self._sandbox = PolicySandbox()
+        from maref_lite.meta_learning import (
+            MetaLearner,  # 延迟导入，避免与 maref_lite.meta_learning→state_machine→governance 循环
+        )
+
         self._meta_learner = MetaLearner()
 
     @property

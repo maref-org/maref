@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-class AuditSummary(BaseModel, frozen=True):  # type: ignore[call-arg]
+class AuditSummary(BaseModel, frozen=True):
     total_events: int = 0
     time_range_start: float | None = None
     time_range_end: float | None = None
@@ -17,14 +17,14 @@ class AuditSummary(BaseModel, frozen=True):  # type: ignore[call-arg]
     actor_counts: dict[str, int] = Field(default_factory=dict)
 
 
-class SystemStateSnapshot(BaseModel, frozen=True):  # type: ignore[call-arg]
+class SystemStateSnapshot(BaseModel, frozen=True):
     governance_state: str = ""
     active_agents_count: int = 0
     merkle_tree_size: int = 0
     version: str = ""
 
 
-class GovernanceReport(BaseModel, frozen=True, extra="forbid"):  # type: ignore[call-arg]
+class GovernanceReport(BaseModel, frozen=True, extra="forbid"):
     report_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     report_version: str = "1.0"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())

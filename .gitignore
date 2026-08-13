@@ -207,6 +207,7 @@ rel_gen_*.py
 # Evolution runtime artifacts (regenerated on each run)
 evolution_results/
 .evolution_vault/
+.chaos-reports/
 
 # Governance runtime data (sidecar state)
 .governance/

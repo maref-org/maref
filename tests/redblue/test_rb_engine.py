@@ -160,7 +160,7 @@ class TestAttackVectors:
         assert BlueLevel.B5.label == "完全自主"
 
     def test_attack_categories(self) -> None:
-        assert len(AttackCategory) == 13
+        assert len(AttackCategory) == 14
 
 
 # ── Attack Executor Tests (RB5-RB12) ─────────────────────────────
@@ -205,7 +205,6 @@ class TestAttackExecutor:
     def test_attack_on_isolated_copies(self) -> None:
         executor = AttackExecutor()
         sm = GovernanceStateMachine()
-        original_state = sm.current_state
         executor.execute(PHASE1_ATTACKS[0], target_sm=sm)
 
 

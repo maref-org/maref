@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import patch
-
 from maref.desktop.browser_controller import (
     BrowserAction,
     BrowserController,
@@ -24,7 +22,11 @@ class TestBrowserAction:
         assert BrowserAction.SCREENSHOT.value == "screenshot"
         assert BrowserAction.EXECUTE_JS.value == "execute_js"
         assert BrowserAction.GET_HTML.value == "get_html"
-        assert len(BrowserAction) == 10
+        assert BrowserAction.GO_BACK.value == "go_back"
+        assert BrowserAction.GO_FORWARD.value == "go_forward"
+        assert BrowserAction.RELOAD.value == "reload"
+        assert BrowserAction.GET_ELEMENT_TEXT.value == "get_element_text"
+        assert len(BrowserAction) == 14
 
 
 class TestBrowserResult:
@@ -63,46 +65,40 @@ class TestBrowserResult:
 
 class TestBrowserController:
     def test_default_init(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            bc = BrowserController()
-            assert bc.dry_run is False
-            assert bc.session_id.startswith("bc_")
-
-    def test_dry_run_from_env(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            with patch.dict("os.environ", {"MAREF_BROWSER_DRY_RUN": "1"}):
-                bc = BrowserController()
-                assert bc.dry_run is True
+        bc = BrowserController()
+        assert bc.dry_run is True
+        assert bc.browser_type == BrowserType.CHROMIUM
 
     def test_dry_run_from_constructor(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            bc = BrowserController(dry_run=True)
-            assert bc.dry_run is True
+        bc = BrowserController(dry_run=True)
+        assert bc.dry_run is True
 
-    def test_dry_run_false_from_env(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            with patch.dict("os.environ", {"MAREF_BROWSER_DRY_RUN": "0"}):
-                bc = BrowserController()
-                assert bc.dry_run is False
+    def test_dry_run_false_from_constructor(self) -> None:
+        bc = BrowserController(dry_run=False)
+        assert bc.dry_run is False
 
     def test_is_safe_domain_allowed(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            bc = BrowserController()
-            assert bc.is_safe_domain("https://docs.python.org") is True
-            assert bc.is_safe_domain("https://github.com/maref") is True
+        bc = BrowserController()
+        assert bc.is_safe_domain("https://docs.python.org") is True
+        assert bc.is_safe_domain("https://github.com/maref") is True
 
     def test_is_safe_domain_blocked(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            bc = BrowserController()
-            assert bc.is_safe_domain("https://malware.com") is False
-            assert bc.is_safe_domain("http://evil.example") is False
+        bc = BrowserController()
+        assert bc.is_safe_domain("https://malware.com") is False
+        assert bc.is_safe_domain("http://evil.example") is False
 
     def test_is_safe_domain_invalid(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            bc = BrowserController()
-            assert bc.is_safe_domain("not-a-url") is False
+        bc = BrowserController()
+        assert bc.is_safe_domain("not-a-url") is False
 
-    def test_properties(self) -> None:
-        with patch("maref.desktop.browser_controller.BrowserSessionPool"):
-            bc = BrowserController()
-            assert bc.pool is not None
+    def test_navigate_dry_run(self) -> None:
+        bc = BrowserController()
+        result = bc.navigate("https://docs.python.org")
+        assert result.success is True
+        assert "[DRY RUN]" in result.text
+
+    def test_navigate_blocked_domain(self) -> None:
+        bc = BrowserController()
+        result = bc.navigate("https://malware.com")
+        assert result.success is False
+        assert "not in safe list" in result.error

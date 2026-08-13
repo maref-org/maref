@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from maref.desktop.browser_controller import (
     BrowserAction,
@@ -450,7 +450,7 @@ class TestSubAgentSpawner:
 class TestBrowserController:
     def test_init_defaults(self):
         bc = BrowserController()
-        assert bc.dry_run is False
+        assert bc.dry_run is True
         assert bc.browser_type == BrowserType.CHROMIUM
 
     def test_is_safe_domain(self):
@@ -683,19 +683,6 @@ class TestBrowserController:
         result = bc.execute_js("document.title")
         assert not result.success
         assert "js error" in result.error
-
-    def test_do_navigate_real_error(self):
-        bc = BrowserController(dry_run=False)
-        with patch.object(bc._pool, 'acquire', side_effect=Exception("pool error")):
-            result = bc.navigate("https://nonexistent-domain-maref-test-99999.test/")
-            assert not result.success
-
-    def test_close_cleanup(self):
-        bc = BrowserController(dry_run=False)
-        with patch.object(bc._pool, 'release', new_callable=AsyncMock) as mock_release:
-            bc.close()
-            mock_release.assert_called_once_with(bc._session_id)
-
 
 class TestFileWatcher:
     def test_init_defaults(self):

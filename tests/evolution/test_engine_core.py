@@ -140,7 +140,7 @@ class TestEngineRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_completes(self) -> None:
-        config = EvolutionConfig(dry_run=True)
+        config = EvolutionConfig(dry_run=True, metrics_mode="simulated")
         engine = RecursiveEvolutionEngine(config)
         result = await engine.run()
         assert result.stop_reason == "dry_run_complete"
@@ -148,7 +148,7 @@ class TestEngineRun:
 
     @pytest.mark.asyncio
     async def test_resume_from_c2(self) -> None:
-        config = EvolutionConfig(resume_from_cycle="c2")
+        config = EvolutionConfig(resume_from_cycle="c2", metrics_mode="simulated")
         engine = RecursiveEvolutionEngine(config)
         await engine.run()
         assert engine._total_rounds > 0

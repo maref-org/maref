@@ -104,6 +104,19 @@ class AuditLogService:
         # Keep an in-memory index for backward-compat queries.
         self._entries: list[GaaSAuditEntry] = []
         self._tenant_index: dict[str, list[int]] = {}
+        if log_path is not None:
+            self._reload_from_disk()
+
+    def _reload_from_disk(self) -> None:
+        """Rebuild the in-memory index from persisted entries after a restart."""
+        logger = getattr(self._bus, "_logger", None)
+        if logger is None:
+            return
+        for entry in logger.read_all(max_entries=None):
+            gaas_entry = GaaSAuditEntry.from_bus_entry(entry)
+            idx = len(self._entries)
+            self._entries.append(gaas_entry)
+            self._tenant_index.setdefault(gaas_entry.tenant_id, []).append(idx)
 
     def log(
         self,

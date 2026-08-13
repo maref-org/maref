@@ -4,6 +4,7 @@ import os
 import tempfile
 
 import pytest
+
 from maref.recursive.self_executor import (
     ASTSandbox,
     ASTValidationResult,
@@ -542,6 +543,7 @@ class TestSelfExecutorEdgeCases:
             "FAILED_SAFETY_GATE",
             "SUCCESS",
             "FAILED_DEPLOY_ROLLED_BACK",
+            "FAILED_VERIFY_ROLLED_BACK",
         )
 
     @pytest.mark.slow

@@ -163,7 +163,7 @@ class TestIntegrationEndToEndPipeline:
         manager = CooldownManager(simulator=sim, audit_store=audit, cooldown_seconds=0.0)
         cid = manager.submit_code("audit_agent", BAD_CODE)
         manager.evaluate(cid)
-        manager.force_merge(cid)
+        manager.force_merge(cid, actor_id="test_operator")
         assert audit.count() >= 5
 
 

@@ -7,6 +7,7 @@ or filesystem side effects.
 
 from __future__ import annotations
 
+import re
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -344,8 +345,10 @@ class TestPercvHelp:
     def test_meta_sandbox_help(self):
         result = runner.invoke(app, ["percv", "meta-sandbox", "--help"])
         assert result.exit_code == 0
-        assert "config-key" in result.stdout.lower()
-        assert "rounds" in result.stdout.lower()
+        # rich 在 GitHub Actions 下强制开启 ANSI 颜色，config-key 按连字符分词被 ANSI 码打断
+        stdout = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout.lower())
+        assert "config-key" in stdout
+        assert "rounds" in stdout
 
     def test_vault_dashboard_help(self):
         result = runner.invoke(app, ["percv", "vault-dashboard", "--help"])
