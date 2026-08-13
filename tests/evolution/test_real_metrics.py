@@ -10,8 +10,13 @@ from maref.evolution.real_metrics import RealMetrics, RealMetricsCollector
 class TestRealMetrics:
     def test_to_dict(self) -> None:
         rm = RealMetrics(
-            fnr=0.05, fpr=0.01, test_pass_rate=0.95, coverage_pct=72.0,
-            total_tests=100, import_time_ms=150.0, cb_state="CLOSED",
+            fnr=0.05,
+            fpr=0.01,
+            test_pass_rate=0.95,
+            coverage_pct=72.0,
+            total_tests=100,
+            import_time_ms=150.0,
+            cb_state="CLOSED",
         )
         d = rm.to_dict()
         assert d["fnr"] == 0.05
@@ -40,14 +45,21 @@ class TestRealMetricsCollector:
 
     def test_collect_incremental(self) -> None:
         collector = RealMetricsCollector()
-        with mock.patch.object(collector, "_run_quick_checks") as mock_q:
-            mock_q.return_value = RealMetrics(0.0, 0.0, 1.0, 0.0, 0, 0.0, "CLOSED")
+        with mock.patch.object(collector, "_run_all_checks") as mock_all:
+            mock_all.return_value = RealMetrics(0.0, 0.0, 1.0, 0.0, 0, 0.0, "CLOSED")
             rm = collector.collect_incremental()
             assert rm.coverage_pct == 0.0
 
     def test_collect_incremental_records_measurement_errors(self) -> None:
         collector = RealMetricsCollector()
-        with mock.patch.object(collector, "_measure_import_time", return_value=-1.0):
+        with (
+            mock.patch.object(collector, "_measure_import_time", return_value=-1.0),
+            mock.patch.object(collector, "_run_pytest", return_value=(1.0, 0, 0)),
+            mock.patch.object(collector, "_run_coverage", return_value=0.0),
+            mock.patch.object(collector, "_check_cb_state", return_value="CLOSED"),
+            mock.patch("maref.recursive.self_observer.SelfObserver"),
+            mock.patch("maref.observation.probes.EntropyProbe"),
+        ):
             metrics = collector.collect_incremental()
             assert metrics.import_time_ms == -1.0
             assert "import_time_failed" in metrics.errors
@@ -123,6 +135,8 @@ class TestRealMetricsCollector:
             mock.patch.object(collector, "_run_coverage", return_value=0.0),
             mock.patch.object(collector, "_measure_import_time", return_value=100.0),
             mock.patch.object(collector, "_check_cb_state", return_value="CLOSED"),
+            mock.patch("maref.recursive.self_observer.SelfObserver"),
+            mock.patch("maref.observation.probes.EntropyProbe"),
         ):
             rm = collector._run_all_checks()
             assert rm.fnr == 0.0
