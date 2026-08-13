@@ -90,9 +90,11 @@ class TestWindowManager:
         assert isinstance(manager.quartz_available, bool)
 
     def test_backend_info(self) -> None:
+        import platform
+
         manager = WindowManager()
         info = manager.backend_info
-        assert info["system"] == "Darwin"
+        assert info["system"] == platform.system()
         assert "active_backend" in info
 
     def test_is_safe_app(self) -> None:
