@@ -30,12 +30,12 @@ async def test_recursive_safe_loop_dry_run_real_metrics_and_constitution(tmp_pat
     target.write_text("VALUE = 1\n")
 
     with (
-        patch("maref.recursive.self_observer.SelfObserver") as MockObserver,
-        patch("maref.recursive.self_diagnostician.SelfDiagnostician") as MockDiagnostician,
-        patch("maref.recursive.self_healer.SelfHealer") as MockHealer,
-        patch("maref.recursive.self_architect.SelfArchitect") as MockArchitect,
-        patch("maref.recursive.self_executor.SelfExecutor") as MockExecutor,
-        patch("maref.recursive.unified_audit.UnifiedAuditStore"),
+        patch("maref_lite.self_healing_loop.SelfObserver") as MockObserver,
+        patch("maref_lite.self_healing_loop.SelfDiagnostician") as MockDiagnostician,
+        patch("maref_lite.self_healing_loop.SelfHealer") as MockHealer,
+        patch("maref_lite.self_healing_loop.SelfArchitect") as MockArchitect,
+        patch("maref_lite.self_healing_loop.SelfExecutor") as MockExecutor,
+        patch("maref_lite.self_healing_loop.UnifiedAudit"),
     ):
         MockObserver.return_value.snapshot.return_value = MagicMock(
             source_file_count=1,
