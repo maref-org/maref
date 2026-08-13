@@ -12,8 +12,27 @@ from maref.recursive.self_observer import SystemSnapshot
 
 class TestSelfDiagnostician:
     @pytest.fixture
-    def diagnostician(self) -> SelfDiagnostician:
-        return SelfDiagnostician()
+    def diagnostician(self, monkeypatch: pytest.MonkeyPatch) -> SelfDiagnostician:
+        d = SelfDiagnostician()
+        # desktop/gui_build 是环境相关 heavy probe（真实测量会跑 pnpm/桌面检测），
+        # 在不具备这些环境的 CI 上会把 normal_snapshot 判成 CRITICAL。mock 成
+        # NORMAL 让诊断测试跨环境确定。
+        from maref.observation.probes import ProbeReading, ProbeSeverity
+
+        def _normal(name: str):
+            def _measure(context: dict | None = None) -> ProbeReading:
+                return ProbeReading(
+                    probe_name=name,
+                    severity=ProbeSeverity.NORMAL,
+                    value=1.0,
+                    threshold=0.3,
+                )
+
+            return _measure
+
+        monkeypatch.setattr(d._desktop_probe, "measure", _normal("desktop"))
+        monkeypatch.setattr(d._gui_build_probe, "measure", _normal("gui_build"))
+        return d
 
     @pytest.fixture
     def normal_snapshot(self) -> SystemSnapshot:
