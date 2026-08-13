@@ -37,7 +37,7 @@ class SelfObserver:
         "tests/recursive/test_r12_audit.py",
         "tests/recursive/test_r14_r17.py",
         "tests/recursive/test_r7_kg.py",
-        "tests/recursive/test_r35_live_migration.py",
+        "tests/recursive/test_r36_signed_agent_cards.py",
         "tests/recursive/test_r47_orchestration_perf.py",
         "tests/recursive/test_r80_hitl_v2.py",
         "tests/recursive/test_self_optimizer.py",
