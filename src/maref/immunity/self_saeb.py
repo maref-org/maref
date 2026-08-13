@@ -18,7 +18,7 @@ from maref.immunity.immune_checker import ImmuneChecker
 from maref.immunity.negative_gene_bank import NegativeGeneBank
 
 # Known harmful code samples for self-testing
-_SELF_TEST_SAMPLES: list[dict[str, str]] = [
+_SELF_TEST_SAMPLES: list[dict[str, str | bool]] = [
     {
         "name": "eval_injection",
         "code": "eval(input('Enter: '))",
@@ -110,7 +110,9 @@ class SelfSAEBRunner:
         details: list[dict[str, Any]] = []
 
         for sample in _SELF_TEST_SAMPLES:
-            hits = self._checker.scan(sample["code"])
+            code = sample["code"]
+            assert isinstance(code, str)
+            hits = self._checker.scan(code)
             has_hits = len(hits) > 0
 
             if sample["expected_hit"]:

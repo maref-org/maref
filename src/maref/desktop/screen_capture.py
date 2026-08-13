@@ -10,7 +10,7 @@ from typing import Any
 try:
     from PIL import Image, ImageDraw, ImageFilter
 except ImportError:
-    Image = ImageDraw = ImageFilter = None  # type: ignore[assignment]
+    Image = ImageDraw = ImageFilter = None
 
 
 class CaptureMode(str, Enum):
@@ -145,8 +145,8 @@ class RedactionEngine:
             blurred = region.filter(ImageFilter.GaussianBlur(radius=15))
             image.paste(blurred, zone.region)
         elif zone.mode == RedactionMode.PIXELATE:
-            small = region.resize((8, 8), resample=Image.NEAREST)  # type: ignore[attr-defined]
-            pixelated = small.resize(region.size, Image.NEAREST)  # type: ignore[attr-defined]
+            small = region.resize((8, 8), resample=Image.NEAREST)
+            pixelated = small.resize(region.size, Image.NEAREST)
             image.paste(pixelated, zone.region)
         return image
 
@@ -264,12 +264,11 @@ class ScreenCapture:
             new_w = int(image.width * self.downsample_factor)
             new_h = int(image.height * self.downsample_factor)
             if self.downsample_method == DownsampleMethod.BILINEAR:
-                image = image.resize((new_w, new_h), Image.BILINEAR)  # type: ignore[attr-defined]
+                image = image.resize((new_w, new_h), Image.BILINEAR)
             elif self.downsample_method == DownsampleMethod.LANCZOS:
-                image = image.resize((new_w, new_h), Image.LANCZOS)  # type: ignore[attr-defined]
+                image = image.resize((new_w, new_h), Image.LANCZOS)
             else:
-                image = image.resize((new_w, new_h), Image.NEAREST)  # type: ignore[attr-defined]
-
+                image = image.resize((new_w, new_h), Image.NEAREST)
         result = ScreenshotResult(
             image=image,
             width=image.width if image else 0,

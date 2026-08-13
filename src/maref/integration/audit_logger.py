@@ -265,7 +265,7 @@ class AuditLogger:
             },
             sort_keys=True,
         )
-        return hmac.new(self.hmac_secret, payload.encode(), hashlib.sha256).hexdigest()
+        return hmac.new(self.hmac_secret or b"", payload.encode(), hashlib.sha256).hexdigest()
 
     @staticmethod
     def _find_repo_root() -> Path:

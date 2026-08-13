@@ -148,7 +148,7 @@ class ReportGenerator:
         Returns:
             ComplianceReport: 合规报告
         """
-        jurisdictions = (
+        jurisdictions: list[Jurisdiction] = (
             [jurisdiction]
             if jurisdiction
             else [

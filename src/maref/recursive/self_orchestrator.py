@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from maref.recursive.agent_dispatcher import AgentDispatcher, DispatchResult
 from maref.recursive.hybrid_decomposer import HybridDecomposer
@@ -180,7 +181,7 @@ class SelfOrchestrator:
             result.timed_out = True
         return result
 
-    def resolve_conflict(self, agent_a: str, agent_b: str, issue: str) -> str:
+    def resolve_conflict(self, agent_a: str, agent_b: str, issue: str) -> str | dict[str, Any]:
         return self._jsm.arbitrate(agent_a, agent_b, issue)
 
     def reset(self) -> None:
