@@ -31,7 +31,11 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 — git-tag dependent tests (test_r1_self_observer) need
+      # the full tag history; shallow clone yields zero tags on CI.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
