@@ -7,3 +7,4 @@ paths-ignore:
   - '**/*.min.js'
   - '**/dist/'
   - '**/build/'
+  - tests/
