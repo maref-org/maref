@@ -8,7 +8,7 @@ from enum import Enum
 try:
     from PIL import Image
 except ImportError:
-    Image = None  # type: ignore[assignment]
+    Image = None
 
 
 def _pixel_value(img: Image.Image, x: int, y: int) -> int:

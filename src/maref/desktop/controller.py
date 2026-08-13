@@ -47,7 +47,7 @@ from maref.observability.otel_middleware import _SpanContextManager
 try:
     from PIL import Image
 except ImportError:
-    Image = None  # type: ignore[assignment]
+    Image = None
 
 
 class DesktopOperationType(str, Enum):

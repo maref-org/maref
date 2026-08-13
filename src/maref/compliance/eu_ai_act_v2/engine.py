@@ -355,7 +355,7 @@ class EUAIComplianceEngineV2:
             }
             for d in acc_decls
         ]
-        metrics_list = [
+        metrics_list: list[dict[str, float | str]] = [
             {
                 "name": "reproducibility",
                 "value": str(robustness.reproducibility_score),

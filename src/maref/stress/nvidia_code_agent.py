@@ -22,9 +22,9 @@ try:
     _OPENAI_AVAILABLE = True
 except ImportError:
     _OPENAI_AVAILABLE = False
-    OpenAI = None  # type: ignore
-    APIError = Exception  # type: ignore
-    RateLimitError = Exception  # type: ignore
+    OpenAI = None
+    APIError = Exception
+    RateLimitError = Exception
 
 from maref.stress.code_service_sqi import CodeQualityMetrics
 
