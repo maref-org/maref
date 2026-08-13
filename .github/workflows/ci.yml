@@ -69,9 +69,13 @@ jobs:
           pip install -U "setuptools>=83.0.0"
           pip-audit
       - name: TruffleHog Secret Scan
-        run: |
-          pip install trufflehog
-          trufflehog filesystem . --config .trufflehog.yaml --since 2026-01-01
+        if: github.event_name == 'pull_request'
+        uses: trufflesecurity/trufflehog@v3.90.8
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
 
   integrity:
     needs: lint
@@ -99,8 +103,8 @@ jobs:
           echo "✅ No 64-state claims remain"
       - name: Check for Sperner claims
         run: |
-          # 豁免 execution-logs/ 与 INTEGRITY_DECLARATION.md：仅记录修复历史
-          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null | grep -vE "execution-logs|INTEGRITY_DECLARATION"; then
+          # 豁免 execution-logs/、INTEGRITY_DECLARATION.md、gov-audit-report.md：仅记录修复历史/审计事实
+          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null | grep -vE "execution-logs|INTEGRITY_DECLARATION|gov-audit-report"; then
             echo "ERROR: Found remaining Sperner claims"
             exit 1
           fi

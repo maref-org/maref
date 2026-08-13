@@ -298,7 +298,7 @@ class ScreenCapture:
                 return pyautogui.screenshot()
             else:
                 return pyautogui.screenshot()
-        except ImportError:
+        except Exception:
             return self._fallback_capture(mode, region)
 
     def _fallback_capture(
