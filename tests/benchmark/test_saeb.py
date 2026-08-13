@@ -190,6 +190,7 @@ def test_degradation_detection() -> None:
     assert len(result['alerts']) >= 3
 
 
+@pytest.mark.benchmark
 def test_maref_self_adapter(calculator_scenario: SAEBScenario) -> None:
     adapter = MAREFSelfAdapter(src_dir="calculator")
     assert adapter.name() == "maref-self"
