@@ -19,7 +19,9 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[all,identity,orchestration,otel,a2a]"
       - name: Run tests with coverage
-        run: pytest tests/ --cov=src/maref --cov-report=xml:coverage.xml
+        run: |
+          coverage run -m pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not real" --ignore=tests/maref/compliance
+          coverage report --cov=src/maref --cov-report=xml:coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:

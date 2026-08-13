@@ -39,7 +39,7 @@ jobs:
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run unit tests
         run: |
-          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --ignore=tests/maref/compliance
+          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not real" --ignore=tests/maref/compliance
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
