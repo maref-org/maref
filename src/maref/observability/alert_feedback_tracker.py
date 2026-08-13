@@ -256,7 +256,7 @@ class AlertFeedbackTracker:
         now = time.time()
         recent = [t for t in self._alert_timestamps if now - t < silence_window]
 
-        result = {
+        result: dict[str, Any] = {
             "passed": len(recent) > 0,
             "last_alert_seconds_ago": round(now - self._alert_timestamps[-1], 1)
             if self._alert_timestamps

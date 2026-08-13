@@ -192,6 +192,14 @@ module = [
     "maref.executor.workflow.patterns.tournament",
     "maref.knowledge.compiled_truth",
     "maref.recursive.audit_store",
+    "Quartz",
+    "ApplicationServices",
+    "huggingface_hub",
+    "openai",
+    "tomli",
+    "maref.integration.mq_adapter",
+    "maref.recursive.distributed_crdt",
+    "maref.recursive.live_migration",
 ]
 ignore_missing_imports = true
 

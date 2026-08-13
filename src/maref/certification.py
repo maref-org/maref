@@ -539,7 +539,7 @@ class SelfBootstrapVerifier:
                 "method": "merkle_audit_chain",
             }
 
-        results = {"method": "merkle_audit_chain", "checks": []}
+        results: dict[str, Any] = {"method": "merkle_audit_chain", "checks": []}
 
         # 1. Load audit log and verify chain hash continuity
         try:
@@ -565,9 +565,9 @@ class SelfBootstrapVerifier:
         # 2. Verify entries via Merkle auditor
         try:
             auditor = MerkleAuditor()
-            auditor.load_log(path)
+            auditor.load_log(path)  # type: ignore[attr-defined]
             merkle_root = auditor.get_root_hash()
-            proof = auditor.generate_proof(0)
+            proof = auditor.generate_proof(0)  # type: ignore[arg-type]
             merkle_ok = proof is not None and (proof.verify() if hasattr(proof, "verify") else True)
             results["merkle_root"] = merkle_root
             results["merkle_proof_verified"] = merkle_ok

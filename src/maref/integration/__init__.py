@@ -211,8 +211,8 @@ try:
     from maref.integration.mq_adapter import InMemoryMQ, MQAdapter
 except ImportError:
     # mq_adapter.py may be absent in public/maref — conditional import
-    InMemoryMQ = None  # type: ignore[assignment]
-    MQAdapter = None  # type: ignore[assignment]
+    InMemoryMQ = None
+    MQAdapter = None
 from maref.integration.memory_bridge import (
     KnowledgeInsight,
     MemoryBridge,

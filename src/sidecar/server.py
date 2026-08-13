@@ -999,7 +999,7 @@ class SidecarFastAPI(FastAPI):
         )
         if allow_unauthenticated is None:
             allow_unauthenticated = _default_allow_unauthenticated()
-        self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
+        self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)
         self.add_middleware(SecurityHeadersMiddleware)
         self.include_router(gaas_router)
         self.include_router(platform_router)
@@ -1024,7 +1024,7 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     )
     if allow_unauthenticated is None:
         allow_unauthenticated = _default_allow_unauthenticated()
-    app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
+    app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)
     app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(gaas_router)
     app.include_router(report_router)
