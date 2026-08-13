@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from maref.integration.mcp_envelope import make_envelope
 from maref.integration.mcp_transport import JSONRPCRequest
 from maref.tools.email_server import (
     EmailServer,
@@ -190,6 +191,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -211,6 +213,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -233,6 +236,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -254,6 +258,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "alice@example.com",
@@ -272,6 +277,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -290,6 +296,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -311,6 +318,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -329,6 +337,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -350,6 +359,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "not-an-email",
@@ -371,6 +381,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "user@example.com",
@@ -389,6 +400,7 @@ class TestEmailServerSend:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_send",
                 "arguments": {
                     "to": "bob@example.com",
@@ -416,6 +428,7 @@ class TestEmailServerList:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_list",
                 "arguments": {},
             },
@@ -434,6 +447,7 @@ class TestEmailServerList:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_list",
                 "arguments": {},
             },
@@ -457,6 +471,7 @@ class TestEmailServerList:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_list",
                 "arguments": {"max_count": 3},
             },
@@ -478,6 +493,7 @@ class TestEmailServerList:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_list",
                 "arguments": {"folder": "SENT"},
             },
@@ -502,6 +518,7 @@ class TestEmailServerRead:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_read",
                 "arguments": {"message_id": msg_id},
             },
@@ -520,6 +537,7 @@ class TestEmailServerRead:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_read",
                 "arguments": {"message_id": "nonexistent-id"},
             },
@@ -542,6 +560,7 @@ class TestEmailServerRead:
         list_req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_list",
                 "arguments": {},
             },
@@ -574,6 +593,7 @@ class TestEmailServerSearch:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_search",
                 "arguments": {"query": "Meeting"},
             },
@@ -597,6 +617,7 @@ class TestEmailServerSearch:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_search",
                 "arguments": {"query": "3pm"},
             },
@@ -618,6 +639,7 @@ class TestEmailServerSearch:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_search",
                 "arguments": {"query": "hello"},
             },
@@ -639,6 +661,7 @@ class TestEmailServerSearch:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_search",
                 "arguments": {"query": "nonexistent"},
             },
@@ -660,6 +683,7 @@ class TestEmailServerSearch:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_search",
                 "arguments": {"query": "Test", "folder": "INBOX"},
             },
@@ -681,6 +705,7 @@ class TestEmailServerSearch:
         req = JSONRPCRequest(
             method="tools/call",
             params={
+                **make_envelope("test-agent"),
                 "name": "email_search",
                 "arguments": {"query": ""},
             },
