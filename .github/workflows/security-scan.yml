@@ -78,9 +78,11 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
-      # `maref serve` 需要 HMAC/Ed25519 密钥才能启动 AuditLogger；
+      # `maref serve` 需要 HMAC/Ed25519 密钥才能启动 AuditLogger，
+      # 且 MCPGateway 需要 MAREF_MCP_SECRET_KEY 才能启动 MCP 服务；
       # 沿用 docker.yml 惯例：未配置 secrets 时 fallback 到 CI 测试 key。
       MAREF_HMAC_SECRET_KEY: ${{ secrets.MAREF_HMAC_SECRET_KEY || 'ci-hmac-key' }}
+      MAREF_MCP_SECRET_KEY: ${{ secrets.MAREF_MCP_SECRET_KEY || 'ci-mcp-key' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
