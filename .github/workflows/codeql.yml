@@ -32,6 +32,10 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: +security-and-quality
+          # 启用 .github/codeql.yml（paths 限 src/src-tauri，排除 tests/），
+          # 否则 CodeQL 默认分析全部文件，tests/research 的旧 API 测试会产生
+          # 24 个 analysis errors（该目录已被 pytest --ignore 排除，未运行）。
+          config-file: .github/codeql.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
