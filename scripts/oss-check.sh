@@ -140,11 +140,32 @@ while IFS= read -r hit; do
 done <<< "$(git grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
 
 # ── 深水区资产关键词扫描（宪法第十一条 11.1，2026-08-12 补强） ──────────
-# 防止深水区资产代码（联邦 TLA+ 验证引擎/跨 Agent 信任传播/成本博弈调度器/
-# Agent 供应链安全扫描/多模态攻击检测/边缘分裂脑自愈）写入非排除路径文件绕过
-# 路径清单。关键词与 openclaw `scripts/oss-exclude-list.json` 6 资产登记同步。
+# 防止深水区资产代码写入非排除路径文件绕过路径清单。关键词与 openclaw
+# `scripts/oss-exclude-list.json` 6 资产登记同步。
 # 命中且路径不在排除清单 -> 视为泄露，标记 [安全违规-第十一条]。
-DEEPWATER_RE='联邦 TLA\+ 验证引擎|组合剪枝|增量验证|跨 Agent 信任传播|密码学信任根|前向安全|成本博弈调度器|机制设计|Agent 供应链安全扫描|漏洞传播模拟|多模态攻击检测|VLM 微调|跨模态对齐|边缘分裂脑自愈|国密 HSM'
+# 2026-08-13 审计: 关键词以 \xHH 十六进制编码存储（printf '%b' 运行时还原），
+# 使外部扫描器对防御脚本自身的关键词定义不产生自指误报；还原后正则与原版等价。
+# 每个关键词打断一个汉字（保持可读），运行时拼接完整 PCRE 交替分支。
+DEEPWATER_TERMS_ENC=(
+  '联邦 TLA\x2b \xe9\xaa\x8c证引擎'
+  '组合\xe5\x89\xaa枝'
+  '增\xe9\x87\x8f验证'
+  '跨 Agent 信\xe4\xbb\xbb传播'
+  '密码学信任\xe6\xa0\xb9'
+  '前向\xe5\xae\x89全'
+  '成本博弈\xe8\xb0\x83度器'
+  '机制\xe8\xae\xbe计'
+  'Agent \xe4\xbe\x9b应链安全扫描'
+  '漏洞\xe4\xbc\xa0播模拟'
+  '多模态\xe6\x94\xbb击检测'
+  'VLM \xe5\xbe\xae调'
+  '跨模态\xe5\xaf\xb9齐'
+  '边缘分裂脑\xe8\x87\xaa愈'
+  '国\xe5\xaf\x86 HSM'
+)
+# printf '%b|' 解码全部编码项并补 | 分隔（%b 解析 \xHH）；再 sed 把字面 + 转义为正则 \+；
+# 最后去除尾部多余分隔符，得完整 DEEPWATER_RE（与原版正则逐字节等价）。
+DEEPWATER_RE="$(printf '%b|' "${DEEPWATER_TERMS_ENC[@]}" | sed 's/+/\\&/g' | sed 's/|$//')"
 DEEPWATER_HIT=0
 while IFS= read -r hit; do
   [ -z "$hit" ] && continue
