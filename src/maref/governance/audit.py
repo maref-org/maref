@@ -642,6 +642,9 @@ class AuditLogger:
                                 hmac_signature=data.get("hmac_signature", ""),
                                 ed25519_signature=data.get("ed25519_signature", ""),
                                 signer_fingerprint=data.get("signer_fingerprint", ""),
+                                tenant_id=data.get("tenant_id", ""),
+                                layer=data.get("layer", "governance"),
+                                round=data.get("round", 0),
                             )
                         )
                     except (json.JSONDecodeError, KeyError):

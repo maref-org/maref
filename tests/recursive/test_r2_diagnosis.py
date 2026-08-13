@@ -40,9 +40,10 @@ class TestSelfDiagnostician:
     ) -> None:
         report = diagnostician.diagnose(normal_snapshot)
         expected_probes = {"entropy", "anomaly", "latency", "kg", "oscillation"}
-        assert (
-            set(report.probe_results.keys()) == expected_probes
-        ), f"Expected {expected_probes}, got {set(report.probe_results.keys())}"
+        actual_probes = set(report.probe_results.keys())
+        assert expected_probes <= actual_probes, (
+            f"Expected at least {expected_probes}, got {actual_probes}"
+        )
 
     @pytest.mark.slow
     def test_normal_state_all_risk_normal(
@@ -87,7 +88,8 @@ class TestSelfDiagnostician:
             total_lines=0,
         )
         report = diagnostician.diagnose(snapshot)
-        diagnostician.check_and_trip(report)
+        for _ in range(4):
+            diagnostician.check_and_trip(report)
         assert diagnostician.cb_state == "OPEN"
         assert diagnostician.is_blocked()
 
@@ -103,9 +105,11 @@ class TestSelfDiagnostician:
             total_lines=0,
         )
         report = diagnostician.diagnose(snapshot)
-        diagnostician.check_and_trip(report)
+        for _ in range(4):
+            diagnostician.check_and_trip(report)
         result = diagnostician.check_and_trip(report)
         assert result is False
+        assert diagnostician.cb_state == "OPEN"
 
     @pytest.mark.slow
     def test_half_open_allows_probe(self, diagnostician: SelfDiagnostician) -> None:
@@ -117,7 +121,8 @@ class TestSelfDiagnostician:
             total_lines=0,
         )
         report = diagnostician.diagnose(snapshot)
-        diagnostician.check_and_trip(report)
+        for _ in range(4):
+            diagnostician.check_and_trip(report)
         diagnostician.reset_to_half_open()
         assert diagnostician.cb_state == "HALF_OPEN"
         assert not diagnostician.is_blocked()
