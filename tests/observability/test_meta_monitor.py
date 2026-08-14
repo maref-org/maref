@@ -55,16 +55,39 @@ class TestM0HealthSnapshotFreshness:
 class TestM0AuditLogGrowth:
     def test_recent_audit_log_passes(self, tmp_path: Path) -> None:
         log = tmp_path / "audit.jsonl"
-        log.write_text("")
+        log.write_text(json.dumps({
+            "event_type": "governance_decision", "timestamp": time.time(),
+            "actor": "test", "action": "file.read",
+        }) + "\n")
         result = check_audit_log_growth(max_age=300.0, audit_base=tmp_path)
         assert result["passed"] is True
+        assert result["newest_event_type"] == "governance_decision"
 
     def test_stale_audit_log_fails(self, tmp_path: Path) -> None:
         log = tmp_path / "audit.jsonl"
-        log.touch()
-        old_mtime = time.time() - 600
-        os.utime(log, (old_mtime, old_mtime))
+        log.write_text(json.dumps({
+            "event_type": "governance_decision", "timestamp": time.time() - 600,
+            "actor": "test", "action": "file.read",
+        }) + "\n")
         result = check_audit_log_growth(max_age=60.0, audit_base=tmp_path)
+        assert result["passed"] is False
+
+    def test_touch_only_file_fails(self, tmp_path: Path) -> None:
+        """G5 修复核心：仅被 touch 的文件（无真实事件）不能通过检查。"""
+        log = tmp_path / "audit.jsonl"
+        log.write_text(json.dumps({"_meta_monitor_touch": True, "timestamp": time.time()}) + "\n")
+        result = check_audit_log_growth(max_age=300.0, audit_base=tmp_path)
+        assert result["passed"] is False
+        assert result["detail"] == "no_real_events"
+
+    def test_empty_audit_file_fails(self, tmp_path: Path) -> None:
+        log = tmp_path / "audit.jsonl"
+        log.write_text("")
+        result = check_audit_log_growth(max_age=300.0, audit_base=tmp_path)
+        assert result["passed"] is False
+
+    def test_missing_audit_fails(self, tmp_path: Path) -> None:
+        result = check_audit_log_growth(max_age=300.0, audit_base=tmp_path)
         assert result["passed"] is False
 
 

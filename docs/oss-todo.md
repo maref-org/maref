@@ -29,6 +29,22 @@
 
 ## 待执行（S0 剩余）
 
+### P0 — 运营能力开源化决策（INC-2026-08-13-001 / G13）
+
+> **背景**: 成本失控事故暴露"开源 MAREF 无神经系统"——看门狗/飞轮/遥测/成本护栏全在闭源侧，
+> 开源部署对自身问题零感知。v0.54 已把"最少集"（selfcheck + 成本护栏 + 本地遥测聚合器）带入开源仓库，
+> 以下为剩余运营能力的开源化决策，**需维护者拍板**。
+
+| # | 能力 | 当前归属 | 三选一建议 | 理由 |
+|---|------|---------|-----------|------|
+| D3a | meta_monitor 看门狗 | 闭源 plist | **独立部署包** | 逻辑已在开源 `src/maref/observability/`，仅缺 launchd 调度文件，可随仓库发布 `deploy/` 模板 |
+| D3b | 全域数据飞轮 | 闭源 `scripts/data-flywheel-orchestrator.py` | **独立部署包** | 依赖闭源 infra（plan_queue/OPC），不适合整包开源；发布脱敏版 + 安装脚本 |
+| D3c | ObsBridge 遥测桥 | 闭源 `src/sidecar/obs_bridge.py` | **已开源**（v0.54 接线） | 开源 `src/sidecar/obs_bridge.py` 存在，create_app 自动 wire 已落地 |
+| D3d | cost_event 审计 + M4 | 开源（v0.54 新增） | **已开源** ✅ | 本次事故直接产物 |
+| D3e | llm_router 成本护栏 | 闭源 `llm_router.py` | **保持闭源** | 涉及模型路由/密钥，不宜公开 |
+
+**决策要求**: 2026-08-30 前，对 D3a/D3b 给出 开源 / 独立部署包 / 保持闭源 的明确结论并更新此表。
+
 ### P0 — 开源基础设施就绪
 
 - [ ] **GitHub Projects 补全** — Roadmap / Milestone / Issue 模板（需 GitHub 连通后操作）

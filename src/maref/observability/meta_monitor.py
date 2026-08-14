@@ -18,6 +18,7 @@ import signal
 import subprocess
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -194,63 +195,79 @@ def check_audit_log_growth(
     max_age: float = 600.0,
     audit_base: Path | None = None,
 ) -> dict[str, Any]:
-    """Check that at least one audit log file has been written recently.
+    """Check that the audit log contains REAL events written recently.
 
-    On first pass: if stale, touches a governance state log entry and re-checks.
-    Uses 600s max_age to accommodate development environments where the
-    governance state machine may not be actively transitioning.
+    INC-2026-08-13-001 (G5) fix: previously this check touched a file itself
+    and then verified the touch mtime (self-referential "watchdog liveness").
+    Now it inspects the latest JSON record's event_type/timestamp and rejects
+    files that only contain touch/monitor chatter.  No self-touch on the
+    check path.
     """
     base = _audit_log_base(audit_base)
+    # 只检查真实审计链文件，排除 *.jsonl 通配（避免匹配 monitor 自写文件）
     patterns = [
         "governance_audit.jsonl",
-        "governance_audit_state_machine.jsonl",
+        "recursive_governance_audit.jsonl",
         "audit.jsonl",
         "gaas_audit.jsonl",
-        "*.jsonl",
     ]
 
-    def _find_newest() -> tuple[str | None, float]:
-        nm: float = 0.0
-        np: str | None = None
+    def _newest_real_event() -> tuple[str | None, float, str]:
+        """最新一条真实审计事件（含 event_type）及其时间。
+
+        从文件尾部回扫第一条合法 JSON 记录，容忍并发写留下的脆尾行。
+        """
+        best_path: str | None = None
+        best_ts: float = 0.0
+        best_type: str = ""
         for pat in patterns:
             target = base / pat
-            if "*" in pat:
-                for p in base.glob(pat):
-                    if p.exists() and p.stat().st_mtime > nm:
-                        nm = p.stat().st_mtime
-                        np = str(p)
-            elif target.exists():
-                if target.stat().st_mtime > nm:
-                    nm = target.stat().st_mtime
-                    np = str(target)
-        return np, nm
+            if not target.exists():
+                continue
+            # 从尾部回扫（最多 64KB，仿 _last_chain_hash）
+            try:
+                size = target.stat().st_size
+                with open(target, "rb") as fh:
+                    if size == 0:
+                        continue
+                    chunk_size = min(size, 65536)
+                    fh.seek(size - chunk_size)
+                    tail = fh.read(chunk_size).decode("utf-8", errors="replace")
+                for line in reversed(tail.splitlines()):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    etype = rec.get("event_type", "")
+                    ts = rec.get("timestamp", 0.0)
+                    if isinstance(ts, (int, float)) and ts > best_ts and etype:
+                        best_path, best_ts, best_type = str(target), ts, etype
+                    break  # 已找到该文件第一条合法记录
+            except OSError:
+                continue
+        return best_path, best_ts, best_type
 
-    newest_path, newest_mtime = _find_newest()
+    newest_path, newest_ts, newest_type = _newest_real_event()
 
     if newest_path is None:
-        _touch_governance_state()
-        newest_path, newest_mtime = _find_newest()
+        _write_notification("M0 Fail", "critical", "No audit log with real events found")
+        return {"passed": False, "detail": "no_real_events"}
 
-    if newest_path is None:
-        _write_notification("M0 Fail", "critical", "No audit log files found")
-        return {"passed": False, "detail": "no_audit_logs_found"}
-
-    age = time.time() - newest_mtime
-    if age > max_age:
-        _touch_governance_state()
-        newest_path, newest_mtime = _find_newest()
-        age = time.time() - newest_mtime if newest_path else age
-
+    age = time.time() - newest_ts
     passed = age <= max_age
     if not passed:
         _write_notification(
             "M0 Fail",
             "critical",
-            f"Audit log stale: newest={newest_path}, age={age:.0f}s > {max_age:.0f}s",
+            f"Audit log stale: newest={newest_path} event={newest_type} age={age:.0f}s > {max_age:.0f}s",
         )
     return {
         "passed": passed,
         "newest_log": newest_path,
+        "newest_event_type": newest_type,
         "age_seconds": round(age, 1),
         "max_age_seconds": max_age,
     }
@@ -517,6 +534,7 @@ def check_m0(audit_base: Path | None = None) -> dict[str, Any]:
     checks = {
         "health_snapshot_freshness": check_health_snapshot_freshness(audit_base=audit_base),
         "audit_log_growth": check_audit_log_growth(audit_base=audit_base),
+        "audit_noise": check_audit_noise(audit_base=audit_base),
         "pulse_freshness": check_pulse_freshness(audit_base=audit_base),
         "managed_agents": check_managed_agents(),
         "hmac_key": check_hmac_key(),
@@ -529,6 +547,7 @@ def check_m0(audit_base: Path | None = None) -> dict[str, Any]:
         "audit_log_growth",
         "pulse_freshness",
         "managed_agents",
+        "audit_noise",
     ]
     if gaas_enabled:
         blocking.append("gaas_health")
@@ -659,6 +678,178 @@ def check_m3() -> dict[str, Any]:
     return {"passed": all_passed, "checks": checks}
 
 
+# ── M4: Cost Health (INC-2026-08-13-001 / G2) ──────────────────────── #
+
+
+def _cost_events_path() -> Path:
+    """cost_events.ndjson 路径（与 unified_proxy 的 UP_AUDIT_DIR 对齐）。"""
+    base = Path(os.environ.get("UP_AUDIT_DIR", str(Path.home() / ".maref" / "audit")))
+    return base / "cost_events.ndjson"
+
+
+def _guard_events_path() -> Path:
+    base = Path(os.environ.get("UP_AUDIT_DIR", str(Path.home() / ".maref" / "audit")))
+    return base / "guard_blocks.ndjson"
+
+
+def check_cost(
+    high_cost_hourly_limit: int | None = None,
+    cost_events_path: Path | None = None,
+    guard_events_path: Path | None = None,
+) -> dict[str, Any]:
+    """M4 成本健康检查：统计近 1h/24h 调用与拦截，检测成本失控信号。
+
+    - 高价模型（glm-5.2/glm-4.7）近 1h 调用 > 默认 60 → critical
+    - 24h 被拦次数 > 50 → warning（护栏在起作用但流量异常）
+    - 近 24h 无任何 cost_event 且代理配置了调用 → warning（遥测断裂信号）
+    """
+    high_cost_models = ("glm-5.2", "glm-4.7")
+    now = time.time()
+    hourly: dict[str, int] = {}
+    daily_total = 0
+    guarded = 0
+    latest_ts = 0.0
+
+    path = cost_events_path or _cost_events_path()
+    if path.exists():
+        for ln in path.read_text().splitlines():
+            try:
+                d = json.loads(ln)
+            except json.JSONDecodeError:
+                continue
+            ts = d.get("timestamp", 0.0)
+            if not isinstance(ts, (int, float)):
+                continue
+            if now - ts > 86400:
+                continue
+            daily_total += 1
+            latest_ts = max(latest_ts, ts)
+            if now - ts <= 3600:
+                m = d.get("model", "?")
+                hourly[m] = hourly.get(m, 0) + 1
+
+    gpath = guard_events_path or _guard_events_path()
+    if gpath.exists():
+        for ln in gpath.read_text().splitlines():
+            try:
+                d = json.loads(ln)
+            except json.JSONDecodeError:
+                continue
+            gts = d.get("timestamp", 0.0)
+            if not isinstance(gts, (int, float)):
+                continue
+            if now - gts <= 86400:
+                guarded += 1
+
+    # 阈值统一从 proxy_config.json 读取（G3 治理化，与 proxy 同源），env 仅作 fallback
+    high_cost_hourly = high_cost_hourly_limit
+    if high_cost_hourly is None:
+        high_cost_hourly = 60
+        try:
+            cfg_path = Path.home() / ".maref" / "proxy_config.json"
+            if cfg_path.exists():
+                cfg = json.loads(cfg_path.read_text())
+                v = cfg.get("call_hard_limit")
+                if isinstance(v, (int, float)) and v > 0:
+                    high_cost_hourly = int(v)
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
+        try:
+            env_v = int(os.environ.get("UP_CALL_LIMIT", "0"))
+            if env_v > 0:
+                high_cost_hourly = env_v
+        except ValueError:
+            pass
+    critical_hits = {m: c for m, c in hourly.items() if m in high_cost_models and c > high_cost_hourly}
+
+    checks: dict[str, dict[str, Any]] = {
+        "high_cost_model_calls": {
+            "passed": len(critical_hits) == 0,
+            "detail": critical_hits if critical_hits else "ok",
+        },
+        "guard_block_rate": {
+            "passed": guarded <= 50,
+            "guarded_24h": guarded,
+        },
+        "telemetry_liveness": {
+            "passed": daily_total > 0,
+            "events_24h": daily_total,
+            "latest_ts": latest_ts,
+        },
+    }
+    all_passed = all(c.get("passed", False) for c in checks.values())
+    return {
+        "passed": all_passed,
+        "checks": checks,
+        "hourly_by_model": hourly,
+        "total_events_24h": daily_total,
+        "guarded_24h": guarded,
+    }
+
+
+def check_audit_noise(
+    audit_base: Path | None = None,
+    window_hours: float = 24.0,
+) -> dict[str, Any]:
+    """M0 子检查：审计链内容健康度（G5-3）。
+
+    若窗口内 100% 是 state_transition 且 0 条 governance_decision/cost_event，
+    判为"噪音污染"（如测试/压力脚本写入），返回 failed。
+    """
+    base = _audit_log_base(audit_base)
+    path = base / "governance_audit.jsonl"
+    if not path.exists():
+        return {"passed": True, "detail": "no_audit_file", "total": 0, "noise_ratio": 0.0}
+
+    cutoff = time.time() - window_hours * 3600
+    types: Counter = Counter()
+    total = 0
+    try:
+        for ln in path.read_text(errors="replace").splitlines():
+            ln = ln.strip()
+            if not ln:
+                continue
+            try:
+                rec = json.loads(ln)
+            except json.JSONDecodeError:
+                continue
+            ts = rec.get("timestamp", 0.0)
+            if not isinstance(ts, (int, float)) or ts < cutoff:
+                continue
+            total += 1
+            types[rec.get("event_type", "?")] += 1
+    except OSError:
+        return {"passed": True, "detail": "read_error", "total": 0, "noise_ratio": 0.0}
+
+    if total == 0:
+        return {"passed": True, "detail": "no_events_in_window", "total": 0, "noise_ratio": 0.0}
+
+    real_types = types["governance_decision"] + types["cost_event"] + types["guard_block"]
+    noise_ratio = 1.0 - (real_types / total)
+    # 污染判定需同时满足：事件量异常大（测试批量写入特征）且全部是 state_transition。
+    # 健康静默系统 24h 内只有几条 state_transition 是正常状态，不应误判。
+    polluted = (
+        types.get("state_transition", 0) == total
+        and real_types == 0
+        and total >= 1000
+    )
+
+    if polluted:
+        _write_notification(
+            "M0 Noise Pollution",
+            "warning",
+            f"审计链 {window_hours:.0f}h 内 {total} 条全为 state_transition，无真实决策/成本事件",
+            subsystem="audit-health",
+        )
+    return {
+        "passed": not polluted,
+        "detail": "noise_pollution" if polluted else "ok",
+        "total": total,
+        "noise_ratio": round(noise_ratio, 3),
+        "event_types": dict(types),
+    }
+
+
 # ── Main Orchestrator ───────────────────────────────────────────────── #
 
 
@@ -666,11 +857,12 @@ def run_all_checks(
     audit_base: Path | None = None,
     notifications_dir: Path | str | None = None,
 ) -> dict[str, Any]:
-    """Run M0 through M3 and produce a consolidated report."""
+    """Run M0 through M4 and produce a consolidated report."""
     m0 = check_m0(audit_base=audit_base)
     m1 = check_m1()
     m2 = check_m2(notifications_dir=notifications_dir)
     m3 = check_m3()
+    m4 = check_cost()
 
     return {
         "timestamp": time.time(),
@@ -680,12 +872,14 @@ def run_all_checks(
             "m1_passed": m1["passed"],
             "m2_passed": m2["passed"],
             "m3_passed": m3["passed"],
-            "all_passed": m0["passed"] and m1["passed"] and m2["passed"] and m3["passed"],
+            "m4_passed": m4["passed"],
+            "all_passed": m0["passed"] and m1["passed"] and m2["passed"] and m3["passed"] and m4["passed"],
         },
         "m0": m0,
         "m1": m1,
         "m2": m2,
         "m3": m3,
+        "m4": m4,
         "registry": {k: {"write_path": v.write_path} for k, v in get_registry().items()},
     }
 
@@ -728,9 +922,29 @@ def run_once(
     m0 = report.get("m0", {})
     ma = m0.get("checks", {}).get("managed_agents", {})
     _update_health_snapshot(
-        status="healthy" if m0.get("passed", False) else "degraded",
+        status="healthy" if report.get("summary", {}).get("all_passed", False) else "degraded",
         active_agents=len(ma.get("running", [])),
     )
+
+    # M4 成本告警（G2-3）
+    m4 = report.get("m4", {})
+    if not m4.get("passed", False):
+        hcm = m4.get("checks", {}).get("high_cost_model_calls", {})
+        if hcm.get("detail") not in (None, "ok"):
+            _write_notification(
+                "M4 Cost Critical",
+                "critical",
+                f"高价模型调用异常: {hcm.get('detail')}",
+                subsystem="cost-guard",
+            )
+        tl = m4.get("checks", {}).get("telemetry_liveness", {})
+        if not tl.get("passed", True):
+            _write_notification(
+                "M4 Telemetry Liveness",
+                "warning",
+                f"近24h无 cost_event（events={tl.get('events_24h', 0)}）— 遥测可能断裂",
+                subsystem="cost-guard",
+            )
     return report
 
 
@@ -759,7 +973,8 @@ def run_loop(interval: float = 300.0) -> None:
                 f.write(
                     f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {status} "
                     f"M0={summary['m0_passed']} M1={summary['m1_passed']} "
-                    f"M2={summary['m2_passed']} M3={summary['m3_passed']}\n"
+                    f"M2={summary['m2_passed']} M3={summary['m3_passed']} "
+                    f"M4={summary['m4_passed']}\n"
                 )
         except Exception as e:
             with open(log_path, "a") as f:
