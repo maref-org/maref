@@ -2,7 +2,7 @@ version: 16
 last_updated: '2026-08-05T13:40:00+08:00'
 project:
   name: MAREF
-  current_release: 0.52.0
+  current_release: 0.54.0
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   rsi_level: 'L2 (Full Pass)'

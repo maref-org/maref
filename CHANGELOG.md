@@ -1,5 +1,48 @@
 # CHANGELOG
 
+## [v0.54.0] - 2026-08-14 (企业价值闭环 + 治理缺口收口 + 成本护栏)
+
+> **版本主线说明**: 本发布线（公开分支）从 v0.50.0 吸收 dev 分支 v0.51-v0.53 全部公开功能后推进至 v0.54.0。v0.51-v0.53 为内部迭代版本，其公开功能经 cherry-pick 合入本发布线。
+
+### Added — 企业价值闭环（v0.51，企业价值补强）
+- **DataCatalog** (`data/catalog.py`): 企业数据源登记/查询/变更通知，字段级分类元数据（C1 category_for_field）+ 敏感字段贯通
+- **LineageTracker** (`data/lineage.py`): 数据血缘/下游扩散面/上游根因链；SensitiveDataLineage 敏感数据跨域血缘 + 越界熔断
+- **SchemaValidator** (`data/schema_validator.py`): 字段级约束 + schema drift 检测
+- **ValueMetric / ValueTrackingEngine** (`value/`): 业务价值指标模型（baseline/current/delta）+ 价值捕获/聚合/HMAC 签名审计
+- **DecisionExplainer** (`governance/explainer.py`): 结构化推理链 + MANDATORY 强制；HITL 注入推理链（DecisionContext.explanation + 序列化）
+- **GroundingVerifier** (`security/grounding_verifier.py`): RAG 忠实度评分 + 可插拔 LLM judge；verification_bridge 第五协议 grounding 三角验证
+- **结果质量参与结算** (`federation/metering.py`): TaskMetric.outcome_quality + effort 归一化
+
+### Added — 治理缺口收口（v0.52）
+- **P0 五项**: 边界注入、IRREVERSIBLE HITL、仲裁接线、法官回避、A2A caller 链
+- **演化真实性**: SystemSnapshot 真实 test_pass_rate/coverage；_collect_current_metrics 用 collect_only=False 真实运行
+- **TrustBoundary 防伪 fail-closed**: scope 防伪强制验签（issuer 无签名/公钥未配/签名无效一律拒绝）
+- **消毒链路**: data_sovereignty 分级权威化 + sanitizer 授权还原鉴权
+- **browser dry_run 契约**: BrowserController 默认 dry_run env 驱动 + browser_server 显式 dry_run=True
+
+### Added — AISI 欺骗治理补强（v0.52.1）
+- **出站消息护栏** (`security/outbound/`): OutboundMessageGate 出站消息审查（社会工程/欺诈/钓鱼防护）
+- **外部身份指纹** (`sentinel/identity/`): IdentityFingerprint + sybil/collusion 检测
+- **动作链意图推理** (`governance/intent/`): ChainInterruptGate 链级意图评估（HALT/ESCALATE 覆盖单步裁决）
+- code review 加固两轮: 7 Critical + 4 Important 修复（PII 脱敏 + 默认保护 + 漂移接入）
+
+### Added — 记忆治理与治理强化（v0.53）
+- **记忆治理** (`memory/memory_manager.py`): deidentify/forget/erasure/retention（GDPR Art17 遗忘权 + 个保法）；软删除标记 + 保留策略
+- **@governed fail-closed** (`governance/decorators.py`): 无治理管线时拒绝执行而非静默放行
+- **预算熔断器** (`governance/`): S7 预算熔断 + 破坏性操作门接入 GovernPipeline
+- **HITL 审批 Ed25519 验签**: approve/reject/gaas 路径验签 + A2A 强制验签接线
+- **consensus auto-resolve**: vote 后自动 resolve + resolve 端点
+
+### Added — 成本护栏与遥测闭环（v0.54，INC-2026-08-13-001）
+- **CostGuard** (`cost_guard.py`): 预算熔断 + 高价模型调用告警 + telemetry liveness
+- **meta_monitor G5**: 看门狗真实审计事件检查（不再 touch 自我续命）+ M4 cost 检查
+- **telemetry offline fallback** (`obs/pipeline.py`): endpoint 不可达时落本地 SQLite 缓冲
+- **selfcheck** (`maref_lite/cli.py`): 七项部署自检
+
+### Changed
+- 版本基线: 0.52.0 → 0.54.0（pyproject / Dockerfile / __init__ / GUI / tauri / Cargo / AGENTS / STATE 统一收口）
+- meta_monitor: check_notification_staleness 改用 AlertFeedbackTracker 权威状态（非文件 mtime 猜测）
+
 ## [v0.52.0] - 2026-08-05 (治理缺口收口)
 
 ### Fixed — M1 风险收口: 演化真实性 + CI 修复
