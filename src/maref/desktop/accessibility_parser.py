@@ -128,11 +128,14 @@ function run() {
                 }
                 return;
             }
-            var title = String(el.title());
-            var desc = String(el.description());
-            var value = String(el.value());
-            var pos = el.position();
-            var size = el.size();
+            // 单属性容错：某些 AXUIElement 不支持 title/position 等，抛错不应丢整棵子树。
+            var title = ""; var desc = ""; var value = "";
+            try { title = String(el.title()); } catch(e) {}
+            try { desc = String(el.description()); } catch(e) {}
+            try { value = String(el.value()); } catch(e) {}
+            var pos = [0, 0]; var size = [0, 0];
+            try { pos = el.position(); } catch(e) {}
+            try { size = el.size(); } catch(e) {}
             var enabled = true;
             try { enabled = el.enabled(); } catch(e) {}
             var focused = false;
@@ -210,7 +213,6 @@ class AccessibilityParser:
             return False
         try:
             import ApplicationServices
-
             trusted = ApplicationServices.AXIsProcessTrusted()
             self._permission_granted = bool(trusted)
             return self._permission_granted
@@ -244,10 +246,11 @@ class AccessibilityParser:
             ScreenParseResult with real UI elements from the Accessibility tree.
         """
         if not self._initialized:
-            raise RuntimeError("AccessibilityParser not initialized. Call initialize() first.")
+            raise RuntimeError(
+                "AccessibilityParser not initialized. Call initialize() first."
+            )
 
         import time
-
         t0 = time.time()
 
         raw_json = self._run_jxa(target_app)
@@ -261,7 +264,6 @@ class AccessibilityParser:
         if width <= 0 or height <= 0:
             try:
                 import Quartz
-
                 main_display = Quartz.CGMainDisplayID()
                 width = int(Quartz.CGDisplayPixelsWide(main_display))
                 height = int(Quartz.CGDisplayPixelsHigh(main_display))
@@ -295,22 +297,20 @@ class AccessibilityParser:
                 continue
             interactions = _ROLE_INTERACTIONS.get(role, [])
             elem_id = f"ax_{role}_{x}_{y}_{w}_{h}"
-            elements.append(
-                ParsedUIElement(
-                    element_type=element_type,
-                    bbox=BoundingBox(x=x, y=y, width=w, height=h),
-                    text=title,
-                    confidence=1.0,
-                    interaction_types=interactions,
-                    element_id=elem_id,
-                    attributes={
-                        "ax_role": role,
-                        "enabled": is_enabled,
-                        "focused": item.get("focused", False),
-                        "source": "accessibility_api",
-                    },
-                )
-            )
+            elements.append(ParsedUIElement(
+                element_type=element_type,
+                bbox=BoundingBox(x=x, y=y, width=w, height=h),
+                text=title,
+                confidence=1.0,
+                interaction_types=interactions,
+                element_id=elem_id,
+                attributes={
+                    "ax_role": role,
+                    "enabled": is_enabled,
+                    "focused": item.get("focused", False),
+                    "source": "accessibility_api",
+                },
+            ))
 
         elapsed = (time.time() - t0) * 1000
         return ScreenParseResult(
@@ -324,14 +324,12 @@ class AccessibilityParser:
 
     def _run_jxa(self, target_app: str) -> str:
         """Execute JXA script and return JSON element array."""
-        sanitized_app = re.sub(r"[^a-zA-Z0-9\- ]", "", target_app)
+        sanitized_app = re.sub(r'[^a-zA-Z0-9\- ]', '', target_app)
         script = _JXA_GET_ELEMENTS % (sanitized_app, self._max_depth)
         try:
             result = subprocess.run(
                 ["osascript", "-l", "JavaScript", "-e", script],
-                capture_output=True,
-                text=True,
-                timeout=15,
+                capture_output=True, text=True, timeout=15,
             )
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -343,7 +341,9 @@ class AccessibilityParser:
     def benchmark(self, num_runs: int = 3) -> dict[str, Any]:
         """Run a quick benchmark: avg latency and element count."""
         if not self._initialized:
-            raise RuntimeError("AccessibilityParser not initialized. Call initialize() first.")
+            raise RuntimeError(
+                "AccessibilityParser not initialized. Call initialize() first."
+            )
         latencies: list[float] = []
         counts: list[int] = []
         for _ in range(num_runs):
