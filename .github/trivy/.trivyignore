@@ -1,0 +1,8 @@
+# 豁免说明: 这两个 cryptography HIGH CVE 无法在 Docker 镜像中立即修复。
+# mitmproxy 12.2.3 (maref Sentinel 网络监控核心依赖) 锁定 cryptography<=48.1,
+# 而 CVE-2026-69247/69249 的修复版本 (>=49.0.0 / 50.0.0) 与 mitmproxy 版本约束冲突,
+# 无法在同一环境同时安装 (uv lock 解析验证失败)。
+# 待 mitmproxy 上游解除 cryptography 上限后移除本豁免并升级 cryptography。
+# 注意: 本文件仅由 docker.yml 通过 trivyignores 显式引用, 不影响 security-scan.yml。
+CVE-2026-69247
+CVE-2026-69249
