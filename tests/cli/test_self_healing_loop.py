@@ -233,15 +233,15 @@ class TestSelfHealingLoop:
 
     @pytest.mark.asyncio
     async def test_run_one_cycle_lazy_inits(self) -> None:
-        loop = SelfHealingLoop(config=SelfHealingConfig(check_interval_seconds=0.01))
         with (
-            patch("maref.recursive.self_observer.SelfObserver") as MockObs,
-            patch("maref.recursive.self_diagnostician.SelfDiagnostician") as MockDiag,
-            patch("maref.recursive.self_healer.SelfHealer") as MockHealer,
-            patch("maref.recursive.self_architect.SelfArchitect") as MockArch,
-            patch("maref.recursive.unified_audit.UnifiedAuditStore"),
-            patch("maref.recursive.self_executor.SelfExecutor"),
+            patch("maref_lite.self_healing_loop.SelfObserver") as MockObs,
+            patch("maref_lite.self_healing_loop.SelfDiagnostician") as MockDiag,
+            patch("maref_lite.self_healing_loop.SelfHealer") as MockHealer,
+            patch("maref_lite.self_healing_loop.SelfArchitect") as MockArch,
+            patch("maref_lite.self_healing_loop.UnifiedAudit"),
+            patch("maref_lite.self_healing_loop.SelfExecutor"),
         ):
+            loop = SelfHealingLoop(config=SelfHealingConfig(check_interval_seconds=0.01))
             loop._lazy_init()
 
             mock_snapshot = MagicMock()
