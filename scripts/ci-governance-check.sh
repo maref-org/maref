@@ -126,7 +126,9 @@ while IFS= read -r file; do
     done < <(grep -nE "$UPPER_LAW_BASES" "$file" 2>/dev/null \
               | grep -E "$EXTERNAL_HANDBOOKS" \
               | grep -vE "$DEFENSIVE_MARKERS")
-done < <(find docs -type f -name '*.md' 2>/dev/null; ls *.md 2>/dev/null)
+# 豁免 docs/audit-reports/：历史审计记录描述过去采用的审计方法，非当前治理依据
+# （与 ci.yml integrity 检查豁免 execution-logs 的哲学一致）
+done < <(find docs -type f -name '*.md' -not -path 'docs/audit-reports/*' 2>/dev/null; ls *.md 2>/dev/null)
 if [ -n "$POLLUTED" ]; then
     VIOLATIONS=$((VIOLATIONS + 1))
 else
