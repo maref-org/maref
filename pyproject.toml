@@ -188,6 +188,11 @@ module = [
     "maref.knowledge.compiled_truth",
     "maref.recursive.audit_store",
     "maref.integration.mq_adapter",
+    "openai",
+    "huggingface_hub",
+    "Quartz",
+    "maref.recursive.distributed_crdt",
+    "maref.recursive.live_migration",
 ]
 ignore_missing_imports = true
 
