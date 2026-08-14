@@ -73,6 +73,12 @@ jobs:
           exit-code: 1
           severity: CRITICAL,HIGH
           skip-dirs: gui/src-tauri/target,website/node_modules,.git,.worktrees
+          # trivy 对 pnpm-lock.yaml 的 scoped 包名解析有误报：
+          # @tailwindcss/vite@4.3.1 / @poppinss/colors@4.1.6 被误读为 vite@4.3.1 / colors@4.1.6，
+          # 命中已由真实依赖（vite@7.3.6）修复的旧 CVE（CVE-2021-23567 / CVE-2023-34092 /
+          # CVE-2024-23331 / CVE-2024-52011 / CVE-2026-53571）。
+          # 排除误报源；website 前端依赖漏洞由 dependabot（website npm 条目）覆盖。
+          skip-files: website/pnpm-lock.yaml
 
   dast-scan:
     if: github.event_name == 'push'

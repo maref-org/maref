@@ -29,6 +29,21 @@ updates:
     reviewers:
       - "maref-org/maintainers"
 
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "website"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "maref-org/maintainers"
+
   - package-ecosystem: "cargo"
     directory: "/gui/src-tauri"
     schedule:
