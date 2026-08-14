@@ -179,18 +179,6 @@ def check_health_snapshot_freshness(
     }
 
 
-def _touch_governance_state() -> None:
-    """Write a lightweight governance state snapshot to keep audit log fresh."""
-    path = _default_audit_base() / "governance_audit_state_machine.jsonl"
-    if path.parent.exists():
-        try:
-            with open(path, "a") as f:
-                entry = {"_meta_monitor_touch": True, "timestamp": time.time()}
-                f.write(json.dumps(entry, default=str) + "\n")
-        except OSError:
-            pass
-
-
 def check_audit_log_growth(
     max_age: float = 600.0,
     audit_base: Path | None = None,

@@ -41,7 +41,7 @@
 | D3b | 全域数据飞轮 | 闭源 `scripts/data-flywheel-orchestrator.py` | **独立部署包** | 依赖闭源 infra（plan_queue/OPC），不适合整包开源；发布脱敏版 + 安装脚本 |
 | D3c | ObsBridge 遥测桥 | 闭源 `src/sidecar/obs_bridge.py` | **已开源**（v0.54 接线） | 开源 `src/sidecar/obs_bridge.py` 存在，create_app 自动 wire 已落地 |
 | D3d | cost_event 审计 + M4 | 开源（v0.54 新增） | **已开源** ✅ | 本次事故直接产物 |
-| D3e | llm_router 成本护栏 | 闭源 `llm_router.py` | **保持闭源** | 涉及模型路由/密钥，不宜公开 |
+| D3e | llm_router 成本护栏 | 闭源 `llm_router.py` | **护栏执行端已开源**（2026-08-14 追审落地） | 调用路由/密钥部分保持闭源；护栏执行逻辑（CALL/CTX/BUDGET + HMAC 审计）提取为开源 `src/maref/cost_guard.py`（CostGuard），开源部署者可在自有代理/网关接入，测试见 `tests/security/test_cost_guard_opensource.py`，接入示例见 `deploy/cost-guard-gateway-example.py` |
 
 **决策要求**: 2026-08-30 前，对 D3a/D3b 给出 开源 / 独立部署包 / 保持闭源 的明确结论并更新此表。
 
