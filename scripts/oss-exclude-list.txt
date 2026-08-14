@@ -135,12 +135,22 @@ tests/recursive/test_r35_live_migration.py
 *,cover
 
 # ---------- [closed-source] 闭源深水区：未来实现守卫 ----------
-# 下述目录一旦创建即自动触发门禁阻断，须经策略评审后才能发布
+# 下述目录一旦创建即自动触发门禁阻断，须经策略评审后才能发布（登记表见 docs/oss-deepwater-registry.md）
+# 注意: 清单为第一道防线（glob PATTERNS），可靠拦截依赖 scripts/oss-check.sh 的 SENSITIVE_PREFIXES
+#       硬编码前缀（第二道防线）。新增王炸路径须同步修改两处。
 src/maref/federation/tla_engine/**
 src/maref/trustgnn/**
 src/maref/cost_scheduler/**
 src/maref/multimodal_guard/**
 data/attack_1m/**
+# Agent PKI 私有信任根（26号战略 §13.2 王炸层补登，2026-08-14 审计 R2）
+src/maref/security/trust_root/**
+src/maref/security/agent_pki/**
+# 26号战略 §13.2 王炸层——深度实现/基因数据/自愈引擎（登记表 docs/oss-deepwater-registry.md）
+src/maref/supply_chain/deep/**
+src/maref/edge/self_heal/**
+src/maref/immunity/gene_vault/**
+src/maref/attack_patterns/**
 
 # ---------- [internal-workspaces] 内部工作区/知识/工具配置 ----------
 .missions/**

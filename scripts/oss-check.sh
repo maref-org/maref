@@ -65,6 +65,11 @@ SENSITIVE_PREFIXES=(
   cache/ logs/ .evolution_vault/ policy_versions/ credentials/
   src/maref/federation/tla_engine/ src/maref/trustgnn/
   src/maref/cost_scheduler/ src/maref/multimodal_guard/
+  # 王炸层 2026-08-14 审计补登（登记表 docs/oss-deepwater-registry.md）:
+  # 供应链深度/边缘自愈/免疫基因库/攻击模式图谱/Agent PKI
+  src/maref/supply_chain/deep/ src/maref/edge/self_heal/
+  src/maref/immunity/gene_vault/ src/maref/attack_patterns/
+  src/maref/security/trust_root/ src/maref/security/agent_pki/
   src/maref/recursive/distributed_crdt.py src/maref/recursive/live_migration.py
   # 污染防护（2026-08-09 审计）: 个人模型注册表 + 备份残留 + 营销分发，防误推公开分支
   model_registry.py *.bak *.bak-* docs/marketing/
