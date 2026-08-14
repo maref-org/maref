@@ -16,6 +16,7 @@ Migration to the new API::
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -92,6 +93,14 @@ class AuditLogService:
         log_path: str | Path | None = None,
         bus: AuditBus | None = None,
     ) -> None:
+        # G7-3 fail-closed: 无 HMAC/Ed25519 key 时拒绝启动，防止审计链失去签名保护。
+        if secret is None and os.environ.get("MAREF_HMAC_SECRET_KEY") is not None:
+            secret = os.environ["MAREF_HMAC_SECRET_KEY"].encode("utf-8")
+        if secret is None:
+            raise ValueError(
+                "AuditLogService requires an HMAC secret key. "
+                "Set MAREF_HMAC_SECRET_KEY or pass `secret=`."
+            )
         if bus is None:
             from maref.governance.audit import AuditLogger
 

@@ -142,18 +142,15 @@ class TestAuditLogService:
         assert svc.verify_integrity("t1") is True
         assert svc.verify_integrity("t2") is True  # No entries = vacuously true
 
-    def test_no_secret_signs_with_empty_hmac(self) -> None:
-        """No secret → service still works but entries carry no HMAC signature."""
+    def test_no_secret_raises(self) -> None:
+        """G7-3 fail-closed: no HMAC key → AuditLogService refuses to start."""
         saved = os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
         try:
-            svc = AuditLogService()
-            entry = svc.log("t1", "a1", "file.read", "ALLOW")
-            assert entry.hmac_signature == ""
+            with pytest.raises(ValueError):
+                AuditLogService()
         finally:
             if saved:
                 os.environ["MAREF_HMAC_SECRET_KEY"] = saved
-            else:
-                os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
 
 
 # ------------------------------------------------------------------
