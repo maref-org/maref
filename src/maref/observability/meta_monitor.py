@@ -774,41 +774,73 @@ def check_m1() -> dict[str, Any]:
 def check_notification_staleness(
     notifications_dir: Path | str | None = None,
 ) -> dict[str, Any]:
-    """Check notification files for staleness."""
-    ndir = Path(notifications_dir) if notifications_dir else _notifications_dir()
-    if not ndir.exists():
-        return {"passed": True, "total": 0, "stale_24h": 0, "stale_72h": 0}
+    """Check feedback-loop staleness.
 
+    True feedback-loop staleness is measured from the authoritative
+    AlertFeedbackTracker state: alerts that have been open (never fixed)
+    for >24h / >72h indicate the loop is broken, independent of whether the
+    notification artifact file still exists (notification files are pruned
+    after 1h per the PERF gate).
+
+    Notification-file mtime is only used to count physical file buildup.
+    """
     now = time.time()
-    total = 0
+
+    # Authoritative staleness from the feedback tracker.
     stale_24h = 0
     stale_72h = 0
-    oldest: float | None = None
+    open_total: int | None = 0
+    oldest_open_hours: float | None = None
+    try:
+        tracker = _get_alert_tracker()
+        open_records = tracker.get_open_alerts()
+        open_total = len(open_records)
+        for rec in open_records:
+            age_h = (now - rec.triggered_at) / 3600.0
+            if age_h > 72:
+                stale_72h += 1
+            elif age_h > 24:
+                stale_24h += 1
+            if oldest_open_hours is None or age_h > oldest_open_hours:
+                oldest_open_hours = round(age_h, 1)
+    except Exception:
+        # Tracker unavailable: fall back to notification-file mtime.
+        open_total = None
 
-    for f in ndir.glob("*.json"):
-        total += 1
-        age = now - f.stat().st_mtime
-        if age > 72 * 3600:
-            stale_72h += 1
-        elif age > 24 * 3600:
-            stale_24h += 1
-        if oldest is None or age > oldest:
-            oldest = age
+    # Notification-file buildup (PERF: consumed notifications pruned ≤1h).
+    ndir = Path(notifications_dir) if notifications_dir else _notifications_dir()
+    total_files = 0
+    oldest_file_hours: float | None = None
+    if ndir.exists():
+        for f in ndir.glob("*.json"):
+            total_files += 1
+            age = now - f.stat().st_mtime
+            if oldest_file_hours is None or age > oldest_file_hours:
+                oldest_file_hours = round(age / 3600.0, 1)
 
     passed = stale_72h == 0 and stale_24h <= 3
     if stale_72h > 0:
         _write_notification(
-            "M2 Fail",
-            "critical",
-            f"{stale_72h} notifications stale >72h — feedback loop broken",
+            "M2 Fail", "critical",
+            f"{stale_72h} open alerts stale >72h — feedback loop broken",
             subsystem="feedback-loop",
+            check_id="notification_staleness",
+        )
+    elif stale_24h > 0:
+        _write_notification(
+            "M2 Warning", "warning",
+            f"{stale_24h} open alerts stale >24h",
+            subsystem="feedback-loop",
+            check_id="notification_staleness",
         )
     return {
         "passed": passed,
-        "total_notifications": total,
+        "total_notifications": total_files,
+        "open_alerts": open_total,
         "stale_24h": stale_24h,
         "stale_72h": stale_72h,
-        "oldest_age_hours": round(oldest / 3600, 1) if oldest else 0,
+        "oldest_open_hours": oldest_open_hours,
+        "oldest_file_hours": oldest_file_hours,
     }
 
 
