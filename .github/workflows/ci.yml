@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity,desktop]"
       - name: Run unit tests
         run: |
           coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --ignore=tests/maref/compliance
@@ -63,7 +63,9 @@ jobs:
       - name: Bandit SAST
         run: bandit -r src/ -c pyproject.toml || true
       - name: pip-audit
-        run: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit
       - name: TruffleHog Secret Scan
         run: |
           pip install trufflehog
@@ -85,7 +87,8 @@ jobs:
       - name: Check for remaining 64-state claims
         run: |
           # 禁止"64-state"夸大声明
-          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
+          # 豁免历史执行日志与诚信声明（描述性引用，与 82% 检查豁免历史记录一致）
+          FILES=$(grep -rl "64.state" --include="*.md" --exclude-dir=execution-logs --exclude="INTEGRITY_DECLARATION.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining '64-state' claims in:"
             echo "$FILES"
