@@ -98,7 +98,7 @@ class GovernedPipeline:
 
         # Shared audit bus: the behavior probe subscribes to the same stream
         # the pipeline audits into, closing the loop (W2).
-        self.audit_bus = AuditBus()
+        self.audit_bus = AuditBus(hmac_key=resolved_key)
         self.boundary = boundary if boundary is not None else TrustBoundaryManager()
         self.task_preflight = task_preflight if task_preflight is not None else TaskPreflight()
         if behavior_probe is not None:
