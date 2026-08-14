@@ -9,7 +9,7 @@ name: Dual-Repo Watch
 #   - workflow 失败 → GitHub Actions 原生邮件通知 maref-org 订阅者
 #
 # 与 openclaw/.github/workflows/third-party-guardian.yml 互补:
-#   - third-party-guardian 依赖 frankiehot-tech 个人账号 Actions 额度（私仓付费）
+#   - third-party-guardian 依赖个人账号（私仓）Actions 额度（付费）
 #   - dual-repo-watch 走 maref-org 公仓 Actions（无限免费），不受个人账号账单影响
 #   - 双重兜底: 任一通道失效，另一通道仍可告警
 #
@@ -73,7 +73,7 @@ jobs:
             echo "  3. 检查 gh token 是否失效: gh auth status"
             echo "  4. 检查网络: ping github.com"
             echo ""
-            echo "本告警独立于 frankiehot-tech/Athena 的 Third-Party Guardian workflow"
+            echo "本告警独立于 Athena 私仓的 Third-Party Guardian workflow"
             echo "（后者依赖私仓 Actions 额度，可能因账单阻断失效）"
             exit 1
           fi
@@ -97,4 +97,4 @@ jobs:
           echo "→ GitHub Actions 已触发邮件通知 maref-org 订阅者"
           echo ""
           echo "异常类型: Athena 本机心跳信号 (issue #360) 长时间未更新"
-          echo "独立通道: 本告警不依赖 frankiehot-tech 个人账号 Actions 额度"
+          echo "独立通道: 本告警不依赖个人账号（私仓）Actions 额度"

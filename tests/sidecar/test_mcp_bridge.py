@@ -190,8 +190,12 @@ class TestSidecarMCPBridge:
         caps = bridge.get_capabilities()
         assert caps == {"tools": {}, "resources": {}, "prompts": {}}
 
-    def test_list_tools(self) -> None:
+    def test_list_tools(self, monkeypatch: pytest.MonkeyPatch) -> None:
         bridge = SidecarMCPBridge()
+        # claude-mem backend.start() / codedepth build() 在 CI 上会阻塞或超时，
+        # mock 掉延迟初始化，只验证 sidecar 工具集合本身。
+        monkeypatch.setattr(bridge, "_get_cm_backend", lambda: None)
+        monkeypatch.setattr(bridge, "_get_cd_indexer", lambda: None)
         tools = bridge.list_tools()
         # 18 sidecar tools + 5 codedepth tools + 1 claude-mem tool (if available)
         # Minimum is 18 sidecar tools

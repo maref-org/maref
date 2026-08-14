@@ -68,7 +68,8 @@ a2a = [
     "a2a-sdk>=1.0",
 ]
 identity = [
-    "cryptography>=42.0",
+    # CVE-2026-69247(fixed 50.0.0) / CVE-2026-69249(fixed 49.0.0)
+    "cryptography>=50.0",
     "jwcrypto>=1.5",
     "gmssl>=3.2.2",
 ]
