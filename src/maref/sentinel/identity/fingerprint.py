@@ -134,6 +134,10 @@ class IdentityFingerprint:
         加权: 写作风格 0.5 + 活跃时间 0.2 + 网络出口 0.3。
         任一维度无数据时该维度视为中性 (不拉低整体)。
         """
+        # 同对象必为完全相似: 浮点除法会让 _style_similarity 得
+        # 1.0000000000000002, 加权后非精确 1.0, CI 上 fail-fast。
+        if a is b:
+            return 1.0
         style_sim = self._style_similarity(a.ngram_freqs, b.ngram_freqs)
         time_sim = self._time_similarity(a.active_buckets, b.active_buckets)
         egress_sim = self._egress_similarity(a, b)
