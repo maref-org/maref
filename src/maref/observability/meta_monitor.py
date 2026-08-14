@@ -37,11 +37,6 @@ def _default_audit_base() -> Path:
     return Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
 
 
-_NOTIFICATIONS_DIR: Path | None = None
-_REPORT_PATH: Path | None = None
-
-
-
 def _load_env_file(filename: str = ".env.maref") -> None:
     """Load MAREF_* variables from the project env file if not already set.
 
