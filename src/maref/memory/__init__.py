@@ -18,13 +18,10 @@ from maref.memory.memory_manager import (
     MemoryManager,
     MemoryQuery,
     MemoryRecord,
-    PiiCategory,
     SemanticMemoryStore,
     SourceAnnotation,
     UserIsolationTag,
     WorkingMemoryStore,
-    deidentify_content,
-    detect_pii,
 )
 
 __all__ = [
@@ -33,11 +30,8 @@ __all__ = [
     "MemoryManager",
     "MemoryQuery",
     "MemoryRecord",
-    "PiiCategory",
     "SemanticMemoryStore",
     "SourceAnnotation",
     "UserIsolationTag",
     "WorkingMemoryStore",
-    "deidentify_content",
-    "detect_pii",
 ]
