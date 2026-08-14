@@ -40,8 +40,11 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity,desktop]"
       - name: Run unit tests
+        # pytest addopts 已带 --cov (pytest-cov)。外层再包 coverage run 会与
+        # pytest-cov 抢同一个 .coverage 文件, 后者退出时把数据覆盖成空,
+        # 导致 Coverage report 步骤读到 0.00%。只用 pytest-cov 作为数据源。
         run: |
-          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not real" --ignore=tests/maref/compliance
+          python -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not real" --ignore=tests/maref/compliance
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
