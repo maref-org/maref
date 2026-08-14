@@ -880,9 +880,8 @@ class RecursiveEvolutionLoop:
     def _collect_current_metrics(self) -> dict[str, float]:
         try:
             from maref.recursive.self_observer import SelfObserver
-
             observer = SelfObserver()
-            snapshot = observer.snapshot(collect_only=True)
+            snapshot = observer.snapshot(collect_only=False)
             return {
                 "test_pass_rate": float(snapshot.test_pass_rate)
                 if hasattr(snapshot, "test_pass_rate") and snapshot.test_pass_rate
@@ -901,28 +900,28 @@ class RecursiveEvolutionLoop:
             try:
                 result = subprocess.run(
                     ["git", "status", "--short"],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
+                    capture_output=True, text=True, timeout=10,
                 )
                 dirty = float(len(result.stdout.strip()) > 0)
             except Exception:
                 dirty = 0.0
             return {
-                "test_pass_rate": 1.0,
+                "test_pass_rate": 0.0,
                 "coverage_pct": 0.0,
                 "lint_violation_count": 0.0,
                 "dirty_files": dirty,
             }
 
-    def _run_quality_checks(self) -> None:
-        logger.info("REL: running quality checks")
+    def _run_quality_checks(self) -> dict[str, int]:
+        logger.info("REL: running quality checks (real fast-subset tests)")
         try:
-            subprocess.run(
-                ["git", "status"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-        except Exception:
-            logger.warning("REL: quality check git command failed")
+            from maref.recursive.self_observer import SelfObserver
+            observer = SelfObserver()
+            stats = observer.observe_tests(collect_only=False)
+            self._last_quality_checks = stats
+            return stats
+        except Exception as exc:
+            logger.warning("REL: quality check pytest failed: %s", exc)
+            stats = {"total": 0, "passed": 0, "failed": 1, "errors": 1}
+            self._last_quality_checks = stats
+            return stats
