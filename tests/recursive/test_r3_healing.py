@@ -239,12 +239,14 @@ class TestSelfHealer:
         assert isinstance(actions[0].exit_code, int)
 
     @pytest.mark.slow
+    @pytest.mark.real
     def test_real_executor_pip_check(self, healer_real: SelfHealer) -> None:
         actions = healer_real.heal(["dependency_conflict"])
         assert len(actions) == 1
         assert isinstance(actions[0].exit_code, int)
 
     @pytest.mark.slow
+    @pytest.mark.real
     def test_real_executor_full_scan(self, healer_real: SelfHealer) -> None:
         actions = healer_real.heal(["unknown"])
         assert len(actions) == 1
