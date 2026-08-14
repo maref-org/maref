@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from maref.orchestration.plan_executor import (
     Plan,
     PlanExecutionReport,
@@ -307,7 +309,7 @@ class TestPlanExecutor:
             ],
         )
         assert report.convergence == [0.9, 0.8, 0.85]
-        assert report.quality_score == 0.85
+        assert report.quality_score == pytest.approx(0.85)
 
     def test_is_converged_fewer_than_window(self) -> None:
         report = PlanExecutionReport(

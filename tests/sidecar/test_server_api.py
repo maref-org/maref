@@ -176,10 +176,17 @@ class TestProviders:
         assert "providers" in resp.json()
 
     def test_register_provider(self) -> None:
+        from sidecar import server as server_mod
+
+        before = set(server_mod._providers)
         client = _make_client()
         resp = client.post("/api/providers", json={"name": "test-llm"})
         assert resp.status_code == 200
         assert "id" in resp.json()
+        # POST mutates the module-global _providers; restore it so later tests
+        # (e.g. test_providers_have_models) don't see a provider without "models".
+        for pid in set(server_mod._providers) - before:
+            del server_mod._providers[pid]
 
 
 class TestSkills:
