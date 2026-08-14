@@ -1,0 +1,10 @@
+# Docker Vulnerability Scan / trivy-scan 豁免清单
+#
+# CVE-2026-69247 (fixed cryptography 50.0.0) / CVE-2026-69249 (fixed 49.0.0):
+#   修复需 cryptography>=49/50，但 mitmproxy(sentinel extra) 截至 12.2.3 仍限制
+#   cryptography<=48.1，依赖生态僵局下无法同时满足。
+#   决策: cryptography 升至 48.0.1（修 GHSA-537c-gmf6-5ccf），此两 CVE 经本文件豁免，
+#   待 mitmproxy 放开上限后移除。
+#   决策记录: 2026-08-14, PR #366（用户确认 .trivyignore 豁免方案）
+CVE-2026-69247
+CVE-2026-69249

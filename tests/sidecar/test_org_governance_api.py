@@ -131,7 +131,20 @@ class TestScopeEnforcement:
         scope marker lands on the registered endpoint (FastAPI's router
         decorator registers the function and returns it unchanged; putting
         @require_auth above it silently drops the scope)."""
+        # _SCOPE_MAP 是全局共享状态，经 create_app() → _register_route_scope()
+        # 填充。显式调用一次使本测试自包含，避免依赖同进程内其他测试的
+        # 执行顺序（tests/security/test_api_security.py 的 autouse fixture
+        # 会清空 _SCOPE_MAP，先于本测试执行时会导致断言失败）。
+        from sidecar.collector import MockAgentAdapter, ObservationCollector
+        from sidecar.monitor import CompositeMonitor
         from sidecar.api_auth import _SCOPE_MAP
+        from sidecar.server import create_app
+
+        create_app(
+            collector=ObservationCollector(MockAgentAdapter()),
+            monitor=CompositeMonitor(),
+            allow_unauthenticated=True,
+        )
 
         expected = {
             "/api/v1/federation/consensus/propose": "federation:write",

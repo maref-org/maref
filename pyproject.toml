@@ -68,7 +68,10 @@ a2a = [
     "a2a-sdk>=1.0",
 ]
 identity = [
-    "cryptography>=42.0",
+    # GHSA-537c-gmf6-5ccf(fixed 48.0.1)；CVE-2026-69247/69249 需 cryptography>=49/50，
+    # 但 mitmproxy(sentinel extra) 上限 cryptography<=48.1，生态僵局下
+    # 经 .trivyignore 豁免（待 mitmproxy 放开上限后移除）。
+    "cryptography>=48.0.1",
     "jwcrypto>=1.5",
     "gmssl>=3.2.2",
 ]
@@ -100,7 +103,9 @@ desktop = [
 ]
 sentinel = [
     "psutil>=5.9",
-    "mitmproxy>=10.2",
+    # mitmproxy 12.x 需 Python>=3.12；3.11 下回退 11.0.2(锁 cryptography<44.1)，
+    # 与 identity 的 cryptography>=48.0.1 冲突。3.12+ 才启用 mitmproxy。
+    "mitmproxy>=10.2; python_version >= '3.12'",
 ]
 audit = [
     "transformer_lens>=0.2",
