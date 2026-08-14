@@ -211,7 +211,12 @@ async def _broadcast_ws(event_type: str, data: dict[str, Any]) -> None:
 
 def create_a2a_bridge() -> A2ABridge:
     sm = GovernanceStateMachine()
-    audit = AuditLogger()
+    try:
+        audit = AuditLogger()
+    except RuntimeError:
+        # G7-3: 无 HMAC/Ed25519 key 时降级为内存审计，允许 sidecar 启动；
+        # create_app 的 G7-3 检查会写 critical notification 显式告警（fail-closed）。
+        audit = AuditLogger(log_path=None, hmac_key="dev-insecure")
     cb = CircuitBreaker()
     from maref.protocols import create_secure_protocol_bridge
     return A2ABridge(
