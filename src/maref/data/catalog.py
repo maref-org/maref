@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from maref.compliance.data_sovereignty import DataCategory
 
@@ -87,9 +88,9 @@ class DataSource:
 
     def category_for_field(self, field_name: str) -> DataCategory:
         """Return the DataCategory declared for a field (C1 field-level mapping)."""
-        for field in self.fields:
-            if field.name == field_name:
-                return field.data_category
+        for fld in self.fields:
+            if fld.name == field_name:
+                return fld.data_category
         raise ValueError(f"field {field_name!r} not present in data source {self.name!r}")
 
     def sensitive_fields(self) -> tuple[FieldSpec, ...]:
