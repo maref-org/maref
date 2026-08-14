@@ -129,6 +129,8 @@ def consensus_vote(
         choice=choice,
         reason=body.get("reason", ""),
     )
+    # v0.53 F3: 投票后自动尝试结算，使提案在达 quorum / 过期时即时进入终态。
+    consensus.resolve(proposal_id)
     proposal = consensus.get_proposal(proposal_id)
     return {
         "accepted": accepted,
@@ -136,6 +138,26 @@ def consensus_vote(
         "status": proposal.state.value if proposal else "unknown",
         "approve_count": proposal.approve_count if proposal else 0,
         "reject_count": proposal.reject_count if proposal else 0,
+    }
+
+
+@router.post("/consensus/{proposal_id}/resolve")
+@require_auth(scope="federation:write")
+def consensus_resolve(request: Request, proposal_id: str) -> dict[str, Any]:
+    """手动触发提案结算（v0.53 F3）。
+
+    达 quorum → ACCEPTED/REJECTED；过期 → EXPIRED；票数不足/平票 → 保持 OPEN。
+    """
+    consensus = _governed(request).consensus
+    if consensus.get_proposal(proposal_id) is None:
+        raise HTTPException(status_code=404, detail=f"Proposal not found: {proposal_id}")
+    proposal = consensus.resolve(proposal_id)
+    return {
+        "proposal_id": proposal_id,
+        "status": proposal.state.value if proposal else "unknown",
+        "approve_count": proposal.approve_count if proposal else 0,
+        "reject_count": proposal.reject_count if proposal else 0,
+        "resolution_signature": getattr(proposal, "resolution_signature", "") or "",
     }
 
 
@@ -164,6 +186,44 @@ def preflight_run(request: Request, body: dict[str, Any]) -> dict[str, Any]:
     context = body.get("context", {})
     result = _governed(request).task_preflight.execute(context)
     return result.to_dict()
+
+
+# ── Unified govern (P0-1 wiring) ───────────────────────────────────────────────
+
+@router.post("/govern")
+@require_auth(scope="federation:execute")
+def governed_govern(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    """Execute the unified governance pipeline (boundary + CB + policy + HITL).
+
+    Closes the S6 loop: every governance decision is audited onto the shared
+    audit bus that the behavior probe subscribes to.
+    """
+    from maref.governance.core_pipeline import GovernanceRequest
+
+    action = body.get("action", "")
+    agent_id = body.get("agent_id", "")
+    if not action or not agent_id:
+        raise HTTPException(status_code=400, detail="action and agent_id are required")
+
+    core_req = GovernanceRequest(
+        action=action,
+        agent_id=agent_id,
+        tenant_id=body.get("tenant_id", "default"),
+        parameters=body.get("parameters", {}),
+        recursion_depth=int(body.get("recursion_depth", 0)),
+        trust_score=float(body.get("trust_score", 50.0)),
+        role=body.get("role", "坎"),
+        session_id=body.get("session_id", ""),
+    )
+    result = _governed(request).govern(core_req)
+    return {
+        "verdict": result.verdict.value,
+        "reason": result.reason,
+        "matched_rule": result.matched_rule,
+        "hitl_tier": result.hitl_tier.name if result.hitl_tier else None,
+        "hitl_event_id": result.hitl_event_id,
+        "latency_ms": result.latency_ms,
+    }
 
 
 __all__ = ["router"]

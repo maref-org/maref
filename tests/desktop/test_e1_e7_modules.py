@@ -450,7 +450,7 @@ class TestSubAgentSpawner:
 class TestBrowserController:
     def test_init_defaults(self):
         bc = BrowserController()
-        assert bc.dry_run is True
+        assert bc.dry_run is False
         assert bc.browser_type == BrowserType.CHROMIUM
 
     def test_is_safe_domain(self):

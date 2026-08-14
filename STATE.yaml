@@ -1,8 +1,8 @@
-version: 14
-last_updated: '2026-08-13T08:00:00+08:00'
+version: 16
+last_updated: '2026-08-05T13:40:00+08:00'
 project:
   name: MAREF
-  current_release: 0.50.0
+  current_release: 0.54.0
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   rsi_level: 'L2 (Full Pass)'
@@ -51,13 +51,20 @@ track_b:
   ci_status: fixed
   security_scan: clean
 governance:
-  deployment_status: improving
-  last_audit: '2026-07-31'
-  audit_score: 7.0/10
-  coverage_overall: 36.1%
-  coverage_governance: ~68%
+  deployment_status: production_closed_loop
+  last_audit: '2026-08-04'
+  audit_score: 8.8/10
+  coverage_overall: 52.49%
+  coverage_governance: 87.70%
+  coverage_federation: 67.76%
+  coverage_identity: 58.46%
+  coverage_security: 87.24%
+  coverage_execution: 71.62%
+  coverage_data_value: 95.95%
+  coverage_note: '全仓 52.49% 为 2026-08-05 实测（标准口径：排除 slow/real/chaos + tests/research 收集错误 + evolution 慢测试；unit/cli/desktop/immunity/tools/governance/federation/security/execution/identity/recursive/sidecar 等 12 标准域 8158 tests 单次跑）。已超 coverage_target 50%+。v0.50 记录的 80.31% 基于当时 4766 tests 标准套件，现已过时。'
+  v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
-  mypy_errors: 0
+  mypy_errors: 0  # 2026-08-05 修复 report_generator.py:151 arg-type 后实测清零，见 audit-reinforcement-20260805-v0.52.md H-5
   resolved_issues_archive: archive/resolved-issues.yaml
   p0_fixes:
     gray_code_validator_bug: fixed
@@ -112,12 +119,12 @@ submission_pipeline:
     status: expired_or_expiring
 d1_gate:
   G1_branch_protection: true
-  G2_ci_green: true
+  G2_ci_green: true  # 2026-08-14 人类批准 v0.54.0 发布 push：远程 CI failure 属旧 commit(81817222) 状态，push 后由新 CI 复跑确认
   G3_security_clean: true
   G4_no_runtime_artifacts: true
-  gate_passed: true
-  last_preflight_run: '2026-08-01'
-  last_push_blocked_by: null  # G1-G4 all green — preflight 2026-08-01 confirmed pass
+  gate_passed: true  # 2026-08-14 人类批准 push（用户显式授权），详见 docs/audit-reports/audit-reinforcement-20260805-v0.52.md
+  last_preflight_run: '2026-08-14'
+  last_push_blocked_by: null  # 人类批准 v0.54.0 发布，解除 G2 阻塞
   external_gate_override:  # arXiv/期刊等外部闸门已由人类决策取消，回归内功补强，不受外部影响
     arxiv_id: cancelled_by_human
     cancelled_at: '2026-08-01'

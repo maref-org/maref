@@ -61,6 +61,7 @@ class MCPGateway:
         governance: MCPGovernance | None = None,
         default_backend: BackendRegistration | None = None,
         secret_key: bytes | None = None,
+        boundary: Any | None = None,
     ) -> None:
         self._backends: dict[str, BackendRegistration] = {}
         self._default_backend = default_backend
@@ -79,6 +80,15 @@ class MCPGateway:
         self._gate = security_gate
         self._policy_engine = policy_engine
         self._governance = governance
+        # TrustBoundaryManager (P0-1 wiring): risk-classified boundary gate.
+        # Default fail-closed so HIGH/IRREVERSIBLE tool calls are blocked
+        # without an explicit AuthorizationScope.
+        if boundary is not None:
+            self._boundary = boundary
+        else:
+            from maref.governance.trust_boundary import TrustBoundaryManager
+
+            self._boundary = TrustBoundaryManager()
 
     def register_backend(
         self,
@@ -133,6 +143,19 @@ class MCPGateway:
                 return {
                     "isError": True,
                     "content": [{"type": "text", "text": f"Security gate denied: {tool_name}"}],
+                }
+
+        if self._boundary is not None:
+            boundary_decision = self._boundary.check_no_raise(
+                action=tool_name,
+                agent_id=context.agent_id or "unknown",
+                metadata=arguments,
+            )
+            if boundary_decision is not None and not boundary_decision.allowed:
+                self._log_gateway_call(tool_name, "DENY", 1.0, arguments, context)
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": f"TrustBoundary denied: {boundary_decision.reason}"}],
                 }
 
         if self._policy_engine is not None:

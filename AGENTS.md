@@ -1,4 +1,4 @@
-# Agent Operating Manual: MAREF v0.50.0-dev
+# Agent Operating Manual: MAREF v0.54.0-dev
 
 > **上位法**: 本文件受 [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步。
@@ -6,7 +6,7 @@
 
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
-- **版本**: v0.50.0-dev
+- **版本**: v0.52.0-dev
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
 - **架构**: 概念语义层 天极→人极→地极→经卦→别卦→爻变（I Ching 治理语义）映射到代码实现层叠 元层→治理层→编排层→执行层→基础设施层（详见 docs/architecture.md）
@@ -140,10 +140,11 @@ kubectl apply -f k8s/production/
 - **Patterns**: 1 competitive positioning pattern
 
 ## Mission Workspace
-- **路径**: `.missions/v0.25.0-security-enhancement/`
-- **特性**: 35/35 completed (22 v0.25.0 + 13 L2), 9547+ tests collected (5968 passed in standard suite, 220+ L2 release tests)
-- **验证**: 7 validator rounds, 4 issues found and resolved
-- **里程碑**: m0-m7 all completed
+- **路径**: `.missions/v0.25.0-security-enhancement/` + `.missions/v0.51.0-enterprise-value/`
+- **特性**: v0.25.0 35/35 completed (22 v0.25.0 + 13 L2)；v0.51 13/13 completed (W1-W6 enterprise value)
+- **验证**: v0.25.0 7 validator rounds, 4 issues found and resolved
+- **里程碑**: v0.25.0 m0-m7 all completed；v0.51 M1-M4 all completed
+- **测试现状**: 2026-08-05 全仓收集 15723 tests（446 deselected + 9 research 收集错误）；治理域 1055 passed / 联邦 241 / 安全 326 / 执行 137 全绿；部分 cli/recursive/desktop 为基线既有失败（v0.50 审计第五节分类处置中）
 
 ## Quick Reference
 - MAREF Lite CLI: `maref-lite --help`
@@ -157,6 +158,8 @@ kubectl apply -f k8s/production/
 - Error codes: `maref.exceptions.MAREFError` (20 codes E0000–E4002)
 - SAEB comparison: `from maref.evaluation.saeb import run_comparison`
 - L2 acceptance report: `docs/rsi/l2-acceptance-report-20260702.md`
+- 迭代依据（艾瑞 2026 报告分析）: `docs/research/ai-agent-enterprise-2026-ireport-analysis.md`
+- 当前补强规划: `docs/plans/2026-08-04-ai-agent-report-governance-reinforcement.md` + `.missions/v0.51.0-enterprise-value/`
 
 ## Open Source Execution Norm
 > **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](docs/oss-execution-norm-v1.0.md) 约束。

@@ -44,18 +44,20 @@ class TestTrustBoundarySlashSubject:
 
 
 class TestTrustBoundaryIssuerOutsideKeyTable:
-    def test_scope_issuer_not_in_key_table_passes_verification_skip(self) -> None:
-        """issuer 不在公钥表内时跳过验签（fail-open 边界）。
+    def test_scope_issuer_not_in_key_table_fail_closed(self) -> None:
+        """issuer 不在公钥表内时 fail-closed（v0.52 M2-C3b 修复）。
 
-        用伪造签名证明确实跳过验签：若实现误走验签分支，会因签名无效
-        而拒绝；放行即证明 skip 语义生效。
+        原先为 fail-open 边界（issuer 表外跳过验签，伪造签名放行），
+        审计判定为 C-3 scope 防伪恒失效的根因，改为 fail-closed：
+        声明 issuer 却无对应公钥 → 拒绝。
         """
         forged = ReportSigningKey.generate()
         scope = _scope("agent-A", issuer="did:maref:issuer:alpha")
         scope.sign(forged)
         boundary = TrustBoundaryManager(scope=scope, issuer_public_keys={})
         decision = boundary.check_no_raise("file.delete", agent_id="agent-A")
-        assert decision.allowed is True
+        assert decision.allowed is False
+        assert "fail-closed" in decision.reason
 
     def test_forged_issuer_in_key_table_rejected(self) -> None:
         """issuer 在公钥表内但签名伪造 → 拒绝（防伪仍生效）。"""

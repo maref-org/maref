@@ -36,17 +36,22 @@ while IFS= read -r line; do
   [ -z "$line" ] && continue
   PATTERNS+=("$line")
   case "$line" in
-    *[\*\?\[\]]*|*/)
+    */)
       # 目录尾斜杠条目（如 phone/）: 仅保留原样 glob 无法命中其子树文件
       # （bash glob 中 '**' 在本上下文等价单 '*'，可跨目录层级）。
       # 补 '**/<dir>/**' 变体，使 src/maref/phone/__init__.py 这类子路径可被拦截
       # （2026-08-12 泄漏事件中 src/maref/phone/__init__.py 漏网即此因）。
       PATTERNS+=("**/${line}**")
-      # 纯闭源目录（public 树中无同名合法模块）允许整目录拦截；
-      # 混合目录（loop/recursive/context 等 public 有合法公开文件）由清单内
-      # 精确文件条目承担拦截职责，目录级 glob 不会误伤——二者分层共存。
       ;;
-    *) PATTERNS+=("**/${line}") ;;          # 无通配符：补任意层级匹配（防 config/.env 绕过）
+    *[\*\?\[\]]*)
+      # 含通配符但非尾斜杠（如 data/**、**/.missions/**）: 保留原样 glob。
+      # 它们自带完整路径语义——data/** 仅匹配根级 data/ 子树，
+      # **/.missions/** 已覆盖任意层级。此处**不得**追加 '**/<line>**'，
+      # 否则会把根级意图（data/**，第 50 行注明 src/maref/data 属公开代码）
+      # 泛化为任意层级匹配，误伤 src/maref/data/*（公开模块）。
+      ;;
+    *)
+      PATTERNS+=("**/${line}") ;;          # 无通配符：补任意层级匹配（防 config/.env 绕过）
   esac
 done < "$EXCLUDE_LIST"
 
@@ -65,6 +70,11 @@ SENSITIVE_PREFIXES=(
   cache/ logs/ .evolution_vault/ policy_versions/ credentials/
   src/maref/federation/tla_engine/ src/maref/trustgnn/
   src/maref/cost_scheduler/ src/maref/multimodal_guard/
+  # 王炸层 2026-08-14 审计补登（登记表 docs/oss-deepwater-registry.md）:
+  # 供应链深度/边缘自愈/免疫基因库/攻击模式图谱/Agent PKI
+  src/maref/supply_chain/deep/ src/maref/edge/self_heal/
+  src/maref/immunity/gene_vault/ src/maref/attack_patterns/
+  src/maref/security/trust_root/ src/maref/security/agent_pki/
   src/maref/recursive/distributed_crdt.py src/maref/recursive/live_migration.py
   # 污染防护（2026-08-09 审计）: 个人模型注册表 + 备份残留 + 营销分发，防误推公开分支
   model_registry.py *.bak *.bak-* docs/marketing/
@@ -174,6 +184,10 @@ while IFS= read -r hit; do
   path="${rest%%:*}"
   # 跳过关键词定义文件自身（本脚本），防止扫描器命中自己的 DEEPWATER_RE 定义
   [ "$path" = "scripts/oss-check.sh" ] && continue
+  # 跳过深水区登记表（docs/oss-deepwater-registry.md）: 它记录王炸层路径清单，
+  # 必然含 trustgnn/cost_scheduler 等关键词，属登记文档而非闭源实现，
+  # 与跳过本脚本自身定义同类的豁免（登记表受 path 级排除清单约束）。
+  [ "$path" = "docs/oss-deepwater-registry.md" ] && continue
   skip=0
   for pat in "${PATTERNS[@]}"; do
     if [[ "$path" == $pat ]]; then skip=1; break; fi

@@ -8,6 +8,7 @@ existing tests in test_gaas.py / test_federation_settlement.py.
 
 from __future__ import annotations
 
+import os
 import time
 
 import pytest
@@ -17,15 +18,22 @@ from maref.federation.settlement import FederatedSettlement
 from maref.gaas.audit_service import AuditLogService
 from maref.gaas.tenant import Tenant, TenantManager
 
+
 # ------------------------------------------------------------------
 # Fixtures
 # ------------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
-def _set_hmac_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+def _set_hmac_secret() -> None:
     """HMAC secret required by AuditLogService in all tests."""
-    monkeypatch.setenv("MAREF_HMAC_SECRET_KEY", "test-secret-for-persistence")
+    saved = os.environ.get("MAREF_HMAC_SECRET_KEY")
+    os.environ["MAREF_HMAC_SECRET_KEY"] = "test-secret-for-persistence"
+    yield
+    if saved is None:
+        os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+    else:
+        os.environ["MAREF_HMAC_SECRET_KEY"] = saved
 
 
 # ------------------------------------------------------------------
@@ -87,6 +95,8 @@ class TestAuditLogServicePersistence:
         assert total_t1 == 2
         _, total_t2 = svc2.query("t2")
         assert total_t2 == 1
+        # get_stats is also disk-authoritative after restart.
+        assert svc2.get_stats("t1")["total_entries"] == 2
         # HMAC integrity holds after reload from disk.
         assert svc2.verify_integrity("t1") is True
         assert svc2.verify_integrity("t2") is True

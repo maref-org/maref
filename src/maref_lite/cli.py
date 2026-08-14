@@ -716,17 +716,26 @@ def selfcheck() -> None:
         proxy_detail = f"无法连接 proxy 8147: {e}"
     checks.append(("proxy /usage 可达", proxy_ok, proxy_detail))
 
-    # 7. 成本护栏阈值
+    # 7. 成本护栏阈值（OpenCostGuard fallback：开源部署无闭源 proxy 时验证开源护栏可用）
     guard_ok = False
     guard_detail = "未配置"
     try:
+        from maref.cost_guard import CostGuard
+
+        open_guard = CostGuard()
+        opensource_ok = open_guard.cfg_int("call_hard_limit", 0) > 0 and open_guard.cfg_int("ctx_limit_chars", 0) > 0
         cfg = Path.home() / ".maref" / "proxy_config.json"
         if cfg.exists():
             data = json.loads(cfg.read_text())
             guard_ok = data.get("call_hard_limit", 0) > 0 and data.get("ctx_limit_chars", 0) > 0
-            guard_detail = f"call={data.get('call_hard_limit')} ctx={data.get('ctx_limit_chars')}"
+            guard_detail = f"proxy_config call={data.get('call_hard_limit')} ctx={data.get('ctx_limit_chars')}"
         else:
-            guard_detail = "未找到 proxy_config.json（用 maref cost-policy 生成）"
+            # 开源部署回退：内核护栏仍可加载（CoverageGuard / CostGuard 直接可 import）
+            guard_ok = opensource_ok
+            guard_detail = (
+                f"未找到 proxy_config.json（用 maref cost-policy 生成）"
+                f" — 开源 CostGuard 内核可加载 call={'可用' if opensource_ok else '未配置'}"
+            )
     except Exception as e:  # noqa: BLE001
         guard_detail = f"检查异常: {e}"
     checks.append(("成本护栏阈值生效", guard_ok, guard_detail))
@@ -1640,7 +1649,7 @@ def self_heal_start(
             reason="SelfExecutor write bypassed proposal dry-run",
         )
     config = SelfHealingConfig(
-        check_interval_seconds=interval,  # type: ignore[arg-type]
+        check_interval_seconds=interval,
         proposal_dry_run=not execute_proposals,
     )
 

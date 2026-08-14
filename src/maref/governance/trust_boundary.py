@@ -21,7 +21,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from maref.exceptions import ErrorCode, MAREFError
-from maref.governance.risk_classifier import RiskAssessment, RiskLevel, classify_action
+from maref.governance.risk_classifier import (
+    RiskAssessment,
+    RiskLevel,
+    classify_action_server,
+)
 from maref.identity.credential import AuthorizationScope
 from maref.security.decorators import security_critical
 
@@ -49,6 +53,9 @@ class BoundaryDecision:
     reason: str
     assessment: RiskAssessment
     checked_at: float = field(default_factory=time.time)
+    # IRREVERSIBLE 动作即使授权放行，仍需人工确认或多验证者共识（P0-2）。
+    # 上层（GovernancePipeline）据此升级为 HITL / 共识流程，而非直接放行。
+    consensus_required: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +64,7 @@ class BoundaryDecision:
             "allowed": self.allowed,
             "reason": self.reason,
             "risk_level": self.assessment.risk_level.value,
+            "consensus_required": self.consensus_required,
             "checked_at": self.checked_at,
         }
 
@@ -74,7 +82,8 @@ class BoundaryViolationError(MAREFError):
         super().__init__(
             code=ErrorCode.BOUNDARY_VIOLATION,
             message=(
-                f"TrustBoundary 阻断越界动作: agent={agent_id} action={action} reason={reason}"
+                f"TrustBoundary 阻断越界动作: agent={agent_id} action={action} "
+                f"reason={reason}"
             ),
             details={"action": action, "agent_id": agent_id, "reason": reason, **(details or {})},
         )
@@ -167,7 +176,8 @@ class TrustBoundaryManager:
         agent_id: str,
         metadata: dict[str, Any] | None,
     ) -> BoundaryDecision:
-        assessment = classify_action(action, metadata)
+        # v0.52 M2-C3a: 使用服务端权威分级 — 调用方 metadata 只能升级、不能降级。
+        assessment = classify_action_server(action, metadata)
 
         # 目标域白名单校验：跨域访问未授权 → 阻断。
         impact_scope = assessment.impact_scope
@@ -183,20 +193,48 @@ class TrustBoundaryManager:
         # v0.47 S12: agent_id 绑定 — scope 的 subject_did 必须等于执行 agent。
         # 兼容 DID 与短名两种标识：subject_did="did:maref:agent-01" 与
         # agent_id="agent-01" 视为同一主体。
-        if self.scope is not None and not _subjects_match(self.scope.subject_did, agent_id):
+        if self.scope is not None and not _subjects_match(
+            self.scope.subject_did, agent_id
+        ):
             return BoundaryDecision(
                 action=action,
                 agent_id=agent_id,
                 allowed=False,
                 reason=(
-                    f"授权范围 subject_did={self.scope.subject_did} 与执行 agent={agent_id} 不匹配"
+                    f"授权范围 subject_did={self.scope.subject_did} "
+                    f"与执行 agent={agent_id} 不匹配"
                 ),
                 assessment=assessment,
             )
 
-        # v0.47 S12: scope 防伪 — 签发者签名须与其公钥匹配（配置公钥表时）。
-        if self.scope is not None and self.scope.issuer in self.issuer_public_keys:
-            if not self.scope.verify_signature(self.issuer_public_keys[self.scope.issuer]):
+        # v0.47 S12 / v0.52 M2-C3b: scope 防伪强制。
+        # 声明 issuer 的 scope 必须可验证，否则 fail-closed：
+        # - issuer 非空但无签名 → 伪造（签发流程必定签名）
+        # - issuer 公钥未配置 → 无法验证 → 拒绝（不能因"表外"跳过验签）
+        # - 签名与公钥不匹配 → 拒绝
+        if self.scope is not None and self.scope.issuer:
+            if not self.scope.signature:
+                return BoundaryDecision(
+                    action=action,
+                    agent_id=agent_id,
+                    allowed=False,
+                    reason=f"授权范围声明 issuer={self.scope.issuer} 但无签名（fail-closed）",
+                    assessment=assessment,
+                )
+            if self.scope.issuer not in self.issuer_public_keys:
+                return BoundaryDecision(
+                    action=action,
+                    agent_id=agent_id,
+                    allowed=False,
+                    reason=(
+                        f"授权范围 issuer={self.scope.issuer} 公钥未配置，"
+                        "无法验证签名（fail-closed）"
+                    ),
+                    assessment=assessment,
+                )
+            if not self.scope.verify_signature(
+                self.issuer_public_keys[self.scope.issuer]
+            ):
                 return BoundaryDecision(
                     action=action,
                     agent_id=agent_id,
@@ -214,7 +252,9 @@ class TrustBoundaryManager:
                     action=action,
                     agent_id=agent_id,
                     allowed=False,
-                    reason=(f"动作超出授权范围（allowed_actions 未包含 {action}）"),
+                    reason=(
+                        f"动作超出授权范围（allowed_actions 未包含 {action}）"
+                    ),
                     assessment=assessment,
                 )
             return BoundaryDecision(
@@ -260,7 +300,9 @@ class TrustBoundaryManager:
                 action=action,
                 agent_id=agent_id,
                 allowed=False,
-                reason=(f"动作超出授权范围（max_risk_level={self.scope.max_risk_level}）"),
+                reason=(
+                    f"动作超出授权范围（max_risk_level={self.scope.max_risk_level}）"
+                ),
                 assessment=assessment,
             )
 
@@ -270,6 +312,7 @@ class TrustBoundaryManager:
             allowed=True,
             reason=f"风险等级 {assessment.risk_level.value} 授权范围内放行",
             assessment=assessment,
+            consensus_required=assessment.risk_level == RiskLevel.IRREVERSIBLE,
         )
 
     def _record_audit(self, decision: BoundaryDecision) -> None:

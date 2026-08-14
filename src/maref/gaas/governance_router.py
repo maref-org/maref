@@ -54,6 +54,7 @@ class GovernanceRouter:
         hitl_service: HITLRouter | None = None,
         audit_service: AuditLogService | None = None,
         trust_service: TrustScoreService | None = None,
+        boundary: Any | None = None,
     ) -> None:
         self._tenants = tenant_manager or TenantManager()
         self._cb = cb_pool or CircuitBreakerPool()
@@ -62,7 +63,22 @@ class GovernanceRouter:
         self._trust = trust_service or TrustScoreService()
         self._usage: dict[str, dict[str, int]] = {}
 
+        # TrustBoundaryManager (P0-1 wiring): mandatory pre-action boundary gate.
+        # Default fail-closed so HIGH/IRREVERSIBLE actions are denied without an
+        # explicit AuthorizationScope — the production GaaS path must not skip it.
+        if boundary is not None:
+            self._boundary = boundary
+        else:
+            from maref.governance.trust_boundary import TrustBoundaryManager
+
+            self._boundary = TrustBoundaryManager()
+
         # Unified governance pipeline — shared with MCPGovernance
+        # v0.52.1 G2-C7: 链级意图推理生产接线。装配动作链追踪器 + 中断门,
+        # 使"单步看似正常组合成攻击"的链级评估在生产运行时生效。
+        from maref.governance.intent.factory import build_chain_intent_gate
+
+        intent_tracker, intent_gate = build_chain_intent_gate()
         self._pipeline = GovernancePipeline(
             hitl=self._hitl,
             audit_callback=self._on_audit,
@@ -70,6 +86,9 @@ class GovernanceRouter:
             cb_check_callback=self._on_cb_check,
             cb_record_callback=self._on_cb_record,
             policy_rules=None,  # use defaults
+            boundary=self._boundary,
+            intent_tracker=intent_tracker,
+            intent_gate=intent_gate,
         )
 
     # ------------------------------------------------------------------

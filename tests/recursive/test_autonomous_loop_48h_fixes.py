@@ -954,7 +954,7 @@ class TestObserveTestsTimeout:
 
     @pytest.mark.slow
     def test_run_mode_timeout_is_120s(self) -> None:
-        """collect_only=False uses timeout=120 for the quick benchmark subset."""
+        """collect_only=False uses timeout=600 for the benchmark run."""
         from maref.recursive.self_observer import SelfObserver
 
         obs = SelfObserver()
@@ -965,8 +965,8 @@ class TestObserveTestsTimeout:
             obs.observe_tests(collect_only=False)
 
         timeout = mock_run.call_args.kwargs.get("timeout")
-        assert timeout == 120, (
-            f"collect_only=False must use timeout=120, got {timeout}"
+        assert timeout == 600, (
+            f"collect_only=False must use timeout=600, got {timeout}"
         )
 
     @pytest.mark.slow

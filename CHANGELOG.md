@@ -1,5 +1,111 @@
 # CHANGELOG
 
+## [v0.54.0] - 2026-08-14 (企业价值闭环 + 治理缺口收口 + 成本护栏)
+
+> **版本主线说明**: 本发布线（公开分支）从 v0.50.0 吸收 dev 分支 v0.51-v0.53 全部公开功能后推进至 v0.54.0。v0.51-v0.53 为内部迭代版本，其公开功能经 cherry-pick 合入本发布线。
+
+### Added — 企业价值闭环（v0.51，企业价值补强）
+- **DataCatalog** (`data/catalog.py`): 企业数据源登记/查询/变更通知，字段级分类元数据（C1 category_for_field）+ 敏感字段贯通
+- **LineageTracker** (`data/lineage.py`): 数据血缘/下游扩散面/上游根因链；SensitiveDataLineage 敏感数据跨域血缘 + 越界熔断
+- **SchemaValidator** (`data/schema_validator.py`): 字段级约束 + schema drift 检测
+- **ValueMetric / ValueTrackingEngine** (`value/`): 业务价值指标模型（baseline/current/delta）+ 价值捕获/聚合/HMAC 签名审计
+- **DecisionExplainer** (`governance/explainer.py`): 结构化推理链 + MANDATORY 强制；HITL 注入推理链（DecisionContext.explanation + 序列化）
+- **GroundingVerifier** (`security/grounding_verifier.py`): RAG 忠实度评分 + 可插拔 LLM judge；verification_bridge 第五协议 grounding 三角验证
+- **结果质量参与结算** (`federation/metering.py`): TaskMetric.outcome_quality + effort 归一化
+
+### Added — 治理缺口收口（v0.52）
+- **P0 五项**: 边界注入、IRREVERSIBLE HITL、仲裁接线、法官回避、A2A caller 链
+- **演化真实性**: SystemSnapshot 真实 test_pass_rate/coverage；_collect_current_metrics 用 collect_only=False 真实运行
+- **TrustBoundary 防伪 fail-closed**: scope 防伪强制验签（issuer 无签名/公钥未配/签名无效一律拒绝）
+- **消毒链路**: data_sovereignty 分级权威化 + sanitizer 授权还原鉴权
+- **browser dry_run 契约**: BrowserController 默认 dry_run env 驱动 + browser_server 显式 dry_run=True
+
+### Added — AISI 欺骗治理补强（v0.52.1）
+- **出站消息护栏** (`security/outbound/`): OutboundMessageGate 出站消息审查（社会工程/欺诈/钓鱼防护）
+- **外部身份指纹** (`sentinel/identity/`): IdentityFingerprint + sybil/collusion 检测
+- **动作链意图推理** (`governance/intent/`): ChainInterruptGate 链级意图评估（HALT/ESCALATE 覆盖单步裁决）
+- code review 加固两轮: 7 Critical + 4 Important 修复（PII 脱敏 + 默认保护 + 漂移接入）
+
+### Added — 记忆治理与治理强化（v0.53）
+- **记忆治理** (`memory/memory_manager.py`): deidentify/forget/erasure/retention（GDPR Art17 遗忘权 + 个保法）；软删除标记 + 保留策略
+- **@governed fail-closed** (`governance/decorators.py`): 无治理管线时拒绝执行而非静默放行
+- **预算熔断器** (`governance/`): S7 预算熔断 + 破坏性操作门接入 GovernPipeline
+- **HITL 审批 Ed25519 验签**: approve/reject/gaas 路径验签 + A2A 强制验签接线
+- **consensus auto-resolve**: vote 后自动 resolve + resolve 端点
+
+### Added — 成本护栏与遥测闭环（v0.54，INC-2026-08-13-001）
+- **CostGuard** (`cost_guard.py`): 预算熔断 + 高价模型调用告警 + telemetry liveness
+- **meta_monitor G5**: 看门狗真实审计事件检查（不再 touch 自我续命）+ M4 cost 检查
+- **telemetry offline fallback** (`obs/pipeline.py`): endpoint 不可达时落本地 SQLite 缓冲
+- **selfcheck** (`maref_lite/cli.py`): 七项部署自检
+
+### Changed
+- 版本基线: 0.52.0 → 0.54.0（pyproject / Dockerfile / __init__ / GUI / tauri / Cargo / AGENTS / STATE 统一收口）
+- meta_monitor: check_notification_staleness 改用 AlertFeedbackTracker 权威状态（非文件 mtime 猜测）
+
+## [v0.52.0] - 2026-08-05 (治理缺口收口)
+
+### Fixed — M1 风险收口: 演化真实性 + CI 修复
+- **REL 虚假收敛修复** (`recursive/recursive_evolution_loop.py` + `recursive/self_observer.py`): `SystemSnapshot` 增加真实 `test_pass_rate`/`coverage_pct`/`test_count` 字段（由 `test_stats` 计算，不再 hasattr 假指标）；`_collect_current_metrics` 改用 `collect_only=False` 真实运行快速子集（原 collect_only=True 无 pass/fail 信号）；`_run_quality_checks` 从"仅 git status"改为真实运行快速子集 pytest 并记录结果；fallback 路径不再伪造 `test_pass_rate=1.0`。新增 `tests/recursive/test_evolution_metrics.py`（7 项 TDD 测试）
+- **mypy 遗留修复** (`compliance/report_generator.py:151`): `jurisdictions` 显式标注 `list[Jurisdiction]`，清零 v0.33 遗留 arg-type error，`mypy src/maref` 实测 Success
+- **ci.yml YAML 语法修复** (`.github/workflows/ci.yml:45`): Validate mock consistency 的 `f'Mock mismatch: {errors}'` 内嵌 `{}` 破坏 YAML plain-scalar 解析，改为 block scalar + `str(errors)` 拼接；此前 50 次 CI 运行 0 成功（v0.50 引入）
+- **release-to-social.yml 修复** (`.github/workflows/release-to-social.yml`): 两个 blog 模板字面量丢失块缩进导致 YAML 文档提前终止，重写为正确 block-scalar 缩进
+- **STATE.yaml 声明修正**: `G2_ci_green` / `gate_passed` 改为 `false`（修复后待 CI 复跑确认，不再虚假声明）
+
+### Fixed — M2 风险收口: TrustBoundary 防伪 + 消毒链路
+- **C-3a 分级服务端权威化** (`governance/risk_classifier.py` + `governance/trust_boundary.py`): 新增 `classify_action_server`，动作字符串推导出不可降级风险下限，调用方 metadata/服务端 trusted 只能升级、不能降级（原 impact_scope/reversible 直接取自 metadata 可降级绕过白名单）；TrustBoundary 切换为服务端权威分级
+- **C-3b scope 防伪 fail-closed** (`governance/trust_boundary.py`): 声明 issuer 的 scope 必须可验证——issuer 非空但无签名 / 公钥未配置 / 签名无效一律拒绝（废除原"公钥表外跳过验签"fail-open 边界）；legacy issuer="" scope 不受影响
+- **H-1 消毒链路生产接线** (`compliance/data_sovereignty.py` + `integration/mcp_security_middleware.py`): `DataSovereigntyManager.sanitize_data` 生产锚点贯通 C1(分类)→C2(分类感知消毒)→C3(授权还原) 并记录审计；`DataSovereigntyMiddleware` 放行跨境 `data_transfer` 时按涉事数据类消毒 `payload`（`MiddlewareResult.sanitized_payload`）
+- **H-2 授权还原鉴权** (`security/sanitizer.py`): `Sanitizer(audit_logger)` 注入审计；`restore_output` 授权还原必须提供 `authorized_by` 执行主体（fail-closed），并记录 `pii_restore` 事件
+- **M2 门禁验证**: 新增 `tests/security/test_m2_governance_hardening.py`（15 项 TDD，含中间件链 payload 传播）；ruff 全过、`mypy src/maref` Success 713 files、governance+security+compliance+middleware 2298 回归 passed、version-check.sh 8/8 OK
+
+## [v0.52.0] - 2026-08-05 (治理缺口收口)
+
+### Added — P0 五项治理缺口收口
+- **P0-1 边界注入** (`federation/__init__.py` + `sidecar/mcp_gateway.py` + `sidecar/org_governance_router.py`): TrustBoundaryManager 注入 GaaS GovernanceRouter 与 MCP 网关（默认 fail-closed），`org_governance_router` 暴露 `/api/v1/federation/govern` 端点
+- **P0-2 IRREVERSIBLE HITL** (`governance/core_pipeline.py`): IRREVERSIBLE 授权放行升级真实 HITL（tier=P0_RESPONSE）→ ASK_USER
+- **P0-3 仲裁接线** (`federation/__init__.py` + `governance/verifier_consensus.py`): federation 工厂注入 VerifierConsensus + RuleJudge，激活 `arbitrate_dispute`
+- **P0-4 法官回避** (`governance/judge.py`): `Judge.affiliation` + `_same_source` recusal，同源法官回避不参与表决
+- **P0-5 A2A caller 链** (`integration/a2a_bridge.py` + `integration/a2a_client.py` + `integration/mcp_envelope.py`): A2A header 真实 caller DID + AuthorizationScope 序列化 + chain_id 透传
+- **装配级集成测试** (`tests/sidecar/test_v051_p0_governance_wiring.py`): 30 项新增；governance/gaas/federation/sidecar 1680 回归全绿
+
+### Fixed — 审计缺口收口
+- **G-03 browser dry_run 契约** (`desktop/browser_controller.py`): 无 `MAREF_BROWSER_DRY_RUN` env 时默认 dry_run=False（与测试契约对齐）；补齐 `session_id`/`pool` 接口（兼容 `BrowserSessionBridge`）、`get_html`/`wait_for_selector`/`wait_for_navigation`/`get_cookies`/`set_cookies` 方法及 `_do_*` 实现；`close()` 释放会话资源；`tools/browser_server.py` 单例显式 `dry_run=True` 防止 SSRF
+- **G-04 ruff + mypy 门禁清零** (`pyproject.toml` + 11 源文件): ruff 3 errors 清零（`trust_engine_v2.py` TYPE_CHECKING 导入修复 F821）；mypy src/maref 33 errors → 0（第三方依赖加 ignore_missing_imports override，mitmproxy follow_imports=skip）；修复真实缺陷：`certification.py` Merkle 验证改用真实 API（`load_log`/`generate_proof(int)` 不存在）、`audit_logger.py` HMAC None 处理、`meta_governance.py` property setter 重排、7 处类型标注对齐。治理域覆盖率实测 87.70%（门禁 ≥60% 达标），STATE.yaml 分域覆盖率全部更新为 2026-08-05 实测
+
+## [v0.51.0] - 2026-08-04 (企业价值闭环补强)
+
+### Added — P0 飞轮数据端（W1）
+- **A1 DataCatalog** (`data/catalog.py`): 企业数据源登记（`DataSource` 名称/类型/owner/分类分级/敏感标签/schema 指纹），register/lookup/list_by_owner + 变更通知订阅；`FieldSpec` 字段级 `data_category`（C1 贯通）
+- **A2 LineageTracker** (`data/lineage.py`): 数据血缘有向图，`trace_downstream` 下游扩散面（爆炸半径）/ `trace_upstream` 上游根因链，`transform` 记录
+- **A3 SchemaValidator** (`data/schema_validator.py`): 字段级类型/必填/枚举约束 + `detect_schema_drift`（字段增删/类型变更/必填升级/enum 收窄）+ 稳定 `fingerprint`
+
+### Added — P0 飞轮价值端（W2）
+- **B1 ValueMetric** (`value/metrics.py`): 业务价值指标（hours_saved/cycle_time/error_reduction/attainment_rate），baseline/current/delta/delta_percent，浮点精度归一化
+- **B2 ValueTrackingEngine** (`value/tracking.py`): 任务→结果价值捕获，按 agent/team/org 聚合，**HMAC-SHA256 签名**（`MAREF_VALUE_HMAC_KEY` 缺失 fail-closed）
+- **B3 结果质量参与结算** (`federation/metering.py`): `TaskMetric.outcome_quality`（0-1 clamp）+ `outcome_quality_weight` 可配置权重（默认 0 向后兼容）+ **effort 因子归一化**（修复 duration/tokens 原始量淹没质量信号的缺陷）
+
+### Added — P0 数据泄露防护（W3）
+- **C1 字段级分类元数据** (`data/catalog.py`): `DataSource.category_for_field()` / `sensitive_fields()` 形成「字段→分类→消毒规则」映射
+- **C2 消毒分级贯通** (`security/sanitizer.py`): `sanitize_by_category()` 按 `DataCategory` 选择 PII 规则集（HEALTH→身份证/电话、FINANCIAL→卡号、PERSONAL→电话/邮箱），未映射回退全量，token 授权可还原；字符串 key 规避 data_sovereignty 循环导入
+- **C3 SensitiveDataLineage** (`data/sensitive_lineage.py`): 敏感数据跨域流动追踪，`audit_alerts()` 越界告警 + **熔断器**（violation 即 open），链式扩散面分析
+
+### Added — P1 可解释性（W4）
+- **D1 DecisionExplainer** (`governance/explainer.py`): 结构化推理链（premises/steps/confidence/alternatives/uncertainty_sources）+ `ExplainerMode`（**MANDATORY 缺链抛错** / LAZY 自动生成 / SKIPPED 放行），无参构造拒绝防默认弱化
+- **D2 HITL 注入推理链** (`human/decision_api.py`): `DecisionContext.explanation` + `explanation_present()` + `to_dict` 序列化——人类审批前必须可见结构化推理链
+
+### Added — P1 幻觉治理（W5）
+- **E1 GroundingVerifier** (`security/grounding_verifier.py`): RAG 忠实度评分（token 重叠 + **同义词归一化** + **矛盾方向检测**压制），可插拔 LLM judge，`is_grounded()` 阈值门禁
+- **E2 verification_bridge 第五协议** (`integration/percv/verification_bridge.py`): `run_protocol_e` 断言/证据/来源三角验证，无 gateway 依赖，入历史链；新增 `history` 属性
+
+### Changed
+- 版本基线: 0.50.0 → 0.51.0-dev（AGENTS.md 同步 v0.51.0-dev）
+- `TaskMeteringEngine` 构造签名: 新增 `outcome_quality_weight`（默认 0，向后兼容）
+- `VerificationBridge` 构造签名: 新增可选 `grounding_verifier`
+- `Sanitizer` 新增 `sanitize_by_category`（既有 `sanitize_input` API 保留）
+
+---
+
 ## [v0.50.0] - 2026-08-04 (治理承重墙封堵 + 三大域补强收口)
 
 ### Added — P0 治理承重墙封堵（W1–W4）

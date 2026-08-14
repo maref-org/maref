@@ -83,6 +83,50 @@ class RiskAssessment:
         }
 
 
+def _classify_action_floor(action: str) -> RiskAssessment:
+    """按动作字符串本身推导不可降级风险下限（v0.52 M2-C3a）。
+
+    强制 ``impact_scope=local`` / ``reversible=True`` 的悲观基线，
+    使分级只反映动作字符串固有的风险信号（不可逆前缀、敏感主体、
+    中等写操作），屏蔽调用方自报 metadata 的降级意图。
+    """
+    return classify_action(action, {"impact_scope": "local", "reversible": True})
+
+
+def classify_action_server(
+    action: str,
+    metadata: dict[str, Any] | None = None,
+    trusted: dict[str, Any] | None = None,
+) -> RiskAssessment:
+    """服务端权威分级 — 调用方 metadata 只能升级、不能降级（v0.52 M2-C3a）。
+
+    设计背景：:func:`classify_action` 直接信任调用方自报的
+    ``impact_scope`` / ``reversible``，攻击者可宣称 local/reversible 把
+    高风险动作降级。本函数引入「动作字符串推导的风险下限」：
+    metadata（不可信）与 trusted（服务端注入的可信上下文）仅在
+    不降低下限的前提下生效。
+
+    Args:
+        action: 动作标识。
+        metadata: 调用方自报上下文（视为不可信，仅可升级风险）。
+        trusted: 服务端注入的可信上下文（如网关探测到的跨域标志）。
+
+    Returns:
+        RiskAssessment：风险不低于动作字符串推导的下限。
+    """
+    metadata = metadata or {}
+    trusted = trusted or {}
+    floor = _classify_action_floor(action)
+
+    candidate_metadata = dict(metadata)
+    candidate_metadata.update(trusted)
+    candidate = classify_action(action, candidate_metadata)
+
+    if _RISK_ORDER[candidate.risk_level] >= _RISK_ORDER[floor.risk_level]:
+        return candidate
+    return floor
+
+
 def classify_action(action: str, metadata: dict[str, Any] | None = None) -> RiskAssessment:
     """对动作进行风险分级。
 
