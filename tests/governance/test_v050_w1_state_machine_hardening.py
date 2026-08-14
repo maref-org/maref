@@ -9,6 +9,8 @@ v0.50 W1 — 单 Agent 治理承重墙封堵测试
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from maref.governance.state_machine import GovernanceStateMachine, _write_state_transition
@@ -18,8 +20,14 @@ from maref.governance.types import GovernanceState, StateMachineSnapshot, StateT
 class TestW1S1HmacFailClosed:
     """A9: 空 MAREF_HMAC_SECRET_KEY 时必须拒绝写链，不允许退化为裸 sha256。"""
 
-    def test_write_transition_refuses_without_hmac_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_write_transition_refuses_without_hmac_key(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ) -> None:
         monkeypatch.delenv("MAREF_HMAC_SECRET_KEY", raising=False)
+        # G7 统一 key 来源后须同时隔离文件 fallback：重定向 cwd 与 home，
+        # 避免本机 ~/.maraf_hmac_key 或仓库 .maraf_hmac_key 命中导致 fail-closed 失效
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
         event = StateTransition(
             from_state=GovernanceState.INIT,
             to_state=GovernanceState.OBSERVE,
@@ -28,8 +36,13 @@ class TestW1S1HmacFailClosed:
         with pytest.raises(ValueError, match="MAREF_HMAC_SECRET_KEY"):
             _write_state_transition(event)
 
-    def test_transition_fails_closed_without_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_transition_fails_closed_without_key(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ) -> None:
         monkeypatch.delenv("MAREF_HMAC_SECRET_KEY", raising=False)
+        # 同上：隔离 G7 文件 fallback
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
         sm = GovernanceStateMachine()
         with pytest.raises(ValueError, match="MAREF_HMAC_SECRET_KEY"):
             sm.transition(GovernanceState.OBSERVE, "start")
