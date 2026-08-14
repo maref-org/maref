@@ -22,12 +22,12 @@ from maref_lite.self_healing_loop import HealingCycleReport, SelfHealingConfig, 
 def mock_deps():
     """Patch recursive dependencies instantiated by SelfHealingLoop."""
     with (
-        patch("maref.recursive.self_observer.SelfObserver") as MockObserver,
-        patch("maref.recursive.self_diagnostician.SelfDiagnostician") as MockDiagnostician,
-        patch("maref.recursive.self_healer.SelfHealer") as MockHealer,
-        patch("maref.recursive.self_architect.SelfArchitect") as MockArchitect,
-        patch("maref.recursive.self_executor.SelfExecutor") as MockExecutor,
-        patch("maref.recursive.unified_audit.UnifiedAudit") as MockAudit,
+        patch("maref_lite.self_healing_loop.SelfObserver") as MockObserver,
+        patch("maref_lite.self_healing_loop.SelfDiagnostician") as MockDiagnostician,
+        patch("maref_lite.self_healing_loop.SelfHealer") as MockHealer,
+        patch("maref_lite.self_healing_loop.SelfArchitect") as MockArchitect,
+        patch("maref_lite.self_healing_loop.SelfExecutor") as MockExecutor,
+        patch("maref_lite.self_healing_loop.UnifiedAudit") as MockAudit,
     ):
         observer_inst = MockObserver.return_value
         observer_inst.snapshot.return_value = MagicMock(source_file_count=5)
@@ -74,9 +74,9 @@ def _loop(mock_deps, **config_overrides) -> SelfHealingLoop:
 def test_config_defaults() -> None:
     config = SelfHealingConfig()
     assert config.check_interval_seconds == 300
-    assert config.max_heal_iterations == 5
+    assert config.max_heal_iterations == 3
     assert config.auto_heal is True
-    assert config.enable_architecture_proposals is False
+    assert config.enable_architecture_proposals is True
 
 
 def test_config_custom() -> None:
