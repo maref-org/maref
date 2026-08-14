@@ -1,4 +1,4 @@
-# Agent Operating Manual: MAREF v0.52.0-dev
+# Agent Operating Manual: MAREF v0.54.0-dev
 
 > **上位法**: 本文件受 [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步。
