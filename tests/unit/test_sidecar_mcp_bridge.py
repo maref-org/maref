@@ -97,6 +97,13 @@ class TestSidecarMCPBridge:
     def bridge(self) -> SidecarMCPBridge:
         return SidecarMCPBridge()
 
+    @pytest.fixture(autouse=True)
+    def _mock_backends(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """list_tools 触发 claude-mem backend.start() / codedepth build(),
+        在 CI 上阻塞超时(>120s)。mock 掉延迟初始化, 只返回 sidecar 工具集合。"""
+        monkeypatch.setattr(SidecarMCPBridge, "_get_cm_backend", lambda self: None)
+        monkeypatch.setattr(SidecarMCPBridge, "_get_cd_indexer", lambda self: None)
+
     def test_get_server_info(self, bridge: SidecarMCPBridge) -> None:
         info = bridge.get_server_info()
         assert info["protocolVersion"] == "2024-11-05"
