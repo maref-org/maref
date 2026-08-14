@@ -542,20 +542,24 @@ def cost_policy(
     except Exception as e:  # noqa: BLE001
         console.print(f"[yellow]审计写入失败（不影响配置落地）: {e}[/yellow]")
 
-    console.print(Panel(
-        f"cost-policy 已写入 {config_path}\n\n"
-        f"  call_hard_limit      : {call_hard_limit} / 30min\n"
-        f"  call_soft_limit      : {call_soft_limit} / 30min\n"
-        f"  ctx_limit_chars      : {ctx_limit_chars:,}\n"
-        f"  daily_token_budget   : {daily_token_budget:,}\n\n"
-        f"[dim]proxy 热加载生效，无需重启。[/dim]",
-        title="[green]成本护栏策略[/green]",
-    ))
+    console.print(
+        Panel(
+            f"cost-policy 已写入 {config_path}\n\n"
+            f"  call_hard_limit      : {call_hard_limit} / 30min\n"
+            f"  call_soft_limit      : {call_soft_limit} / 30min\n"
+            f"  ctx_limit_chars      : {ctx_limit_chars:,}\n"
+            f"  daily_token_budget   : {daily_token_budget:,}\n\n"
+            f"[dim]proxy 热加载生效，无需重启。[/dim]",
+            title="[green]成本护栏策略[/green]",
+        )
+    )
 
 
 @app.command("usage")
 def usage_show(
-    proxy_url: Annotated[str, typer.Option(help="proxy /usage 端点")] = "http://127.0.0.1:8147/usage",
+    proxy_url: Annotated[
+        str, typer.Option(help="proxy /usage 端点")
+    ] = "http://127.0.0.1:8147/usage",
 ) -> None:
     """查看 proxy 成本用量（G1-3：proxy /usage 聚合视图）。"""
     import urllib.request
@@ -587,7 +591,12 @@ def usage_show(
         mtable.add_column("输入字符", style="green")
         mtable.add_column("输出字符", style="green")
         for m, st in sorted(data["by_model"].items()):
-            mtable.add_row(m, str(st.get("calls", 0)), f"{st.get('input_chars', 0):,}", f"{st.get('output_chars', 0):,}")
+            mtable.add_row(
+                m,
+                str(st.get("calls", 0)),
+                f"{st.get('input_chars', 0):,}",
+                f"{st.get('output_chars', 0):,}",
+            )
         console.print(mtable)
 
     console.print(
@@ -621,9 +630,12 @@ def selfcheck() -> None:
     audit_detail = "审计链缺失"
     try:
         from maref.observability.meta_monitor import check_audit_log_growth
+
         res = check_audit_log_growth(max_age=86400.0)
         audit_ok = res["passed"]
-        audit_detail = f"最新事件: {res.get('newest_event_type', '?')} (age={res.get('age_seconds', 0)}s)"
+        audit_detail = (
+            f"最新事件: {res.get('newest_event_type', '?')} (age={res.get('age_seconds', 0)}s)"
+        )
     except Exception as e:  # noqa: BLE001
         audit_detail = f"检查异常: {e}"
     checks.append(("审计链 24h 有真实事件", audit_ok, audit_detail))
@@ -633,11 +645,14 @@ def selfcheck() -> None:
     telemetry_detail = "未检查"
     try:
         from maref.obs.pipeline import ObsPipeline
+
         pending = ObsPipeline.offline_event_count()
         if pending > 0:
             # 缓冲有滞留事件 = 远端不可达（本次事故的遥测断裂症状），应告警
             telemetry_ok = False
-            telemetry_detail = f"本地缓冲滞留 {pending} 条事件 — 远端遥测端点可能不可达（telemetry.maref.org）"
+            telemetry_detail = (
+                f"本地缓冲滞留 {pending} 条事件 — 远端遥测端点可能不可达（telemetry.maref.org）"
+            )
         else:
             telemetry_detail = "遥测缓冲为空（正常）"
     except Exception as e:  # noqa: BLE001
@@ -663,7 +678,9 @@ def selfcheck() -> None:
         if e.code == 401 or e.code == 403:
             # sidecar 未配置 API key → 无法验证接线，降级为警告而非 FAIL
             bridge_ok = True
-            bridge_detail = "sidecar 未配置 MAREF_API_KEY，无法验证 ObsBridge（需 v0.54 sidecar 升级 + key）"
+            bridge_detail = (
+                "sidecar 未配置 MAREF_API_KEY，无法验证 ObsBridge（需 v0.54 sidecar 升级 + key）"
+            )
         else:
             bridge_detail = f"sidecar 返回 HTTP {e.code}"
     except Exception as e:  # noqa: BLE001
@@ -675,9 +692,12 @@ def selfcheck() -> None:
     noise_detail = "未检测"
     try:
         from maref.observability.meta_monitor import check_audit_noise
+
         noise_res = check_audit_noise(window_hours=24.0)
         noise_ok = noise_res["passed"]
-        noise_detail = f"total={noise_res.get('total', 0)} noise_ratio={noise_res.get('noise_ratio', 0)}"
+        noise_detail = (
+            f"total={noise_res.get('total', 0)} noise_ratio={noise_res.get('noise_ratio', 0)}"
+        )
     except Exception as e:  # noqa: BLE001
         noise_detail = f"检查异常: {e}"
     checks.append(("审计链未被测试污染", noise_ok, noise_detail))

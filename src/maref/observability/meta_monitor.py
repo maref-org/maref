@@ -760,7 +760,9 @@ def check_cost(
                 high_cost_hourly = env_v
         except ValueError:
             pass
-    critical_hits = {m: c for m, c in hourly.items() if m in high_cost_models and c > high_cost_hourly}
+    critical_hits = {
+        m: c for m, c in hourly.items() if m in high_cost_models and c > high_cost_hourly
+    }
 
     checks: dict[str, dict[str, Any]] = {
         "high_cost_model_calls": {
@@ -828,11 +830,7 @@ def check_audit_noise(
     noise_ratio = 1.0 - (real_types / total)
     # 污染判定需同时满足：事件量异常大（测试批量写入特征）且全部是 state_transition。
     # 健康静默系统 24h 内只有几条 state_transition 是正常状态，不应误判。
-    polluted = (
-        types.get("state_transition", 0) == total
-        and real_types == 0
-        and total >= 1000
-    )
+    polluted = types.get("state_transition", 0) == total and real_types == 0 and total >= 1000
 
     if polluted:
         _write_notification(
@@ -873,7 +871,11 @@ def run_all_checks(
             "m2_passed": m2["passed"],
             "m3_passed": m3["passed"],
             "m4_passed": m4["passed"],
-            "all_passed": m0["passed"] and m1["passed"] and m2["passed"] and m3["passed"] and m4["passed"],
+            "all_passed": m0["passed"]
+            and m1["passed"]
+            and m2["passed"]
+            and m3["passed"]
+            and m4["passed"],
         },
         "m0": m0,
         "m1": m1,
