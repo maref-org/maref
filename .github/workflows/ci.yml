@@ -65,6 +65,7 @@ jobs:
       - name: pip-audit
         run: |
           pip install pip-audit
+          pip install --upgrade "setuptools>=83.0.0"
           pip-audit
       - name: TruffleHog Secret Scan
         run: |
@@ -97,8 +98,12 @@ jobs:
           echo "✅ No 64-state claims remain"
       - name: Check for Sperner claims
         run: |
-          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null; then
-            echo "ERROR: Found remaining Sperner claims"
+          # 禁止残留 Sperner 夸大声明
+          # 豁免历史执行日志与诚信声明/审计报告（描述删除虚假声明的过程，与 64-state 检查一致）
+          FILES=$(grep -rl "Sperner" --include="*.md" --exclude-dir=execution-logs --exclude="INTEGRITY_DECLARATION.md" --exclude="gov-audit-report.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null || true)
+          if [ -n "$FILES" ]; then
+            echo "ERROR: Found remaining Sperner claims in:"
+            echo "$FILES"
             exit 1
           fi
           echo "✅ No Sperner claims remain"
