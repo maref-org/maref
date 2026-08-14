@@ -140,5 +140,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run cryptography tests
+        # 只跑 crypto 单文件, pytest-cov 会对全量 src 检查 fail_under=50 而误失败。
+        # 覆盖率检查由 test job 负责, 这里 --no-cov 只验证功能。
         run: |
-          pytest tests/test_crypto.py -v
+          pytest tests/test_crypto.py -v --no-cov
