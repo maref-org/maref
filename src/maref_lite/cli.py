@@ -723,12 +723,17 @@ def selfcheck() -> None:
         from maref.cost_guard import CostGuard
 
         open_guard = CostGuard()
-        opensource_ok = open_guard.cfg_int("call_hard_limit", 0) > 0 and open_guard.cfg_int("ctx_limit_chars", 0) > 0
+        opensource_ok = (
+            open_guard.cfg_int("call_hard_limit", 0) > 0
+            and open_guard.cfg_int("ctx_limit_chars", 0) > 0
+        )
         cfg = Path.home() / ".maref" / "proxy_config.json"
         if cfg.exists():
             data = json.loads(cfg.read_text())
             guard_ok = data.get("call_hard_limit", 0) > 0 and data.get("ctx_limit_chars", 0) > 0
-            guard_detail = f"proxy_config call={data.get('call_hard_limit')} ctx={data.get('ctx_limit_chars')}"
+            guard_detail = (
+                f"proxy_config call={data.get('call_hard_limit')} ctx={data.get('ctx_limit_chars')}"
+            )
         else:
             # 开源部署回退：内核护栏仍可加载（CoverageGuard / CostGuard 直接可 import）
             guard_ok = opensource_ok

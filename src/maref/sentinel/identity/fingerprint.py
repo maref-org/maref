@@ -139,9 +139,7 @@ class IdentityFingerprint:
         egress_sim = self._egress_similarity(a, b)
         return 0.5 * style_sim + 0.2 * time_sim + 0.3 * egress_sim
 
-    def _style_similarity(
-        self, fa: dict[str, float], fb: dict[str, float]
-    ) -> float:
+    def _style_similarity(self, fa: dict[str, float], fb: dict[str, float]) -> float:
         if not fa or not fb:
             return 0.5  # 中性
         keys = set(fa) | set(fb)
@@ -155,9 +153,7 @@ class IdentityFingerprint:
             return 0.5  # 中性
         ta = sum(ba)
         tb = sum(bb)
-        overlap = sum(
-            min(ba[i] / ta, bb[i] / tb) for i in range(min(len(ba), len(bb)))
-        )
+        overlap = sum(min(ba[i] / ta, bb[i] / tb) for i in range(min(len(ba), len(bb))))
         return min(1.0, overlap)
 
     def _egress_similarity(self, a: FingerprintProfile, b: FingerprintProfile) -> float:

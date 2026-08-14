@@ -221,9 +221,7 @@ class HITLRouter:
         """Canonical payload a reviewer signs: event_id:status:timestamp (v0.53 F6)."""
         return f"{event_id}:{target_status.value}:{signed_at}".encode()
 
-    def _verify_approval_signature(
-        self, event: HITLEvent, target_status: HITLStatus
-    ) -> bool:
+    def _verify_approval_signature(self, event: HITLEvent, target_status: HITLStatus) -> bool:
         """Verify the approval signature on ``event`` against registered keys.
 
         When no reviewer keys are configured, returns True (legacy path —
@@ -247,9 +245,7 @@ class HITLRouter:
         try:
             from maref.signing.signing_key import ReportSigningKey
 
-            return ReportSigningKey.verify_signature(
-                public_key, event.approval_signature, payload
-            )
+            return ReportSigningKey.verify_signature(public_key, event.approval_signature, payload)
         except Exception:  # noqa: BLE001
             return False
 

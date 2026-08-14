@@ -85,8 +85,6 @@ _NOTIFICATIONS_DIR: Path | None = None
 _REPORT_PATH: Path | None = None
 
 
-
-
 def _meta_base() -> Path:
     """Path for meta-monitor data (notifications, reports)."""
     return Path(os.environ.get("MAREF_META_PATH", ".openclaw"))
@@ -310,7 +308,6 @@ def check_audit_log_growth(
     }
 
 
-
 def check_audit_chain_integrity(
     audit_base: Path | None = None,
     max_records: int = 500,
@@ -346,7 +343,8 @@ def check_audit_chain_integrity(
     passed = len(issues) == 0 and verified_files > 0
     if issues:
         _write_notification(
-            "M1 Fail", "critical",
+            "M1 Fail",
+            "critical",
             "; ".join(issues),
             subsystem="chain",
             check_id="audit_chain_integrity",
@@ -358,9 +356,6 @@ def check_audit_chain_integrity(
         "max_records_scanned": max_records,
         "issues": issues,
     }
-
-
-
 
 
 def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
@@ -442,11 +437,11 @@ def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
 
     if contiguous >= max_records:
         return True, f"last {contiguous} records linked", contiguous
-    return False, (
-        f"break after {contiguous} contiguous records; newest={records[-1].get('id', '?')}"
-    ), contiguous
-
-
+    return (
+        False,
+        (f"break after {contiguous} contiguous records; newest={records[-1].get('id', '?')}"),
+        contiguous,
+    )
 
 
 def check_pulse_freshness(
@@ -750,11 +745,13 @@ def check_m1() -> dict[str, Any]:
     chain = check_audit_chain_integrity()
     issues = list(path_issues)
     if not chain.get("passed", False):
-        issues.append({
-            "subsystem": "audit_chain_integrity",
-            "issue": "chain_break",
-            "detail": chain.get("issues", []),
-        })
+        issues.append(
+            {
+                "subsystem": "audit_chain_integrity",
+                "issue": "chain_break",
+                "detail": chain.get("issues", []),
+            }
+        )
     return {
         "passed": len(issues) == 0,
         "path_issues": path_issues,
@@ -816,14 +813,16 @@ def check_notification_staleness(
     passed = stale_72h == 0 and stale_24h <= 3
     if stale_72h > 0:
         _write_notification(
-            "M2 Fail", "critical",
+            "M2 Fail",
+            "critical",
             f"{stale_72h} open alerts stale >72h — feedback loop broken",
             subsystem="feedback-loop",
             check_id="notification_staleness",
         )
     elif stale_24h > 0:
         _write_notification(
-            "M2 Warning", "warning",
+            "M2 Warning",
+            "warning",
             f"{stale_24h} open alerts stale >24h",
             subsystem="feedback-loop",
             check_id="notification_staleness",
@@ -865,7 +864,6 @@ def check_m2(notifications_dir: Path | str | None = None) -> dict[str, Any]:
 # ── M3: Meta-Observability ──────────────────────────────────────────── #
 
 
-
 def _cleanup_notifications(max_age_hours: float = 1.0) -> int:
     """Delete notification files for alerts that have been consumed.
 
@@ -886,8 +884,7 @@ def _cleanup_notifications(max_age_hours: float = 1.0) -> int:
         all_alerts = tracker.get_alerts()
         open_ids = {rec.check_id for rec in all_alerts if rec.is_open}
         resolved_check_ids = {
-            rec.check_id for rec in all_alerts
-            if not rec.is_open and rec.check_id not in open_ids
+            rec.check_id for rec in all_alerts if not rec.is_open and rec.check_id not in open_ids
         }
     except Exception:
         resolved_check_ids = set()
@@ -907,9 +904,6 @@ def _cleanup_notifications(max_age_hours: float = 1.0) -> int:
         except OSError:
             continue
     return removed
-
-
-
 
 
 def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[str, Any]) -> int:
@@ -945,8 +939,6 @@ def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[s
 
 
 # ── M3: Meta-Observability ──────────────────────────────────────────── #
-
-
 
 
 def check_m3() -> dict[str, Any]:
@@ -1234,7 +1226,9 @@ def run_once(
     # prune consumed notification artifacts.
     try:
         resolved = _resolve_recovered_checks(
-            report.get("m0", {}), report.get("m1", {}), report.get("m2", {}),
+            report.get("m0", {}),
+            report.get("m1", {}),
+            report.get("m2", {}),
         )
         removed = _cleanup_notifications()
         if resolved or removed:

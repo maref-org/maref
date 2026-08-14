@@ -82,8 +82,7 @@ class BoundaryViolationError(MAREFError):
         super().__init__(
             code=ErrorCode.BOUNDARY_VIOLATION,
             message=(
-                f"TrustBoundary 阻断越界动作: agent={agent_id} action={action} "
-                f"reason={reason}"
+                f"TrustBoundary 阻断越界动作: agent={agent_id} action={action} reason={reason}"
             ),
             details={"action": action, "agent_id": agent_id, "reason": reason, **(details or {})},
         )
@@ -193,16 +192,13 @@ class TrustBoundaryManager:
         # v0.47 S12: agent_id 绑定 — scope 的 subject_did 必须等于执行 agent。
         # 兼容 DID 与短名两种标识：subject_did="did:maref:agent-01" 与
         # agent_id="agent-01" 视为同一主体。
-        if self.scope is not None and not _subjects_match(
-            self.scope.subject_did, agent_id
-        ):
+        if self.scope is not None and not _subjects_match(self.scope.subject_did, agent_id):
             return BoundaryDecision(
                 action=action,
                 agent_id=agent_id,
                 allowed=False,
                 reason=(
-                    f"授权范围 subject_did={self.scope.subject_did} "
-                    f"与执行 agent={agent_id} 不匹配"
+                    f"授权范围 subject_did={self.scope.subject_did} 与执行 agent={agent_id} 不匹配"
                 ),
                 assessment=assessment,
             )
@@ -232,9 +228,7 @@ class TrustBoundaryManager:
                     ),
                     assessment=assessment,
                 )
-            if not self.scope.verify_signature(
-                self.issuer_public_keys[self.scope.issuer]
-            ):
+            if not self.scope.verify_signature(self.issuer_public_keys[self.scope.issuer]):
                 return BoundaryDecision(
                     action=action,
                     agent_id=agent_id,
@@ -252,9 +246,7 @@ class TrustBoundaryManager:
                     action=action,
                     agent_id=agent_id,
                     allowed=False,
-                    reason=(
-                        f"动作超出授权范围（allowed_actions 未包含 {action}）"
-                    ),
+                    reason=(f"动作超出授权范围（allowed_actions 未包含 {action}）"),
                     assessment=assessment,
                 )
             return BoundaryDecision(
@@ -300,9 +292,7 @@ class TrustBoundaryManager:
                 action=action,
                 agent_id=agent_id,
                 allowed=False,
-                reason=(
-                    f"动作超出授权范围（max_risk_level={self.scope.max_risk_level}）"
-                ),
+                reason=(f"动作超出授权范围（max_risk_level={self.scope.max_risk_level}）"),
                 assessment=assessment,
             )
 
