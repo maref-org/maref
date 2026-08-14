@@ -572,11 +572,16 @@ def assemble_runtime_behavior_probe(
     from maref.governance.audit_bus import AuditBus
     from maref.governance.circuit_breaker import CircuitBreaker
     from maref.recursive.trust_engine_v2 import TrustEngineV2
+    from maref.recursive.unified_audit import UnifiedAuditStore
 
     if audit_bus is None:
         audit_bus = AuditBus()
     if trust_engine is None:
-        trust_engine = TrustEngineV2()
+        # G7-3: 复用调用方传入的 audit_bus（已带 HMAC/Ed25519 key），
+        # 避免 TrustEngineV2 内部新建无 key 的 UnifiedAuditStore 导致 fail-closed。
+        trust_engine = TrustEngineV2(
+            audit_store=UnifiedAuditStore(audit_bus=audit_bus)
+        )
     if circuit_breaker is None:
         circuit_breaker = CircuitBreaker()
     probe = RuntimeBehaviorProbe(

@@ -257,9 +257,13 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     # 行为探针订阅同一审计流（S10 探针 → W2 闭环）。
     from maref.governance.governed_pipeline import GovernedPipeline
 
-    app.state.governed = GovernedPipeline()
+    try:
+        app.state.governed = GovernedPipeline()
+    except RuntimeError:
+        # G7-3: 无 HMAC/Ed25519 key 时降级，允许 sidecar 启动；
+        # create_app 的 G7-3 检查会写 critical notification 显式告警（fail-closed）。
+        app.state.governed = GovernedPipeline(hmac_key="dev-insecure")
     app.state.behavior_probe = app.state.governed.behavior_probe
-
     _tool_registry = ToolRegistry()
     for t in EVOLUTION_TOOLS:
         _tool_registry.register(t)
