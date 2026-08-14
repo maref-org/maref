@@ -68,8 +68,10 @@ a2a = [
     "a2a-sdk>=1.0",
 ]
 identity = [
-    # CVE-2026-69247(fixed 50.0.0) / CVE-2026-69249(fixed 49.0.0)
-    "cryptography>=50.0",
+    # GHSA-537c-gmf6-5ccf(fixed 48.0.1)；CVE-2026-69247/69249 需 cryptography>=49/50，
+    # 但 mitmproxy(sentinel extra) 上限 cryptography<=48.1，生态僵局下
+    # 经 .trivyignore 豁免（待 mitmproxy 放开上限后移除）。
+    "cryptography>=48.0.1",
     "jwcrypto>=1.5",
     "gmssl>=3.2.2",
 ]
