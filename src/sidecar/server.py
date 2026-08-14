@@ -321,7 +321,14 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     @app.get("/api/obs/status")
     def obs_status() -> dict[str, Any]:
         bridge_connected = obs_bridge is not None and obs_bridge.get_client() is not None
-        return {"enabled": True, "level": "basic" if bridge_connected else "none", "bridge_connected": bridge_connected}
+        wired = list(getattr(app.state, "obs_wired", []))
+        return {
+            "enabled": True,
+            "level": "basic" if bridge_connected else "none",
+            "bridge_connected": bridge_connected,
+            "wired_components": wired,
+            "wired": len(wired) > 0,
+        }
 
     @app.get("/api/red-metrics")
     def red_metrics() -> dict[str, Any]:
@@ -1037,4 +1044,65 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
         app.include_router(federation_router)
     _setup_routes(app, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
     _register_route_scope(app)
+
+    # G9: ObsBridge 真正接线——状态机转换/熔断跳闸事件进入遥测。
+    # 之前 ObsBridge 被创建但从未 wire，遥测桥"通电未插线"。
+    if obs_bridge is not None:
+        try:
+            obs_bridge.wire_state_machine(a2a_bridge._sm)
+            _wired = ["state_machine"]
+            try:
+                if getattr(a2a_bridge, "_cb", None) is not None:
+                    obs_bridge.wire_circuit_breaker(a2a_bridge._cb)
+                    _wired.append("circuit_breaker")
+            except Exception:  # noqa: BLE001
+                pass
+            app.state.obs_wired = _wired
+            import logging as _logging
+
+            _logging.getLogger("sidecar").info("ObsBridge wired: %s", ",".join(_wired))
+        except Exception:  # noqa: BLE001
+            app.state.obs_wired = []
+            import logging as _logging
+
+            _logging.getLogger("sidecar").warning("ObsBridge wiring failed", exc_info=True)
+    else:
+        app.state.obs_wired = []
+
+    # G7-3: HMAC key 启动自检（fail-closed 显式告警，禁止静默失去审计能力）
+    import json as _json
+    import time as _time
+    from pathlib import Path as _Path
+
+    _hmac_key = os.environ.get("MAREF_HMAC_SECRET_KEY", "")
+    if not _hmac_key:
+        for cand in (_Path.cwd() / ".maraf_hmac_key", _Path.home() / ".maraf_hmac_key"):
+            try:
+                _hmac_key = cand.read_text().strip()
+                if _hmac_key:
+                    break
+            except OSError:
+                continue
+    if not _hmac_key:
+        import logging as _logging
+
+        _logging.getLogger("sidecar").error(
+            "HMAC key missing (MAREF_HMAC_SECRET_KEY / .maraf_hmac_key) — "
+            "governance audit writes will FAIL closed. Configure a key."
+        )
+        try:
+            ndir = _Path.cwd() / "notifications"
+            ndir.mkdir(parents=True, exist_ok=True)
+            (ndir / f"{int(_time.time())}_audit-chain_critical.json").write_text(
+                _json.dumps({
+                    "title": "HMAC key missing",
+                    "severity": "critical",
+                    "message": "sidecar started without MAREF_HMAC_SECRET_KEY / .maraf_hmac_key — audit chain fail-closed",
+                    "subsystem": "audit-chain",
+                    "timestamp": _time.time(),
+                })
+            )
+        except OSError:
+            pass
+
     return app

@@ -51,6 +51,14 @@ jobs:
         continue-on-error: true
       - name: Coverage report
         run: coverage report --fail-under=50
+      - name: Audit isolation gate (G6)
+        run: |
+          if [ -d .governance ] && [ -n "$(find .governance -name 'governance_audit*.jsonl' -newermt '-10 minutes' 2>/dev/null)" ]; then
+            echo "❌ 测试污染了生产审计链 (.governance/) — MAREF_AUDIT_PATH 隔离未生效"
+            find .governance -name 'governance_audit*.jsonl' -newermt '-10 minutes'
+            exit 1
+          fi
+          echo "✅ 生产审计链未被测试污染"
 
   security:
     needs: lint

@@ -42,12 +42,18 @@ logger = logging.getLogger(__name__)
 
 
 def _default_audit_log_path() -> Path:
-    """Return default audit log path."""
+    """Return default audit log path.
+
+    v0.54 G6: no longer falls back to cwd when parent is missing — that fallback
+    let tests escape the MAREF_AUDIT_PATH isolation and pollute the repo root.
+    """
     base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
     candidate = base / "governance_audit.jsonl"
-    if candidate.parent.exists():
-        return candidate
-    return Path.cwd() / "governance_audit.jsonl"
+    try:
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    return candidate
 
 
 def _actor_audit_log_path(actor: str) -> Path:
@@ -98,6 +104,38 @@ def _last_chain_hash(log_path: Path) -> str:
     return ""
 
 
+def _write_hmac_missing_alert() -> None:
+    """fail-closed 显式告警（G7-2）：审计 key 缺失时写 stderr + notification，禁止静默。"""
+    import sys
+
+    msg = (
+        "MAREF_HMAC_SECRET_KEY not set and no .maraf_hmac_key found — "
+        "governance audit write FAILED (fail-closed). Configure key or sidecar "
+        "will silently lose audit capability."
+    )
+    print(msg, file=sys.stderr)
+    try:
+        # 尝试写 notification（meta_monitor 会读到并告警）
+        notif_dir = Path(
+            os.environ.get(
+                "MAREF_NOTIFICATIONS_DIR",
+                str(Path.cwd() / "notifications"),
+            )
+        )
+        notif_dir.mkdir(parents=True, exist_ok=True)
+        notif = {
+            "title": "HMAC key missing",
+            "severity": "critical",
+            "message": msg,
+            "subsystem": "audit-chain",
+            "timestamp": time.time(),
+        }
+        name = f"{int(time.time())}_audit-chain_critical.json"
+        (notif_dir / name).write_text(json.dumps(notif))
+    except OSError:
+        pass
+
+
 def _write_state_transition(event: StateTransition, actor: str = "state_machine") -> None:
     """Append a state_transition record to the audit log (best-effort).
 
@@ -107,9 +145,25 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
     v0.50 W1-S1 (A9): fail-closed — when ``MAREF_HMAC_SECRET_KEY`` is not set,
     refuse to write an unsigned chain instead of silently degrading to a bare
     SHA-256 hash (tamperable). Aligns with ``AuditLogger`` (audit.py:220).
+
+    v0.54 G6: when running under pytest, tag the record with a test marker so
+    production audit pollution can be identified and purged.
     """
-    _hmac_key = os.environ.get("MAREF_HMAC_SECRET_KEY", "").encode("utf-8")
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        actor = f"{actor}:test"
+    _hmac_key_env = os.environ.get("MAREF_HMAC_SECRET_KEY", "")
+    if not _hmac_key_env:
+        # G7 统一密钥源：fallback 到 .maraf_hmac_key 文件（与 AuditLogger 对齐）
+        for cand in (Path.cwd() / ".maraf_hmac_key", Path.home() / ".maraf_hmac_key"):
+            try:
+                _hmac_key_env = cand.read_text().strip()
+                if _hmac_key_env:
+                    break
+            except OSError:
+                continue
+    _hmac_key = _hmac_key_env.encode("utf-8")
     if not _hmac_key:
+        _write_hmac_missing_alert()
         raise ValueError(
             "MAREF_HMAC_SECRET_KEY is not set — refusing to write unauthenticated "
             "governance audit chain (fail-closed). Set MAREF_HMAC_SECRET_KEY or "

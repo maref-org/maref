@@ -148,7 +148,12 @@ class ObsPipeline:
                     f.write(str(up_to_seq) + "\n")
 
     async def _send_batch(self, events: list[dict[str, Any]]) -> bool:
-        """POST a gzip-compressed batch with exponential backoff."""
+        """POST a gzip-compressed batch with exponential backoff.
+
+        INC-2026-08-13-001 (G8) fix: when the HTTP endpoint is unreachable,
+        fall back to a local SQLite aggregator so telemetry data is never
+        silently dropped. Returns True if events were persisted (HTTP or local).
+        """
         payload = json.dumps({"events": events}, sort_keys=True)
         compressed = gzip.compress(payload.encode())
 
@@ -167,9 +172,12 @@ class ObsPipeline:
                 )
                 if response.is_success:
                     return True
-
+                self._record_offline(events, reason=f"http_{response.status_code}")
+                return True  # 已本地持久化，不重试导致重复
             except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError):
-                pass
+                if attempt == self._max_retries - 1:
+                    self._record_offline(events, reason="endpoint_unreachable")
+                    return True
 
             if attempt < self._max_retries - 1:
                 await asyncio.sleep(2**attempt)
@@ -180,6 +188,75 @@ class ObsPipeline:
         if self._http_client is None:
             self._http_client = httpx.AsyncClient()
         return self._http_client
+
+    def _record_offline(self, events: list[dict[str, Any]], reason: str) -> None:
+        """G8-2: 端点不可达时把批次写入本地 SQLite 聚合器（数据不丢）。"""
+        try:
+            sqlite3 = __import__("sqlite3")
+            db_dir = Path(
+                os.environ.get(
+                    "MAREF_TELEMETRY_LOCAL_DIR",
+                    str(Path.home() / ".maref" / "telemetry"),
+                )
+            )
+            db_dir.mkdir(parents=True, exist_ok=True)
+            db_path = db_dir / "events.db"
+            conn = sqlite3.connect(str(db_path), timeout=10.0)
+            try:
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS telemetry_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ts REAL NOT NULL,
+                        event_type TEXT NOT NULL,
+                        payload TEXT NOT NULL,
+                        offline_reason TEXT NOT NULL,
+                        ingested_at REAL NOT NULL
+                    )
+                    """
+                )
+                now = __import__("time").time()
+                for e in events:
+                    conn.execute(
+                        "INSERT INTO telemetry_events (ts, event_type, payload, offline_reason, ingested_at) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (e.get("timestamp", now), e.get("event_type", "?"),
+                         json.dumps(e, sort_keys=True, default=str), reason, now),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:  # noqa: BLE001 — fallback 本身失败不可再抛，但要留痕
+            import logging as _logging
+
+            _logging.getLogger("maref.obs").warning(
+                "offline telemetry fallback write failed (reason=%s, events=%d)",
+                reason,
+                len(events),
+            )
+
+    @staticmethod
+    def offline_event_count() -> int:
+        """G8-2: 查询本地聚合器中离线缓存的遥测事件数（供 selfcheck/看板）。"""
+        try:
+            sqlite3 = __import__("sqlite3")
+            db_dir = Path(
+                os.environ.get(
+                    "MAREF_TELEMETRY_LOCAL_DIR",
+                    str(Path.home() / ".maref" / "telemetry"),
+                )
+            )
+            db_path = db_dir / "events.db"
+            if not db_path.exists():
+                return 0
+            conn = sqlite3.connect(str(db_path))
+            try:
+                row = conn.execute("SELECT COUNT(*) FROM telemetry_events").fetchone()
+                return int(row[0]) if row else 0
+            finally:
+                conn.close()
+        except Exception:  # noqa: BLE001
+            return 0
 
     async def _run_loop(self) -> None:
         """Periodic flush loop."""
