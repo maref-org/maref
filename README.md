@@ -275,6 +275,8 @@ python examples/simple_integration_demo.py
 
 ## Tech Reviews
 
+- **[评测] 推理链的黑箱拆解** — 推理链可观测性：黑箱拆解技术评测&nbsp;<sup>[原文](https://github.com/maref-org/maref#readme)</sup>
+
 Independent engineering reviews of MAREF and comparable open-source tooling:
 
 - **[dedupe 开源实体解析引擎技术评测](https://dev.to/maref/dedupekai-yuan-shi-ti-jie-xi-yin-qing-ji-zhu-ping-ce-2466)** — 对 dedupe（Python 实体解析引擎）的技术评测：算法路线、架构与工程化落地。
