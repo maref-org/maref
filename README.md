@@ -275,6 +275,8 @@ python examples/simple_integration_demo.py
 
 ## Tech Reviews
 
+- **[评测] 推理链的黑箱拆解** — --- title: Tearing Open the Reasoning Chain Black Box published: false tags: ai,&nbsp;<sup>[原文](https://github.com/maref-org/maref#readme)</sup>
+
 - **[评测] 推理链的黑箱拆解** — x&nbsp;<sup>[原文](https://github.com/maref-org/maref#readme)</sup>
 
 - **[评测] 推理链的黑箱拆解** — 推理链可观测性：黑箱拆解技术评测&nbsp;<sup>[原文](https://github.com/maref-org/maref#readme)</sup>
