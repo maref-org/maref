@@ -273,6 +273,16 @@ python examples/simple_integration_demo.py
 
 ---
 
+## Tech Reviews
+
+Independent engineering reviews of MAREF and comparable open-source tooling:
+
+- **[dedupe 开源实体解析引擎技术评测](https://dev.to/maref/dedupekai-yuan-shi-ti-jie-xi-yin-qing-ji-zhu-ping-ce-2466)** — 对 dedupe（Python 实体解析引擎）的技术评测：算法路线、架构与工程化落地。
+
+> 📌 评测类文章同步发布在 [MAREF 官方博客](https://dev.to/maref)，本小节收录与 MAREF 生态相关的独立技术评测。
+
+---
+
 ## Latest Release
 
 <!-- MAREF_RELEASE_START -->
