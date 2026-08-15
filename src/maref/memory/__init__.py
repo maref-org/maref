@@ -12,6 +12,7 @@ Key components:
 - SemanticMemoryStore: Cold-tier knowledge graph + vector search
 """
 
+from maref.memory.episodic_store import EpisodicStore
 from maref.memory.memory_manager import (
     ConfidenceLabel,
     EpisodicMemoryStore,
@@ -23,15 +24,50 @@ from maref.memory.memory_manager import (
     UserIsolationTag,
     WorkingMemoryStore,
 )
+from maref.memory.persona_learning import PersonaLearningLoop
+from maref.memory.persona_tools import (
+    PERSONA_TOOLS,
+    CreateHandoffTool,
+    GetHandoffTool,
+    GetPersonaContextTool,
+    GetUserProfileTool,
+    PersonaMemoryTool,
+    RecordFeedbackTool,
+    ResolveHandoffTool,
+    SearchMemoryTool,
+    WriteMemoryTool,
+    quick_sentiment,
+    register_persona_tools,
+)
+from maref.memory.style_learner import StyleLearner
+from maref.memory.user_profile_graph import DEFAULT_DB_PATH, Preference, UserProfileGraph
 
 __all__ = [
     "ConfidenceLabel",
+    "CreateHandoffTool",
+    "DEFAULT_DB_PATH",
     "EpisodicMemoryStore",
+    "EpisodicStore",
+    "GetHandoffTool",
+    "GetPersonaContextTool",
+    "GetUserProfileTool",
     "MemoryManager",
     "MemoryQuery",
     "MemoryRecord",
+    "PERSONA_TOOLS",
+    "PersonaLearningLoop",
+    "PersonaMemoryTool",
+    "Preference",
+    "RecordFeedbackTool",
+    "ResolveHandoffTool",
+    "SearchMemoryTool",
     "SemanticMemoryStore",
     "SourceAnnotation",
+    "StyleLearner",
     "UserIsolationTag",
+    "UserProfileGraph",
     "WorkingMemoryStore",
+    "WriteMemoryTool",
+    "quick_sentiment",
+    "register_persona_tools",
 ]
