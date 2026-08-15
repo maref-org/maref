@@ -27,7 +27,7 @@ jobs:
           
       - name: Install dependencies
         run: |
-          pip install -e ".[dev]" starlette
+          pip install -e ".[dev,identity]" starlette
           
       - name: Run meta-monitor — M0 Survivability
         env:
