@@ -135,9 +135,12 @@ class ValueTrackingEngine:
         totals: dict[str, dict[str, float]] = {}
         for record in filtered:
             for metric in record.metrics:
-                bucket = totals.setdefault(
-                    metric.metric_type.value, {"delta": 0.0, "count": 0.0}
-                )
+                bucket = totals.setdefault(metric.metric_type.value, {"delta": 0.0, "count": 0.0})
                 bucket["delta"] += metric.delta
                 bucket["count"] += 1.0
-        return {"scope": scope, "scope_id": scope_id, "record_count": len(filtered), "totals": totals}
+        return {
+            "scope": scope,
+            "scope_id": scope_id,
+            "record_count": len(filtered),
+            "totals": totals,
+        }

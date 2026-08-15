@@ -7,7 +7,6 @@ from sidecar.collector import MockAgentAdapter, ObservationCollector
 from sidecar.monitor import CompositeMonitor
 from sidecar.server import create_app
 
-
 _client: TestClient | None = None
 
 
@@ -20,6 +19,16 @@ def _make_client() -> TestClient:
         app = create_app(collector, monitor, None, allow_unauthenticated=True)
         _client = TestClient(app)
     return _client
+
+
+@pytest.fixture(autouse=True)
+def _mock_mcp_backends(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MCP tools/list 触发 claude-mem backend.start() / codedepth build(),
+    在 CI 上阻塞超时(>120s)。mock 掉延迟初始化, 只返回 sidecar 工具集合。"""
+    from sidecar.mcp_bridge import SidecarMCPBridge
+
+    monkeypatch.setattr(SidecarMCPBridge, "_get_cm_backend", lambda self: None)
+    monkeypatch.setattr(SidecarMCPBridge, "_get_cd_indexer", lambda self: None)
 
 
 class TestHealth:
@@ -176,10 +185,17 @@ class TestProviders:
         assert "providers" in resp.json()
 
     def test_register_provider(self) -> None:
+        from sidecar import server as server_mod
+
+        before = set(server_mod._providers)
         client = _make_client()
         resp = client.post("/api/providers", json={"name": "test-llm"})
         assert resp.status_code == 200
         assert "id" in resp.json()
+        # POST mutates the module-global _providers; restore it so later tests
+        # (e.g. test_providers_have_models) don't see a provider without "models".
+        for pid in set(server_mod._providers) - before:
+            del server_mod._providers[pid]
 
 
 class TestSkills:

@@ -310,9 +310,7 @@ class VerificationBridge:
         declared source via :class:`GroundingVerifier` faithfulness scoring.
         Unlike protocols A-D, Protocol E needs no gateway adapter.
         """
-        score = self._grounding.verify_assertion(
-            assertion, evidence, evidence_ids=evidence_ids
-        )
+        score = self._grounding.verify_assertion(assertion, evidence, evidence_ids=evidence_ids)
         result = VerificationResult(
             protocol="E",
             passed=score.support_level.value == "supported" and score.score >= 0.5,

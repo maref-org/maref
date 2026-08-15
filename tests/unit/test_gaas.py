@@ -15,7 +15,6 @@ from maref.gaas.audit_service import AuditLogService
 from maref.gaas.billing import BillingService
 from maref.gaas.cb_pool import CircuitBreakerPool
 from maref.gaas.governance_router import GovernanceRouter
-from maref.integration.hitl import HITLRouter, HITLStatus
 from maref.gaas.models import (
     CircuitBreakerState,
     GovernanceContext,
@@ -27,6 +26,7 @@ from maref.gaas.models import (
 )
 from maref.gaas.tenant import Tenant, TenantManager
 from maref.gaas.trust_service import TrustScoreService
+from maref.integration.hitl import HITLRouter, HITLStatus
 
 # ------------------------------------------------------------------
 # TenantManager

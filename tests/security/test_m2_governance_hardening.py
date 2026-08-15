@@ -18,6 +18,17 @@ from maref.governance.trust_boundary import TrustBoundaryManager
 from maref.identity.credential import AuthorizationScope
 from maref.security.sanitizer import Sanitizer
 
+
+@pytest.fixture(autouse=True)
+def _set_hmac_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DataSovereigntyManager 构造 AuditLogger 需要 Ed25519/HMAC 密钥，
+    本机 shell profile 有而 CI runner 没有。设置测试专用 HMAC key 使
+    测试跨环境确定。"""
+    monkeypatch.setenv(
+        "MAREF_HMAC_SECRET_KEY", "unit-test-hmac-key-0123456789abcdef"
+    )
+
+
 # ── C-3a: 分级服务端权重 ──────────────────────────────────────────────
 
 

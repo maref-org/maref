@@ -111,7 +111,7 @@ class SelfObserver:
         # Fix 10: use sys.executable instead of "python3" — the latter
         # resolves to /usr/bin/python3 (system Python) which has no pytest
         # installed, causing observe_tests to silently return total=0.
-        cmd = [sys.executable, "-m", "pytest"] + paths + ["-q", "--no-header"]
+        cmd = [sys.executable, "-m", "pytest"] + paths + ["-q", "--no-header", "--no-cov"]
         # Fix 10: a single collection error (e.g. duplicate test module name
         # across tests/execution and tests/executor) interrupts the whole
         # run and reports total=1 errors=1. Continue so we still get real
@@ -127,7 +127,9 @@ class SelfObserver:
         # 60s is a safe bound for collect-only. Run mode (full filtered suite)
         # needs 600s (Fix 10b) — the old 300s caused 48h cycle-1 to report
         # test_count=0 because the ~10k-test suite exceeded it.
-        timeout = 60 if collect_only else 600
+        # 60s → 120s (Fix 10c): CI 冷启动收集整个 tests/ 实测 ~45s (本地无缓存，
+        # 带 --cov 更慢)，并行 runner 下可能超 60s。内层 --no-cov 减负后更低。
+        timeout = 120 if collect_only else 600
         try:
             result = subprocess.run(
                 cmd,

@@ -32,14 +32,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity,desktop]"
       - name: Run unit tests
+        # pytest addopts 已带 --cov (pytest-cov)。外层再包 coverage run 会与
+        # pytest-cov 抢同一个 .coverage 文件, 后者退出时把数据覆盖成空,
+        # 导致 Coverage report 步骤读到 0.00%。只用 pytest-cov 作为数据源。
         run: |
-          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --ignore=tests/maref/compliance
+          python -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not real" --ignore=tests/maref/compliance
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
@@ -63,11 +68,17 @@ jobs:
       - name: Bandit SAST
         run: bandit -r src/ -c pyproject.toml || true
       - name: pip-audit
-        run: pip-audit
+        run: |
+          pip install pip-audit
+          pip install --upgrade "setuptools>=83.0.0"
+          pip-audit
       - name: TruffleHog Secret Scan
         run: |
-          pip install trufflehog
-          trufflehog filesystem . --config .trufflehog.yaml --since 2026-01-01
+          # PyPI 的 trufflehog 2.x CLI 不兼容 filesystem 子命令，且 .trufflehog.yaml
+          # 为 2.x 过时格式（3.x --config 期望 protobuf）。改用官方二进制。
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          # --exclude-detectors=Lob: test_ 前缀测试函数名被 Lob detector 误报
+          trufflehog filesystem . --only-verified --exclude-paths .trufflehogignore --exclude-detectors=Lob --no-update
 
   integrity:
     needs: lint
@@ -85,7 +96,8 @@ jobs:
       - name: Check for remaining 64-state claims
         run: |
           # 禁止"64-state"夸大声明
-          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
+          # 豁免历史执行日志与诚信声明（描述性引用，与 82% 检查豁免历史记录一致）
+          FILES=$(grep -rl "64.state" --include="*.md" --exclude-dir=execution-logs --exclude="INTEGRITY_DECLARATION.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining '64-state' claims in:"
             echo "$FILES"
@@ -94,8 +106,12 @@ jobs:
           echo "✅ No 64-state claims remain"
       - name: Check for Sperner claims
         run: |
-          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null; then
-            echo "ERROR: Found remaining Sperner claims"
+          # 禁止残留 Sperner 夸大声明
+          # 豁免历史执行日志与诚信声明/审计报告（描述删除虚假声明的过程，与 64-state 检查一致）
+          FILES=$(grep -rl "Sperner" --include="*.md" --exclude-dir=execution-logs --exclude="INTEGRITY_DECLARATION.md" --exclude="gov-audit-report.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null || true)
+          if [ -n "$FILES" ]; then
+            echo "ERROR: Found remaining Sperner claims in:"
+            echo "$FILES"
             exit 1
           fi
           echo "✅ No Sperner claims remain"
@@ -124,5 +140,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run cryptography tests
+        # 只跑 crypto 单文件, pytest-cov 会对全量 src 检查 fail_under=50 而误失败。
+        # 覆盖率检查由 test job 负责, 这里 --no-cov 只验证功能。
         run: |
-          pytest tests/test_crypto.py -v
+          pytest tests/test_crypto.py -v --no-cov

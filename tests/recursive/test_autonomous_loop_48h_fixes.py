@@ -950,7 +950,7 @@ class TestMetricsPhaseRunsTests:
 class TestObserveTestsTimeout:
     """Verify observe_tests uses a subprocess timeout large enough for the
     quick benchmark subset. The fast subset (10 files) completes in <30s;
-    timeout=120 (run mode) / 60 (collect-only) covers overhead safely."""
+    timeout=600 (run mode) / 120 (collect-only) covers overhead safely."""
 
     @pytest.mark.slow
     def test_run_mode_timeout_is_120s(self) -> None:
@@ -970,8 +970,9 @@ class TestObserveTestsTimeout:
         )
 
     @pytest.mark.slow
-    def test_collect_only_timeout_is_60s(self) -> None:
-        """collect_only=True keeps the fast 60s timeout (collection only)."""
+    def test_collect_only_timeout_is_120s(self) -> None:
+        """collect_only=True uses timeout=120 (Fix 10c: CI cold-start
+        collection of tests/ can exceed 60s)."""
         from maref.recursive.self_observer import SelfObserver
 
         obs = SelfObserver()
@@ -982,6 +983,6 @@ class TestObserveTestsTimeout:
             obs.observe_tests(collect_only=True)
 
         timeout = mock_run.call_args.kwargs.get("timeout")
-        assert timeout == 60, (
-            f"collect_only=True must use timeout=60, got {timeout}"
+        assert timeout == 120, (
+            f"collect_only=True must use timeout=120, got {timeout}"
         )

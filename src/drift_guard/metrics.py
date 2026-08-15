@@ -102,7 +102,8 @@ def hellinger_distance(p: np.ndarray, q: np.ndarray) -> float:
     q = q / np.sum(q)
 
     bc = np.sum(np.sqrt(p * q))  # Bhattacharyya coefficient
-    return math.sqrt(1.0 - bc)
+    # 浮点误差下 bc 可能略超 1.0 (如 1.0000000000000002), sqrt(负) 抛 math domain error
+    return math.sqrt(max(0.0, float(1.0 - bc)))
 
 
 def weights_to_distribution(weights: np.ndarray, num_bins: int = 100) -> np.ndarray:

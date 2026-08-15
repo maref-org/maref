@@ -23,6 +23,7 @@ from maref.cost_guard import CostGuard
 @pytest.fixture
 def guard(tmp_path: Path) -> CostGuard:
     # 隔离：审计目录 → tmp_path/audit，配置 → tmp_path/proxy_config.json
+    _saved_hmac = os.environ.get("MAREF_HMAC_SECRET_KEY")
     os.environ["UP_AUDIT_DIR"] = str(tmp_path / "audit")
     os.environ["UP_CONFIG"] = str(tmp_path / "proxy_config.json")
     os.environ["MAREF_HMAC_SECRET_KEY"] = "test-key-123"
@@ -37,7 +38,10 @@ def guard(tmp_path: Path) -> CostGuard:
     yield g
     os.environ.pop("UP_AUDIT_DIR", None)
     os.environ.pop("UP_CONFIG", None)
-    os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+    if _saved_hmac is None:
+        os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+    else:
+        os.environ["MAREF_HMAC_SECRET_KEY"] = _saved_hmac
 
 
 class TestCallGuard:

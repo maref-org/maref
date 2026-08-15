@@ -401,7 +401,8 @@ class SemanticMemoryStore:
     def get_ontology(self, concept: str) -> list[MemoryRecord]:
         """Retrieve knowledge about a specific concept."""
         return [
-            r for r in self._records.values()
+            r
+            for r in self._records.values()
             if not r.deleted and r.content.get("concept") == concept
         ]
 

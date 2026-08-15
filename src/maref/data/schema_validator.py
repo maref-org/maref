@@ -50,7 +50,9 @@ class SchemaValidator:
                     errors.append(f"required field {name} is None")
                 continue
             if not self._type_ok(spec.data_type, value):
-                errors.append(f"field {name} has type {type(value).__name__}, expected {spec.data_type}")
+                errors.append(
+                    f"field {name} has type {type(value).__name__}, expected {spec.data_type}"
+                )
             if spec.enum and value not in spec.enum:
                 errors.append(f"field {name} value {value!r} not in enum {list(spec.enum)}")
 

@@ -1,2 +1,16 @@
-# TruffleHog Lob detector 误报：test_ 前缀的测试函数名被误判为 Lob API key
+# TruffleHog exclude-paths (正则格式)
+# Lob detector 误报：test_ 前缀的测试函数名被误判为 Lob API key
 tests/security/test_v053_s2_tool_sandbox.py
+# 缓存/构建/数据产物目录
+(^|/)__pycache__/
+.*\.pyc$
+(^|/)\.codedepth/
+(^|/)node_modules/
+(^|/)\.venv/
+(^|/)venv/
+(^|/)dist/
+(^|/)build/
+(^|/)\.missions/
+(^|/)vault/
+(^|/)htmlcov/
+(^|/)\.pytest_cache/

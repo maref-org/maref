@@ -344,8 +344,7 @@ class TestAuditShow:
             ),
         ]
         audit_file.write_text("\n".join(entries))
-        with patch("maref_lite.cli.Path") as mock_path_cls:
-            mock_path_cls.return_value = audit_file
+        with patch("maref_lite.cli._default_audit_log_path", return_value=audit_file):
             result = runner.invoke(app, ["audit", "show", "--last", "5"])
             assert result.exit_code == 0
 
@@ -372,16 +371,14 @@ class TestAuditShow:
             ),
         ]
         audit_file.write_text("\n".join(entries))
-        with patch("maref_lite.cli.Path") as mock_path_cls:
-            mock_path_cls.return_value = audit_file
+        with patch("maref_lite.cli._default_audit_log_path", return_value=audit_file):
             result = runner.invoke(app, ["audit", "show", "--last", "5", "--type", "error"])
             assert result.exit_code == 0
 
     def test_audit_show_malformed_line_skipped(self, tmp_path: Path) -> None:
         audit_file = tmp_path / "governance_audit.jsonl"
         audit_file.write_text("not json\n")
-        with patch("maref_lite.cli.Path") as mock_path_cls:
-            mock_path_cls.return_value = audit_file
+        with patch("maref_lite.cli._default_audit_log_path", return_value=audit_file):
             result = runner.invoke(app, ["audit", "show"])
             assert result.exit_code == 0
 
@@ -489,13 +486,17 @@ class TestServe:
                 mock_uvicorn.assert_called_once()
 
     def test_serve_uvicorn_not_installed(self) -> None:
-        # The first uvicorn import is inside the command; it catches ImportError
-        with patch(
-            "builtins.__import__",
-            side_effect=lambda name, *args, **kwargs: __import__(name)
-            if name != "uvicorn"
-            else (_ for _ in ()).throw(ImportError("no uvicorn")),
-        ):
+        # The first uvicorn import is inside the command; it catches ImportError.
+        # Capture the real __import__ first, otherwise the side_effect calling
+        # __import__(name) recurses into the patched mock.
+        real_import = __import__
+
+        def _fake_import(name: str, *args: object, **kwargs: object) -> Any:
+            if name == "uvicorn":
+                raise ImportError("no uvicorn")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=_fake_import):
             result = runner.invoke(app, ["serve"])
             assert result.exit_code == 1
 

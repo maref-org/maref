@@ -74,13 +74,18 @@ class TestObsPipeline:
         assert sent == 0
 
     def test_send_batch_failure(self, client_with_events: MarefObsClient) -> None:
+        # G8: an unreachable endpoint falls back to the local SQLite aggregator,
+        # so the batch is still persisted and _send_batch returns True.
         pipeline = ObsPipeline(client=client_with_events, batch_size=50, max_retries=1, timeout=0.1)
-        with patch.object(pipeline, "_get_http_client") as mock_get:
+        with patch.object(pipeline, "_get_http_client") as mock_get, patch.object(
+            pipeline, "_record_offline"
+        ) as mock_offline:
             mock_client = AsyncMock(spec=httpx.AsyncClient)
             mock_client.post = AsyncMock(side_effect=httpx.ConnectError("mock failure"))
             mock_get.return_value = mock_client
             result = asyncio.run(pipeline._send_batch([{"event_sequence": 0}]))
-            assert not result
+            assert result
+            mock_offline.assert_called_once()
 
     def test_send_batch_success(self, client_with_events: MarefObsClient) -> None:
         pipeline = ObsPipeline(client=client_with_events, batch_size=50, max_retries=1)
@@ -103,12 +108,15 @@ class TestObsPipeline:
             attempt_count += 1
             raise httpx.TimeoutException("timeout")
 
-        with patch.object(pipeline, "_get_http_client") as mock_get:
+        with patch.object(pipeline, "_get_http_client") as mock_get, patch.object(
+            pipeline, "_record_offline"
+        ):
             mock_client = AsyncMock(spec=httpx.AsyncClient)
             mock_client.post = failing_post
             mock_get.return_value = mock_client
             result = asyncio.run(pipeline._send_batch([{"event_sequence": 0}]))
-            assert not result
+            # All retries exhausted, then the batch is persisted locally (G8).
+            assert result
             assert attempt_count == 3
 
     def test_start_stop(self, client: MarefObsClient) -> None:

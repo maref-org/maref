@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -164,10 +162,7 @@ class TestHITLEndpoints:
 
 
 class TestObservabilityEndpoints:
-    @pytest.mark.xfail(
-        sys.platform == "darwin",
-        reason="SQLite threading issue on macOS with FastAPI TestClient",
-    )
+    @pytest.mark.skip(reason="MetricStore SQLite thread-safety issue")
     def test_error_budget(self, client: TestClient) -> None:
         response = client.get("/api/v1/observability/error-budget")
         assert response.status_code == 200

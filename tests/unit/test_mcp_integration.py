@@ -19,6 +19,16 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _mock_mcp_backends(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MCP tools/list 触发 claude-mem backend.start() / codedepth build(),
+    在 CI 上阻塞超时(>120s)。mock 掉延迟初始化, 只返回 sidecar 工具集合。"""
+    from sidecar.mcp_bridge import SidecarMCPBridge
+
+    monkeypatch.setattr(SidecarMCPBridge, "_get_cm_backend", lambda self: None)
+    monkeypatch.setattr(SidecarMCPBridge, "_get_cd_indexer", lambda self: None)
+
+
 class TestMCPIntegration:
     def test_full_mcp_initialize_chain(self, client: TestClient) -> None:
         """MCP initialize → SidecarMCPBridge.get_server_info → JSON-RPC response."""

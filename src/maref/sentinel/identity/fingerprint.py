@@ -134,14 +134,16 @@ class IdentityFingerprint:
         加权: 写作风格 0.5 + 活跃时间 0.2 + 网络出口 0.3。
         任一维度无数据时该维度视为中性 (不拉低整体)。
         """
+        # 同对象必为完全相似: 浮点除法会让 _style_similarity 得
+        # 1.0000000000000002, 加权后非精确 1.0, CI 上 fail-fast。
+        if a is b:
+            return 1.0
         style_sim = self._style_similarity(a.ngram_freqs, b.ngram_freqs)
         time_sim = self._time_similarity(a.active_buckets, b.active_buckets)
         egress_sim = self._egress_similarity(a, b)
         return 0.5 * style_sim + 0.2 * time_sim + 0.3 * egress_sim
 
-    def _style_similarity(
-        self, fa: dict[str, float], fb: dict[str, float]
-    ) -> float:
+    def _style_similarity(self, fa: dict[str, float], fb: dict[str, float]) -> float:
         if not fa or not fb:
             return 0.5  # 中性
         keys = set(fa) | set(fb)
@@ -155,9 +157,7 @@ class IdentityFingerprint:
             return 0.5  # 中性
         ta = sum(ba)
         tb = sum(bb)
-        overlap = sum(
-            min(ba[i] / ta, bb[i] / tb) for i in range(min(len(ba), len(bb)))
-        )
+        overlap = sum(min(ba[i] / ta, bb[i] / tb) for i in range(min(len(ba), len(bb))))
         return min(1.0, overlap)
 
     def _egress_similarity(self, a: FingerprintProfile, b: FingerprintProfile) -> float:

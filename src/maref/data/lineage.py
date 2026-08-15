@@ -69,7 +69,9 @@ class LineageTracker:
             queue.extend(self._upstream.get(node, set()))
         return visited
 
-    def register_flow(self, upstream: DataSource, downstream: DataSource, transform: str = "identity") -> None:
+    def register_flow(
+        self, upstream: DataSource, downstream: DataSource, transform: str = "identity"
+    ) -> None:
         """Convenience wrapper accepting DataSource objects."""
         self.add_edge(upstream.dataset_id, downstream.dataset_id, transform=transform)
 

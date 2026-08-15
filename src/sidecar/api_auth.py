@@ -24,7 +24,7 @@ import hmac
 import logging
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -217,8 +217,20 @@ def _register_route_scope(app: FastAPI) -> None:
     """Register scope requirements from route decorators.
 
     Call this after all routes are added to the app.
+
+    FastAPI 0.141+ lazily wraps included routers in ``_IncludedRouter``
+    objects instead of flattening their routes into ``app.routes``, so we
+    recurse into them to pick up scopes declared on included routers.
     """
-    for route in app.routes:
+    _collect_route_scopes(app.routes)
+
+
+def _collect_route_scopes(routes: Sequence[Any]) -> None:
+    for route in routes:
+        original_router = getattr(route, "original_router", None)
+        if original_router is not None:
+            _collect_route_scopes(getattr(original_router, "routes", []))
+            continue
         endpoint = getattr(route, "endpoint", None)
         if endpoint and hasattr(endpoint, "_maref_required_scope"):
             path = getattr(route, "path", getattr(route, "path_format", ""))

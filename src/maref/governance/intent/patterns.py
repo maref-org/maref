@@ -49,10 +49,7 @@ class ActionMatcher:
             return False
         if self.action_contains and self.action_contains not in record.action.lower():
             return False
-        return not (
-            self.metadata_pred is not None
-            and not self.metadata_pred(record.metadata)
-        )
+        return not (self.metadata_pred is not None and not self.metadata_pred(record.metadata))
 
     def __repr__(self) -> str:
         return f"Matcher({self.label})"
@@ -170,9 +167,7 @@ class ChainPatternLibrary:
             matches.extend(found)
         return matches
 
-    def _match_one(
-        self, chain: list[ActionRecord], pattern: ChainPattern
-    ) -> list[PatternMatch]:
+    def _match_one(self, chain: list[ActionRecord], pattern: ChainPattern) -> list[PatternMatch]:
         """对单个模式在链上做子序列匹配 (多起点推进式, gap 容忍)。
 
         修复:

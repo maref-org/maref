@@ -207,10 +207,7 @@ class AuditBus:
         For large datasets, prefer a database-backed audit store.
         """
         all_entries = self._logger.read_all(max_entries=None)
-        filtered = [
-            e for e in all_entries
-            if getattr(e, "tenant_id", "") == tenant_id
-        ]
+        filtered = [e for e in all_entries if getattr(e, "tenant_id", "") == tenant_id]
         return filtered if max_entries is None else filtered[-max_entries:]
 
     def query_recent(self, n: int = 100) -> list[AuditEntry]:

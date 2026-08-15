@@ -101,7 +101,8 @@ def governed(
                     pass
                 logger.error(
                     "No governance pipeline set for @governed(%s) on %s — denying (fail-closed)",
-                    action_name, func.__qualname__,
+                    action_name,
+                    func.__qualname__,
                 )
                 raise GovernanceDeniedError(
                     f"no governance pipeline configured for {action_name} "
@@ -122,7 +123,9 @@ def governed(
                 event = result.hitl_event_id
                 logger.info(
                     "HITL requested for %s on %s (event=%s)",
-                    action_name, func.__qualname__, event,
+                    action_name,
+                    func.__qualname__,
+                    event,
                 )
 
             return func(*args, **kwargs)
