@@ -1,0 +1,86 @@
+#!/bin/bash
+# ============================================================
+# MAREF pre-push 钩子 — 公开分支防"误推王炸层"门禁
+# ------------------------------------------------------------
+# 由 scripts/install-hooks.sh 安装到 .git/hooks/pre-push。
+# 逻辑:
+#   - 仅对公开 remote (github.com/maref-org/maref) 生效，私有/备份 remote 不拦截。
+#   - 对每个待推送的分支引用，用 scripts/oss-check.sh 校验 tree。
+#   - 命中排除路径 -> 阻断推送（护城河归零风险）。
+#   - 发布产物 oss-release 的 tree 已裁剪，同样过 oss-check 放行（门禁只看内容）。
+#   - tag 引用（refs/tags/*）跳过（oss-check 基于 tree，无法解析 tag 对象）。
+# ============================================================
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -z "$ROOT" ] && exit 0
+CHECK="$ROOT/scripts/oss-check.sh"
+
+# 仅对公开 remote 强制检查（pre-push 首参为 remote 名）
+REMOTE="${1:-}"
+if [ -n "$REMOTE" ]; then
+  REMOTE_URL="$(git remote get-url "$REMOTE" 2>/dev/null || echo '')"
+  case "$REMOTE_URL" in
+    *maref-org/maref*) ;;        # 公开仓，强制检查
+    "") ;;                       # 无法解析 remote，保守检查
+    *) exit 0 ;;                 # 私有/备份 remote 放行
+  esac
+fi
+
+# D1 Pre-Flight 闸门：向公开仓推送前必须通过（宪法第四-A条 / 开源执行规范 §2.1A）
+# fail-closed：脚本缺失或闸门未通过均阻断。闸门状态见 STATE.yaml d1_gate 段。
+D1_CHECK="$ROOT/scripts/d1_preflight_check.py"
+if [ ! -f "$D1_CHECK" ]; then
+  echo "[pre-push] 警告: $D1_CHECK 缺失，fail-closed 阻断推送。" >&2
+  exit 1
+fi
+if ! python3 "$D1_CHECK"; then
+  echo "----------------------------------------------------------------" >&2
+  echo "[pre-push] D1 Pre-Flight 闸门未通过，已阻断向 maref-org/maref 的推送。" >&2
+  echo "[pre-push] 人类确认 d1_gate 条件满足并更新 STATE.yaml 后方可推送。" >&2
+  echo "----------------------------------------------------------------" >&2
+  exit 1
+fi
+
+# fail-closed：门禁脚本缺失即阻断，防静默放行
+if [ ! -x "$CHECK" ]; then
+  echo "[pre-push] 警告: $CHECK 缺失或不可执行，fail-closed 阻断推送。" >&2
+  exit 1
+fi
+
+ZERO="0000000000000000000000000000000000000000"
+BLOCKED=0
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_ref" ] && continue
+  [ "$local_sha" = "$ZERO" ] && continue          # 删除远端分支，跳过
+  case "$local_ref" in
+    refs/heads/*) local_ref="${local_ref#refs/heads/}" ;;
+    refs/tags/*)
+      # tag 发布同样校验其指向 commit 的 tree（oss-publish 的合法 tag 指向裁剪后的
+      # oss-release，放行；手动推含闭源的 tag 会被拦截，防对象库污染）。
+      tag_commit="$(git rev-parse --verify "${local_ref}^{commit}" 2>/dev/null || echo '')"
+      [ -n "$tag_commit" ] || continue
+      if ! bash "$CHECK" "$tag_commit"; then
+        echo "----------------------------------------------------------------" >&2
+        echo "[pre-push] tag '$local_ref' 指向的 tree 含闭源/敏感路径，已阻断推送。" >&2
+        echo "[pre-push] 公开发布请使用: scripts/oss-publish.sh --push" >&2
+        echo "----------------------------------------------------------------" >&2
+        BLOCKED=1
+      fi
+      continue ;;
+    *) continue ;;                                 # 其他 ref 跳过
+  esac
+
+  if ! bash "$CHECK" "$local_sha"; then
+    echo "----------------------------------------------------------------" >&2
+    echo "[pre-push] 分支 '$local_ref' 的 tree 含闭源/敏感路径，已阻断推送。" >&2
+    echo "[pre-push] 公开发布请使用: scripts/oss-publish.sh --push" >&2
+    echo "----------------------------------------------------------------" >&2
+    BLOCKED=1
+  fi
+done
+
+[ "$BLOCKED" -eq 1 ] && exit 1
+exit 0
