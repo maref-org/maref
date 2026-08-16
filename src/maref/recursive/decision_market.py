@@ -199,6 +199,8 @@ class DecisionMarket:
         min_participants: int = 3,
         default_min_stake: float = 1.0,
         consensus_timeout_s: float = 300.0,
+        reward_ratio: float = 0.05,
+        penalty_ratio: float = 0.1,
     ) -> None:
         self._engine = WeightedConsensusEngine()
         self._participants: dict[str, MarketParticipant] = {}
@@ -209,6 +211,8 @@ class DecisionMarket:
         self._min_participants = min_participants
         self._default_min_stake = default_min_stake
         self._consensus_timeout_s = consensus_timeout_s
+        self._reward_ratio = reward_ratio
+        self._penalty_ratio = penalty_ratio
 
         self._evolution_dsl = evolution_dsl
         self._freeze_zone = freeze_zone
@@ -282,6 +286,7 @@ class DecisionMarket:
 
         proposal_id = f"mkt_{uuid.uuid4().hex[:8]}"
         now = time.time()
+        deadline = now + self._consensus_timeout_s if self._consensus_timeout_s > 0 else 0.0
         proposal = MarketProposal(
             proposal_id=proposal_id,
             target=target,
@@ -292,7 +297,7 @@ class DecisionMarket:
             timestamp=now,
             min_stake=actual_min_stake,
             quorum_threshold=quorum_threshold,
-            consensus_deadline=now + self._consensus_timeout_s,
+            consensus_deadline=deadline,
         )
 
         if self._evolution_dsl is not None:
@@ -399,6 +404,39 @@ class DecisionMarket:
         if not proposal:
             raise DecisionMarketError(f"Proposal '{proposal_id}' not found")
 
+        # P1-A1 裁决时限门禁 (PoC 盲点 B): 提案超时未决 → 自动拒绝 (fail-closed)
+        if (
+            proposal.status == "open"
+            and proposal.consensus_deadline > 0.0
+            and time.time() > proposal.consensus_deadline
+        ):
+            proposal.status = "consensus_failed"
+            self._audit_log(
+                "consensus_deadline_rejected",
+                proposal_id,
+                proposal.proposer_id,
+                {
+                    "reason": "consensus deadline exceeded (delay-based bypass blocked)",
+                    "deadline": proposal.consensus_deadline,
+                    "now": time.time(),
+                },
+            )
+            result = MarketConsensusResult(
+                proposal_id=proposal_id,
+                consensus_reached=False,
+                winning_vote=None,
+                approve_stake=0.0,
+                reject_stake=0.0,
+                abstain_stake=0.0,
+                total_stake=0.0,
+                participation_rate=0.0,
+                confidence=0.0,
+                reward_pool=0.0,
+                status="consensus_failed",
+            )
+            self._consensus_results[proposal_id] = result
+            return result
+
         engine_result = self._engine.evaluate_consensus(proposal_id)
 
         votes = self._votes.get(proposal_id, [])
@@ -425,7 +463,7 @@ class DecisionMarket:
         participation_rate = total_stake / active_total_stake if active_total_stake > 0 else 0.0
 
         consensus_reached = engine_result.status == ConsensusStatus.REACHED
-        reward_pool = total_stake * 0.05
+        reward_pool = total_stake * self._reward_ratio
 
         result = MarketConsensusResult(
             proposal_id=proposal_id,
@@ -494,7 +532,7 @@ class DecisionMarket:
                 share = (vote.stake_amount / winning_stake) * reward_pool
                 participant.reward(share)
             elif vote.vote_value != VoteValue.ABSTAIN:
-                participant.penalize(vote.stake_amount * 0.1)
+                participant.penalize(vote.stake_amount * self._penalty_ratio)
 
     def _apply_to_evolution(self, proposal: MarketProposal) -> None:
         if self._evolution_dsl is None:
@@ -557,6 +595,8 @@ class DecisionMarket:
             "active_participants": active_participants,
             "total_staked": round(total_staked, 4),
             "total_rewards_distributed": round(total_rewards, 4),
+            "reward_ratio": self._reward_ratio,
+            "penalty_ratio": self._penalty_ratio,
         }
 
     def to_dict(self) -> dict[str, Any]:
