@@ -542,7 +542,7 @@ class TestSubcommandHelp:
     def test_global_help_lists_all_groups(self) -> None:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        groups = ["desktop", "audit", "trust", "governance", "drift", "percv", "ip"]
+        groups = ["desktop", "audit", "trust", "governance", "drift", "percv"]
         for group in groups:
             assert group in result.stdout.lower()
 

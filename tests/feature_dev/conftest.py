@@ -18,7 +18,7 @@ from maref.integration.test_platform.schema import EvalStatus
 
 @pytest.fixture
 def sample_markdown() -> str:
-    return """# AI-Native IP Kingdom
+    return """# Secure API Gateway
 
 ## §1.5 Core Hypotheses
 
@@ -35,23 +35,23 @@ Weekly: - [ ] Performance review
 
 ## MVP Phase (0-4 weeks)
 
-- 里程碑: Character design complete
-- 里程碑: First script written
-- ✅ Must implement character system
-- must have export pipeline
-- should support theme switching
+- 里程碑: Auth module complete
+- 里程碑: Rate limiting implemented
+- ✅ Must implement JWT verification
+- must have audit logging
+- should support tenant isolation
 
 ## Mixed Period (1-3 months)
 
-- 里程碑: Multi-episode arc complete
-- 里程碑: Crossover content produced
+- 里程碑: Multi-region deployment complete
+- 里程碑: Browser-based admin console
 
 ## Internalization (3-12 months)
 
 | 成本项 | Tool A | Tool B |
 |---|---|---|
-| **Scene Gen** | ¥500 | ¥300 |
-| **Audio** | ¥200 | ¥150 |
+| **Ingress** | ¥500 | ¥300 |
+| **Secrets** | ¥200 | ¥150 |
 
 1. **Security Compliance**
 2. **Data Privacy**
@@ -62,8 +62,8 @@ Weekly: - [ ] Performance review
 
 | 工具 | Cost | Type |
 |---|---|---|
-| FFmpeg | ¥100 | render |
-| Python | ¥0 | script |
+| OpenTelemetry | ¥100 | observability |
+| Python | ¥0 | service |
 """
 
 
@@ -115,8 +115,8 @@ def valid_feature_doc() -> FeatureDocument:
             ),
         ],
         cost_models=[
-            CostModel(stage="Scene Gen", items={"Tool A": 500.0, "Tool B": 300.0}, total=800.0),
-            CostModel(stage="Audio", items={"Tool A": 200.0, "Tool B": 150.0}, total=350.0),
+            CostModel(stage="Ingress", items={"Tool A": 500.0, "Tool B": 300.0}, total=800.0),
+            CostModel(stage="Secrets", items={"Tool A": 200.0, "Tool B": 150.0}, total=350.0),
         ],
         metadata={
             "char_count": 500,
@@ -135,47 +135,13 @@ def valid_feature_doc() -> FeatureDocument:
 def sample_artifacts() -> dict[str, Any]:
     return {
         "cycle": 1,
-        "characters": [
-            {
-                "char_id": "char-1",
-                "name": "Neon-chan",
-                "archetype": "The Trickster",
-                "backstory": "Corporate espionage AI gained sentience",
-                "setting": "Neo-Tokyo 2187",
-                "style_keywords": "cyberpunk",
-                "profile_path": "/tmp/char-1/profile.md",
-            },
-            {
-                "char_id": "char-2",
-                "name": "Sylvara",
-                "archetype": "The Guardian",
-                "backstory": "Last ranger of the Emerald Wild",
-                "setting": "Emerald Wild",
-                "style_keywords": "fantasy",
-                "profile_path": "/tmp/char-2/profile.md",
-            },
+        "improvement_plan": [
+            "Implement JWT verification",
+            "Add audit logging",
+            "Cover tenant isolation",
         ],
-        "scripts": [
-            {
-                "char_id": "char-1",
-                "episode_number": 1,
-                "title": "Episode 1",
-                "scene_count": 3,
-                "total_duration_s": 37,
-                "script_path": "/tmp/ep-1.md",
-            },
-            {
-                "char_id": "char-2",
-                "episode_number": 1,
-                "title": "Episode 1",
-                "scene_count": 3,
-                "total_duration_s": 37,
-                "script_path": "/tmp/ep-2.md",
-            },
-        ],
-        "exports": [],
         "stages_covered": {"mvp"},
-        "requirements_covered": 10,
+        "requirements_covered": 3,
     }
 
 
@@ -194,11 +160,10 @@ def sample_snapshot() -> CycleSnapshot:
         overall_score=66.0,
         overall_status=EvalStatus.CONDITIONAL,
         verdict="approved",
-        feedback_injected="Add more characters",
+        feedback_injected="Add more plan items",
         duration_seconds=12.5,
         artifacts={
-            "characters": [{"name": "Char1"}, {"name": "Char2"}],
-            "scripts": [{"title": "Ep1"}, {"title": "Ep2"}, {"title": "Ep3"}],
+            "improvement_plan": ["Implement JWT", "Add logging", "Cover isolation"],
             "stages_covered": {"mvp", "mixed"},
             "requirements_covered": 5,
         },

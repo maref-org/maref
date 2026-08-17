@@ -23,9 +23,8 @@ class TestCycleSnapshot:
             feedback_injected="Good",
             duration_seconds=10.0,
             artifacts={
-                "characters": [{"name": "A"}],
-                "scripts": [{"title": "1"}],
-                "stages_covered": {"mvp"},
+                "improvement_plan": [{"title": "Implement JWT"}],
+                "stages_covered": set(),
                 "requirements_covered": 5,
             },
             go_nogo_decision="GO",
@@ -37,8 +36,8 @@ class TestCycleSnapshot:
         assert d["overall_score"] == 75.0
         assert d["overall_status"] == "CONDITIONAL"
         assert d["go_nogo_decision"] == "GO"
-        assert d["characters"] == 1
-        assert d["scripts"] == 1
+        assert d["plan_items"] == 1
+        assert d["stages_covered"] == []
         assert d["llm_used"]
 
     def test_to_dict_empty_artifacts(self) -> None:
@@ -53,8 +52,9 @@ class TestCycleSnapshot:
             duration_seconds=0.0,
         )
         d = snap.to_dict()
-        assert d["characters"] == 0
-        assert d["scripts"] == 0
+        assert d["plan_items"] == 0
+        assert d["stages_covered"] == []
+        assert d["reqs_covered"] == 0
 
 
 def _make_cycle(**attrs: Any) -> FeatureDevelopmentCycle:
@@ -72,8 +72,6 @@ def _make_cycle(**attrs: Any) -> FeatureDevelopmentCycle:
         "_eval_obs": None,
         "_qg": None,
         "_orch": None,
-        "_producer": None,
-        "_scorer": None,
         "_base_topic": "Test topic",
         "_budget_spent": 0.0,
         "_prev_artifacts": None,
@@ -184,7 +182,7 @@ class TestCompileStructuralFeedback:
         cycle = _make_cycle()
         result = cycle._compile_structural_feedback(
             {"A": 85.0, "B": 82.0},
-            {"characters": [], "scripts": []},
+            {"improvement_plan": [], "stages_covered": set()},
         )
         assert "All layers at target" in result
 
@@ -192,16 +190,16 @@ class TestCompileStructuralFeedback:
         cycle = _make_cycle()
         result = cycle._compile_structural_feedback(
             {"Static Audit": 40.0, "Reasoning Metrics": 70.0},
-            {"characters": [{"name": "A"}], "scripts": [{"title": "1"}]},
+            {"improvement_plan": [], "stages_covered": set()},
         )
         assert "Static Audit" in result
-        assert "more characters" in result
+        assert "more plan items" in result
 
     def test_limited_to_three_suggestions(self) -> None:
         cycle = _make_cycle()
         result = cycle._compile_structural_feedback(
             {"A": 30.0, "B": 30.0, "C": 30.0, "D": 30.0},
-            {"characters": [], "scripts": []},
+            {"improvement_plan": [], "stages_covered": set()},
         )
         assert len(result.split(";")) <= 3
 
