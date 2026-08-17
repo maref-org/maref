@@ -1,0 +1,23 @@
+# Build: docker build -t maref-tlc -f Dockerfile.tlc .
+# Uses the bundled tla2tools.jar (offline-safe). The v1.19.1 GitHub release URL
+# 404s and silently produced a 0-byte jar — never rely on that download path.
+# Refresh the jar with:
+#   curl -sL https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar -o tla2tools.jar
+
+FROM alpine:latest
+
+RUN apk add --no-cache \
+    openjdk17-jre-headless \
+    ca-certificates \
+    bash \
+    jq
+
+WORKDIR /specs
+
+COPY *.tla *.cfg ./
+COPY tla2tools.jar /usr/local/lib/tla2tools.jar
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["all"]
