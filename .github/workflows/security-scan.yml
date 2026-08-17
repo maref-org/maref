@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Upgrade pip first
@@ -85,7 +85,7 @@ jobs:
       MAREF_MCP_SECRET_KEY: ${{ secrets.MAREF_MCP_SECRET_KEY || 'ci-mcp-key' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install dependencies and start server
