@@ -4,17 +4,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from maref.integration.feature_dev.feature_cycle import (
-    CycleSnapshot,
-    FeatureDevelopmentCycle,
-    _LAYER_NAMES,
-)
 from maref.integration.feature_dev.doc_ingestor import (
     DeployStage,
     FeatureDocument,
-    DocumentSection,
 )
-from maref.integration.feature_dev.task_generator import FeatureTask, LayerCriterion
+from maref.integration.feature_dev.feature_cycle import (
+    _LAYER_NAMES,
+    CycleSnapshot,
+    FeatureDevelopmentCycle,
+)
+from maref.integration.feature_dev.task_generator import FeatureTask
 from maref.integration.test_platform.schema import EvalStatus
 
 
@@ -47,8 +46,7 @@ class TestCycleSnapshot:
             feedback_injected="Fix MAS",
             duration_seconds=5.2,
             artifacts={
-                "characters": [{"name": "A"}],
-                "scripts": [{"title": "S1"}],
+                "improvement_plan": [{"title": "Implement JWT"}],
                 "stages_covered": {"mvp"},
                 "requirements_covered": 10,
             },
@@ -62,8 +60,7 @@ class TestCycleSnapshot:
         assert d["overall_score"] == 90.0
         assert d["overall_status"] == "CONDITIONAL"
         assert d["verdict"] == "conditional_pass"
-        assert d["characters"] == 1
-        assert d["scripts"] == 1
+        assert d["plan_items"] == 1
         assert d["stages_covered"] == ["mvp"]
         assert d["reqs_covered"] == 10
         assert d["go_nogo_decision"] == "GO"
@@ -82,8 +79,7 @@ class TestCycleSnapshot:
             duration_seconds=0.0,
         )
         d = snap.to_dict()
-        assert d["characters"] == 0
-        assert d["scripts"] == 0
+        assert d["plan_items"] == 0
         assert d["stages_covered"] == []
 
 
@@ -182,7 +178,9 @@ class TestCompileStructuralFeedback:
         doc = FeatureDocument(title="T", raw_path="t.md")
         cycle = FeatureDevelopmentCycle.__new__(FeatureDevelopmentCycle)
         cycle.doc = doc
-        feedback = cycle._compile_structural_feedback(scores, {"characters": [], "scripts": []})
+        feedback = cycle._compile_structural_feedback(
+            scores, {"improvement_plan": [], "stages_covered": set()}
+        )
         assert feedback == "All layers at target."
 
     def test_low_static_audit(self) -> None:
@@ -196,9 +194,11 @@ class TestCompileStructuralFeedback:
         doc = FeatureDocument(title="T", raw_path="t.md")
         cycle = FeatureDevelopmentCycle.__new__(FeatureDevelopmentCycle)
         cycle.doc = doc
-        feedback = cycle._compile_structural_feedback(scores, {"characters": [], "scripts": []})
+        feedback = cycle._compile_structural_feedback(
+            scores, {"improvement_plan": [], "stages_covered": set()}
+        )
         assert "Static Audit" in feedback
-        assert "need more characters" in feedback
+        assert "need more plan items" in feedback
 
     def test_low_mas(self) -> None:
         scores = {
@@ -211,9 +211,11 @@ class TestCompileStructuralFeedback:
         doc = FeatureDocument(title="T", raw_path="t.md")
         cycle = FeatureDevelopmentCycle.__new__(FeatureDevelopmentCycle)
         cycle.doc = doc
-        feedback = cycle._compile_structural_feedback(scores, {"characters": [], "scripts": []})
-        assert "MAS=" in feedback
-        assert "crossover" in feedback
+        feedback = cycle._compile_structural_feedback(
+            scores, {"improvement_plan": [], "stages_covered": set()}
+        )
+        assert "MAS Dimensions=" in feedback
+        assert "improve coverage" in feedback
 
     def test_multiple_low_layers_truncated_to_3(self) -> None:
         scores = {
@@ -226,7 +228,9 @@ class TestCompileStructuralFeedback:
         doc = FeatureDocument(title="T", raw_path="t.md")
         cycle = FeatureDevelopmentCycle.__new__(FeatureDevelopmentCycle)
         cycle.doc = doc
-        feedback = cycle._compile_structural_feedback(scores, {"characters": [], "scripts": []})
+        feedback = cycle._compile_structural_feedback(
+            scores, {"improvement_plan": [], "stages_covered": set()}
+        )
         assert feedback.count("=") <= 3
 
     def test_small_gap_skipped(self) -> None:
@@ -240,7 +244,9 @@ class TestCompileStructuralFeedback:
         doc = FeatureDocument(title="T", raw_path="t.md")
         cycle = FeatureDevelopmentCycle.__new__(FeatureDevelopmentCycle)
         cycle.doc = doc
-        feedback = cycle._compile_structural_feedback(scores, {"characters": [], "scripts": []})
+        feedback = cycle._compile_structural_feedback(
+            scores, {"improvement_plan": [], "stages_covered": set()}
+        )
         assert feedback == "All layers at target."
 
 

@@ -48,7 +48,7 @@ class TestDetectStage:
 
 class TestExtractMilestones:
     def test_milestone_patterns(self) -> None:
-        text = "里程碑: Character design complete\n**里程碑1**: First script done\n- 产出物: Validation pass"
+        text = "里程碑: Auth module complete\n**里程碑1**: Rate limiting implemented\n- 产出物: Validation pass"
         ms = _extract_milestones(text)
         assert len(ms) >= 2
 
@@ -58,17 +58,17 @@ class TestExtractMilestones:
 
 class TestExtractRequirements:
     def test_chinese_patterns(self) -> None:
-        text = "✅ Must implement character system\n必须完成测试\n需实现导出功能"
+        text = "✅ Must implement JWT verification\n必须完成测试\n需实现审计日志"
         reqs = _extract_requirements(text)
         assert len(reqs) >= 2
 
     def test_english_patterns(self) -> None:
-        text = "must have export pipeline\nshall support themes\nshould handle errors"
+        text = "must have audit logging\nshall support tenant isolation\nshould handle errors"
         reqs = _extract_requirements(text)
         assert len(reqs) >= 2
 
     def test_table_rows(self) -> None:
-        text = "| 工具 | Cost | Notes |\n|---|---|---|\n| FFmpeg | ¥100 | render |"
+        text = "| 工具 | Cost | Notes |\n|---|---|---|\n| OpenTelemetry | ¥100 | observability |"
         reqs = _extract_requirements(text)
         assert any("工具" in r for r in reqs)
 
@@ -289,7 +289,7 @@ class TestMarkdownDocIngestor:
         f.write_text(sample_markdown, encoding="utf-8")
         ingestor = MarkdownDocIngestor()
         doc = ingestor.ingest(str(f))
-        assert doc.title == "AI-Native IP Kingdom"
+        assert doc.title == "Secure API Gateway"
         assert doc.metadata["section_count"] > 0
 
     def test_ingest_with_h1_title(self, tmp_path: Path, sample_markdown: str) -> None:

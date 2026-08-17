@@ -37,7 +37,6 @@ from rich.table import Table
 
 from maref.governance import AuditLogger
 from maref.governance.state_machine import _default_audit_log_path
-from maref.production.ip_cli import ip_app
 from maref_lite.commands.demo import app as demo_app
 from maref_lite.commands.loop_cli import loop_app as loop_cli_app
 from maref_lite.governance import GovernanceOverlay
@@ -129,7 +128,6 @@ app.add_typer(self_heal_app, name="self-heal")
 
 app.add_typer(obs_app, name="obs")
 app.add_typer(percv_app, name="percv")
-app.add_typer(ip_app, name="ip")
 app.add_typer(loop_cli_app, name="loop")
 app.add_typer(demo_app, name="demo")
 
