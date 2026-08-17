@@ -29,7 +29,8 @@ pip install -e ".[dev]"
 git pull origin main
 
 # 创建功能分支（从 main 分支）
-git checkout -b feature/your-feature-name
+# 命名规范: <type>/<slug>，type ∈ feat|fix|refactor|chore|docs|test
+git checkout -b feat/your-feature-name
 
 # 进行开发
 # ... 你的修改 ...
@@ -42,7 +43,7 @@ git add .
 git commit -m "feat: add your feature"
 
 # 推送到远程分支
-git push origin feature/your-feature-name
+git push origin feat/your-feature-name
 ```
 
 ### 3. 提交 Pull Request
