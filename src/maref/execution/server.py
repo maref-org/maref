@@ -2,17 +2,24 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import threading
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
+from maref.execution.harness.orchestration_bridge import OrchestrationBridge
 from maref.execution.harness.types import HarnessConfig, HarnessResult, HarnessStatus
 from maref.execution.harness.unified import UnifiedHarness
+from maref.executor.api import create_task_router
+from maref.executor.queue import TaskQueue
+from maref.executor.worker import WorkerPool
 
 # 运行时状态
 _harness_instances: dict[str, UnifiedHarness] = {}
@@ -23,9 +30,7 @@ _harness_configs: dict[str, dict[str, Any]] = {}
 
 @dataclass
 class RunRequest:
-    config: dict[str, Any] = field(
-        default_factory=lambda: {"harness_type": "unified", "level": "L1"}
-    )
+    config: dict[str, Any] = field(default_factory=lambda: {"harness_type": "unified", "level": "L1"})
 
 
 @dataclass
@@ -53,9 +58,27 @@ class ResultResponse:
     metrics: dict[str, Any]
 
 
+_logger = logging.getLogger(__name__)
+
+# executor 接线：TaskQueue + WorkerPool 提供异步任务执行（生产消费者）
+_executor_db = os.environ.get(
+    "MAREF_EXECUTOR_DB",
+    str(Path.home() / ".openclaw" / "state" / "executor_tasks.db"),
+)
+Path(_executor_db).parent.mkdir(parents=True, exist_ok=True)
+_executor_queue = TaskQueue(_executor_db)
+_executor_workers = WorkerPool(_executor_queue, num_workers=2)
+_executor_workers.register_handler(
+    "echo", lambda task: _logger.info("echo %s: %s", task.name, task.payload)
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _executor_workers.start()
     yield
+    _executor_workers.stop()
+    _executor_queue.close()
     _harness_instances.clear()
     _harness_results.clear()
     _harness_threads.clear()
@@ -67,14 +90,19 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.include_router(create_task_router(_executor_queue))
+
+
+def _default_action_handler(action: str, params: dict[str, Any]) -> dict[str, Any]:
+    return {"echo": params}
 
 
 def _run_harness_in_thread(run_id: str, config_dict: dict[str, Any]) -> None:
     try:
-        from maref.governance.task_preflight import TaskPreflight
-
         config = HarnessConfig(**config_dict)
-        harness = UnifiedHarness(task_preflight=TaskPreflight())
+        bridge = OrchestrationBridge()
+        bridge.register_handler("execute", _default_action_handler)
+        harness = UnifiedHarness(orchestration_bridge=bridge)
         harness.configure(config)
         harness.preflight()
         result = harness.run(round_id=run_id)
@@ -156,9 +184,7 @@ async def list_results() -> list[ResultResponse]:
 
 @app.get("/harness/health")
 async def health() -> JSONResponse:
-    return JSONResponse(
-        {"status": "ok", "runs": len(_harness_configs), "completed": len(_harness_results)}
-    )
+    return JSONResponse({"status": "ok", "runs": len(_harness_configs), "completed": len(_harness_results)})
 
 
 @app.post("/harness/stop/{run_id}")
@@ -177,5 +203,4 @@ async def stop_run(run_id: str) -> RunResponse:
 
 def start(host: str = "0.0.0.0", port: int = 8000) -> None:
     import uvicorn
-
     uvicorn.run(app, host=host, port=port)

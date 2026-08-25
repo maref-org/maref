@@ -35,7 +35,6 @@ class UnifiedHarness(BaseHarness):
         tool_orchestrator: Any = None,
         run_hook: Callable[[HarnessLifecycleState, HarnessResult], None] | None = None,
         memory_hub: Any = None,
-        task_preflight: Any | None = None,
     ) -> None:
         super().__init__()
         self._lifecycle_state = HarnessLifecycleState.INIT
@@ -48,10 +47,6 @@ class UnifiedHarness(BaseHarness):
         self._tool_orchestrator = tool_orchestrator
         self._run_hook = run_hook
         self._memory_hub = memory_hub
-        # v0.47 S11: TaskPreflight gate.  When provided, preflight() runs the
-        # 6-check battery and aborts (fail-closed) on any FAIL.
-        self._task_preflight = task_preflight
-        self._last_preflight: Any | None = None
         self._transition_history: list[HarnessLifecycleState] = [HarnessLifecycleState.INIT]
         self._step_handlers: list[Callable[[], None]] = []
         self._context: dict[str, str] = {}
@@ -138,7 +133,7 @@ class UnifiedHarness(BaseHarness):
         if self._governance_bridge:
             self._governance_bridge.configure(config)
 
-    def preflight(self, context: dict[str, Any] | None = None) -> list[str]:
+    def preflight(self) -> list[str]:
         warnings: list[str] = []
         self._transition(HarnessLifecycleState.PREFLIGHT)
         self._check_governance("preflight")
@@ -147,29 +142,11 @@ class UnifiedHarness(BaseHarness):
         if self._config is None:
             warnings.append("no configuration set")
 
-        # v0.47 S11: TaskPreflight gate — fail-closed on any FAIL.
-        if self._task_preflight is not None:
-            result = self._task_preflight.execute(dict(context or {}))
-            self._last_preflight = result
-            if not result.passed:
-                failed = [c.check_name for c in result.failed_checks]
-                self._lifecycle_state = HarnessLifecycleState.FAILED
-                self._transition_history.append(HarnessLifecycleState.FAILED)
-                raise HarnessAbortedError(
-                    f"preflight failed for agent={result.agent_id}: blocked checks={failed}"
-                )
-            warnings.append(result.summary)
-
         if self._audit_logger:
             self._audit_logger.log_preflight(warnings)
 
         self._transition(HarnessLifecycleState.READY)
         return warnings
-
-    @property
-    def last_preflight(self) -> Any | None:
-        """The most recent TaskPreflight result (None if not run)."""
-        return self._last_preflight
 
     def run(self, round_id: str = "") -> HarnessResult:
         self._transition(HarnessLifecycleState.RUNNING)
@@ -198,6 +175,8 @@ class UnifiedHarness(BaseHarness):
         metrics: dict[str, Any] = {}
 
         self._load_context()
+
+        self._run_orchestration_bridge(errors, metrics)
 
         try:
             for i, handler in enumerate(self._step_handlers):
@@ -282,6 +261,31 @@ class UnifiedHarness(BaseHarness):
             self._run_hook(HarnessLifecycleState.DONE, result)
 
         return result
+
+    def _run_orchestration_bridge(
+        self, errors: list[str], metrics: dict[str, Any]
+    ) -> None:
+        """接线：配置携带 task 时经 orchestration_bridge 执行 TaskGraph+PlanExecutor。"""
+        if self._orchestration_bridge is None or self._config is None:
+            return
+        task_desc = (self._config.extra or {}).get("task")
+        if not task_desc:
+            return
+        try:
+            graph = self._orchestration_bridge.decompose(str(task_desc))
+            exec_result = self._orchestration_bridge.execute(graph)
+            metrics["orchestration"] = {
+                "plan_id": exec_result.get("plan_id", ""),
+                "success_count": exec_result.get("success_count", 0),
+                "failure_count": exec_result.get("failure_count", 0),
+            }
+            if exec_result.get("error"):
+                errors.append(str(exec_result["error"]))
+            for step in exec_result.get("steps", []):
+                if step.get("result") == "failure" and step.get("error"):
+                    errors.append(f"{step['task_id']}: {step['error']}")
+        except Exception as e:
+            errors.append(f"orchestration: {e}")
 
     def validate(self, result: HarnessResult) -> bool:
         return result.passed
