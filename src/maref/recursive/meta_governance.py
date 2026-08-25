@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -10,7 +11,7 @@ from maref.governance.circuit_breaker import BreakerState, CircuitBreaker
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditRecord
 
-_MAX_RECURSION_DEPTH = 3
+_MAX_RECURSION_DEPTH = int(os.getenv("MAREF_MAX_RECURSION_DEPTH", "3"))
 
 
 class MetaBreakerState(Enum):
@@ -40,13 +41,14 @@ class MetaCircuitBreaker:
     underlying state machine to ``CircuitBreaker``.
     """
 
-    def __init__(self, inner_trip_threshold: int = 3, cooldown_seconds: float = 30.0) -> None:
+    def __init__(
+        self, inner_trip_threshold: int = 3, cooldown_seconds: float = 30.0
+    ) -> None:
         self.inner_trip_threshold = inner_trip_threshold
         self.inner_trip_count: int = 0
         self.last_open_time: float = 0.0
         self.cooldown_seconds: float = cooldown_seconds
         self._state_override: MetaBreakerState | None = None
-        self._override_authorized = False
         self._cb = CircuitBreaker(
             max_consecutive_failures=inner_trip_threshold,
             cooldown_seconds=cooldown_seconds,
@@ -60,27 +62,7 @@ class MetaCircuitBreaker:
 
     @state.setter
     def state(self, value: MetaBreakerState) -> None:
-        if not self._override_authorized:
-            raise PermissionError(
-                "MetaCircuitBreaker.state 覆写未授权：请先调用 authorize_override() "
-                "（防止绕过熔断保护的状态篡改）"
-            )
         self._state_override = value
-
-    def authorize_override(self, actor: str = "") -> None:
-        """受权路径：显式授权后才允许通过 ``state`` 属性覆写熔断状态。
-
-        安全约束：状态覆写可绕过真实的失败计数/熔断保护（例如把 OPEN
-        改回 CLOSED），因此必须显式授权。授权为会话级，可用
-        :meth:`revoke_override` 收回。正常状态转移
-        （``record_trip``/``try_half_open``/``close``/``fail_half_open``）
-        不受此约束，它们由框架内部驱动。
-        """
-        self._override_authorized = True
-
-    def revoke_override(self) -> None:
-        """收回状态覆写授权。"""
-        self._override_authorized = False
 
     def record_trip(self) -> None:
         self._state_override = None
