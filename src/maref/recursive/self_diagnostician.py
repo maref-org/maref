@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from maref.recursive.self_observer import SystemSnapshot
@@ -26,6 +25,13 @@ class RiskLevel(Enum):
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
+
+
+# 探针类别（单一事实源，实现与调用方共用）
+# 系统健康探针 — 由 snapshot 纯数据推导，反映系统退化，参与熔断判据
+SYSTEM_HEALTH_PROBES = frozenset({"entropy", "latency", "anomaly", "kg", "oscillation"})
+# 环境探针 — 测量本机环境（浏览器/构建/桌面池），与系统健康无关，不参与熔断
+ENV_PROBES = frozenset({"playwright", "desktop", "gui_build"})
 
 
 @dataclass
@@ -63,23 +69,6 @@ class SelfDiagnostician:
         self._cb_state = "CLOSED"
         self._trip_count = 0
         self._blocked = False
-
-    # TTL 缓存：真实探针测量（GUI build / desktop）是重量级操作，同一进程
-    # 内重复诊断应复用结果。缓存仅对未 mock 的探针生效，避免污染测试。
-    _heavy_probe_cache: dict[str, tuple[float, ProbeReading]] = {}
-    _heavy_probe_ttl_s = 300.0
-
-    def _heavy_measure(self, probe: Any, probe_cls: Any) -> ProbeReading:
-        measure = probe.measure
-        if getattr(measure, "__func__", None) is not probe_cls.measure:
-            return measure()
-        now = time.monotonic()
-        cached = self._heavy_probe_cache.get(probe.name)
-        if cached is not None and now - cached[0] < self._heavy_probe_ttl_s:
-            return cached[1]
-        reading = measure()
-        self._heavy_probe_cache[probe.name] = (now, reading)
-        return reading
 
     @property
     def cb_state(self) -> str:
@@ -132,16 +121,14 @@ class SelfDiagnostician:
         # ── Playwright: browser engine install status ──────────
         playwright_reading = self._playwright_probe.measure()
         probe_results["playwright"] = [playwright_reading]
-        diagnostic_context["playwright_installed"] = playwright_reading.context.get(
-            "installed", False
-        )
+        diagnostic_context["playwright_installed"] = playwright_reading.context.get("installed", False)
         diagnostic_context["playwright_browsers"] = sum(
             playwright_reading.context.get(k, False)
             for k in ("chromium_available", "firefox_available", "webkit_available")
         )
 
         # ── Desktop: desktop agent runtime health ─────────────
-        desktop_reading = self._heavy_measure(self._desktop_probe, DesktopProbe)
+        desktop_reading = self._desktop_probe.measure()
         probe_results["desktop"] = [desktop_reading]
         diagnostic_context["desktop_active_sessions"] = desktop_reading.context.get(
             "active_sessions", 0
@@ -151,7 +138,7 @@ class SelfDiagnostician:
         )
 
         # ── GUI Build: Electron build health ──────────────────
-        gui_reading = self._heavy_measure(self._gui_build_probe, GUIBuildProbe)
+        gui_reading = self._gui_build_probe.measure()
         probe_results["gui_build"] = [gui_reading]
         diagnostic_context["gui_build_value"] = gui_reading.value
         diagnostic_context["gui_lint_passes"] = gui_reading.context.get("lint_passes", False)
@@ -276,17 +263,36 @@ class SelfDiagnostician:
         self._blocked = False
 
     def check_and_trip(self, report: DiagnosisReport) -> bool:
-        critical_count = sum(1 for v in report.risk_matrix.values() if v == RiskLevel.CRITICAL)
+        """熔断判定: 系统健康探针单次 CRITICAL 即熔断（survival-first fail-fast）。
+
+        判据仅取 SYSTEM_HEALTH_PROBES（entropy/latency/anomaly/kg/oscillation）——
+        它们由 snapshot 纯数据推导，是真实退化信号。
+        ENV_PROBES（playwright/desktop/gui_build）测量本机环境（浏览器是否安装、
+        Electron 能否构建），与系统健康无关，不参与熔断，否则无关环境问题会中断
+        长时自主运行。
+
+        历史（2026-08-20 排查）:
+          - c0201e66 (06-30) 已确立「单次 CRITICAL 立即熔断」，被 merge 9d906267
+            (07-24) 覆盖回累积 `_trip_count > 3`，安全语义静默倒退。
+          - 因判据混入 gui_build（本项目持续 critical），
+            run_autonomous_loop.py:1280 不得不绕过本方法自建 system_critical_streak。
+            现判据已按探针类别收敛，该绕行可逐步回收。
+        """
         if self._cb_state == "OPEN":
             self._blocked = True
             return False
+
+        critical_count = sum(
+            1
+            for name, level in report.risk_matrix.items()
+            if level == RiskLevel.CRITICAL and name in SYSTEM_HEALTH_PROBES
+        )
         if critical_count >= 1:
+            # survival-first: 一次系统健康 critical 就足以熔断
             self._trip_count += 1
-            if self._trip_count > 3:
-                self._cb_state = "OPEN"
-                self._blocked = True
-                return False
-            return True
+            self._cb_state = "OPEN"
+            self._blocked = True
+            return False
         if self._trip_count > 0:
             self._trip_count -= 1
         return True
