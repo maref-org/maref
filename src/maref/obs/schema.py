@@ -18,6 +18,11 @@ class ObsEventType(str, Enum):
     ANOMALY_DETECTED = "anomaly_detected"
     ADAPTER_INVOCATION = "adapter_invocation"
     TOOL_EXECUTION = "tool_execution"
+    TRUST_BOUNDARY_VIOLATION = "trust_boundary_violation"
+    SANCTION = "sanction"
+    COST_BREACH = "cost_breach"
+    CONSTITUTION_VIOLATION = "constitution_violation"
+    GOVERNANCE_BYPASS = "governance_bypass"
 
 
 class ObsEvent(BaseModel):
