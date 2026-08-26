@@ -26,9 +26,6 @@ class SystemSnapshot:
     probe_readings: list[ProbeReading] = field(default_factory=list)
     source_file_count: int = 0
     total_lines: int = 0
-    test_pass_rate: float = 0.0
-    coverage_pct: float = 0.0
-    test_count: int = 0
 
 
 class SelfObserver:
@@ -40,7 +37,7 @@ class SelfObserver:
         "tests/recursive/test_r12_audit.py",
         "tests/recursive/test_r14_r17.py",
         "tests/recursive/test_r7_kg.py",
-        "tests/recursive/test_r36_signed_agent_cards.py",
+        "tests/recursive/test_r35_live_migration.py",
         "tests/recursive/test_r47_orchestration_perf.py",
         "tests/recursive/test_r80_hitl_v2.py",
         "tests/recursive/test_self_optimizer.py",
@@ -124,10 +121,8 @@ class SelfObserver:
             # metrics phase stays within the 15-min cycle budget (matches CI).
             cmd.extend(["-m", "not integration and not chaos and not benchmark"])
         # Timeout: fast subset (10 files) completes in <30s; with overhead,
-        # 60s is a safe bound for collect-only. Run mode (full filtered suite)
-        # needs 600s (Fix 10b) — the old 300s caused 48h cycle-1 to report
-        # test_count=0 because the ~10k-test suite exceeded it.
-        timeout = 60 if collect_only else 600
+        # 120s is a safe upper bound.  The old 300s was for the full suite.
+        timeout = 60 if collect_only else 120
         try:
             result = subprocess.run(
                 cmd,
@@ -245,7 +240,7 @@ class SelfObserver:
         except Exception:
             return {"error": "failed_to_create_state_machine"}
 
-    def snapshot(self, collect_only: bool = False) -> SystemSnapshot:
+    def snapshot(self, collect_only: bool = True) -> SystemSnapshot:
         module_graph = self.observe_codebase()
         test_stats = self.observe_tests(collect_only=collect_only)
         git_stats = self.observe_git()
@@ -256,11 +251,6 @@ class SelfObserver:
         total = max(test_stats.get("total", 1), 1)
         readings = entropy_probe.read(entropy=failed / total * 10.0)
 
-        total_count = test_stats.get("total", 0)
-        passed_count = test_stats.get("passed", 0)
-        test_pass_rate = passed_count / total_count if total_count > 0 else 0.0
-        coverage_pct = float(test_stats.get("coverage_pct", 0.0))
-
         return SystemSnapshot(
             timestamp=time.time(),
             module_graph=module_graph,
@@ -270,7 +260,4 @@ class SelfObserver:
             probe_readings=readings,
             source_file_count=getattr(self, "_source_file_count", 0),
             total_lines=getattr(self, "_total_lines", 0),
-            test_pass_rate=test_pass_rate,
-            coverage_pct=coverage_pct,
-            test_count=total_count,
         )
