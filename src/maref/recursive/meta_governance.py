@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -10,7 +11,9 @@ from maref.governance.circuit_breaker import BreakerState, CircuitBreaker
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditRecord
 
-_MAX_RECURSION_DEPTH = 3
+# B2 修复：支持 MAREF_MAX_RECURSION_DEPTH 环境变量覆盖递归深度上限
+# （曾被同步覆盖丢失为硬编码 3，2026-08-27 从历史 c2b17a5a 恢复）
+_MAX_RECURSION_DEPTH = int(os.getenv("MAREF_MAX_RECURSION_DEPTH", "3"))
 
 
 class MetaBreakerState(Enum):
