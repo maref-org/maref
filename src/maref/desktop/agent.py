@@ -268,6 +268,7 @@ class DesktopAgent:
         self._state = DesktopAgentState.IDLE
         self._task_history: list[DesktopTaskResult] = []
         self._last_screenshot: ScreenshotResult | None = None
+        self._last_screenshot_file: str | None = None
         self._last_parse: ScreenParseResult | None = None
         self._self_healing_config = {
             "max_retries": 3,
@@ -312,6 +313,7 @@ class DesktopAgent:
         file_path = screenshot.file_path or "/tmp/maref_screenshot_tmp.png"
         if screenshot.image and not screenshot.file_path:
             screenshot.save(file_path)
+        self._last_screenshot_file = file_path
 
         result = self.parser.parse(file_path, screenshot.width, screenshot.height)
         self._last_parse = result
@@ -332,6 +334,16 @@ class DesktopAgent:
                 return usable[0] if usable else matches[0]
         return None
 
+    def _locate_by_vision(self, text: str) -> ParsedUIElement | None:
+        """Fara-7B 视觉定位 fallback（parser 的 fara 后端 locate_element_by_text）。"""
+        locator = getattr(self.parser, "locate_element_by_text", None)
+        if locator is None or not self._last_screenshot_file:
+            return None
+        try:
+            return locator(text, self._last_screenshot_file)
+        except Exception:
+            return None
+
     def execute_step(
         self, step: DesktopStep, parse_result: ScreenParseResult | None = None
     ) -> OperationResult:
@@ -351,11 +363,22 @@ class DesktopAgent:
                 DesktopOperation.HOTKEY,
                 DesktopOperation.TYPE,
             ):
-                return OperationResult(
-                    success=False,
-                    action_type=step.operation.value,
-                    details=f"Target element not found: {step.target_text or step.target_element_id}",
-                )
+                if step.target_text:
+                    element = self._locate_by_vision(step.target_text)
+                    if element:
+                        target_x, target_y = element.bbox.center
+                    else:
+                        return OperationResult(
+                            success=False,
+                            action_type=step.operation.value,
+                            details=f"Target element not found: {step.target_text or step.target_element_id}",
+                        )
+                else:
+                    return OperationResult(
+                        success=False,
+                        action_type=step.operation.value,
+                        details=f"Target element not found: {step.target_text or step.target_element_id}",
+                    )
 
         self._state = DesktopAgentState.EXECUTING
         operation = step.operation

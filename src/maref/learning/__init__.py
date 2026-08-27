@@ -12,8 +12,20 @@ from maref.learning.adaptive_goal_discovery import (
     GoalDiscoveryReport,
     ImprovementGoal,
 )
-from maref.learning.online_engine import OnlineLearningEngine, OnlineWeightRecord
+from maref.learning.online_engine import (
+    DOMAIN_PRIOR_TEMPLATES,
+    OnlineLearningEngine,
+    OnlineWeightRecord,
+    build_domain_prior,
+)
 from maref.learning.replay import DecisionOutcome, ExperienceStore
+from maref.learning.rewards import (
+    MultiGranularityRewardAssembler,
+    PotentialShaping,
+    PotentialShapingConfig,
+    RoleReward,
+    RoleRewardFn,
+)
 from maref.learning.scheduler import LearningRateScheduler, SchedulerConfig, SchedulerState
 
 __all__ = [
@@ -32,4 +44,11 @@ __all__ = [
     "MetricSnapshot",
     "OnlineLearningEngine",
     "OnlineWeightRecord",
+    "DOMAIN_PRIOR_TEMPLATES",
+    "build_domain_prior",
+    "MultiGranularityRewardAssembler",
+    "PotentialShaping",
+    "PotentialShapingConfig",
+    "RoleReward",
+    "RoleRewardFn",
 ]

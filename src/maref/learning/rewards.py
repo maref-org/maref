@@ -303,6 +303,74 @@ def create_role_reward_fn(
 
 
 # ============================================================================
+# Potential-Based Reward Shaping (Ng et al. 1999)
+# ============================================================================
+
+
+@dataclass
+class PotentialShapingConfig:
+    """配置势函数奖励塑形。
+
+    基于 Ng et al. (1999) 的 potential-based shaping:
+    F(s, s') = γ·Φ(s') − Φ(s)。该塑形不改变最优策略
+    （policy invariance），仅加速学习（提供渐进引导）。
+    """
+
+    enabled: bool = False
+    gamma: float = 0.99
+    scale: float = 0.1
+    potential: str = "entropy"
+    """势函数类型: 'entropy'（熵越低势越高）或 'fnr'（FNR 越低势越高）。"""
+
+
+class PotentialShaping:
+    """势函数奖励塑形 — 缓解稀疏奖励，保持策略不变性。
+
+    Usage:
+        shaping = PotentialShaping(PotentialShapingConfig(enabled=True))
+        extra = shaping.compute({"entropy": 0.3, "fnr": 0.1}, agent_id="detector")
+    """
+
+    def __init__(self, config: PotentialShapingConfig | None = None) -> None:
+        self._config = config or PotentialShapingConfig()
+        self._last_potential: dict[str, float] = {}
+
+    @property
+    def config(self) -> PotentialShapingConfig:
+        return self._config
+
+    @property
+    def enabled(self) -> bool:
+        return self._config.enabled
+
+    def _potential(self, state: dict[str, Any]) -> float:
+        kind = self._config.potential
+        if kind == "fnr":
+            fnr = state.get("fnr")
+            if fnr is not None:
+                return 1.0 - float(fnr)
+            return 1.0 - state.get("entropy", 0.5)
+        # default: entropy-based — 低熵(有序) → 高势
+        return 1.0 - float(state.get("entropy", 0.5))
+
+    def compute(self, state: dict[str, Any], agent_id: str = "default") -> float:
+        """计算当前状态下的塑形信号 F(s,s') = γ·Φ(s') − Φ(s)。"""
+        if not self._config.enabled:
+            return 0.0
+        phi_now = self._potential(state)
+        phi_prev = self._last_potential.get(agent_id, phi_now)
+        shaping = self._config.gamma * phi_now - phi_prev
+        self._last_potential[agent_id] = phi_now
+        return shaping * self._config.scale
+
+    def reset(self, agent_id: str | None = None) -> None:
+        if agent_id is None:
+            self._last_potential.clear()
+        else:
+            self._last_potential.pop(agent_id, None)
+
+
+# ============================================================================
 # Multi-Granularity Reward Assembler
 # ============================================================================
 
@@ -372,10 +440,14 @@ class MultiGranularityRewardAssembler:
         logger.info("Per-role: %s", summary.role_rewards)
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        shaping_config: PotentialShapingConfig | None = None,
+    ) -> None:
         self._reward_fns: dict[str, RoleRewardFn] = {}
         self._round_history: list[RoundRewardSummary] = []
         self._cycle_history: list[float] = []
+        self._shaping = PotentialShaping(shaping_config)
 
     def register_reward_fn(self, reward_fn: RoleRewardFn) -> None:
         """Register a reward function for an agent."""
@@ -441,6 +513,10 @@ class MultiGranularityRewardAssembler:
             role_rewards.append(reward)
 
         round_reward = self._aggregate_round_reward(role_rewards)
+        # Potential-based shaping (policy-invariant, disabled by default)
+        if self._shaping.enabled:
+            shaping = self._shaping.compute(round_snapshot)
+            round_reward = max(-1.0, min(1.0, round_reward + shaping))
 
         summary = RoundRewardSummary(
             round_num=round_num,

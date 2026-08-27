@@ -56,6 +56,10 @@ class ExperiencePool:
     def query_by_outcome(self, outcome: str) -> list[ExperienceEntry]:
         return [self._entries[i] for i in self._by_outcome.get(outcome, [])]
 
+    def all_entries(self) -> list[ExperienceEntry]:
+        """Return all entries in the pool."""
+        return list(self._entries)
+
     def query_by_context(self, keyword: str) -> list[ExperienceEntry]:
         return [e for e in self._entries if keyword.lower() in e.context.lower()]
 
@@ -118,6 +122,61 @@ class ExperiencePool:
             for tag in entry.tags:
                 self._by_tag[tag].append(i)
             self._by_outcome[entry.outcome].append(i)
+
+    def store_with_reward(
+        self,
+        context: str,
+        decision: str,
+        outcome: str,
+        reward_vector: Any,
+        tags: list[str] | None = None,
+    ) -> ExperienceEntry:
+        """存储带奖励向量的经验条目。"""
+        import uuid as _uuid
+        reward_tags = []
+        if hasattr(reward_vector, "dim_scores"):
+            scores = reward_vector.dim_scores()
+            reward_tags = [
+                f"success:{scores.get('task_success', 0.0):.2f}",
+                f"g1:{scores.get('metacognition', 0.0):.2f}",
+                f"g2:{scores.get('subgoal', 0.0):.2f}",
+                f"g3:{scores.get('safety', 0.0):.2f}",
+                f"g4:{scores.get('resource', 0.0):.2f}",
+                f"g5:{scores.get('cross_instance', 0.0):.2f}",
+            ]
+        all_tags = (tags or []) + reward_tags
+        entry = ExperienceEntry(
+            entry_id=str(_uuid.uuid4()),
+            timestamp=time.time(),
+            context=context,
+            decision=decision,
+            outcome=outcome,
+            lesson_learned="",
+            tags=all_tags,
+        )
+        self.store(entry)
+        return entry
+
+    def query_by_reward_range(
+        self,
+        dimension: str,
+        min_score: float = 0.0,
+        max_score: float = 1.0,
+    ) -> list[ExperienceEntry]:
+        """按奖励维度范围查询经验。"""
+        prefix = f"{dimension}:"
+        results = []
+        for entry in self._entries:
+            for tag in entry.tags:
+                if tag.startswith(prefix):
+                    try:
+                        score = float(tag[len(prefix):])
+                        if min_score <= score <= max_score:
+                            results.append(entry)
+                            break
+                    except ValueError:
+                        continue
+        return results
 
 
 class ContextManager:

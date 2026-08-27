@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from maref.recursive.agent_dispatcher import AgentDispatcher, DispatchResult
@@ -7,6 +9,38 @@ from maref.recursive.hybrid_decomposer import HybridDecomposer
 from maref.recursive.internal_agents import InternalAgentRegistry
 from maref.recursive.joint_state_machine import JointStateMachine
 from maref.recursive.task_decomposer import TaskDAG, TaskDecomposer
+
+
+def _default_persona_provider() -> Callable[[object], str] | None:
+    """可选能力：生成用户个性化上下文（沟通偏好 + 学习到的风格）。
+
+    memory 模块不可用时静默降级为 None，不影响现有分发行为。
+    """
+    try:
+        from maref.memory.style_learner import StyleLearner
+        from maref.memory.user_profile_graph import UserProfileGraph
+    except ImportError:
+        return None
+    db_path = os.environ.get("MAREF_PERSONA_DB", "data/persona.db")
+
+    def provider(subtask: object) -> str:
+        try:
+            profile = UserProfileGraph(db_path)
+            style = StyleLearner(db_path)
+            comm = profile.get_preferences_by_category("communication")
+            lines = [f"- {p.value}" for p in comm[:5]]
+            learned = style.generate_persona_prompt("internal", "general")
+            parts = ["# User Personalization Context"]
+            if lines:
+                parts.append("## Communication Preferences")
+                parts.extend(lines)
+            if "\n" in learned:
+                parts.append(learned.split("\n", 1)[1].strip())
+            return "\n".join(parts)
+        except Exception:
+            return ""
+
+    return provider
 
 
 @dataclass
@@ -36,7 +70,7 @@ class SelfOrchestrator:
         else:
             self._decomposer = TaskDecomposer()
             self._use_hybrid = use_hybrid
-        self._dispatcher = AgentDispatcher(self._registry)
+        self._dispatcher = AgentDispatcher(self._registry, persona_provider=_default_persona_provider())
         self._jsm = JointStateMachine()
         self._saga_orchestrator = saga_orchestrator
 

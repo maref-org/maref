@@ -11,9 +11,6 @@ over this module for all new code.
 AuditBus (v0.42.0+) provides a unified interface combining governance,
 GaaS tenant, and recursive-evolution audit. See ``governance/audit_bus.py``.
 """
-
-from __future__ import annotations
-
 import hashlib
 import hmac
 import json
@@ -100,7 +97,7 @@ class SecurityAuditChain:
             if env_key:
                 resolved_key = env_key
         if resolved_key is None:
-            for key_path in (".maraf_hmac_key", ".gaas_api_key"):
+            for key_path in (".maref_hmac_key", ".maraf_hmac_key", ".gaas_api_key"):
                 try:
                     with open(key_path) as f:
                         resolved_key = f.read().strip()

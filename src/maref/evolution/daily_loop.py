@@ -88,6 +88,7 @@ class DailyEvolutionLoop:
         vault_dir: str | Path = ".evolution_vault",
         dry_run: bool = True,
         real_writes: bool = False,
+        production_mode: bool = False,
         metrics_collector: Any | None = None,
         round_vault: Any | None = None,
     ) -> None:
@@ -148,7 +149,11 @@ class DailyEvolutionLoop:
         hypotheses: list[Any] = []
         try:
             observer = SelfObserver()
-            snapshot = observer.snapshot()
+            # collect_only=True: real fnr/coverage already came from
+            # collect_incremental() above; here we only need the codebase +
+            # fast test-count snapshot, NOT a second full test execution
+            # (which would double cycle latency and can hang on desktop tests).
+            snapshot = observer.snapshot(collect_only=True)
             diagnostician = SelfDiagnostician()
             report = diagnostician.diagnose(snapshot)
             bridge = OptimizerEvolutionBridge()

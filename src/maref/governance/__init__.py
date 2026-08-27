@@ -9,6 +9,15 @@ from maref.governance.audit_bus import AuditBus
 from maref.governance.budget_breaker import BudgetBreaker, BudgetBreakerState, BudgetBreakerTrip
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
 
+# P1-A2 治理提案底线语义预检 (PoC 盲点 C)
+from maref.governance.governance_baseline_gate import (
+    BASELINE_PATTERNS,
+    SOFT_PATTERNS,
+    BaselineDecision,
+    BaselineVerdict,
+    GovernanceBaselineGate,
+)
+
 # v0.36.0+: Unified governance pipeline
 from maref.governance.core_pipeline import (
     GovernancePipeline,
@@ -87,6 +96,18 @@ from maref.governance.verifier_consensus import (
 from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry, VerifierStatus
 from maref.metacognition import MetaCognitiveAuditor
 
+# G2: Subgoal Interceptor
+from maref.subgoal import (
+    ControlRiskReport,
+    CoTMonitor,
+    CoTReport,
+    CreepReport,
+    DelegationGraph,
+    GoalInferencer,
+    InterceptorAction,
+    SubgoalInterceptor,
+)
+
 __all__ = [
     "GovernanceState",
     "GovernanceStateMachine",
@@ -101,6 +122,12 @@ __all__ = [
     "BudgetBreaker",
     "BudgetBreakerState",
     "BudgetBreakerTrip",
+    # P1-A2 治理提案底线语义预检
+    "GovernanceBaselineGate",
+    "BaselineDecision",
+    "BaselineVerdict",
+    "BASELINE_PATTERNS",
+    "SOFT_PATTERNS",
     "OscillationFixLoop",
     "OscillationStage",
     "OscillationEvent",
@@ -110,12 +137,13 @@ __all__ = [
     "GovernanceBridge",
     "GovernanceQuery",
     "RecursiveEvent",
-    "TrustBoundaryManager",
-    "BoundaryDecision",
-    "BoundaryViolationError",
     "RecursiveEventType",
     "ThreatGovernanceBridge",
     "ThreatGovernanceMapping",
+    # Trust Boundary (action-level, E1006)
+    "TrustBoundaryManager",
+    "BoundaryDecision",
+    "BoundaryViolationError",
     # Verifiable Governance Credential
     "VerifiableGovernanceCredential",
     "GovernanceCredentialStore",
@@ -130,6 +158,15 @@ __all__ = [
     "ConsensusResult",
     # Meta-Cognitive Audit
     "MetaCognitiveAuditor",
+    # Subgoal Interceptor (G2)
+    "SubgoalInterceptor",
+    "InterceptorAction",
+    "CoTMonitor",
+    "CoTReport",
+    "GoalInferencer",
+    "ControlRiskReport",
+    "DelegationGraph",
+    "CreepReport",
     # Social Impact Assessment
     "SocialImpactAssessor",
     "SocialImpactReport",

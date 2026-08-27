@@ -242,9 +242,11 @@ class TaskGraph:
         for n_data in data.get("nodes", []):
             status_val = n_data.get("status", "pending")
             node_type_val = n_data.get("node_type", "sequence")
+            risk_val = n_data.get("risk_level", "medium")
             node = TaskNode(**n_data)
             node.status = TaskStatus(status_val)
             node.node_type = NodeType(node_type_val)
+            node.risk_level = RiskLevel(risk_val)
             g.add_node(node)
         for from_id, deps in data.get("edges", {}).items():
             for to_id in deps:
