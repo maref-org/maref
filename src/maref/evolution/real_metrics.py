@@ -6,6 +6,7 @@ provides EvolutionMetrics-compatible output for the evolution engine.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -60,6 +61,16 @@ class RealMetricsCollector:
         self._last_baseline_time = 0.0
 
     def collect_baseline(self) -> RealMetrics:
+        return self.collect_incremental()
+
+    def collect_incremental(self) -> RealMetrics:
+        # TTL cache shared by every call site. run_once() + the internal
+        # RecursiveEvolutionEngine both call collect_incremental(), and with
+        # multiple rounds per cycle the naive per-call execution re-ran the
+        # full pytest+coverage+snapshot pipeline 3-9x per cycle (~78s each),
+        # which made cycles look hung. Cache real measurements for
+        # ``_baseline_cache_seconds`` (default 300s) so a cycle only pays for
+        # it once.
         now = time.time()
         if (
             self._baseline is not None
@@ -70,9 +81,6 @@ class RealMetricsCollector:
         self._baseline = self._run_all_checks()
         self._last_baseline_time = now
         return self._baseline
-
-    def collect_incremental(self) -> RealMetrics:
-        return self._run_all_checks()
 
     def _run_all_checks(self) -> RealMetrics:
         errors: list[str] = []
@@ -212,11 +220,18 @@ class RealMetricsCollector:
     @staticmethod
     def _run_coverage() -> float:
         try:
+            # Isolated COVERAGE_FILE: the shared repo-level .coverage is often
+            # locked by parallel pytest sessions (OpenCode desktop / public
+            # maref tests), which made `coverage report` hang on the file lock.
+            # Point coverage at a private file so it never blocks on others.
+            cov_env = dict(os.environ)
+            cov_env["COVERAGE_FILE"] = "/tmp/maref_metrics_isolated.coverage"
             result = subprocess.run(
-                ["coverage", "report", "-m"],
+                ["coverage", "report", "-m", "--fail-under=0"],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=10,
+                env=cov_env,
             )
             output = result.stdout
             import re
