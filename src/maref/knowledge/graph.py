@@ -221,6 +221,42 @@ class KnowledgeGraph:
         self.save()
         return node_id
 
+    def update_confidence(
+        self,
+        node_id: str,
+        delta: float,
+        reason: str = "",
+    ) -> bool:
+        """更新节点置信度（reward 回流入口）。
+
+        Args:
+            node_id: 节点 ID
+            delta: 置信度变化量（正=奖励, 负=惩罚）
+            reason: 变化原因（记录到 metadata.confidence_history）
+
+        Returns:
+            True 如果节点存在且更新成功
+
+        约束:
+            confidence 范围 [0.1, 1.0]
+            更新后自动 save()
+        """
+        node = self._nodes.get(node_id)
+        if node is None:
+            return False
+        old = node.confidence
+        node.confidence = max(0.1, min(1.0, old + delta))
+        history = node.metadata.setdefault("confidence_history", [])
+        history.append({
+            "old": old,
+            "new": node.confidence,
+            "delta": delta,
+            "reason": reason,
+            "timestamp": time.time(),
+        })
+        self.save()
+        return True
+
     # --- Relation Extraction ---
 
     def _find_related_node_ids(self, content: str) -> list[str]:

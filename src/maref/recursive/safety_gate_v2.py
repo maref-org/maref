@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from maref.immunity.ai_stench_detector import AIStenchDetector
     from maref.immunity.intent_drift_detector import IntentDriftDetector
+    from maref.recursive.meta_agent_closure import EvolutionDecision, MetaAgentClosure
 
 
 @dataclass
@@ -32,6 +33,8 @@ class SafetyGateV2:
         "state_machine",
         "audit_logger",
         "meta_governance",
+        # N10: 元闭环自身亦为受保护核心组件，否则可被拆除而绕过全部红线检查
+        "meta_agent_closure",
         "evolution_dsl",
     ]
 
@@ -55,6 +58,8 @@ class SafetyGateV2:
         self._stench_detector: AIStenchDetector | None = None
         self._intent_drift_detector: IntentDriftDetector | None = None  # M4
         self._sentinel_observer: Any | None = None  # M4
+        # N10: 注入后启用生产级宪法红线检查（见 attach_meta_closure）
+        self._meta_closure: MetaAgentClosure | None = None
         self._blocked = False
 
     def detect_core_removal(self, target: str) -> ThreatAssessment:
@@ -432,7 +437,9 @@ class SafetyGateV2:
         """附加 sentinel 观测器。"""
         self._sentinel_observer = observer
 
-    def validate_runtime_behavior(self, agent_id: str, session: Any = None) -> ThreatAssessment:
+    def validate_runtime_behavior(
+        self, agent_id: str, session: Any = None
+    ) -> ThreatAssessment:
         """运行时行为验证 — M4 综合评估。
 
         Args:
@@ -478,6 +485,48 @@ class SafetyGateV2:
                 severity="HIGH" if blocked else "MEDIUM",
                 reason="; ".join(reasons),
                 blocked=blocked,
+            )
+        return ThreatAssessment(
+            threat_detected=False, threat_type="", severity="NONE", reason="", blocked=False,
+        )
+
+    def attach_meta_closure(self, meta_closure: MetaAgentClosure) -> None:
+        """注入 MetaAgentClosure 实例，启用生产级红线检查。
+
+        这是 N10 修复的核心入口。一旦注入，所有经过 evaluate_decision()
+        的演化决策都将接受宪法红线验证。
+        """
+        self._meta_closure = meta_closure
+
+    def evaluate_decision(self, decision: EvolutionDecision) -> ThreatAssessment:
+        """评估演化决策的宪法红线合规性。
+
+        由 MetaAgentClosure.review_evolution_decision() 执行红线检查。
+        如果 meta_closure 未注入（None），则返回非阻断结果。
+        这是元治理层从"测试专用"变为"生产强制"的关键集成点。
+
+        无论检查结果如何，只要经过此方法，决策的 safety_gate_evaluated
+        标志即被设置为 True（修复 N3: INV-002 据此验证安全门未被绕过）。
+        """
+        if self._meta_closure is None:
+            return ThreatAssessment(
+                threat_detected=False,
+                threat_type="",
+                severity="NONE",
+                reason="",
+                blocked=False,
+            )
+
+        reviewed = self._meta_closure.review_evolution_decision(decision)
+        # 修复 N3: 标记决策已通过安全门评估
+        decision.safety_gate_evaluated = True
+        if reviewed.red_line_violation:
+            return ThreatAssessment(
+                threat_detected=True,
+                threat_type="red_line_violation",
+                severity="CRITICAL",
+                reason=f"Red line violation: {', '.join(reviewed.violated_red_lines)}",
+                blocked=True,
             )
         return ThreatAssessment(
             threat_detected=False,

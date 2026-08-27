@@ -235,10 +235,36 @@ class BaseProbe(ABC):
         self.critical_threshold = critical_threshold
         self.warning_threshold = warning_threshold
         self._readings: list[ProbeReading] = []
+        # TTL cache: heavy probes (gui_build / desktop / playwright) run real
+        # subprocess checks that take 5-30s each. Re-measuring on every
+        # diagnose() call blows the cycle budget. Cache the reading for
+        # ``cache_ttl_s`` and reuse it. Class-level shared so that fresh
+        # probe instances (created per diagnose() call) reuse the cache.
+        cls = type(self)
+        if not hasattr(cls, "_cached_reading"):
+            cls._cached_reading: ProbeReading | None = None
+            cls._cached_at: float = 0.0
+            cls.cache_ttl_s: float = 21600.0
 
     @abstractmethod
     def measure(self, context: dict[str, Any] | None = None) -> ProbeReading:
         """Take a single measurement and return the reading."""
+
+    def _measure_cached(self, context: dict[str, Any] | None = None) -> ProbeReading:
+        """measure() with TTL caching — subclasses call this instead of
+        implementing caching themselves. Returns the cached reading if the
+        cache is still fresh, otherwise runs measure() and caches it.
+        Cache is class-level so fresh instances share it."""
+        cls = type(self)
+        now = time.time()
+        if getattr(cls, "_cached_reading", None) is not None and (
+            now - getattr(cls, "_cached_at", 0.0)
+        ) < cls.cache_ttl_s:
+            return cls._cached_reading
+        reading = self.measure(context)
+        cls._cached_reading = reading
+        cls._cached_at = now
+        return reading
 
     def get_readings(self, n: int = 100) -> list[ProbeReading]:
         return self._readings[-n:]

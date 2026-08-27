@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -19,14 +20,19 @@ class DispatchResult:
     score: float = 0.0
     contract_score: float = 0.0
     match_details: list[str] | None = None
+    persona_context: str = ""
 
 
 class AgentDispatcher:
     def __init__(
-        self, registry: InternalAgentRegistry, contract_registry: CapabilityRegistry | None = None
+        self,
+        registry: InternalAgentRegistry,
+        contract_registry: CapabilityRegistry | None = None,
+        persona_provider: Callable[[SubTask], str] | None = None,
     ) -> None:
         self._registry = registry
         self._contract_registry = contract_registry
+        self._persona_provider = persona_provider
 
     def dispatch(self, subtask: SubTask) -> InternalAgent | None:
         best_agent: InternalAgent | None = None
@@ -43,6 +49,9 @@ class AgentDispatcher:
         results: list[DispatchResult] = []
         for sub in subtasks:
             agent = self.dispatch(sub)
+            persona = (
+                self._persona_provider(sub) if agent is not None and self._persona_provider is not None else ""
+            )
             if agent is not None:
                 score, contract_score, details = self._capability_match_score(sub, agent)
                 results.append(
@@ -52,6 +61,7 @@ class AgentDispatcher:
                         score=score,
                         contract_score=contract_score,
                         match_details=details,
+                        persona_context=persona,
                     )
                 )
             else:
