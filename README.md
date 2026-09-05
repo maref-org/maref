@@ -114,6 +114,18 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 
 ---
 
+## Why Agent Governance Matters: The Evidence
+
+Agentic AI is not a future risk — it is a present crisis documented by independent, verifiable sources:
+
+- **88%** of organizations reported confirmed or suspected AI agent security incidents in the past year (Gravitee, *State of AI Agent Security 2026*; Dec 2025 survey: 59.3% confirmed).
+- Injected malicious commands reached up to **84% attack success** in AI coding agents — **75–88%** in auto-approval modes (Liu et al., 2025, arXiv:2509.22040).
+- **40%** of enterprise applications will feature task-specific AI agents by 2026 (Gartner, 2025); separately, **40%+ of agentic AI projects** are expected to be canceled by end-2027 amid cost, value, and risk-control failures (Gartner).
+
+These are documented risks, not hypotheticals. OWASP published the **Top 10 for Agentic Applications** in December 2025 (ASI01–ASI10), NIST launched the **AI Agent Standards Initiative** in February 2026, and the **EU AI Act** (2024/1689) mandates conformity for high-risk AI systems. MAREF is built to address them with **runtime-enforced, TLA+-verified controls** — not policy documents. Every claim links to reproducible evidence in this repository.
+
+---
+
 ## For LLM/Agent Readers
 
 **What**: MAREF is a governance-first multi-agent runtime — the governance layer that sits *below* orchestration.
@@ -121,7 +133,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 **When to use**: You need production-grade agent governance, formal verification, or cryptographic compliance (SM2/SM3/SM4, GB/T 32918).
 **Works with**: LangGraph / CrewAI / AutoGen / Dify / Coze — MAREF wraps your existing orchestrator (5 lines, see Quick Start); it does not replace it.
 
-**Module map** (full machine-readable version in [.github/llms.txt](.github/llms.txt)):
+**Module map** (full machine-readable version in [llms.txt](llms.txt) and [.github/llms.txt](.github/llms.txt)):
 - `src/maref/governance/` — Gray Code FSM, decision tree, circuit breaker
 - `src/maref/identity/` + `src/maref/security/` — zero-trust identity, signed audit chain
 - `src/maref/crypto/` — SM2/SM3/SM4-GCM national cryptography
@@ -320,6 +332,30 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 - [x] v0.38.0: Verifiable Audit Chain — Ed25519 audit log signing + Merkle auditor + Federated Merkle aggregation + offline verification CLI + HTTP API ([VERIFY.md](VERIFY.md))
 - [ ] v1.0: Full recursive evolution stack + Agent credit rating + Four-phase governance model
 - [ ] v2.0: Meta-agent closure + Carbon-silicon symbiosis + Eight-trigram governance
+
+---
+
+## Verify Our Claims (Reproducible)
+
+MAREF's headline claims are testable in-repo — run them yourself:
+
+| Claim | How to Verify | Command / Evidence |
+|-------|--------------|-------------------|
+| OWASP 10/10 risk coverage | Read the claim→code mapping | `docs/security/owasp-agentic-top10-mapping.md` |
+| TLA+ specs pass TLC model checking | Run formal tests | `pytest tests/formal/` |
+| 11,400+ tests pass | Run the suite | `pytest tests/` (scoped: `pytest tests/governance/`) |
+| Governance overhead | Reproduce the benchmark | `python benchmarks/governance_overhead.py` (raw output: `benchmarks/results-2026-07-08.txt`) |
+| Evolution convergence (FNR 0.10→0.04) | Read the 200-round archive | `docs/MAREF_200轮递归收敛总结归档报告_20260517.md` |
+| Standards alignment (NIST / EU AI Act) | Read the technical whitepaper | `docs/MAREF-Technical-Whitepaper-arXiv.md` |
+
+## Real-World Evidence
+
+For detailed incident analyses, benchmark methodologies, and compliance deep-dives, see the MAREF blog at https://maref.cc/en/blog/:
+
+- [Why Agent Governance Matters in 2026](https://maref.cc/en/blog/why-agent-governance-matters-2026/) — the incident evidence behind agent governance
+- [88% of Organizations Hit by AI Agent Incidents](https://maref.cc/en/blog/88-percent-incidents/) — what the Gravitee data actually says
+- [OWASP Top 10 for Agentic Applications](https://maref.cc/en/blog/owasp-agentic-top-10/) — MAREF's 10/10 coverage mapping explained
+- [Performance Benchmarks Are Public](https://maref.cc/en/blog/performance-benchmarks-are-public/) — reproducible benchmark methodology
 
 ---
 
