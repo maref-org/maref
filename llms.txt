@@ -1,4 +1,4 @@
-# MAREF Repository — LLM Navigation Guide (synced from ./llms.txt)
+# MAREF — LLM Navigation Guide
 
 > MAREF (Multi-Agent Recursive Evolution Framework) is a governance-first multi-agent runtime: TLA+ formally verified Gray Code governance FSM, circuit breaker, drift detection, per-agent Ed25519 identity, verifiable Merkle audit chain, and SM2/SM3/SM4-GCM cryptography. Apache 2.0.
 >
