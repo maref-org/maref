@@ -39,7 +39,9 @@ jobs:
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run unit tests
         run: |
-          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --ignore=tests/maref/compliance
+          # 排除 compliance(独立合规域) 与 desktop(需 desktop extra/Pillow + 桌面环境)。
+          # desktop 测试由专门环境覆盖，见 STATE.yaml 分域记录。
+          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --ignore=tests/maref/compliance --ignore=tests/desktop
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
@@ -67,6 +69,8 @@ jobs:
       - name: pip-audit
         run: |
           pip install pip-audit
+          # 升级环境自带 setuptools（PYSEC-2026-3447，pip 构建工具非项目依赖）
+          pip install -U "setuptools>=83"
           pip-audit
       - name: TruffleHog Secret Scan
         run: |
@@ -90,8 +94,8 @@ jobs:
         run: |
           # 禁止"64-state"夸大声明。排除诚信修复记录与执行日志：
           # 这些是历史记录文档，含 64-state 字样属修复过程的如实记载，非当前声明。
-          EXCLUDE="docs/INTEGRITY_DECLARATION.md docs/execution-logs"
-          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null | grep -vE "^($EXCLUDE|docs/execution-logs/)" || true)
+          EXCLUDE="docs/INTEGRITY_DECLARATION\.md|docs/execution-logs"
+          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null | grep -vE "^($EXCLUDE)" || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining '64-state' claims in:"
             echo "$FILES"
@@ -101,8 +105,8 @@ jobs:
       - name: Check for Sperner claims
         run: |
           # 同上排除历史记录文档
-          EXCLUDE="docs/INTEGRITY_DECLARATION.md docs/execution-logs"
-          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null | grep -vE "^($EXCLUDE|docs/execution-logs/)" ; then
+          EXCLUDE="docs/INTEGRITY_DECLARATION\.md|docs/execution-logs"
+          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null | grep -vE "^($EXCLUDE)"; then
             echo "ERROR: Found remaining Sperner claims"
             exit 1
           fi
