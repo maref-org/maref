@@ -39,9 +39,11 @@ jobs:
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run unit tests
         run: |
-          # 排除 compliance(独立合规域) 与 desktop(需 desktop extra/Pillow + 桌面环境)。
+          # 排除 slow(依赖本机 git tags/历史等环境) / real(需硬件/权限) /
+          # integration / chaos / benchmark。排除 compliance(独立合规域) 与
+          # desktop(需 desktop extra/Pillow + 桌面环境)。
           # desktop 测试由专门环境覆盖，见 STATE.yaml 分域记录。
-          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark" --ignore=tests/maref/compliance --ignore=tests/desktop
+          coverage run -m pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
