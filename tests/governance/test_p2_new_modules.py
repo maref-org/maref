@@ -8,9 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 
-import pytest
-
-from maref.governance.security_audit_chain import SecurityAuditChain, SecurityAuditEntry
+from maref.governance.security_audit_chain import SecurityAuditChain
 from maref.immunity.negative_gene_bank import NegativeGeneBank
 from maref.immunity.self_saeb import SelfSAEBRunner
 from maref.observability.health_snapshot import HealthSnapshotWriter
@@ -205,6 +203,41 @@ class TestSecurityAuditChain:
         result = chain.verify_integrity()
         assert result["status"] == "no_file"
         assert result["total"] == 0
+
+    def test_reopen_chain_survives_huge_record(self, tmp_path: Path) -> None:
+        """Tail read must not break the chain when the last record exceeds
+        the 64KB read window (regression: single-window read returned "" and
+        silently forked the tamper-evident chain)."""
+        path = tmp_path / "chain.jsonl"
+        chain = SecurityAuditChain(chain_path=path, hmac_key="test_key")
+        e1 = chain.append(
+            "auth",
+            "user1",
+            "login",
+            details={"big": "x" * 200_000},
+        )
+        assert path.stat().st_size > 64 * 1024
+        reopened = SecurityAuditChain(chain_path=path, hmac_key="test_key")
+        assert reopened._get_last_chain_hash() == e1.chain_hash
+
+    def test_reopen_chain_skips_malformed_tail(self, tmp_path: Path) -> None:
+        """A malformed trailing line must not reset the chain to empty."""
+        path = tmp_path / "chain.jsonl"
+        chain = SecurityAuditChain(chain_path=path, hmac_key="test_key")
+        e1 = chain.append("auth", "user1", "login")
+        with open(path, "a") as f:
+            f.write("not json\n")
+        reopened = SecurityAuditChain(chain_path=path, hmac_key="test_key")
+        assert reopened._get_last_chain_hash() == e1.chain_hash
+
+    def test_reopen_chain_continues_from_tail(self, tmp_path: Path) -> None:
+        """Reopening an existing chain file must continue from its last hash."""
+        path = tmp_path / "chain.jsonl"
+        chain = SecurityAuditChain(chain_path=path, hmac_key="test_key")
+        e1 = chain.append("auth", "user1", "login")
+        reopened = SecurityAuditChain(chain_path=path, hmac_key="test_key")
+        e2 = reopened.append("access", "user1", "read")
+        assert e2.previous_hash == e1.chain_hash
 
 
 class TestSelfSAEB:
