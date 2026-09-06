@@ -4,12 +4,14 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
+Image: Any
 try:
     from PIL import Image
 except ImportError:
     # Pillow 是可选依赖（desktop extra），名称保持存在供类型注解引用。
-    Image = None  # type: ignore[assignment]
+    Image = None
 
 
 def _pixel_value(img: Image.Image, x: int, y: int) -> int:

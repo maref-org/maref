@@ -184,6 +184,8 @@ module = [
     "ApplicationServices",
     "Quartz",
     "gmssl",
+    "openai",
+    "huggingface_hub",
     "sidecar.claude_mem_adapter",
     "maref.stress.sqi",
     "maref.stress.sqi_convergence",

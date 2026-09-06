@@ -16,6 +16,11 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from maref.stress.code_service_sqi import CodeQualityMetrics
+
+OpenAI: Any
+APIError: Any
+RateLimitError: Any
 try:
     from openai import APIError, OpenAI, RateLimitError
 
@@ -24,11 +29,9 @@ except ImportError:
     _OPENAI_AVAILABLE = False
     # openai 是可选依赖：降级为 None / Exception 保持名称存在，
     # 实际使用前由 _OPENAI_AVAILABLE 守卫拦截。
-    OpenAI = None  # type: ignore[assignment, misc]
-    APIError = Exception  # type: ignore[assignment, misc]
-    RateLimitError = Exception  # type: ignore[assignment, misc]
-
-from maref.stress.code_service_sqi import CodeQualityMetrics
+    OpenAI = None
+    APIError = Exception
+    RateLimitError = Exception
 
 
 @dataclass
