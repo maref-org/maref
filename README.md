@@ -359,6 +359,14 @@ For detailed incident analyses, benchmark methodologies, and compliance deep-div
 
 ---
 
+## Cite / Archive
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22432290.svg)](https://doi.org/10.5281/zenodo.22432290)
+
+Source archives are versioned on Zenodo (each GitHub release → new DOI). Cite v0.54.1 as `10.5281/zenodo.22432290`.
+
+---
+
 ## License
 
 Apache License 2.0 — [LICENSE](LICENSE)
