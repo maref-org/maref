@@ -9,15 +9,6 @@ from maref.governance.audit_bus import AuditBus
 from maref.governance.budget_breaker import BudgetBreaker, BudgetBreakerState, BudgetBreakerTrip
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
 
-# P1-A2 治理提案底线语义预检 (PoC 盲点 C)
-from maref.governance.governance_baseline_gate import (
-    BASELINE_PATTERNS,
-    SOFT_PATTERNS,
-    BaselineDecision,
-    BaselineVerdict,
-    GovernanceBaselineGate,
-)
-
 # v0.36.0+: Unified governance pipeline
 from maref.governance.core_pipeline import (
     GovernancePipeline,
@@ -55,6 +46,15 @@ from maref.governance.geopolitical_risk import (
     RiskLevel,
     SovereignAIValidationResult,
     SovereignAIValidator,
+)
+
+# P1-A2 治理提案底线语义预检 (PoC 盲点 C)
+from maref.governance.governance_baseline_gate import (
+    BASELINE_PATTERNS,
+    SOFT_PATTERNS,
+    BaselineDecision,
+    BaselineVerdict,
+    GovernanceBaselineGate,
 )
 from maref.governance.governed_pipeline import GovernedPipeline
 from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage

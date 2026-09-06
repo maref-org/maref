@@ -374,7 +374,9 @@ class MemoryThreeTemperature:
     def _audit_transition(self, transition: TemperatureTransition, round_num: int) -> None:
         self._audit_store.append(
             UnifiedAuditRecord(
-                record_id=make_record_id("m3t", zlib.crc32(transition.memory_id.encode("utf-8")) % 100000),
+                record_id=make_record_id(
+                    "m3t", zlib.crc32(transition.memory_id.encode("utf-8")) % 100000
+                ),
                 timestamp=time.time(),
                 layer="evolution",
                 round=round_num,

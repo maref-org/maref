@@ -47,7 +47,8 @@ from maref.observability.otel_middleware import _SpanContextManager
 try:
     from PIL import Image
 except ImportError:
-    Image = None
+    # Pillow 是可选依赖（desktop extra），名称保持存在供类型注解引用。
+    Image = None  # type: ignore[assignment]
 
 
 class DesktopOperationType(str, Enum):

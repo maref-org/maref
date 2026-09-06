@@ -2,7 +2,6 @@ import argparse
 import http.server
 import json
 import logging
-import os
 import sys
 from typing import Any
 
@@ -10,7 +9,7 @@ from maref.integration.mcp_security import MCPSecurityGate
 from maref.integration.mcp_server import MCPServer
 from maref.integration.mcp_transport import MCPTransport
 from sidecar.exfiltration_probe import DataExfiltrationProbe
-from sidecar.mcp_bridge import SidecarMCPBridge, SIDECAR_MCP_TOOLS
+from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +83,7 @@ def create_server(host: str = "localhost", port: int = 8080) -> http.server.HTTP
         mcp_transport = MCPTransport()  # type: ignore[abstract]
         security_manager = MCPSecurityGate(allow_unverified_tokens=True)
         exfiltration_probe = DataExfiltrationProbe()
-        mcp_bridge = MCPBridge()
+        mcp_bridge = SidecarMCPBridge()
 
         class Handler(MCPHTTPHandler):
             def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -158,11 +157,10 @@ def _register_governance_tools(mcp_server: MCPServer) -> None:
         mcp_server.register_tool(name, desc, schema, _make_handler(name, _bridge))
 
 
-def _make_handler(
-    tool_name: str, bridge: SidecarMCPBridge
-):
+def _make_handler(tool_name: str, bridge: SidecarMCPBridge):
     def handler(args: dict[str, Any]) -> dict[str, Any]:
         return bridge.handle_tool_call(tool_name, args)
+
     return handler
 
 

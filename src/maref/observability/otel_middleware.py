@@ -14,6 +14,7 @@ try:
     from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
     from starlette.requests import Request
     from starlette.responses import Response
+
     _STARLETTE_AVAILABLE = True
 except ImportError:  # pragma: no cover - starlette 是 optional 依赖
     _STARLETTE_AVAILABLE = False
@@ -21,7 +22,7 @@ except ImportError:  # pragma: no cover - starlette 是 optional 依赖
     class BaseHTTPMiddleware:  # type: ignore[no-redef]
         """占位基类，starlette 未安装时避免 import 崩溃（用于非 FastAPI 环境）。"""
 
-        async def __call__(self, scope, receive, send):  # type: ignore[no-untyped-def]
+        async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
             pass
 
     class Request:  # type: ignore[no-redef]

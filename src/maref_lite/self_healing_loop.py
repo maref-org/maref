@@ -13,6 +13,7 @@ from maref.recursive.unified_audit import UnifiedAudit
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class SelfHealingConfig:
     max_cycles: int = 10
@@ -39,6 +40,7 @@ class SelfHealingConfig:
             "max_proposals_per_cycle": self.max_proposals_per_cycle,
             "arch_proposal_interval_cycles": self.arch_proposal_interval_cycles,
         }
+
 
 @dataclass
 class HealingCycleReport:
@@ -77,9 +79,9 @@ class HealingCycleReport:
             "status": self.status,
         }
 
-class SelfHealingLoop:
 
-    def __init__(self, config: SelfHealingConfig | None=None) -> None:
+class SelfHealingLoop:
+    def __init__(self, config: SelfHealingConfig | None = None) -> None:
         self._config: SelfHealingConfig = config or SelfHealingConfig()
         self._running: bool = False
         self._history: list[HealingCycleReport] = []
@@ -135,6 +137,7 @@ class SelfHealingLoop:
         if self._observer is not None:
             return
         from maref.recursive.self_observer import SelfObserver
+
         self._observer = SelfObserver()
 
     async def _run_one_cycle(self) -> HealingCycleReport:
@@ -265,7 +268,10 @@ class SelfHealingLoop:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            'running': self._running,
-            'cycle_count': self._cycle_count,
-            'history': [{'cycle_id': r.cycle_id, 'status': r.status, 'details': r.details} for r in self._history],
+            "running": self._running,
+            "cycle_count": self._cycle_count,
+            "history": [
+                {"cycle_id": r.cycle_id, "status": r.status, "details": r.details}
+                for r in self._history
+            ],
         }

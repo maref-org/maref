@@ -50,7 +50,9 @@ class AgentDispatcher:
         for sub in subtasks:
             agent = self.dispatch(sub)
             persona = (
-                self._persona_provider(sub) if agent is not None and self._persona_provider is not None else ""
+                self._persona_provider(sub)
+                if agent is not None and self._persona_provider is not None
+                else ""
             )
             if agent is not None:
                 score, contract_score, details = self._capability_match_score(sub, agent)

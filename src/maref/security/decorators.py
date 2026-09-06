@@ -44,7 +44,9 @@ def set_audit_context(entries: list[dict[str, str]] | None) -> None:
     _audit_context.set(entries)
 
 
-def _try_audit_log(func_name: str, args: tuple, kwargs: dict, event: str, error: str | None = None) -> None:
+def _try_audit_log(
+    func_name: str, args: tuple, kwargs: dict, event: str, error: str | None = None
+) -> None:
     """尝试写入审计上下文。无活跃上下文时静默跳过。"""
     ctx = _audit_context.get()
     if ctx is None:

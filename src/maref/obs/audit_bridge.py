@@ -55,8 +55,7 @@ class AuditObsBridge:
 
     def start(self) -> None:
         if self._audit_bus is None:
-            logger.warning("AuditObsBridge: no audit_bus provided, "
-                           "events will not be forwarded")
+            logger.warning("AuditObsBridge: no audit_bus provided, events will not be forwarded")
             return
         if self._subscribed:
             return
@@ -82,6 +81,7 @@ class AuditObsBridge:
     def _make_callback(self):
         def _on_audit_event(event: dict[str, Any]) -> None:
             self._forward(event)
+
         return _on_audit_event
 
     def _forward(self, event: dict[str, Any]) -> None:

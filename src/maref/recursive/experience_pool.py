@@ -133,6 +133,7 @@ class ExperiencePool:
     ) -> ExperienceEntry:
         """存储带奖励向量的经验条目。"""
         import uuid as _uuid
+
         reward_tags = []
         if hasattr(reward_vector, "dim_scores"):
             scores = reward_vector.dim_scores()
@@ -170,7 +171,7 @@ class ExperiencePool:
             for tag in entry.tags:
                 if tag.startswith(prefix):
                     try:
-                        score = float(tag[len(prefix):])
+                        score = float(tag[len(prefix) :])
                         if min_score <= score <= max_score:
                             results.append(entry)
                             break

@@ -63,7 +63,9 @@ class ValueMetric:
             "baseline": self.baseline,
             "current": self.current,
             "delta": round(delta, 6),
-            "delta_percent": round(self.delta_percent, 6) if self.delta_percent is not None else None,
+            "delta_percent": round(self.delta_percent, 6)
+            if self.delta_percent is not None
+            else None,
             "unit": self.unit,
             "label": self.label,
             "recorded_at": self.recorded_at,

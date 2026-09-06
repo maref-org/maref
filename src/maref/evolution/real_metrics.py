@@ -101,8 +101,9 @@ class RealMetricsCollector:
         module_count = 0
         governance_state = ""
         try:
-            from maref.recursive.self_observer import SelfObserver
             import concurrent.futures
+
+            from maref.recursive.self_observer import SelfObserver
 
             observer = SelfObserver()
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
@@ -192,8 +193,15 @@ class RealMetricsCollector:
         for test_dir in test_dirs:
             try:
                 cmd = [
-                    pytest_cmd, "--collect-only", "--tb=no", "-q",
-                    "-p", "no:asyncio", "-o", "addopts=", "--no-cov",
+                    pytest_cmd,
+                    "--collect-only",
+                    "--tb=no",
+                    "-q",
+                    "-p",
+                    "no:asyncio",
+                    "-o",
+                    "addopts=",
+                    "--no-cov",
                     test_dir,
                 ]
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)

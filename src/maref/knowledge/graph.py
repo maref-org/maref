@@ -247,13 +247,15 @@ class KnowledgeGraph:
         old = node.confidence
         node.confidence = max(0.1, min(1.0, old + delta))
         history = node.metadata.setdefault("confidence_history", [])
-        history.append({
-            "old": old,
-            "new": node.confidence,
-            "delta": delta,
-            "reason": reason,
-            "timestamp": time.time(),
-        })
+        history.append(
+            {
+                "old": old,
+                "new": node.confidence,
+                "delta": delta,
+                "reason": reason,
+                "timestamp": time.time(),
+            }
+        )
         self.save()
         return True
 

@@ -186,12 +186,18 @@ module = [
     "maref.stress.sqi_convergence",
     "maref.executor.workflow.patterns.tournament",
     "maref.knowledge.compiled_truth",
-    "maref.recursive.audit_store",
     "maref.integration.mq_adapter",
+    "seccomp",
+    "maref.recursive.distributed_crdt",
+    "maref.recursive.live_migration",
+    "maref.memory.style_learner",
+    "maref.memory.user_profile_graph",
 ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# mitmproxy 使用 Python 3.12 "type" 语句，而 mypy 配置为 python_version=3.10。
+# 当环境装有 mitmproxy（sentinel extra）时跳过解析其源码，避免语法错误。
 module = [
     "mitmproxy",
     "mitmproxy.*",
