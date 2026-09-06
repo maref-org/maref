@@ -312,7 +312,7 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 |--------|--------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
 | **Tests** | 11,416 — [![Tests](https://img.shields.io/badge/tests-11416-brightgreen.svg)]() |
-| **Coverage** | 36.1% — [![Coverage](https://img.shields.io/badge/coverage-36.1%25-yellow.svg)]() (target: 85%) |
+| **Coverage** | 52.5% — [![Coverage](https://img.shields.io/badge/coverage-52.5%25-brightgreen.svg)]() (CI gate: 50%, measured 2026-08-05, see `STATE.yaml`) |
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
