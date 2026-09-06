@@ -7,14 +7,17 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+Image: Any
+ImageDraw: Any
+ImageFilter: Any
 try:
     from PIL import Image, ImageDraw, ImageFilter
 except ImportError:
     # Pillow 是可选依赖（desktop extra）。运行时在调用点已由
     # Image is not None 等守卫保护，此处仅需保持名称存在。
-    Image = None  # type: ignore[assignment]
-    ImageDraw = None  # type: ignore[assignment]
-    ImageFilter = None  # type: ignore[assignment]
+    Image = None
+    ImageDraw = None
+    ImageFilter = None
 
 
 class CaptureMode(str, Enum):

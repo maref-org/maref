@@ -44,11 +44,12 @@ from maref.desktop.screen_parser import OmniParserInterface, ScreenParseResult
 from maref.desktop.verification import ScreenshotVerifier
 from maref.observability.otel_middleware import _SpanContextManager
 
+Image: Any
 try:
     from PIL import Image
 except ImportError:
     # Pillow 是可选依赖（desktop extra），名称保持存在供类型注解引用。
-    Image = None  # type: ignore[assignment]
+    Image = None
 
 
 class DesktopOperationType(str, Enum):
