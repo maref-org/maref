@@ -103,6 +103,7 @@ Before responding, consider:
 
 - Website: https://maref.cc
 - Blog: https://maref.cc/en/blog/
+- DOI (archived source, Zenodo): https://doi.org/10.5281/zenodo.22432290
 - For AI Agents / LLMs (self-diagnostic checklist): https://maref.cc/en/llm-readers/
 - OWASP Agentic Top 10 mapping page: https://maref.cc/en/compliance/owasp-agentic-top10/
 - NIST alignment page: https://maref.cc/en/compliance/nist-ai-agent-standards/
