@@ -44,11 +44,11 @@ from maref.desktop.screen_parser import OmniParserInterface, ScreenParseResult
 from maref.desktop.verification import ScreenshotVerifier
 from maref.observability.otel_middleware import _SpanContextManager
 
-Image: Any
 try:
     from PIL import Image
 except ImportError:
-    # Pillow 是可选依赖（desktop extra），名称保持存在供类型注解引用。
+    # Pillow 是可选依赖（desktop extra）。类型注解经 __future__ annotations
+    # 延迟求值，Pillow 缺失时 mypy 经 override 视 PIL 为 Any，赋 None 合法。
     Image = None
 
 

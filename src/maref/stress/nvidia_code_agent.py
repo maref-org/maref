@@ -18,9 +18,6 @@ from typing import Any
 
 from maref.stress.code_service_sqi import CodeQualityMetrics
 
-OpenAI: Any
-APIError: Any
-RateLimitError: Any
 try:
     from openai import APIError, OpenAI, RateLimitError
 
@@ -28,7 +25,8 @@ try:
 except ImportError:
     _OPENAI_AVAILABLE = False
     # openai 是可选依赖：降级为 None / Exception 保持名称存在，
-    # 实际使用前由 _OPENAI_AVAILABLE 守卫拦截。
+    # 实际使用前由 _OPENAI_AVAILABLE 守卫拦截。openai 缺失时
+    # mypy 经 override 视其为 Any，赋值合法无需 ignore。
     OpenAI = None
     APIError = Exception
     RateLimitError = Exception
