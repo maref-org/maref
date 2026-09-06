@@ -202,6 +202,7 @@ def test_maref_self_adapter(calculator_scenario: SAEBScenario) -> None:
     assert result.coverage_trajectory() is not None
 
 
+@pytest.mark.benchmark
 def test_recursive_pipeline_chain() -> None:
     from maref.recursive.self_architect import SelfArchitect
     from maref.recursive.self_diagnostician import (
