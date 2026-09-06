@@ -203,11 +203,17 @@ class MetaAgentClosure:
     _DECISION_HISTORY_MAXLEN = 10000
 
     def __init__(self):
+        # 用 deepcopy 隔离 DEFAULT_RED_LINES/DEFAULT_INVARIANTS 共享对象：
+        # 此前 _red_lines/_invariants 持有模块级对象引用，任一实例的
+        # 状态变更（prove_invariant 改 inv.status 等）会污染其他实例，
+        # 造成测试顺序相关的假失败（如 test_r56 → test_r60 污染）。
+        import copy
+
         self._red_lines: dict[str, ConstitutionalRedLine] = {
-            rl.red_line_id: rl for rl in DEFAULT_RED_LINES
+            rl.red_line_id: copy.deepcopy(rl) for rl in DEFAULT_RED_LINES
         }
         self._invariants: dict[str, TLAInvariant] = {
-            inv.invariant_id: inv for inv in DEFAULT_INVARIANTS
+            inv.invariant_id: copy.deepcopy(inv) for inv in DEFAULT_INVARIANTS
         }
         self._decisions: dict[str, EvolutionDecision] = {}
         self._decision_history: deque[EvolutionDecision] = deque(
