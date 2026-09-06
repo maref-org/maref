@@ -61,9 +61,13 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a]"
       - name: Bandit SAST
-        run: bandit -r src/ -c pyproject.toml || true
+        run: |
+          pip install bandit
+          bandit -r src/ -c pyproject.toml || true
       - name: pip-audit
-        run: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit
       - name: TruffleHog Secret Scan
         run: |
           pip install trufflehog
@@ -84,8 +88,10 @@ jobs:
           echo "✅ No hardcoded passed=True in validation code"
       - name: Check for remaining 64-state claims
         run: |
-          # 禁止"64-state"夸大声明
-          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null || true)
+          # 禁止"64-state"夸大声明。排除诚信修复记录与执行日志：
+          # 这些是历史记录文档，含 64-state 字样属修复过程的如实记载，非当前声明。
+          EXCLUDE="docs/INTEGRITY_DECLARATION.md docs/execution-logs"
+          FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null | grep -vE "^($EXCLUDE|docs/execution-logs/)" || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining '64-state' claims in:"
             echo "$FILES"
@@ -94,7 +100,9 @@ jobs:
           echo "✅ No 64-state claims remain"
       - name: Check for Sperner claims
         run: |
-          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null; then
+          # 同上排除历史记录文档
+          EXCLUDE="docs/INTEGRITY_DECLARATION.md docs/execution-logs"
+          if grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null | grep -vE "^($EXCLUDE|docs/execution-logs/)" ; then
             echo "ERROR: Found remaining Sperner claims"
             exit 1
           fi
