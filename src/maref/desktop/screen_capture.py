@@ -7,14 +7,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-Image: Any
-ImageDraw: Any
-ImageFilter: Any
 try:
     from PIL import Image, ImageDraw, ImageFilter
 except ImportError:
-    # Pillow 是可选依赖（desktop extra）。运行时在调用点已由
-    # Image is not None 等守卫保护，此处仅需保持名称存在。
+    # Pillow 是可选依赖（desktop extra）。类型注解经 __future__ annotations
+    # 延迟求值，Pillow 缺失时 mypy 经 override 视 PIL 为 Any，赋 None 合法。
     Image = None
     ImageDraw = None
     ImageFilter = None

@@ -201,6 +201,18 @@ module = [
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# 可选依赖降级模式（Pillow/openai 缺失时经 ignore_missing_imports 视作 Any，
+# 但装有时 `X = None` 触发 assignment）。本仓库以 CI 依赖集（无 desktop/ml）
+# 为 mypy 门槛，此 override 让装了这些可选依赖的本地环境同样干净。
+module = [
+    "maref.desktop.controller",
+    "maref.desktop.screen_capture",
+    "maref.desktop.verification",
+    "maref.stress.nvidia_code_agent",
+]
+disable_error_code = ["assignment", "misc", "no-redef"]
+
+[[tool.mypy.overrides]]
 # mitmproxy 使用 Python 3.12 "type" 语句，而 mypy 配置为 python_version=3.10。
 # 当环境装有 mitmproxy（sentinel extra）时跳过解析其源码，避免语法错误。
 module = [
