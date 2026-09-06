@@ -290,6 +290,11 @@ class MetaAgentClosure:
                 decision.status = "rejected"
             else:
                 decision.status = "approved"
+                # 修复 N3 集成缺口：approved 决策必须经过本方法（红线检查 +
+                # 审计签名）才算通过安全门。SafetyGateV2.evaluate_decision()
+                # 亦委托本方法，故在此统一标记，INV-002 据此验证
+                # safety_gate_evaluated 未被绕过。
+                decision.safety_gate_evaluated = True
 
             # 修复 N4: 每次审查决策时生成并存储审计签名
             decision.audit_signature = self.sign_decision(decision)
