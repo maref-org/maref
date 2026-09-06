@@ -78,17 +78,16 @@ class LLMGuidedHandler:
         if not self._anthropic_key:
             return None
         try:
-            import httpx
             from anthropic import Anthropic
 
             c = Anthropic(
                 api_key=self._anthropic_key,
-                timeout=httpx.Timeout(120.0, connect=30.0),
+                timeout=120.0,
             )
             r = c.messages.create(
                 model=model or self._anthropic_model,
                 max_tokens=4096,
-                temperature=temperature,
+                extra_body={"temperature": temperature},
                 messages=[{"role": "user", "content": prompt}],
             )
             t = ""
