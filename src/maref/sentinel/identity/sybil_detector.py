@@ -203,9 +203,7 @@ class SybilDetector:
                 window_start = sorted_accs[start_i].first_seen
                 window_end = window_start + self.window_hours * 3600
                 group = [
-                    a.account_id
-                    for a in sorted_accs
-                    if window_start <= a.first_seen <= window_end
+                    a.account_id for a in sorted_accs if window_start <= a.first_seen <= window_end
                 ]
                 if len(group) >= self.window_min_accounts:
                     groups.append(group)

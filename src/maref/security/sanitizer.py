@@ -174,9 +174,7 @@ class Sanitizer:
         if not authorized:
             return text
         if not authorized_by:
-            raise ValueError(
-                "authorized=True 必须提供 authorized_by 执行主体（fail-closed）"
-            )
+            raise ValueError("authorized=True 必须提供 authorized_by 执行主体（fail-closed）")
         if self._audit_logger is not None:
             try:
                 self._audit_logger.log(

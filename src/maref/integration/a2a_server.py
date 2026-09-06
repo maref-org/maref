@@ -204,7 +204,13 @@ def create_a2a_router(
             if not _verify_sender(request, body):
                 return JSONResponse(
                     status_code=401,
-                    content={"jsonrpc": "2.0", "error": {"code": -32001, "message": "Unauthorized: sender signature verification failed"}},
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Unauthorized: sender signature verification failed",
+                        },
+                    },
                 )
             task_id = body.get("id") or body.get("task_id")
             if not task_id:
@@ -234,7 +240,13 @@ def create_a2a_router(
             if not _verify_sender(request, body):
                 return JSONResponse(
                     status_code=401,
-                    content={"jsonrpc": "2.0", "error": {"code": -32001, "message": "Unauthorized: sender signature verification failed"}},
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Unauthorized: sender signature verification failed",
+                        },
+                    },
                 )
             task_id = body.get("task_id") or body.get("id")
             state = body.get("state", "")
@@ -291,7 +303,13 @@ def create_a2a_router(
             if not _verify_sender(request, body):
                 return JSONResponse(
                     status_code=401,
-                    content={"jsonrpc": "2.0", "error": {"code": -32001, "message": "Unauthorized: sender signature verification failed"}},
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Unauthorized: sender signature verification failed",
+                        },
+                    },
                 )
             task_id = body.get("task_id") or body.get("id", "")
             if not task_id:

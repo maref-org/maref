@@ -220,8 +220,13 @@ class ObsPipeline:
                     conn.execute(
                         "INSERT INTO telemetry_events (ts, event_type, payload, offline_reason, ingested_at) "
                         "VALUES (?, ?, ?, ?, ?)",
-                        (e.get("timestamp", now), e.get("event_type", "?"),
-                         json.dumps(e, sort_keys=True, default=str), reason, now),
+                        (
+                            e.get("timestamp", now),
+                            e.get("event_type", "?"),
+                            json.dumps(e, sort_keys=True, default=str),
+                            reason,
+                            now,
+                        ),
                     )
                 conn.commit()
             finally:

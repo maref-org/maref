@@ -217,9 +217,7 @@ class CollusionDetector:
                 return ev.agent_did
         return ""
 
-    def _detect_self_endorsement(
-        self, sybil_clusters: list[SybilCluster]
-    ) -> None:
+    def _detect_self_endorsement(self, sybil_clusters: list[SybilCluster]) -> None:
         """自导自演: 背书者与被背书者同 agent 或同 sybil 集群。"""
         for ev in self._endorsements:
             if not ev.target_account:
@@ -242,11 +240,7 @@ class CollusionDetector:
             # 同 sybil 集群
             for cluster in sybil_clusters:
                 ids = set(cluster.account_ids)
-                if (
-                    ev.endorser_account in ids
-                    and ev.target_account in ids
-                    and len(ids) >= 2
-                ):
+                if ev.endorser_account in ids and ev.target_account in ids and len(ids) >= 2:
                     self._events.append(
                         CollusionEvent(
                             kind=CollusionKind.SELF_ENDORSEMENT,
@@ -305,9 +299,7 @@ class CollusionDetector:
                     self._events.append(
                         CollusionEvent(
                             kind=CollusionKind.CROSS_AGENT_SHARE,
-                            involved_accounts=handle_accounts.get(
-                                (platform, handle), []
-                            ),
+                            involved_accounts=handle_accounts.get((platform, handle), []),
                             description=(
                                 f"跨代理共享账号 {handle} ({platform}): agents "
                                 f"{', '.join(sorted(agents))}"

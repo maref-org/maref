@@ -121,9 +121,7 @@ class VerifierConsensus:
         recused_count = 0
 
         for v in verifiers:
-            vote, verdict = self._call_verifier(
-                v, item, verdict_schema, subject_affiliation
-            )
+            vote, verdict = self._call_verifier(v, item, verdict_schema, subject_affiliation)
             weight = self._get_weight(v, weight_key)
             vote_record: dict[str, Any] = {
                 "verifier": v.name,
@@ -145,8 +143,10 @@ class VerifierConsensus:
 
         effective_count = len(verifiers) - recused_count
         passed = self._apply_strategy(
-            approvals, effective_count,
-            weighted_approvals, total_weight,
+            approvals,
+            effective_count,
+            weighted_approvals,
+            total_weight,
             strategy,
         )
         agreement = weighted_approvals / total_weight if total_weight > 0 else 0.0

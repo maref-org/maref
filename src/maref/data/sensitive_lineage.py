@@ -79,9 +79,7 @@ class SensitiveDataLineage:
         self._violations: int = 0
         self._circuit_breaker_open = False
 
-    def record_flow(
-        self, node: SensitiveFlowNode, next_asset: str = ""
-    ) -> SensitiveFlowNode:
+    def record_flow(self, node: SensitiveFlowNode, next_asset: str = "") -> SensitiveFlowNode:
         """Record a sensitive-data transfer and enforce cross-domain policy.
 
         ``next_asset`` optionally links this flow to the downstream asset it

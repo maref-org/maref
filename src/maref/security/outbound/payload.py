@@ -40,7 +40,8 @@ class PayloadFlag(str, Enum):
 
 
 # 危险 URL 短链域名 (lowercase)
-_DANGEROUS_SHORTENERS: tuple[str, ...] = (    "bit.ly",
+_DANGEROUS_SHORTENERS: tuple[str, ...] = (
+    "bit.ly",
     "t.co",
     "tinyurl.com",
     "rebrand.ly",
@@ -142,9 +143,7 @@ class PayloadSanitizeResult:
 _URL_RE = re.compile(r"https?://[^\s<>\"']+|(?:www\.)[^\s<>\"']+", re.IGNORECASE)
 
 # 裸 IP 路径 (无 scheme): 1.2.3.4/payload.sh 等 (G3-C2 修复)
-_BARE_IP_URL_RE = re.compile(
-    r"(?<!\w)\b\d{1,3}(?:\.\d{1,3}){3}(?:[/:][^\s<>\"']*)?"
-)
+_BARE_IP_URL_RE = re.compile(r"(?<!\w)\b\d{1,3}(?:\.\d{1,3}){3}(?:[/:][^\s<>\"']*)?")
 
 
 class OutboundPayloadSanitizer:
@@ -286,9 +285,7 @@ class OutboundPayloadSanitizer:
                 continue
         return dangerous
 
-    def _classify_attachments(
-        self, attachments: list[OutboundAttachment]
-    ) -> list[PayloadFlag]:
+    def _classify_attachments(self, attachments: list[OutboundAttachment]) -> list[PayloadFlag]:
         flags: list[PayloadFlag] = []
         exec_in_archive = False
         for att in attachments:
@@ -298,9 +295,7 @@ class OutboundPayloadSanitizer:
                 ext = "." + name.rsplit(".", 1)[1]
             if ext in _EXECUTABLE_EXTENSIONS:
                 flags.append(PayloadFlag.ATTACHMENT_EXECUTABLE)
-                if att.is_archive or any(
-                    name.endswith(a) for a in _ARCHIVE_EXTENSIONS
-                ):
+                if att.is_archive or any(name.endswith(a) for a in _ARCHIVE_EXTENSIONS):
                     exec_in_archive = True
             if ext in _ARCHIVE_EXTENSIONS:
                 # 压缩包 + 内部含可执行文件名 → 组合风险

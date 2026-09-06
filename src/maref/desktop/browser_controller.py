@@ -558,7 +558,9 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.GET_HTML, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.GET_HTML,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _extract():
@@ -575,14 +577,18 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.WAIT, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.WAIT,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _wait():
                 await self._page.wait_for_selector(selector, timeout=int(timeout * 1000))
 
             asyncio.run(_wait())
-            return BrowserResult(success=True, action=BrowserAction.WAIT, text=f"Selector '{selector}' visible")
+            return BrowserResult(
+                success=True, action=BrowserAction.WAIT, text=f"Selector '{selector}' visible"
+            )
         except Exception as e:
             return BrowserResult(success=False, action=BrowserAction.WAIT, error=str(e))
 
@@ -592,14 +598,18 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.WAIT, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.WAIT,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _wait():
                 await self._page.wait_for_load_state("load", timeout=int(timeout * 1000))
 
             asyncio.run(_wait())
-            return BrowserResult(success=True, action=BrowserAction.WAIT, text="Navigation completed")
+            return BrowserResult(
+                success=True, action=BrowserAction.WAIT, text="Navigation completed"
+            )
         except Exception as e:
             return BrowserResult(success=False, action=BrowserAction.WAIT, error=str(e))
 
@@ -638,7 +648,9 @@ class BrowserController:
 
             if self._page is None:
                 return BrowserResult(
-                    success=False, action=BrowserAction.EXECUTE_JS, error="No active page. Call navigate() first."
+                    success=False,
+                    action=BrowserAction.EXECUTE_JS,
+                    error="No active page. Call navigate() first.",
                 )
 
             async def _set():

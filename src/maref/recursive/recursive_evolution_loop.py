@@ -880,6 +880,7 @@ class RecursiveEvolutionLoop:
     def _collect_current_metrics(self) -> dict[str, float]:
         try:
             from maref.recursive.self_observer import SelfObserver
+
             observer = SelfObserver()
             snapshot = observer.snapshot(collect_only=False)
             return {
@@ -900,7 +901,9 @@ class RecursiveEvolutionLoop:
             try:
                 result = subprocess.run(
                     ["git", "status", "--short"],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 dirty = float(len(result.stdout.strip()) > 0)
             except Exception:
@@ -916,6 +919,7 @@ class RecursiveEvolutionLoop:
         logger.info("REL: running quality checks (real fast-subset tests)")
         try:
             from maref.recursive.self_observer import SelfObserver
+
             observer = SelfObserver()
             stats = observer.observe_tests(collect_only=False)
             self._last_quality_checks = stats

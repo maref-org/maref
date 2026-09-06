@@ -30,8 +30,10 @@ class OnlineWeightRecord:
         n = self.sample_count
         if n < 2:
             return 0.0
-        std = (self.alpha * self.beta) / ((self.alpha + self.beta) ** 2 * (self.alpha + self.beta + 1))
-        return 1.0 / (1.0 + std ** 0.5)
+        std = (self.alpha * self.beta) / (
+            (self.alpha + self.beta) ** 2 * (self.alpha + self.beta + 1)
+        )
+        return 1.0 / (1.0 + std**0.5)
 
 
 @dataclass
@@ -179,10 +181,7 @@ class OnlineLearningEngine:
         """按 (dim, feature, category) 存储分类证据。"""
         dim_cats = self._categories.setdefault(dim, {})
         for feature, category in features.items():
-            cell = (
-                dim_cats.setdefault(feature, {})
-                .setdefault(category, CategoryStats())
-            )
+            cell = dim_cats.setdefault(feature, {}).setdefault(category, CategoryStats())
             cell.count += 1
             if hit:
                 cell.hits += 1
@@ -207,7 +206,11 @@ class OnlineLearningEngine:
             f"SELECT dim, feature, category, hits, count FROM {self._CATEGORY_DB_TABLE}"
         ).fetchall()
         for dim, feature, category, hits, count in rows:
-            cell = self._categories.setdefault(dim, {}).setdefault(feature, {}).setdefault(category, CategoryStats())
+            cell = (
+                self._categories.setdefault(dim, {})
+                .setdefault(feature, {})
+                .setdefault(category, CategoryStats())
+            )
             cell.hits = int(hits)
             cell.count = int(count)
 
@@ -263,10 +266,7 @@ class OnlineLearningEngine:
         """返回所有维度 × 特征 × 类别的分类统计。"""
         return {
             dim: {
-                feature: {
-                    category: cell.to_dict()
-                    for category, cell in feature_stats.items()
-                }
+                feature: {category: cell.to_dict() for category, cell in feature_stats.items()}
                 for feature, feature_stats in dim_stats.items()
             }
             for dim, dim_stats in self._categories.items()

@@ -222,9 +222,7 @@ class ChainInterruptGate:
                 agent_id=agent_id,
                 reason=f"链风险 CRITICAL: {', '.join(chain_risk.signals)}",
             )
-        critical_hypothesis = any(
-            h.escalation == ChainRiskLevel.CRITICAL for h in hypotheses
-        )
+        critical_hypothesis = any(h.escalation == ChainRiskLevel.CRITICAL for h in hypotheses)
         if critical_hypothesis:
             return IntentVerdict(
                 decision=ChainDecision.HALT,

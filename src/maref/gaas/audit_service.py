@@ -142,6 +142,7 @@ class AuditLogService:
             )
         if bus is None:
             from maref.governance.audit import AuditLogger
+
             try:
                 logger = AuditLogger(
                     log_path=Path(log_path) if log_path else None,
@@ -213,9 +214,7 @@ class AuditLogService:
         """
         bus_entries = self._bus.query_tenant(tenant_id, max_entries=None)
         if bus_entries:
-            results: list[GaaSAuditEntry] = [
-                GaaSAuditEntry.from_bus_entry(e) for e in bus_entries
-            ]
+            results: list[GaaSAuditEntry] = [GaaSAuditEntry.from_bus_entry(e) for e in bus_entries]
         else:
             indices = self._tenant_index.get(tenant_id, [])
             results = [self._entries[idx] for idx in indices]

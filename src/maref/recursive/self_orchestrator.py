@@ -70,7 +70,9 @@ class SelfOrchestrator:
         else:
             self._decomposer = TaskDecomposer()
             self._use_hybrid = use_hybrid
-        self._dispatcher = AgentDispatcher(self._registry, persona_provider=_default_persona_provider())
+        self._dispatcher = AgentDispatcher(
+            self._registry, persona_provider=_default_persona_provider()
+        )
         self._jsm = JointStateMachine()
         self._saga_orchestrator = saga_orchestrator
 

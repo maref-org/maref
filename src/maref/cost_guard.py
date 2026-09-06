@@ -222,27 +222,33 @@ class CostGuard:
         guard: str,
     ) -> None:
         """记录一次 API 调用成本事件（调用成功后）。"""
-        self._write_audit_line(_audit_base() / "cost_events.ndjson", {
-            "event_type": "cost_event",
-            "timestamp": time.time(),
-            "model": model,
-            "input_chars": input_chars,
-            "output_chars": output_chars,
-            "wall_ms": round(wall_ms, 1),
-            "guard": guard,
-            "actor": "maref_cost_guard",
-        })
+        self._write_audit_line(
+            _audit_base() / "cost_events.ndjson",
+            {
+                "event_type": "cost_event",
+                "timestamp": time.time(),
+                "model": model,
+                "input_chars": input_chars,
+                "output_chars": output_chars,
+                "wall_ms": round(wall_ms, 1),
+                "guard": guard,
+                "actor": "maref_cost_guard",
+            },
+        )
 
     def log_guard_block(self, model: str, reason: str, detail: str) -> None:
         """记录一次护栏拦截。"""
-        self._write_audit_line(_audit_base() / "guard_blocks.ndjson", {
-            "event_type": "guard_block",
-            "timestamp": time.time(),
-            "model": model,
-            "reason": reason,
-            "detail": detail,
-            "actor": "maref_cost_guard",
-        })
+        self._write_audit_line(
+            _audit_base() / "guard_blocks.ndjson",
+            {
+                "event_type": "guard_block",
+                "timestamp": time.time(),
+                "model": model,
+                "reason": reason,
+                "detail": detail,
+                "actor": "maref_cost_guard",
+            },
+        )
 
     def usage_stats(self, window_hours: int = 24) -> dict[str, object]:
         """聚合近 N 小时成本事件（供 /usage / maref usage / selfcheck）。"""
@@ -255,7 +261,10 @@ class CostGuard:
         by_model: dict[str, dict[str, int]] = {}
         guards: dict[str, int] = {}
         base = _audit_base()
-        for name, etype in (("cost_events.ndjson", "cost_event"), ("guard_blocks.ndjson", "guard_block")):
+        for name, etype in (
+            ("cost_events.ndjson", "cost_event"),
+            ("guard_blocks.ndjson", "guard_block"),
+        ):
             path = base / name
             if not path.exists():
                 continue

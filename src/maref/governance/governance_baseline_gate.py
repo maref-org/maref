@@ -77,8 +77,15 @@ BASELINE_PATTERNS: dict[str, float] = {
 
 # 软信号: 命中不直接 RED_FLAG, 但提高严重度 (compromise 检测)
 SOFT_PATTERNS: list[str] = [
-    "效率", "简化", "排查方便", "节省", "减少干扰", "降低误报",
-    "减少噪音", "提速", "降本",
+    "效率",
+    "简化",
+    "排查方便",
+    "节省",
+    "减少干扰",
+    "降低误报",
+    "减少噪音",
+    "提速",
+    "降本",
 ]
 
 # 组合规则: (审计相关词元, 破坏动词) → 即使未直接命中整词也 RED_FLAG
@@ -122,19 +129,24 @@ class BaselineDecision:
     signer_fingerprint: str = ""
 
     def evidence_message(self) -> bytes:
-        return json.dumps({
-            "decision_id": self.decision_id,
-            "verdict": self.verdict.value,
-            "severity": self.severity,
-            "matched": self.matched_patterns,
-            "agent_id": self.agent_id,
-            "timestamp": self.timestamp,
-        }, sort_keys=True, separators=(",", ":")).encode()
+        return json.dumps(
+            {
+                "decision_id": self.decision_id,
+                "verdict": self.verdict.value,
+                "severity": self.severity,
+                "matched": self.matched_patterns,
+                "agent_id": self.agent_id,
+                "timestamp": self.timestamp,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
 
     def verify_evidence(self, public_key_pem: str) -> bool:
         if not self.signature or self.signature in ("unsigned", "sign_error"):
             return False
         from maref.crypto.ed25519_keys import Ed25519KeyPair
+
         try:
             return Ed25519KeyPair.verify(
                 public_key_pem,
@@ -243,12 +255,12 @@ class GovernanceBaselineGate:
         self._log_audit(decision)
         return decision
 
-    def confirm_hitl(self, decision: BaselineDecision, approved: bool, approver_id: str = "") -> BaselineDecision:
+    def confirm_hitl(
+        self, decision: BaselineDecision, approved: bool, approver_id: str = ""
+    ) -> BaselineDecision:
         if decision.verdict != BaselineVerdict.HITL_REQUIRED:
             return decision
-        decision.verdict = (
-            BaselineVerdict.ALLOW if approved else BaselineVerdict.RED_FLAG
-        )
+        decision.verdict = BaselineVerdict.ALLOW if approved else BaselineVerdict.RED_FLAG
         decision.reason = (
             f"Human {approver_id} approved baseline review"
             if approved
@@ -276,7 +288,9 @@ class GovernanceBaselineGate:
         except Exception:
             pass
 
-    def recent_decisions(self, count: int = 10, verdict: BaselineVerdict | None = None) -> list[BaselineDecision]:
+    def recent_decisions(
+        self, count: int = 10, verdict: BaselineVerdict | None = None
+    ) -> list[BaselineDecision]:
         filtered = self._decisions
         if verdict is not None:
             filtered = [d for d in filtered if d.verdict == verdict]
