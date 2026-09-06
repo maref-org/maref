@@ -511,9 +511,7 @@ class AuditLogger:
         now = time.time()
         previous_hash = self._memory_entries[-1].chain_hash if self._memory_entries else ""
         if self._path is not None and self._path.exists() and not self._memory_entries:
-            existing = self.read_all(max_entries=None)
-            if existing:
-                previous_hash = existing[-1].chain_hash
+            previous_hash = self._last_chain_hash_from_file()
         entry = AuditEntry(
             id=uuid.uuid4().hex[:8],
             timestamp=now,
@@ -750,6 +748,57 @@ class AuditLogger:
     def get_audit_trail(self, max_entries: int | None = 1000) -> list[AuditEntry]:
         """Return the audit trail with optional limit."""
         return self.read_all(max_entries=max_entries)
+
+    def _last_chain_hash_from_file(self) -> str:
+        """O(1) tail read of the last valid entry's chain_hash.
+
+        Replaces the previous ``read_all(max_entries=None)`` full-file scan
+        on every ``log()`` append, which made writes O(n) per entry (and
+        O(n²) cumulative for a long-running chain). Seeks to the file tail
+        and walks backward in bounded chunks; the window only grows when a
+        single record is unusually large.
+
+        Parsing semantics match ``read_all``: malformed lines and partial
+        dicts (missing required fields) are skipped, so the chain continues
+        from the last *valid* record.
+        """
+        if self._path is None or not self._path.exists():
+            return ""
+        try:
+            size = self._path.stat().st_size
+        except OSError as e:
+            logger.warning("AuditLogger tail-read stat failed: %s", e)
+            return ""
+        if size == 0:
+            return ""
+        window = min(size, 64 * 1024)
+        while True:
+            offset = size - window
+            try:
+                with open(self._path, "rb") as fh:
+                    fh.seek(offset)
+                    chunk = fh.read(window).decode("utf-8", errors="replace")
+            except OSError as e:
+                logger.warning("AuditLogger tail-read open failed: %s", e)
+                return ""
+            lines = chunk.splitlines()
+            # When the window starts mid-file its first line is truncated.
+            if offset > 0 and lines:
+                lines = lines[1:]
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                entry = self._entry_from_dict(data)
+                if entry is not None:
+                    return entry.chain_hash
+            if window >= size:
+                return ""
+            window = min(size, window * 2)
 
     def count(self) -> int:
         return len(self._memory_entries)
