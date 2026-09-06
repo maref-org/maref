@@ -53,9 +53,9 @@ class OpenAIProvider:
             kwargs: dict[str, Any] = {"api_key": self._api_key}
             if self._base_url:
                 kwargs["base_url"] = self._base_url
-            import httpx
-
-            self._client = AsyncOpenAI(**kwargs, timeout=httpx.Timeout(120.0, connect=30.0))
+            # openai SDK timeout 接受 float 秒；传 httpx.Timeout 对象会在不同
+            # openai 版本（内置 httpx vs httpx2）间触发类型命名空间冲突。
+            self._client = AsyncOpenAI(**kwargs, timeout=120.0)
         kwargs: dict[str, Any] = {  # type: ignore[no-redef]
             "model": self._model,
             "messages": [
@@ -92,12 +92,10 @@ class AnthropicProvider:
         max_tokens: int = 8192,
     ) -> str:
         if self._client is None:
-            import httpx
             from anthropic import AsyncAnthropic
 
-            self._client = AsyncAnthropic(
-                api_key=self._api_key, timeout=httpx.Timeout(120.0, connect=30.0)
-            )
+            # anthropic SDK timeout 接受 float 秒（见 AsyncOpenAI 注释）
+            self._client = AsyncAnthropic(api_key=self._api_key, timeout=120.0)
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": max_tokens,
