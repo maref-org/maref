@@ -26,7 +26,10 @@ def _mock_env_heavy_probes(monkeypatch: pytest.MonkeyPatch) -> None:
     from maref.observation.probes import ProbeReading, ProbeSeverity
 
     def _normal(name: str):
-        def _measure(context: dict | None = None) -> ProbeReading:
+        def _measure(self: object, context: dict | None = None) -> ProbeReading:
+            # patch 的是类方法(DesktopProbe.measure)，实例访问时 Python 会
+            # 绑定 self —— 闭包须接受实例参数(即使不用)，否则 _measure_cached
+            # 内 self.measure(context) 以 2 个位置参调用会 TypeError。
             return ProbeReading(
                 probe_name=name,
                 severity=ProbeSeverity.NORMAL,

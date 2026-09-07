@@ -24,9 +24,10 @@ jobs:
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run recursive autonomy slow tests
         run: |
-          # 自治核心 slow 单元(self_observer 观察 + diagnosis 诊断，自治循环
-          # 第一环)。r3_healing/r31_self_executor 暂含预存 mock 签名 bug 且
-          # 调 mypy 慢——待修后纳入。48h/7天模拟由 stability-7d 覆盖。
+          # 自治核心 slow 单元(self_observer 观察 + diagnosis 诊断 + healer
+          # 修复环，自治循环前二环)。r31_self_executor 调 mypy 慢, 待评估后
+          # 纳入; 48h/7天模拟由 stability-7d 覆盖。
           pytest tests/recursive/test_r1_self_observer.py \
             tests/recursive/test_r2_diagnosis.py \
+            tests/recursive/test_r3_healing.py \
             -q --timeout=300 -m "slow" --no-cov
