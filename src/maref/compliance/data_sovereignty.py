@@ -3,9 +3,9 @@
 
 实现地理围栏和跨境数据流动控制，建立数据分类和保护策略。
 """
-
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -13,6 +13,11 @@ from typing import Any
 
 from maref.governance.audit import AuditLogger
 from maref.security.sanitizer import Sanitizer, SanitizeResult
+
+logger = logging.getLogger(__name__)
+
+
+
 
 
 class DataCategory(Enum):
@@ -145,10 +150,14 @@ class DataSovereigntyManager:
         else:
             try:
                 # 默认审计 logger 需 HMAC/Ed25519 key（env 或参数）。
-                # 无 key 环境（如 CI 无 MAREF_HMAC_SECRET_KEY）降级为 None，
-                # 数据主权分类/消毒功能不受审计可用性影响。
+                # 无 key 或 key 非法（如 env 的 Ed25519 PEM 损坏抛 ValueError）
+                # 时降级为 None，数据主权分类/消毒功能不受审计可用性影响。
                 self.audit_logger = AuditLogger()
-            except RuntimeError:
+            except (RuntimeError, ValueError) as e:
+                logger.warning(
+                    "DataSovereigntyManager 审计降级禁用: %s — 合规判定不受影响",
+                    e,
+                )
                 self.audit_logger = None
         self.data_classes: dict[str, DataClass] = {}
         self.geographic_restrictions: dict[str, GeographicRestriction] = {}
