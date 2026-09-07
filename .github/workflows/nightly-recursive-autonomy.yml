@@ -1,8 +1,8 @@
 name: Nightly Recursive Autonomy
 
 # 递归自进化核心的夜间回归保护。main CI 排除 slow marker(长时模拟)，
-# 此 workflow 每夜 + push 到 main 时跑自治核心的 slow 单元(排除 48h
-# 完整循环等超长模拟)，防止 MAREF 招牌的递归自进化逻辑回归。
+# 此 workflow 每夜 + push 到 main(recursive 变更)时跑自治核心的 slow 单元
+# (排除 real/48h 超长模拟)，防止 MAREF 招牌的递归自进化逻辑回归。
 on:
   schedule:
     - cron: '0 2 * * *'
@@ -11,6 +11,7 @@ on:
     paths:
       - 'src/maref/recursive/**'
       - 'tests/recursive/**'
+  workflow_dispatch:
 
 jobs:
   recursive-autonomy:
@@ -25,9 +26,10 @@ jobs:
       - name: Run recursive autonomy slow tests
         run: |
           # 自治核心 slow 单元(self_observer 观察 + diagnosis 诊断 + healer
-          # 修复环，自治循环前二环)。r31_self_executor 调 mypy 慢, 待评估后
-          # 纳入; 48h/7天模拟由 stability-7d 覆盖。
+          # 修复环)。env-heavy probe 由 tests/recursive/conftest.py autouse
+          # 隔离为 NORMAL(CI 无 playwright/pnpm 也跨环境确定)。排除 real
+          # (真实 executor 跑全仓 pytest) 与 48h/7天模拟(stability-7d 覆盖)。
           pytest tests/recursive/test_r1_self_observer.py \
             tests/recursive/test_r2_diagnosis.py \
             tests/recursive/test_r3_healing.py \
-            -q --timeout=300 -m "slow" --no-cov
+            -q --timeout=300 -m "slow and not real" --no-cov

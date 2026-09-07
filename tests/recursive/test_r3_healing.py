@@ -14,39 +14,9 @@ from maref.recursive.self_healer import (
 )
 from maref.recursive.self_observer import SystemSnapshot
 
-
-@pytest.fixture(autouse=True)
-def _mock_env_heavy_probes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """desktop/gui_build 是环境相关 heavy probe,真实测量在无 pnpm/桌面环境的
-    CI 上会把正常快照误判为 CRITICAL。mock 成 NORMAL 让诊断测试跨环境确定。
-
-    替换后的 measure 是无 __func__ 的闭包,SelfDiagnostician._heavy_measure
-    会走直接调用分支并绕过类级 _heavy_probe_cache,避免跨测试缓存污染。
-    """
-    from maref.observation.probes import ProbeReading, ProbeSeverity
-
-    def _normal(name: str):
-        def _measure(self: object, context: dict | None = None) -> ProbeReading:
-            # patch 的是类方法(DesktopProbe.measure)，实例访问时 Python 会
-            # 绑定 self —— 闭包须接受实例参数(即使不用)，否则 _measure_cached
-            # 内 self.measure(context) 以 2 个位置参调用会 TypeError。
-            return ProbeReading(
-                probe_name=name,
-                severity=ProbeSeverity.NORMAL,
-                value=1.0,
-                threshold=0.3,
-            )
-
-        return _measure
-
-    monkeypatch.setattr(
-        "maref.recursive.self_diagnostician.DesktopProbe.measure",
-        _normal("desktop"),
-    )
-    monkeypatch.setattr(
-        "maref.recursive.self_diagnostician.GUIBuildProbe.measure",
-        _normal("gui_build"),
-    )
+# env-heavy probe(desktop/gui_build)隔离由 tests/recursive/conftest.py 的
+# autouse _isolate_heavy_probes 统一提供(r2/r3 共享)——mock measure 为
+# NORMAL + 重置 BaseProbe 类级 TTL 缓存, 跨环境确定。
 
 
 def _mock_executor(strategy: str, problem_type: str) -> HealAction:
