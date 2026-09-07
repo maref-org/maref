@@ -117,7 +117,7 @@ class TestA2Assertions:
     def test_audit_logger_records_cross_domain(self, tmp_path):
         from maref.governance.audit import AuditLogger
 
-        audit = AuditLogger(tmp_path / "audit.jsonl")
+        audit = AuditLogger(tmp_path / "audit.jsonl", hmac_key="test-key")
         manager = TrustBoundaryManager(audit_logger=audit)
         dom_a = manager.create_domain("a")
         dom_b = manager.create_domain("b")
@@ -134,7 +134,7 @@ class TestA2Assertions:
         from maref.governance.audit import AuditLogger
         from maref.governance.circuit_breaker import CircuitBreaker
 
-        audit = AuditLogger(tmp_path / "audit.jsonl")
+        audit = AuditLogger(tmp_path / "audit.jsonl", hmac_key="test-key")
         cb = CircuitBreaker(max_consecutive_failures=3)
         manager = TrustBoundaryManager(audit_logger=audit, circuit_breaker=cb)
         strict = manager.create_domain("strict", TrustPolicy.STRICT)
