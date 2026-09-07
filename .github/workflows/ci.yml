@@ -49,12 +49,14 @@ jobs:
           # 用 pytest-cov(addopts --cov)收集而非 coverage run 外层：
           # coverage run -m pytest 与 pyproject addopts 的 --cov(pytest-cov)
           # 形成双层 coverage，collector 冲突 (Expected current collector)。
-          pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop
+          # crypto 由独立 crypto-test job 专职(密码学关键域隔离)，此处排除免双跑。
+          pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
+          # mock/schema 一致性校验(push 真 gate)：vault 数据变更若不同步
+          # schema 会导致 mocks 失效。validator 本地验证无 mismatch 故 gate。
           python -c "from pathlib import Path; from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, 'Mock mismatch: ' + str(errors)"
-        continue-on-error: true
       - name: Coverage report
         run: coverage report --fail-under=50
 
@@ -98,10 +100,11 @@ jobs:
           echo "✅ No hardcoded passed=True in validation code"
       - name: Check for remaining 64-state claims
         run: |
-          # 禁止"64-state"夸大声明。排除历史记录类文档（诚信修复记录、
-          # 执行日志、治理审计报告）：其中 64-state/Sperner 字样属对
-          # 修复过程的如实记载或明确标记未验证，非当前产品声明。
-          EXCLUDE="docs/INTEGRITY_DECLARATION\.md|docs/execution-logs|docs/gov-audit-report\.md"
+          # 禁止"64-state"夸大声明。排除已核实的 3 个历史记录文件(逐文件
+          # 白名单, 非目录通配)：诚信修复声明/执行日志/治理审计报告中的
+          # 64-state 字样是修复过程的如实记载, 非当前产品声明。
+          # 新增文件若含 64-state 必须显式加入此白名单并人工核验。
+          EXCLUDE="docs/INTEGRITY_DECLARATION\.md|docs/execution-logs/el-20260728-v0\.39\.1-诚信修复\.md|docs/gov-audit-report\.md"
           FILES=$(grep -rl "64.state" --include="*.md" .github/ .wiki/ docs/ website/ 2>/dev/null | grep -vE "^($EXCLUDE)" || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining '64-state' claims in:"
@@ -111,8 +114,8 @@ jobs:
           echo "✅ No 64-state claims remain"
       - name: Check for Sperner claims
         run: |
-          # 同上排除历史记录文档
-          EXCLUDE="docs/INTEGRITY_DECLARATION\.md|docs/execution-logs|docs/gov-audit-report\.md"
+          # 同上：逐文件白名单(仅 3 个已核实历史记录文件)
+          EXCLUDE="docs/INTEGRITY_DECLARATION\.md|docs/execution-logs/el-20260728-v0\.39\.1-诚信修复\.md|docs/gov-audit-report\.md"
           FILES=$(grep -rl "Sperner" --include="*.md" .github/ .wiki/ docs/ website/ README* 2>/dev/null | grep -vE "^($EXCLUDE)" || true)
           if [ -n "$FILES" ]; then
             echo "ERROR: Found remaining Sperner claims in:"
