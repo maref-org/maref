@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+
 import pytest
 
 from maref.stress.code_service_sqi import (
@@ -7,6 +9,25 @@ from maref.stress.code_service_sqi import (
     CodeQualityMetrics,
     CodeServiceSQI,
 )
+
+
+@pytest.fixture(autouse=True)
+def _ensure_real_classes(request: pytest.FixtureRequest) -> None:
+    """免疫跨文件 mock 泄漏（CI 全量顺序下偶发）。
+
+    若前面测试将 CodeServiceSQI patch 成 MagicMock(spec_set=...) 而未
+    清理（coverage 环境异常中断 teardown 时可能发生），本文件真实类
+    实例化会走 mock.__setattr__ 抛 _mock_methods。setup 检测到则
+    reload 模块并更新本模块的全局绑定。
+    """
+    if hasattr(CodeServiceSQI, "_mock_methods"):
+        mod = importlib.reload(
+            importlib.import_module("maref.stress.code_service_sqi")
+        )
+        module_globals = vars(request.module)
+        module_globals["CodeServiceSQI"] = mod.CodeServiceSQI
+        module_globals["WEIGHT_PROFILES"] = mod.WEIGHT_PROFILES
+        module_globals["CodeQualityMetrics"] = mod.CodeQualityMetrics
 
 
 class TestCodeQualityMetrics:
