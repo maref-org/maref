@@ -38,6 +38,11 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run unit tests
+        env:
+          # 隔离主 coverage 数据文件到 /tmp：测试内部 spawn 的嵌套 coverage
+          # (evolution/real_metrics 等真实跑 pytest+coverage 子进程) 若写默认
+          # .coverage 会覆盖主收集数据，导致后续 coverage report 读到空/损坏。
+          COVERAGE_FILE: /tmp/maref-ci.coverage
         run: |
           # 排除 slow(依赖本机 git tags/历史等环境) / real(需硬件/权限) /
           # integration / chaos / benchmark。排除 compliance(独立合规域) 与
@@ -47,9 +52,11 @@ jobs:
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
-          python -c "from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, 'Mock mismatch: ' + str(errors)"
+          python -c "from pathlib import Path; from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, 'Mock mismatch: ' + str(errors)"
         continue-on-error: true
       - name: Coverage report
+        env:
+          COVERAGE_FILE: /tmp/maref-ci.coverage
         run: coverage report --fail-under=50
 
   security:
