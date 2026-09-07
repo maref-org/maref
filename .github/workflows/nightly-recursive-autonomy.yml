@@ -18,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # r1 self_observer 测试断言 git tags >= 9 —— 默认 fetch-depth:1
+          # 无 tags。拉全历史含 tags 满足自治观察测试的 git 依赖。
+          fetch-depth: 0
+          fetch-tags: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
