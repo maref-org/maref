@@ -300,6 +300,9 @@ class MetaAgentClosure:
                 # 审计签名）才算通过安全门。SafetyGateV2.evaluate_decision()
                 # 亦委托本方法，故在此统一标记，INV-002 据此验证
                 # safety_gate_evaluated 未被绕过。
+                # 语义边界：此标志证明"红线审查已执行"(安全强制力在 review 内
+                # 保证)，不证明"经过 SafetyGateV2 wrapper"——submit_decision 直连
+                # 路径也满足。属有意取舍：避免 wrapper 双调，强制力不减。
                 decision.safety_gate_evaluated = True
 
             # 修复 N4: 每次审查决策时生成并存储审计签名
