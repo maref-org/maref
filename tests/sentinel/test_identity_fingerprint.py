@@ -13,6 +13,8 @@ from __future__ import annotations
 import asyncio
 import time
 
+import pytest
+
 from maref.sentinel.event import AttackType, Severity
 from maref.sentinel.identity import (
     CollusionDetector,
@@ -131,7 +133,9 @@ class TestIdentityFingerprint:
 
     def test_identical_self_similarity(self):
         fp, p1, _, _ = self._profiles()
-        assert fp.similarity(p1, p1) == 1.0
+        # 自相似度数学上应精确 1.0，但浮点算法可能得 1.0000000000000002
+        # (不同 numpy/平台精度) → 用 approx 容忍浮点误差
+        assert fp.similarity(p1, p1) == pytest.approx(1.0)
 
     def test_profile_to_dict(self):
         _, p1, _, _ = self._profiles()
