@@ -53,7 +53,9 @@ class MetricStore:
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(str(self._path))
+            # FastAPI/TestClient 线程池可能从多个线程访问此 store ——
+            # check_same_thread=False 允许共享连接跨线程（sqlite 内部有锁）。
+            self._conn = sqlite3.connect(str(self._path), check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA synchronous=NORMAL")
