@@ -26,8 +26,11 @@ jobs:
       - name: TruffleHog filesystem scan
         if: github.event_name != 'pull_request'
         run: |
-          pip install trufflehog
-          trufflehog filesystem . --only-verified --no-update || true
+          # PyPI 的 trufflehog 仅到 2.x(git 扫描器, 无 filesystem 子命令)。
+          # 装官方 trufflesecurity 3.x(提供 filesystem 全仓扫描), 只 verified
+          # secret 使其可 gate。与 PR 路径的官方 action 一致。
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          trufflehog filesystem . --only-verified --no-update
 
   semgrep-scan:
     runs-on: ubuntu-latest
