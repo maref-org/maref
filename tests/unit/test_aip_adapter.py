@@ -7,6 +7,8 @@ import pytest
 from maref.governance.types import GovernanceState
 from maref.integration.aip_adapter import (
     AIP_PROTOCOL_VERSION,
+    AIP_TO_MAREF_MAP,
+    MAREF_TO_AIP_MAP,
     AIPAdapter,
     AIPMessage,
     AIPProduct,
@@ -15,9 +17,7 @@ from maref.integration.aip_adapter import (
     AIPTaskCommandType,
     AIPTaskResult,
     AIPTaskState,
-    AIP_TO_MAREF_MAP,
     DataItem,
-    MAREF_TO_AIP_MAP,
     is_valid_transition,
     map_aip_to_maref,
     map_maref_to_aip,
