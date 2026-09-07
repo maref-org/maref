@@ -73,20 +73,15 @@ jobs:
       - name: Bandit SAST
         run: |
           pip install bandit
-          bandit -r src/ -c pyproject.toml || true
+          # gate：只高严重度(High)使失败。Medium/Low 是噪音(如 mock/测试
+          # 辅助的模式), 不阻断。当前 src 无 High(bandit --severity-level high)。
+          bandit -r src/ -c pyproject.toml --severity-level high
       - name: pip-audit
         run: |
           pip install pip-audit
           # 升级环境自带 setuptools（PYSEC-2026-3447，pip 构建工具非项目依赖）
           pip install -U "setuptools>=83"
           pip-audit
-      - name: TruffleHog Secret Scan
-        run: |
-          pip install trufflehog
-          # Secret 扫描由独立 security-scan.yml 专职负责（官方 trufflesecurity
-          # action）。此处仅作冗余快速检查；PyPI 的 trufflehog 仅为 2.x git
-          # 扫描器（filesystem 需官方 3.x），容错避免阻塞主 CI。
-          trufflehog filesystem . --only-verified --no-update || true
 
   integrity:
     needs: lint
