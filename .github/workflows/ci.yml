@@ -148,4 +148,6 @@ jobs:
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Run cryptography tests
         run: |
-          pytest tests/test_crypto.py -v
+          # --no-cov：crypto-test 只验证密码学功能，addopts 的 --cov=src
+          # (pytest-cov) 会因仅 8 个测试覆盖率 0.1% < fail_under=50 误失败。
+          pytest tests/test_crypto.py -v --no-cov
