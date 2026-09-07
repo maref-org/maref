@@ -1,0 +1,32 @@
+name: Nightly Recursive Autonomy
+
+# 递归自进化核心的夜间回归保护。main CI 排除 slow marker(长时模拟)，
+# 此 workflow 每夜 + push 到 main 时跑自治核心的 slow 单元(排除 48h
+# 完整循环等超长模拟)，防止 MAREF 招牌的递归自进化逻辑回归。
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'src/maref/recursive/**'
+      - 'tests/recursive/**'
+
+jobs:
+  recursive-autonomy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Run recursive autonomy slow tests
+        run: |
+          # 自治核心 slow 单元(self_observer 观察 + diagnosis 诊断，自治循环
+          # 第一环)。r3_healing/r31_self_executor 暂含预存 mock 签名 bug 且
+          # 调 mypy 慢——待修后纳入。48h/7天模拟由 stability-7d 覆盖。
+          pytest tests/recursive/test_r1_self_observer.py \
+            tests/recursive/test_r2_diagnosis.py \
+            -q --timeout=300 -m "slow" --no-cov
