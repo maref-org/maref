@@ -27,9 +27,11 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           # PyPI 的 trufflehog 仅到 2.x(git 扫描器, 无 filesystem 子命令)。
-          # 装官方 trufflesecurity 3.x(提供 filesystem 全仓扫描), 只 verified
-          # secret 使其可 gate。与 PR 路径的官方 action 一致。
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          # 用官方 trufflesecurity 固定版本 release 二进制(v3.90.8, 与 PR
+          # 路径官方 action 一致)提供 filesystem 全仓扫描, 只 verified secret
+          # 使其可 gate。固定版本避免 main 分支 install.sh 供应链漂移。
+          curl -sSfL https://github.com/trufflesecurity/trufflehog/releases/download/v3.90.8/trufflehog_3.90.8_linux_amd64.tar.gz -o /tmp/th.tar.gz
+          tar -xzf /tmp/th.tar.gz -C /usr/local/bin trufflehog
           trufflehog filesystem . --only-verified --no-update
 
   semgrep-scan:
