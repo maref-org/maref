@@ -145,7 +145,10 @@ class SecurityAuditChain:
                     if not line:
                         continue
                     try:
-                        chain_hash = json.loads(line).get("chain_hash", "")
+                        data = json.loads(line)
+                        if not isinstance(data, dict):
+                            continue
+                        chain_hash = data.get("chain_hash", "")
                     except json.JSONDecodeError:
                         continue
                     if chain_hash:

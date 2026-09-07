@@ -764,11 +764,13 @@ class AuditLogger:
         """
         if self._path is None or not self._path.exists():
             return ""
+        # 文件存在(有历史链)但 stat/open 失败：上抛而非返回 ""。若返回 ""
+        # log() 会以 previous_hash="" 续写，把合法新条目变假篡改(断链)。
+        # 审计链完整性优先于写入可用性(fail-closed)。
         try:
             size = self._path.stat().st_size
-        except OSError as e:
-            logger.warning("AuditLogger tail-read stat failed: %s", e)
-            return ""
+        except OSError:
+            raise
         if size == 0:
             return ""
         window = min(size, 64 * 1024)
@@ -778,9 +780,8 @@ class AuditLogger:
                 with open(self._path, "rb") as fh:
                     fh.seek(offset)
                     chunk = fh.read(window).decode("utf-8", errors="replace")
-            except OSError as e:
-                logger.warning("AuditLogger tail-read open failed: %s", e)
-                return ""
+            except OSError:
+                raise
             lines = chunk.splitlines()
             # When the window starts mid-file its first line is truncated.
             if offset > 0 and lines:
