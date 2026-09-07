@@ -110,7 +110,7 @@ class TestCodeServiceSQI:
 
     def test_set_custom_weights_valid(self):
         sqi = CodeServiceSQI()
-        weights = {k: 0.10 for k in WEIGHT_PROFILES["default"].keys()}
+        weights = dict.fromkeys(WEIGHT_PROFILES["default"].keys(), 0.1)
         sqi.set_custom_weights(weights)
         assert sqi._weights["consistency"] == 0.10
 
@@ -121,7 +121,7 @@ class TestCodeServiceSQI:
 
     def test_set_custom_weights_wrong_sum(self):
         sqi = CodeServiceSQI()
-        weights = {k: 0.05 for k in WEIGHT_PROFILES["default"].keys()}
+        weights = dict.fromkeys(WEIGHT_PROFILES["default"].keys(), 0.05)
         with pytest.raises(ValueError, match="Weights must sum to 1.0"):
             sqi.set_custom_weights(weights)
 
