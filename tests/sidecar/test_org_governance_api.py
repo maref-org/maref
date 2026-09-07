@@ -131,17 +131,15 @@ class TestScopeEnforcement:
         scope marker lands on the registered endpoint (FastAPI's router
         decorator registers the function and returns it unchanged; putting
         @require_auth above it silently drops the scope)."""
-        from sidecar.api_auth import _SCOPE_MAP
-        from sidecar.collector import MockAgentAdapter, ObservationCollector
-        from sidecar.monitor import CompositeMonitor
+        from sidecar.org_governance_router import router
 
-        # federation router 仅在 federated=True 时挂载，必须先建 app 触发
-        # _register_route_scope 填充 _SCOPE_MAP（该测试自足，不依赖执行顺序）。
-        create_app(
-            collector=ObservationCollector(MockAgentAdapter()),
-            monitor=CompositeMonitor(),
-            federated=True,
-        )
+        # 直接验证 router 端点装饰的 scope（确定性，不依赖 create_app 装配 /
+        # AuditLogger key 等环境）。装饰顺序回归在此层即可捕获。
+        scope_by_path: dict[str, str] = {}
+        for r in router.routes:
+            ep = getattr(r, "endpoint", None)
+            if ep and hasattr(ep, "_maref_required_scope"):
+                scope_by_path[getattr(r, "path", "")] = ep._maref_required_scope
 
         expected = {
             "/api/v1/federation/consensus/propose": "federation:write",
@@ -150,7 +148,7 @@ class TestScopeEnforcement:
             "/api/v1/federation/consensus/summary": "federation:read",
         }
         for path, scope in expected.items():
-            assert _SCOPE_MAP.get(path) == scope, f"{path} missing scope {scope}"
+            assert scope_by_path.get(path) == scope, f"{path} missing scope {scope}"
 
     def test_authenticated_app_requires_token(self) -> None:
         """Fail-closed: without the dev bypass, unauthenticated federation
