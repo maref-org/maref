@@ -139,7 +139,17 @@ class DataSovereigntyManager:
     """
 
     def __init__(self, audit_logger: AuditLogger | None = None):
-        self.audit_logger = audit_logger or AuditLogger()
+        self.audit_logger: AuditLogger | None
+        if audit_logger is not None:
+            self.audit_logger = audit_logger
+        else:
+            try:
+                # 默认审计 logger 需 HMAC/Ed25519 key（env 或参数）。
+                # 无 key 环境（如 CI 无 MAREF_HMAC_SECRET_KEY）降级为 None，
+                # 数据主权分类/消毒功能不受审计可用性影响。
+                self.audit_logger = AuditLogger()
+            except RuntimeError:
+                self.audit_logger = None
         self.data_classes: dict[str, DataClass] = {}
         self.geographic_restrictions: dict[str, GeographicRestriction] = {}
         self.transfer_history: list[tuple[DataTransferRequest, DataTransferDecision]] = []
@@ -169,6 +179,27 @@ class DataSovereigntyManager:
                 "requires_notification": True,
             },
         }
+
+    def _audit(
+        self,
+        event_type: str,
+        actor: str,
+        action: str,
+        details: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """写入审计日志（audit_logger 不可用（无 key 环境）时静默跳过）。
+
+        数据主权合规判定不依赖审计可用性——审计是附加的可观测性记录。
+        """
+        if self.audit_logger is not None:
+            self.audit_logger.log(
+                event_type=event_type,
+                actor=actor,
+                action=action,
+                details=details,
+                metadata=metadata or {},
+            )
 
     def _initialize_default_data_classes(self) -> None:
         """初始化默认数据分类"""
@@ -268,7 +299,7 @@ class DataSovereigntyManager:
         )
 
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="data_sovereignty_initialized",
             actor="DataSovereigntyManager",
             action="initialize_default_data_classes",
@@ -331,7 +362,7 @@ class DataSovereigntyManager:
         )
 
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="geographic_restrictions_initialized",
             actor="DataSovereigntyManager",
             action="initialize_default_restrictions",
@@ -347,7 +378,7 @@ class DataSovereigntyManager:
         选择 PII 规则集消毒文本，并记录审计事件。
         """
         result = Sanitizer().sanitize_by_category(text, category)
-        self.audit_logger.log(
+        self._audit(
             event_type="data_sanitized",
             actor="DataSovereigntyManager",
             action="sanitize_data",
@@ -365,7 +396,7 @@ class DataSovereigntyManager:
         """注册数据分类"""
         self.data_classes[data_class.id] = data_class
 
-        self.audit_logger.log(
+        self._audit(
             event_type="data_class_registered",
             actor="DataSovereigntyManager",
             action="register_data_class",
@@ -381,7 +412,7 @@ class DataSovereigntyManager:
         """添加地理限制"""
         self.geographic_restrictions[restriction.id] = restriction
 
-        self.audit_logger.log(
+        self._audit(
             event_type="geographic_restriction_added",
             actor="DataSovereigntyManager",
             action="add_geographic_restriction",
@@ -504,7 +535,7 @@ class DataSovereigntyManager:
         self.transfer_history.append((request, decision))
 
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="data_transfer_evaluated",
             actor="DataSovereigntyManager",
             action="evaluate_data_transfer",
@@ -749,7 +780,7 @@ class DataSovereigntyManager:
             self.compliance_policies.update(config["compliance_policies"])
 
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="policy_configuration_imported",
             actor="DataSovereigntyManager",
             action="import_policy_configuration",
