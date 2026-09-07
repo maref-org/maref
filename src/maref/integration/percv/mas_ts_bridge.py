@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -15,8 +16,6 @@ class MasTSError(Exception):
 
 
 class MasTSBridge:
-    MAS_TS_FAST_SCREEN_CMD = "python {mas_ts_root}/mas_fast_screen.py --mode=minimal --output=json --agent-card={card_path}"
-
     def __init__(self, mas_ts_root: str = ""):
         self.mas_ts_root = mas_ts_root or os.environ.get("MAS_TS_ROOT", "../mas-ts")
         self._fallback_active = False
@@ -37,7 +36,7 @@ class MasTSBridge:
             # 模板常量无管道/重定向，card_path/root 含空格路径也能正确处理。
             result = subprocess.run(
                 [
-                    "python",
+                    sys.executable,
                     f"{self.mas_ts_root}/mas_fast_screen.py",
                     "--mode=minimal",
                     "--output=json",
@@ -82,7 +81,7 @@ class MasTSBridge:
             return False
         try:
             subprocess.run(
-                ["python", "-c", "import mas_fast_screen"],
+                [sys.executable, "-c", "import mas_fast_screen"],
                 capture_output=True,
                 timeout=5,
             )

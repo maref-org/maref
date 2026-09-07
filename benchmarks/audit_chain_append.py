@@ -29,6 +29,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Audit chain append benchmark")
     parser.add_argument("--warmup", type=int, default=2000, help="entries written before timing")
     parser.add_argument("--appends", type=int, default=500, help="timed append count")
+    parser.add_argument("--rounds", type=int, default=3, help="measurement rounds (median taken)")
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory() as d:
@@ -38,17 +39,26 @@ def main() -> int:
             logger.log(f"event_{i}", "actor", "action")
 
         size_kb = path.stat().st_size / 1024
-        start = time.perf_counter()
-        logger2 = AuditLogger(log_path=path, hmac_key="bench")
-        for i in range(args.appends):
-            logger2.log(f"new_{i}", "actor", "action")
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        per_append_us = elapsed_ms / args.appends * 1000
+
+        samples: list[float] = []
+        for _ in range(args.rounds):
+            # 每轮 fresh logger(文件尾读路径)；追加到同一文件使链持续增长，
+            # 同时测更大链的 O(1) 稳定性。
+            start = time.perf_counter()
+            logger2 = AuditLogger(log_path=path, hmac_key="bench")
+            for i in range(args.appends):
+                logger2.log(f"new_{i}", "actor", "action")
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            samples.append(elapsed_ms / args.appends * 1000)
+
+        samples.sort()
+        # 取中位数抗 CI 负载毛刺(单次毛刺可能虚高 10x+, 中位数稳健)。
+        per_append_us = samples[len(samples) // 2]
 
         print(f"file size: {size_kb:.0f} KB")
         print(
-            f"{args.appends} appends (fresh logger): {elapsed_ms:.1f} ms total, "
-            f"{per_append_us:.1f} us/append"
+            f"{args.appends} appends x {args.rounds} rounds: "
+            f"{[f'{s:.1f}' for s in samples]} us/append, median={per_append_us:.1f} us"
         )
 
         # O(1) sanity gate: per-append cost must stay bounded (~sub-ms) regardless
