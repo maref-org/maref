@@ -25,6 +25,7 @@ def guard(tmp_path: Path) -> CostGuard:
     # 隔离：审计目录 → tmp_path/audit，配置 → tmp_path/proxy_config.json
     os.environ["UP_AUDIT_DIR"] = str(tmp_path / "audit")
     os.environ["UP_CONFIG"] = str(tmp_path / "proxy_config.json")
+    _saved_hmac = os.environ.get("MAREF_HMAC_SECRET_KEY")
     os.environ["MAREF_HMAC_SECRET_KEY"] = "test-key-123"
     cfg = {
         "call_hard_limit": 3,
@@ -37,7 +38,11 @@ def guard(tmp_path: Path) -> CostGuard:
     yield g
     os.environ.pop("UP_AUDIT_DIR", None)
     os.environ.pop("UP_CONFIG", None)
-    os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
+    # 恢复 conftest 设置的 HMAC key，避免污染后续测试（顺序相关失败）
+    if _saved_hmac is not None:
+        os.environ["MAREF_HMAC_SECRET_KEY"] = _saved_hmac
+    else:
+        os.environ.pop("MAREF_HMAC_SECRET_KEY", None)
 
 
 class TestCallGuard:
