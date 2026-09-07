@@ -168,4 +168,6 @@ jobs:
           # chaos 引擎(模拟故障注入)在 simulate 模式下无系统破坏，82 测试本地
           # ~14s 可跑。主 test job 排除 chaos marker，此处专门验证防回归。
           # ignore desktop/compliance: 无 desktop extra(Pillow)/合规域依赖。
-          pytest tests/ -m "chaos and not real and not slow" -q --timeout=120 --no-cov --ignore=tests/desktop --ignore=tests/maref/compliance
+          # ignore disaster_recovery: 调真实 backup.sh 做文件系统备份, 依赖
+          # 真实 tar/环境(CI ubuntu 归档 0 bytes), 属真实 DR 测试非 simulate。
+          pytest tests/ -m "chaos and not real and not slow" -q --timeout=120 --no-cov --ignore=tests/desktop --ignore=tests/maref/compliance --ignore=tests/chaos/test_disaster_recovery.py
