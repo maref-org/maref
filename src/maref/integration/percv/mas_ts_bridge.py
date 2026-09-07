@@ -32,12 +32,21 @@ class MasTSBridge:
             self._fallback_active = True
             return self._fallback_result()
 
-        cmd = self.MAS_TS_FAST_SCREEN_CMD.format(
-            mas_ts_root=self.mas_ts_root,
-            card_path=card_path,
-        )
         try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            # shell=False + 参数列表(非 shell 字符串)消除 shell 注入面：
+            # 模板常量无管道/重定向，card_path/root 含空格路径也能正确处理。
+            result = subprocess.run(
+                [
+                    "python",
+                    f"{self.mas_ts_root}/mas_fast_screen.py",
+                    "--mode=minimal",
+                    "--output=json",
+                    f"--agent-card={card_path}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
             if result.returncode != 0:
                 raise MasTSError(f"MAS-TS L0 failed: {result.stderr}")
             return json.loads(result.stdout)
