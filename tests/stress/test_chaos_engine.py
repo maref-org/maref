@@ -187,7 +187,11 @@ class TestChaosEngine:
         sched = engine.schedule(FaultType.CPU, delay_s=0.001, duration_s=0.001)
         assert sched.fault_type == FaultType.CPU
         assert sched.injected is False
-        time.sleep(0.05)
+        # 轮询等待注入事件(而非固定 sleep)：后台线程调度在慢 CI/高负载下
+        # 可能超 50ms，固定等待会 flaky。
+        deadline = time.time() + 2.0
+        while time.time() < deadline and len(engine.events) < 1:
+            time.sleep(0.01)
         assert len(engine.events) >= 1
 
     def test_schedule_fault_with_params(self):

@@ -40,9 +40,12 @@ jobs:
       - name: Run unit tests
         run: |
           # 排除 slow(依赖本机 git tags/历史等环境) / real(需硬件/权限) /
-          # integration / chaos / benchmark。排除 compliance(独立合规域) 与
-          # desktop(需 desktop extra/Pillow + 桌面环境)。
-          # desktop 测试由专门环境覆盖，见 STATE.yaml 分域记录。
+          # integration / chaos / benchmark。排除 compliance(独立合规域)。
+          # tests/desktop(40 文件)是 macOS 桌面代理套件，依赖 desktop extra
+          # (Pillow/PyAutoGUI/playwright)与真实桌面，不适合 ubuntu 无头 CI——
+          # 由 macOS 环境/本地覆盖；tests/maref/desktop 无头子集已在本 job 跑。
+          # chaos marker 由独立 chaos-test job 覆盖，chaos_engine 等 simulate
+          # 模式测试在 ubuntu 无头可跑。
           # 用 pytest-cov(addopts --cov)收集而非 coverage run 外层：
           # coverage run -m pytest 与 pyproject addopts 的 --cov(pytest-cov)
           # 形成双层 coverage，collector 冲突 (Expected current collector)。
@@ -151,3 +154,19 @@ jobs:
           # --no-cov：crypto-test 只验证密码学功能，addopts 的 --cov=src
           # (pytest-cov) 会因仅 8 个测试覆盖率 0.1% < fail_under=50 误失败。
           pytest tests/test_crypto.py -v --no-cov
+
+  chaos-test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Run chaos tests
+        run: |
+          # chaos 引擎(模拟故障注入)在 simulate 模式下无系统破坏，82 测试本地
+          # ~14s 可跑。主 test job 排除 chaos marker，此处专门验证防回归。
+          pytest tests/ -m "chaos and not real and not slow" -q --timeout=120 --no-cov
