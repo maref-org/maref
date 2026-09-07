@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import os
 import sqlite3
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -115,7 +116,10 @@ class CodeIndexer:
         if self._conn is not None:
             return self._conn
         self._db.parent.mkdir(parents=True, exist_ok=True)
-        c = sqlite3.connect(str(self._db))
+        # check_same_thread=False：CodeIndexer 可能在后台线程 build（如
+        # mcp_bridge 懒初始化用有界超时 worker），随后主线程查询同一连接。
+        # sqlite3 连接跨线程须由调用方串行化访问；worker join 后才查询故安全。
+        c = sqlite3.connect(str(self._db), check_same_thread=False)
         c.execute("PRAGMA journal_mode=WAL")
         c.row_factory = sqlite3.Row
         c.executescript(self.SCHEMA)
@@ -127,7 +131,7 @@ class CodeIndexer:
             return self._conn
         if not self._db.is_file():
             raise RuntimeError(f"No index at {self._db} — call build() first")
-        c = sqlite3.connect(str(self._db))
+        c = sqlite3.connect(str(self._db), check_same_thread=False)
         c.row_factory = sqlite3.Row
         self._conn = c
         return c
