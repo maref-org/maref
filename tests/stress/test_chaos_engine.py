@@ -15,6 +15,11 @@ from maref.stress.chaos_engine import (
     SafetyGate,
 )
 
+# ChaosEngine 测试属 chaos 域 — CI 主 test job 排除 chaos marker，
+# 由专门 chaos 流程覆盖（避免 simulate 模式下的共享状态污染与
+# 非确定性在常规 CI 触发假失败）。
+pytestmark = pytest.mark.chaos
+
 
 class TestFaultType:
     def test_enum_values(self):
