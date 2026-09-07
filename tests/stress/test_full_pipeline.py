@@ -314,8 +314,14 @@ class TestFaultInjection:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.benchmark
 class TestPerformanceBenchmark:
-    """Measure critical path latencies and assert within acceptable bounds."""
+    """Measure critical path latencies and assert within acceptable bounds.
+
+    benchmark marker — 延迟预算断言对运行环境敏感（CI 高负载/慢 runner
+    下 P50/P99 可能超预算），归 benchmark 域由专门环境覆盖，常规 CI
+    (not benchmark) 排除。
+    """
 
     WARMUP_ITERATIONS = 100
     BENCH_ITERATIONS = 1000
