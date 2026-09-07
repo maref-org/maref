@@ -44,9 +44,12 @@ def _ensure_real_aip_classes(request: pytest.FixtureRequest) -> None:
         or (isinstance(bound_state, type) and issubclass(bound_state, _umock.Mock))
     )
     if polluted:
-        mod = importlib.reload(
-            importlib.import_module("maref.integration.aip_adapter")
-        )
+        import sys
+
+        # 模块可能整体被 patch 成 mock（sys.modules 中被替换为非模块），
+        # 先从 sys.modules 移除强制全新 import 而非 reload(非模块报错)。
+        sys.modules.pop("maref.integration.aip_adapter", None)
+        mod = importlib.import_module("maref.integration.aip_adapter")
         for _name in (
             "AIP_PROTOCOL_VERSION",
             "AIPAdapter",
