@@ -325,6 +325,7 @@ class SidecarMCPBridge:
         self._repo_path = repo_path
         self._cm_backend: Any | None = None  # ClaudeMemBackend, lazy-imported
         self._cd_indexer: Any | None = None  # CodeIndexer, lazy-imported
+        self._cd_building: bool = False  # single-flight：防并发重复 rebuild
 
     def _get_cm_backend(self) -> Any | None:
         """延迟导入并返回 ClaudeMemBackend 实例。"""
@@ -349,33 +350,45 @@ class SidecarMCPBridge:
         在 CI/large repo 上可能耗时数十秒。list_tools 仅需工具清单，
         不应被懒初始化索引阻塞——build 用有界超时（10s），超时视为
         索引不可用（工具仍来自 SIDECAR_MCP_TOOLS/_CM_TOOL_MAP）。
+
+        Single-flight：_cd_building 标记防止并发调用各自起 worker 重复
+        full-rebuild（对同一 SQLite 库 DELETE+INSERT 会写锁竞争）。后台
+        worker 若超时仍在运行，daemon 线程继续；后续调用命中 building
+        标记直接返回 None，由 worker 完成时统一置 _cd_indexer。
         """
-        if self._cd_indexer is None:
-            try:
-                import threading
+        if self._cd_indexer is not None:
+            return self._cd_indexer
+        if self._cd_building:
+            return None
+        try:
+            import threading
 
-                from maref.codedepth.indexer import CodeIndexer
+            from maref.codedepth.indexer import CodeIndexer
 
-                idx = CodeIndexer(self._repo_path)
-                outcome: list[bool] = []
+            idx = CodeIndexer(self._repo_path)
+            outcome: list[bool] = []
 
-                def _ensure() -> None:
-                    try:
-                        if not idx.is_built:
-                            idx.build()
-                        outcome.append(True)
-                    except Exception:
-                        pass
+            def _ensure() -> None:
+                try:
+                    if not idx.is_built:
+                        idx.build()
+                    outcome.append(True)
+                except Exception:
+                    pass
+                finally:
+                    self._cd_building = False
+                    if outcome:
+                        self._cd_indexer = idx
 
-                worker = threading.Thread(target=_ensure, daemon=True)
-                worker.start()
-                worker.join(timeout=10.0)
-                # worker 在超时内完成 build 才接受；否则索引尚在后台构建，
-                # 本次返回 None（下次调用再取）。
-                if outcome:
-                    self._cd_indexer = idx
-            except Exception:
-                pass
+            self._cd_building = True
+            worker = threading.Thread(target=_ensure, daemon=True)
+            worker.start()
+            worker.join(timeout=10.0)
+            # worker 在超时内完成 build 才接受；否则后台继续，本次返回 None。
+            if outcome:
+                self._cd_indexer = idx
+        except Exception:
+            self._cd_building = False
         return self._cd_indexer
 
     def get_server_info(self) -> dict[str, Any]:
