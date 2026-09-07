@@ -132,6 +132,16 @@ class TestScopeEnforcement:
         decorator registers the function and returns it unchanged; putting
         @require_auth above it silently drops the scope)."""
         from sidecar.api_auth import _SCOPE_MAP
+        from sidecar.collector import MockAgentAdapter, ObservationCollector
+        from sidecar.monitor import CompositeMonitor
+
+        # federation router 仅在 federated=True 时挂载，必须先建 app 触发
+        # _register_route_scope 填充 _SCOPE_MAP（该测试自足，不依赖执行顺序）。
+        create_app(
+            collector=ObservationCollector(MockAgentAdapter()),
+            monitor=CompositeMonitor(),
+            federated=True,
+        )
 
         expected = {
             "/api/v1/federation/consensus/propose": "federation:write",
