@@ -4,7 +4,15 @@ import contextlib
 from typing import Any
 from unittest.mock import patch
 
-from maref.observation.probes import ProbeReading, ProbeSeverity
+import pytest
+
+from maref.observation.probes import (
+    DesktopProbe,
+    GUIBuildProbe,
+    PlaywrightProbe,
+    ProbeReading,
+    ProbeSeverity,
+)
 from maref.recursive.self_diagnostician import (
     DiagnosisReport,
     RiskLevel,
@@ -33,6 +41,22 @@ class TestDiagnosisReport:
 
 
 class TestSelfDiagnostician:
+    @pytest.fixture(autouse=True)
+    def _clear_probe_cache(self) -> None:
+        """清空 probe 类级 TTL 缓存，保证本类测试的 mock measure 生效。
+
+        诊断通过 probe._measure_cached() 读取（类级 6h 缓存）。若先前
+        测试真实验证过这些 probe（如 CI 无浏览器时 measure 判 CRITICAL），
+        缓存命中会使本类 mock 的 measure 被绕过，导致环境相关假失败。
+        """
+        for probe_cls in (PlaywrightProbe, DesktopProbe, GUIBuildProbe):
+            probe_cls._cached_reading = None
+            probe_cls._cached_at = 0.0
+        yield
+        for probe_cls in (PlaywrightProbe, DesktopProbe, GUIBuildProbe):
+            probe_cls._cached_reading = None
+            probe_cls._cached_at = 0.0
+
     def test_default_construction(self) -> None:
         d = SelfDiagnostician()
         assert d.cb_state == "CLOSED"
