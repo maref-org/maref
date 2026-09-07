@@ -25,6 +25,48 @@ from maref.integration.aip_adapter import (
 from maref.orchestration.decomposer import SubTask
 
 
+@pytest.fixture(autouse=True)
+def _ensure_real_aip_classes(request: pytest.FixtureRequest) -> None:
+    """免疫跨文件 mock 泄漏（CI 全量顺序下偶发）。
+
+    若前面测试将 maref.integration.aip_adapter（或其依赖）patch 成
+    MagicMock 未清理，本文件 import 绑定的 AIPTaskState 等枚举/类会变
+    mock（AIPTaskState.ACCEPTED.value 返回 mock）。setup 检测绑定符号
+    为 Mock 则 reload 模块并更新本测试模块全局绑定。
+    """
+    import importlib
+    from unittest import mock as _umock
+
+    module_globals = vars(request.module)
+    bound_state = module_globals.get("AIPTaskState")
+    polluted = bound_state is not None and (
+        isinstance(bound_state, _umock.Mock)
+        or (isinstance(bound_state, type) and issubclass(bound_state, _umock.Mock))
+    )
+    if polluted:
+        mod = importlib.reload(
+            importlib.import_module("maref.integration.aip_adapter")
+        )
+        for _name in (
+            "AIP_PROTOCOL_VERSION",
+            "AIPAdapter",
+            "AIPMessage",
+            "AIPProduct",
+            "AIPStateTransitionError",
+            "AIPTaskCommand",
+            "AIPTaskCommandType",
+            "AIPTaskResult",
+            "AIPTaskState",
+            "AIP_TO_MAREF_MAP",
+            "DataItem",
+            "MAREF_TO_AIP_MAP",
+            "is_valid_transition",
+            "map_aip_to_maref",
+            "map_maref_to_aip",
+        ):
+            module_globals[_name] = getattr(mod, _name)
+
+
 class TestAIPTaskState:
     def test_enum_values(self) -> None:
         assert AIPTaskState.ACCEPTED.value == "accepted"
