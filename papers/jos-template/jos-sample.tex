@@ -1,0 +1,80 @@
+%% 软件学报 LaTeX 模板
+%% 基于《软件学报》投稿指南
+%% 创建时间: 2026-09-08
+
+\documentclass[10pt,twocolumn]{article}
+
+% 基本包
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{abstract}
+
+% 页面设置
+\geometry{a4paper,left=2cm,right=2cm,top=2.5cm,bottom=2.5cm}
+\setlength{\columnsep}{0.6cm}
+
+% 页眉页脚
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small 软件学报}
+\fancyhead[R]{\small 第XX卷 第X期}
+\fancyfoot[C]{\thepage}
+
+% 标题格式
+\renewcommand{\abstractname}{\textbf{摘\quad 要}}
+
+% 自定义命令
+\newcommand{\enkeyword}[1]{\textbf{Keywords:} #1}
+
+\begin{document}
+
+% 标题
+\title{\textbf{MAREF：面向多Agent系统的递归演化治理框架}}
+
+% 作者信息
+\author{
+\small 杨子良$^{1}$ \\
+\small $^{1}$OPC 一人公司，MAREF 架构师 \\
+\small \texttt{frankiehit@hotmail.com}
+}
+
+\date{}
+
+\maketitle
+
+% 中文摘要
+\begin{abstract}
+\noindent
+随着大语言模型（LLM）驱动的多Agent系统在生产环境中的广泛部署，Agent行为治理成为确保系统安全、可靠和合规的关键挑战。现有Agent框架（如LangGraph、CrewAI、AutoGen）专注于编排能力，将安全治理视为附加功能而非核心产品。本文提出MAREF（Multi-Agent Recursive Evolution Framework），全球首个以Agent治理为核心产品定位的开源框架。MAREF采用六层递归治理架构，实现基于Gray Code的10状态信任状态机（Hamming距离=1，数学可证收敛），集成四级安全决策树（规则$\rightarrow$模式$\rightarrow$安全门$\rightarrow$用户）、三级熔断器（HALT吸收态）、TLA+形式化验证（5个定理证明）、SM2/SM3/SM4-GCM国密合规实现，以及基于Merkle树的可验证审计链。在等保2.0和《智能体规范应用》合规框架下，MAREF实现了8层纵深防御体系，覆盖OWASP Top 10 for Agentic Applications全部10类风险。实验表明，MAREF在治理深度、形式化验证、国密合规等维度均达到国际领先水平，同时保持与现有Agent框架的无缝集成（5行代码适配）。本框架已通过4300+测试用例验证，覆盖率82%，并在中国信通院等机构的生产环境中部署验证。
+
+\keywords{多Agent系统；Agent治理；形式化验证；国密合规；状态机；安全治理}
+\end{abstract}
+
+% 英文摘要
+\begin{enabstract}
+\noindent
+As Large Language Model (LLM)-driven multi-agent systems gain widespread deployment in production environments, agent behavior governance has become a critical challenge for ensuring system safety, reliability, and compliance. Existing agent frameworks (e.g., LangGraph, CrewAI, AutoGen) focus on orchestration capabilities, treating safety governance as an add-on feature rather than a core product identity. This paper proposes MAREF (Multi-Agent Recursive Evolution Framework), the first open-source framework with Agent Governance as its core product identity. MAREF implements a six-layer recursive governance architecture, featuring a 10-state Gray Code trust state machine (Hamming distance = 1, mathematically provable convergence), a four-level safety decision tree (Rule $\rightarrow$ Mode $\rightarrow$ SafetyGate $\rightarrow$ User), a three-level circuit breaker (HALT absorbing state), TLA+ formal verification (5 theorem proofs), SM2/SM3/SM4-GCM national cryptography compliance, and a Merkle-tree verifiable audit chain. Under the MLPS 2.0 and "AI Agent Specification Application" compliance framework, MAREF implements an 8-layer defense-in-depth system covering all 10 risk categories of OWASP Top 10 for Agentic Applications. Experiments demonstrate that MAREF achieves international leading levels in governance depth, formal verification, and national cryptography compliance, while maintaining seamless integration with existing agent frameworks (5-line code adaptation). The framework has been validated through 4,300+ test cases with 82% coverage, and deployed in production environments at institutions including the China Academy of Information and Communications Technology.
+
+\enkeyword{Multi-Agent Systems; Agent Governance; Formal Verification; National Cryptography Compliance; State Machine; Security Governance}
+\end{enabstract}
+
+% 正文
+\input{jos-body}
+
+% 参考文献
+\bibliographystyle{plain}
+\bibliography{jos-bib}
+
+\end{document}
