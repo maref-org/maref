@@ -3,8 +3,8 @@
 import json, os
 from collections import Counter
 
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl"
+AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
+RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
 
 def load_entries(path):
     entries = []
@@ -28,12 +28,13 @@ def analyze_tiers():
     ]
 
     verdict_counts = Counter()
+    risk_counts = Counter()
     action_counts = Counter()
     for e in decisions:
-        details = e.get('details', {})
-        if isinstance(details, dict):
-            v = details.get('verdict', 'unknown')
-            verdict_counts[v] += 1
+        v = e.get('verdict', 'unknown')
+        verdict_counts[v] += 1
+        r = e.get('risk_level', 'unknown')
+        risk_counts[r] += 1
         action_counts[e.get('action', 'unknown')] += 1
 
     print("=" * 60)
@@ -47,19 +48,35 @@ def analyze_tiers():
     for k, v in sorted(verdict_counts.items(), key=lambda x: -x[1]):
         print(f"  {k}: {v}")
 
+    print(f"\n--- 风险等级分布 ---")
+    for k, v in sorted(risk_counts.items(), key=lambda x: -x[1]):
+        print(f"  {k}: {v}")
+
     print(f"\n--- 决策 action 分布 ---")
     for k, v in sorted(action_counts.items(), key=lambda x: -x[1]):
         print(f"  {k}: {v}")
 
+    low_count = risk_counts.get('low', 0)
+    allow_count = verdict_counts.get('allow', 0)
+    deny_count = verdict_counts.get('deny', 0)
+    total = sum(verdict_counts.values())
+    reject_rate = deny_count / total * 100 if total > 0 else 0
+
     print(f"\n--- 自动批准白名单建议 ---")
-    print("条件: 历史拒绝率 <5% + 样本 >=20")
-    print("当前裁决全部为 unknown（审计日志无 verdict 字段）")
-    print("建议: 先补充审计日志 verdict schema，再启用白名单")
+    print(f"条件: 历史拒绝率 <5% + 样本 >=20")
+    print(f"低风险条目数: {low_count}")
+    print(f"拒绝率: {reject_rate:.1f}%")
+    print(f"allow 条目数: {allow_count}")
+    if low_count >= 20 and reject_rate < 5:
+        print(f"✅ 低风险类别满足自动批准条件")
+    else:
+        print(f"⚠️ 条件未满足 (样本: {low_count}/20, 拒绝率: {reject_rate:.1f}%/5%)")
 
     print(f"\n--- 宪法审查 ---")
     print("P-03 涉及治理裁决权边界")
     print("需确认: 自动批准属于条例层而非宪法层")
-    print("审查状态: 待补充 verdict 字段后执行")
+    if risk_counts.get('irreversible', 0) > 0:
+        print(f"⚠️ 存在 irreversible 条目: {risk_counts.get('irreversible')} 条，需宪法级别审查")
 
     output_path = "/Volumes/1TB-M2/public/maref/reports/approval_tier_report.json"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -67,9 +84,10 @@ def analyze_tiers():
         "audit_date": "2026-09-09",
         "total_decisions": len(decisions),
         "verdict_distribution": dict(verdict_counts),
+        "risk_distribution": dict(risk_counts),
         "action_distribution": dict(action_counts),
-        "auto_approval_feasibility": "blocked: no verdict field in audit log",
-        "constitutional_review": "pending verdict schema"
+        "auto_approval_feasibility": "eligible" if low_count >= 20 and reject_rate < 5 else "insufficient_data",
+        "constitutional_review": "required" if risk_counts.get('irreversible', 0) > 0 else "not required"
     }
     with open(output_path, 'w') as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
