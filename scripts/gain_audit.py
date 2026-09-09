@@ -4,7 +4,7 @@ import json, os
 from collections import Counter
 from datetime import datetime
 
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl"
+RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
 
 def load_entries(path):
     entries = []

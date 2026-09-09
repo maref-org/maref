@@ -3,7 +3,7 @@
 import json, os, random
 from datetime import datetime
 
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit.jsonl"
+AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
 
 def load_entries(path):
     entries = []
@@ -22,9 +22,7 @@ def resample():
     
     approved = [
         e for e in entries 
-        if e.get('event_type') == 'governance_decision'
-        and isinstance(e.get('details'), dict)
-        and e['details'].get('verdict') in ('allow', 'approved', 'ALLOW')
+        if e.get('verdict') == 'allow'
     ]
     
     sample_size = max(5, int(len(approved) * 0.05))

@@ -3,8 +3,8 @@
 import json, os, sys
 from collections import Counter
 
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl"
+AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
+RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
 
 def load_entries(path):
     entries = []
@@ -46,8 +46,13 @@ def reconcile():
         print(f"  {k}: {v}")
     
     print(f"\n--- 状态和验证 ---")
-    print(f"审计 + 递归 = {len(audit) + len(recursive)}")
+    total = len(audit) + len(recursive)
+    verdict_counts = Counter(e.get('verdict', 'unknown') for e in audit)
+    print(f"审计 + 递归 = {total}")
     print(f"差额: 0 (所有条目均已归类)")
+    print(f"\n--- 裁决分布 (审计日志) ---")
+    for k, v in sorted(verdict_counts.items(), key=lambda x: -x[1]):
+        print(f"  {k}: {v}")
     print(f"\n✅ 对账完成")
 
 if __name__ == "__main__":
