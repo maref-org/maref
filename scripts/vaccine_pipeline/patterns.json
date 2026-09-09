@@ -1,0 +1,56 @@
+[
+  {
+    "pattern_id": "5e6a009927a0",
+    "attack_class": "block_self_observation",
+    "trigger": "circuit_breaker_trip_block_self_observation",
+    "count": 2107,
+    "source_rounds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ]
+  },
+  {
+    "pattern_id": "5196cf89ea52",
+    "attack_class": "block_oscillation_handler",
+    "trigger": "circuit_breaker_trip_block_oscillation_handler",
+    "count": 316,
+    "source_rounds": [
+      1851,
+      1852,
+      1853,
+      1854,
+      1855,
+      1856,
+      1857,
+      1858,
+      1859,
+      1860
+    ]
+  },
+  {
+    "pattern_id": "9dd8ffa8c9f5",
+    "attack_class": "block_consecutive_anomalies",
+    "trigger": "circuit_breaker_trip_block_consecutive_anomalies",
+    "count": 255,
+    "source_rounds": [
+      1915,
+      1918,
+      1921,
+      1924,
+      1927,
+      1930,
+      1933,
+      1936,
+      1939,
+      1942
+    ]
+  }
+]
