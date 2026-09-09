@@ -32,7 +32,9 @@ from sidecar.monitor import CompositeMonitor
 from sidecar.obs_bridge import ObsBridge
 from sidecar.org_governance_router import router as org_governance_router
 from sidecar.platform_router import router as platform_router
+from sidecar.proposal_router import router as proposal_router
 from sidecar.report_router import router as report_router
+from sidecar.telemetry_router import router as telemetry_router
 
 _CORS_ORIGINS: list[str] = [
     origin.strip()
@@ -1039,8 +1041,11 @@ class SidecarFastAPI(FastAPI):
         self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
         self.add_middleware(SecurityHeadersMiddleware)
         self.include_router(gaas_router)
+        self.include_router(report_router)
         self.include_router(platform_router)
         self.include_router(org_governance_router)
+        self.include_router(telemetry_router)
+        self.include_router(proposal_router)
         a2a_bridge = create_a2a_bridge()
         _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
         self.include_router(create_a2a_router(
@@ -1071,6 +1076,8 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     app.include_router(report_router)
     app.include_router(platform_router)
     app.include_router(org_governance_router)
+    app.include_router(telemetry_router)
+    app.include_router(proposal_router)
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
     app.include_router(create_a2a_router(
