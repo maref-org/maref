@@ -24,6 +24,7 @@ from maref.recursive.cost_tracker import CostTracker
 from maref.tool.registry import ToolRegistry
 from sidecar.api_auth import AuthMiddleware, _register_route_scope, require_auth
 from sidecar.collector import MockAgentAdapter, ObservationCollector
+from sidecar.config_router import router as config_router
 from sidecar.federation_router import router as federation_router
 from sidecar.gaas_router import router as gaas_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
@@ -1040,6 +1041,7 @@ class SidecarFastAPI(FastAPI):
             allow_unauthenticated = _default_allow_unauthenticated()
         self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
         self.add_middleware(SecurityHeadersMiddleware)
+        self.include_router(config_router)
         self.include_router(gaas_router)
         self.include_router(report_router)
         self.include_router(platform_router)
@@ -1072,6 +1074,7 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
         allow_unauthenticated = _default_allow_unauthenticated()
     app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
     app.add_middleware(SecurityHeadersMiddleware)
+    app.include_router(config_router)
     app.include_router(gaas_router)
     app.include_router(report_router)
     app.include_router(platform_router)
