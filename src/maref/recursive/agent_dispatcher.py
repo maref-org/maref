@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from maref.recursive.agent_health import AgentHealthMonitor
     from maref.recursive.capability_contracts import CapabilityRegistry
     from maref.recursive.internal_agents import (
         InternalAgent,
@@ -29,15 +30,21 @@ class AgentDispatcher:
         registry: InternalAgentRegistry,
         contract_registry: CapabilityRegistry | None = None,
         persona_provider: Callable[[SubTask], str] | None = None,
+        health_monitor: AgentHealthMonitor | None = None,
     ) -> None:
         self._registry = registry
         self._contract_registry = contract_registry
         self._persona_provider = persona_provider
+        self._health_monitor = health_monitor
 
     def dispatch(self, subtask: SubTask) -> InternalAgent | None:
         best_agent: InternalAgent | None = None
         best_score: float = -1.0
         for agent in self._registry.list_all():
+            if self._health_monitor is not None:
+                snapshot = self._health_monitor.get_snapshot(agent.agent_id)
+                if snapshot is not None and snapshot.is_overloaded:
+                    continue
             score, cs, _ = self._capability_match_score(subtask, agent)
             combined = max(score, cs)
             if combined > best_score:
