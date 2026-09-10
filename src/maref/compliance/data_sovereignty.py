@@ -130,6 +130,10 @@ class DataTransferDecision:
     timestamp: datetime = field(default_factory=datetime.now)
     expiration: datetime | None = None
 
+    def __post_init__(self) -> None:
+        if self.status == DataSovereigntyStatus.REQUIRES_APPROVAL:
+            self.approval_required = True
+
 
 class DataSovereigntyManager:
     """
@@ -305,6 +309,23 @@ class DataSovereigntyManager:
             cross_border_allowed=True,  # 国际金融交易可能需要
         )
 
+        self.data_classes["critical_infrastructure"] = DataClass(
+            id="critical_infrastructure",
+            name="Critical Infrastructure Data",
+            category=DataCategory.CRITICAL_INFRASTRUCTURE,
+            classification_level="RESTRICTED",
+            protection_requirements=[
+                "Strict access control",
+                "Encryption at rest and in transit",
+                "Redundant backup systems",
+                "Real-time monitoring",
+            ],
+            encryption_required=True,
+            audit_required=True,
+            cross_border_allowed=False,
+            allowed_jurisdictions=["CN"],  # 中国网络安全法要求本地化
+        )
+
         # 审计日志
         self._audit(
             event_type="data_sovereignty_initialized",
@@ -430,6 +451,35 @@ class DataSovereigntyManager:
                 "countries_blocked": [c.value for c in restriction.countries_blocked],
             },
         )
+
+    def get_available_jurisdictions(self, category: DataCategory) -> list[str]:
+        """获取指定类别允许的司法管辖区"""
+        jurisdictions: list[str] = []
+        for data_class in self.data_classes.values():
+            if data_class.category == category and data_class.cross_border_allowed:
+                jurisdictions.extend(data_class.allowed_jurisdictions)
+        return jurisdictions
+
+    def get_data_classes_by_allowed_jurisdictions(self, jurisdiction: str) -> list[DataClass]:
+        """根据允许的司法管辖区过滤数据类"""
+        return [
+            dc for dc in self.data_classes.values()
+            if jurisdiction in dc.allowed_jurisdictions
+        ]
+
+    def record_transfer(
+        self, request: DataTransferRequest, decision: DataTransferDecision
+    ) -> None:
+        """记录数据传输历史"""
+        self.transfer_history.append((request, decision))
+
+    def get_data_class(self, data_class_id: str) -> DataClass | None:
+        """获取数据类"""
+        return self.data_classes.get(data_class_id)
+
+    def get_data_classes(self) -> list[DataClass]:
+        """获取所有数据类"""
+        return list(self.data_classes.values())
 
     def evaluate_data_transfer(self, request: DataTransferRequest) -> DataTransferDecision:
         """
