@@ -404,3 +404,19 @@ class UnifiedAuditStore:
 
 def make_record_id(prefix: str, counter: int) -> str:
     return f"{prefix}_{counter:06d}_{int(time.time() * 1000)}"
+
+
+class UnifiedAudit:
+    """Stub for backward compatibility — delegates to UnifiedAuditStore."""
+
+    def __init__(self) -> None:
+        self.store = UnifiedAuditStore()
+
+    def log(self, record: UnifiedAuditRecord) -> None:
+        self.store.append(record)
+
+    def query(self, **kwargs: Any) -> list[UnifiedAuditRecord]:
+        q = getattr(self.store, "query", None)
+        if callable(q):
+            return q(**kwargs)
+        return []

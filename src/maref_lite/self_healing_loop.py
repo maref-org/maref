@@ -133,6 +133,28 @@ class SelfHealingLoop:
     def stop(self) -> None:
         self._running = False
 
+    def _get_state_snapshot(self) -> dict[str, Any]:
+        """状态快照 — 暴露 healer 运行态 + agent 状态视图供外部消费者。
+
+        （sync 覆盖丢失后按当前类结构重建；旧版依赖 super() 基类 + 更多属性。）
+        """
+        base: dict[str, Any] = {
+            "running": getattr(self, "_running", False),
+            "check_interval_seconds": getattr(
+                self.config, "check_interval_seconds", 0
+            ),
+        }
+        gov = getattr(self, "_gov_scheduler", None)
+        if gov is not None:
+            try:
+                views = gov.agent_state_views
+                base["agent_views"] = {aid: v.to_dict() for aid, v in views.items()}
+            except Exception:
+                base["agent_views"] = {}
+        else:
+            base["agent_views"] = {}
+        return base
+
     def _lazy_init(self) -> None:
         if self._observer is not None:
             return
