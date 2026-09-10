@@ -56,19 +56,17 @@ class SM4GCMResult:
 def sm4_encrypt_gcm(
     key: bytes, nonce: bytes, plaintext: bytes, aad: bytes | None = None
 ) -> SM4GCMResult:
-    from gmssl import sm4 as _gm_sm4
+    # gmssl 的 CryptSM4 不提供 GCM 模式；使用本仓库纯 Python SM4-GCM 实现
+    # （sm4_gcm.py，基于 sm4_encrypt_cbc + GHASH）。延迟导入避免 sm4 与
+    # sm4_gcm 的模块级循环依赖。
+    from maref.crypto.sm4_gcm import sm4_encrypt_gcm as _impl
 
-    crypt = _gm_sm4.CryptSM4()
-    crypt.set_key(key, _gm_sm4.SM4_ENCRYPT)
-    ciphertext = crypt.crypt_gcm(nonce, plaintext, aad or b"")
-    return SM4GCMResult(ciphertext=ciphertext, tag=b"", nonce=nonce, aad=aad)
+    return _impl(key, nonce, plaintext, aad or b"")
 
 
 def sm4_decrypt_gcm(
     key: bytes, nonce: bytes, ciphertext: bytes, tag: bytes, aad: bytes | None = None
 ) -> bytes:
-    from gmssl import sm4 as _gm_sm4
+    from maref.crypto.sm4_gcm import sm4_decrypt_gcm as _impl
 
-    crypt = _gm_sm4.CryptSM4()
-    crypt.set_key(key, _gm_sm4.SM4_DECRYPT)
-    return crypt.crypt_gcm(nonce, ciphertext, aad or b"")
+    return _impl(key, nonce, ciphertext, tag, aad or b"")

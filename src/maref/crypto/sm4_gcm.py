@@ -5,22 +5,12 @@
 """
 
 import struct
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .sm4 import sm4_encrypt_cbc
+from .sm4 import SM4GCMResult, sm4_encrypt_cbc
 
 if TYPE_CHECKING:
     pass
-
-
-@dataclass(frozen=True)
-class SM4GCMResult:
-    """SM4-GCM 加密结果."""
-
-    ciphertext: bytes
-    tag: bytes
-    nonce: bytes
 
 
 def _sm4_ecb_encrypt_block(key: bytes, block: bytes) -> bytes:
