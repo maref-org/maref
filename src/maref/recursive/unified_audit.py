@@ -215,7 +215,27 @@ class UnifiedAuditStore:
                     if not line:
                         continue
                     data = json.loads(line)
-                    record = UnifiedAuditRecord.from_dict(data)
+                    if "record_id" in data:
+                        record = UnifiedAuditRecord.from_dict(data)
+                    else:
+                        # 兼容 AuditBus 持久化的 AuditEntry schema（append 经
+                        # log_from_unified → AuditBus.log 落盘）。字段映射回
+                        # UnifiedAuditRecord，record_id 取自 metadata。
+                        meta = data.get("metadata") or {}
+                        record = UnifiedAuditRecord(
+                            record_id=meta.get("record_id", f"legacy-{len(self._records)}"),
+                            timestamp=float(data.get("timestamp", 0.0)),
+                            layer=data.get("layer", ""),
+                            round=int(data.get("round", 0)),
+                            event_type=data.get("event_type", ""),
+                            source_module=data.get("actor", ""),
+                            target_module=meta.get("target_module", ""),
+                            decision=data.get("action", ""),
+                            justification=data.get("details", ""),
+                            outcome=meta.get("outcome"),
+                            context_refs=list(meta.get("context_refs") or []),
+                            tenant_id=data.get("tenant_id", ""),
+                        )
                     idx = len(self._records)
                     self._records.append(record)
                     self._by_layer[record.layer].append(idx)
