@@ -171,6 +171,7 @@ class AuditBus:
             layer=record.layer,
             round=record.round,
             metadata={
+                "record_id": record.record_id,
                 "target_module": record.target_module,
                 "outcome": record.outcome,
                 "context_refs": record.context_refs,
