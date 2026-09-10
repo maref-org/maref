@@ -13,7 +13,7 @@ from maref.integration.percv.multi_target_ratchet import ImprovementTarget, Mult
 from maref.integration.percv.orchestrator import OrchestratorCycleResult, PERCVResearchOrchestrator
 from maref.vault.evolution_vault import EvolutionVault
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(no_args_is_help=True, help="PERCV integration commands")
 percv_app = app
 console = Console()
 
