@@ -122,13 +122,14 @@ def list_vaccine_rules() -> list[dict[str, Any]]:
 def _compute_fpr() -> float:
     if not _FPR_LOG.exists():
         return 0.0
-    fp_count = sum(1 for _ in open(_FPR_LOG))
+    with open(_FPR_LOG) as _fpr_file:
+        fp_count = sum(1 for _ in _fpr_file)
     if fp_count == 0:
         return 0.0
     total_decisions = 1
     try:
         with open(_BATCH_LOG) as f:
-            for line in f:
+            for _line in f:
                 total_decisions += 1
     except FileNotFoundError:
         pass
