@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 try:
     import httpx
+
     HAS_HTTPX = True
 except ImportError:
     HAS_HTTPX = False
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 @dataclass
 class PortCheckResult:
     """Result of a single port check."""
+
     host: str
     port: int
     path: str = ""
@@ -50,6 +52,7 @@ class PortCheckResult:
 @dataclass
 class ServiceDef:
     """Service definition for port monitoring."""
+
     name: str
     host: str
     port: int
@@ -85,7 +88,9 @@ class PortMonitor:
         self.history: list[PortCheckResult] = []
         self._on_unhealthy: list[Callable[[PortCheckResult], None]] = []
 
-    def check_tcp(self, host: str, port: int, timeout_ms: float = 5000.0) -> tuple[bool, float, str]:
+    def check_tcp(
+        self, host: str, port: int, timeout_ms: float = 5000.0
+    ) -> tuple[bool, float, str]:
         """Check TCP connectivity to host:port.
 
         Returns:
@@ -108,7 +113,9 @@ class PortMonitor:
             latency_ms = (time.time() - start) * 1000
             return False, latency_ms, str(e)
 
-    def check_http(self, host: str, port: int, path: str, timeout_ms: float = 5000.0) -> dict[str, Any]:
+    def check_http(
+        self, host: str, port: int, path: str, timeout_ms: float = 5000.0
+    ) -> dict[str, Any]:
         """Check HTTP health endpoint.
 
         Returns:
@@ -143,16 +150,38 @@ class PortMonitor:
                 "error": "",
             }
         except httpx.TimeoutException:
-            return {"status": 0, "latency_ms": timeout_s * 1000, "body": None, "functional": False, "error": "timeout"}
+            return {
+                "status": 0,
+                "latency_ms": timeout_s * 1000,
+                "body": None,
+                "functional": False,
+                "error": "timeout",
+            }
         except Exception as e:
-            return {"status": 0, "latency_ms": 0, "body": None, "functional": False, "error": str(e)}
+            return {
+                "status": 0,
+                "latency_ms": 0,
+                "body": None,
+                "functional": False,
+                "error": str(e),
+            }
 
     def _check_http_curl(self, url: str, timeout_s: float) -> dict[str, Any]:
         """HTTP check using curl subprocess (fallback when httpx unavailable)."""
         start = time.time()
         try:
             result = subprocess.run(
-                ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", str(timeout_s), url],
+                [
+                    "curl",
+                    "-s",
+                    "-o",
+                    "/dev/null",
+                    "-w",
+                    "%{http_code}",
+                    "--max-time",
+                    str(timeout_s),
+                    url,
+                ],
                 capture_output=True,
                 text=True,
                 timeout=timeout_s + 5,
@@ -168,14 +197,28 @@ class PortMonitor:
                 "error": "",
             }
         except subprocess.TimeoutExpired:
-            return {"status": 0, "latency_ms": timeout_s * 1000, "body": None, "functional": False, "error": "timeout"}
+            return {
+                "status": 0,
+                "latency_ms": timeout_s * 1000,
+                "body": None,
+                "functional": False,
+                "error": "timeout",
+            }
         except Exception as e:
-            return {"status": 0, "latency_ms": 0, "body": None, "functional": False, "error": str(e)}
+            return {
+                "status": 0,
+                "latency_ms": 0,
+                "body": None,
+                "functional": False,
+                "error": str(e),
+            }
 
     def check_service(self, service: ServiceDef) -> PortCheckResult:
         """Run full health check on a service."""
         connected, tcp_latency, tcp_error = self.check_tcp(
-            service.host, service.port, service.timeout_ms,
+            service.host,
+            service.port,
+            service.timeout_ms,
         )
         result = PortCheckResult(
             host=service.host,
@@ -191,7 +234,10 @@ class PortMonitor:
 
         if service.health_path:
             http_result = self.check_http(
-                service.host, service.port, service.health_path, service.timeout_ms,
+                service.host,
+                service.port,
+                service.health_path,
+                service.timeout_ms,
             )
             result.http_status = http_result["status"]
             result.latency_ms = http_result["latency_ms"]
@@ -299,7 +345,11 @@ class PortMonitor:
         if not self.history:
             self.check_all()
 
-        results = self.history[-len(self.services):] if len(self.history) >= len(self.services) else self.history
+        results = (
+            self.history[-len(self.services) :]
+            if len(self.history) >= len(self.services)
+            else self.history
+        )
 
         total = len(results)
         healthy = sum(1 for r in results if r.healthy)

@@ -32,15 +32,11 @@ class A2ADiscovery:
     def unregister_agent(self, agent_id: str) -> bool:
         return self._agents.pop(agent_id, None) is not None
 
-    def discover_agents(
-        self, capability_filter: str | None = None
-    ) -> list[dict[str, Any]]:
+    def discover_agents(self, capability_filter: str | None = None) -> list[dict[str, Any]]:
         if capability_filter is None:
             return list(self._agents.values())
         return [
-            agent
-            for agent in self._agents.values()
-            if capability_filter in agent["capabilities"]
+            agent for agent in self._agents.values() if capability_filter in agent["capabilities"]
         ]
 
     async def health_check(self, agent_id: str) -> bool:

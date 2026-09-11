@@ -92,7 +92,7 @@ class HighOrderConvergenceMonitor:
 
         mean = sum(recent) / window
         variance = self._variance(recent, mean)
-        std = variance ** 0.5
+        std = variance**0.5
 
         is_degenerate = std <= 1e-10
         if is_degenerate:
@@ -113,8 +113,7 @@ class HighOrderConvergenceMonitor:
         no_extreme_outliers = abs(kurtosis - 3.0) < self._kurtosis_threshold or is_degenerate
 
         fully_converged = (
-            mean_converged and variance_converged
-            and distribution_symmetric and no_extreme_outliers
+            mean_converged and variance_converged and distribution_symmetric and no_extreme_outliers
         )
 
         pseudo_converged = mean_converged and not variance_converged
@@ -127,9 +126,13 @@ class HighOrderConvergenceMonitor:
         if not distribution_symmetric:
             details_list.append(f"|skewness| {abs(skewness):.4f} >= {self._skewness_threshold}")
         if not no_extreme_outliers:
-            details_list.append(f"|kurtosis-3| {abs(kurtosis - 3.0):.4f} >= {self._kurtosis_threshold}")
+            details_list.append(
+                f"|kurtosis-3| {abs(kurtosis - 3.0):.4f} >= {self._kurtosis_threshold}"
+            )
         if pseudo_converged:
-            details_list.append("pseudo-convergence detected: mean stable but variance not converged")
+            details_list.append(
+                "pseudo-convergence detected: mean stable but variance not converged"
+            )
 
         return ConvergenceReport(
             series_name=name or self._series_name(series),

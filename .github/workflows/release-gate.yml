@@ -68,7 +68,10 @@ jobs:
       - name: Core tests
         run: pytest tests/governance/ -v --tb=short -x --ignore=tests/formal --cov-fail-under=0
       - name: Coverage gate
-        run: pytest tests/governance -q --cov=src/maref/governance --cov-fail-under=60
+        # pytest-cov 的 --cov 是 append 语义：addopts 的 `--cov=src` 与命令行
+        # `--cov=src/maref/governance` 累积，会把整个 src 计入测量（TOTAL 19.45%）。
+        # 用 `-o addopts` 覆盖 addopts，使本 step 只测 governance（本地实测 88%+）。
+        run: pytest tests/governance -q -o addopts="--strict-markers" --cov=src/maref/governance --cov-fail-under=60
 
   gate-security:
     needs: gate-quality
@@ -105,3 +108,8 @@ jobs:
         run: pytest tests/benchmark/test_saeb.py -v --tb=short -x --cov-fail-under=0
         env:
           MAREF_FEDERATED_AUDIT_KEY: ${{ secrets.MAREF_FEDERATED_AUDIT_KEY || 'ci-placeholder-key' }}
+      - name: Audit chain append benchmark
+        run: |
+          # 审计链 O(1) 追加性能回归守卫(>1ms/append 报警)。见
+          # benchmarks/audit_chain_append.py。非 pytest, 独立脚本。
+          python benchmarks/audit_chain_append.py

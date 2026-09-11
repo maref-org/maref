@@ -140,7 +140,10 @@ class MembershipManager:
         ``unauthorized_heartbeat`` audit record on rejection and an
         ``unsecured_heartbeat`` warning when no enforcement is configured.
         """
-        if self._allowed_heartbeat_servers is not None and message.server_id not in self._allowed_heartbeat_servers:
+        if (
+            self._allowed_heartbeat_servers is not None
+            and message.server_id not in self._allowed_heartbeat_servers
+        ):
             self._emit_audit(
                 {
                     "event_type": "unauthorized_heartbeat",
@@ -233,7 +236,9 @@ class MembershipManager:
         if self._heartbeat_token is not None:
             headers["X-MAREF-HB-Token"] = self._heartbeat_token
         try:
-            response = httpx.post(url, json=message.to_dict(), headers=headers, timeout=self._timeout)
+            response = httpx.post(
+                url, json=message.to_dict(), headers=headers, timeout=self._timeout
+            )
             response.raise_for_status()
             peer.last_contact = time.time()
             peer.healthy = True

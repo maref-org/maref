@@ -190,9 +190,7 @@ class PipelineSelectionCheck(PreflightCheck):
             suggestion_text = ""
             if suggestions:
                 best = suggestions[0]
-                suggestion_text = (
-                    f"推荐使用官方管线 '{best.pipeline_id}' ({best.name})"
-                )
+                suggestion_text = f"推荐使用官方管线 '{best.pipeline_id}' ({best.name})"
 
             return PreflightCheckResult(
                 check_name=self.name,
@@ -448,8 +446,7 @@ class RiskAuthorizationCheck(PreflightCheck):
                 enforce_blocked = False
             if enforce_blocked and scope is None:
                 enforce_reason = (
-                    f"辖区 {jurisdiction} 对该动作实施强制监管（ENFORCE），"
-                    "未提供授权范围"
+                    f"辖区 {jurisdiction} 对该动作实施强制监管（ENFORCE），未提供授权范围"
                 )
 
         # S1 接线：风险分级 + 授权范围 + 目标域白名单统一交给
@@ -508,8 +505,7 @@ class RiskAuthorizationCheck(PreflightCheck):
             check_name=self.name,
             status=PreflightCheckStatus.FAIL,
             description=(
-                f"动作 {action} 风险等级 {assessment.risk_level.value} 越界阻断："
-                f"{decision.reason}"
+                f"动作 {action} 风险等级 {assessment.risk_level.value} 越界阻断：{decision.reason}"
             ),
             evidence=decision.reason,
             details=details,

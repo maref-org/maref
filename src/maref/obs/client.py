@@ -170,6 +170,86 @@ class MarefObsClient:
         )
         return self.log_event(event_type, metadata)
 
+    def log_trust_boundary_violation(
+        self,
+        action: str,
+        agent_id: str,
+        reason: str,
+        risk_level: str = "",
+    ) -> int | None:
+        """Convenience: log a trust boundary violation."""
+        metadata: dict = {
+            "action": action,
+            "agent_id": agent_id,
+            "reason": reason,
+            "risk_level": risk_level,
+        }
+        return self.log_event(ObsEventType.TRUST_BOUNDARY_VIOLATION, metadata)
+
+    def log_sanction(
+        self,
+        target_id: str,
+        sanction_type: str,
+        amount: float = 0.0,
+        reason: str = "",
+    ) -> int | None:
+        """Convenience: log an agent sanction event."""
+        metadata: dict = {
+            "target_id": target_id,
+            "sanction_type": sanction_type,
+            "amount": amount,
+            "reason": reason,
+        }
+        return self.log_event(ObsEventType.SANCTION, metadata)
+
+    def log_cost_breach(
+        self,
+        model: str,
+        provider: str,
+        cost: float,
+        budget: float,
+        reason: str = "",
+    ) -> int | None:
+        """Convenience: log a cost guardrail breach."""
+        metadata: dict = {
+            "model": model,
+            "provider": provider,
+            "cost": cost,
+            "budget": budget,
+            "reason": reason,
+        }
+        return self.log_event(ObsEventType.COST_BREACH, metadata)
+
+    def log_constitution_violation(
+        self,
+        rule_id: str,
+        agent_id: str,
+        description: str,
+    ) -> int | None:
+        """Convenience: log a constitution red-line violation."""
+        metadata: dict = {
+            "rule_id": rule_id,
+            "agent_id": agent_id,
+            "description": description,
+        }
+        return self.log_event(ObsEventType.CONSTITUTION_VIOLATION, metadata)
+
+    def log_governance_bypass(
+        self,
+        agent_id: str,
+        bypass_type: str,
+        component: str,
+        reason: str = "",
+    ) -> int | None:
+        """Convenience: log a governance bypass attempt."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "bypass_type": bypass_type,
+            "component": component,
+            "reason": reason,
+        }
+        return self.log_event(ObsEventType.GOVERNANCE_BYPASS, metadata)
+
     # ── Buffer management ──────────────────────────────────────────
 
     def flush(self) -> None:

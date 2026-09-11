@@ -39,6 +39,7 @@ class SAEBAdapter:
         try:
             with tempfile.TemporaryDirectory(prefix="saeb_daemon_") as tmpdir:
                 from pathlib import Path
+
                 scenario = SAEBScenario(
                     name=f"daemon_run_{self._run_count}",
                     description=f"DAEMON SAEB benchmark run {self._run_count}",

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+
 import pytest
 
 from maref.stress.code_service_sqi import (
@@ -7,6 +9,53 @@ from maref.stress.code_service_sqi import (
     CodeQualityMetrics,
     CodeServiceSQI,
 )
+
+
+@pytest.fixture(autouse=True)
+def _ensure_real_classes(request: pytest.FixtureRequest) -> None:
+    """免疫跨文件 mock 泄漏（CI 全量顺序下偶发）。
+
+    若前面测试将 code_service_sqi 模块的 CodeServiceSQI/WEIGHT_PROFILES
+    或其父类来源（stress.sqi stub 的 ServiceQualityIndex）patch 成
+    MagicMock(spec_set=...) 而未清理（coverage 环境异常中断 teardown
+    时可能发生），CodeServiceSQI() 实例会走 mock.__setattr__ 抛
+    _mock_methods。setup 检测污染则从 conftest 保存的真实类恢复 stub，
+    reload 模块并更新本测试模块全局绑定。
+    """
+    import sys
+
+    import maref.stress.code_service_sqi as csiq
+
+    bound = request.module.__dict__.get("CodeServiceSQI")
+    # 检测 MRO 是否含 mock 父类：用 issubclass(Mock) 而非 hasattr(_mock_methods)
+    # —— MagicMock 的 _mock_methods 是实例属性，类级 hasattr 恒 False，会漏检
+    # "code_service_sqi import 时父类(stress.sqi stub)恰被 mock" 导致类 MRO
+    # 固化 MagicMock 的情况（真实实例属性赋值也会走 mock.__setattr__）。
+    from unittest import mock as _umock
+
+    base_mocked = False
+    if bound is not None:
+        base_mocked = any(issubclass(c, _umock.Mock) for c in bound.__mro__[1:])
+    polluted = (
+        base_mocked
+        or issubclass(csiq.CodeServiceSQI, _umock.Mock)
+        or isinstance(csiq.WEIGHT_PROFILES, _umock.Mock)
+    )
+    _sqi = sys.modules.get("maref.stress.sqi") or type(sys)("maref.stress.sqi")
+    if polluted:
+        # conftest 注入 stub 时保存了真实类于隐藏属性，patch 泄漏只
+        # 改 ServiceQualityIndex/WEIGHT_PROFILES 属性，据此恢复真实。
+        real_cls = getattr(_sqi, "_REAL_SERVICE_QUALITY_INDEX", None)
+        if real_cls is not None:
+            _sqi.ServiceQualityIndex = real_cls
+        real_report = getattr(_sqi, "_REAL_SQI_REPORT", None)
+        if real_report is not None:
+            _sqi.SQIReport = real_report
+        mod = importlib.reload(csiq)
+        module_globals = vars(request.module)
+        module_globals["CodeServiceSQI"] = mod.CodeServiceSQI
+        module_globals["WEIGHT_PROFILES"] = mod.WEIGHT_PROFILES
+        module_globals["CodeQualityMetrics"] = mod.CodeQualityMetrics
 
 
 class TestCodeQualityMetrics:
@@ -27,14 +76,24 @@ class TestCodeQualityMetrics:
 
 class TestWeightProfiles:
     def test_all_profiles_have_all_keys(self):
-        required = {"delivery_quality", "consistency", "cost_efficiency",
-                    "convergence_speed", "stability", "test_coverage_rate",
-                    "lint_pass_rate", "build_success_rate", "doc_completeness",
-                    "regression_free_rate"}
+        required = {
+            "delivery_quality",
+            "consistency",
+            "cost_efficiency",
+            "convergence_speed",
+            "stability",
+            "test_coverage_rate",
+            "lint_pass_rate",
+            "build_success_rate",
+            "doc_completeness",
+            "regression_free_rate",
+        }
         for name, profile in WEIGHT_PROFILES.items():
             assert set(profile.keys()) == required, f"Profile {name} missing keys"
             total = sum(profile.values())
-            assert abs(total - 1.0) < 0.2, f"Profile {name} weights sum to {total:.2f}, expected ~1.0"
+            assert abs(total - 1.0) < 0.2, (
+                f"Profile {name} weights sum to {total:.2f}, expected ~1.0"
+            )
 
     def test_default_profile(self):
         for v in WEIGHT_PROFILES["default"].values():
@@ -89,7 +148,7 @@ class TestCodeServiceSQI:
 
     def test_set_custom_weights_valid(self):
         sqi = CodeServiceSQI()
-        weights = {k: 0.10 for k in WEIGHT_PROFILES["default"].keys()}
+        weights = dict.fromkeys(WEIGHT_PROFILES["default"].keys(), 0.1)
         sqi.set_custom_weights(weights)
         assert sqi._weights["consistency"] == 0.10
 
@@ -100,7 +159,7 @@ class TestCodeServiceSQI:
 
     def test_set_custom_weights_wrong_sum(self):
         sqi = CodeServiceSQI()
-        weights = {k: 0.05 for k in WEIGHT_PROFILES["default"].keys()}
+        weights = dict.fromkeys(WEIGHT_PROFILES["default"].keys(), 0.05)
         with pytest.raises(ValueError, match="Weights must sum to 1.0"):
             sqi.set_custom_weights(weights)
 
@@ -222,6 +281,7 @@ class TestCodeServiceSQI:
 
     def test_compute_with_budget_usage(self):
         sqi = CodeServiceSQI()
-        report = sqi.compute(budget_usage_pct=50.0, cost_trend_direction="increasing",
-                             round_id="budget")
+        report = sqi.compute(
+            budget_usage_pct=50.0, cost_trend_direction="increasing", round_id="budget"
+        )
         assert report.overall_score >= 0

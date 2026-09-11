@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from maref.compliance.data_sovereignty import DataCategory
 from maref.data.catalog import DataSource, DataSourceType, FieldSpec
-from maref.data.schema_validator import SchemaValidator
+from maref.data.schema_validator import SchemaValidator, ValidationResult
 
 
 def _source_with_fields(

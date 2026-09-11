@@ -110,6 +110,7 @@ class SelfOptimizer:
         adopt_threshold: float = 0.05,
         benchmark_fn: Callable[[], dict[str, float]] | None = None,
         apply_fn: Callable[[], None] | None = None,
+        benchmark_scope: str = "module",
     ) -> None:
         self._adopt_threshold = adopt_threshold
         self._hypotheses: list[OptimizationHypothesis] = []
@@ -237,6 +238,7 @@ class SelfOptimizer:
         adopted: bool,
     ) -> OptimizationHypothesis:
         import uuid
+
         hypothesis = OptimizationHypothesis(
             hypothesis_id=f"rel_round_{round_number}_{uuid.uuid4().hex[:6]}",
             description=f"REL round {round_number} evolution result",

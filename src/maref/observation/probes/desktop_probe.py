@@ -52,7 +52,9 @@ class DesktopProbe(BaseProbe):
         total = len(sessions)
         expired = sum(1 for s in sessions.values() if s.is_expired)
         health = 1.0 if active > 0 else 0.5
-        severity = ProbeSeverity.CRITICAL if health < self.critical_threshold else ProbeSeverity.NORMAL
+        severity = (
+            ProbeSeverity.CRITICAL if health < self.critical_threshold else ProbeSeverity.NORMAL
+        )
         reading = ProbeReading(
             probe_name=self.name,
             severity=severity,

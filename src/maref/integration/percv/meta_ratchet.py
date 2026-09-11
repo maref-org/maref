@@ -91,25 +91,27 @@ class MetaRatchet:
 
     CONSTITUTIONAL_IMMUTABLES = ["branch_prefix", "human_gate"]
 
-    CONFIGURATIONAL_IMMUTABLES: frozenset[str] = frozenset({
-        "CONSTITUTIONAL_IMMUTABLES",
-        "CONFIGURATIONAL_IMMUTABLES",
-        "CONFIG_KEYS",
-        "TRIGGER_CONDITIONS",
-        "is_production",
-        "check_triggers",
-        "diagnose_stagnation",
-        "propose_protocol_change",
-        "sandbox_test",
-        "_check_redlines",
-        "_check_self_modification",
-        "_run_sandbox_with_real_evaluator",
-        "_run_sandbox_simulated",
-        "_run_sandbox_with_external_evaluator",
-        "get_audit_summary",
-        "get_production_safety_report",
-        "_write_audit",
-    })
+    CONFIGURATIONAL_IMMUTABLES: frozenset[str] = frozenset(
+        {
+            "CONSTITUTIONAL_IMMUTABLES",
+            "CONFIGURATIONAL_IMMUTABLES",
+            "CONFIG_KEYS",
+            "TRIGGER_CONDITIONS",
+            "is_production",
+            "check_triggers",
+            "diagnose_stagnation",
+            "propose_protocol_change",
+            "sandbox_test",
+            "_check_redlines",
+            "_check_self_modification",
+            "_run_sandbox_with_real_evaluator",
+            "_run_sandbox_simulated",
+            "_run_sandbox_with_external_evaluator",
+            "get_audit_summary",
+            "get_production_safety_report",
+            "_write_audit",
+        }
+    )
 
     CONFIG_KEYS: dict[str, dict[str, Any]] = {
         "metric_direction": {"type": str, "options": ["higher_is_better", "lower_is_better"]},
@@ -199,27 +201,27 @@ class MetaRatchet:
 
         for name, condition in self.TRIGGER_CONDITIONS.items():
             if name == "consecutive_discards":
-                recent = target_history[-condition["threshold"]:]
+                recent = target_history[-condition["threshold"] :]
                 if len(recent) >= condition["threshold"] and all(
                     getattr(r, "status", "") == "discard" for r in recent
                 ):
                     triggered.append(name)
             elif name == "diminishing_returns":
-                recent = target_history[-condition["window"]:]
+                recent = target_history[-condition["window"] :]
                 if len(recent) >= condition["window"]:
                     improvements = [
-                        abs(getattr(r, "delta", 0)) for r in recent
+                        abs(getattr(r, "delta", 0))
+                        for r in recent
                         if getattr(r, "status", "") == "keep"
                     ]
                     if improvements and max(improvements) < condition["improvement_threshold"]:
                         triggered.append(name)
             elif name == "oscillation":
-                recent = target_history[-condition["window"]:]
+                recent = target_history[-condition["window"] :]
                 if len(recent) >= condition["window"]:
                     statuses = [getattr(r, "status", "") for r in recent]
                     flips = sum(
-                        1 for i in range(1, len(statuses))
-                        if statuses[i] != statuses[i - 1]
+                        1 for i in range(1, len(statuses)) if statuses[i] != statuses[i - 1]
                     )
                     if flips >= condition["max_flip_flops"]:
                         triggered.append(name)
@@ -266,18 +268,20 @@ class MetaRatchet:
         self.diagnosis_history.append(diag)
 
         # 审计记录：诊断阶段
-        self._write_audit(MetaRatchetAuditRecord(
-            timestamp=datetime.now().isoformat(),
-            phase="diagnose",
-            target=target.value if target else "",
-            diagnosis_type=diag.diagnosis_type,
-            protocol_change_key="",
-            sandbox_improvement=0.0,
-            adopted=False,
-            hitl_approved=False,
-            redline_violations=[],
-            production_safe=not self.is_production,
-        ))
+        self._write_audit(
+            MetaRatchetAuditRecord(
+                timestamp=datetime.now().isoformat(),
+                phase="diagnose",
+                target=target.value if target else "",
+                diagnosis_type=diag.diagnosis_type,
+                protocol_change_key="",
+                sandbox_improvement=0.0,
+                adopted=False,
+                hitl_approved=False,
+                redline_violations=[],
+                production_safe=not self.is_production,
+            )
+        )
 
         return diag
 
@@ -366,18 +370,20 @@ class MetaRatchet:
                 logger.warning("MetaCognitiveAuditor assessment failed: %s", exc)
 
         # 审计记录：提议阶段
-        self._write_audit(MetaRatchetAuditRecord(
-            timestamp=datetime.now().isoformat(),
-            phase="propose",
-            target=diagnosis.affected_target.value if diagnosis.affected_target else "",
-            diagnosis_type=diagnosis.diagnosis_type,
-            protocol_change_key=change.config_key,
-            sandbox_improvement=0.0,
-            adopted=False,
-            hitl_approved=False,
-            redline_violations=redlines,
-            production_safe=not self.is_production,
-        ))
+        self._write_audit(
+            MetaRatchetAuditRecord(
+                timestamp=datetime.now().isoformat(),
+                phase="propose",
+                target=diagnosis.affected_target.value if diagnosis.affected_target else "",
+                diagnosis_type=diagnosis.diagnosis_type,
+                protocol_change_key=change.config_key,
+                sandbox_improvement=0.0,
+                adopted=False,
+                hitl_approved=False,
+                redline_violations=redlines,
+                production_safe=not self.is_production,
+            )
+        )
 
         return change
 
@@ -420,8 +426,10 @@ class MetaRatchet:
         old_mean = sum(old_scores) / len(old_scores) if old_scores else 0.0
         new_mean = sum(new_scores) / len(new_scores) if new_scores else 0.0
         pooled_std = (
-            statistics.stdev(old_scores) + statistics.stdev(new_scores)
-        ) / 2 if len(old_scores) > 1 and len(new_scores) > 1 else 0.01
+            (statistics.stdev(old_scores) + statistics.stdev(new_scores)) / 2
+            if len(old_scores) > 1 and len(new_scores) > 1
+            else 0.01
+        )
         effect_size = (new_mean - old_mean) / pooled_std if pooled_std > 0 else 0
 
         is_safe = not self.is_production or change.hitl_approved
@@ -444,13 +452,20 @@ class MetaRatchet:
 
         # H7: constitutional immutables are blocked even in simulated mode
         if change.config_key in self.CONSTITUTIONAL_IMMUTABLES:
-            logger.warning("Simulated sandbox blocked: %s is constitutional immutable", change.config_key)
+            logger.warning(
+                "Simulated sandbox blocked: %s is constitutional immutable", change.config_key
+            )
             return SandboxResult(
-                protocol_change=change, old_avg_score=0, new_avg_score=0,
-                improvement=0, adopted=False, is_production_safe=False,
+                protocol_change=change,
+                old_avg_score=0,
+                new_avg_score=0,
+                improvement=0,
+                adopted=False,
+                is_production_safe=False,
             )
 
         import random
+
         rng = random.Random(42)
 
         old_scores: list[float] = []
@@ -463,8 +478,10 @@ class MetaRatchet:
         old_mean = sum(old_scores) / len(old_scores)
         new_mean = sum(new_scores) / len(new_scores)
         pooled_std = (
-            statistics.stdev(old_scores) + statistics.stdev(new_scores)
-        ) / 2 if len(old_scores) > 1 and len(new_scores) > 1 else 0.01
+            (statistics.stdev(old_scores) + statistics.stdev(new_scores)) / 2
+            if len(old_scores) > 1 and len(new_scores) > 1
+            else 0.01
+        )
         effect_size = (new_mean - old_mean) / pooled_std if pooled_std > 0 else 0
 
         return SandboxResult(
@@ -517,18 +534,20 @@ class MetaRatchet:
             result = self._run_sandbox_simulated(change, n_rounds)
 
         # 审计记录：沙箱阶段
-        self._write_audit(MetaRatchetAuditRecord(
-            timestamp=datetime.now().isoformat(),
-            phase="sandbox",
-            target="",
-            diagnosis_type="",
-            protocol_change_key=change.config_key,
-            sandbox_improvement=result.improvement,
-            adopted=result.adopted,
-            hitl_approved=change.hitl_approved,
-            redline_violations=change.redline_violations,
-            production_safe=result.is_production_safe,
-        ))
+        self._write_audit(
+            MetaRatchetAuditRecord(
+                timestamp=datetime.now().isoformat(),
+                phase="sandbox",
+                target="",
+                diagnosis_type="",
+                protocol_change_key=change.config_key,
+                sandbox_improvement=result.improvement,
+                adopted=result.adopted,
+                hitl_approved=change.hitl_approved,
+                redline_violations=change.redline_violations,
+                production_safe=result.is_production_safe,
+            )
+        )
 
         return result
 
@@ -554,8 +573,10 @@ class MetaRatchet:
         old_mean = sum(old_scores) / len(old_scores) if old_scores else 0.0
         new_mean = sum(new_scores) / len(new_scores) if new_scores else 0.0
         pooled_std = (
-            statistics.stdev(old_scores) + statistics.stdev(new_scores)
-        ) / 2 if len(old_scores) > 1 and len(new_scores) > 1 else 0.01
+            (statistics.stdev(old_scores) + statistics.stdev(new_scores)) / 2
+            if len(old_scores) > 1 and len(new_scores) > 1
+            else 0.01
+        )
         effect_size = (new_mean - old_mean) / pooled_std if pooled_std > 0 else 0
 
         return SandboxResult(
@@ -588,7 +609,9 @@ class MetaRatchet:
             "is_production": self.is_production,
             "hitl_required": self.is_production and self.require_hitl_in_production,
             "audit_records_count": len(self._audit_buffer),
-            "last_diagnosis": self.diagnosis_history[-1].diagnosis_type if self.diagnosis_history else None,
+            "last_diagnosis": self.diagnosis_history[-1].diagnosis_type
+            if self.diagnosis_history
+            else None,
             "constitutional_immutables": self.CONSTITUTIONAL_IMMUTABLES,
         }
 
@@ -613,24 +636,23 @@ class MetaRatchet:
             # Search audit log file
             audit_records = self.get_audit_summary(n=100)
             for rec in reversed(audit_records):
-                if (
-                    rec.get("protocol_change_key") == config_key
-                    and rec.get("adopted")
-                ):
-                    adopted_records.append(MetaRatchetAuditRecord(
-                        timestamp=rec.get("timestamp", ""),
-                        phase=rec.get("phase", ""),
-                        target=rec.get("target", ""),
-                        diagnosis_type=rec.get("diagnosis_type", ""),
-                        protocol_change_key=rec.get("protocol_change_key", ""),
-                        sandbox_improvement=rec.get("sandbox_improvement", 0.0),
-                        adopted=True,
-                        hitl_approved=rec.get("hitl_approved", False),
-                        redline_violations=rec.get("redline_violations", []),
-                        production_safe=rec.get("production_safe", False),
-                        old_value=rec.get("old_value"),
-                        new_value=rec.get("new_value"),
-                    ))
+                if rec.get("protocol_change_key") == config_key and rec.get("adopted"):
+                    adopted_records.append(
+                        MetaRatchetAuditRecord(
+                            timestamp=rec.get("timestamp", ""),
+                            phase=rec.get("phase", ""),
+                            target=rec.get("target", ""),
+                            diagnosis_type=rec.get("diagnosis_type", ""),
+                            protocol_change_key=rec.get("protocol_change_key", ""),
+                            sandbox_improvement=rec.get("sandbox_improvement", 0.0),
+                            adopted=True,
+                            hitl_approved=rec.get("hitl_approved", False),
+                            redline_violations=rec.get("redline_violations", []),
+                            production_safe=rec.get("production_safe", False),
+                            old_value=rec.get("old_value"),
+                            new_value=rec.get("new_value"),
+                        )
+                    )
                     break
 
         if not adopted_records:
@@ -644,24 +666,28 @@ class MetaRatchet:
         old_value = record.old_value
 
         # Write rollback audit record
-        self._write_audit(MetaRatchetAuditRecord(
-            timestamp=datetime.now().isoformat(),
-            phase="rollback",
-            target="",
-            diagnosis_type="manual_rollback",
-            protocol_change_key=config_key,
-            sandbox_improvement=0.0,
-            adopted=False,
-            hitl_approved=True,
-            redline_violations=[],
-            production_safe=True,
-            old_value=record.new_value,
-            new_value=old_value,
-        ))
+        self._write_audit(
+            MetaRatchetAuditRecord(
+                timestamp=datetime.now().isoformat(),
+                phase="rollback",
+                target="",
+                diagnosis_type="manual_rollback",
+                protocol_change_key=config_key,
+                sandbox_improvement=0.0,
+                adopted=False,
+                hitl_approved=True,
+                redline_violations=[],
+                production_safe=True,
+                old_value=record.new_value,
+                new_value=old_value,
+            )
+        )
 
         logger.info(
             "Protocol change rolled back: key=%s old_value=%s new_value=%s",
-            config_key, old_value, record.new_value,
+            config_key,
+            old_value,
+            record.new_value,
         )
 
         return {

@@ -32,9 +32,7 @@ NODES = (0, 1, 2)
 ENTRIES: frozenset[int] = frozenset({1})
 MAX_CHAIN = 2
 
-SPEC_PATH = (
-    Path(__file__).resolve().parents[2] / "formal" / "MAREF_InternetInvariants.tla"
-)
+SPEC_PATH = Path(__file__).resolve().parents[2] / "formal" / "MAREF_InternetInvariants.tla"
 
 _INVARIANT_PATTERN = re.compile(r"^(\w+)\s*==\s*$", re.MULTILINE)
 
@@ -232,8 +230,7 @@ class InternetInvariantsVerifier:
                 "check": "trust_acyclic",
                 "passed": not violated,
                 "detail": (
-                    f"{len(states)} reachable states, no trust cycle "
-                    f"(arbitrary-length DFS) in any"
+                    f"{len(states)} reachable states, no trust cycle (arbitrary-length DFS) in any"
                 ),
             }
         ]

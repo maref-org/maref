@@ -35,7 +35,9 @@ class BehaviorBaseline:
         suppression = self._detect_capability_suppression(profile, session)
         anomalies = self._detect_anomalies(profile, session)
 
-        confidence = self._compute_confidence(entropy_dev, latency_dev, len(suppression), len(anomalies))
+        confidence = self._compute_confidence(
+            entropy_dev, latency_dev, len(suppression), len(anomalies)
+        )
         is_consistent = confidence >= 0.7 and len(anomalies) == 0
 
         return ConsistencyReport(

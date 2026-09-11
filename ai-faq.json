@@ -1,0 +1,75 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "name": "MAREF FAQ — Product Facts",
+  "description": "Verifiable product facts about MAREF, the open-source agent governance operating system. Mirrors https://maref.cc/en/faq/.",
+  "url": "https://maref.cc/en/faq/",
+  "inLanguage": "en",
+  "lastReviewed": "2026-08-13",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF (Multi-Agent Recursive Evolution Framework) is an open-source agent governance operating system. It sits between your AI agents and the tools they call, providing 8 layers of defense, formal verification (TLA+), cryptographic audit trails, recursive self-evolution, and Chinese national cryptography (SM2/SM3/SM4-GCM). Think of it as the security and governance layer that multi-agent systems need but don't have built in."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is MAREF different from LangGraph, CrewAI, or AutoGen?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Those frameworks help you build multi-agent systems. MAREF helps you govern them. They solve orchestration — who talks to whom. MAREF solves safety — what agents are allowed to do. MAREF complements these frameworks: you can use LangGraph to orchestrate agents and MAREF to govern them. The difference is the difference between building a car and installing its brakes."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need a GPU to run MAREF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. MAREF is a governance layer, not a model runtime. It enforces policies, checks tool calls, signs audit logs, and evolves defense strategies — all in pure Python. It runs on a $5 VPS just as well as on a workstation. If you're running LLM agents, those need GPUs; MAREF does not."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is MAREF open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. MAREF is released under the Apache 2.0 license. The full source code is available on GitHub at github.com/maref-org/maref. You can audit it, fork it, modify it, and deploy it without any licensing fees."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What Chinese national cryptography standards does MAREF support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MAREF implements full GB/T 32918 compliance: SM2 for digital signatures and key exchange (256-bit ECC), SM3 for cryptographic hashing (256-bit), and SM4-GCM for authenticated symmetric encryption (128-bit block cipher with Galois/Counter Mode). All implementations are pure Python, zero native dependencies, and fully auditable."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is Lyapunov convergence and why should I care?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Lyapunov stability analysis mathematically proves that MAREF's governance engine gets safer over time — it doesn't just change, it converges toward a provable minimum error state. Most security systems degrade or oscillate. MAREF's error rate monotonically decreases. It's the difference between 'we hope this works' and 'we can prove it works.'"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does MAREF handle multi-agent trust?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The Trust Engine v2 evaluates five factors per interaction: recency, consistency, alignment with goals, outcome quality, and adversarial resistance. Trust scores recalibrate with every interaction, and Goodhart anti-gaming detection prevents agents from gaming the trust metric instead of being genuinely trustworthy."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use MAREF with my existing agent framework?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. MAREF is framework-agnostic. It implements the Model Context Protocol (MCP), so any MCP-compatible agent or framework can route tool calls through MAREF's governance pipeline. Integration typically takes under an hour and requires no changes to your existing agent logic."
+      }
+    }
+  ]
+}

@@ -7,6 +7,8 @@ date: 2026-07-22
 description: "We benchmarked MAREF's governance primitives against LangGraph, CrewAI, and AutoGen. The result: MAREF adds 4.7ms mean overhead per full governance cycle, while the other three frameworks ship zero native governance. Here's the 10-dimension comparison and reproducible numbers."
 ---
 
+> **Measurement note (added 2026-09-05)**: Governance overhead is **hardware/commit dependent**. The figures in this post were measured on the authoring machine. The committed raw output in `benchmarks/results-2026-07-08.txt` (full pipeline mean ~11.4 ms / p99 ~23.9 ms on that host) differs accordingly. Always reproduce on your own hardware: `python benchmarks/governance_overhead.py` — prefer that command over any single number quoted in this or other posts.
+
 > **TL;DR**: MAREF's full governance pipeline (state machine + circuit breaker + subgoal interceptor + safety gate + behavior monitor) costs **4,688 μs mean / 13,316 μs p99** per cycle. LangGraph, CrewAI, and AutoGen ship **0 ms** of native governance overhead — but also **0/10 OWASP Agentic Top 10 coverage**. This article presents a reproducible benchmark, a 10-dimension comparison matrix, and an honest analysis of when each framework is the right choice.
 
 <!-- truncate -->

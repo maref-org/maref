@@ -16,7 +16,7 @@ except ImportError:
 
 try:
     import pyautogui  # noqa: F401
-except ImportError:
+except Exception:  # headless CI: pyautogui→mouseinfo reads $DISPLAY → KeyError
     _DESKTOP_DEPS_MISSING.append("PyAutoGUI")
 
 try:

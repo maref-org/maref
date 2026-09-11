@@ -95,9 +95,7 @@ class MetaCognitiveAuditor:
         trigger = f"{event.severity.value}:{event.attack_type.value}:{event.source}"
 
         try:
-            evidence_summary = ", ".join(
-                f"{k}={v}" for k, v in list(event.evidence.items())[:3]
-            )
+            evidence_summary = ", ".join(f"{k}={v}" for k, v in list(event.evidence.items())[:3])
         except (AttributeError, TypeError):
             evidence_summary = "unavailable"
         reflection_summary = (
@@ -120,9 +118,7 @@ class MetaCognitiveAuditor:
                 self._circuit_breaker.record_failure()
         if self._state_machine is not None:
             try:
-                self._state_machine.force_halt(
-                    f"sentinel_hook:{event.attack_type.value}"
-                )
+                self._state_machine.force_halt(f"sentinel_hook:{event.attack_type.value}")
             except Exception:
                 recommended_action = "escalate_audit"
 
@@ -173,7 +169,6 @@ class MetaCognitiveAuditor:
             "agents_tracked": self._baseline.profile_count,
             "total_assessments": sum(len(v) for v in self._assessments.values()),
             "assessments_by_agent": {
-                agent_id: len(results)
-                for agent_id, results in self._assessments.items()
+                agent_id: len(results) for agent_id, results in self._assessments.items()
             },
         }

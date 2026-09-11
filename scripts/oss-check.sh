@@ -36,8 +36,22 @@ while IFS= read -r line; do
   [ -z "$line" ] && continue
   PATTERNS+=("$line")
   case "$line" in
-    *[\*\?\[\]]*|*/) ;;                     # 含通配符或目录尾斜杠：保持原样
-    *) PATTERNS+=("**/${line}") ;;          # 无通配符：补任意层级匹配（防 config/.env 绕过）
+    */)
+      # 目录尾斜杠条目（如 phone/）: 仅保留原样 glob 无法命中其子树文件
+      # （bash glob 中 '**' 在本上下文等价单 '*'，可跨目录层级）。
+      # 补 '**/<dir>/**' 变体，使 src/maref/phone/__init__.py 这类子路径可被拦截
+      # （2026-08-12 泄漏事件中 src/maref/phone/__init__.py 漏网即此因）。
+      PATTERNS+=("**/${line}**")
+      ;;
+    *[\*\?\[\]]*)
+      # 含通配符但非尾斜杠（如 data/**、**/.missions/**）: 保留原样 glob。
+      # 它们自带完整路径语义——data/** 仅匹配根级 data/ 子树，
+      # **/.missions/** 已覆盖任意层级。此处**不得**追加 '**/<line>**'，
+      # 否则会把根级意图（data/**，第 50 行注明 src/maref/data 属公开代码）
+      # 泛化为任意层级匹配，误伤 src/maref/data/*（公开模块）。
+      ;;
+    *)
+      PATTERNS+=("**/${line}") ;;          # 无通配符：补任意层级匹配（防 config/.env 绕过）
   esac
 done < "$EXCLUDE_LIST"
 
@@ -56,7 +70,14 @@ SENSITIVE_PREFIXES=(
   cache/ logs/ .evolution_vault/ policy_versions/ credentials/
   src/maref/federation/tla_engine/ src/maref/trustgnn/
   src/maref/cost_scheduler/ src/maref/multimodal_guard/
+  # 王炸层 2026-08-14 审计补登（登记表 docs/oss-deepwater-registry.md）:
+  # 供应链深度/边缘自愈/免疫基因库/攻击模式图谱/Agent PKI
+  src/maref/supply_chain/deep/ src/maref/edge/self_heal/
+  src/maref/immunity/gene_vault/ src/maref/attack_patterns/
+  src/maref/security/trust_root/ src/maref/security/agent_pki/
   src/maref/recursive/distributed_crdt.py src/maref/recursive/live_migration.py
+  # 污染防护（2026-08-09 审计）: 个人模型注册表 + 备份残留 + 营销分发，防误推公开分支
+  model_registry.py *.bak *.bak-* docs/marketing/
 )
 SENSITIVE_ROOT_PREFIXES=(
   data/ data-original/
@@ -103,8 +124,17 @@ done <<< "$FILES"
 # 排除清单路径由上方路径检查统一拦截，内容命中时跳过以免重复计数。
 # mock/示例 密钥形态（连续小写字母序列的 sk-、AWS 文档示例 AKIA）用 PCRE 负向前瞻在正则层排除，
 # 避免依赖系统 grep 的 -o/-P（macOS BSD grep 不支持）。
+# PEM 私钥独立成配对检测（见下方）：真实 PEM 必然 BEGIN+END 同文件出现。
 CONTENT_RE='sk-(?![a-z]{20,}[0-9]+)[a-zA-Z0-9]{32,}|nvapi-[a-zA-Z0-9_-]{30,}|(?<![a-zA-Z])ark-[a-zA-Z0-9-]{20,}|AKIA(?![0-9A-Z]*EXAMPLE)[0-9A-Z]{16}|ghp_[0-9A-Za-z]{36,}|github_pat_[0-9A-Za-z_]{22,}|sk-ant-[a-zA-Z0-9_-]{20,}|re_[a-zA-Z0-9]{20,}|cfut_[a-zA-Z0-9]{20,}|xox[baprs]-[0-9A-Za-z-]{10,}|AIza[0-9A-Za-z_-]{35}'
 CONTENT_HIT=0
+PEM_HIT=0
+# PCRE 能力探测：git grep 的 -P 是编译选项，与 tree 无关。不支持时内容扫描会静默失效（stderr 被吞），
+# 必须 fail-closed 阻断，防止"仅路径检查生效、内容检查形同虚设"。
+# 注意：必须加 -I（跳过二进制）并限定单文件，否则对 27MB mp4/大 spdx 全扫会卡死。
+if ! git -C "$ROOT" grep -I -P -c "^" HEAD -- pyproject.toml >/dev/null 2>&1; then
+  echo -e "${RED}[oss-check] git grep 不支持 PCRE(-P)，内容扫描不可用，fail-closed 阻断${NC}" >&2
+  exit 1
+fi
 while IFS= read -r hit; do
   [ -z "$hit" ] && continue
   # git grep 输出格式: <tree>:<path>:<linenum>:<content>
@@ -117,13 +147,82 @@ while IFS= read -r hit; do
   [ "$skip" -eq 1 ] && continue
   echo -e "  ${RED}✗${NC} 内容命中敏感模式: $hit"
   CONTENT_HIT=$((CONTENT_HIT + 1))
-done <<< "$(git grep -I -n -P "$CONTENT_RE" "$TREE" 2>/dev/null)"
+done <<< "$(git grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
 
-if [ "$HIT" -gt 0 ] || [ "$CONTENT_HIT" -gt 0 ]; then
-  echo -e "${RED}[oss-check] 发现 $HIT 个闭源/敏感路径、$CONTENT_HIT 处内容命中敏感模式，位于 tree($TREE) —— 禁止发布/推送！${NC}" >&2
+# ── 深水区资产关键词扫描（宪法第十一条 11.1，2026-08-12 补强） ──────────
+# 防止深水区资产代码写入非排除路径文件绕过路径清单。关键词与 openclaw
+# `scripts/oss-exclude-list.json` 6 资产登记同步。
+# 命中且路径不在排除清单 -> 视为泄露，标记 [安全违规-第十一条]。
+# 2026-08-13 审计: 关键词以 \xHH 十六进制编码存储（printf '%b' 运行时还原），
+# 使外部扫描器对防御脚本自身的关键词定义不产生自指误报；还原后正则与原版等价。
+# 每个关键词打断一个汉字（保持可读），运行时拼接完整 PCRE 交替分支。
+DEEPWATER_TERMS_ENC=(
+  '联邦 TLA\x2b \xe9\xaa\x8c证引擎'
+  '组合\xe5\x89\xaa枝'
+  '增\xe9\x87\x8f验证'
+  '跨 Agent 信\xe4\xbb\xbb传播'
+  '密码学信任\xe6\xa0\xb9'
+  '前向\xe5\xae\x89全'
+  '成本博弈\xe8\xb0\x83度器'
+  '机制\xe8\xae\xbe计'
+  'Agent \xe4\xbe\x9b应链安全扫描'
+  '漏洞\xe4\xbc\xa0播模拟'
+  '多模态\xe6\x94\xbb击检测'
+  'VLM \xe5\xbe\xae调'
+  '跨模态\xe5\xaf\xb9齐'
+  '\xe8\xbe\xb9\xe7\xbc\x98\xe5\x88\x86\xe8\xa3\x82\xe8\x84\x91\xe8\x87\xaa\xe6\x84\x88'
+  '国\xe5\xaf\x86 HSM'
+)
+# printf '%b|' 解码全部编码项并补 | 分隔（%b 解析 \xHH）；再 sed 把字面 + 转义为正则 \+；
+# 最后去除尾部多余分隔符，得完整 DEEPWATER_RE（与原版正则逐字节等价）。
+DEEPWATER_RE="$(printf '%b|' "${DEEPWATER_TERMS_ENC[@]}" | sed 's/+/\\&/g' | sed 's/|$//')"
+DEEPWATER_HIT=0
+while IFS= read -r hit; do
+  [ -z "$hit" ] && continue
+  # git grep 输出格式: <tree>:<path>:<linenum>:<content>
+  rest="${hit#*:}"
+  path="${rest%%:*}"
+  # 跳过关键词定义文件自身（本脚本），防止扫描器命中自己的 DEEPWATER_RE 定义
+  [ "$path" = "scripts/oss-check.sh" ] && continue
+  # 跳过深水区登记表（docs/oss-deepwater-registry.md）: 它记录王炸层路径清单，
+  # 必然含 trustgnn/cost_scheduler 等关键词，属登记文档而非闭源实现，
+  # 与跳过本脚本自身定义同类的豁免（登记表受 path 级排除清单约束）。
+  [ "$path" = "docs/oss-deepwater-registry.md" ] && continue
+  skip=0
+  for pat in "${PATTERNS[@]}"; do
+    if [[ "$path" == $pat ]]; then skip=1; break; fi
+  done
+  [ "$skip" -eq 1 ] && continue
+  echo -e "  ${RED}✗${NC} 深水区资产关键词命中: $hit"
+  DEEPWATER_HIT=$((DEEPWATER_HIT + 1))
+done <<< "$(git grep -I -n -P -e "$DEEPWATER_RE" "$TREE" 2>/dev/null)"
+
+# ── PEM 私钥配对检测 ─────────────────────────────────────
+# 真实 PEM 私钥泄露必然同文件同时出现 BEGIN+END 头尾。
+# 单出现 BEGIN（如测试断言引用私钥头）是引用而非泄露，不告警。
+# 用 git grep -l 分别收集 BEGIN 文件、END 文件，comm 求交集即为疑似泄露文件。
+# 正则以拼接形式书写，避免 gitleaks 将模式定义本身误判为私钥泄露。
+_PEM_PREFIX='-----BEGIN [A-Z0-9 ]*PRIVATE'
+PEM_BEGIN="${_PEM_PREFIX} KEY-----"
+PEM_END="-----END [A-Z0-9 ]*PRIVATE KEY-----"
+BEGIN_FILES=$(git grep -I -l -P -e "$PEM_BEGIN" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
+END_FILES=$(git grep -I -l -P -e "$PEM_END" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
+while IFS= read -r path; do
+  [ -z "$path" ] && continue
+  skip=0
+  for pat in "${PATTERNS[@]}"; do
+    if [[ "$path" == $pat ]]; then skip=1; break; fi
+  done
+  [ "$skip" -eq 1 ] && continue
+  echo -e "  ${RED}✗${NC} 内容命中敏感模式(配对 PEM 私钥): $TREE:$path"
+  PEM_HIT=$((PEM_HIT + 1))
+done <<< "$(comm -12 <(printf '%s\n' "$BEGIN_FILES" | grep -v '^$') <(printf '%s\n' "$END_FILES" | grep -v '^$'))"
+
+if [ "$HIT" -gt 0 ] || [ "$CONTENT_HIT" -gt 0 ] || [ "$PEM_HIT" -gt 0 ] || [ "$DEEPWATER_HIT" -gt 0 ]; then
+  echo -e "${RED}[oss-check] 发现 $HIT 个闭源/敏感路径、$CONTENT_HIT 处内容命中敏感模式、$DEEPWATER_HIT 处深水区关键词命中、$PEM_HIT 个配对 PEM 私钥文件，位于 tree($TREE) —— 禁止发布/推送！${NC}" >&2
   echo -e "${RED}[oss-check] 请使用 scripts/oss-publish.sh 生成裁剪后的 oss-release 分支，或调整排除清单。${NC}" >&2
   exit 1
 fi
 
-echo -e "${GREEN}[oss-check] tree($TREE) 无闭源/敏感路径，且无内容敏感命中，放行${NC}"
+echo -e "${GREEN}[oss-check] tree($TREE) 无闭源/敏感路径、无内容敏感命中、无深水区关键词命中，放行${NC}"
 exit 0

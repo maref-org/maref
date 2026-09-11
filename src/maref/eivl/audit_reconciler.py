@@ -153,87 +153,104 @@ class AuditReconciler:
 
             # Content comparison via fingerprint
             if _content_fingerprint(a_ent) != _content_fingerprint(b_ent):
-                report.discrepancies.append({
-                    "type": "content_mismatch",
-                    "position": pos,
-                    "replica_a": a_id,
-                    "replica_b": b_id,
-                    "event_type_a": a_ent.event_type,
-                    "event_type_b": b_ent.event_type,
-                    "actor_a": a_ent.actor,
-                    "actor_b": b_ent.actor,
-                    "action_a": a_ent.action,
-                    "action_b": b_ent.action,
-                    "details": f"Content differs at position {pos} between {a_id} and {b_id}",
-                })
+                report.discrepancies.append(
+                    {
+                        "type": "content_mismatch",
+                        "position": pos,
+                        "replica_a": a_id,
+                        "replica_b": b_id,
+                        "event_type_a": a_ent.event_type,
+                        "event_type_b": b_ent.event_type,
+                        "actor_a": a_ent.actor,
+                        "actor_b": b_ent.actor,
+                        "action_a": a_ent.action,
+                        "action_b": b_ent.action,
+                        "details": f"Content differs at position {pos} between {a_id} and {b_id}",
+                    }
+                )
 
             # Chain hash continuity
-            if a_ent.chain_hash != b_ent.chain_hash and \
-               _content_fingerprint(a_ent) == _content_fingerprint(b_ent):
-                report.discrepancies.append({
-                    "type": "chain_hash_mismatch",
-                    "severity": "info",
-                    "position": pos,
-                    "entry_id": a_ent.id,
-                    "replica_a": a_id,
-                    "replica_b": b_id,
-                    "chain_hash_a": a_ent.chain_hash,
-                    "chain_hash_b": b_ent.chain_hash,
-                })
+            if a_ent.chain_hash != b_ent.chain_hash and _content_fingerprint(
+                a_ent
+            ) == _content_fingerprint(b_ent):
+                report.discrepancies.append(
+                    {
+                        "type": "chain_hash_mismatch",
+                        "severity": "info",
+                        "position": pos,
+                        "entry_id": a_ent.id,
+                        "replica_a": a_id,
+                        "replica_b": b_id,
+                        "chain_hash_a": a_ent.chain_hash,
+                        "chain_hash_b": b_ent.chain_hash,
+                    }
+                )
 
             # Signature mismatch (same content, different sig = different key)
             sig_a = a_ent.hmac_signature or a_ent.ed25519_signature or ""
             sig_b = b_ent.hmac_signature or b_ent.ed25519_signature or ""
-            if sig_a and sig_b and sig_a != sig_b and \
-               _content_fingerprint(a_ent) == _content_fingerprint(b_ent):
-                report.discrepancies.append({
-                    "type": "signature_mismatch",
-                    "severity": "info",
-                    "position": pos,
-                    "entry_id": a_ent.id,
-                    "replica_a": a_id,
-                    "replica_b": b_id,
-                })
+            if (
+                sig_a
+                and sig_b
+                and sig_a != sig_b
+                and _content_fingerprint(a_ent) == _content_fingerprint(b_ent)
+            ):
+                report.discrepancies.append(
+                    {
+                        "type": "signature_mismatch",
+                        "severity": "info",
+                        "position": pos,
+                        "entry_id": a_ent.id,
+                        "replica_a": a_id,
+                        "replica_b": b_id,
+                    }
+                )
 
         # Length mismatch
         if len(a_entries) != len(b_entries):
             longer_id = a_id if len(a_entries) > len(b_entries) else b_id
             shorter_id = b_id if len(a_entries) > len(b_entries) else a_id
             diff = abs(len(a_entries) - len(b_entries))
-            report.discrepancies.append({
-                "type": "entry_count_mismatch",
-                "replica_a": a_id,
-                "replica_b": b_id,
-                "count_a": len(a_entries),
-                "count_b": len(b_entries),
-                "details": f"{longer_id} has {diff} more entries than {shorter_id}",
-            })
+            report.discrepancies.append(
+                {
+                    "type": "entry_count_mismatch",
+                    "replica_a": a_id,
+                    "replica_b": b_id,
+                    "count_a": len(a_entries),
+                    "count_b": len(b_entries),
+                    "details": f"{longer_id} has {diff} more entries than {shorter_id}",
+                }
+            )
 
         # Merkle snapshot comparison
         if a_id in self._merkle_snapshots and b_id in self._merkle_snapshots:
             ms_a = self._merkle_snapshots[a_id]
             ms_b = self._merkle_snapshots[b_id]
             if ms_a.root_hash != ms_b.root_hash:
-                report.discrepancies.append({
-                    "type": "merkle_root_hash_mismatch",
-                    "replica_a": a_id,
-                    "replica_b": b_id,
-                    "root_hash_a": ms_a.root_hash,
-                    "root_hash_b": ms_b.root_hash,
-                })
+                report.discrepancies.append(
+                    {
+                        "type": "merkle_root_hash_mismatch",
+                        "replica_a": a_id,
+                        "replica_b": b_id,
+                        "root_hash_a": ms_a.root_hash,
+                        "root_hash_b": ms_b.root_hash,
+                    }
+                )
             if ms_a.tree_size != ms_b.tree_size:
-                report.discrepancies.append({
-                    "type": "merkle_tree_size_mismatch",
-                    "replica_a": a_id,
-                    "replica_b": b_id,
-                    "tree_size_a": ms_a.tree_size,
-                    "tree_size_b": ms_b.tree_size,
-                })
+                report.discrepancies.append(
+                    {
+                        "type": "merkle_tree_size_mismatch",
+                        "replica_a": a_id,
+                        "replica_b": b_id,
+                        "tree_size_a": ms_a.tree_size,
+                        "tree_size_b": ms_b.tree_size,
+                    }
+                )
 
     def print_report(self, report: ReconciliationReport) -> None:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("  Audit Reconciliation Report")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  Replicas: {report.total_replicas}")
         for rid, count in report.total_entries.items():
             print(f"    {rid}: {count} entries")
@@ -241,8 +258,10 @@ class AuditReconciler:
         if report.discrepancies:
             info_count = sum(1 for d in report.discrepancies if d.get("severity") == "info")
             crit_count = len(report.discrepancies) - info_count
-            print(f"  Discrepancies: {len(report.discrepancies)} "
-                  f"(critical={crit_count}, info={info_count})")
+            print(
+                f"  Discrepancies: {len(report.discrepancies)} "
+                f"(critical={crit_count}, info={info_count})"
+            )
             for d in report.discrepancies:
                 pos = d.get("position", "")
                 eid = d.get("entry_id", "")
@@ -251,7 +270,7 @@ class AuditReconciler:
                 detail = d.get("details", "")
                 tag = "⚠" if sev == "info" else "❌"
                 print(f"    {tag} [{sev}/{dtype}] pos={pos} id={eid}: {detail}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
 
 __all__ = [

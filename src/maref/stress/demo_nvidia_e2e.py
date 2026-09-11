@@ -88,22 +88,26 @@ def demo_q1_real_code_generation() -> dict:
             if result.success:
                 metrics = result.to_quality_metrics()
                 all_metrics.append(metrics)
-                print(f"✓ {len(result.code)} chars, "
-                      f"tests={'✓' if result.has_tests else '✗'}, "
-                      f"docs={'✓' if result.has_docstrings else '✗'}, "
-                      f"{result.duration_ms:.0f}ms")
+                print(
+                    f"✓ {len(result.code)} chars, "
+                    f"tests={'✓' if result.has_tests else '✗'}, "
+                    f"docs={'✓' if result.has_docstrings else '✗'}, "
+                    f"{result.duration_ms:.0f}ms"
+                )
             else:
                 print(f"✗ {result.error}")
 
-            results.append({
-                "title": task["title"],
-                "success": result.success,
-                "code_length": len(result.code) if result.success else 0,
-                "has_tests": result.has_tests,
-                "has_docstrings": result.has_docstrings,
-                "duration_ms": result.duration_ms,
-                "total_tokens": result.total_tokens,
-            })
+            results.append(
+                {
+                    "title": task["title"],
+                    "success": result.success,
+                    "code_length": len(result.code) if result.success else 0,
+                    "has_tests": result.has_tests,
+                    "has_docstrings": result.has_docstrings,
+                    "duration_ms": result.duration_ms,
+                    "total_tokens": result.total_tokens,
+                }
+            )
 
         # Summary
         success_count = sum(1 for r in results if r["success"])
@@ -111,8 +115,10 @@ def demo_q1_real_code_generation() -> dict:
         total_tokens = sum(r["total_tokens"] for r in results)
 
         print("\n--- Q1 Summary ---")
-        print(f"  Success rate: {success_count}/{len(results)} ({success_count/len(results)*100:.0f}%)")
-        print(f"  Total duration: {total_duration/1000:.1f}s")
+        print(
+            f"  Success rate: {success_count}/{len(results)} ({success_count / len(results) * 100:.0f}%)"
+        )
+        print(f"  Total duration: {total_duration / 1000:.1f}s")
         print(f"  Total tokens: {total_tokens}")
         print(f"  Avg duration: {agent.avg_duration_ms:.0f}ms")
 
@@ -142,6 +148,7 @@ def demo_q2_dynamic_sqi_weights() -> dict:
 
     # Create sample code metrics (simulate results from Q1)
     from maref.stress.code_service_sqi import CodeQualityMetrics
+
     sample_metrics = CodeQualityMetrics(
         test_coverage_pct=78.0,
         lint_pass_rate=0.85,
@@ -166,18 +173,13 @@ def demo_q2_dynamic_sqi_weights() -> dict:
             "overall_score": round(report.overall_score, 2),
             "variance": round(report.variance, 2),
             "weights": sqi.current_weights,
-            "top_dimension": max(
-                report.dimensions, key=lambda d: d.score * d.weight
-            ).name,
-            "lowest_dimension": min(
-                report.dimensions, key=lambda d: d.score * d.weight
-            ).name,
+            "top_dimension": max(report.dimensions, key=lambda d: d.score * d.weight).name,
+            "lowest_dimension": min(report.dimensions, key=lambda d: d.score * d.weight).name,
         }
 
         # Print top-line results
         print(f"\n  {profile_name}:")
-        print(f"    SQI: {report.overall_score:.1f}  "
-              f"(variance: {report.variance:.1f})")
+        print(f"    SQI: {report.overall_score:.1f}  (variance: {report.variance:.1f})")
         print(f"    Top dimension: {profile_results[profile_name]['top_dimension']}")
         print(f"    Weights: {json.dumps(sqi.current_weights, indent=6)}")
 
@@ -209,11 +211,18 @@ def demo_q3_aggressive_convergence() -> dict:
 
         # Simulate multi-agent pipeline with improving quality
         from maref.stress.code_service_harness import AgentConfig
+
         agents = [
             AgentConfig(name="gen", quality_rate=base_quality, speed_ms_mean=500),
-            AgentConfig(name="test", quality_rate=min(0.99, base_quality + 0.03), speed_ms_mean=300),
-            AgentConfig(name="review", quality_rate=min(0.97, base_quality - 0.02), speed_ms_mean=400),
-            AgentConfig(name="merge", quality_rate=min(0.99, base_quality + 0.05), speed_ms_mean=200),
+            AgentConfig(
+                name="test", quality_rate=min(0.99, base_quality + 0.03), speed_ms_mean=300
+            ),
+            AgentConfig(
+                name="review", quality_rate=min(0.97, base_quality - 0.02), speed_ms_mean=400
+            ),
+            AgentConfig(
+                name="merge", quality_rate=min(0.99, base_quality + 0.05), speed_ms_mean=200
+            ),
         ]
 
         harness_round = CodeServiceHarness(agents=agents, seed=42 + round_idx)
@@ -232,19 +241,23 @@ def demo_q3_aggressive_convergence() -> dict:
         delta = tracker.get_delta(round_idx)
         strategy = "aggressive" if round_idx < 10 else "refinement"
 
-        print(f"  {round_idx:5d} | {sqi_report.overall_score:5.1f} | "
-              f"{delta:+5.1f} | {report.success_rate:.2%}   | "
-              f"{report.avg_test_coverage:.0f}%    | {strategy}")
+        print(
+            f"  {round_idx:5d} | {sqi_report.overall_score:5.1f} | "
+            f"{delta:+5.1f} | {report.success_rate:.2%}   | "
+            f"{report.avg_test_coverage:.0f}%    | {strategy}"
+        )
 
-        round_data.append({
-            "round": round_idx,
-            "sqi": round(sqi_report.overall_score, 2),
-            "delta": round(delta, 2),
-            "success_rate": round(report.success_rate, 4),
-            "coverage": round(report.avg_test_coverage, 2),
-            "base_quality": round(base_quality, 4),
-            "strategy": strategy,
-        })
+        round_data.append(
+            {
+                "round": round_idx,
+                "sqi": round(sqi_report.overall_score, 2),
+                "delta": round(delta, 2),
+                "success_rate": round(report.success_rate, 4),
+                "coverage": round(report.avg_test_coverage, 2),
+                "base_quality": round(base_quality, 4),
+                "strategy": strategy,
+            }
+        )
 
         if sqi_report.overall_score >= 75.0 and round_idx >= 3:
             print(f"\n  ✓ Target SQI 75.0 reached at round {round_idx}!")
@@ -296,7 +309,9 @@ if __name__ == "__main__":
     results = demo_full_integration()
 
     # Save results
-    output_path = Path(__file__).parent.parent.parent / "tests" / "stress" / "nvidia_e2e_results.json"
+    output_path = (
+        Path(__file__).parent.parent.parent / "tests" / "stress" / "nvidia_e2e_results.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2, default=str)

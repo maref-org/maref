@@ -101,9 +101,7 @@ class SafetyInvestmentAuditor:
     @security_critical
     def audit(self) -> SafetyAuditReport:
         total = sum(e.amount for e in self._entries)
-        safety = sum(
-            e.amount for e in self._entries if e.category == InvestmentCategory.SAFETY
-        )
+        safety = sum(e.amount for e in self._entries if e.category == InvestmentCategory.SAFETY)
         ratio = safety / total if total > 0 else 0.0
         compliant = ratio >= self._minimum_ratio
 
@@ -122,9 +120,7 @@ class SafetyInvestmentAuditor:
         if ratio < 0.10:
             findings.append("CRITICAL: safety investment below 10% threshold")
         elif ratio < self._minimum_ratio:
-            findings.append(
-                f"WARNING: safety investment below {self._minimum_ratio:.0%} minimum"
-            )
+            findings.append(f"WARNING: safety investment below {self._minimum_ratio:.0%} minimum")
 
         return SafetyAuditReport(
             total_investment=total,
@@ -212,9 +208,7 @@ class AgentInsurancePricing:
     def record_violation(
         self, agent_id: str, violation_type: str, severity: str
     ) -> ViolationRecord:
-        record = ViolationRecord(
-            violation_type=violation_type, severity=severity
-        )
+        record = ViolationRecord(violation_type=violation_type, severity=severity)
         self._violations.setdefault(agent_id, []).append(record)
         return record
 
@@ -228,9 +222,7 @@ class AgentInsurancePricing:
         agent_violations = self._violations.get(agent_id, [])
 
         violation_score = sum(
-            _SEVERITY_WEIGHTS.get(v.severity, 1.0)
-            for v in agent_violations
-            if not v.resolved
+            _SEVERITY_WEIGHTS.get(v.severity, 1.0) for v in agent_violations if not v.resolved
         )
 
         entropy_penalty = entropy * 0.5
@@ -383,9 +375,7 @@ class VulnerabilityBountyBoard:
     def get_report(self, report_id: str) -> VulnerabilityReport | None:
         return self._reports.get(report_id)
 
-    def list_reports(
-        self, status: BountyStatus | None = None
-    ) -> list[VulnerabilityReport]:
+    def list_reports(self, status: BountyStatus | None = None) -> list[VulnerabilityReport]:
         reports = list(self._reports.values())
         if status:
             reports = [r for r in reports if r.status == status]
@@ -399,15 +389,8 @@ class VulnerabilityBountyBoard:
 
     @property
     def total_payout(self) -> float:
-        return sum(
-            r.reward
-            for r in self._reports.values()
-            if r.status == BountyStatus.PAID
-        )
+        return sum(r.reward for r in self._reports.values() if r.status == BountyStatus.PAID)
 
     @property
     def pending_review_count(self) -> int:
-        return sum(
-            1 for r in self._reports.values()
-            if r.status == BountyStatus.UNDER_REVIEW
-        )
+        return sum(1 for r in self._reports.values() if r.status == BountyStatus.UNDER_REVIEW)

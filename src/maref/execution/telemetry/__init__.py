@@ -29,7 +29,9 @@ class HarnessTelemetryCollector:
         self._events.append({"event": event.value, "data": data or {}})
 
     def report(self, run_id: str = "") -> TelemetryReport:
-        return TelemetryReport(run_id=run_id, events=list(self._events), summary={"count": len(self._events)})
+        return TelemetryReport(
+            run_id=run_id, events=list(self._events), summary={"count": len(self._events)}
+        )
 
 
 class EvolutionDataFeed:

@@ -27,9 +27,7 @@ class BypassMonitor:
         self._callbacks: list[Callable[[dict], None]] = []
         self._alert_count = 0
 
-    def record_bypass(
-        self, source: str, reason: str, metadata: dict | None = None
-    ) -> dict:
+    def record_bypass(self, source: str, reason: str, metadata: dict | None = None) -> dict:
         """Record a bypass event and return alert status.
 
         Returns ``{"alert": True, "count": N}`` if the number of bypasses

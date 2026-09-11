@@ -80,15 +80,13 @@ class Tool(ABC, Generic[TInput, TOutput]):
             cls.name = cls.__name__.lower()
 
     @abstractmethod
-    async def validate(self, input: TInput) -> ValidationResult:
-        ...
+    async def validate(self, input: TInput) -> ValidationResult: ...
 
     async def check_permissions(self, input: TInput, ctx: ToolContext) -> PermissionResult:
         return PermissionResult(granted=True)
 
     @abstractmethod
-    async def call(self, input: TInput, ctx: ToolContext) -> ToolResult[TOutput]:
-        ...
+    async def call(self, input: TInput, ctx: ToolContext) -> ToolResult[TOutput]: ...
 
     def is_read_only(self, input: TInput) -> bool:
         return False

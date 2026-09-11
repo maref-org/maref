@@ -225,14 +225,14 @@ class ExperienceStore:
 
         if positive_count > 0:
             p_rows = self._conn.execute(
-                "SELECT * FROM experience WHERE reward > 0 " "ORDER BY RANDOM() LIMIT ?",
+                "SELECT * FROM experience WHERE reward > 0 ORDER BY RANDOM() LIMIT ?",
                 (min(pos_sample, positive_count),),
             ).fetchall()
             rows.extend(p_rows)
 
         if negative_count > 0:
             n_rows = self._conn.execute(
-                "SELECT * FROM experience WHERE reward <= 0 " "ORDER BY RANDOM() LIMIT ?",
+                "SELECT * FROM experience WHERE reward <= 0 ORDER BY RANDOM() LIMIT ?",
                 (min(neg_sample, negative_count),),
             ).fetchall()
             rows.extend(n_rows)
@@ -240,7 +240,7 @@ class ExperienceStore:
         if recency_weight > 0 and total > batch_size:
             recent_cutoff = time.time() - 86400
             recent = self._conn.execute(
-                "SELECT * FROM experience WHERE timestamp > ? " "ORDER BY RANDOM() LIMIT ?",
+                "SELECT * FROM experience WHERE timestamp > ? ORDER BY RANDOM() LIMIT ?",
                 (recent_cutoff, max(1, int(batch_size * recency_weight))),
             ).fetchall()
             for r in recent:

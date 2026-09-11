@@ -3,7 +3,7 @@
     "maref-governance": {
       "command": "python3",
       "args": [
-        "$HOME/maref/scripts/simple_mcp_guard.py"
+        "$HOME/maref/scripts/trae_mcp_guard.py"
       ],
       "env": {
         "MAREF_AGENT_ID": "trae-cn",

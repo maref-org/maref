@@ -1,0 +1,248 @@
+{
+  "generated_at": "2026-09-09T19:21:50.537861",
+  "total_proposals": 548,
+  "action_distribution": {
+    "file.read": 112,
+    "shell.exec": 47,
+    "governance_bypassed:live": 43,
+    "force_stabilize": 52,
+    "auto_transition": 20,
+    "payment:transfer": 18,
+    "oscillation_intervention": 256
+  },
+  "verdict_distribution": {
+    "allow": 175,
+    "flag": 79,
+    "unknown": 276,
+    "deny": 18
+  },
+  "risk_distribution": {
+    "low": 132,
+    "medium": 122,
+    "unknown": 276,
+    "irreversible": 18
+  },
+  "proposals": [
+    {
+      "proposal_id": "PROP-0001",
+      "source": "audit",
+      "timestamp": 1786675171.485429,
+      "action": "file.read",
+      "verdict": "allow",
+      "risk_level": "low",
+      "details": "ALLOW: Default allow",
+      "original_id": "36956cbe",
+      "actor": "test"
+    },
+    {
+      "proposal_id": "PROP-0002",
+      "source": "audit",
+      "timestamp": 1786675171.4867048,
+      "action": "shell.exec",
+      "verdict": "flag",
+      "risk_level": "medium",
+      "details": "ASK_USER: Dangerous action requires approval",
+      "original_id": "4ab82915",
+      "actor": "test"
+    },
+    {
+      "proposal_id": "PROP-0003",
+      "source": "audit",
+      "timestamp": 1786675171.4877179,
+      "action": "file.read",
+      "verdict": "allow",
+      "risk_level": "low",
+      "details": "ALLOW: Default allow",
+      "original_id": "bdd8b38f",
+      "actor": "decorated"
+    },
+    {
+      "proposal_id": "PROP-0004",
+      "source": "audit",
+      "timestamp": 1786675377.749245,
+      "action": "file.read",
+      "verdict": "allow",
+      "risk_level": "low",
+      "details": "ALLOW: Default allow",
+      "original_id": "e58ae968",
+      "actor": "test"
+    },
+    {
+      "proposal_id": "PROP-0005",
+      "source": "audit",
+      "timestamp": 1786675377.750314,
+      "action": "shell.exec",
+      "verdict": "flag",
+      "risk_level": "medium",
+      "details": "ASK_USER: Dangerous action requires approval",
+      "original_id": "3fe50b12",
+      "actor": "test"
+    },
+    {
+      "proposal_id": "PROP-0006",
+      "source": "audit",
+      "timestamp": 1786675377.75107,
+      "action": "file.read",
+      "verdict": "allow",
+      "risk_level": "low",
+      "details": "ALLOW: Default allow",
+      "original_id": "cea33875",
+      "actor": "decorated"
+    },
+    {
+      "proposal_id": "PROP-0007",
+      "source": "audit",
+      "timestamp": 1786675631.09934,
+      "action": "file.read",
+      "verdict": "allow",
+      "risk_level": "low",
+      "details": "ALLOW: Default allow",
+      "original_id": "817ea04c",
+      "actor": "test"
+    },
+    {
+      "proposal_id": "PROP-0008",
+      "source": "audit",
+      "timestamp": 1786675631.100704,
+      "action": "shell.exec",
+      "verdict": "flag",
+      "risk_level": "medium",
+      "details": "ASK_USER: Dangerous action requires approval",
+      "original_id": "df9ab888",
+      "actor": "test"
+    },
+    {
+      "proposal_id": "PROP-0009",
+      "source": "audit",
+      "timestamp": 1786675631.10189,
+      "action": "file.read",
+      "verdict": "allow",
+      "risk_level": "low",
+      "details": "ALLOW: Default allow",
+      "original_id": "854d0374",
+      "actor": "decorated"
+    },
+    {
+      "proposal_id": "PROP-0010",
+      "source": "audit",
+      "timestamp": 1786679547.035899,
+      "action": "governance_bypassed:live",
+      "verdict": "allow",
+      "risk_level": "medium",
+      "details": "Desktop task executed with real mouse/keyboard: open Finder",
+      "original_id": "7ba966e5",
+      "actor": "CLI"
+    },
+    {
+      "proposal_id": "PROP-0011",
+      "source": "audit",
+      "timestamp": 1786679562.0758002,
+      "action": "force_stabilize",
+      "verdict": "flag",
+      "risk_level": "medium",
+      "details": "Entropy spike detected",
+      "original_id": "3c8e0ad5",
+      "actor": "GovernanceOverlay"
+    },
+    {
+      "proposal_id": "PROP-0012",
+      "source": "audit",
+      "timestamp": 1786679579.777531,
+      "action": "governance_bypassed:live",
+      "verdict": "allow",
+      "risk_level": "medium",
+      "details": "Desktop task executed with real mouse/keyboard: open Finder",
+      "original_id": "a7bcf366",
+      "actor": "CLI"
+    },
+    {
+      "proposal_id": "PROP-0013",
+      "source": "audit",
+      "timestamp": 1786679590.656599,
+      "action": "governance_bypassed:live",
+      "verdict": "allow",
+      "risk_level": "medium",
+      "details": "Desktop task executed with real mouse/keyboard: open Finder",
+      "original_id": "3d8d9758",
+      "actor": "CLI"
+    },
+    {
+      "proposal_id": "PROP-0014",
+      "source": "audit",
+      "timestamp": 1786679757.971957,
+      "action": "governance_bypassed:live",
+      "verdict": "allow",
+      "risk_level": "medium",
+      "details": "Desktop task executed with real mouse/keyboard: open Finder",
+      "original_id": "89778c14",
+      "actor": "CLI"
+    },
+    {
+      "proposal_id": "PROP-0015",
+      "source": "audit",
+      "timestamp": 1786679773.838402,
+      "action": "force_stabilize",
+      "verdict": "flag",
+      "risk_level": "medium",
+      "details": "Entropy spike detected",
+      "original_id": "f20c17bc",
+      "actor": "GovernanceOverlay"
+    },
+    {
+      "proposal_id": "PROP-0016",
+      "source": "audit",
+      "timestamp": 1786679906.8230689,
+      "action": "governance_bypassed:live",
+      "verdict": "allow",
+      "risk_level": "medium",
+      "details": "Desktop task executed with real mouse/keyboard: open Finder",
+      "original_id": "da97b65e",
+      "actor": "CLI"
+    },
+    {
+      "proposal_id": "PROP-0017",
+      "source": "audit",
+      "timestamp": 1786679922.963059,
+      "action": "governance_bypassed:live",
+      "verdict": "allow",
+      "risk_level": "medium",
+      "details": "Desktop task executed with real mouse/keyboard: open Finder",
+      "original_id": "3c54a0c6",
+      "actor": "CLI"
+    },
+    {
+      "proposal_id": "PROP-0018",
+      "source": "audit",
+      "timestamp": 1786680387.122386,
+      "action": "governance_bypassed:live",
+      "verdict": "allow",
+      "risk_level": "medium",
+      "details": "Desktop task executed with real mouse/keyboard: open Finder",
+      "original_id": "c8c623cb",
+      "actor": "CLI"
+    },
+    {
+      "proposal_id": "PROP-0019",
+      "source": "audit",
+      "timestamp": 1786680408.3845272,
+      "action": "force_stabilize",
+      "verdict": "flag",
+      "risk_level": "medium",
+      "details": "Entropy spike detected",
+      "original_id": "e933776f",
+      "actor": "GovernanceOverlay"
+    },
+    {
+      "proposal_id": "PROP-0020",
+      "source": "audit",
+      "timestamp": 1786680834.9973462,
+      "action": "file.read",
+      "verdict": "allow",
+      "risk_level": "low",
+      "details": "ALLOW: Default allow",
+      "original_id": "6448462d",
+      "actor": "test"
+    }
+  ],
+  "note": "前20条详情已包含，完整列表可通过原始审计日志查询"
+}

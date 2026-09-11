@@ -134,6 +134,7 @@ class ConsensusVote:
         if not self.signature or self.signature in ("unsigned", "sign_error"):
             return False
         from maref.crypto.ed25519_keys import Ed25519KeyPair
+
         try:
             return Ed25519KeyPair.verify(
                 public_key_pem,
@@ -167,9 +168,7 @@ class ConsensusProposal:
     topic: str
     payload: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
-    expires_at: float = field(
-        default_factory=lambda: time.time() + 300.0
-    )
+    expires_at: float = field(default_factory=lambda: time.time() + 300.0)
     votes: list[ConsensusVote] = field(default_factory=list)
     state: ProposalState = ProposalState.OPEN
     resolved_at: float | None = None
@@ -284,13 +283,8 @@ class FederatedConsensus:
         self._signer = signer
         self._audit_logger = audit_logger
         self._topology = topology
-        if (
-            topology == ConsensusTopology.LEADER_WORKER
-            and not leader_id
-        ):
-            raise ValueError(
-                "LEADER_WORKER 拓扑必须指定 leader_id，否则常规决议无法仲裁"
-            )
+        if topology == ConsensusTopology.LEADER_WORKER and not leader_id:
+            raise ValueError("LEADER_WORKER 拓扑必须指定 leader_id，否则常规决议无法仲裁")
         self._leader_id = leader_id
         self._critical_topics = critical_topics or set()
         # v0.47 F2: membership source (MembershipManager-style). When
@@ -417,11 +411,7 @@ class FederatedConsensus:
         Returns:
             The created :class:`ConsensusProposal`.
         """
-        critical = (
-            is_critical
-            if is_critical is not None
-            else self._is_critical_topic(topic)
-        )
+        critical = is_critical if is_critical is not None else self._is_critical_topic(topic)
         proposal = ConsensusProposal(
             proposal_id=f"prop-{uuid.uuid4().hex[:12]}",
             proposer_id=proposer_id,
@@ -434,14 +424,17 @@ class FederatedConsensus:
         self._proposals[proposal.proposal_id] = proposal
         self._persist(proposal)
 
-        self._log_audit("consensus.propose", {
-            "proposal_id": proposal.proposal_id,
-            "proposer_id": proposer_id,
-            "topic": topic,
-            "topology": self._topology.value,
-            "is_critical": critical,
-            "proposal_digest": proposal.proposal_digest(),
-        })
+        self._log_audit(
+            "consensus.propose",
+            {
+                "proposal_id": proposal.proposal_id,
+                "proposer_id": proposer_id,
+                "topic": topic,
+                "topology": self._topology.value,
+                "is_critical": critical,
+                "proposal_digest": proposal.proposal_digest(),
+            },
+        )
         return proposal
 
     @security_critical
@@ -473,9 +466,13 @@ class FederatedConsensus:
         if time.time() > proposal.expires_at:
             proposal.state = ProposalState.EXPIRED
             proposal.resolved_at = time.time()
-            self._log_audit("consensus.expire", {
-                "proposal_id": proposal_id, "reason": "timeout",
-            })
+            self._log_audit(
+                "consensus.expire",
+                {
+                    "proposal_id": proposal_id,
+                    "reason": "timeout",
+                },
+            )
             return False
         if voter_id in proposal.voter_ids:
             return False
@@ -484,11 +481,14 @@ class FederatedConsensus:
         if self._membership is not None:
             member_ids = self._member_ids()
             if voter_id not in member_ids:
-                self._log_audit("consensus.unauthorized_vote", {
-                    "proposal_id": proposal_id,
-                    "voter_id": voter_id,
-                    "reason": "not_a_member",
-                })
+                self._log_audit(
+                    "consensus.unauthorized_vote",
+                    {
+                        "proposal_id": proposal_id,
+                        "voter_id": voter_id,
+                        "reason": "not_a_member",
+                    },
+                )
                 return False
 
         vote = ConsensusVote(
@@ -513,12 +513,15 @@ class FederatedConsensus:
         proposal.votes.append(vote)
         self._persist(proposal)
 
-        self._log_audit("consensus.vote", {
-            "proposal_id": proposal_id,
-            "voter_id": voter_id,
-            "choice": choice.value,
-            "signed": vote.signature != "unsigned",
-        })
+        self._log_audit(
+            "consensus.vote",
+            {
+                "proposal_id": proposal_id,
+                "voter_id": voter_id,
+                "choice": choice.value,
+                "signed": vote.signature != "unsigned",
+            },
+        )
         return True
 
     @security_critical
@@ -548,18 +551,19 @@ class FederatedConsensus:
         if time.time() > proposal.expires_at:
             proposal.state = ProposalState.EXPIRED
             proposal.resolved_at = time.time()
-            self._log_audit("consensus.expire", {
-                "proposal_id": proposal_id, "reason": "timeout_auto",
-            })
+            self._log_audit(
+                "consensus.expire",
+                {
+                    "proposal_id": proposal_id,
+                    "reason": "timeout_auto",
+                },
+            )
             return proposal
 
         total_votes = len(self._verified_votes(proposal))
 
         # LEADER_WORKER: leader arbitrates routine proposals directly
-        if (
-            self._topology == ConsensusTopology.LEADER_WORKER
-            and not proposal.is_critical
-        ):
+        if self._topology == ConsensusTopology.LEADER_WORKER and not proposal.is_critical:
             # v0.50 W6-S3 / F13: leader arbitration still requires quorum
             # support (>= quorum_size verified votes), not a lone leader.
             if total_votes < self._quorum_size:
@@ -578,14 +582,17 @@ class FederatedConsensus:
             proposal.resolved_at = time.time()
             self._sign_resolution(proposal)
             self._persist(proposal)
-            self._log_audit("consensus.resolve", {
-                "proposal_id": proposal_id,
-                "state": proposal.state.value,
-                "topology": "leader_worker",
-                "arbitrated_by": self._leader_id,
-                "total_verified_votes": total_votes,
-                "resolution_signature": proposal.resolution_signature,
-            })
+            self._log_audit(
+                "consensus.resolve",
+                {
+                    "proposal_id": proposal_id,
+                    "state": proposal.state.value,
+                    "topology": "leader_worker",
+                    "arbitrated_by": self._leader_id,
+                    "total_verified_votes": total_votes,
+                    "resolution_signature": proposal.resolution_signature,
+                },
+            )
             return proposal
 
         if total_votes < self._quorum_size:
@@ -608,13 +615,16 @@ class FederatedConsensus:
         self._sign_resolution(proposal)
         self._persist(proposal)
 
-        self._log_audit("consensus.resolve", {
-            "proposal_id": proposal_id,
-            "state": proposal.state.value,
-            "approve_count": proposal.approve_count,
-            "reject_count": proposal.reject_count,
-            "resolution_signature": proposal.resolution_signature,
-        })
+        self._log_audit(
+            "consensus.resolve",
+            {
+                "proposal_id": proposal_id,
+                "state": proposal.state.value,
+                "approve_count": proposal.approve_count,
+                "reject_count": proposal.reject_count,
+                "resolution_signature": proposal.resolution_signature,
+            },
+        )
         return proposal
 
     def _verified_votes(self, proposal: ConsensusProposal) -> list[ConsensusVote]:
@@ -630,10 +640,13 @@ class FederatedConsensus:
         for vote in proposal.votes:
             public_key = self._voter_public_keys.get(vote.voter_id)
             if public_key is None or not vote.verify_signature(public_key):
-                self._log_audit("consensus.unverified_vote", {
-                    "proposal_id": proposal.proposal_id,
-                    "voter_id": vote.voter_id,
-                })
+                self._log_audit(
+                    "consensus.unverified_vote",
+                    {
+                        "proposal_id": proposal.proposal_id,
+                        "voter_id": vote.voter_id,
+                    },
+                )
                 continue
             verified.append(vote)
         return verified
@@ -658,9 +671,7 @@ class FederatedConsensus:
         """Get a proposal by ID."""
         return self._proposals.get(proposal_id)
 
-    def list_proposals(
-        self, state: ProposalState | None = None
-    ) -> list[ConsensusProposal]:
+    def list_proposals(self, state: ProposalState | None = None) -> list[ConsensusProposal]:
         """List proposals, optionally filtered by state."""
         if state is None:
             return list(self._proposals.values())
@@ -682,18 +693,10 @@ class FederatedConsensus:
 
     def summary(self) -> dict[str, Any]:
         """Return a summary of the consensus system state."""
-        open_count = sum(
-            1 for p in self._proposals.values() if p.state == ProposalState.OPEN
-        )
-        accepted = sum(
-            1 for p in self._proposals.values() if p.state == ProposalState.ACCEPTED
-        )
-        rejected = sum(
-            1 for p in self._proposals.values() if p.state == ProposalState.REJECTED
-        )
-        expired = sum(
-            1 for p in self._proposals.values() if p.state == ProposalState.EXPIRED
-        )
+        open_count = sum(1 for p in self._proposals.values() if p.state == ProposalState.OPEN)
+        accepted = sum(1 for p in self._proposals.values() if p.state == ProposalState.ACCEPTED)
+        rejected = sum(1 for p in self._proposals.values() if p.state == ProposalState.REJECTED)
+        expired = sum(1 for p in self._proposals.values() if p.state == ProposalState.EXPIRED)
         return {
             "member_count": self._member_count,
             "quorum_size": self._quorum_size,

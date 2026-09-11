@@ -31,7 +31,7 @@ class AgentDispatcher:
             "capability_match": 0.35,
             "performance_history": 0.30,
             "trust_score": 0.20,
-            "current_load": 0.10,
+            "current_load": -0.10,  # get_load_ratio 越大负载越重，负载越高越不优先
             "specialization": 0.05,
         }
 
@@ -179,7 +179,8 @@ class AgentDispatcher:
         if self._health_monitor is not None:
             current_load = self._health_monitor.get_load_ratio(did.did_string)
 
-        specialization = 0.5 if task.required_capabilities else 0.5
+        # 专精度 = 能力是否完全覆盖任务所需；完全覆盖视为该领域专家，否则非专精
+        specialization = 1.0 if capability_match >= 1.0 else 0.0
         return {
             "capability_match": capability_match,
             "performance_history": performance,

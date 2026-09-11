@@ -65,11 +65,13 @@ class TestSnapshotRestore:
         assert restored.transition_count == 5
         assert restored.current_entropy == _ENTROPY_INT[GovernanceState.ACT.value]
 
-    def test_restore_does_not_preserve_history(self, mid_cycle_state_machine: Any) -> None:
+    def test_restore_preserves_history(self, mid_cycle_state_machine: Any) -> None:
         sm = mid_cycle_state_machine
         snap = sm.snapshot()
         restored = type(sm).restore(snap)
-        assert len(restored.get_history()) == 0
+        # v0.50 W1-S3 (A8): restore rebuilds the transition history chain from
+        # snapshot.history_entries so audit traceability survives a restore.
+        assert len(restored.get_history()) == snap.history_length
 
     def test_snapshot_from_init(self, initial_state_machine: Any) -> None:
         sm = initial_state_machine

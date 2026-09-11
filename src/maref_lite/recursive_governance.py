@@ -185,11 +185,7 @@ class RecursiveGovernanceOverlay:
             revert_task = None
 
         # P0: Self-healing loop task
-        healing_task = (
-            asyncio.create_task(self._healing_loop.run())
-            if self._healing_loop
-            else None
-        )
+        healing_task = asyncio.create_task(self._healing_loop.run()) if self._healing_loop else None
 
         try:
             await primary_task

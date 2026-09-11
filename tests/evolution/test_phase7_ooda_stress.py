@@ -28,7 +28,7 @@ class TestOODALoop:
 
     def test_ooda_cycle_completes_with_all_gates(self) -> None:
         """Run a short evolution cycle with all safety layers enabled."""
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         for cid in ["c1", "c2", "c3"]:
             base.cycles[cid] = CycleSpec(name="ooda", rounds=5, description="test")
 
@@ -53,7 +53,7 @@ class TestOODALoop:
 
     def test_multi_agent_ooda_completes(self) -> None:
         """Multi-agent OODA with 2 roles, verify both get stats."""
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         for cid in ["c1", "c2", "c3"]:
             base.cycles[cid] = CycleSpec(name="ooda", rounds=5, description="test")
 
@@ -120,7 +120,7 @@ class TestOODALoop:
 
     def test_ooda_no_runaway_recursion(self) -> None:
         """Evolution engine must stop within configured limits."""
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         for cid in ["c1", "c2", "c3"]:
             base.cycles[cid] = CycleSpec(name="ooda", rounds=5, description="test")
         base.max_total_rounds = 10
@@ -151,7 +151,7 @@ class TestMultipleCycles:
 
     def test_c1_c2_c3_completes(self) -> None:
         """Full three-cycle evolution completes with all rounds."""
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         base.cycles["c1"] = CycleSpec(name="baseline", rounds=5, description="")
         base.cycles["c2"] = CycleSpec(
             name="optimize", rounds=5, description="", meta_learning_enabled=True

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 @dataclass
 class ImprovementGoal:
     """A discovered improvement goal."""
+
     name: str
     dimension: str
     current_score: float
@@ -40,9 +41,12 @@ class AdaptiveGoalDiscoverer:
     4. Coverage gaps: untested dimensions suggest exploration goals
     """
 
-    def __init__(self, min_score_threshold: float = 70.0,
-                 max_goals_per_run: int = 5,
-                 cooldown_hours: int = 24):
+    def __init__(
+        self,
+        min_score_threshold: float = 70.0,
+        max_goals_per_run: int = 5,
+        cooldown_hours: int = 24,
+    ):
         self.min_score_threshold = min_score_threshold
         self.max_goals_per_run = max_goals_per_run
         self.cooldown_hours = cooldown_hours
@@ -53,16 +57,18 @@ class AdaptiveGoalDiscoverer:
         goals = []
         for dim, score in scores.items():
             if score < self.min_score_threshold and dim not in self._recent_goals:
-                goals.append(ImprovementGoal(
-                    name=f"Improve {dim}",
-                    dimension=dim,
-                    current_score=score,
-                    target_score=self.min_score_threshold,
-                    priority=1 if score < self.min_score_threshold * 0.8 else 2,
-                    source="rsi_gap",
-                    rationale=f"Score {score:.1f} below threshold {self.min_score_threshold}",
-                    created_at=datetime.datetime.now().isoformat(),
-                ))
+                goals.append(
+                    ImprovementGoal(
+                        name=f"Improve {dim}",
+                        dimension=dim,
+                        current_score=score,
+                        target_score=self.min_score_threshold,
+                        priority=1 if score < self.min_score_threshold * 0.8 else 2,
+                        source="rsi_gap",
+                        rationale=f"Score {score:.1f} below threshold {self.min_score_threshold}",
+                        created_at=datetime.datetime.now().isoformat(),
+                    )
+                )
                 self._recent_goals.append(dim)
         return self._deduplicate_and_limit(goals)
 
@@ -73,16 +79,18 @@ class AdaptiveGoalDiscoverer:
             dim_a = conflict.get("dimension_a", "")
             dim_b = conflict.get("dimension_b", "")
             if dim_a and dim_b and f"conflict_{dim_a}_{dim_b}" not in self._recent_goals:
-                goals.append(ImprovementGoal(
-                    name=f"Resolve {dim_a}\u2194{dim_b} conflict",
-                    dimension=f"{dim_a}_{dim_b}",
-                    current_score=0.0,
-                    target_score=1.0,
-                    priority=1,
-                    source="conflict_pattern",
-                    rationale=f"Negative cross-impact between {dim_a} and {dim_b}",
-                    created_at=datetime.datetime.now().isoformat(),
-                ))
+                goals.append(
+                    ImprovementGoal(
+                        name=f"Resolve {dim_a}\u2194{dim_b} conflict",
+                        dimension=f"{dim_a}_{dim_b}",
+                        current_score=0.0,
+                        target_score=1.0,
+                        priority=1,
+                        source="conflict_pattern",
+                        rationale=f"Negative cross-impact between {dim_a} and {dim_b}",
+                        created_at=datetime.datetime.now().isoformat(),
+                    )
+                )
                 self._recent_goals.append(f"conflict_{dim_a}_{dim_b}")
         return self._deduplicate_and_limit(goals)
 
@@ -93,22 +101,27 @@ class AdaptiveGoalDiscoverer:
             if len(values) >= 3:
                 recent = values[-3:]
                 if recent[0] > recent[-1] and dim not in self._recent_goals:
-                    goals.append(ImprovementGoal(
-                        name=f"Reverse {dim} decline",
-                        dimension=dim,
-                        current_score=recent[-1],
-                        target_score=recent[0],
-                        priority=1,
-                        source="degradation_trend",
-                        rationale=f"Consistent decline over 3 periods: {recent}",
-                        created_at=datetime.datetime.now().isoformat(),
-                    ))
+                    goals.append(
+                        ImprovementGoal(
+                            name=f"Reverse {dim} decline",
+                            dimension=dim,
+                            current_score=recent[-1],
+                            target_score=recent[0],
+                            priority=1,
+                            source="degradation_trend",
+                            rationale=f"Consistent decline over 3 periods: {recent}",
+                            created_at=datetime.datetime.now().isoformat(),
+                        )
+                    )
                     self._recent_goals.append(dim)
         return self._deduplicate_and_limit(goals)
 
-    def discover_all(self, scores: dict[str, float] | None = None,
-                     conflicts: list[dict] | None = None,
-                     trends: dict[str, list[float]] | None = None) -> GoalDiscoveryReport:
+    def discover_all(
+        self,
+        scores: dict[str, float] | None = None,
+        conflicts: list[dict] | None = None,
+        trends: dict[str, list[float]] | None = None,
+    ) -> GoalDiscoveryReport:
         """Run all discovery strategies and return combined report."""
         all_goals: list[ImprovementGoal] = []
 
@@ -135,7 +148,7 @@ class AdaptiveGoalDiscoverer:
             if g.name not in seen:
                 seen.add(g.name)
                 unique.append(g)
-        return unique[:self.max_goals_per_run]
+        return unique[: self.max_goals_per_run]
 
     def clear_cooldown(self):
         """Clear recent goals cooldown."""

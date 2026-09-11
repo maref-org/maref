@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from maref.integration.feature_dev.doc_ingestor import (
     ComplianceRule,
     CostModel,
-    DeployStage,
     DocumentSection,
     FeatureDocument,
     Hypothesis,
 )
 from maref.integration.feature_dev.progress_tracker import (
     ConvergenceReport,
-    LayerTrend,
 )
 from maref.integration.feature_dev.verification_engine import (
     DeliveryVerdict,

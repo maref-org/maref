@@ -19,9 +19,7 @@ def _encrypt_private_key(pem: str, password: str) -> str:
     encrypted = key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.BestAvailableEncryption(
-            password.encode("utf-8")
-        ),
+        encryption_algorithm=serialization.BestAvailableEncryption(password.encode("utf-8")),
     )
     return encrypted.decode("utf-8")
 
@@ -61,9 +59,7 @@ class ReportSigningKey:
         decrypted = _decrypt_private_key(encrypted, password)
         return cls.from_private_pem(decrypted)
 
-    def save_encrypted_private_key(
-        self, path: str | Path, password: str | None = None
-    ) -> None:
+    def save_encrypted_private_key(self, path: str | Path, password: str | None = None) -> None:
         if password is None:
             password = getpass.getpass("New encryption password: ")
             confirm = getpass.getpass("Confirm password: ")
@@ -122,9 +118,7 @@ class ReportSigningKey:
         return base64.b64encode(sig).decode("utf-8")
 
     @staticmethod
-    def verify_signature(
-        public_key_pem: str, signature_b64: str, payload: bytes
-    ) -> bool:
+    def verify_signature(public_key_pem: str, signature_b64: str, payload: bytes) -> bool:
         try:
             sig = base64.b64decode(signature_b64)
             return Ed25519KeyPair.verify(public_key_pem, sig, payload)
@@ -140,9 +134,7 @@ class ReportSigningKey:
         Path(path).write_text(self.public_key_pem, encoding="utf-8")
 
     @classmethod
-    def init_key_pair(
-        cls, output_dir: str | Path = ".", encrypt: bool = False
-    ) -> ReportSigningKey:
+    def init_key_pair(cls, output_dir: str | Path = ".", encrypt: bool = False) -> ReportSigningKey:
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         key = cls.generate()

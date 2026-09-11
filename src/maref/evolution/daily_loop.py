@@ -30,9 +30,7 @@ _TRUST_WRITE_THRESHOLD = 0.70
 _TRUST_BOOTSTRAP_VALUE = 0.75
 # System-health risks that should keep trust_blocked (same set as
 # AutonomousLoopRunner._SYSTEM_HEALTH_RISKS).
-_SYSTEM_HEALTH_RISKS = frozenset(
-    {"entropy", "latency", "anomaly", "kg", "oscillation"}
-)
+_SYSTEM_HEALTH_RISKS = frozenset({"entropy", "latency", "anomaly", "kg", "oscillation"})
 
 
 def _run_async(coro: Any) -> Any:
@@ -40,6 +38,7 @@ def _run_async(coro: Any) -> Any:
     try:
         asyncio.get_running_loop()
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             return pool.submit(asyncio.run, coro).result()
     except RuntimeError:
@@ -89,6 +88,7 @@ class DailyEvolutionLoop:
         vault_dir: str | Path = ".evolution_vault",
         dry_run: bool = True,
         real_writes: bool = False,
+        production_mode: bool = False,
         metrics_collector: Any | None = None,
         round_vault: Any | None = None,
     ) -> None:
@@ -149,7 +149,11 @@ class DailyEvolutionLoop:
         hypotheses: list[Any] = []
         try:
             observer = SelfObserver()
-            snapshot = observer.snapshot()
+            # collect_only=True: real fnr/coverage already came from
+            # collect_incremental() above; here we only need the codebase +
+            # fast test-count snapshot, NOT a second full test execution
+            # (which would double cycle latency and can hang on desktop tests).
+            snapshot = observer.snapshot(collect_only=True)
             diagnostician = SelfDiagnostician()
             report = diagnostician.diagnose(snapshot)
             bridge = OptimizerEvolutionBridge()
@@ -166,9 +170,7 @@ class DailyEvolutionLoop:
                             h.hypothesis_id, h.description, h.target_module
                         )
                     except Exception:
-                        logger.exception(
-                            "Failed to register hypothesis %s", h.hypothesis_id
-                        )
+                        logger.exception("Failed to register hypothesis %s", h.hypothesis_id)
             self._vault.write_metrics_snapshot(
                 day_dir,
                 {
@@ -176,7 +178,8 @@ class DailyEvolutionLoop:
                     "overall_risk": report.overall_risk.value,
                     "hypothesis_count": len(hypotheses),
                     "diagnostic_context": {
-                        k: v for k, v in report.diagnostic_context.items()
+                        k: v
+                        for k, v in report.diagnostic_context.items()
                         if isinstance(v, (int, float))
                     },
                 },
@@ -186,9 +189,11 @@ class DailyEvolutionLoop:
 
         # Record git state before evolution to detect actual file changes
         try:
-            pre_evolution_head = subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
-            ).strip().decode()
+            pre_evolution_head = (
+                subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+                .strip()
+                .decode()
+            )
         except (subprocess.CalledProcessError, FileNotFoundError):
             pre_evolution_head = None
 
@@ -214,18 +219,20 @@ class DailyEvolutionLoop:
                     summary=evolution_result.stop_reason,
                 )
             except Exception:
-                logger.exception(
-                    "Failed to resolve writeback for hypothesis %s", h.hypothesis_id
-                )
+                logger.exception("Failed to resolve writeback for hypothesis %s", h.hypothesis_id)
 
         # Collect actual changed files for constitution review
         changed_files: list[str] = []
         if pre_evolution_head is not None:
             try:
-                diff_output = subprocess.check_output(
-                    ["git", "diff", "--name-only", pre_evolution_head],
-                    stderr=subprocess.DEVNULL,
-                ).strip().decode()
+                diff_output = (
+                    subprocess.check_output(
+                        ["git", "diff", "--name-only", pre_evolution_head],
+                        stderr=subprocess.DEVNULL,
+                    )
+                    .strip()
+                    .decode()
+                )
                 if diff_output:
                     changed_files = [f for f in diff_output.splitlines() if f]
             except (subprocess.CalledProcessError, FileNotFoundError):
@@ -254,7 +261,9 @@ class DailyEvolutionLoop:
                 "constitution_allowed": constitution_result.allowed,
             },
         )
-        self._vault.write_daily_report(current_day, self._build_report(current_day, analysis.priority))
+        self._vault.write_daily_report(
+            current_day, self._build_report(current_day, analysis.priority)
+        )
         self._vault.write_next_plan(
             day_dir,
             {"priority": analysis.priority, "degradations": analysis.degradations},

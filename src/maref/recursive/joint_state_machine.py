@@ -76,9 +76,7 @@ class JointStateMachine:
                     "agent_a": agent_a,
                     "agent_b": agent_b,
                     "issue": issue,
-                    "resolution": "verdict:passed"
-                    if result.passed
-                    else "verdict:blocked",
+                    "resolution": "verdict:passed" if result.passed else "verdict:blocked",
                     "agreement": round(result.agreement, 3),
                 }
             )

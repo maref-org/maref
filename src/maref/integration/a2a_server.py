@@ -69,12 +69,21 @@ def create_a2a_router(
             if not _verify_sender(request, body):
                 return JSONResponse(
                     status_code=401,
-                    content={"jsonrpc": "2.0", "error": {"code": -32001, "message": "Unauthorized: sender signature verification failed"}},
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Unauthorized: sender signature verification failed",
+                        },
+                    },
                 )
             if body.get("jsonrpc") != "2.0":
                 return JSONResponse(
                     status_code=200,
-                    content={"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid JSON-RPC request"}},
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32600, "message": "Invalid JSON-RPC request"},
+                    },
                 )
 
             method = body.get("method", "")
@@ -112,7 +121,10 @@ def create_a2a_router(
                         content={
                             "jsonrpc": "2.0",
                             "id": req_id,
-                            "error": {"code": -32602, "message": f"Unknown skills: {', '.join(unknown)}"},
+                            "error": {
+                                "code": -32602,
+                                "message": f"Unknown skills: {', '.join(unknown)}",
+                            },
                         },
                     )
 
@@ -136,7 +148,10 @@ def create_a2a_router(
         except CommunicationBlockedError:
             return JSONResponse(
                 status_code=503,
-                content={"jsonrpc": "2.0", "error": {"code": -32000, "message": "Circuit breaker is OPEN"}},
+                content={
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32000, "message": "Circuit breaker is OPEN"},
+                },
             )
         except Exception:
             return JSONResponse(
@@ -184,8 +199,19 @@ def create_a2a_router(
             )
 
     @router.post("/api/a2a/task/cancel")
-    async def task_cancel(body: dict[str, Any]) -> JSONResponse:
+    async def task_cancel(request: Request, body: dict[str, Any]) -> JSONResponse:
         try:
+            if not _verify_sender(request, body):
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Unauthorized: sender signature verification failed",
+                        },
+                    },
+                )
             task_id = body.get("id") or body.get("task_id")
             if not task_id:
                 return JSONResponse(status_code=400, content={"detail": "Missing task ID"})
@@ -209,8 +235,19 @@ def create_a2a_router(
             return JSONResponse(status_code=500, content={"detail": "Server error"})
 
     @router.post("/api/a2a/task/state")
-    async def task_state(body: dict[str, Any]) -> JSONResponse:
+    async def task_state(request: Request, body: dict[str, Any]) -> JSONResponse:
         try:
+            if not _verify_sender(request, body):
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Unauthorized: sender signature verification failed",
+                        },
+                    },
+                )
             task_id = body.get("task_id") or body.get("id")
             state = body.get("state", "")
 
@@ -261,8 +298,19 @@ def create_a2a_router(
         )
 
     @router.post("/api/a2a/task/push_notification")
-    async def task_push_notification(body: dict[str, Any]) -> JSONResponse:
+    async def task_push_notification(request: Request, body: dict[str, Any]) -> JSONResponse:
         try:
+            if not _verify_sender(request, body):
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Unauthorized: sender signature verification failed",
+                        },
+                    },
+                )
             task_id = body.get("task_id") or body.get("id", "")
             if not task_id:
                 return JSONResponse(status_code=400, content={"detail": "Missing task ID"})
@@ -284,7 +332,13 @@ def create_a2a_router(
         if not _verify_sender(request, body):
             return JSONResponse(
                 status_code=401,
-                content={"jsonrpc": "2.0", "error": {"code": -32001, "message": "Unauthorized: sender signature verification failed"}},
+                content={
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32001,
+                        "message": "Unauthorized: sender signature verification failed",
+                    },
+                },
             )
         return await task_send(request, body)
 

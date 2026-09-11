@@ -51,12 +51,21 @@ class SAEBMetricsCollector:
     def _collect_pytest(self, m: SAEBMetrics) -> None:
         env = {**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1"}
         cmd = [
-            sys.executable, "-m", "pytest", "tests/",
-            "--tb=no", "-q", "--no-header",
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/",
+            "--tb=no",
+            "-q",
+            "--no-header",
         ]
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=60,
-            cwd=self._root, env=env,
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=self._root,
+            env=env,
         )
         output = result.stdout + result.stderr
         for line in output.split("\n"):
@@ -78,7 +87,10 @@ class SAEBMetricsCollector:
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "coverage", "report", "-m", "--fail-under=0"],
-                capture_output=True, text=True, timeout=30, cwd=self._root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=self._root,
             )
             for line in result.stdout.split("\n"):
                 if "TOTAL" in line:
@@ -167,7 +179,10 @@ class SAEBMetricsCollector:
         try:
             result = subprocess.run(
                 ["ruff", "check", self._src_dir, "--output-format=json"],
-                capture_output=True, text=True, timeout=30, cwd=self._root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=self._root,
             )
             if result.returncode <= 1 and result.stdout.strip():
                 m.lint_violations = [

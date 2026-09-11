@@ -622,22 +622,21 @@ class FederatedSettlement:
         for vote in result.votes:
             if "verdict" in vote and isinstance(vote["verdict"], dict):
                 v = vote["verdict"]
-                judge_evidence.append({
-                    "verifier": vote.get("verifier", ""),
-                    "weight": vote.get("weight", 0.0),
-                    "judge_name": v.get("judge_name", ""),
-                    "decision": v.get("decision", ""),
-                    "reasoning": v.get("reasoning", ""),
-                    "evidence_refs": list(v.get("evidence_refs", [])),
-                })
+                judge_evidence.append(
+                    {
+                        "verifier": vote.get("verifier", ""),
+                        "weight": vote.get("weight", 0.0),
+                        "judge_name": v.get("judge_name", ""),
+                        "decision": v.get("decision", ""),
+                        "reasoning": v.get("reasoning", ""),
+                        "evidence_refs": list(v.get("evidence_refs", [])),
+                    }
+                )
         if judge_evidence:
             verdict["judge_evidence"] = judge_evidence
 
         # FLAG 风险提示聚合：通过但建议人工复核（v0.46.0 I5 修复）。
-        flagged_decisions = [
-            e["decision"] for e in judge_evidence
-            if e.get("decision") == "flag"
-        ]
+        flagged_decisions = [e["decision"] for e in judge_evidence if e.get("decision") == "flag"]
         if flagged_decisions:
             verdict["flagged"] = True
             verdict["flag_review_recommended"] = True
@@ -684,9 +683,7 @@ class FederatedSettlement:
                 TraceStep(
                     agent_id=entry.agent_did,
                     action="billing.entry",
-                    decision=(
-                        "credit" if entry.amount >= 0 else "debit"
-                    ),
+                    decision=("credit" if entry.amount >= 0 else "debit"),
                     context_hash=entry.entry_id,
                     ts=entry.timestamp,
                     metadata={

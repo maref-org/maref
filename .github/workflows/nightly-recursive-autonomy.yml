@@ -1,0 +1,40 @@
+name: Nightly Recursive Autonomy
+
+# 递归自进化核心的夜间回归保护。main CI 排除 slow marker(长时模拟)，
+# 此 workflow 每夜 + push 到 main(recursive 变更)时跑自治核心的 slow 单元
+# (排除 real/48h 超长模拟)，防止 MAREF 招牌的递归自进化逻辑回归。
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'src/maref/recursive/**'
+      - 'tests/recursive/**'
+  workflow_dispatch:
+
+jobs:
+  recursive-autonomy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # r1 self_observer 测试断言 git tags >= 9 —— 默认 fetch-depth:1
+          # 无 tags。拉全历史含 tags 满足自治观察测试的 git 依赖。
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Run recursive autonomy slow tests
+        run: |
+          # 自治核心 slow 单元(self_observer 观察 + diagnosis 诊断 + healer
+          # 修复环)。env-heavy probe 由 tests/recursive/conftest.py autouse
+          # 隔离为 NORMAL(CI 无 playwright/pnpm 也跨环境确定)。排除 real
+          # (真实 executor 跑全仓 pytest) 与 48h/7天模拟(stability-7d 覆盖)。
+          pytest tests/recursive/test_r1_self_observer.py \
+            tests/recursive/test_r2_diagnosis.py \
+            tests/recursive/test_r3_healing.py \
+            -q --timeout=300 -m "slow and not real" --no-cov

@@ -63,9 +63,11 @@ class AskUserTool(Tool[AskUserInput, AskUserOutput]):
                         selected = input.options[idx - 1]
                         answer = selected
                     elif input.allow_custom and idx == len(input.options) + 1:
+
                         def _read_custom() -> str:
                             print("Your answer: ", end="", flush=True)
                             return sys.stdin.readline().strip()
+
                         answer = await loop.run_in_executor(None, _read_custom)
                         selected = None
                 except ValueError:
@@ -76,7 +78,8 @@ class AskUserTool(Tool[AskUserInput, AskUserOutput]):
                             data=AskUserOutput(answer="", selected_option=None),
                             metadata={
                                 "question": input.question,
-                                "error": "Invalid selection, expected number 1-" + str(len(input.options)),
+                                "error": "Invalid selection, expected number 1-"
+                                + str(len(input.options)),
                                 "requires_interaction": True,
                             },
                         )
@@ -87,5 +90,9 @@ class AskUserTool(Tool[AskUserInput, AskUserOutput]):
         except Exception as exc:
             return ToolResult(
                 data=AskUserOutput(answer="", selected_option=None),
-                metadata={"question": input.question, "error": str(exc), "requires_interaction": True},
+                metadata={
+                    "question": input.question,
+                    "error": str(exc),
+                    "requires_interaction": True,
+                },
             )

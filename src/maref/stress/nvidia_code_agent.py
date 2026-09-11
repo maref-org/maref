@@ -16,16 +16,20 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from maref.stress.code_service_sqi import CodeQualityMetrics
+
 try:
     from openai import APIError, OpenAI, RateLimitError
+
     _OPENAI_AVAILABLE = True
 except ImportError:
     _OPENAI_AVAILABLE = False
-    OpenAI = None  # type: ignore
-    APIError = Exception  # type: ignore
-    RateLimitError = Exception  # type: ignore
-
-from maref.stress.code_service_sqi import CodeQualityMetrics
+    # openai 是可选依赖：降级为 None / Exception 保持名称存在，
+    # 实际使用前由 _OPENAI_AVAILABLE 守卫拦截。openai 缺失时
+    # mypy 经 override 视其为 Any，赋值合法无需 ignore。
+    OpenAI = None
+    APIError = Exception
+    RateLimitError = Exception
 
 
 @dataclass
@@ -280,7 +284,20 @@ Language: {language}
     @staticmethod
     def _has_type_hints(code: str) -> bool:
         lines = code.split("\n")
-        return any("->" in line or (": " in line and "str" in line or "int" in line or "float" in line or "bool" in line or "list" in line or "dict" in line) for line in lines if line.strip())
+        return any(
+            "->" in line
+            or (
+                ": " in line
+                and "str" in line
+                or "int" in line
+                or "float" in line
+                or "bool" in line
+                or "list" in line
+                or "dict" in line
+            )
+            for line in lines
+            if line.strip()
+        )
 
     def list_available_models(self) -> list[str]:
         try:

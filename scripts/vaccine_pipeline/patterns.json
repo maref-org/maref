@@ -1,0 +1,432 @@
+[
+  {
+    "pattern_id": "76a7a02a1c1f",
+    "attack_class": "block_consecutive_anomalies",
+    "attack_subtype": "consecutive_anomalies=5",
+    "trigger": "circuit_breaker_trip_block_consecutive_anomalies_consecutive_anomalies_5",
+    "count": 255,
+    "dimension": "action_detail"
+  },
+  {
+    "pattern_id": "1a347b025ec6",
+    "attack_class": "block_oscillation_handler",
+    "attack_subtype": "rate=8",
+    "trigger": "circuit_breaker_trip_block_oscillation_handler_rate_8",
+    "count": 60,
+    "dimension": "action_detail"
+  },
+  {
+    "pattern_id": "d483156feae2",
+    "attack_class": "block_oscillation_handler",
+    "attack_subtype": "rate=3",
+    "trigger": "circuit_breaker_trip_block_oscillation_handler_rate_3",
+    "count": 256,
+    "dimension": "action_detail"
+  },
+  {
+    "pattern_id": "0c1bd31f439d",
+    "attack_class": "block_self_observation",
+    "attack_subtype": "depth=2",
+    "trigger": "circuit_breaker_trip_block_self_observation_depth_2",
+    "count": 1803,
+    "dimension": "action_detail"
+  },
+  {
+    "pattern_id": "5774f0c9f942",
+    "attack_class": "block_self_observation",
+    "attack_subtype": "depth=3",
+    "trigger": "circuit_breaker_trip_block_self_observation_depth_3",
+    "count": 48,
+    "dimension": "action_detail"
+  },
+  {
+    "pattern_id": "3b1bb327a9a4",
+    "attack_class": "block_self_observation",
+    "attack_subtype": "depth=1",
+    "trigger": "circuit_breaker_trip_block_self_observation_depth_1",
+    "count": 256,
+    "dimension": "action_detail"
+  },
+  {
+    "pattern_id": "79b5e39af4dd",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_5_in_60s",
+    "count": 5,
+    "cluster_size": 5,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "efac3cdf3d56",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_4_in_60s",
+    "count": 4,
+    "cluster_size": 4,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "21a7de0106e3",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_3_in_60s",
+    "count": 3,
+    "cluster_size": 3,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "ffd4ab06bdee",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_91_in_60s",
+    "count": 91,
+    "cluster_size": 91,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "410fe8ed909c",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_65_in_60s",
+    "count": 65,
+    "cluster_size": 65,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "a52e16fd79c4",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_8_in_60s",
+    "count": 8,
+    "cluster_size": 8,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "26120d8e92d4",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_77_in_60s",
+    "count": 77,
+    "cluster_size": 77,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "18fc91919e3b",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_71_in_60s",
+    "count": 71,
+    "cluster_size": 71,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "7f49e88ac866",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_89_in_60s",
+    "count": 89,
+    "cluster_size": 89,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "c042969a883e",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_193_in_60s",
+    "count": 193,
+    "cluster_size": 193,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "ab220cf1f752",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_41_in_60s",
+    "count": 41,
+    "cluster_size": 41,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "29a783837576",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_60_in_60s",
+    "count": 60,
+    "cluster_size": 60,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "4e410ebfaa28",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_57_in_60s",
+    "count": 57,
+    "cluster_size": 57,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "5d4c71983a49",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_50_in_60s",
+    "count": 50,
+    "cluster_size": 50,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "aa7d78eb043e",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_68_in_60s",
+    "count": 68,
+    "cluster_size": 68,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "bbbb970e0cbd",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_73_in_60s",
+    "count": 73,
+    "cluster_size": 73,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "cd57c5ae0e34",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_85_in_60s",
+    "count": 85,
+    "cluster_size": 85,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "00b06c1bf517",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_49_in_60s",
+    "count": 49,
+    "cluster_size": 49,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "94a1e37419f9",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_59_in_60s",
+    "count": 59,
+    "cluster_size": 59,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "4e287255cac3",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_123_in_60s",
+    "count": 123,
+    "cluster_size": 123,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "e4c2497017e6",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_6_in_60s",
+    "count": 6,
+    "cluster_size": 6,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "6dd558a2bc77",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_90_in_60s",
+    "count": 90,
+    "cluster_size": 90,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "0dc8090becf3",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_12_in_60s",
+    "count": 12,
+    "cluster_size": 12,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "0bb3d7841e6b",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_84_in_60s",
+    "count": 84,
+    "cluster_size": 84,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "b3613623fcf3",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_7_in_60s",
+    "count": 7,
+    "cluster_size": 7,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "8a1d00912bb0",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_24_in_60s",
+    "count": 24,
+    "cluster_size": 24,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "7773bf09284a",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_15_in_60s",
+    "count": 15,
+    "cluster_size": 15,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "0169d8eee648",
+    "attack_class": "temporal_burst",
+    "attack_subtype": "window_60s",
+    "trigger": "clustered_trips_9_in_60s",
+    "count": 9,
+    "cluster_size": 9,
+    "dimension": "temporal"
+  },
+  {
+    "pattern_id": "94368bbfc4f1",
+    "attack_class": "attack_chain",
+    "attack_subtype": "block_self_observation → block_self_observation",
+    "trigger": "chain_block_self_observation_to_block_self_observation",
+    "count": 1417,
+    "dimension": "chain"
+  },
+  {
+    "pattern_id": "117f58e9b2ab",
+    "attack_class": "attack_chain",
+    "attack_subtype": "block_self_observation → block_oscillation_handler",
+    "trigger": "chain_block_self_observation_to_block_oscillation_handler",
+    "count": 256,
+    "dimension": "chain"
+  },
+  {
+    "pattern_id": "40c5fb61a5ca",
+    "attack_class": "attack_chain",
+    "attack_subtype": "block_oscillation_handler → block_consecutive_anomalies",
+    "trigger": "chain_block_oscillation_handler_to_block_consecutive_anomalies",
+    "count": 255,
+    "dimension": "chain"
+  },
+  {
+    "pattern_id": "58c65a10ecb1",
+    "attack_class": "attack_chain",
+    "attack_subtype": "block_oscillation_handler → block_oscillation_handler",
+    "trigger": "chain_block_oscillation_handler_to_block_oscillation_handler",
+    "count": 55,
+    "dimension": "chain"
+  },
+  {
+    "pattern_id": "1ec6e51347d3",
+    "attack_class": "anomaly_detected",
+    "attack_subtype": "verdict=unknown",
+    "trigger": "anomaly_verdict_unknown",
+    "count": 594,
+    "dimension": "anomaly"
+  },
+  {
+    "class": "ASI01_prompt_injection",
+    "trigger": "untrusted_input_in_system_prompt",
+    "pattern_id": "03da2d1263ca",
+    "attack_class": "ASI01_prompt_injection",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI02_output_handling",
+    "trigger": "sensitive_output_not_sanitized",
+    "pattern_id": "c859300c4c81",
+    "attack_class": "ASI02_output_handling",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI03_supply_chain",
+    "trigger": "unverified_plugin_loaded",
+    "pattern_id": "bc544dd9e68c",
+    "attack_class": "ASI03_supply_chain",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI04_data_poisoning",
+    "trigger": "untrusted_fine_tuning_data",
+    "pattern_id": "048de4fe5991",
+    "attack_class": "ASI04_data_poisoning",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI05_improper_error_handling",
+    "trigger": "error_context_leaked",
+    "pattern_id": "f38a626ad054",
+    "attack_class": "ASI05_improper_error_handling",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI06_excessive_agency",
+    "trigger": "unscoped_tool_permission",
+    "pattern_id": "4fb8db8cf678",
+    "attack_class": "ASI06_excessive_agency",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI07_system_prompt_leakage",
+    "trigger": "internal_prompt_exposed",
+    "pattern_id": "bfa8917b8225",
+    "attack_class": "ASI07_system_prompt_leakage",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI08_vector_weakness",
+    "trigger": "embedding_manipulation",
+    "pattern_id": "5479fc8ecb85",
+    "attack_class": "ASI08_vector_weakness",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI09_misinformation",
+    "trigger": "hallucinated_governance_output",
+    "pattern_id": "391932191bba",
+    "attack_class": "ASI09_misinformation",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI10_unbounded_consumption",
+    "trigger": "token_loop_detected",
+    "pattern_id": "72c6bb260a23",
+    "attack_class": "ASI10_unbounded_consumption",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  }
+]

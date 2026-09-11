@@ -36,9 +36,7 @@ class MarketplaceSkillLoader:
     ) -> tuple[SkillManifest, MarefSkill]:
         self._registry.register(manifest)
         maref = ManifestAdapter.to_maref(manifest, source=source)
-        self._loader.load_from_dict(
-            self._maref_to_loader_dict(maref), source=source
-        )
+        self._loader.load_from_dict(self._maref_to_loader_dict(maref), source=source)
         self._manifest_cache[manifest.skill_id] = manifest
         self._manifest_cache[maref.skill_id] = manifest
         return manifest, maref

@@ -277,10 +277,13 @@ class CorrelationEngine:
         exp_id = kwargs.get("experience_id") or ""
 
         for link in self._links.values():
+            # link 字段以 or None 存储，kwargs 侧以 or "" 归一 —— 空值与
+            # None 必须视为等价，否则 experience_id 缺失时 None != "" 使
+            # 去重失效（同 span/audit 重复链接会新建，跨毫秒 id 漂移）。
             if (
-                link.span_id == span_id
-                and link.audit_id == audit_id
-                and link.experience_id == exp_id
+                (link.span_id or "") == span_id
+                and (link.audit_id or "") == audit_id
+                and (link.experience_id or "") == exp_id
             ):
                 return link
 

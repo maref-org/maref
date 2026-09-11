@@ -69,7 +69,7 @@ class PlatformScreenCapture:
             w, h = pyautogui.size()
             info.width = w
             info.height = h
-        except ImportError:
+        except Exception:
             pass
         return info
 

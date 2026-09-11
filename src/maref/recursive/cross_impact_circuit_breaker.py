@@ -139,7 +139,7 @@ class CrossImpactCircuitBreaker:
 
     def _trim_events(self) -> None:
         if len(self._events) > self._max_events:
-            self._events = self._events[-self._max_events:]
+            self._events = self._events[-self._max_events :]
 
     def analyze(self, dimension_scores: list[dict[str, float]]) -> list[CrossImpactEvent]:
         """Analyze dimension score history for cross-impact patterns.
@@ -305,7 +305,10 @@ class CrossImpactCircuitBreaker:
             key = (source_dim, target_dim)
             self._alert_counts[key] = self._alert_counts.get(key, 0) + 1
             if self._alert_counts[key] >= self._alert_window:
-                if source_dim not in self._tripped_dims and len(self._tripped_dims) < self._max_tripped_dims:
+                if (
+                    source_dim not in self._tripped_dims
+                    and len(self._tripped_dims) < self._max_tripped_dims
+                ):
                     self._tripped_dims[source_dim] = time.time()
                     self._state = CrossImpactState.TRIPPED
                     self._last_trip_time = time.time()
@@ -316,7 +319,10 @@ class CrossImpactCircuitBreaker:
             key = (source_dim, target_dim)
             self._alert_counts[key] = self._alert_counts.get(key, 0) + 1
             if self._alert_counts[key] >= self._alert_window:
-                if source_dim not in self._tripped_dims and len(self._tripped_dims) < self._max_tripped_dims:
+                if (
+                    source_dim not in self._tripped_dims
+                    and len(self._tripped_dims) < self._max_tripped_dims
+                ):
                     self._tripped_dims[source_dim] = time.time()
                     self._state = CrossImpactState.TRIPPED
                     self._last_trip_time = time.time()
@@ -343,7 +349,9 @@ class CrossImpactCircuitBreaker:
             return True
         return False
 
-    def get_dimension_health(self, dimension_scores: list[dict[str, float]]) -> list[DimensionHealth]:
+    def get_dimension_health(
+        self, dimension_scores: list[dict[str, float]]
+    ) -> list[DimensionHealth]:
         """Get health report for all dimensions."""
         if not dimension_scores:
             return []

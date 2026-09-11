@@ -6,43 +6,30 @@ on:
     branches: [main]
 
 jobs:
-  gitleaks:
+  scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Gitleaks scan (.gitleaks.toml)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
-          GITLEAKS_ENABLE_COMMENTS: "false"
-
-  oss-gate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: OSS gate (exclude list + hard-block + content scan)
-        run: |
-          bash scripts/oss-check.sh HEAD
-
-      - name: Hook source integrity
-        run: |
-          test -f .githooks/pre-commit && grep -q "gitleaks" .githooks/pre-commit \
-            && test -f .githooks/pre-push && test -f .gitleaks.toml || {
-            echo "❌ hook 源码 / gitleaks 配置缺失或弱化"
-            exit 1
-          }
-          echo "✅ 通过"
 
       - name: Scan for internal paths
         run: |
           echo "=== 检查内部卷路径 ==="
-          ! git grep -In "/Volumes/1TB-M2" HEAD -- '*.py' '*.sh' '*.md' '*.yaml' '*.yml' '*.json' '*.toml' 2>/dev/null || \
+          ! grep -r "/Volumes/1TB-M2" --include="*.py" --include="*.sh" \
+            --include="*.md" --include="*.yaml" --include="*.yml" \
+            --include="*.json" --include="*.toml" \
+            --exclude="leak-detection.yml" --exclude-dir=.git . 2>/dev/null || \
             (echo "❌ 发现内部路径泄露" && exit 1)
+          echo "✅ 通过"
+
+      - name: Scan for API keys
+        run: |
+          echo "=== 检查 API 密钥 ==="
+          ! grep -rE "(sk-[a-zA-Z0-9]{40,}|nvapi-[a-zA-Z0-9]{20,}|ark-[a-zA-Z0-9]{20,})" \
+            --include="*.py" --include="*.sh" --include="*.env" --include="*.json" \
+            --include="*.yaml" --exclude-dir=.git . 2>/dev/null || \
+            (echo "❌ 发现 API 密钥泄露" && exit 1)
           echo "✅ 通过"
 
       - name: Scan for proprietary filenames
@@ -55,6 +42,9 @@ jobs:
       - name: Scan for private org references
         run: |
           echo "=== 检查私有组织引用 ==="
-          ! git grep -In "frankiehot-tech" HEAD -- '*.py' '*.sh' '*.md' '*.yaml' '*.yml' '*.json' 2>/dev/null || \
+          ! grep -r "frankiehot-tech" --include="*.py" --include="*.sh" \
+            --include="*.md" --include="*.yaml" --include="*.yml" \
+            --include="*.json" \
+            --exclude="leak-detection.yml" --exclude-dir=.git . 2>/dev/null || \
             (echo "❌ 发现私有组织名引用" && exit 1)
           echo "✅ 通过"

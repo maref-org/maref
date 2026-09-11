@@ -28,11 +28,12 @@ from maref.stress.sqi import (
 @dataclass
 class CodeQualityMetrics:
     """Code-specific quality metrics from the generation pipeline."""
-    test_coverage_pct: float = 0.0          # 0-100
-    lint_pass_rate: float = 0.0             # 0.0-1.0
-    build_success_rate: float = 0.0         # 0.0-1.0
-    doc_completeness: float = 0.0           # 0.0-1.0
-    regression_free_rate: float = 0.0       # 0.0-1.0
+
+    test_coverage_pct: float = 0.0  # 0-100
+    lint_pass_rate: float = 0.0  # 0.0-1.0
+    build_success_rate: float = 0.0  # 0.0-1.0
+    doc_completeness: float = 0.0  # 0.0-1.0
+    regression_free_rate: float = 0.0  # 0.0-1.0
     files_generated: int = 0
     files_with_tests: int = 0
     files_with_docs: int = 0
@@ -126,7 +127,9 @@ class CodeServiceSQI(ServiceQualityIndex):
 
     CODE_WEIGHTS = WEIGHT_PROFILES["default"]
 
-    def __init__(self, weight_profile: str = "default", custom_weights: dict[str, float] | None = None) -> None:
+    def __init__(
+        self, weight_profile: str = "default", custom_weights: dict[str, float] | None = None
+    ) -> None:
         """Initialize with weight configuration.
 
         Args:
@@ -146,8 +149,7 @@ class CodeServiceSQI(ServiceQualityIndex):
         """
         if profile not in WEIGHT_PROFILES:
             raise ValueError(
-                f"Unknown weight profile: {profile}. "
-                f"Available: {list(WEIGHT_PROFILES.keys())}"
+                f"Unknown weight profile: {profile}. Available: {list(WEIGHT_PROFILES.keys())}"
             )
         self._weights = dict(WEIGHT_PROFILES[profile])
 
@@ -205,6 +207,7 @@ class CodeServiceSQI(ServiceQualityIndex):
                 d.weight = self._weights[d.name]
 
         import statistics
+
         overall = sum(d.score * d.weight for d in dimensions)
         scores = [d.score for d in dimensions]
         variance = statistics.variance(scores) if len(scores) > 1 else 0.0
@@ -214,7 +217,12 @@ class CodeServiceSQI(ServiceQualityIndex):
             overall_score=overall,
             variance=variance,
             round_id=round_id,
-            metadata={"weight_profile": "custom" if self._weights != WEIGHT_PROFILES.get("default") else "default", "mode": "full"},
+            metadata={
+                "weight_profile": "custom"
+                if self._weights != WEIGHT_PROFILES.get("default")
+                else "default",
+                "mode": "full",
+            },
         )
 
     # ------------------------------------------------------------------ #
@@ -224,7 +232,8 @@ class CodeServiceSQI(ServiceQualityIndex):
         """Test coverage: percentage of code covered by unit tests."""
         if metrics is None or metrics.test_coverage_pct <= 0:
             return SQIDimension(
-                name="test_coverage_rate", score=0.0,
+                name="test_coverage_rate",
+                score=0.0,
                 weight=self._weights["test_coverage_rate"],
                 description="No coverage data available",
             )
@@ -241,7 +250,8 @@ class CodeServiceSQI(ServiceQualityIndex):
         """Lint pass rate: static analysis compliance."""
         if metrics is None:
             return SQIDimension(
-                name="lint_pass_rate", score=50.0,
+                name="lint_pass_rate",
+                score=50.0,
                 weight=self._weights["lint_pass_rate"],
                 description="No lint data available",
             )
@@ -258,7 +268,8 @@ class CodeServiceSQI(ServiceQualityIndex):
         """Build success rate: compilation/build pipeline pass rate."""
         if metrics is None:
             return SQIDimension(
-                name="build_success_rate", score=50.0,
+                name="build_success_rate",
+                score=50.0,
                 weight=self._weights["build_success_rate"],
                 description="No build data available",
             )
@@ -275,7 +286,8 @@ class CodeServiceSQI(ServiceQualityIndex):
         """Documentation completeness: ratio of documented files."""
         if metrics is None:
             return SQIDimension(
-                name="doc_completeness", score=50.0,
+                name="doc_completeness",
+                score=50.0,
                 weight=self._weights["doc_completeness"],
                 description="No documentation data available",
             )
@@ -292,7 +304,8 @@ class CodeServiceSQI(ServiceQualityIndex):
         """Regression-free rate: percentage of changes that don't break existing tests."""
         if metrics is None:
             return SQIDimension(
-                name="regression_free_rate", score=50.0,
+                name="regression_free_rate",
+                score=50.0,
                 weight=self._weights["regression_free_rate"],
                 description="No regression data available",
             )

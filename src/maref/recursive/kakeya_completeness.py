@@ -181,18 +181,19 @@ class KakeyaCompletenessChecker:
             projection = sum(f * d for f, d in zip(factor_unit, direction.vector, strict=False))
             if abs(projection) < self._epsilon:
                 severity = "critical" if abs(projection) < self._epsilon * 0.1 else "warning"
-                blind_spots.append(BlindSpot(
-                    direction_name=direction.name,
-                    projection=projection,
-                    severity=severity,
-                    recommendation=self._build_recommendation(direction),
-                ))
+                blind_spots.append(
+                    BlindSpot(
+                        direction_name=direction.name,
+                        projection=projection,
+                        severity=severity,
+                        recommendation=self._build_recommendation(direction),
+                    )
+                )
             else:
                 covered_count += 1
 
         factor_coverage = {
-            name: factor_map.get(name, 0.0) / (factor_norm + self._epsilon)
-            for name in FACTOR_ORDER
+            name: factor_map.get(name, 0.0) / (factor_norm + self._epsilon) for name in FACTOR_ORDER
         }
 
         target_dim = len(self._directions)

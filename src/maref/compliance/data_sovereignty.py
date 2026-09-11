@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -13,6 +14,8 @@ from typing import Any
 
 from maref.governance.audit import AuditLogger
 from maref.security.sanitizer import Sanitizer, SanitizeResult
+
+logger = logging.getLogger(__name__)
 
 
 class DataCategory(Enum):
@@ -127,6 +130,10 @@ class DataTransferDecision:
     timestamp: datetime = field(default_factory=datetime.now)
     expiration: datetime | None = None
 
+    def __post_init__(self) -> None:
+        if self.status == DataSovereigntyStatus.REQUIRES_APPROVAL:
+            self.approval_required = True
+
 
 class DataSovereigntyManager:
     """
@@ -139,7 +146,21 @@ class DataSovereigntyManager:
     """
 
     def __init__(self, audit_logger: AuditLogger | None = None):
-        self.audit_logger = audit_logger or AuditLogger()
+        self.audit_logger: AuditLogger | None
+        if audit_logger is not None:
+            self.audit_logger = audit_logger
+        else:
+            try:
+                # 默认审计 logger 需 HMAC/Ed25519 key（env 或参数）。
+                # 无 key 或 key 非法（如 env 的 Ed25519 PEM 损坏抛 ValueError）
+                # 时降级为 None，数据主权分类/消毒功能不受审计可用性影响。
+                self.audit_logger = AuditLogger()
+            except (RuntimeError, ValueError) as e:
+                logger.warning(
+                    "DataSovereigntyManager 审计降级禁用: %s — 合规判定不受影响",
+                    e,
+                )
+                self.audit_logger = None
         self.data_classes: dict[str, DataClass] = {}
         self.geographic_restrictions: dict[str, GeographicRestriction] = {}
         self.transfer_history: list[tuple[DataTransferRequest, DataTransferDecision]] = []
@@ -169,6 +190,27 @@ class DataSovereigntyManager:
                 "requires_notification": True,
             },
         }
+
+    def _audit(
+        self,
+        event_type: str,
+        actor: str,
+        action: str,
+        details: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """写入审计日志（audit_logger 不可用（无 key 环境）时静默跳过）。
+
+        数据主权合规判定不依赖审计可用性——审计是附加的可观测性记录。
+        """
+        if self.audit_logger is not None:
+            self.audit_logger.log(
+                event_type=event_type,
+                actor=actor,
+                action=action,
+                details=details,
+                metadata=metadata or {},
+            )
 
     def _initialize_default_data_classes(self) -> None:
         """初始化默认数据分类"""
@@ -267,8 +309,25 @@ class DataSovereigntyManager:
             cross_border_allowed=True,  # 国际金融交易可能需要
         )
 
+        self.data_classes["critical_infrastructure"] = DataClass(
+            id="critical_infrastructure",
+            name="Critical Infrastructure Data",
+            category=DataCategory.CRITICAL_INFRASTRUCTURE,
+            classification_level="RESTRICTED",
+            protection_requirements=[
+                "Strict access control",
+                "Encryption at rest and in transit",
+                "Redundant backup systems",
+                "Real-time monitoring",
+            ],
+            encryption_required=True,
+            audit_required=True,
+            cross_border_allowed=False,
+            allowed_jurisdictions=["CN"],  # 中国网络安全法要求本地化
+        )
+
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="data_sovereignty_initialized",
             actor="DataSovereigntyManager",
             action="initialize_default_data_classes",
@@ -331,7 +390,7 @@ class DataSovereigntyManager:
         )
 
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="geographic_restrictions_initialized",
             actor="DataSovereigntyManager",
             action="initialize_default_restrictions",
@@ -347,7 +406,7 @@ class DataSovereigntyManager:
         选择 PII 规则集消毒文本，并记录审计事件。
         """
         result = Sanitizer().sanitize_by_category(text, category)
-        self.audit_logger.log(
+        self._audit(
             event_type="data_sanitized",
             actor="DataSovereigntyManager",
             action="sanitize_data",
@@ -365,7 +424,7 @@ class DataSovereigntyManager:
         """注册数据分类"""
         self.data_classes[data_class.id] = data_class
 
-        self.audit_logger.log(
+        self._audit(
             event_type="data_class_registered",
             actor="DataSovereigntyManager",
             action="register_data_class",
@@ -381,7 +440,7 @@ class DataSovereigntyManager:
         """添加地理限制"""
         self.geographic_restrictions[restriction.id] = restriction
 
-        self.audit_logger.log(
+        self._audit(
             event_type="geographic_restriction_added",
             actor="DataSovereigntyManager",
             action="add_geographic_restriction",
@@ -392,6 +451,35 @@ class DataSovereigntyManager:
                 "countries_blocked": [c.value for c in restriction.countries_blocked],
             },
         )
+
+    def get_available_jurisdictions(self, category: DataCategory) -> list[str]:
+        """获取指定类别允许的司法管辖区"""
+        jurisdictions: list[str] = []
+        for data_class in self.data_classes.values():
+            if data_class.category == category and data_class.cross_border_allowed:
+                jurisdictions.extend(data_class.allowed_jurisdictions)
+        return jurisdictions
+
+    def get_data_classes_by_allowed_jurisdictions(self, jurisdiction: str) -> list[DataClass]:
+        """根据允许的司法管辖区过滤数据类"""
+        return [
+            dc for dc in self.data_classes.values()
+            if jurisdiction in dc.allowed_jurisdictions
+        ]
+
+    def record_transfer(
+        self, request: DataTransferRequest, decision: DataTransferDecision
+    ) -> None:
+        """记录数据传输历史"""
+        self.transfer_history.append((request, decision))
+
+    def get_data_class(self, data_class_id: str) -> DataClass | None:
+        """获取数据类"""
+        return self.data_classes.get(data_class_id)
+
+    def get_data_classes(self) -> list[DataClass]:
+        """获取所有数据类"""
+        return list(self.data_classes.values())
 
     def evaluate_data_transfer(self, request: DataTransferRequest) -> DataTransferDecision:
         """
@@ -504,7 +592,7 @@ class DataSovereigntyManager:
         self.transfer_history.append((request, decision))
 
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="data_transfer_evaluated",
             actor="DataSovereigntyManager",
             action="evaluate_data_transfer",
@@ -749,7 +837,7 @@ class DataSovereigntyManager:
             self.compliance_policies.update(config["compliance_policies"])
 
         # 审计日志
-        self.audit_logger.log(
+        self._audit(
             event_type="policy_configuration_imported",
             actor="DataSovereigntyManager",
             action="import_policy_configuration",

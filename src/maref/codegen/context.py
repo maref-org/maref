@@ -177,7 +177,11 @@ class ContextManager:
                 break
             removed = messages.pop(idx_to_remove)
             snip_count += 1
-            logger.info("Snip removed tool result (%d chars): %s", len(removed.content), removed.name or "unnamed")
+            logger.info(
+                "Snip removed tool result (%d chars): %s",
+                len(removed.content),
+                removed.name or "unnamed",
+            )
         if snip_count:
             messages.append(
                 Message(

@@ -20,9 +20,7 @@ from maref.agent_card_config import (
 from maref.recursive.signed_agent_cards import SignedAgentCard
 
 # Lookup for enriching MAS capabilities with input_schema/output_schema
-_mas_cap_lookup: dict[str, dict[str, Any]] = {
-    str(cap["name"]): cap for cap in MAS_CAPABILITIES
-}
+_mas_cap_lookup: dict[str, dict[str, Any]] = {str(cap["name"]): cap for cap in MAS_CAPABILITIES}
 
 # MAS-TS-001 Agent Card JSON Schema (subset)
 MAS_TS001_AGENT_CARD_SCHEMA: dict[str, Any] = {

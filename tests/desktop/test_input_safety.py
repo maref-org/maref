@@ -147,7 +147,10 @@ class TestInputControllerRealMode:
         assert result is False
 
     def test_enable_real_mode_with_mock_pyautogui(self) -> None:
-        pytest.importorskip("pyautogui", reason="pyautogui not installed")
+        try:
+            import pyautogui  # noqa: F401
+        except Exception:
+            pytest.skip("pyautogui not usable in headless env")
         controller = _make_mock_real_controller()
         controller._dry_run = True
         controller._pyautogui_configured = False

@@ -18,6 +18,7 @@ Key concepts:
 - Experience replay for sample efficiency
 - Stability constraints to prevent runaway optimization
 """
+
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -33,6 +34,7 @@ from maref_lite.state_machine import GovernanceState
 @dataclass
 class MetaLearningState:
     """Internal state of the meta-learner."""
+
     policy_weights: dict[str, float] = field(default_factory=dict)
     experience_buffer: list[DecisionOutcome] = field(default_factory=list)
     total_reward: float = 0.0
@@ -41,7 +43,15 @@ class MetaLearningState:
     discount_factor: float = 0.9
 
     def to_dict(self) -> dict[str, Any]:
-        return {'policy_weights': self.policy_weights, 'buffer_size': len(self.experience_buffer), 'total_reward': self.total_reward, 'episode_count': self.episode_count, 'learning_rate': self.learning_rate, 'discount_factor': self.discount_factor}
+        return {
+            "policy_weights": self.policy_weights,
+            "buffer_size": len(self.experience_buffer),
+            "total_reward": self.total_reward,
+            "episode_count": self.episode_count,
+            "learning_rate": self.learning_rate,
+            "discount_factor": self.discount_factor,
+        }
+
 
 class MetaLearner:
     """
@@ -57,12 +67,25 @@ class MetaLearner:
     and threshold configurations lead to better long-term outcomes.
     """
 
-    def __init__(self, sandbox: PolicySandbox | None=None, buffer_size: int=2000, learning_rate: float=0.02, experience_db_path: str=':memory:') -> None:
+    def __init__(
+        self,
+        sandbox: PolicySandbox | None = None,
+        buffer_size: int = 2000,
+        learning_rate: float = 0.02,
+        experience_db_path: str = ":memory:",
+    ) -> None:
         self._sandbox = sandbox or PolicySandbox()
         self._buffer_size = buffer_size
         self._store = ExperienceStore(db_path=experience_db_path, max_size=max(buffer_size, 10000))
         self._lr_scheduler = LearningRateScheduler(initial_lr=learning_rate)
-        self._state = MetaLearningState(learning_rate=self._lr_scheduler.learning_rate, policy_weights={'entropy_penalty': -0.1, 'stability_bonus': 0.2, 'transition_efficiency': 0.05})
+        self._state = MetaLearningState(
+            learning_rate=self._lr_scheduler.learning_rate,
+            policy_weights={
+                "entropy_penalty": -0.1,
+                "stability_bonus": 0.2,
+                "transition_efficiency": 0.05,
+            },
+        )
         self._stability_epochs: list[float] = []
         self._max_weight_magnitude = 1.0
         self._min_learning_rate = 0.0005
@@ -79,7 +102,15 @@ class MetaLearner:
         if len(self._state.experience_buffer) > self._buffer_size:
             self._state.experience_buffer.pop(0)
 
-    def compute_reward(self, state_before: GovernanceState, state_after: GovernanceState, entropy_before: int, entropy_after: int, anomaly_resolved: bool=False, time_in_state: float=0.0) -> float:
+    def compute_reward(
+        self,
+        state_before: GovernanceState,
+        state_after: GovernanceState,
+        entropy_before: int,
+        entropy_after: int,
+        anomaly_resolved: bool = False,
+        time_in_state: float = 0.0,
+    ) -> float:
         """
         Compute reward for a state transition.
 
@@ -130,7 +161,7 @@ class MetaLearner:
 
         M5: Uses stratified sampling from ExperienceStore for balanced
         positive/negative experience representation."""
-        gradient = {'entropy_penalty': 0.0, 'stability_bonus': 0.0, 'transition_efficiency': 0.0}
+        gradient = {"entropy_penalty": 0.0, "stability_bonus": 0.0, "transition_efficiency": 0.0}
         recent = self._store.sample(batch_size=200, stratified=True, recency_weight=0.7)
         if not recent:
             recent = self._state.experience_buffer[-100:]
@@ -138,11 +169,11 @@ class MetaLearner:
             reward = outcome.reward
             weight = 1.0
             entropy_delta = outcome.entropy_before - outcome.entropy_after
-            gradient['entropy_penalty'] += weight * reward * entropy_delta
+            gradient["entropy_penalty"] += weight * reward * entropy_delta
             if outcome.entropy_after <= 2:
-                gradient['stability_bonus'] += weight * reward
+                gradient["stability_bonus"] += weight * reward
             if outcome.state_before != outcome.state_after:
-                gradient['transition_efficiency'] += weight * reward
+                gradient["transition_efficiency"] += weight * reward
         n = len(recent)
         if n > 0:
             for key in gradient:
@@ -152,7 +183,10 @@ class MetaLearner:
     def _clip_weights(self) -> None:
         """Clip policy weights to prevent runaway values."""
         for key in self._state.policy_weights:
-            self._state.policy_weights[key] = max(-self._max_weight_magnitude, min(self._max_weight_magnitude, self._state.policy_weights[key]))
+            self._state.policy_weights[key] = max(
+                -self._max_weight_magnitude,
+                min(self._max_weight_magnitude, self._state.policy_weights[key]),
+            )
 
     def _decay_learning_rate(self) -> None:
         """M5: Adaptive ReduceLROnPlateau learning rate scheduling.
@@ -167,27 +201,44 @@ class MetaLearner:
     def _generate_policy(self) -> PipelineConfig:
         """Generate a new policy configuration from current weights."""
         baseline = self._sandbox.get_active_config()
-        entropy_weight = self._state.policy_weights['entropy_penalty']
-        stability_weight = self._state.policy_weights['stability_bonus']
+        entropy_weight = self._state.policy_weights["entropy_penalty"]
+        stability_weight = self._state.policy_weights["stability_bonus"]
         adjustment = (entropy_weight + stability_weight) * 0.1
-        new_config = PipelineConfig(kl_warning=max(0.01, baseline.kl_warning + adjustment), kl_critical=max(0.1, baseline.kl_critical + adjustment * 2), kl_max=max(0.5, baseline.kl_max + adjustment * 3), hellinger_warning=baseline.hellinger_warning, hellinger_critical=baseline.hellinger_critical, check_interval_seconds=baseline.check_interval_seconds, review_timeout_seconds=baseline.review_timeout_seconds, reset_cooldown_seconds=baseline.reset_cooldown_seconds, reset_on_critical=baseline.reset_on_critical)
+        new_config = PipelineConfig(
+            kl_warning=max(0.01, baseline.kl_warning + adjustment),
+            kl_critical=max(0.1, baseline.kl_critical + adjustment * 2),
+            kl_max=max(0.5, baseline.kl_max + adjustment * 3),
+            hellinger_warning=baseline.hellinger_warning,
+            hellinger_critical=baseline.hellinger_critical,
+            check_interval_seconds=baseline.check_interval_seconds,
+            review_timeout_seconds=baseline.review_timeout_seconds,
+            reset_cooldown_seconds=baseline.reset_cooldown_seconds,
+            reset_on_critical=baseline.reset_on_critical,
+        )
         return new_config
 
     def get_stats(self) -> dict[str, Any]:
         """Get meta-learner statistics (M5: includes store and scheduler stats)."""
         store_stats = self._store.get_stats()
-        return {'state': self._state.to_dict(), 'buffer_utilization': len(self._state.experience_buffer) / self._buffer_size, 'avg_reward': self._state.total_reward / max(self._state.episode_count, 1), 'store': store_stats, 'scheduler': self._lr_scheduler.get_stats(), 'persisted_samples': self._store.count()}
+        return {
+            "state": self._state.to_dict(),
+            "buffer_utilization": len(self._state.experience_buffer) / self._buffer_size,
+            "avg_reward": self._state.total_reward / max(self._state.episode_count, 1),
+            "store": store_stats,
+            "scheduler": self._lr_scheduler.get_stats(),
+            "persisted_samples": self._store.count(),
+        }
 
     def save(self, path: Path) -> None:
         """Save meta-learner state to disk (JSON for backward compat)."""
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(self._state.to_dict(), f, indent=2, default=str)
 
     def load(self, path: Path) -> None:
         """Load meta-learner state from disk."""
         with open(path) as f:
             data = json.load(f)
-            self._state.policy_weights = data.get('policy_weights', {})
-            self._state.learning_rate = data.get('learning_rate', 0.02)
-            self._state.total_reward = data.get('total_reward', 0.0)
-            self._state.episode_count = data.get('episode_count', 0)
+            self._state.policy_weights = data.get("policy_weights", {})
+            self._state.learning_rate = data.get("learning_rate", 0.02)
+            self._state.total_reward = data.get("total_reward", 0.0)
+            self._state.episode_count = data.get("episode_count", 0)

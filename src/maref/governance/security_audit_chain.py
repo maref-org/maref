@@ -12,8 +12,6 @@ AuditBus (v0.42.0+) provides a unified interface combining governance,
 GaaS tenant, and recursive-evolution audit. See ``governance/audit_bus.py``.
 """
 
-from __future__ import annotations
-
 import hashlib
 import hmac
 import json
@@ -100,7 +98,7 @@ class SecurityAuditChain:
             if env_key:
                 resolved_key = env_key
         if resolved_key is None:
-            for key_path in (".maraf_hmac_key", ".gaas_api_key"):
+            for key_path in (".maref_hmac_key", ".maraf_hmac_key", ".gaas_api_key"):
                 try:
                     with open(key_path) as f:
                         resolved_key = f.read().strip()
@@ -118,18 +116,50 @@ class SecurityAuditChain:
         self._last_chain_hash = self._get_last_chain_hash()
 
     def _get_last_chain_hash(self) -> str:
-        """Read the last chain_hash from the file, or empty string if new."""
+        """Read the last chain_hash from the file, or empty string if new.
+
+        O(1): seeks to the file tail window instead of scanning the whole
+        chain file line by line (the chain can grow large over a long
+        session). The window doubles until a valid tail record is found,
+        so records larger than the initial 64KB window do not break the
+        chain. Semantics match ``AuditLogger._last_chain_hash_from_file``.
+        """
         if not self._path.exists():
             return ""
         try:
-            with open(self._path) as f:
-                lines = [line.strip() for line in f if line.strip()]
-            if not lines:
+            size = self._path.stat().st_size
+            if size == 0:
                 return ""
-            last = json.loads(lines[-1])
-            return last.get("chain_hash", "")
-        except (json.JSONDecodeError, OSError):
+            window = min(size, 64 * 1024)
+            while True:
+                offset = size - window
+                with open(self._path, "rb") as f:
+                    f.seek(offset)
+                    tail = f.read(window).decode("utf-8", errors="replace")
+                lines = tail.splitlines()
+                # When the window starts mid-file its first line is truncated.
+                if offset > 0 and lines:
+                    lines = lines[1:]
+                for line in reversed(lines):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        if not isinstance(data, dict):
+                            continue
+                        chain_hash = data.get("chain_hash", "")
+                    except json.JSONDecodeError:
+                        continue
+                    if chain_hash:
+                        return chain_hash
+                if window >= size:
+                    return ""
+                window = min(size, window * 2)
+        except (OSError, ValueError) as e:
+            logger.warning("SecurityAuditChain tail-read failed: %s", e)
             return ""
+        return ""
 
     def _sign(self, entry: SecurityAuditEntry) -> str:
         if self._hmac_key is None:

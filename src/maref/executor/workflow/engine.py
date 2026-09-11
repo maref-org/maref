@@ -57,9 +57,7 @@ def _topological_sort(steps: list, depends_on_attr: str = "depends_on") -> list:
     for s in steps:
         for dep in getattr(s, depends_on_attr, []):
             if dep not in step_map:
-                raise WorkflowError(
-                    f"Step '{s.name}' depends on unknown step '{dep}'"
-                )
+                raise WorkflowError(f"Step '{s.name}' depends on unknown step '{dep}'")
             adj[dep].append(s.name)
             in_degree[s.name] = in_degree.get(s.name, 0) + 1
 
@@ -76,8 +74,7 @@ def _topological_sort(steps: list, depends_on_attr: str = "depends_on") -> list:
 
     if len(sorted_names) != len(steps):
         raise CircularDependencyError(
-            f"Circular dependency detected: {len(steps)} steps, "
-            f"{len(sorted_names)} sortable"
+            f"Circular dependency detected: {len(steps)} steps, {len(sorted_names)} sortable"
         )
 
     result = [step_map[n] for n in sorted_names]
@@ -176,9 +173,7 @@ class WorkflowEngine:
         completed_step_names: list[str] = []
 
         for group in groups:
-            has_parallel = any(
-                s.parallel_group for s in group
-            )
+            has_parallel = any(s.parallel_group for s in group)
 
             if has_parallel:
                 grouped: dict[str, list] = {}
@@ -188,9 +183,7 @@ class WorkflowEngine:
 
                 for pg_name, pg_steps in grouped.items():
                     if pg_name.startswith("__seq_") or len(pg_steps) == 1:
-                        sr = self._execute_step(
-                            pg_steps[0], script, inputs, result
-                        )
+                        sr = self._execute_step(pg_steps[0], script, inputs, result)
                         result.step_results.append(sr)
                         step_index += 1
                         if sr.status == StepStatus.COMPLETED:
@@ -221,9 +214,7 @@ class WorkflowEngine:
                     if sr.status == StepStatus.COMPLETED:
                         completed_step_names.append(step.name)
                     else:
-                        return self._handle_step_failure(
-                            sr, step, completed_step_names, result
-                        )
+                        return self._handle_step_failure(sr, step, completed_step_names, result)
 
             # 检查点
             if (
@@ -232,9 +223,7 @@ class WorkflowEngine:
                 and step_index % script.checkpoint_interval == 0
                 and step_index > 0
             ):
-                self._save_checkpoint(
-                    script, step_index - 1, result.step_results
-                )
+                self._save_checkpoint(script, step_index - 1, result.step_results)
                 checkpoint_count += 1
 
         result.status = WorkflowStatus.COMPLETED
@@ -300,23 +289,18 @@ class WorkflowEngine:
                     grouped.setdefault(pg, []).append(s)
                 for pg_steps in grouped.values():
                     if len(pg_steps) == 1:
-                        sr = self._execute_step(
-                            pg_steps[0], cp.script, {}, result
-                        )
+                        sr = self._execute_step(pg_steps[0], cp.script, {}, result)
                         result.step_results.append(sr)
                         step_index += 1
                         if sr.status == StepStatus.FAILED:
                             result.status = WorkflowStatus.FAILED
                             result.error_message = (
-                                f"Step '{pg_steps[0].name}' failed (resume): "
-                                f"{sr.error_message}"
+                                f"Step '{pg_steps[0].name}' failed (resume): {sr.error_message}"
                             )
                             result.completed_at = _now()
                             return result
                     else:
-                        srs = self._execute_parallel(
-                            pg_steps, cp.script, {}, result
-                        )
+                        srs = self._execute_parallel(pg_steps, cp.script, {}, result)
                         result.step_results.extend(srs)
                         step_index += len(srs)
             else:
@@ -327,8 +311,7 @@ class WorkflowEngine:
                     if sr.status == StepStatus.FAILED:
                         result.status = WorkflowStatus.FAILED
                         result.error_message = (
-                            f"Step '{step.name}' failed (resume): "
-                            f"{sr.error_message}"
+                            f"Step '{step.name}' failed (resume): {sr.error_message}"
                         )
                         result.completed_at = _now()
                         return result
@@ -358,18 +341,14 @@ class WorkflowEngine:
     ) -> WorkflowResult:
         """Handle a step failure with optional blast-radius-limited compensation."""
         result.status = WorkflowStatus.FAILED
-        result.error_message = (
-            f"Step '{failed_step.name}' failed: {sr.error_message}"
-        )
+        result.error_message = f"Step '{failed_step.name}' failed: {sr.error_message}"
 
         if failed_step.on_failure == "rollback" and completed_step_names:
             decision = self._blast_radius.decide(
                 failed_step_id=failed_step.name,
                 completed_step_ids=list(completed_step_names),
             )
-            compensated = self._compensate_steps(
-                decision, failed_step, sr, result
-            )
+            compensated = self._compensate_steps(decision, failed_step, sr, result)
 
             if not compensated:
                 result.error_message += " (compensation failed)"
@@ -463,8 +442,7 @@ class WorkflowEngine:
         if handler is None:
             sr.status = StepStatus.FAILED
             sr.error_message = (
-                f"No handler registered for agent_role='{step.agent_role}' "
-                f"in step '{step.name}'"
+                f"No handler registered for agent_role='{step.agent_role}' in step '{step.name}'"
             )
             sr.completed_at = _now()
             return sr
@@ -523,9 +501,7 @@ class WorkflowEngine:
                     continue
                 # 重试耗尽 → 尝试回退
                 if step.fallback_step:
-                    return self._execute_fallback(
-                        step, script, inputs, result, last_error
-                    )
+                    return self._execute_fallback(step, script, inputs, result, last_error)
 
         sr.status = StepStatus.FAILED
         sr.error_message = last_error
@@ -554,9 +530,7 @@ class WorkflowEngine:
         t.start()
         finished = done.wait(timeout=timeout)
         if not finished:
-            raise TimeoutError(
-                f"Step '{task.name}' timed out after {timeout}s"
-            )
+            raise TimeoutError(f"Step '{task.name}' timed out after {timeout}s")
         if exc[0] is not None:
             raise exc[0]
 
@@ -582,9 +556,7 @@ class WorkflowEngine:
         handler = self._handlers.get(fallback_step.agent_role)
         if handler is None:
             sr.status = StepStatus.FAILED
-            sr.error_message = (
-                f"Fallback step '{fallback_step.name}' has no handler"
-            )
+            sr.error_message = f"Fallback step '{fallback_step.name}' has no handler"
             sr.completed_at = _now()
             return sr
 
@@ -635,9 +607,7 @@ class WorkflowEngine:
 
         return step_results
 
-    def _validate_step(
-        self, sr: StepResult, step, task: Task
-    ) -> None:
+    def _validate_step(self, sr: StepResult, step, task: Task) -> None:
         """步骤验证：调用验证 handler 检查步骤输出。"""
         validator_handler = self._handlers.get(f"{step.agent_role}.validator")
         if validator_handler is None:
@@ -672,17 +642,13 @@ class WorkflowEngine:
             step_results=step_results,
         )
         os.makedirs(self._checkpoint_dir, exist_ok=True)
-        path = os.path.join(
-            self._checkpoint_dir, f"wf-checkpoint-{cp.id}.json"
-        )
+        path = os.path.join(self._checkpoint_dir, f"wf-checkpoint-{cp.id}.json")
         with open(path, "w") as f:
             json.dump(cp.to_dict(), f, indent=2)
         return cp.id
 
     def _load_checkpoint(self, checkpoint_id: str) -> WorkflowCheckpoint | None:
-        path = os.path.join(
-            self._checkpoint_dir, f"wf-checkpoint-{checkpoint_id}.json"
-        )
+        path = os.path.join(self._checkpoint_dir, f"wf-checkpoint-{checkpoint_id}.json")
         if not os.path.exists(path):
             return None
         with open(path) as f:

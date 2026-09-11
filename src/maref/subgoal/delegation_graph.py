@@ -54,8 +54,9 @@ class DelegationGraph:
         self._cooldowns: dict[str, float] = {}
         self._cooldown_times: dict[str, float] = {}
 
-    def record_delegation(self, from_agent: str, to_agent: str,
-                          permissions: set[str], reason: str = "") -> None:
+    def record_delegation(
+        self, from_agent: str, to_agent: str, permissions: set[str], reason: str = ""
+    ) -> None:
         event = DelegationEvent(
             from_agent=from_agent,
             to_agent=to_agent,
@@ -74,8 +75,9 @@ class DelegationGraph:
         new_perms = current - baseline
 
         now = time.time()
-        recent = [e for e in self._events
-                  if e.to_agent == agent_id and (now - e.timestamp) < window]
+        recent = [
+            e for e in self._events if e.to_agent == agent_id and (now - e.timestamp) < window
+        ]
 
         creep_score = self._compute_creep_score(baseline, current, recent)
         requires_cooldown = creep_score > self._cooldown_threshold
@@ -111,8 +113,11 @@ class DelegationGraph:
             visited.add(current)
             perms = self._permissions.get(current, set())
             effective.update(perms)
-            children = [e.to_agent for e in self._events if e.from_agent == current
-                        and e.to_agent not in visited]
+            children = [
+                e.to_agent
+                for e in self._events
+                if e.from_agent == current and e.to_agent not in visited
+            ]
             queue.extend(children)
         return effective
 
@@ -139,8 +144,9 @@ class DelegationGraph:
             "in_cooldown": self.is_in_cooldown(agent_id),
         }
 
-    def _compute_creep_score(self, baseline: set[str], current: set[str],
-                              recent: list[DelegationEvent]) -> float:
+    def _compute_creep_score(
+        self, baseline: set[str], current: set[str], recent: list[DelegationEvent]
+    ) -> float:
         if not baseline:
             return len(current) * 0.1
 

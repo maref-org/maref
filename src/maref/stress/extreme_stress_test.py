@@ -34,6 +34,7 @@ from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 @dataclass
 class ExtremeTestResult:
     """Result from a single extreme test."""
+
     test_name: str
     scenario: str
     success: bool
@@ -73,7 +74,10 @@ class ExtremeStressTester:
             {"type": FaultType.NETWORK, "params": {"latency_ms": 1000, "drop_rate": 0.2}},
             {"type": FaultType.CPU, "params": {"load_pct": 80, "duration_s": 5}},
             {"type": FaultType.MEMORY, "params": {"pressure_mb": 500}},
-            {"type": FaultType.BYZANTINE, "params": {"agent_id": "cascading_test", "tamper_rate": 0.5}},
+            {
+                "type": FaultType.BYZANTINE,
+                "params": {"agent_id": "cascading_test", "tamper_rate": 0.5},
+            },
             {"type": FaultType.EMERGENT_CONFLICT, "params": {"conflict_type": "shared_state"}},
         ]
 
@@ -178,18 +182,22 @@ class ExtremeStressTester:
             try:
                 event = engine.inject(fault_type, duration_s=3.0, params=params)
                 with lock:
-                    fault_results.append({
-                        "type": fault_type.value,
-                        "success": event.success,
-                        "detail": event.detail,
-                    })
+                    fault_results.append(
+                        {
+                            "type": fault_type.value,
+                            "success": event.success,
+                            "detail": event.detail,
+                        }
+                    )
             except Exception as e:
                 with lock:
-                    fault_results.append({
-                        "type": fault_type.value,
-                        "success": False,
-                        "error": str(e),
-                    })
+                    fault_results.append(
+                        {
+                            "type": fault_type.value,
+                            "success": False,
+                            "error": str(e),
+                        }
+                    )
 
         # Spawn 5 threads simultaneously
         fault_configs: list[tuple[FaultType, dict[str, Any]]] = [
@@ -201,10 +209,7 @@ class ExtremeStressTester:
         ]
 
         with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(inject_fault, ft, params)
-                for ft, params in fault_configs
-            ]
+            futures = [executor.submit(inject_fault, ft, params) for ft, params in fault_configs]
             for f in as_completed(futures):
                 f.result()  # Wait for completion
 
@@ -282,7 +287,7 @@ class ExtremeStressTester:
         # Check success rate stability
         batch_rates = []
         for i in range(10):
-            batch = report.runs[i*100:(i+1)*100]
+            batch = report.runs[i * 100 : (i + 1) * 100]
             batch_rate = sum(1 for r in batch if r.success) / len(batch)
             batch_rates.append(batch_rate)
 
@@ -304,7 +309,9 @@ class ExtremeStressTester:
                 "total_duration_s": duration / 1000,
             },
             details=f"1000 runs completed, success rate: {report.success_rate:.1%}, std: {success_rate_std:.3f}",
-            warnings=[] if success else [
+            warnings=[]
+            if success
+            else [
                 f"Success rate variance too high: {success_rate_std:.3f}",
                 f"Duration growth: {duration_growth:.1%}",
             ],
@@ -341,11 +348,13 @@ class ExtremeStressTester:
         for round_idx in range(rounds):
             report = harness.run(num_runs=100, stress_factor=stress_factor)
 
-            history.append({
-                "round": round_idx,
-                "stress_factor": stress_factor,
-                "success_rate": report.success_rate,
-            })
+            history.append(
+                {
+                    "round": round_idx,
+                    "stress_factor": stress_factor,
+                    "success_rate": report.success_rate,
+                }
+            )
 
             # Adaptive adjustment
             if report.success_rate > 0.80:
@@ -406,7 +415,9 @@ class ExtremeStressTester:
 
         # Run under resource exhaustion
         agents = [
-            AgentConfig(name="gen", quality_rate=0.95, speed_ms_mean=1500),  # Slower under resource pressure
+            AgentConfig(
+                name="gen", quality_rate=0.95, speed_ms_mean=1500
+            ),  # Slower under resource pressure
             AgentConfig(name="test", quality_rate=0.90, speed_ms_mean=800),
             AgentConfig(name="review", quality_rate=0.85, speed_ms_mean=1000),
             AgentConfig(name="merge", quality_rate=0.95, speed_ms_mean=400),
@@ -432,7 +443,9 @@ class ExtremeStressTester:
                 "fault_count": len(faults),
             },
             details=f"Success rate under resource exhaustion: {report.success_rate:.1%}",
-            warnings=[] if success else ["System crashed or failed completely under resource exhaustion"],
+            warnings=[]
+            if success
+            else ["System crashed or failed completely under resource exhaustion"],
             duration_ms=duration,
         )
 
@@ -465,19 +478,29 @@ class ExtremeStressTester:
             engine.inject(FaultType.NETWORK, duration_s=2.0, params=scenario)
 
             agents = [
-                AgentConfig(name="gen", quality_rate=0.95, speed_ms_mean=800 + scenario["latency_ms"]),
-                AgentConfig(name="test", quality_rate=0.90, speed_ms_mean=400 + scenario["latency_ms"]),
-                AgentConfig(name="review", quality_rate=0.85, speed_ms_mean=600 + scenario["latency_ms"]),
-                AgentConfig(name="merge", quality_rate=0.95, speed_ms_mean=200 + scenario["latency_ms"]),
+                AgentConfig(
+                    name="gen", quality_rate=0.95, speed_ms_mean=800 + scenario["latency_ms"]
+                ),
+                AgentConfig(
+                    name="test", quality_rate=0.90, speed_ms_mean=400 + scenario["latency_ms"]
+                ),
+                AgentConfig(
+                    name="review", quality_rate=0.85, speed_ms_mean=600 + scenario["latency_ms"]
+                ),
+                AgentConfig(
+                    name="merge", quality_rate=0.95, speed_ms_mean=200 + scenario["latency_ms"]
+                ),
             ]
 
             harness = CodeServiceHarness(agents=agents, seed=self._seed)
             report = harness.run(num_runs=50, stress_factor=0.5)
-            all_reports.append({
-                "scenario": scenario,
-                "success_rate": report.success_rate,
-                "avg_duration_ms": report.avg_duration_ms,
-            })
+            all_reports.append(
+                {
+                    "scenario": scenario,
+                    "success_rate": report.success_rate,
+                    "avg_duration_ms": report.avg_duration_ms,
+                }
+            )
 
         t1 = time.perf_counter()
         duration = (t1 - t0) * 1000
@@ -596,12 +619,14 @@ def run_extreme_stress_suite() -> dict:
 
     print("\n  Overall:")
     print(f"    Tests passed:      {passed_tests}/{total_tests} ({pass_rate:.0%})")
-    print(f"    Total duration:    {total_duration/1000:.0f}s ({total_duration/1000/60:.1f} min)")
+    print(
+        f"    Total duration:    {total_duration / 1000:.0f}s ({total_duration / 1000 / 60:.1f} min)"
+    )
 
     print("\n  By Test:")
     for r in tester.results:
         status = "PASS" if r.success else "FAIL"
-        print(f"    {r.test_name:<30} {status} ({r.duration_ms/1000:.1f}s)")
+        print(f"    {r.test_name:<30} {status} ({r.duration_ms / 1000:.1f}s)")
         if r.warnings:
             for w in r.warnings:
                 print(f"      ⚠ {w}")
@@ -629,7 +654,9 @@ def run_extreme_stress_suite() -> dict:
 if __name__ == "__main__":
     results = run_extreme_stress_suite()
 
-    output_path = Path(__file__).parent.parent.parent / "tests" / "stress" / "extreme_stress_results.json"
+    output_path = (
+        Path(__file__).parent.parent.parent / "tests" / "stress" / "extreme_stress_results.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2, default=str)

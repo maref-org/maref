@@ -23,16 +23,18 @@ from maref.stress.code_service_sqi import CodeQualityMetrics
 @dataclass
 class AgentConfig:
     """Configuration for a single agent in the code service pipeline."""
+
     name: str
-    quality_rate: float = 0.8       # Base success probability (0.0-1.0)
-    speed_ms_mean: float = 500.0    # Average execution time
-    speed_ms_std: float = 100.0     # Standard deviation
+    quality_rate: float = 0.8  # Base success probability (0.0-1.0)
+    speed_ms_mean: float = 500.0  # Average execution time
+    speed_ms_std: float = 100.0  # Standard deviation
     error_types: list[str] = field(default_factory=list)
 
 
 @dataclass
 class PipelineRun:
     """Result of a single pipeline execution."""
+
     run_id: int
     success: bool
     duration_ms: float
@@ -50,6 +52,7 @@ class PipelineRun:
 @dataclass
 class CodeServiceReport:
     """Aggregate report from CodeServiceHarness."""
+
     total_runs: int
     successful_runs: int
     failed_runs: int
@@ -77,14 +80,34 @@ class CodeServiceHarness:
     """Simulate a code service factory pipeline."""
 
     DEFAULT_AGENTS = [
-        AgentConfig(name="code_generator", quality_rate=0.85, speed_ms_mean=800, speed_ms_std=200,
-                     error_types=["syntax_error", "missing_import", "logic_bug"]),
-        AgentConfig(name="test_agent", quality_rate=0.90, speed_ms_mean=400, speed_ms_std=100,
-                     error_types=["test_flaky", "coverage_gap", "mock_error"]),
-        AgentConfig(name="review_agent", quality_rate=0.80, speed_ms_mean=600, speed_ms_std=150,
-                     error_types=["style_violation", "security_risk", "performance_issue"]),
-        AgentConfig(name="merge_agent", quality_rate=0.95, speed_ms_mean=200, speed_ms_std=50,
-                     error_types=["merge_conflict", "integration_fail"]),
+        AgentConfig(
+            name="code_generator",
+            quality_rate=0.85,
+            speed_ms_mean=800,
+            speed_ms_std=200,
+            error_types=["syntax_error", "missing_import", "logic_bug"],
+        ),
+        AgentConfig(
+            name="test_agent",
+            quality_rate=0.90,
+            speed_ms_mean=400,
+            speed_ms_std=100,
+            error_types=["test_flaky", "coverage_gap", "mock_error"],
+        ),
+        AgentConfig(
+            name="review_agent",
+            quality_rate=0.80,
+            speed_ms_mean=600,
+            speed_ms_std=150,
+            error_types=["style_violation", "security_risk", "performance_issue"],
+        ),
+        AgentConfig(
+            name="merge_agent",
+            quality_rate=0.95,
+            speed_ms_mean=200,
+            speed_ms_std=50,
+            error_types=["merge_conflict", "integration_fail"],
+        ),
     ]
 
     def __init__(self, agents: list[AgentConfig] | None = None, seed: int | None = None) -> None:
@@ -239,6 +262,7 @@ class CodeServiceHarness:
             coverage_values.append(batch.avg_test_coverage)
 
         import statistics
+
         return {
             "success_rate_mean": statistics.mean(success_rates),
             "success_rate_std": statistics.stdev(success_rates) if len(success_rates) > 1 else 0.0,

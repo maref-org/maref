@@ -30,13 +30,13 @@ class PermissionRule:
 
 
 class BashValidator:
-    SHELL_METACHARACTERS = re.compile(r'[;&|`]')
-    COMMAND_SUBSTITUTION = re.compile(r'\$\([^)]*\)|`[^`]*`')
-    PROCESS_SUBSTITUTION = re.compile(r'<\([^)]*\)|>\([^)]*\)')
-    HEREDOC_IN_SUBST = re.compile(r'<<\s*\w+.*\$\(', re.DOTALL)
-    IFS_PATTERN = re.compile(r'\bIFS\s*=', re.IGNORECASE)
-    PROC_ENVIRON_PATTERN = re.compile(r'/proc/\d+/environ')
-    SLEEP_PATTERN = re.compile(r'\bsleep\s+(\d+)')
+    SHELL_METACHARACTERS = re.compile(r"[;&|`]")
+    COMMAND_SUBSTITUTION = re.compile(r"\$\([^)]*\)|`[^`]*`")
+    PROCESS_SUBSTITUTION = re.compile(r"<\([^)]*\)|>\([^)]*\)")
+    HEREDOC_IN_SUBST = re.compile(r"<<\s*\w+.*\$\(", re.DOTALL)
+    IFS_PATTERN = re.compile(r"\bIFS\s*=", re.IGNORECASE)
+    PROC_ENVIRON_PATTERN = re.compile(r"/proc/\d+/environ")
+    SLEEP_PATTERN = re.compile(r"\bsleep\s+(\d+)")
 
     BLOCKED_COMMANDS: set[str] = {"sudo", "su", "doas", "pkexec"}
     BLOCKED_PATHS: set[str] = {"/etc", "/proc", "/sys", "/dev"}
@@ -68,7 +68,9 @@ class BashValidator:
 
         sleep_match = self.SLEEP_PATTERN.search(command)
         if sleep_match and int(sleep_match.group(1)) >= 2:
-            warnings.append(f"sleep {sleep_match.group(1)}s detected; consider background execution")
+            warnings.append(
+                f"sleep {sleep_match.group(1)}s detected; consider background execution"
+            )
 
         if not tokens:
             return False, "Empty command", warnings
@@ -77,9 +79,9 @@ class BashValidator:
 
 
 class PathSafety:
-    UNC_PATTERN = re.compile(r'^\\\\')
-    WINDOWS_ADS_PATTERN = re.compile(r':.*\$')
-    TRAVERSAL_PATTERN = re.compile(r'(?:^|[/\\])\.\.(?:$|[/\\])')
+    UNC_PATTERN = re.compile(r"^\\\\")
+    WINDOWS_ADS_PATTERN = re.compile(r":.*\$")
+    TRAVERSAL_PATTERN = re.compile(r"(?:^|[/\\])\.\.(?:$|[/\\])")
 
     BLOCKED_EXTENSIONS: set[str] = {".pyc", ".pyo", ".so", ".dll", ".exe", ".bin"}
     MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024
@@ -168,9 +170,7 @@ class PermissionEngine:
         ctx: ToolContext,
     ) -> PermissionResult:
         if self._mode == PermissionMode.DENY_ALL:
-            return PermissionResult(
-                granted=False, mode="deny_all", reason="deny_all mode active"
-            )
+            return PermissionResult(granted=False, mode="deny_all", reason="deny_all mode active")
 
         if self._mode == PermissionMode.PLAN:
             if not tool.is_read_only(inp):
@@ -210,7 +210,8 @@ class PermissionEngine:
             safe, msg = self._path_safety.check(path)
             if not safe:
                 return PermissionResult(
-                    granted=False, mode="path_safety",
+                    granted=False,
+                    mode="path_safety",
                     reason=f"Path safety check failed: {msg}",
                     details={"path": path},
                 )
@@ -222,7 +223,8 @@ class PermissionEngine:
                     threat = self._safety_gate.detect_core_removal(path)
                     if threat.blocked:
                         return PermissionResult(
-                            granted=False, mode="safety_gate",
+                            granted=False,
+                            mode="safety_gate",
                             reason=f"Safety gate blocked: {threat.reason}",
                             details={"threat_type": threat.threat_type},
                         )

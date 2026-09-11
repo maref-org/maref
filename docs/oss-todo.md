@@ -8,6 +8,7 @@
 ## 已完成项
 
 - [x] **A1 — arXiv 论文提交** — 安全审计版 LaTeX 已投稿
+- [x] **B1 — OPC 注册** — 公司注册完成
 - [x] **B3 — 合规补齐** — 许可 / CLA / 安全策略文件就绪
 - [x] **D1 — GitHub 合规审计** — 安全扫描 / 密钥审计 / 依赖审计通过
 - [x] **D2 — GitHub 自动化维护能力** — Dependabot / stale / branch-cleanup workflows 部署
@@ -28,11 +29,26 @@
 
 ## 待执行（S0 剩余）
 
+### P0 — 运营能力开源化决策（INC-2026-08-13-001 / G13）
+
+> **背景**: 成本失控事故暴露"开源 MAREF 无神经系统"——看门狗/飞轮/遥测/成本护栏全在闭源侧，
+> 开源部署对自身问题零感知。v0.54 已把"最少集"（selfcheck + 成本护栏 + 本地遥测聚合器）带入开源仓库，
+> 以下为剩余运营能力的开源化决策，**需维护者拍板**。
+
+| # | 能力 | 当前归属 | 三选一建议 | 理由 |
+|---|------|---------|-----------|------|
+| D3a | meta_monitor 看门狗 | 闭源 plist | **独立部署包** | 逻辑已在开源 `src/maref/observability/`，仅缺 launchd 调度文件，可随仓库发布 `deploy/` 模板 |
+| D3b | 全域数据飞轮 | 闭源 `scripts/data-flywheel-orchestrator.py` | **独立部署包** | 依赖闭源 infra（plan_queue/OPC），不适合整包开源；发布脱敏版 + 安装脚本 |
+| D3c | ObsBridge 遥测桥 | 闭源 `src/sidecar/obs_bridge.py` | **已开源**（v0.54 接线） | 开源 `src/sidecar/obs_bridge.py` 存在，create_app 自动 wire 已落地 |
+| D3d | cost_event 审计 + M4 | 开源（v0.54 新增） | **已开源** ✅ | 本次事故直接产物 |
+| D3e | llm_router 成本护栏 | 闭源 `llm_router.py` | **护栏执行端已开源**（2026-08-14 追审落地） | 调用路由/密钥部分保持闭源；护栏执行逻辑（CALL/CTX/BUDGET + HMAC 审计）提取为开源 `src/maref/cost_guard.py`（CostGuard），开源部署者可在自有代理/网关接入，测试见 `tests/security/test_cost_guard_opensource.py`，接入示例见 `deploy/cost-guard-gateway-example.py` |
+
+**决策要求**: 2026-08-30 前，对 D3a/D3b 给出 开源 / 独立部署包 / 保持闭源 的明确结论并更新此表。
+
 ### P0 — 开源基础设施就绪
 
 - [ ] **GitHub Projects 补全** — Roadmap / Milestone / Issue 模板（需 GitHub 连通后操作）
 - [ ] **SSH 签名密钥配** — 维护者签名验证
-- [ ] **B1 — OPC 注册（公司主体前置）** — 尚未完成（注册指南前置项全部待确认：字号/地址/法人/资本/经营范围）；P1 对公账户/开票/税务登记均依赖此。见 docs/opc-registration-guide.md §一
 
 ### P1 — 社区生态
 

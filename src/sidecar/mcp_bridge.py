@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -45,13 +46,18 @@ class MCPResourceURI:
 class MCPToolDefinition:
     name: str = ""
     description: str = ""
-    input_schema: dict[str, Any] = field(default_factory=lambda: {"type": "object", "properties": {}})
+    input_schema: dict[str, Any] = field(
+        default_factory=lambda: {"type": "object", "properties": {}}
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
-            "inputSchema": self.input_schema,
+            "inputSchema": {
+                **self.input_schema,
+                "api_version": self.input_schema.get("api_version", "1.0.0"),
+            },
         }
 
 
@@ -79,12 +85,22 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
     MCPToolDefinition(
         name="maref_compliance_check",
         description="Check compliance for an action",
-        input_schema={"type": "object", "properties": {"agent_id": {"type": "string"}, "action": {"type": "string"}}},
+        input_schema={
+            "type": "object",
+            "properties": {"agent_id": {"type": "string"}, "action": {"type": "string"}},
+        },
     ),
     MCPToolDefinition(
         name="maref_ingest_signal",
         description="Ingest a signal from external source",
-        input_schema={"type": "object", "properties": {"signal_type": {"type": "string"}, "payload": {"type": "object"}, "source": {"type": "string"}}},
+        input_schema={
+            "type": "object",
+            "properties": {
+                "signal_type": {"type": "string"},
+                "payload": {"type": "object"},
+                "source": {"type": "string"},
+            },
+        },
     ),
     MCPToolDefinition(
         name="maref_list_agents",
@@ -109,7 +125,10 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
     MCPToolDefinition(
         name="maref_migrate",
         description="Migrate agent to new state",
-        input_schema={"type": "object", "properties": {"agent_id": {"type": "string"}, "target_state": {"type": "string"}}},
+        input_schema={
+            "type": "object",
+            "properties": {"agent_id": {"type": "string"}, "target_state": {"type": "string"}},
+        },
     ),
     MCPToolDefinition(
         name="maref_verifier_list",
@@ -119,7 +138,10 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
     MCPToolDefinition(
         name="maref_verifier_check",
         description="Run consensus check via verifiers",
-        input_schema={"type": "object", "properties": {"action": {"type": "string"}, "context": {"type": "object"}}},
+        input_schema={
+            "type": "object",
+            "properties": {"action": {"type": "string"}, "context": {"type": "object"}},
+        },
     ),
     MCPToolDefinition(
         name="maref_verifier_history",
@@ -132,7 +154,10 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
         input_schema={
             "type": "object",
             "properties": {
-                "engine": {"type": "string", "enum": ["daily", "rel", "multi", "continuous", "saeb", "tla"]},
+                "engine": {
+                    "type": "string",
+                    "enum": ["daily", "rel", "multi", "continuous", "saeb", "tla"],
+                },
                 "dry_run": {"type": "boolean"},
             },
         },
@@ -168,9 +193,15 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
         input_schema={
             "type": "object",
             "properties": {
-                "action": {"type": "string", "description": "The action to check (e.g., write, delete, modify)"},
+                "action": {
+                    "type": "string",
+                    "description": "The action to check (e.g., write, delete, modify)",
+                },
                 "file_path": {"type": "string", "description": "Target file path for the action"},
-                "phase": {"type": "string", "description": "Override phase (default: read from current_phase.json)"},
+                "phase": {
+                    "type": "string",
+                    "description": "Override phase (default: read from current_phase.json)",
+                },
             },
             "required": ["action", "file_path"],
         },
@@ -182,8 +213,16 @@ SIDECAR_MCP_TOOLS: list[MCPToolDefinition] = [
             "type": "object",
             "properties": {
                 "claim": {"type": "string", "description": "The completion claim to verify"},
-                "evidence_paths": {"type": "array", "items": {"type": "string"}, "description": "Paths to evidence files"},
-                "severity": {"type": "string", "enum": ["advisory", "block"], "description": "Verification severity level"},
+                "evidence_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Paths to evidence files",
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": ["advisory", "block"],
+                    "description": "Verification severity level",
+                },
             },
             "required": ["claim"],
         },
@@ -194,7 +233,11 @@ SIDECAR_MCP_RESOURCES: list[dict[str, Any]] = [
     {"uri": "maref://agents", "name": "All Agents", "mimeType": "application/json"},
     {"uri": "maref://observations", "name": "Recent Observations", "mimeType": "application/json"},
     {"uri": "maref://anomalies", "name": "Recent Anomalies", "mimeType": "application/json"},
-    {"uri": "maref://governance/decisions", "name": "Governance Decisions", "mimeType": "application/json"},
+    {
+        "uri": "maref://governance/decisions",
+        "name": "Governance Decisions",
+        "mimeType": "application/json",
+    },
 ]
 
 # ── claude-mem 工具前缀 ─────────────────────────────────────
@@ -213,7 +256,9 @@ def _build_cm_tool_map(cm_tools_raw: list[dict[str, Any]]) -> dict[str, MCPToolD
         result[prefixed] = MCPToolDefinition(
             name=prefixed,
             description=t.get("description", f"claude-mem: {raw_name}"),
-            input_schema=t.get("inputSchema", t.get("input_schema", {"type": "object", "properties": {}})),
+            input_schema=t.get(
+                "inputSchema", t.get("input_schema", {"type": "object", "properties": {}})
+            ),
         )
     return result
 
@@ -221,7 +266,7 @@ def _build_cm_tool_map(cm_tools_raw: list[dict[str, Any]]) -> dict[str, MCPToolD
 def _strip_cm_prefix(prefixed: str) -> str:
     """去掉 claude_mem_ 前缀获取原始工具名。"""
     if prefixed.startswith(_CM_PREFIX):
-        return prefixed[len(_CM_PREFIX):]
+        return prefixed[len(_CM_PREFIX) :]
     return prefixed
 
 
@@ -239,7 +284,14 @@ _CD_TOOLS: list[MCPToolDefinition] = [
     MCPToolDefinition(
         name="depth_symbol_search",
         description="Search symbols in codebase by name pattern",
-        input_schema={"type": "object", "properties": {"query": {"type": "string"}, "kind": {"type": "string"}, "limit": {"type": "integer"}}},
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "kind": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+        },
     ),
     MCPToolDefinition(
         name="depth_file_outline",
@@ -277,12 +329,14 @@ class SidecarMCPBridge:
         self._repo_path = repo_path
         self._cm_backend: Any | None = None  # ClaudeMemBackend, lazy-imported
         self._cd_indexer: Any | None = None  # CodeIndexer, lazy-imported
+        self._cd_building: bool = False  # single-flight：防并发重复 rebuild
 
     def _get_cm_backend(self) -> Any | None:
         """延迟导入并返回 ClaudeMemBackend 实例。"""
         if self._cm_backend is None:
             try:
                 from sidecar.claude_mem_adapter import ClaudeMemBackend as _CMB  # noqa: N814
+
                 backend = _CMB()
                 if backend.available:
                     backend.start()
@@ -294,16 +348,51 @@ class SidecarMCPBridge:
         return self._cm_backend
 
     def _get_cd_indexer(self) -> Any | None:
-        """延迟导入并返回 CodeIndexer 实例。"""
-        if self._cd_indexer is None:
-            try:
-                from maref.codedepth.indexer import CodeIndexer
+        """延迟导入并返回 CodeIndexer 实例。
 
-                idx = CodeIndexer(self._repo_path)
-                if idx.is_built or idx.build().get("files", 0) > 0:
-                    self._cd_indexer = idx
-            except Exception:
-                pass
+        CodeIndexer.build() 遍历整个仓库解析 .py（首次无索引 DB 时），
+        在 CI/large repo 上可能耗时数十秒。list_tools 仅需工具清单，
+        不应被懒初始化索引阻塞——build 用有界超时（10s），超时视为
+        索引不可用（工具仍来自 SIDECAR_MCP_TOOLS/_CM_TOOL_MAP）。
+
+        Single-flight：_cd_building 标记防止并发调用各自起 worker 重复
+        full-rebuild（对同一 SQLite 库 DELETE+INSERT 会写锁竞争）。后台
+        worker 若超时仍在运行，daemon 线程继续；后续调用命中 building
+        标记直接返回 None，由 worker 完成时统一置 _cd_indexer。
+        """
+        if self._cd_indexer is not None:
+            return self._cd_indexer
+        if self._cd_building:
+            return None
+        try:
+            import threading
+
+            from maref.codedepth.indexer import CodeIndexer
+
+            idx = CodeIndexer(self._repo_path)
+            outcome: list[bool] = []
+
+            def _ensure() -> None:
+                try:
+                    if not idx.is_built:
+                        idx.build()
+                    outcome.append(True)
+                except Exception:
+                    pass
+                finally:
+                    self._cd_building = False
+                    if outcome:
+                        self._cd_indexer = idx
+
+            self._cd_building = True
+            worker = threading.Thread(target=_ensure, daemon=True)
+            worker.start()
+            worker.join(timeout=10.0)
+            # worker 在超时内完成 build 才接受；否则后台继续，本次返回 None。
+            if outcome:
+                self._cd_indexer = idx
+        except Exception:
+            self._cd_building = False
         return self._cd_indexer
 
     def get_server_info(self) -> dict[str, Any]:
@@ -340,7 +429,30 @@ class SidecarMCPBridge:
             {"name": "maref_governance_overview", "description": "Governance overview prompt"},
         ]
 
-    def handle_tool_call(self, name: str, args: dict[str, Any], trace_id: str | None = None) -> dict[str, Any]:
+    def handle_tool_call(
+        self,
+        name: str,
+        args: dict[str, Any],
+        trace_id: str | None = None,
+        source_agent: str | None = None,
+        timestamp: str | None = None,
+    ) -> dict[str, Any]:
+        """路由工具调用 — 附加宪法第十五-A条完整信封后返回。"""
+        result = self._handle_tool_call_impl(name, args, trace_id)
+        result.setdefault(
+            "envelope",
+            {
+                "trace_id": trace_id,
+                "source_agent": source_agent,
+                "tool": name,
+                "timestamp": time.time(),
+            },
+        )
+        return result
+
+    def _handle_tool_call_impl(
+        self, name: str, args: dict[str, Any], trace_id: str | None = None
+    ) -> dict[str, Any]:
         """路由工具调用 — sidecar 工具直连，claude-mem 工具转发到后端。"""
         # claude-mem 工具路由
         if name.startswith(_CM_PREFIX):
@@ -348,7 +460,12 @@ class SidecarMCPBridge:
             if backend is None:
                 result: dict[str, Any] = {
                     "isError": True,
-                    "content": [{"type": "text", "text": "claude-mem backend unavailable. Is the plugin installed?"}],
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "claude-mem backend unavailable. Is the plugin installed?",
+                        }
+                    ],
                 }
             else:
                 raw_name = _strip_cm_prefix(name)
@@ -481,11 +598,13 @@ class SidecarMCPBridge:
             if name == "depth_stats":
                 return json.dumps(idx.get_stats())
             if name == "depth_symbol_search":
-                return json.dumps(idx.search_symbols(
-                    query=args.get("query", ""),
-                    kind=args.get("kind"),
-                    limit=args.get("limit", 50),
-                ))
+                return json.dumps(
+                    idx.search_symbols(
+                        query=args.get("query", ""),
+                        kind=args.get("kind"),
+                        limit=args.get("limit", 50),
+                    )
+                )
             if name == "depth_file_outline":
                 return json.dumps(idx.get_file_outline(args.get("file_path", "")))
             if name == "depth_call_graph":
@@ -501,21 +620,33 @@ class SidecarMCPBridge:
     def _handle_evolution_run(self, args: dict[str, Any]) -> dict[str, Any]:
         try:
             from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
+
             engine = args.get("engine", "daily")
             dry_run = args.get("dry_run", True)
             config = DaemonConfig(engine=engine, dry_run=dry_run, max_runs=1)
             daemon = EvolutionDaemon(config)
             result = daemon._loop.run_once()
             return {
-                "content": [{"type": "text", "text": json.dumps(result.to_dict() if result else {"error": "no result"}, indent=2)}],
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(
+                            result.to_dict() if result else {"error": "no result"}, indent=2
+                        ),
+                    }
+                ],
             }
         except Exception as e:
-            return {"isError": True, "content": [{"type": "text", "text": f"Evolution run failed: {e}"}]}
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Evolution run failed: {e}"}],
+            }
 
     def _handle_evolution_status(self, args: dict[str, Any]) -> dict[str, Any]:
         try:
             state_path = ".evolution_daemon_state.json"
             import os
+
             if os.path.exists(state_path):
                 with open(state_path) as f:
                     data = json.loads(f.read())
@@ -525,10 +656,14 @@ class SidecarMCPBridge:
                 "content": [{"type": "text", "text": json.dumps(data, indent=2)}],
             }
         except Exception as e:
-            return {"isError": True, "content": [{"type": "text", "text": f"Status check failed: {e}"}]}
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Status check failed: {e}"}],
+            }
 
     def _handle_evolution_results(self, args: dict[str, Any]) -> dict[str, Any]:
         import os
+
         try:
             limit = args.get("limit", 10)
             vault_dir = ".evolution_vault"
@@ -539,7 +674,10 @@ class SidecarMCPBridge:
                 "content": [{"type": "text", "text": json.dumps(results, indent=2)}],
             }
         except Exception as e:
-            return {"isError": True, "content": [{"type": "text", "text": f"List results failed: {e}"}]}
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"List results failed: {e}"}],
+            }
 
     def _handle_observe_agent(self, args: dict[str, Any]) -> dict[str, Any]:
         """处理 maref_observe_agent 工具调用 — 若 probe 可用则检查外泄。
@@ -568,11 +706,13 @@ class SidecarMCPBridge:
             "content": [
                 {
                     "type": "text",
-                    "text": json.dumps({
-                        "agent_id": agent_id,
-                        "exfiltration_detected": exfil_detected,
-                        "probe_available": self._probe is not None,
-                    }),
+                    "text": json.dumps(
+                        {
+                            "agent_id": agent_id,
+                            "exfiltration_detected": exfil_detected,
+                            "probe_available": self._probe is not None,
+                        }
+                    ),
                 }
             ],
         }
@@ -604,7 +744,18 @@ class SidecarMCPBridge:
         allowed_extensions = {
             "design": [".md", ".tla", ".tex", ".bib"],
             "review": [".md", ".py", ".ts", ".tsx", ".json", ".yaml", ".yml", ".tla"],
-            "implement": [".py", ".ts", ".tsx", ".json", ".yaml", ".yml", ".css", ".html", ".sh", ".tla"],
+            "implement": [
+                ".py",
+                ".ts",
+                ".tsx",
+                ".json",
+                ".yaml",
+                ".yml",
+                ".css",
+                ".html",
+                ".sh",
+                ".tla",
+            ],
             "deliver": [],
             "unconstrained": None,  # all allowed
         }
@@ -641,7 +792,7 @@ class SidecarMCPBridge:
         evidence_missing = 0
         details: list[str] = []
 
-        for path in (evidence_paths or []):
+        for path in evidence_paths or []:
             if _os.path.isfile(path):
                 evidence_found += 1
                 details.append(f"Found evidence: {path}")

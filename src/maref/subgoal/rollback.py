@@ -101,9 +101,7 @@ class SubgoalRollbackManager:
         rule-governed).
         """
         if failed_node_id not in self._snapshots:
-            return RollbackResult(
-                success=False, reason=f"no snapshot for node {failed_node_id}"
-            )
+            return RollbackResult(success=False, reason=f"no snapshot for node {failed_node_id}")
 
         # Build the full chain: failed node -> parent -> ... -> root
         chain = [failed_node_id] + self.get_ancestors(failed_node_id)
@@ -128,9 +126,7 @@ class SubgoalRollbackManager:
         circuit_breaker: Any | None,
     ) -> None:
         """Restore governance side-effects from a snapshot (best-effort)."""
-        if circuit_breaker is not None and hasattr(
-            circuit_breaker, "_failure_count"
-        ):
+        if circuit_breaker is not None and hasattr(circuit_breaker, "_failure_count"):
             lock = getattr(circuit_breaker, "_lock", None)
             if lock is not None:
                 with lock:

@@ -9,7 +9,7 @@ from research.discovery_engine import DiscoveryEngine
 from research.experiment_registry import ExperimentRegistry
 from research.fault_recovery import FaultRecovery
 from research.knowledge_graph import KnowledgeGraph
-from research.orchestrator import Orchestrator  # type: ignore[attr-defined]
+from research.orchestrator import ExperimentOrchestrator  # type: ignore[attr-defined]
 from research.vector_store import VectorStore  # type: ignore[attr-defined]
 
 logger = structlog.get_logger()
@@ -27,7 +27,7 @@ class ContinuousReport:
 
 class ContinuousAutoResearch:
 
-    def __init__(self, dashscope_client: DashscopeClient, discovery_engine: DiscoveryEngine, experiment_registry: ExperimentRegistry, fault_recovery: FaultRecovery, knowledge_graph: KnowledgeGraph, orchestrator: Orchestrator, vector_store: VectorStore) -> None:
+    def __init__(self, dashscope_client: DashscopeClient, discovery_engine: DiscoveryEngine, experiment_registry: ExperimentRegistry, fault_recovery: FaultRecovery, knowledge_graph: KnowledgeGraph, orchestrator: ExperimentOrchestrator, vector_store: VectorStore) -> None:
         self.dashscope_client = dashscope_client
         self.discovery_engine = discovery_engine
         self.experiment_registry = experiment_registry

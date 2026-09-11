@@ -65,7 +65,9 @@ class ManifestAdapter:
             author=skill.meta.author_did or "",
             license="Apache-2.0",
             entrypoint=entrypoint,
-            sandbox_config={"mode": skill.behavior.get("sandbox", "isolated")} if skill.behavior else {},
+            sandbox_config={"mode": skill.behavior.get("sandbox", "isolated")}
+            if skill.behavior
+            else {},
             test_cases=[],
             skill_id=skill.skill_id[:8],
         )

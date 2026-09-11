@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from maref.integration.feature_dev.doc_ingestor import (
     DeployStage,

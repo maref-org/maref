@@ -61,10 +61,13 @@ class Pheromone:
 
     def verify_signature(self, public_key_pem: str) -> bool:
         from maref.crypto.ed25519_keys import Ed25519KeyPair
+
         if not self.signature:
             return False
         sig_bytes = bytes.fromhex(self.signature)
-        return Ed25519KeyPair.verify(public_key_pem, sig_bytes, self._payload_for_signing().encode("utf-8"))
+        return Ed25519KeyPair.verify(
+            public_key_pem, sig_bytes, self._payload_for_signing().encode("utf-8")
+        )
 
 
 @dataclass

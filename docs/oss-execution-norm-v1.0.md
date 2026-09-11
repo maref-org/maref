@@ -88,7 +88,6 @@ assert not hasattr(ConstitutionalRedLine, "modified"), "RL-001: 不得修改安�
 
 - [ ] 已阅读 AGENTS.md（宪法红线）
 - [ ] 已阅读 docs/oss-execution-norm-v1.0.md（本文件）
-- [ ] 已阅读 docs/oss-release-workflow.md（开源发布纪律：dev 不直推公开 remote，发布走 oss-publish.sh）
 - [ ] 已确认 remote 状态（无 openclaw 泄露风险）
 - [ ] 已运行启动预检（1.1 节）
 - [ ] 已知悉禁止行为（1.2 节）

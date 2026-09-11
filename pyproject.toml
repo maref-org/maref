@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.52.0"
+version = "0.54.0"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -72,6 +72,7 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=5.0",
+    "pytest-timeout>=2.2",
     "ruff>=0.4",
     "mypy>=1.10",
     "pre-commit>=3.7",
@@ -182,16 +183,46 @@ module = [
     "opentelemetry.exporter.otlp.proto.http.trace_exporter",
     "tomli",
     "ApplicationServices",
+    "Quartz",
+    "gmssl",
+    "openai",
+    "huggingface_hub",
+    "sidecar.claude_mem_adapter",
     "maref.stress.sqi",
     "maref.stress.sqi_convergence",
     "maref.executor.workflow.patterns.tournament",
     "maref.knowledge.compiled_truth",
-    "maref.recursive.audit_store",
     "maref.integration.mq_adapter",
+    "seccomp",
+    "maref.recursive.distributed_crdt",
+    "maref.recursive.live_migration",
+    "maref.memory.style_learner",
+    "maref.memory.user_profile_graph",
 ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# 可选依赖降级模式（Pillow/openai 缺失时经 ignore_missing_imports 视作 Any，
+# 但装有时 `X = None` 触发 assignment）。本仓库以 CI 依赖集（无 desktop/ml）
+# 为 mypy 门槛，此 override 让装了这些可选依赖的本地环境同样干净。
+# desktop: Image=None 降级仅需 assignment+no-redef；nvidia 另需 misc
+# (OpenAI=None 赋 type 触发 Cannot assign to a type)。
+module = [
+    "maref.desktop.controller",
+    "maref.desktop.screen_capture",
+    "maref.desktop.verification",
+]
+disable_error_code = ["assignment", "no-redef"]
+
+[[tool.mypy.overrides]]
+module = [
+    "maref.stress.nvidia_code_agent",
+]
+disable_error_code = ["assignment", "misc", "no-redef"]
+
+[[tool.mypy.overrides]]
+# mitmproxy 使用 Python 3.12 "type" 语句，而 mypy 配置为 python_version=3.10。
+# 当环境装有 mitmproxy（sentinel extra）时跳过解析其源码，避免语法错误。
 module = [
     "mitmproxy",
     "mitmproxy.*",

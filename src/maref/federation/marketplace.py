@@ -285,16 +285,17 @@ class AgentMarketplace:
 
         # Sort.
         if sort_by == "price_low":
-            results.sort(key=lambda l: (l.pricing.price if not l.pricing.is_free else 0.0))
+            results.sort(key=lambda l: l.pricing.price if not l.pricing.is_free else 0.0)
         elif sort_by == "price_high":
-            results.sort(
-                key=lambda l: -(l.pricing.price if not l.pricing.is_free else 0.0)
-            )
+            results.sort(key=lambda l: -(l.pricing.price if not l.pricing.is_free else 0.0))
         elif sort_by == "newest":
             results.sort(key=lambda l: -l.published_at)
         else:  # "rating" — highest rating first, tie-break by review count.
             results.sort(
-                key=lambda l: (-self.get_average_rating(l.listing_id), -len(self._reviews.get(l.listing_id, [])))
+                key=lambda l: (
+                    -self.get_average_rating(l.listing_id),
+                    -len(self._reviews.get(l.listing_id, [])),
+                )
             )
 
         if limit is not None:
@@ -371,14 +372,20 @@ class AgentMarketplace:
 
     def list_capabilities(self) -> list[str]:
         """Return all distinct capabilities across active listings, sorted."""
-        caps = {cap for cap, ids in self._capability_index.items()
-                if any(self._listings[i].active for i in ids)}
+        caps = {
+            cap
+            for cap, ids in self._capability_index.items()
+            if any(self._listings[i].active for i in ids)
+        }
         return sorted(caps)
 
     def list_organizations(self) -> list[str]:
         """Return all distinct provider orgs with active listings, sorted."""
-        orgs = {org for org, ids in self._org_index.items()
-                if any(self._listings[i].active for i in ids)}
+        orgs = {
+            org
+            for org, ids in self._org_index.items()
+            if any(self._listings[i].active for i in ids)
+        }
         return sorted(orgs)
 
     # ------------------------------------------------------------------

@@ -76,6 +76,7 @@ class PERCVPipelineAdapter:
     def _create_pipeline(self) -> Any:
         try:
             from percv.pipeline import ErrorPolicy, Pipeline
+
             policy_map = {
                 "fail_fast": ErrorPolicy.FAIL_FAST,
                 "fail_safe": ErrorPolicy.FAIL_SAFE,
@@ -84,7 +85,7 @@ class PERCVPipelineAdapter:
             return Pipeline(error_policy=policy_map.get(self._error_policy, ErrorPolicy.DEGRADE))
         except ImportError:
             raise RuntimeError(
-                "PERCV package is required for PipelineAdapter. " "Install with: pip install percv"
+                "PERCV package is required for PipelineAdapter. Install with: pip install percv"
             ) from None
 
     def _determine_directive(

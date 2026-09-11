@@ -1,0 +1,36 @@
+name: Build LaTeX Document
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'papers/**/*.tex'
+      - 'papers/**/*.bib'
+      - '.github/workflows/latex.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'papers/**/*.tex'
+      - 'papers/**/*.bib'
+
+jobs:
+  build-latex:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compile LaTeX document
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: papers/jos-template/jos-sample.tex
+          working_directory: papers/jos-template
+          latexmk_use_lualatex: false
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maref-jos-pdf
+          path: papers/jos-template/jos-sample.pdf
+          retention-days: 30

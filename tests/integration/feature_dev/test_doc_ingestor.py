@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

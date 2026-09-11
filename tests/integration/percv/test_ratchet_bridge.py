@@ -34,9 +34,30 @@ class TestRatchetBridge:
     def test_sync_metrics_with_data(self) -> None:
         bridge = RatchetBridge()
         bridge._cycle_history = [
-            RatchetIterationRecord(iteration=0, score=0.5, approved=True, best_score=0.5, best_iteration=0, duration_s=10.0),
-            RatchetIterationRecord(iteration=1, score=0.8, approved=True, best_score=0.8, best_iteration=1, duration_s=12.0),
-            RatchetIterationRecord(iteration=2, score=0.6, approved=False, best_score=0.8, best_iteration=1, duration_s=11.0),
+            RatchetIterationRecord(
+                iteration=0,
+                score=0.5,
+                approved=True,
+                best_score=0.5,
+                best_iteration=0,
+                duration_s=10.0,
+            ),
+            RatchetIterationRecord(
+                iteration=1,
+                score=0.8,
+                approved=True,
+                best_score=0.8,
+                best_iteration=1,
+                duration_s=12.0,
+            ),
+            RatchetIterationRecord(
+                iteration=2,
+                score=0.6,
+                approved=False,
+                best_score=0.8,
+                best_iteration=1,
+                duration_s=11.0,
+            ),
         ]
         result = bridge.sync_metrics_to_maref()
         assert result["status"] == "ok"
@@ -48,12 +69,30 @@ class TestRatchetBridge:
     def test_get_history(self) -> None:
         bridge = RatchetBridge()
         assert bridge.get_history() == []
-        bridge._cycle_history.append(RatchetIterationRecord(iteration=0, score=0.9, approved=True, best_score=0.9, best_iteration=0, duration_s=5.0))
+        bridge._cycle_history.append(
+            RatchetIterationRecord(
+                iteration=0,
+                score=0.9,
+                approved=True,
+                best_score=0.9,
+                best_iteration=0,
+                duration_s=5.0,
+            )
+        )
         assert len(bridge.get_history()) == 1
 
     def test_reset(self) -> None:
         bridge = RatchetBridge()
-        bridge._cycle_history.append(RatchetIterationRecord(iteration=0, score=0.9, approved=True, best_score=0.9, best_iteration=0, duration_s=5.0))
+        bridge._cycle_history.append(
+            RatchetIterationRecord(
+                iteration=0,
+                score=0.9,
+                approved=True,
+                best_score=0.9,
+                best_iteration=0,
+                duration_s=5.0,
+            )
+        )
         bridge.reset()
         assert bridge._cycle_history == []
 
@@ -108,7 +147,9 @@ class TestRatchetBridge:
             mock_run.return_value = mock_result
 
             with patch.object(bridge, "_get_git_diff", return_value=""):
-                iterations = bridge.run_improvement_cycle(budget=1)
+                iterations = bridge.run_improvement_cycle(
+                    budget=1, use_mas_ts=True, mas_ts_card="test_card.yaml"
+                )
 
         assert len(iterations) == 1
         assert iterations[0].mas_ts_score == 85.0
@@ -147,8 +188,13 @@ class TestRatchetBridge:
 
     def test_ratchet_iteration_record_to_dict(self) -> None:
         record = RatchetIterationRecord(
-            iteration=0, score=0.85, approved=True, best_score=0.85,
-            best_iteration=0, duration_s=10.0, target="test.yaml",
+            iteration=0,
+            score=0.85,
+            approved=True,
+            best_score=0.85,
+            best_iteration=0,
+            duration_s=10.0,
+            target="test.yaml",
         )
         d = record.to_dict()
         assert d["score"] == 0.85

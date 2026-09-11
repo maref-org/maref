@@ -99,16 +99,19 @@ class CACBlockchainTraceability:
         for req in self._requirements:
             try:
                 import importlib
+
                 importlib.import_module(req.module_path)
                 req.verified = True
                 covered += 1
             except (ImportError, ModuleNotFoundError):
                 req.verified = False
-            results.append({
-                "feature": req.blockchain_feature,
-                "verified": req.verified,
-                "module": req.module_path,
-            })
+            results.append(
+                {
+                    "feature": req.blockchain_feature,
+                    "verified": req.verified,
+                    "module": req.module_path,
+                }
+            )
         return {
             "total": len(self._requirements),
             "covered": covered,

@@ -281,7 +281,7 @@ class SelfArchitect:
             )
         return proposals
 
-    def propose_redesign(self) -> ArchitectureProposal:
+    def propose_redesign(self) -> ArchitectureProposal | None:
         bottlenecks = self.analyze_bottlenecks()
         bottleneck_count = len(bottlenecks)
 
@@ -290,9 +290,26 @@ class SelfArchitect:
         proposed = str(module_count)
 
         if bottleneck_count == 0:
-            rationale = "No significant bottlenecks detected. Architecture is healthy."
-            risk = "low"
-            confidence = 0.95
+            try:
+                import_graph = self.analyze_module_dependencies()
+                coupling_metrics = self.compute_coupling_metrics(import_graph)
+                high_coupling = {
+                    m: v for m, v in coupling_metrics.items() if v.get("instability", 0) > 0.8
+                }
+                if high_coupling:
+                    rationale = f"High coupling detected in {len(high_coupling)} modules."
+                    risk = "medium"
+                    confidence = 0.5
+                    proposed = f"decouple_{len(high_coupling)}_modules"
+                else:
+                    # 无瓶颈且无高耦合 → 架构健康，产出 low 风险提案
+                    rationale = (
+                        "No significant bottlenecks detected. Architecture is healthy."
+                    )
+                    risk = "low"
+                    confidence = 0.95
+            except Exception:
+                return None
         elif bottleneck_count <= 2:
             mod_names = [b["module"] for b in bottlenecks]
             rationale = (
@@ -339,7 +356,8 @@ class SelfArchitect:
         all_proposals: list[ArchitectureProposal] = []
 
         high_level = self.propose_redesign()
-        all_proposals.append(high_level)
+        if high_level is not None:
+            all_proposals.append(high_level)
 
         try:
             unused = self.detect_unused_imports()
@@ -380,7 +398,9 @@ class SelfArchitect:
     def to_llm_plan(self, proposal: ArchitectureProposal) -> dict[str, Any]:
         return {
             "proposal_id": proposal.proposal_id,
-            "change_type": proposal.change_type.value if hasattr(proposal.change_type, "value") else str(proposal.change_type),
+            "change_type": proposal.change_type.value
+            if hasattr(proposal.change_type, "value")
+            else str(proposal.change_type),
             "rationale": proposal.rationale,
             "target_files": list(proposal.target_files),
             "affected_symbols": list(proposal.affected_symbols),
@@ -395,24 +415,22 @@ class SelfArchitect:
                 continue
             try:
                 tree = ast.parse(path.read_text())
-                classes = [
-                    n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)
-                ]
-                functions = [
-                    n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
-                ]
+                classes = [n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
+                functions = [n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
                 imports = [
                     (n.names[0].name if isinstance(n, ast.Import) else n.module)
                     for n in ast.walk(tree)
                     if isinstance(n, (ast.Import, ast.ImportFrom))
                 ][:30]
-                summaries.append({
-                    "file_path": fp,
-                    "classes": classes,
-                    "functions": functions,
-                    "imports": imports,
-                    "line_count": len(tree.body),
-                })
+                summaries.append(
+                    {
+                        "file_path": fp,
+                        "classes": classes,
+                        "functions": functions,
+                        "imports": imports,
+                        "line_count": len(tree.body),
+                    }
+                )
             except (SyntaxError, OSError):
                 continue
         return summaries
