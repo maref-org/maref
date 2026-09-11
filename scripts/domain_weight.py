@@ -31,9 +31,9 @@ def annotate_weights():
         print(f"  weight={w} ({level}): {weight_counts[w]} agent")
 
     total_known = sum(weight_counts.values())
-    leaf_estimated = 139 - total_known
-    print(f"  weight=1 (leaf, 估算): {leaf_estimated} agent")
-    print(f"  总计: {139} agent")
+    print(f"  weight=1 (leaf): 按实际 agent 注册表动态扩展")
+    print(f"  已标注治理角色: {total_known} 个")
+    print(f"  注: 原 139 总数为虚构，已按勘误声明（2026-09-11）移除")
 
     print(f"\n--- 域级告警规则 ---")
     print("  weight>=3 死亡/僵死 → 域级告警（推送 + 晨报置顶）")
