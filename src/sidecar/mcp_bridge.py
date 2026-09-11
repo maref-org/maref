@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -53,7 +54,10 @@ class MCPToolDefinition:
         return {
             "name": self.name,
             "description": self.description,
-            "inputSchema": self.input_schema,
+            "inputSchema": {
+                **self.input_schema,
+                "api_version": self.input_schema.get("api_version", "1.0.0"),
+            },
         }
 
 
@@ -426,6 +430,27 @@ class SidecarMCPBridge:
         ]
 
     def handle_tool_call(
+        self,
+        name: str,
+        args: dict[str, Any],
+        trace_id: str | None = None,
+        source_agent: str | None = None,
+        timestamp: str | None = None,
+    ) -> dict[str, Any]:
+        """路由工具调用 — 附加宪法第十五-A条完整信封后返回。"""
+        result = self._handle_tool_call_impl(name, args, trace_id)
+        result.setdefault(
+            "envelope",
+            {
+                "trace_id": trace_id,
+                "source_agent": source_agent,
+                "tool": name,
+                "timestamp": time.time(),
+            },
+        )
+        return result
+
+    def _handle_tool_call_impl(
         self, name: str, args: dict[str, Any], trace_id: str | None = None
     ) -> dict[str, Any]:
         """路由工具调用 — sidecar 工具直连，claude-mem 工具转发到后端。"""
