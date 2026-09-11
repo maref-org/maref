@@ -114,7 +114,19 @@ class MCPClient:
         else:
             raise ValueError(f"Unsupported transport: {config.transport_type}")
 
-        transport.connect()
+        try:
+            transport.connect()
+        except Exception:
+            # 连接失败（如 SSE 服务器不可达）→ 返回 ERROR 状态连接，
+            # 不向上抛出（调用方可据 state 判定）。
+            err_conn = MCPConnection(
+                transport=transport,
+                config_hash=ch,
+                state=ConnectionState.ERROR,
+                session_id=f"mcp-{ch}",
+            )
+            self._connections[ch] = err_conn
+            return err_conn
         conn = MCPConnection(
             transport=transport,
             config_hash=ch,
