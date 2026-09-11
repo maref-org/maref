@@ -281,7 +281,7 @@ class SelfArchitect:
             )
         return proposals
 
-    def propose_redesign(self) -> ArchitectureProposal:
+    def propose_redesign(self) -> ArchitectureProposal | None:
         bottlenecks = self.analyze_bottlenecks()
         bottleneck_count = len(bottlenecks)
 
@@ -290,9 +290,26 @@ class SelfArchitect:
         proposed = str(module_count)
 
         if bottleneck_count == 0:
-            rationale = "No significant bottlenecks detected. Architecture is healthy."
-            risk = "low"
-            confidence = 0.95
+            try:
+                import_graph = self.analyze_module_dependencies()
+                coupling_metrics = self.compute_coupling_metrics(import_graph)
+                high_coupling = {
+                    m: v for m, v in coupling_metrics.items() if v.get("instability", 0) > 0.8
+                }
+                if high_coupling:
+                    rationale = f"High coupling detected in {len(high_coupling)} modules."
+                    risk = "medium"
+                    confidence = 0.5
+                    proposed = f"decouple_{len(high_coupling)}_modules"
+                else:
+                    # 无瓶颈且无高耦合 → 架构健康，产出 low 风险提案
+                    rationale = (
+                        "No significant bottlenecks detected. Architecture is healthy."
+                    )
+                    risk = "low"
+                    confidence = 0.95
+            except Exception:
+                return None
         elif bottleneck_count <= 2:
             mod_names = [b["module"] for b in bottlenecks]
             rationale = (
@@ -339,7 +356,8 @@ class SelfArchitect:
         all_proposals: list[ArchitectureProposal] = []
 
         high_level = self.propose_redesign()
-        all_proposals.append(high_level)
+        if high_level is not None:
+            all_proposals.append(high_level)
 
         try:
             unused = self.detect_unused_imports()
