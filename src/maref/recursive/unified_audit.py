@@ -45,6 +45,7 @@ class UnifiedAuditRecord:
     justification: str
     outcome: str | None = None
     context_refs: list[str] = field(default_factory=list)
+    tenant_id: str = ""
     # 修复 P0-4：新增 signature 字段，HMAC-SHA256 签名
     signature: str = ""
 
@@ -83,6 +84,7 @@ class UnifiedAuditRecord:
             "justification": self.justification,
             "outcome": self.outcome,
             "context_refs": self.context_refs,
+            "tenant_id": self.tenant_id,
             "signature": self.signature,
         }
 
@@ -100,6 +102,7 @@ class UnifiedAuditRecord:
             justification=data["justification"],
             outcome=data.get("outcome"),
             context_refs=data.get("context_refs", []),
+            tenant_id=data.get("tenant_id", ""),
             signature=data.get("signature", ""),
         )
 
@@ -134,12 +137,15 @@ class UnifiedAuditStore:
         max_file_size_mb: int = 50,
         max_backup_files: int = 5,
         max_age_days: int = 90,
+        audit_bus: Any = None,
     ) -> None:
         self._records: list[UnifiedAuditRecord] = []
         self._by_layer: dict[str, list[int]] = defaultdict(list)
         self._by_module: dict[str, list[int]] = defaultdict(list)
         self._by_event_type: dict[str, list[int]] = defaultdict(list)
         self._by_round: dict[int, list[int]] = defaultdict(list)
+        # 可选的 AuditBus 扇出（与新版本 API 兼容）；持久化仍走 HMAC 文件
+        self._audit_bus = audit_bus
         self._persist_path: Path | None = (
             Path(persist_path) if persist_path else None
         )
@@ -168,6 +174,11 @@ class UnifiedAuditStore:
             self._by_round[record.round].append(idx)
             if self._persist_path:
                 self._append_to_disk(record)
+            if self._audit_bus is not None:
+                try:
+                    self._audit_bus.log_from_unified(record)
+                except Exception:
+                    pass
 
     def verify_all_signatures(self) -> dict[str, Any]:
         """验证所有记录的签名完整性（修复 P0-4）。"""
