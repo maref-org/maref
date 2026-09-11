@@ -2,11 +2,13 @@
 """审计日志 schema 补丁 (P1: ISSUE-001) — 解析 verdict/risk_level 回填"""
 import json, os, re
 from datetime import datetime
-
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl"
-OUTPUT_AUDIT = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
-OUTPUT_RECURSIVE = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
+from maref_config import (
+    AUDIT_LOG,
+    RECURSIVE_AUDIT_LOG as RECURSIVE_LOG,
+    AUDIT_LOG_V2 as OUTPUT_AUDIT,
+    RECURSIVE_AUDIT_LOG_V2 as OUTPUT_RECURSIVE,
+    report_path,
+)
 
 def parse_verdict(details):
     if not details:
@@ -102,13 +104,13 @@ def main():
     print(f"原日志未修改，补丁输出为独立文件")
     print(f"后续脚本应使用 v2 路径或通过符号链接切换")
 
-    output_path = "/Volumes/1TB-M2/public/maref/reports/schema_patch_report.json"
+    output_path = str(report_path("schema_patch_report.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w") as f:
         json.dump({
             "patch_date": datetime.now().isoformat(),
-            "original_files": [AUDIT_LOG, RECURSIVE_LOG],
-            "patched_files": [OUTPUT_AUDIT, OUTPUT_RECURSIVE],
+            "original_files": [str(AUDIT_LOG), str(RECURSIVE_LOG)],
+            "patched_files": [str(OUTPUT_AUDIT), str(OUTPUT_RECURSIVE)],
             "verdict_rules": {
                 "ALLOW:*": "allow",
                 "DENY:*": "deny",

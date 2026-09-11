@@ -2,9 +2,7 @@
 """审批分层：低风险自动批准 + 抽样审计 (P-03)"""
 import json, os
 from collections import Counter
-
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
+from maref_config import AUDIT_LOG_V2 as AUDIT_LOG, RECURSIVE_AUDIT_LOG_V2 as RECURSIVE_LOG, report_path
 
 def load_entries(path):
     entries = []
@@ -78,7 +76,7 @@ def analyze_tiers():
     if risk_counts.get('irreversible', 0) > 0:
         print(f"⚠️ 存在 irreversible 条目: {risk_counts.get('irreversible')} 条，需宪法级别审查")
 
-    output_path = "/Volumes/1TB-M2/public/maref/reports/approval_tier_report.json"
+    output_path = str(report_path("approval_tier_report.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     report = {
         "audit_date": "2026-09-09",

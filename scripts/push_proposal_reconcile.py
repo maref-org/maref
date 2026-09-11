@@ -3,10 +3,13 @@
 import json, os, urllib.request
 from collections import Counter
 from datetime import datetime, timezone
+from maref_config import (
+    AUDIT_LOG_V2 as AUDIT_LOG,
+    RECURSIVE_AUDIT_LOG_V2 as RECURSIVE_LOG,
+    sidecar_url,
+)
 
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
-SIDECAR_URL = os.environ.get("MAREF_SIDECAR_URL", "http://localhost:8000")
+SIDECAR_URL = sidecar_url()
 
 
 def load_entries(path):

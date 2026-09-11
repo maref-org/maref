@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """功能域权重分级告警 (P-05)"""
 import json, os
+from maref_config import config_path
 
 AGENT_WEIGHTS = {
     "geo-orchestrator": 3,
@@ -55,7 +56,7 @@ def annotate_weights():
         if AGENT_WEIGHTS[agent] == 2:
             print(f"  {agent}")
 
-    output_path = "/Volumes/1TB-M2/public/maref/configs/agent_domain_weights.json"
+    output_path = config_path("agent_domain_weights.json")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
         json.dump(AGENT_WEIGHTS, f, indent=2, ensure_ascii=False)

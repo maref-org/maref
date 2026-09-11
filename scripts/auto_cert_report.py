@@ -7,8 +7,8 @@ D4: 跟踪飞轮增益率随时间的变化趋势
 import json, os
 from datetime import datetime, timezone
 from pathlib import Path
+from maref_config import REPORTS_DIR
 
-REPORTS_DIR = Path("/Volumes/1TB-M2/public/maref/reports")
 GAIN_LOG = REPORTS_DIR / "gain_compound_history.jsonl"
 
 

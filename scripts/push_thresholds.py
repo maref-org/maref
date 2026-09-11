@@ -2,9 +2,10 @@
 """阈值自动推送 (Phase Beta B3) — 将重校准阈值推送到 sidecar API"""
 import json, os, urllib.request
 from pathlib import Path
+from maref_config import config_path, sidecar_url
 
-THRESHOLD_CONFIG = "/Volumes/1TB-M2/public/maref/configs/probe_thresholds.json"
-SIDECAR_URL = os.environ.get("MAREF_SIDECAR_URL", "http://localhost:8000")
+THRESHOLD_CONFIG = str(config_path("probe_thresholds.json"))
+SIDECAR_URL = sidecar_url()
 
 
 def push_thresholds():

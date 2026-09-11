@@ -2,8 +2,7 @@
 """已批准提案 5% 月度翻案抽查 (P-01)"""
 import json, os, random
 from datetime import datetime
-
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
+from maref_config import AUDIT_LOG_V2 as AUDIT_LOG, report_path
 
 def load_entries(path):
     entries = []
@@ -45,7 +44,7 @@ def resample():
             "original_verdict_hidden": True
         })
     
-    output_path = "/Volumes/1TB-M2/public/maref/reports/resample_log.json"
+    output_path = str(report_path("resample_log.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
         json.dump(resample_log, f, indent=2)

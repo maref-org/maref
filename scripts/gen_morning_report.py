@@ -3,8 +3,8 @@
 import json, os
 from datetime import datetime, timezone
 from pathlib import Path
+from maref_config import REPORTS_DIR, vaccine_path
 
-REPORTS_DIR = Path("/Volumes/1TB-M2/public/maref/reports")
 OUTPUT = REPORTS_DIR / f"morning-report-{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
 
 
@@ -81,7 +81,7 @@ def generate():
         }
 
     # 疫苗计数
-    vaccines = load_json(Path("/Volumes/1TB-M2/public/maref/scripts/vaccine_pipeline/vaccines.json"))
+    vaccines = load_json(vaccine_path("vaccines.json"))
     if vaccines:
         report["sections"]["vaccines"] = {"total": len(vaccines) if isinstance(vaccines, list) else 0}
 

@@ -336,7 +336,7 @@
     "attack_class": "anomaly_detected",
     "attack_subtype": "verdict=unknown",
     "trigger": "anomaly_verdict_unknown",
-    "count": 594,
+    "count": 30,
     "dimension": "anomaly"
   },
   {

@@ -2,9 +2,7 @@
 """提案账目完整性对账脚本 (P-02)"""
 import json, os, sys
 from collections import Counter
-
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
+from maref_config import AUDIT_LOG_V2 as AUDIT_LOG, RECURSIVE_AUDIT_LOG_V2 as RECURSIVE_LOG
 
 def load_entries(path):
     entries = []

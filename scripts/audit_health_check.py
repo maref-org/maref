@@ -5,10 +5,7 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl"
-DB_PATH = "/Volumes/1TB-M2/public/maref/governance_observations.db"
+from maref_config import AUDIT_LOG, RECURSIVE_AUDIT_LOG as RECURSIVE_LOG, PROBE_DB as DB_PATH, report_path
 
 
 def check_audit_health():
@@ -95,7 +92,7 @@ def main():
         for issue in status["issues"]:
             print(f"  - {issue}")
 
-    output = "/Volumes/1TB-M2/public/maref/reports/audit_health_check.json"
+    output = str(report_path("audit_health_check.json"))
     os.makedirs(os.path.dirname(output), exist_ok=True)
     with open(output, "w") as f:
         json.dump(status, f, indent=2, ensure_ascii=False)

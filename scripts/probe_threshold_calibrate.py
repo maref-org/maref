@@ -2,9 +2,9 @@
 """探针阈值重校准 (P0: ISSUE-002) — 百分位数法"""
 import json, os, sqlite3, statistics
 from datetime import datetime
+from maref_config import PROBE_DB as DB_PATH, config_path
 
-DB_PATH = "/Volumes/1TB-M2/public/maref/governance_observations.db"
-CONFIG_PATH = "/Volumes/1TB-M2/public/maref/configs/probe_thresholds.json"
+CONFIG_PATH = config_path("probe_thresholds.json")
 
 def compute_percentiles(values, percentiles=[50, 75, 90, 95, 99]):
     sorted_vals = sorted(values)
@@ -71,6 +71,16 @@ def main():
     print("=" * 60)
     print("探针阈值重校准报告 (ISSUE-002)")
     print("=" * 60)
+
+    # 空库守卫: 运行时 DB 可能无读数
+    conn = sqlite3.connect(DB_PATH)
+    total = conn.execute("SELECT COUNT(*) FROM probe_readings").fetchone()[0]
+    conn.close()
+    if total == 0:
+        print("⚠️ 探针数据库无读数，跳过校准")
+        print(f"  DB: {DB_PATH}")
+        print("  原因: 运行时 collector 未运行 (见 P0-B)")
+        return
 
     results = {}
     for probe in ["oscillation", "entropy"]:
