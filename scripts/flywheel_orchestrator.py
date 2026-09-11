@@ -9,10 +9,9 @@
 import json, os, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
+from maref_config import REPO_DIR as REPO_ROOT, REPORTS_DIR as REPORTS
 
-REPO_ROOT = Path("/Volumes/1TB-M2/public/maref")
 SCRIPTS = REPO_ROOT / "scripts"
-REPORTS = REPO_ROOT / "reports"
 
 
 def run_script(name: str) -> bool:

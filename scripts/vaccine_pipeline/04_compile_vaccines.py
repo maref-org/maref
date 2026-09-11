@@ -2,8 +2,12 @@
 """阶段4: 从模式编译疫苗规则"""
 import json, os, hashlib
 from datetime import datetime
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from maref_config import vaccine_path
 
-PATTERNS_FILE = "/Volumes/1TB-M2/public/maref/scripts/vaccine_pipeline/patterns.json"
+PATTERNS_FILE = str(vaccine_path("patterns.json"))
 
 def compile_vaccines():
     if not os.path.exists(PATTERNS_FILE):
@@ -46,7 +50,7 @@ def compile_vaccines():
         print(f"  攻击类: {v['attack_class']}")
         print(f"  状态: {v['status']}")
     
-    output_path = "/Volumes/1TB-M2/public/maref/scripts/vaccine_pipeline/vaccines.json"
+    output_path = str(vaccine_path("vaccines.json"))
     with open(output_path, 'w') as f:
         json.dump(vaccines, f, indent=2)
     

@@ -3,9 +3,7 @@
 import json, os
 from datetime import datetime, timedelta
 from collections import Counter
-
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit.jsonl"
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl"
+from maref_config import AUDIT_LOG, RECURSIVE_AUDIT_LOG as RECURSIVE_LOG, report_path
 
 def load_entries(path):
     entries = []
@@ -89,7 +87,7 @@ def analyze_backlog():
         for item in backlog['high'][:5]:
             print(f"  ID: {item['id']}, 积压: {item['age_hours']}h, 操作: {item['action']}")
 
-    output_path = "/Volumes/1TB-M2/public/maref/reports/backlog_sla_report.json"
+    output_path = str(report_path("backlog_sla_report.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
         json.dump({

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """告警分级推送 (Phase Beta B4) — P-04 僵尸 + P-08 SLA → 通知"""
 import json, os, urllib.request
+from maref_config import REPORTS_DIR as REPORTS_DIR_P, RUNTIME_DIR, sidecar_url
 
-REPORTS = "/Volumes/1TB-M2/public/maref/reports"
-SIDECAR_URL = os.environ.get("MAREF_SIDECAR_URL", "http://localhost:8000")
-ALERTS_DIR = "/Volumes/1TB-M2/public/maref/.openclaw/notifications"
+REPORTS = str(REPORTS_DIR_P)
+SIDECAR_URL = sidecar_url()
+ALERTS_DIR = str(RUNTIME_DIR / ".openclaw" / "notifications")
 
 
 def load_json(path):

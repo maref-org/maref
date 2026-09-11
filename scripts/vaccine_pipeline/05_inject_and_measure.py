@@ -9,9 +9,12 @@
 import json, os, time, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from maref_config import vaccine_path, sidecar_url, report_path
 
-VACCINES_FILE = "/Volumes/1TB-M2/public/maref/scripts/vaccine_pipeline/vaccines.json"
-SIDECAR_URL = os.environ.get("MAREF_SIDECAR_URL", "http://localhost:8000")
+VACCINES_FILE = str(vaccine_path("vaccines.json"))
+SIDECAR_URL = sidecar_url()
 BATCH_SIZE = 10
 
 
@@ -46,7 +49,7 @@ def inject_batch(vaccines: list, batch_num: int):
 
 
 def measure_baseline():
-    conf = load_json("/Volumes/1TB-M2/public/maref/reports/confidence_audit.json")
+    conf = load_json(str(report_path("confidence_audit.json")))
     baseline = {
         "confidence": conf.get("confidence_30d") if conf else None,
         "measured_at": datetime.now(timezone.utc).isoformat(),
@@ -109,7 +112,7 @@ def main():
         "baseline_confidence": baseline.get("confidence"),
         "post_injection_confidence": post.get("confidence"),
     }
-    output = "/Volumes/1TB-M2/public/maref/reports/vaccine_injection_report.json"
+    output = str(report_path("vaccine_injection_report.json"))
     os.makedirs(os.path.dirname(output), exist_ok=True)
     with open(output, "w") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)

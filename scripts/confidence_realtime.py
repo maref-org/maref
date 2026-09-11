@@ -2,9 +2,9 @@
 """置信度字段真实化改造 (P-06) — 使用重校准阈值"""
 import json, os, sqlite3, statistics
 from datetime import datetime, timedelta
+from maref_config import PROBE_DB as DB_PATH, config_path, report_path
 
-DB_PATH = "/Volumes/1TB-M2/public/maref/governance_observations.db"
-THRESHOLD_PATH = "/Volumes/1TB-M2/public/maref/configs/probe_thresholds.json"
+THRESHOLD_PATH = config_path("probe_thresholds.json")
 
 def load_thresholds():
     if os.path.exists(THRESHOLD_PATH):
@@ -111,7 +111,7 @@ def main():
         "stats": stats,
     }
 
-    output_path = "/Volumes/1TB-M2/public/maref/reports/confidence_audit.json"
+    output_path = str(report_path("confidence_audit.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(report, f, indent=2)

@@ -5,9 +5,8 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from maref_config import EVOLUTION_STATE as STATE_FILE, EVOLUTION_VAULT as VAULT_DIR, report_path
 
-STATE_FILE = Path("/Volumes/1TB-M2/public/maref/.evolution_daemon_state.json")
-VAULT_DIR = Path("/Volumes/1TB-M2/public/maref/.evolution_vault")
 PID_FILE = Path("/tmp/maref-evolution-daemon.pid")
 
 
@@ -76,7 +75,7 @@ def main():
         print(f"\n⚠️ 进化引擎已停滞 {status.get('days_stale')} 天！")
         print("建议: python3 src/maref/evolution/daemon.py --interval-hours 6 &")
 
-    state_path = "/Volumes/1TB-M2/public/maref/reports/evolution_daemon_status.json"
+    state_path = str(report_path("evolution_daemon_status.json"))
     os.makedirs(os.path.dirname(state_path), exist_ok=True)
     with open(state_path, "w") as f:
         json.dump({

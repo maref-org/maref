@@ -10,9 +10,10 @@ import json, os, hashlib, random
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+from maref_config import vaccine_path, report_path
 
-VACCINES_FILE = "/Volumes/1TB-M2/public/maref/scripts/vaccine_pipeline/vaccines.json"
-PATTERNS_FILE = "/Volumes/1TB-M2/public/maref/scripts/vaccine_pipeline/patterns.json"
+VACCINES_FILE = str(vaccine_path("vaccines.json"))
+PATTERNS_FILE = str(vaccine_path("patterns.json"))
 
 VARIATION_TACTICS = [
     ("rename_action", "将 action 名称加后缀变体"),
@@ -121,7 +122,7 @@ def main():
         "passed": pass_rate >= 70,
         "by_class": dict(results_by_class),
     }
-    output = "/Volumes/1TB-M2/public/maref/reports/red_queen_validation.json"
+    output = str(report_path("red_queen_validation.json"))
     os.makedirs(os.path.dirname(output), exist_ok=True)
     with open(output, "w") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)

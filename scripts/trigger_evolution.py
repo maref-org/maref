@@ -4,7 +4,8 @@ import json, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-EVOLUTION_DAEMON = "/Volumes/1TB-M2/public/maref/src/maref/evolution/daemon.py"
+from maref_config import REPO_DIR
+EVOLUTION_DAEMON = str(REPO_DIR / "src" / "maref" / "evolution" / "daemon.py")
 
 
 def trigger_evolution_run():

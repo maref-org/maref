@@ -3,8 +3,7 @@
 import json, os
 from collections import Counter
 from datetime import datetime
-
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit_v2.jsonl"
+from maref_config import RECURSIVE_AUDIT_LOG_V2 as RECURSIVE_LOG, report_path
 
 def load_entries(path):
     entries = []
@@ -52,7 +51,7 @@ def audit_gain():
         "three_curves": ["原始值", "去失败轮值", "滚动中位数"]
     }
     
-    output_path = "/Volumes/1TB-M2/public/maref/reports/gain_audit_report.json"
+    output_path = str(report_path("gain_audit_report.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
         json.dump(report, f, indent=2, ensure_ascii=False)

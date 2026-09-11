@@ -2,10 +2,9 @@
 """僵死 Agent 自动升级 (P-04)"""
 import json, os, sqlite3
 from datetime import datetime, timedelta
+from maref_config import PROBE_DB as DB_PATH, AUDIT_LOG, config_path, report_path
 
-DB_PATH = "/Volumes/1TB-M2/public/maref/governance_observations.db"
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit.jsonl"
-WEIGHTS_FILE = "/Volumes/1TB-M2/public/maref/configs/agent_domain_weights.json"
+WEIGHTS_FILE = config_path("agent_domain_weights.json")
 
 def load_weights():
     if not os.path.exists(WEIGHTS_FILE):
@@ -70,7 +69,7 @@ def main():
         print(f"    建议处置: {z['proposal']}")
         print()
 
-    output_path = "/Volumes/1TB-M2/public/maref/reports/zombie_agent_report.json"
+    output_path = str(report_path("zombie_agent_report.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
         json.dump({

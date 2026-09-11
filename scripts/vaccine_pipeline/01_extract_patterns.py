@@ -2,9 +2,10 @@
 """阶段1: 从红队日志提取攻击模式 (v2 — 多维度细化)"""
 import json, os, hashlib
 from collections import Counter, defaultdict
-
-RECURSIVE_LOG = "/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl"
-AUDIT_LOG = "/Volumes/1TB-M2/public/maref/governance_audit_v2.jsonl"
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from maref_config import RECURSIVE_AUDIT_LOG as RECURSIVE_LOG, AUDIT_LOG_V2 as AUDIT_LOG, vaccine_path
 
 OWASP_PATTERNS = [
     {"class": "ASI01_prompt_injection", "trigger": "untrusted_input_in_system_prompt"},
@@ -188,7 +189,7 @@ def main():
     print(f"目标: ≥30")
     print(f"状态: {'✅ 达标' if len(all_patterns) >= 30 else '⚠️ 未达标'}")
 
-    output_path = "/Volumes/1TB-M2/public/maref/scripts/vaccine_pipeline/patterns.json"
+    output_path = str(vaccine_path("patterns.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(all_patterns, f, indent=2, ensure_ascii=False)
