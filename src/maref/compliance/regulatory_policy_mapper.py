@@ -83,7 +83,8 @@ class RegulatoryPolicyMapper:
         enforcement = profile.enforcement_for_risk(assessment.risk_level)
 
         basis = [
-            r.regulation_id for r in profile.regulations
+            r.regulation_id
+            for r in profile.regulations
             if self._regulation_applies(profile, r.regulation_id, assessment)
         ]
 
@@ -120,9 +121,7 @@ class RegulatoryPolicyMapper:
     ) -> list[str]:
         reasons = list(assessment.reasons)
         if enforcement == EnforcementLevel.ENFORCE:
-            reasons.append(
-                f"辖区 {profile.code} 对该风险级别动作实施强制监管"
-            )
+            reasons.append(f"辖区 {profile.code} 对该风险级别动作实施强制监管")
             if profile.human_oversight_for_high_risk:
                 reasons.append("高风险动作要求人工监督（human oversight）")
         elif enforcement == EnforcementLevel.ADVISORY:
@@ -156,7 +155,8 @@ class RegulatoryPolicyMapper:
             scope_map[scope] = {
                 "enforcement": enforcement.value,
                 "regulations": [
-                    r.regulation_id for r in profile.regulations
+                    r.regulation_id
+                    for r in profile.regulations
                     if enforcement != EnforcementLevel.OBSERVE
                 ],
             }

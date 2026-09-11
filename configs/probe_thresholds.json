@@ -1,0 +1,14 @@
+{
+  "calibrated_at": "2026-09-09T19:22:04.193696",
+  "method": "percentile_based",
+  "probes": {
+    "oscillation": {
+      "normal_max": 444.0,
+      "critical_min": 569.0
+    },
+    "entropy": {
+      "normal_max": 3.0,
+      "critical_min": 4.0
+    }
+  }
+}

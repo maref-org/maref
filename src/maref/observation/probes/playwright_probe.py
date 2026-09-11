@@ -54,7 +54,9 @@ class PlaywrightProbe(BaseProbe):
             except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
                 version = f"error: {e}"
         value = 1.0 if installed and any(browsers.values()) else 0.0
-        severity = ProbeSeverity.CRITICAL if value < self.critical_threshold else ProbeSeverity.NORMAL
+        severity = (
+            ProbeSeverity.CRITICAL if value < self.critical_threshold else ProbeSeverity.NORMAL
+        )
         reading = ProbeReading(
             probe_name=self.name,
             severity=severity,

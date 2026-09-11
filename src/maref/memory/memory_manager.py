@@ -10,12 +10,22 @@ Design principles:
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import os
 import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+_SALT_ENV = "MAREF_MEMORY_DEIDENTIFY_SALT"
+
+
+def _deidentify_value(value: str, salt: bytes) -> str:
+    """Replace a sensitive identifier with a salted HMAC hash (S3 deidentify)."""
+    return "did:" + hmac.new(salt, value.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
 
 
 class ConfidenceLabel(Enum):
@@ -72,6 +82,8 @@ class MemoryRecord:
     last_accessed_at: float = field(default_factory=time.time)
     linked_task_ids: list[str] = field(default_factory=list)
     summary: str = ""  # For compressed/archive form
+    # v0.53 S3: 软删除标记（forget 后置位，retention 清理前可见性为 false）
+    deleted: bool = False
 
     def is_expired(self) -> bool:
         if self.expires_at == 0:
@@ -96,6 +108,7 @@ class MemoryRecord:
             "last_accessed_at": self.last_accessed_at,
             "linked_task_ids": self.linked_task_ids,
             "summary": self.summary,
+            "deleted": self.deleted,
         }
 
 
@@ -136,12 +149,14 @@ class WorkingMemoryStore:
         return record
 
     def get(self, memory_id: str) -> MemoryRecord | None:
-        """Retrieve a record, returning None if expired."""
+        """Retrieve a record, returning None if expired or forgotten."""
         record = self._store.get(memory_id)
         if record is None:
             return None
         if record.is_expired():
             self._store.pop(memory_id, None)
+            return None
+        if record.deleted:
             return None
         record.touch()
         return record
@@ -152,6 +167,8 @@ class WorkingMemoryStore:
         for record in list(self._store.values()):
             if record.is_expired():
                 self._store.pop(record.memory_id, None)
+                continue
+            if record.deleted:
                 continue
             if not record.user_tag.matches(query.user_tag):
                 continue
@@ -212,6 +229,13 @@ class WorkingMemoryStore:
     def __len__(self) -> int:
         return len(self._store)
 
+    # v0.53 S3: 治理辅助
+    def all_records(self) -> list[MemoryRecord]:
+        return list(self._store.values())
+
+    def purge(self, memory_id: str) -> bool:
+        return self._store.pop(memory_id, None) is not None
+
 
 # --------------------------------------------------------------------------- #
 # Tier 2: Episodic Memory (Warm)
@@ -233,6 +257,8 @@ class EpisodicMemoryStore:
         """Query episodic memory with filtering."""
         results: list[MemoryRecord] = []
         for record in self._records:
+            if record.deleted:
+                continue
             if not record.user_tag.matches(query.user_tag):
                 continue
             if query.task_id and query.task_id not in record.linked_task_ids:
@@ -260,7 +286,7 @@ class EpisodicMemoryStore:
         results = [
             r
             for r in self._records
-            if r.user_tag.matches(tag) and r.content.get("agent_id") == agent_id
+            if not r.deleted and r.user_tag.matches(tag) and r.content.get("agent_id") == agent_id
         ]
         results.sort(key=lambda r: r.created_at, reverse=True)
         return results[:limit]
@@ -279,7 +305,7 @@ class EpisodicMemoryStore:
         episodes = [
             r
             for r in self._records
-            if r.user_tag.matches(tag) and r.content.get("task_type") == task_type
+            if not r.deleted and r.user_tag.matches(tag) and r.content.get("task_type") == task_type
         ]
         episodes.sort(key=lambda r: r.created_at, reverse=True)
         episodes = episodes[:limit]
@@ -319,6 +345,15 @@ class EpisodicMemoryStore:
     def __len__(self) -> int:
         return len(self._records)
 
+    # v0.53 S3: 治理辅助
+    def all_records(self) -> list[MemoryRecord]:
+        return list(self._records)
+
+    def purge(self, memory_id: str) -> bool:
+        before = len(self._records)
+        self._records = [r for r in self._records if r.memory_id != memory_id]
+        return len(self._records) < before
+
 
 # --------------------------------------------------------------------------- #
 # Tier 3: Semantic Memory (Cold)
@@ -341,6 +376,8 @@ class SemanticMemoryStore:
     def retrieve(self, memory_id: str) -> MemoryRecord | None:
         """Retrieve by ID."""
         record = self._records.get(memory_id)
+        if record and record.deleted:
+            return None
         if record:
             record.touch()
         return record
@@ -349,6 +386,8 @@ class SemanticMemoryStore:
         """Semantic query by keywords (placeholder for vector search)."""
         results: list[tuple[float, MemoryRecord]] = []
         for record in self._records.values():
+            if record.deleted:
+                continue
             if not record.user_tag.matches(query.user_tag):
                 continue
             # Simple keyword relevance scoring
@@ -361,10 +400,35 @@ class SemanticMemoryStore:
 
     def get_ontology(self, concept: str) -> list[MemoryRecord]:
         """Retrieve knowledge about a specific concept."""
-        return [r for r in self._records.values() if r.content.get("concept") == concept]
+        return [
+            r
+            for r in self._records.values()
+            if not r.deleted and r.content.get("concept") == concept
+        ]
 
     def __len__(self) -> int:
         return len(self._records)
+
+    # v0.53 S3: 治理辅助
+    def all_records(self) -> list[MemoryRecord]:
+        return list(self._records.values())
+
+    def purge(self, memory_id: str) -> bool:
+        return self._records.pop(memory_id, None) is not None
+
+
+@dataclass
+class MemoryRetentionPolicy:
+    """Retention policy per memory tier (v0.53 S3).
+
+    ``hot_max_age_seconds`` / ``warm_max_age_seconds`` / ``cold_max_age_seconds``
+    bound how long records may live before automatic demotion/deletion.
+    A value of 0 means no retention bound (keep forever).
+    """
+
+    hot_max_age_seconds: float = 0.0
+    warm_max_age_seconds: float = 0.0
+    cold_max_age_seconds: float = 0.0
 
 
 # --------------------------------------------------------------------------- #
@@ -387,10 +451,42 @@ class MemoryManager:
         facts = mm.semantic.query(MemoryQuery(keywords=["pricing", "model"]))
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        retention_policy: MemoryRetentionPolicy | None = None,
+        audit_logger: Any | None = None,
+    ) -> None:
         self.working = WorkingMemoryStore()
         self.episodic = EpisodicMemoryStore()
         self.semantic = SemanticMemoryStore()
+        self.retention_policy = retention_policy or MemoryRetentionPolicy()
+        self._audit_logger = audit_logger
+
+    def _log(self, event_type: str, memory_id: str, details: str) -> None:
+        try:
+            if self._audit_logger is not None:
+                self._audit_logger.log(
+                    event_type=event_type,
+                    actor="memory_manager",
+                    action=memory_id,
+                    details=details,
+                    layer="memory",
+                )
+            else:
+                from maref.governance.audit import AuditLogger
+
+                AuditLogger().log(
+                    event_type=event_type,
+                    actor="memory_manager",
+                    action=memory_id,
+                    details=details,
+                    layer="memory",
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _all_stores(self) -> list[Any]:
+        return [self.working, self.episodic, self.semantic]
 
     def create_record(
         self,
@@ -441,3 +537,106 @@ class MemoryManager:
             "episodic_count": len(self.episodic),
             "semantic_count": len(self.semantic),
         }
+
+    # ------------------------------------------------------------------ #
+    # v0.53 S3: 记忆治理
+    # ------------------------------------------------------------------ #
+
+    def deidentify(self, agent_id: str, subject_key: str = "agent_id") -> int:
+        """S3 deidentify: replace every occurrence of ``agent_id`` in memory
+        content (and isolation tags) with an irreversible salted HMAC hash.
+
+        The salt is read from ``MAREF_MEMORY_DEIDENTIFY_SALT`` (random when
+        unset). Returns the number of records rewritten.
+        """
+        salt = os.environ.get(_SALT_ENV, "").encode("utf-8") or os.urandom(16)
+        rewritten = 0
+        for store in self._all_stores():
+            for record in store.all_records():
+                if record.deleted:
+                    continue
+                mutated = False
+                content = dict(record.content)
+                for key, value in list(content.items()):
+                    if key == subject_key and isinstance(value, str) and value == agent_id:
+                        content[key] = _deidentify_value(value, salt)
+                        mutated = True
+                    elif isinstance(value, list):
+                        content[key] = [
+                            _deidentify_value(item, salt)
+                            if isinstance(item, str) and item == agent_id
+                            else item
+                            for item in value
+                        ]
+                        mutated = mutated or any(
+                            isinstance(item, str) and item == agent_id for item in value
+                        )
+                if record.user_tag.user_id == agent_id:
+                    record.user_tag = UserIsolationTag(
+                        user_id=_deidentify_value(agent_id, salt),
+                        session_id=record.user_tag.session_id,
+                    )
+                    mutated = True
+                if mutated:
+                    record.content = content
+                    rewritten += 1
+        self._log("memory.deidentify", agent_id, f"deidentified {rewritten} records")
+        return rewritten
+
+    def forget(self, memory_id: str) -> bool:
+        """S3 forget: soft-delete a record across all tiers (visibility off,
+        retention purge will hard-delete later)."""
+        for store in self._all_stores():
+            for record in store.all_records():
+                if record.memory_id == memory_id and not record.deleted:
+                    record.deleted = True
+                    self._log("memory.forget", memory_id, "soft-deleted")
+                    return True
+        return False
+
+    def erasure(self, memory_id: str) -> bool:
+        """S3 erasure: hard-delete a record irrecoverably from all tiers,
+        with an audit trail entry."""
+        removed = False
+        for store in self._all_stores():
+            if store.purge(memory_id):
+                removed = True
+        if removed:
+            self._log("memory.erasure", memory_id, "hard-deleted irrecoverably")
+        return removed
+
+    def apply_retention(self) -> dict[str, int]:
+        """S3 retention: enforce the configured retention policy.
+
+        - hot tier: records older than ``hot_max_age_seconds`` are removed
+        - warm tier: records older than ``warm_max_age_seconds`` are removed
+        - cold tier: records older than ``cold_max_age_seconds`` are removed
+
+        Returns counts of records removed per tier.
+        """
+        now = time.time()
+        removed = {"working": 0, "episodic": 0, "semantic": 0}
+        bounds = {
+            "working": self.retention_policy.hot_max_age_seconds,
+            "episodic": self.retention_policy.warm_max_age_seconds,
+            "semantic": self.retention_policy.cold_max_age_seconds,
+        }
+        stores: dict[str, Any] = {
+            "working": self.working,
+            "episodic": self.episodic,
+            "semantic": self.semantic,
+        }
+        for tier, max_age in bounds.items():
+            if max_age <= 0:
+                continue
+            cutoff = now - max_age
+            for record in list(stores[tier].all_records()):
+                if record.created_at < cutoff:
+                    if stores[tier].purge(record.memory_id):
+                        removed[tier] += 1
+                        self._log(
+                            "memory.retention_purge",
+                            record.memory_id,
+                            f"expired {tier} retention ({max_age}s)",
+                        )
+        return removed

@@ -81,9 +81,7 @@ class EnvProbe(Probe):
         for var_name in sensitive_vars:
             if var_name in current:
                 is_new = var_name not in baseline
-                value_changed = (
-                    not is_new and baseline.get(var_name) != current[var_name]
-                )
+                value_changed = not is_new and baseline.get(var_name) != current[var_name]
                 if is_new or value_changed:
                     severity = (
                         Severity.HIGH

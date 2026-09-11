@@ -21,6 +21,7 @@ from typing import Any
 
 try:
     from anthropic import Anthropic, APIError, RateLimitError
+
     _ANTHROPIC_AVAILABLE = True
 except ImportError:
     _ANTHROPIC_AVAILABLE = False
@@ -281,4 +282,12 @@ Language: Python 3.10+
     @staticmethod
     def _has_type_hints(code: str) -> bool:
         lines = code.split("\n")
-        return any("->" in line or (": " in line and any(t in line for t in ["str", "int", "float", "bool", "list", "dict"])) for line in lines if line.strip())
+        return any(
+            "->" in line
+            or (
+                ": " in line
+                and any(t in line for t in ["str", "int", "float", "bool", "list", "dict"])
+            )
+            for line in lines
+            if line.strip()
+        )

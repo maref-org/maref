@@ -255,8 +255,13 @@ class PMMManager:
 
         raw = self._observations.get(plan_id, [])
         filtered = [
-            o for o in raw
-            if (not o.timestamp or period_start <= o.timestamp.split("T")[0] <= period_end or period_start <= o.timestamp.split(" ")[0] <= period_end)
+            o
+            for o in raw
+            if (
+                not o.timestamp
+                or period_start <= o.timestamp.split("T")[0] <= period_end
+                or period_start <= o.timestamp.split(" ")[0] <= period_end
+            )
         ]
 
         metrics: dict[str, list[PMMObservation]] = {}
@@ -301,20 +306,19 @@ class PMMManager:
 
             for obs in observations:
                 if "incident" in obs.details.lower() or "INC-" in obs.details:
-                    incident_correlation.append({
-                        "metric": metric_name,
-                        "observation_id": obs.obs_id,
-                        "details": obs.details,
-                    })
+                    incident_correlation.append(
+                        {
+                            "metric": metric_name,
+                            "observation_id": obs.obs_id,
+                            "details": obs.details,
+                        }
+                    )
 
         breached_list = sorted(thresholds_breached)
 
         if breached_list:
             overall_assessment = "critical"
-        elif any(
-            t.get("slope", 0) < -0.01
-            for t in metric_trends.values()
-        ):
+        elif any(t.get("slope", 0) < -0.01 for t in metric_trends.values()):
             overall_assessment = "degrading"
         else:
             overall_assessment = "stable"
@@ -351,8 +355,13 @@ class PMMManager:
 
         raw = self._observations.get(plan_id, [])
         filtered = [
-            o for o in raw
-            if (not o.timestamp or period_start <= o.timestamp.split("T")[0] <= period_end or period_start <= o.timestamp.split(" ")[0] <= period_end)
+            o
+            for o in raw
+            if (
+                not o.timestamp
+                or period_start <= o.timestamp.split("T")[0] <= period_end
+                or period_start <= o.timestamp.split(" ")[0] <= period_end
+            )
         ]
 
         observation_count = len(filtered)
@@ -442,13 +451,15 @@ class PMMManager:
         plans = []
         for pid, plan in self._plans.items():
             obs_count = len(self._observations.get(pid, []))
-            plans.append({
-                "plan_id": pid,
-                "system_name": plan.system_name,
-                "system_version": plan.system_version,
-                "observation_count": obs_count,
-                "kpi_count": len(plan.kpis),
-            })
+            plans.append(
+                {
+                    "plan_id": pid,
+                    "system_name": plan.system_name,
+                    "system_version": plan.system_version,
+                    "observation_count": obs_count,
+                    "kpi_count": len(plan.kpis),
+                }
+            )
         return {
             "total_plans": len(self._plans),
             "total_observations": total_observations,

@@ -95,7 +95,12 @@ def _register_builtin_tools() -> None:
         "factory": create_github_server,
         "version": "0.33.0",
         "default_config": {},
-        "tools": ["github_list_repos", "github_get_issue", "github_create_issue", "github_search_code"],
+        "tools": [
+            "github_list_repos",
+            "github_get_issue",
+            "github_create_issue",
+            "github_search_code",
+        ],
         "security_controls": ["EnvVarCheck"],
     }
     TOOL_REGISTRY["notion"] = {

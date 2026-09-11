@@ -79,9 +79,7 @@ _SETTLEMENT_LEDGER_PATH = "/api/v1/federation/settlement/ledger"
 _AUTH_FAILED_LOG: list[dict[str, Any]] = []
 
 
-def _record_auth_failed(
-    path: str, method: str, reason: str, key_id: str = ""
-) -> None:
+def _record_auth_failed(path: str, method: str, reason: str, key_id: str = "") -> None:
     """Record a rejected federation request for audit."""
     _AUTH_FAILED_LOG.append(
         {
@@ -174,9 +172,7 @@ def create_federation_app(
     governance_credentials: GovernanceCredentialStore | None = None,
     credential_signing_key: ReportSigningKey | None = None,
     merkle_aggregator: FederatedMerkleAggregator | None = None,
-    request_verifier: (
-        FederationRequestVerifier | Mapping[str, str] | None
-    ) = None,
+    request_verifier: (FederationRequestVerifier | Mapping[str, str] | None) = None,
     peer_url_policy: dict[str, Any] | None = None,
 ) -> FastAPI:
     """Build a FastAPI app exposing the federated HTTP endpoints.
@@ -272,7 +268,6 @@ def create_federation_app(
                 await self.app(scope, receive_with_body, send)
 
         app.add_middleware(_RequestAuthMiddleware, verifier=request_verifier)
-
 
     @router.get("/api/v1/federation/health")
     def health() -> dict[str, Any]:
@@ -663,7 +658,9 @@ def create_federation_app(
 
     def _governance_credentials() -> GovernanceCredentialStore:
         if governance_credentials is None:
-            raise HTTPException(status_code=503, detail="governance credential store not configured")
+            raise HTTPException(
+                status_code=503, detail="governance credential store not configured"
+            )
         return governance_credentials
 
     def _credential_signing_key() -> ReportSigningKey:
@@ -682,12 +679,8 @@ def create_federation_app(
         scope = body.get("scope")
         if scope is None:
             scope = ["audit"]
-        if not isinstance(scope, list) or not scope or not all(
-            isinstance(s, str) for s in scope
-        ):
-            raise HTTPException(
-                status_code=400, detail="scope must be a non-empty list of strings"
-            )
+        if not isinstance(scope, list) or not scope or not all(isinstance(s, str) for s in scope):
+            raise HTTPException(status_code=400, detail="scope must be a non-empty list of strings")
         if not subject_did or not issuer_did:
             raise HTTPException(status_code=400, detail="subject_did and issuer_did are required")
         merkle_proof = body.get("merkle_proof") or {}
@@ -724,9 +717,7 @@ def create_federation_app(
         """
         store = _governance_credentials()
         if credential_signing_key is not None:
-            return store.build_signed_revocation_list(
-                credential_signing_key, server_id=server_id
-            )
+            return store.build_signed_revocation_list(credential_signing_key, server_id=server_id)
         return {"server_id": server_id, "revoked": store.revocation_list()}
 
     @router.get("/api/v1/federation/governance/credential/{credential_id}")
@@ -934,9 +925,7 @@ class FederationHTTPClient:
 
     def resolve_identity(self, did_string: str) -> dict[str, Any]:
         """Resolve a DID to a W3C DID Document."""
-        response = self._client.get(
-            f"/api/v1/federation/identity/resolve/{did_string}"
-        )
+        response = self._client.get(f"/api/v1/federation/identity/resolve/{did_string}")
         response.raise_for_status()
         return response.json()
 
@@ -951,9 +940,7 @@ class FederationHTTPClient:
 
     def verify_aic(self, aic_string: str) -> dict[str, Any]:
         """Verify an AIC string (CRC-16 checksum) and its DID binding."""
-        response = self._client.get(
-            f"/api/v1/federation/identity/aic/verify/{aic_string}"
-        )
+        response = self._client.get(f"/api/v1/federation/identity/aic/verify/{aic_string}")
         response.raise_for_status()
         return response.json()
 

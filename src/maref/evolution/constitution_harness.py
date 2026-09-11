@@ -29,9 +29,7 @@ class ConstitutionHarness:
         "src/maref/integration/percv/ratchet_bridge.py",
         "src/maref/integration/percv/meta_ratchet_auditor.py",
     )
-    FORBIDDEN_FILES = (
-        ".missions/v0.25.0-security-enhancement/validation-contract.md",
-    )
+    FORBIDDEN_FILES = (".missions/v0.25.0-security-enhancement/validation-contract.md",)
     SAFETY_BYPASS_PATTERNS = (
         r"SafetyGate\w*\.active\s*=\s*False",
         r"_safety_gate\s*=\s*None",
@@ -50,7 +48,10 @@ class ConstitutionHarness:
         reasons: list[str] = []
         files = tuple(str(path) for path in change.files)
 
-        if self._touches_any(files, self.RED_LINE_FILES) and change.actor != "human_constitution_maker":
+        if (
+            self._touches_any(files, self.RED_LINE_FILES)
+            and change.actor != "human_constitution_maker"
+        ):
             violations.append("red_line")
             reasons.append("non-human actor cannot modify constitutional red-line files")
 
@@ -58,11 +59,17 @@ class ConstitutionHarness:
             violations.append("forbidden_contract")
             reasons.append("validation contract is orchestrator-only")
 
-        if any(re.search(pattern, change.diff_text, re.IGNORECASE) for pattern in self.SAFETY_BYPASS_PATTERNS):
+        if any(
+            re.search(pattern, change.diff_text, re.IGNORECASE)
+            for pattern in self.SAFETY_BYPASS_PATTERNS
+        ):
             violations.append("safety_gate_bypass")
             reasons.append("change appears to disable or bypass safety gate enforcement")
 
-        if any(re.search(pattern, change.diff_text, re.IGNORECASE) for pattern in self.EXFILTRATION_PATTERNS):
+        if any(
+            re.search(pattern, change.diff_text, re.IGNORECASE)
+            for pattern in self.EXFILTRATION_PATTERNS
+        ):
             violations.append("secret_exfiltration")
             reasons.append("change appears to introduce secret material")
 

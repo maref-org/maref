@@ -178,7 +178,7 @@ class ConvergentLoop(LoopBase):
         if result.score >= 1.0:
             return LoopStopReason.CONVERGED
         if len(self._convergence_history) >= self._convergence_window:
-            recent = self._convergence_history[-self._convergence_window:]
+            recent = self._convergence_history[-self._convergence_window :]
             if max(recent) - min(recent) < self._convergence_threshold:
                 return LoopStopReason.CONVERGED
         return None

@@ -42,11 +42,13 @@ class LoopGovernanceBridge:
                 event_type="governed_loop_start",
                 actor="loop_bridge",
                 action="run_governed",
-                details=json.dumps({
-                    "task_id": task_id,
-                    "loop_type": type(loop).__name__,
-                    "tool_boundary": loop.tool_boundary.to_dict(),
-                }),
+                details=json.dumps(
+                    {
+                        "task_id": task_id,
+                        "loop_type": type(loop).__name__,
+                        "tool_boundary": loop.tool_boundary.to_dict(),
+                    }
+                ),
             )
 
         self._state_machine.transition(
@@ -97,12 +99,14 @@ class LoopGovernanceBridge:
                 event_type="governed_loop_complete",
                 actor="loop_bridge",
                 action="run_governed",
-                details=json.dumps({
-                    "task_id": task_id,
-                    "stop_reason": result.stop_reason.value,
-                    "rounds": result.rounds_completed,
-                    "final_state": self._state_machine.current_state.name,
-                }),
+                details=json.dumps(
+                    {
+                        "task_id": task_id,
+                        "stop_reason": result.stop_reason.value,
+                        "rounds": result.rounds_completed,
+                        "final_state": self._state_machine.current_state.name,
+                    }
+                ),
             )
 
         return result

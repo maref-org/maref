@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from maref.integration.mcp_envelope import make_envelope
 from maref.integration.mcp_transport import JSONRPCRequest
 from maref.tools.git_server import GitServer, RepoWhitelist, create_git_server
 
@@ -44,7 +45,7 @@ def _call_tool(
     transport.connect()
     req = JSONRPCRequest(
         method="tools/call",
-        params={"name": tool_name, "arguments": arguments},
+        params={**make_envelope("test-agent"), "name": tool_name, "arguments": arguments},
         id=req_id,
     )
     resp = transport.send(req)
@@ -63,7 +64,7 @@ def _call_tool_error(
     transport.connect()
     req = JSONRPCRequest(
         method="tools/call",
-        params={"name": tool_name, "arguments": arguments},
+        params={**make_envelope("test-agent"), "name": tool_name, "arguments": arguments},
         id=req_id,
     )
     resp = transport.send(req)
@@ -420,7 +421,7 @@ class TestGitServerMCPProtocol:
         transport.connect()
         req = JSONRPCRequest(
             method="tools/call",
-            params={"name": "nonexistent", "arguments": {}},
+            params={**make_envelope("test-agent"), "name": "nonexistent", "arguments": {}},
             id=1,
         )
         resp = transport.send(req)

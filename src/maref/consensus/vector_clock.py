@@ -4,6 +4,7 @@ Provides partial-order tracking of events across distributed agents,
 enabling detection of concurrency, causality, and happens-before relations
 without centralized coordination.
 """
+
 from __future__ import annotations
 
 import copy
@@ -15,6 +16,7 @@ from typing import Any
 @dataclass(frozen=True)
 class VectorClock:
     """Immutable vector clock mapping agent IDs to logical timestamps."""
+
     clocks: dict[str, int] = field(default_factory=dict)
 
     @classmethod
@@ -36,7 +38,7 @@ class VectorClock:
     def merge(self, other: VectorClock) -> VectorClock:
         """Return the element-wise maximum of two vector clocks."""
         merged = dict(self.clocks)
-        for (aid, ts) in other.clocks.items():
+        for aid, ts in other.clocks.items():
             merged[aid] = max(merged.get(aid, 0), ts)
         return VectorClock(merged)
 
@@ -77,15 +79,18 @@ class VectorClock:
         return dict(self.clocks)
 
     def __repr__(self) -> str:
-        items = ', '.join(f'{k}={v}' for (k, v) in sorted(self.clocks.items()))
-        return f'VectorClock({items})'
+        items = ", ".join(f"{k}={v}" for (k, v) in sorted(self.clocks.items()))
+        return f"VectorClock({items})"
+
 
 class CausalRelation(str, Enum):
     """Enumeration of causal comparison results."""
-    BEFORE = 'before'
-    AFTER = 'after'
-    EQUAL = 'equal'
-    CONCURRENT = 'concurrent'
+
+    BEFORE = "before"
+    AFTER = "after"
+    EQUAL = "equal"
+    CONCURRENT = "concurrent"
+
 
 class CausalContext:
     """Mutable causal context held by an agent during execution.
@@ -93,7 +98,7 @@ class CausalContext:
     Wraps a VectorClock and provides convenience methods for event tracking.
     """
 
-    def __init__(self, agent_id: str, clock: VectorClock | None=None) -> None:
+    def __init__(self, agent_id: str, clock: VectorClock | None = None) -> None:
         self._agent_id = agent_id
         self._clock = clock or VectorClock.new(agent_id)
 
@@ -125,8 +130,8 @@ class CausalContext:
         return copy.deepcopy(self._clock)
 
     def to_dict(self) -> dict[str, Any]:
-        return {'agent_id': self._agent_id, 'clock': self._clock.to_dict()}
+        return {"agent_id": self._agent_id, "clock": self._clock.to_dict()}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CausalContext:
-        return cls(agent_id=data['agent_id'], clock=VectorClock.from_dict(data.get('clock', {})))
+        return cls(agent_id=data["agent_id"], clock=VectorClock.from_dict(data.get("clock", {})))

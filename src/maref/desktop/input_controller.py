@@ -210,7 +210,8 @@ class InputController:
             import pyautogui  # noqa: F401
 
             self._pyautogui_available = True
-        except ImportError:
+        except Exception:
+            # headless CI: pyautogui→mouseinfo reads $DISPLAY → KeyError
             pass
         if self._pyautogui_available and not self._dry_run:
             self._configure_pyautogui()
@@ -250,7 +251,7 @@ class InputController:
             w, h = pyautogui.size()
             info["screen_width"] = w
             info["screen_height"] = h
-        except ImportError:
+        except Exception:
             pass
 
         system = platform.system()

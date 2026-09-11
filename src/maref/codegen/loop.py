@@ -37,8 +37,7 @@ class CodeGenLLMBackend(Protocol):
         self,
         messages: list[Message],
         available_tools: list[LLMToolDef],
-    ) -> LLMResponse:
-        ...
+    ) -> LLMResponse: ...
 
 
 @dataclass
@@ -57,9 +56,15 @@ class LoopState:
 @dataclass
 class LoopEvent:
     type: Literal[
-        "tool_call", "tool_result", "text", "error",
-        "compact_boundary", "max_turns", "max_cost",
-        "governance_transition", "audit_log",
+        "tool_call",
+        "tool_result",
+        "text",
+        "error",
+        "compact_boundary",
+        "max_turns",
+        "max_cost",
+        "governance_transition",
+        "audit_log",
     ]
     payload: Any = None
     timestamp: float = field(default_factory=time.time)
@@ -310,8 +315,12 @@ class CodeGenLoop:
                 yield LoopEvent.error("No tool calls and not end_turn")
                 break
 
-            self._governance.transition(GovernanceState.ACT, f"executing_{len(response.tool_calls)}_tools")
-            yield LoopEvent.governance_transition("ANALYZE", "ACT", f"tool_dispatch_{state.turn_count}")
+            self._governance.transition(
+                GovernanceState.ACT, f"executing_{len(response.tool_calls)}_tools"
+            )
+            yield LoopEvent.governance_transition(
+                "ANALYZE", "ACT", f"tool_dispatch_{state.turn_count}"
+            )
 
             governance_check = self._run_governance_check(response, proposal)
             if not governance_check.get("allowed", True):
@@ -467,9 +476,7 @@ class CodeGenLoop:
         round_num: int = 31,
     ) -> None:
         record = UnifiedAuditRecord(
-            record_id=make_record_id(
-                "codegen", hash((tool_name, time.time_ns())) % 100000
-            ),
+            record_id=make_record_id("codegen", hash((tool_name, time.time_ns())) % 100000),
             timestamp=time.time(),
             layer="evolution",
             round=round_num,
@@ -517,11 +524,13 @@ class CodeGenLoop:
                     k: {"type": v.__name__ if hasattr(v, "__name__") else str(v)}
                     for k, v in (getattr(s, "model_fields", {})).items()
                 }
-            defs.append(LLMToolDef(
-                name=tool.name,
-                description=getattr(tool, "description", ""),
-                input_schema=schema,
-            ))
+            defs.append(
+                LLMToolDef(
+                    name=tool.name,
+                    description=getattr(tool, "description", ""),
+                    input_schema=schema,
+                )
+            )
         return defs
 
     def _build_tool_input(self, tool_name: str, raw_input: dict[str, Any]) -> Any:

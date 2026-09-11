@@ -145,19 +145,19 @@ class TestCooldownManagerForceMerge:
         manager = CooldownManager(simulator=sim, audit_store=store, cooldown_seconds=0.0)
         cid = manager.submit_code("agent_a", CONTAMINATED_CODE)
         manager.evaluate(cid)
-        result = manager.force_merge(cid)
+        result = manager.force_merge(cid, actor_id="test_operator")
         assert result["success"] is True
 
     def test_force_merge_unknown_id(self):
         manager = CooldownManager()
-        result = manager.force_merge("nonexistent")
+        result = manager.force_merge("nonexistent", actor_id="test_operator")
         assert result["success"] is False
 
     def test_force_merge_sets_force_merged_flag(self):
         store = UnifiedAuditStore()
         manager = CooldownManager(audit_store=store, cooldown_seconds=0.0)
         cid = manager.submit_code("agent_a", CLEAN_CODE)
-        manager.force_merge(cid)
+        manager.force_merge(cid, actor_id="test_operator")
         status = manager.get_status(cid)
         assert status["force_merged"] is True
 
@@ -165,7 +165,7 @@ class TestCooldownManagerForceMerge:
         store = UnifiedAuditStore()
         manager = CooldownManager(audit_store=store, cooldown_seconds=0.0)
         cid = manager.submit_code("agent_a", CLEAN_CODE)
-        manager.force_merge(cid)
+        manager.force_merge(cid, actor_id="test_operator")
         status = manager.get_status(cid)
         assert status["status"] == "force_merged"
 
@@ -199,7 +199,7 @@ class TestCooldownManagerAudit:
         store = UnifiedAuditStore()
         manager = CooldownManager(audit_store=store, cooldown_seconds=0.0)
         cid = manager.submit_code("agent_a", CLEAN_CODE)
-        manager.force_merge(cid)
+        manager.force_merge(cid, actor_id="test_operator")
         events = store.stats_by_event_type()
         assert any("force" in k for k in events)
 

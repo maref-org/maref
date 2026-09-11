@@ -159,9 +159,7 @@ class AttackExecutor:
             result.errors.append(str(e))
         return result
 
-    def _attack_cross_dimensional(
-        self, attack: AttackDefinition
-    ) -> AttackExecutionResult:
+    def _attack_cross_dimensional(self, attack: AttackDefinition) -> AttackExecutionResult:
         """Execute cross-dimensional attack.
 
         Dispatches based on attack.params["method"]:

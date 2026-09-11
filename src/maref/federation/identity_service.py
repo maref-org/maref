@@ -292,7 +292,9 @@ class IdentityService:
         op = event.get("op")
         if op == "create":
             did = AgentDID(namespace=event["namespace"], agent_short_id=event["agent_short_id"])
-            record = self.registry.register(did, GovernanceStateMachine(), initial_roles=event.get("roles"))
+            record = self.registry.register(
+                did, GovernanceStateMachine(), initial_roles=event.get("roles")
+            )
             if event.get("ed25519_public_key_pem"):
                 record.metadata["ed25519_public_key_pem"] = event["ed25519_public_key_pem"]
             if event.get("service_endpoints"):

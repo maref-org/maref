@@ -225,6 +225,16 @@ class SkillRegistry:
         results.sort(key=lambda x: -x[0])
         return [m for _, m in results]
 
+    def export_as_maref_skills(self) -> list[Any]:
+        from maref.marketplace.skill_bridge import manifest_to_maref_skill
+
+        result: list[Any] = []
+        for sid, manifest in self._skills.items():
+            validation = self._validation.get(sid)
+            if validation and validation.all_passed:
+                result.append(manifest_to_maref_skill(manifest))
+        return result
+
     def get_downstream(self, skill_name: str) -> list[str]:
         """Get skill IDs that depend on the given skill."""
         return list(self._dependency_graph.get(skill_name, set()))

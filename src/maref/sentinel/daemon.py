@@ -360,9 +360,7 @@ class SentinelDaemon(Daemon):
                     if not healthy:
                         logger.warning("Probe %s health check failed", probe.probe_name)
                         self._degraded = True
-                        self._degraded_reason = (
-                            f"probe {probe.probe_name} unhealthy"
-                        )
+                        self._degraded_reason = f"probe {probe.probe_name} unhealthy"
                 except Exception as e:
                     logger.exception("Probe %s health check error: %s", probe.probe_name, e)
 

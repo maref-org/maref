@@ -219,9 +219,7 @@ class CybersecurityAssessment:
         if total == 0:
             self.risk_score = 1.0
         else:
-            self.risk_score = 1.0 - (
-                len(self.controls_in_place) / total
-            )
+            self.risk_score = 1.0 - (len(self.controls_in_place) / total)
 
 
 class CybersecurityManager:
@@ -333,17 +331,10 @@ class Art15ComplianceReport:
 
     def __post_init__(self) -> None:
         """Auto-compute overall_compliant."""
-        all_accuracy_passed = all(
-            d.passed for d in self.accuracy_declarations
-        )
-        robustness_ok = (
-            self.robustness_report is not None
-            and self.robustness_report.overall_robust
-        )
+        all_accuracy_passed = all(d.passed for d in self.accuracy_declarations)
+        robustness_ok = self.robustness_report is not None and self.robustness_report.overall_robust
         cybersecurity_exists = len(self.cybersecurity_assessments) > 0
         no_high_risk_cyber = cybersecurity_exists and not any(
             a.risk_score > 0.7 for a in self.cybersecurity_assessments
         )
-        self.overall_compliant = (
-            all_accuracy_passed and robustness_ok and no_high_risk_cyber
-        )
+        self.overall_compliant = all_accuracy_passed and robustness_ok and no_high_risk_cyber

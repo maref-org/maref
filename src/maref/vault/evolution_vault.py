@@ -53,9 +53,16 @@ class EvolutionVault:
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
     RECORD_HEADER = [
-        "timestamp", "target", "consistency_score", "action",
-        "dimensions", "notes", "mas_ts_score", "mas_ts_level",
-        "duration_s", "delta",
+        "timestamp",
+        "target",
+        "consistency_score",
+        "action",
+        "dimensions",
+        "notes",
+        "mas_ts_score",
+        "mas_ts_level",
+        "duration_s",
+        "delta",
     ]
 
     def record(self, entry: ExperimentRecord) -> None:
@@ -64,18 +71,20 @@ class EvolutionVault:
             writer = csv.writer(f, delimiter="\t")
             if not file_exists:
                 writer.writerow(self.RECORD_HEADER)
-            writer.writerow([
-                entry.timestamp,
-                entry.target,
-                f"{entry.consistency_score:.4f}",
-                entry.action,
-                json.dumps(entry.dimensions, ensure_ascii=False),
-                entry.notes,
-                f"{entry.mas_ts_score:.1f}",
-                entry.mas_ts_level,
-                f"{entry.duration_s:.2f}",
-                f"{entry.delta:.4f}",
-            ])
+            writer.writerow(
+                [
+                    entry.timestamp,
+                    entry.target,
+                    f"{entry.consistency_score:.4f}",
+                    entry.action,
+                    json.dumps(entry.dimensions, ensure_ascii=False),
+                    entry.notes,
+                    f"{entry.mas_ts_score:.1f}",
+                    entry.mas_ts_level,
+                    f"{entry.duration_s:.2f}",
+                    f"{entry.delta:.4f}",
+                ]
+            )
 
     def load_all(self) -> list[ExperimentRecord]:
         if not self.results_file.exists():
@@ -90,18 +99,20 @@ class EvolutionVault:
                     dims = json.loads(row.get("dimensions", "{}") or "{}")
                 except (json.JSONDecodeError, TypeError):
                     dims = {}
-                records.append(ExperimentRecord(
-                    timestamp=row.get("timestamp", ""),
-                    target=row.get("target", ""),
-                    consistency_score=float(row.get("consistency_score", 0) or 0),
-                    action=row.get("action", ""),
-                    dimensions=dims,
-                    notes=row.get("notes", ""),
-                    mas_ts_score=float(row.get("mas_ts_score", 0) or 0),
-                    mas_ts_level=row.get("mas_ts_level", ""),
-                    duration_s=float(row.get("duration_s", 0) or 0),
-                    delta=float(row.get("delta", 0) or 0),
-                ))
+                records.append(
+                    ExperimentRecord(
+                        timestamp=row.get("timestamp", ""),
+                        target=row.get("target", ""),
+                        consistency_score=float(row.get("consistency_score", 0) or 0),
+                        action=row.get("action", ""),
+                        dimensions=dims,
+                        notes=row.get("notes", ""),
+                        mas_ts_score=float(row.get("mas_ts_score", 0) or 0),
+                        mas_ts_level=row.get("mas_ts_level", ""),
+                        duration_s=float(row.get("duration_s", 0) or 0),
+                        delta=float(row.get("delta", 0) or 0),
+                    )
+                )
             return records
 
     def get_trend(self, target: str, window: int = 20) -> TrendSummary:
@@ -109,9 +120,16 @@ class EvolutionVault:
         target_records = [r for r in records if r.target == target]
         if not target_records:
             return TrendSummary(
-                target=target, total_runs=0, keep_count=0, discard_count=0,
-                avg_score=0.0, best_score=0.0, latest_score=0.0,
-                score_trend="stable", volatility=0.0, keep_rate=0.0,
+                target=target,
+                total_runs=0,
+                keep_count=0,
+                discard_count=0,
+                avg_score=0.0,
+                best_score=0.0,
+                latest_score=0.0,
+                score_trend="stable",
+                volatility=0.0,
+                keep_rate=0.0,
                 window_scores=[],
             )
 
@@ -126,8 +144,8 @@ class EvolutionVault:
         volatility = statistics.stdev(scores) if len(scores) > 1 else 0.0
 
         if len(scores) >= 3:
-            first_half = sum(scores[:len(scores)//2]) / (len(scores)//2)
-            second_half = sum(scores[len(scores)//2:]) / (len(scores) - len(scores)//2)
+            first_half = sum(scores[: len(scores) // 2]) / (len(scores) // 2)
+            second_half = sum(scores[len(scores) // 2 :]) / (len(scores) - len(scores) // 2)
             if second_half - first_half > 0.02:
                 score_trend = "improving"
             elif first_half - second_half > 0.02:
@@ -141,8 +159,10 @@ class EvolutionVault:
         keep_rate = keeps / total if total > 0 else 0.0
 
         return TrendSummary(
-            target=target, total_runs=total,
-            keep_count=keeps, discard_count=discards,
+            target=target,
+            total_runs=total,
+            keep_count=keeps,
+            discard_count=discards,
             avg_score=round(avg_score, 4),
             best_score=round(best_score, 4),
             latest_score=round(latest_score, 4),
@@ -173,7 +193,13 @@ class EvolutionVault:
 
         target_summaries = ""
         for target, trend in sorted(trends.items(), key=lambda x: x[1].latest_score, reverse=True):
-            bar_color = "#4ade80" if trend.score_trend == "improving" else "#f87171" if trend.score_trend == "declining" else "#fbbf24"
+            bar_color = (
+                "#4ade80"
+                if trend.score_trend == "improving"
+                else "#f87171"
+                if trend.score_trend == "declining"
+                else "#fbbf24"
+            )
             target_summaries += f"""
             <div class="card">
                 <h3>{target}</h3>
@@ -224,7 +250,7 @@ canvas {{ max-height: 300px; }}
 </head>
 <body>
 <h1>EvolutionVault</h1>
-<p class="subtitle">RSI 實驗趨勢儀表板 &mdash; 更新于 {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+<p class="subtitle">RSI 實驗趨勢儀表板 &mdash; 更新于 {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
 <div class="dashboard">
 {target_summaries}
 </div>

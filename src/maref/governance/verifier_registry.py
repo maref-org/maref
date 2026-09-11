@@ -89,10 +89,12 @@ class VerifierRegistry:
         drifted: list[dict[str, Any]] = []
         for entry in self._verifiers.values():
             if entry.accuracy < threshold:
-                drifted.append({
-                    "name": entry.name,
-                    "accuracy": entry.accuracy,
-                    "threshold": threshold,
-                    "recommendation": "recalibrate or deprecate",
-                })
+                drifted.append(
+                    {
+                        "name": entry.name,
+                        "accuracy": entry.accuracy,
+                        "threshold": threshold,
+                        "recommendation": "recalibrate or deprecate",
+                    }
+                )
         return drifted

@@ -118,7 +118,9 @@ class AuditEntry:
             payload["round"] = self.round
         return json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
 
-    def to_unified(self, layer: str | None = None, round_num: int | None = None) -> UnifiedAuditRecord:
+    def to_unified(
+        self, layer: str | None = None, round_num: int | None = None
+    ) -> UnifiedAuditRecord:
         from maref.recursive.unified_audit import UnifiedAuditRecord
 
         outcome: str | None = None
@@ -195,6 +197,7 @@ class AuditLogger:
             env_ed25519 = os.environ.get(_ED25519_KEY_ENV)
             if env_ed25519:
                 from maref.crypto.ed25519_keys import Ed25519KeyPair
+
                 resolved_keypair = Ed25519KeyPair.from_private_pem(env_ed25519)
         self._ed25519_keypair = resolved_keypair
 
@@ -300,9 +303,7 @@ class AuditLogger:
         if self._path is not None:
             candidates.append(self._path.parent.parent / ".maraf_hmac_key")
             candidates.append(self._path.parent.parent / ".gaas_api_key")
-        candidates.extend(
-            [Path.cwd() / ".maraf_hmac_key", Path.cwd() / ".gaas_api_key"]
-        )
+        candidates.extend([Path.cwd() / ".maraf_hmac_key", Path.cwd() / ".gaas_api_key"])
         for candidate in candidates:
             try:
                 return candidate.read_text().strip().encode("utf-8")
@@ -321,13 +322,19 @@ class AuditLogger:
             return False
         if Ed25519KeyPair.verify(pub_key, sig_bytes, entry._payload_for_signing().encode("utf-8")):
             return True
-        return Ed25519KeyPair.verify(pub_key, sig_bytes, self._legacy_payload(entry).encode("utf-8"))
+        return Ed25519KeyPair.verify(
+            pub_key, sig_bytes, self._legacy_payload(entry).encode("utf-8")
+        )
 
     def _verify_hmac_signature(self, entry: AuditEntry, hmac_key: bytes) -> bool:
-        current = hmac.new(hmac_key, entry._payload_for_signing().encode("utf-8"), hashlib.sha256).hexdigest()
+        current = hmac.new(
+            hmac_key, entry._payload_for_signing().encode("utf-8"), hashlib.sha256
+        ).hexdigest()
         if hmac.compare_digest(current, entry.hmac_signature):
             return True
-        legacy = hmac.new(hmac_key, self._legacy_payload(entry).encode("utf-8"), hashlib.sha256).hexdigest()
+        legacy = hmac.new(
+            hmac_key, self._legacy_payload(entry).encode("utf-8"), hashlib.sha256
+        ).hexdigest()
         return hmac.compare_digest(legacy, entry.hmac_signature)
 
     def _verify_chain_hash(self, entry: AuditEntry) -> bool:
@@ -504,9 +511,7 @@ class AuditLogger:
         now = time.time()
         previous_hash = self._memory_entries[-1].chain_hash if self._memory_entries else ""
         if self._path is not None and self._path.exists() and not self._memory_entries:
-            existing = self.read_all(max_entries=None)
-            if existing:
-                previous_hash = existing[-1].chain_hash
+            previous_hash = self._last_chain_hash_from_file()
         entry = AuditEntry(
             id=uuid.uuid4().hex[:8],
             timestamp=now,
@@ -743,6 +748,58 @@ class AuditLogger:
     def get_audit_trail(self, max_entries: int | None = 1000) -> list[AuditEntry]:
         """Return the audit trail with optional limit."""
         return self.read_all(max_entries=max_entries)
+
+    def _last_chain_hash_from_file(self) -> str:
+        """O(1) tail read of the last valid entry's chain_hash.
+
+        Replaces the previous ``read_all(max_entries=None)`` full-file scan
+        on every ``log()`` append, which made writes O(n) per entry (and
+        O(n²) cumulative for a long-running chain). Seeks to the file tail
+        and walks backward in bounded chunks; the window only grows when a
+        single record is unusually large.
+
+        Parsing semantics match ``read_all``: malformed lines and partial
+        dicts (missing required fields) are skipped, so the chain continues
+        from the last *valid* record.
+        """
+        if self._path is None or not self._path.exists():
+            return ""
+        # 文件存在(有历史链)但 stat/open 失败：上抛而非返回 ""。若返回 ""
+        # log() 会以 previous_hash="" 续写，把合法新条目变假篡改(断链)。
+        # 审计链完整性优先于写入可用性(fail-closed)。
+        try:
+            size = self._path.stat().st_size
+        except OSError:
+            raise
+        if size == 0:
+            return ""
+        window = min(size, 64 * 1024)
+        while True:
+            offset = size - window
+            try:
+                with open(self._path, "rb") as fh:
+                    fh.seek(offset)
+                    chunk = fh.read(window).decode("utf-8", errors="replace")
+            except OSError:
+                raise
+            lines = chunk.splitlines()
+            # When the window starts mid-file its first line is truncated.
+            if offset > 0 and lines:
+                lines = lines[1:]
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                entry = self._entry_from_dict(data)
+                if entry is not None:
+                    return entry.chain_hash
+            if window >= size:
+                return ""
+            window = min(size, window * 2)
 
     def count(self) -> int:
         return len(self._memory_entries)

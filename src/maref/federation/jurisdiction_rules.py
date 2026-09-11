@@ -105,8 +105,7 @@ GDPR_RULES: list[RegulatoryRule] = [
         conditions={},
         priority=0,
         regulation_ref="Art. 22",
-        description="Solely automated decisions with legal/significant "
-        "effects require safeguards.",
+        description="Solely automated decisions with legal/significant effects require safeguards.",
     ),
     RegulatoryRule(
         rule_id="gdpr-art22-auto-decision-defer",
@@ -183,8 +182,7 @@ CHINA_CSL_RULES: list[RegulatoryRule] = [
         conditions={},
         priority=0,
         regulation_ref="Gen-AI Measures Art. 16-19",
-        description="Generative-AI services must be filed/registered with "
-        "the authorities.",
+        description="Generative-AI services must be filed/registered with the authorities.",
     ),
     RegulatoryRule(
         rule_id="csl-genai-registration-allow",
@@ -390,8 +388,7 @@ def create_regulatory_router(
     from maref.federation.jurisdiction_router import JurisdictionConflictStrategy
 
     router = JurisdictionPolicyRouter(
-        conflict_strategy=conflict_strategy
-        or JurisdictionConflictStrategy.MOST_RESTRICTIVE
+        conflict_strategy=conflict_strategy or JurisdictionConflictStrategy.MOST_RESTRICTIVE
     )
     install_regulatory_rules(router)
     return router

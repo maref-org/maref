@@ -143,10 +143,7 @@ class ConformityAssessmentManager:
             return None
         if force_third_party:
             return ConformityRoute.THIRD_PARTY
-        cats = [
-            c.value if isinstance(c, AnnexIIICategory) else c
-            for c in (categories or [])
-        ]
+        cats = [c.value if isinstance(c, AnnexIIICategory) else c for c in (categories or [])]
         is_biometrics = AnnexIIICategory.BIOMETRICS.value in cats
         if is_biometrics and not has_harmonized_standards:
             return ConformityRoute.THIRD_PARTY
@@ -204,9 +201,7 @@ class ConformityAssessmentManager:
             harmonized_standards=harmonized_standards or [],
             issuer=issuer or record.system_name,
             issued_at=now.isoformat(),
-            valid_until=(
-                now + timedelta(days=365 * self._DECLARATION_VALID_YEARS)
-            ).isoformat(),
+            valid_until=(now + timedelta(days=365 * self._DECLARATION_VALID_YEARS)).isoformat(),
         )
         self._declarations[declaration.declaration_id] = declaration
         record.certificate_id = declaration.declaration_id
@@ -254,9 +249,7 @@ class ConformityAssessmentManager:
             system_name=system_name,
             risk_level=risk_level,
             registration_date=now.isoformat(),
-            expiry_date=(
-                now + timedelta(days=365 * self._REGISTRATION_VALID_YEARS)
-            ).isoformat(),
+            expiry_date=(now + timedelta(days=365 * self._REGISTRATION_VALID_YEARS)).isoformat(),
         )
         self._registrations[registration.registration_id] = registration
         return registration
@@ -281,19 +274,11 @@ class ConformityAssessmentManager:
         if current.get("datasets") != previous.get("datasets"):
             modifications.append(SubstantialModificationType.DATASET_CHANGE)
         if current.get("intended_purpose") != previous.get("intended_purpose"):
-            modifications.append(
-                SubstantialModificationType.INTENDED_PURPOSE_CHANGE
-            )
-        if current.get("architecture_summary") != previous.get(
-            "architecture_summary"
-        ):
+            modifications.append(SubstantialModificationType.INTENDED_PURPOSE_CHANGE)
+        if current.get("architecture_summary") != previous.get("architecture_summary"):
             modifications.append(SubstantialModificationType.ARCHITECTURE_CHANGE)
-        if current.get("cybersecurity_measures") != previous.get(
-            "cybersecurity_measures"
-        ):
-            modifications.append(
-                SubstantialModificationType.CYBERSECURITY_REVISION
-            )
+        if current.get("cybersecurity_measures") != previous.get("cybersecurity_measures"):
+            modifications.append(SubstantialModificationType.CYBERSECURITY_REVISION)
         return modifications
 
     def get_assessment_history(
@@ -301,11 +286,7 @@ class ConformityAssessmentManager:
         system_name: str,
     ) -> list[ConformityAssessmentRecord]:
         """Return all conformity assessments for a given system."""
-        return [
-            rec
-            for rec in self._assessments.values()
-            if rec.system_name == system_name
-        ]
+        return [rec for rec in self._assessments.values() if rec.system_name == system_name]
 
     def generate_conformity_report(
         self,
@@ -321,27 +302,15 @@ class ConformityAssessmentManager:
             return "ERROR: Conformity assessment not found."
 
         declaration = next(
-            (
-                d
-                for d in self._declarations.values()
-                if d.declaration_id == record.certificate_id
-            ),
+            (d for d in self._declarations.values() if d.declaration_id == record.certificate_id),
             None,
         )
         ce_marking = next(
-            (
-                m
-                for m in self._ce_markings.values()
-                if m.assessment_id == assessment_id
-            ),
+            (m for m in self._ce_markings.values() if m.assessment_id == assessment_id),
             None,
         )
         registration = next(
-            (
-                r
-                for r in self._registrations.values()
-                if r.system_name == record.system_name
-            ),
+            (r for r in self._registrations.values() if r.system_name == record.system_name),
             None,
         )
 
@@ -364,14 +333,16 @@ class ConformityAssessmentManager:
         lines.append("")
 
         if declaration:
-            lines.extend([
-                "## EU Declaration of Conformity (Art.47)",
-                f"**Declaration ID:** {declaration.declaration_id}",
-                f"**Issuer:** {declaration.issuer}",
-                f"**Issued At:** {declaration.issued_at}",
-                f"**Valid Until:** {declaration.valid_until}",
-                "**Applicable Articles:**",
-            ])
+            lines.extend(
+                [
+                    "## EU Declaration of Conformity (Art.47)",
+                    f"**Declaration ID:** {declaration.declaration_id}",
+                    f"**Issuer:** {declaration.issuer}",
+                    f"**Issued At:** {declaration.issued_at}",
+                    f"**Valid Until:** {declaration.valid_until}",
+                    "**Applicable Articles:**",
+                ]
+            )
             for article in declaration.ai_act_articles:
                 lines.append(f"- {article}")
             if declaration.harmonized_standards:
@@ -381,27 +352,28 @@ class ConformityAssessmentManager:
             lines.append("")
 
         if ce_marking:
-            lines.extend([
-                "## CE Marking (Art.48)",
-                f"**Marking ID:** {ce_marking.marking_id}",
-                f"**Affixed At:** {ce_marking.affixed_at}",
-                f"**Affixed:** {'Yes' if ce_marking.affixed else 'No'}",
-                "",
-            ])
+            lines.extend(
+                [
+                    "## CE Marking (Art.48)",
+                    f"**Marking ID:** {ce_marking.marking_id}",
+                    f"**Affixed At:** {ce_marking.affixed_at}",
+                    f"**Affixed:** {'Yes' if ce_marking.affixed else 'No'}",
+                    "",
+                ]
+            )
 
         if registration:
-            lines.extend([
-                "## EU Database Registration (Art.49)",
-                f"**Registration ID:** {registration.registration_id}",
-                f"**Risk Level:** {registration.risk_level}",
-                f"**Registered At:** {registration.registration_date}",
-                f"**Expiry Date:** {registration.expiry_date}",
-                "",
-            ])
+            lines.extend(
+                [
+                    "## EU Database Registration (Art.49)",
+                    f"**Registration ID:** {registration.registration_id}",
+                    f"**Risk Level:** {registration.risk_level}",
+                    f"**Registered At:** {registration.registration_date}",
+                    f"**Expiry Date:** {registration.expiry_date}",
+                    "",
+                ]
+            )
 
         lines.append("---")
-        lines.append(
-            f"*Report generated at: "
-            f"{datetime.now(timezone.utc).isoformat()}*"
-        )
+        lines.append(f"*Report generated at: {datetime.now(timezone.utc).isoformat()}*")
         return "\n".join(lines)

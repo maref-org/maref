@@ -25,7 +25,9 @@ class MAREFLoop:
         )
         self._history: list[dict[str, Any]] = []
 
-    def register_verifier(self, name: str, model: str, methodology: str, accuracy: float = 0.0) -> None:
+    def register_verifier(
+        self, name: str, model: str, methodology: str, accuracy: float = 0.0
+    ) -> None:
         entry = VerifierEntry(
             name=name,
             model=model,

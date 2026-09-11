@@ -7,6 +7,7 @@ pluggable LLM judge interface.
 from __future__ import annotations
 
 from maref.security.grounding_verifier import (
+    GroundingScore,
     GroundingVerifier,
     SupportLevel,
 )

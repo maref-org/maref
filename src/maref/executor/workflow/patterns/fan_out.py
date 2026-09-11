@@ -17,6 +17,7 @@ from maref.executor.workflow.types import WorkflowScript, WorkflowStep
 @dataclass
 class FanOutConfig:
     """扇出配置。"""
+
     n_agents: int = 3
     subtask_template: str = ""  # 子任务模板, 用 {index} 占位
     synthesize_prompt: str = "Synthesize the following results into a coherent output."
@@ -60,39 +61,26 @@ class FanOutPattern:
 
         return PatternResult(
             pattern_name="fan_out",
-            status="completed" if not any(
-                r.get("error") for r in results
-            ) else "partial",
+            status="completed" if not any(r.get("error") for r in results) else "partial",
             output=final,
             metadata={
                 "n_agents": config.n_agents,
-                "subtasks_completed": sum(
-                    1 for r in results if not r.get("error")
-                ),
-                "subtasks_failed": sum(
-                    1 for r in results if r.get("error")
-                ),
+                "subtasks_completed": sum(1 for r in results if not r.get("error")),
+                "subtasks_failed": sum(1 for r in results if r.get("error")),
                 "duration_ms": (time.time() - start) * 1000,
             },
         )
 
-    def _decompose(
-        self, task: str, config: FanOutConfig
-    ) -> list[str]:
+    def _decompose(self, task: str, config: FanOutConfig) -> list[str]:
         """将任务拆解为 N 个子任务描述。"""
         if config.subtask_template:
             return [
                 config.subtask_template.format(index=i, total=config.n_agents, task=task)
                 for i in range(config.n_agents)
             ]
-        return [
-            f"{task} — Part {i + 1}/{config.n_agents}"
-            for i in range(config.n_agents)
-        ]
+        return [f"{task} — Part {i + 1}/{config.n_agents}" for i in range(config.n_agents)]
 
-    def _fan_out(
-        self, subtasks: list[str], config: FanOutConfig
-    ) -> list[dict[str, Any]]:
+    def _fan_out(self, subtasks: list[str], config: FanOutConfig) -> list[dict[str, Any]]:
         """并行执行所有子任务。"""
         results: list[dict[str, Any] | None] = [None] * len(subtasks)
         threads: list[threading.Thread] = []
@@ -125,13 +113,15 @@ class FanOutPattern:
 
         return [r for r in results if r is not None]
 
-    def _synthesize(
-        self, results: list[dict[str, Any]], config: FanOutConfig
-    ) -> dict[str, Any]:
+    def _synthesize(self, results: list[dict[str, Any]], config: FanOutConfig) -> dict[str, Any]:
         """综合所有子结果。"""
         handler = self._get_handler(self._synthesize_handler)
         if handler is None:
-            return {"synthesized": False, "sub_results": results, "note": f"No synthesizer handler '{self._synthesize_handler}'"}
+            return {
+                "synthesized": False,
+                "sub_results": results,
+                "note": f"No synthesizer handler '{self._synthesize_handler}'",
+            }
 
         task = Task(
             name="synthesize",

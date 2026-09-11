@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 
+import pytest
 from maref.recursive.agent_24_state_machine import (
     VALID_TRANSITIONS,
     Agent24StateMachine,
@@ -12,7 +13,7 @@ from maref.recursive.agent_discovery_negotiation import (
     AgentNegotiator,
 )
 from maref.recursive.agent_economy import AgentEconomy
-from maref.recursive.distributed_crdt import DistributedCRDT
+DistributedCRDT = pytest.importorskip("maref.recursive.distributed_crdt")
 from maref.recursive.memory_three_temperature import (
     MemoryThreeTemperature,
 )

@@ -50,9 +50,7 @@ class CatalogEntry:
             "did": self.agent.did.did_string,
             "name": self.agent.acs.name,
             "organization": (
-                self.agent.acs.provider.organization
-                if self.agent.acs.provider
-                else ""
+                self.agent.acs.provider.organization if self.agent.acs.provider else ""
             ),
             "protocol": self.agent.protocol,
             "endpoint": self.agent.endpoint_url,
@@ -88,9 +86,7 @@ class CatalogSubscription:
             return False
         if self.capability_filter is None:
             return True
-        return any(
-            s.id == self.capability_filter for s in entry.agent.acs.skills
-        )
+        return any(s.id == self.capability_filter for s in entry.agent.acs.skills)
 
 
 class FederatedCatalog:
@@ -319,11 +315,7 @@ class FederatedCatalog:
         proto = entry.agent.protocol
         self._protocol_index.setdefault(proto, set()).add(aic_str)
 
-        org = (
-            entry.agent.acs.provider.organization
-            if entry.agent.acs.provider
-            else ""
-        )
+        org = entry.agent.acs.provider.organization if entry.agent.acs.provider else ""
         if org:
             self._org_index.setdefault(org, set()).add(aic_str)
 
@@ -345,11 +337,7 @@ class FederatedCatalog:
             if not protos:
                 del self._protocol_index[proto]
 
-        org = (
-            entry.agent.acs.provider.organization
-            if entry.agent.acs.provider
-            else ""
-        )
+        org = entry.agent.acs.provider.organization if entry.agent.acs.provider else ""
         if org:
             orgs = self._org_index.get(org)
             if orgs is not None:

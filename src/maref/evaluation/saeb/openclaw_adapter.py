@@ -93,10 +93,17 @@ class OpenClawAuditAdapter:
 
         if not entries:
             return GovernanceReport(
-                total_entries=0, event_type_dist={}, action_dist={},
-                fnr=0.0, fpr=0.0, avg_entropy=0.0,
-                state_transition_count=0, cb_trip_count=0, anomaly_count=0,
-                time_window_hours=0.0, signed_ratio=0.0,
+                total_entries=0,
+                event_type_dist={},
+                action_dist={},
+                fnr=0.0,
+                fpr=0.0,
+                avg_entropy=0.0,
+                state_transition_count=0,
+                cb_trip_count=0,
+                anomaly_count=0,
+                time_window_hours=0.0,
+                signed_ratio=0.0,
             )
 
         event_type_dist = Counter(e.event_type for e in entries)
@@ -108,7 +115,8 @@ class OpenClawAuditAdapter:
         # FNR = BLOCK events that needed recovery
         block_count = sum(1 for e in entries if e.action == "BLOCK" or e.action == "DENY")
         recovery_count = sum(
-            1 for e in entries
+            1
+            for e in entries
             if e.event_type == "circuit_breaker" or "recovery" in e.details.lower()
         )
         fnr = recovery_count / max(block_count + recovery_count, 1)
@@ -116,8 +124,7 @@ class OpenClawAuditAdapter:
         # FPR = ALLOW events that later triggered anomaly
         allow_count = sum(1 for e in entries if e.action == "ALLOW" or e.action == "APPROVE")
         anomaly_after_allow = sum(
-            1 for e in entries
-            if e.event_type == "anomaly_detected" and e.action == "ALLOW"
+            1 for e in entries if e.event_type == "anomaly_detected" and e.action == "ALLOW"
         )
         fpr = anomaly_after_allow / max(allow_count, 1)
 
@@ -131,16 +138,11 @@ class OpenClawAuditAdapter:
                 entropy_values.append(float(meta.get("entropy_after", 0)))
         avg_entropy = sum(entropy_values) / max(len(entropy_values), 1)
 
-        state_transition_count = sum(
-            1 for e in entries if e.event_type == "state_transition"
-        )
+        state_transition_count = sum(1 for e in entries if e.event_type == "state_transition")
         cb_trip_count = sum(
-            1 for e in entries
-            if e.event_type == "circuit_breaker" or "trip" in e.event_type
+            1 for e in entries if e.event_type == "circuit_breaker" or "trip" in e.event_type
         )
-        anomaly_count = sum(
-            1 for e in entries if e.event_type == "anomaly_detected"
-        )
+        anomaly_count = sum(1 for e in entries if e.event_type == "anomaly_detected")
         signed_count = sum(1 for e in entries if e.hmac_signature)
         signed_ratio = signed_count / max(len(entries), 1)
 

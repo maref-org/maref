@@ -81,9 +81,7 @@ class GossipMessage:
         """
         if self.kind == GossipMessageKind.AUDIT_EVENT.value:
             payload_digest = hashlib.sha256(
-                json.dumps(
-                    self.payload, sort_keys=True, separators=(",", ":")
-                ).encode()
+                json.dumps(self.payload, sort_keys=True, separators=(",", ":")).encode()
             ).hexdigest()
             return (self.kind, self.origin_org, f"audit:{payload_digest}")
         return (self.kind, self.origin_org, str(self.generation))
@@ -260,9 +258,7 @@ class GossipNode:
             )
         )
 
-    def publish_amendment(
-        self, origin_org: str, payload: dict[str, Any], generation: int
-    ) -> None:
+    def publish_amendment(self, origin_org: str, payload: dict[str, Any], generation: int) -> None:
         """Broadcast a constitution amendment (generation-merged)."""
         self._propagate(
             GossipMessage(

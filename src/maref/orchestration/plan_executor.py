@@ -149,7 +149,9 @@ class PlanExecutionReport:
             return self.status == PlanStatus.COMPLETED
         trajectory = self.convergence
         recent = trajectory[-_CONVERGENCE_WINDOW:]
-        return max(recent) - min(recent) < _CONVERGENCE_THRESHOLD and all(s > _MIN_QUALITY for s in recent)
+        return max(recent) - min(recent) < _CONVERGENCE_THRESHOLD and all(
+            s > _MIN_QUALITY for s in recent
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -334,16 +336,19 @@ class PlanExecutor:
             rec = next((r for r in records if r.task_id == task_id), None)
             if rec is None:
                 continue
-            agent_results.append(AgentTaskResult(
-                task_id=task_id,
-                status=TaskResultStatus.COMPLETED if rec.result == StepResult.SUCCESS
-                else TaskResultStatus.FAILED,
-                summary=rec.action,
-                self_check=SelfCheckResult(
-                    passed=rec.result == StepResult.SUCCESS,
-                    quality_score=rec.quality_score,
-                ),
-            ))
+            agent_results.append(
+                AgentTaskResult(
+                    task_id=task_id,
+                    status=TaskResultStatus.COMPLETED
+                    if rec.result == StepResult.SUCCESS
+                    else TaskResultStatus.FAILED,
+                    summary=rec.action,
+                    self_check=SelfCheckResult(
+                        passed=rec.result == StepResult.SUCCESS,
+                        quality_score=rec.quality_score,
+                    ),
+                )
+            )
 
         merge_result = self._merge_controller.merge(agent_results)
         route = self._merge_controller.decide_route(merge_result, graph)
@@ -518,7 +523,9 @@ class PlanExecutor:
 
     @staticmethod
     def _retry_penalty_score(
-        step: PlanStep, retries: int, error: Exception | None = None,
+        step: PlanStep,
+        retries: int,
+        error: Exception | None = None,
     ) -> float:
         """Quality score 0.0–1.0 based on retries, error state, risk level."""
         if error:

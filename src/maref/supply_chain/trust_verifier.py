@@ -181,9 +181,7 @@ class SupplyChainVerifier:
             graph.update_trust(bom_ref, max(0.0, current - total_penalty))
 
         # 记录降分后、传播前的信任分
-        component_trust = {
-            bom_ref: graph.get_trust(bom_ref) for bom_ref in bom_ref_to_component
-        }
+        component_trust = {bom_ref: graph.get_trust(bom_ref) for bom_ref in bom_ref_to_component}
 
         # 5. 递归信任传播
         propagation = TrustPropagation(graph, decay_factor=0.5)

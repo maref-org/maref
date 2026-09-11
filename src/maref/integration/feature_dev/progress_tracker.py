@@ -98,25 +98,25 @@ def _direction(scores: list[float]) -> str:
 
 _RECS: dict[str, list[str]] = {
     "Static Audit": [
-        "Add more characters",
-        "Increase script count",
+        "Add more improvement plan items",
+        "Increase requirement coverage",
         "Cover more deployment stages",
     ],
     "Reasoning Metrics": [
-        "Deepen character backstories",
-        "Add more episodes per character",
-        "Reference document hypotheses in content",
+        "Deepen improvement plan into concrete tasks",
+        "Tie improvements to document requirements",
+        "Reference document hypotheses in the plan",
     ],
     "Action Metrics": [
-        "Produce more total content",
-        "Add scene variety",
-        "Increase total duration",
+        "Produce more actionable improvements",
+        "Add concrete implementation steps",
+        "Increase requirements covered per cycle",
     ],
-    "E2E Metrics": ["Complete export pipeline", "Cover all document stages in content"],
+    "E2E Metrics": ["Complete implementation pipeline", "Cover all document stages in the plan"],
     "MAS Dimensions": [
-        "Add characters with distinct archetypes",
-        "Create crossover episodes",
-        "Diversify style palettes",
+        "Add distinct requirement milestones",
+        "Create cross-stage plan coverage",
+        "Diversify implementation areas",
     ],
 }
 
@@ -171,8 +171,7 @@ class ProgressTracker:
         final_decision = self.snapshots[-1].go_nogo_decision if self.snapshots else ""
         budget = sum(s.budget_used for s in self.snapshots)
         last_art = self.snapshots[-1].artifacts if self.snapshots else {}
-        chars = len(last_art.get("characters", []))
-        scripts = len(last_art.get("scripts", []))
+        plan_items = len(last_art.get("improvement_plan", []))
         stages = list(last_art.get("stages_covered", set()))
         reqs = last_art.get("requirements_covered", 0)
 
@@ -189,8 +188,7 @@ class ProgressTracker:
             final_decision=final_decision,
             budget_spent=budget,
             content_stats={
-                "characters": chars,
-                "scripts": scripts,
+                "plan_items": plan_items,
                 "stages_covered": stages,
                 "reqs_covered": reqs,
             },

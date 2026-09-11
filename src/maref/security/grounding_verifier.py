@@ -71,8 +71,26 @@ _TOKEN_NORMALIZE: dict[str, str] = {
 }
 
 # Direction words: positive movement claims vs negative/static evidence.
-_POSITIVE_DIRECTION = {"increase", "double", "doubled", "triple", "tripled", "grow", "growth", "rise"}
-_NEGATIVE_DIRECTION = {"decrease", "decline", "dropped", "fell", "fall", "shrink", "shrank", "reduce"}
+_POSITIVE_DIRECTION = {
+    "increase",
+    "double",
+    "doubled",
+    "triple",
+    "tripled",
+    "grow",
+    "growth",
+    "rise",
+}
+_NEGATIVE_DIRECTION = {
+    "decrease",
+    "decline",
+    "dropped",
+    "fell",
+    "fall",
+    "shrink",
+    "shrank",
+    "reduce",
+}
 _FLAT_DIRECTION = {"flat", "unchanged", "steady", "same", "stagnant"}
 
 

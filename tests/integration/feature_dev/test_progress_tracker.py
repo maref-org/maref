@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
-import pytest
-
 from maref.integration.feature_dev.feature_cycle import CycleSnapshot
 from maref.integration.feature_dev.progress_tracker import (
     ConvergenceReport,
@@ -125,7 +121,7 @@ class TestConvergenceReport:
             cycle_scores=[60.0, 70.0, 80.0],
             final_decision="go",
             budget_spent=500.0,
-            content_stats={"characters": 3, "scripts": 5},
+            content_stats={"plan_items": 3, "reqs_covered": 5},
         )
         d = report.to_dict()
         assert d["feature_name"] == "F"
@@ -134,7 +130,7 @@ class TestConvergenceReport:
         assert d["avg_score"] == 80.0
         assert d["final_decision"] == "go"
         assert d["budget_spent"] == 500.0
-        assert d["content_stats"]["characters"] == 3
+        assert d["content_stats"]["plan_items"] == 3
         assert len(d["layer_trends"]) == 1
 
 
@@ -256,16 +252,14 @@ class TestProgressTracker:
                 {"SA": 80.0},
                 overall=80.0,
                 artifacts={
-                    "characters": [{"name": "A"}, {"name": "B"}, {"name": "C"}],
-                    "scripts": [{"title": "S1"}, {"title": "S2"}],
+                    "improvement_plan": [{"title": "A"}, {"title": "B"}, {"title": "C"}],
                     "stages_covered": {"mvp", "mixed"},
                     "requirements_covered": 12,
                 },
             )
         )
         report = tracker.generate_report()
-        assert report.content_stats["characters"] == 3
-        assert report.content_stats["scripts"] == 2
+        assert report.content_stats["plan_items"] == 3
         assert report.content_stats["reqs_covered"] == 12
 
     def test_final_decision_from_last_snapshot(self) -> None:

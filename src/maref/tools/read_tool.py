@@ -126,6 +126,7 @@ def _get_pdf_info(path: Path) -> str:
     page_count = "unknown"
     for marker in [rb"/Type\s*/Page[^s]", rb"/Page\s", rb"/Pages\s"]:
         import re
+
         count = len(re.findall(marker, raw))
         if count > 0:
             page_count = str(count)
@@ -135,7 +136,9 @@ def _get_pdf_info(path: Path) -> str:
 
 class ReadTool(Tool[ReadInput, ReadOutput]):
     name = "Read"
-    description: str = "Read file contents with encoding detection, image/PDF detection, and line limit support"
+    description: str = (
+        "Read file contents with encoding detection, image/PDF detection, and line limit support"
+    )
     max_result_chars: int = 100_000
 
     _read_state: dict[str, dict[str, Any]] = {}
@@ -243,6 +246,7 @@ class ReadTool(Tool[ReadInput, ReadOutput]):
     def _handle_notebook(self, path: Path, input: ReadInput) -> ToolResult[ReadOutput]:
         try:
             import json
+
             content = path.read_text(encoding="utf-8")
             nb = json.loads(content)
             cells = nb.get("cells", [])
@@ -302,7 +306,7 @@ class ReadTool(Tool[ReadInput, ReadOutput]):
 
         if input.offset is not None:
             start = max(0, input.offset - 1)
-            lines = lines[start:start + input.limit] if input.limit is not None else lines[start:]
+            lines = lines[start : start + input.limit] if input.limit is not None else lines[start:]
         elif input.limit is not None:
             lines = lines[: input.limit]
 

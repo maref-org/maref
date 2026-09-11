@@ -24,6 +24,7 @@ from maref.recursive.cost_tracker import CostTracker
 from maref.tool.registry import ToolRegistry
 from sidecar.api_auth import AuthMiddleware, _register_route_scope, require_auth
 from sidecar.collector import MockAgentAdapter, ObservationCollector
+from sidecar.config_router import router as config_router
 from sidecar.federation_router import router as federation_router
 from sidecar.gaas_router import router as gaas_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
@@ -32,7 +33,10 @@ from sidecar.monitor import CompositeMonitor
 from sidecar.obs_bridge import ObsBridge
 from sidecar.org_governance_router import router as org_governance_router
 from sidecar.platform_router import router as platform_router
+from sidecar.proposal_router import router as proposal_router
 from sidecar.report_router import router as report_router
+from sidecar.telemetry_router import router as telemetry_router
+from sidecar.vaccine_router import router as vaccine_router
 
 _CORS_ORIGINS: list[str] = [
     origin.strip()
@@ -211,7 +215,12 @@ async def _broadcast_ws(event_type: str, data: dict[str, Any]) -> None:
 
 def create_a2a_bridge() -> A2ABridge:
     sm = GovernanceStateMachine()
-    audit = AuditLogger()
+    try:
+        audit = AuditLogger()
+    except RuntimeError:
+        # G7-3: 无 HMAC/Ed25519 key 时降级为内存审计，允许 sidecar 启动；
+        # create_app 的 G7-3 检查会写 critical notification 显式告警（fail-closed）。
+        audit = AuditLogger(log_path=None, hmac_key="dev-insecure")
     cb = CircuitBreaker()
     from maref.protocols import create_secure_protocol_bridge
     return A2ABridge(
@@ -220,6 +229,27 @@ def create_a2a_bridge() -> A2ABridge:
         circuit_breaker=cb,
         protocol_bridge=create_secure_protocol_bridge(),
     )
+
+
+def _load_peer_public_keys() -> dict[str, str]:
+    """Load A2A peer Ed25519 public keys from ``MAREF_A2A_PEER_PUBLIC_KEYS``.
+
+    JSON object: ``{"agent_id": "ed25519_public_key_pem", ...}``. Missing or
+    invalid config yields an empty dict (v0.53 I2: 不配置则 A2A 验签保持
+    legacy 未启用, 配置后强制验签).
+    """
+    import json
+
+    raw = os.environ.get("MAREF_A2A_PEER_PUBLIC_KEYS", "")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {str(k): str(v) for k, v in parsed.items()}
 
 
 def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: CompositeMonitor, obs_bridge: ObsBridge | None = None, a2a_bridge: A2ABridge | None = None) -> None:
@@ -231,9 +261,13 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     # 行为探针订阅同一审计流（S10 探针 → W2 闭环）。
     from maref.governance.governed_pipeline import GovernedPipeline
 
-    app.state.governed = GovernedPipeline()
+    try:
+        app.state.governed = GovernedPipeline()
+    except RuntimeError:
+        # G7-3: 无 HMAC/Ed25519 key 时降级，允许 sidecar 启动；
+        # create_app 的 G7-3 检查会写 critical notification 显式告警（fail-closed）。
+        app.state.governed = GovernedPipeline(hmac_key="dev-insecure")
     app.state.behavior_probe = app.state.governed.behavior_probe
-
     _tool_registry = ToolRegistry()
     for t in EVOLUTION_TOOLS:
         _tool_registry.register(t)
@@ -321,7 +355,14 @@ def _setup_routes(app: FastAPI, collector: ObservationCollector, monitor: Compos
     @app.get("/api/obs/status")
     def obs_status() -> dict[str, Any]:
         bridge_connected = obs_bridge is not None and obs_bridge.get_client() is not None
-        return {"enabled": True, "level": "basic" if bridge_connected else "none", "bridge_connected": bridge_connected}
+        wired = list(getattr(app.state, "obs_wired", []))
+        return {
+            "enabled": True,
+            "level": "basic" if bridge_connected else "none",
+            "bridge_connected": bridge_connected,
+            "wired_components": wired,
+            "wired": len(wired) > 0,
+        }
 
     @app.get("/api/red-metrics")
     def red_metrics() -> dict[str, Any]:
@@ -1001,12 +1042,21 @@ class SidecarFastAPI(FastAPI):
             allow_unauthenticated = _default_allow_unauthenticated()
         self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
         self.add_middleware(SecurityHeadersMiddleware)
+        self.include_router(config_router)
         self.include_router(gaas_router)
+        self.include_router(report_router)
         self.include_router(platform_router)
         self.include_router(org_governance_router)
+        self.include_router(telemetry_router)
+        self.include_router(vaccine_router)
+        self.include_router(proposal_router)
         a2a_bridge = create_a2a_bridge()
         _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
-        self.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
+        self.include_router(create_a2a_router(
+            a2a_bridge,
+            signing_key=_signing_key,
+            peer_public_keys=_load_peer_public_keys(),
+        ))
         if federated:
             self.include_router(federation_router)
         _setup_routes(self, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
@@ -1026,15 +1076,84 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
         allow_unauthenticated = _default_allow_unauthenticated()
     app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
     app.add_middleware(SecurityHeadersMiddleware)
+    app.include_router(config_router)
     app.include_router(gaas_router)
     app.include_router(report_router)
     app.include_router(platform_router)
     app.include_router(org_governance_router)
+    app.include_router(telemetry_router)
+    app.include_router(vaccine_router)
+    app.include_router(proposal_router)
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
-    app.include_router(create_a2a_router(a2a_bridge, signing_key=_signing_key))
+    app.include_router(create_a2a_router(
+        a2a_bridge,
+        signing_key=_signing_key,
+        peer_public_keys=_load_peer_public_keys(),
+    ))
     if federated:
         app.include_router(federation_router)
     _setup_routes(app, collector, monitor, obs_bridge, a2a_bridge=a2a_bridge)
     _register_route_scope(app)
+
+    # G9: ObsBridge 真正接线——状态机转换/熔断跳闸事件进入遥测。
+    # 之前 ObsBridge 被创建但从未 wire，遥测桥"通电未插线"。
+    if obs_bridge is not None:
+        try:
+            obs_bridge.wire_state_machine(a2a_bridge._sm)
+            _wired = ["state_machine"]
+            try:
+                if getattr(a2a_bridge, "_cb", None) is not None:
+                    obs_bridge.wire_circuit_breaker(a2a_bridge._cb)
+                    _wired.append("circuit_breaker")
+            except Exception:  # noqa: BLE001
+                pass
+            app.state.obs_wired = _wired
+            import logging as _logging
+
+            _logging.getLogger("sidecar").info("ObsBridge wired: %s", ",".join(_wired))
+        except Exception:  # noqa: BLE001
+            app.state.obs_wired = []
+            import logging as _logging
+
+            _logging.getLogger("sidecar").warning("ObsBridge wiring failed", exc_info=True)
+    else:
+        app.state.obs_wired = []
+
+    # G7-3: HMAC key 启动自检（fail-closed 显式告警，禁止静默失去审计能力）
+    import json as _json
+    import time as _time
+    from pathlib import Path as _Path
+
+    _hmac_key = os.environ.get("MAREF_HMAC_SECRET_KEY", "")
+    if not _hmac_key:
+        for cand in (_Path.cwd() / ".maraf_hmac_key", _Path.home() / ".maraf_hmac_key"):
+            try:
+                _hmac_key = cand.read_text().strip()
+                if _hmac_key:
+                    break
+            except OSError:
+                continue
+    if not _hmac_key:
+        import logging as _logging
+
+        _logging.getLogger("sidecar").error(
+            "HMAC key missing (MAREF_HMAC_SECRET_KEY / .maraf_hmac_key) — "
+            "governance audit writes will FAIL closed. Configure a key."
+        )
+        try:
+            ndir = _Path.cwd() / "notifications"
+            ndir.mkdir(parents=True, exist_ok=True)
+            (ndir / f"{int(_time.time())}_audit-chain_critical.json").write_text(
+                _json.dumps({
+                    "title": "HMAC key missing",
+                    "severity": "critical",
+                    "message": "sidecar started without MAREF_HMAC_SECRET_KEY / .maraf_hmac_key — audit chain fail-closed",
+                    "subsystem": "audit-chain",
+                    "timestamp": _time.time(),
+                })
+            )
+        except OSError:
+            pass
+
     return app

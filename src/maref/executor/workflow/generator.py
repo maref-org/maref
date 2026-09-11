@@ -106,8 +106,7 @@ class WorkflowScriptGenerator:
         """用 LLM 将任务描述生成为编排脚本。"""
         if self._model is None:
             raise RuntimeError(
-                "No model_adapter provided. "
-                "Use from_dict() or provide a ModelAdapter."
+                "No model_adapter provided. Use from_dict() or provide a ModelAdapter."
             )
 
         prompt = _GENERATOR_PROMPT.format(task_description=task_description)
@@ -115,10 +114,7 @@ class WorkflowScriptGenerator:
 
         parsed = _parse_json(response)
         if parsed is None:
-            raise ValueError(
-                f"Failed to parse LLM response as JSON.\n"
-                f"Response:\n{response[:500]}"
-            )
+            raise ValueError(f"Failed to parse LLM response as JSON.\nResponse:\n{response[:500]}")
 
         return self._parsed_to_script(parsed, name=name or task_description[:60])
 
@@ -136,10 +132,7 @@ class WorkflowScriptGenerator:
 
         parsed = _parse_json(response)
         if parsed is None:
-            raise ValueError(
-                f"Failed to parse LLM response as JSON.\n"
-                f"Response:\n{response[:500]}"
-            )
+            raise ValueError(f"Failed to parse LLM response as JSON.\nResponse:\n{response[:500]}")
 
         return self._parsed_to_script(parsed, name=task_description[:60])
 
@@ -166,9 +159,7 @@ class WorkflowScriptGenerator:
 
     # ── 内部 ───────────────────────────────────────────────────────
 
-    def _parsed_to_script(
-        self, parsed: dict[str, Any], name: str = ""
-    ) -> WorkflowScript:
+    def _parsed_to_script(self, parsed: dict[str, Any], name: str = "") -> WorkflowScript:
         steps_data = parsed.get("steps", [])
         steps = [WorkflowStep.from_dict(s) for s in steps_data]
         return WorkflowScript(

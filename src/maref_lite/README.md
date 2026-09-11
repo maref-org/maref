@@ -47,5 +47,5 @@ sm.force_stabilize()
 
 # 获取状态
 print(sm.current_state.name)  # STABILIZE
-print(sm.current_entropy)     # 1
+print(sm.current_entropy)  # 1
 ```

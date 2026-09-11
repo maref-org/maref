@@ -44,7 +44,9 @@ class ReportVerifier:
         result = VerificationResult(passed=True, report_id=report.report_id)
 
         has_signature = bool(report.signature)
-        result.merge("has_signature", has_signature, "signature field is empty" if not has_signature else "")
+        result.merge(
+            "has_signature", has_signature, "signature field is empty" if not has_signature else ""
+        )
 
         valid_sig = report.verify_signature(public_key_pem)
         result.merge(

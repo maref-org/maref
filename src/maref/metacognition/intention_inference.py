@@ -46,8 +46,7 @@ class DeceptionInferenceEngine:
             likelihood_h0 = 1.0 - likelihood_h1
 
         posterior = (likelihood_h1 * self._prior) / (
-            likelihood_h1 * self._prior + likelihood_h0 * (1 - self._prior)
-            + 1e-10
+            likelihood_h1 * self._prior + likelihood_h0 * (1 - self._prior) + 1e-10
         )
 
         evidence = self._gather_evidence(consistency, probes)
@@ -174,9 +173,7 @@ class DeceptionInferenceEngine:
 
         return evidence
 
-    def _recommend(
-        self, posterior: float, evidence: list[str]
-    ) -> InferenceRecommendation:
+    def _recommend(self, posterior: float, evidence: list[str]) -> InferenceRecommendation:
         if posterior < 0.3:
             return InferenceRecommendation.OBSERVE
         if posterior < 0.5:

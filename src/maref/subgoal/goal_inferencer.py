@@ -31,15 +31,30 @@ class ControlRiskReport:
 
 
 _CONTROL_KEYWORDS = {
-    "control": ["permission", "access", "elevate", "escalate", "auth",
-                 "allow", "grant", "override", "bypass"],
+    "control": [
+        "permission",
+        "access",
+        "elevate",
+        "escalate",
+        "auth",
+        "allow",
+        "grant",
+        "override",
+        "bypass",
+    ],
     "deception": ["hide", "conceal", "pretend", "mask", "disguise", "covert"],
     "persistence": ["persist", "survive", "recover", "maintain", "retain"],
     "scope_expansion": ["all", "every", "full", "complete", "total", "unrestricted"],
 }
 
-_CONTROL_ACTIONS = ["state_transition", "circuit_break", "halt", "force_halt",
-                    "force_stabilize", "transition"]
+_CONTROL_ACTIONS = [
+    "state_transition",
+    "circuit_break",
+    "halt",
+    "force_halt",
+    "force_stabilize",
+    "transition",
+]
 
 
 class GoalInferencer:
@@ -67,9 +82,11 @@ class GoalInferencer:
         control_nodes = [n for n in dag.nodes.values() if n.is_control_related]
         if not control_nodes:
             return ControlRiskReport(
-                risk_score=0.0, control_goal_count=0,
+                risk_score=0.0,
+                control_goal_count=0,
                 total_goal_count=len(dag.nodes),
-                max_control_depth=0, concealment_level="none",
+                max_control_depth=0,
+                concealment_level="none",
             )
 
         max_depth = 0
@@ -109,7 +126,12 @@ class GoalInferencer:
             if kw in lower:
                 risk += 0.3
         for category, keywords in self._control_keywords.items():
-            severity = {"control": 0.2, "deception": 0.4, "persistence": 0.2, "scope_expansion": 0.3}
+            severity = {
+                "control": 0.2,
+                "deception": 0.4,
+                "persistence": 0.2,
+                "scope_expansion": 0.3,
+            }
             sev = severity.get(category, 0.2)
             matches = sum(1 for kw in keywords if kw in lower)
             risk += matches * sev
@@ -129,9 +151,11 @@ class GoalInferencer:
         return depth
 
     def _assess_concealment(self, control_nodes: list[GoalNode], dag: GoalDAG) -> str:
-        deceptive = sum(1 for n in control_nodes if any(
-            kw in n.description.lower() for kw in self._control_keywords["deception"]
-        ))
+        deceptive = sum(
+            1
+            for n in control_nodes
+            if any(kw in n.description.lower() for kw in self._control_keywords["deception"])
+        )
         if deceptive >= 2:
             return "high"
         if deceptive >= 1:

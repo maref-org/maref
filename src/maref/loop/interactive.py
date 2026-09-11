@@ -74,7 +74,7 @@ class ConversationContext:
 
     def _trim(self) -> None:
         if len(self._messages) > self._max_history:
-            self._messages = self._messages[-self._max_history:]
+            self._messages = self._messages[-self._max_history :]
 
     def reset(self) -> None:
         self._messages.clear()
@@ -115,7 +115,16 @@ class InteractiveLoop(LoopBase):
 
     @staticmethod
     def _default_sentiment(user_input: str) -> float:
-        negative_words = {"bad", "terrible", "awful", "angry", "frustrated", "mad", "wrong", "error"}
+        negative_words = {
+            "bad",
+            "terrible",
+            "awful",
+            "angry",
+            "frustrated",
+            "mad",
+            "wrong",
+            "error",
+        }
         words = set(user_input.lower().split())
         if not words:
             return 0.0

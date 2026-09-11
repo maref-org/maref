@@ -23,7 +23,9 @@ _harness_configs: dict[str, dict[str, Any]] = {}
 
 @dataclass
 class RunRequest:
-    config: dict[str, Any] = field(default_factory=lambda: {"harness_type": "unified", "level": "L1"})
+    config: dict[str, Any] = field(
+        default_factory=lambda: {"harness_type": "unified", "level": "L1"}
+    )
 
 
 @dataclass
@@ -154,7 +156,9 @@ async def list_results() -> list[ResultResponse]:
 
 @app.get("/harness/health")
 async def health() -> JSONResponse:
-    return JSONResponse({"status": "ok", "runs": len(_harness_configs), "completed": len(_harness_results)})
+    return JSONResponse(
+        {"status": "ok", "runs": len(_harness_configs), "completed": len(_harness_results)}
+    )
 
 
 @app.post("/harness/stop/{run_id}")
@@ -173,4 +177,5 @@ async def stop_run(run_id: str) -> RunResponse:
 
 def start(host: str = "0.0.0.0", port: int = 8000) -> None:
     import uvicorn
+
     uvicorn.run(app, host=host, port=port)

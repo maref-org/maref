@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from maref.recursive.unified_audit import UnifiedAuditRecord, UnifiedAuditStore
 
+
 @dataclass
 class TrustFactor:
     name: str

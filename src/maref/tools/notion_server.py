@@ -60,9 +60,15 @@ async def _notion_query_database(database_id: str) -> dict[str, Any]:
                 "has_more": data.get("has_more", False),
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Notion API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Notion API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Notion request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Notion request failed: {exc}"}],
+        }
 
 
 async def _notion_create_page(database_id: str, title: str, content: str) -> dict[str, Any]:
@@ -98,9 +104,15 @@ async def _notion_create_page(database_id: str, title: str, content: str) -> dic
                 "created_time": page.get("created_time", ""),
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Notion API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Notion API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Notion request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Notion request failed: {exc}"}],
+        }
 
 
 async def _notion_search(query: str) -> dict[str, Any]:
@@ -127,9 +139,15 @@ async def _notion_search(query: str) -> dict[str, Any]:
                 "count": len(results),
             }
     except httpx.HTTPStatusError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Notion API error: {exc.response.status_code}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Notion API error: {exc.response.status_code}"}],
+        }
     except httpx.RequestError as exc:
-        return {"isError": True, "content": [{"type": "text", "text": f"Notion request failed: {exc}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Notion request failed: {exc}"}],
+        }
 
 
 TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
@@ -149,15 +167,29 @@ def get_tool_definition() -> ToolDefinition:
         tools=list(TOOL_HANDLERS.keys()),
         tool_parameters={
             "notion_query_database": [
-                ToolParameter(name="database_id", type="string", description="Notion database ID", required=True),
+                ToolParameter(
+                    name="database_id",
+                    type="string",
+                    description="Notion database ID",
+                    required=True,
+                ),
             ],
             "notion_create_page": [
-                ToolParameter(name="database_id", type="string", description="Target database ID", required=True),
+                ToolParameter(
+                    name="database_id",
+                    type="string",
+                    description="Target database ID",
+                    required=True,
+                ),
                 ToolParameter(name="title", type="string", description="Page title", required=True),
-                ToolParameter(name="content", type="string", description="Page content", required=True),
+                ToolParameter(
+                    name="content", type="string", description="Page content", required=True
+                ),
             ],
             "notion_search": [
-                ToolParameter(name="query", type="string", description="Search query", required=True),
+                ToolParameter(
+                    name="query", type="string", description="Search query", required=True
+                ),
             ],
         },
         security_controls=["EnvVarCheck"],
@@ -172,7 +204,10 @@ def execute_tool(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
 
     handler = TOOL_HANDLERS.get(tool_name)
     if handler is None:
-        return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}]}
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}],
+        }
     try:
         return asyncio.run(handler(**args))
     except RuntimeError as exc:

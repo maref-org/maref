@@ -12,11 +12,23 @@ def _row_dict(row: sqlite3.Row) -> dict[str, Any]:
     return {key: row[key] for key in row}
 
 
-_EXCLUDED_DIRS = frozenset({
-    ".git", "__pycache__", "node_modules", ".venv", "venv",
-    ".codedepth", ".claude", ".mypy_cache", ".pytest_cache",
-    ".egg-info", "dist", "build", ".tox",
-})
+_EXCLUDED_DIRS = frozenset(
+    {
+        ".git",
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        ".codedepth",
+        ".claude",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".egg-info",
+        "dist",
+        "build",
+        ".tox",
+    }
+)
 
 
 @dataclass
@@ -103,7 +115,10 @@ class CodeIndexer:
         if self._conn is not None:
             return self._conn
         self._db.parent.mkdir(parents=True, exist_ok=True)
-        c = sqlite3.connect(str(self._db))
+        # check_same_thread=False：CodeIndexer 可能在后台线程 build（如
+        # mcp_bridge 懒初始化用有界超时 worker），随后主线程查询同一连接。
+        # sqlite3 连接跨线程须由调用方串行化访问；worker join 后才查询故安全。
+        c = sqlite3.connect(str(self._db), check_same_thread=False)
         c.execute("PRAGMA journal_mode=WAL")
         c.row_factory = sqlite3.Row
         c.executescript(self.SCHEMA)
@@ -115,7 +130,7 @@ class CodeIndexer:
             return self._conn
         if not self._db.is_file():
             raise RuntimeError(f"No index at {self._db} — call build() first")
-        c = sqlite3.connect(str(self._db))
+        c = sqlite3.connect(str(self._db), check_same_thread=False)
         c.row_factory = sqlite3.Row
         self._conn = c
         return c
@@ -135,9 +150,7 @@ class CodeIndexer:
         errors: list[str] = []
 
         py_files = sorted(self._repo.rglob("*.py"))
-        py_files = [f for f in py_files if not any(
-            p in f.parts for p in _EXCLUDED_DIRS
-        )]
+        py_files = [f for f in py_files if not any(p in f.parts for p in _EXCLUDED_DIRS)]
 
         for fp in py_files:
             rel = str(fp.relative_to(self._repo))
@@ -177,8 +190,10 @@ class CodeIndexer:
 
         c.commit()
         return {
-            "files": files_total, "symbols": sym_total,
-            "call_edges": call_total, "errors": len(errors),
+            "files": files_total,
+            "symbols": sym_total,
+            "call_edges": call_total,
+            "errors": len(errors),
         }
 
     # ── AST extraction ──────────────────────────────────────
@@ -188,11 +203,17 @@ class CodeIndexer:
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, ast.ClassDef):
                 bases = self._format_bases(node)
-                result.append(SymbolInfo(
-                    name=node.name, kind="class", file_path=rel_path,
-                    lineno=node.lineno, end_lineno=node.end_lineno or node.lineno,
-                    parent_name="", signature=f"class {node.name}({bases})" if bases else f"class {node.name}",
-                ))
+                result.append(
+                    SymbolInfo(
+                        name=node.name,
+                        kind="class",
+                        file_path=rel_path,
+                        lineno=node.lineno,
+                        end_lineno=node.end_lineno or node.lineno,
+                        parent_name="",
+                        signature=f"class {node.name}({bases})" if bases else f"class {node.name}",
+                    )
+                )
                 for child in ast.iter_child_nodes(node):
                     if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
                         result.append(self._make_method(child, node.name, rel_path))
@@ -201,42 +222,65 @@ class CodeIndexer:
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     as_part = f" as {alias.asname}" if alias.asname else ""
-                    result.append(SymbolInfo(
-                        name=alias.name, kind="import", file_path=rel_path,
-                        lineno=node.lineno, end_lineno=node.lineno,
-                        parent_name="", signature=f"import {alias.name}{as_part}",
-                    ))
+                    result.append(
+                        SymbolInfo(
+                            name=alias.name,
+                            kind="import",
+                            file_path=rel_path,
+                            lineno=node.lineno,
+                            end_lineno=node.lineno,
+                            parent_name="",
+                            signature=f"import {alias.name}{as_part}",
+                        )
+                    )
             elif isinstance(node, ast.ImportFrom) and node.module:
                 for alias in node.names:
                     as_part = f" as {alias.asname}" if alias.asname else ""
                     full = f"{node.module}.{alias.name}"
-                    result.append(SymbolInfo(
-                        name=full, kind="import", file_path=rel_path,
-                        lineno=node.lineno, end_lineno=node.lineno,
-                        parent_name=node.module,
-                        signature=f"from {node.module} import {alias.name}{as_part}",
-                    ))
+                    result.append(
+                        SymbolInfo(
+                            name=full,
+                            kind="import",
+                            file_path=rel_path,
+                            lineno=node.lineno,
+                            end_lineno=node.lineno,
+                            parent_name=node.module,
+                            signature=f"from {node.module} import {alias.name}{as_part}",
+                        )
+                    )
         return result
 
-    def _make_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, rel_path: str) -> SymbolInfo:
+    def _make_function(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, rel_path: str
+    ) -> SymbolInfo:
         args = ", ".join(a.arg for a in node.args.args[:6])
         if len(node.args.args) > 6:
             args += "..."
         return SymbolInfo(
-            name=node.name, kind="function", file_path=rel_path,
-            lineno=node.lineno, end_lineno=node.end_lineno or node.lineno,
-            parent_name="", signature=f"def {node.name}({args})",
+            name=node.name,
+            kind="function",
+            file_path=rel_path,
+            lineno=node.lineno,
+            end_lineno=node.end_lineno or node.lineno,
+            parent_name="",
+            signature=f"def {node.name}({args})",
         )
 
-    def _make_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef, class_name: str, rel_path: str) -> SymbolInfo:
+    def _make_method(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, class_name: str, rel_path: str
+    ) -> SymbolInfo:
         args = [a.arg for a in node.args.args if a.arg != "self"]
         arg_str = ", ".join(args[:6])
         if len(args) > 6:
             arg_str += "..."
         return SymbolInfo(
-            name=node.name, kind="method", file_path=rel_path,
-            lineno=node.lineno, end_lineno=node.end_lineno or node.lineno,
-            parent_name=class_name, signature=f"def {node.name}({arg_str})",
+            name=node.name,
+            kind="method",
+            file_path=rel_path,
+            lineno=node.lineno,
+            end_lineno=node.end_lineno or node.lineno,
+            parent_name=class_name,
+            signature=f"def {node.name}({arg_str})",
         )
 
     @staticmethod
@@ -279,12 +323,16 @@ class CodeIndexer:
 
     # ── query API ───────────────────────────────────────────
 
-    def search_symbols(self, query: str, kind: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    def search_symbols(
+        self, query: str, kind: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         c = self._query_conn()
         pat = f"%{query}%"
-        sql = ("SELECT s.name, s.kind, f.path AS file_path, s.lineno, "
-               "s.parent_name, s.signature FROM symbols s JOIN files f ON s.file_id = f.id "
-               "WHERE s.name LIKE ?")
+        sql = (
+            "SELECT s.name, s.kind, f.path AS file_path, s.lineno, "
+            "s.parent_name, s.signature FROM symbols s JOIN files f ON s.file_id = f.id "
+            "WHERE s.name LIKE ?"
+        )
         params: list[Any] = [pat]
         if kind:
             sql += " AND s.kind = ?"
@@ -368,7 +416,7 @@ class CodeIndexer:
         # 移除常见源代码根前缀
         for prefix in ("src/", "lib/", "python/", "app/", "source/"):
             if path.startswith(prefix):
-                path = path[len(prefix):]
+                path = path[len(prefix) :]
                 break
         # 移除 .py 扩展名
         for ext in (".py", ".pyi", ".pyx"):
@@ -432,9 +480,9 @@ class CodeIndexer:
             "files": c.execute("SELECT COUNT(*) FROM files").fetchone()[0],
             "symbols": c.execute("SELECT COUNT(*) FROM symbols").fetchone()[0],
             "call_edges": c.execute("SELECT COUNT(*) FROM call_edges").fetchone()[0],
-            "by_kind": dict(c.execute(
-                "SELECT kind, COUNT(*) FROM symbols GROUP BY kind"
-            ).fetchall()),
+            "by_kind": dict(
+                c.execute("SELECT kind, COUNT(*) FROM symbols GROUP BY kind").fetchall()
+            ),
         }
 
     def close(self) -> None:

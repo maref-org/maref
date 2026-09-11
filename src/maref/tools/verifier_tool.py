@@ -51,7 +51,9 @@ class VerifierCheckTool(Tool[VerifierCheckInput, VerifierCheckOutput]):
             return ValidationResult(is_valid=False, message="Code must not be empty")
         return ValidationResult(is_valid=True)
 
-    async def call(self, input: VerifierCheckInput, ctx: ToolContext) -> ToolResult[VerifierCheckOutput]:
+    async def call(
+        self, input: VerifierCheckInput, ctx: ToolContext
+    ) -> ToolResult[VerifierCheckOutput]:
         if self._verifier_consensus is not None:
             return await self._call_engine(input)
         return await self._call_builtin(input)
@@ -74,7 +76,9 @@ class VerifierCheckTool(Tool[VerifierCheckInput, VerifierCheckOutput]):
                     passed=result.passed,
                     agreement=result.agreement,
                     votes=votes,
-                    strategy=result.strategy.value if hasattr(result.strategy, "value") else str(result.strategy),
+                    strategy=result.strategy.value
+                    if hasattr(result.strategy, "value")
+                    else str(result.strategy),
                 )
             )
         except Exception as e:
@@ -142,10 +146,7 @@ class VerifierCheckTool(Tool[VerifierCheckInput, VerifierCheckOutput]):
                             "vote": "warn",
                             "reason": f"Empty function: '{node.name}'",
                         }
-                    if (
-                        len(node.body) == 1
-                        and isinstance(node.body[0], ast.Pass)
-                    ):
+                    if len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
                         return {
                             "verifier": rule_id,
                             "vote": "warn",
@@ -169,9 +170,17 @@ class VerifierCheckTool(Tool[VerifierCheckInput, VerifierCheckOutput]):
                 if isinstance(node, ast.FunctionDef) and not self._is_generator(node):
                     for child in ast.walk(node):
                         if isinstance(child, ast.Return) and child.value is None:
-                            if not (isinstance(child.parent if hasattr(child, "parent") else None, ast.If)):
+                            if not (
+                                isinstance(
+                                    child.parent if hasattr(child, "parent") else None, ast.If
+                                )
+                            ):
                                 pass
-            return {"verifier": rule_id, "vote": "pass", "reason": "No bare return statements found"}
+            return {
+                "verifier": rule_id,
+                "vote": "pass",
+                "reason": "No bare return statements found",
+            }
 
         return {"verifier": rule_id, "vote": "pass", "reason": "Rule not applicable"}
 

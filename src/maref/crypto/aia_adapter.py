@@ -5,6 +5,7 @@
 - CAI（智能体身份证书）的 SM2 签名验证 + SM3 哈希
 - CertificateVerify 的 SM2 签名验证
 """
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -14,17 +15,20 @@ from .sm3 import sm3_hash
 if TYPE_CHECKING:
     pass
 
+
 @dataclass(frozen=True)
 class AgentIdentityCertificate:
     """智能体身份证书 (CAI).
 
     对应 ACPs AIA 协议中的 CAI 数据结构。
     """
+
     agent_id: str
     public_key: str
     signature: str
     casp_id: str
     validity_period: tuple[int, int]
+
 
 @dataclass(frozen=True)
 class AIAHandshakeContext:
@@ -32,10 +36,12 @@ class AIAHandshakeContext:
 
     保存 mTLS 握手过程中的关键参数，用于 CertificateVerify 验证。
     """
+
     client_random: bytes
     server_random: bytes
     cipher_suite: str
     handshake_messages: bytes
+
 
 def verify_cai_certificate(cai: AgentIdentityCertificate, casp_public_key: str) -> bool:
     """验证 CAI 证书合法性.
@@ -53,13 +59,14 @@ def verify_cai_certificate(cai: AgentIdentityCertificate, casp_public_key: str) 
     Returns:
         验证是否通过
     """
-    cai_plaintext = f'{cai.agent_id}:{cai.public_key}:{cai.casp_id}:{cai.validity_period[0]}:{cai.validity_period[1]}'.encode()
+    cai_plaintext = f"{cai.agent_id}:{cai.public_key}:{cai.casp_id}:{cai.validity_period[0]}:{cai.validity_period[1]}".encode()
     sm3_hash(cai_plaintext)
     try:
         verified = sm2_verify(casp_public_key, cai_plaintext, cai.signature, use_sm3=True)
         return verified
     except Exception:
         return False
+
 
 def verify_certificate_verify(public_key: str, handshake_messages: bytes, signature: str) -> bool:
     """验证 CertificateVerify 消息.
@@ -80,7 +87,10 @@ def verify_certificate_verify(public_key: str, handshake_messages: bytes, signat
     sm3_hash(handshake_messages)
     return sm2_verify(public_key, handshake_messages, signature, use_sm3=True)
 
-def generate_certificate_verify(private_key: str, public_key: str, handshake_messages: bytes) -> str:
+
+def generate_certificate_verify(
+    private_key: str, public_key: str, handshake_messages: bytes
+) -> str:
     """生成 CertificateVerify 签名.
 
     Args:
@@ -92,6 +102,7 @@ def generate_certificate_verify(private_key: str, public_key: str, handshake_mes
         hex 格式的签名值
     """
     return sm2_sign(private_key, handshake_messages, public_key=public_key, use_sm3=True)
+
 
 def check_agent_identity(received_aic: str, cai: AgentIdentityCertificate) -> bool:
     """比对对方 AIC 与 CAI 中的 AIC 是否一致.

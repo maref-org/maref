@@ -404,8 +404,7 @@ class ComplianceEngine:
         # 基于证据有效性评估：过滤空值与占位符，防止用 "n/a" 充当证据
         _PLACEHOLDERS = {"", "none", "n/a", "na", "null", "todo", "tbd"}
         valid_evidence = [
-            e for e in evidence
-            if isinstance(e, str) and e.strip().lower() not in _PLACEHOLDERS
+            e for e in evidence if isinstance(e, str) and e.strip().lower() not in _PLACEHOLDERS
         ]
         status = ComplianceStatus.COMPLIANT if valid_evidence else ComplianceStatus.NON_COMPLIANT
         score = 100.0 if valid_evidence else 0.0

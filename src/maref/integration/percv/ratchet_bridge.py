@@ -72,6 +72,7 @@ class RatchetBridge:
     def _load_redlines(self, path: str | Path) -> dict[str, Any]:
         try:
             import yaml
+
             p = Path(path)
             if p.exists():
                 data = yaml.safe_load(p.read_text())
@@ -80,7 +81,16 @@ class RatchetBridge:
             logger.warning("Failed to load redlines from %s: %s", path, exc)
         return {}
 
-    def check_redlines(self, target: str, score: float, is_meta: bool = False, mas_ts_score: float = 0, human_gate: bool = True, proposed_config_key: str | None = None, cross_dimensional_triggered: bool = True) -> list[str]:
+    def check_redlines(
+        self,
+        target: str,
+        score: float,
+        is_meta: bool = False,
+        mas_ts_score: float = 0,
+        human_gate: bool = True,
+        proposed_config_key: str | None = None,
+        cross_dimensional_triggered: bool = True,
+    ) -> list[str]:
         violations = []
         for rule in self._redlines.get("rsi_immutables", []):
             applies = rule.get("applies_to", [])
@@ -96,13 +106,26 @@ class RatchetBridge:
                 violations.append(f"{rid}: {action} - MAS-TS score {mas_ts_score} below 60")
             if rid == "RSI-RL-002" and is_meta:
                 violations.append(f"{rid}: {action} - meta-ratchet requires >= 10 sandbox rounds")
-            if rid == "RSI-RL-005" and is_meta and proposed_config_key and proposed_config_key in self.CONSTITUTIONAL_IMMUTABLES:
-                violations.append(f"{rid}: {action} - proposed change to immutable '{proposed_config_key}'")
+            if (
+                rid == "RSI-RL-005"
+                and is_meta
+                and proposed_config_key
+                and proposed_config_key in self.CONSTITUTIONAL_IMMUTABLES
+            ):
+                violations.append(
+                    f"{rid}: {action} - proposed change to immutable '{proposed_config_key}'"
+                )
             if rid == "RSI-RL-003" and not cross_dimensional_triggered:
                 violations.append(f"{rid}: {action} - cross-dimensional analysis not triggered")
         return violations
 
-    def _enforce_redlines(self, target: str, mas_ts_score: float, human_gate: bool, cross_dimensional_triggered: bool = True) -> dict[str, Any]:
+    def _enforce_redlines(
+        self,
+        target: str,
+        mas_ts_score: float,
+        human_gate: bool,
+        cross_dimensional_triggered: bool = True,
+    ) -> dict[str, Any]:
         ACTION_PRIORITY = {"HALT": 3, "BLOCK": 2, "DISCARD": 1, "WARN_AND_CONTINUE": 0}
         result: dict[str, Any] = {}
         for rule in self._redlines.get("rsi_immutables", []):
@@ -122,7 +145,9 @@ class RatchetBridge:
                     result["violation"] = rid
                     result["action"] = action
             if rid == "RSI-RL-003" and not cross_dimensional_triggered:
-                logger.warning("RSI-RL-003: cross-dimensional analysis not triggered (WARN_AND_CONTINUE)")
+                logger.warning(
+                    "RSI-RL-003: cross-dimensional analysis not triggered (WARN_AND_CONTINUE)"
+                )
         return result
 
     def _read_program_config(self) -> dict[str, Any]:
@@ -130,6 +155,7 @@ class RatchetBridge:
             return {}
         try:
             import yaml
+
             text = self._program_path.read_text(encoding="utf-8")
             # Handle YAML inside ```yaml ... ``` code blocks (PERCV format)
             yaml_match = self._extract_yaml_block(text)
@@ -219,6 +245,7 @@ class RatchetBridge:
 
     def _extract_score(self, stdout: str) -> float:
         import re
+
         match = re.search(r"(?:score|quality)[:\s]+([\d.]+)", stdout, re.IGNORECASE)
         if match:
             try:
@@ -229,6 +256,7 @@ class RatchetBridge:
 
     def _get_git_diff(self, target_file: str) -> str:
         import subprocess
+
         try:
             result = subprocess.run(
                 ["git", "diff", "--", target_file],
@@ -261,7 +289,10 @@ class RatchetBridge:
 
         logger.info(
             "Starting ratchet cycle: target=%s budget=%d human_gate=%s mas_ts=%s",
-            target_file, effective_budget, effective_human_gate, use_mas_ts,
+            target_file,
+            effective_budget,
+            effective_human_gate,
+            use_mas_ts,
         )
 
         iterations: list[RatchetIterationRecord] = []
@@ -280,12 +311,16 @@ class RatchetBridge:
             delta = score - previous_best if i > 0 else 0.0
             mas_ts_score = result.get("mas_ts_score", 0.0)
 
-            redline = self._enforce_redlines(target_file, mas_ts_score, effective_human_gate, self._cross_dimensional_triggered)
+            redline = self._enforce_redlines(
+                target_file, mas_ts_score, effective_human_gate, self._cross_dimensional_triggered
+            )
             redline_halt = redline.get("action") == "HALT"
             redline_discard = redline.get("action") == "DISCARD"
 
             if redline_halt:
-                logger.warning("Iteration %d: redline %s triggered HALT", i, redline.get("violation"))
+                logger.warning(
+                    "Iteration %d: redline %s triggered HALT", i, redline.get("violation")
+                )
                 break
 
             approved = False
@@ -308,16 +343,24 @@ class RatchetBridge:
                         best_score = score
                         best_iteration = i
                         if effective_human_gate:
-                            logger.info("Iteration %d: score improved to %.4f (awaiting human gate)", i, score)
+                            logger.info(
+                                "Iteration %d: score improved to %.4f (awaiting human gate)",
+                                i,
+                                score,
+                            )
 
                         # Trigger cross-dimensional analysis after keep
                         if self._cross_dimensional_analyzer:
                             try:
                                 self._cross_dimensional_analyzer.history = self._cycle_history
-                                effects = self._cross_dimensional_analyzer.detect_cross_effects(window=20)
+                                effects = self._cross_dimensional_analyzer.detect_cross_effects(
+                                    window=20
+                                )
                                 self._cross_dimensional_triggered = True
                                 if effects:
-                                    logger.info("Cross-dimensional effects: %d detected", len(effects))
+                                    logger.info(
+                                        "Cross-dimensional effects: %d detected", len(effects)
+                                    )
                                     # Query weight registry for current dimension scores
                                     current_weights = {}
                                     registry = getattr(self, "_weight_registry", None)
@@ -326,15 +369,24 @@ class RatchetBridge:
                                             dim: data.get("current_weight", 0.5)
                                             for dim, data in registry.get_all_weights().items()
                                         }
-                                    rec = self._cross_dimensional_analyzer.recommend_multi_objective(
-                                        current_weights or {
-                                            "correctness": 0.5, "testing": 0.5,
-                                            "code_quality": 0.5, "security": 0.5,
-                                            "performance": 0.5, "governance": 0.5,
-                                        }
+                                    rec = (
+                                        self._cross_dimensional_analyzer.recommend_multi_objective(
+                                            current_weights
+                                            or {
+                                                "correctness": 0.5,
+                                                "testing": 0.5,
+                                                "code_quality": 0.5,
+                                                "security": 0.5,
+                                                "performance": 0.5,
+                                                "governance": 0.5,
+                                            }
+                                        )
                                     )
                                     if rec:
-                                        logger.info("Multi-objective recommendation: %s", rec.recommended_weights)
+                                        logger.info(
+                                            "Multi-objective recommendation: %s",
+                                            rec.recommended_weights,
+                                        )
                             except Exception as exc:
                                 logger.warning("Cross-dimensional analysis failed: %s", exc)
                     else:
@@ -369,7 +421,9 @@ class RatchetBridge:
 
         logger.info(
             "Ratchet cycle complete: %d iterations, best score %.4f at iter %d",
-            len(iterations), best_score, best_iteration or 0,
+            len(iterations),
+            best_score,
+            best_iteration or 0,
         )
         return iterations
 

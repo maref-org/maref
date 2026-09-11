@@ -130,7 +130,7 @@ def create_task_router(task_queue: TaskQueue) -> APIRouter:
         if task.status not in (TaskStatus.QUEUED, TaskStatus.PENDING):
             raise HTTPException(
                 status_code=http_status.HTTP_409_CONFLICT,
-                detail=(f"Task {task_id} cannot be cancelled in status" f" {task.status.value}"),
+                detail=(f"Task {task_id} cannot be cancelled in status {task.status.value}"),
             )
         task_queue.update_status(task_id, TaskStatus.CANCELLED)
         return CancelResponse(task_id=task_id, status="cancelled")

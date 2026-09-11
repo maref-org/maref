@@ -100,8 +100,7 @@ class TestProgressTracker:
         pt = ProgressTracker("Test")
         snap = self._snap(50.0, {"Static Audit": 30.0})
         snap.artifacts = {
-            "characters": [],
-            "scripts": [],
+            "improvement_plan": [],
             "stages_covered": set(),
             "requirements_covered": 0,
         }
@@ -114,8 +113,7 @@ class TestProgressTracker:
         pt = ProgressTracker("Test")
         snap = self._snap(90.0, {"A": 90.0, "B": 85.0, "C": 88.0, "D": 82.0, "E": 91.0})
         snap.artifacts = {
-            "characters": [{"name": "A"}],
-            "scripts": [{"title": "1"}],
+            "improvement_plan": [{"title": "Implement JWT"}],
             "stages_covered": {"mvp"},
             "requirements_covered": 1,
         }
@@ -127,15 +125,13 @@ class TestProgressTracker:
         pt = ProgressTracker("Test")
         snap = self._snap(70.0)
         snap.artifacts = {
-            "characters": [{"name": "A"}, {"name": "B"}],
-            "scripts": [{"title": "1"}, {"title": "2"}, {"title": "3"}],
+            "improvement_plan": [{"title": "A"}, {"title": "B"}],
             "stages_covered": {"mvp", "mixed"},
             "requirements_covered": 5,
         }
         pt.add_snapshot(snap)
         r = pt.generate_report()
-        assert r.content_stats["characters"] == 2
-        assert r.content_stats["scripts"] == 3
+        assert r.content_stats["plan_items"] == 2
         assert "mixed" in r.content_stats["stages_covered"]
         assert r.content_stats["reqs_covered"] == 5
 
@@ -151,8 +147,7 @@ class TestProgressTracker:
         pt = ProgressTracker("Test")
         snap = self._snap(55.0, {"A": 55.0})
         snap.artifacts = {
-            "characters": [{"name": "A"}],
-            "scripts": [{"title": "1"}],
+            "improvement_plan": [{"title": "Implement JWT"}],
             "stages_covered": set(),
             "requirements_covered": 0,
         }

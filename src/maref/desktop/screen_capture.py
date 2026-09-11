@@ -10,7 +10,11 @@ from typing import Any
 try:
     from PIL import Image, ImageDraw, ImageFilter
 except ImportError:
-    Image = ImageDraw = ImageFilter = None  # type: ignore[assignment]
+    # Pillow 是可选依赖（desktop extra）。类型注解经 __future__ annotations
+    # 延迟求值，Pillow 缺失时 mypy 经 override 视 PIL 为 Any，赋 None 合法。
+    Image = None
+    ImageDraw = None
+    ImageFilter = None
 
 
 class CaptureMode(str, Enum):
@@ -145,8 +149,8 @@ class RedactionEngine:
             blurred = region.filter(ImageFilter.GaussianBlur(radius=15))
             image.paste(blurred, zone.region)
         elif zone.mode == RedactionMode.PIXELATE:
-            small = region.resize((8, 8), resample=Image.NEAREST)  # type: ignore[attr-defined]
-            pixelated = small.resize(region.size, Image.NEAREST)  # type: ignore[attr-defined]
+            small = region.resize((8, 8), resample=Image.Resampling.NEAREST)
+            pixelated = small.resize(region.size, Image.Resampling.NEAREST)
             image.paste(pixelated, zone.region)
         return image
 
@@ -264,12 +268,11 @@ class ScreenCapture:
             new_w = int(image.width * self.downsample_factor)
             new_h = int(image.height * self.downsample_factor)
             if self.downsample_method == DownsampleMethod.BILINEAR:
-                image = image.resize((new_w, new_h), Image.BILINEAR)  # type: ignore[attr-defined]
+                image = image.resize((new_w, new_h), Image.Resampling.BILINEAR)
             elif self.downsample_method == DownsampleMethod.LANCZOS:
-                image = image.resize((new_w, new_h), Image.LANCZOS)  # type: ignore[attr-defined]
+                image = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
             else:
-                image = image.resize((new_w, new_h), Image.NEAREST)  # type: ignore[attr-defined]
-
+                image = image.resize((new_w, new_h), Image.Resampling.NEAREST)
         result = ScreenshotResult(
             image=image,
             width=image.width if image else 0,
@@ -299,7 +302,7 @@ class ScreenCapture:
                 return pyautogui.screenshot()
             else:
                 return pyautogui.screenshot()
-        except ImportError:
+        except Exception:
             return self._fallback_capture(mode, region)
 
     def _fallback_capture(

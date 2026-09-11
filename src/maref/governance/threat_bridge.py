@@ -105,7 +105,9 @@ class ThreatGovernanceBridge:
             try:
                 handler(alert, action)
             except Exception:
-                logger.critical("Threat handler %s failed, alerting", getattr(handler, '__name__', str(handler)))
+                logger.critical(
+                    "Threat handler %s failed, alerting", getattr(handler, "__name__", str(handler))
+                )
 
         return result
 

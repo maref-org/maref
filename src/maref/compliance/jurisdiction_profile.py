@@ -132,9 +132,7 @@ class JurisdictionProfile:
                 }
                 for r in self.regulations
             ],
-            "enforcement_table": {
-                k: v.value for k, v in self.enforcement_table.items()
-            },
+            "enforcement_table": {k: v.value for k, v in self.enforcement_table.items()},
             "data_sovereignty_required": self.data_sovereignty_required,
             "consent_required": self.consent_required,
             "cross_border_approval_required": self.cross_border_approval_required,

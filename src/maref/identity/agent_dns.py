@@ -264,9 +264,7 @@ class AgentDNS:
     # -- 持久化 --
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "cards": {did.did_string: card.to_dict() for did, card in self._cards.items()}
-        }
+        return {"cards": {did.did_string: card.to_dict() for did, card in self._cards.items()}}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AgentDNS:

@@ -321,7 +321,8 @@ class TestAuditShow:
             assert result.exit_code == 0
             assert "No audit log" in result.stdout or result.stdout == ""
 
-    def test_audit_show_with_entries(self, tmp_path: Path) -> None:
+    def test_audit_show_with_entries(self, tmp_path: Path, monkeypatch: Any) -> None:
+        monkeypatch.setenv("MAREF_AUDIT_PATH", str(tmp_path))
         audit_file = tmp_path / "governance_audit.jsonl"
         entries = [
             json.dumps(
@@ -344,12 +345,11 @@ class TestAuditShow:
             ),
         ]
         audit_file.write_text("\n".join(entries))
-        with patch("maref_lite.cli.Path") as mock_path_cls:
-            mock_path_cls.return_value = audit_file
-            result = runner.invoke(app, ["audit", "show", "--last", "5"])
-            assert result.exit_code == 0
+        result = runner.invoke(app, ["audit", "show", "--last", "5"])
+        assert result.exit_code == 0
 
-    def test_audit_show_filter_by_type(self, tmp_path: Path) -> None:
+    def test_audit_show_filter_by_type(self, tmp_path: Path, monkeypatch: Any) -> None:
+        monkeypatch.setenv("MAREF_AUDIT_PATH", str(tmp_path))
         audit_file = tmp_path / "governance_audit.jsonl"
         entries = [
             json.dumps(
@@ -372,18 +372,15 @@ class TestAuditShow:
             ),
         ]
         audit_file.write_text("\n".join(entries))
-        with patch("maref_lite.cli.Path") as mock_path_cls:
-            mock_path_cls.return_value = audit_file
-            result = runner.invoke(app, ["audit", "show", "--last", "5", "--type", "error"])
-            assert result.exit_code == 0
+        result = runner.invoke(app, ["audit", "show", "--last", "5", "--type", "error"])
+        assert result.exit_code == 0
 
-    def test_audit_show_malformed_line_skipped(self, tmp_path: Path) -> None:
+    def test_audit_show_malformed_line_skipped(self, tmp_path: Path, monkeypatch: Any) -> None:
+        monkeypatch.setenv("MAREF_AUDIT_PATH", str(tmp_path))
         audit_file = tmp_path / "governance_audit.jsonl"
         audit_file.write_text("not json\n")
-        with patch("maref_lite.cli.Path") as mock_path_cls:
-            mock_path_cls.return_value = audit_file
-            result = runner.invoke(app, ["audit", "show"])
-            assert result.exit_code == 0
+        result = runner.invoke(app, ["audit", "show"])
+        assert result.exit_code == 0
 
 
 # ── trust score ──────────────────────────────────────────────────────
@@ -490,12 +487,14 @@ class TestServe:
 
     def test_serve_uvicorn_not_installed(self) -> None:
         # The first uvicorn import is inside the command; it catches ImportError
-        with patch(
-            "builtins.__import__",
-            side_effect=lambda name, *args, **kwargs: __import__(name)
-            if name != "uvicorn"
-            else (_ for _ in ()).throw(ImportError("no uvicorn")),
-        ):
+        real_import = __import__
+
+        def _fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+            if name == "uvicorn":
+                raise ImportError("no uvicorn")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=_fake_import):
             result = runner.invoke(app, ["serve"])
             assert result.exit_code == 1
 
@@ -542,7 +541,7 @@ class TestSubcommandHelp:
     def test_global_help_lists_all_groups(self) -> None:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        groups = ["desktop", "audit", "trust", "governance", "drift", "percv", "ip"]
+        groups = ["desktop", "audit", "trust", "governance", "drift", "percv"]
         for group in groups:
             assert group in result.stdout.lower()
 

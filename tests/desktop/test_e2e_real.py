@@ -130,6 +130,7 @@ class TestVerificationBenchmark:
         assert "avg_comparison_ms" in bm
         assert bm["image_size"] == (800, 600)
 
+    @pytest.mark.benchmark
     def test_benchmark_default_size(self) -> None:
         bm = ScreenshotVerifier.benchmark()
         assert isinstance(bm, dict)

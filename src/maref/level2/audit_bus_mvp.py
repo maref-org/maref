@@ -40,12 +40,8 @@ _FRAMEWORK_NOISE_KEYS: dict[str, frozenset[str]] = {
     FRAMEWORK_LANGGRAPH: frozenset(
         {"tool_call_id", "node_id", "run_id", "checkpoint_id", "thread_id"}
     ),
-    FRAMEWORK_CREWAI: frozenset(
-        {"task_id", "crew_id", "iteration", "async_execution"}
-    ),
-    FRAMEWORK_AUTOGEN: frozenset(
-        {"conversation_id", "agent_id", "chat_id", "session_id"}
-    ),
+    FRAMEWORK_CREWAI: frozenset({"task_id", "crew_id", "iteration", "async_execution"}),
+    FRAMEWORK_AUTOGEN: frozenset({"conversation_id", "agent_id", "chat_id", "session_id"}),
 }
 
 # Union of every framework's runtime keys: stripped from metadata before
@@ -137,18 +133,14 @@ class FrameworkAuditEvent:
 
     def sign(self, secret_key: bytes) -> str:
         """HMAC-SHA256 signature over the framework-attributed payload (v2)."""
-        return hmac.new(
-            secret_key, self.signed_payload(self.framework), hashlib.sha256
-        ).hexdigest()
+        return hmac.new(secret_key, self.signed_payload(self.framework), hashlib.sha256).hexdigest()
 
     def sign_legacy(self, secret_key: bytes) -> str:
         """v1 legacy HMAC-SHA256 over the canonical payload only.
 
         Kept for verifying events signed by v0.48 (canonical-only scheme).
         """
-        return hmac.new(
-            secret_key, self.canonical_payload(), hashlib.sha256
-        ).hexdigest()
+        return hmac.new(secret_key, self.canonical_payload(), hashlib.sha256).hexdigest()
 
 
 class FrameworkAdapter(ABC):
@@ -174,9 +166,7 @@ class FrameworkAdapter(ABC):
         underlying action yields the same canonical digest no matter which
         framework reported it.
         """
-        cleaned = {
-            k: v for k, v in metadata.items() if k not in _ALL_NOISE_KEYS
-        }
+        cleaned = {k: v for k, v in metadata.items() if k not in _ALL_NOISE_KEYS}
         normalised = normalise_metadata(cleaned)
         assert isinstance(normalised, dict)
         return normalised
@@ -194,8 +184,11 @@ class LangGraphAdapter(FrameworkAdapter):
         metadata: dict[str, Any],
     ) -> FrameworkAuditEvent:
         return FrameworkAuditEvent(
-            event_type=event_type, actor=actor, action=action,
-            framework=self.framework, metadata=self._clean_metadata(metadata),
+            event_type=event_type,
+            actor=actor,
+            action=action,
+            framework=self.framework,
+            metadata=self._clean_metadata(metadata),
         )
 
 
@@ -211,8 +204,11 @@ class CrewAIAdapter(FrameworkAdapter):
         metadata: dict[str, Any],
     ) -> FrameworkAuditEvent:
         return FrameworkAuditEvent(
-            event_type=event_type, actor=actor, action=action,
-            framework=self.framework, metadata=self._clean_metadata(metadata),
+            event_type=event_type,
+            actor=actor,
+            action=action,
+            framework=self.framework,
+            metadata=self._clean_metadata(metadata),
         )
 
 
@@ -231,8 +227,11 @@ class AutoGenAdapter(FrameworkAdapter):
         if self._tamper_action is not None:
             action = self._tamper_action
         return FrameworkAuditEvent(
-            event_type=event_type, actor=actor, action=action,
-            framework=self.framework, metadata=self._clean_metadata(metadata),
+            event_type=event_type,
+            actor=actor,
+            action=action,
+            framework=self.framework,
+            metadata=self._clean_metadata(metadata),
         )
 
 

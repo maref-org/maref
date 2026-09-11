@@ -58,7 +58,7 @@ class AnnexIVExporter:
         if "audit_evidence" in data:
             ae = data["audit_evidence"]
             evidence_html = f"""<h2>Audit Evidence (Merkle Anchor)</h2>
-<p><strong>Merkle Root:</strong> <code>{ae['merkle_root']}</code></p>
+<p><strong>Merkle Root:</strong> <code>{ae["merkle_root"]}</code></p>
 """
             if ae["evidence_ids"]:
                 evidence_html += "<ul>\n"
@@ -70,7 +70,7 @@ class AnnexIVExporter:
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>{md['title']}</title>
+<title>{md["title"]}</title>
 <style>
   @page {{ size: A4; margin: 2.5cm; }}
   body {{ font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; color: #000; }}
@@ -85,20 +85,20 @@ class AnnexIVExporter:
 </style>
 </head>
 <body>
-<h1>{md['title']}</h1>
+<h1>{md["title"]}</h1>
 <div class="metadata">
-  <p><strong>Regulation:</strong> {md['regulation']}</p>
-  <p><strong>Article:</strong> {md['article']} — {md['annex']}</p>
-  <p><strong>Generated:</strong> {md['generated_at']} | <strong>Version:</strong> {md.get('doc_version', 1)}</p>
+  <p><strong>Regulation:</strong> {md["regulation"]}</p>
+  <p><strong>Article:</strong> {md["article"]} — {md["annex"]}</p>
+  <p><strong>Generated:</strong> {md["generated_at"]} | <strong>Version:</strong> {md.get("doc_version", 1)}</p>
 </div>
 
 <h2>System Information</h2>
 <table>
-  <tr><th>Name</th><td>{si['system_name']}</td></tr>
-  <tr><th>Version</th><td>{si['version']}</td></tr>
-  <tr><th>Intended Purpose</th><td>{si['intended_purpose']}</td></tr>
-  <tr><th>Deployer</th><td>{si['deployer']}</td></tr>
-  <tr><th>Risk Classification</th><td>{si['risk_classification']}</td></tr>
+  <tr><th>Name</th><td>{si["system_name"]}</td></tr>
+  <tr><th>Version</th><td>{si["version"]}</td></tr>
+  <tr><th>Intended Purpose</th><td>{si["intended_purpose"]}</td></tr>
+  <tr><th>Deployer</th><td>{si["deployer"]}</td></tr>
+  <tr><th>Risk Classification</th><td>{si["risk_classification"]}</td></tr>
 </table>
 
 {sections_html}
@@ -114,14 +114,10 @@ class AnnexIVExporter:
 
         def _xml_val(key: str, val: Any) -> str:
             if isinstance(val, dict):
-                inner = "".join(
-                    f"  <{k}>{_xml_val(k, v)}</{k}>\n" for k, v in val.items()
-                )
+                inner = "".join(f"  <{k}>{_xml_val(k, v)}</{k}>\n" for k, v in val.items())
                 return f"\n<{key}>\n{inner}</{key}>\n"
             if isinstance(val, list):
-                items = "".join(
-                    f"  <item>{_xml_val('item', v)}</item>\n" for v in val
-                )
+                items = "".join(f"  <item>{_xml_val('item', v)}</item>\n" for v in val)
                 return f"\n<{key}>\n{items}</{key}>\n"
             return str(val)
 
@@ -132,19 +128,19 @@ class AnnexIVExporter:
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <technical_documentation xmlns="https://eur-lex.europa.eu/2024/1689/annex-iv">
   <document_metadata>
-    <title>{md['title']}</title>
-    <regulation>{md['regulation']}</regulation>
+    <title>{md["title"]}</title>
+    <regulation>{md["regulation"]}</regulation>
     <article>Art.11</article>
     <annex>Annex IV</annex>
-    <generated_at>{md['generated_at']}</generated_at>
-    <doc_version>{md.get('doc_version', 1)}</doc_version>
+    <generated_at>{md["generated_at"]}</generated_at>
+    <doc_version>{md.get("doc_version", 1)}</doc_version>
   </document_metadata>
   <system_information>
-    <system_name>{si['system_name']}</system_name>
-    <version>{si['version']}</version>
-    <intended_purpose>{si['intended_purpose']}</intended_purpose>
-    <deployer>{si['deployer']}</deployer>
-    <risk_classification>{si['risk_classification']}</risk_classification>
+    <system_name>{si["system_name"]}</system_name>
+    <version>{si["version"]}</version>
+    <intended_purpose>{si["intended_purpose"]}</intended_purpose>
+    <deployer>{si["deployer"]}</deployer>
+    <risk_classification>{si["risk_classification"]}</risk_classification>
   </system_information>
 {sections_xml}
 </technical_documentation>"""
@@ -167,9 +163,7 @@ class AnnexIVExporter:
             )
 
         def _add_text(text: str) -> None:
-            paragraphs.append(
-                f"<w:p><w:r><w:t>{text}</w:t></w:r></w:p>"
-            )
+            paragraphs.append(f"<w:p><w:r><w:t>{text}</w:t></w:r></w:p>")
 
         def _dict_to_docx(d: dict[str, Any] | list[Any], indent: int = 0) -> None:
             if isinstance(d, list):
@@ -240,7 +234,9 @@ class AnnexIVExporter:
             html_parts.append("<ul>\n")
             for item in data:
                 if isinstance(item, (dict, list)):
-                    html_parts.append(f"  <li>{AnnexIVExporter._dict_to_html(item, level + 1)}</li>\n")
+                    html_parts.append(
+                        f"  <li>{AnnexIVExporter._dict_to_html(item, level + 1)}</li>\n"
+                    )
                 else:
                     html_parts.append(f"  <li>{item}</li>\n")
             html_parts.append("</ul>\n")
@@ -252,7 +248,9 @@ class AnnexIVExporter:
             label = k.replace("_", " ").title()
             if isinstance(v, (dict, list)):
                 html_parts.append(f"<tr><td colspan='2'><strong>{label}</strong></td></tr>\n")
-                html_parts.append(f"<tr><td colspan='2'>{AnnexIVExporter._dict_to_html(v, level + 1)}</td></tr>\n")
+                html_parts.append(
+                    f"<tr><td colspan='2'>{AnnexIVExporter._dict_to_html(v, level + 1)}</td></tr>\n"
+                )
             else:
                 html_parts.append(f"<tr><th>{label}</th><td>{v}</td></tr>\n")
         html_parts.append("</table>\n")

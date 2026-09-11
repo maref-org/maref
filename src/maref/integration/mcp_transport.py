@@ -13,6 +13,8 @@ from urllib.parse import urljoin
 
 import httpx
 
+from maref.integration.mcp_envelope import inject_envelope
+
 MCP_JSONRPC_VERSION = "2.0"
 
 
@@ -106,10 +108,11 @@ class MCPTransport(ABC):
         return self.send(JSONRPCRequest(method="tools/list", id=2))
 
     def send_tool_call(self, tool_name: str, arguments: dict[str, Any]) -> JSONRPCResponse:
+        # 宪法第十五-A条: 工具调用需带 MCP 消息信封（trace_id/timestamp/source_agent）
         return self.send(
             JSONRPCRequest(
                 method="tools/call",
-                params={"name": tool_name, "arguments": arguments},
+                params=inject_envelope({"name": tool_name, "arguments": arguments}),
                 id=3,
             )
         )
@@ -345,9 +348,7 @@ class SSETransport(MCPTransport):
 
                         if line == "":
                             if current_event and current_data:
-                                self._process_event(
-                                    current_event, "\n".join(current_data)
-                                )
+                                self._process_event(current_event, "\n".join(current_data))
                             current_event = ""
                             current_data = []
                         elif line.startswith("event:"):
@@ -356,9 +357,7 @@ class SSETransport(MCPTransport):
                             current_data.append(line[5:].strip())
 
                     if current_event and current_data:
-                        self._process_event(
-                            current_event, "\n".join(current_data)
-                        )
+                        self._process_event(current_event, "\n".join(current_data))
 
                 # Connection closed cleanly — reconnect if still running
                 if self._running.is_set():

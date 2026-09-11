@@ -1,0 +1,884 @@
+[
+  {
+    "vaccine_id": "VAX-0001",
+    "source_pattern": "76a7a02a1c1f",
+    "attack_class": "block_consecutive_anomalies",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "circuit_breaker_trip_block_consecutive_anomalies_consecutive_anomalies_5",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: block_consecutive_anomalies"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918870",
+      "merkle_root": "a19e602c33504b5785b403ebac451cbaf144d7a24f8541a0d8501db1cd1c3a2c"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0002",
+    "source_pattern": "1a347b025ec6",
+    "attack_class": "block_oscillation_handler",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "circuit_breaker_trip_block_oscillation_handler_rate_8",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: block_oscillation_handler"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918886",
+      "merkle_root": "80cfbeb5bf56a4740d9410f477720edc70a03b47dc1ad321fda2391930345552"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0003",
+    "source_pattern": "d483156feae2",
+    "attack_class": "block_oscillation_handler",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "circuit_breaker_trip_block_oscillation_handler_rate_3",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: block_oscillation_handler"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918892",
+      "merkle_root": "3f0863daa41bc13c1f9b5f2f21db8b3dcf48afd23f38bce1a3f82c40d2850561"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0004",
+    "source_pattern": "0c1bd31f439d",
+    "attack_class": "block_self_observation",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "circuit_breaker_trip_block_self_observation_depth_2",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: block_self_observation"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918896",
+      "merkle_root": "e0109bf803f570a3d712f213270c49ec4b2b35bfcc35fd3a57750c85c8350c79"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0005",
+    "source_pattern": "5774f0c9f942",
+    "attack_class": "block_self_observation",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "circuit_breaker_trip_block_self_observation_depth_3",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: block_self_observation"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918900",
+      "merkle_root": "3aec97153bb2ea60fcf3ba104228bd1839997dabed3d533bf9b042803c8e4d82"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0006",
+    "source_pattern": "3b1bb327a9a4",
+    "attack_class": "block_self_observation",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "circuit_breaker_trip_block_self_observation_depth_1",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: block_self_observation"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918903",
+      "merkle_root": "19bb915e7aaab63e84611e06f71ce0667228ff2169c11df2c1446529e73065ba"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0007",
+    "source_pattern": "79b5e39af4dd",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_5_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918907",
+      "merkle_root": "989a708e78d80a1011e5b7f0119b5a8d3592c030737d4546c53a3fcc267f99eb"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0008",
+    "source_pattern": "efac3cdf3d56",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_4_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918912",
+      "merkle_root": "5d707543b7a349a88c913f62c5710fa3e9dfea64780fa90e335acdebb1e2984c"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0009",
+    "source_pattern": "21a7de0106e3",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_3_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918916",
+      "merkle_root": "a7ad325e223e9d7566b0d3050464fcb39284546979ac8ffac80ba917c509c134"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0010",
+    "source_pattern": "ffd4ab06bdee",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_91_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918919",
+      "merkle_root": "54e025959835ee79a94500fb4e48781bcd329327892b09b38e2664651a80049b"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0011",
+    "source_pattern": "410fe8ed909c",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_65_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918923",
+      "merkle_root": "749a75238250911111697ea3da86aac69064ef50edbafe228792e5b26b2ce3f3"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0012",
+    "source_pattern": "a52e16fd79c4",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_8_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918928",
+      "merkle_root": "89e12ac7c7d17d1c59a919be4dc67dbe22f864d433ab31fa1e7d7bd2dbfb9a71"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0013",
+    "source_pattern": "26120d8e92d4",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_77_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918933",
+      "merkle_root": "73392138adb896e38aac19b33aabbddd14d479f16ffde07c770535e399448741"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0014",
+    "source_pattern": "18fc91919e3b",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_71_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918936",
+      "merkle_root": "a6eb77fc78b7c5e5f02e18eb39fd7237c09d66b9561435034b2818d80978de40"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0015",
+    "source_pattern": "7f49e88ac866",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_89_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918939",
+      "merkle_root": "3329c2b198bc82ecac83756bc228a1cccdc24ea25cb3f5fe548d69fbd2222c91"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0016",
+    "source_pattern": "c042969a883e",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_193_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918942",
+      "merkle_root": "05e1267819172e40c334d9f0d6917217a115fe65e429572965b630cc45a350ab"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0017",
+    "source_pattern": "ab220cf1f752",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_41_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918947",
+      "merkle_root": "b735ebc3503dec0e32e36ab7bf5c980ff35848f4f77c3d4c2f21c26928f73fe2"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0018",
+    "source_pattern": "29a783837576",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_60_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918950",
+      "merkle_root": "f8019a2e112e39c6aed91aeeb1e4c315d8bdc6c27e6e2447525016c2e91170c2"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0019",
+    "source_pattern": "4e410ebfaa28",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_57_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918953",
+      "merkle_root": "e47055f18a9b0af90e5d5a8203a95239bfef20425811e22ff01d45e22b72fb39"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0020",
+    "source_pattern": "5d4c71983a49",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_50_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918956",
+      "merkle_root": "f518527e9c53233aca14811f967202691458b4070e0b22ac3b3317ea053761db"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0021",
+    "source_pattern": "aa7d78eb043e",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_68_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918961",
+      "merkle_root": "00d74321cee14cc95f19561521504d2fd94cec49acc6a6c4901b5cc6b1eb89cf"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0022",
+    "source_pattern": "bbbb970e0cbd",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_73_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918964",
+      "merkle_root": "2a05eeb2ff2ae4233f16c76f1c79357883ed1a6b95ba1f7ebbad6517ddcadc77"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0023",
+    "source_pattern": "cd57c5ae0e34",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_85_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918967",
+      "merkle_root": "87e7a2ef362c2dafd319a039a440ad6f68a53e9b9144e3f09c2dacddd134a24f"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0024",
+    "source_pattern": "00b06c1bf517",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_49_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918970",
+      "merkle_root": "edee7e7fbda03dc5ad5f45e831d2d18533e2357542dd558c67bba4b66eaf31e2"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0025",
+    "source_pattern": "94a1e37419f9",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_59_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918973",
+      "merkle_root": "77b66aeed47f9a2ba17f37d653a30ca08be2e3d4a4d886c0db89ad6dc4dfb85c"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0026",
+    "source_pattern": "4e287255cac3",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_123_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918976",
+      "merkle_root": "931a1390f1d2b2f67ce569c896da51a76e1eeb40df16c5ff4f70876719f1eb0d"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0027",
+    "source_pattern": "e4c2497017e6",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_6_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918980",
+      "merkle_root": "e7d7fb730e1003a862a91ebb20d06a0878c9b325bc3e15a2311421b198848212"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0028",
+    "source_pattern": "6dd558a2bc77",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_90_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918983",
+      "merkle_root": "96e3d2568a27433fa7fe58217cee8bf2ef782d944b63bf768b6003679185bdb5"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0029",
+    "source_pattern": "0dc8090becf3",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_12_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918986",
+      "merkle_root": "f7c2570dbc6ac51d6ce3f8522fc070a63e334bb00f3c924c5acccf9916c34c3a"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0030",
+    "source_pattern": "0bb3d7841e6b",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_84_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918989",
+      "merkle_root": "8de9ebf9a1579431018e80f73e520f792b3fa40d82e558fb4d9a31f1cb1127ca"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0031",
+    "source_pattern": "b3613623fcf3",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_7_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918992",
+      "merkle_root": "259c4893cafae34024d55c2a9032b5cfad62465b3293414dce1e591070fbb14e"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0032",
+    "source_pattern": "8a1d00912bb0",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_24_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918995",
+      "merkle_root": "dc07f77054e6552b8ddd072665f02fb6932248bff3f07a0f56dc4944091ccd94"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0033",
+    "source_pattern": "7773bf09284a",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_15_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.918999",
+      "merkle_root": "0d7eb0dc6795a0d08de98d948faab284b4d9ba3941246b475c8ff47f4a2fbf1e"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0034",
+    "source_pattern": "0169d8eee648",
+    "attack_class": "temporal_burst",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "clustered_trips_9_in_60s",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: temporal_burst"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919003",
+      "merkle_root": "cd18b7442e06cb0e18334ebbf7f488349ef4049c3a599521fcaa8ae244e809c7"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0035",
+    "source_pattern": "94368bbfc4f1",
+    "attack_class": "attack_chain",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "chain_block_self_observation_to_block_self_observation",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: attack_chain"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919006",
+      "merkle_root": "8742b8804c1303871ec0d479fa901cc328e1138f7aaef98789ecec0c089f937a"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0036",
+    "source_pattern": "117f58e9b2ab",
+    "attack_class": "attack_chain",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "chain_block_self_observation_to_block_oscillation_handler",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: attack_chain"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919009",
+      "merkle_root": "c8708e2df018dcad328bca1acb9857fc0a2d9c776fe5944f39258e205d418481"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0037",
+    "source_pattern": "40c5fb61a5ca",
+    "attack_class": "attack_chain",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "chain_block_oscillation_handler_to_block_consecutive_anomalies",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: attack_chain"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919013",
+      "merkle_root": "aa4e04e648ca2d351394797ea237b987ab21d50c4d3b5a33fda003ae9c517fa4"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0038",
+    "source_pattern": "58c65a10ecb1",
+    "attack_class": "attack_chain",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "chain_block_oscillation_handler_to_block_oscillation_handler",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: attack_chain"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919016",
+      "merkle_root": "107a6dda7afe7f2b201a9f7161cd79cdad659e298a97d6fb374ab6899d50fc86"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0039",
+    "source_pattern": "1ec6e51347d3",
+    "attack_class": "anomaly_detected",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "anomaly_verdict_unknown",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: anomaly_detected"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919019",
+      "merkle_root": "67ea53d17030b129e43c0b71f93040a2b8621bcc903bf1589b87d3f0deb13900"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0040",
+    "source_pattern": "03da2d1263ca",
+    "attack_class": "ASI01_prompt_injection",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "untrusted_input_in_system_prompt",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI01_prompt_injection"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919023",
+      "merkle_root": "20ab4ceac2909dc1140f5274a63fa74fb813d1bba09cd4859b467099b5b6fe2e"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0041",
+    "source_pattern": "c859300c4c81",
+    "attack_class": "ASI02_output_handling",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "sensitive_output_not_sanitized",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI02_output_handling"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919026",
+      "merkle_root": "020b9b858d468fb9dedd5b6aa299068e1de625a238b13d144c265a138752d8b8"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0042",
+    "source_pattern": "bc544dd9e68c",
+    "attack_class": "ASI03_supply_chain",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "unverified_plugin_loaded",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI03_supply_chain"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919030",
+      "merkle_root": "90e73aa70dd801f0de589130d9d01a74880378313849fd08ac547462ce06c4b8"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0043",
+    "source_pattern": "048de4fe5991",
+    "attack_class": "ASI04_data_poisoning",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "untrusted_fine_tuning_data",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI04_data_poisoning"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919033",
+      "merkle_root": "3568389858c7aa666fa408c0fe63aaeae3dfcf396d6e3424defc59be4d6d0506"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0044",
+    "source_pattern": "f38a626ad054",
+    "attack_class": "ASI05_improper_error_handling",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "error_context_leaked",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI05_improper_error_handling"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919036",
+      "merkle_root": "e600ca2b9c8f1b6ba4e23b77d892fa5ebd8d882676fddbb90229add3bd0d0329"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0045",
+    "source_pattern": "4fb8db8cf678",
+    "attack_class": "ASI06_excessive_agency",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "unscoped_tool_permission",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI06_excessive_agency"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919039",
+      "merkle_root": "f90b4b15be26de48bae282832612f4f598efd7d943e9ace6f1e4f67112cfee03"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0046",
+    "source_pattern": "bfa8917b8225",
+    "attack_class": "ASI07_system_prompt_leakage",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "internal_prompt_exposed",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI07_system_prompt_leakage"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919044",
+      "merkle_root": "835aeafe4b721e1b232c39ce29c521047be385245594c917e7b51e8c2fe58996"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0047",
+    "source_pattern": "5479fc8ecb85",
+    "attack_class": "ASI08_vector_weakness",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "embedding_manipulation",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI08_vector_weakness"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919047",
+      "merkle_root": "93893ad0cb2a5935b7910b978654f8bde3795b9008d2b772bff6b965677ad345"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0048",
+    "source_pattern": "391932191bba",
+    "attack_class": "ASI09_misinformation",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "hallucinated_governance_output",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI09_misinformation"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919050",
+      "merkle_root": "5b302fc8e9c28fb27e1f8fa607370b1ce635aa5451ecc829d5b5487096990cc7"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0049",
+    "source_pattern": "72c6bb260a23",
+    "attack_class": "ASI10_unbounded_consumption",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "token_loop_detected",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI10_unbounded_consumption"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-09-09T19:22:03.919054",
+      "merkle_root": "10da169717eef4f59a81fb52efbe934fc9a209e22735f6281f837589e3b1b06f"
+    },
+    "status": "candidate"
+  }
+]

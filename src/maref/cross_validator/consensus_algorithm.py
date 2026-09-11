@@ -446,9 +446,8 @@ class WeightedConsensusEngine:
             if vote.vote_value == VoteValue.ABSTAIN:
                 continue
 
-            dissents = (
-                (vote.vote_value == VoteValue.APPROVE and not majority_approves)
-                or (vote.vote_value == VoteValue.REJECT and majority_approves)
+            dissents = (vote.vote_value == VoteValue.APPROVE and not majority_approves) or (
+                vote.vote_value == VoteValue.REJECT and majority_approves
             )
             if not dissents:
                 continue

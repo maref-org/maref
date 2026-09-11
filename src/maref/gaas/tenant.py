@@ -160,9 +160,7 @@ class TenantManager:
 
     def get_by_id(self, tenant_id: str) -> Tenant | None:
         if self._db is not None:
-            row = self._db.fetchone(
-                "SELECT * FROM tenants WHERE tenant_id = ?", (tenant_id,)
-            )
+            row = self._db.fetchone("SELECT * FROM tenants WHERE tenant_id = ?", (tenant_id,))
             return self._row_to_tenant(row) if row else None
         return self._tenants.get(tenant_id)
 

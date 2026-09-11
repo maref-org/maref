@@ -204,8 +204,7 @@ class OAuthTokenProvider:
         pending = self._pending_auth_codes.get(server_url)
         if pending is None:
             raise RuntimeError(
-                "authorization_code flow requires a code: call "
-                "store_authorization_code() first"
+                "authorization_code flow requires a code: call store_authorization_code() first"
             )
         code, code_verifier, redirect_uri = pending
         token_endpoint = self.token_url or f"{server_url.rstrip('/')}/oauth/token"
@@ -266,7 +265,9 @@ class OAuthTokenProvider:
             self._tokens[server_url] = token_data
             return token_data.access_token
         except httpx.HTTPStatusError as exc:
-            raise RuntimeError(f"OAuth token acquisition failed: {exc.response.status_code}") from exc
+            raise RuntimeError(
+                f"OAuth token acquisition failed: {exc.response.status_code}"
+            ) from exc
         except httpx.RequestError as exc:
             raise RuntimeError(f"OAuth token request failed: {exc}") from exc
 
@@ -314,9 +315,7 @@ class OAuthMiddleware:
         self._provider = token_provider
         self._verification_key = verification_key
 
-    async def authenticate(
-        self, headers: dict[str, str]
-    ) -> ZeroTrustContext:
+    async def authenticate(self, headers: dict[str, str]) -> ZeroTrustContext:
         auth_header = headers.get("authorization", headers.get("Authorization", ""))
         if not auth_header:
             raise PermissionError("Missing Authorization header")
@@ -340,6 +339,7 @@ class OAuthMiddleware:
     def _validate_token(self, token: str) -> dict[str, Any]:
         try:
             import base64
+
             parts = token.split(".")
             if len(parts) != 3:
                 raise PermissionError("Invalid token format or signature")
@@ -418,6 +418,7 @@ class MCPSecurityGate:
 
         try:
             import base64
+
             segments = token.split(".")
             if len(segments) == 3:
                 header_b64, payload_b64, sig_b64 = segments
@@ -429,9 +430,7 @@ class MCPSecurityGate:
                         self.verification_key, signing_input, hashlib.sha256
                     ).digest()
                     try:
-                        actual = base64.urlsafe_b64decode(
-                            sig_b64 + "=" * (-len(sig_b64) % 4)
-                        )
+                        actual = base64.urlsafe_b64decode(sig_b64 + "=" * (-len(sig_b64) % 4))
                     except (ValueError, TypeError):
                         return ZeroTrustContext(
                             agent_id="anonymous", token_claims={"error": "bad_signature"}
@@ -448,7 +447,9 @@ class MCPSecurityGate:
                     payload = json.loads(base64.urlsafe_b64decode(segments[1]))
                     exp = payload.get("exp", 0)
                     if exp and exp < time.time():
-                        return ZeroTrustContext(agent_id="anonymous", token_claims={"error": "expired"})
+                        return ZeroTrustContext(
+                            agent_id="anonymous", token_claims={"error": "expired"}
+                        )
                     return ZeroTrustContext(
                         agent_id=payload.get("sub", "oauth-user"),
                         session_id=payload.get("session_id", ""),
@@ -667,7 +668,7 @@ def _require_hmac_key() -> bytes:
         raise RuntimeError(
             "MAREF_HMAC_SECRET_KEY environment variable must be set. "
             "This is required for audit log integrity. "
-            "Generate a key with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            'Generate a key with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
     return key
 
@@ -681,7 +682,9 @@ def _resolve_key(secret_key: bytes | None) -> bytes:
     return _require_hmac_key()
 
 
-def sign_audit_entry(entry: AuditLogEntry, secret_key: bytes | None = DEFAULT_HMAC_SECRET_KEY) -> str:
+def sign_audit_entry(
+    entry: AuditLogEntry, secret_key: bytes | None = DEFAULT_HMAC_SECRET_KEY
+) -> str:
     """Create HMAC-SHA256 signature for an audit log entry.
 
     The signature covers all immutable fields of the entry, providing

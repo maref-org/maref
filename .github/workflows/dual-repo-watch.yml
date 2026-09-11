@@ -1,0 +1,100 @@
+name: Dual-Repo Watch
+
+# 第三方监控 — 公仓侧哨兵
+#
+# 职责:
+#   检查 maref-org/maref issue #360 (Athena 心跳信号) 的 updatedAt 时间戳
+#   - openclaw 本机 heartbeat_pusher 每 10 分钟通过 gh issue edit 更新该 issue
+#   - >30 分钟未更新 → 判定 openclaw 本机失联（Mac 关机/断网/推送器停摆）→ workflow 失败
+#   - workflow 失败 → GitHub Actions 原生邮件通知 maref-org 订阅者
+#
+# 与 openclaw/.github/workflows/third-party-guardian.yml 互补:
+#   - third-party-guardian 依赖 frankiehot-tech 个人账号 Actions 额度（私仓付费）
+#   - dual-repo-watch 走 maref-org 公仓 Actions（无限免费），不受个人账号账单影响
+#   - 双重兜底: 任一通道失效，另一通道仍可告警
+#
+# 触发:
+#   schedule: 每 15 分钟
+#   workflow_dispatch: 手动
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: read
+
+env:
+  HEARTBEAT_ISSUE_NUMBER: "360"
+  HEARTBEAT_STALE_MINUTES: 30
+
+jobs:
+  athena-heartbeat-watch:
+    name: Athena 心跳新鲜度 (公仓哨兵)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查 issue #360 updatedAt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          ISSUE_JSON=$(gh issue view "$HEARTBEAT_ISSUE_NUMBER" --repo maref-org/maref \
+            --json updatedAt,title,state)
+          UPDATED_AT=$(echo "$ISSUE_JSON" | jq -r '.updatedAt')
+          STATE=$(echo "$ISSUE_JSON" | jq -r '.state')
+          TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+
+          echo "Issue: #$HEARTBEAT_ISSUE_NUMBER $TITLE"
+          echo "State: $STATE"
+          echo "Last updated: $UPDATED_AT"
+
+          if [ "$STATE" != "OPEN" ]; then
+            echo "⛔ 心跳 issue 已关闭 ($STATE) — openclaw 失去对公仓的写权限或 issue 被误关"
+            exit 1
+          fi
+
+          # ISO8601 → epoch (UTC)
+          UPDATED_EPOCH=$(date -u -d "$UPDATED_AT" +%s)
+          NOW_EPOCH=$(date -u +%s)
+          AGE_MIN=$(( (NOW_EPOCH - UPDATED_EPOCH) / 60 ))
+
+          echo "心跳年龄: ${AGE_MIN} 分钟 (阈值 ${HEARTBEAT_STALE_MINUTES})"
+
+          if [ "$AGE_MIN" -gt "$HEARTBEAT_STALE_MINUTES" ]; then
+            echo "⛔ Athena 心跳已 ${AGE_MIN} 分钟未更新 (> ${HEARTBEAT_STALE_MINUTES})"
+            echo "判定: openclaw 本机失联（Mac 关机/断网/heartbeat_pusher 停摆）"
+            echo ""
+            echo "排查路径:"
+            echo "  1. 检查 Mac 是否开机: launchctl print gui/\$(id -u)/com.maref.heartbeat-pusher"
+            echo "  2. 检查 openclaw/.venv 与 ext_launch_bridge.py 是否可用"
+            echo "  3. 检查 gh token 是否失效: gh auth status"
+            echo "  4. 检查网络: ping github.com"
+            echo ""
+            echo "本告警独立于 frankiehot-tech/Athena 的 Third-Party Guardian workflow"
+            echo "（后者依赖私仓 Actions 额度，可能因账单阻断失效）"
+            exit 1
+          fi
+          echo "✅ Athena 心跳新鲜 (${AGE_MIN} 分钟)"
+
+  notify:
+    name: 告警通知 (邮件)
+    needs: athena-heartbeat-watch
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 确认告警已发出 (GitHub 原生邮件通知)
+        shell: bash
+        env:
+          REPO: ${{ github.repository }}
+          URL: ${{ format('https://github.com/{0}/actions/runs/{1}', github.repository, github.run_id) }}
+        run: |
+          echo "🚨 MAREF 双仓库哨兵 (公仓侧) 检测到异常"
+          echo "仓库: $REPO"
+          echo "运行详情: $URL"
+          echo "→ GitHub Actions 已触发邮件通知 maref-org 订阅者"
+          echo ""
+          echo "异常类型: Athena 本机心跳信号 (issue #360) 长时间未更新"
+          echo "独立通道: 本告警不依赖 frankiehot-tech 个人账号 Actions 额度"

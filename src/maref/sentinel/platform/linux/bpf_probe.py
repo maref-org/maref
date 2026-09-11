@@ -203,7 +203,9 @@ class BPFProbe:
             event_queue_maxsize: 内部事件队列最大容量
         """
         self._hmac_key = hmac_key
-        self._event_queue: asyncio.Queue[ObservationEvent] = asyncio.Queue(maxsize=event_queue_maxsize)
+        self._event_queue: asyncio.Queue[ObservationEvent] = asyncio.Queue(
+            maxsize=event_queue_maxsize
+        )
         self._running = False
         self._bpf_modules: list[Any] = []
         self._perf_buffers: list[Any] = []
@@ -379,6 +381,7 @@ class BPFProbe:
         """尝试导入 bcc 模块,失败返回 None"""
         try:
             import bcc
+
             return bcc
         except ImportError:
             return None
@@ -436,8 +439,12 @@ class BPFProbe:
             daddr_raw = getattr(data, "daddr", 0)
             dport_raw = getattr(data, "dport", 0)
 
-            remote_addr = self._ip_to_str(int(daddr_raw)) if isinstance(daddr_raw, (int,)) else str(daddr_raw)
-            remote_port = socket.htons(int(dport_raw)) if isinstance(dport_raw, (int,)) else int(dport_raw)
+            remote_addr = (
+                self._ip_to_str(int(daddr_raw)) if isinstance(daddr_raw, (int,)) else str(daddr_raw)
+            )
+            remote_port = (
+                socket.htons(int(dport_raw)) if isinstance(dport_raw, (int,)) else int(dport_raw)
+            )
 
             evidence: dict[str, Any] = {
                 "syscall": "connect",
@@ -466,6 +473,6 @@ class BPFProbe:
     @staticmethod
     def _ip_to_str(addr: int) -> str:
         """将 32-bit IPv4 整数转为点分十进制字符串 (网络字节序)"""
-        return f"{(addr >> 0) & 0xff}.{(addr >> 8) & 0xff}.{(addr >> 16) & 0xff}.{(addr >> 24) & 0xff}"
-
-
+        return (
+            f"{(addr >> 0) & 0xFF}.{(addr >> 8) & 0xFF}.{(addr >> 16) & 0xFF}.{(addr >> 24) & 0xFF}"
+        )

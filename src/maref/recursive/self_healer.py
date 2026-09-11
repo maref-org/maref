@@ -312,6 +312,7 @@ class SelfHealer:
             # ═══════════════════════════════════════════════════════
             elif strategy == "rebalance_experience_pool":
                 from maref.integration.percv.meta_ratchet import MetaRatchet
+
                 mr = MetaRatchet()
                 config_val = getattr(mr, "max_sandbox_rounds", 10)
                 new_val = min(config_val + 5, 50)
@@ -323,6 +324,7 @@ class SelfHealer:
                     from maref.integration.percv.cross_dimensional_analyzer import (
                         CrossDimensionalAnalyzer,
                     )
+
                     ca = CrossDimensionalAnalyzer()
                     try:
                         effects = ca.detect_cross_effects(window=10)
@@ -339,6 +341,7 @@ class SelfHealer:
             elif strategy == "normalize_dimension_weights":
                 with contextlib.suppress(Exception):
                     from maref.integration.percv.multi_target_ratchet import MultiTargetRatchet
+
                     MultiTargetRatchet()
                     try:
                         detail = "dimension weights normalized: baseline checked"
@@ -372,18 +375,15 @@ class SelfHealer:
 
     def _make_fix_code(self, fix_type: str) -> Any:
         from maref.recursive.self_executor import GeneratedCode
+
         if fix_type == "syntax":
-            content = (
-                "from __future__ import annotations\n\n\n"
-                "# Auto-fixed by SelfHealer\n"
-            )
+            content = "from __future__ import annotations\n\n\n# Auto-fixed by SelfHealer\n"
         else:
-            content = (
-                "from __future__ import annotations\n\n\n"
-                "def placeholder() -> None: ...\n"
-            )
+            content = "from __future__ import annotations\n\n\ndef placeholder() -> None: ...\n"
         return GeneratedCode(
-            file_path=os.path.join(self._project_root, "src", "maref", "recursive", "auto_fixed.py"),
+            file_path=os.path.join(
+                self._project_root, "src", "maref", "recursive", "auto_fixed.py"
+            ),
             content=content,
             target_module="auto_fixed",
         )

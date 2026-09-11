@@ -14,6 +14,10 @@ from maref.recursive.self_healer import (
 )
 from maref.recursive.self_observer import SystemSnapshot
 
+# env-heavy probe(desktop/gui_build)隔离由 tests/recursive/conftest.py 的
+# autouse _isolate_heavy_probes 统一提供(r2/r3 共享)——mock measure 为
+# NORMAL + 重置 BaseProbe 类级 TTL 缓存, 跨环境确定。
+
 
 def _mock_executor(strategy: str, problem_type: str) -> HealAction:
     return HealAction(
@@ -198,7 +202,10 @@ class TestSelfHealer:
         assert unified[1].outcome == "failure"
 
     @pytest.mark.slow
+    @pytest.mark.real
     def test_real_executor_rerun_tests(self, healer_real: SelfHealer) -> None:
+        # 真实 executor 会在仓库根跑全仓 `pytest -v`(timeout=120s),
+        # 15000+ 测试必然超时,归入 `real` 由 CI 的 `-m "not real"` 排除。
         actions = healer_real.heal(["test_failure"])
         assert len(actions) == 1
         assert actions[0].applied is True

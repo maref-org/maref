@@ -205,9 +205,7 @@ class ForensicSnapshot:
             max_env_vars: environment 条目上限
         """
         self._hmac_key = hmac_key
-        self._sensitive_env_vars: set[str] = set(
-            _DEFAULT_SENSITIVE_ENV_VARS + sensitive_env_vars
-        )
+        self._sensitive_env_vars: set[str] = set(_DEFAULT_SENSITIVE_ENV_VARS + sensitive_env_vars)
         self._agent_pid_resolver = agent_pid_resolver
         self._max_open_files = max_open_files
         self._max_connections = max_connections
@@ -424,9 +422,7 @@ class ForensicSnapshot:
                 redacted: dict[str, str] = {}
                 for count, (key, value) in enumerate(environ.items()):
                     if count >= self._max_env_vars:
-                        redacted["_truncated"] = (
-                            f"env vars truncated at {self._max_env_vars}"
-                        )
+                        redacted["_truncated"] = f"env vars truncated at {self._max_env_vars}"
                         break
                     if self._is_sensitive_env(key):
                         redacted[key] = _REDACTED_VALUE

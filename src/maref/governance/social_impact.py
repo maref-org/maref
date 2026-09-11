@@ -152,9 +152,7 @@ class SocialImpactAssessor:
             )
 
         if agent_count > 100:
-            findings.append(
-                f"Deployment scale ({agent_count} agents) amplifies social impact risk"
-            )
+            findings.append(f"Deployment scale ({agent_count} agents) amplifies social impact risk")
 
         if multiplier > 1.5:
             findings.append(
@@ -174,16 +172,13 @@ class SocialImpactAssessor:
             findings=findings,
         )
 
-    def compute_aggregate_impact(
-        self, reports: list[SocialImpactReport]
-    ) -> dict[str, Any]:
+    def compute_aggregate_impact(self, reports: list[SocialImpactReport]) -> dict[str, Any]:
         if not reports:
             return {"total_agents": 0, "impact_level": "low", "highest_verdict": "allow"}
 
         total_agents = sum(r.agent_count for r in reports)
         avg_rate = (
-            sum(r.effective_substitution_rate * r.agent_count for r in reports)
-            / total_agents
+            sum(r.effective_substitution_rate * r.agent_count for r in reports) / total_agents
             if total_agents > 0
             else 0.0
         )
@@ -194,9 +189,7 @@ class SocialImpactAssessor:
             DeploymentVerdict.RESTRICT: 2,
             DeploymentVerdict.BLOCK: 3,
         }
-        highest_verdict = max(
-            reports, key=lambda r: verdict_priority.get(r.verdict, 0)
-        ).verdict
+        highest_verdict = max(reports, key=lambda r: verdict_priority.get(r.verdict, 0)).verdict
 
         return {
             "total_agents": total_agents,
@@ -230,9 +223,7 @@ class SocialImpactAssessor:
             return DeploymentVerdict.WARN
         return DeploymentVerdict.ALLOW
 
-    def _compute_hitl_tier(
-        self, impact: ImpactLevel, verdict: DeploymentVerdict
-    ) -> str:
+    def _compute_hitl_tier(self, impact: ImpactLevel, verdict: DeploymentVerdict) -> str:
         impact_tier = IMPACT_TO_HITL.get(impact, "p3_observe")
         verdict_tier = VERDICT_TO_HITL.get(verdict, "p3_observe")
         tier_priority = {

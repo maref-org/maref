@@ -41,7 +41,9 @@ class WriteTool(Tool[WriteInput, WriteOutput]):
 
         existing = path.exists()
         if existing and not path.is_file():
-            return ValidationResult(is_valid=False, message=f"Path exists but is not a file: {input.file_path}")
+            return ValidationResult(
+                is_valid=False, message=f"Path exists but is not a file: {input.file_path}"
+            )
 
         return ValidationResult(is_valid=True)
 

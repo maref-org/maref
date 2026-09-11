@@ -59,27 +59,26 @@ class TestProcessProbe:
         """1.1-A4: ptrace 检测 — Linux /proc/<pid>/status TracerPid != 0"""
         probe = ProcessProbe(_make_config(target_pids=(1,)))
 
+        def _sync(fn, *args, **kw):
+            return fn(*args)
+
         # 模拟 /proc/1/status 含 TracerPid: 999
         fake_status_content = "Name:	test\nTracerPid:\t999\n"
 
         # patch asyncio.to_thread → 同步执行,避免子线程中 mock 不生效
-        sync_to_thread = lambda fn, *args, **kw: fn(*args)
         with patch("os.path.exists", return_value=True), \
-                patch("builtins.open",
-                      return_value=MagicMock(read=MagicMock(return_value=fake_status_content)),
-                      create=True), \
+                patch("pathlib.Path.read_text", return_value=fake_status_content), \
                 patch("maref.sentinel.probes.process_probe.asyncio.to_thread",
-                      side_effect=sync_to_thread):
-            # 同时 mock psutil.Process
-            with patch("psutil.Process") as mock_proc_cls:
-                mock_proc = MagicMock()
-                mock_proc.children.return_value = []
-                mock_proc.status.return_value = "running"
-                mock_proc_cls.return_value = mock_proc
+                      side_effect=_sync), \
+                patch("psutil.Process") as mock_proc_cls:
+            mock_proc = MagicMock()
+            mock_proc.children.return_value = []
+            mock_proc.status.return_value = "running"
+            mock_proc_cls.return_value = mock_proc
 
-                await probe.start()
-                events = await probe.poll()
-                await probe.stop()
+            await probe.start()
+            events = await probe.poll()
+            await probe.stop()
 
         # 应该检出 ptrace 附加
         ptrace_events = [
@@ -95,25 +94,24 @@ class TestProcessProbe:
         """TracerPid=0 → 不告警"""
         probe = ProcessProbe(_make_config(target_pids=(1,)))
 
+        def _sync(fn, *args, **kw):
+            return fn(*args)
+
         fake_status_content = "Name:	test\nTracerPid:\t0\n"
 
         # patch asyncio.to_thread → 同步执行
-        sync_to_thread = lambda fn, *args, **kw: fn(*args)
         with patch("os.path.exists", return_value=True), \
-             patch("builtins.open", create=True) as mock_open, \
+             patch("pathlib.Path.read_text", return_value=fake_status_content), \
              patch("maref.sentinel.probes.process_probe.asyncio.to_thread",
-                   side_effect=sync_to_thread):
-            # open(...).read() 不走 with 语句
-            mock_open.return_value.read.return_value = fake_status_content
-            with patch("psutil.Process") as mock_proc_cls:
-                mock_proc = MagicMock()
-                mock_proc.children.return_value = []
-                mock_proc.status.return_value = "running"
-                mock_proc_cls.return_value = mock_proc
+                   side_effect=_sync), patch("psutil.Process") as mock_proc_cls:
+            mock_proc = MagicMock()
+            mock_proc.children.return_value = []
+            mock_proc.status.return_value = "running"
+            mock_proc_cls.return_value = mock_proc
 
-                await probe.start()
-                events = await probe.poll()
-                await probe.stop()
+            await probe.start()
+            events = await probe.poll()
+            await probe.stop()
 
         ptrace_events = [
             e for e in events

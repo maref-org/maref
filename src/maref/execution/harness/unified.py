@@ -156,8 +156,7 @@ class UnifiedHarness(BaseHarness):
                 self._lifecycle_state = HarnessLifecycleState.FAILED
                 self._transition_history.append(HarnessLifecycleState.FAILED)
                 raise HarnessAbortedError(
-                    f"preflight failed for agent={result.agent_id}: "
-                    f"blocked checks={failed}"
+                    f"preflight failed for agent={result.agent_id}: blocked checks={failed}"
                 )
             warnings.append(result.summary)
 

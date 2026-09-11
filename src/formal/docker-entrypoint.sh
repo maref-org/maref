@@ -20,7 +20,6 @@ run_tlc() {
         -config "$config" \
         -deadlock \
         -terse \
-        -noGenerateSpecTE \
         "$spec" 2>&1; then
         echo "=== PASS: $label ==="
         return 0
@@ -51,6 +50,9 @@ case "${1:-all}" in
         echo ""
 
         run_tlc "MAREF_CrossInstance.tla" "MAREF_CrossDimModel.cfg" "Cross-Instance" || FAILED=$((FAILED + 1))
+        echo ""
+
+        run_tlc "Vortex369.tla" "Vortex369MC.cfg" "369 Digital Root Theorems (7 Invariants)" || FAILED=$((FAILED + 1))
 
         echo ""
         echo "=== Summary ==="

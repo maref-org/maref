@@ -44,7 +44,9 @@ class PERCVHypothesisBridge:
     def _card_to_hypothesis(self, card: dict[str, Any]) -> PERCVHypothesis | None:
         metadata = dict(card.get("metadata") or {})
         confidence = self._extract_confidence(card, metadata)
-        status = str(metadata.get("verification_status", card.get("verification_status", ""))).lower()
+        status = str(
+            metadata.get("verification_status", card.get("verification_status", ""))
+        ).lower()
         if confidence < self._min_confidence:
             return None
         if status and status not in self.VERIFIED_STATUSES:

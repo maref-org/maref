@@ -13,6 +13,7 @@ from maref.recursive.unified_audit import UnifiedAudit
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class SelfHealingConfig:
     max_cycles: int = 10
@@ -39,6 +40,7 @@ class SelfHealingConfig:
             "max_proposals_per_cycle": self.max_proposals_per_cycle,
             "arch_proposal_interval_cycles": self.arch_proposal_interval_cycles,
         }
+
 
 @dataclass
 class HealingCycleReport:
@@ -77,9 +79,9 @@ class HealingCycleReport:
             "status": self.status,
         }
 
-class SelfHealingLoop:
 
-    def __init__(self, config: SelfHealingConfig | None=None) -> None:
+class SelfHealingLoop:
+    def __init__(self, config: SelfHealingConfig | None = None) -> None:
         self._config: SelfHealingConfig = config or SelfHealingConfig()
         self._running: bool = False
         self._history: list[HealingCycleReport] = []
@@ -131,10 +133,33 @@ class SelfHealingLoop:
     def stop(self) -> None:
         self._running = False
 
+    def _get_state_snapshot(self) -> dict[str, Any]:
+        """状态快照 — 暴露 healer 运行态 + agent 状态视图供外部消费者。
+
+        （sync 覆盖丢失后按当前类结构重建；旧版依赖 super() 基类 + 更多属性。）
+        """
+        base: dict[str, Any] = {
+            "running": getattr(self, "_running", False),
+            "check_interval_seconds": getattr(
+                self.config, "check_interval_seconds", 0
+            ),
+        }
+        gov = getattr(self, "_gov_scheduler", None)
+        if gov is not None:
+            try:
+                views = gov.agent_state_views
+                base["agent_views"] = {aid: v.to_dict() for aid, v in views.items()}
+            except Exception:
+                base["agent_views"] = {}
+        else:
+            base["agent_views"] = {}
+        return base
+
     def _lazy_init(self) -> None:
         if self._observer is not None:
             return
         from maref.recursive.self_observer import SelfObserver
+
         self._observer = SelfObserver()
 
     async def _run_one_cycle(self) -> HealingCycleReport:
@@ -265,7 +290,10 @@ class SelfHealingLoop:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            'running': self._running,
-            'cycle_count': self._cycle_count,
-            'history': [{'cycle_id': r.cycle_id, 'status': r.status, 'details': r.details} for r in self._history],
+            "running": self._running,
+            "cycle_count": self._cycle_count,
+            "history": [
+                {"cycle_id": r.cycle_id, "status": r.status, "details": r.details}
+                for r in self._history
+            ],
         }

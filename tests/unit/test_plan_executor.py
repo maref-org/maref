@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from maref.orchestration.plan_executor import (
     Plan,
     PlanExecutionReport,
@@ -293,8 +295,8 @@ class TestPlanExecutor:
             status=PlanStatus.COMPLETED,
             steps=[StepExecutionRecord(task_id="s1", action="test", quality_score=0.9)],
         )
-        assert report.convergence == [0.9]
-        assert report.quality_score == 0.9
+        assert report.convergence == pytest.approx([0.9])
+        assert report.quality_score == pytest.approx(0.9)
 
     def test_convergence_multi_step(self) -> None:
         report = PlanExecutionReport(
@@ -306,8 +308,8 @@ class TestPlanExecutor:
                 StepExecutionRecord(task_id="s3", action="c", quality_score=0.85),
             ],
         )
-        assert report.convergence == [0.9, 0.8, 0.85]
-        assert report.quality_score == 0.85
+        assert report.convergence == pytest.approx([0.9, 0.8, 0.85])
+        assert report.quality_score == pytest.approx(0.85)
 
     def test_is_converged_fewer_than_window(self) -> None:
         report = PlanExecutionReport(

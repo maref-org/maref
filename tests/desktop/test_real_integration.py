@@ -83,8 +83,9 @@ class TestEnvironmentChecks:
     def test_pyautogui_importable(self) -> None:
         try:
             import pyautogui  # noqa: F401
-        except ImportError:
-            pytest.skip("PyAutoGUI not installed")
+        except (ImportError, KeyError):
+            # headless CI: pyautogui→mouseinfo 模块级读 $DISPLAY 抛 KeyError
+            pytest.skip("PyAutoGUI not usable (headless)")
 
     def test_pillow_importable(self) -> None:
         try:

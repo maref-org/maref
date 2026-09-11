@@ -1,0 +1,12 @@
+{
+  "geo-orchestrator": 3,
+  "evolution-daemon": 3,
+  "intent-daemon": 3,
+  "nightly-evolution": 3,
+  "deepwater-guard": 4,
+  "constitution-guard": 4,
+  "proposal-watcher": 2,
+  "heartbeat-monitor": 2,
+  "audit-logger": 2,
+  "default": 1
+}

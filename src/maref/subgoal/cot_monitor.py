@@ -24,8 +24,7 @@ class CoTMonitor:
 
     def __init__(self) -> None:
         self._compiled: dict[str, re.Pattern[str]] = {
-            name: re.compile(pattern, re.IGNORECASE)
-            for name, pattern in self.PATTERNS.items()
+            name: re.compile(pattern, re.IGNORECASE) for name, pattern in self.PATTERNS.items()
         }
 
     def monitor_stream(self, session_id: str, token_stream: list[str]) -> CoTReport:
@@ -61,7 +60,7 @@ class CoTMonitor:
         )
 
     def _split_segments(self, tokens: list[str], window: int = 5) -> list[str]:
-        return [" ".join(tokens[i: i + window]) for i in range(0, len(tokens), window)]
+        return [" ".join(tokens[i : i + window]) for i in range(0, len(tokens), window)]
 
     def _match_keywords(self, text: str) -> list[str]:
         hits: list[str] = []
@@ -74,8 +73,11 @@ class CoTMonitor:
         _ = self
         if len(segments) < 3:
             return CoTReport(
-                session_id="fork_check", control_keywords_hit=[], fork_detected=False,
-                fork_point=None, risk_score=0.0,
+                session_id="fork_check",
+                control_keywords_hit=[],
+                fork_detected=False,
+                fork_point=None,
+                risk_score=0.0,
             )
 
         initial_topic = self._topic_signature(segments[0])
@@ -85,13 +87,18 @@ class CoTMonitor:
                 diverged = True
                 if diverged:
                     return CoTReport(
-                        session_id="fork_check", control_keywords_hit=[],
-                        fork_detected=True, fork_point=f"segment_{i}",
+                        session_id="fork_check",
+                        control_keywords_hit=[],
+                        fork_detected=True,
+                        fork_point=f"segment_{i}",
                         risk_score=0.0,
                     )
         return CoTReport(
-            session_id="fork_check", control_keywords_hit=[], fork_detected=diverged,
-            fork_point="segment_0" if diverged else None, risk_score=0.0,
+            session_id="fork_check",
+            control_keywords_hit=[],
+            fork_detected=diverged,
+            fork_point="segment_0" if diverged else None,
+            risk_score=0.0,
         )
 
     def _topic_signature(self, text: str) -> dict[str, float]:

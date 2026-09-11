@@ -19,12 +19,14 @@ class LocalModelAdapter(ModelAdapter):
         if self._model is not None:
             return
         import transformers
+
         self._tokenizer = transformers.AutoTokenizer.from_pretrained(self._model_name)
         self._model = transformers.AutoModelForCausalLM.from_pretrained(self._model_name)
 
     def complete(self, prompt: str, **kwargs: Any) -> str:
         self._lazy_init()
         import torch
+
         assert self._tokenizer is not None and self._model is not None
         inputs = self._tokenizer(prompt, return_tensors="pt")
         max_length = kwargs.get("max_length", 200)

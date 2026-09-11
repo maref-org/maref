@@ -104,8 +104,10 @@ class BudgetBreaker:
                 return False
             if total_cost > self._max_per_agent:
                 self._trip(
-                    agent_id, "agent_budget",
-                    self._max_per_agent, total_cost,
+                    agent_id,
+                    "agent_budget",
+                    self._max_per_agent,
+                    total_cost,
                     f"Agent {agent_id} cost {total_cost:.1f} exceeds limit {self._max_per_agent}",
                 )
                 return False
@@ -118,8 +120,10 @@ class BudgetBreaker:
                 return False
             if task_cost > self._max_per_task:
                 self._trip(
-                    agent_id, "task_budget",
-                    self._max_per_task, task_cost,
+                    agent_id,
+                    "task_budget",
+                    self._max_per_task,
+                    task_cost,
                     f"Task {task_id} cost {task_cost:.1f} exceeds limit {self._max_per_task}",
                 )
                 return False
@@ -140,8 +144,10 @@ class BudgetBreaker:
             rate = total / window_hours
             if rate > self._max_burn_rate:
                 self._trip(
-                    agent_id, "burn_rate",
-                    self._max_burn_rate, rate,
+                    agent_id,
+                    "burn_rate",
+                    self._max_burn_rate,
+                    rate,
                     f"Agent {agent_id} burn rate {rate:.1f}/hr exceeds limit {self._max_burn_rate}",
                 )
                 return False
@@ -163,6 +169,7 @@ class BudgetBreaker:
     def _update_monthly_spend(self, agent_id: str, amount: float) -> None:
         """Update monthly spend tracking, resetting if a new month has started."""
         import datetime
+
         now = time.time()
         if agent_id not in self._month_start:
             self._month_start[agent_id] = now
@@ -193,8 +200,10 @@ class BudgetBreaker:
             usage = spend / self._monthly_budget
             if usage >= self._critical_threshold:
                 self._trip(
-                    agent_id, "monthly_budget",
-                    self._monthly_budget, spend,
+                    agent_id,
+                    "monthly_budget",
+                    self._monthly_budget,
+                    spend,
                     f"Agent {agent_id} monthly spend {spend:.1f} reaches "
                     f"{usage:.0%} of budget {self._monthly_budget:.1f} "
                     f"(critical threshold {self._critical_threshold:.0%})",
@@ -202,9 +211,11 @@ class BudgetBreaker:
                 return False
             if usage >= self._warning_threshold and not self._warning_emitted.get(agent_id, False):
                 logger.warning(
-                    "BudgetBreaker monthly warning agent=%s usage=%.1f%% "
-                    "spend=%.1f budget=%.1f",
-                    agent_id, usage * 100, spend, self._monthly_budget,
+                    "BudgetBreaker monthly warning agent=%s usage=%.1f%% spend=%.1f budget=%.1f",
+                    agent_id,
+                    usage * 100,
+                    spend,
+                    self._monthly_budget,
                 )
                 self._warning_emitted[agent_id] = True
             return True
@@ -224,8 +235,12 @@ class BudgetBreaker:
                 logger.info("BudgetBreaker recovered agent=%s", agent_id)
 
     def _trip(
-        self, agent_id: str, budget_type: str,
-        limit: float, actual: float, reason: str,
+        self,
+        agent_id: str,
+        budget_type: str,
+        limit: float,
+        actual: float,
+        reason: str,
     ) -> None:
         self._set_state(agent_id, BudgetBreakerState.OPEN)
         self._last_trip_time[agent_id] = time.time()
@@ -243,11 +258,17 @@ class BudgetBreaker:
         max_trips = 100
         if len(self._trips[agent_id]) > max_trips:
             self._trips[agent_id] = self._trips[agent_id][-max_trips:]
-        logger.warning("BudgetBreaker tripped agent=%s type=%s limit=%.1f actual=%.1f",
-                       agent_id, budget_type, limit, actual)
+        logger.warning(
+            "BudgetBreaker tripped agent=%s type=%s limit=%.1f actual=%.1f",
+            agent_id,
+            budget_type,
+            limit,
+            actual,
+        )
 
     def _should_try_half_open(self, agent_id: str) -> bool:
         import random
+
         last = self._last_trip_time.get(agent_id, 0.0)
         jitter = random.uniform(0, self._cooldown * 0.2)
         return (time.time() - last) > (self._cooldown + jitter)
@@ -286,10 +307,7 @@ class BudgetBreaker:
                 }
             return {
                 "agents": len(self._state),
-                "open_count": sum(
-                    1 for s in self._state.values()
-                    if s == BudgetBreakerState.OPEN
-                ),
+                "open_count": sum(1 for s in self._state.values() if s == BudgetBreakerState.OPEN),
                 "total_trips": sum(len(t) for t in self._trips.values()),
                 "max_per_agent": self._max_per_agent,
                 "max_per_task": self._max_per_task,

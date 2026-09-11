@@ -147,7 +147,9 @@ def _is_sensitive(file_path: str, sensitive_paths: set[str]) -> bool:
         return True
     # 前缀匹配 (如 ~/.ssh/ 目录下任何文件)
     for sensitive in sensitive_paths:
-        if file_path.startswith(sensitive + "/") or file_path.startswith(sensitive.rstrip("/") + "/"):
+        if file_path.startswith(sensitive + "/") or file_path.startswith(
+            sensitive.rstrip("/") + "/"
+        ):
             return True
     return False
 
@@ -156,10 +158,7 @@ def _classify_file_severity(file_path: str) -> Severity:
     """根据文件路径分类严重度"""
     path_lower = file_path.lower()
     # SSH 私钥 / 云凭证 → CRITICAL
-    if any(
-        kw in path_lower
-        for kw in ("id_rsa", "id_ed25519", "credentials", "api_key", "secret")
-    ):
+    if any(kw in path_lower for kw in ("id_rsa", "id_ed25519", "credentials", "api_key", "secret")):
         return Severity.CRITICAL
     # 系统密码文件 → HIGH
     if any(kw in path_lower for kw in ("/etc/passwd", "/etc/shadow", "/etc/gshadow")):

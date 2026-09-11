@@ -44,9 +44,7 @@ def __getattr__(name: str) -> Any:
         )
 
         return locals()[name]
-    if name in (
-        "CACBlockchainTraceability",
-    ):
+    if name in ("CACBlockchainTraceability",):
         from maref.compliance.cac.blockchain_traceability import (  # noqa: F401
             CACBlockchainTraceability,
         )
@@ -116,6 +114,7 @@ def __getattr__(name: str) -> Any:
             TechnicalDocumentation,
             TransparencyManager,
         )
+
         return locals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

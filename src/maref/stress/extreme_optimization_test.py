@@ -26,6 +26,7 @@ from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 @dataclass
 class OptimizationResult:
     """Result from a single optimization test."""
+
     optimization_name: str
     scenario: str
     baseline_success: float
@@ -150,11 +151,13 @@ class ExtremeOptimizationTester:
 
         for round_idx in range(6):  # 1 initial + 5 recovery rounds
             report = harness.run(num_runs=100, stress_factor=current_stress)
-            recovery_rounds.append({
-                "round": round_idx,
-                "stress_factor": current_stress,
-                "success_rate": report.success_rate,
-            })
+            recovery_rounds.append(
+                {
+                    "round": round_idx,
+                    "stress_factor": current_stress,
+                    "success_rate": report.success_rate,
+                }
+            )
 
             # If success rate is too low, reduce stress (exponential backoff)
             if report.success_rate < 0.10:
@@ -315,15 +318,19 @@ def run_optimization_suite() -> dict:
     print("=" * 70)
 
     print("\n  Overall:")
-    print(f"    Optimizations passed: {passed_optimizations}/{total_optimizations} ({pass_rate:.0%})")
+    print(
+        f"    Optimizations passed: {passed_optimizations}/{total_optimizations} ({pass_rate:.0%})"
+    )
     print(f"    Average improvement:  +{avg_improvement:.1%}")
-    print(f"    Total duration:       {total_duration/1000:.0f}s")
+    print(f"    Total duration:       {total_duration / 1000:.0f}s")
 
     print("\n  By Optimization:")
     for r in tester.results:
         status = "PASS" if r.success else "FAIL"
         print(f"    {r.optimization_name:<35} {status}")
-        print(f"      Baseline: {r.baseline_success:.1%} → Optimized: {r.optimized_success:.1%} (Δ +{r.improvement:.1%})")
+        print(
+            f"      Baseline: {r.baseline_success:.1%} → Optimized: {r.optimized_success:.1%} (Δ +{r.improvement:.1%})"
+        )
 
     return {
         "total_optimizations": total_optimizations,
@@ -351,7 +358,12 @@ def run_optimization_suite() -> dict:
 if __name__ == "__main__":
     results = run_optimization_suite()
 
-    output_path = Path(__file__).parent.parent.parent / "tests" / "stress" / "extreme_optimization_results.json"
+    output_path = (
+        Path(__file__).parent.parent.parent
+        / "tests"
+        / "stress"
+        / "extreme_optimization_results.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2, default=str)

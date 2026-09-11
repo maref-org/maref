@@ -83,6 +83,10 @@ _sqi_stub = type(sys)("maref.stress.sqi")
 _sqi_stub.SQIDimension = SQIDimension
 _sqi_stub.SQIReport = SQIReport
 _sqi_stub.ServiceQualityIndex = ServiceQualityIndex
+# 保存真实 stub 类引用 —— 若某测试将 stub.ServiceQualityIndex patch 成
+# mock 未清理，code_service_sqi 测试可据此恢复（防跨文件 mock 泄漏）。
+_sqi_stub._REAL_SERVICE_QUALITY_INDEX = ServiceQualityIndex
+_sqi_stub._REAL_SQI_REPORT = SQIReport
 sys.modules["maref.stress.sqi"] = _sqi_stub
 
 _sqi_conv_stub = type(sys)("maref.stress.sqi_convergence")

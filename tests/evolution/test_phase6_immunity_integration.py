@@ -71,7 +71,7 @@ class TestConstitutionGuardBlocksImmunityViolation:
 
 class TestMultiAgentEngineWithImmunityGuard:
     def test_engine_runs_with_constitution_guard(self) -> None:
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         for cid in ["c1", "c2", "c3"]:
             base.cycles[cid] = CycleSpec(name="test", rounds=5, description="test")
 
@@ -96,7 +96,7 @@ class TestMultiAgentEngineWithImmunityGuard:
         assert result.constitution_violations_total >= 0
 
     def test_engine_records_violations(self) -> None:
-        base = EvolutionConfig(dry_run=False)
+        base = EvolutionConfig(dry_run=False, metrics_mode="simulated")
         for cid in ["c1", "c2", "c3"]:
             base.cycles[cid] = CycleSpec(name="test", rounds=5, description="test")
 

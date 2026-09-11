@@ -155,7 +155,7 @@ class PERCVResearchOrchestrator:
 
             if self.circuit_breaker and not self.gateway_adapter:
                 raise RuntimeError(
-                    "gateway_adapter required for research cycle " "when circuit_breaker is present"
+                    "gateway_adapter required for research cycle when circuit_breaker is present"
                 )
 
             if self.state_machine:
@@ -311,7 +311,7 @@ class PERCVResearchOrchestrator:
         self.initialize()
         summary: list[dict[str, Any]] = []
         for i in range(iterations):
-            r = self.run_research_cycle(topic=f"{topic} (iter {i+1})")
+            r = self.run_research_cycle(topic=f"{topic} (iter {i + 1})")
             summary.append(
                 {
                     "step": "research",

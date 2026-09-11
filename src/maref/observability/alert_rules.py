@@ -71,53 +71,63 @@ def evaluate(metrics: dict[str, Any], rules: list[AlertRule] | None = None) -> l
         if rule.name == "high_deny_rate":
             deny_rate = metrics.get("deny_rate", 0.0)
             if deny_rate > 30.0:
-                alerts.append(Alert(
-                    name=rule.name,
-                    severity=rule.severity,
-                    message=f"Deny rate is {deny_rate:.1f}%, exceeds threshold of 30%",
-                    value=deny_rate,
-                ))
+                alerts.append(
+                    Alert(
+                        name=rule.name,
+                        severity=rule.severity,
+                        message=f"Deny rate is {deny_rate:.1f}%, exceeds threshold of 30%",
+                        value=deny_rate,
+                    )
+                )
 
         elif rule.name == "elevated_risk_score":
             for rs in metrics.get("risk_scores", []):
                 score = rs.get("score", 0)
                 if score > 80:
-                    alerts.append(Alert(
-                        name=rule.name,
-                        severity=rule.severity,
-                        message=f"Agent {rs.get('agent_id', 'unknown')} has risk score {score}",
-                        value=float(score),
-                        labels={"agent_id": rs.get("agent_id", "unknown")},
-                    ))
+                    alerts.append(
+                        Alert(
+                            name=rule.name,
+                            severity=rule.severity,
+                            message=f"Agent {rs.get('agent_id', 'unknown')} has risk score {score}",
+                            value=float(score),
+                            labels={"agent_id": rs.get("agent_id", "unknown")},
+                        )
+                    )
 
         elif rule.name == "circuit_breaker_open":
             open_cbs = metrics.get("open_circuit_breakers", 0)
             if open_cbs > 0:
-                alerts.append(Alert(
-                    name=rule.name,
-                    severity=rule.severity,
-                    message=f"{open_cbs} circuit breaker(s) are open",
-                    value=float(open_cbs),
-                ))
+                alerts.append(
+                    Alert(
+                        name=rule.name,
+                        severity=rule.severity,
+                        message=f"{open_cbs} circuit breaker(s) are open",
+                        value=float(open_cbs),
+                    )
+                )
 
         elif rule.name == "high_latency":
             p99 = metrics.get("p99_latency_ms", 0.0)
             if p99 > 100.0:
-                alerts.append(Alert(
-                    name=rule.name,
-                    severity=rule.severity,
-                    message=f"Guardrail P99 latency is {p99:.1f}ms, exceeds 100ms",
-                    value=p99,
-                ))
+                alerts.append(
+                    Alert(
+                        name=rule.name,
+                        severity=rule.severity,
+                        message=f"Guardrail P99 latency is {p99:.1f}ms, exceeds 100ms",
+                        value=p99,
+                    )
+                )
 
         elif rule.name == "low_check_volume":
             total = metrics.get("total_checks", 0)
             if total < 10:
-                alerts.append(Alert(
-                    name=rule.name,
-                    severity=rule.severity,
-                    message=f"Only {total} guardrail checks in the window, below threshold of 10",
-                    value=float(total),
-                ))
+                alerts.append(
+                    Alert(
+                        name=rule.name,
+                        severity=rule.severity,
+                        message=f"Only {total} guardrail checks in the window, below threshold of 10",
+                        value=float(total),
+                    )
+                )
 
     return alerts

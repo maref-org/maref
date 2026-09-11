@@ -18,8 +18,7 @@ class BaseHarness(ABC):
         return []
 
     @abstractmethod
-    def run(self, round_id: str = "") -> HarnessResult:
-        ...
+    def run(self, round_id: str = "") -> HarnessResult: ...
 
     def validate(self, result: HarnessResult) -> bool:
         return result.passed

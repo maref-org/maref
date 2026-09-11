@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -85,25 +84,26 @@ class TestAsyncMCPTransport:
     async def test_send_tool_call(self):
         transport = AsyncInProcessTransport()
         await transport.connect()
-        resp = await transport.send_tool_call(
-            "test_tool", {"arg1": "value1", "arg2": 42}
-        )
+        resp = await transport.send_tool_call("test_tool", {"arg1": "value1", "arg2": 42})
 
-        assert resp.result == {
-            "status": "ok",
-            "method": "tools/call",
-            "via": "async-inprocess",
-            "params": {"name": "test_tool", "arguments": {"arg1": "value1", "arg2": 42}},
-        }
+        assert resp.result["status"] == "ok"
+        assert resp.result["method"] == "tools/call"
+        assert resp.result["via"] == "async-inprocess"
+        resp_params = resp.result["params"]
+        assert resp_params["name"] == "test_tool"
+        assert resp_params["arguments"] == {"arg1": "value1", "arg2": 42}
         assert resp.id == 3
 
         requests = transport.get_pending_requests()
         assert requests[0].method == "tools/call"
         assert requests[0].id == 3
-        assert requests[0].params == {
-            "name": "test_tool",
-            "arguments": {"arg1": "value1", "arg2": 42},
-        }
+        req_params = requests[0].params
+        assert req_params["name"] == "test_tool"
+        assert req_params["arguments"] == {"arg1": "value1", "arg2": 42}
+        # 宪法第十五-A条: 工具调用请求需带 MCP 消息信封
+        assert req_params["trace_id"]
+        assert req_params["source_agent"]
+        assert req_params["timestamp"]
 
     async def test_send_resources_list(self):
         transport = AsyncInProcessTransport()
@@ -182,9 +182,7 @@ class TestAsyncInProcessTransport:
 
     async def test_custom_sync_handler(self):
         def handler(request: JSONRPCRequest) -> JSONRPCResponse:
-            return JSONRPCResponse(
-                result={"custom": True, "method": request.method}, id=request.id
-            )
+            return JSONRPCResponse(result={"custom": True, "method": request.method}, id=request.id)
 
         transport = AsyncInProcessTransport(message_handler=handler)
         await transport.connect()
@@ -195,9 +193,7 @@ class TestAsyncInProcessTransport:
     async def test_custom_async_handler(self):
         async def handler(request: JSONRPCRequest) -> JSONRPCResponse:
             await asyncio.sleep(0.01)
-            return JSONRPCResponse(
-                result={"async": True, "method": request.method}, id=request.id
-            )
+            return JSONRPCResponse(result={"async": True, "method": request.method}, id=request.id)
 
         transport = AsyncInProcessTransport(message_handler=handler)
         await transport.connect()
@@ -206,9 +202,7 @@ class TestAsyncInProcessTransport:
         assert resp.id == 7
 
     async def test_handler_awaited_when_awaitable(self):
-        future_resp = JSONRPCResponse(
-            result={"from": "awaitable"}, id=10
-        )
+        future_resp = JSONRPCResponse(result={"from": "awaitable"}, id=10)
         mock_handler = MagicMock()
         mock_handler.return_value = asyncio.Future()
         mock_handler.return_value.set_result(future_resp)
@@ -453,9 +447,7 @@ class TestAsyncSSETransport:
 
     async def test_connect_sets_correct_state(self, transport):
         async def fake_sse_reader():
-            transport._process_event(
-                "endpoint", "http://localhost:8080/messages"
-            )
+            transport._process_event("endpoint", "http://localhost:8080/messages")
 
         transport._sse_reader = fake_sse_reader
         await transport.connect()
@@ -618,9 +610,7 @@ class TestAsyncSSETransport:
         transport._state = TransportState.CONNECTED
         transport._message_endpoint = "http://localhost:8080/messages"
         mock_client = AsyncMock(spec=httpx.AsyncClient)
-        mock_client.post.side_effect = httpx.TimeoutException(
-            "timed out", request=MagicMock()
-        )
+        mock_client.post.side_effect = httpx.TimeoutException("timed out", request=MagicMock())
         transport._client = mock_client
         transport._running.set()
 
@@ -768,9 +758,8 @@ class TestAsyncSSETransport:
 
     async def test_reconnect_calls_disconnect_and_connect(self, transport):
         async def fake_sse_reader():
-            transport._process_event(
-                "endpoint", "http://localhost:8080/messages"
-            )
+            transport._process_event("endpoint", "http://localhost:8080/messages")
+
         transport._sse_reader = fake_sse_reader
 
         with (
@@ -788,9 +777,7 @@ class TestAsyncSSETransport:
             nonlocal connect_started
             connect_started = True
             assert transport.state == TransportState.CONNECTING
-            transport._process_event(
-                "endpoint", "http://localhost:8080/messages"
-            )
+            transport._process_event("endpoint", "http://localhost:8080/messages")
 
         transport._sse_reader = slow_sse_reader
         await transport.connect()
@@ -799,9 +786,7 @@ class TestAsyncSSETransport:
 
     async def test_connect_creates_httpx_client(self, transport):
         async def fake_sse_reader():
-            transport._process_event(
-                "endpoint", "http://localhost:8080/messages"
-            )
+            transport._process_event("endpoint", "http://localhost:8080/messages")
 
         transport._sse_reader = fake_sse_reader
         await transport.connect()
@@ -925,9 +910,8 @@ class TestAsyncSSETransport:
 
     async def test_reconnect_creates_new_client(self, transport):
         async def fake_sse_reader():
-            transport._process_event(
-                "endpoint", "http://localhost:8080/messages"
-            )
+            transport._process_event("endpoint", "http://localhost:8080/messages")
+
         transport._sse_reader = fake_sse_reader
 
         # First connect to establish a client

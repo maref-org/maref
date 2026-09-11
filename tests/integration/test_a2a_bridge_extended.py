@@ -1,77 +1,12 @@
 from __future__ import annotations
 
-import sys
-from enum import Enum
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# ── break circular imports: mock maref.governance.* before any maref import ──
-# Uses the same integer values as the real GovernanceState enum.
-
-class GovernanceState(Enum):
-    INIT = 0
-    OBSERVE = 1
-    ANALYZE = 2
-    EVALUATE = 3
-    DECIDE = 4
-    ACT = 5
-    VERIFY = 6
-    STABILIZE = 7
-    REPORT = 8
-    HALT = 9
-
-
-_gov_types = MagicMock()
-_gov_types.GovernanceState = GovernanceState
-_gov_types.StateMachineSnapshot = MagicMock
-_gov_types.StateTransition = MagicMock
-
-_gov_audit = MagicMock()
-_gov_audit.AuditLogger = MagicMock
-
-_gov_cb = MagicMock()
-_gov_cb.CircuitBreaker = MagicMock
-_gov_cb.BreakerState = MagicMock
-
-_gov_sm = MagicMock()
-_gov_sm.GovernanceStateMachine = MagicMock
-
-_gov = MagicMock(spec=['__path__', '__package__', 'audit', 'circuit_breaker', 'state_machine', 'types'])
-_gov.__path__ = ['/placeholder/maref/governance']
-_gov.__package__ = 'maref.governance'
-_gov.audit = _gov_audit
-_gov.circuit_breaker = _gov_cb
-_gov.state_machine = _gov_sm
-_gov.types = _gov_types
-
-_STUBS: dict[str, MagicMock] = {
-    "maref.governance": _gov,
-    "maref.governance.audit": _gov_audit,
-    "maref.governance.circuit_breaker": _gov_cb,
-    "maref.governance.state_machine": _gov_sm,
-    "maref.governance.types": _gov_types,
-    "maref.governance.constants": MagicMock(),
-    "maref.governance.core_pipeline": MagicMock(),
-    "maref.governance.oscillation": MagicMock(),
-    "maref.governance.decorators": MagicMock(),
-    "maref.governance.budget_breaker": MagicMock(),
-    "maref.governance.cross_instance": MagicMock(),
-    "maref.governance.economic": MagicMock(),
-    "maref.governance.geopolitical_risk": MagicMock(),
-    "maref.governance.governed_pipeline": MagicMock(),
-    "maref.governance.percv_hooks": MagicMock(),
-    "maref.governance.social_impact": MagicMock(),
-    "maref.governance.threat_bridge": MagicMock(),
-    "maref.governance.trust_bridge": MagicMock(),
-    "maref.governance.verifier_consensus": MagicMock(),
-    "maref.governance.verifier_registry": MagicMock(),
-    "maref.metacognition": MagicMock(),
-}
-
-with patch.dict(sys.modules, _STUBS, clear=False):
-    from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
-    from maref.integration.a2a_types import A2ASkillDefinition, A2ATaskState
+from maref.governance.types import GovernanceState
+from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
+from maref.integration.a2a_types import A2ASkillDefinition, A2ATaskState
 
 
 @pytest.fixture
@@ -308,7 +243,8 @@ class TestDelegateTaskExtended:
         task_id = bridge.create_task("Audit delegate")
         bridge.delegate_task(task_id, "http://target:8000")
         matching = [
-            c for c in mock_audit_logger.log.call_args_list
+            c
+            for c in mock_audit_logger.log.call_args_list
             if c.kwargs.get("event_type") == "a2a_task_delegated"
         ]
         assert len(matching) == 1
@@ -322,9 +258,7 @@ class TestDelegateTaskExtended:
     def test_trajectory_recorded(self, bridge_with_trajectory, mock_trajectory):
         task_id = bridge_with_trajectory.create_task("Traj delegate")
         bridge_with_trajectory.delegate_task(task_id, "http://target:8000")
-        mock_trajectory.record_delegation.assert_called_once_with(
-            task_id, "http://target:8000"
-        )
+        mock_trajectory.record_delegation.assert_called_once_with(task_id, "http://target:8000")
 
     @patch("maref.integration.a2a_bridge.A2AClient")
     def test_async_send_suppresses_runtime_error(self, mock_client_cls, bridge):
@@ -366,7 +300,8 @@ class TestSyncStateFromA2AExtended:
         task_id = bridge.create_task("Sync audit")
         bridge.sync_state_from_a2a(task_id, "working")
         matching = [
-            c for c in mock_audit_logger.log.call_args_list
+            c
+            for c in mock_audit_logger.log.call_args_list
             if c.kwargs.get("event_type") == "a2a_state_sync"
         ]
         assert len(matching) >= 1
@@ -392,9 +327,7 @@ class TestSyncStateFromA2AExtended:
 class TestHandlePushNotificationExtended:
     def test_state_update_event_syncs(self, bridge):
         task_id = bridge.create_task("Push state")
-        bridge.handle_push_notification(
-            task_id, {"type": "state_update", "state": "completed"}
-        )
+        bridge.handle_push_notification(task_id, {"type": "state_update", "state": "completed"})
         assert bridge._tasks[task_id].a2a_state == A2ATaskState.COMPLETED
 
     def test_non_state_event_stores(self, bridge):
@@ -452,8 +385,12 @@ class TestListGovernedTasksExtended:
         tasks = bridge.list_governed_tasks()
         entry = tasks[0]
         assert set(entry.keys()) == {
-            "task_id", "description", "a2a_state",
-            "maref_state", "created_at", "updated_at",
+            "task_id",
+            "description",
+            "a2a_state",
+            "maref_state",
+            "created_at",
+            "updated_at",
         }
 
 
@@ -477,7 +414,8 @@ class TestForceHaltTaskExtended:
         task_id = bridge.create_task("Audit halt")
         bridge.force_halt_task(task_id, "test halt")
         matching = [
-            c for c in mock_audit_logger.log.call_args_list
+            c
+            for c in mock_audit_logger.log.call_args_list
             if c.kwargs.get("event_type") == "a2a_task_halted"
         ]
         assert len(matching) >= 1
@@ -492,9 +430,7 @@ class TestForceHaltTaskExtended:
     def test_halt_trajectory_completed(self, bridge_with_trajectory, mock_trajectory):
         task_id = bridge_with_trajectory.create_task("Traj halt")
         bridge_with_trajectory.force_halt_task(task_id, "stop")
-        mock_trajectory.complete_task.assert_called_once_with(
-            task_id, final_state="canceled"
-        )
+        mock_trajectory.complete_task.assert_called_once_with(task_id, final_state="canceled")
 
 
 class TestGetDelegatedTasksExtended:
@@ -570,8 +506,11 @@ class TestRegisterCapabilityExtended:
 
     def test_register_with_tags_and_examples(self, bridge):
         skill = A2ASkillDefinition(
-            id="complex", name="Complex", description="Complex skill",
-            tags=["tag1", "tag2"], examples=["example1"],
+            id="complex",
+            name="Complex",
+            description="Complex skill",
+            tags=["tag1", "tag2"],
+            examples=["example1"],
         )
         bridge.register_capability(skill)
         assert bridge._capabilities[-1].tags == ["tag1", "tag2"]
@@ -594,6 +533,7 @@ class TestWaitForStateChangeExtended:
     async def test_wait_creates_queue_if_missing(self, bridge):
         """wait_for_state_change creates a queue if none exists and blocks until a state is put."""
         import asyncio
+
         async def put_after_delay():
             await asyncio.sleep(0.01)
             bridge._state_queues["new-task"].put_nowait(A2ATaskState.SUBMITTED)

@@ -85,9 +85,7 @@ class ReportExporter:
                 pass
 
         if reports:
-            rows = [
-                "<table><tr><th>Report ID</th><th>Date</th><th>Events</th><th>Status</th></tr>"
-            ]
+            rows = ["<table><tr><th>Report ID</th><th>Date</th><th>Events</th><th>Status</th></tr>"]
             for r in reports:
                 short = r.report_id[:8]
                 date = r.created_at[:10] if r.created_at else "\u2014"
@@ -102,11 +100,7 @@ class ReportExporter:
             table_html = "\n".join(rows)
         else:
             ls = sorted(report_dir_path.glob("*.*"))
-            items = [
-                f'<li><a href="{p.name}">{p.name}</a></li>'
-                for p in ls
-                if p.name != out.name
-            ]
+            items = [f'<li><a href="{p.name}">{p.name}</a></li>' for p in ls if p.name != out.name]
             if items:
                 table_html = f'<ul class="empty">{chr(10).join(items)}</ul>'
             else:

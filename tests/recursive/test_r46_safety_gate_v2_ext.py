@@ -186,4 +186,4 @@ class TestSafetyGateV2BackwardCompatibility:
         sg = SafetyGateV2()
         audit = sg.safety_self_audit()
         assert audit["gate_healthy"] is True
-        assert audit["core_components_count"] == 5
+        assert audit["core_components_count"] == 6

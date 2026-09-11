@@ -20,7 +20,14 @@ class StressHarnessAdapter(BaseHarness):
         if config.duration_minutes > 0:
             self._harness.set_duration(config.duration_minutes)
         for k, v in config.extra.items():
-            if k in ("agent_concurrency", "churn_rate", "fault_rate", "recursion_depth", "oscillation_rate", "data_volume"):
+            if k in (
+                "agent_concurrency",
+                "churn_rate",
+                "fault_rate",
+                "recursion_depth",
+                "oscillation_rate",
+                "data_volume",
+            ):
                 self._harness.set_axis(k, float(v))
 
     def run(self, round_id: str = "") -> HarnessResult:

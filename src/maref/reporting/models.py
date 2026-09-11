@@ -27,9 +27,7 @@ class SystemStateSnapshot(BaseModel, frozen=True):
 class GovernanceReport(BaseModel, frozen=True, extra="forbid"):
     report_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     report_version: str = "1.0"
-    created_at: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     generated_by: str = "maref v0.39.0"
     signer_fingerprint: str = ""
     merkle_root: str = ""

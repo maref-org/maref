@@ -371,9 +371,7 @@ class PromptBaselineProbe(Probe):
             elif _GREEK_RANGE[0] <= cp <= _GREEK_RANGE[1]:
                 has_greek = True
                 if len(greek_chars) < 20:
-                    greek_chars.append(
-                        {"position": idx, "char": char, "codepoint": f"U+{cp:04X}"}
-                    )
+                    greek_chars.append({"position": idx, "char": char, "codepoint": f"U+{cp:04X}"})
 
         # 仅 Latin 或仅 Cyrillic/Greek 不算混合
         is_mixed = (has_latin and has_cyrillic) or (has_latin and has_greek)

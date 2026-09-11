@@ -17,10 +17,12 @@ def tool_to_mcp_definition(tool: Tool[Any]) -> dict[str, Any]:
 
 def _run_async_from_sync(coro: Any) -> Any:
     import asyncio
+
     try:
         loop = asyncio.get_running_loop()
         if loop.is_running():
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor():
                 future = asyncio.run_coroutine_threadsafe(coro, loop)
                 return future.result()

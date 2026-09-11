@@ -44,7 +44,7 @@ class TestEngineInitialization:
 class TestSingleRoundExecution:
     def test_dry_run_completes_successfully(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = EvolutionConfig(dry_run=True, output_dir=tmpdir)
+            config = EvolutionConfig(dry_run=True, metrics_mode="simulated", output_dir=tmpdir)
             engine = RecursiveEvolutionEngine(config=config)
 
             result = asyncio.run(engine.run())
@@ -56,7 +56,7 @@ class TestSingleRoundExecution:
 
     def test_dry_run_metrics_collected(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = EvolutionConfig(dry_run=True, output_dir=tmpdir)
+            config = EvolutionConfig(dry_run=True, metrics_mode="simulated", output_dir=tmpdir)
             engine = RecursiveEvolutionEngine(config=config)
 
             result = asyncio.run(engine.run())
@@ -71,7 +71,7 @@ class TestSingleRoundExecution:
 
     def test_dry_run_output_files_generated(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = EvolutionConfig(dry_run=True, output_dir=tmpdir)
+            config = EvolutionConfig(dry_run=True, metrics_mode="simulated", output_dir=tmpdir)
             engine = RecursiveEvolutionEngine(config=config)
 
             asyncio.run(engine.run())
@@ -125,6 +125,7 @@ class TestMultiRoundExecution:
                 },
                 max_total_rounds=20,
                 acceptance_criteria=criteria,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config, seed=1)
@@ -149,6 +150,7 @@ class TestMultiRoundExecution:
                     "c3": CycleSpec(name="C3", rounds=3, description="convergence"),
                 },
                 max_total_rounds=30,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config)
@@ -173,6 +175,7 @@ class TestMultiRoundExecution:
                     "c3": CycleSpec(name="C3", rounds=3, description="convergence"),
                 },
                 max_total_rounds=30,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config)
@@ -196,6 +199,7 @@ class TestStopConditions:
                     "c1": CycleSpec(name="C1", rounds=50, description="baseline"),
                 },
                 max_total_rounds=3,
+                metrics_mode="simulated",
                 output_dir=tmpdir,
             )
             engine = RecursiveEvolutionEngine(config=config)
