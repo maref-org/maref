@@ -26,6 +26,9 @@ log "========== MAREF 每日治理循环启动 =========="
 
 # Phase 1: 数据闭环
 log "Phase 1: 数据闭环"
+log "  P0-B 探针采样 (进水口)..."
+python3 "$SCRIPTS/probe_sampler.py" >> "$LOGFILE" 2>&1 || fail "P0-B-probe-sampler"
+
 log "  P-02 提案对账..."
 python3 "$SCRIPTS/proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "P-02"
 
