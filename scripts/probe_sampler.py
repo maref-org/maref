@@ -10,16 +10,19 @@ probe_readings 表的历史写入者在两个仓库中均已不存在（孤表�
 
 本脚本为 MVP 重建：从运行时审计日志派生出可解释的健康探针读数。
 
-采样语义 (v1, 率基)
-------------------
+采样语义 (v2, 率基 + 滑窗)
+--------------------------
 历史 probe_readings 的写入者已不存在，无法忠实还原其语义。本采样器采用
 **率基 (rate-based)** 语义——把事件占比作为探针值，天然可比且不随日志规模漂移：
 
 - oscillation 探针 (状态振荡信号)
     value = 不稳定事件占比 % = (oscillation_intervention + force_stabilize
-            + auto_transition) / 总事件数 × 100
+            + auto_transition) / 窗口内事件数 × 100
 - entropy 探针 (混沌/异常信号)
-    value = 异常事件占比 % = anomaly_detected / 总事件数 × 100
+    value = 异常事件占比 % = anomaly_detected / 窗口内事件数 × 100
+
+**滑窗**：取最近 N 条事件（默认 500，`MAREF_PROBE_WINDOW` 覆盖）而非全量日志。
+全量日志静止时值恒定 → 校准样本无方差；滑窗使值随事件流变化。
 
 severity 分级使用采样器本地阈值 (不读取陈旧的 probe_thresholds.json，
 后者属于已孤立的旧度量)。缺省阈值见 DEFAULT_THRESHOLDS，可经环境变量覆盖。
@@ -42,12 +45,13 @@ from maref_config import (
     AUDIT_LOG,
     RECURSIVE_AUDIT_LOG as RECURSIVE_LOG,
     PROBE_DB,
+    config_path,
 )
 
-# 采样器本地阈值 (率基 %, 可后续校准)
+# 采样器本地阈值 (率基 滑窗 %, 可后续校准)
 DEFAULT_THRESHOLDS = {
-    "oscillation": {"normal_max": 10.0, "critical_min": 40.0},
-    "entropy": {"normal_max": 5.0, "critical_min": 25.0},
+    "oscillation": {"normal_max": 30.0, "critical_min": 60.0},
+    "entropy": {"normal_max": 10.0, "critical_min": 25.0},
 }
 
 _OSCILLATION_ACTIONS = {"oscillation_intervention", "force_stabilize", "auto_transition"}
@@ -68,7 +72,11 @@ def _load_entries(path) -> list[dict]:
 
 
 def _load_thresholds() -> dict:
-    """采样器本地阈值 (率基)。可经 MAREF_PROBE_THRESHOLDS 环境变量覆盖 (JSON)。"""
+    """阈值解析优先级: env(MAREF_PROBE_THRESHOLDS) > config(校准产物) > 默认。
+
+    闭环: probe_threshold_calibrate.py 写 configs/probe_thresholds.json，
+    采样器读取之，实现"采样→校准→再采样"闭环。
+    """
     env = os.environ.get("MAREF_PROBE_THRESHOLDS")
     if env:
         try:
@@ -79,6 +87,22 @@ def _load_thresholds() -> dict:
                     merged[name] = {"normal_max": t["normal_max"], "critical_min": t["critical_min"]}
             return merged
         except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+
+    cfg_path = config_path("probe_thresholds.json")
+    if os.path.exists(cfg_path):
+        try:
+            with open(cfg_path) as f:
+                cfg = json.load(f)
+            merged = dict(DEFAULT_THRESHOLDS)
+            for name, t in cfg.get("probes", {}).items():
+                if name in merged and "normal_max" in t and "critical_min" in t:
+                    merged[name] = {
+                        "normal_max": float(t["normal_max"]),
+                        "critical_min": float(t["critical_min"]),
+                    }
+            return merged
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             pass
     return dict(DEFAULT_THRESHOLDS)
 
@@ -91,15 +115,47 @@ def _classify(value: float, thresholds: dict) -> str:
     return "normal"
 
 
+DEFAULT_WINDOW = 500  # 滑窗大小: 最近 N 条事件
+
+
+def _ts_key(entry: dict) -> float:
+    """时间戳归一化为 float epoch（兼容数值与数字字符串）。"""
+    t = entry.get("timestamp", 0)
+    if isinstance(t, (int, float)):
+        return float(t)
+    if isinstance(t, str):
+        try:
+            return float(t)
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
+def _window(entries: list[dict], k: int) -> list[dict]:
+    """取最近 k 条事件（按 timestamp 降序取尾部）。k<=0 或不足则返回全部。
+
+    滑窗使探针值随事件流变化（全量日志静止时值恒定 → 校准样本无方差）。
+    """
+    if k <= 0 or len(entries) <= k:
+        return entries
+    return sorted(entries, key=_ts_key)[-k:]
+
+
 def sample() -> list[dict]:
     audit = _load_entries(AUDIT_LOG)
     recursive = _load_entries(RECURSIVE_LOG)
-    all_entries = audit + recursive
 
-    action_counts = Counter(e.get("action", "") for e in all_entries)
-    event_counts = Counter(e.get("event_type", "") for e in all_entries)
+    try:
+        window_size = int(os.environ.get("MAREF_PROBE_WINDOW", str(DEFAULT_WINDOW)))
+    except ValueError:
+        window_size = DEFAULT_WINDOW
 
-    total = len(all_entries) or 1
+    combined = _window(audit + recursive, window_size)
+
+    action_counts = Counter(e.get("action", "") for e in combined)
+    event_counts = Counter(e.get("event_type", "") for e in combined)
+
+    total = len(combined) or 1
     oscillation_rate = sum(action_counts[a] for a in _OSCILLATION_ACTIONS) / total * 100.0
     entropy_rate = sum(event_counts[t] for t in _ENTROPY_EVENTS) / total * 100.0
 
@@ -117,8 +173,10 @@ def sample() -> list[dict]:
             "timestamp": now,
             "context_json": json.dumps({
                 "source": "probe_sampler",
-                "semantics": "rate_based_v1",
+                "semantics": "rate_based_v2_windowed",
                 "unit": "percent_of_events",
+                "window_size": window_size,
+                "window_used": total,
                 "normal_max": t["normal_max"],
                 "critical_min": t["critical_min"],
                 "audit_entries": len(audit),

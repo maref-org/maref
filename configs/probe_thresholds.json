@@ -1,14 +1,14 @@
 {
-  "calibrated_at": "2026-09-12T10:55:00",
-  "method": "sampler_defaults",
-  "note": "L4: 原退化阈值 (normal_max==critical_min==8.62, 2 样本 P75≈P95) 已废弃。此为采样器率基默认阈值, 待样本 ≥24 后由 probe_threshold_calibrate.py 重校准。",
+  "calibrated_at": "2026-09-12T11:05:00",
+  "method": "provisional_windowed",
+  "note": "L4/滑窗: 率基 v2 (滑窗默认500) 的临时阈值。原退化值 (8.62/8.62) 与全量基线值 (10/40) 均已废弃。待 probe_threshold_calibrate.py 累积 ≥24 滑窗样本后重校准。",
   "probes": {
     "oscillation": {
-      "normal_max": 10.0,
-      "critical_min": 40.0
+      "normal_max": 30.0,
+      "critical_min": 60.0
     },
     "entropy": {
-      "normal_max": 5.0,
+      "normal_max": 10.0,
       "critical_min": 25.0
     }
   }
