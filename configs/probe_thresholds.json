@@ -1,14 +1,15 @@
 {
-  "calibrated_at": "2026-09-09T19:22:04.193696",
-  "method": "percentile_based",
+  "calibrated_at": "2026-09-12T10:55:00",
+  "method": "sampler_defaults",
+  "note": "L4: 原退化阈值 (normal_max==critical_min==8.62, 2 样本 P75≈P95) 已废弃。此为采样器率基默认阈值, 待样本 ≥24 后由 probe_threshold_calibrate.py 重校准。",
   "probes": {
     "oscillation": {
-      "normal_max": 444.0,
-      "critical_min": 569.0
+      "normal_max": 10.0,
+      "critical_min": 40.0
     },
     "entropy": {
-      "normal_max": 3.0,
-      "critical_min": 4.0
+      "normal_max": 5.0,
+      "critical_min": 25.0
     }
   }
 }
