@@ -6,6 +6,9 @@ from maref_config import PROBE_DB as DB_PATH, config_path
 
 CONFIG_PATH = config_path("probe_thresholds.json")
 
+# L4: 小样本守卫 — 样本不足时分位数退化 (P75≈P95)，会产出无效阈值
+MIN_SAMPLES = 24
+
 def compute_percentiles(values, percentiles=[50, 75, 90, 95, 99]):
     sorted_vals = sorted(values)
     n = len(sorted_vals)
@@ -41,6 +44,10 @@ def analyze_probe(probe_name):
 
     p75 = percentiles["P75"]
     p95 = percentiles["P95"]
+
+    # L4: 非退化守卫 — 若 P95 ≤ P75 (全等值)，加最小间隔防正常/危险同阈
+    if p95 <= p75:
+        p95 = p75 + max(1.0, p75 * 0.1)
 
     new_severity = {"normal": 0, "warning": 0, "critical": 0}
     for v in values:
@@ -80,6 +87,12 @@ def main():
         print("⚠️ 探针数据库无读数，跳过校准")
         print(f"  DB: {DB_PATH}")
         print("  原因: 运行时 collector 未运行 (见 P0-B)")
+        return
+
+    # L4: 小样本守卫 — 不足则保持现有阈值，避免退化阈值
+    if total < MIN_SAMPLES:
+        print(f"⚠️ 样本不足 ({total} < {MIN_SAMPLES})，跳过校准以保持现有阈值")
+        print("  原因: 小样本分位数退化 (P75≈P95) 产出无效阈值 (见 L4)")
         return
 
     results = {}

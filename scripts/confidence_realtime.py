@@ -6,22 +6,24 @@ from maref_config import PROBE_DB as DB_PATH, config_path, report_path
 
 THRESHOLD_PATH = config_path("probe_thresholds.json")
 
+# L3: 样本量感知平滑 — 小样本向先验收缩，避免 n=2 时饱和到 100%
+PRIOR_CONFIDENCE = 0.68   # 先验 = legacy 常量 68/100
+PRIOR_STRENGTH = 20.0     # 伪计数 (越大越向先验收缩, 越小越信观测)
+
+
+def _smooth(positive: float, total: float, prior: float = PRIOR_CONFIDENCE,
+            k: float = PRIOR_STRENGTH) -> float:
+    """贝叶斯收缩：(positive + k·prior) / (total + k)。
+
+    小样本 → 接近先验；大样本 → 接近观测值。消除小样本饱和问题。
+    """
+    return (positive + k * prior) / (total + k)
+
 def load_thresholds():
     if os.path.exists(THRESHOLD_PATH):
         with open(THRESHOLD_PATH) as f:
             return json.load(f)
     return None
-
-def classify_severity(probe_name, value, thresholds):
-    if not thresholds or probe_name not in thresholds.get("probes", {}):
-        return "normal"
-    t = thresholds["probes"][probe_name]
-    if value > t["critical_min"]:
-        return "critical"
-    elif value > t["normal_max"]:
-        return "warning"
-    else:
-        return "normal"
 
 def calculate_confidence(window_days=30):
     thresholds = load_thresholds()
@@ -30,7 +32,8 @@ def calculate_confidence(window_days=30):
 
     cutoff = (datetime.now() - timedelta(days=window_days)).timestamp()
     cursor.execute(
-        "SELECT probe_name, value FROM probe_readings WHERE probe_name != 'test' AND timestamp > ?",
+        "SELECT probe_name, severity FROM probe_readings "
+        "WHERE probe_name != 'test' AND timestamp > ?",
         (cutoff,),
     )
     rows = cursor.fetchall()
@@ -40,8 +43,9 @@ def calculate_confidence(window_days=30):
     warning_count = 0
     critical_count = 0
 
-    for probe_name, value in rows:
-        sev = classify_severity(probe_name, value, thresholds)
+    # L4: 直接聚合已存 severity (采样器=分类器, 单一裁决源)
+    # 不再重分类, 避免与采样器阈值冲突/双重分类。
+    for _probe_name, sev in rows:
         if sev == "normal":
             normal_count += 1
         elif sev == "warning":
@@ -53,9 +57,9 @@ def calculate_confidence(window_days=30):
     if total == 0:
         return 68, {}, False
 
-    success_rate = normal_count / total
-    audit_pass_rate = 1 - (critical_count / total)
-    heartbeat_stability = 1 - (warning_count / total)
+    success_rate = _smooth(normal_count, total)
+    audit_pass_rate = _smooth(total - critical_count, total)
+    heartbeat_stability = _smooth(total - warning_count, total)
 
     confidence = (success_rate * 0.6 + audit_pass_rate * 0.3 + heartbeat_stability * 0.1) * 100
 
@@ -68,6 +72,9 @@ def calculate_confidence(window_days=30):
         "audit_pass_rate": round(audit_pass_rate, 4),
         "heartbeat_stability": round(heartbeat_stability, 4),
         "calibrated": thresholds is not None,
+        "smoothed": True,
+        "prior_strength": PRIOR_STRENGTH,
+        "prior_confidence": PRIOR_CONFIDENCE,
     }
 
     return round(confidence, 2), stats, thresholds is not None
@@ -82,7 +89,7 @@ def main():
     print(f"\n整体置信度 (30天窗口): {overall}")
     print(f"对比常量值: 68")
     print(f"差异: {overall - 68:+.2f}")
-    print(f"使用重校准阈值: {'✅ 是' if calibrated else '⚠️ 否（使用原始标签）'}")
+    print(f"分类源: 已存 severity (采样器为单一分类器)")
 
     print(f"\n--- 探针分布 (重校准后) ---")
     print(f"  总读数: {stats.get('total', 0)}")
