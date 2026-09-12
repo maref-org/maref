@@ -146,9 +146,7 @@ class UnifiedAuditStore:
         self._by_round: dict[int, list[int]] = defaultdict(list)
         # 可选的 AuditBus 扇出（与新版本 API 兼容）；持久化仍走 HMAC 文件
         self._audit_bus = audit_bus
-        self._persist_path: Path | None = (
-            Path(persist_path) if persist_path else None
-        )
+        self._persist_path: Path | None = Path(persist_path) if persist_path else None
         # 修复 P0-4：HMAC 密钥，未提供时使用默认（环境变量或进程随机）
         self._hmac_key: bytes = hmac_key if hmac_key is not None else _get_default_hmac_key()
         self._max_file_size_bytes = max_file_size_mb * 1024 * 1024
@@ -300,7 +298,7 @@ class UnifiedAuditStore:
                 key=lambda p: p.stat().st_mtime,
                 reverse=True,
             )
-            for old in backups[self._max_backup_files:]:
+            for old in backups[self._max_backup_files :]:
                 old.unlink()
         except OSError as e:
             logger.warning(

@@ -462,14 +462,9 @@ class DataSovereigntyManager:
 
     def get_data_classes_by_allowed_jurisdictions(self, jurisdiction: str) -> list[DataClass]:
         """根据允许的司法管辖区过滤数据类"""
-        return [
-            dc for dc in self.data_classes.values()
-            if jurisdiction in dc.allowed_jurisdictions
-        ]
+        return [dc for dc in self.data_classes.values() if jurisdiction in dc.allowed_jurisdictions]
 
-    def record_transfer(
-        self, request: DataTransferRequest, decision: DataTransferDecision
-    ) -> None:
+    def record_transfer(self, request: DataTransferRequest, decision: DataTransferDecision) -> None:
         """记录数据传输历史"""
         self.transfer_history.append((request, decision))
 

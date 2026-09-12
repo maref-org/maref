@@ -140,9 +140,7 @@ class SelfHealingLoop:
         """
         base: dict[str, Any] = {
             "running": getattr(self, "_running", False),
-            "check_interval_seconds": getattr(
-                self.config, "check_interval_seconds", 0
-            ),
+            "check_interval_seconds": getattr(self.config, "check_interval_seconds", 0),
         }
         gov = getattr(self, "_gov_scheduler", None)
         if gov is not None:
