@@ -303,9 +303,7 @@ class SelfArchitect:
                     proposed = f"decouple_{len(high_coupling)}_modules"
                 else:
                     # 无瓶颈且无高耦合 → 架构健康，产出 low 风险提案
-                    rationale = (
-                        "No significant bottlenecks detected. Architecture is healthy."
-                    )
+                    rationale = "No significant bottlenecks detected. Architecture is healthy."
                     risk = "low"
                     confidence = 0.95
             except Exception:
