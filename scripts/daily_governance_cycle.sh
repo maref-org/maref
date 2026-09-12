@@ -66,6 +66,9 @@ log "辅助检查"
 log "  探针阈值校准..."
 python3 "$SCRIPTS/probe_threshold_calibrate.py" >> "$LOGFILE" 2>&1 || fail "probe-calibrate"
 
+log "  校准状态观察..."
+python3 "$SCRIPTS/calibration_status.py" >> "$LOGFILE" 2>&1 || fail "calibration-status"
+
 log "  审计健康检查..."
 python3 "$SCRIPTS/audit_health_check.py" >> "$LOGFILE" 2>&1 || fail "audit-health"
 
