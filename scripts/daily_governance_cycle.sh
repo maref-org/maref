@@ -69,6 +69,9 @@ python3 "$SCRIPTS/probe_threshold_calibrate.py" >> "$LOGFILE" 2>&1 || fail "prob
 log "  校准状态观察..."
 python3 "$SCRIPTS/calibration_status.py" >> "$LOGFILE" 2>&1 || fail "calibration-status"
 
+log "  校准复核 (对比基线)..."
+python3 "$SCRIPTS/calibration_review.py" >> "$LOGFILE" 2>&1 || fail "calibration-review"
+
 log "  审计健康检查..."
 python3 "$SCRIPTS/audit_health_check.py" >> "$LOGFILE" 2>&1 || fail "audit-health"
 
