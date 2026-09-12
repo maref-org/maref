@@ -163,7 +163,7 @@ jobs:
           "
 
       - name: 上传报告
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stability-report-${{ github.run_id }}
           path: |
@@ -174,7 +174,7 @@ jobs:
 
       - name: 上传 checkpoint（full 模式失败时保留）
         if: ${{ failure() && inputs.mode == 'full' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stability-checkpoint-${{ github.run_id }}
           path: ${{ env.CHECKPOINT_DIR }}/
