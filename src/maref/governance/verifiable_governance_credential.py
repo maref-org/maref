@@ -37,6 +37,9 @@ class VerifiableGovernanceCredential:
         expires_at: 过期时间（unix 秒）。
         signature: Ed25519 签名（base64）。
         signer_public_key_pem: 签发方公钥（验证用）。
+        compliance_mapping: 合规映射。
+        source_event: 授权来源事件标识（T-P0-4）。非空时纳入签名，实现
+            权限变更的源事件绑定，防授权洗钱（EAL, arXiv 2609.01836）。
     """
 
     credential_id: str
@@ -49,6 +52,7 @@ class VerifiableGovernanceCredential:
     signature: str = ""
     signer_public_key_pem: str = ""
     compliance_mapping: dict[str, Any] = field(default_factory=dict)
+    source_event: str = ""
 
     # -- 签发 --
 
@@ -61,11 +65,15 @@ class VerifiableGovernanceCredential:
         merkle_proof: FederatedProof | dict[str, Any],
         signing_key: ReportSigningKey,
         ttl_seconds: float = 86400,
+        source_event: str = "",
     ) -> VerifiableGovernanceCredential:
         """以 Ed25519 私钥签发治理凭证。
 
         merkle_proof 可为 FederatedProof 对象或等价 dict；不传则生成空证明，
         验证时跳过 Merkle 包含性检查（非完整治理凭证）。
+
+        source_event: 授权来源事件标识（T-P0-4，可选）。非空时纳入签名，
+            使权限变更可溯源到源事件；空则保持旧行为（无源绑定）。
         """
         for dim in scope:
             if dim not in GOVERNANCE_SCOPES:
@@ -82,6 +90,7 @@ class VerifiableGovernanceCredential:
             merkle_proof=proof_dict,
             valid_from=now,
             expires_at=now + ttl_seconds,
+            source_event=source_event,
         )
         cred.signature = signing_key.sign_report(cred._signing_payload())
         cred.signer_public_key_pem = signing_key.public_key_pem
@@ -186,6 +195,24 @@ class VerifiableGovernanceCredential:
             result["valid"] = False
         return result
 
+    # -- 源绑定 (T-P0-4) --
+
+    def is_source_bound(self) -> bool:
+        """凭证是否绑定到源事件（授权可溯源）。
+
+        依据 EAL 授权洗钱（arXiv 2609.01836）：无源事件的权限变更可被伪造
+        （50.2% 造假率）。源绑定使授权可追溯到触发它的有效事件。
+        """
+        return bool(self.source_event)
+
+    def has_valid_source_event(self, expected_prefix: str = "") -> bool:
+        """源事件是否有效（非空；可选前缀校验，如 ``did-revocation:``）。"""
+        if not self.source_event:
+            return False
+        if expected_prefix:
+            return self.source_event.startswith(expected_prefix)
+        return True
+
     # -- 序列化 --
 
     def _signing_payload(self) -> bytes:
@@ -199,6 +226,9 @@ class VerifiableGovernanceCredential:
             "expires_at": self.expires_at,
             "compliance_mapping": self.compliance_mapping,
         }
+        # T-P0-4: 仅当有源事件时纳入签名，保持无源凭证签名向后兼容
+        if self.source_event:
+            body["source_event"] = self.source_event
         return json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
 
     def to_dict(self) -> dict[str, Any]:
@@ -213,6 +243,7 @@ class VerifiableGovernanceCredential:
             "signature": self.signature,
             "signer_public_key_pem": self.signer_public_key_pem,
             "compliance_mapping": dict(self.compliance_mapping),
+            "source_event": self.source_event,
         }
 
     @classmethod
@@ -228,6 +259,7 @@ class VerifiableGovernanceCredential:
             signature=data.get("signature", ""),
             signer_public_key_pem=data.get("signer_public_key_pem", ""),
             compliance_mapping=dict(data.get("compliance_mapping", {})),
+            source_event=data.get("source_event", ""),
         )
 
     def to_json(self, indent: int = 2) -> str:
@@ -250,14 +282,23 @@ class GovernanceCredentialStore:
 
     吊销仅记录 credential_id + 原因 + 来源（保留历史，不删除）。source
     字段为方案 E 的 DID 撤销事件联动预留（如 "did-revocation:did:maref/...")。
+
+    T-P0-4: ``require_source_binding=True`` 时拒绝无源事件绑定的凭证入库，
+    在授权发放侧强制源绑定（默认关，向后兼容）。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, require_source_binding: bool = False) -> None:
         self._credentials: dict[str, VerifiableGovernanceCredential] = {}
         self._revoked: dict[str, str] = {}
         self._revoked_sources: dict[str, str] = {}
+        self._require_source_binding = require_source_binding
 
     def store(self, cred: VerifiableGovernanceCredential) -> None:
+        if self._require_source_binding and not cred.is_source_bound():
+            raise ValueError(
+                f"凭证 {cred.credential_id} 无源事件绑定，拒绝入库 "
+                "(require_source_binding=True; T-P0-4)"
+            )
         self._credentials[cred.credential_id] = cred
 
     def get(self, credential_id: str) -> VerifiableGovernanceCredential | None:
