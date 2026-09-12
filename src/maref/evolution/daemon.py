@@ -8,15 +8,12 @@ import os
 import signal
 import sys
 import time
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from maref.evolution.bottleneck_diagnosis import allocate_for_channel, diagnose
 from maref.evolution.daily_loop import DailyEvolutionLoop, DailyEvolutionResult
-from maref.infra.state import OpenClawState
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +28,6 @@ class DaemonConfig:
     dry_run: bool = True
     real_writes: bool = False
     engine: str = "daily"
-    diagnosis_enabled: bool = False
-    diagnosis_interval: int = 3
 
 
 @dataclass
@@ -40,16 +35,12 @@ class DaemonState:
     last_run: str = ""
     total_runs: int = 0
     failed_runs: int = 0
-    last_diagnosis: str = ""
-    last_error: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "last_run": self.last_run,
             "total_runs": self.total_runs,
             "failed_runs": self.failed_runs,
-            "last_diagnosis": self.last_diagnosis,
-            "last_error": self.last_error,
         }
 
     @classmethod
@@ -58,15 +49,12 @@ class DaemonState:
             last_run=data.get("last_run", ""),
             total_runs=data.get("total_runs", 0),
             failed_runs=data.get("failed_runs", 0),
-            last_diagnosis=data.get("last_diagnosis", ""),
-            last_error=data.get("last_error", ""),
         )
 
 
 class EvolutionDaemon:
-    def __init__(self, config: DaemonConfig, store: OpenClawState | None = None) -> None:
+    def __init__(self, config: DaemonConfig) -> None:
         self._config = config
-        self._store = store or OpenClawState("evolution_daemon")
         self._state = self._load_state()
         self._shutdown = False
         if config.engine == "rel":
@@ -95,7 +83,6 @@ class EvolutionDaemon:
                 dry_run=config.dry_run,
                 real_writes=config.real_writes,
             )
-        self._diagnosis_buffer: list[dict[str, Any]] = []
 
     # ── Core loop ────────────────────────────────────────────────────
 
@@ -144,11 +131,8 @@ class EvolutionDaemon:
             self._state.total_runs += 1
             if result is None:
                 self._state.failed_runs += 1
-                self._state.last_error = "run_once returned no result"
                 logger.warning("Daemon run #%d returned no result", self._state.total_runs)
             else:
-                # C1: 成功运行须清除 last_error（避免虚假降级）
-                self._state.last_error = ""
                 elapsed = time.time() - start
                 logger.info(
                     "Daemon run #%d completed in %.1fs (priority=%s)",
@@ -156,76 +140,32 @@ class EvolutionDaemon:
                     elapsed,
                     result.priority,
                 )
-        except Exception as exc:
+        except Exception:
             self._state.failed_runs += 1
-            self._state.last_error = f"{type(exc).__name__}: {exc}"
             logger.exception("Daemon run #%d failed", self._state.total_runs + 1)
             result = None
 
         self._state.last_run = datetime.now(timezone.utc).isoformat()
-        self._run_diagnosis(result)
         self._save_state()
         return result
-
-    def _run_diagnosis(self, result: DailyEvolutionResult | None) -> None:
-        if not self._config.diagnosis_enabled or result is None:
-            return
-        self._diagnosis_buffer.append(result.to_dict())
-        if len(self._diagnosis_buffer) < self._config.diagnosis_interval:
-            return
-        diag = diagnose(self._diagnosis_buffer, trace_id=uuid.uuid4().hex[:12])
-        allocation = allocate_for_channel(diag.bottleneck)
-        self._state.last_diagnosis = json.dumps(
-            {"diagnosis": diag.to_dict(), "allocation": allocation.to_dict()},
-            ensure_ascii=False,
-        )
-        logger.info(
-            "Bottleneck diagnosis: bottleneck=%s allocation=%s",
-            diag.bottleneck.value if diag.bottleneck else "balanced",
-            allocation.channel.value if allocation.channel else "balanced",
-        )
-        self._diagnosis_buffer.clear()
 
     # ── State persistence ────────────────────────────────────────────
 
     def _save_state(self) -> None:
+        state_path = Path(str(self._config.state_file))
         try:
-            self._store.set("daemon_state", self._state.to_dict())
-            now = time.time()
-            failed = bool(self._state.last_error)
-            self._store.set_schedule(
-                "evolution_daemon",
-                last_run=now,
-                next_run_at=now + self._config.interval_hours * 3600,
-                status="failed" if failed else "ok",
-                last_error=self._state.last_error,
-                interval_seconds=self._config.interval_hours * 3600,
-            )
-            self._store.record_event(
-                "evolution.run",
-                {
-                    "status": "failed" if failed else "ok",
-                    "total_runs": self._state.total_runs,
-                    "failed_runs": self._state.failed_runs,
-                },
-            )
-        except Exception:
-            logger.exception("Failed to persist daemon state to store.db")
+            state_path.write_text(json.dumps(self._state.to_dict(), indent=2))
+        except OSError:
+            logger.exception("Failed to save daemon state to %s", state_path)
 
     def _load_state(self) -> DaemonState:
-        data = self._store.get("daemon_state")
-        if data:
-            return DaemonState.from_dict(data)
-        # 一次性迁移：旧 JSON 状态存在则读入并写回 store.db
         state_path = Path(str(self._config.state_file))
         if state_path.exists():
             try:
-                legacy = json.loads(state_path.read_text())
-                self._store.set("daemon_state", legacy)
-                logger.info("Migrated legacy daemon state from %s into store.db", state_path)
-                return DaemonState.from_dict(legacy)
+                data = json.loads(state_path.read_text())
+                return DaemonState.from_dict(data)
             except (json.JSONDecodeError, OSError):
-                logger.warning("Failed to migrate legacy daemon state, starting fresh")
+                logger.warning("Failed to load daemon state, starting fresh")
         return DaemonState()
 
     # ── Signal handling ──────────────────────────────────────────────
