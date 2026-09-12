@@ -35,13 +35,15 @@ def _first_existing(*paths: Path) -> Path:
 
 
 def _detect_runtime_dir() -> Path:
+    """运行时目录探测。
+
+    优先级: MAREF_RUNTIME_DIR 环境变量 > repo 自身。
+    **不硬编码任何机器绝对路径**（Leak Detection CI 禁止 /Volumes 等内部卷路径）。
+    真实运行时目录应经 MAREF_RUNTIME_DIR 注入（launchd/cron 已设置）。
+    """
     env = os.environ.get("MAREF_RUNTIME_DIR")
     if env:
         return Path(env)
-    candidates = [Path("/Volumes/1TB-M2/openclaw"), REPO_DIR]
-    for cand in candidates:
-        if (cand / "governance_audit.jsonl").exists():
-            return cand
     return REPO_DIR
 
 
