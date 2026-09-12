@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    MAREF 探针采样器 (30 分钟) — 加速 probe_readings 样本累积
+    目的: 使 probe_threshold_calibrate.py 尽快达到 MIN_SAMPLES=24 门槛
+    安装:
+      cp scripts/com.maref.probe-sampler.plist.template ~/Library/LaunchAgents/com.maref.probe-sampler.plist
+      launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.maref.probe-sampler.plist
+    卸载:
+      launchctl bootout gui/$(id -u)/com.maref.probe-sampler
+
+    速率: 每 30 分钟 2 条 (oscillation+entropy) → 一天约 96 条
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.maref.probe-sampler</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/frankie/bin/drive-wait.py</string>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Volumes/1TB-M2/public/maref/scripts/probe_sampler.py</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/frankie/Library/Logs/maref/probe-sampler.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/frankie/Library/Logs/maref/probe-sampler.err.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Volumes/1TB-M2/public/maref</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>MAREF_RUNTIME_DIR</key>
+        <string>/Volumes/1TB-M2/openclaw</string>
+    </dict>
+</dict>
+</plist>
