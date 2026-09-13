@@ -65,7 +65,9 @@ jobs:
       - name: 快速验证（CI 模式）
         if: ${{ inputs.mode == 'ci' || github.event_name == 'schedule' }}
         run: |
+          # --no-cov: 仅跑 10 个稳定性测试, 全仓覆盖率天然≈0, 会误触 fail_under=50
           python -m pytest tests/longevity/test_7d_stability.py \
+            --no-cov \
             -v --no-header -q \
             -x --timeout=120
 
