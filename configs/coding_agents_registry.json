@@ -1,0 +1,83 @@
+{
+  "version": "1",
+  "_note": "Coding Agent 注册表 (动态治理引擎). 治理引擎治理域的唯一身份源(SSOT): 记录各 coding agent 的身份/权重/接入方式/健康判定。由 scripts/coding_agent_status.py 消费并报送治理审计。路径使用环境变量占位($HOME)以通过 Leak Detection。",
+  "agents": [
+    {
+      "agent_id": "opencode",
+      "display_name": "opencode",
+      "kind": "coding_agent",
+      "did": "did:maref:coding:opencode",
+      "domain_weight": 2,
+      "domain": "service",
+      "integration": {
+        "kind": "mcp",
+        "server": "maref-governance-check",
+        "entry": "${MAREF_RUNTIME_DIR}/scripts/maref_governance_mcp.py",
+        "id_env": "MAREF_AGENT_ACTOR",
+        "config_path": "$HOME/.config/opencode/opencode.jsonc"
+      },
+      "status": "connected"
+    },
+    {
+      "agent_id": "claude-code",
+      "display_name": "Claude Code",
+      "kind": "coding_agent",
+      "did": "did:maref:coding:claude-code",
+      "domain_weight": 2,
+      "domain": "service",
+      "integration": {
+        "kind": "hook",
+        "entry": "$HOME/.claude/hooks/pre_tool_all.py",
+        "post_entry": "$HOME/.claude/hooks/post_tool_all.py",
+        "config_path": "$HOME/.claude/settings.json"
+      },
+      "status": "degraded",
+      "degraded_reason": "GovernanceClient (maref_lite) 于 2026-07-24 被 git 清理删除, hook fail-open 未接新 sidecar → 治理空转"
+    },
+    {
+      "agent_id": "trae-cn",
+      "display_name": "Trae CN",
+      "kind": "coding_agent",
+      "did": "did:maref:coding:trae-cn",
+      "domain_weight": 2,
+      "domain": "service",
+      "integration": {
+        "kind": "mcp",
+        "server": "maref-governance",
+        "entry": "${MAREF_REPO_DIR}/scripts/maref_mcp_guard.py",
+        "id_env": "MAREF_AGENT_ID",
+        "sidecar_url": "http://127.0.0.1:8010",
+        "config_path": "$HOME/.trae/mcp_config.json"
+      },
+      "status": "connected"
+    },
+    {
+      "agent_id": "codex",
+      "display_name": "Codex",
+      "kind": "coding_agent",
+      "did": "did:maref:coding:codex",
+      "domain_weight": 2,
+      "domain": "service",
+      "integration": {
+        "kind": "adapter",
+        "adapter": "codex",
+        "config_path": "$HOME/.codex/config.toml"
+      },
+      "status": "unknown"
+    },
+    {
+      "agent_id": "cursor",
+      "display_name": "Cursor",
+      "kind": "coding_agent",
+      "did": "did:maref:coding:cursor",
+      "domain_weight": 2,
+      "domain": "service",
+      "integration": {
+        "kind": "adapter",
+        "adapter": "cursor",
+        "config_path": "$HOME/.cursor"
+      },
+      "status": "unknown"
+    }
+  ]
+}
