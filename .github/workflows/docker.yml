@@ -147,6 +147,7 @@ jobs:
           exit-code: 1
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
       - name: Run Trivy with SARIF output
         uses: aquasecurity/trivy-action@v0.36.0
@@ -158,6 +159,7 @@ jobs:
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
       - name: Upload Trivy results
         if: always()
