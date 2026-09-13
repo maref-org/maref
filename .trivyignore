@@ -1,0 +1,15 @@
+# Trivy CVE 忽略清单
+# ------------------------------------------------------------------
+# 纪律: 每条忽略必须附具体理由并经安全评审。禁止为"绿"而无理由忽略。
+# 失效条件: 每条均标注——一旦条件触发，须立即重评并移除本条目。
+# ------------------------------------------------------------------
+
+# CVE-2026-69247 — python-cryptography PKCS#7 解析缺陷（修复版本 50.0.0）
+# 理由:
+#   1) 代码路径不可达: MAREF 仅使用 cryptography 的 x509 / hashes /
+#      serialization / rsa / AESGCM / Ed25519 接口，**不使用 PKCS#7**
+#      （无 cryptography.hazmat.primitives.serialization.pkcs7 导入）。
+#   2) 升级不可行: cryptography>=50.0.0 与 mitmproxy 冲突——mitmproxy 最新版
+#      12.2.3 硬 pin cryptography<=48.1，且无更高版本；移除 mitmproxy 属架构决策。
+# 失效条件: mitmproxy 解除 cryptography pin，或 MAREF 引入 PKCS#7 用法时，重评本条目。
+CVE-2026-69247
