@@ -13,3 +13,10 @@
 #      12.2.3 硬 pin cryptography<=48.1，且无更高版本；移除 mitmproxy 属架构决策。
 # 失效条件: mitmproxy 解除 cryptography pin，或 MAREF 引入 PKCS#7 用法时，重评本条目。
 CVE-2026-69247
+
+# CVE-2026-69249 — python-cryptography 重复解析缺陷（修复版本 49.0.0）
+# 理由: 同 CVE-2026-69247——升级至 >=49.0.0 同样与 mitmproxy(<=48.1 pin) 冲突，
+#       且该缺陷位于 cryptography 的解析路径，MAREF 的 Ed25519/HMAC/AESGCM 用法不触及。
+# 失效条件: mitmproxy 解除 pin 或 cryptography 可升级时，重评本条目。
+CVE-2026-69249
+
