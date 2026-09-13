@@ -20,3 +20,14 @@ CVE-2026-69247
 # 失效条件: mitmproxy 解除 pin 或 cryptography 可升级时，重评本条目。
 CVE-2026-69249
 
+# CVE-2023-34092 / CVE-2024-23331 / CVE-2026-53571 — vite server.fs.deny 绕过
+# 理由: trivy **误报** (pnpm-lock 解析缺陷)——
+#   gui/pnpm-lock.yaml 中无真实 vite@4；trivy 将 `@tailwindcss/vite@4.3.0`
+#   误解析为 `vite@4.3.0`。真实 vite 为 8.2.0 (远超修复线 4.3.9/5.0.12/8.0.16)。
+#   同理 website/pnpm-lock.yaml 的 vite@4.3.1 = @tailwindcss/vite@4.3.1 误报。
+# 失效条件: pnpm lock 出现真实 vite 低于修复线时，立即重评并移除。
+CVE-2023-34092
+CVE-2024-23331
+CVE-2026-53571
+
+
