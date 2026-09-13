@@ -49,6 +49,9 @@ python3 "$SCRIPTS/approval_tier.py" >> "$LOGFILE" 2>&1 || fail "P-03"
 log "  P-05 权重分级..."
 python3 "$SCRIPTS/domain_weight.py" >> "$LOGFILE" 2>&1 || fail "P-05"
 
+log "  Coding Agent 治理注册状态..."
+python3 "$SCRIPTS/coding_agent_status.py" >> "$LOGFILE" 2>&1 || fail "coding-agent-status"
+
 log "  P-07 疫苗管线..."
 python3 "$SCRIPTS/vaccine_pipeline/01_extract_patterns.py" >> "$LOGFILE" 2>&1 || fail "P-07-extract"
 python3 "$SCRIPTS/vaccine_pipeline/04_compile_vaccines.py" >> "$LOGFILE" 2>&1 || fail "P-07-compile"
