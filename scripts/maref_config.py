@@ -77,6 +77,10 @@ EVOLUTION_VAULT = _env_path(
     "MAREF_EVOLUTION_VAULT",
     _first_existing(RUNTIME_DIR / ".evolution_vault", REPO_DIR / ".evolution_vault"),
 )
+EXPERIENCE_DB = _env_path(
+    "MAREF_EXPERIENCE_DB",
+    RUNTIME_DIR / ".evolution_vault" / "experience.db",
+)
 
 # ── 生成物(始终 REPO_DIR) ────────────────────────────
 AUDIT_LOG_V2 = REPO_DIR / "governance_audit_v2.jsonl"

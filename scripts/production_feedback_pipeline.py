@@ -18,8 +18,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-import os
 import sqlite3
 import sys
 import time
@@ -86,6 +86,16 @@ class DecisionRecord:
 # ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
+
+def _fingerprint_tuple(values: tuple) -> str:
+    """decision 记录内容指纹（P1.1 幂等）。
+
+    基于插入用的 9 元组（与 DecisionRecord.to_tuple() / experience 表列序一致），
+    重复运行同一审计数据 → 同一指纹 → 去重。历史行可用同列值回填。
+    """
+    payload = json.dumps([str(v) for v in values], ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
 
 class AuditFeedbackPipeline:
     def __init__(
@@ -196,6 +206,7 @@ class AuditFeedbackPipeline:
                 perf_score=round(perf, 4),
                 gain_pct=round((1 - fnr) * 100, 2),
                 saturated=total_cb < 3 and decisions < 10,
+                timestamp=w_end,  # P1.1 幂等: 用数据窗口末端（确定性）而非 wall-clock
             ))
 
             cursor = w_end
@@ -280,8 +291,39 @@ class AuditFeedbackPipeline:
                 role_id TEXT
             )
         """)
+        # P1.1 幂等: 内容指纹登记表（重复运行同一审计数据不产生重复 decision）
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pipeline_ingest_keys (
+                fingerprint TEXT PRIMARY KEY,
+                ingested_at REAL NOT NULL
+            )
+        """)
+        now = time.time()
+        # 迁移: 指纹表空而 experience 非空 → 用现有行回填指纹，避免历史行被重摄
+        if conn.execute("SELECT COUNT(*) FROM pipeline_ingest_keys").fetchone()[0] == 0:
+            existing = conn.execute(
+                "SELECT timestamp, decision_type, state_before, state_after, "
+                "entropy_before, entropy_after, reward, context, role_id FROM experience"
+            ).fetchall()
+            for row in existing:
+                conn.execute(
+                    "INSERT OR IGNORE INTO pipeline_ingest_keys (fingerprint, ingested_at) "
+                    "VALUES (?, ?)",
+                    (_fingerprint_tuple(tuple(row)), now),
+                )
+
         count = 0
+        skipped = 0
         for rec in decisions:
+            fp = _fingerprint_tuple(rec.to_tuple())
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO pipeline_ingest_keys (fingerprint, ingested_at) "
+                "VALUES (?, ?)",
+                (fp, now),
+            )
+            if cur.rowcount == 0:
+                skipped += 1
+                continue
             try:
                 conn.execute(
                     "INSERT INTO experience (timestamp, decision_type, state_before, state_after, "
@@ -291,10 +333,13 @@ class AuditFeedbackPipeline:
                 )
                 count += 1
             except sqlite3.IntegrityError:
-                continue
+                skipped += 1
         conn.commit()
         conn.close()
-        print(f"Wrote {count} decision records to MetaLearner DB: {self.meta_db_path}")
+        print(
+            f"Wrote {count} decision records to MetaLearner DB: {self.meta_db_path} "
+            f"(skipped {skipped} duplicate)"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +385,7 @@ def print_plot(snapshots: list[ConvergenceSnapshot]) -> None:
     for cid, snaps in sorted(by_cycle.items()):
         snaps.sort(key=lambda s: s.round_num)
         print(f"\n  -- {cid} --")
-        for label, attr, char in [("FNR", "fnr", "F"), ("FPR", "fpr", "P"),
+        for _label, attr, char in [("FNR", "fnr", "F"), ("FPR", "fpr", "P"),
                                    ("KL ", "kl_drift", "K"), ("Perf", "perf_score", "S"),
                                    ("Gain", "gain_pct", "G")]:
             values = [getattr(s, attr) for s in snaps]
@@ -363,15 +408,44 @@ def print_plot(snapshots: list[ConvergenceSnapshot]) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
+def _default_paths() -> dict[str, Path]:
+    """统一默认路径（走 maref_config SSOT，P1.1）。
+
+    优先使用 configs 层解析（含 MAREF_RUNTIME_DIR 注入）；不可用时回退到
+    仓库根目录，保证零运行时依赖的承诺。
+    """
+    here = Path(__file__).resolve().parent
+    try:
+        if str(here) not in sys.path:
+            sys.path.insert(0, str(here))
+        import maref_config as cfg
+
+        return {
+            "audit": cfg.AUDIT_LOG,
+            "cb": cfg.RECURSIVE_AUDIT_LOG,
+            "output": cfg.REPORTS_DIR / "convergence_history.jsonl",
+            "meta_db": cfg.EXPERIENCE_DB,
+        }
+    except Exception:
+        root = here.parent
+        return {
+            "audit": root / "governance_audit.jsonl",
+            "cb": root / "recursive_governance_audit.jsonl",
+            "output": root / "reports" / "convergence_history.jsonl",
+            "meta_db": root / ".evolution_vault" / "experience.db",
+        }
+
+
 def main() -> None:
+    defaults = _default_paths()
     parser = argparse.ArgumentParser(description="MAREF Production Feedback Pipeline")
-    parser.add_argument("--audit", default=".worktrees/roi-governance/governance_audit_20260518_113148.jsonl",
+    parser.add_argument("--audit", default=str(defaults["audit"]),
                         help="Path to governance audit JSONL")
-    parser.add_argument("--cb", default="recursive_governance_audit.jsonl",
+    parser.add_argument("--cb", default=str(defaults["cb"]),
                         help="Path to circuit-breaker JSONL")
-    parser.add_argument("--output", default="data/convergence_history.jsonl",
+    parser.add_argument("--output", default=str(defaults["output"]),
                         help="Output path for convergence_history.jsonl")
-    parser.add_argument("--meta-db", default=None,
+    parser.add_argument("--meta-db", default=str(defaults["meta_db"]),
                         help="Output path for MetaLearner experience SQLite DB")
     parser.add_argument("--window-hours", type=float, default=12.0,
                         help="Width of time window in hours (default: 12)")
