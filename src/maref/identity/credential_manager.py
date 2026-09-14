@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
+import tempfile
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class CredentialType(str, Enum):
@@ -83,11 +87,7 @@ class CredentialManager:
         )
         self._storage_dir.mkdir(parents=True, exist_ok=True)
 
-        self._records: dict[str, CredentialRecord] = {}
-        self._records_file = self._storage_dir / "credential_records.json"
-        self._load_records()
-
-        # 加密密钥
+        # 加密密钥（必须在 _load_records 之前设置）
         if encryption_key:
             self._encryption_key = hashlib.sha256(encryption_key).digest()
         else:
@@ -95,10 +95,17 @@ class CredentialManager:
             if env_key:
                 self._encryption_key = hashlib.sha256(env_key.encode()).digest()
             else:
-                # 开发环境回退（生产必须设置）
+                logger.warning(
+                    "MAREF_CREDENTIAL_ENCRYPTION_KEY not set; using dev fallback key. "
+                    "Set the env var for production use."
+                )
                 self._encryption_key = hashlib.sha256(
                     b"maref-dev-credential-key"
                 ).digest()
+
+        self._records: dict[str, CredentialRecord] = {}
+        self._records_file = self._storage_dir / "credential_records.json"
+        self._load_records()
 
         # OS Keychain 后端
         self._keyring_store = None
@@ -109,19 +116,78 @@ class CredentialManager:
         except ImportError:
             pass
 
+    def _encrypt(self, plaintext: str) -> str:
+        """AES-256-GCM 加密，返回 nonce+ciphertext 的 hex 字符串"""
+        try:
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+            nonce = os.urandom(12)
+            aesgcm = AESGCM(self._encryption_key)
+            ct = aesgcm.encrypt(nonce, plaintext.encode(), None)
+            return (nonce + ct).hex()
+        except ImportError:
+            logger.warning(
+                "cryptography library not available; falling back to XOR obfuscation"
+            )
+            key = self._encryption_key
+            data = plaintext.encode()
+            nonce = os.urandom(len(data))
+            xored = bytes(
+                a ^ b
+                for a, b in zip(
+                    data, key * (len(data) // len(key) + 1), strict=False
+                )
+            )
+            return (nonce + xored).hex()
+
+    def _decrypt(self, encrypted_hex: str) -> str:
+        """AES-256-GCM 解密，输入 nonce+ciphertext 的 hex 字符串"""
+        try:
+            raw = bytes.fromhex(encrypted_hex)
+            nonce, ct = raw[:12], raw[12:]
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+            aesgcm = AESGCM(self._encryption_key)
+            return aesgcm.decrypt(nonce, ct, None).decode()
+        except Exception:
+            try:
+                raw = bytes.fromhex(encrypted_hex)
+                nonce, xored = raw[: len(raw) // 2], raw[len(raw) // 2 :]
+                key = self._encryption_key
+                return bytes(
+                    a ^ b
+                    for a, b in zip(
+                        xored, key * (len(xored) // len(key) + 1), strict=False
+                    )
+                ).decode()
+            except Exception as e:
+                raise ValueError(f"Decryption failed: {e}") from e
+
     def _load_records(self) -> None:
-        """加载凭据记录"""
+        """加载凭据记录（逐条容错）"""
         if self._records_file.exists():
             try:
-                data = json.loads(self._records_file.read_text())
+                raw_text = self._records_file.read_text()
+                try:
+                    decrypted = self._decrypt(raw_text)
+                    data = json.loads(decrypted)
+                except (json.JSONDecodeError, ValueError):
+                    logger.warning(
+                        "Corrupt credential file at %s; skipping",
+                        self._records_file,
+                    )
+                    return
                 for item in data:
-                    record = CredentialRecord(**item)
-                    self._records[record.credential_id] = record
-            except Exception:
-                pass
+                    try:
+                        record = CredentialRecord(**item)
+                        self._records[record.credential_id] = record
+                    except (TypeError, KeyError) as e:
+                        logger.warning("Skipping corrupt credential record: %s", e)
+            except OSError as e:
+                logger.warning("Failed to read credential file: %s", e)
 
     def _save_records(self) -> None:
-        """保存凭据记录"""
+        """保存凭据记录（原子写入）"""
         data = []
         for record in self._records.values():
             data.append(
@@ -139,4 +205,15 @@ class CredentialManager:
                     "fingerprint": record.fingerprint,
                 }
             )
-        self._records_file.write_text(json.dumps(data, indent=2))
+        encrypted = self._encrypt(json.dumps(data, indent=2))
+        fd, tmp_path = tempfile.mkstemp(
+            dir=self._storage_dir, suffix=".tmp", prefix="credential_records."
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(encrypted)
+            os.rename(tmp_path, str(self._records_file))
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
