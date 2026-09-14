@@ -60,7 +60,7 @@ MAX_ENTROPY: Final[int] = 4
 
 def hamming_distance(a: tuple[int, ...], b: tuple[int, ...]) -> int:
     """Calculate Hamming distance between two bit tuples."""
-    return sum(x != y for x, y in zip(a, b, strict=False))
+    return sum(x != y for x, y in zip(a, b))
 
 
 def compute_valid_transitions() -> dict[int, list[int]]:
