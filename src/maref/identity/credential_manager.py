@@ -82,9 +82,7 @@ class CredentialManager:
         encryption_key: bytes | None = None,
     ) -> None:
         self._storage_dir = (
-            Path(storage_dir)
-            if storage_dir
-            else Path.home() / ".maref" / "credentials"
+            Path(storage_dir) if storage_dir else Path.home() / ".maref" / "credentials"
         )
         self._storage_dir.mkdir(parents=True, exist_ok=True)
 
@@ -106,9 +104,7 @@ class CredentialManager:
                     "MAREF_CREDENTIAL_ENCRYPTION_KEY not set; using dev fallback key. "
                     "Set the env var for production use."
                 )
-                self._encryption_key = hashlib.sha256(
-                    b"maref-dev-credential-key"
-                ).digest()
+                self._encryption_key = hashlib.sha256(b"maref-dev-credential-key").digest()
 
         self._records: dict[str, CredentialRecord] = {}
         self._records_file = self._storage_dir / "credential_records.json"
@@ -144,7 +140,9 @@ class CredentialManager:
         existing = self._find_by_name(name)
         if existing:
             self._audit_log(
-                "update", existing.credential_id, name,
+                "update",
+                existing.credential_id,
+                name,
                 reason="duplicate name, updating existing",
             )
             existing.credential_type = credential_type
@@ -207,9 +205,7 @@ class CredentialManager:
             try:
                 return self._decrypt(record._encrypted_value)
             except Exception as e:
-                logger.warning(
-                    "Failed to decrypt local credential value for %s: %s", name, e
-                )
+                logger.warning("Failed to decrypt local credential value for %s: %s", name, e)
 
         return None
 
@@ -220,9 +216,7 @@ class CredentialManager:
             raise ValueError(f"Credential {credential_id} not found")
 
         if record.status == CredentialStatus.REVOKED:
-            raise ValueError(
-                f"Credential {credential_id} is revoked and cannot be rotated"
-            )
+            raise ValueError(f"Credential {credential_id} is revoked and cannot be rotated")
 
         if not new_value:
             raise ValueError("New credential value must not be empty")

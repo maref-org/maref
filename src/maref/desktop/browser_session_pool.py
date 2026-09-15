@@ -197,9 +197,7 @@ class BrowserSessionPool:
                             domain,
                         )
                     except Exception as e:
-                        logger.debug(
-                            "Failed to restore cookies for %s: %s", domain, e
-                        )
+                        logger.debug("Failed to restore cookies for %s: %s", domain, e)
 
                 local_storage = session_data.get("local_storage", {})
                 if local_storage:
