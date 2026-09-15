@@ -8,6 +8,7 @@ from maref.identity.credential_manager import (
     CredentialType,
 )
 from maref.identity.did_registry import AgentDID, AgentIdentityRecord, DIDRegistry
+from maref.identity.key_rotation import KeyRotator, RotationPolicy
 from maref.identity.org_did import (
     FEDERATION_ROOT_DID,
     OrgCertificate,
@@ -32,9 +33,11 @@ __all__ = [
     "DEFAULT_ARSP",
     "DIDRegistry",
     "FEDERATION_ROOT_DID",
+    "KeyRotator",
     "OrgCertificate",
     "OrgDID",
     "OrgDIDRegistry",
+    "RotationPolicy",
     "TrustEngine",
     "TrustScore",
 ]
