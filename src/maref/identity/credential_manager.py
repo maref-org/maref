@@ -49,6 +49,7 @@ class CredentialRecord:
     status: CredentialStatus = CredentialStatus.ACTIVE
     metadata: dict[str, Any] = field(default_factory=dict)
     fingerprint: str = ""  # SHA-256 指纹
+    _encrypted_value: str = ""  # 本地加密存储的凭据值（keyring 不可用时的 fallback）
 
     def is_expired(self) -> bool:
         if self.expires_at is None:
@@ -126,7 +127,34 @@ class CredentialManager:
         rotation_interval: float | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> CredentialRecord:
-        """注册新凭据"""
+        """注册新凭据（同名凭据自动更新而非新建）"""
+        if not name or not name.strip():
+            raise ValueError("Credential name must not be empty")
+        if not value:
+            raise ValueError("Credential value must not be empty")
+        if expires_in is not None and expires_in <= 0:
+            raise ValueError("expires_in must be positive (use EXPIRED status explicitly)")
+
+        existing = self._find_by_name(name)
+        if existing:
+            self._audit_log(
+                "update", existing.credential_id, name,
+                reason="duplicate name, updating existing",
+            )
+            existing.credential_type = credential_type
+            existing.domain = domain
+            existing.expires_at = time.time() + expires_in if expires_in else None
+            existing.rotation_interval = rotation_interval
+            existing.metadata = metadata or {}
+            existing.fingerprint = hashlib.sha256(value.encode()).hexdigest()[:16]
+            existing.status = CredentialStatus.ACTIVE
+            existing.last_rotated = None
+            existing._encrypted_value = self._encrypt(value)
+
+            self._store_value(name, value)
+            self._save_records()
+            return existing
+
         credential_id = f"{credential_type.value}:{name}:{int(time.time())}"
         fingerprint = hashlib.sha256(value.encode()).hexdigest()[:16]
 
@@ -140,44 +168,65 @@ class CredentialManager:
             metadata=metadata or {},
             fingerprint=fingerprint,
         )
+        record._encrypted_value = self._encrypt(value)
 
         self._records[credential_id] = record
         self._save_records()
 
-        if self._keyring_store:
-            self._keyring_store.set(name, value)
+        self._store_value(name, value)
 
         self._audit_log("register", credential_id, name)
 
         return record
 
     def get(self, name: str) -> str | None:
-        """获取凭据值（优先级: env > manager > keyring）"""
+        """获取凭据值（优先级: env > manager > keyring > 本地加密存储）"""
         env_val = os.environ.get(name)
         if env_val:
             return env_val
 
         record = self._find_by_name(name)
-        if record and record.status == CredentialStatus.EXPIRED:
+        if record and record.status in (
+            CredentialStatus.EXPIRED,
+            CredentialStatus.REVOKED,
+        ):
             return None
 
         if self._keyring_store:
-            return self._keyring_store.get(name)
+            kr_val = self._keyring_store.get(name)
+            if kr_val is not None:
+                return kr_val
+
+        if record and record._encrypted_value:
+            try:
+                return self._decrypt(record._encrypted_value)
+            except Exception as e:
+                logger.warning(
+                    "Failed to decrypt local credential value for %s: %s", name, e
+                )
 
         return None
 
     def rotate(self, credential_id: str, new_value: str) -> CredentialRecord:
-        """轮转凭据"""
+        """轮转凭据（已吊销的凭据不可轮转）"""
         record = self._records.get(credential_id)
         if not record:
             raise ValueError(f"Credential {credential_id} not found")
 
+        if record.status == CredentialStatus.REVOKED:
+            raise ValueError(
+                f"Credential {credential_id} is revoked and cannot be rotated"
+            )
+
+        if not new_value:
+            raise ValueError("New credential value must not be empty")
+
         record.last_rotated = time.time()
         record.fingerprint = hashlib.sha256(new_value.encode()).hexdigest()[:16]
         record.status = CredentialStatus.ACTIVE
+        record._encrypted_value = self._encrypt(new_value)
 
-        if self._keyring_store:
-            self._keyring_store.set(record.name, new_value)
+        self._store_value(record.name, new_value)
 
         self._save_records()
         self._audit_log("rotate", credential_id, record.name)
@@ -232,6 +281,14 @@ class CredentialManager:
             if record.name == name:
                 return record
         return None
+
+    def _store_value(self, name: str, value: str) -> None:
+        """存储凭据值到 keyring（如果可用）"""
+        if self._keyring_store:
+            try:
+                self._keyring_store.set(name, value)
+            except Exception as e:
+                logger.warning("Failed to store credential in keyring: %s", e)
 
     def _audit_log(
         self,
@@ -322,7 +379,9 @@ class CredentialManager:
                     return
                 for item in data:
                     try:
+                        enc_val = item.pop("_encrypted_value", "")
                         record = CredentialRecord(**item)
+                        record._encrypted_value = enc_val
                         self._records[record.credential_id] = record
                     except (TypeError, KeyError) as e:
                         logger.warning("Skipping corrupt credential record: %s", e)
@@ -330,7 +389,7 @@ class CredentialManager:
                 logger.warning("Failed to read credential file: %s", e)
 
     def _save_records(self) -> None:
-        """保存凭据记录（原子写入）"""
+        """保存凭据记录（原子写入，含加密凭据值）"""
         data = []
         for record in self._records.values():
             data.append(
@@ -346,6 +405,7 @@ class CredentialManager:
                     "status": record.status.value,
                     "metadata": record.metadata,
                     "fingerprint": record.fingerprint,
+                    "_encrypted_value": record._encrypted_value,
                 }
             )
         encrypted = self._encrypt(json.dumps(data, indent=2))
