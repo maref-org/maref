@@ -23,6 +23,7 @@ class PlaywrightNotAvailableError(RuntimeError):
 class BrowserSession:
     session_id: str
     browser_type: BrowserType
+    domain: str = ""
     created_at: float = field(default_factory=time.time)
     last_used: float = field(default_factory=time.time)
     ref_count: int = 0
@@ -126,6 +127,10 @@ class BrowserSessionPool:
             )
             self._sessions[session_id] = session
             self._start_cleanup()
+
+            if page:
+                await self._restore_session_state(session_id, page)
+
             return session
 
     async def release(self, session_id: str) -> None:
@@ -164,6 +169,63 @@ class BrowserSessionPool:
         session = self._sessions.pop(session_id, None)
         if session is not None:
             await session.close()
+
+    async def _restore_session_state(self, session_id: str, page: Any) -> None:
+        """从 CredentialManager 恢复浏览器会话状态"""
+        try:
+            from maref.identity.credential_manager import CredentialManager
+
+            manager = CredentialManager()
+            sessions = manager.list_browser_sessions()
+
+            for session_record in sessions:
+                domain = session_record.domain
+                if not domain:
+                    continue
+
+                session_data = manager.load_browser_session(domain)
+                if not session_data:
+                    continue
+
+                cookies = session_data.get("cookies", [])
+                if cookies:
+                    try:
+                        await page.context.add_cookies(cookies)
+                        logger.debug(
+                            "Restored %d cookies for domain %s",
+                            len(cookies),
+                            domain,
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            "Failed to restore cookies for %s: %s", domain, e
+                        )
+
+                local_storage = session_data.get("local_storage", {})
+                if local_storage:
+                    try:
+                        await page.evaluate(
+                            """(storage) => {
+                                for (const [key, value] of Object.entries(storage)) {
+                                    localStorage.setItem(key, value);
+                                }
+                            }""",
+                            local_storage,
+                        )
+                        logger.debug(
+                            "Restored %d localStorage items for domain %s",
+                            len(local_storage),
+                            domain,
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            "Failed to restore localStorage for %s: %s",
+                            domain,
+                            e,
+                        )
+
+        except Exception as e:
+            logger.debug("Failed to restore session state: %s", e)
 
     def _start_cleanup(self) -> None:
         if self._cleanup_task is not None and not self._cleanup_task.done():
