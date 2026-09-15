@@ -1,6 +1,6 @@
 # Agent Operating Manual: MAREF v0.54.0-dev
 
-> **上位法**: 本文件受 [Athena 系统宪法 v1.6](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
+> **上位法**: 本文件受 [Athena 系统宪法 v1.8](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步。
 > **CLAUDE.md**: 本仓库的 Agent 指令文件。Agent 启动前必须阅读。
 
@@ -163,7 +163,7 @@ kubectl apply -f k8s/production/
 
 ## Open Source Execution Norm
 > **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](docs/oss-execution-norm-v1.0.md) 约束。
-> **宪法对齐**: Athena 系统宪法 v1.6 第十条（外部 Code Agent 治理）· 第十一条（跨仓库治理）
+> **宪法对齐**: Athena 系统宪法 v1.8 第十条（外部 Code Agent 治理）· 第十一条（跨仓库治理）
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源。
 
 - 当前阶段: S0（详见 `docs/oss-todo.md`）
