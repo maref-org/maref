@@ -46,16 +46,21 @@ def _load_keys() -> None:
     if _API_KEYS:
         return
 
-    # 优先使用 CredentialManager
+    raw = raw2 = scopes_raw = ""
+    # 优先使用 CredentialManager；不可用或无值则回退环境变量
     try:
         from maref.identity.credential_manager import CredentialManager
 
         manager = CredentialManager()
         raw = manager.get("MAREF_API_KEY") or ""
         raw2 = manager.get("MAREF_API_KEY_2") or ""
-    except ImportError:
-        raw = os.environ.get("MAREF_API_KEY", "")
-        raw2 = os.environ.get("MAREF_API_KEY_2", "")
+        scopes_raw = manager.get("MAREF_API_KEY_SCOPES") or ""
+    except Exception:
+        pass
+
+    raw = raw or os.environ.get("MAREF_API_KEY", "")
+    raw2 = raw2 or os.environ.get("MAREF_API_KEY_2", "")
+    scopes_raw = scopes_raw or os.environ.get("MAREF_API_KEY_SCOPES", "")
 
     keys = []
     if raw:
@@ -63,14 +68,6 @@ def _load_keys() -> None:
     if raw2:
         keys.append(raw2.strip())
     _API_KEYS = keys
-
-    try:
-        from maref.identity.credential_manager import CredentialManager
-
-        manager = CredentialManager()
-        scopes_raw = manager.get("MAREF_API_KEY_SCOPES") or ""
-    except ImportError:
-        scopes_raw = os.environ.get("MAREF_API_KEY_SCOPES", "")
 
     _ALLOWED_SCOPES = [s.strip() for s in scopes_raw.split(",") if s.strip()]
 

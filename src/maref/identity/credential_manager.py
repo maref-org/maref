@@ -96,6 +96,12 @@ class CredentialManager:
             if env_key:
                 self._encryption_key = hashlib.sha256(env_key.encode()).digest()
             else:
+                env_name = os.environ.get("MAREF_ENV", "development")
+                if env_name in ("production", "prod", "staging"):
+                    raise RuntimeError(
+                        "MAREF_CREDENTIAL_ENCRYPTION_KEY must be set in production/staging. "
+                        "Set the env var or use --encryption-key."
+                    )
                 logger.warning(
                     "MAREF_CREDENTIAL_ENCRYPTION_KEY not set; using dev fallback key. "
                     "Set the env var for production use."
@@ -326,19 +332,10 @@ class CredentialManager:
             ct = aesgcm.encrypt(nonce, plaintext.encode(), None)
             return (nonce + ct).hex()
         except ImportError:
-            logger.warning(
-                "cryptography library not available; falling back to XOR obfuscation"
-            )
-            key = self._encryption_key
-            data = plaintext.encode()
-            nonce = os.urandom(len(data))
-            xored = bytes(
-                a ^ b
-                for a, b in zip(
-                    data, key * (len(data) // len(key) + 1), strict=False
-                )
-            )
-            return (nonce + xored).hex()
+            raise RuntimeError(
+                "cryptography library is required for encryption. "
+                "Install it with: pip install cryptography"
+            ) from None
 
     def _decrypt(self, encrypted_hex: str) -> str:
         """AES-256-GCM 解密，输入 nonce+ciphertext 的 hex 字符串"""
@@ -350,18 +347,9 @@ class CredentialManager:
             aesgcm = AESGCM(self._encryption_key)
             return aesgcm.decrypt(nonce, ct, None).decode()
         except Exception:
-            try:
-                raw = bytes.fromhex(encrypted_hex)
-                nonce, xored = raw[: len(raw) // 2], raw[len(raw) // 2 :]
-                key = self._encryption_key
-                return bytes(
-                    a ^ b
-                    for a, b in zip(
-                        xored, key * (len(xored) // len(key) + 1), strict=False
-                    )
-                ).decode()
-            except Exception as e:
-                raise ValueError(f"Decryption failed: {e}") from e
+            raise ValueError(
+                "Decryption failed; data may be corrupted or encrypted with an unsupported method"
+            ) from None
 
     def _load_records(self) -> None:
         """加载凭据记录（逐条容错）"""
@@ -428,17 +416,21 @@ class CredentialManager:
         local_storage: dict[str, str] | None = None,
         expires_in: float = 86400,
     ) -> CredentialRecord:
-        """保存浏览器登录状态"""
+        """保存浏览器登录状态
+
+        注意：cookies 和 local_storage 仅加密一次（在 register 内部）。
+        session_file 保存的是 register 返回的加密值，不会重复加密。
+        """
         cookies_json = json.dumps(cookies)
         storage_json = json.dumps(local_storage or {})
 
-        encrypted_cookies = self._encrypt(cookies_json)
         encrypted_storage = self._encrypt(storage_json)
 
+        # 传递原始 cookies_json，register() 内部会加密一次
         record = self.register(
             name=f"browser_session:{domain}",
             credential_type=CredentialType.BROWSER_SESSION,
-            value=encrypted_cookies,
+            value=cookies_json,
             domain=domain,
             expires_in=expires_in,
             metadata={
@@ -451,7 +443,7 @@ class CredentialManager:
         session_file.write_text(
             json.dumps(
                 {
-                    "cookies": encrypted_cookies,
+                    "cookies": record._encrypted_value,
                     "local_storage": encrypted_storage,
                 }
             )

@@ -54,22 +54,22 @@ class TestCredentialManagerIntegration:
 
     def test_load_keys_falls_back_to_env_when_import_fails(self) -> None:
         """当 CredentialManager 导入失败时，回退到环境变量"""
+        import sys
+
         with patch.dict(
             os.environ,
             {"MAREF_API_KEY": "env-key", "MAREF_API_KEY_2": "env-backup"},
         ):
-            with patch(
-                "builtins.__import__",
-                side_effect=ImportError("No module"),
-            ):
-                from sidecar import api_auth
+            from sidecar import api_auth
 
-                api_auth._API_KEYS = []
-                api_auth._ALLOWED_SCOPES = []
+            api_auth._API_KEYS = []
+            api_auth._ALLOWED_SCOPES = []
+            # sys.modules[...]=None → 该模块 import 抛 ImportError（精准，不影响本测试其它 import）
+            with patch.dict(sys.modules, {"maref.identity.credential_manager": None}):
                 _load_keys()
 
-                assert "env-key" in api_auth._API_KEYS
-                assert "env-backup" in api_auth._API_KEYS
+            assert "env-key" in api_auth._API_KEYS
+            assert "env-backup" in api_auth._API_KEYS
 
     def test_load_keys_credential_manager_takes_priority_over_env(
         self, tmp_path: Path
@@ -80,18 +80,17 @@ class TestCredentialManagerIntegration:
             "MAREF_API_KEY": "cm-priority-key",
         }.get(name)
 
-        with patch.dict(os.environ, {"MAREF_API_KEY": "env-key"}):
-            with patch(
-                "maref.identity.credential_manager.CredentialManager",
-                return_value=mock_manager,
-            ):
-                from sidecar import api_auth
+        with patch.dict(os.environ, {"MAREF_API_KEY": "env-key"}), patch(
+            "maref.identity.credential_manager.CredentialManager",
+            return_value=mock_manager,
+        ):
+            from sidecar import api_auth
 
-                api_auth._API_KEYS = []
-                api_auth._ALLOWED_SCOPES = []
-                _load_keys()
+            api_auth._API_KEYS = []
+            api_auth._ALLOWED_SCOPES = []
+            _load_keys()
 
-                assert api_auth._API_KEYS == ["cm-priority-key"]
+            assert api_auth._API_KEYS == ["cm-priority-key"]
 
     def test_load_keys_credential_manager_returns_none_falls_back_to_env(
         self, tmp_path: Path
@@ -100,18 +99,17 @@ class TestCredentialManagerIntegration:
         mock_manager = MagicMock()
         mock_manager.get.return_value = None
 
-        with patch.dict(os.environ, {"MAREF_API_KEY": "env-fallback"}):
-            with patch(
-                "maref.identity.credential_manager.CredentialManager",
-                return_value=mock_manager,
-            ):
-                from sidecar import api_auth
+        with patch.dict(os.environ, {"MAREF_API_KEY": "env-fallback"}), patch(
+            "maref.identity.credential_manager.CredentialManager",
+            return_value=mock_manager,
+        ):
+            from sidecar import api_auth
 
-                api_auth._API_KEYS = []
-                api_auth._ALLOWED_SCOPES = []
-                _load_keys()
+            api_auth._API_KEYS = []
+            api_auth._ALLOWED_SCOPES = []
+            _load_keys()
 
-                assert "env-fallback" in api_auth._API_KEYS
+            assert "env-fallback" in api_auth._API_KEYS
 
     def test_auth_works_with_credential_manager_key(self, tmp_path: Path) -> None:
         """使用 CredentialManager 提供的密钥进行认证"""
