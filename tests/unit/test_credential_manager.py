@@ -294,8 +294,8 @@ class TestCredentialManagerEncryption:
         assert len(manager2._records) == 0
 
     def test_dev_fallback_warning(self, tmp_path: Path, caplog) -> None:
-        import os
         import logging
+        import os
 
         os.environ.pop("MAREF_CREDENTIAL_ENCRYPTION_KEY", None)
         with caplog.at_level(logging.WARNING):
@@ -723,3 +723,169 @@ class TestCredentialManagerSecurityFixes:
 
 def records_file_exists(tmp_path: Path) -> bool:
     return (tmp_path / "credential_records.json").exists()
+
+
+class TestCredentialManagerBrowserSession:
+    """测试浏览器会话管理"""
+
+    def _make_manager(self, tmp_path: Path) -> CredentialManager:
+        return CredentialManager(storage_dir=tmp_path)
+
+    def test_save_browser_session_creates_record(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [
+            {"name": "session_id", "value": "abc123", "domain": ".example.com"}
+        ]
+        record = manager.save_browser_session(
+            domain="example.com",
+            cookies=cookies,
+            local_storage={"token": "xyz"},
+            expires_in=3600,
+        )
+
+        assert record.name == "browser_session:example.com"
+        assert record.credential_type == CredentialType.BROWSER_SESSION
+        assert record.domain == "example.com"
+        assert record.expires_at is not None
+        assert record.metadata["cookie_count"] == 1
+
+    def test_save_browser_session_creates_file(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [{"name": "sid", "value": "123", "domain": ".test.com"}]
+        record = manager.save_browser_session(
+            domain="test.com",
+            cookies=cookies,
+        )
+
+        session_file = tmp_path / f"browser_{record.credential_id}.json"
+        assert session_file.exists()
+
+    def test_save_browser_session_encrypts_data(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [{"name": "secret", "value": "value123", "domain": ".test.com"}]
+        record = manager.save_browser_session(
+            domain="test.com",
+            cookies=cookies,
+        )
+
+        session_file = tmp_path / f"browser_{record.credential_id}.json"
+        data = json.loads(session_file.read_text())
+
+        assert data["cookies"] != json.dumps(cookies)
+
+    def test_load_browser_session(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [
+            {"name": "session_id", "value": "abc123", "domain": ".example.com"}
+        ]
+        local_storage = {"user_token": "xyz789"}
+
+        manager.save_browser_session(
+            domain="example.com",
+            cookies=cookies,
+            local_storage=local_storage,
+        )
+
+        loaded = manager.load_browser_session("example.com")
+
+        assert loaded is not None
+        assert loaded["cookies"] == cookies
+        assert loaded["local_storage"] == local_storage
+        assert "created_at" in loaded
+        assert "expires_at" in loaded
+
+    def test_load_browser_session_not_found(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        assert manager.load_browser_session("nonexistent.com") is None
+
+    def test_load_browser_session_expired(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [{"name": "sid", "value": "123", "domain": ".test.com"}]
+        record = manager.save_browser_session(
+            domain="test.com",
+            cookies=cookies,
+            expires_in=1,
+        )
+
+        record.expires_at = time.time() - 1
+        manager._records[record.credential_id] = record
+
+        assert manager.load_browser_session("test.com") is None
+
+    def test_load_browser_session_file_missing(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [{"name": "sid", "value": "123", "domain": ".test.com"}]
+        record = manager.save_browser_session(
+            domain="test.com",
+            cookies=cookies,
+        )
+
+        session_file = tmp_path / f"browser_{record.credential_id}.json"
+        session_file.unlink()
+
+        assert manager.load_browser_session("test.com") is None
+
+    def test_delete_browser_session(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [{"name": "sid", "value": "123", "domain": ".test.com"}]
+        manager.save_browser_session(
+            domain="test.com",
+            cookies=cookies,
+        )
+
+        assert manager.delete_browser_session("test.com") is True
+        assert manager.load_browser_session("test.com") is None
+
+    def test_delete_browser_session_not_found(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        assert manager.delete_browser_session("nonexistent.com") is False
+
+    def test_list_browser_sessions(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+
+        manager.save_browser_session(
+            domain="example.com",
+            cookies=[{"name": "c1", "value": "v1", "domain": ".example.com"}],
+        )
+        manager.save_browser_session(
+            domain="test.com",
+            cookies=[{"name": "c2", "value": "v2", "domain": ".test.com"}],
+        )
+
+        sessions = manager.list_browser_sessions()
+        assert len(sessions) == 2
+        domains = [s.domain for s in sessions]
+        assert "example.com" in domains
+        assert "test.com" in domains
+
+    def test_save_browser_session_updates_existing(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+
+        manager.save_browser_session(
+            domain="example.com",
+            cookies=[{"name": "old", "value": "1", "domain": ".example.com"}],
+        )
+
+        manager.save_browser_session(
+            domain="example.com",
+            cookies=[{"name": "new", "value": "2", "domain": ".example.com"}],
+        )
+
+        sessions = manager.list_browser_sessions()
+        assert len(sessions) == 1
+        loaded = manager.load_browser_session("example.com")
+        assert loaded is not None
+        assert len(loaded["cookies"]) == 1
+        assert loaded["cookies"][0]["name"] == "new"
+
+    def test_save_browser_session_empty_local_storage(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        cookies = [{"name": "sid", "value": "123", "domain": ".test.com"}]
+        manager.save_browser_session(
+            domain="test.com",
+            cookies=cookies,
+        )
+
+        loaded = manager.load_browser_session("test.com")
+        assert loaded is not None
+        assert loaded["local_storage"] == {}

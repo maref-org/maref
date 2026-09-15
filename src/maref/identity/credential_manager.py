@@ -420,3 +420,80 @@ class CredentialManager:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise
+
+    def save_browser_session(
+        self,
+        domain: str,
+        cookies: list[dict[str, Any]],
+        local_storage: dict[str, str] | None = None,
+        expires_in: float = 86400,
+    ) -> CredentialRecord:
+        """保存浏览器登录状态"""
+        cookies_json = json.dumps(cookies)
+        storage_json = json.dumps(local_storage or {})
+
+        encrypted_cookies = self._encrypt(cookies_json)
+        encrypted_storage = self._encrypt(storage_json)
+
+        record = self.register(
+            name=f"browser_session:{domain}",
+            credential_type=CredentialType.BROWSER_SESSION,
+            value=encrypted_cookies,
+            domain=domain,
+            expires_in=expires_in,
+            metadata={
+                "local_storage": encrypted_storage,
+                "cookie_count": len(cookies),
+            },
+        )
+
+        session_file = self._storage_dir / f"browser_{record.credential_id}.json"
+        session_file.write_text(
+            json.dumps(
+                {
+                    "cookies": encrypted_cookies,
+                    "local_storage": encrypted_storage,
+                }
+            )
+        )
+
+        return record
+
+    def load_browser_session(self, domain: str) -> dict[str, Any] | None:
+        """加载浏览器登录状态"""
+        record = self._find_by_name(f"browser_session:{domain}")
+        if not record or record.is_expired():
+            return None
+
+        session_file = self._storage_dir / f"browser_{record.credential_id}.json"
+        if not session_file.exists():
+            return None
+
+        data = json.loads(session_file.read_text())
+
+        return {
+            "cookies": json.loads(self._decrypt(data["cookies"])),
+            "local_storage": json.loads(self._decrypt(data["local_storage"])),
+            "created_at": record.created_at,
+            "expires_at": record.expires_at,
+        }
+
+    def delete_browser_session(self, domain: str) -> bool:
+        """删除浏览器登录状态"""
+        record = self._find_by_name(f"browser_session:{domain}")
+        if not record:
+            return False
+
+        session_file = self._storage_dir / f"browser_{record.credential_id}.json"
+        if session_file.exists():
+            session_file.unlink()
+
+        self.revoke(record.credential_id, reason="browser session deleted")
+        return True
+
+    def list_browser_sessions(self) -> list[CredentialRecord]:
+        """列出所有浏览器会话"""
+        return self.list_credentials(
+            credential_type=CredentialType.BROWSER_SESSION,
+            status=CredentialStatus.ACTIVE,
+        )
