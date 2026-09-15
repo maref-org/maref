@@ -1,6 +1,6 @@
 # OSS 执行规范 v1.0 — MAREF Track B
 
-> **上位法**: 本文件受 [MAREF 宪法 v1.6](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。
+> **上位法**: 本文件受 [MAREF 宪法 v1.8](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。
 > **范围**: MAREF 开源仓库 Track B（发布源），适用于所有 Code Agent 操作。
 > **同步方向**: A → B 单向。Athena KB 是策略层，本仓库是执行层。
 
