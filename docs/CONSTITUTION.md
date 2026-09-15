@@ -1,4 +1,4 @@
-# Athena 系统宪法 v1.5
+# Athena 系统宪法 v1.6
 
 > **地位**: MAREF 仓库（Track B 发布源）的最高上位法。AGENTS.md、CLAUDE.md、`docs/oss-execution-norm-v1.0.md` 等下位文件均受本宪法约束；冲突时以本宪法为准。
 >
@@ -6,7 +6,7 @@
 >
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步，不得反向回灌。
 >
-> **生效日期**: 2026-05-18
+> **生效日期**: 2026-09-14
 >
 > **形式化对应**: 宪法红线的形式化不变量见 `src/formal/MAREF_ConstitutionalRedLines.tla`（TLC 模型检查已验证，156 distinct states / 0 errors）。
 
@@ -16,7 +16,7 @@
 
 治理依据按下列优先级降序排列，下位文件不得与上位冲突：
 
-1. **Athena 系统宪法 v1.5**（本文件）
+1. **Athena 系统宪法 v1.6**（本文件）
 2. **MAREF 开源执行规范 v1.0**（`docs/oss-execution-norm-v1.0.md`）
 3. **AGENTS.md / CLAUDE.md**（仓库 Agent 操作手册）
 4. **MAREF 自有发布门禁**（`docs/release-gate.md`）及各模块规范
@@ -27,7 +27,7 @@
 
 宪法红线为最高安全级别（不可降级安全断言），由 `ConstitutionalRedLine` 在代码层强制执行，由 TLA+ 不变量在形式层证明。任何 Agent、编排器、递归自演进机制不得修改、禁用或绕过。
 
-## 第三条 宪法红线（RL-001 ~ RL-005）
+## 第三条 宪法红线（RL-001 ~ RL-007）
 
 | 编号 | 红线 | TLA+ 不变量 | 适用范围 |
 |------|------|-------------|---------|
@@ -36,6 +36,8 @@
 | **RL-003** | 智能体不得在无审计追踪的情况下执行代码 | $\square(s.trace\_ctx \neq \emptyset \lor s.live = False)$ | `AuditTrailCompleteness` |
 | **RL-004** | 智能体不得在未经宪法审查的情况下克隆自身 | $\square(clone \implies human\_reviewed)$ | `ConstitutionSupremacy` |
 | **RL-005** | 智能体不得单方面修改信任评估权重 | $\square(trust\_weight \implies consensus)$ | `HumanConstitutionSoleAuthority` |
+| **RL-006** | 跨维度改进不得修改安全相关维度权重 | $\square(d \in ProtectedDim \implies weight[d] = 50)$ | `CrossDimSecurityInv` |
+| **RL-007** | 单轮跨维度改进不得超过3个目标文件 | $\square(fileModCount \leq 3)$ | `MaxFilesPerRoundInv` |
 
 **红线拦截目标**: 100%（200 轮红蓝对抗实测 15/15 全部拦截，0 突破）。
 
@@ -58,6 +60,16 @@
 ## 第八条 形式化验证前置
 
 涉及治理状态机、宪法红线、安全门的关键性质须 TLA+ 模型检验通过后方可实现。MAREF 采用 34 态 Gray Code FSM（10 治理 + 24 Agent，Hamming 距离 = 1 转换）保证稳定性。
+
+### 8.1 跨维度形式化验证
+
+跨维度改进（Cross-dimension improvement）须满足以下形式化不变量：
+- **CD-INV-001**: 安全相关维度权重不可变（ProtectedDim weights = 50）
+- **CD-INV-002**: 单轮改进文件数不超过3（fileModCount ≤ 3）
+- **CD-INV-003**: 跨影响监控必须始终激活（crossImpactMonitored = TRUE）
+- **CD-INV-004**: 权重调整量不超过阈值（weightAdjustmentTotal ≤ 0.15）
+
+验证文件: `src/formal/MAREF_ConstitutionalRedLines.tla`
 
 ## 第九条 数据主权与合规
 
@@ -91,6 +103,7 @@ Track A（Athena 内部） → Track B（本仓库）单向同步。外部项目
 
 | 版本 | 日期 | 摘要 |
 |------|------|------|
+| v1.6 | 2026-09-14 | 宪法红线扩展至7条（RL-006/007：跨维度安全保护），新增跨维度形式化验证（CD-INV-001~004），同步L2验收新增内容。 |
 | v1.5 | 2026-05-18 | 当前生效版本。确立 5 条宪法红线、TLA+ 形式化验证、HITL 四级审批、跨仓库治理（Athena / SkillOS / openclaw 等平级生态不得作为 MAREF 上位法）。 |
 
 ---
