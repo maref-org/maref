@@ -127,3 +127,49 @@ def diagnose():
     for k, v in diag.items():
         if k != "env_vars":
             click.echo(f"  {k}: {v}")
+
+
+@keys_cli.command()
+@click.option("--key", "-k", "key_name", required=True, help="Key name to rotate")
+def rotate(key_name: str):
+    """Rotate a credential in keychain."""
+    from maref.identity.credential_manager import CredentialManager
+
+    manager = CredentialManager()
+    record = manager._find_by_name(key_name)
+
+    if not record:
+        click.echo(f"✗ Key {key_name} not found", err=True)
+        return
+
+    new_value = click.prompt(f"Enter new value for {key_name}", hide_input=True)
+    manager.rotate(record.credential_id, new_value)
+    click.echo(f"✓ Rotated {key_name}")
+
+
+@keys_cli.command()
+def audit():
+    """Audit credential status and rotation needs."""
+    from maref.identity.credential_manager import CredentialManager
+    from maref.identity.key_rotation import KeyRotator
+
+    manager = CredentialManager()
+    rotator = KeyRotator(manager)
+
+    click.echo("Credential Audit Report")
+    click.echo("=" * 60)
+
+    results = rotator.check_all()
+    for status in results:
+        if status["needs_rotation"]:
+            icon = "🔄"
+        elif status["warning"]:
+            icon = "⚠️"
+        else:
+            icon = "✓"
+        click.echo(f"  {icon} {status['name']:30s} [{status['type']}] {status['reason']}")
+
+    click.echo()
+    click.echo(f"Total credentials: {len(manager.list_credentials())}")
+    click.echo(f"Needs rotation: {sum(1 for s in results if s['needs_rotation'])}")
+    click.echo(f"Warnings: {sum(1 for s in results if s['warning'])}")
