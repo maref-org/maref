@@ -2,7 +2,7 @@
 
 > **地位**: MAREF 自有的轻量发布门禁。本仓库一切发布审计、Gate 决策、Go/No-Go 评估的唯一执行标准。
 >
-> **上位法**: Athena 系统宪法 v1.5（`docs/CONSTITUTION.md`）→ MAREF 开源执行规范 v1.0（`docs/oss-execution-norm-v1.0.md`）→ AGENTS.md → 本文件。
+> **上位法**: Athena 系统宪法 v1.6（`docs/CONSTITUTION.md`）→ MAREF 开源执行规范 v1.0（`docs/oss-execution-norm-v1.0.md`）→ AGENTS.md → 本文件。
 >
 > **适用范围**: MAREF 仓库（Track B 发布源）。本仓库为纯后端 Agent 治理 OS，L3 前端层 / L4 UI 层 / 桌面端专项审计不适用（生态前端 openclaw / Athena-UI 另行规范）。
 >
