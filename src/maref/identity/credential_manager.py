@@ -116,6 +116,149 @@ class CredentialManager:
         except ImportError:
             pass
 
+    def register(
+        self,
+        name: str,
+        credential_type: CredentialType,
+        value: str,
+        domain: str = "",
+        expires_in: float | None = None,
+        rotation_interval: float | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CredentialRecord:
+        """注册新凭据"""
+        credential_id = f"{credential_type.value}:{name}:{int(time.time())}"
+        fingerprint = hashlib.sha256(value.encode()).hexdigest()[:16]
+
+        record = CredentialRecord(
+            credential_id=credential_id,
+            credential_type=credential_type,
+            name=name,
+            domain=domain,
+            expires_at=time.time() + expires_in if expires_in else None,
+            rotation_interval=rotation_interval,
+            metadata=metadata or {},
+            fingerprint=fingerprint,
+        )
+
+        self._records[credential_id] = record
+        self._save_records()
+
+        if self._keyring_store:
+            self._keyring_store.set(name, value)
+
+        self._audit_log("register", credential_id, name)
+
+        return record
+
+    def get(self, name: str) -> str | None:
+        """获取凭据值（优先级: env > manager > keyring）"""
+        env_val = os.environ.get(name)
+        if env_val:
+            return env_val
+
+        record = self._find_by_name(name)
+        if record and record.status == CredentialStatus.EXPIRED:
+            return None
+
+        if self._keyring_store:
+            return self._keyring_store.get(name)
+
+        return None
+
+    def rotate(self, credential_id: str, new_value: str) -> CredentialRecord:
+        """轮转凭据"""
+        record = self._records.get(credential_id)
+        if not record:
+            raise ValueError(f"Credential {credential_id} not found")
+
+        record.last_rotated = time.time()
+        record.fingerprint = hashlib.sha256(new_value.encode()).hexdigest()[:16]
+        record.status = CredentialStatus.ACTIVE
+
+        if self._keyring_store:
+            self._keyring_store.set(record.name, new_value)
+
+        self._save_records()
+        self._audit_log("rotate", credential_id, record.name)
+
+        return record
+
+    def revoke(self, credential_id: str, reason: str = "") -> bool:
+        """吊销凭据"""
+        record = self._records.get(credential_id)
+        if not record:
+            return False
+
+        record.status = CredentialStatus.REVOKED
+        record.metadata["revoke_reason"] = reason
+        record.metadata["revoked_at"] = time.time()
+
+        self._save_records()
+
+        if self._keyring_store:
+            self._keyring_store.delete(record.name)
+
+        self._audit_log("revoke", credential_id, record.name, reason=reason)
+
+        return True
+
+    def list_credentials(
+        self,
+        credential_type: CredentialType | None = None,
+        status: CredentialStatus | None = None,
+    ) -> list[CredentialRecord]:
+        """列出凭据"""
+        results = list(self._records.values())
+
+        if credential_type:
+            results = [r for r in results if r.credential_type == credential_type]
+        if status:
+            results = [r for r in results if r.status == status]
+
+        return sorted(results, key=lambda r: r.created_at, reverse=True)
+
+    def check_expiration(self) -> list[CredentialRecord]:
+        """检查过期凭据"""
+        return [r for r in self._records.values() if r.is_expired()]
+
+    def check_rotation_needed(self) -> list[CredentialRecord]:
+        """检查需要轮转的凭据"""
+        return [r for r in self._records.values() if r.needs_rotation()]
+
+    def _find_by_name(self, name: str) -> CredentialRecord | None:
+        """按名称查找凭据"""
+        for record in self._records.values():
+            if record.name == name:
+                return record
+        return None
+
+    def _audit_log(
+        self,
+        action: str,
+        credential_id: str,
+        name: str,
+        reason: str = "",
+    ) -> None:
+        """记录审计日志（优雅降级：AuditLogger 不可用时仅写 warning）"""
+        try:
+            from maref.governance.audit import AuditLogger
+
+            audit = AuditLogger()
+            audit.log(
+                event_type=f"credential_{action}",
+                actor="credential_manager",
+                action=action,
+                details=f"credential_id={credential_id}, name={name}",
+                metadata={
+                    "credential_id": credential_id,
+                    "name": name,
+                    "reason": reason,
+                },
+            )
+        except Exception as e:
+            logger.warning("Audit logging failed for credential %s: %s", action, e)
+
     def _encrypt(self, plaintext: str) -> str:
         """AES-256-GCM 加密，返回 nonce+ciphertext 的 hex 字符串"""
         try:

@@ -5,6 +5,8 @@ import json
 import time
 from pathlib import Path
 
+import pytest
+
 from maref.identity.credential_manager import (
     CredentialManager,
     CredentialRecord,
@@ -352,6 +354,208 @@ class TestCredentialManagerEncryption:
             manager._records_file.read_text()
         ))
         assert len(data) == 1
+
+
+class TestCredentialManagerCRUD:
+    def _make_manager(self, tmp_path: Path) -> CredentialManager:
+        return CredentialManager(storage_dir=tmp_path)
+
+    def test_register_creates_record(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="dashscope",
+            credential_type=CredentialType.API_KEY,
+            value="sk-test123",
+            domain="api.dashscope.com",
+        )
+        assert record.name == "dashscope"
+        assert record.credential_type == CredentialType.API_KEY
+        assert record.domain == "api.dashscope.com"
+        assert record.fingerprint == hashlib.sha256(b"sk-test123").hexdigest()[:16]
+        assert record.status == CredentialStatus.ACTIVE
+        assert record.credential_id.startswith("api_key:dashscope:")
+
+    def test_register_with_expiry(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="temp-key",
+            credential_type=CredentialType.API_KEY,
+            value="sk-temp",
+            expires_in=3600,
+        )
+        assert record.expires_at is not None
+        assert record.expires_at > time.time()
+
+    def test_register_with_rotation(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="rot-key",
+            credential_type=CredentialType.HMAC_KEY,
+            value="hmac-secret",
+            rotation_interval=86400,
+        )
+        assert record.rotation_interval == 86400
+
+    def test_register_with_metadata(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="meta-key",
+            credential_type=CredentialType.API_KEY,
+            value="val",
+            metadata={"env": "prod"},
+        )
+        assert record.metadata == {"env": "prod"}
+
+    def test_register_stored_in_keyring(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        mock_keyring = type("MockKeyring", (), {
+            "set": lambda self, k, v: True,
+            "get": lambda self, k, d=None: None,
+            "delete": lambda self, k: True,
+        })()
+        manager._keyring_store = mock_keyring
+
+        manager.register(
+            name="kr-key",
+            credential_type=CredentialType.API_KEY,
+            value="kr-val",
+        )
+        assert mock_keyring.set("kr-key", "kr-val")
+
+    def test_get_from_env(self, tmp_path: Path) -> None:
+        import os
+        os.environ["TEST_CRED_GET_ENV"] = "env-value"
+        try:
+            manager = self._make_manager(tmp_path)
+            result = manager.get("TEST_CRED_GET_ENV")
+            assert result == "env-value"
+        finally:
+            del os.environ["TEST_CRED_GET_ENV"]
+
+    def test_get_expired_returns_none(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="expired-key",
+            credential_type=CredentialType.API_KEY,
+            value="val",
+            expires_in=-1,
+        )
+        # Force expired status
+        record.status = CredentialStatus.EXPIRED
+        manager._records[record.credential_id] = record
+        assert manager.get("expired-key") is None
+
+    def test_get_from_keyring(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        mock_keyring = type("MockKeyring", (), {
+            "set": lambda self, k, v: True,
+            "get": lambda self, k, d=None: "kr-stored-value",
+            "delete": lambda self, k: True,
+        })()
+        manager._keyring_store = mock_keyring
+        assert manager.get("some-key") == "kr-stored-value"
+
+    def test_rotate_updates_record(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="rot-key",
+            credential_type=CredentialType.API_KEY,
+            value="old-val",
+        )
+        old_fp = record.fingerprint
+        rotated = manager.rotate(record.credential_id, "new-val")
+        assert rotated.fingerprint != old_fp
+        assert rotated.fingerprint == hashlib.sha256(b"new-val").hexdigest()[:16]
+        assert rotated.status == CredentialStatus.ACTIVE
+
+    def test_rotate_not_found_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        with pytest.raises(ValueError, match="not found"):
+            manager.rotate("nonexistent:id", "val")
+
+    def test_revoke_sets_status(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="rev-key",
+            credential_type=CredentialType.API_KEY,
+            value="val",
+        )
+        assert manager.revoke(record.credential_id, reason="compromised") is True
+        assert manager._records[record.credential_id].status == CredentialStatus.REVOKED
+        assert manager._records[record.credential_id].metadata["revoke_reason"] == "compromised"
+
+    def test_revoke_not_found_returns_false(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        assert manager.revoke("nonexistent:id") is False
+
+    def test_list_credentials_all(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager.register(name="k1", credential_type=CredentialType.API_KEY, value="v1")
+        manager.register(name="k2", credential_type=CredentialType.HMAC_KEY, value="v2")
+        all_creds = manager.list_credentials()
+        assert len(all_creds) == 2
+
+    def test_list_credentials_filter_type(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager.register(name="k1", credential_type=CredentialType.API_KEY, value="v1")
+        manager.register(name="k2", credential_type=CredentialType.HMAC_KEY, value="v2")
+        api_only = manager.list_credentials(credential_type=CredentialType.API_KEY)
+        assert len(api_only) == 1
+        assert api_only[0].name == "k1"
+
+    def test_list_credentials_filter_status(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        r1 = manager.register(name="k1", credential_type=CredentialType.API_KEY, value="v1")
+        manager.register(name="k2", credential_type=CredentialType.API_KEY, value="v2")
+        manager.revoke(r1.credential_id)
+        active = manager.list_credentials(status=CredentialStatus.ACTIVE)
+        assert len(active) == 1
+
+    def test_check_expiration(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager.register(name="k1", credential_type=CredentialType.API_KEY, value="v1", expires_in=-1)
+        expired = manager.check_expiration()
+        assert len(expired) == 1
+
+    def test_check_rotation_needed(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        r = manager.register(
+            name="k1",
+            credential_type=CredentialType.API_KEY,
+            value="v1",
+            rotation_interval=1,
+        )
+        r.last_rotated = time.time() - 10
+        manager._records[r.credential_id] = r
+        needs = manager.check_rotation_needed()
+        assert len(needs) == 1
+
+    def test_find_by_name(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager.register(name="find-me", credential_type=CredentialType.API_KEY, value="v")
+        found = manager._find_by_name("find-me")
+        assert found is not None
+        assert found.name == "find-me"
+
+    def test_find_by_name_not_found(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        assert manager._find_by_name("nonexistent") is None
+
+
+class TestAuditLogGracefulDegradation:
+    def test_audit_log_does_not_raise_on_import_error(self, tmp_path: Path) -> None:
+        manager = CredentialManager(storage_dir=tmp_path)
+        # _audit_log should not raise even if AuditLogger import fails
+        manager._audit_log("test", "cred-001", "test-name")
+
+    def test_audit_log_on_register(self, tmp_path: Path) -> None:
+        manager = CredentialManager(storage_dir=tmp_path)
+        record = manager.register(
+            name="audit-test",
+            credential_type=CredentialType.API_KEY,
+            value="val",
+        )
+        assert record.name == "audit-test"
 
 
 def records_file_exists(tmp_path: Path) -> bool:
