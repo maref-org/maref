@@ -6,7 +6,7 @@
 >
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步，不得反向回灌。
 >
-> **生效日期**: 2026-09-21
+> **生效日期**: 2026-09-15
 >
 > **形式化对应**: 宪法红线的形式化不变量见 `src/formal/MAREF_ConstitutionalRedLines.tla`（TLC 模型检查已验证，156 distinct states / 0 errors）。
 
