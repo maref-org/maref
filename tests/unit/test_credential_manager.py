@@ -438,9 +438,7 @@ class TestCredentialManagerCRUD:
             name="expired-key",
             credential_type=CredentialType.API_KEY,
             value="val",
-            expires_in=-1,
         )
-        # Force expired status
         record.status = CredentialStatus.EXPIRED
         manager._records[record.credential_id] = record
         assert manager.get("expired-key") is None
@@ -513,7 +511,14 @@ class TestCredentialManagerCRUD:
 
     def test_check_expiration(self, tmp_path: Path) -> None:
         manager = self._make_manager(tmp_path)
-        manager.register(name="k1", credential_type=CredentialType.API_KEY, value="v1", expires_in=-1)
+        record = manager.register(
+            name="k1",
+            credential_type=CredentialType.API_KEY,
+            value="v1",
+            expires_in=3600,
+        )
+        record.expires_at = time.time() - 1
+        manager._records[record.credential_id] = record
         expired = manager.check_expiration()
         assert len(expired) == 1
 
@@ -556,6 +561,164 @@ class TestAuditLogGracefulDegradation:
             value="val",
         )
         assert record.name == "audit-test"
+
+
+class TestCredentialManagerSecurityFixes:
+    """测试 Critical/Important 安全修复"""
+
+    def _make_manager(self, tmp_path: Path) -> CredentialManager:
+        return CredentialManager(storage_dir=tmp_path)
+
+    def test_get_revoked_returns_none(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="rev-key",
+            credential_type=CredentialType.API_KEY,
+            value="secret",
+        )
+        manager.revoke(record.credential_id, reason="compromised")
+        assert manager.get("rev-key") is None
+
+    def test_rotate_revoked_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="rev-key",
+            credential_type=CredentialType.API_KEY,
+            value="secret",
+        )
+        manager.revoke(record.credential_id)
+        with pytest.raises(ValueError, match="revoked"):
+            manager.rotate(record.credential_id, "new-val")
+
+    def test_get_no_keyring_fallback_to_local(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager._keyring_store = None
+        record = manager.register(
+            name="local-key",
+            credential_type=CredentialType.API_KEY,
+            value="local-secret",
+        )
+        assert record._encrypted_value != ""
+        assert manager.get("local-key") == "local-secret"
+
+    def test_get_local_value_roundtrip(self, tmp_path: Path) -> None:
+        manager1 = self._make_manager(tmp_path)
+        manager1._keyring_store = None
+        manager1.register(
+            name="persist-key",
+            credential_type=CredentialType.API_KEY,
+            value="persist-secret",
+        )
+
+        manager2 = self._make_manager(tmp_path)
+        manager2._keyring_store = None
+        assert manager2.get("persist-key") == "persist-secret"
+
+    def test_duplicate_name_updates_existing(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        r1 = manager.register(
+            name="dup-key",
+            credential_type=CredentialType.API_KEY,
+            value="val1",
+            domain="old.com",
+        )
+        r2 = manager.register(
+            name="dup-key",
+            credential_type=CredentialType.SIGNING_KEY,
+            value="val2",
+            domain="new.com",
+        )
+        assert r1.credential_id == r2.credential_id
+        assert r2.credential_type == CredentialType.SIGNING_KEY
+        assert r2.domain == "new.com"
+        assert r2.fingerprint == hashlib.sha256(b"val2").hexdigest()[:16]
+        assert len(manager.list_credentials()) == 1
+
+    def test_register_empty_name_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        with pytest.raises(ValueError, match="name"):
+            manager.register(
+                name="",
+                credential_type=CredentialType.API_KEY,
+                value="val",
+            )
+
+    def test_register_empty_value_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        with pytest.raises(ValueError, match="value"):
+            manager.register(
+                name="key",
+                credential_type=CredentialType.API_KEY,
+                value="",
+            )
+
+    def test_register_negative_expires_in_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        with pytest.raises(ValueError, match="expires_in"):
+            manager.register(
+                name="key",
+                credential_type=CredentialType.API_KEY,
+                value="val",
+                expires_in=-1,
+            )
+
+    def test_register_zero_expires_in_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        with pytest.raises(ValueError, match="expires_in"):
+            manager.register(
+                name="key",
+                credential_type=CredentialType.API_KEY,
+                value="val",
+                expires_in=0,
+            )
+
+    def test_rotate_empty_value_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="key",
+            credential_type=CredentialType.API_KEY,
+            value="old",
+        )
+        with pytest.raises(ValueError, match="must not be empty"):
+            manager.rotate(record.credential_id, "")
+
+    def test_rotate_updates_local_value(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager._keyring_store = None
+        record = manager.register(
+            name="key",
+            credential_type=CredentialType.API_KEY,
+            value="old",
+        )
+        manager.rotate(record.credential_id, "new")
+        assert manager.get("key") == "new"
+
+    def test_update_existing_resets_status(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        record = manager.register(
+            name="key",
+            credential_type=CredentialType.API_KEY,
+            value="val",
+        )
+        manager.revoke(record.credential_id)
+        assert manager._records[record.credential_id].status == CredentialStatus.REVOKED
+
+        updated = manager.register(
+            name="key",
+            credential_type=CredentialType.API_KEY,
+            value="val2",
+        )
+        assert updated.status == CredentialStatus.ACTIVE
+        assert manager.get("key") == "val2"
+
+    def test_whitespace_name_raises(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        with pytest.raises(ValueError, match="name"):
+            manager.register(
+                name="   ",
+                credential_type=CredentialType.API_KEY,
+                value="val",
+            )
 
 
 def records_file_exists(tmp_path: Path) -> bool:
