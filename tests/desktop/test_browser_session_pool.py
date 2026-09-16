@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from maref.desktop.browser_session_pool import BrowserSessionPool, PlaywrightNotAvailableError
+from maref.desktop.browser_session_pool import BrowserSessionPool, PlaywrightNotAvailableError, _reset_credential_manager
 from maref.desktop.browser_types import BrowserType
 
 _real_import = builtins.__import__
@@ -140,6 +140,7 @@ class TestBrowserSessionPoolSessionRestore:
     @pytest.fixture(autouse=True)
     def _reset_pool(self) -> None:
         BrowserSessionPool._instance = None
+        _reset_credential_manager()
 
     @pytest.fixture
     def pool(self) -> BrowserSessionPool:
@@ -164,19 +165,19 @@ class TestBrowserSessionPoolSessionRestore:
             mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
 
             cookies = [{"name": "sid", "value": "123", "domain": ".test.com"}]
-            mock_record = MagicMock()
-            mock_record.domain = "test.com"
-            mock_record.is_expired.return_value = False
 
             mock_manager_instance = MockManager.return_value
-            mock_manager_instance.list_browser_sessions.return_value = [mock_record]
             mock_manager_instance.load_browser_session.return_value = {
                 "cookies": cookies,
                 "local_storage": {},
             }
 
-            await pool.acquire("restore-s1")
+            session = await pool.acquire("restore-s1")
+            session.domain = "test.com"
 
+            await pool._restore_session_state("restore-s1", mock_page)
+
+            mock_manager_instance.load_browser_session.assert_called_once_with("test.com")
             mock_context.add_cookies.assert_called_once_with(cookies)
 
     @pytest.mark.asyncio
@@ -199,18 +200,17 @@ class TestBrowserSessionPoolSessionRestore:
             mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
 
             local_storage = {"token": "xyz", "user_id": "123"}
-            mock_record = MagicMock()
-            mock_record.domain = "test.com"
-            mock_record.is_expired.return_value = False
 
             mock_manager_instance = MockManager.return_value
-            mock_manager_instance.list_browser_sessions.return_value = [mock_record]
             mock_manager_instance.load_browser_session.return_value = {
                 "cookies": [],
                 "local_storage": local_storage,
             }
 
-            await pool.acquire("restore-ls1")
+            session = await pool.acquire("restore-ls1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-ls1", mock_page)
 
             mock_page.evaluate.assert_called_once()
 
@@ -229,9 +229,12 @@ class TestBrowserSessionPoolSessionRestore:
             mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
 
             mock_manager_instance = MockManager.return_value
-            mock_manager_instance.list_browser_sessions.side_effect = Exception("DB error")
+            mock_manager_instance.load_browser_session.side_effect = Exception("DB error")
 
             session = await pool.acquire("restore-fail1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-fail1", mock_page)
 
             assert session.session_id == "restore-fail1"
             assert session.active_page is not None
@@ -251,9 +254,12 @@ class TestBrowserSessionPoolSessionRestore:
             mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
 
             mock_manager_instance = MockManager.return_value
-            mock_manager_instance.list_browser_sessions.return_value = []
+            mock_manager_instance.load_browser_session.return_value = None
 
             session = await pool.acquire("restore-empty1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-empty1", mock_page)
 
             assert session.session_id == "restore-empty1"
 
@@ -276,18 +282,17 @@ class TestBrowserSessionPoolSessionRestore:
             mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
 
             cookies = [{"name": "bad", "value": "cookie", "domain": ".test.com"}]
-            mock_record = MagicMock()
-            mock_record.domain = "test.com"
-            mock_record.is_expired.return_value = False
 
             mock_manager_instance = MockManager.return_value
-            mock_manager_instance.list_browser_sessions.return_value = [mock_record]
             mock_manager_instance.load_browser_session.return_value = {
                 "cookies": cookies,
                 "local_storage": {},
             }
 
             session = await pool.acquire("restore-cookie-err1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-cookie-err1", mock_page)
 
             assert session.session_id == "restore-cookie-err1"
 
@@ -311,3 +316,26 @@ class TestBrowserSessionPoolSessionRestore:
             browser_type=BrowserType.CHROMIUM,
         )
         assert session.domain == ""
+
+    @pytest.mark.asyncio
+    async def test_restore_skips_when_no_domain(
+        self, pool: BrowserSessionPool, tmp_path: Path
+    ) -> None:
+        mock_page = MagicMock()
+        mock_browser = MagicMock()
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_playwright = MagicMock()
+        mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("playwright.async_api.async_playwright") as mock_async_pw, \
+             patch("maref.identity.credential_manager.CredentialManager") as MockManager:
+            mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
+
+            mock_manager_instance = MockManager.return_value
+
+            session = await pool.acquire("no-domain-s1")
+            assert session.domain == ""
+
+            await pool._restore_session_state("no-domain-s1", mock_page)
+
+            mock_manager_instance.load_browser_session.assert_not_called()

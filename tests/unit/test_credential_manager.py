@@ -546,6 +546,22 @@ class TestCredentialManagerCRUD:
         manager = self._make_manager(tmp_path)
         assert manager._find_by_name("nonexistent") is None
 
+    def test_find_by_name_public_method(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager.register(name="pub-find", credential_type=CredentialType.API_KEY, value="v")
+        found = manager.find_by_name("pub-find")
+        assert found is not None
+        assert found.name == "pub-find"
+
+    def test_find_by_name_public_method_not_found(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        assert manager.find_by_name("nonexistent") is None
+
+    def test_find_by_name_public_delegates_to_private(self, tmp_path: Path) -> None:
+        manager = self._make_manager(tmp_path)
+        manager.register(name="delegate", credential_type=CredentialType.API_KEY, value="v")
+        assert manager.find_by_name("delegate") == manager._find_by_name("delegate")
+
 
 class TestAuditLogGracefulDegradation:
     def test_audit_log_does_not_raise_on_import_error(self, tmp_path: Path) -> None:

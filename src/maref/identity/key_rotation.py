@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from maref.identity.credential_manager import (
     CredentialType,
 )
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class RotationPolicy:
@@ -125,7 +127,13 @@ class KeyRotator:
                 for callback in self._rotation_callbacks:
                     try:
                         callback(record)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        cb_name = getattr(callback, "__qualname__", repr(callback))
+                        logger.warning(
+                            "Rotation callback %s failed for credential %s: %s",
+                            cb_name,
+                            record.name,
+                            e,
+                        )
 
         return expiring

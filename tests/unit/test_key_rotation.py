@@ -207,7 +207,9 @@ class TestKeyRotatorNotifyExpiring:
         rotator.notify_expiring()
         callback.assert_called_once()
 
-    def test_callback_exception_does_not_propagate(self, tmp_path: Path) -> None:
+    def test_callback_exception_does_not_propagate(self, tmp_path: Path, caplog) -> None:
+        import logging
+
         manager = self._make_manager(tmp_path)
         manager.register(
             name="err-key",
@@ -219,10 +221,11 @@ class TestKeyRotatorNotifyExpiring:
         bad_callback = MagicMock(side_effect=RuntimeError("boom"))
         rotator.register_rotation_callback(bad_callback)
 
-        # Should not raise
-        expiring = rotator.notify_expiring()
+        with caplog.at_level(logging.WARNING):
+            expiring = rotator.notify_expiring()
         assert len(expiring) == 1
         bad_callback.assert_called_once()
+        assert any("failed for credential err-key" in r.message for r in caplog.records)
 
     def test_no_expiry_not_included(self, tmp_path: Path) -> None:
         manager = self._make_manager(tmp_path)

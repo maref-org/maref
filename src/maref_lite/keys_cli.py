@@ -136,7 +136,7 @@ def rotate(key_name: str):
     from maref.identity.credential_manager import CredentialManager
 
     manager = CredentialManager()
-    record = manager._find_by_name(key_name)
+    record = manager.find_by_name(key_name)
 
     if not record:
         click.echo(f"✗ Key {key_name} not found", err=True)
