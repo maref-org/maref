@@ -275,12 +275,16 @@ class CredentialManager:
         """检查需要轮转的凭据"""
         return [r for r in self._records.values() if r.needs_rotation()]
 
-    def _find_by_name(self, name: str) -> CredentialRecord | None:
-        """按名称查找凭据"""
+    def find_by_name(self, name: str) -> CredentialRecord | None:
+        """按名称查找凭据（公共接口）"""
         for record in self._records.values():
             if record.name == name:
                 return record
         return None
+
+    def _find_by_name(self, name: str) -> CredentialRecord | None:
+        """按名称查找凭据（内部接口，保留向后兼容）"""
+        return self.find_by_name(name)
 
     def _store_value(self, name: str, value: str) -> None:
         """存储凭据值到 keyring（如果可用）"""
