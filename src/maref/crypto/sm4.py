@@ -3,7 +3,7 @@
 基于 gmssl 的纯 Python 实现，提供与 cryptography 库风格一致的 API。
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from gmssl import sm4 as _sm4
 
@@ -45,7 +45,7 @@ def sm4_decrypt_cbc(key: bytes, iv: bytes, ciphertext: bytes) -> bytes:
 
 class SM4GCMResult:
     def __init__(
-        self, ciphertext: bytes, tag: bytes, nonce: bytes, aad: bytes | None = None
+        self, ciphertext: bytes, tag: bytes, nonce: bytes, aad: Optional[bytes] = None
     ) -> None:
         self.ciphertext = ciphertext
         self.tag = tag
@@ -54,7 +54,7 @@ class SM4GCMResult:
 
 
 def sm4_encrypt_gcm(
-    key: bytes, nonce: bytes, plaintext: bytes, aad: bytes | None = None
+    key: bytes, nonce: bytes, plaintext: bytes, aad: Optional[bytes] = None
 ) -> SM4GCMResult:
     # gmssl 的 CryptSM4 不提供 GCM 模式；使用本仓库纯 Python SM4-GCM 实现
     # （sm4_gcm.py，基于 sm4_encrypt_cbc + GHASH）。延迟导入避免 sm4 与
@@ -65,7 +65,7 @@ def sm4_encrypt_gcm(
 
 
 def sm4_decrypt_gcm(
-    key: bytes, nonce: bytes, ciphertext: bytes, tag: bytes, aad: bytes | None = None
+    key: bytes, nonce: bytes, ciphertext: bytes, tag: bytes, aad: Optional[bytes] = None
 ) -> bytes:
     from maref.crypto.sm4_gcm import sm4_decrypt_gcm as _impl
 

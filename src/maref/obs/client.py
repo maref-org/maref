@@ -8,6 +8,9 @@ import time
 import uuid
 from pathlib import Path
 from threading import Lock
+from typing import Any
+
+import urllib.request
 
 from maref.obs.hasher import ObsHasher
 from maref.obs.levels import TelemetryLevel
@@ -43,6 +46,10 @@ class MarefObsClient:
         level: TelemetryLevel | str = TelemetryLevel.BASIC,
         base_dir: str | Path | None = None,
         session_id: str | None = None,
+        sidecar_url: str | None = None,
+        sidecar_auth_token: str | None = None,
+        batch_size: int = 100,
+        flush_interval_seconds: float = 30.0,
     ) -> None:
         if isinstance(level, str):
             level = TelemetryLevel.from_env(level)
@@ -51,11 +58,19 @@ class MarefObsClient:
         self._base_dir = Path(base_dir or Path.home() / ".maref" / "obs")
         self._session_id: str = session_id or uuid.uuid4().hex[:12]
 
+        # Sidecar telemetry upload configuration
+        self._sidecar_url = sidecar_url or os.environ.get("MAREF_SIDECAR_URL", "http://127.0.0.1:8000")
+        self._sidecar_auth_token = sidecar_auth_token or os.environ.get("MAREF_SIDECAR_AUTH_TOKEN", "")
+        self._batch_size = batch_size
+        self._flush_interval_seconds = flush_interval_seconds
+
         self._hasher = ObsHasher()
         self._lock = Lock()
         self._event_sequence = 0
         self._today: str = ""
         self._file_handle: int = -1  # not used; we open/close per write
+        self._pending_upload: list[dict[str, Any]] = []
+        self._last_flush_time = time.time()
 
         if self._level != TelemetryLevel.OFF:
             self._base_dir.mkdir(parents=True, exist_ok=True)
@@ -119,6 +134,21 @@ class MarefObsClient:
         )
 
         self._write_event(event)
+
+        # Queue for sidecar upload
+        upload_event = {
+            "session_id": self._session_id,
+            "event_type": event.event_type.value,
+            "version": event.version,
+            "timestamp": event.timestamp,
+            "event_sequence": event.event_sequence,
+            "metadata": event.metadata,
+        }
+        self._pending_upload.append(upload_event)
+
+        # Trigger auto-flush check
+        self._maybe_auto_flush()
+
         return seq
 
     def log_state_transition(
@@ -250,10 +280,322 @@ class MarefObsClient:
         }
         return self.log_event(ObsEventType.GOVERNANCE_BYPASS, metadata)
 
+    # ── Tool call lifecycle ──────────────────────────────────────────
+
+    def log_tool_call_start(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        chain_id: str | None = None,
+        delegation_depth: int = 0,
+        args_hash: str | None = None,
+    ) -> int | None:
+        """Log tool call start (before governance evaluation)."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "correlation_id": correlation_id,
+            "delegation_depth": delegation_depth,
+        }
+        if chain_id:
+            metadata["chain_id"] = chain_id
+        if args_hash:
+            metadata["args_hash"] = args_hash
+        return self.log_event(ObsEventType.TOOL_CALL_START, metadata)
+
+    def log_tool_call_end(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        verdict: str,
+        latency_ms: int,
+        chain_id: str | None = None,
+        delegation_depth: int = 0,
+        risk_score: float = 0.0,
+        hitl_event_id: str | None = None,
+        tokens_input: int = 0,
+        tokens_output: int = 0,
+        cost_usd: float = 0.0,
+        error: str | None = None,
+    ) -> int | None:
+        """Log tool call end (after execution or interception)."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "correlation_id": correlation_id,
+            "verdict": verdict,
+            "latency_ms": latency_ms,
+            "delegation_depth": delegation_depth,
+            "risk_score": risk_score,
+            "tokens_input": tokens_input,
+            "tokens_output": tokens_output,
+            "cost_usd": cost_usd,
+        }
+        if chain_id:
+            metadata["chain_id"] = chain_id
+        if hitl_event_id:
+            metadata["hitl_event_id"] = hitl_event_id
+        if error:
+            metadata["error"] = error
+        return self.log_event(ObsEventType.TOOL_CALL_END, metadata)
+
+    def log_tool_call_intercepted(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        reason: str,
+        matched_rule: str,
+        risk_score: float,
+        chain_id: str | None = None,
+        delegation_depth: int = 0,
+    ) -> int | None:
+        """Log tool call intercepted by governance."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "correlation_id": correlation_id,
+            "reason": reason,
+            "matched_rule": matched_rule,
+            "risk_score": risk_score,
+            "delegation_depth": delegation_depth,
+        }
+        if chain_id:
+            metadata["chain_id"] = chain_id
+        return self.log_event(ObsEventType.TOOL_CALL_INTERCEPTED, metadata)
+
+    # ── Multi-agent delegation ──────────────────────────────────────
+
+    def log_delegation_start(
+        self,
+        from_agent_id: str,
+        to_agent_id: str,
+        correlation_id: str,
+        chain_id: str,
+        delegation_depth: int,
+        tool_name: str,
+    ) -> int | None:
+        """Log delegation start (agent handoff)."""
+        metadata: dict = {
+            "from_agent_id": from_agent_id,
+            "to_agent_id": to_agent_id,
+            "correlation_id": correlation_id,
+            "chain_id": chain_id,
+            "delegation_depth": delegation_depth,
+            "tool_name": tool_name,
+        }
+        return self.log_event(ObsEventType.DELEGATION_START, metadata)
+
+    def log_delegation_end(
+        self,
+        from_agent_id: str,
+        to_agent_id: str,
+        correlation_id: str,
+        chain_id: str,
+        delegation_depth: int,
+        success: bool,
+        result_summary: str = "",
+    ) -> int | None:
+        """Log delegation end."""
+        metadata: dict = {
+            "from_agent_id": from_agent_id,
+            "to_agent_id": to_agent_id,
+            "correlation_id": correlation_id,
+            "chain_id": chain_id,
+            "delegation_depth": delegation_depth,
+            "success": success,
+        }
+        if result_summary:
+            metadata["result_summary"] = result_summary
+        return self.log_event(ObsEventType.DELEGATION_END, metadata)
+
+    # ── Cost/Resource tracking ──────────────────────────────────────
+
+    def log_token_usage(
+        self,
+        agent_id: str,
+        correlation_id: str,
+        model: str,
+        provider: str,
+        tokens_input: int,
+        tokens_output: int,
+        tokens_cache: int = 0,
+        cost_usd: float = 0.0,
+    ) -> int | None:
+        """Log token usage and cost."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "correlation_id": correlation_id,
+            "model": model,
+            "provider": provider,
+            "tokens_input": tokens_input,
+            "tokens_output": tokens_output,
+            "tokens_cache": tokens_cache,
+            "cost_usd": cost_usd,
+        }
+        return self.log_event(ObsEventType.TOKEN_USAGE, metadata)
+
+    def log_context_window(
+        self,
+        agent_id: str,
+        correlation_id: str,
+        window_size: int,
+        window_used: int,
+        window_percent: float,
+    ) -> int | None:
+        """Log context window usage."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "correlation_id": correlation_id,
+            "window_size": window_size,
+            "window_used": window_used,
+            "window_percent": round(window_percent, 2),
+        }
+        return self.log_event(ObsEventType.CONTEXT_WINDOW, metadata)
+
+    # ── Governance meta events ──────────────────────────────────────
+
+    def log_rule_matched(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        rule_id: str,
+        rule_version: str,
+        verdict: str,
+        risk_score: float,
+    ) -> int | None:
+        """Log governance rule matched."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "correlation_id": correlation_id,
+            "rule_id": rule_id,
+            "rule_version": rule_version,
+            "verdict": verdict,
+            "risk_score": risk_score,
+        }
+        return self.log_event(ObsEventType.RULE_MATCHED, metadata)
+
+    def log_policy_evaluated(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        latency_ms: int,
+        rules_evaluated: int,
+        verdict: str,
+    ) -> int | None:
+        """Log policy evaluation timing."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "correlation_id": correlation_id,
+            "latency_ms": latency_ms,
+            "rules_evaluated": rules_evaluated,
+            "verdict": verdict,
+        }
+        return self.log_event(ObsEventType.POLICY_EVALUATED, metadata)
+
+    def log_hitl_triggered(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        hitl_event_id: str,
+        hitl_tier: str,
+        risk_score: float,
+    ) -> int | None:
+        """Log HITL triggered."""
+        metadata: dict = {
+            "agent_id": agent_id,
+            "tool_name": tool_name,
+            "correlation_id": correlation_id,
+            "hitl_event_id": hitl_event_id,
+            "hitl_tier": hitl_tier,
+            "risk_score": risk_score,
+        }
+        return self.log_event(ObsEventType.HITL_TRIGGERED, metadata)
+
     # ── Buffer management ──────────────────────────────────────────
 
-    def flush(self) -> None:
-        """No-op for Step 1. Pipeline sync will be added in Step 2."""
+    def flush(self, force: bool = False) -> int:
+        """Upload buffered events to sidecar telemetry endpoint.
+
+        Args:
+            force: If True, flush even if batch size / interval not reached.
+
+        Returns:
+            Number of events successfully uploaded.
+        """
+        if self._level == TelemetryLevel.OFF:
+            return 0
+
+        with self._lock:
+            now = time.time()
+            should_flush = force or (
+                len(self._pending_upload) >= self._batch_size
+                or (now - self._last_flush_time) >= self._flush_interval_seconds
+            )
+            if not should_flush or not self._pending_upload:
+                return 0
+
+            events_to_upload = self._pending_upload[:self._batch_size]
+            self._pending_upload = self._pending_upload[self._batch_size:]
+            self._last_flush_time = now
+
+        return self._upload_to_sidecar(events_to_upload)
+
+    def _upload_to_sidecar(self, events: list[dict[str, Any]]) -> int:
+        """Batch upload events to sidecar /api/telemetry/ingest."""
+        if not events:
+            return 0
+
+        url = f"{self._sidecar_url.rstrip('/')}/api/telemetry/ingest"
+        payload = {
+            "source": f"maref-obs-{self._session_id[:8]}",
+            "telemetry_type": "obs_event_batch",
+            "timestamp": time.time(),
+            "data": {
+                "events": events,
+                "batch_id": uuid.uuid4().hex[:12],
+                "session_id": self._session_id,
+                "client_version": "1.0",
+            },
+        }
+
+        headers = {"Content-Type": "application/json"}
+        if self._sidecar_auth_token:
+            headers["Authorization"] = f"Bearer {self._sidecar_auth_token}"
+
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers,
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                if resp.status == 200:
+                    return len(events)
+                else:
+                    # Re-queue on non-2xx
+                    with self._lock:
+                        self._pending_upload = events + self._pending_upload
+                    return 0
+        except Exception:
+            # Re-queue on any error (network, timeout, etc.)
+            with self._lock:
+                self._pending_upload = events + self._pending_upload
+            return 0
+
+    def _maybe_auto_flush(self) -> None:
+        """Call after each log_event to trigger auto-flush if thresholds met."""
+        if self._level == TelemetryLevel.OFF:
+            return
+        self.flush(force=False)
 
     def get_buffer_path(self) -> Path | None:
         """Path to today's event buffer, or None if level is off."""
@@ -281,6 +623,19 @@ class MarefObsClient:
             et = event.get("event_type", "unknown")
             counts[et] = counts.get(et, 0) + 1
         return counts
+
+    def pending_upload_count(self) -> int:
+        """Return number of events queued for upload."""
+        with self._lock:
+            return len(self._pending_upload)
+
+    def shutdown(self) -> int:
+        """Flush all pending events on shutdown.
+
+        Returns:
+            Number of events successfully uploaded.
+        """
+        return self.flush(force=True)
 
     # ── Internal ───────────────────────────────────────────────────
 

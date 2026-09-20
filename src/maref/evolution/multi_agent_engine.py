@@ -27,6 +27,7 @@ Backward compatibility:
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 import time
 from dataclasses import dataclass, field
@@ -63,6 +64,25 @@ from maref.learning.rewards import (
 )
 
 
+def _default_experience_db() -> str:
+    """Resolve persistent ExperienceStore path (P1 fuel 接线).
+
+    优先级: ``MAREF_EXPERIENCE_DB`` 环境变量 > ``<project_root>/.evolution_vault/experience.db``。
+    解析失败时回退 ``:memory:``（保持可用性）。
+    """
+    env = os.environ.get("MAREF_EXPERIENCE_DB", "").strip()
+    if env:
+        return env
+    try:
+        from maref._paths import get_project_root
+
+        path = get_project_root() / ".evolution_vault" / "experience.db"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return str(path)
+    except Exception:
+        return ":memory:"
+
+
 @dataclass
 class MultiAgentEvolutionConfig:
     """Configuration for multi-agent evolution."""
@@ -86,6 +106,14 @@ class MultiAgentEvolutionConfig:
     constitution_guard_enabled: bool = True
     """Enable constitution safety checks on all policy updates."""
 
+    experience_db: str = ""
+    """Path to persistent ExperienceStore SQLite DB.
+
+    Empty → resolve from ``MAREF_EXPERIENCE_DB`` env, else
+    ``<project_root>/.evolution_vault/experience.db``. Set to ``":memory:"``
+    explicitly for an ephemeral store (tests).
+    """
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "base_config": self.base_config.to_dict(),
@@ -94,6 +122,7 @@ class MultiAgentEvolutionConfig:
             "reward_update_interval": self.reward_update_interval,
             "fallback_to_single_strategy": self.fallback_to_single_strategy,
             "constitution_guard_enabled": self.constitution_guard_enabled,
+            "experience_db": self.experience_db,
         }
 
     @classmethod
@@ -201,7 +230,9 @@ class MultiAgentEvolutionEngine:
         # Core components
         self._registry = AgentRegistry()
         self._reward_assembler = MultiGranularityRewardAssembler()
-        self._experience_store = ExperienceStore(":memory:")
+        self._experience_store = ExperienceStore(
+            self._config.experience_db or _default_experience_db()
+        )
         self._constitution_guard = ConstitutionGuard(
             enabled=self._config.constitution_guard_enabled,
         )

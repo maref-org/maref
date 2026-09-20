@@ -1,15 +1,14 @@
 {
-  "calibrated_at": "2026-09-12T11:05:00",
-  "method": "provisional_windowed",
-  "note": "L4/滑窗: 率基 v2 (滑窗默认500) 的临时阈值。原退化值 (8.62/8.62) 与全量基线值 (10/40) 均已废弃。待 probe_threshold_calibrate.py 累积 ≥24 滑窗样本后重校准。",
+  "calibrated_at": "2026-09-20T06:00:05.805204",
+  "method": "percentile_based",
   "probes": {
     "oscillation": {
-      "normal_max": 30.0,
-      "critical_min": 60.0
+      "normal_max": 444.0,
+      "critical_min": 569.0
     },
     "entropy": {
-      "normal_max": 10.0,
-      "critical_min": 25.0
+      "normal_max": 3.0,
+      "critical_min": 4.0
     }
   }
 }

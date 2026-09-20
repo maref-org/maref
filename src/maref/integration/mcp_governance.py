@@ -40,6 +40,8 @@ from maref.integration.mcp_security import (
     SecurityVerdict,
     ZeroTrustContext,
 )
+from maref.obs.client import MarefObsClient
+from maref.obs.schema import ObsEventType
 
 _hmac_key = os.environb.get(b"MAREF_HMAC_SECRET_KEY")
 
@@ -691,6 +693,7 @@ class MCPGovernance:
     2. CircuitBreaker — fault tolerance check
     3. HMAC-signed audit logging
     4. HITL routing — human approval for ask_user verdicts
+    5. ObsEvent emission — tool call lifecycle telemetry
     """
 
     def __init__(
@@ -699,6 +702,7 @@ class MCPGovernance:
         circuit_breaker: CircuitBreaker | None = None,
         hitl_router: HITLRouter | None = None,
         cb_monitor: MCPCircuitBreakerMonitor | None = None,
+        obs_client: MarefObsClient | None = None,
     ) -> None:
         self._policy_engine = policy_engine or MCPPolicyEngine()
         self._circuit_breaker = circuit_breaker or CircuitBreaker(
@@ -708,6 +712,7 @@ class MCPGovernance:
         )
         self._hitl_router = hitl_router or HITLRouter()
         self._cb_monitor = cb_monitor or MCPCircuitBreakerMonitor()
+        self._obs_client = obs_client or MarefObsClient.get_default()
         self._audit_log: list[AuditLogEntry] = []
         self._decision_log: list[MCPGovernanceResult] = []
         self._secret_key: bytes | None = HMAC_SECRET_KEY
@@ -727,6 +732,128 @@ class MCPGovernance:
     @property
     def cb_monitor(self) -> MCPCircuitBreakerMonitor:
         return self._cb_monitor
+
+    @property
+    def obs_client(self) -> MarefObsClient:
+        return self._obs_client
+
+    def _generate_correlation_id(self, request_id: str, agent_id: str) -> str:
+        """Generate or use provided correlation ID."""
+        if request_id:
+            return request_id
+        import uuid
+        return f"{agent_id}-{uuid.uuid4().hex[:12]}"
+
+    def _emit_tool_call_start(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        chain_id: str | None,
+        delegation_depth: int,
+        args: dict[str, Any] | None,
+    ) -> None:
+        """Emit TOOL_CALL_START event."""
+        args_hash = ""
+        if args:
+            args_hash = hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()[:16]
+        self._obs_client.log_tool_call_start(
+            agent_id=agent_id,
+            tool_name=tool_name,
+            correlation_id=correlation_id,
+            chain_id=chain_id,
+            delegation_depth=delegation_depth,
+            args_hash=args_hash,
+        )
+
+    def _emit_tool_call_end(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        verdict: str,
+        latency_ms: int,
+        chain_id: str | None,
+        delegation_depth: int,
+        risk_score: float,
+        hitl_event_id: str | None,
+        error: str | None = None,
+    ) -> None:
+        """Emit TOOL_CALL_END event."""
+        self._obs_client.log_tool_call_end(
+            agent_id=agent_id,
+            tool_name=tool_name,
+            correlation_id=correlation_id,
+            verdict=verdict,
+            latency_ms=latency_ms,
+            chain_id=chain_id,
+            delegation_depth=delegation_depth,
+            risk_score=risk_score,
+            hitl_event_id=hitl_event_id,
+            error=error,
+        )
+
+    def _emit_tool_call_intercepted(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        reason: str,
+        matched_rule: str,
+        risk_score: float,
+        chain_id: str | None,
+        delegation_depth: int,
+    ) -> None:
+        """Emit TOOL_CALL_INTERCEPTED event."""
+        self._obs_client.log_tool_call_intercepted(
+            agent_id=agent_id,
+            tool_name=tool_name,
+            correlation_id=correlation_id,
+            reason=reason,
+            matched_rule=matched_rule,
+            risk_score=risk_score,
+            chain_id=chain_id,
+            delegation_depth=delegation_depth,
+        )
+
+    def _emit_rule_matched(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        matched_rule: str,
+        verdict: str,
+        risk_score: float,
+    ) -> None:
+        """Emit RULE_MATCHED event."""
+        self._obs_client.log_rule_matched(
+            agent_id=agent_id,
+            tool_name=tool_name,
+            correlation_id=correlation_id,
+            rule_id=matched_rule,
+            rule_version="1.0",
+            verdict=verdict,
+            risk_score=risk_score,
+        )
+
+    def _emit_hitl_triggered(
+        self,
+        agent_id: str,
+        tool_name: str,
+        correlation_id: str,
+        hitl_event_id: str,
+        hitl_tier: str,
+        risk_score: float,
+    ) -> None:
+        """Emit HITL_TRIGGERED event."""
+        self._obs_client.log_hitl_triggered(
+            agent_id=agent_id,
+            tool_name=tool_name,
+            correlation_id=correlation_id,
+            hitl_event_id=hitl_event_id,
+            hitl_tier=hitl_tier,
+            risk_score=risk_score,
+        )
 
     def evaluate(
         self,
@@ -748,6 +875,7 @@ class MCPGovernance:
         3. Policy engine evaluation (allow/deny/ask_user)
         4. HITL routing if verdict is ASK_USER
         5. HMAC-signed audit logging
+        6. ObsEvent emission (tool call lifecycle)
 
         Args:
             tool_name: Name of the tool being called.
@@ -763,6 +891,21 @@ class MCPGovernance:
         Returns:
             MCPGovernanceResult with verdict and full decision metadata.
         """
+        import time
+        start_time = time.perf_counter()
+
+        correlation_id = self._generate_correlation_id(request_id, agent_id)
+
+        # Emit TOOL_CALL_START
+        self._emit_tool_call_start(
+            agent_id=agent_id,
+            tool_name=tool_name,
+            correlation_id=correlation_id,
+            chain_id=chain_id,
+            delegation_depth=delegation_depth,
+            args=args,
+        )
+
         context = MCPPolicyContext(
             tool_name=tool_name,
             args=args or {},
@@ -784,6 +927,19 @@ class MCPGovernance:
                 risk_score=1.0,
                 matched_rule="circuit_breaker_monitor",
             )
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
+            self._emit_tool_call_end(
+                agent_id=agent_id,
+                tool_name=tool_name,
+                correlation_id=correlation_id,
+                verdict=result.verdict.value,
+                latency_ms=latency_ms,
+                chain_id=chain_id,
+                delegation_depth=delegation_depth,
+                risk_score=result.risk_score,
+                hitl_event_id=None,
+                error=result.reason,
+            )
             self._record_decision(
                 result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args
             )
@@ -798,6 +954,19 @@ class MCPGovernance:
                 risk_score=1.0,
                 matched_rule="circuit_breaker",
             )
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
+            self._emit_tool_call_end(
+                agent_id=agent_id,
+                tool_name=tool_name,
+                correlation_id=correlation_id,
+                verdict=result.verdict.value,
+                latency_ms=latency_ms,
+                chain_id=chain_id,
+                delegation_depth=delegation_depth,
+                risk_score=result.risk_score,
+                hitl_event_id=None,
+                error=result.reason,
+            )
             self._record_decision(
                 result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args
             )
@@ -809,6 +978,17 @@ class MCPGovernance:
             result, tool_name, trust_level, agent_id, chain_id, delegation_depth, context.args
         )
 
+        # Emit RULE_MATCHED
+        self._emit_rule_matched(
+            agent_id=agent_id,
+            tool_name=tool_name,
+            correlation_id=correlation_id,
+            matched_rule=result.matched_rule,
+            verdict=result.verdict.value,
+            risk_score=result.risk_score,
+        )
+
+        hitl_event_id = None
         if result.verdict == MCPDecisionVerdict.ASK_USER:
             hitl_event = self._hitl_router.route(
                 severity="warning" if result.risk_score < 0.8 else "critical",
@@ -819,13 +999,51 @@ class MCPGovernance:
                 request_id=request_id,
                 agent_id=agent_id,
             )
-            result.hitl_event_id = hitl_event.event_id
+            hitl_event_id = hitl_event.event_id
+            result.hitl_event_id = hitl_event_id
             result.hitl_tier = hitl_event.tier
+
+            # Emit HITL_TRIGGERED
+            self._emit_hitl_triggered(
+                agent_id=agent_id,
+                tool_name=tool_name,
+                correlation_id=correlation_id,
+                hitl_event_id=hitl_event_id,
+                hitl_tier=hitl_event.tier.value if hasattr(hitl_event.tier, 'value') else str(hitl_event.tier),
+                risk_score=result.risk_score,
+            )
 
         if result.verdict == MCPDecisionVerdict.ALLOW:
             self._circuit_breaker.record_success()
         else:
             self._circuit_breaker.record_failure()
+
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+
+        # Emit TOOL_CALL_END or TOOL_CALL_INTERCEPTED
+        if result.verdict == MCPDecisionVerdict.DENY:
+            self._emit_tool_call_intercepted(
+                agent_id=agent_id,
+                tool_name=tool_name,
+                correlation_id=correlation_id,
+                reason=result.reason,
+                matched_rule=result.matched_rule,
+                risk_score=result.risk_score,
+                chain_id=chain_id,
+                delegation_depth=delegation_depth,
+            )
+        else:
+            self._emit_tool_call_end(
+                agent_id=agent_id,
+                tool_name=tool_name,
+                correlation_id=correlation_id,
+                verdict=result.verdict.value,
+                latency_ms=latency_ms,
+                chain_id=chain_id,
+                delegation_depth=delegation_depth,
+                risk_score=result.risk_score,
+                hitl_event_id=hitl_event_id,
+            )
 
         self._decision_log.append(result)
         return result

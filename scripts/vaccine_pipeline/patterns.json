@@ -4,7 +4,7 @@
     "attack_class": "block_consecutive_anomalies",
     "attack_subtype": "consecutive_anomalies=5",
     "trigger": "circuit_breaker_trip_block_consecutive_anomalies_consecutive_anomalies_5",
-    "count": 255,
+    "count": 256,
     "dimension": "action_detail"
   },
   {
@@ -20,7 +20,7 @@
     "attack_class": "block_oscillation_handler",
     "attack_subtype": "rate=3",
     "trigger": "circuit_breaker_trip_block_oscillation_handler_rate_3",
-    "count": 256,
+    "count": 257,
     "dimension": "action_detail"
   },
   {
@@ -44,7 +44,7 @@
     "attack_class": "block_self_observation",
     "attack_subtype": "depth=1",
     "trigger": "circuit_breaker_trip_block_self_observation_depth_1",
-    "count": 256,
+    "count": 257,
     "dimension": "action_detail"
   },
   {
@@ -312,7 +312,7 @@
     "attack_class": "attack_chain",
     "attack_subtype": "block_self_observation → block_oscillation_handler",
     "trigger": "chain_block_self_observation_to_block_oscillation_handler",
-    "count": 256,
+    "count": 257,
     "dimension": "chain"
   },
   {
@@ -320,7 +320,7 @@
     "attack_class": "attack_chain",
     "attack_subtype": "block_oscillation_handler → block_consecutive_anomalies",
     "trigger": "chain_block_oscillation_handler_to_block_consecutive_anomalies",
-    "count": 255,
+    "count": 256,
     "dimension": "chain"
   },
   {
