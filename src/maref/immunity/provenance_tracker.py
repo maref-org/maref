@@ -1,11 +1,11 @@
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from maref.knowledge.graph import KnowledgeGraph, KnowledgeNode
 else:
-    # P0-A fix: TYPE_CHECKING is import-time only. The `kg: KnowledgeGraph | None`
+    # P0-A fix: TYPE_CHECKING is import-time only. The `kg: Optional[KnowledgeGraph]`
     # annotation on ProvenanceTracker.__init__ is evaluated at runtime when the
     # module is imported (no `from __future__ import annotations`), so we need
     # a runtime placeholder to avoid NameError in downstream consumers (e.g.
@@ -27,7 +27,7 @@ class ProvenanceRecord:
 class ProvenanceTracker:
     PROVENANCE_LABELS = frozenset({"human", "ai_assisted", "ai_generated", "unknown"})
 
-    def __init__(self, kg: KnowledgeGraph | None = None):
+    def __init__(self, kg: Optional[KnowledgeGraph] = None):
         self._kg = kg
         self._records: dict[str, ProvenanceRecord] = {}
 
@@ -44,7 +44,7 @@ class ProvenanceTracker:
             node_id=node_id, provenance=provenance, timestamp=time.time(), source=source
         )
 
-    def get_provenance(self, node_id: str) -> str | None:
+    def get_provenance(self, node_id: str) -> Optional[str]:
         if self._kg is not None:
             node = self._kg.get_node(node_id)
             if node is not None:
@@ -53,7 +53,7 @@ class ProvenanceTracker:
         return record.provenance if record is not None else None
 
     def retrieve(
-        self, pre_2023: bool = False, provenance: str | None = None
+        self, pre_2023: bool = False, provenance: Optional[str] = None
     ) -> list[KnowledgeNode]:
         if self._kg is None:
             return []

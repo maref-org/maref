@@ -34,7 +34,10 @@ from maref.recursive.agent_health import PulseWriter
 
 
 def _default_audit_base() -> Path:
-    return Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+    """治理审计基目录（绝对路径，委托 _paths SSOT，消除 CWD 依赖）。"""
+    from maref._paths import get_governance_base
+
+    return get_governance_base()
 
 
 def _load_env_file(filename: str = ".env.maref") -> None:
@@ -86,8 +89,10 @@ _REPORT_PATH: Path | None = None
 
 
 def _meta_base() -> Path:
-    """Path for meta-monitor data (notifications, reports)."""
-    return Path(os.environ.get("MAREF_META_PATH", ".openclaw"))
+    """Path for meta-monitor data (notifications, reports). 绝对路径。"""
+    from maref._paths import get_meta_base
+
+    return get_meta_base()
 
 
 def _notifications_dir() -> Path:
@@ -105,7 +110,7 @@ def _report_path() -> Path:
 
 
 def _health_snapshot_path(base: Path | None = None) -> Path:
-    return (base or _default_audit_base()) / "health_snapshot.json"
+    return (base or _meta_base()) / "health_snapshot.json"
 
 
 def _audit_log_base(base: Path | None = None) -> Path:
@@ -113,7 +118,7 @@ def _audit_log_base(base: Path | None = None) -> Path:
 
 
 def _pulses_dir(base: Path | None = None) -> Path:
-    return _audit_log_base(base) / "pulses"
+    return (base or _meta_base()) / "pulses"
 
 
 def _ensure_dirs() -> None:
@@ -161,7 +166,11 @@ def _write_notification(
     ndir = _notifications_dir()
     now = time.time()
     for existing in ndir.glob("*.json"):
-        if existing.stat().st_mtime > now - dedup_window:
+        try:
+            mtime = existing.stat().st_mtime
+        except OSError:
+            continue  # 并发清理导致的 TOCTOU：文件已消失，跳过
+        if mtime > now - dedup_window:
             try:
                 data = json.loads(existing.read_text())
                 if data.get("title") == title and data.get("severity") == severity:
@@ -209,7 +218,13 @@ def check_health_snapshot_freshness(
         _write_notification("M0 Fail", "critical", f"Health snapshot missing: {path}")
         return {"passed": False, "path": str(path), "age_seconds": None, "detail": "file_missing"}
 
-    age = time.time() - path.stat().st_mtime
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        _write_notification("M0 Fail", "critical", f"Health snapshot vanished: {path}")
+        return {"passed": False, "path": str(path), "age_seconds": None, "detail": "file_vanished"}
+
+    age = time.time() - mtime
     passed = age <= max_age
     if not passed:
         _write_notification(
@@ -222,7 +237,7 @@ def check_health_snapshot_freshness(
         "path": str(path),
         "age_seconds": round(age, 1),
         "max_age_seconds": max_age,
-        "mtime": path.stat().st_mtime,
+        "mtime": mtime,
     }
 
 
@@ -246,6 +261,11 @@ def check_audit_log_growth(
         "audit.jsonl",
         "gaas_audit.jsonl",
     ]
+    # 审计基目录 + 其 audit/ 子目录（P0 规范路径；两处均已注册为审计位置）
+    bases = [base]
+    audit_sub = base / "audit"
+    if audit_sub != base:
+        bases.append(audit_sub)
 
     def _newest_real_event() -> tuple[str | None, float, str]:
         """最新一条真实审计事件（含 event_type）及其时间。
@@ -255,34 +275,35 @@ def check_audit_log_growth(
         best_path: str | None = None
         best_ts: float = 0.0
         best_type: str = ""
-        for pat in patterns:
-            target = base / pat
-            if not target.exists():
-                continue
-            # 从尾部回扫（最多 64KB，仿 _last_chain_hash）
-            try:
-                size = target.stat().st_size
-                with open(target, "rb") as fh:
-                    if size == 0:
-                        continue
-                    chunk_size = min(size, 65536)
-                    fh.seek(size - chunk_size)
-                    tail = fh.read(chunk_size).decode("utf-8", errors="replace")
-                for line in reversed(tail.splitlines()):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        rec = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    etype = rec.get("event_type", "")
-                    ts = rec.get("timestamp", 0.0)
-                    if isinstance(ts, (int, float)) and ts > best_ts and etype:
-                        best_path, best_ts, best_type = str(target), ts, etype
-                    break  # 已找到该文件第一条合法记录
-            except OSError:
-                continue
+        for b in bases:
+            for pat in patterns:
+                target = b / pat
+                if not target.exists():
+                    continue
+                # 从尾部回扫（最多 64KB，仿 _last_chain_hash）
+                try:
+                    size = target.stat().st_size
+                    with open(target, "rb") as fh:
+                        if size == 0:
+                            continue
+                        chunk_size = min(size, 65536)
+                        fh.seek(size - chunk_size)
+                        tail = fh.read(chunk_size).decode("utf-8", errors="replace")
+                    for line in reversed(tail.splitlines()):
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        etype = rec.get("event_type", "")
+                        ts = rec.get("timestamp", 0.0)
+                        if isinstance(ts, (int, float)) and ts > best_ts and etype:
+                            best_path, best_ts, best_type = str(target), ts, etype
+                        break  # 已找到该文件第一条合法记录
+                except OSError:
+                    continue
         return best_path, best_ts, best_type
 
     newest_path, newest_ts, newest_type = _newest_real_event()
@@ -477,21 +498,44 @@ def check_pulse_freshness(
     }
 
 
+def _find_hmac_key_file() -> Path | None:
+    """定位 HMAC 密钥文件（与 AuditLogger/state_machine/security_audit_chain 对齐）。
+
+    这些模块在 env 缺失时回退到 ``.maraf_hmac_key`` / ``.maref_hmac_key`` 文件；
+    检查器须用同一解析源，否则键已配置却误报未配置（假阴性）。
+    """
+    for cand in (
+        Path.cwd() / ".maraf_hmac_key",
+        Path.home() / ".maraf_hmac_key",
+        Path.cwd() / ".maref_hmac_key",
+        Path.home() / ".maref_hmac_key",
+    ):
+        try:
+            if cand.exists() and cand.read_text(encoding="utf-8").strip():
+                return cand
+        except OSError:
+            continue
+    return None
+
+
 def check_hmac_key() -> dict[str, Any]:
-    """Verify HMAC/Ed25519 keys are configured."""
+    """Verify HMAC/Ed25519 keys are configured (env OR key file)."""
     hmac_key = os.environ.get("MAREF_HMAC_SECRET_KEY")
     ed25519_key = os.environ.get("MAREF_ED25519_PRIVATE_KEY")
-    passed = bool(hmac_key or ed25519_key)
+    key_file = None if (hmac_key or ed25519_key) else _find_hmac_key_file()
+    passed = bool(hmac_key or ed25519_key or key_file)
     if not passed:
         _write_notification(
             "M0 Warning",
             "warning",
-            "No audit signing key configured (MAREF_HMAC_SECRET_KEY or MAREF_ED25519_PRIVATE_KEY)",
+            "No audit signing key configured (MAREF_HMAC_SECRET_KEY / "
+            "MAREF_ED25519_PRIVATE_KEY / .maraf_hmac_key file)",
         )
     return {
         "passed": passed,
         "hmac_key_set": bool(hmac_key),
         "ed25519_key_set": bool(ed25519_key),
+        "hmac_key_file": str(key_file) if key_file else "",
     }
 
 
@@ -806,7 +850,10 @@ def check_notification_staleness(
     if ndir.exists():
         for f in ndir.glob("*.json"):
             total_files += 1
-            age = now - f.stat().st_mtime
+            try:
+                age = now - f.stat().st_mtime
+            except OSError:
+                continue  # 并发清理的 TOCTOU：文件已消失
             if oldest_file_hours is None or age > oldest_file_hours:
                 oldest_file_hours = round(age / 3600.0, 1)
 

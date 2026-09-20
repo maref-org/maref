@@ -85,7 +85,9 @@ class SecurityAuditChain:
         hmac_key: bytes | str | None = None,
     ) -> None:
         if chain_path is None:
-            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+            from maref._paths import get_governance_base
+
+            base = get_governance_base()
             self._path = base / "security_audit.chain"
         else:
             self._path = Path(chain_path)

@@ -1787,6 +1787,7 @@ def daemon_start(
         vault_dir=vault,
         dry_run=dry_run,
         engine=engine,
+        mirror_json=True,
     )
 
     if dry_run:
@@ -1839,6 +1840,7 @@ def daemon_run_once(
         vault_dir=vault,
         dry_run=dry_run,
         engine=engine,
+        mirror_json=True,
     )
     daemon = EvolutionDaemon(config)
     import asyncio
@@ -2142,7 +2144,7 @@ def report_signing_key_init(
         "[yellow]Store the private key securely. The fingerprint should be published[/yellow]"
     )
     console.print(
-        "[yellow]at maref.cc/verify/fingerprint.txt for third-party verification.[/yellow]"
+        "[yellow]at maref.org/verify/fingerprint.txt for third-party verification.[/yellow]"
     )
 
 
