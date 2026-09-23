@@ -32,6 +32,34 @@ from sidecar.collector import AgentAdapter, ObservationCollector
 from sidecar.protocol import AgentId, AgentState, EntropyReading, StateSnapshot
 
 
+def _default_recursive_audit_path():
+    """解析 recursive 生产审计路径（P1-C）。
+
+    优先级: MAREF_RECURSIVE_AUDIT_LOG > MAREF_RUNTIME_DIR/recursive_governance_audit.jsonl
+            > cwd/recursive_governance_audit.jsonl（解析为绝对路径）
+    """
+    import os
+    from pathlib import Path
+
+    env = os.environ.get("MAREF_RECURSIVE_AUDIT_LOG")
+    if env:
+        p = Path(env)
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return p
+    runtime = os.environ.get("MAREF_RUNTIME_DIR")
+    if runtime:
+        p = Path(runtime) / "recursive_governance_audit.jsonl"
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return p
+    return Path("recursive_governance_audit.jsonl").resolve()
+
+
 class MAREFSelfAdapter(AgentAdapter):
     """Adapter that treats MAREF itself as an Agent."""
 
@@ -138,7 +166,8 @@ class RecursiveGovernanceOverlay:
         )
 
         # M4: Audit logger for meta-level decisions
-        self._audit = AuditLogger(log_path="recursive_governance_audit.jsonl")
+        # P1-C: 生产链路径对齐（RUNTIME_DIR/recursive_governance_audit.jsonl）
+        self._audit = AuditLogger(log_path=_default_recursive_audit_path())
 
         # Self-adapter for recursive observation
         self._self_adapter = MAREFSelfAdapter(self._primary)

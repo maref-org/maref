@@ -97,7 +97,12 @@ class AlertFeedbackTracker:
 
     def __init__(self, state_path: Path | str | None = None) -> None:
         if state_path is None:
-            meta_base = Path(os.environ.get("MAREF_META_PATH", ".openclaw"))
+            try:
+                from maref._paths import get_meta_base
+
+                meta_base = get_meta_base()
+            except Exception:
+                meta_base = Path(os.environ.get("MAREF_META_PATH", ".openclaw")).resolve()
             state_path = meta_base / "alert_feedback_state.json"
         self._path = Path(state_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)

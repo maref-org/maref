@@ -26,7 +26,20 @@ _REGISTRY: dict[str, AuditPathEntry] = {}
 
 
 def _get_base() -> Path:
-    return Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+    """P2 双路径收敛: 与 maref._paths.get_governance_base 同优先级。"""
+    try:
+        from maref._paths import get_governance_base
+
+        return get_governance_base()
+    except Exception:
+        env = os.environ.get("MAREF_AUDIT_PATH")
+        if env:
+            p = Path(env)
+            return p.parent if p.suffix else p
+        runtime = os.environ.get("MAREF_RUNTIME_DIR")
+        if runtime:
+            return Path(runtime) / ".governance"
+        return Path(".governance")
 
 
 def _get_meta_base() -> Path:
