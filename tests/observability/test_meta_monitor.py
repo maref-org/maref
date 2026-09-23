@@ -136,8 +136,17 @@ class TestM0HmacKey:
     def test_no_key_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MAREF_HMAC_SECRET_KEY", raising=False)
         monkeypatch.delenv("MAREF_ED25519_PRIVATE_KEY", raising=False)
+        # check_hmac_key 会回退到 .maraf_hmac_key 文件 + 模块加载时注入的 env；
+        # 两者都屏蔽后才能验证「无密钥必须 fail」语义（P0 测试隔离）。
+        from maref.observability import meta_monitor as mm
+
+        monkeypatch.setattr(mm, "_find_hmac_key_file", lambda: None)
+        monkeypatch.setattr(mm, "_load_env_file", lambda *a, **k: None)
         result = check_hmac_key()
         assert result["passed"] is False
+        assert result["hmac_key_set"] is False
+        assert result["ed25519_key_set"] is False
+        assert result["hmac_key_file"] == ""
 
 
 class TestM0ManagedAgents:

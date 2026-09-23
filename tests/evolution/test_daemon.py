@@ -6,6 +6,16 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from maref.evolution.daemon import DaemonConfig, DaemonState, EvolutionDaemon
+from maref.infra.state import OpenClawState
+
+
+def _isolated_daemon(tmp_path: Path, **config_kwargs) -> EvolutionDaemon:
+    """测试用独立 store（state_dir=tmp），避免读写全局 store.db 污染生产 state。"""
+    state_file = config_kwargs.pop("state_file", str(tmp_path / "state.json"))
+    config_kwargs.setdefault("mirror_json", True)
+    config = DaemonConfig(state_file=state_file, **config_kwargs)
+    store = OpenClawState(f"evolution_daemon_test_{tmp_path.name}", state_dir=tmp_path / "store")
+    return EvolutionDaemon(config, store=store)
 
 
 class TestDaemonState:
@@ -52,34 +62,24 @@ class TestDaemonConfig:
         assert config.engine == "daily"
 
     def test_engine_rel_creates_rel_adapter(self, tmp_path: Path) -> None:
-        config = DaemonConfig(
-            state_file=str(tmp_path / "state.json"),
-            engine="rel",
-        )
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path, engine="rel")
         assert "RELAdapter" in type(daemon._loop).__name__
 
     def test_engine_daily_creates_daily_loop(self, tmp_path: Path) -> None:
-        config = DaemonConfig(
-            state_file=str(tmp_path / "state.json"),
-            engine="daily",
-        )
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path, engine="daily")
         assert "DailyEvolutionLoop" in type(daemon._loop).__name__
 
 
 class TestEvolutionDaemon:
     def test_init(self, tmp_path: Path) -> None:
-        config = DaemonConfig(state_file=str(tmp_path / "state.json"))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path)
         assert daemon._state.total_runs == 0
         assert daemon._shutdown is False
 
     def test_init_loads_existing_state(self, tmp_path: Path) -> None:
         state_file = tmp_path / "state.json"
         state_file.write_text(json.dumps({"last_run": "2026-01-01", "total_runs": 3, "failed_runs": 1}))
-        config = DaemonConfig(state_file=str(state_file))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path, state_file=str(state_file))
         assert daemon._state.total_runs == 3
         assert daemon._state.failed_runs == 1
         assert daemon._state.last_run == "2026-01-01"
@@ -87,14 +87,12 @@ class TestEvolutionDaemon:
     def test_init_ignores_corrupt_state(self, tmp_path: Path) -> None:
         state_file = tmp_path / "state.json"
         state_file.write_text("not-json")
-        config = DaemonConfig(state_file=str(state_file))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path, state_file=str(state_file))
         assert daemon._state.total_runs == 0
 
     def test_run_once_success(self, tmp_path: Path) -> None:
         state_file = tmp_path / "state.json"
-        config = DaemonConfig(state_file=str(state_file))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path, state_file=str(state_file))
 
         with patch.object(daemon._loop, "run_once", return_value=MagicMock(priority="low")):
             import asyncio
@@ -107,9 +105,7 @@ class TestEvolutionDaemon:
         assert loaded["total_runs"] == 1
 
     def test_run_once_failure(self, tmp_path: Path) -> None:
-        state_file = tmp_path / "state.json"
-        config = DaemonConfig(state_file=str(state_file))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path)
 
         with patch.object(daemon._loop, "run_once", return_value=None):
             import asyncio
@@ -119,9 +115,7 @@ class TestEvolutionDaemon:
         assert daemon._state.failed_runs == 1
 
     def test_run_once_exception(self, tmp_path: Path) -> None:
-        state_file = tmp_path / "state.json"
-        config = DaemonConfig(state_file=str(state_file))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path)
 
         with patch.object(daemon._loop, "run_once", side_effect=RuntimeError("boom")):
             import asyncio
@@ -132,8 +126,7 @@ class TestEvolutionDaemon:
 
     def test_pid_file_management(self, tmp_path: Path) -> None:
         pid_file = tmp_path / "daemon.pid"
-        config = DaemonConfig(pid_file=str(pid_file))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path, pid_file=str(pid_file))
 
         daemon._write_pid_file()
         assert pid_file.exists()
@@ -143,20 +136,19 @@ class TestEvolutionDaemon:
         assert not pid_file.exists()
 
     def test_shutdown_sets_flag(self, tmp_path: Path) -> None:
-        config = DaemonConfig(state_file=str(tmp_path / "state.json"))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path)
         daemon._handle_shutdown()
         assert daemon._shutdown is True
 
     def test_run_forever_shutdown_after_one_run(self, tmp_path: Path) -> None:
         state_file = tmp_path / "state.json"
         pid_file = tmp_path / "daemon.pid"
-        config = DaemonConfig(
+        daemon = _isolated_daemon(
+            tmp_path,
             state_file=str(state_file),
             pid_file=str(pid_file),
             interval_hours=999.0,
         )
-        daemon = EvolutionDaemon(config)
 
         with (
             patch.object(daemon._loop, "run_once", return_value=MagicMock(priority="low")),
@@ -179,8 +171,7 @@ class TestEvolutionDaemon:
 
     def test_generate_launchd_plist(self, tmp_path: Path) -> None:
         output = tmp_path / "com.maref.evolution-daemon.plist"
-        config = DaemonConfig()
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path)
 
         plist = daemon.generate_launchd_plist(str(output))
 
@@ -191,8 +182,7 @@ class TestEvolutionDaemon:
 
     def test_generate_systemd_unit(self, tmp_path: Path) -> None:
         output = tmp_path / "maref-evolution-daemon.service"
-        config = DaemonConfig()
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path)
 
         unit = daemon.generate_systemd_unit(str(output))
 
@@ -204,8 +194,7 @@ class TestEvolutionDaemon:
 
 class TestDaemonSignalHandling:
     def test_signal_handlers_not_available(self, tmp_path: Path) -> None:
-        config = DaemonConfig(state_file=str(tmp_path / "state.json"))
-        daemon = EvolutionDaemon(config)
+        daemon = _isolated_daemon(tmp_path)
 
         with patch("asyncio.get_event_loop", side_effect=NotImplementedError("no signal")):
             daemon._setup_signal_handlers()
