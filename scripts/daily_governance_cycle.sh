@@ -10,6 +10,18 @@ REPORTS="$REPO_ROOT/reports"
 LOG_DIR="$REPORTS/daily-logs"
 mkdir -p "$LOG_DIR"
 
+# P2-3 双路径收敛：统一运行时审计路径（与 launchd plist 对齐）
+export MAREF_RUNTIME_DIR="${MAREF_RUNTIME_DIR:-/Volumes/1TB-M2/openclaw}"
+export MAREF_AUDIT_PATH="${MAREF_AUDIT_PATH:-$MAREF_RUNTIME_DIR/.governance}"
+export MAREF_PROJECT_ROOT="${MAREF_PROJECT_ROOT:-$MAREF_RUNTIME_DIR}"
+# Overlay tick 需要完整框架 → 优先 project venv (py3.14)
+PY_VENV="$REPO_ROOT/.venv/bin/python3"
+if [ -x "$PY_VENV" ]; then
+    PY="$PY_VENV"
+else
+    PY="python3"
+fi
+
 TODAY=$(date +%Y-%m-%d)
 LOGFILE="$LOG_DIR/governance-cycle-$TODAY.log"
 QUIET=false
@@ -66,6 +78,12 @@ python3 "$SCRIPTS/backlog_sla.py" >> "$LOGFILE" 2>&1 || fail "P-08"
 
 # 辅助检查
 log "辅助检查"
+log "  P2-1/2 RecursiveOverlay 生产 tick (真实 observation)..."
+"$PY" "$SCRIPTS/recursive_overlay_tick.py" >> "$LOGFILE" 2>&1 || fail "recursive-overlay-tick"
+
+log "  P1-C 审计生产链心跳..."
+python3 "$SCRIPTS/audit_heartbeat.py" >> "$LOGFILE" 2>&1 || fail "audit-heartbeat"
+
 log "  探针阈值校准..."
 python3 "$SCRIPTS/probe_threshold_calibrate.py" >> "$LOGFILE" 2>&1 || fail "probe-calibrate"
 

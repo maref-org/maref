@@ -16,11 +16,11 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from maref_config import REPO_DIR, RUNTIME_DIR, report_path
+from maref_config import REPO_DIR, RUNTIME_DIR, report_path, sidecar_auth_headers
 
 
 def _resolve(path: str) -> Path:
@@ -36,21 +36,22 @@ def _probe_sidecar(url: str, timeout: float = 1.5) -> bool:
     if not url:
         return False
     try:
-        urllib.request.urlopen(f"{url}/api/health", timeout=timeout)
+        req = urllib.request.Request(f"{url}/api/health", headers=sidecar_auth_headers())
+        urllib.request.urlopen(req, timeout=timeout)
         return True
     except Exception:
         return False
 
 
 def _fetch_sidecar_telemetry(sidecar_url: str, agent_id: str, since_hours: int = 24) -> dict[str, Any] | None:
-    """从 sidecar 查询指定 agent 的遥测数据"""
+    """从 sidecar 查询指定 agent 的遥测数据（A-4：带 Bearer，否则 401 静默全 0）。"""
     if not sidecar_url:
         return None
     try:
         since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
         url = f"{sidecar_url.rstrip('/')}/api/telemetry/query"
         params = f"?source=maref-obs-{agent_id[:8]}&since={since_ts}&limit=1000"
-        req = urllib.request.Request(url + params, method="GET")
+        req = urllib.request.Request(url + params, method="GET", headers=sidecar_auth_headers())
         with urllib.request.urlopen(req, timeout=5.0) as resp:
             if resp.status == 200:
                 return json.loads(resp.read().decode("utf-8"))
@@ -88,7 +89,10 @@ def _read_local_obs_events(agent_id: str, since_hours: int = 24) -> list[dict]:
 def _read_mcp_decision_log(agent_id: str, since_hours: int = 24) -> list[dict]:
     """读取 MCP 决策日志 (如果存在)"""
     # MCP 决策日志在内存中，这里尝试从审计日志推导
-    audit_log = REPO_DIR / ".governance" / "governance_audit.jsonl"
+    # P1-4: 审计日志优先 RUNTIME（生产 openclaw），fallback REPO（测试/开发）
+    audit_log = RUNTIME_DIR / ".governance" / "governance_audit.jsonl"
+    if not audit_log.exists():
+        audit_log = REPO_DIR / ".governance" / "governance_audit.jsonl"
     events = []
     since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
 
@@ -232,10 +236,14 @@ def check_agent(agent: dict) -> dict:
         checks["config_exists"] = _resolve(config).exists()
 
     sidecar = integ.get("sidecar_url") or os.environ.get("MAREF_SIDECAR_URL", "")
-    if sidecar:
-        checks["sidecar_reachable"] = _probe_sidecar(sidecar)
-    else:
-        checks["sidecar_reachable"] = False
+    if not sidecar:
+        try:
+            from maref_config import sidecar_url as _probe_default_sidecar
+
+            sidecar = _probe_default_sidecar()
+        except Exception:
+            sidecar = "http://127.0.0.1:8931"
+    checks["sidecar_reachable"] = _probe_sidecar(sidecar) if sidecar else False
 
     declared = agent.get("status", "unknown")
     if declared == "degraded":
@@ -298,7 +306,7 @@ def main() -> None:
 
         # 显示 KPI
         if kpi:
-            print(f"   📊 最近24h KPI:")
+            print("   📊 最近24h KPI:")
             print(f"      总调用: {kpi['tool_calls_total']} | 通过: {kpi['tool_calls_allowed']} | 拦截: {kpi['tool_calls_intercepted']} | 拒绝: {kpi['tool_calls_denied']} | HITL: {kpi['tool_calls_hitl']}")
             print(f"      拦截率: {kpi['interception_rate']}% | HITL率: {kpi['hitl_rate']}%")
             print(f"      平均延迟: {kpi['avg_latency_ms']}ms | P95: {kpi['p95_latency_ms']}ms")
