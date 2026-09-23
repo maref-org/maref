@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +48,7 @@ def _fetch_sidecar_telemetry(sidecar_url: str, agent_id: str, since_hours: int =
     if not sidecar_url:
         return None
     try:
-        since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
+        since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
         url = f"{sidecar_url.rstrip('/')}/api/telemetry/query"
         params = f"?source=maref-obs-{agent_id[:8]}&since={since_ts}&limit=1000"
         req = urllib.request.Request(url + params, method="GET", headers=sidecar_auth_headers())
@@ -64,7 +64,7 @@ def _read_local_obs_events(agent_id: str, since_hours: int = 24) -> list[dict]:
     """读取本地 ObsEvent 缓冲区"""
     obs_dir = Path.home() / ".maref" / "obs"
     events = []
-    since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
+    since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
 
     for f in obs_dir.glob("behavior_*.ndjson"):
         try:
@@ -94,7 +94,7 @@ def _read_mcp_decision_log(agent_id: str, since_hours: int = 24) -> list[dict]:
     if not audit_log.exists():
         audit_log = REPO_DIR / ".governance" / "governance_audit.jsonl"
     events = []
-    since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
+    since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
 
     if not audit_log.exists():
         return events
@@ -338,7 +338,7 @@ def main() -> None:
     out = report_path("coding_agents_status.json")
     with open(out, "w") as f:
         json.dump({
-            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "checked_at": datetime.now(UTC).isoformat(),
             "summary": summary,
             "global_kpi": {
                 "tool_calls_total": total_calls,
