@@ -28,7 +28,7 @@ import re
 import sqlite3
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -250,7 +250,7 @@ class OpenClawState:
                 item["payload"] = json.loads(row["payload"])
             except (json.JSONDecodeError, TypeError):
                 item["payload"] = row["payload"]
-            item["created_at_iso"] = datetime.fromtimestamp(row["created_at"], tz=timezone.utc).isoformat()
+            item["created_at_iso"] = datetime.fromtimestamp(row["created_at"], tz=UTC).isoformat()
             results.append(item)
         return results
 
@@ -325,7 +325,7 @@ class OpenClawState:
                 item["details"] = json.loads(row["details"])
             except (json.JSONDecodeError, TypeError):
                 item["details"] = row["details"]
-            item["timestamp_iso"] = datetime.fromtimestamp(row["timestamp"], tz=timezone.utc).isoformat()
+            item["timestamp_iso"] = datetime.fromtimestamp(row["timestamp"], tz=UTC).isoformat()
             results.append(item)
         return results
 
@@ -339,7 +339,7 @@ class OpenClawState:
         results = []
         for row in rows:
             item = dict(row)
-            item["timestamp_iso"] = datetime.fromtimestamp(row["timestamp"], tz=timezone.utc).isoformat()
+            item["timestamp_iso"] = datetime.fromtimestamp(row["timestamp"], tz=UTC).isoformat()
             results.append(item)
         return results
 
