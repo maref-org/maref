@@ -483,8 +483,10 @@ def main() -> None:
         daemon = EvolutionDaemon(config)
         asyncio.run(daemon.run_forever())
     else:
+        # 必须走 daemon.run_once() 以触发 _save_state()（A-2 STALE 根因：
+        # 旧路径直接调 _loop.run_once() 绕过持久化，state 永不刷新）
         daemon = EvolutionDaemon(config)
-        result = daemon._loop.run_once()
+        result = asyncio.run(daemon.run_once())
         print(result.to_dict() if result else "{}")
 
 

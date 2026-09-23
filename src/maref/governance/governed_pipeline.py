@@ -35,6 +35,41 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _default_pipeline_audit_path() -> Path:
+    """解析 GovernedPipeline 审计落盘路径（P1-A）。
+
+    优先级:
+    1. MAREF_PIPELINE_AUDIT_LOG — 专用绝对路径（sidecar/管线，避免与 state_machine 链混写）
+    2. MAREF_AUDIT_PATH 指向文件 → 该文件
+    3. MAREF_AUDIT_PATH 为目录 → <dir>/pipeline_governance_audit.jsonl（与 state_machine 的 governance_audit.jsonl 分离）
+    4. cwd/governance_audit.jsonl（历史行为，解析为绝对路径）
+    """
+    dedicated = os.environ.get("MAREF_PIPELINE_AUDIT_LOG")
+    if dedicated:
+        p = Path(dedicated)
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return p
+    env = os.environ.get("MAREF_AUDIT_PATH")
+    if env:
+        p = Path(env)
+        if p.suffix:
+            try:
+                p.parent.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
+            return p
+        candidate = p / "pipeline_governance_audit.jsonl"
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return candidate
+    return Path("governance_audit.jsonl").resolve()
+
+
 class GovernedPipeline:
     """Batteries-included governance assembly.
 
@@ -69,7 +104,7 @@ class GovernedPipeline:
             else None
         )
         self.audit = AuditLogger(
-            log_path=audit_path or Path("governance_audit.jsonl"),
+            log_path=audit_path or _default_pipeline_audit_path(),
             hmac_key=resolved_key,
         )
 

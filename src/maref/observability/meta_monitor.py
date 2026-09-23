@@ -844,12 +844,19 @@ def check_notification_staleness(
         open_total = None
 
     # Notification-file buildup (PERF: consumed notifications pruned ≤1h).
+    # P1-3: 计入全部普通文件（*.md/*.jsonl 等），避免 311 条 .md 不进 glob
+    # 导致「目录积压但 check passed」的口径失真。
     ndir = Path(notifications_dir) if notifications_dir else _notifications_dir()
     total_files = 0
+    total_json = 0
     oldest_file_hours: float | None = None
     if ndir.exists():
-        for f in ndir.glob("*.json"):
+        for f in ndir.iterdir():
+            if not f.is_file():
+                continue
             total_files += 1
+            if f.suffix == ".json":
+                total_json += 1
             try:
                 age = now - f.stat().st_mtime
             except OSError:
@@ -877,6 +884,7 @@ def check_notification_staleness(
     return {
         "passed": passed,
         "total_notifications": total_files,
+        "total_json_notifications": total_json,
         "open_alerts": open_total,
         "stale_24h": stale_24h,
         "stale_72h": stale_72h,

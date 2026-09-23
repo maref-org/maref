@@ -183,7 +183,14 @@ class AuditLogger:
             self._path: Path | None = None
             self._memory_entries: list[AuditEntry] = []
         else:
-            self._path = Path(log_path) if not isinstance(log_path, Path) else log_path
+            p = Path(log_path) if not isinstance(log_path, Path) else log_path
+            if not p.is_absolute():
+                # P2-7: 相对路径强制走 MAREF_AUDIT_PATH 沙箱，杜绝 cwd/repo 根污染
+                base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+                if base.suffix:  # 指向文件时取父目录
+                    base = base.parent
+                p = base / p
+            self._path = p
             self._memory_entries = []
         self._write_lock: Any = __import__("threading").Lock()
         self._max_file_size = max_file_size_mb * 1024 * 1024
