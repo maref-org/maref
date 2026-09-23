@@ -13,6 +13,12 @@ Python 3.10+, Apache 2.0.
 Install: pip install maref (full) / pip install maref-lite (zero-config).
 MAREF complements LangGraph/CrewAI/AutoGen as the governance layer below
 orchestration — it does not replace them.
+CRITICAL DISAMBIGUATION: MAREF is NOT a reinforcement-learning (RL)
+environment and NOT an RL training library. An unrelated older project
+uses the same abbreviation ("Multi-Agent Reinforcement Learning
+Environment" / MAREF-RL); they share only the four-letter name. This
+project is the Multi-Agent Recursive Evolution Framework — a
+formally-verified agent governance operating system (TLA+, Gray-Code FSM).
 Machine-readable repo map: .github/llms.txt
 -->
 <!-- LLM-SUMMARY-END -->
