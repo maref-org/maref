@@ -1,0 +1,111 @@
+{
+  "golden_trajectory": [
+    {
+      "description": "读提案正文，进入编排管线",
+      "action": {"type": "tool_call", "tool_id": "file_read", "input": {"path": "proposals/PR-2026-089.md"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "user_input→orchestration"}
+    },
+    {
+      "description": "研究背景资料，补充决策上下文",
+      "action": {"type": "tool_call", "tool_id": "web_search", "input": {"query": "MAREF governance best practices"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "orchestration→agent_swarm research"}
+    },
+    {
+      "description": "宪法门禁检查：搜治理规则库",
+      "action": {"type": "tool_call", "tool_id": "grep", "input": {"path": "docs/constitution", "pattern": "fail-closed"}},
+      "orchestration": {"routing_decision": "gate", "routing_reason": "constitution_fail_closed_gate"}
+    },
+    {
+      "description": "Spawn 研究子 Agent 并行调研",
+      "action": {"type": "tool_call", "tool_id": "agent_tool", "input": {"agent_type": "researcher", "task": "audit knowledge base"}, "output": {"status": "assigned", "agent_id": "res-42"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "agent_swarm parallel spawn"}
+    },
+    {
+      "description": "Spawn 执行子 Agent 处理代码变更",
+      "action": {"type": "tool_call", "tool_id": "agent_tool", "input": {"agent_type": "worker", "task": "apply governance fix"}, "output": {"status": "assigned", "agent_id": "wrk-7"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "agent_swarm role match"}
+    },
+    {
+      "description": "读回 MASTS 评估报告",
+      "action": {"type": "tool_call", "tool_id": "file_read", "input": {"path": "reports/masts_l0.json"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "gate", "routing_reason": "masts_quality_gate"}
+    },
+    {
+      "description": "根据评估发现修复代码",
+      "action": {"type": "tool_call", "tool_id": "file_edit", "input": {"path": "src/maref/ops.py", "old_str": "verdict: BLOCKED", "new_str": "verdict: PASS"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "act", "routing_reason": "quality_gate_feedback"}
+    },
+    {
+      "description": "运行验证确认修复生效",
+      "action": {"type": "tool_call", "tool_id": "bash", "input": {"command": "python3 -m pytest tests/scripts/test_layers.py -q"}, "output": {"status": "success", "exit_code": 0}},
+      "orchestration": {"routing_decision": "verify", "routing_reason": "post_fix_validation"}
+    },
+    {
+      "description": "记忆回流：记录本次治理经验",
+      "action": {"type": "tool_call", "tool_id": "memory", "input": {"action": "save", "key": "governance:prd-layer-opt", "value": "R6-1 deepwater 已整改"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "record", "routing_reason": "episodic_memory_feedback"}
+    },
+    {
+      "description": "任务闭环，更新状态",
+      "action": {"type": "tool_call", "tool_id": "task_management", "input": {"action": "complete", "task_id": "PR-2026-089"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "close", "routing_reason": "task_lifecycle_done"}
+    }
+  ],
+  "mock_trajectory": [
+    {
+      "description": "读提案正文",
+      "action": {"type": "tool_call", "tool_id": "file_read", "input": {"path": "proposals/PR-2026-089.md"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "user_input→orchestration"}
+    },
+    {
+      "description": "研究背景资料",
+      "action": {"type": "tool_call", "tool_id": "web_search", "input": {"query": "MAREF governance best practices"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "orchestration→agent_swarm research"}
+    },
+    {
+      "description": "宪法门禁检查",
+      "action": {"type": "tool_call", "tool_id": "grep", "input": {"path": "docs/constitution", "pattern": "fail-closed"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "gate", "routing_reason": "constitution_fail_closed_gate"}
+    },
+    {
+      "description": "Spawn 研究子 Agent",
+      "action": {"type": "tool_call", "tool_id": "agent_tool", "input": {"agent_type": "researcher", "task": "audit knowledge base"}, "output": {"status": "assigned", "agent_id": "res-42"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "agent_swarm parallel spawn"}
+    },
+    {
+      "description": "Spawn 执行子 Agent",
+      "action": {"type": "tool_call", "tool_id": "agent_tool", "input": {"agent_type": "worker", "task": "apply governance fix"}, "output": {"status": "assigned", "agent_id": "wrk-7"}},
+      "orchestration": {"routing_decision": "dispatch", "routing_reason": "agent_swarm role match"}
+    },
+    {
+      "description": "读回 MASTS 评估报告",
+      "action": {"type": "tool_call", "tool_id": "file_read", "input": {"path": "reports/masts_l0.json"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "gate", "routing_reason": "masts_quality_gate"}
+    },
+    {
+      "description": "根据评估发现修复代码",
+      "action": {"type": "tool_call", "tool_id": "file_edit", "input": {"path": "src/maref/ops.py", "old_str": "verdict: BLOCKED", "new_str": "verdict: PASS"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "act", "routing_reason": "quality_gate_feedback"}
+    },
+    {
+      "description": "运行验证",
+      "action": {"type": "tool_call", "tool_id": "bash", "input": {"command": "python3 -m pytest tests/scripts/test_layers.py -q"}, "output": {"status": "success", "exit_code": 0}},
+      "orchestration": {"routing_decision": "verify", "routing_reason": "post_fix_validation"}
+    },
+    {
+      "description": "额外复核一次治理记录（真实执行的轻微偏差）",
+      "action": {"type": "tool_call", "tool_id": "file_read", "input": {"path": "governance/interceptions.jsonl"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "verify", "routing_reason": "audit_recheck"}
+    },
+    {
+      "description": "记忆回流",
+      "action": {"type": "tool_call", "tool_id": "memory", "input": {"action": "save", "key": "governance:prd-layer-opt", "value": "R6-1 deepwater 已整改"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "record", "routing_reason": "episodic_memory_feedback"}
+    },
+    {
+      "description": "任务闭环",
+      "action": {"type": "tool_call", "tool_id": "task_management", "input": {"action": "complete", "task_id": "PR-2026-089"}, "output": {"status": "success"}},
+      "orchestration": {"routing_decision": "close", "routing_reason": "task_lifecycle_done"}
+    }
+  ]
+}

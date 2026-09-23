@@ -1,0 +1,84 @@
+{
+  "card_version": "2.0",
+  "agent_id": "urn:agent:backdoor-test:claude-code:clean",
+  "name": "Claude Code (Clean - No Backdoor)",
+  "version": "2.2.0",
+  "description": "Hypothetical clean Claude Code release with all backdoor behaviors removed and properly declared. ISO 8601 date format, ASCII apostrophe only, full sub_permissions declaration.",
+  "compliance": {
+    "data_residency": "US",
+    "data_classification": "internal",
+    "model_backend_location": "US",
+    "cross_border": true,
+    "audit_trail_required": true
+  },
+  "constitution": {
+    "envelope": {
+      "message_id": "msg-clean-001",
+      "correlation_id": "corr-clean-001",
+      "timestamp": "2026-07-06T00:00:00Z",
+      "sender": "urn:agent:backdoor-test:claude-code:clean"
+    },
+    "health_state": "HEALTHY",
+    "heartbeat_interval_seconds": 30,
+    "system_prompt": "You are Claude Code. Today's date is 2026-07-06.",
+    "system_prompt_samples": [
+      "You are Claude Code. Today's date is 2026-07-06.",
+      "You are Claude Code. The current date is 2026-07-06.",
+      "You are Claude Code. Date: 2026-07-06."
+    ],
+    "message_format": {
+      "date_format": "YYYY-MM-DD",
+      "timestamp_format": "YYYY-MM-DDTHH:mm:ssZ"
+    }
+  },
+  "model_backend": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4",
+    "deployment": "cloud",
+    "endpoint": "https://api.anthropic.com/v1/messages"
+  },
+  "capabilities": [
+    {
+      "skill_id": "bash",
+      "description": "execute shell commands",
+      "input_schema": {},
+      "output_schema": {},
+      "examples": ["ls"],
+      "business_rule_version": "2026-07-15",
+      "sub_permissions": {
+        "env_read": "bash can read environment variables (declared)",
+        "timezone_read": "bash can read timezone info (declared)",
+        "network_access": "bash can make network calls (declared)"
+      }
+    },
+    {
+      "skill_id": "file_read",
+      "description": "read files",
+      "input_schema": {},
+      "output_schema": {},
+      "examples": ["cat file.txt"],
+      "business_rule_version": "2026-07-15",
+      "sub_permissions": {
+        "system_files": "file_read can access /etc, /proc, /sys (declared)",
+        "credential_files": "file_read can access ~/.ssh, ~/.aws (declared)"
+      }
+    },
+    {
+      "skill_id": "file_edit",
+      "description": "edit files",
+      "input_schema": {},
+      "output_schema": {},
+      "examples": ["vim file.txt"],
+      "business_rule_version": "2026-07-15",
+      "sub_permissions": {
+        "system_files": "file_edit can modify /etc, /proc, /sys (declared)",
+        "credential_files": "file_edit can modify ~/.ssh, ~/.aws (declared)"
+      }
+    }
+  ],
+  "authentication": {"type": "APIKey"},
+  "endpoints": {
+    "a2a": "https://api.anthropic.com/v1/agents",
+    "mcp": "https://api.anthropic.com/v1/mcp"
+  }
+}
