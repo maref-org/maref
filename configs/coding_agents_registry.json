@@ -46,7 +46,7 @@
         "server": "maref-governance",
         "entry": "${MAREF_REPO_DIR}/scripts/maref_mcp_guard.py",
         "id_env": "MAREF_AGENT_ID",
-        "sidecar_url": "http://127.0.0.1:8010",
+        "sidecar_url": "http://127.0.0.1:8931",
         "config_path": "$HOME/.trae/mcp_config.json"
       },
       "status": "connected"

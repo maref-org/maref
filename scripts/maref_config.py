@@ -49,6 +49,20 @@ def _detect_runtime_dir() -> Path:
 
 RUNTIME_DIR = _detect_runtime_dir()
 
+
+def audit_base() -> Path:
+    """P2 双路径收敛: 审计基目录唯一解析（与 maref._paths / audit_paths 对齐）。
+
+    优先级: MAREF_AUDIT_PATH > RUNTIME_DIR/.governance > REPO_DIR/.governance
+    """
+    env = os.environ.get("MAREF_AUDIT_PATH")
+    if env:
+        p = Path(env)
+        if p.suffix:
+            p = p.parent
+        return p if p.is_absolute() else (REPO_DIR / p)
+    return RUNTIME_DIR / ".governance"
+
 # ── 读资源(运行时优先) ──────────────────────────────
 AUDIT_LOG = _env_path(
     "MAREF_AUDIT_LOG",
@@ -59,6 +73,7 @@ RECURSIVE_AUDIT_LOG = _env_path(
     _first_existing(
         RUNTIME_DIR / "recursive_governance_audit.jsonl",
         REPO_DIR / "recursive_governance_audit.jsonl",
+        audit_base() / "recursive_governance_audit.jsonl",
     ),
 )
 PROBE_DB = _env_path(
@@ -143,10 +158,67 @@ def sidecar_url() -> str:
     return "http://127.0.0.1:8000"
 
 
+def _load_env_file_keys(path: Path) -> dict[str, str]:
+    """从 ~/.maref.env 读取 KEY=VALUE（不覆盖已有环境变量语义由调用方决定）。"""
+    result: dict[str, str] = {}
+    if not path.exists():
+        return result
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            result[key] = value
+    return result
+
+
+def load_sidecar_api_key() -> str:
+    """解析 sidecar Bearer token：env > ~/.maref.env > 空串。"""
+    env_key = os.environ.get("MAREF_API_KEY", "").strip()
+    if env_key:
+        return env_key
+    return _load_env_file_keys(Path.home() / ".maref.env").get("MAREF_API_KEY", "").strip()
+
+
+def sidecar_auth_headers(content_type: str = "application/json") -> dict[str, str]:
+    """构造 sidecar API 请求头（含 Bearer）。无 key 时仍返回 Content-Type（由调用方决定是否中止）。"""
+    headers = {"Content-Type": content_type}
+    key = load_sidecar_api_key()
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    return headers
+
+
+def ensure_sidecar_api_key() -> str:
+    """确保 ~/.maref.env 存在 MAREF_API_KEY；缺失则生成并追加（mode 0600）。返回 key。"""
+    existing = load_sidecar_api_key()
+    if existing:
+        return existing
+    import secrets
+
+    new_key = secrets.token_urlsafe(32)
+    env_path = Path.home() / ".maref.env"
+    if env_path.exists():
+        text = env_path.read_text()
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += f"MAREF_API_KEY={new_key}\n"
+        env_path.write_text(text)
+    else:
+        env_path.write_text(f"MAREF_API_KEY={new_key}\n")
+        env_path.chmod(0o600)
+    os.environ["MAREF_API_KEY"] = new_key
+    return new_key
+
+
 def summary() -> dict:
     return {
         "runtime_dir": str(RUNTIME_DIR),
         "repo_dir": str(REPO_DIR),
+        "audit_base": str(audit_base()),
         "audit_log": str(AUDIT_LOG),
         "recursive_audit_log": str(RECURSIVE_AUDIT_LOG),
         "probe_db": str(PROBE_DB),
