@@ -831,3 +831,12 @@ apps/athena-partner/CLAUDE.md
 SOUL.md
 MEMORY.md
 tools/claude-code-setup/reference/claude-code-best-practice/.claude/agent-memory/weather-agent/MEMORY.md
+
+# ---------- [closed-source-sync] 自动补全（check-exclude-list-sync.sh --repair, 2026-09-29） ----------
+src/maref/opc_domains/cognitive_coverage.py
+src/maref/opc_domains/execution_assertions.py
+src/maref/opc_domains/runtime_context.py
+src/maref/opc_domains/trace_contract.py
+tests/opc_domains/test_execution_assertions.py
+tests/opc_domains/test_runtime_context.py
+tests/opc_domains/test_trace_contract.py
