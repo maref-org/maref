@@ -45,6 +45,24 @@ class LlmClient:
     def provider_name(self) -> str:
         return self._provider["name"] if self._provider else "none"
 
+    def _provider_key(self, provider: dict[str, Any]) -> str | None:
+        """Resolve the provider key, honoring the P1-7 credential broker.
+
+        With no broker configured this returns the raw env key (legacy). With a
+        broker, the real key is injected for allowlisted endpoints; misconfig or
+        non-allowlisted endpoints make the provider unavailable (fail-closed).
+        """
+        raw = provider["api_key"]()
+        from maref.governance.credential_broker import CredentialError, get_default_broker
+
+        broker = get_default_broker()
+        if broker is None:
+            return raw
+        try:
+            return broker.resolve(provider["name"], provider["base_url"], raw)
+        except CredentialError:
+            return None
+
     def generate(
         self,
         system: str,
@@ -59,12 +77,15 @@ class LlmClient:
 
         provider = self._provider
         model = provider["models"].get(model_key, provider["models"]["default"])
+        api_key = self._provider_key(provider)
+        if not api_key:
+            return None
         t0 = time.perf_counter()
         try:
             resp = httpx.post(
                 f"{provider['base_url']}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {provider['api_key']()}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -118,8 +139,7 @@ class LlmClient:
         import httpx
 
         for p in _PROVIDERS:
-            key_fn = p["api_key"]
-            key = key_fn()
+            key = self._provider_key(p)
             if not key:
                 continue
             try:

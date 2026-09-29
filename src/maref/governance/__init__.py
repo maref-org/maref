@@ -16,6 +16,18 @@ from maref.governance.core_pipeline import (
     GovernanceResult,
     Verdict,
 )
+from maref.governance.credential_broker import (
+    CredentialBroker,
+    CredentialError,
+    DictKeyProvider,
+    KeyringProvider,
+    build_broker_from_env,
+    get_default_broker,
+    is_placeholder,
+    placeholder_for,
+    resolve_credential,
+    set_default_broker,
+)
 from maref.governance.cross_instance import (
     CrossInstanceGovernor,
     InstanceStatus,
@@ -23,6 +35,7 @@ from maref.governance.cross_instance import (
     WeightPoisonDetector,
 )
 from maref.governance.decorators import (
+    GovernanceAlternativeError,
     GovernanceDeniedError,
     get_default_pipeline,
     governed,
@@ -57,11 +70,36 @@ from maref.governance.governance_baseline_gate import (
     GovernanceBaselineGate,
 )
 from maref.governance.governed_pipeline import GovernedPipeline
+from maref.governance.math_assurance import (
+    BranchingRatioEstimator,
+    ConformalCalibrator,
+    ConformalInterval,
+    LyapunovCertificate,
+)
 from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
 from maref.governance.percv_hooks import (
     PERCVEventType,
     PERCVGovernanceHook,
     handle_percv_event,
+)
+from maref.governance.predictive_breaker import PredictiveBreaker, PreemptionDecision
+from maref.governance.provenance import (
+    Endorsement,
+    FlowDecision,
+    InformationFlowGate,
+    ProvenanceLabel,
+    TaintRecord,
+    TaintTracker,
+    is_clean_label,
+    join_all,
+    join_labels,
+)
+from maref.governance.safety_metrics import (
+    SafetyMetricsRecorder,
+    SafetyOutcome,
+    SanctionedAlternative,
+    default_alternatives_for,
+    summarize,
 )
 from maref.governance.social_impact import (
     DeploymentVerdict,
@@ -70,6 +108,12 @@ from maref.governance.social_impact import (
     SocialImpactReport,
 )
 from maref.governance.state_machine import GovernanceStateMachine
+from maref.governance.temporal_monitor import (
+    TemporalMonitor,
+    TemporalPolicy,
+    TemporalPolicyError,
+    Violation,
+)
 from maref.governance.threat_bridge import ThreatGovernanceBridge, ThreatGovernanceMapping
 from maref.governance.trust_boundary import (
     BoundaryDecision,
@@ -81,6 +125,14 @@ from maref.governance.trust_bridge import (
     GovernanceQuery,
     RecursiveEvent,
     RecursiveEventType,
+)
+from maref.governance.trust_domain import (
+    TrustDomainError,
+    TrustDomainMode,
+    TrustDomainReport,
+    assess,
+    enforce,
+    resolve_mode,
 )
 from maref.governance.types import GovernanceState, StateMachineSnapshot, StateTransition
 from maref.governance.verifiable_governance_credential import (
@@ -119,6 +171,52 @@ __all__ = [
     "CircuitBreaker",
     "BreakerState",
     "BreakerTrip",
+    "PredictiveBreaker",
+    "PreemptionDecision",
+    # Task-level safety metrics + sanctioned alternatives (P0-1)
+    "SafetyMetricsRecorder",
+    "SafetyOutcome",
+    "SanctionedAlternative",
+    "summarize",
+    "default_alternatives_for",
+    # Temporal runtime monitor (P1-4)
+    "TemporalMonitor",
+    "TemporalPolicy",
+    "TemporalPolicyError",
+    "Violation",
+    # Provenance + information-flow control (P1-5)
+    "ProvenanceLabel",
+    "TaintRecord",
+    "TaintTracker",
+    "Endorsement",
+    "InformationFlowGate",
+    "FlowDecision",
+    "is_clean_label",
+    "join_labels",
+    "join_all",
+    # Credential broker (P1-7)
+    "CredentialBroker",
+    "CredentialError",
+    "DictKeyProvider",
+    "KeyringProvider",
+    "build_broker_from_env",
+    "get_default_broker",
+    "set_default_broker",
+    "resolve_credential",
+    "is_placeholder",
+    "placeholder_for",
+    # Math assurance (P2-12)
+    "ConformalCalibrator",
+    "ConformalInterval",
+    "LyapunovCertificate",
+    "BranchingRatioEstimator",
+    # Trust-domain enforcement (NVIDIA matrix)
+    "TrustDomainMode",
+    "TrustDomainReport",
+    "TrustDomainError",
+    "resolve_mode",
+    "assess",
+    "enforce",
     "BudgetBreaker",
     "BudgetBreakerState",
     "BudgetBreakerTrip",
@@ -192,6 +290,7 @@ __all__ = [
     # @governed decorator
     "governed",
     "GovernanceDeniedError",
+    "GovernanceAlternativeError",
     "set_default_pipeline",
     "get_default_pipeline",
     # Batteries-included assembly

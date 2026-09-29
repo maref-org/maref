@@ -50,9 +50,17 @@ class LLMGuidedHandler:
         openai_model: str | None = None,
         openai_base_url: str | None = None,
     ) -> None:
-        self._anthropic_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        from maref.governance.credential_broker import resolve_credential
+
+        self._anthropic_key = anthropic_api_key or resolve_credential(
+            "anthropic", "ANTHROPIC_API_KEY", "https://api.anthropic.com"
+        )
         self._anthropic_model = anthropic_model
-        self._openai_key = openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        self._openai_key = openai_api_key or resolve_credential(
+            "openai",
+            "OPENAI_API_KEY",
+            os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com",
+        )
         self._openai_model = openai_model or os.environ.get("OPENAI_MODEL", "gpt-4o")
         self._openai_base_url = openai_base_url or os.environ.get("OPENAI_BASE_URL", "")
 

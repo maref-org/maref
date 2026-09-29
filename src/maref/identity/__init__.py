@@ -15,6 +15,11 @@ from maref.identity.org_did import (
     OrgDID,
     OrgDIDRegistry,
 )
+from maref.identity.principal_credential import (
+    PrincipalCredential,
+    PrincipalDecision,
+    PrincipalRegistry,
+)
 from maref.identity.trust_engine import TrustEngine, TrustScore
 
 __all__ = [
@@ -37,6 +42,9 @@ __all__ = [
     "OrgCertificate",
     "OrgDID",
     "OrgDIDRegistry",
+    "PrincipalCredential",
+    "PrincipalDecision",
+    "PrincipalRegistry",
     "RotationPolicy",
     "TrustEngine",
     "TrustScore",
