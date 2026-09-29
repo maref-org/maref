@@ -14,8 +14,6 @@ Key properties:
 from __future__ import annotations
 
 import fcntl
-import hashlib
-import hmac
 import json
 import logging
 import os
@@ -26,6 +24,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
+from maref.governance.audit_signer import AuditKeyMissingError, resolve_audit_signer
 from maref.governance.constants import (
     ENTROPY_LEVELS as _ENTROPY_LEVELS_INT,
 )
@@ -151,24 +150,9 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
     """
     if os.environ.get("PYTEST_CURRENT_TEST"):
         actor = f"{actor}:test"
-    _hmac_key_env = os.environ.get("MAREF_HMAC_SECRET_KEY", "")
-    if not _hmac_key_env:
-        # G7 统一密钥源：fallback 到 .maraf_hmac_key 文件（与 AuditLogger 对齐）
-        for cand in (Path.cwd() / ".maraf_hmac_key", Path.home() / ".maraf_hmac_key"):
-            try:
-                _hmac_key_env = cand.read_text().strip()
-                if _hmac_key_env:
-                    break
-            except OSError:
-                continue
-    _hmac_key = _hmac_key_env.encode("utf-8")
-    if not _hmac_key:
-        _write_hmac_missing_alert()
-        raise ValueError(
-            "MAREF_HMAC_SECRET_KEY is not set — refusing to write unauthenticated "
-            "governance audit chain (fail-closed). Set MAREF_HMAC_SECRET_KEY or "
-            "route through AuditLogger with an Ed25519 keypair."
-        )
+    # P0-3: 签署后端可配置。默认本地 HMAC（与历史字节一致）；设置
+    # MAREF_AUDIT_SIGNER_URL 后改由外部签署服务完成，密钥不入 agent 进程。
+    signer = resolve_audit_signer()
     log_path = _default_audit_log_path()
     shard_path = _actor_audit_log_path(actor)
     try:
@@ -197,8 +181,8 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
             ensure_ascii=False,
             default=str,
         )
-        # HMAC-SHA256 signing matching AuditLogger security level
-        chain_hash = hmac.new(_hmac_key, payload.encode(), hashlib.sha256).hexdigest()
+        # Audit signing — P0-3: local HMAC by default, remote when configured.
+        chain_hash = signer.sign(payload.encode())
 
         record = json.loads(payload)
         record["chain_hash"] = chain_hash
@@ -211,6 +195,13 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
         shard_path.parent.mkdir(parents=True, exist_ok=True)
         with open(shard_path, "a") as f:
             _append_record_locked(f, record)
+    except AuditKeyMissingError:
+        _write_hmac_missing_alert()
+        raise ValueError(
+            "MAREF_HMAC_SECRET_KEY is not set — refusing to write unauthenticated "
+            "governance audit chain (fail-closed). Set MAREF_HMAC_SECRET_KEY or "
+            "route through AuditLogger with an Ed25519 keypair."
+        ) from None
     except Exception:
         logger.exception("Audit write failed, falling back to stdout")
         import sys

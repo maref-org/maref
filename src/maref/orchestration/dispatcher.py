@@ -25,6 +25,7 @@ class AgentDispatcher:
     ) -> None:
         self._agent_capabilities: dict[AgentDID, list[str]] = {}
         self._agent_performance: dict[AgentDID, float] = {}
+        self._agent_models: dict[AgentDID, str] = {}
         self._trust_engine = trust_engine
         self._health_monitor = health_monitor
         self._dimension_weights = {
@@ -35,14 +36,29 @@ class AgentDispatcher:
             "specialization": 0.05,
         }
 
-    def register_agent(self, did: AgentDID, capabilities: list[str]) -> None:
+    def register_agent(
+        self, did: AgentDID, capabilities: list[str], model_id: str | None = None
+    ) -> None:
         self._agent_capabilities[did] = capabilities
         self._agent_performance[did] = 0.7
+        if model_id:
+            self.set_agent_model(did, model_id)
         # Mirror registration in downstream systems if present
         if self._trust_engine is not None:
             self._trust_engine.register_agent(did.did_string)
         if self._health_monitor is not None:
             self._health_monitor.register(did.did_string)
+
+    def set_agent_model(self, did: AgentDID, model_id: str, weight: float = 0.05) -> None:
+        """Record an agent's backing model and enable the diversity dimension (P2-9).
+
+        Enabling the dimension only happens once a model is registered, so pools
+        that never set a model keep the exact 5-dimension scoring behavior.
+        """
+        if not model_id:
+            return
+        self._agent_models[did] = model_id
+        self._dimension_weights.setdefault("model_diversity", weight)
 
     def unregister_agent(self, did: AgentDID) -> bool:
         """Remove an agent's capability registration.
@@ -56,6 +72,7 @@ class AgentDispatcher:
         found = did in self._agent_capabilities
         self._agent_capabilities.pop(did, None)
         self._agent_performance.pop(did, None)
+        self._agent_models.pop(did, None)
         return found
 
     def update_performance(self, did: AgentDID, score: float) -> None:
@@ -187,4 +204,22 @@ class AgentDispatcher:
             "trust_score": trust_score,
             "current_load": current_load,
             "specialization": specialization,
+            "model_diversity": self._model_diversity_score(did),
         }
+
+    def _model_diversity_score(self, did: AgentDID) -> float:
+        """Reward underrepresented models to counter monoculture collapse (P2-9).
+
+        Returns 0.0 when no models are registered (dimension inactive) or the
+        agent has no recorded model; otherwise 1 - (agents sharing this model / total).
+        """
+        if not self._agent_models:
+            return 0.0
+        model = self._agent_models.get(did)
+        if model is None:
+            return 0.0
+        counts: dict[str, int] = {}
+        for value in self._agent_models.values():
+            counts[value] = counts.get(value, 0) + 1
+        total = sum(counts.values())
+        return 1.0 - counts[model] / total

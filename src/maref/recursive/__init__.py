@@ -139,6 +139,7 @@ from maref.recursive.distributed_bft import (
 from maref.recursive.distributed_bft import (
     ConsensusResult as BFTConsensusResult,
 )
+from maref.recursive.policy_prover import PolicyProver, ReachabilityProof
 
 try:
     from maref.recursive.distributed_crdt import (
@@ -703,6 +704,8 @@ __all__ = [
     "InteractionRisk",
     "Predicate",
     "build_default_capability_contracts",
+    "PolicyProver",
+    "ReachabilityProof",
     "Saga",
     "SagaState",
     "SagaStep",

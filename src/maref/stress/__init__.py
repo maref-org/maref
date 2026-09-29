@@ -1,4 +1,11 @@
 from maref.stress.distributed_harness import DistributedStressHarness, WorkerResult
+from maref.stress.incident_scenarios import (
+    Control,
+    IncidentScenario,
+    ScenarioLibrary,
+    ScenarioResult,
+    to_chaos_faults,
+)
 from maref.stress.real_faults import FAULT_TYPES, FaultInjection, RealFaultInjector
 from maref.stress.real_latency import LatencyReport, LatencySample, RealLatencyTracker
 from maref.stress.resilience_tracker import ResilienceRecord, ResilienceTracker
@@ -22,4 +29,10 @@ __all__ = [
     "RealLatencyTracker",
     "LatencyReport",
     "LatencySample",
+    # Incident scenario library (chaos/)
+    "Control",
+    "IncidentScenario",
+    "ScenarioLibrary",
+    "ScenarioResult",
+    "to_chaos_faults",
 ]

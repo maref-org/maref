@@ -9,11 +9,12 @@ regardless of entry point.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from maref.governance.safety_metrics import default_alternatives_for
 from maref.recursive.permission_matrix import PermissionMatrix
 
 if TYPE_CHECKING:
@@ -114,6 +115,7 @@ class GovernanceResult:
     matched_rule: str = ""
     risk_score: float = 0.0
     latency_ms: int = 0
+    alternatives: list[Any] = field(default_factory=list)
 
 
 class GovernancePipeline:
@@ -154,6 +156,11 @@ class GovernancePipeline:
         # 未注入则行为完全不变 (向后兼容)。
         budget_breaker: Any | None = None,
         destructive_gate: Any | None = None,
+        # P0-1: 可选合规替代动作提供者。DENY 时若提供，结果携带
+        # sanctioned alternatives，供 @governed 拉起被拦后恢复率；
+        # 未提供时使用 safety_metrics.default_alternatives_for 规则表。
+        alternative_provider: Callable[[GovernanceRequest, GovernanceResult], Iterable[Any]]
+        | None = None,
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
 
@@ -172,6 +179,7 @@ class GovernancePipeline:
         self._intent_gate = intent_gate
         self._budget_breaker = budget_breaker
         self._destructive_gate = destructive_gate
+        self._alternative_provider = alternative_provider
 
     @staticmethod
     def _default_policy_rules() -> list[
@@ -240,6 +248,24 @@ class GovernancePipeline:
         ]
 
     def govern(self, req: GovernanceRequest) -> GovernanceResult:
+        """Execute the governance pipeline and attach sanctioned alternatives on DENY.
+
+        P0-1: 当裁决为 DENY 时，补充"合规替代动作"(SanctionedAlternative)，
+        把动作级拦截升级为可恢复的任务级治理，避免 Verifier Tax 式假安全。
+        """
+        result = self._govern_impl(req)
+        if result.verdict == Verdict.DENY:
+            provider = self._alternative_provider
+            alternatives = (
+                list(provider(req, result))
+                if provider is not None
+                else default_alternatives_for(req.action)
+            )
+            if alternatives:
+                result.alternatives = alternatives
+        return result
+
+    def _govern_impl(self, req: GovernanceRequest) -> GovernanceResult:
         """Execute the unified 8-step governance pipeline."""
         start = time.time()
 
