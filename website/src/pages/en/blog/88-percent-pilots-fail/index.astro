@@ -1,0 +1,142 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="88% of AI Agent POCs Never Reach Production — The Governance Gap Is Why"
+  description="IDC: 88% of AI agent POCs never reach production. Gartner: 40%+ of agentic projects abandoned by 2027. AvePoint: 88.4% of organizations had an agent-related breach. The numbers converge on one root cause — and it is not model capability."
+  date="2026-09-27"
+  author="MAREF Engineering"
+  tags={["agent governance", "POC to production", "Gartner", "IDC", "enterprise AI"]}
+>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  Here is the sentence that should end every "agents are ready" keynote: <strong>IDC research puts the
+  rate of AI agent proofs-of-concept that never reach production at 88%.</strong> Not 18%. Eighty-eight.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  And Gartner independently forecasts that <strong>40%+ of agentic AI projects will be abandoned by the
+  end of 2027.</strong> Meanwhile, Gartner also projects adoption accelerating — 40% of enterprise
+  applications will embed task-specific agents by 2026, up from under 5%. Read those together: adoption
+  is going up <em>and</em> abandonment is going up. Both are true, because they measure different things.
+  Organizations are rushing in, and most of what they rush in with does not survive contact with reality.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">It's not the model</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The POCs work. That's why they're POCs. A demo where an agent books travel, triages tickets, or writes
+  a report is genuinely impressive in week one — and the model gets better every quarter, so capability
+  was never the blocker. The blockers arrive in week six, when someone in the room asks the questions
+  the demo didn't need answers to:
+</p>
+
+<ul class="list-disc pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-2">
+  <li>What can this agent do that we haven't explicitly authorized?</li>
+  <li>How do we prove to an auditor which agent took which action, and why?</li>
+  <li>What happens when two agents' actions interact badly in production?</li>
+  <li>Who gets paged when it goes wrong at 3 AM — and what does the audit trail show them?</li>
+</ul>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Every one of those is a governance question, not a capability question. Consequently, projects stall in
+  precisely the phase where capability is settled and governance is absent. The POC dies of safety debt,
+  not model poverty.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">Meanwhile, the incidents are already here</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  You'd think organizations failing to ship agents would at least be avoiding agent incidents. The survey
+  data says otherwise — because most already have agents running somewhere, ungoverned:
+</p>
+
+<table class="w-full text-base text-brand-text-secondary border-collapse mb-6">
+  <thead>
+    <tr class="border-b border-brand-border">
+      <th class="text-left py-2 px-4 font-bold">Finding</th>
+      <th class="text-left py-2 px-4 font-bold">Source</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 px-4"><strong>88.4%</strong> had an AI agent-related breach in the past year</td>
+      <td class="py-2 px-4">AvePoint, <em>State of AI 2026</em> (750 IT/security/AI leaders)</td>
+    </tr>
+    <tr class="border-b border-brand-border">
+      <td class="py-2 px-4"><strong>88%</strong> reported agent security incidents; <strong>59.3%</strong> confirmed</td>
+      <td class="py-2 px-4">Gravitee, <em>State of AI Agent Security 2026</em> (Dec 2025)</td>
+    </tr>
+    <tr class="border-b border-border">
+      <td class="py-2 px-4"><strong>75–88%</strong> attack success for injected commands in auto-approval modes</td>
+      <td class="py-2 px-4">Liu et al., 2025 (arXiv:2509.22040)</td>
+    </tr>
+    <tr class="border-b border-border">
+      <td class="py-2 px-4"><strong>40%+</strong> of agentic AI projects abandoned by end 2027</td>
+      <td class="py-2 px-4">Gartner, 2025</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The convergence is the story: two independent surveys, different methodologies, landing on the same
+  ~88% — one counting breaches, one counting incidents. Whatever the precise figure, the honest reading
+  is that <strong>agent-related security events are the majority experience, not the tail risk.</strong>
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">Closing the gap: what separates the 12%</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  We can't name the 12% — by definition, they're the ones quietly shipping. But the failure pattern
+  above tells you what they must have solved, because it's the list of what kills everyone else:
+</p>
+
+<ol class="list-decimal pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-3">
+  <li>
+    <strong>Authorization that isn't a prompt.</strong> Every tool call checked against explicit grants
+    before execution — not asked politely in a system message.
+  </li>
+  <li>
+    <strong>An audit trail someone can actually read.</strong> Tamper-evident, per-agent signed records
+    that answer "which agent did what, under which policy" in minutes, not days.
+  </li>
+  <li>
+    <strong>A halt that halts.</strong> Circuit breakers that transition to a state with no path back to
+    execution until explicitly recovered — verified, not hoped for.
+  </li>
+  <li>
+    <strong>Deployment in days, not quarters.</strong> Governance that takes a year to install won't make
+    it into the budget cycle before the project is cancelled.
+  </li>
+</ol>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  That fourth point is underrated. Part of why POCs stall is that "we'll add governance later" creates a
+  six-month integration project nobody scoped. Governance that attaches in five lines doesn't get
+  deferred — and a deferred control is an absent one.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">The bottom line</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  88% of POCs dying and 88% of organizations getting breached are two views of the same gap. Adoption
+  without governance produces demos that impress and deployments that terrify — and the organizations
+  that close the gap aren't the ones with the best models. They're the ones who answered the auditor
+  question before the model question.
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <strong>Sources:</strong>
+  IDC (widely cited, 2026): 88% of AI agent POCs never reach production ·
+  Gartner (2025): 40%+ agentic AI projects abandoned by end 2027; 40% of enterprise apps embedding agents by 2026 ·
+  AvePoint, <em>State of AI 2026</em> (750 respondents): 88.4% agent-related breach ·
+  Gravitee, <em>State of AI Agent Security 2026</em> (Dec 2025): 88% / 59.3% ·
+  Liu et al., 2025, <a href="https://arxiv.org/abs/2509.22040" class="text-brand-accent-blue hover:underline">arXiv:2509.22040</a> ·
+  <a href="/en/blog/complete-guide-agent-governance/" class="text-brand-accent-blue hover:underline">The Complete Guide to Agent Governance</a>
+</p>
+
+</BlogLayout>

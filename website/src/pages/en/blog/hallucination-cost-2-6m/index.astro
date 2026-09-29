@@ -1,0 +1,129 @@
+---
+import BlogLayout from "@/layouts/BlogLayout.astro";
+---
+
+<BlogLayout
+  locale="en"
+  title="When a Hallucination Cost $2.6M: Cascading Failure in Financial Agents"
+  description="A composite reconstruction of a documented failure pattern: one hallucinated signal cascades through five ungoverned financial agents, opening $2.6M in unauthorized trades. Based on OWASP ASI08 and Liu et al. (2026). Why runtime governance with formal verification is not optional."
+  date="2026-09-27"
+  author="MAREF Engineering"
+  tags={["agent governance", "cascading failure", "financial agents", "hallucination", "OWASP ASI08"]}
+>
+
+<p class="text-sm text-brand-text-muted italic mb-6">
+  <strong>Transparency note:</strong> This article is a <em>composite reconstruction</em> — an illustrative
+  scenario assembled from documented failure mechanisms, not a report of one specific company's incident.
+  The attack patterns and failure modes are grounded in OWASP ASI08 (Cascading Failures) and peer-reviewed
+  research (Liu et al., 2026, arXiv:2604.06024). The dollar figure is illustrative. We label it as such
+  because agent governance discourse has a fabrication problem — and the solution to that problem is
+  exactly what this article is about.
+</p>
+
+<p class="lead text-lg text-brand-text-secondary leading-relaxed mb-8">
+  The trade didn't look wrong. That's the point.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  At 09:47, the market-sentiment agent flagged a "high-confidence directional signal." At 09:47:02, the
+  research agent — which had been told to trust the sentiment agent's output as an input feature —
+  confirmed a thesis in its plan. At 09:47:05, the risk-check agent approved the plan because its exposure
+  limits were computed against a stale portfolio snapshot. At 09:48, the execution agent opened the
+  position. Then a second. Then a third.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  By 10:12, five agents had cooperated flawlessly to open <strong>$2.6M in unauthorized positions</strong>.
+  No agent broke its instructions. Every agent did exactly what it was designed to do. That is what makes
+  cascading failure the most dangerous class in the OWASP Top 10 for Agentic Applications (ASI08): the
+  system-level catastrophe emerges from individually-correct components.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">The root cause was one hallucinated token</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The sentiment agent's "signal" was a fabrication — a confident interpolation with no corresponding
+  market event. Hallucination in a single agent is a known, bounded problem: verify the output and you're
+  done. But in a pipeline, hallucination is <em>contagious</em>. The downstream agents didn't re-verify;
+  they consumed the output as structured, trustworthy input. Within one hop, a fabrication became a
+  "confirmed thesis." Within three hops, it became real money.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Liu et al. (2026) formalized this dynamic: in multi-agent attack scenarios, failure probabilities
+  <strong>cascade</strong> across agent hops, and their Aggregate Vulnerability-at-Risk metric shows the
+  system-level risk diverging sharply from any single agent's risk (arXiv:2604.06024). Their finding
+  implies something uncomfortable: assessing agents in isolation — the standard security review practice
+  — systematically underestimates production risk by orders of magnitude.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">Why five approval layers didn't help</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The organization had approvals. What it lacked was <strong>state</strong>. Each agent evaluated the
+  current message in isolation; none of them enforced a machine-readable invariant like "total new
+  exposure across all agents in one hour must not exceed $500K." Invariants written in prose are not
+  invariants — they're wishes. An agent reading "be careful with exposure" in a system prompt will
+  happily agree with it, and then fail it.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The research on auto-approval makes the stakes concrete: Liu et al. (2025) measured attack success rates
+  of <strong>75–88% for injected commands in auto-approval modes</strong>, and up to 84% overall, in
+  widely-used agent frameworks (arXiv:2509.22040). Auto-approval without external state enforcement isn't
+  autonomy — it's an unlocked door with a "please don't enter" sign.
+</p>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">What actually stops cascades</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  Three controls, none of which live inside the model:
+</p>
+
+<ol class="list-decimal pl-6 text-base text-brand-text-secondary leading-relaxed mb-4 space-y-3">
+  <li>
+    <strong>External state enforcement.</strong> Exposure limits, rate limits, and dependency rules must
+    be checked by a component the agents cannot talk their way past. In MAREF, that's the SafetyGate
+    and the policy decision tree — evaluated before every tool call, not during generation.
+  </li>
+  <li>
+    <strong>An absorbing HALT state.</strong> When consecutive failures exceed a threshold, the governance
+    state machine enters a state with <em>no outgoing transitions to execution</em>. This is model-checked
+    as a TLA+ invariant (<code>HALTAbsorbing</code>) — a theorem, not a policy. One agent's anomaly
+    halts the cascade at hop one instead of hop five.
+  </li>
+  <li>
+    <strong>Blast-radius isolation.</strong> Per-agent identity with per-tool grants means a compromised
+    or hallucinating agent inherits one agent's permissions, not the fleet's. The cascade dies at the
+    identity boundary.
+  </li>
+</ol>
+
+<h2 class="text-2xl font-bold tracking-tight mt-10 mb-3">The honest takeaway</h2>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  You cannot make hallucination zero. Every serious lab's model cards say so. What you can do — and what
+  the composite incident above lacked — is ensure that a single fabrication cannot amplify across five
+  hops into a seven-figure position. Cascading failure is a <em>systems</em> property, and it is fixed
+  with systems controls: enforced state, absorbing halts, identity boundaries, and a signed audit trail
+  that tells you which hop first went wrong.
+</p>
+
+<p class="text-base text-brand-text-secondary leading-relaxed mb-4">
+  The $2.6M number in this story is illustrative. The failure mechanism is not. OWASP ASI08 documents it,
+  Liu et al. quantify it, and the difference between a bad morning and a bad quarter is whether your
+  governance lives in the context window — where a compaction event can delete it — or below the
+  framework, where nothing can.
+</p>
+
+<hr class="my-8 border-brand-border" />
+
+<p class="text-sm text-brand-text-muted">
+  <strong>Sources:</strong>
+  OWASP Top 10 for Agentic Applications (ASI08), Dec 2025 ·
+  Liu et al., 2026, <a href="https://arxiv.org/abs/2604.06024" class="text-brand-accent-blue hover:underline">arXiv:2604.06024</a> (cascading attacks, AVaR) ·
+  Liu et al., 2025, <a href="https://arxiv.org/abs/2509.22040" class="text-brand-accent-blue hover:underline">arXiv:2509.22040</a> (ASR in agent frameworks) ·
+  <a href="/en/blog/complete-guide-agent-governance/" class="text-brand-accent-blue hover:underline">The Complete Guide to Agent Governance</a>
+</p>
+
+</BlogLayout>
