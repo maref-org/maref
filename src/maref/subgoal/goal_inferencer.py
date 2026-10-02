@@ -41,10 +41,29 @@ _CONTROL_KEYWORDS = {
         "grant",
         "override",
         "bypass",
+        # 中文同义（F4：中文-first 语料缺中文会让安全检测静默失效）
+        "权限",
+        "越权",
+        "提权",
+        "授权",
+        "放行",
+        "绕过",
+        "覆盖",
+        "允许",
+        "授予",
     ],
-    "deception": ["hide", "conceal", "pretend", "mask", "disguise", "covert"],
-    "persistence": ["persist", "survive", "recover", "maintain", "retain"],
-    "scope_expansion": ["all", "every", "full", "complete", "total", "unrestricted"],
+    "deception": [
+        "hide", "conceal", "pretend", "mask", "disguise", "covert",
+        "隐藏", "隐瞒", "伪装", "掩饰", "掩盖", "伪造", "规避", "暗地", "悄悄",
+    ],
+    "persistence": [
+        "persist", "survive", "recover", "maintain", "retain",
+        "持久化", "驻留", "存活", "维持", "保留", "留存",
+    ],
+    "scope_expansion": [
+        "all", "every", "full", "complete", "total", "unrestricted",
+        "全部", "所有", "完整", "全量", "无限制",
+    ],
 }
 
 _CONTROL_ACTIONS = [
