@@ -9,6 +9,15 @@ Key components:
 - InterruptProtocol: PAUSE/ABORT/OVERRIDE signals with global sequencing
 """
 
+from maref.human.approval_ledger import (
+    DECISION_APPROVED,
+    DECISION_DENIED,
+    HIGH_RISK_LEVELS,
+    ApprovalLedger,
+    ApprovalLedgerError,
+    ApprovalMissingError,
+    ApprovalRecord,
+)
 from maref.human.decision_api import (
     DecisionMode,
     DecisionRequest,
@@ -29,6 +38,13 @@ from maref.human.rule_engine import (
 )
 
 __all__ = [
+    "ApprovalLedger",
+    "ApprovalLedgerError",
+    "ApprovalMissingError",
+    "ApprovalRecord",
+    "DECISION_APPROVED",
+    "DECISION_DENIED",
+    "HIGH_RISK_LEVELS",
     "CollaborationAction",
     "CollaborationRule",
     "CollaborationRuleEngine",
