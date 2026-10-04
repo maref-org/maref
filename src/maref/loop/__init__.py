@@ -5,6 +5,7 @@ Provides:
 - ConvergentLoop: monotonically convergent improvement loop
 - ExploratoryLoop: diversity-seeking discovery loop
 - InteractiveLoop: human-in-the-loop conversation loop
+- GovernedLoop: loop with governance integration (StuckDetector + circuit breaker)
 - LoopGovernanceBridge: connects loops to GovernanceStateMachine
 """
 
@@ -13,6 +14,18 @@ from maref.loop.bridge import LoopGovernanceBridge
 from maref.loop.budgets import TimeBudget, TokenBudget
 from maref.loop.convergent import ConvergentLoop
 from maref.loop.exploratory import ExploratoryLoop
+from maref.loop.governed import GovernedLoop, StuckDetector
+from maref.loop.halting import (
+    HaltingCondition,
+    HaltingContext,
+    MaxIterations,
+    Timeout,
+    GoalAchieved,
+    ConvergenceDetected,
+    AnyOf,
+    AllOf,
+    Never,
+)
 from maref.loop.interactive import (
     ConversationContext,
     InteractiveLoop,
@@ -39,6 +52,17 @@ __all__ = [
     "ConvergentLoop",
     "ExploratoryLoop",
     "InteractiveLoop",
+    "GovernedLoop",
+    "StuckDetector",
+    "HaltingCondition",
+    "HaltingContext",
+    "MaxIterations",
+    "Timeout",
+    "GoalAchieved",
+    "ConvergenceDetected",
+    "AnyOf",
+    "AllOf",
+    "Never",
     "LoopGovernanceBridge",
     "TokenBudget",
     "TimeBudget",
