@@ -340,6 +340,8 @@ class RecursiveGovernanceOverlay:
             reason="meta_detected_oscillation",
             from_state=self._primary._state_machine.current_state.name,
             to_state="STABILIZE",
+            verdict="allow",  # T2-1: 可逆稳定化干预，已执行
+            risk_level="low",
             oscillation_rate=len(self._state_changes),
         )
 

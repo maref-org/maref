@@ -95,6 +95,13 @@ class AuditEntry:
             result["tenant_id"] = self.tenant_id
         if self.round:
             result["round"] = self.round
+        # T2-1: 治理决策的 verdict/risk_level 提升至顶层（分析层读取；
+        # 权威副本在 metadata 内，受 chain_hash 签名保护）
+        if self.event_type == "governance_decision":
+            if self.metadata.get("verdict"):
+                result["verdict"] = self.metadata["verdict"]
+            if self.metadata.get("risk_level"):
+                result["risk_level"] = self.metadata["risk_level"]
         return result
 
     def _payload_for_signing(self) -> str:
@@ -543,18 +550,33 @@ class AuditLogger:
         reason: str = "",
         from_state: str = "",
         to_state: str = "",
+        verdict: str = "",
+        risk_level: str = "",
         **extra: Any,
     ) -> AuditEntry:
+        """记录治理决策。verdict ∈ {allow, deny, flag, unknown}（T2-1 规范）。
+
+        verdict/risk_level 存入 metadata（chain_hash 签名覆盖，防篡改）；
+        ``to_dict`` 对 governance_decision 事件将其提升至顶层供分析层读取。
+        未传 verdict 时留空，由分析层判定规则回推（approval_tier）。
+        """
+        meta: dict[str, Any] = {
+            "from_state": from_state,
+            "to_state": to_state,
+            **extra,
+        }
+        if verdict:
+            if verdict not in ("allow", "deny", "flag", "unknown"):
+                raise ValueError(f"verdict 必须 ∈ {{allow,deny,flag,unknown}}: {verdict!r}")
+            meta["verdict"] = verdict
+        if risk_level:
+            meta["risk_level"] = risk_level
         return self.log(
             event_type="governance_decision",
             actor=actor,
             action=action,
             details=reason,
-            metadata={
-                "from_state": from_state,
-                "to_state": to_state,
-                **extra,
-            },
+            metadata=meta,
         )
 
     def log_anomaly(

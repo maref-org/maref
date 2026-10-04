@@ -45,6 +45,12 @@ log "Phase 1: 数据闭环"
 log "  P0-B 探针采样 (进水口)..."
 "$PY" "$SCRIPTS/probe_sampler.py" >> "$LOGFILE" 2>&1 || fail "P0-B-probe-sampler"
 
+# T2-3: 遗留库合并 (PROBE_DB 解析到 RUNTIME 后, REPO 历史库需先并入,
+# 否则 confidence/calibrate 读到分裂数据源) + 校准前置 (当日阈值当日用)
+log "  T2-3 探针库合并 + 阈值校准..."
+"$PY" "$SCRIPTS/probe_db_merge.py" >> "$LOGFILE" 2>&1 || fail "probe-db-merge"
+"$PY" "$SCRIPTS/probe_threshold_calibrate.py" >> "$LOGFILE" 2>&1 || fail "probe-calibrate"
+
 log "  P-02 提案对账..."
 "$PY" "$SCRIPTS/proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "P-02"
 
@@ -80,6 +86,10 @@ log "  P-04 僵死检测..."
 log "  P-08 SLA 治理..."
 "$PY" "$SCRIPTS/backlog_sla.py" >> "$LOGFILE" 2>&1 || fail "P-08"
 
+# T2-2: 闭环验证依赖 backlog_sla_report (top medium → 提案) 与 coding_agents_status (KPI 证据)
+log "  T2-2 治理闭环验证 (提案→部署→观测→固化)..."
+"$PY" "$SCRIPTS/governance_loop_validator.py" >> "$LOGFILE" 2>&1 || fail "governance-loop-validator"
+
 # 辅助检查
 log "辅助检查"
 log "  P2-1/2 RecursiveOverlay 生产 tick (真实 observation)..."
@@ -87,9 +97,6 @@ log "  P2-1/2 RecursiveOverlay 生产 tick (真实 observation)..."
 
 log "  P1-C 审计生产链心跳..."
 "$PY" "$SCRIPTS/audit_heartbeat.py" >> "$LOGFILE" 2>&1 || fail "audit-heartbeat"
-
-log "  探针阈值校准..."
-"$PY" "$SCRIPTS/probe_threshold_calibrate.py" >> "$LOGFILE" 2>&1 || fail "probe-calibrate"
 
 log "  校准状态观察..."
 "$PY" "$SCRIPTS/calibration_status.py" >> "$LOGFILE" 2>&1 || fail "calibration-status"
@@ -102,6 +109,11 @@ log "  审计健康检查..."
 
 log "  进化状态检查..."
 "$PY" "$SCRIPTS/evolution_daemon_status.py" >> "$LOGFILE" 2>&1 || fail "evolution-status"
+
+# T2-4: 覆盖对账 + 单一自证明报告（晨报 status 与 evidence_gate 依赖其产出）
+log "  T2-4 覆盖对账 + 证据报告..."
+"$PY" "$SCRIPTS/agent_coverage_reconcile.py" >> "$LOGFILE" 2>&1 || fail "agent-coverage"
+"$PY" "$SCRIPTS/gen_evidence_report.py" >> "$LOGFILE" 2>&1 || fail "evidence-report"
 
 # 晨报
 log "  晨报生成..."
@@ -118,6 +130,10 @@ log "  告警推送..."
 # 提案对账推送
 log "  提案对账推送..."
 "$PY" "$SCRIPTS/push_proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "proposal-push"
+
+# T2-4: 统一验收门槛（方案 §6 — 全绿才通过）
+log "  T2-4 证据门禁..."
+bash "$SCRIPTS/evidence_gate.sh" >> "$LOGFILE" 2>&1 || fail "evidence-gate"
 
 FAIL_COUNT=$(grep -c "❌" "$LOG_DIR/failures-$TODAY.log" 2>/dev/null || echo 0)
 log "========== 治理循环完成 | 失败: $FAIL_COUNT =========="

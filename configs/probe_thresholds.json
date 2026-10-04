@@ -1,10 +1,10 @@
 {
-  "calibrated_at": "2026-09-23T06:00:02.855205",
+  "calibrated_at": "2026-10-04T13:04:02.204851",
   "method": "percentile_based",
   "probes": {
     "oscillation": {
       "normal_max": 444.0,
-      "critical_min": 569.0
+      "critical_min": 538.0
     },
     "entropy": {
       "normal_max": 3.0,

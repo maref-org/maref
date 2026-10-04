@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """探针阈值重校准 (P0: ISSUE-002) — 百分位数法"""
-import json, os, sqlite3, statistics
+import json
+import os
+import sqlite3
 from datetime import datetime
-from maref_config import PROBE_DB as DB_PATH, config_path
+
+from maref_config import PROBE_DB as DB_PATH
+from maref_config import config_path
 
 CONFIG_PATH = config_path("probe_thresholds.json")
 
 # L4: 小样本守卫 — 样本不足时分位数退化 (P75≈P95)，会产出无效阈值
 MIN_SAMPLES = 24
 
-def compute_percentiles(values, percentiles=[50, 75, 90, 95, 99]):
+def compute_percentiles(values, percentiles=None):
+    if percentiles is None:
+        percentiles = [50, 75, 90, 95, 99]
     sorted_vals = sorted(values)
     n = len(sorted_vals)
     result = {}
@@ -43,17 +49,20 @@ def analyze_probe(probe_name):
     percentiles = compute_percentiles(values)
 
     p75 = percentiles["P75"]
+    p90 = percentiles["P90"]
     p95 = percentiles["P95"]
 
-    # L4: 非退化守卫 — 若 P95 ≤ P75 (全等值)，加最小间隔防正常/危险同阈
-    if p95 <= p75:
-        p95 = p75 + max(1.0, p75 * 0.1)
+    # T2-3: critical 阈值取 P90 (目标 critical 占比 ≈10%, 落在 [5%,15%]
+    # 验收区间中部, 兼顾告警信噪比)。P95(5%) 贴区间下沿易受数据漂移跌破。
+    # L4: 非退化守卫 — 若 P90 ≤ P75 (全等值), 加最小间隔防正常/危险同阈
+    if p90 <= p75:
+        p90 = p75 + max(1.0, p75 * 0.1)
 
     new_severity = {"normal": 0, "warning": 0, "critical": 0}
     for v in values:
         if v <= p75:
             new_severity["normal"] += 1
-        elif v <= p95:
+        elif v <= p90:
             new_severity["warning"] += 1
         else:
             new_severity["critical"] += 1
@@ -65,9 +74,10 @@ def analyze_probe(probe_name):
         "percentiles": percentiles,
         "new_thresholds": {
             "normal": f"<= P75 ({p75})",
-            "warning": f"P75-P95 ({p75} - {p95})",
-            "critical": f"> P95 ({p95})",
+            "warning": f"P75-P90 ({p75} - {p90})",
+            "critical": f"> P90 ({p90})",
             "p75_value": p75,
+            "p90_value": p90,
             "p95_value": p95,
         },
         "old_distribution": old_severity,
@@ -105,11 +115,11 @@ def main():
         print(f"  总读数: {r['total_readings']}")
         print(f"  值范围: {r['value_range']}")
 
-        print(f"\n  分位数:")
+        print("\n  分位数:")
         for k, v in r["percentiles"].items():
             print(f"    {k}: {v}")
 
-        print(f"\n  新阈值方案:")
+        print("\n  新阈值方案:")
         print(f"    normal: {r['new_thresholds']['normal']}")
         print(f"    warning: {r['new_thresholds']['warning']}")
         print(f"    critical: {r['new_thresholds']['critical']}")
@@ -132,7 +142,7 @@ def main():
         "probes": {
             k: {
                 "normal_max": v["new_thresholds"]["p75_value"],
-                "critical_min": v["new_thresholds"]["p95_value"],
+                "critical_min": v["new_thresholds"]["p90_value"],
             }
             for k, v in results.items()
         },
@@ -147,7 +157,7 @@ def main():
     estimated_confidence = compute_estimated_confidence(results)
     print(f"\n{'=' * 60}")
     print(f"预估重校准后置信度: {estimated_confidence}")
-    print(f"重校准前置信度: 12.0")
+    print("重校准前置信度: 12.0")
     print(f"改善: {estimated_confidence - 12.0:+.1f}")
 
 def compute_estimated_confidence(results):

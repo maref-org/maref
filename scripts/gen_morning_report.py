@@ -2,6 +2,7 @@
 """晨报生成器 (Phase Beta B2) — 汇总所有治理报告产出"""
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 
 from maref_config import REPORTS_DIR, vaccine_path
@@ -104,10 +105,23 @@ def generate():
     if zombie and zombie.get("zombie_count", 0) > 5:
         issues.append(f"僵死 agent {zombie.get('zombie_count')} 个")
 
+    # T2-4: summary.status 由 evidence_gate 退出码驱动（与方案 §6 同口径）
+    gate_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "evidence_gate.sh")
+    gate_rc = -1
+    try:
+        gate_rc = subprocess.run(
+            ["bash", gate_path], capture_output=True, text=True, timeout=180
+        ).returncode
+    except (OSError, subprocess.SubprocessError):
+        gate_rc = -1
+    if gate_rc != 0:
+        issues.append(f"evidence_gate 未通过 (rc={gate_rc})")
+
     report["summary"] = {
         "status": "healthy" if not issues else "attention",
         "issues": issues,
         "healthy_count": len(report["sections"]),
+        "evidence_gate_rc": gate_rc,
     }
 
     os.makedirs(OUTPUT.parent, exist_ok=True)

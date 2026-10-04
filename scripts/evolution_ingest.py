@@ -41,6 +41,8 @@ SCHEMA = {
     "redblue": ("run", ["rounds", "mean_score", "detection", "mitigation", "recovery", "adaptation", "passed", "cb_triggers"]),
     "chaos": ("run", ["test_suite", "passed", "failed", "total", "success", "duration_ms"]),
     "immune": ("update", ["gene", "source", "severity", "note"]),
+    # T2-2: backlog 中危 → 可执行提案承接 (governance_loop_validator 转换)
+    "proposal": ("run", ["proposal_id", "change_type", "risk", "source", "status"]),
 }
 
 

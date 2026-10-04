@@ -125,6 +125,21 @@ def _payload_variants(entry: dict) -> dict[str, str]:
         "all_sorted": dumps({k: entry[k] for k in sorted(kept)}, True),
         "all_insertion": dumps({k: entry[k] for k in kept}, False),
     }
+    # AuditEntry._payload_for_signing 变体: 恒 8 键 (previous_hash 空串也写入,
+    # 但 to_dict 省略空键 → 条件 std_keys 对首条会漏键) + layer (dataclass 默认
+    # "governance", to_dict 不输出该键但参与 hash)。T2-2 闭环 append 后由本候选识别。
+    base8 = {
+        k: entry.get(k)
+        for k in (
+            "id", "timestamp", "event_type", "actor",
+            "action", "details", "metadata",
+        )
+    }
+    # 首条 previous_hash 为空时 to_dict 省略键 → get()=None, 真实 payload 是 ""
+    base8["previous_hash"] = entry.get("previous_hash") or ""
+    out["std_layer_sorted"] = dumps(
+        {**base8, "layer": entry.get("layer") or "governance"}, True
+    )
     if len(std_keys) != len(kept):
         out["std_noprev_sorted"] = dumps(
             {k: entry.get(k) for k in std_keys if k != "previous_hash"}, True

@@ -19,10 +19,9 @@ import json
 import os
 import subprocess
 import sys
-import time
-from datetime import datetime, timezone, timedelta
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -70,6 +69,7 @@ def _load_fuel(fuel_type: str, days: int = 7) -> list[dict]:
 def _load_probe_readings(since_hours: int = 24) -> list[dict]:
     """加载 probe_readings"""
     import sqlite3
+
     from maref_config import PROBE_DB
 
     readings = []
@@ -87,7 +87,7 @@ def _load_probe_readings(since_hours: int = 24) -> list[dict]:
         rows = cur.fetchall()
         cols = [d[0] for d in cur.description]
         for row in rows:
-            readings.append(dict(zip(cols, row)))
+            readings.append(dict(zip(cols, row, strict=False)))
         conn.close()
     except Exception:
         pass
@@ -116,17 +116,105 @@ def _load_rule_effectiveness(days: int = 7) -> list[dict]:
 
 
 def _check_sidecar_health() -> dict:
-    """检查 sidecar 健康"""
+    """检查 sidecar 健康 (地址解析复用 maref_config.sidecar_url 统一口径)"""
     try:
         import urllib.request
-        url = os.environ.get("MAREF_SIDECAR_URL", "http://127.0.0.1:8000")
-        req = urllib.request.Request(f"{url}/api/health", method="GET")
+        scripts_dir = str(Path(__file__).resolve().parent)
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        try:
+            from maref_config import sidecar_url
+            base = sidecar_url()
+        except ImportError:
+            base = os.environ.get("MAREF_SIDECAR_URL", "http://127.0.0.1:8931")
+        req = urllib.request.Request(f"{base}/api/health", method="GET")
         with urllib.request.urlopen(req, timeout=5) as resp:
             if resp.status == 200:
-                return {"healthy": True, "data": json.loads(resp.read())}
+                return {"healthy": True, "data": json.loads(resp.read()), "url": base}
     except Exception as e:
         return {"healthy": False, "error": str(e)}
     return {"healthy": False, "error": "unknown"}
+
+
+def _load_backlog_proposals(limit: int = 3) -> list[dict]:
+    """T2-2 改法1: 从 backlog 报告取 top N medium 转可执行提案。
+
+    源 = 当前 medium(待办) + cleared_medium(已修复留痕, status=deployed)。
+    后者保证「修复即失忆」不丢闭环素材: 提案→部署→观测→固化可回放验证。
+    """
+    bp = Path(__file__).resolve().parent.parent / "reports" / "backlog_sla_report.json"
+    if not bp.exists():
+        return []
+    try:
+        report = json.loads(bp.read_text())
+    except Exception:
+        return []
+
+    items = ((report.get("backlog") or {}).get("medium") or [])[:limit]
+    proposals = []
+    for it in items:
+        proposals.append({
+            "proposal_id": f"BL-{it.get('id', 'unknown')}",
+            "fuel_type": "policy_proposal",
+            "status": "proposed",
+            "source": "backlog",
+            "proposed_change": {
+                "type": "backlog_remediation",
+                "backlog_id": it.get("id"),
+                "action": it.get("action"),
+                "detail": it.get("detail", ""),
+                "risk": it.get("risk", "medium"),
+                "age_hours": it.get("age_hours"),
+            },
+        })
+
+    cleared = (report.get("cleared_medium") or [])[:limit]
+    for it in cleared:
+        pid = f"BL-{it.get('id', 'unknown')}"
+        if any(p["proposal_id"] == pid for p in proposals):
+            continue
+        proposals.append({
+            "proposal_id": pid,
+            "fuel_type": "policy_proposal",
+            "status": "deployed",  # 已清零 = 修复已落地, 证据由部署验证器复核
+            "source": "cleared_medium",
+            "proposed_change": {
+                "type": "backlog_remediation",
+                "backlog_id": it.get("id"),
+                "action": it.get("action"),
+                "detail": it.get("detail", ""),
+                "risk": it.get("risk", "medium"),
+                "age_hours": it.get("age_hours"),
+                "clear_reason": it.get("clear_reason", ""),
+            },
+        })
+    return proposals
+
+
+def _ingest_backlog_proposals(proposals: list[dict]) -> int:
+    """T2-2: 提案经 evolution_ingest 幂等承接入库 (part=proposal)。"""
+    scripts_dir = str(Path(__file__).resolve().parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from evolution_ingest import cmd_add
+    except ImportError:
+        print("⚠️ evolution_ingest 不可用, 跳过承接")
+        return 0
+    ok = 0
+    for p in proposals:
+        payload = {"run": {
+            "proposal_id": p["proposal_id"],
+            "change_type": p["proposed_change"].get("type", ""),
+            "risk": p["proposed_change"].get("risk", "medium"),
+            "source": "backlog",
+            "status": p["status"],
+            "backlog_id": p["proposed_change"].get("backlog_id"),
+            "action": p["proposed_change"].get("action"),
+        }}
+        if cmd_add("proposal", json.dumps(payload, ensure_ascii=False)) == 0:
+            ok += 1
+    return ok
 
 
 def validate_proposal_deployment(proposal: dict) -> dict:
@@ -175,6 +263,28 @@ def validate_proposal_deployment(proposal: dict) -> dict:
         result["checks"]["baseline_gate_updated"] = True  # 占位
         result["evidence"].append("Baseline Gate 红线更新检查")
 
+    elif change_type == "backlog_remediation":
+        # T2-2: backlog 根因修复证据 (真实可观测指标, 不虚报)
+        action = proposed_change.get("action", "")
+        backlog_id = proposed_change.get("backlog_id", "")
+        if action == "coding_agent_governance_kpi":
+            ca_path = Path(__file__).resolve().parent.parent / "reports" / "coding_agents_status.json"
+            kpi = None
+            if ca_path.exists():
+                try:
+                    kpi = json.loads(ca_path.read_text()).get("global_kpi", {}).get("tool_calls_total")
+                except Exception:
+                    kpi = None
+            result["checks"]["remediation_evidence"] = bool(kpi and kpi > 0)
+            result["evidence"].append(
+                f"backlog {backlog_id} 根因证据: coding agent 24h KPI = {kpi} (>0 即恢复; P1 T1-1/T1-2 修复)"
+            )
+        else:
+            result["checks"]["remediation_evidence"] = False
+            result["evidence"].append(
+                f"backlog {backlog_id} (action={action}) 暂无特化部署证据 → pending"
+            )
+
     # 2. Sidecar 健康检查
     sidecar_health = _check_sidecar_health()
     result["checks"]["sidecar_healthy"] = sidecar_health.get("healthy", False)
@@ -191,7 +301,6 @@ def validate_proposal_deployment(proposal: dict) -> dict:
 def validate_observation_window(proposal: dict, window_hours: int = 24) -> dict:
     """验证部署后观测窗口的指标变化"""
     proposal_id = proposal.get("proposal_id", "")
-    change_type = proposal.get("proposed_change", {}).get("type", "")
 
     result = {
         "proposal_id": proposal_id,
@@ -238,13 +347,23 @@ def validate_full_loop(days: int = 7) -> dict:
     print("=" * 60)
 
     if not DUCKDB_AVAILABLE:
-        return {"error": "duckdb not available"}
+        print("\n⚠️ duckdb 不可用 — 跳过 evolution_fuel 加载 (backlog 提案源不受影响)")
+        proposals, deployed, rolled_back = [], [], []
+    else:
+        print(f"\n📊 加载最近 {days} 天燃料数据...")
+        proposals = _load_fuel("policy_proposal", days)
+        deployed = _load_fuel("deployed", days)
+        rolled_back = _load_fuel("rolled_back", days)
 
-    print(f"\n📊 加载最近 {days} 天燃料数据...")
-    proposals = _load_fuel("policy_proposal", days)
-    deployed = _load_fuel("deployed", days)
-    rolled_back = _load_fuel("rolled_back", days)
+    # T2-2 改法1: backlog top3 medium → 可执行提案 (evolution_ingest 承接)
+    backlog_props = _load_backlog_proposals(limit=3)
+    if backlog_props:
+        n = _ingest_backlog_proposals(backlog_props)
+        print(f"\n🔁 backlog 中危转提案: {len(backlog_props)} 条 (ingest 成功 {n})")
+        seen = {p.get("proposal_id") for p in proposals}
+        proposals = proposals + [p for p in backlog_props if p.get("proposal_id") not in seen]
 
+    print("\n📊 提案源汇总:")
     print(f"   提案中: {len(proposals)}")
     print(f"   已部署: {len(deployed)}")
     print(f"   已回滚: {len(rolled_back)}")
@@ -307,13 +426,48 @@ def validate_full_loop(days: int = 7) -> dict:
 
     results["audit_chain"] = audit_chain
 
+    # T2-2 改法2: 闭环判定入治理链 (固化环节) — 有提案才记, 空转不污染链
+    if results["total_proposals"] > 0:
+        results["loop_closed"] = _record_loop_decision(results)
+
     print(f"\n{'=' * 60}")
-    print(f"验证摘要:")
+    print("验证摘要:")
     for k, v in results["summary"].items():
         print(f"  {k}: {v}")
     print(f"{'=' * 60}")
 
     return results
+
+
+def _record_loop_decision(results: dict) -> dict:
+    """闭环验证结果写入治理审计链 (verdict 必填, T2-1 规范)。"""
+    scripts_dir = str(Path(__file__).resolve().parent)
+    repo_root = str(Path(__file__).resolve().parent.parent)
+    for d in (scripts_dir, repo_root):
+        if d not in sys.path:
+            sys.path.insert(0, d)
+    try:
+        from maref_config import AUDIT_LOG_V2
+
+        from maref.governance import AuditLogger
+        verified = results["summary"].get("deployed_verified", 0)
+        pending = results["summary"].get("pending", 0)
+        verdict = "allow" if verified >= 1 else ("flag" if pending else "unknown")
+        entry = AuditLogger(log_path=AUDIT_LOG_V2).log_decision(
+            actor="GovernanceLoopValidator",
+            action="proposal_loop_verified",
+            reason=(
+                f"deployed_verified={verified}, pending={pending}, "
+                f"total_proposals={results['total_proposals']}"
+            ),
+            verdict=verdict,
+            risk_level="low" if verdict == "allow" else "medium",
+            deployed_verified=verified,
+            total_proposals=results["total_proposals"],
+        )
+        return {"recorded": True, "verdict": verdict, "entry_id": entry.id}
+    except Exception as e:
+        return {"recorded": False, "error": str(e)}
 
 
 def main():
@@ -373,6 +527,19 @@ def main():
         json.dump(all_reports, f, indent=2, ensure_ascii=False)
 
     print(f"✅ 验证报告已写入: {report_file}")
+
+    # T2-2: reports/ 副本 (验收 jq 友好: 平铺 dict)
+    try:
+        from maref_config import report_path
+        local_copy = str(report_path(
+            f"validation_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
+        ))
+        os.makedirs(os.path.dirname(local_copy), exist_ok=True)
+        with open(local_copy, "w") as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+        print(f"✅ 验证报告副本: {local_copy}")
+    except Exception as e:
+        print(f"⚠️ reports 副本写入失败: {e}")
 
     return 0
 

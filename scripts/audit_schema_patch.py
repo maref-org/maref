@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
 """审计日志 schema 补丁 (P1: ISSUE-001) — 解析 verdict/risk_level 回填"""
-import json, os, re
+import json
+import os
 from datetime import datetime
+
 from maref_config import (
     AUDIT_LOG,
-    RECURSIVE_AUDIT_LOG as RECURSIVE_LOG,
-    AUDIT_LOG_V2 as OUTPUT_AUDIT,
-    RECURSIVE_AUDIT_LOG_V2 as OUTPUT_RECURSIVE,
     report_path,
 )
+from maref_config import (
+    AUDIT_LOG_V2 as OUTPUT_AUDIT,
+)
+from maref_config import (
+    RECURSIVE_AUDIT_LOG as RECURSIVE_LOG,
+)
+from maref_config import (
+    RECURSIVE_AUDIT_LOG_V2 as OUTPUT_RECURSIVE,
+)
 
-def parse_verdict(details):
+
+def parse_verdict(details, action=""):
     if not details:
         return "unknown"
     upper = details.upper()
@@ -18,14 +27,19 @@ def parse_verdict(details):
         verdict = "allow"
     elif upper.startswith("DENY"):
         verdict = "deny"
-    elif upper.startswith("ASK_USER"):
-        verdict = "flag"
-    elif "entropy" in details.lower():
+    elif upper.startswith("ASK_USER") or "entropy" in details.lower():
         verdict = "flag"
     elif "initial" in details.lower() or "desktop" in details.lower():
         verdict = "allow"
     else:
-        verdict = "unknown"
+        # T2-1: action 规则兜底（details 不可解析时）
+        if action.split(":")[0] == "governance_bypassed":
+            verdict = "flag"  # 治理绕过必须人工复核
+        elif action in ("oscillation_intervention", "force_stabilize",
+                        "auto_transition", "state_transition"):
+            verdict = "allow"  # 可逆稳定化干预
+        else:
+            verdict = "unknown"
     return verdict
 
 def parse_risk_level(details, verdict, action):
@@ -50,7 +64,7 @@ def patch_log(input_path, output_path, source_name):
         for line in f:
             try:
                 entries.append(json.loads(line.strip()))
-            except:
+            except Exception:
                 pass
 
     patched = []
@@ -62,7 +76,7 @@ def patch_log(input_path, output_path, source_name):
             details = json.dumps(details)
         action = entry.get("action", "")
 
-        verdict = parse_verdict(details)
+        verdict = parse_verdict(details, action)
         risk_level = parse_risk_level(details, verdict, action)
 
         entry["verdict"] = verdict
@@ -90,19 +104,19 @@ def main():
         stats, patched = patch_log(path, output, name)
         print(f"\n--- {name} ---")
         print(f"总条目: {stats['total']}")
-        print(f"  verdict 分布:")
+        print("  verdict 分布:")
         for k, v in sorted(stats["verdict"].items(), key=lambda x: -x[1]):
             print(f"    {k}: {v}")
-        print(f"  risk_level 分布:")
+        print("  risk_level 分布:")
         for k, v in sorted(stats["risk_level"].items(), key=lambda x: -x[1]):
             print(f"    {k}: {v}")
         print(f"  输出: {output}")
 
-    print(f"\n--- 批复章示 ---")
+    print("\n--- 批复章示 ---")
     print(f"原日志路径: {AUDIT_LOG} / {RECURSIVE_LOG}")
     print(f"补丁后路径: {OUTPUT_AUDIT} / {OUTPUT_RECURSIVE}")
-    print(f"原日志未修改，补丁输出为独立文件")
-    print(f"后续脚本应使用 v2 路径或通过符号链接切换")
+    print("原日志未修改，补丁输出为独立文件")
+    print("后续脚本应使用 v2 路径或通过符号链接切换")
 
     output_path = str(report_path("schema_patch_report.json"))
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
