@@ -803,7 +803,13 @@ class AuditLogger:
                     continue
                 entry = self._entry_from_dict(data)
                 if entry is not None:
-                    return entry.chain_hash
+                    if entry.chain_hash:
+                        return entry.chain_hash
+                    # 旁路写入方留下的无链记录（如 meta_cognitive_audit 只写
+                    # event/actor/action/details）不能当作链尾：继续向前找最后
+                    # 一条带 chain_hash 的记录。否则 log() 会以 previous_hash=""
+                    # 续写，使后续合法条目全部断链（历史 911 处断点即此根因）。
+                    continue
             if window >= size:
                 return ""
             window = min(size, window * 2)

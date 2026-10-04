@@ -15,12 +15,19 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from maref_config import REPO_DIR, RUNTIME_DIR, report_path, sidecar_auth_headers
+from maref_config import (
+    REPO_DIR,
+    RUNTIME_DIR,
+    load_sidecar_api_key,
+    report_path,
+    sidecar_auth_headers,
+)
 
 
 def _resolve(path: str) -> Path:
@@ -43,21 +50,34 @@ def _probe_sidecar(url: str, timeout: float = 1.5) -> bool:
         return False
 
 
-def _fetch_sidecar_telemetry(sidecar_url: str, agent_id: str, since_hours: int = 24) -> dict[str, Any] | None:
-    """从 sidecar 查询指定 agent 的遥测数据（A-4：带 Bearer，否则 401 静默全 0）。"""
+def _fetch_sidecar_telemetry(sidecar_url: str, agent_id: str, since_hours: int = 24) -> tuple[dict[str, Any] | None, str]:
+    """从 sidecar 查询指定 agent 的遥测数据（T1-2 / G-04 根因②）。
+
+    返回 (payload, telemetry_auth)，telemetry_auth ∈:
+      ok            200 且拿到数据
+      auth_missing  ~/.maref.env 无 MAREF_API_KEY（明确暴露，不再静默 None）
+      auth_rejected 401/403 — key 存在但被 sidecar 拒绝
+      unreachable   连接失败/超时
+      no_url        未配置 sidecar_url
+      http_<code>   其他非 200
+    """
     if not sidecar_url:
-        return None
+        return None, "no_url"
+    if not load_sidecar_api_key():
+        return None, "auth_missing"
+    since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
+    url = f"{sidecar_url.rstrip('/')}/api/telemetry/query"
+    params = f"?source=maref-obs-{agent_id[:8]}&since={since_ts}&limit=1000"
     try:
-        since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
-        url = f"{sidecar_url.rstrip('/')}/api/telemetry/query"
-        params = f"?source=maref-obs-{agent_id[:8]}&since={since_ts}&limit=1000"
         req = urllib.request.Request(url + params, method="GET", headers=sidecar_auth_headers())
         with urllib.request.urlopen(req, timeout=5.0) as resp:
             if resp.status == 200:
-                return json.loads(resp.read().decode("utf-8"))
+                return json.loads(resp.read().decode("utf-8")), "ok"
+            return None, f"http_{resp.status}"
+    except urllib.error.HTTPError as exc:
+        return None, ("auth_rejected" if exc.code in (401, 403) else f"http_{exc.code}")
     except Exception:
-        pass
-    return None
+        return None, "unreachable"
 
 
 def _read_local_obs_events(agent_id: str, since_hours: int = 24) -> list[dict]:
@@ -87,32 +107,49 @@ def _read_local_obs_events(agent_id: str, since_hours: int = 24) -> list[dict]:
 
 
 def _read_mcp_decision_log(agent_id: str, since_hours: int = 24) -> list[dict]:
-    """读取 MCP 决策日志 (如果存在)"""
-    # MCP 决策日志在内存中，这里尝试从审计日志推导
-    # P1-4: 审计日志优先 RUNTIME（生产 openclaw），fallback REPO（测试/开发）
-    audit_log = RUNTIME_DIR / ".governance" / "governance_audit.jsonl"
-    if not audit_log.exists():
-        audit_log = REPO_DIR / ".governance" / "governance_audit.jsonl"
-    events = []
+    """读取 MCP 治理决策落盘 (T1-1 / G-04 根因①)。
+
+    数据源: <runtime>/.governance/mcp_decisions.jsonl — 由 maref_governance_mcp
+    在每次 tools/call 后写入（event_type=governance_decision, actor=MAREF_AGENT_ACTOR）。
+
+    旧实现从 governance_audit.jsonl 按 actor==agent_id 推导：该链 actor 实为
+    state_machine/tiered-loop/openclaw，coding agent 永远匹配不上 → 恒为空，
+    全局 KPI tool_calls_total 恒 0。
+    """
+    candidates: list[Path] = []
+    env_log = os.environ.get("MAREF_MCP_DECISION_LOG", "").strip()
+    if env_log:
+        candidates.append(Path(env_log))
+    candidates.append(RUNTIME_DIR / ".governance" / "mcp_decisions.jsonl")
+    if RUNTIME_DIR != REPO_DIR:
+        candidates.append(REPO_DIR / ".governance" / "mcp_decisions.jsonl")
+
+    events: list[dict] = []
     since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
-
-    if not audit_log.exists():
-        return events
-
-    try:
-        with open(audit_log) as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    ev = json.loads(line)
-                    if ev.get("actor") == agent_id and ev.get("timestamp", 0) >= since_ts:
-                        events.append(ev)
-                except json.JSONDecodeError:
-                    pass
-    except Exception:
-        pass
+    for audit_log in candidates:
+        if not audit_log.exists():
+            continue
+        try:
+            with open(audit_log) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        ev = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    meta = ev.get("metadata") or {}
+                    actor = ev.get("actor") or meta.get("agent_id")
+                    if actor != agent_id:
+                        continue
+                    if float(ev.get("timestamp") or 0) < since_ts:
+                        continue
+                    events.append(ev)
+        except Exception:
+            continue
+        if events:
+            break
     return events
 
 
@@ -179,12 +216,12 @@ def _compute_runtime_kpi(
             if corr:
                 correlations.add(corr)
         elif ev.get("event_type") == "tool_call_end":
-            verdict = ev.get("verdict", "").lower()
-            if verdict == "allow":
+            verdict = str(ev.get("verdict", "")).lower()
+            if verdict in ("allow", "pass", "accepted"):
                 kpi["tool_calls_allowed"] += 1
-            elif verdict == "deny":
+            elif verdict in ("deny", "block"):
                 kpi["tool_calls_denied"] += 1
-            elif verdict == "ask_user":
+            elif verdict in ("ask_user", "attention", "rework"):
                 kpi["tool_calls_hitl"] += 1
             lat = ev.get("latency_ms")
             if lat:
@@ -194,6 +231,13 @@ def _compute_runtime_kpi(
             cost += ev.get("cost_usd", 0.0)
         elif ev.get("event_type") == "tool_call_intercepted":
             kpi["tool_calls_intercepted"] += 1
+
+    # MCP 治理决策只有 tool_call_end 语义（无 start 事件）→ total 由裁决回推，
+    # 保证下方 rates 分母不是 0（T1-1；旧实现 total 恒 0 → KPI 全 0）。
+    if kpi["tool_calls_total"] == 0:
+        kpi["tool_calls_total"] = (
+            kpi["tool_calls_allowed"] + kpi["tool_calls_denied"] + kpi["tool_calls_hitl"]
+        )
 
     kpi["unique_correlations"] = len(correlations)
 
@@ -257,8 +301,11 @@ def check_agent(agent: dict) -> dict:
     else:
         effective = declared
 
-    # 收集运行时 KPI
-    telemetry_data = _fetch_sidecar_telemetry(sidecar, agent_id) if checks["sidecar_reachable"] else None
+    # 收集运行时 KPI（T1-2: 取数状态显式入报告，不再静默 None）
+    if checks["sidecar_reachable"]:
+        telemetry_data, telemetry_auth = _fetch_sidecar_telemetry(sidecar, agent_id)
+    else:
+        telemetry_data, telemetry_auth = None, "unreachable"
     local_events = _read_local_obs_events(agent_id)
     mcp_events = _read_mcp_decision_log(agent_id)
     kpi = _compute_runtime_kpi(agent_id, sidecar, telemetry_data, local_events, mcp_events)
@@ -274,6 +321,7 @@ def check_agent(agent: dict) -> dict:
         "effective_status": effective,
         "checks": checks,
         "degraded_reason": agent.get("degraded_reason", ""),
+        "telemetry_auth": telemetry_auth,
         "runtime_kpi": kpi,
     }
 
@@ -312,6 +360,9 @@ def main() -> None:
             print(f"      平均延迟: {kpi['avg_latency_ms']}ms | P95: {kpi['p95_latency_ms']}ms")
             print(f"      Token: {kpi['total_tokens']} | 成本: ${kpi['total_cost_usd']:.6f} | 信任分: {kpi['trust_score']}")
             print(f"      唯一关联ID: {kpi['unique_correlations']}")
+
+        if r.get("telemetry_auth", "ok") != "ok":
+            print(f"   📡 telemetry_auth: {r['telemetry_auth']}")
 
         if r["degraded_reason"]:
             print(f"   ⚠️ {r['degraded_reason']}")

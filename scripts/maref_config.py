@@ -37,13 +37,24 @@ def _first_existing(*paths: Path) -> Path:
 def _detect_runtime_dir() -> Path:
     """运行时目录探测。
 
-    优先级: MAREF_RUNTIME_DIR 环境变量 > repo 自身。
+    优先级: MAREF_RUNTIME_DIR 环境变量 > ~/.maref/runtime_dir.json > repo 自身。
     **不硬编码任何机器绝对路径**（Leak Detection CI 禁止 /Volumes 等内部卷路径）。
-    真实运行时目录应经 MAREF_RUNTIME_DIR 注入（launchd/cron 已设置）。
+    真实运行时目录经 MAREF_RUNTIME_DIR 注入（launchd/cron），交互式会话
+    回落持久化配置（T0-2: 消除交互跑/cycle 跑双口径）。
     """
+    import json as _json
+
     env = os.environ.get("MAREF_RUNTIME_DIR")
     if env:
         return Path(env)
+    cfg_path = Path.home() / ".maref" / "runtime_dir.json"
+    try:
+        cfg = _json.loads(cfg_path.read_text())
+        candidate = cfg.get("runtime_dir")
+        if candidate and Path(candidate).is_dir():
+            return Path(candidate)
+    except (OSError, ValueError, TypeError):
+        pass
     return REPO_DIR
 
 

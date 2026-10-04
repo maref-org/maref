@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """僵死 Agent 自动升级 (P-04)"""
-import json, os, sqlite3
+import json
+import os
+import sqlite3
 from datetime import datetime, timedelta
-from maref_config import PROBE_DB as DB_PATH, AUDIT_LOG, config_path, report_path
+
+from maref_config import PROBE_DB as DB_PATH
+from maref_config import config_path, report_path
 
 WEIGHTS_FILE = config_path("agent_domain_weights.json")
 
@@ -55,6 +59,17 @@ def main():
 
     zombies = detect_zombie_agents()
 
+    output_path = str(report_path("zombie_agent_report.json"))
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    # T1-6: 无 zombie 也写空报告 —— 报告文件存在 = 扫描已执行（验收 jq 依赖该文件）
+    with open(output_path, 'w') as f:
+        json.dump({
+            "scan_date": datetime.now().isoformat(),
+            "zombie_count": len(zombies),
+            "zombies": zombies
+        }, f, indent=2, ensure_ascii=False)
+    print(f"报告已保存: {output_path}")
+
     if not zombies:
         print("\n未检测到僵死 Agent")
         return
@@ -68,16 +83,6 @@ def main():
         print(f"    状态: {z['severity']}, 计数: {z['count']}, 最后活跃: {z['last_seen']}")
         print(f"    建议处置: {z['proposal']}")
         print()
-
-    output_path = str(report_path("zombie_agent_report.json"))
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, 'w') as f:
-        json.dump({
-            "scan_date": datetime.now().isoformat(),
-            "zombie_count": len(zombies),
-            "zombies": zombies
-        }, f, indent=2, ensure_ascii=False)
-    print(f"报告已保存: {output_path}")
 
 if __name__ == "__main__":
     main()

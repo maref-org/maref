@@ -22,7 +22,6 @@ from pathlib import Path
 from maref_config import (
     AUDIT_LOG,
     REPO_DIR,
-    audit_base,
     report_path,
 )
 from maref_config import (
@@ -34,15 +33,43 @@ from maref_config import (
 
 STALE_HOURS = 24.0
 
+# runtime 目录持久化配置（家目录，不入仓库 → 避免 Leak Detection CI）
+_RUNTIME_CONFIG = Path.home() / ".maref" / "runtime_dir.json"
+
+
+def _runtime_dir_ex() -> tuple[Path, str]:
+    """三级解析运行时目录，返回 (路径, 解析来源)。
+
+    优先级: env MAREF_RUNTIME_DIR > ~/.maref/runtime_dir.json > REPO_DIR。
+    来源写入报告，消除「同一脚本交互跑/cycle 跑结论不一致」（G-01）。
+    """
+    env = os.environ.get("MAREF_RUNTIME_DIR")
+    if env:
+        return Path(env), "env:MAREF_RUNTIME_DIR"
+    try:
+        cfg = json.loads(_RUNTIME_CONFIG.read_text())
+        candidate = cfg.get("runtime_dir")
+        if candidate and Path(candidate).is_dir():
+            return Path(candidate), "config:~/.maref/runtime_dir.json"
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+    return REPO_DIR, "fallback:REPO_DIR"
+
 
 def _runtime_dir() -> Path:
-    env = os.environ.get("MAREF_RUNTIME_DIR")
-    return Path(env) if env else REPO_DIR
+    return _runtime_dir_ex()[0]
 
 
 def _audit_base() -> Path:
-    """audit_paths 注册表基目录（P2: 与 maref_config.audit_base 统一）。"""
-    return audit_base()
+    """audit_paths 注册表基目录（与 maref_config.audit_base 同语义，
+    但 runtime 解析与 _runtime_dir_ex 一致 → 消除交互/cycle 双口径）。"""
+    env = os.environ.get("MAREF_AUDIT_PATH")
+    if env:
+        p = Path(env)
+        if p.suffix:
+            p = p.parent
+        return p if p.is_absolute() else (REPO_DIR / p)
+    return _runtime_dir() / ".governance"
 
 
 def _hooks_chain() -> Path:
@@ -93,6 +120,14 @@ def build_inventory() -> list[dict]:
             "desc": "openclaw 状态机审计主链 (state_machine)",
         },
         {
+            # G-01: 真实 tiered-loop 生产主链（此前未登记 → 报告盯错目录）
+            "name": "openclaw_tiered_loop",
+            "role": "production",
+            "blocking": True,
+            "path": runtime / ".governance" / "audit" / "governance_audit.jsonl",
+            "desc": "tiered-loop/openclaw 元认知审计生产链（governance_cycle + meta_cognitive_audit）",
+        },
+        {
             "name": "recursive_production",
             "role": "production",
             "blocking": True,
@@ -106,10 +141,10 @@ def build_inventory() -> list[dict]:
         },
         {
             "name": "sidecar_claimed",
-            "role": "sidecar",
-            "blocking": False,
+            "role": "production",
+            "blocking": True,
             "path": runtime / "governance_audit.jsonl",
-            "desc": "governance-sidecar 启动时声称的审计路径（历史只打印未落盘）",
+            "desc": "overlay/sidecar 生产决策链（governance_decision + verdict，哈希可复算）",
         },
         {
             "name": "config_monitored_governance",
@@ -366,8 +401,8 @@ def check_audit_health():
     # ── 兼容层: 顶层 governance_audit / recursive_governance_audit ──
     chains_by_name = {c["name"]: c for c in status["chains"]}
 
-    gov_block = [chains_by_name.get("hooks_agent"), chains_by_name.get("openclaw_state_machine")]
-    gov_present = [c for c in gov_block if c and c.get("hours_stale") is not None]
+    gov_block = [c for c in status["chains"] if c.get("blocking")]
+    gov_present = [c for c in gov_block if c.get("hours_stale") is not None]
     gov = {
         "role": "production_summary",
         "monitored_paths": [c["path"] for c in gov_present],
@@ -418,12 +453,16 @@ def check_audit_health():
         )
     status["recursive_governance_audit"] = recursive
 
+    runtime_dir, runtime_source = _runtime_dir_ex()
     status["resolution"] = {
-        "runtime_dir": str(_runtime_dir()),
+        "runtime_dir": str(runtime_dir),
+        "runtime_dir_source": runtime_source,
         "repo_dir": str(REPO_DIR),
         "audit_base": str(_audit_base()),
         "config_audit_log": str(AUDIT_LOG),
         "config_recursive_log": str(RECURSIVE_LOG),
+        "env_MAREF_RUNTIME_DIR": os.environ.get("MAREF_RUNTIME_DIR"),
+        "env_MAREF_AUDIT_PATH": os.environ.get("MAREF_AUDIT_PATH"),
     }
 
     # ── probe_db 对照组（进水口，独立于 JSONL 写链） ──

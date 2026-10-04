@@ -44,16 +44,17 @@ import os
 import sqlite3
 import time
 from collections import Counter, defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
 
 from maref_config import (
     AUDIT_LOG,
-    RECURSIVE_AUDIT_LOG as RECURSIVE_LOG,
     PROBE_DB,
-    config_path,
     REPO_DIR,
+    config_path,
+)
+from maref_config import (
+    RECURSIVE_AUDIT_LOG as RECURSIVE_LOG,
 )
 
 # 采样器本地阈值 (率基 滑窗 %, 可后续校准)
@@ -367,7 +368,7 @@ def sample() -> list[dict]:
             "window_size": window_size,
             "window_used": total,
             "matched_events": osc_count,
-            "source_breakdown": {src: sum(1 for e in windowed if e["source"] == src) for src in set(e["source"] for e in windowed)},
+            "source_breakdown": {src: sum(1 for e in windowed if e["source"] == src) for src in {e["source"] for e in windowed}},
             "normal_max": t["normal_max"],
             "critical_min": t["critical_min"],
         }, ensure_ascii=False),
@@ -398,7 +399,8 @@ def sample() -> list[dict]:
     })
 
     # --- governance_health 探针 ---
-    health_events = PROBE_SIGNATURES["governance_health"]["source_events"]
+    # T1-6: tool_start/tool_end 全为 0 属「无数据」而非「治理覆盖率 0%」，
+    # 此前写 critical(0.0) 污染 zombie 判定 → 无事件时不写读数。
     tool_start = event_counts.get("tool_call_start", 0)
     tool_end = event_counts.get("tool_call_end", 0)
     tool_total = max(tool_start, tool_end, 1)
@@ -406,26 +408,27 @@ def sample() -> list[dict]:
     health_rate = governed / tool_total * 100.0
 
     t = thresholds["governance_health"]
-    readings.append({
-        "probe_name": "governance_health",
-        "severity": _classify("governance_health", health_rate, thresholds),
-        "value": round(health_rate, 4),
-        "threshold": t.get("critical_min", 50.0),
-        "timestamp": now,
-        "context_json": json.dumps({
-            "source": "probe_sampler_v3",
-            "semantics": "governance_coverage_rate",
-            "unit": "percent",
-            "tool_calls_total": tool_total,
-            "governed_calls": governed,
-            "normal_min": t.get("normal_min", 80.0),
-            "critical_min": t.get("critical_min", 50.0),
-        }, ensure_ascii=False),
-    })
+    if tool_start > 0 or tool_end > 0:
+        readings.append({
+            "probe_name": "governance_health",
+            "severity": _classify("governance_health", health_rate, thresholds),
+            "value": round(health_rate, 4),
+            "threshold": t.get("critical_min", 50.0),
+            "timestamp": now,
+            "context_json": json.dumps({
+                "source": "probe_sampler_v3",
+                "semantics": "governance_coverage_rate",
+                "unit": "percent",
+                "tool_calls_total": tool_total,
+                "governed_calls": governed,
+                "normal_min": t.get("normal_min", 80.0),
+                "critical_min": t.get("critical_min", 50.0),
+            }, ensure_ascii=False),
+        })
 
     # --- agent_trust 探针 (从 coding_agent_status 或 MCP 决策推导) ---
     trust_scores = []
-    for agent_id, evs in agent_events.items():
+    for _agent_id, evs in agent_events.items():
         # 简化: 基于该 agent 的拦截率反推信任分
         agent_tool_starts = sum(1 for e in evs if e["event_type"] == "tool_call_start")
         agent_intercepted = sum(1 for e in evs if e["event_type"] == "tool_call_intercepted")
@@ -434,24 +437,26 @@ def sample() -> list[dict]:
             trust = max(0, 100 - intercept_rate * 100)
             trust_scores.append(trust)
 
-    avg_trust = sum(trust_scores) / len(trust_scores) if trust_scores else 50.0
+    # T1-6: agents_with_data==0 时此前恒写 50.0 假分（434 条假读数）→ 不写。
+    if trust_scores:
+        avg_trust = sum(trust_scores) / len(trust_scores)
 
-    t = thresholds["agent_trust"]
-    readings.append({
-        "probe_name": "agent_trust",
-        "severity": _classify("agent_trust", avg_trust, thresholds),
-        "value": round(avg_trust, 4),
-        "threshold": t.get("critical_min", 40.0),
-        "timestamp": now,
-        "context_json": json.dumps({
-            "source": "probe_sampler_v3",
-            "semantics": "agent_trust_aggregate",
-            "unit": "score_0_100",
-            "agents_with_data": len(trust_scores),
-            "normal_min": t.get("normal_min", 70.0),
-            "critical_min": t.get("critical_min", 40.0),
-        }, ensure_ascii=False),
-    })
+        t = thresholds["agent_trust"]
+        readings.append({
+            "probe_name": "agent_trust",
+            "severity": _classify("agent_trust", avg_trust, thresholds),
+            "value": round(avg_trust, 4),
+            "threshold": t.get("critical_min", 40.0),
+            "timestamp": now,
+            "context_json": json.dumps({
+                "source": "probe_sampler_v3",
+                "semantics": "agent_trust_aggregate",
+                "unit": "score_0_100",
+                "agents_with_data": len(trust_scores),
+                "normal_min": t.get("normal_min", 70.0),
+                "critical_min": t.get("critical_min", 40.0),
+            }, ensure_ascii=False),
+        })
 
     return readings
 
@@ -505,13 +510,13 @@ def main() -> int:
     print("=" * 60)
     print(f"审计日志: {AUDIT_LOG}")
     print(f"递归日志: {RECURSIVE_LOG}")
-    print(f"ObsEvent:  ~/.maref/obs/")
-    print(f"Telemetry: data/telemetry/")
+    print("ObsEvent:  ~/.maref/obs/")
+    print("Telemetry: data/telemetry/")
     print(f"探针 DB:  {PROBE_DB}")
     print()
 
     readings = sample()
-    print(f"\n采样结果:")
+    print("\n采样结果:")
     for r in readings:
         print(f"  {r['probe_name']}: value={r['value']:.2f}, severity={r['severity']}, "
               f"threshold={r['threshold']:.0f}")
