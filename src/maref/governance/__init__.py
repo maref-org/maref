@@ -306,3 +306,16 @@ __all__ = [
     "GeoPoliticalRiskAssessor",
     "SovereignAIValidator",
 ]
+
+# Phase 2 失败事件总线与归因
+from maref.governance.failure_event_bus import record, mark, replay, stats, load_events
+from maref.governance.failure_attribution import attribute, batch_attribute
+from maref.governance.failure_classifier import (
+    FailureClass,
+    HealingStrategy,
+    AttributionResult,
+    FailureClassifier,
+    route_strategy,
+    DEFAULT_ROUTING_TABLE,
+)
+from maref.governance.retry_policy import RetryPolicy, RetryDecision

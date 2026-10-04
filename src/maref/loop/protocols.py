@@ -16,6 +16,7 @@ class LoopStopReason(Enum):
     USER_ENDED = "user_ended"
     SENTIMENT_TRIP = "sentiment_trip"
     REPETITION_TRIP = "repetition_trip"
+    HALT = "halt"
     MANUAL_STOP = "manual_stop"
     UNKNOWN = "unknown"
 
