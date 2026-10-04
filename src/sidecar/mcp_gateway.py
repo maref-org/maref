@@ -20,6 +20,7 @@ from maref.integration.mcp_security import (
     SecurityVerdict,
     ZeroTrustContext,
 )
+from sidecar.compliance.unified import check_if_governed
 
 
 @dataclass
@@ -129,6 +130,20 @@ class MCPGateway:
             return {
                 "isError": True,
                 "content": [{"type": "text", "text": f"No backend registered for tool: {tool_name}"}],
+            }
+
+        # P0-1（2026-09-29）：策略域动作过 phoenix 权威门禁（策略驱动；不管辖返回 None）
+        phoenix = check_if_governed(
+            tool_name,
+            scope=str(arguments.get("scope", "")),
+            risk="high" if trust_level == MCPTrustLevel.UNTRUSTED else "low",
+            multi_party=bool(arguments.get("multi_party", False)),
+        )
+        if phoenix is not None and phoenix.decision != "allow":
+            self._log_gateway_call(tool_name, "DENY", 1.0, arguments, context)
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Phoenix policy denied: {phoenix.reason}"}],
             }
 
         if self._gate is not None:
