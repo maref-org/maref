@@ -17,15 +17,26 @@ GovernedLoop — 公共 API 版：执行循环 + 治理检测（卡死/停滞/�
 """
 
 from __future__ import annotations
-from abc import abstractmethod
 
 import logging
 import time
-from typing import Any, Callable, Optional
+from abc import abstractmethod
+from collections.abc import Callable
+from typing import Any
 
-from maref.loop.base import LoopBase, LoopResult, LoopState, LoopStopReason
-from maref.loop.halting import HaltingCondition, HaltingContext
 from maref.infra.circuit_breaker import StuckDetector
+from maref.loop.base import LoopBase, LoopResult, LoopState, LoopStopReason
+from maref.loop.halting import (
+    AllOf,
+    AnyOf,
+    ConvergenceDetected,
+    GoalAchieved,
+    HaltingCondition,
+    HaltingContext,
+    MaxIterations,
+    StuckDetected,
+    Timeout,
+)
 
 logger = logging.getLogger("maref.loop.governed")
 
@@ -77,14 +88,14 @@ class GovernedLoop(LoopBase):
             raise TypeError(f"expected HaltingCondition, got {type(cond).__name__}")
         self._halting_conditions.append(cond)
 
-    def _check_halt(self, ctx: HaltingContext) -> Optional[str]:
+    def _check_halt(self, ctx: HaltingContext) -> str | None:
         """检查所有停机条件，返回首个触发的 reason 或 None。"""
         for cond in self._halting_conditions:
             if cond.should_halt(ctx):
                 return cond.reason()
         return None
 
-    def _check_stuck(self, ctx: HaltingContext) -> Optional[str]:
+    def _check_stuck(self, ctx: HaltingContext) -> str | None:
         """检查 StuckDetector（委托 analyze()；StuckDetector 无 .check() 方法）。"""
         del ctx
         try:
@@ -168,18 +179,6 @@ class GovernedLoop(LoopBase):
         """子类实现：单轮执行逻辑。"""
         ...
 
-
-# 便捷导出：从 halting 重新导出常用条件
-from maref.loop.halting import (
-    HaltingCondition,
-    HaltingContext,
-    MaxIterations,
-    Timeout,
-    GoalAchieved,
-    ConvergenceDetected,
-    AnyOf, AllOf,
-    StuckDetected,
-)
 
 __all__ = [
     "GovernedLoop",

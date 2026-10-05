@@ -23,12 +23,10 @@ class HaltingCondition(ABC):
     """Base class for loop halting conditions."""
 
     @abstractmethod
-    def should_halt(self, ctx: HaltingContext) -> bool:
-        ...
+    def should_halt(self, ctx: HaltingContext) -> bool: ...
 
     @abstractmethod
-    def reason(self) -> str:
-        ...
+    def reason(self) -> str: ...
 
 
 class MaxIterations(HaltingCondition):
@@ -273,7 +271,10 @@ class CompletenessGate(HaltingCondition):
         # V3：停机裁决改由独立验证器把关——独立性不通过时，即使 must 项
         # 全过也不停机（防止执行器自评通过）。
         if self._independence_decl is not None:
-            from maref.verifier.independence import verify_independence
+            # 独立性验证器仅闭源侧存在；开源侧 _independence_decl 恒 None 不进此分支
+            from maref.verifier.independence import (  # type: ignore[import-not-found]
+                verify_independence,
+            )
 
             return verify_independence(self._independence_decl).ok()
         return True
@@ -312,26 +313,20 @@ class EvalScoreGate(HaltingCondition):
     def should_halt(self, ctx: HaltingContext) -> bool:
         evals = ctx.state.get("_evaluations", [])
         if not isinstance(evals, list) or len(evals) < self._min_cycles:
-            self._reason_str = (
-                f"eval_score(waiting {len(evals)}/{self._min_cycles} cycles)"
-            )
+            self._reason_str = f"eval_score(waiting {len(evals)}/{self._min_cycles} cycles)"
             return False
 
-        recent = evals[-self._window:]
+        recent = evals[-self._window :]
         try:
             avg_score = sum(e.score for e in recent) / len(recent)
         except (TypeError, AttributeError):
             return False
 
         if avg_score >= self._min_score:
-            self._reason_str = (
-                f"eval_score(halt avg={avg_score:.3f} >= {self._min_score})"
-            )
+            self._reason_str = f"eval_score(halt avg={avg_score:.3f} >= {self._min_score})"
             return True
 
-        self._reason_str = (
-            f"eval_score(continue avg={avg_score:.3f} < {self._min_score})"
-        )
+        self._reason_str = f"eval_score(continue avg={avg_score:.3f} < {self._min_score})"
         return False
 
     def reason(self) -> str:
@@ -392,14 +387,10 @@ class HumanConfirmationGate(HaltingCondition):
 
         elapsed = time.time() - self._triggered_at
         if elapsed >= self._timeout:
-            self._reason_str = (
-                f"human_gate(timeout approve={self._auto_approve})"
-            )
+            self._reason_str = f"human_gate(timeout approve={self._auto_approve})"
             return self._auto_approve
 
-        self._reason_str = (
-            f"human_gate(waiting elapsed={elapsed:.0f}s)"
-        )
+        self._reason_str = f"human_gate(waiting elapsed={elapsed:.0f}s)"
         return False
 
     def _eval_trigger(self, ctx: HaltingContext) -> bool:
