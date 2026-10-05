@@ -18,9 +18,7 @@ from maref.loop.protocols import LoopStopReason
 
 
 def _ctx(iteration: int = 1) -> HaltingContext:
-    return HaltingContext(
-        iteration=iteration, elapsed_seconds=0.0, state={}, errors=0
-    )
+    return HaltingContext(iteration=iteration, elapsed_seconds=0.0, state={}, errors=0)
 
 
 def _make_stuck(detector: StuckDetector) -> None:

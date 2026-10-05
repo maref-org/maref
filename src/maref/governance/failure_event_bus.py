@@ -26,22 +26,29 @@ import statistics
 import sys
 import time
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+# py<3.11 无 datetime.UTC（py3.10 target 兼容）：统一走 timezone.utc
+UTC = timezone.utc
 
 ROOT = Path(__file__).resolve().parent.parent
 # 环境变量可覆盖（测试沙箱/隔离演练用；不设则落仓库默认目录）
 EVENTS_DIR = Path(os.environ.get("FAILURE_EVENT_DIR") or (ROOT / ".openclaw" / "failure_events"))
 EVENTS = EVENTS_DIR / "events.jsonl"
-ARTIFACTS = Path(os.environ.get("FAILURE_ARTIFACTS_DIR") or (ROOT / ".openclaw" / "failure_artifacts"))
+ARTIFACTS = Path(
+    os.environ.get("FAILURE_ARTIFACTS_DIR") or (ROOT / ".openclaw" / "failure_artifacts")
+)
 TRAJ_DIR = ROOT / ".openclaw" / "trajectories"
 STATE = EVENTS_DIR / "state.json"
 
 SCHEMA_VERSION = "1.0"
 SIGNALS = ("friction", "failure", "waste", "stagnation", "silence", "surprise")
 OUTCOMES = ("open", "recovered", "escalated", "unresolved")
-BUS_TYPE = "governance_failure"  # 语义 topic = governance.failure（总线事件类型只允许 [A-Za-z0-9_]）
+BUS_TYPE = (
+    "governance_failure"  # 语义 topic = governance.failure（总线事件类型只允许 [A-Za-z0-9_]）
+)
 FP_LEN = 12
 
 _RE_TS = re.compile(
@@ -220,7 +227,7 @@ def record(
             except OSError as exc:
                 screenshot_ref = f"copy_failed:{type(exc).__name__}"
 
-    rec = {
+    rec: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "event_id": uuid.uuid4().hex[:16],
         "signal": signal,
@@ -405,10 +412,14 @@ def self_check() -> int:
         ARTIFACTS = tmp / "failure_artifacts"
         STATE = EVENTS_DIR / "state.json"
 
-        assert make_fingerprint("failure", "pytest exit=1 at 2026-10-04T10:00:00Z") == make_fingerprint(
-            "failure", "pytest exit=1 at 2026-10-05T22:31:07Z"
-        ), "fingerprint 未吸收时间戳"
-        assert make_fingerprint("failure", "x") != make_fingerprint("friction", "x"), "signal 未入指纹"
+        assert make_fingerprint(
+            "failure", "pytest exit=1 at 2026-10-04T10:00:00Z"
+        ) == make_fingerprint("failure", "pytest exit=1 at 2026-10-05T22:31:07Z"), (
+            "fingerprint 未吸收时间戳"
+        )
+        assert make_fingerprint("failure", "x") != make_fingerprint("friction", "x"), (
+            "signal 未入指纹"
+        )
 
         r1 = record("failure", "unit", task_id="t1", signature="pytest:1", bus=False)
         assert not r1["skipped"] and r1["event"]["fingerprint"], "record 失败"
@@ -518,7 +529,7 @@ def main() -> int:
 
     if args.cmd == "list":
         since = datetime.now(UTC) - timedelta(days=args.days) if args.days else None
-        rows = [r for r in load_events(fp=args.fp or None, since=since, collapse=True)]
+        rows = list(load_events(fp=args.fp or None, since=since, collapse=True))
         if args.signal:
             rows = [r for r in rows if r.get("signal") == args.signal]
         rows = rows[-args.limit :]
@@ -544,9 +555,13 @@ def main() -> int:
             print(json.dumps(res, ensure_ascii=False, indent=2, default=str))
         else:
             print(f"fingerprint: {res['fingerprint']}")
-            print(f"事件: {len(res['events'])}  截图: {len(res['screenshots'])}  轨迹步: {res['trajectory_steps']}")
+            print(
+                f"事件: {len(res['events'])}  截图: {len(res['screenshots'])}  轨迹步: {res['trajectory_steps']}"
+            )
             for e in res["events"]:
-                print(f"  [{e.get('ts', '')[:19]}] {e.get('signal')} {e.get('outcome')} {e.get('detail', '')[:80]}")
+                print(
+                    f"  [{e.get('ts', '')[:19]}] {e.get('signal')} {e.get('outcome')} {e.get('detail', '')[:80]}"
+                )
             for s in res["screenshots"]:
                 print(f"  截图: {s}")
             print(f"  可回放: {res['replayable']}")
@@ -557,7 +572,9 @@ def main() -> int:
         if args.json:
             print(json.dumps(res, ensure_ascii=False, indent=2))
         else:
-            print(f"窗口: {res['window_days']}  事件: {res['total_events']} (failure {res['failure_events']})")
+            print(
+                f"窗口: {res['window_days']}  事件: {res['total_events']} (failure {res['failure_events']})"
+            )
             print(f"  自愈率: {res['self_heal_rate']} (n={res['denominators']['self_heal']})")
             print(f"  复发率: {res['recurrence_rate']} (n={res['denominators']['recurrence']})")
             print(f"  升级率: {res['escalation_rate']} (n={res['denominators']['escalation']})")
