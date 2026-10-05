@@ -842,6 +842,22 @@ __all__ = [
 # Lazy-loaded symbols from federated_saga_orchestrator. Importing at
 # module load time would create a circular dependency:
 #   maref.federation -> maref.orchestration -> maref.recursive -> federated_saga_orchestrator
+
+# Phase 2 自愈动作库与 Reflexion
+from maref.recursive.healing_actions import (
+    HealingStrategy,
+    route_strategy,
+    execute_healing,
+    VERIFIERS,
+)
+from maref.recursive.reflexion_bridge import (
+    search_reflections,
+    build_reflection_context,
+    record_reflection,
+    check_recurrence,
+)
+from maref.recursive.experience_pool import ExperienceEntry, ExperiencePool
+
 _LAZY_FEDERATED_SAGA_EXPORTS = {
     "FederatedSagaOrchestrator",
     "FederatedSagaResult",
