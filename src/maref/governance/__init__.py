@@ -306,3 +306,16 @@ __all__ = [
     "GeoPoliticalRiskAssessor",
     "SovereignAIValidator",
 ]
+
+# Phase 2 失败事件总线与归因
+# （failure_attribution 视觉/读屏归因属留私模块，不入开源仓——双仓计划 §3 留私清单）
+from maref.governance.failure_event_bus import record, mark, replay, stats, load_events
+from maref.governance.failure_classifier import (
+    FailureClass,
+    HealingStrategy,
+    AttributionResult,
+    FailureClassifier,
+    route_strategy,
+    DEFAULT_ROUTING_TABLE,
+)
+from maref.governance.retry_policy import RetryPolicy, RetryDecision

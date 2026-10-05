@@ -21,7 +21,8 @@ class TestLoopStopReason:
         assert LoopStopReason.UNKNOWN.value == "unknown"
 
     def test_enum_members_count(self):
-        assert len(LoopStopReason) == 12
+        # 13：cherry-pick 892ec879 新增 HALT（GovernedLoop 停机路径使用）
+        assert len(LoopStopReason) == 13
 
 
 class TestToolPermission:
