@@ -412,3 +412,34 @@ class HumanConfirmationGate(HaltingCondition):
 
     def reason(self) -> str:
         return self._reason_str
+
+
+class StuckDetected(HaltingCondition):
+    """卡死检测条件 — 桥接 infra.circuit_breaker.StuckDetector（Phase 1.9）。
+
+    这是 StuckDetector 文档示例 `loop.add_condition(StuckDetected(detector))`
+    所指的目标类型：每次评估委托 detector.analyze()，is_stuck=True 时终止循环，
+    reason() 透传 pattern 与 suggestion（修复 circuit_breaker.py 的 import 断链）。
+
+    用法:
+        detector = StuckDetector(agent_id="flywheel")
+        loop.add_condition(StuckDetected(detector))
+    """
+
+    def __init__(self, detector: Any) -> None:
+        self._detector = detector
+        self._report: dict[str, Any] = {}
+
+    def should_halt(self, ctx: HaltingContext) -> bool:
+        del ctx  # 依托 detector 自有状态（action 历史），不依赖 HaltingContext
+        try:
+            report = self._detector.analyze()
+        except Exception:
+            return False  # 检测器异常不阻断循环（与 GoalAchieved 同风格 fail-open）
+        self._report = report if isinstance(report, dict) else {}
+        return bool(self._report.get("is_stuck"))
+
+    def reason(self) -> str:
+        pattern = self._report.get("pattern") or "unknown"
+        suggestion = self._report.get("suggestion") or ""
+        return f"stuck_detected({pattern}): {suggestion}".strip()

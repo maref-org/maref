@@ -67,6 +67,16 @@ class GovernedLoop(LoopBase):
         self._start_time: float = 0.0
         self._errors: list[str] = []
 
+    def add_condition(self, cond: HaltingCondition) -> None:
+        """注册额外停机条件（如 StuckDetected 桥接）。
+
+        用法（StuckDetector 文档所承诺的路径）:
+            loop.add_condition(StuckDetected(detector))
+        """
+        if not isinstance(cond, HaltingCondition):
+            raise TypeError(f"expected HaltingCondition, got {type(cond).__name__}")
+        self._halting_conditions.append(cond)
+
     def _check_halt(self, ctx: HaltingContext) -> Optional[str]:
         """检查所有停机条件，返回首个触发的 reason 或 None。"""
         for cond in self._halting_conditions:
@@ -75,10 +85,14 @@ class GovernedLoop(LoopBase):
         return None
 
     def _check_stuck(self, ctx: HaltingContext) -> Optional[str]:
-        """检查 StuckDetector。"""
+        """检查 StuckDetector（委托 analyze()；StuckDetector 无 .check() 方法）。"""
+        del ctx
         try:
-            if self._stuck_detector.check(ctx.state):
-                return "stuck_detected"
+            report = self._stuck_detector.analyze()
+            if isinstance(report, dict) and report.get("is_stuck"):
+                pattern = report.get("pattern") or "unknown"
+                suggestion = report.get("suggestion") or ""
+                return f"stuck_detected({pattern}): {suggestion}".strip()
         except Exception:
             pass
         return None
@@ -122,7 +136,10 @@ class GovernedLoop(LoopBase):
             if stuck_reason:
                 self._halt_reason = stuck_reason
                 self._trigger_halt(stuck_reason)
-                return self._finalize(LoopStopReason.STUCK, halt_reason=stuck_reason)
+                # 枚举无 STUCK 成员；卡死=重复/低多样性模式 → REPETITION_TRIP
+                return self._finalize(
+                    LoopStopReason.REPETITION_TRIP, output={"halt_reason": stuck_reason}
+                )
 
             # 执行子类的单步逻辑（由具体 Agent 实现）
             try:
@@ -135,7 +152,7 @@ class GovernedLoop(LoopBase):
 
             self._state.consecutive_failures = 0
 
-        return self._finalize(LoopStopReason.MANUAL)
+        return self._finalize(LoopStopReason.MANUAL_STOP)
 
     def _trigger_halt(self, reason: str) -> None:
         """触发 halt 回调（治理层接入点）。"""
@@ -161,6 +178,7 @@ from maref.loop.halting import (
     GoalAchieved,
     ConvergenceDetected,
     AnyOf, AllOf,
+    StuckDetected,
 )
 
 __all__ = [
@@ -172,5 +190,7 @@ __all__ = [
     "Timeout",
     "GoalAchieved",
     "ConvergenceDetected",
-    "AnyOf, AllOf",
+    "AnyOf",
+    "AllOf",
+    "StuckDetected",
 ]
