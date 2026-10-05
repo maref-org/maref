@@ -16,15 +16,15 @@ from maref.loop.convergent import ConvergentLoop
 from maref.loop.exploratory import ExploratoryLoop
 from maref.loop.governed import GovernedLoop, StuckDetector
 from maref.loop.halting import (
+    AllOf,
+    AnyOf,
+    ConvergenceDetected,
+    GoalAchieved,
     HaltingCondition,
     HaltingContext,
     MaxIterations,
-    Timeout,
-    GoalAchieved,
-    ConvergenceDetected,
-    AnyOf,
-    AllOf,
     Never,
+    Timeout,
 )
 from maref.loop.interactive import (
     ConversationContext,

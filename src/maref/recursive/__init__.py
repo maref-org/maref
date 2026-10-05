@@ -845,18 +845,29 @@ __all__ = [
 
 # Phase 2 自愈动作库与 Reflexion
 from maref.recursive.healing_actions import (
-    HealingStrategy,
-    route_strategy,
-    execute_healing,
     VERIFIERS,
+    HealingStrategy,
+    execute_healing,
+    route_strategy,
 )
 from maref.recursive.reflexion_bridge import (
-    search_reflections,
     build_reflection_context,
-    record_reflection,
     check_recurrence,
+    record_reflection,
+    search_reflections,
 )
-from maref.recursive.experience_pool import ExperienceEntry, ExperiencePool
+
+__all__ += [
+    # Phase 2 自愈动作库与 Reflexion 桥接
+    "VERIFIERS",
+    "HealingStrategy",
+    "execute_healing",
+    "route_strategy",
+    "build_reflection_context",
+    "check_recurrence",
+    "record_reflection",
+    "search_reflections",
+]
 
 _LAZY_FEDERATED_SAGA_EXPORTS = {
     "FederatedSagaOrchestrator",
