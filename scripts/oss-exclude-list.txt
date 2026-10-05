@@ -92,8 +92,9 @@ src/maref/loop/auditor.py
 src/maref/loop/code_agent_loop.py
 src/maref/loop/engine.py
 src/maref/loop/github_agent_loop.py
-src/maref/loop/governed.py
-src/maref/loop/halting.py
+# src/maref/loop/governed.py / halting.py 已于 2026-10-05 解除排除：
+# Phase 1.9 (StuckDetected) + 2.5 (Phase 2 闭环原语) 经 892ec879 cherry-pick
+# 正式开源（公共 API 重写版，无内部依赖），执行计划批次 B 保留清单成员。
 src/maref/loop/oss_growth_loop.py
 src/maref/loop/policy.py
 src/maref/loop/skill_recursion.py

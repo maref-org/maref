@@ -309,13 +309,30 @@ __all__ = [
 
 # Phase 2 失败事件总线与归因
 # （failure_attribution 视觉/读屏归因属留私模块，不入开源仓——双仓计划 §3 留私清单）
-from maref.governance.failure_event_bus import record, mark, replay, stats, load_events
 from maref.governance.failure_classifier import (
-    FailureClass,
-    HealingStrategy,
-    AttributionResult,
-    FailureClassifier,
-    route_strategy,
     DEFAULT_ROUTING_TABLE,
+    AttributionResult,
+    FailureClass,
+    FailureClassifier,
+    HealingStrategy,
+    route_strategy,
 )
-from maref.governance.retry_policy import RetryPolicy, RetryDecision
+from maref.governance.failure_event_bus import load_events, mark, record, replay, stats
+from maref.governance.retry_policy import RetryDecision, RetryPolicy
+
+__all__ += [
+    # Phase 2 失败事件总线与分类/重试
+    "record",
+    "mark",
+    "replay",
+    "stats",
+    "load_events",
+    "FailureClass",
+    "HealingStrategy",
+    "AttributionResult",
+    "FailureClassifier",
+    "route_strategy",
+    "DEFAULT_ROUTING_TABLE",
+    "RetryPolicy",
+    "RetryDecision",
+]

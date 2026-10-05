@@ -13,16 +13,14 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import os
-import re
 import shlex
 import subprocess
 import sys
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
@@ -33,11 +31,11 @@ SCRIPTS = ROOT / "scripts"
 
 # 导入失败事件总线（记录自愈结果）
 sys.path.insert(0, str(SCRIPTS))
-from maref.governance.failure_event_bus import record, mark, OUTCOMES
+from maref.governance.failure_event_bus import mark  # noqa: E402
 
 # Phase 2.3 Reflexion 条件化桥接
 try:
-    from reflexion_bridge import build_reflection_context, record_reflection, check_recurrence
+    from reflexion_bridge import build_reflection_context, check_recurrence, record_reflection
 except ImportError:
     build_reflection_context = None
     record_reflection = None
@@ -85,8 +83,7 @@ class Verifier(ABC):
     """机器可验证的验证器基类（战略：恢复成功=机器可验证）。"""
 
     @abstractmethod
-    def verify(self, context: dict[str, Any]) -> VerificationResult:
-        ...
+    def verify(self, context: dict[str, Any]) -> VerificationResult: ...
 
 
 class URLReachableVerifier(Verifier):
@@ -94,6 +91,7 @@ class URLReachableVerifier(Verifier):
 
     def verify(self, context: dict[str, Any]) -> VerificationResult:
         import urllib.request
+
         url = context.get("url") or context.get("target_url")
         if not url:
             return VerificationResult(False, "url_reachable", "missing url")
@@ -103,12 +101,12 @@ class URLReachableVerifier(Verifier):
             with urllib.request.urlopen(req, timeout=10) as resp:
                 ok = 200 <= resp.status < 400
                 return VerificationResult(
-                    ok, "url_reachable",
-                    f"HTTP {resp.status}",
-                    int((time.time() - start) * 1000)
+                    ok, "url_reachable", f"HTTP {resp.status}", int((time.time() - start) * 1000)
                 )
         except Exception as e:
-            return VerificationResult(False, "url_reachable", str(e), int((time.time() - start) * 1000))
+            return VerificationResult(
+                False, "url_reachable", str(e), int((time.time() - start) * 1000)
+            )
 
 
 class OCRTextVerifier(Verifier):
@@ -122,6 +120,7 @@ class OCRTextVerifier(Verifier):
         try:
             # 复用 easyocr（本地）
             import easyocr
+
             reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
             result = reader.readtext(screenshot, detail=0)
             text = " ".join(result)
@@ -145,11 +144,17 @@ class APIStatusVerifier(Verifier):
         try:
             r = subprocess.run(shlex.split(cmd), capture_output=True, text=True, timeout=30)
             ok = r.returncode == 0
-            return VerificationResult(ok, "api_status", f"exit={r.returncode}", int((time.time() - start) * 1000))
+            return VerificationResult(
+                ok, "api_status", f"exit={r.returncode}", int((time.time() - start) * 1000)
+            )
         except subprocess.TimeoutExpired:
-            return VerificationResult(False, "api_status", "timeout", int((time.time() - start) * 1000))
+            return VerificationResult(
+                False, "api_status", "timeout", int((time.time() - start) * 1000)
+            )
         except Exception as e:
-            return VerificationResult(False, "api_status", str(e), int((time.time() - start) * 1000))
+            return VerificationResult(
+                False, "api_status", str(e), int((time.time() - start) * 1000)
+            )
 
 
 class HumanQueueVerifier(Verifier):
@@ -191,12 +196,20 @@ async def execute_healing(
 ) -> dict[str, Any]:
     """执行自愈动作 + 验证器确认 + Reflexion 条件化（Phase 2.3）。"""
     start = time.time()
-    result = {"fp": fp, "strategy": strategy.value, "success": False, "detail": "", "verification": None}
+    result = {
+        "fp": fp,
+        "strategy": strategy.value,
+        "success": False,
+        "detail": "",
+        "verification": None,
+    }
 
     # Phase 2.3: 自愈前注入历史反思上下文
     reflection_ctx = ""
     if build_reflection_context:
-        reflection_ctx = build_reflection_context(fp, failure_class, sub_class, context.get("root_cause", ""))
+        reflection_ctx = build_reflection_context(
+            fp, failure_class, sub_class, context.get("root_cause", "")
+        )
         if reflection_ctx:
             context["reflection_context"] = reflection_ctx
 
@@ -291,16 +304,21 @@ async def _replan_action(fp: str, context: dict) -> str:
     """E1/E4 重新规划：发布 replan 任务到 agent_bus。"""
     try:
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("agent_bus", SCRIPTS / "agent_bus.py")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         bus = mod.AgentBus()
-        bus.publish("task_replan", "healing_actions", {
-            "fingerprint": fp,
-            "reason": "failure_class in (E1, E4) -> replan",
-            "original_task": context.get("task_id", ""),
-            "ts": datetime.now(UTC).isoformat(),
-        })
+        bus.publish(
+            "task_replan",
+            "healing_actions",
+            {
+                "fingerprint": fp,
+                "reason": "failure_class in (E1, E4) -> replan",
+                "original_task": context.get("task_id", ""),
+                "ts": datetime.now(UTC).isoformat(),
+            },
+        )
         return "replan_task_published"
     except Exception as e:
         return f"replan publish failed: {e}"
@@ -326,17 +344,22 @@ async def _escalate_action(fp: str, sub_class: str, context: dict) -> str:
     """E5/E3部分 升级人工。"""
     try:
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("agent_bus", SCRIPTS / "agent_bus.py")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         bus = mod.AgentBus()
-        bus.publish("human_escalation", "healing_actions", {
-            "fingerprint": fp,
-            "failure_class": context.get("failure_class"),
-            "sub_class": sub_class,
-            "reason": context.get("root_cause", ""),
-            "ts": datetime.now(UTC).isoformat(),
-        })
+        bus.publish(
+            "human_escalation",
+            "healing_actions",
+            {
+                "fingerprint": fp,
+                "failure_class": context.get("failure_class"),
+                "sub_class": sub_class,
+                "reason": context.get("root_cause", ""),
+                "ts": datetime.now(UTC).isoformat(),
+            },
+        )
         # 同时写 inbox（HumanQueueVerifier 会查）
         inbox = ROOT / ".openclaw" / "inbox"
         inbox.mkdir(parents=True, exist_ok=True)
@@ -358,7 +381,9 @@ def main() -> int:
 
     p = sub.add_parser("execute", help="执行自愈动作（异步）")
     p.add_argument("fp")
-    p.add_argument("--class", dest="failure_class", required=True, choices=["E1", "E2", "E3", "E4", "E5"])
+    p.add_argument(
+        "--class", dest="failure_class", required=True, choices=["E1", "E2", "E3", "E4", "E5"]
+    )
     p.add_argument("--sub", default="")
     p.add_argument("--context", default="{}", help="JSON context for verifier")
 
@@ -393,6 +418,7 @@ def main() -> int:
 
     if args.cmd == "execute":
         import asyncio
+
         ctx = json.loads(args.context)
         strat = route_strategy(args.failure_class, args.sub)
         res = asyncio.run(execute_healing(args.fp, args.failure_class, args.sub, strat, ctx))
@@ -401,6 +427,7 @@ def main() -> int:
 
     if args.cmd == "verify":
         import asyncio
+
         ctx = json.loads(args.context)
         vr = VERIFIERS[HealingStrategy(args.strategy)].verify(ctx)
         print(json.dumps(asdict(vr), ensure_ascii=False, indent=2, default=str))
