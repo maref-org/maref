@@ -308,8 +308,8 @@ __all__ = [
 ]
 
 # Phase 2 失败事件总线与归因
+# （failure_attribution 视觉/读屏归因属留私模块，不入开源仓——双仓计划 §3 留私清单）
 from maref.governance.failure_event_bus import record, mark, replay, stats, load_events
-from maref.governance.failure_attribution import attribute, batch_attribute
 from maref.governance.failure_classifier import (
     FailureClass,
     HealingStrategy,
