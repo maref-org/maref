@@ -49,16 +49,12 @@ class FailureClassifier(ABC):
     """
 
     @abstractmethod
-    def attribute(
-        self, fingerprint: str, detail: str, screenshot_ref: str | None = None
-    ) -> AttributionResult:
+    def attribute(self, fingerprint: str, detail: str, screenshot_ref: str | None = None) -> AttributionResult:
         """对单个 fingerprint 做归因。"""
         ...
 
     @abstractmethod
-    def batch_attribute(
-        self, fp_list: list[str] | None = None, since_days: int = 7
-    ) -> dict[str, Any]:
+    def batch_attribute(self, fp_list: list[str] | None = None, since_days: int = 7) -> dict[str, Any]:
         """批量归因未处理事件。"""
         ...
 

@@ -12,7 +12,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322924",
+      "compiled_at": "2026-10-07T06:00:04.709349",
       "merkle_root": "594a3949b03f404256b1c61231639a0f085eac27e56bdafeac647a845ca9e826"
     },
     "status": "candidate"
@@ -30,7 +30,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322941",
+      "compiled_at": "2026-10-07T06:00:04.709363",
       "merkle_root": "20ab4ceac2909dc1140f5274a63fa74fb813d1bba09cd4859b467099b5b6fe2e"
     },
     "status": "candidate"
@@ -48,7 +48,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322951",
+      "compiled_at": "2026-10-07T06:00:04.709371",
       "merkle_root": "020b9b858d468fb9dedd5b6aa299068e1de625a238b13d144c265a138752d8b8"
     },
     "status": "candidate"
@@ -66,7 +66,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322956",
+      "compiled_at": "2026-10-07T06:00:04.709376",
       "merkle_root": "90e73aa70dd801f0de589130d9d01a74880378313849fd08ac547462ce06c4b8"
     },
     "status": "candidate"
@@ -84,7 +84,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322960",
+      "compiled_at": "2026-10-07T06:00:04.709380",
       "merkle_root": "3568389858c7aa666fa408c0fe63aaeae3dfcf396d6e3424defc59be4d6d0506"
     },
     "status": "candidate"
@@ -102,7 +102,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322964",
+      "compiled_at": "2026-10-07T06:00:04.709384",
       "merkle_root": "e600ca2b9c8f1b6ba4e23b77d892fa5ebd8d882676fddbb90229add3bd0d0329"
     },
     "status": "candidate"
@@ -120,7 +120,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322967",
+      "compiled_at": "2026-10-07T06:00:04.709387",
       "merkle_root": "f90b4b15be26de48bae282832612f4f598efd7d943e9ace6f1e4f67112cfee03"
     },
     "status": "candidate"
@@ -138,7 +138,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322970",
+      "compiled_at": "2026-10-07T06:00:04.709390",
       "merkle_root": "835aeafe4b721e1b232c39ce29c521047be385245594c917e7b51e8c2fe58996"
     },
     "status": "candidate"
@@ -156,7 +156,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322974",
+      "compiled_at": "2026-10-07T06:00:04.709393",
       "merkle_root": "93893ad0cb2a5935b7910b978654f8bde3795b9008d2b772bff6b965677ad345"
     },
     "status": "candidate"
@@ -174,7 +174,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322978",
+      "compiled_at": "2026-10-07T06:00:04.709396",
       "merkle_root": "5b302fc8e9c28fb27e1f8fa607370b1ce635aa5451ecc829d5b5487096990cc7"
     },
     "status": "candidate"
@@ -192,7 +192,7 @@
       }
     },
     "batch": {
-      "compiled_at": "2026-10-05T06:00:04.322981",
+      "compiled_at": "2026-10-07T06:00:04.709399",
       "merkle_root": "10da169717eef4f59a81fb52efbe934fc9a209e22735f6281f837589e3b1b06f"
     },
     "status": "candidate"
