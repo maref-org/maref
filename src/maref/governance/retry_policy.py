@@ -19,7 +19,8 @@ class RetryPolicy(ABC):
     """重试策略基类."""
 
     @abstractmethod
-    def decide(self, attempt: int, error: Exception | None = None) -> RetryDecision: ...
+    def decide(self, attempt: int, error: Exception | None = None) -> RetryDecision:
+        ...
 
 
 @dataclass
@@ -29,7 +30,6 @@ class ExponentialBackoff(RetryPolicy):
 
     delay = base_delay * (multiplier ** attempt) + jitter
     """
-
     base_delay: float = 1.0
     multiplier: float = 2.0
     max_delay: float = 60.0
@@ -43,7 +43,7 @@ class ExponentialBackoff(RetryPolicy):
                 attempt=attempt,
                 reason=f"max_attempts={self.max_attempts} exceeded",
             )
-        delay = self.base_delay * (self.multiplier**attempt)
+        delay = self.base_delay * (self.multiplier ** attempt)
         delay = min(delay, self.max_delay)
         jitter = random.uniform(-delay * self.jitter_factor, delay * self.jitter_factor)
         return RetryDecision(
