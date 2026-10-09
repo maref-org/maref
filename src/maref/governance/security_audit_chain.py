@@ -85,9 +85,19 @@ class SecurityAuditChain:
         hmac_key: bytes | str | None = None,
     ) -> None:
         if chain_path is None:
-            from maref._paths import get_governance_base
+            try:
+                from maref._paths import get_governance_base
 
-            base = get_governance_base()
+                base = get_governance_base()
+            except Exception:  # 公开仓无 maref._paths（oss-exclude c1b86a64）→ env 兜底
+                env = os.environ.get("MAREF_AUDIT_PATH")
+                if env:
+                    p = Path(env)
+                    base = p.parent if p.suffix else p
+                else:
+                    runtime = os.environ.get("MAREF_RUNTIME_DIR")
+                    base = Path(runtime) / ".governance" if runtime else Path(".governance")
+                base = base.resolve()
             self._path = base / "security_audit.chain"
         else:
             self._path = Path(chain_path)
