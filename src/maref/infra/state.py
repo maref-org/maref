@@ -28,7 +28,15 @@ import re
 import sqlite3
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import datetime
+
+try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+    from datetime import UTC
+except ImportError:  # pragma: no cover
+    from datetime import timezone
+
+    UTC = timezone.utc
+
 from pathlib import Path
 from typing import Any
 

@@ -21,7 +21,15 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime
+
+try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+    from datetime import UTC
+except ImportError:  # pragma: no cover
+    from datetime import timezone
+
+    UTC = timezone.utc
+
 from enum import Enum
 from pathlib import Path
 from typing import Any
