@@ -23,7 +23,7 @@ jobs:
           # 无 tags。拉全历史含 tags 满足自治观察测试的 git 依赖。
           fetch-depth: 0
           fetch-tags: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install dependencies
