@@ -72,8 +72,8 @@ importers:
         specifier: ^3.5.0
         version: 3.5.0
       web-vitals:
-        specifier: ^5.3.0
-        version: 5.3.0
+        specifier: ^6.1.0
+        version: 6.1.0
       zustand:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.14)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
@@ -3725,8 +3725,8 @@ packages:
     engines: {node: '>=20.0.0'}
     hasBin: true
 
-  web-vitals@5.3.0:
-    resolution: {integrity: sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==}
+  web-vitals@6.1.0:
+    resolution: {integrity: sha512-ZNoJ/MbU6aaR2WjKrFVUvy5WQx+G96YvXQFSsmKTz3A/0VlAFywjUcxl00hc/S6wef2stfgQ4yWYIJCWCNudkA==}
 
   webcrypto-core@1.9.2:
     resolution: {integrity: sha512-gsXecm82UQNlTBURJGuqOWy1Ww08S3kZUcr3aOJS02Pk0xLtkfeUAVC0u0xhgdonFme80edSJUIJyuvL/7250Q==}
@@ -8000,7 +8000,7 @@ snapshots:
       - debug
       - supports-color
 
-  web-vitals@5.3.0: {}
+  web-vitals@6.1.0: {}
 
   webcrypto-core@1.9.2:
     dependencies:
