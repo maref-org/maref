@@ -42,7 +42,7 @@ def _default_audit_base() -> Path:
     meta-audit-gate 打红（A4 根因）。
     """
     try:
-        from maref._paths import get_governance_base
+        from maref._paths import get_governance_base  # type: ignore[import-not-found]
 
         return get_governance_base()
     except Exception:  # 公开仓缺 _paths → 兜底路径必须仍是绝对路径

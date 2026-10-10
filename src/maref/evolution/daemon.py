@@ -14,7 +14,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from maref.evolution.bottleneck_diagnosis import allocate_for_channel, diagnose
+# 2026-10-10: bottleneck_diagnosis 为闭源模块（仅 openclaw 含）；公共仓优雅降级
+try:
+    from maref.evolution.bottleneck_diagnosis import allocate_for_channel, diagnose  # type: ignore[import-not-found]
+except ImportError:
+    def allocate_for_channel(bottleneck: Any) -> dict[str, Any]:
+        return {"channel": "default", "budget": 0}
+
+    def diagnose(buffer: Any, trace_id: str) -> Any:
+        class _Diag:
+            bottleneck: str = "unknown"
+        return _Diag()
+
 from maref.evolution.daily_loop import DailyEvolutionLoop, DailyEvolutionResult
 from maref.infra.state import OpenClawState
 

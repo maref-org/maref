@@ -5,12 +5,11 @@ from __future__ import annotations
 import json
 import os
 import time
+import urllib.request
 import uuid
 from pathlib import Path
 from threading import Lock
 from typing import Any
-
-import urllib.request
 
 from maref.obs.hasher import ObsHasher
 from maref.obs.levels import TelemetryLevel
@@ -59,8 +58,12 @@ class MarefObsClient:
         self._session_id: str = session_id or uuid.uuid4().hex[:12]
 
         # Sidecar telemetry upload configuration
-        self._sidecar_url = sidecar_url or os.environ.get("MAREF_SIDECAR_URL", "http://127.0.0.1:8000")
-        self._sidecar_auth_token = sidecar_auth_token or os.environ.get("MAREF_SIDECAR_AUTH_TOKEN", "")
+        self._sidecar_url = sidecar_url or os.environ.get(
+            "MAREF_SIDECAR_URL", "http://127.0.0.1:8000"
+        )
+        self._sidecar_auth_token = sidecar_auth_token or os.environ.get(
+            "MAREF_SIDECAR_AUTH_TOKEN", ""
+        )
         self._batch_size = batch_size
         self._flush_interval_seconds = flush_interval_seconds
 
@@ -542,8 +545,8 @@ class MarefObsClient:
             if not should_flush or not self._pending_upload:
                 return 0
 
-            events_to_upload = self._pending_upload[:self._batch_size]
-            self._pending_upload = self._pending_upload[self._batch_size:]
+            events_to_upload = self._pending_upload[: self._batch_size]
+            self._pending_upload = self._pending_upload[self._batch_size :]
             self._last_flush_time = now
 
         return self._upload_to_sidecar(events_to_upload)

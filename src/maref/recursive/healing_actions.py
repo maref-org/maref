@@ -24,7 +24,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 
 try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
-    from datetime import UTC
+    from datetime import UTC  # type: ignore[attr-defined]
 except ImportError:  # pragma: no cover
     from datetime import timezone
 
@@ -43,7 +43,7 @@ from maref.governance.failure_event_bus import mark  # noqa: E402
 
 # Phase 2.3 Reflexion 条件化桥接
 try:
-    from reflexion_bridge import build_reflection_context, check_recurrence, record_reflection
+    from reflexion_bridge import build_reflection_context, check_recurrence, record_reflection  # type: ignore[import-not-found]
 except ImportError:
     build_reflection_context = None
     record_reflection = None
@@ -127,7 +127,7 @@ class OCRTextVerifier(Verifier):
             return VerificationResult(False, "ocr_text", "screenshot missing")
         try:
             # 复用 easyocr（本地）
-            import easyocr
+            import easyocr  # type: ignore[import-not-found]
 
             reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
             result = reader.readtext(screenshot, detail=0)

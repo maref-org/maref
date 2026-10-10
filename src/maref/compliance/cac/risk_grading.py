@@ -41,6 +41,7 @@ _GRADE_ORDER: dict[CACRiskGrade, int] = {
     CACRiskGrade.SPECIAL_MAJOR: 4,
 }
 
+
 # 附件2：四维度分级要素
 class RiskDimension(StrEnum):
     OBJECT_CATEGORY = "客体类别"
