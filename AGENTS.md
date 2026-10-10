@@ -37,6 +37,7 @@ maref/
 - **禁止**: 跨特征深度导入（每个特征目录独立）
 - **禁止**: 绕过 TrustBoundaryManager 进行跨域调用
 - **禁止**: 在生产代码中硬编码密钥/凭证
+- **禁止**: 直接 push 到 `main`（含 bypass 分支保护）——一律走 feature 分支 + PR
 - **端口范围**: 3000-3010（GUI 开发），8000（Sidecar），9000-9010（测试）
 
 ## Coding Conventions
@@ -56,6 +57,13 @@ maref/
 3. 提交 Git commit，消息格式: `feat(module): description`
 4. 更新 `.missions/v0.25.0-security-enhancement/features.json`
 5. 在 `knowledge-library/` 留下实现笔记
+
+### 分支与 PR 纪律
+- **所有改动走 feature 分支**：`git switch -c <type>/<slug>`（如 `feat/vortex369-tla`、`refactor/cleanup-ip-pipeline`）
+- **禁止直接 push `main`**，禁止 bypass 分支保护（远端已启用 "Changes must be made through a pull request"）
+- 推送后开 PR：`gh pr create --fill`，等 CI 与治理门禁（G1-G4 + oss-check）全绿再合并
+- 合并方式优先 squash，保持 main 线性历史
+- 无关的既有工作区改动不得混入本次 PR（提交前用 `git status` 甄别并排除）
 
 ## Security-Specific Rules
 - 所有输入必须验证（`pydantic` + 自定义校验器）
