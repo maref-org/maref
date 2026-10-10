@@ -43,7 +43,7 @@ jobs:
           python -m maref.observability.meta_monitor --single-run > /tmp/meta-monitor-stdout.json 2>&1 || true
           
       - name: Upload meta-audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: meta-audit-report
           path: .openclaw/meta-monitor-report.json
