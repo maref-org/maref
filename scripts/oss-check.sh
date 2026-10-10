@@ -83,7 +83,7 @@ SENSITIVE_ROOT_PREFIXES=(
   data/ data-original/
 )
 
-FILES="$(git -C "$ROOT" ls-tree -r --name-only "$TREE" 2>/dev/null)"
+FILES="$(git -C "$ROOT" -c core.quotePath=false ls-tree -r --name-only "$TREE" 2>/dev/null)"
 if [ $? -ne 0 ]; then
   echo -e "${RED}[oss-check] 无法解析 tree: $TREE${NC}" >&2
   exit 2
@@ -147,7 +147,7 @@ while IFS= read -r hit; do
   [ "$skip" -eq 1 ] && continue
   echo -e "  ${RED}✗${NC} 内容命中敏感模式: $hit"
   CONTENT_HIT=$((CONTENT_HIT + 1))
-done <<< "$(git grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
+done <<< "$(git -C "$ROOT" -c core.quotePath=false grep -I -n -P -e "$CONTENT_RE" "$TREE" 2>/dev/null)"
 
 # ── 深水区资产关键词扫描（宪法第十一条 11.1，2026-08-12 补强） ──────────
 # 防止深水区资产代码写入非排除路径文件绕过路径清单。关键词与 openclaw
@@ -205,8 +205,8 @@ done <<< "$(git grep -I -n -P -e "$DEEPWATER_RE" "$TREE" 2>/dev/null)"
 _PEM_PREFIX='-----BEGIN [A-Z0-9 ]*PRIVATE'
 PEM_BEGIN="${_PEM_PREFIX} KEY-----"
 PEM_END="-----END [A-Z0-9 ]*PRIVATE KEY-----"
-BEGIN_FILES=$(git grep -I -l -P -e "$PEM_BEGIN" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
-END_FILES=$(git grep -I -l -P -e "$PEM_END" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
+BEGIN_FILES=$(git -C "$ROOT" -c core.quotePath=false grep -I -l -P -e "$PEM_BEGIN" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
+END_FILES=$(git -C "$ROOT" -c core.quotePath=false grep -I -l -P -e "$PEM_END" "$TREE" 2>/dev/null | sed "s#^$TREE:##" | sort -u)
 while IFS= read -r path; do
   [ -z "$path" ] && continue
   skip=0
