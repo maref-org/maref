@@ -74,7 +74,7 @@ def _default_experience_db() -> str:
     if env:
         return env
     try:
-        from maref._paths import get_project_root
+        from maref._paths import get_project_root  # type: ignore[import-not-found]
 
         path = get_project_root() / ".evolution_vault" / "experience.db"
         path.parent.mkdir(parents=True, exist_ok=True)
