@@ -102,7 +102,9 @@ def _check_ps_format() -> tuple[bool, str]:
     try:
         result = subprocess.run(
             ["ps", "-eo", "pid,ppid,user,state,command"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode != 0:
             return False, f"ps 命令返回非零: {result.stderr.strip()}"
@@ -210,9 +212,18 @@ def check_environment(
     # 9. Keychain token
     try:
         kr = subprocess.run(
-            ["security", "find-generic-password", "-w", "-a", os.environ.get("USER", ""),
-             "-s", "env/GITHUB_TOKEN"],
-            capture_output=True, text=True, timeout=10,
+            [
+                "security",
+                "find-generic-password",
+                "-w",
+                "-a",
+                os.environ.get("USER", ""),
+                "-s",
+                "env/GITHUB_TOKEN",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if kr.returncode == 0 and kr.stdout.strip():
             result.add_check("Keychain GITHUB_TOKEN", True)

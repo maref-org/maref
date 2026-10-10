@@ -6,6 +6,8 @@ Governance Constants 测试
 
 from __future__ import annotations
 
+import pytest
+
 from maref.governance.constants import (
     ENTROPY_LEVELS,
     GRAY_CODE,
@@ -57,7 +59,10 @@ class TestHammingDistance:
         assert hamming_distance((0, 0, 0, 0), (1, 1, 1, 1)) == 4
 
     def test_different_lengths(self) -> None:
-        assert hamming_distance((0, 0), (0, 0, 0)) == 0  # zip stops at shortest
+        # 实现自 bda74208 (2026-09-28) 起显式拒绝不等长向量（strict 语义），
+        # 同长状态下生产调用点全部等长 → 测试对齐实现契约，不再断言 zip 截断。
+        with pytest.raises(ValueError, match="equal length"):
+            hamming_distance((0, 0), (0, 0, 0))
 
 
 class TestValidTransitions:

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import duckdb
+    import duckdb  # type: ignore[import-not-found]
     DUCKDB_AVAILABLE = True
 except ImportError:
     DUCKDB_AVAILABLE = False
@@ -220,7 +220,7 @@ async def get_table_schema(table_name: str) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="DuckDB not available")
 
     path = _get_table_path(table_name)
-    if not path.exists():
+    if path is None or not path.exists():
         raise HTTPException(status_code=404, detail=f"Table data not found: {table_name}")
 
     glob_path = _build_glob_path(table_name)

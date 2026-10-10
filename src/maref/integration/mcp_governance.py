@@ -41,7 +41,6 @@ from maref.integration.mcp_security import (
     ZeroTrustContext,
 )
 from maref.obs.client import MarefObsClient
-from maref.obs.schema import ObsEventType
 
 _hmac_key = os.environb.get(b"MAREF_HMAC_SECRET_KEY")
 
@@ -742,6 +741,7 @@ class MCPGovernance:
         if request_id:
             return request_id
         import uuid
+
         return f"{agent_id}-{uuid.uuid4().hex[:12]}"
 
     def _emit_tool_call_start(
@@ -892,6 +892,7 @@ class MCPGovernance:
             MCPGovernanceResult with verdict and full decision metadata.
         """
         import time
+
         start_time = time.perf_counter()
 
         correlation_id = self._generate_correlation_id(request_id, agent_id)
@@ -1009,7 +1010,9 @@ class MCPGovernance:
                 tool_name=tool_name,
                 correlation_id=correlation_id,
                 hitl_event_id=hitl_event_id,
-                hitl_tier=hitl_event.tier.value if hasattr(hitl_event.tier, 'value') else str(hitl_event.tier),
+                hitl_tier=hitl_event.tier.value
+                if hasattr(hitl_event.tier, "value")
+                else str(hitl_event.tier),
                 risk_score=result.risk_score,
             )
 

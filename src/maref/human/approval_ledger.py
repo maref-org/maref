@@ -153,7 +153,11 @@ class ApprovalLedger:
 
         if signature_type == SIG_SM2 and not self._sm2_public_key and sm2_keypair is not None:
             self._sm2_public_key = sm2_keypair.public_key
-        if signature_type == SIG_ED25519 and not self._ed25519_public_key and ed25519_keypair is not None:
+        if (
+            signature_type == SIG_ED25519
+            and not self._ed25519_public_key
+            and ed25519_keypair is not None
+        ):
             self._ed25519_public_key = ed25519_keypair.public_key_pem
 
         if self._storage_path and self._storage_path.exists():
@@ -249,8 +253,11 @@ class ApprovalLedger:
         if self._signature_type == SIG_SM2:
             if not HAS_SM2:
                 raise ApprovalLedgerError("SM2 签名要求 gmssl，但当前环境不可用")
-            private_key = self._sm2_private_key or getattr(  # gitleaks:allow（运行时取值，非硬编码密钥）
-                self._sm2_keypair, "private_key", ""
+            private_key = (
+                self._sm2_private_key
+                or getattr(  # gitleaks:allow（运行时取值，非硬编码密钥）
+                    self._sm2_keypair, "private_key", ""
+                )
             )
             public_key = self._sm2_public_key or getattr(self._sm2_keypair, "public_key", "")
             if not private_key or not public_key:
@@ -356,9 +363,7 @@ class ApprovalLedger:
     def require_record(self, action: str) -> ApprovalRecord:
         """高风险操作前置校验：必须有 approved 记录，否则 fail-closed 阻断。"""
         approved = [
-            r
-            for r in self._records
-            if r.action == action and r.decision == DECISION_APPROVED
+            r for r in self._records if r.action == action and r.decision == DECISION_APPROVED
         ]
         if not approved:
             raise ApprovalMissingError(f"高风险操作缺少人工审批记录，阻断执行: {action}")

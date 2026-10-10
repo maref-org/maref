@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from maref.knowledge.graph import KnowledgeGraph, KnowledgeNode
@@ -27,7 +27,7 @@ class ProvenanceRecord:
 class ProvenanceTracker:
     PROVENANCE_LABELS = frozenset({"human", "ai_assisted", "ai_generated", "unknown"})
 
-    def __init__(self, kg: Optional[KnowledgeGraph] = None):
+    def __init__(self, kg: KnowledgeGraph | None = None):
         self._kg = kg
         self._records: dict[str, ProvenanceRecord] = {}
 
@@ -44,7 +44,7 @@ class ProvenanceTracker:
             node_id=node_id, provenance=provenance, timestamp=time.time(), source=source
         )
 
-    def get_provenance(self, node_id: str) -> Optional[str]:
+    def get_provenance(self, node_id: str) -> str | None:
         if self._kg is not None:
             node = self._kg.get_node(node_id)
             if node is not None:
@@ -53,7 +53,7 @@ class ProvenanceTracker:
         return record.provenance if record is not None else None
 
     def retrieve(
-        self, pre_2023: bool = False, provenance: Optional[str] = None
+        self, pre_2023: bool = False, provenance: str | None = None
     ) -> list[KnowledgeNode]:
         if self._kg is None:
             return []

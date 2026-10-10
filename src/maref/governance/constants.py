@@ -63,7 +63,7 @@ def hamming_distance(a: tuple[int, ...], b: tuple[int, ...]) -> int:
     # strict=False requires Python 3.10+, use manual check for compatibility
     if len(a) != len(b):
         raise ValueError("Tuples must have equal length")
-    return sum(x != y for x, y in zip(a, b))
+    return sum(x != y for x, y in zip(a, b, strict=False))
 
 
 def compute_valid_transitions() -> dict[int, list[int]]:

@@ -15,6 +15,7 @@ from maref.identity.credential_manager import (
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class RotationPolicy:
     """密钥轮转策略"""
