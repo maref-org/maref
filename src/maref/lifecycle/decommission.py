@@ -185,7 +185,9 @@ class Decommissioner:
             transition = self.state_machine.force_transition(agent_id, AgentStateV3.TERMINATING)
         if transition is None:
             return StepResult(step, STATUS_FAIL, "无法迁移到 TERMINATING")
-        return StepResult(step, STATUS_PASS, "已置 TERMINATING", {"to": AgentStateV3.TERMINATING.value})
+        return StepResult(
+            step, STATUS_PASS, "已置 TERMINATING", {"to": AgentStateV3.TERMINATING.value}
+        )
 
     def _step_halt(self, agent_id: str) -> StepResult:
         step = DecommissionStep.HALT
@@ -211,7 +213,9 @@ class Decommissioner:
         evidence: dict[str, Any] = {}
         try:
             if self.identity_service is not None:
-                evidence["identity"] = self.identity_service.revoke(did, reason="agent decommission")
+                evidence["identity"] = self.identity_service.revoke(
+                    did, reason="agent decommission"
+                )
             for cid in self.credential_ids:
                 evidence[f"credential:{cid}"] = self.credential_manager.revoke(cid, "decommission")
         except Exception as exc:  # noqa: BLE001 - 编排器需捕获任意协作者异常并留证
