@@ -1,0 +1,159 @@
+# ──────────────────────────────────────────────────────────────────────
+# 声称完整性门禁 (claim_integrity_gate) — 定时工作流
+#
+# 功能:
+#   - 每日自动对账 STATE.yaml 自声称面 vs 仓库实证（版本三角/引用路径/
+#     implemented 符号/宪法版本/pre-push 钩子）
+#   - PR 触碰 STATE.yaml / pyproject.toml / CHANGELOG.md 时增量校验
+#   - 影子模式（advisory）：drift 只建 Issue 不阻断，收集误报率后再转 blocking
+#   - 复用 anti-decorative-compliance 方法论：纸面声称必须可核验
+# ──────────────────────────────────────────────────────────────────────
+
+name: 声称完整性门禁
+
+on:
+  schedule:
+    # 每天 UTC 04:20 (北京时间 12:20)，错峰 security-scan(03:00)/compat(06:00)
+    - cron: "20 4 * * *"
+  push:
+    branches: [main, develop]
+    paths:
+      - 'STATE.yaml'
+      - 'pyproject.toml'
+      - 'CHANGELOG.md'
+      - 'scripts/claim_integrity_gate.py'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'STATE.yaml'
+      - 'pyproject.toml'
+      - 'CHANGELOG.md'
+  workflow_dispatch:
+    inputs:
+      blocking:
+        description: "阻断模式（exit 1 即 fail job；默认影子模式）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  claim-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 需要 git tag 做 C1 版本三角比对
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Run claim integrity gate
+        id: gate
+        run: |
+          set +e
+          # 定时/PR 默认影子模式；workflow_dispatch 可显式 blocking
+          # 注意: tee 在管道尾部，须用 PIPESTATUS 捕获 python 退出码（否则 blocking 永不触发）
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.blocking }}" = "true" ]; then
+            python3 scripts/claim_integrity_gate.py --json | tee claim_gate.json
+          else
+            python3 scripts/claim_integrity_gate.py --json --advisory | tee claim_gate.json
+          fi
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          # 解析摘要
+          ERR=$(python3 -c "import json;d=json.load(open('claim_gate.json'));print(d['errors'])")
+          WARN=$(python3 -c "import json;d=json.load(open('claim_gate.json'));print(d['warnings'])")
+          echo "errors=$ERR" >> "$GITHUB_OUTPUT"
+          echo "warnings=$WARN" >> "$GITHUB_OUTPUT"
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claim-gate-report
+          path: claim_gate.json
+
+      - name: Create drift Issue (advisory, dedup)
+        if: steps.gate.outputs.errors != '0' || steps.gate.outputs.warnings != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('claim_gate.json', 'utf8'));
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['claim-integrity'],
+            });
+            if (issues.length > 0) {
+              // 已有未关闭 drift issue：追加评论刷新证据
+              const body = report.findings.map(f =>
+                `- [${f.check}][${f.severity}] ${f.detail}`).join('\n');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                body: `## 声称完整性复检 (${new Date().toISOString()})\n\n${body}\n\n_由 claim-integrity-gate 自动刷新_`,
+              });
+              return;
+            }
+
+            const list = report.findings.map(f =>
+              `- [${f.check}][${f.severity}] ${f.detail}`).join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ STATE.yaml 声称漂移检测 (ERROR ${report.errors} / WARNING ${report.warnings})`,
+              body: [
+                '## 声称完整性漂移',
+                '',
+                'STATE.yaml 自声称面与仓库实证不一致（反装饰性合规门禁）：',
+                '',
+                list,
+                '',
+                '### 处置',
+                '',
+                '1. 本地运行 `python3 scripts/claim_integrity_gate.py` 查看详情',
+                '2. 更新 STATE.yaml 使声称对齐实证（或补齐缺失实现/文件）',
+                '3. 关闭本 Issue',
+                '',
+                `### 元信息`,
+                `- 触发: ${context.eventName} / run ${context.runId}`,
+                `- STATE version: ${report.state_version}, claimed release: ${report.claimed_release}`,
+                '',
+                '---',
+                '_由 claim-integrity-gate.yml 自动创建（影子模式，不阻断 CI）_',
+              ].join('\n'),
+              labels: ['claim-integrity'],
+            });
+
+      - name: Fail on blocking mode
+        if: always() && steps.gate.outputs.exit_code != '' && steps.gate.outputs.exit_code != '0'
+        run: |
+          echo "声称完整性门禁 ERROR 级漂移（blocking 模式）"
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          MODE=$([ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.blocking }}" = "true" ] && echo "blocking" || echo "影子（advisory）")
+          echo "## 声称完整性门禁" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ERROR: ${{ steps.gate.outputs.errors }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- WARNING: ${{ steps.gate.outputs.warnings }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 模式: $MODE" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat claim_gate.json >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
