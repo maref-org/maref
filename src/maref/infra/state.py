@@ -28,7 +28,15 @@ import re
 import sqlite3
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import datetime
+
+try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+    from datetime import UTC
+except ImportError:  # pragma: no cover
+    from datetime import timezone
+
+    UTC = timezone.utc
+
 from pathlib import Path
 from typing import Any
 
@@ -79,7 +87,9 @@ class OpenClawState:
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
             self._conn = sqlite3.connect(
-                str(self.db_path), timeout=10, check_same_thread=False,
+                str(self.db_path),
+                timeout=10,
+                check_same_thread=False,
             )
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA synchronous=NORMAL")
@@ -142,7 +152,8 @@ class OpenClawState:
         with self._lock:
             conn = self._get_conn()
             row = conn.execute(
-                f"SELECT value FROM {self._tn('kv')} WHERE key = ?", (key,),
+                f"SELECT value FROM {self._tn('kv')} WHERE key = ?",
+                (key,),
             ).fetchone()
         if row is None:
             return default
@@ -161,7 +172,8 @@ class OpenClawState:
             conn = self._get_conn()
             conn.execute(
                 f"INSERT OR REPLACE INTO {self._tn('kv')} (key, value, updated_at) "
-                "VALUES (?, ?, ?)", (key, val_str, time.time()),
+                "VALUES (?, ?, ?)",
+                (key, val_str, time.time()),
             )
             conn.commit()
 
@@ -236,12 +248,13 @@ class OpenClawState:
             elif topic:
                 rows = conn.execute(
                     "SELECT id, topic, payload, created_at FROM events "
-                    "WHERE topic = ? ORDER BY id DESC LIMIT ?", (topic, limit),
+                    "WHERE topic = ? ORDER BY id DESC LIMIT ?",
+                    (topic, limit),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT id, topic, payload, created_at FROM events "
-                    "ORDER BY id DESC LIMIT ?", (limit,),
+                    "SELECT id, topic, payload, created_at FROM events ORDER BY id DESC LIMIT ?",
+                    (limit,),
                 ).fetchall()
         results = []
         for row in rows:
@@ -297,7 +310,8 @@ class OpenClawState:
             rows = conn.execute(
                 "SELECT loop_id, last_run, next_run_at, status, last_error, "
                 "interval_seconds, updated_at FROM loop_schedule "
-                "WHERE next_run_at <= ? ORDER BY next_run_at ASC", (now,),
+                "WHERE next_run_at <= ? ORDER BY next_run_at ASC",
+                (now,),
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -305,8 +319,8 @@ class OpenClawState:
         with self._lock:
             conn = self._get_conn()
             cur = conn.execute(
-                f"INSERT INTO {self._tn('errors')} (timestamp, error, context) "
-                "VALUES (?, ?, ?)", (time.time(), error[:1000], context[:500]),
+                f"INSERT INTO {self._tn('errors')} (timestamp, error, context) VALUES (?, ?, ?)",
+                (time.time(), error[:1000], context[:500]),
             )
             conn.commit()
             return cur.lastrowid or 0
@@ -316,7 +330,8 @@ class OpenClawState:
             conn = self._get_conn()
             rows = conn.execute(
                 f"SELECT id, timestamp, status, duration_ms, details "
-                f"FROM {self._tn('cycles')} ORDER BY timestamp DESC LIMIT ?", (limit,),
+                f"FROM {self._tn('cycles')} ORDER BY timestamp DESC LIMIT ?",
+                (limit,),
             ).fetchall()
         results = []
         for row in rows:
@@ -334,7 +349,8 @@ class OpenClawState:
             conn = self._get_conn()
             rows = conn.execute(
                 f"SELECT id, timestamp, error, context "
-                f"FROM {self._tn('errors')} ORDER BY timestamp DESC LIMIT ?", (limit,),
+                f"FROM {self._tn('errors')} ORDER BY timestamp DESC LIMIT ?",
+                (limit,),
             ).fetchall()
         results = []
         for row in rows:

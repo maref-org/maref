@@ -34,10 +34,21 @@ from maref.recursive.agent_health import PulseWriter
 
 
 def _default_audit_base() -> Path:
-    """治理审计基目录（绝对路径，委托 _paths SSOT，消除 CWD 依赖）。"""
-    from maref._paths import get_governance_base
+    """治理审计基目录（绝对路径，委托 _paths SSOT，消除 CWD 依赖）。
 
-    return get_governance_base()
+    公开仓 maref-org/maref 按 oss-exclude 不含 maref._paths（c1b86a64）→
+    回退 audit_paths._get_base（内部 env 兜底，与 state.py、
+    alert_feedback_tracker 同语义），否则 ModuleNotFoundError 直接把
+    meta-audit-gate 打红（A4 根因）。
+    """
+    try:
+        from maref._paths import get_governance_base  # type: ignore[import-not-found]
+
+        return get_governance_base()
+    except Exception:  # 公开仓缺 _paths → 兜底路径必须仍是绝对路径
+        from maref.observability.audit_paths import _get_base
+
+        return _get_base().resolve()
 
 
 def _load_env_file(filename: str = ".env.maref") -> None:
@@ -90,9 +101,12 @@ _REPORT_PATH: Path | None = None
 
 def _meta_base() -> Path:
     """Path for meta-monitor data (notifications, reports). 绝对路径。"""
-    from maref._paths import get_meta_base
+    try:
+        from maref._paths import get_meta_base
 
-    return get_meta_base()
+        return get_meta_base()
+    except Exception:  # 公开仓无 maref._paths（oss-exclude c1b86a64）→ env 兜底
+        return Path(os.environ.get("MAREF_META_PATH", ".openclaw")).resolve()
 
 
 def _notifications_dir() -> Path:

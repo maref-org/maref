@@ -13,9 +13,16 @@ import json
 import re
 import sys
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+
+try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+    from datetime import UTC
+except ImportError:  # pragma: no cover
+    from datetime import timezone
+
+    UTC = timezone.utc
+
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 OBS_FILE = ROOT / ".openclaw" / "mem_assets" / "observations.jsonl"
@@ -78,23 +85,27 @@ def _score_asset(asset: dict, tokens: list[str]) -> float:
     else:
         ev_text = str(ev)
 
-    text = " ".join([
-        str(asset.get("title", "")),
-        str(asset.get("content", "")),
-        " ".join(asset.get("tags", [])),
-        " ".join(asset.get("commands", [])),
-        ev_text,
-    ]).lower()
+    text = " ".join(
+        [
+            str(asset.get("title", "")),
+            str(asset.get("content", "")),
+            " ".join(asset.get("tags", [])),
+            " ".join(asset.get("commands", [])),
+            ev_text,
+        ]
+    ).lower()
     score = 0.0
     for t in tokens:
         if t in text:
             score += 1.0
     # trust_level 加权
-    score *= (1 + _lvl(asset.get("trust_level")) * 0.2)
+    score *= 1 + _lvl(asset.get("trust_level")) * 0.2
     return score
 
 
-def search_reflections(query: str, *, fp: str | None = None, limit: int = 5, min_trust: str = "") -> list[dict]:
+def search_reflections(
+    query: str, *, fp: str | None = None, limit: int = 5, min_trust: str = ""
+) -> list[dict]:
     """检索相关 lessons + assets（合并两源）。
 
     返回: list of {source: "lesson"|"asset", asset_id, title, content, confidence, trust_level, matched_tokens}
@@ -114,42 +125,58 @@ def search_reflections(query: str, *, fp: str | None = None, limit: int = 5, min
             continue
         s = _score_asset(a, tokens)
         if s > 0:
-            matched = [t for t in tokens if t in " ".join([
-                str(a.get("title", "")), str(a.get("content", "")), " ".join(a.get("tags", [])), " ".join(a.get("commands", []))
-            ]).lower()]
-            results.append({
-                "source": "asset",
-                "asset_id": a.get("asset_id"),
-                "title": a.get("title"),
-                "content": str(a.get("content", ""))[:500],
-                "confidence": a.get("confidence"),
-                "trust_level": a.get("trust_level"),
-                "obs_type": a.get("obs_type"),
-                "score": s,
-                "matched_tokens": matched,
-            })
+            matched = [
+                t
+                for t in tokens
+                if t
+                in " ".join(
+                    [
+                        str(a.get("title", "")),
+                        str(a.get("content", "")),
+                        " ".join(a.get("tags", [])),
+                        " ".join(a.get("commands", [])),
+                    ]
+                ).lower()
+            ]
+            results.append(
+                {
+                    "source": "asset",
+                    "asset_id": a.get("asset_id"),
+                    "title": a.get("title"),
+                    "content": str(a.get("content", ""))[:500],
+                    "confidence": a.get("confidence"),
+                    "trust_level": a.get("trust_level"),
+                    "obs_type": a.get("obs_type"),
+                    "score": s,
+                    "matched_tokens": matched,
+                }
+            )
 
     # 搜 lessons
     for l in lessons:
-        text = " ".join([
-            str(l.get("title", "")),
-            str(l.get("lesson", "")),
-            " ".join(l.get("tags", [])),
-            l.get("session_id", ""),
-        ]).lower()
+        text = " ".join(
+            [
+                str(l.get("title", "")),
+                str(l.get("lesson", "")),
+                " ".join(l.get("tags", [])),
+                l.get("session_id", ""),
+            ]
+        ).lower()
         s = sum(1 for t in tokens if t in text)
         if s > 0:
-            results.append({
-                "source": "lesson",
-                "lesson_id": l.get("lesson_id") or l.get("id"),
-                "title": l.get("title"),
-                "content": str(l.get("lesson", ""))[:500],
-                "confidence": None,
-                "trust_level": "L2",  # lessons 默认 L2
-                "obs_type": "experience",
-                "score": float(s),
-                "matched_tokens": [t for t in tokens if t in text],
-            })
+            results.append(
+                {
+                    "source": "lesson",
+                    "lesson_id": l.get("lesson_id") or l.get("id"),
+                    "title": l.get("title"),
+                    "content": str(l.get("lesson", ""))[:500],
+                    "confidence": None,
+                    "trust_level": "L2",  # lessons 默认 L2
+                    "obs_type": "experience",
+                    "score": float(s),
+                    "matched_tokens": [t for t in tokens if t in text],
+                }
+            )
 
     # 排序：score 降序 + trust_level 降序
     results.sort(key=lambda x: (-x["score"], -_lvl(x.get("trust_level"))))
@@ -209,10 +236,17 @@ def record_reflection(
     # 同步触发 lesson_to_asset 入库（异步非阻塞）
     try:
         import subprocess
-        subprocess.Popen([
-            sys.executable, str(ROOT / "scripts" / "lesson_to_asset.py"),
-            "--dry-run", "--limit", "1"
-        ], cwd=str(ROOT))
+
+        subprocess.Popen(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "lesson_to_asset.py"),
+                "--dry-run",
+                "--limit",
+                "1",
+            ],
+            cwd=str(ROOT),
+        )
     except Exception:
         pass
 
@@ -222,6 +256,7 @@ def record_reflection(
 def check_recurrence(fp: str, window_days: int = 7) -> dict:
     """检查同一 fingerprint 在窗口内是否复发。"""
     from maref.governance.failure_event_bus import load_events
+
     since = datetime.now(UTC) - timedelta(days=window_days)
     events = load_events(fp=fp, since=since, collapse=True)
     failures = [e for e in events if e.get("signal") == "failure"]
@@ -236,6 +271,7 @@ def check_recurrence(fp: str, window_days: int = 7) -> dict:
 
 def main() -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="Reflexion 条件化桥接（Phase 2.3）")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -281,7 +317,9 @@ def main() -> int:
         return 0
 
     if args.cmd == "search":
-        hits = search_reflections(args.query, fp=args.fp or None, limit=args.limit, min_trust=args.min_trust)
+        hits = search_reflections(
+            args.query, fp=args.fp or None, limit=args.limit, min_trust=args.min_trust
+        )
         print(json.dumps(hits, ensure_ascii=False, indent=2, default=str))
         return 0
 
@@ -291,10 +329,17 @@ def main() -> int:
         return 0
 
     if args.cmd == "record":
-        import asyncio
         vr = json.loads(args.verification) if args.verification else None
-        res = record_reflection(args.fp, args.failure_class, args.sub, args.cause,
-                                args.strategy, args.success, args.action, vr)
+        res = record_reflection(
+            args.fp,
+            args.failure_class,
+            args.sub,
+            args.cause,
+            args.strategy,
+            args.success,
+            args.action,
+            vr,
+        )
         print(json.dumps(res, ensure_ascii=False, indent=2))
         return 0
 
