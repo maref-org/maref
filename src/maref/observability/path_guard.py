@@ -96,7 +96,19 @@ def validate_paths(paths: dict[str, Any] | None = None) -> list[str]:
         )
 
     legacy_markers = ("/.openclaw/", "/.openclaw", "openclaw/.openclaw")
-    for key in ("meta_base", "audit_paths_meta", "meta_monitor_meta", "report"):
+    for key in (
+        "governance_base",
+        "meta_base",
+        "audit_paths_base",
+        "audit_paths_meta",
+        "meta_monitor_audit",
+        "meta_monitor_meta",
+        "health_writer",
+        "health_check",
+        "pulse_writer",
+        "pulse_check",
+        "report",
+    ):
         value = paths[key]
         if any(marker in value for marker in legacy_markers):
             issues.append(f"{key} still points at legacy openclaw path: {value}")

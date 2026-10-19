@@ -58,3 +58,12 @@ def test_legacy_audit_paths_are_absolute():
 )
 def test_paths_dependent_modules_import(module: str):
     __import__(module)
+
+
+def test_path_guard_rejects_legacy_openclaw_audit_path(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("MAREF_AUDIT_PATH", str(tmp_path / ".openclaw"))
+    monkeypatch.setenv("MAREF_META_PATH", str(tmp_path / ".governance" / "meta"))
+    from maref.observability.path_guard import validate_paths
+
+    issues = validate_paths()
+    assert any("legacy openclaw" in issue for issue in issues)

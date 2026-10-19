@@ -240,7 +240,11 @@ def verify_audit_chain(
     logger_key_valid = False
     ed25519_key_valid = False
     for _, entry in records:
-        has_signature = bool(entry.get("hmac_signature") or entry.get("ed25519_signature"))
+        has_signature = bool(
+            entry.get("hmac_signature")
+            or entry.get("ed25519_signature")
+            or entry.get("external_signature")
+        )
         variants = _payload_variants(entry, unified=has_signature)
         if entry.get("hmac_signature") and keys:
             if any(
@@ -275,7 +279,11 @@ def verify_audit_chain(
     first = True
     for lineno, entry in records:
         entry_id = str(entry.get("id", f"<line-{lineno}>"))
-        has_signature = bool(entry.get("hmac_signature") or entry.get("ed25519_signature"))
+        has_signature = bool(
+            entry.get("hmac_signature")
+            or entry.get("ed25519_signature")
+            or entry.get("external_signature")
+        )
         fmt = "audit_logger" if has_signature or "layer" in entry else "legacy_state_machine"
         report.formats[fmt] = report.formats.get(fmt, 0) + 1
 
@@ -330,6 +338,9 @@ def verify_audit_chain(
                 )
             elif not result:
                 report.signature_unverifiable.append(entry_id)
+        elif entry.get("external_signature"):
+            # Remote signer: verification requires the external service/key.
+            report.signature_unverifiable.append(entry_id)
         elif entry.get("hmac_signature"):
             sig_ok = any(
                 hmac.compare_digest(_hmac(p, candidate), entry["hmac_signature"])
@@ -337,8 +348,13 @@ def verify_audit_chain(
                 for p in variants
             )
             if not sig_ok:
-                # Key rotation / external signer / missing key: unverifiable.
-                report.signature_unverifiable.append(entry_id)
+                if logger_key_valid:
+                    report.signature_invalid.append(
+                        VerifyIssue(lineno, entry_id, "signature", "HMAC invalid")
+                    )
+                else:
+                    # Key rotation / missing key: unverifiable, not tampering.
+                    report.signature_unverifiable.append(entry_id)
         else:
             report.unsigned.append(entry_id)
 

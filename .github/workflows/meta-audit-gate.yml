@@ -142,7 +142,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Runtime gate (M0-M3 required)
+      - name: Runtime gate (M0-M4 required)
         env:
           MAREF_META_PATH: '.governance/meta'
           MAREF_AUDIT_PATH: '.governance'
