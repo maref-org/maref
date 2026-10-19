@@ -255,9 +255,7 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
                 }
                 # 与 AuditLogger 的 canonical payload 对齐（sorted keys），
                 # 新记录可被统一验证器直接校验。
-                payload = json.dumps(
-                    payload_dict, sort_keys=True, ensure_ascii=False, default=str
-                )
+                payload = json.dumps(payload_dict, sort_keys=True, ensure_ascii=False, default=str)
                 signature = signer.sign(payload.encode())
                 chain_hash = hashlib.sha256(
                     previous_hash.encode("utf-8") + payload.encode("utf-8")
@@ -277,9 +275,7 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
 
                 f.seek(0, os.SEEK_END)
                 f.write(
-                    (json.dumps(record, ensure_ascii=False, default=str) + "\n").encode(
-                        "utf-8"
-                    )
+                    (json.dumps(record, ensure_ascii=False, default=str) + "\n").encode("utf-8")
                 )
                 f.flush()
             finally:

@@ -157,18 +157,14 @@ def _payload_variants(entry: dict[str, Any], unified: bool) -> list[str]:
 
 
 def _sha256_chain(previous_hash: str, payload: str) -> str:
-    return hashlib.sha256(
-        previous_hash.encode("utf-8") + payload.encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(previous_hash.encode("utf-8") + payload.encode("utf-8")).hexdigest()
 
 
 def _hmac(payload: str, key: bytes) -> str:
     return hmac.new(key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
-def _verify_ed25519(
-    entry: dict[str, Any], payload: str, public_key_pem: str | None
-) -> bool | None:
+def _verify_ed25519(entry: dict[str, Any], payload: str, public_key_pem: str | None) -> bool | None:
     if not public_key_pem:
         return None
     try:
@@ -263,7 +259,11 @@ def verify_audit_chain(
                 for p in variants
             ):
                 legacy_key_valid = True
-        if legacy_key_valid and logger_key_valid and (ed25519_key_valid or not ed25519_public_key_pem):
+        if (
+            legacy_key_valid
+            and logger_key_valid
+            and (ed25519_key_valid or not ed25519_public_key_pem)
+        ):
             break
 
     if not keys:
