@@ -50,8 +50,31 @@ class VerifyReport:
     notes: list[str] = field(default_factory=list)
 
     @property
+    def structural_intact(self) -> bool:
+        """True when linkage and record hashes are intact."""
+        return not (self.link_breaks or self.hash_invalid)
+
+    @property
     def integrity_intact(self) -> bool:
-        return not (self.link_breaks or self.hash_invalid or self.signature_invalid)
+        # Kept for backward compatibility: includes signature tampering, but
+        # deliberately excludes missing/rotated keys (those are unverifiable).
+        return self.structural_intact and not self.signature_invalid
+
+    @property
+    def authenticity_verified(self) -> bool:
+        """True only when every record's signature was verified locally."""
+        return (
+            self.total > 0
+            and self.key_status == "valid"
+            and not self.signature_invalid
+            and not self.signature_unverifiable
+            and not self.unsigned
+        )
+
+    @property
+    def verification_passed(self) -> bool:
+        """Full gate: structure intact and signatures authenticated."""
+        return self.integrity_intact and self.authenticity_verified
 
     @property
     def tampered_count(self) -> int:
@@ -74,7 +97,10 @@ class VerifyReport:
             "first_previous_hash": self.first_previous_hash,
             "last_chain_hash": self.last_chain_hash,
             "key_status": self.key_status,
+            "structural_intact": self.structural_intact,
             "integrity_intact": self.integrity_intact,
+            "authenticity_verified": self.authenticity_verified,
+            "verification_passed": self.verification_passed,
             "tampered_count": self.tampered_count,
             "notes": self.notes,
         }
@@ -225,10 +251,6 @@ def verify_audit_chain(
     report.hash_invalid.extend(parse_issues)
 
     keys = resolve_hmac_keys(hmac_key)
-    if keys:
-        report.key_status = "supplied"
-    if ed25519_public_key_pem:
-        report.key_status = "supplied"
 
     # ── Pass 1: decide whether the supplied key verifies any record ──
     # Prevents a rotated key from turning the entire history into "tampered".
@@ -266,9 +288,11 @@ def verify_audit_chain(
         ):
             break
 
-    if not keys:
-        report.key_status = "missing"
-    elif legacy_key_valid or logger_key_valid:
+    if not (keys or ed25519_public_key_pem):
+        report.key_status = "missing" if records else "not_supplied"
+        if records:
+            report.notes.append("no verification key supplied; signatures are unverifiable")
+    elif legacy_key_valid or logger_key_valid or ed25519_key_valid:
         report.key_status = "valid"
     else:
         report.key_status = "rotated_or_wrong"
@@ -312,21 +336,26 @@ def verify_audit_chain(
             for p in variants
         )
 
+        legacy_hmac_ok = False
         if fmt == "audit_logger":
             if not sha_ok:
                 report.hash_invalid.append(
                     VerifyIssue(lineno, entry_id, "hash", "SHA256 chain hash mismatch")
                 )
+        elif hmac_ok:
+            legacy_hmac_ok = True
         elif sha_ok:
             report.notes.append(f"line {lineno}: SHA256 chain hash (unauthenticated)")
-        elif hmac_ok:
-            pass
         else:
             # Legacy digest may have been signed with a key that is no longer
             # available (rotation). This is unverifiable, not tampering.
             report.signature_unverifiable.append(entry_id)
 
-        if entry.get("ed25519_signature"):
+        if legacy_hmac_ok:
+            # Legacy records store the HMAC digest directly in chain_hash and
+            # have no hmac_signature field; do not classify them as unsigned.
+            pass
+        elif entry.get("ed25519_signature"):
             result = None
             if ed25519_public_key_pem:
                 result = any(

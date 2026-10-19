@@ -37,9 +37,7 @@ def _record(prev: str, index: int, key: bytes) -> dict:
     }
     payload = _payload(record)
     record["hmac_signature"] = hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
-    record["chain_hash"] = hashlib.sha256(
-        (prev + payload).encode()
-    ).hexdigest()
+    record["chain_hash"] = hashlib.sha256((prev + payload).encode()).hexdigest()
     return record
 
 
@@ -61,12 +59,17 @@ def test_audit_logger_chain_verifies_with_key(tmp_path):
 
     report = verify_audit_chain(p, hmac_key=key)
     assert report.integrity_intact
+    assert report.authenticity_verified
+    assert report.verification_passed
     assert report.total == 2
     assert report.hash_invalid == []
     assert report.signature_invalid == []
 
 
-def test_chain_hash_verifies_without_key(tmp_path):
+def test_chain_hash_verifies_without_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "maref.governance.audit_chain_verify.resolve_hmac_keys", lambda explicit=None: []
+    )
     key = b"test-key"
     p = tmp_path / "audit.jsonl"
     _write(p, [_record("", 1, key)])
@@ -74,6 +77,9 @@ def test_chain_hash_verifies_without_key(tmp_path):
     assert report.hash_invalid == []
     assert report.signature_unverifiable == ["r1"]
     assert report.integrity_intact
+    assert not report.authenticity_verified
+    assert not report.verification_passed
+    assert report.key_status == "missing"
 
 
 def test_tampered_payload_is_detected(tmp_path):
@@ -130,6 +136,8 @@ def test_legacy_hmac_digest_is_verified_with_key(tmp_path):
 
     report = verify_audit_chain(p, hmac_key=key)
     assert report.integrity_intact
+    assert report.authenticity_verified
+    assert report.verification_passed
     assert report.hash_invalid == []
     assert report.formats == {"legacy_state_machine": 1}
 
@@ -166,6 +174,9 @@ def test_legacy_digest_with_wrong_key_is_unverifiable_not_tampered(tmp_path):
 
     report = verify_audit_chain(p, hmac_key=b"wrong-key")
     assert report.integrity_intact
+    assert not report.authenticity_verified
+    assert not report.verification_passed
+    assert report.key_status == "rotated_or_wrong"
     assert report.hash_invalid == []
     assert report.signature_unverifiable == ["legacy1"]
 
@@ -177,9 +188,7 @@ def test_state_machine_writer_produces_linear_chain(tmp_path, monkeypatch):
     from maref.governance.types import GovernanceState, StateTransition
 
     for _ in range(5):
-        _write_state_transition(
-            StateTransition(GovernanceState.ACT, GovernanceState.VERIFY)
-        )
+        _write_state_transition(StateTransition(GovernanceState.ACT, GovernanceState.VERIFY))
 
     report = verify_audit_chain(tmp_path / "governance_audit.jsonl", hmac_key=b"test-key")
     assert report.total == 5
@@ -200,3 +209,22 @@ def test_tampered_hmac_signature_is_detected_with_valid_key(tmp_path):
     report = verify_audit_chain(p, hmac_key=key)
     assert len(report.signature_invalid) == 1
     assert not report.integrity_intact
+    assert not report.authenticity_verified
+    assert not report.verification_passed
+
+
+def test_ed25519_public_key_sets_valid_key_status(tmp_path):
+    from maref.crypto.ed25519_keys import Ed25519KeyPair
+    from maref.governance.audit import AuditLogger
+
+    keypair = Ed25519KeyPair.generate()
+    p = tmp_path / "audit.jsonl"
+    logger = AuditLogger(p, ed25519_keypair=keypair)
+    logger.log("ed25519", "actor", "action")
+
+    report = verify_audit_chain(p, ed25519_public_key_pem=keypair.public_key_pem)
+
+    assert report.integrity_intact
+    assert report.key_status == "valid"
+    assert report.authenticity_verified
+    assert report.verification_passed

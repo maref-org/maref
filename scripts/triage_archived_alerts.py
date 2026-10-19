@@ -86,6 +86,31 @@ def _classify(check_id: str, title: str, manifest: Path | None) -> tuple[str, st
     )
 
 
+def _matches_archived_alert(
+    name: str,
+    triggered_at: float | None,
+    archived: list[tuple[str, float | None]],
+) -> bool:
+    """Return True only for an archived alert that matches this live alert.
+
+    A shared ``check_id`` is not enough: a current incident can reuse the same
+    check_id as a historical archived alert. Require the title to match and
+    the timestamps to be within one hour so an active recurrence is not
+    silently closed by a one-shot migration.
+    """
+    if triggered_at is None:
+        return False
+    normalized = name.strip().casefold()
+    for title, timestamp in archived:
+        if title.strip().casefold() != normalized:
+            continue
+        if timestamp is None:
+            continue
+        if abs(float(timestamp) - triggered_at) <= 3600:
+            return True
+    return False
+
+
 def _iter_files(archive_dirs: list[Path]) -> list[Path]:
     files: list[Path] = []
     for directory in archive_dirs:
@@ -149,8 +174,7 @@ def main() -> int:
     manifest = _find_manifest()
 
     groups: Counter[str] = Counter()
-    by_check: dict[str, list[Path]] = defaultdict(list)
-    archive_titles: list[tuple[str, float | None]] = []
+    archive_entries: dict[str, list[tuple[str, float | None]]] = defaultdict(list)
     records: list[dict] = []
     skipped = 0
 
@@ -165,8 +189,9 @@ def main() -> int:
         timestamp = payload.get("timestamp")
         digest = _sha256(path)
         groups[check_id or "<none>"] += 1
-        by_check[check_id].append(path)
-        archive_titles.append((title, timestamp if isinstance(timestamp, (int, float)) else None))
+        archive_entries[check_id].append(
+            (title, timestamp if isinstance(timestamp, (int, float)) else None)
+        )
 
         if (str(path), digest) in seen:
             skipped += 1
@@ -233,40 +258,24 @@ def main() -> int:
         closed = 0
         for record in tracker.get_open_alerts():
             check_id = record.check_id
-            if check_id in by_check and by_check[check_id]:
-                evidence = str(manifest) if manifest else "archive closure ledger"
-                reason = (
-                    "archived alert attributed and closed; see archive_closure_ledger.jsonl"
-                )
-                if tracker.close_alert(
-                    record.alert_id,
-                    reason=reason,
-                    evidence=evidence,
-                    description=reason,
-                ):
-                    closed += 1
-            elif check_id == "":
-                # Only close legacy alerts that actually correspond to an
-                # archived notification; an unrelated live alert (e.g. M4
-                # telemetry) must stay open.
-                matches_archive = any(
-                    title == record.name
-                    and (
-                        record.triggered_at is None
-                        or ts is None
-                        or abs(float(ts) - record.triggered_at) <= 3600
-                    )
-                    for title, ts in archive_titles
-                )
-                if matches_archive:
-                    reason = "legacy alert without check_id; attributed to archive closure"
-                    if tracker.close_alert(
-                        record.alert_id,
-                        reason=reason,
-                        evidence="archive_closure_ledger.jsonl",
-                        description=reason,
-                    ):
-                        closed += 1
+            if not _matches_archived_alert(
+                record.name,
+                record.triggered_at,
+                archive_entries.get(check_id, []),
+            ):
+                continue
+            evidence = str(manifest) if manifest else "archive closure ledger"
+            if check_id:
+                reason = "archived alert attributed and closed; see archive_closure_ledger.jsonl"
+            else:
+                reason = "legacy alert without check_id; attributed to archive closure"
+            if tracker.close_alert(
+                record.alert_id,
+                reason=reason,
+                evidence=evidence,
+                description=reason,
+            ):
+                closed += 1
         print(f"open alerts closed: {closed}")
 
     return 0

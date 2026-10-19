@@ -9,6 +9,8 @@ Usage:
     python3 scripts/verify_audit_chain.py --audit-file audit.jsonl --json
     python3 scripts/verify_audit_chain.py --audit-file audit.jsonl \\
         --public-key signer.pem
+    python3 scripts/verify_audit_chain.py --audit-file audit.jsonl \\
+        --allow-unverified   # structural check only; tampering still fails
 """
 
 from __future__ import annotations
@@ -84,6 +86,14 @@ def main() -> int:
         default=None,
         help="Path to Merkle proof JSON file (for offline proof verification)",
     )
+    parser.add_argument(
+        "--allow-unverified",
+        action="store_true",
+        help=(
+            "Exit 0 when the chain structure is intact but signatures cannot "
+            "be authenticated (missing/rotated key). Tampering still fails."
+        ),
+    )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     args = parser.parse_args()
 
@@ -106,8 +116,16 @@ def main() -> int:
     if args.json:
         print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
     else:
-        status = "OK" if report.integrity_intact else "FAILED"
+        if not report.integrity_intact:
+            status = "FAILED"
+        elif report.authenticity_verified:
+            status = "OK"
+        else:
+            status = "UNVERIFIED"
         print(f"Chain integrity: {status} ({report.total} records)")
+        print(f"  structural intact: {report.structural_intact}")
+        print(f"  authenticity verified: {report.authenticity_verified}")
+        print(f"  key status: {report.key_status}")
         print(f"  formats: {report.formats}")
         print(f"  link breaks: {len(report.link_breaks)}")
         print(f"  hash invalid: {len(report.hash_invalid)}")
@@ -117,8 +135,14 @@ def main() -> int:
         if report.notes:
             for note in report.notes[:10]:
                 print(f"  note: {note}")
+        if not report.authenticity_verified and args.allow_unverified:
+            print("  note: unverified signatures allowed by --allow-unverified")
 
-    exit_code = 0 if report.integrity_intact else 1
+    exit_code = (
+        0
+        if report.integrity_intact and (report.authenticity_verified or args.allow_unverified)
+        else 1
+    )
 
     if args.merkle_proof:
         if not Path(args.merkle_proof).exists():

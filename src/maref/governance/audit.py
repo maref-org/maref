@@ -587,29 +587,89 @@ class AuditLogger:
             return final_entry
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        if self._path.exists() and self._path.stat().st_size >= self._max_file_size:
-            self._rotate()
-
-        # 关键修复（T1.4）：读取链尾 + 签名 + append 在同一把跨进程
-        # 文件锁内完成，消除并发写入导致的 previous_hash 分叉。
-        with self._write_lock, open(self._path, "a+b") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        # 跨进程锁放在独立 lock 文件上，而不是数据文件上：
+        # 轮转时需要 rename 数据文件，如果另一进程已持有旧 inode 的 flock，
+        # 它会继续把记录追加到归档文件里。所有写进程必须先锁 lock 文件，
+        # 再打开/轮转数据文件；这样轮转与 append 在同一临界区内完成。
+        lock_path = self._path.with_name(f"{self._path.name}.lock")
+        with self._write_lock, open(lock_path, "a+b") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             try:
-                previous_hash = self._last_chain_hash_from_handle(f)
-                locked_entry = replace(entry, previous_hash=previous_hash)
-                signed_entry = self._entry_with_signature(locked_entry)
-                chain_hash = self._compute_chain_hash(signed_entry)
-                final_entry = replace(signed_entry, chain_hash=chain_hash)
-                line = json.dumps(final_entry.to_dict(), ensure_ascii=False, default=str)
-                f.seek(0, os.SEEK_END)
-                f.write((line + "\n").encode("utf-8"))
-                f.flush()
+                if self._path.exists() and self._path.stat().st_size >= self._max_file_size:
+                    self._rotate_locked()
+
+                # 关键修复（T1.4）：读取链尾 + 签名 + append 在同一把跨进程
+                # 文件锁内完成，消除并发写入导致的 previous_hash 分叉。
+                with open(self._path, "a+b") as f:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                    try:
+                        # 崩溃可能留下半行；先修复尾部，否则新记录会和
+                        # 旧半行拼成一条非法 JSON，导致整条审计链不可读。
+                        self._repair_tail_locked(f)
+                        previous_hash = self._last_chain_hash_from_handle(f)
+                        locked_entry = replace(entry, previous_hash=previous_hash)
+                        signed_entry = self._entry_with_signature(locked_entry)
+                        chain_hash = self._compute_chain_hash(signed_entry)
+                        final_entry = replace(signed_entry, chain_hash=chain_hash)
+                        line = json.dumps(final_entry.to_dict(), ensure_ascii=False, default=str)
+                        f.seek(0, os.SEEK_END)
+                        f.write((line + "\n").encode("utf-8"))
+                        f.flush()
+                    finally:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
         if self._chain_integrator is not None:
             self._chain_integrator.record_audit_entry(final_entry)
         return final_entry
+
+    def _repair_tail_locked(self, fh: Any) -> None:
+        """Repair a crash-truncated final line while holding the write lock.
+
+        A complete JSON record without a trailing newline is preserved by
+        adding the missing newline. A genuinely partial/garbage tail is
+        truncated back to the last newline so the next append cannot corrupt
+        the previous record.
+        """
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        if size == 0:
+            return
+
+        pos = size
+        window = 64 * 1024
+        last_newline = -1
+        while pos > 0:
+            start = max(0, pos - window)
+            fh.seek(start)
+            chunk = fh.read(pos - start)
+            index = chunk.rfind(b"\n")
+            if index != -1:
+                last_newline = start + index
+                break
+            pos = start
+
+        tail_start = last_newline + 1
+        fh.seek(tail_start)
+        tail = fh.read(size - tail_start)
+        if not tail:
+            return
+
+        try:
+            data = json.loads(tail.decode("utf-8"))
+            entry = self._entry_from_dict(data) if isinstance(data, dict) else None
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+            entry = None
+
+        if entry is not None and entry.chain_hash:
+            fh.seek(0, os.SEEK_END)
+            fh.write(b"\n")
+            fh.flush()
+            return
+
+        fh.truncate(tail_start)
+        fh.flush()
 
     def _last_chain_hash_from_handle(self, fh) -> str:
         """Read last valid chain_hash from an already-locked file handle."""
@@ -641,10 +701,21 @@ class AuditLogger:
             window = min(size, window * 2)
 
     def _rotate(self) -> None:
-        """Rotate audit log: rename current file, start a new one."""
+        """Rotate audit log. Callers must hold the cross-process write lock."""
+        self._rotate_locked()
+
+    def _rotate_locked(self) -> None:
+        """Rotate audit log with a collision-resistant archive name."""
         assert self._path is not None
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        rotated = self._path.with_name(f"{self._path.stem}_{timestamp}{self._path.suffix}")
+        unique = f"{timestamp}_{os.getpid()}_{time.time_ns()}"
+        rotated = self._path.with_name(f"{self._path.stem}_{unique}{self._path.suffix}")
+        counter = 0
+        while rotated.exists():
+            counter += 1
+            rotated = self._path.with_name(
+                f"{self._path.stem}_{unique}_{counter}{self._path.suffix}"
+            )
         self._path.rename(rotated)
 
     def read_all(self, max_entries: int | None = 1000) -> list[AuditEntry]:

@@ -12,6 +12,7 @@ AuditBus (v0.42.0+) provides a unified interface combining governance,
 GaaS tenant, and recursive-evolution audit. See ``governance/audit_bus.py``.
 """
 
+import fcntl
 import hashlib
 import hmac
 import json
@@ -139,39 +140,43 @@ class SecurityAuditChain:
         if not self._path.exists():
             return ""
         try:
-            size = self._path.stat().st_size
-            if size == 0:
-                return ""
-            window = min(size, 64 * 1024)
-            while True:
-                offset = size - window
-                with open(self._path, "rb") as f:
-                    f.seek(offset)
-                    tail = f.read(window).decode("utf-8", errors="replace")
-                lines = tail.splitlines()
-                # When the window starts mid-file its first line is truncated.
-                if offset > 0 and lines:
-                    lines = lines[1:]
-                for line in reversed(lines):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                        if not isinstance(data, dict):
-                            continue
-                        chain_hash = data.get("chain_hash", "")
-                    except json.JSONDecodeError:
-                        continue
-                    if chain_hash:
-                        return chain_hash
-                if window >= size:
-                    return ""
-                window = min(size, window * 2)
+            with open(self._path, "rb") as f:
+                return self._last_chain_hash_from_handle(f)
         except (OSError, ValueError) as e:
             logger.warning("SecurityAuditChain tail-read failed: %s", e)
             return ""
-        return ""
+
+    def _last_chain_hash_from_handle(self, fh) -> str:
+        """Read the last chain_hash from an already-open file handle."""
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        if size == 0:
+            return ""
+        window = min(size, 64 * 1024)
+        while True:
+            offset = size - window
+            fh.seek(offset)
+            tail = fh.read(window).decode("utf-8", errors="replace")
+            lines = tail.splitlines()
+            # When the window starts mid-file its first line is truncated.
+            if offset > 0 and lines:
+                lines = lines[1:]
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                    if not isinstance(data, dict):
+                        continue
+                    chain_hash = data.get("chain_hash", "")
+                except json.JSONDecodeError:
+                    continue
+                if chain_hash:
+                    return chain_hash
+            if window >= size:
+                return ""
+            window = min(size, window * 2)
 
     def _sign(self, entry: SecurityAuditEntry) -> str:
         if self._hmac_key is None:
@@ -192,21 +197,30 @@ class SecurityAuditChain:
         details: dict[str, Any] | None = None,
     ) -> SecurityAuditEntry:
         """Append a new security audit entry to the chain."""
-        entry = SecurityAuditEntry(
-            entry_id=f"sac_{int(time.time() * 1000)}_{os.getpid()}",
-            timestamp=time.time(),
-            event_type=event_type,
-            actor=actor,
-            action=action,
-            severity=severity,
-            details=details or {},
-            previous_hash=self._last_chain_hash,
-        )
-        entry.chain_hash = self._compute_chain_hash(entry)
-        entry.hmac_signature = self._sign(entry)
-
-        with open(self._path, "a") as f:
-            f.write(json.dumps(entry.to_dict()) + "\n")
+        with open(self._path, "a+b") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                # Read the tail under the lock. A cached self._last_chain_hash
+                # is stale whenever another process (or another instance in
+                # this process) appended since __init__, which forks the chain.
+                previous_hash = self._last_chain_hash_from_handle(f)
+                entry = SecurityAuditEntry(
+                    entry_id=f"sac_{int(time.time() * 1000)}_{os.getpid()}",
+                    timestamp=time.time(),
+                    event_type=event_type,
+                    actor=actor,
+                    action=action,
+                    severity=severity,
+                    details=details or {},
+                    previous_hash=previous_hash,
+                )
+                entry.chain_hash = self._compute_chain_hash(entry)
+                entry.hmac_signature = self._sign(entry)
+                f.seek(0, os.SEEK_END)
+                f.write((json.dumps(entry.to_dict()) + "\n").encode("utf-8"))
+                f.flush()
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
         self._last_chain_hash = entry.chain_hash
         return entry

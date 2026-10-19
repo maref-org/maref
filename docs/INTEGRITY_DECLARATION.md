@@ -33,7 +33,8 @@ v0.39.1 完整实现了三层可验证审计链，任一验证者可在不安装
 
 ### 3.1 链完整性
 每个审计条目包含 `previous_hash` 和 `chain_hash`，形成防篡改的追加日志。  
-**验证**: `scripts/verify_audit_chain.py --audit-file audit.jsonl`  
+**验证**: `scripts/verify_audit_chain.py --audit-file audit.jsonl --allow-unverified`
+（未提供验签密钥时仅检查结构完整性；生产验签应使用下方 `--public-key` / `--hmac-key`。）
 **依赖**: 仅 Python 标准库（hashlib, json）
 
 ### 3.2 Ed25519 签名
