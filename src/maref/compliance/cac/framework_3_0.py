@@ -495,7 +495,9 @@ def coverage_report() -> dict[str, Any]:
         if m.openclaw_only and eff != m.status:
             degraded.append(m.clause)
         by_status[eff] = by_status.get(eff, 0) + 1
-        by_category.setdefault(m.category, {STATUS_COVERED: 0, STATUS_PARTIAL: 0, STATUS_MISSING: 0})
+        by_category.setdefault(
+            m.category, {STATUS_COVERED: 0, STATUS_PARTIAL: 0, STATUS_MISSING: 0}
+        )
         by_category[m.category][eff] = by_category[m.category].get(eff, 0) + 1
 
     total = len(MAPS)
@@ -633,9 +635,7 @@ def verify_module_paths() -> list[str]:
             continue  # 明确声明缺失的条目不计入路径校验失败
         result = verify_mapping(m)
         if not result["ok"]:
-            failures.append(
-                f"{m.clause} {m.module_path}.{m.symbol} ({result['reason']})"
-            )
+            failures.append(f"{m.clause} {m.module_path}.{m.symbol} ({result['reason']})")
     return failures
 
 
@@ -675,9 +675,7 @@ def render_markdown() -> str:
     lines.append("| 状态 | 数量 |")
     lines.append("|---|---|")
     for status in (STATUS_COVERED, STATUS_PARTIAL, STATUS_MISSING):
-        lines.append(
-            f"| {STATUS_LABELS[status]} | {report['by_status'][status]} |"
-        )
+        lines.append(f"| {STATUS_LABELS[status]} | {report['by_status'][status]} |")
     lines.append("")
     lines.append("| 防范措施（附件2 二） | 已覆盖 | 部分覆盖 | 缺失 |")
     lines.append("|---|---|---|---|")
@@ -703,19 +701,13 @@ def render_markdown() -> str:
         lines.append("|---|---|---|---|---|")
         for m in [x for x in MAPS if x.category == cat]:
             eff = effective_status(m)
-            module = (
-                f"`{m.module_path}.{m.symbol}`"
-                if m.module_path
-                else "—"
-            )
+            module = f"`{m.module_path}.{m.symbol}`" if m.module_path else "—"
             req = m.requirement.replace("|", "\\|").replace("\n", " ")
             impl = m.maref_implementation.replace("|", "\\|").replace("\n", " ")
             label = STATUS_LABELS[eff]
             if m.openclaw_only:
                 label += "（依赖闭源模块）"
-            lines.append(
-                f"| {m.clause} | {req} | {impl} | {module} | {label} |"
-            )
+            lines.append(f"| {m.clause} | {req} | {impl} | {module} | {label} |")
     lines.append("")
     lines.append("## 校验")
     lines.append("")

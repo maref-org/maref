@@ -22,6 +22,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from maref.stress.sqi_convergence import SQIConvergenceTracker
+
 from maref.stress.adversarial_test_suite import run_full_adversarial_suite
 from maref.stress.code_service_harness import AgentConfig, CodeServiceHarness
 from maref.stress.code_service_sqi import CodeServiceSQI
@@ -30,7 +32,6 @@ from maref.stress.demo_volc_ark_e2e import (
     demo_q2_dynamic_sqi_weights,
     demo_q3_aggressive_convergence,
 )
-from maref.stress.sqi_convergence import SQIConvergenceTracker
 from maref.stress.volc_ark_benchmark import run_benchmark
 
 

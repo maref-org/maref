@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass
@@ -9,6 +9,22 @@ class CheckActionResult:
     decision: str = "allow"
     reason: str = ""
     risk_score: float = 0.0
+
+
+@dataclass
+class GovernanceDecision:
+    decision: str = "allow"
+    reason: str = ""
+
+
+def check_if_governed(
+    tool_name: str,
+    scope: str = "",
+    risk: str = "low",
+    multi_party: bool = False,
+) -> Optional[GovernanceDecision]:
+    """Phoenix 策略门禁检查（公共仓存根：无闭源策略引擎，恒返回 None 即放行）。"""
+    return None
 
 
 class UnifiedSidecar:

@@ -10,19 +10,18 @@
 
 launchd 定时: 每 2 分钟 (scripts/com.maref.stagnation-watcher.plist)
 """
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 import re
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
@@ -30,6 +29,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 # 可选依赖: easyocr 用于 OCR 相似度
 try:
     import easyocr
+
     HAS_EASYOCR = True
 except ImportError:
     HAS_EASYOCR = False
@@ -37,10 +37,10 @@ except ImportError:
 # 配置常量
 STAGNATION_SIM_THRESHOLD = 0.90
 STAGNATION_MAX_HISTORY = 10  # 保留最近 N 张截图 OCR 文本
-SILENCE_MULTIPLIER = 2       # 静默判定 = 2 × 步时延 (默认步时延 60s → 120s)
-LOOP_K = 3                   # 指纹重复 K 次判循环
-STEP_LATENCY_DEFAULT = 60    # 默认步时延 (秒)
-ALERT_COOLDOWN_S = 21600     # 同类告警 6h 冷却：空闲期 silence 常态误报不挤占 state.alerts
+SILENCE_MULTIPLIER = 2  # 静默判定 = 2 × 步时延 (默认步时延 60s → 120s)
+LOOP_K = 3  # 指纹重复 K 次判循环
+STEP_LATENCY_DEFAULT = 60  # 默认步时延 (秒)
+ALERT_COOLDOWN_S = 21600  # 同类告警 6h 冷却：空闲期 silence 常态误报不挤占 state.alerts
 
 # 状态文件
 STATE_DIR = REPO_ROOT / ".openclaw" / "stagnation_watcher"
@@ -149,11 +149,13 @@ def _check_stagnation(state: dict) -> tuple[bool, str, Path | None]:
     text2 = _ocr_text(shots[1])
     sim = _jaccard_similarity(text1, text2)
 
-    state.setdefault("ocr_history", []).append({
-        "path": str(shots[0]),
-        "text": text1[:200],
-        "ts": _now_iso(),
-    })
+    state.setdefault("ocr_history", []).append(
+        {
+            "path": str(shots[0]),
+            "text": text1[:200],
+            "ts": _now_iso(),
+        }
+    )
     if len(state["ocr_history"]) > STAGNATION_MAX_HISTORY:
         state["ocr_history"] = state["ocr_history"][-STAGNATION_MAX_HISTORY:]
 
@@ -231,11 +233,16 @@ def _record_failure_event(signal: str, detail: str, screenshot: Path | None = No
             sys.executable,
             str(REPO_ROOT / "scripts" / "failure_event_bus.py"),
             "record",
-            "--signal", signal,
-            "--agent", "stagnation_watcher",
-            "--source", "stagnation_watcher",
-            "--signature", f"stagnation_watcher:{signal}:{hashlib.md5(detail.encode()).hexdigest()[:8]}",
-            "--detail", detail,
+            "--signal",
+            signal,
+            "--agent",
+            "stagnation_watcher",
+            "--source",
+            "stagnation_watcher",
+            "--signature",
+            f"stagnation_watcher:{signal}:{hashlib.md5(detail.encode()).hexdigest()[:8]}",
+            "--detail",
+            detail,
             "--auto-screenshot",  # 也会自动归档最近截图
         ]
         if screenshot and screenshot.exists():
@@ -276,8 +283,9 @@ def run_check(step_latency: int = STEP_LATENCY_DEFAULT) -> dict:
     return {"checks": ["stagnation", "silence", "loop"], "alerts": alerts}
 
 
-def _emit_alert(state: dict, alerts: list, type_: str, detail: str,
-                screenshot: Path | None = None) -> None:
+def _emit_alert(
+    state: dict, alerts: list, type_: str, detail: str, screenshot: Path | None = None
+) -> None:
     """告警出⼝：同类告警 6h 冷却（防空闲期 silence 常态误报刷屏）→ 入 failure_event_bus。"""
     cd = state.setdefault("alert_cooldown", {})
     # 冷却键抹平动态数字（秒数等），同类模式共用一个冷却窗
@@ -296,8 +304,12 @@ def _emit_alert(state: dict, alerts: list, type_: str, detail: str,
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="卡死三判据 watcher")
-    parser.add_argument("--step-latency", type=int, default=STEP_LATENCY_DEFAULT,
-                        help="预估步时延(秒)，静默阈值=2×该值")
+    parser.add_argument(
+        "--step-latency",
+        type=int,
+        default=STEP_LATENCY_DEFAULT,
+        help="预估步时延(秒)，静默阈值=2×该值",
+    )
     parser.add_argument("--once", action="store_true", help="单次检查并退出")
     parser.add_argument("--interval", type=int, default=120, help="循环间隔(秒)，配合非 --once")
     args = parser.parse_args()
@@ -312,8 +324,10 @@ def main() -> int:
         while True:
             result = run_check(args.step_latency)
             if result["alerts"]:
-                print(f"[{_now_iso()}] 检出 {len(result['alerts'])} 个卡死信号: "
-                      f"{', '.join(a['type'] for a in result['alerts'])}")
+                print(
+                    f"[{_now_iso()}] 检出 {len(result['alerts'])} 个卡死信号: "
+                    f"{', '.join(a['type'] for a in result['alerts'])}"
+                )
             time.sleep(args.interval)
     except KeyboardInterrupt:
         return 0
