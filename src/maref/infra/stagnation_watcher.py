@@ -240,7 +240,7 @@ def _record_failure_event(signal: str, detail: str, screenshot: Path | None = No
             "--source",
             "stagnation_watcher",
             "--signature",
-            f"stagnation_watcher:{signal}:{hashlib.md5(detail.encode()).hexdigest()[:8]}",
+            f"stagnation_watcher:{signal}:{hashlib.md5(detail.encode(), usedforsecurity=False).hexdigest()[:8]}",
             "--detail",
             detail,
             "--auto-screenshot",  # 也会自动归档最近截图
