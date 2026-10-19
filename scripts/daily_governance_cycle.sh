@@ -11,9 +11,9 @@ LOG_DIR="$REPORTS/daily-logs"
 mkdir -p "$LOG_DIR"
 
 # P2-3 双路径收敛：统一运行时审计路径（与 launchd plist 对齐）
-export MAREF_RUNTIME_DIR="${MAREF_RUNTIME_DIR:-/Volumes/1TB-M2/openclaw}"
-export MAREF_AUDIT_PATH="${MAREF_AUDIT_PATH:-$MAREF_RUNTIME_DIR/.governance}"
-export MAREF_PROJECT_ROOT="${MAREF_PROJECT_ROOT:-$MAREF_RUNTIME_DIR}"
+export MAREF_RUNTIME_DIR="${MAREF_RUNTIME_DIR:-$REPO_ROOT}"
+export MAREF_AUDIT_PATH="${MAREF_AUDIT_PATH:-$REPO_ROOT/.governance}"
+export MAREF_PROJECT_ROOT="${MAREF_PROJECT_ROOT:-$REPO_ROOT}"
 # Overlay tick 需要完整框架 → 优先 project venv (py3.14)
 PY_VENV="$REPO_ROOT/.venv/bin/python3"
 if [ -x "$PY_VENV" ]; then

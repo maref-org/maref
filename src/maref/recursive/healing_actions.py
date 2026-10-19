@@ -43,7 +43,11 @@ from maref.governance.failure_event_bus import mark  # noqa: E402
 
 # Phase 2.3 Reflexion 条件化桥接
 try:
-    from reflexion_bridge import build_reflection_context, check_recurrence, record_reflection  # type: ignore[import-not-found]
+    from reflexion_bridge import (  # type: ignore[import-not-found]
+        build_reflection_context,
+        check_recurrence,
+        record_reflection,
+    )
 except ImportError:
     build_reflection_context = None
     record_reflection = None

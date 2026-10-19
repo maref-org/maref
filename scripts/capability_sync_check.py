@@ -16,9 +16,11 @@ import os
 import sys
 from pathlib import Path
 
-ROOT_OPENCLAW = Path(os.environ.get("OPENCLAW_ROOT") or "/Volumes/1TB-M2/openclaw")
-ROOT_PUBLIC = Path(os.environ.get("PUBLIC_MAREF_ROOT") or "/Volumes/1TB-M2/public/maref")
-MANIFEST = ROOT_OPENCLAW / "scripts" / "capability_manifest.json"
+ROOT_OPENCLAW = Path(os.environ.get("OPENCLAW_ROOT", "")).expanduser()
+ROOT_PUBLIC = Path(
+    os.environ.get("PUBLIC_MAREF_ROOT", str(Path(__file__).resolve().parents[1]))
+)
+MANIFEST = ROOT_OPENCLAW / "scripts" / "capability_manifest.json" if ROOT_OPENCLAW else Path()
 
 
 DEFAULT_MANIFEST = {

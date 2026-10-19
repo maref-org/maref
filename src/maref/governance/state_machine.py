@@ -14,6 +14,7 @@ Key properties:
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import logging
 import os
@@ -24,7 +25,11 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from maref.governance.audit_signer import AuditKeyMissingError, resolve_audit_signer
+from maref.governance.audit_signer import (
+    AuditKeyMissingError,
+    LocalHmacSigner,
+    resolve_audit_signer,
+)
 from maref.governance.constants import (
     ENTROPY_LEVELS as _ENTROPY_LEVELS_INT,
 )
@@ -46,7 +51,12 @@ def _default_audit_log_path() -> Path:
     v0.54 G6: no longer falls back to cwd when parent is missing — that fallback
     let tests escape the MAREF_AUDIT_PATH isolation and pollute the repo root.
     """
-    base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+    try:
+        from maref._paths import get_governance_base
+
+        base = get_governance_base()
+    except Exception:
+        base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance")).resolve()
     candidate = base / "governance_audit.jsonl"
     try:
         candidate.parent.mkdir(parents=True, exist_ok=True)
@@ -57,20 +67,44 @@ def _default_audit_log_path() -> Path:
 
 def _actor_audit_log_path(actor: str) -> Path:
     """Return shard audit log path for a specific actor."""
-    base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+    try:
+        from maref._paths import get_governance_base
+
+        base = get_governance_base()
+    except Exception:
+        base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance")).resolve()
     safe_actor = actor.replace("-", "_").replace("/", "_")
     shard = base / f"governance_audit_{safe_actor}.jsonl"
     return shard
 
 
 def _append_record_locked(fh, record: dict[str, Any]) -> None:
-    """Append a JSON record to an open file handle with POSIX advisory lock."""
-    fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+    """Append a JSON record to an open file handle with POSIX advisory lock.
+
+    Falls back to an unlocked write for non-lockable streams (e.g. stdout).
+    """
+    locked = False
     try:
-        fh.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        locked = True
+    except OSError:
+        pass
+    try:
+        payload = json.dumps(record, ensure_ascii=False, default=str) + "\n"
+        if isinstance(fh, (bytes, bytearray)):  # pragma: no cover - defensive
+            fh.write(payload.encode("utf-8"))
+        else:
+            try:
+                fh.write(payload)
+            except TypeError:
+                fh.write(payload.encode("utf-8"))
         fh.flush()
     finally:
-        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        if locked:
+            try:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
 
 
 def _last_chain_hash(log_path: Path) -> str:
@@ -98,6 +132,34 @@ def _last_chain_hash(log_path: Path) -> str:
             except json.JSONDecodeError:
                 # Only a line truncated at the seek boundary can fail to parse
                 continue
+    except OSError:
+        pass
+    return ""
+
+
+def _last_chain_hash_from_fh(fh) -> str:
+    """Read the last complete record's chain_hash from an open file handle.
+
+    Caller must hold an exclusive lock so that ``previous_hash`` and the
+    subsequent append are atomic across processes.
+    """
+    try:
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        if size == 0:
+            return ""
+        chunk_size = min(size, 65536)
+        fh.seek(size - chunk_size)
+        tail = fh.read(chunk_size).decode("utf-8", errors="replace")
+        for line in reversed(tail.splitlines()):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                prev = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            return prev.get("chain_hash", prev.get("id", ""))
     except OSError:
         pass
     return ""
@@ -155,43 +217,71 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
     signer = resolve_audit_signer()
     log_path = _default_audit_log_path()
     shard_path = _actor_audit_log_path(actor)
+    record: dict[str, Any] | None = None
     try:
-        previous_hash = _last_chain_hash(log_path) if log_path.exists() else ""
+        # Fail closed before creating/opening the audit file: a missing key
+        # must not leave an empty governance_audit.jsonl behind.
+        if isinstance(signer, LocalHmacSigner) and not signer.has_key:
+            raise AuditKeyMissingError("no local HMAC key available")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        # 关键修复（T1.4）：读取 previous_hash 与 append 必须在同一把
+        # 跨进程文件锁内完成，否则并发写入会各自基于旧尾哈希分叉。
+        with open(log_path, "a+b") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                previous_hash = _last_chain_hash_from_fh(f)
 
-        payload = json.dumps(
-            {
-                "id": f"audit_{uuid.uuid4().hex[:8]}",
-                "timestamp": time.time(),
-                "event_type": "state_transition",
-                "actor": actor,
-                "action": f"{event.from_state.name}_to_{event.to_state.name}",
-                "details": event.reason
-                or f"Gray code transition {event.from_state.name} → {event.to_state.name}",
-                "metadata": {
-                    "from_state": event.from_state.name,
-                    "from_state_id": event.from_state.value,
-                    "to_state": event.to_state.name,
-                    "to_state_id": event.to_state.value,
-                    "entropy_before": _ENTROPY_LEVELS.get(event.from_state, 0),
-                    "entropy_after": _ENTROPY_LEVELS.get(event.to_state, 0),
+                payload_dict = {
+                    "id": f"audit_{uuid.uuid4().hex[:8]}",
+                    "timestamp": time.time(),
+                    "event_type": "state_transition",
+                    "actor": actor,
+                    "action": f"{event.from_state.name}_to_{event.to_state.name}",
+                    "details": event.reason
+                    or f"Gray code transition {event.from_state.name} → {event.to_state.name}",
+                    "metadata": {
+                        "from_state": event.from_state.name,
+                        "from_state_id": event.from_state.value,
+                        "to_state": event.to_state.name,
+                        "to_state_id": event.to_state.value,
+                        "entropy_before": _ENTROPY_LEVELS.get(event.from_state, 0),
+                        "entropy_after": _ENTROPY_LEVELS.get(event.to_state, 0),
+                        "previous_hash": previous_hash,
+                    },
                     "previous_hash": previous_hash,
-                },
-                "previous_hash": previous_hash,
-            },
-            ensure_ascii=False,
-            default=str,
-        )
-        # Audit signing — P0-3: local HMAC by default, remote when configured.
-        chain_hash = signer.sign(payload.encode())
+                    # 与 AuditLogger._payload_for_signing 的默认字段对齐，
+                    # 使新记录可被统一验证器校验。
+                    "layer": "governance",
+                }
+                # 与 AuditLogger 的 canonical payload 对齐（sorted keys），
+                # 新记录可被统一验证器直接校验。
+                payload = json.dumps(
+                    payload_dict, sort_keys=True, ensure_ascii=False, default=str
+                )
+                signature = signer.sign(payload.encode())
+                chain_hash = hashlib.sha256(
+                    previous_hash.encode("utf-8") + payload.encode("utf-8")
+                ).hexdigest()
 
-        record = json.loads(payload)
-        record["chain_hash"] = chain_hash
+                record = dict(payload_dict)
+                record["chain_hash"] = chain_hash
+                record["hmac_signature"] = signature
+                record["signature_alg"] = (
+                    "hmac-sha256" if signer.backend_name == "local-hmac" else "external"
+                )
+                record["signer_backend"] = signer.backend_name
 
-        # Global log (backward compatible)
-        with open(log_path, "a") as f:
-            _append_record_locked(f, record)
+                f.seek(0, os.SEEK_END)
+                f.write(
+                    (json.dumps(record, ensure_ascii=False, default=str) + "\n").encode(
+                        "utf-8"
+                    )
+                )
+                f.flush()
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
-        # Per-actor shard (isolation)
+        # Per-actor shard (isolation; duplicate copy, not a separate chain)
         shard_path.parent.mkdir(parents=True, exist_ok=True)
         with open(shard_path, "a") as f:
             _append_record_locked(f, record)
@@ -206,6 +296,14 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
         logger.exception("Audit write failed, falling back to stdout")
         import sys
 
+        if record is None:
+            record = {
+                "event_type": "audit_write_error",
+                "actor": actor,
+                "timestamp": time.time(),
+                "chain_hash": "",
+                "previous_hash": "",
+            }
         _append_record_locked(sys.stdout, record)
 
 

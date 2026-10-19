@@ -27,6 +27,7 @@ from sidecar.collector import MockAgentAdapter, ObservationCollector
 from sidecar.config_router import router as config_router
 from sidecar.federation_router import router as federation_router
 from sidecar.gaas_router import router as gaas_router
+from sidecar.governance_query_router import router as governance_query_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
 from sidecar.monitor import CompositeMonitor
@@ -37,7 +38,6 @@ from sidecar.proposal_router import router as proposal_router
 from sidecar.report_router import router as report_router
 from sidecar.telemetry_router import router as telemetry_router
 from sidecar.vaccine_router import router as vaccine_router
-from sidecar.governance_query_router import router as governance_query_router
 
 _CORS_ORIGINS: list[str] = [
     origin.strip()

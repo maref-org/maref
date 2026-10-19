@@ -186,7 +186,6 @@ src/maref/marketplace/discovery.py
 src/maref/marketplace/skill_bridge.py
 src/maref/opc/telemetry_exporter.py
 src/maref/opc/sanitizer.py
-src/maref/_paths.py
 src/maref/mailer.py
 src/maref/desktop/mcp_client.py
 src/maref/desktop/scrcpy_executor.py

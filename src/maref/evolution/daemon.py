@@ -16,7 +16,10 @@ from typing import Any
 
 # 2026-10-10: bottleneck_diagnosis 为闭源模块（仅 openclaw 含）；公共仓优雅降级
 try:
-    from maref.evolution.bottleneck_diagnosis import allocate_for_channel, diagnose  # type: ignore[import-not-found]
+    from maref.evolution.bottleneck_diagnosis import (  # type: ignore[import-not-found]
+        allocate_for_channel,
+        diagnose,
+    )
 except ImportError:
     def allocate_for_channel(bottleneck: Any) -> dict[str, Any]:
         return {"channel": "default", "budget": 0}
