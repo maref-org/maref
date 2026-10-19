@@ -36,10 +36,8 @@ from maref.recursive.agent_health import PulseWriter
 def _default_audit_base() -> Path:
     """治理审计基目录（绝对路径，委托 _paths SSOT，消除 CWD 依赖）。
 
-    公开仓 maref-org/maref 按 oss-exclude 不含 maref._paths（c1b86a64）→
-    回退 audit_paths._get_base（内部 env 兜底，与 state.py、
-    alert_feedback_tracker 同语义），否则 ModuleNotFoundError 直接把
-    meta-audit-gate 打红（A4 根因）。
+    If an old deployment/cropped tree lacks ``maref._paths``, fall back to
+    audit_paths._get_base (same env precedence) so the monitor still reports.
     """
     try:
         from maref._paths import get_governance_base
@@ -180,6 +178,7 @@ def _write_notification(
     subsystem: str = "meta-monitor",
     dedup_window: float = 600.0,
     check_id: str = "",
+    track: bool = True,
 ) -> None:
     _ensure_dirs()
     ndir = _notifications_dir()
@@ -193,7 +192,11 @@ def _write_notification(
         if mtime > now - dedup_window:
             try:
                 data = json.loads(existing.read_text())
-                if data.get("title") == title and data.get("severity") == severity:
+                if (
+                    data.get("title") == title
+                    and data.get("severity") == severity
+                    and data.get("check_id", "") == check_id
+                ):
                     deduped = True
                     break  # skip duplicate file, but still track the alert
             except (json.JSONDecodeError, OSError):
@@ -215,17 +218,20 @@ def _write_notification(
 
     # Also track via AlertFeedbackTracker for M2 metrics (even when the
     # notification file was deduped, the alert must stay open in the tracker).
-    try:
-        tracker = _get_alert_tracker()
-        tracker.record_alert(
-            name=title,
-            severity=severity,
-            message=message,
-            subsystem=subsystem,
-            check_id=check_id,
-        )
-    except Exception:
-        pass
+    # Informational degraded notices (track=False) stay file-only so they do
+    # not inflate the actionable open-alert/repeat metrics.
+    if track:
+        try:
+            tracker = _get_alert_tracker()
+            tracker.record_alert(
+                name=title,
+                severity=severity,
+                message=message,
+                subsystem=subsystem,
+                check_id=check_id,
+            )
+        except Exception:
+            pass
 
 
 # ── M0: Survivability Assertions ────────────────────────────────────── #
@@ -238,13 +244,23 @@ def check_health_snapshot_freshness(
     """Check that health_snapshot.json exists and is fresh."""
     path = _health_snapshot_path(audit_base)
     if not path.exists():
-        _write_notification("M0 Fail", "critical", f"Health snapshot missing: {path}")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            f"Health snapshot missing: {path}",
+            check_id="health_snapshot_freshness",
+        )
         return {"passed": False, "path": str(path), "age_seconds": None, "detail": "file_missing"}
 
     try:
         mtime = path.stat().st_mtime
     except OSError:
-        _write_notification("M0 Fail", "critical", f"Health snapshot vanished: {path}")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            f"Health snapshot vanished: {path}",
+            check_id="health_snapshot_freshness",
+        )
         return {"passed": False, "path": str(path), "age_seconds": None, "detail": "file_vanished"}
 
     age = time.time() - mtime
@@ -254,6 +270,7 @@ def check_health_snapshot_freshness(
             "M0 Fail",
             "critical",
             f"Health snapshot stale: {age:.0f}s > {max_age:.0f}s max",
+            check_id="health_snapshot_freshness",
         )
     return {
         "passed": passed,
@@ -332,7 +349,12 @@ def check_audit_log_growth(
     newest_path, newest_ts, newest_type = _newest_real_event()
 
     if newest_path is None:
-        _write_notification("M0 Fail", "critical", "No audit log with real events found")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            "No audit log with real events found",
+            check_id="audit_log_growth",
+        )
         return {"passed": False, "detail": "no_real_events"}
 
     age = time.time() - newest_ts
@@ -342,6 +364,7 @@ def check_audit_log_growth(
             "M0 Fail",
             "critical",
             f"Audit log stale: newest={newest_path} event={newest_type} age={age:.0f}s > {max_age:.0f}s",
+            check_id="audit_log_growth",
         )
     return {
         "passed": passed,
@@ -359,13 +382,13 @@ def check_audit_chain_integrity(
     """Verify the tail of the audit chain is unbroken.
 
     Scans the newest ``max_records`` audit entries and verifies that each
-    entry's ``previous_hash`` equals the prior entry's ``chain_hash`` and
-    that the ``chain_hash`` recomputes correctly. Entries without chain
-    fields (e.g. meta-monitor touch markers) are skipped.
+    entry's ``previous_hash`` equals the prior entry's ``chain_hash``.
+    Signature/hash recomputation is done by ``audit_chain_verify`` /
+    ``scripts/verify_audit_chain.py``; M1 stays a cheap linkage check.
 
-    This is a real, end-to-end chain verification (M1.5), not just a path
-    existence check. It deliberately scans the tail (recent provenance)
-    rather than the whole 1.3M-line history so it stays cheap per run.
+    This is a tail linkage check, not full cryptographic verification. It
+    deliberately scans the newest records rather than the whole history so it
+    stays cheap per run; full hash/HMAC verification runs separately.
     """
     base = _audit_log_base(audit_base)
     # Per-actor shards (governance_audit_<actor>.jsonl) duplicate global
@@ -518,6 +541,7 @@ def check_pulse_freshness(
             "critical",
             f"Pulse staleness: {stale}/{total} stale (ratio={stale_ratio}), agents={stale_agents[:5]}",
             subsystem="pulse",
+            check_id="pulse_freshness",
         )
     return {
         "passed": passed,
@@ -562,6 +586,7 @@ def check_hmac_key() -> dict[str, Any]:
             "warning",
             "No audit signing key configured (MAREF_HMAC_SECRET_KEY / "
             "MAREF_ED25519_PRIVATE_KEY / .maraf_hmac_key file)",
+            check_id="hmac_key",
         )
     return {
         "passed": passed,
@@ -747,6 +772,7 @@ def check_managed_agents() -> dict[str, Any]:
             f"Core agent survival rate {core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"threshold={threshold:.0%}, dead: {core_dead}",
             subsystem="agents",
+            check_id="managed_agents",
         )
     elif results["dead"]:
         _write_notification(
@@ -756,6 +782,8 @@ def check_managed_agents() -> dict[str, Any]:
             f"core={core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"dead (non-core): {[l for l in results['dead'] if l not in _CORE_MAREF_AGENTS][:5]}",
             subsystem="agents",
+            check_id="managed_agents",
+            track=False,
         )
     return results
 
@@ -768,10 +796,20 @@ def check_gaas_health() -> dict[str, Any]:
         r = httpx.get(url, timeout=5)
         passed = r.status_code == 200 and r.json().get("status") == "healthy"
         if not passed:
-            _write_notification("M0 Fail", "critical", f"GaaS health check failed: {url}")
+            _write_notification(
+                "M0 Fail",
+                "critical",
+                f"GaaS health check failed: {url}",
+                check_id="gaas_health",
+            )
         return {"passed": passed, "url": url, "status_code": r.status_code, "body": r.text[:200]}
     except Exception as e:
-        _write_notification("M0 Fail", "critical", f"GaaS unreachable: {url} — {e}")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            f"GaaS unreachable: {url} — {e}",
+            check_id="gaas_health",
+        )
         return {"passed": False, "url": url, "error": str(e)}
 
 
@@ -1038,11 +1076,22 @@ def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[s
         resolved += tracker.resolve_by_check("audit_chain_integrity")
 
     staleness = m2.get("notification_staleness", {})
-    if staleness.get("passed", False):
+    if staleness.get("passed", False) and staleness.get("stale_24h", 0) == 0:
         resolved += tracker.resolve_by_check("notification_staleness")
 
     # One-shot migration: close open alerts that predate check_id tracking.
     # Modern alerts all carry a check_id and flow through resolve_by_check.
+    # Legacy M0 alerts have no check_id, so a passing M0 is enough evidence to
+    # close them immediately instead of leaving a 24h false-open window.
+    if m0.get("passed", False):
+        for record in tracker.get_open_alerts():
+            if record.check_id == "" and record.name.startswith("M0 "):
+                if tracker.close_alert(
+                    record.alert_id,
+                    reason="legacy M0 alert superseded by passing check_id-aware M0",
+                    evidence="meta-monitor: M0 passed",
+                ):
+                    resolved += 1
     resolved += tracker.resolve_legacy_open()
     return resolved
 
@@ -1241,6 +1290,7 @@ def check_audit_noise(
             "warning",
             f"审计链 {window_hours:.0f}h 内 {total} 条全为 state_transition，无真实决策/成本事件",
             subsystem="audit-health",
+            check_id="audit_noise",
         )
     return {
         "passed": not polluted,

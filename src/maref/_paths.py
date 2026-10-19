@@ -114,8 +114,8 @@ def get_legacy_audit_paths() -> list[Path]:
     """
     root = get_project_root()
     return [
-        get_audit_log_path(),
-        root / ".governance" / "governance_audit.jsonl",
+        get_governance_base() / "governance_audit.jsonl",
+        get_audit_dir() / "governance_audit.jsonl",
         root / "governance_audit.jsonl",
         Path.cwd() / "governance_audit.jsonl",
         Path.home() / ".claude" / "hooks" / "state" / "governance_audit.jsonl",

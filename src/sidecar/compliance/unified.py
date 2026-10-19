@@ -81,8 +81,8 @@ def _matches(rule: dict[str, Any], tool_name: str, scope: str, risk: str, multi_
     blocked_prefix = match.get("scope_not_prefix")
     if blocked_prefix and scope:
         prefixes = [blocked_prefix] if isinstance(blocked_prefix, str) else list(blocked_prefix)
-        if not any(scope.startswith(str(p)) for p in prefixes):
-            return True
+        if any(scope.startswith(str(p)) for p in prefixes):
+            return False
     return True
 
 

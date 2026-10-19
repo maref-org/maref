@@ -29,6 +29,12 @@ rules:
       multi_party: true
     decision: require_approval
     reason: need approval
+  - name: deny-outside-prod
+    match:
+      tools: [danger_tool]
+      scope_not_prefix: ["/prod/"]
+    decision: deny
+    reason: only outside prod
   - name: allow-read
     match:
       tools: [read_file]
@@ -95,3 +101,10 @@ def test_invalid_yaml_fails_closed_for_high_risk(tmp_path, monkeypatch):
 
 def test_unknown_low_risk_is_ungoverned(policy_file):
     assert unified.check_if_governed("unknown_tool", risk="low") is None
+
+
+def test_scope_not_prefix_excludes_matching_scope(policy_file):
+    assert unified.check_if_governed(
+        "danger_tool", scope="/dev/agent", risk="low"
+    ).decision == "deny"
+    assert unified.check_if_governed("danger_tool", scope="/prod/agent", risk="low") is None

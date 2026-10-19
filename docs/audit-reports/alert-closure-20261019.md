@@ -6,7 +6,7 @@
 - 每条关闭记录都包含 `reason` + `evidence` + 归档文件 SHA-256，ledger 可追溯。
 - 归档前未关闭告警的静默归档漏洞已修复：triage 只关闭“匹配归档标题/时间”的 legacy open alert；当前告警不会被误吞。
 - M4 telemetry 告警曾被误关，已恢复；修复后 M4 告警带 `check_id`，不会再被 legacy 迁移逻辑关闭。
-- 当前 M2：`stale_24h=0`、`stale_72h=0`、open=1（M4 warning，<24h）。
+- 当前 M2（2026-10-19 12:23 快照）：`stale_24h=0`、`stale_72h=0`、open=1（M4 warning，<24h）。
 
 ## 归因结果
 
@@ -54,8 +54,8 @@
 3. 修复 triage：空 `check_id` 只有在标题/时间与归档匹配时才关闭，不再无条件 `resolve_legacy_open`。
 4. 修复 tracker：`resolve_legacy_open()` 只关闭 **>24h** 的 legacy 记录；当前无 `check_id` 的 M4 告警不会被吞。
 5. 修复 M4 通知：`M4 Telemetry Liveness` 写 `check_id=telemetry_liveness`，`M4 Cost Critical` 写 `check_id=high_cost_model_calls`。
-6. 3 条 P0 修复前产生的近期 legacy M0 告警（M0 Fail / M0 Warning / M0 Degraded）以 `superseded by check_id-aware P0 tracking` 关闭，evidence 指向本文档。
-7. 当前唯一 open：`90dbb1cdff06` / `M4 Telemetry Liveness` / `telemetry_liveness`，约 0.1h，属于真实遥测静默，待 P1 恢复 cost bridge 数据源。
+6. 4 条 P0 修复前产生的近期 legacy M0 告警（M0 Fail / M0 Warning / M0 Degraded / M0 Noise Pollution）在 M0 全绿时以 `legacy M0 alert superseded by passing check_id-aware M0` 即时关闭，不再等待 24h。
+7. 当前唯一 open：`90dbb1cdff06` / `M4 Telemetry Liveness` / `telemetry_liveness`，约 0.3h，属于真实遥测静默，待 P1 恢复 cost bridge 数据源。
 
 ## M2 指标
 
@@ -66,11 +66,11 @@
 | `stale_72h` | 0 | 0 | 通过 |
 | `stale_24h` | 0 | ≤3 | 通过 |
 | `open_alerts` | 1 | — | M4 warning |
-| `repeat_rate` | 0.583 | <0.15 | 统计窗口仍包含修复期 11 条重复记录；dedup 已改为“open 告警永远合并”，24h 窗口滚动后应下降 |
-| `recovery_rate` | 0.917 | >0.90 | 通过 |
+| `repeat_rate` | 0.812 | <0.15 | 32 条告警 / 26 条 repeat，窗口仍含修复前每 10 分钟重复建档的记录；24h 滚动后应下降 |
+| `recovery_rate` | 0.969 | >0.90 | 通过（32 条中 31 条已 fixed+verified） |
 | `mttr_hours` | 见报告 | — | 由 `mttr_hours()` 计算 |
 
-> `repeat_rate` 当前未达标是修复窗口的历史残留：同一告警在 10 分钟 dedup 窗口外被重复建档。已修复 `record_alert()` 的 open 去重，后续同一未关闭告警只增加 `repeat_count`，不再新建记录。需 24h 观察确认滚动窗口清零。
+> `repeat_rate` 当前未达标是修复窗口的历史残留：同一告警在 10 分钟 dedup 窗口外被重复建档。已修复 `record_alert()` 的 open 去重，后续同一未关闭告警只增加 `repeat_count`，不再新建记录；非核心 agent 的 M0 Degraded 改为 file-only，不再进入 tracker。需 24h 观察确认滚动窗口清零。
 
 ## 防复发
 
@@ -79,6 +79,8 @@
 - `_write_notification()`：即使通知文件被 dedup，也仍写入 tracker，避免“文件去重导致告警消失”。
 - `_cleanup_notifications()`：只删除已 fixed+verified 的 check_id 通知文件；open 告警文件保留。
 - `resolve_legacy_open()`：只处理 >24h 的 legacy 记录，避免误吞当前告警。
+- M0 全绿时即时关闭无 `check_id` 的历史 M0 告警，避免 24h 假 open 窗口。
+- 非核心 agent 降级只写通知文件（`track=False`），不进入 M2 的 open/repeat 指标。
 - M2 报告新增 `quality_targets`（advisory），显式展示 repeat/recovery 是否达标，不再只用 `passed` 掩盖。
 
 ## 如果此告警系统宕了，谁能发现？

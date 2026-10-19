@@ -265,10 +265,14 @@ def _write_state_transition(event: StateTransition, actor: str = "state_machine"
 
                 record = dict(payload_dict)
                 record["chain_hash"] = chain_hash
-                record["hmac_signature"] = signature
-                record["signature_alg"] = (
-                    "hmac-sha256" if signer.backend_name == "local-hmac" else "external"
-                )
+                if signer.backend_name == "local-hmac":
+                    record["hmac_signature"] = signature
+                    record["signature_alg"] = "hmac-sha256"
+                else:
+                    # Remote signer: keep the signature in its own field so a
+                    # verifier never mistakes it for a local HMAC digest.
+                    record["external_signature"] = signature
+                    record["signature_alg"] = "external"
                 record["signer_backend"] = signer.backend_name
 
                 f.seek(0, os.SEEK_END)

@@ -187,3 +187,16 @@ def test_state_machine_writer_produces_linear_chain(tmp_path, monkeypatch):
     assert report.hash_invalid == []
     assert report.signature_invalid == []
     assert report.formats == {"audit_logger": 5}
+
+
+def test_tampered_hmac_signature_is_detected_with_valid_key(tmp_path):
+    key = b"test-key"
+    p = tmp_path / "audit.jsonl"
+    first = _record("", 1, key)
+    second = _record(first["chain_hash"], 2, key)
+    second["hmac_signature"] = "00" * 32
+    _write(p, [first, second])
+
+    report = verify_audit_chain(p, hmac_key=key)
+    assert len(report.signature_invalid) == 1
+    assert not report.integrity_intact
