@@ -26,13 +26,14 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import sys
 import threading
 import time
 from datetime import datetime
 
-try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+if sys.version_info >= (3, 11):
     from datetime import UTC
-except ImportError:  # pragma: no cover
+else:  # pragma: no cover
     from datetime import timezone
 
     UTC = timezone.utc

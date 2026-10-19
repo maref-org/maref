@@ -36,7 +36,7 @@ jobs:
 
       - name: Reject external openclaw runtime paths
         run: |
-          if grep -rn '/Volumes/1TB-M2/openclaw' src .github scripts \
+          if grep -rnE '/Volumes/[^/]+/openclaw' src .github scripts \
               --include='*.py' --include='*.yml' --include='*.yaml' \
               --include='*.sh' --include='*.plist'; then
             echo "::error::external openclaw path found in runtime code"

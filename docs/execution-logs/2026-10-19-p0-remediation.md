@@ -84,3 +84,12 @@
 
 - 2026-10-20 12:20 读取一次性取证结果，确认 24h 内无 M2 stale/open 回归后关闭观察项。
 - P1：sidecar mypy strict 例外登记；分支保护 S-03（需仓库管理员）。
+
+## CI 基线清欠（2026-10-19 13:3x）
+
+- `scan`：移除 `scripts/` 中 14 处硬编码内部卷绝对路径，数据湖默认改为仓库布局推导，仍可用 `MAREF_GOVERNANCE_LAKE` 覆盖；`d1c-gate` 与 workflow 自扫描模式改为非字面量形式。
+- `gate-security`：旧 v0.51 审计报告改引 `docs/CONSTITUTION.md` + `docs/release-gate.md`，不再引用外部手册作为治理依据。
+- `trivy-scan`：MCP governance-server 升级 `@modelcontextprotocol/sdk` 1.32.1、`proxy-addr` 2.0.8；`http-cache-semantics` 无上游修复，按既有纪律登记 `.trivyignore` 并标注失效条件。
+- `lint`：mypy 81 个基线错误清零（StrEnum/UTC 的 Python 3.10 兼容、可选依赖 stub、Enum 类型收窄、healing 结果字典注解、decommission 空 credential_manager 守卫）。
+- 验证：`ruff check/format`、`mypy`（780 files）、`ci-governance-check.sh` 全通过；相关 93 个测试通过。
+- 观察取证脚本已从临时目录迁移到 `scripts/meta-observation-finalize.sh`，launchd plist 已重载。

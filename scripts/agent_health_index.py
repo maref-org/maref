@@ -30,7 +30,7 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 # 权重配置
 WEIGHTS = {

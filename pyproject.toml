@@ -185,6 +185,7 @@ module = [
     "ApplicationServices",
     "Quartz",
     "gmssl",
+    "easyocr",
     "openai",
     "huggingface_hub",
     "sidecar.claude_mem_adapter",

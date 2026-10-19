@@ -32,7 +32,7 @@ except ImportError:
 
 from maref_config import REPO_DIR
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 
 def _load_obs_events(since_hours: int) -> list[dict]:

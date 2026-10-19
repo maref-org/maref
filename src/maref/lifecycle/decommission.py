@@ -18,9 +18,17 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from typing import Any
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+
+    class StrEnum(str, Enum):
+        __str__ = str.__str__
+
 
 STATUS_PASS = "pass"
 STATUS_FAIL = "fail"
@@ -211,13 +219,23 @@ class Decommissioner:
 
         did = self.did or agent_id
         evidence: dict[str, Any] = {}
+        if self.credential_ids and self.credential_manager is None:
+            return StepResult(
+                step,
+                STATUS_FAIL,
+                "credential_ids 已配置但未注入 credential_manager",
+                evidence,
+            )
         try:
             if self.identity_service is not None:
                 evidence["identity"] = self.identity_service.revoke(
                     did, reason="agent decommission"
                 )
-            for cid in self.credential_ids:
-                evidence[f"credential:{cid}"] = self.credential_manager.revoke(cid, "decommission")
+            if self.credential_manager is not None:
+                for cid in self.credential_ids:
+                    evidence[f"credential:{cid}"] = self.credential_manager.revoke(
+                        cid, "decommission"
+                    )
         except Exception as exc:  # noqa: BLE001 - 编排器需捕获任意协作者异常并留证
             return StepResult(step, STATUS_FAIL, f"撤销异常：{exc}", evidence)
         return StepResult(step, STATUS_PASS, f"已处理 {len(evidence)} 项", evidence)

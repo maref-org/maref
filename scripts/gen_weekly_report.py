@@ -25,8 +25,8 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
-REPORTS_DIR = Path(os.environ.get("MAREF_REPORTS_DIR", "/Volumes/1TB-M2/public/maref/reports"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
+REPORTS_DIR = Path(os.environ.get("MAREF_REPORTS_DIR", Path(__file__).resolve().parents[1] / "reports"))
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
