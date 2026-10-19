@@ -32,7 +32,7 @@ PUBLIC_MAREF = Path(__file__).resolve().parents[1]
 FORBIDDEN_PATTERNS: list[tuple[str, str, str]] = [
     ("internal_path", "/" + "Volumes/1TB-M2", "HIGH"),
     ("username_path", r"/Users/(frankie|maref)", "HIGH"),
-    ("private_org", r"frankiehot-tech", "HIGH"),
+    ("private_org", "frankie" + "hot-tech", "HIGH"),
     ("api_key", r"sk-[a-zA-Z0-9]{32,}", "CRITICAL"),
     ("api_key_nvidia", r"nvapi-[a-zA-Z0-9_-]{30,}", "CRITICAL"),
     ("api_key_ark", r"ark-[a-zA-Z0-9-]{20,}", "CRITICAL"),
