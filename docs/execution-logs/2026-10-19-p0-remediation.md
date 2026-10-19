@@ -52,8 +52,15 @@
 - M4 失败原因：近 24h 无 `cost_event`（cost bridge 数据源静默，非代码缺陷）。M4 告警当前 open（warning，<24h），作为 P1 遥测恢复项。
 - `repeat_rate=0.583` 为修复期 11 条重复记录的历史残留；dedup 已修复，需 24h 滚动窗口验证。
 
+## 24h 观察
+
+- 开始：`2026-10-19T12:12:58+0800`
+- 结束：`2026-10-20T12:12:58+0800`
+- 周期命令：`.venv/bin/python scripts/meta_audit_gate.py --p0`
+- 当前：`m0-m3` PASS；`m4` FAIL（P1 遥测静默，advisory）。
+
 ## 待完成
 
-- 24h 连续观察 M0-M3（launchd 已启动，`--p0` gate 可周期执行）。
+- 完成 24h 连续观察并记录 gate 结果（2026-10-20 12:13 后）。
 - P1：恢复 cost bridge / M4 遥测数据源；sidecar mypy strict 例外登记；分支保护 S-03（需仓库管理员）。
 - 提交 PR（本分支尚未 commit/push）。
