@@ -45,12 +45,14 @@
 ## 当前 meta-monitor
 
 ```json
-{"m0_passed": true, "m1_passed": true, "m2_passed": true, "m3_passed": true, "m4_passed": false, "all_passed": false}
+{"m0_passed": true, "m1_passed": true, "m2_passed": true, "m3_passed": true, "m4_passed": true, "all_passed": true}
 ```
 
-- M0-M3（required）通过；M1 `chain_integrity.passed=true`，`issues=[]`。
-- M4 失败原因：近 24h 无 `cost_event`（cost bridge 数据源静默，非代码缺陷）。M4 告警当前 open（warning，<24h），作为 P1 遥测恢复项。
-- `repeat_rate=0.812`（32 条告警 / 26 条 repeat，24h 窗口），高于 `<0.15` 的目标；原因是窗口仍包含 P0 修复前每 10 分钟重复建档的 24 条记录。`record_alert()` 已改为 open 告警永久合并，非核心 agent 的 M0 Degraded 改为 file-only，不再新增 tracker 记录；需 24h 滚动后复测。
+- M0-M4 全绿；M1 `chain_integrity.passed=true`，`issues=[]`。
+- M4 恢复：`scripts/cost_bridge_claude.py --hours 24` 桥接真实 Claude usage 829 条，`telemetry_liveness.events_24h=829`；launchd `com.maref.cost-bridge` 每 6h 运行。
+- M2：`open_alerts=0`、`stale_24h=0`、`stale_72h=0`、`recovery_rate=1.0`。
+- `repeat_rate=0.739`（23 条告警 / 17 条 repeat，24h 窗口），仍包含 P0 修复前重复建档记录；dedup 已改为 open 告警永久合并，非核心 agent 的 M0 Degraded 改为 file-only，需 24h 滚动后复测。
+- M4 通过后 M2 open 从 1 归零：`_resolve_recovered_checks()` 现在会关闭 `telemetry_liveness` / `high_cost_model_calls`；报告在 auto-close 后重算 M2，避免快照残留旧 open 数。
 
 ## 审查修复（2026-10-19 12:2x）
 
@@ -68,16 +70,17 @@
 - 开始：`2026-10-19T12:12:58+0800`
 - 结束：`2026-10-20T12:12:58+0800`
 - 周期命令：`.venv/bin/python scripts/meta_audit_gate.py --p0`
-- 当前：`m0-m3` PASS；`m4` FAIL（P1 遥测静默，advisory）；M2 open=1（仅 M4）。
-- 2026-10-19 12:23 快照：`stale_24h=0`、`stale_72h=0`、`recovery_rate=0.969`、`repeat_rate=0.812`。
+- 当前：M0-M4 全 PASS；M2 open=0。
+- 2026-10-19 13:14 快照：`stale_24h=0`、`stale_72h=0`、`recovery_rate=1.0`、`repeat_rate=0.739`、`events_24h=829`。
+- 结束取证：已安装一次性 launchd `com.maref.meta-observation-24h`，2026-10-20 12:20 执行 `--all`，输出 `.governance/meta/observation-24h-final.{json,log}`。
 
 ## 分支状态
 
 - 分支：`fix/audit-p0-20261019`，已推送 `origin`。
-- 审查修复已随本分支提交（`meta_monitor` 的 check_id/降级去重、验证器 HMAC 分类、`scope_not_prefix`、path guard、外部 signer、CI 文案）。
-- PR 待创建：`https://github.com/maref-org/maref/pull/new/fix/audit-p0-20261019`
+- 审查修复已随本分支提交（`meta_monitor` 的 check_id/降级去重、M4 恢复自动关警、验证器 HMAC 分类、`scope_not_prefix`、path guard、外部 signer、CI 文案）。
+- PR：`https://github.com/maref-org/maref/pull/425`
 
 ## 待完成
 
-- 完成 24h 连续观察并记录 gate 结果（2026-10-20 12:13 后）。
-- P1：恢复 cost bridge / M4 遥测数据源；sidecar mypy strict 例外登记；分支保护 S-03（需仓库管理员）。
+- 2026-10-20 12:20 读取一次性取证结果，确认 24h 内无 M2 stale/open 回归后关闭观察项。
+- P1：sidecar mypy strict 例外登记；分支保护 S-03（需仓库管理员）。
