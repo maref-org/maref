@@ -474,7 +474,7 @@ def write_readings(readings: list[dict]) -> None:
     # 2. 数据湖 (新版) - 写入 curated/probe_readings 分区
     try:
         import duckdb
-        lake_root = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+        lake_root = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
         curated_dir = lake_root / "curated" / "probe_readings"
         curated_dir.mkdir(parents=True, exist_ok=True)
 

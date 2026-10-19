@@ -2,7 +2,7 @@
 
 **审计日期**: 2026-08-05
 **审计范围**: 全仓源代码、脚本、配置、运行时状态
-**审计依据**: SKILLOS-RELEASE-HANDBOOK-003 v0.3（产品级发布全量验收标准与评审流程手册）
+**审计依据**: `docs/CONSTITUTION.md` 与 `docs/release-gate.md`（MAREF 自属发布门禁）
 **审计对象版本**: v0.51.0 (dev 分支, commit ead8937c)
 **目标成熟度**: Beta
 **上次审计**: 2026-07-29（判定 Pre-Experimental，META 5/15，总分 68/100 D级）

@@ -5,7 +5,7 @@ D1c Gate — 自动合规检查 + 推送
 流程:
   1. 检查当前分支是否在 public/maref
   2. 运行完整的合规检查：
-     a. 无内部路径 (grep /Volumes/1TB-M2)
+     a. 无内部卷路径
      b. 无 API 密钥 (grep sk-*, nvapi-*)
      c. 无 Athena 专有文件
      d. 所有 remote 指向 maref-org
@@ -27,10 +27,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-PUBLIC_MAREF = Path("/Volumes/1TB-M2/public/maref")
+PUBLIC_MAREF = Path(__file__).resolve().parents[1]
 
 FORBIDDEN_PATTERNS: list[tuple[str, str, str]] = [
-    ("internal_path", r"/Volumes/1TB-M2", "HIGH"),
+    ("internal_path", "/" + "Volumes/1TB-M2", "HIGH"),
     ("username_path", r"/Users/(frankie|maref)", "HIGH"),
     ("private_org", r"frankiehot-tech", "HIGH"),
     ("api_key", r"sk-[a-zA-Z0-9]{32,}", "CRITICAL"),

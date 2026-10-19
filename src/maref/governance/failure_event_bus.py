@@ -29,10 +29,11 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
-try:  # py<3.11 无 datetime.UTC（默认 /usr/bin/python3=3.9 兼容）
+if sys.version_info >= (3, 11):
     from datetime import UTC
-except ImportError:  # pragma: no cover
+else:  # pragma: no cover
     from datetime import timezone
 
     UTC = timezone.utc
@@ -269,7 +270,7 @@ def record(
             except OSError as exc:
                 screenshot_ref = f"copy_failed:{type(exc).__name__}"
 
-    rec = {
+    rec: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "event_id": uuid.uuid4().hex[:16],
         "signal": signal,

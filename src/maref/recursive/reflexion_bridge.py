@@ -15,14 +15,15 @@ import sys
 import time
 from datetime import datetime, timedelta
 
-try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+if sys.version_info >= (3, 11):
     from datetime import UTC
-except ImportError:  # pragma: no cover
+else:  # pragma: no cover
     from datetime import timezone
 
     UTC = timezone.utc
 
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 OBS_FILE = ROOT / ".openclaw" / "mem_assets" / "observations.jsonl"
@@ -117,7 +118,7 @@ def search_reflections(
     assets = _load_assets()
     lessons = _load_lessons()
 
-    results = []
+    results: list[dict[str, Any]] = []
 
     # 搜 assets
     for a in assets:

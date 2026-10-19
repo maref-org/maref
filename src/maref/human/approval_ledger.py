@@ -38,7 +38,7 @@ try:  # pragma: no cover - 取决于运行环境是否安装 gmssl
 
     HAS_SM2 = True
 except Exception:  # noqa: BLE001
-    SM2KeyPair = None  # type: ignore[assignment]
+    SM2KeyPair = None  # type: ignore[misc,assignment]
     sm2_sign = None  # type: ignore[assignment]
     sm2_verify = None  # type: ignore[assignment]
     HAS_SM2 = False
@@ -120,7 +120,7 @@ class ApprovalRecord:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ApprovalRecord:
-        known = set(cls.__dataclass_fields__)  # type: ignore[attr-defined]
+        known = set(cls.__dataclass_fields__)
         return cls(**{k: v for k, v in data.items() if k in known})
 
 

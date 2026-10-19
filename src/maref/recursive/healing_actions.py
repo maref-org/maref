@@ -131,7 +131,7 @@ class OCRTextVerifier(Verifier):
             return VerificationResult(False, "ocr_text", "screenshot missing")
         try:
             # 复用 easyocr（本地）
-            import easyocr  # type: ignore[import-not-found]
+            import easyocr
 
             reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
             result = reader.readtext(screenshot, detail=0)
@@ -208,7 +208,7 @@ async def execute_healing(
 ) -> dict[str, Any]:
     """执行自愈动作 + 验证器确认 + Reflexion 条件化（Phase 2.3）。"""
     start = time.time()
-    result = {
+    result: dict[str, Any] = {
         "fp": fp,
         "strategy": strategy.value,
         "success": False,
@@ -272,7 +272,7 @@ async def execute_healing(
 
     # Phase 2.3: 记录反思（自愈完成后）
     if record_reflection:
-        vr = result.get("verification")
+        verification = result.get("verification")
         record_reflection(
             fp=fp,
             failure_class=failure_class,
@@ -281,7 +281,7 @@ async def execute_healing(
             strategy=strategy.value,
             success=result["success"],
             action_log=result["detail"],
-            verification=vr,
+            verification=verification,
         )
 
     # 记录结果到失败事件总线
@@ -318,6 +318,8 @@ async def _replan_action(fp: str, context: dict) -> str:
         import importlib.util
 
         spec = importlib.util.spec_from_file_location("agent_bus", SCRIPTS / "agent_bus.py")
+        if spec is None or spec.loader is None:
+            return "replan publish failed: agent_bus spec unavailable"
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         bus = mod.AgentBus()
@@ -358,6 +360,8 @@ async def _escalate_action(fp: str, sub_class: str, context: dict) -> str:
         import importlib.util
 
         spec = importlib.util.spec_from_file_location("agent_bus", SCRIPTS / "agent_bus.py")
+        if spec is None or spec.loader is None:
+            return "escalate failed: agent_bus spec unavailable"
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         bus = mod.AgentBus()

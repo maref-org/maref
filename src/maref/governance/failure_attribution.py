@@ -17,9 +17,9 @@ import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 
-try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+if sys.version_info >= (3, 11):
     from datetime import UTC
-except ImportError:  # pragma: no cover
+else:  # pragma: no cover
     from datetime import timezone
 
     UTC = timezone.utc
@@ -203,7 +203,7 @@ def _classify_by_visual(text: str, detail: str, grounding: dict | None) -> Attri
                     failure_class="E3",
                     sub_class=sub,
                     root_cause=f"环境阻力-{sub}: 视觉/日志检测到 '{kw}'",
-                    suggested_strategy=cfg["strategy"],
+                    suggested_strategy=str(cfg["strategy"]),
                     confidence=0.85,
                     evidence=evidence,
                 )
@@ -396,7 +396,7 @@ def main() -> int:
             ARTIFACTS = tmp / "failure_artifacts"
 
             # 模拟一条 E3 事件
-            from failure_event_bus import record
+            from maref.governance.failure_event_bus import record
 
             r = record(
                 "failure",
