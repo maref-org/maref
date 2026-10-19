@@ -91,13 +91,11 @@ def _append_record_locked(fh, record: dict[str, Any]) -> None:
         pass
     try:
         payload = json.dumps(record, ensure_ascii=False, default=str) + "\n"
-        if isinstance(fh, (bytes, bytearray)):  # pragma: no cover - defensive
+        try:
+            fh.write(payload)
+        except TypeError:
+            # Binary-mode handle (defensive): write encoded bytes.
             fh.write(payload.encode("utf-8"))
-        else:
-            try:
-                fh.write(payload)
-            except TypeError:
-                fh.write(payload.encode("utf-8"))
         fh.flush()
     finally:
         if locked:
