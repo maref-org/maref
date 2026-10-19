@@ -116,6 +116,9 @@ class GovernanceResult:
     risk_score: float = 0.0
     latency_ms: int = 0
     alternatives: list[Any] = field(default_factory=list)
+    policy_version: str = ""
+    policy_epoch: str = ""
+    evidence_id: str = ""
 
 
 class GovernancePipeline:
@@ -161,6 +164,8 @@ class GovernancePipeline:
         # 未提供时使用 safety_metrics.default_alternatives_for 规则表。
         alternative_provider: Callable[[GovernanceRequest, GovernanceResult], Iterable[Any]]
         | None = None,
+        policy_version: str = "core-pipeline-v1",
+        policy_epoch: str = "",
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
 
@@ -180,6 +185,8 @@ class GovernancePipeline:
         self._budget_breaker = budget_breaker
         self._destructive_gate = destructive_gate
         self._alternative_provider = alternative_provider
+        self._policy_version = policy_version
+        self._policy_epoch = policy_epoch
 
     @staticmethod
     def _default_policy_rules() -> list[
@@ -254,6 +261,10 @@ class GovernancePipeline:
         把动作级拦截升级为可恢复的任务级治理，避免 Verifier Tax 式假安全。
         """
         result = self._govern_impl(req)
+        if not result.policy_version:
+            result.policy_version = self._policy_version
+        if not result.policy_epoch:
+            result.policy_epoch = self._policy_epoch
         if result.verdict == Verdict.DENY:
             provider = self._alternative_provider
             alternatives = (

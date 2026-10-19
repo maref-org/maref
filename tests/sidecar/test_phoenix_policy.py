@@ -12,7 +12,8 @@ def policy_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path = tmp_path / "phoenix_policy.yaml"
     path.write_text(
         """
-version: 1
+version: 2
+epoch: "2026-10-19"
 rules:
   - name: deny-write
     match:
@@ -68,6 +69,8 @@ def test_destructive_tool_denied(policy_file):
     assert decision is not None
     assert decision.decision == "deny"
     assert "write denied" in decision.reason
+    assert decision.policy_version == "2"
+    assert decision.policy_epoch == "2026-10-19"
 
 
 def test_readonly_allowed(policy_file):

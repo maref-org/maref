@@ -83,6 +83,27 @@ def get_legacy_meta_base() -> Path:
     return (get_project_root() / ".openclaw").resolve()
 
 
+def get_memory_base() -> Path:
+    """返回自愈/反思记忆基目录（绝对路径）。
+
+    解析优先级:
+    1. MAREF_MEMORY_PATH 环境变量
+    2. <governance_base>/memory
+
+    历史 ``.openclaw`` 目录仅通过 get_legacy_memory_base() 读取，
+    写入端不得再使用该路径。
+    """
+    env_path = os.environ.get("MAREF_MEMORY_PATH")
+    if env_path:
+        return Path(env_path).resolve()
+    return (get_governance_base() / "memory").resolve()
+
+
+def get_legacy_memory_base() -> Path:
+    """返回历史记忆目录（仅用于迁移期读取，禁止写入）。"""
+    return (get_project_root() / ".openclaw").resolve()
+
+
 def get_audit_dir() -> Path:
     """返回审计目录。
 

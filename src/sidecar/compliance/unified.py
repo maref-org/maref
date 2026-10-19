@@ -21,6 +21,8 @@ class CheckActionResult:
 class GovernanceDecision:
     decision: str = "allow"
     reason: str = ""
+    policy_version: str = ""
+    policy_epoch: str = ""
 
 
 _POLICY_CACHE: dict[tuple[str, int, int], dict[str, Any]] = {}
@@ -101,12 +103,16 @@ def check_if_governed(
     risk_norm = (risk or "low").lower()
     path = _policy_path()
     policy = _load_policy(path)
+    policy_version = str(policy.get("version", ""))
+    policy_epoch = str(policy.get("epoch", ""))
 
     if "_error" in policy:
         if risk_norm in _HIGH_RISK or multi_party:
             return GovernanceDecision(
                 decision="deny",
                 reason=f"Phoenix policy unavailable ({policy['_error']}); fail-closed for high risk",
+                policy_version=policy_version,
+                policy_epoch=policy_epoch,
             )
         return None
 
@@ -121,12 +127,16 @@ def check_if_governed(
         return GovernanceDecision(
             decision=decision,
             reason=str(rule.get("reason") or f"matched Phoenix rule: {rule.get('name', 'unnamed')}"),
+            policy_version=policy_version,
+            policy_epoch=policy_epoch,
         )
 
     if risk_norm in _HIGH_RISK or multi_party:
         return GovernanceDecision(
             decision="deny",
             reason="no Phoenix policy permits this high-risk or multi-party action (fail-closed)",
+            policy_version=policy_version,
+            policy_epoch=policy_epoch,
         )
     return None
 

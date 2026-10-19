@@ -13,6 +13,7 @@
 # require an explicit rule.
 
 version: 1
+epoch: "2026-10-19"
 
 rules:
   - name: deny-destructive-tools

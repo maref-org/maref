@@ -33,16 +33,21 @@ def collect_paths() -> dict[str, Any]:
         _pulses_dir,
         _report_path,
     )
+    from maref.recursive import reflexion_bridge
     from maref.recursive.agent_health import PulseWriter
 
     meta = _paths.get_meta_base()
     governance = _paths.get_governance_base()
+    memory = _paths.get_memory_base()
     writer = HealthSnapshotWriter(interval_seconds=3600)
     pulse = PulseWriter(agent_id="path-guard", interval_seconds=3600)
     return {
         "project_root": str(_paths.get_project_root()),
         "governance_base": str(governance),
         "meta_base": str(meta),
+        "memory_base": str(memory),
+        "reflexion_obs": str(reflexion_bridge.OBS_FILE),
+        "reflexion_lessons": str(reflexion_bridge.LESSONS_FILE),
         "audit_paths_base": str(_get_base()),
         "audit_paths_meta": str(_get_meta_base()),
         "meta_monitor_audit": str(_default_audit_base()),
@@ -56,6 +61,7 @@ def collect_paths() -> dict[str, Any]:
             "MAREF_AUDIT_PATH": os.environ.get("MAREF_AUDIT_PATH", ""),
             "MAREF_META_PATH": os.environ.get("MAREF_META_PATH", ""),
             "MAREF_RUNTIME_DIR": os.environ.get("MAREF_RUNTIME_DIR", ""),
+            "MAREF_MEMORY_PATH": os.environ.get("MAREF_MEMORY_PATH", ""),
         },
     }
 
@@ -64,7 +70,13 @@ def validate_paths(paths: dict[str, Any] | None = None) -> list[str]:
     paths = paths or collect_paths()
     issues: list[str] = []
 
-    for key in ("governance_base", "meta_base", "audit_paths_base", "meta_monitor_audit"):
+    for key in (
+        "governance_base",
+        "meta_base",
+        "memory_base",
+        "audit_paths_base",
+        "meta_monitor_audit",
+    ):
         value = Path(paths[key])
         if not value.is_absolute():
             issues.append(f"{key} is not absolute: {value}")
@@ -95,6 +107,9 @@ def validate_paths(paths: dict[str, Any] | None = None) -> list[str]:
     for key in (
         "governance_base",
         "meta_base",
+        "memory_base",
+        "reflexion_obs",
+        "reflexion_lessons",
         "audit_paths_base",
         "audit_paths_meta",
         "meta_monitor_audit",

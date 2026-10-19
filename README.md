@@ -353,6 +353,7 @@ MAREF's headline claims are testable in-repo — run them yourself:
 | Governance overhead | Reproduce the benchmark | `python benchmarks/governance_overhead.py` (raw output: `benchmarks/results-2026-07-08.txt`) |
 | Evolution convergence (FNR 0.10→0.04) | Read the 200-round archive | `docs/MAREF_200轮递归收敛总结归档报告_20260517.md` |
 | Standards alignment (NIST / EU AI Act) | Read the technical whitepaper | `docs/MAREF-Technical-Whitepaper-arXiv.md` |
+| Enterprise governance ops | Use the Sidecar API / CLI | `docs/governance-operations.md` · `maref governance ops --help` |
 
 ## Real-World Evidence
 
