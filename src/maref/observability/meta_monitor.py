@@ -1053,7 +1053,12 @@ def _cleanup_notifications(max_age_hours: float = 1.0) -> int:
     return removed
 
 
-def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[str, Any]) -> int:
+def _resolve_recovered_checks(
+    m0: dict[str, Any],
+    m1: dict[str, Any],
+    m2: dict[str, Any],
+    m4: dict[str, Any] | None = None,
+) -> int:
     """Auto-close open alerts for checks that are now passing.
 
     This is the feedback loop closure: when a check that previously failed
@@ -1078,6 +1083,11 @@ def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[s
     staleness = m2.get("notification_staleness", {})
     if staleness.get("passed", False) and staleness.get("stale_24h", 0) == 0:
         resolved += tracker.resolve_by_check("notification_staleness")
+
+    m4 = m4 or {}
+    if m4.get("passed", False):
+        resolved += tracker.resolve_by_check("telemetry_liveness")
+        resolved += tracker.resolve_by_check("high_cost_model_calls")
 
     # One-shot migration: close open alerts that predate check_id tracking.
     # Modern alerts all carry a check_id and flow through resolve_by_check.
@@ -1407,7 +1417,6 @@ def run_once(
         audit_base=audit_base,
         notifications_dir=notifications_dir,
     )
-    _write_report(report)
 
     m0 = report.get("m0", {})
     ma = m0.get("checks", {}).get("managed_agents", {})
@@ -1423,6 +1432,7 @@ def run_once(
             report.get("m0", {}),
             report.get("m1", {}),
             report.get("m2", {}),
+            report.get("m4", {}),
         )
         removed = _cleanup_notifications()
         if resolved or removed:
@@ -1430,6 +1440,14 @@ def run_once(
                 "resolved_alerts": resolved,
                 "notifications_removed": removed,
             }
+        if resolved:
+            # The report was computed before auto-closure; refresh M2 so the
+            # persisted snapshot does not claim alerts that were just closed.
+            report["m2"] = check_m2(notifications_dir=notifications_dir)
+            report["summary"]["m2_passed"] = report["m2"]["passed"]
+            report["summary"]["all_passed"] = all(
+                report["summary"][f"m{i}_passed"] for i in range(5)
+            )
     except Exception:
         pass
 
@@ -1454,6 +1472,8 @@ def run_once(
                 subsystem="cost-guard",
                 check_id="telemetry_liveness",
             )
+
+    _write_report(report)
     return report
 
 
