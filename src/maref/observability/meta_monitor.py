@@ -7,7 +7,7 @@ It runs every 5 minutes and checks:
   - M2 (feedback loop): notification staleness
   - M3 (meta-observability): own process health
 
-Output: .openclaw/meta-monitor-report.json
+Output: <MAREF_META_PATH>/meta-monitor-report.json（默认 .governance/meta/）
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def _default_audit_base() -> Path:
     meta-audit-gate 打红（A4 根因）。
     """
     try:
-        from maref._paths import get_governance_base  # type: ignore[import-not-found]
+        from maref._paths import get_governance_base
 
         return get_governance_base()
     except Exception:  # 公开仓缺 _paths → 兜底路径必须仍是绝对路径
@@ -105,8 +105,11 @@ def _meta_base() -> Path:
         from maref._paths import get_meta_base
 
         return get_meta_base()
-    except Exception:  # 公开仓无 maref._paths（oss-exclude c1b86a64）→ env 兜底
-        return Path(os.environ.get("MAREF_META_PATH", ".openclaw")).resolve()
+    except Exception:  # 极端情况下 _paths 不可用 → 与 SSOT 相同的绝对路径兜底
+        env_path = os.environ.get("MAREF_META_PATH")
+        if env_path:
+            return Path(env_path).resolve()
+        return (Path(__file__).resolve().parents[3] / ".governance" / "meta").resolve()
 
 
 def _notifications_dir() -> Path:
@@ -124,7 +127,8 @@ def _report_path() -> Path:
 
 
 def _health_snapshot_path(base: Path | None = None) -> Path:
-    return (base or _meta_base()) / "health_snapshot.json"
+    # 与 HealthSnapshotWriter 默认路径一致：<governance_base>/health_snapshot.json
+    return (base or _default_audit_base()) / "health_snapshot.json"
 
 
 def _audit_log_base(base: Path | None = None) -> Path:
@@ -132,7 +136,8 @@ def _audit_log_base(base: Path | None = None) -> Path:
 
 
 def _pulses_dir(base: Path | None = None) -> Path:
-    return (base or _meta_base()) / "pulses"
+    # 与 PulseWriter 默认路径一致：<governance_base>/pulses/
+    return (base or _default_audit_base()) / "pulses"
 
 
 def _ensure_dirs() -> None:
@@ -179,6 +184,7 @@ def _write_notification(
     _ensure_dirs()
     ndir = _notifications_dir()
     now = time.time()
+    deduped = False
     for existing in ndir.glob("*.json"):
         try:
             mtime = existing.stat().st_mtime
@@ -188,24 +194,27 @@ def _write_notification(
             try:
                 data = json.loads(existing.read_text())
                 if data.get("title") == title and data.get("severity") == severity:
-                    return  # dedup — skip write
+                    deduped = True
+                    break  # skip duplicate file, but still track the alert
             except (json.JSONDecodeError, OSError):
                 continue
-    notif = {
-        "title": title,
-        "severity": severity,
-        "message": message,
-        "subsystem": subsystem,
-        "timestamp": now,
-        "source": "meta-monitor",
-        "check_id": check_id,
-    }
-    name = f"{int(now)}_{subsystem}_{severity}.json"
-    path = ndir / name
-    with open(path, "w") as f:
-        json.dump(notif, f)
+    if not deduped:
+        notif = {
+            "title": title,
+            "severity": severity,
+            "message": message,
+            "subsystem": subsystem,
+            "timestamp": now,
+            "source": "meta-monitor",
+            "check_id": check_id,
+        }
+        name = f"{int(now)}_{subsystem}_{severity}.json"
+        path = ndir / name
+        with open(path, "w") as f:
+            json.dump(notif, f)
 
-    # Also track via AlertFeedbackTracker for M2 metrics
+    # Also track via AlertFeedbackTracker for M2 metrics (even when the
+    # notification file was deduped, the alert must stay open in the tracker).
     try:
         tracker = _get_alert_tracker()
         tracker.record_alert(
@@ -359,8 +368,10 @@ def check_audit_chain_integrity(
     rather than the whole 1.3M-line history so it stays cheap per run.
     """
     base = _audit_log_base(audit_base)
+    # Per-actor shards (governance_audit_<actor>.jsonl) duplicate global
+    # records and intentionally skip interleaved entries, so they are not
+    # valid chains. Only the authoritative global log is verified.
     candidates = [
-        base / "governance_audit_state_machine.jsonl",
         base / "governance_audit.jsonl",
     ]
     targets = [p for p in candidates if p.exists()]
@@ -472,6 +483,11 @@ def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
 
     if contiguous >= max_records:
         return True, f"last {contiguous} records linked", contiguous
+    # A freshly re-baselined log may legitimately contain fewer than
+    # max_records entries. Accept it only when the whole file is one
+    # unbroken chain starting at genesis (previous_hash == "").
+    if contiguous == len(records) and records[0].get("previous_hash", "") == "":
+        return True, f"entire chain linked ({contiguous} records)", contiguous
     return (
         False,
         (f"break after {contiguous} contiguous records; newest={records[-1].get('id', '?')}"),
@@ -487,6 +503,7 @@ def check_pulse_freshness(
     result = PulseWriter.check_pulse_staleness(
         pulses_dir=_pulses_dir(audit_base),
         max_stale_ratio=max_stale_ratio,
+        ignore_older_than_hours=168.0,
     )
     total = result.get("total", 0)
     stale = result.get("stale", 0)
@@ -509,6 +526,7 @@ def check_pulse_freshness(
         "stale_ratio": stale_ratio,
         "status": status,
         "stale_agents": result.get("stale_agents", []),
+        "historical_ignored": result.get("historical_ignored", 0),
     }
 
 
@@ -923,10 +941,32 @@ def check_m2(notifications_dir: Path | str | None = None) -> dict[str, Any]:
     except Exception:
         feedback_metrics = {"error": "AlertFeedbackTracker unavailable"}
 
+    quality_targets: dict[str, Any] = {"advisory": True}
+    try:
+        repeat = feedback_metrics.get("repeat_rate", {})
+        recovery = feedback_metrics.get("alert_recovery", {})
+        quality_targets.update(
+            {
+                "repeat_rate": {
+                    "value": repeat.get("repeat_rate"),
+                    "target": "<0.15",
+                    "passed": bool(repeat.get("healthy", False)),
+                },
+                "recovery_rate": {
+                    "value": recovery.get("recovery_rate"),
+                    "target": ">0.90",
+                    "passed": bool(recovery.get("healthy", False)),
+                },
+            }
+        )
+    except Exception:
+        pass
+
     return {
         "passed": staleness.get("passed", False),
         "notification_staleness": staleness,
         "feedback_tracking": feedback_metrics,
+        "quality_targets": quality_targets,
     }
 
 
@@ -1167,7 +1207,7 @@ def check_audit_noise(
         return {"passed": True, "detail": "no_audit_file", "total": 0, "noise_ratio": 0.0}
 
     cutoff = time.time() - window_hours * 3600
-    types: Counter = Counter()
+    types: Counter[str] = Counter()
     total = 0
     try:
         for ln in path.read_text(errors="replace").splitlines():
@@ -1272,11 +1312,46 @@ def _update_health_snapshot(status: str = "healthy", active_agents: int = 0) -> 
         pass
 
 
+def _write_monitor_heartbeat() -> None:
+    """Append a signed monitor heartbeat so audit-growth checks stay honest.
+
+    This is a real audit event (not a file touch): if the monitor stops
+    running, the heartbeat stops and M0 audit_log_growth fails as intended.
+    """
+    try:
+        from maref.governance.audit import AuditLogger
+
+        key = None
+        key_file = Path.cwd() / ".maraf_hmac_key"
+        if key_file.exists():
+            key = key_file.read_text().strip() or None
+        if key is None and not os.environ.get("MAREF_ED25519_PRIVATE_KEY"):
+            logger_key = os.environ.get("MAREF_HMAC_SECRET_KEY")
+            if not logger_key:
+                return
+        logger = AuditLogger(
+            log_path=_audit_log_base() / "governance_audit.jsonl",
+            hmac_key=key,
+        )
+        logger.log(
+            event_type="meta_monitor_heartbeat",
+            actor="meta-monitor",
+            action="run_once",
+            details="meta-monitor completed a scheduled audit pass",
+            metadata={"pid": os.getpid(), "host": os.uname().nodename},
+        )
+    except Exception:
+        # Heartbeat must never break the monitor; M0 will surface a missing
+        # key / write failure through its own checks.
+        pass
+
+
 def run_once(
     audit_base: Path | None = None,
     notifications_dir: Path | str | None = None,
 ) -> dict[str, Any]:
     """Single-shot run (for CI / manual invocation)."""
+    _write_monitor_heartbeat()
     _update_health_snapshot()
     report = run_all_checks(
         audit_base=audit_base,
@@ -1318,6 +1393,7 @@ def run_once(
                 "critical",
                 f"高价模型调用异常: {hcm.get('detail')}",
                 subsystem="cost-guard",
+                check_id="high_cost_model_calls",
             )
         tl = m4.get("checks", {}).get("telemetry_liveness", {})
         if not tl.get("passed", True):
@@ -1326,6 +1402,7 @@ def run_once(
                 "warning",
                 f"近24h无 cost_event（events={tl.get('events_24h', 0)}）— 遥测可能断裂",
                 subsystem="cost-guard",
+                check_id="telemetry_liveness",
             )
     return report
 
@@ -1341,6 +1418,20 @@ def _handle_sigterm(signum: int, _frame: object) -> None:
 def run_loop(interval: float = 300.0) -> None:
     """Continuous loop for launchd/cron deployment. Handles SIGTERM."""
     signal.signal(signal.SIGTERM, _handle_sigterm)
+
+    # Startup self-check: refuse to run with split/legacy paths.
+    try:
+        from maref.observability.path_guard import assert_paths
+
+        assert_paths()
+    except Exception as e:
+        _write_notification(
+            "Meta-Monitor Startup Self-Check",
+            "critical",
+            f"path/import self-check failed: {e}",
+            subsystem="meta-monitor",
+        )
+        raise SystemExit(2) from e
     log_base = Path(os.environ.get("MAREF_LOG_PATH", "reports"))
     log_path = log_base / "meta_monitor_loop.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)

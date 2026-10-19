@@ -13,13 +13,14 @@ v0.38.0+: Ed25519 signing for offline-verifiable audit chain.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import hmac
 import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -516,9 +517,9 @@ class AuditLogger:
         import uuid
 
         now = time.time()
+        # 文件模式的 previous_hash 必须在 _write 的跨进程文件锁内读取；
+        # 此处只处理纯内存模式，避免锁外读到的尾哈希过期导致分叉。
         previous_hash = self._memory_entries[-1].chain_hash if self._memory_entries else ""
-        if self._path is not None and self._path.exists() and not self._memory_entries:
-            previous_hash = self._last_chain_hash_from_file()
         entry = AuditEntry(
             id=uuid.uuid4().hex[:8],
             timestamp=now,
@@ -576,38 +577,68 @@ class AuditLogger:
         )
 
     def _write(self, entry: AuditEntry) -> AuditEntry:
-        signed_entry = self._entry_with_signature(entry)
-        chain_hash = self._compute_chain_hash(signed_entry)
-        final_entry = AuditEntry(
-            id=signed_entry.id,
-            timestamp=signed_entry.timestamp,
-            event_type=signed_entry.event_type,
-            actor=signed_entry.actor,
-            action=signed_entry.action,
-            details=signed_entry.details,
-            metadata=signed_entry.metadata,
-            parent_action_id=signed_entry.parent_action_id,
-            previous_hash=signed_entry.previous_hash,
-            chain_hash=chain_hash,
-            hmac_signature=signed_entry.hmac_signature,
-            ed25519_signature=signed_entry.ed25519_signature,
-            signer_fingerprint=signed_entry.signer_fingerprint,
-            tenant_id=signed_entry.tenant_id,
-            layer=signed_entry.layer,
-            round=signed_entry.round,
-        )
-        if self._chain_integrator is not None:
-            self._chain_integrator.record_audit_entry(final_entry)
         if self._path is None:
+            signed_entry = self._entry_with_signature(entry)
+            chain_hash = self._compute_chain_hash(signed_entry)
+            final_entry = replace(signed_entry, chain_hash=chain_hash)
             self._memory_entries.append(final_entry)
+            if self._chain_integrator is not None:
+                self._chain_integrator.record_audit_entry(final_entry)
             return final_entry
+
         self._path.parent.mkdir(parents=True, exist_ok=True)
         if self._path.exists() and self._path.stat().st_size >= self._max_file_size:
             self._rotate()
-        line = json.dumps(final_entry.to_dict(), ensure_ascii=False, default=str)
-        with self._write_lock, open(self._path, "a") as f:
-            f.write(line + "\n")
+
+        # 关键修复（T1.4）：读取链尾 + 签名 + append 在同一把跨进程
+        # 文件锁内完成，消除并发写入导致的 previous_hash 分叉。
+        with self._write_lock, open(self._path, "a+b") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                previous_hash = self._last_chain_hash_from_handle(f)
+                locked_entry = replace(entry, previous_hash=previous_hash)
+                signed_entry = self._entry_with_signature(locked_entry)
+                chain_hash = self._compute_chain_hash(signed_entry)
+                final_entry = replace(signed_entry, chain_hash=chain_hash)
+                line = json.dumps(final_entry.to_dict(), ensure_ascii=False, default=str)
+                f.seek(0, os.SEEK_END)
+                f.write((line + "\n").encode("utf-8"))
+                f.flush()
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+        if self._chain_integrator is not None:
+            self._chain_integrator.record_audit_entry(final_entry)
         return final_entry
+
+    def _last_chain_hash_from_handle(self, fh) -> str:
+        """Read last valid chain_hash from an already-locked file handle."""
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        if size == 0:
+            return ""
+        window = min(size, 64 * 1024)
+        while True:
+            offset = size - window
+            fh.seek(offset)
+            chunk = fh.read(window).decode("utf-8", errors="replace")
+            lines = chunk.splitlines()
+            if offset > 0 and lines:
+                lines = lines[1:]
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                entry = self._entry_from_dict(data)
+                if entry is not None and entry.chain_hash:
+                    return entry.chain_hash
+            if window >= size:
+                return ""
+            window = min(size, window * 2)
 
     def _rotate(self) -> None:
         """Rotate audit log: rename current file, start a new one."""

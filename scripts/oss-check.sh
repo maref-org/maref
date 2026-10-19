@@ -90,6 +90,21 @@ if [ $? -ne 0 ]; then
 fi
 
 HIT=0
+
+# 关键运行时文件被删断言（2026-10-19 审计 P0）:
+# _paths.py 曾因误列入排除清单而在 OSS 裁剪中删除，导致 meta-monitor 导入即崩溃。
+REQUIRED_RUNTIME_FILES=(
+  src/maref/_paths.py
+  src/maref/observability/path_guard.py
+  src/maref/governance/audit_chain_verify.py
+)
+for req in "${REQUIRED_RUNTIME_FILES[@]}"; do
+  if ! grep -qxF "$req" <<< "$FILES"; then
+    echo -e "  ${RED}✗${NC} 关键运行时文件缺失: $req" >&2
+    HIT=$((HIT + 1))
+  fi
+done
+
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   matched=0
