@@ -16,14 +16,15 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+REPO_ROOT = Path(__file__).resolve().parents[1]
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 # 源文件路径
-AUDIT_LOG = Path("/Volumes/1TB-M2/public/maref/.governance/governance_audit.jsonl")
-RECURSIVE_LOG = Path("/Volumes/1TB-M2/public/maref/recursive_governance_audit.jsonl")
+AUDIT_LOG = REPO_ROOT / ".governance/governance_audit.jsonl"
+RECURSIVE_LOG = REPO_ROOT / "recursive_governance_audit.jsonl"
 OBS_DIR = Path.home() / ".maref" / "obs"
-TELEMETRY_ROOT = Path("/Volumes/1TB-M2/public/maref/data/telemetry")
-PROBE_DB = Path("/Volumes/1TB-M2/public/maref/governance_observations.db")
+TELEMETRY_ROOT = REPO_ROOT / "data/telemetry"
+PROBE_DB = REPO_ROOT / "governance_observations.db"
 
 
 def _ts_to_date(ts: float) -> str:

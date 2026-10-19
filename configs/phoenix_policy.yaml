@@ -1,0 +1,74 @@
+# Phoenix policy gate for MCP tool calls.
+#
+# Semantics:
+# - Rules are evaluated top to bottom; the first match wins.
+# - A low-risk action with no matching rule is outside the policy domain
+#   (check_if_governed returns None).
+# - A high/critical-risk or multi-party action with no matching rule is
+#   denied (fail-closed), including when this file is missing or invalid.
+# - Allowed decisions: allow | deny | require_approval
+#
+# Keep this list conservative: destructive and credential-adjacent tools are
+# denied by default, read-only tools are allowed, and high-risk actions
+# require an explicit rule.
+
+version: 1
+
+rules:
+  - name: deny-destructive-tools
+    match:
+      tools:
+        - write_file
+        - edit_file
+        - delete_file
+        - move_file
+        - execute_shell
+        - bash
+        - shell
+        - kubectl
+        - docker
+        - git_push
+        - git_force_push
+        - deploy
+        - install
+        - uninstall
+        - credential_write
+        - secret_read
+        - secret_write
+    decision: deny
+    reason: destructive or credential-adjacent tool denied by Phoenix policy
+
+  - name: deny-multi-party-without-approval
+    match:
+      multi_party: true
+    decision: require_approval
+    reason: multi-party action requires explicit approval
+
+  - name: deny-high-risk
+    match:
+      risk:
+        - high
+        - critical
+    decision: deny
+    reason: high-risk action denied without an explicit allow rule
+
+  - name: allow-readonly
+    match:
+      tools:
+        - read_file
+        - read
+        - list_dir
+        - list
+        - glob
+        - grep
+        - search
+        - webfetch
+        - web_search
+        - get_*
+        - describe_*
+        - inspect_*
+      risk:
+        - low
+        - medium
+    decision: allow
+    reason: read-only action allowed by Phoenix policy

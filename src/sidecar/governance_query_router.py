@@ -13,15 +13,14 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 try:
-    import duckdb
+    import duckdb  # type: ignore[import-not-found]
     DUCKDB_AVAILABLE = True
 except ImportError:
     DUCKDB_AVAILABLE = False
@@ -137,10 +136,11 @@ def _execute_query(sql: str, params: dict, limit: int) -> tuple[list[str], list[
             sql = f"{sql.rstrip(';')} LIMIT {limit}"
 
         # 参数化查询
-        if params:
-            result = conn.execute(sql, params).fetchall()
-        else:
-            result = conn.execute(sql).fetchall()
+        result = (
+            conn.execute(sql, params).fetchall()
+            if params
+            else conn.execute(sql).fetchall()
+        )
 
         columns = [desc[0] for desc in conn.description] if conn.description else []
         truncated = len(result) >= limit
@@ -165,7 +165,9 @@ async def governance_query(request: QueryRequest) -> QueryResponse:
     try:
         columns, rows, truncated = _execute_query(request.sql, request.params, request.limit)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query execution failed: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Query execution failed: {e}"
+        ) from e
 
     exec_time = (time.perf_counter() - start) * 1000
 
@@ -220,7 +222,7 @@ async def get_table_schema(table_name: str) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="DuckDB not available")
 
     path = _get_table_path(table_name)
-    if not path.exists():
+    if path is None or not path.exists():
         raise HTTPException(status_code=404, detail=f"Table data not found: {table_name}")
 
     glob_path = _build_glob_path(table_name)
@@ -232,7 +234,9 @@ async def get_table_schema(table_name: str) -> dict[str, Any]:
         conn.close()
         return {"table": table_name, "columns": columns}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Schema inference failed: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Schema inference failed: {e}"
+        ) from e
 
 
 @router.get("/tables/{table_name}/preview")
@@ -271,7 +275,7 @@ async def preview_table(
             "truncated": truncated,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Preview failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Preview failed: {e}") from e
 
 
 # 常用查询模板端点

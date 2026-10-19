@@ -21,7 +21,15 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime
+
+try:  # py<3.11 无 datetime.UTC（meta-audit-gate 跑 python3.10 / 系统 python3=3.9 兼容）
+    from datetime import UTC  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover
+    from datetime import timezone
+
+    UTC = timezone.utc
+
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -35,7 +43,11 @@ from maref.governance.failure_event_bus import mark  # noqa: E402
 
 # Phase 2.3 Reflexion 条件化桥接
 try:
-    from reflexion_bridge import build_reflection_context, check_recurrence, record_reflection
+    from reflexion_bridge import (  # type: ignore[import-not-found]
+        build_reflection_context,
+        check_recurrence,
+        record_reflection,
+    )
 except ImportError:
     build_reflection_context = None
     record_reflection = None
@@ -196,7 +208,7 @@ async def execute_healing(
 ) -> dict[str, Any]:
     """执行自愈动作 + 验证器确认 + Reflexion 条件化（Phase 2.3）。"""
     start = time.time()
-    result = {
+    result: dict[str, Any] = {
         "fp": fp,
         "strategy": strategy.value,
         "success": False,
@@ -260,7 +272,7 @@ async def execute_healing(
 
     # Phase 2.3: 记录反思（自愈完成后）
     if record_reflection:
-        vr = result.get("verification")
+        verification = result.get("verification")
         record_reflection(
             fp=fp,
             failure_class=failure_class,
@@ -269,7 +281,7 @@ async def execute_healing(
             strategy=strategy.value,
             success=result["success"],
             action_log=result["detail"],
-            verification=vr,
+            verification=verification,
         )
 
     # 记录结果到失败事件总线
@@ -306,6 +318,8 @@ async def _replan_action(fp: str, context: dict) -> str:
         import importlib.util
 
         spec = importlib.util.spec_from_file_location("agent_bus", SCRIPTS / "agent_bus.py")
+        if spec is None or spec.loader is None:
+            return "replan publish failed: agent_bus spec unavailable"
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         bus = mod.AgentBus()
@@ -346,6 +360,8 @@ async def _escalate_action(fp: str, sub_class: str, context: dict) -> str:
         import importlib.util
 
         spec = importlib.util.spec_from_file_location("agent_bus", SCRIPTS / "agent_bus.py")
+        if spec is None or spec.loader is None:
+            return "escalate failed: agent_bus spec unavailable"
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         bus = mod.AgentBus()

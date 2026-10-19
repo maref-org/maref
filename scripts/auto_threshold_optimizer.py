@@ -31,7 +31,7 @@ except ImportError:
 
 from maref_config import config_path, PROBE_DB
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 # 当前默认阈值 (作为基线)
 BASELINE_THRESHOLDS = {

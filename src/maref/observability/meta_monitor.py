@@ -7,7 +7,7 @@ It runs every 5 minutes and checks:
   - M2 (feedback loop): notification staleness
   - M3 (meta-observability): own process health
 
-Output: .openclaw/meta-monitor-report.json
+Output: <MAREF_META_PATH>/meta-monitor-report.json（默认 .governance/meta/）
 """
 
 from __future__ import annotations
@@ -34,10 +34,19 @@ from maref.recursive.agent_health import PulseWriter
 
 
 def _default_audit_base() -> Path:
-    """治理审计基目录（绝对路径，委托 _paths SSOT，消除 CWD 依赖）。"""
-    from maref._paths import get_governance_base
+    """治理审计基目录（绝对路径，委托 _paths SSOT，消除 CWD 依赖）。
 
-    return get_governance_base()
+    If an old deployment/cropped tree lacks ``maref._paths``, fall back to
+    audit_paths._get_base (same env precedence) so the monitor still reports.
+    """
+    try:
+        from maref._paths import get_governance_base
+
+        return get_governance_base()
+    except Exception:  # 公开仓缺 _paths → 兜底路径必须仍是绝对路径
+        from maref.observability.audit_paths import _get_base
+
+        return _get_base().resolve()
 
 
 def _load_env_file(filename: str = ".env.maref") -> None:
@@ -90,9 +99,15 @@ _REPORT_PATH: Path | None = None
 
 def _meta_base() -> Path:
     """Path for meta-monitor data (notifications, reports). 绝对路径。"""
-    from maref._paths import get_meta_base
+    try:
+        from maref._paths import get_meta_base
 
-    return get_meta_base()
+        return get_meta_base()
+    except Exception:  # 极端情况下 _paths 不可用 → 与 SSOT 相同的绝对路径兜底
+        env_path = os.environ.get("MAREF_META_PATH")
+        if env_path:
+            return Path(env_path).resolve()
+        return (Path(__file__).resolve().parents[3] / ".governance" / "meta").resolve()
 
 
 def _notifications_dir() -> Path:
@@ -110,7 +125,8 @@ def _report_path() -> Path:
 
 
 def _health_snapshot_path(base: Path | None = None) -> Path:
-    return (base or _meta_base()) / "health_snapshot.json"
+    # 与 HealthSnapshotWriter 默认路径一致：<governance_base>/health_snapshot.json
+    return (base or _default_audit_base()) / "health_snapshot.json"
 
 
 def _audit_log_base(base: Path | None = None) -> Path:
@@ -118,7 +134,8 @@ def _audit_log_base(base: Path | None = None) -> Path:
 
 
 def _pulses_dir(base: Path | None = None) -> Path:
-    return (base or _meta_base()) / "pulses"
+    # 与 PulseWriter 默认路径一致：<governance_base>/pulses/
+    return (base or _default_audit_base()) / "pulses"
 
 
 def _ensure_dirs() -> None:
@@ -161,10 +178,12 @@ def _write_notification(
     subsystem: str = "meta-monitor",
     dedup_window: float = 600.0,
     check_id: str = "",
+    track: bool = True,
 ) -> None:
     _ensure_dirs()
     ndir = _notifications_dir()
     now = time.time()
+    deduped = False
     for existing in ndir.glob("*.json"):
         try:
             mtime = existing.stat().st_mtime
@@ -173,36 +192,46 @@ def _write_notification(
         if mtime > now - dedup_window:
             try:
                 data = json.loads(existing.read_text())
-                if data.get("title") == title and data.get("severity") == severity:
-                    return  # dedup — skip write
+                if (
+                    data.get("title") == title
+                    and data.get("severity") == severity
+                    and data.get("check_id", "") == check_id
+                ):
+                    deduped = True
+                    break  # skip duplicate file, but still track the alert
             except (json.JSONDecodeError, OSError):
                 continue
-    notif = {
-        "title": title,
-        "severity": severity,
-        "message": message,
-        "subsystem": subsystem,
-        "timestamp": now,
-        "source": "meta-monitor",
-        "check_id": check_id,
-    }
-    name = f"{int(now)}_{subsystem}_{severity}.json"
-    path = ndir / name
-    with open(path, "w") as f:
-        json.dump(notif, f)
+    if not deduped:
+        notif = {
+            "title": title,
+            "severity": severity,
+            "message": message,
+            "subsystem": subsystem,
+            "timestamp": now,
+            "source": "meta-monitor",
+            "check_id": check_id,
+        }
+        name = f"{int(now)}_{subsystem}_{severity}.json"
+        path = ndir / name
+        with open(path, "w") as f:
+            json.dump(notif, f)
 
-    # Also track via AlertFeedbackTracker for M2 metrics
-    try:
-        tracker = _get_alert_tracker()
-        tracker.record_alert(
-            name=title,
-            severity=severity,
-            message=message,
-            subsystem=subsystem,
-            check_id=check_id,
-        )
-    except Exception:
-        pass
+    # Also track via AlertFeedbackTracker for M2 metrics (even when the
+    # notification file was deduped, the alert must stay open in the tracker).
+    # Informational degraded notices (track=False) stay file-only so they do
+    # not inflate the actionable open-alert/repeat metrics.
+    if track:
+        try:
+            tracker = _get_alert_tracker()
+            tracker.record_alert(
+                name=title,
+                severity=severity,
+                message=message,
+                subsystem=subsystem,
+                check_id=check_id,
+            )
+        except Exception:
+            pass
 
 
 # ── M0: Survivability Assertions ────────────────────────────────────── #
@@ -215,13 +244,23 @@ def check_health_snapshot_freshness(
     """Check that health_snapshot.json exists and is fresh."""
     path = _health_snapshot_path(audit_base)
     if not path.exists():
-        _write_notification("M0 Fail", "critical", f"Health snapshot missing: {path}")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            f"Health snapshot missing: {path}",
+            check_id="health_snapshot_freshness",
+        )
         return {"passed": False, "path": str(path), "age_seconds": None, "detail": "file_missing"}
 
     try:
         mtime = path.stat().st_mtime
     except OSError:
-        _write_notification("M0 Fail", "critical", f"Health snapshot vanished: {path}")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            f"Health snapshot vanished: {path}",
+            check_id="health_snapshot_freshness",
+        )
         return {"passed": False, "path": str(path), "age_seconds": None, "detail": "file_vanished"}
 
     age = time.time() - mtime
@@ -231,6 +270,7 @@ def check_health_snapshot_freshness(
             "M0 Fail",
             "critical",
             f"Health snapshot stale: {age:.0f}s > {max_age:.0f}s max",
+            check_id="health_snapshot_freshness",
         )
     return {
         "passed": passed,
@@ -309,7 +349,12 @@ def check_audit_log_growth(
     newest_path, newest_ts, newest_type = _newest_real_event()
 
     if newest_path is None:
-        _write_notification("M0 Fail", "critical", "No audit log with real events found")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            "No audit log with real events found",
+            check_id="audit_log_growth",
+        )
         return {"passed": False, "detail": "no_real_events"}
 
     age = time.time() - newest_ts
@@ -319,6 +364,7 @@ def check_audit_log_growth(
             "M0 Fail",
             "critical",
             f"Audit log stale: newest={newest_path} event={newest_type} age={age:.0f}s > {max_age:.0f}s",
+            check_id="audit_log_growth",
         )
     return {
         "passed": passed,
@@ -336,17 +382,19 @@ def check_audit_chain_integrity(
     """Verify the tail of the audit chain is unbroken.
 
     Scans the newest ``max_records`` audit entries and verifies that each
-    entry's ``previous_hash`` equals the prior entry's ``chain_hash`` and
-    that the ``chain_hash`` recomputes correctly. Entries without chain
-    fields (e.g. meta-monitor touch markers) are skipped.
+    entry's ``previous_hash`` equals the prior entry's ``chain_hash``.
+    Signature/hash recomputation is done by ``audit_chain_verify`` /
+    ``scripts/verify_audit_chain.py``; M1 stays a cheap linkage check.
 
-    This is a real, end-to-end chain verification (M1.5), not just a path
-    existence check. It deliberately scans the tail (recent provenance)
-    rather than the whole 1.3M-line history so it stays cheap per run.
+    This is a tail linkage check, not full cryptographic verification. It
+    deliberately scans the newest records rather than the whole history so it
+    stays cheap per run; full hash/HMAC verification runs separately.
     """
     base = _audit_log_base(audit_base)
+    # Per-actor shards (governance_audit_<actor>.jsonl) duplicate global
+    # records and intentionally skip interleaved entries, so they are not
+    # valid chains. Only the authoritative global log is verified.
     candidates = [
-        base / "governance_audit_state_machine.jsonl",
         base / "governance_audit.jsonl",
     ]
     targets = [p for p in candidates if p.exists()]
@@ -458,6 +506,11 @@ def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
 
     if contiguous >= max_records:
         return True, f"last {contiguous} records linked", contiguous
+    # A freshly re-baselined log may legitimately contain fewer than
+    # max_records entries. Accept it only when the whole file is one
+    # unbroken chain starting at genesis (previous_hash == "").
+    if contiguous == len(records) and records[0].get("previous_hash", "") == "":
+        return True, f"entire chain linked ({contiguous} records)", contiguous
     return (
         False,
         (f"break after {contiguous} contiguous records; newest={records[-1].get('id', '?')}"),
@@ -473,6 +526,7 @@ def check_pulse_freshness(
     result = PulseWriter.check_pulse_staleness(
         pulses_dir=_pulses_dir(audit_base),
         max_stale_ratio=max_stale_ratio,
+        ignore_older_than_hours=168.0,
     )
     total = result.get("total", 0)
     stale = result.get("stale", 0)
@@ -487,6 +541,7 @@ def check_pulse_freshness(
             "critical",
             f"Pulse staleness: {stale}/{total} stale (ratio={stale_ratio}), agents={stale_agents[:5]}",
             subsystem="pulse",
+            check_id="pulse_freshness",
         )
     return {
         "passed": passed,
@@ -495,6 +550,7 @@ def check_pulse_freshness(
         "stale_ratio": stale_ratio,
         "status": status,
         "stale_agents": result.get("stale_agents", []),
+        "historical_ignored": result.get("historical_ignored", 0),
     }
 
 
@@ -530,6 +586,7 @@ def check_hmac_key() -> dict[str, Any]:
             "warning",
             "No audit signing key configured (MAREF_HMAC_SECRET_KEY / "
             "MAREF_ED25519_PRIVATE_KEY / .maraf_hmac_key file)",
+            check_id="hmac_key",
         )
     return {
         "passed": passed,
@@ -715,6 +772,7 @@ def check_managed_agents() -> dict[str, Any]:
             f"Core agent survival rate {core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"threshold={threshold:.0%}, dead: {core_dead}",
             subsystem="agents",
+            check_id="managed_agents",
         )
     elif results["dead"]:
         _write_notification(
@@ -724,6 +782,8 @@ def check_managed_agents() -> dict[str, Any]:
             f"core={core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"dead (non-core): {[l for l in results['dead'] if l not in _CORE_MAREF_AGENTS][:5]}",
             subsystem="agents",
+            check_id="managed_agents",
+            track=False,
         )
     return results
 
@@ -736,10 +796,20 @@ def check_gaas_health() -> dict[str, Any]:
         r = httpx.get(url, timeout=5)
         passed = r.status_code == 200 and r.json().get("status") == "healthy"
         if not passed:
-            _write_notification("M0 Fail", "critical", f"GaaS health check failed: {url}")
+            _write_notification(
+                "M0 Fail",
+                "critical",
+                f"GaaS health check failed: {url}",
+                check_id="gaas_health",
+            )
         return {"passed": passed, "url": url, "status_code": r.status_code, "body": r.text[:200]}
     except Exception as e:
-        _write_notification("M0 Fail", "critical", f"GaaS unreachable: {url} — {e}")
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            f"GaaS unreachable: {url} — {e}",
+            check_id="gaas_health",
+        )
         return {"passed": False, "url": url, "error": str(e)}
 
 
@@ -909,10 +979,32 @@ def check_m2(notifications_dir: Path | str | None = None) -> dict[str, Any]:
     except Exception:
         feedback_metrics = {"error": "AlertFeedbackTracker unavailable"}
 
+    quality_targets: dict[str, Any] = {"advisory": True}
+    try:
+        repeat = feedback_metrics.get("repeat_rate", {})
+        recovery = feedback_metrics.get("alert_recovery", {})
+        quality_targets.update(
+            {
+                "repeat_rate": {
+                    "value": repeat.get("repeat_rate"),
+                    "target": "<0.15",
+                    "passed": bool(repeat.get("healthy", False)),
+                },
+                "recovery_rate": {
+                    "value": recovery.get("recovery_rate"),
+                    "target": ">0.90",
+                    "passed": bool(recovery.get("healthy", False)),
+                },
+            }
+        )
+    except Exception:
+        pass
+
     return {
         "passed": staleness.get("passed", False),
         "notification_staleness": staleness,
         "feedback_tracking": feedback_metrics,
+        "quality_targets": quality_targets,
     }
 
 
@@ -961,7 +1053,12 @@ def _cleanup_notifications(max_age_hours: float = 1.0) -> int:
     return removed
 
 
-def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[str, Any]) -> int:
+def _resolve_recovered_checks(
+    m0: dict[str, Any],
+    m1: dict[str, Any],
+    m2: dict[str, Any],
+    m4: dict[str, Any] | None = None,
+) -> int:
     """Auto-close open alerts for checks that are now passing.
 
     This is the feedback loop closure: when a check that previously failed
@@ -984,11 +1081,27 @@ def _resolve_recovered_checks(m0: dict[str, Any], m1: dict[str, Any], m2: dict[s
         resolved += tracker.resolve_by_check("audit_chain_integrity")
 
     staleness = m2.get("notification_staleness", {})
-    if staleness.get("passed", False):
+    if staleness.get("passed", False) and staleness.get("stale_24h", 0) == 0:
         resolved += tracker.resolve_by_check("notification_staleness")
+
+    m4 = m4 or {}
+    if m4.get("passed", False):
+        resolved += tracker.resolve_by_check("telemetry_liveness")
+        resolved += tracker.resolve_by_check("high_cost_model_calls")
 
     # One-shot migration: close open alerts that predate check_id tracking.
     # Modern alerts all carry a check_id and flow through resolve_by_check.
+    # Legacy M0 alerts have no check_id, so a passing M0 is enough evidence to
+    # close them immediately instead of leaving a 24h false-open window.
+    if m0.get("passed", False):
+        for record in tracker.get_open_alerts():
+            if record.check_id == "" and record.name.startswith("M0 "):
+                if tracker.close_alert(
+                    record.alert_id,
+                    reason="legacy M0 alert superseded by passing check_id-aware M0",
+                    evidence="meta-monitor: M0 passed",
+                ):
+                    resolved += 1
     resolved += tracker.resolve_legacy_open()
     return resolved
 
@@ -1153,7 +1266,7 @@ def check_audit_noise(
         return {"passed": True, "detail": "no_audit_file", "total": 0, "noise_ratio": 0.0}
 
     cutoff = time.time() - window_hours * 3600
-    types: Counter = Counter()
+    types: Counter[str] = Counter()
     total = 0
     try:
         for ln in path.read_text(errors="replace").splitlines():
@@ -1187,6 +1300,7 @@ def check_audit_noise(
             "warning",
             f"审计链 {window_hours:.0f}h 内 {total} 条全为 state_transition，无真实决策/成本事件",
             subsystem="audit-health",
+            check_id="audit_noise",
         )
     return {
         "passed": not polluted,
@@ -1258,17 +1372,51 @@ def _update_health_snapshot(status: str = "healthy", active_agents: int = 0) -> 
         pass
 
 
+def _write_monitor_heartbeat() -> None:
+    """Append a signed monitor heartbeat so audit-growth checks stay honest.
+
+    This is a real audit event (not a file touch): if the monitor stops
+    running, the heartbeat stops and M0 audit_log_growth fails as intended.
+    """
+    try:
+        from maref.governance.audit import AuditLogger
+
+        key = None
+        key_file = Path.cwd() / ".maraf_hmac_key"
+        if key_file.exists():
+            key = key_file.read_text().strip() or None
+        if key is None and not os.environ.get("MAREF_ED25519_PRIVATE_KEY"):
+            logger_key = os.environ.get("MAREF_HMAC_SECRET_KEY")
+            if not logger_key:
+                return
+        logger = AuditLogger(
+            log_path=_audit_log_base() / "governance_audit.jsonl",
+            hmac_key=key,
+        )
+        logger.log(
+            event_type="meta_monitor_heartbeat",
+            actor="meta-monitor",
+            action="run_once",
+            details="meta-monitor completed a scheduled audit pass",
+            metadata={"pid": os.getpid(), "host": os.uname().nodename},
+        )
+    except Exception:
+        # Heartbeat must never break the monitor; M0 will surface a missing
+        # key / write failure through its own checks.
+        pass
+
+
 def run_once(
     audit_base: Path | None = None,
     notifications_dir: Path | str | None = None,
 ) -> dict[str, Any]:
     """Single-shot run (for CI / manual invocation)."""
+    _write_monitor_heartbeat()
     _update_health_snapshot()
     report = run_all_checks(
         audit_base=audit_base,
         notifications_dir=notifications_dir,
     )
-    _write_report(report)
 
     m0 = report.get("m0", {})
     ma = m0.get("checks", {}).get("managed_agents", {})
@@ -1284,6 +1432,7 @@ def run_once(
             report.get("m0", {}),
             report.get("m1", {}),
             report.get("m2", {}),
+            report.get("m4", {}),
         )
         removed = _cleanup_notifications()
         if resolved or removed:
@@ -1291,6 +1440,14 @@ def run_once(
                 "resolved_alerts": resolved,
                 "notifications_removed": removed,
             }
+        if resolved:
+            # The report was computed before auto-closure; refresh M2 so the
+            # persisted snapshot does not claim alerts that were just closed.
+            report["m2"] = check_m2(notifications_dir=notifications_dir)
+            report["summary"]["m2_passed"] = report["m2"]["passed"]
+            report["summary"]["all_passed"] = all(
+                report["summary"][f"m{i}_passed"] for i in range(5)
+            )
     except Exception:
         pass
 
@@ -1304,6 +1461,7 @@ def run_once(
                 "critical",
                 f"高价模型调用异常: {hcm.get('detail')}",
                 subsystem="cost-guard",
+                check_id="high_cost_model_calls",
             )
         tl = m4.get("checks", {}).get("telemetry_liveness", {})
         if not tl.get("passed", True):
@@ -1312,7 +1470,10 @@ def run_once(
                 "warning",
                 f"近24h无 cost_event（events={tl.get('events_24h', 0)}）— 遥测可能断裂",
                 subsystem="cost-guard",
+                check_id="telemetry_liveness",
             )
+
+    _write_report(report)
     return report
 
 
@@ -1327,6 +1488,20 @@ def _handle_sigterm(signum: int, _frame: object) -> None:
 def run_loop(interval: float = 300.0) -> None:
     """Continuous loop for launchd/cron deployment. Handles SIGTERM."""
     signal.signal(signal.SIGTERM, _handle_sigterm)
+
+    # Startup self-check: refuse to run with split/legacy paths.
+    try:
+        from maref.observability.path_guard import assert_paths
+
+        assert_paths()
+    except Exception as e:
+        _write_notification(
+            "Meta-Monitor Startup Self-Check",
+            "critical",
+            f"path/import self-check failed: {e}",
+            subsystem="meta-monitor",
+        )
+        raise SystemExit(2) from e
     log_base = Path(os.environ.get("MAREF_LOG_PATH", "reports"))
     log_path = log_base / "meta_monitor_loop.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)

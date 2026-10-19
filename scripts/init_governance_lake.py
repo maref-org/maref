@@ -3,7 +3,7 @@
 MAREF 治理数据湖初始化脚本
 
 创建统一的治理数据湖目录结构、Parquet Schema 注册、分区策略。
-数据湖位于外置盘 /Volumes/1TB-M2/maref-governance-lake/
+数据湖默认位于仓库同级外置盘目录，可用 MAREF_GOVERNANCE_LAKE 覆盖。
 
 用法:
     python scripts/init_governance_lake.py          # 完整初始化
@@ -27,7 +27,7 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 # =============================================================================
 # Schema 定义 (Apache Arrow / DuckDB 兼容)

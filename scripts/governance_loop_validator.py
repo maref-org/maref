@@ -32,7 +32,7 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 
 def _run_cmd(cmd: list[str], timeout: int = 60) -> tuple[int, str, str]:
