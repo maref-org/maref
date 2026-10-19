@@ -93,3 +93,11 @@
 - `lint`：mypy 81 个基线错误清零（StrEnum/UTC 的 Python 3.10 兼容、可选依赖 stub、Enum 类型收窄、healing 结果字典注解、decommission 空 credential_manager 守卫）。
 - 验证：`ruff check/format`、`mypy`（780 files）、`ci-governance-check.sh` 全通过；相关 93 个测试通过。
 - 观察取证脚本已从临时目录迁移到 `scripts/meta-observation-finalize.sh`，launchd plist 已重载。
+
+## RustSec 临时风险接受（2026-10-19）
+
+- `gate-rust-audit` 基线失败来自 7 条无已发布修复的公告：`rustls 0.23.43`（0346/0285/0348/0349）与 `zip 4.6.1`（0367/0368/0369）。
+- `rustls 0.23.43` 已是当前最新稳定版；`rustls 0.24` 仅有 dev 预发布。
+- `zip 4.6.1` 是 `tauri-plugin-updater 2.x` 的 `zip = "4"` 约束上限，修复仅进入 `9.x`；强行跨大版本会破坏 updater 兼容性。
+- 处置：在 `release-gate.yml` 按精确公告 ID 临时豁免，附复审日期 `2026-11-19`；到期或上游修复发布后必须移除。
+- 缓解：updater 仅在 minisign 验签通过后解包；rustls 使用面限于 updater 的 HTTPS 客户端。

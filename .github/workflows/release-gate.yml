@@ -16,7 +16,19 @@ jobs:
         run: cargo install cargo-audit
       - name: Audit Rust dependencies
         working-directory: ./gui/src-tauri
-        run: cargo audit
+        run: |
+          # 2026-10-19 临时风险接受，2026-11-19 复审：
+          # rustls 0.23.43 为当前最新稳定版，4 条公告均无已发布修复；
+          # zip 4.6.1 为 tauri-plugin-updater 2.x 的 4.x 约束上限，修复仅在 9.x。
+          # 上游发布兼容修复后必须移除对应 --ignore。
+          cargo audit \
+            --ignore RUSTSEC-2026-0346 \
+            --ignore RUSTSEC-2026-0285 \
+            --ignore RUSTSEC-2026-0348 \
+            --ignore RUSTSEC-2026-0349 \
+            --ignore RUSTSEC-2026-0367 \
+            --ignore RUSTSEC-2026-0368 \
+            --ignore RUSTSEC-2026-0369
 
   gate-integration-coverage:
     runs-on: ubuntu-latest
