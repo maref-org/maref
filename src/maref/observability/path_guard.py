@@ -76,8 +76,7 @@ def validate_paths(paths: dict[str, Any] | None = None) -> list[str]:
         )
     if paths["meta_base"] != paths["audit_paths_meta"]:
         issues.append(
-            "meta base split: "
-            f"_paths={paths['meta_base']} audit_paths={paths['audit_paths_meta']}"
+            f"meta base split: _paths={paths['meta_base']} audit_paths={paths['audit_paths_meta']}"
         )
     if paths["meta_base"] != paths["meta_monitor_meta"]:
         issues.append(
@@ -90,10 +89,7 @@ def validate_paths(paths: dict[str, Any] | None = None) -> list[str]:
             f"writer={paths['health_writer']} checker={paths['health_check']}"
         )
     if paths["pulse_writer"] != paths["pulse_check"]:
-        issues.append(
-            "pulse split: "
-            f"writer={paths['pulse_writer']} checker={paths['pulse_check']}"
-        )
+        issues.append(f"pulse split: writer={paths['pulse_writer']} checker={paths['pulse_check']}")
 
     legacy_markers = ("/.openclaw/", "/.openclaw", "openclaw/.openclaw")
     for key in (

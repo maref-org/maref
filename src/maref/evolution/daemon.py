@@ -21,13 +21,16 @@ try:
         diagnose,
     )
 except ImportError:
+
     def allocate_for_channel(bottleneck: Any) -> dict[str, Any]:
         return {"channel": "default", "budget": 0}
 
     def diagnose(buffer: Any, trace_id: str) -> Any:
         class _Diag:
             bottleneck: str = "unknown"
+
         return _Diag()
+
 
 from maref.evolution.daily_loop import DailyEvolutionLoop, DailyEvolutionResult
 from maref.infra.state import OpenClawState

@@ -227,9 +227,7 @@ class PulseWriter:
         historical = 0
         stale_agents: list[str] = []
         cutoff = (
-            now - ignore_older_than_hours * 3600
-            if ignore_older_than_hours is not None
-            else None
+            now - ignore_older_than_hours * 3600 if ignore_older_than_hours is not None else None
         )
 
         for pulse_file in pulses_dir.glob("*.json"):

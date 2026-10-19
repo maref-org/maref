@@ -106,9 +106,7 @@ class AlertFeedbackTracker:
 
                 meta_base = get_meta_base()
             except Exception:
-                meta_base = Path(
-                    os.environ.get("MAREF_META_PATH", ".governance/meta")
-                ).resolve()
+                meta_base = Path(os.environ.get("MAREF_META_PATH", ".governance/meta")).resolve()
             state_path = meta_base / "alert_feedback_state.json"
         self._path = Path(state_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -280,9 +278,7 @@ class AlertFeedbackTracker:
             self._save()
         return resolved
 
-    def resolve_by_check(
-        self, check_id: str, description: str = "", evidence: str = ""
-    ) -> int:
+    def resolve_by_check(self, check_id: str, description: str = "", evidence: str = "") -> int:
         """Auto-close all open alerts belonging to a recovered check.
 
         Marks each matching open alert as fixed+verified (feedback loop
@@ -342,11 +338,7 @@ class AlertFeedbackTracker:
         now = time.time()
         cutoff = now - max_age_hours * 3600
         for record in self._alerts.values():
-            if (
-                record.is_open
-                and record.check_id == ""
-                and record.triggered_at < cutoff
-            ):
+            if record.is_open and record.check_id == "" and record.triggered_at < cutoff:
                 if record.fixed_at is None:
                     record.fixed_at = now
                     record.fix_description = description or "legacy alert consumed"
