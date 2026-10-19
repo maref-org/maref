@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[all,dev,identity,orchestration,otel,a2a]"
+        run: pip install -e ".[ml,sidecar,dev,desktop,identity,orchestration,otel,a2a]"
       - name: Run tests with coverage
         run: |
           # pytest-cov 单层收集(同 ci.yml)：coverage run -m pytest 与 pyproject
