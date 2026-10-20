@@ -103,6 +103,14 @@ python3 "$SCRIPTS/evolution_daemon_status.py" >> "$LOGFILE" 2>&1 || fail "evolut
 log "  晨报生成..."
 python3 "$SCRIPTS/gen_morning_report.py" >> "$LOGFILE" 2>&1 || fail "morning-report"
 
+# Agent 覆盖对账（证据报告依赖其新鲜度）
+log "  Agent 覆盖对账..."
+"$PY" "$SCRIPTS/agent_coverage_reconcile.py" >> "$LOGFILE" 2>&1 || fail "agent-coverage"
+
+# P0 证据门禁（可复现自证明）
+log "  P0 证据门禁..."
+bash "$SCRIPTS/evidence_gate.sh" --p0 >> "$LOGFILE" 2>&1 || fail "evidence-gate"
+
 # 阈值推送
 log "  阈值推送..."
 python3 "$SCRIPTS/push_thresholds.py" >> "$LOGFILE" 2>&1 || fail "threshold-push"

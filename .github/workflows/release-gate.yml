@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Integration test coverage
-        run: pytest tests/integration/ --cov=src/maref --cov-report=term-missing || true
+        run: pytest tests/integration/ --cov=src/maref --cov-report=term-missing
 
   gate-quality:
     runs-on: ubuntu-latest
@@ -52,7 +52,13 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Ruff lint
-        run: ruff check src/maref src/maref_lite
+        run: ruff check src/
+      - name: Mypy
+        run: mypy src/maref src/maref_lite src/sidecar
+      - name: Evidence gate unit tests
+        run: pytest tests/cli/test_evidence_gate.py tests/observability/test_audit_health_check.py -q --no-cov
+      - name: Claim integrity
+        run: python scripts/claim_integrity_gate.py
       - name: No hardcoded paths
         run: |
           if grep -rn "/Volumes/" src/ --include="*.py"; then
@@ -98,11 +104,18 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
-          pip install bandit
-      - name: Bandit SAST
-        run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -ll || true
-      - name: pip-audit
-        run: pip-audit || true
+          pip install bandit pip-audit
+      - name: Bandit SAST (High gate)
+        # G3 标准是 0 Critical / 0 High；Medium 只报告不阻断。
+        run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -lll
+      - name: Security tests
+        run: pytest tests/security -q --no-cov
+      - name: pip-audit (advisory)
+        # 2026-10-20 到 2026-11-19 为依赖漏洞收敛期：当前存在已知传递依赖 CVE，
+        # 直接阻断会使所有 PR 红灯。此步骤如实输出漏洞，但暂不阻断，需在期限内
+        # 完成升级或建立带到期日的漏洞基线后转为强制门禁。
+        continue-on-error: true
+        run: pip-audit --desc on
       - name: Governance hook check
         run: bash scripts/ci-governance-check.sh
 

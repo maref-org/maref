@@ -32,7 +32,7 @@ class GovernanceOTelExporter:
         meter: Any | None = None,
         *,
         service_name: str = "maref-governance",
-        service_version: str = "0.54.0-dev",
+        service_version: str = "0.54.2-dev",
         use_global_provider: bool = True,
     ) -> None:
         self.tracer = tracer

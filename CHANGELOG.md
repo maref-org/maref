@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [v0.54.2] - 2026-10-20 (治理证据链 P0 收口)
+
+### Fixed
+- `audit_health_check.py` 兼容 ISO-8601 `Z` / 时区 / naive / epoch 秒与毫秒时间戳，消除每日治理循环因时间解析崩溃。
+- 每日治理循环在证据门禁前刷新 Agent 覆盖对账，避免使用过期覆盖报告。
+- `approval_tier.py` 的 `audit_date` 改为动态生成，并输出 `t2_1_acceptance` 真实口径（不再硬编码日期）。
+
+### Added
+- `gen_evidence_report.py`：生成单一自证明报告，含四节证据、Merkle 根与 `--check` 哈希校验。
+- `evidence_gate.py` / `evidence_gate.sh`：P0 证据门禁 + `--all` 治理质量门禁。
+- `chain_scope`：显式声明每条审计链是 in_scope / legacy / foreign / auxiliary，避免外部链成为盲区。
+- `agent_coverage_reconcile.py`：以 openclaw heartbeat DB 为 SSOT 的四方覆盖对账。
+- 回归测试：`tests/observability/test_audit_health_check.py`、`tests/cli/test_evidence_gate.py`。
+
+### Changed
+- Release Gate：集成测试、Bandit High、Security tests、mypy、claim integrity 转为硬门禁；pip-audit 暂为显式 advisory（2026-11-19 前完成依赖收敛）。
+- `STATE.yaml`：RSI 状态从 `L2 (Full Pass)` 修正为 `L2 (Conditional Pass / 待复审)`。
+
+### Known
+- 历史标签 `v0.54.1` 指向的提交内 `pyproject.toml` 仍为 `0.54.0`，不重写该标签；本版本以 `v0.54.2` 重新发布。
+
 ## [v0.54.0] - 2026-08-14 (企业价值闭环 + 治理缺口收口 + 成本护栏)
 
 > **版本主线说明**: 本发布线（公开分支）从 v0.50.0 吸收 dev 分支 v0.51-v0.53 全部公开功能后推进至 v0.54.0。v0.51-v0.53 为内部迭代版本，其公开功能经 cherry-pick 合入本发布线。
