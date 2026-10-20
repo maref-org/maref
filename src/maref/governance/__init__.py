@@ -395,3 +395,40 @@ __all__ += [
     "RetryPolicy",
     "RetryDecision",
 ]
+
+# P0-A/P0-B: commercial action risk, model-route evidence, LLM interaction evidence
+from maref.governance.commercial_policy import (  # noqa: E402
+    CommercialAction,
+    CommercialActionPolicy,
+    CommercialRiskLevel,
+)
+from maref.governance.interaction_evidence import (  # noqa: E402
+    InteractionEvidence,
+    InteractionRecorder,
+    SafetyFinding,
+    compute_detector_set_hash,
+    record_interaction,
+)
+from maref.governance.model_route import (  # noqa: E402
+    ModelRouteDecision,
+    ModelRouteRecorder,
+    RouteAttestationError,
+    RouteEligibility,
+    RouteIngestAdapter,
+)
+
+__all__ += [
+    "CommercialAction",
+    "CommercialActionPolicy",
+    "CommercialRiskLevel",
+    "InteractionEvidence",
+    "InteractionRecorder",
+    "SafetyFinding",
+    "compute_detector_set_hash",
+    "record_interaction",
+    "ModelRouteDecision",
+    "ModelRouteRecorder",
+    "RouteAttestationError",
+    "RouteEligibility",
+    "RouteIngestAdapter",
+]

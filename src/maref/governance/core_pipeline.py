@@ -102,6 +102,12 @@ class GovernanceRequest:
     session_id: str = ""
     source_ip: str = ""
     delegations: list[str] = field(default_factory=list)
+    # Evidence-chain linkage (P0-A/P0-B): route -> interaction -> decision.
+    trace_id: str = ""
+    model_route_id: str = ""
+    interaction_id: str = ""
+    model_version: str = ""
+    detector_set_hash: str = ""
 
 
 @dataclass

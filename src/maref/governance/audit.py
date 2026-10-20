@@ -689,6 +689,89 @@ class AuditLogger:
                     break
         return entries[-max_entries:] if max_entries else entries
 
+    def find_by_id(self, entry_id: str) -> AuditEntry | None:
+        """Look up a single audit entry by id.
+
+        Used by on-demand evidence verification so old entries remain
+        verifiable after a restart without loading the whole chain into
+        memory.  Production deployments should back this with an id index;
+        the JSONL scan here is the dependency-free fallback.
+        """
+        if not entry_id:
+            return None
+        if self._path is None:
+            for entry in reversed(self._memory_entries):
+                if entry.id == entry_id:
+                    return entry
+            return None
+        if not self._path.exists():
+            return None
+        with open(self._path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or entry_id not in line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if data.get("id") != entry_id:
+                    continue
+                return AuditEntry(
+                    id=data["id"],
+                    timestamp=data["timestamp"],
+                    event_type=data["event_type"],
+                    actor=data["actor"],
+                    action=data["action"],
+                    details=data["details"],
+                    metadata=data.get("metadata", {}),
+                    parent_action_id=data.get("parent_action_id", ""),
+                    previous_hash=data.get("previous_hash", ""),
+                    chain_hash=data.get("chain_hash", ""),
+                    hmac_signature=data.get("hmac_signature", ""),
+                    ed25519_signature=data.get("ed25519_signature", ""),
+                    signer_fingerprint=data.get("signer_fingerprint", ""),
+                    tenant_id=data.get("tenant_id", ""),
+                    layer=data.get("layer", "governance"),
+                    round=data.get("round", 0),
+                )
+        return None
+
+    def verify_entry(
+        self,
+        entry: AuditEntry,
+        ed25519_public_key_pem: str | None = None,
+    ) -> bool:
+        """Verify one entry's chain hash and signature without scanning the log.
+
+        Used by evidence checks: an evidence record that was edited after being
+        written must not be accepted just because it still parses as JSON.
+        """
+        if entry.signature_type == "unsigned":
+            return False
+        if not entry.chain_hash or not self._verify_chain_hash(entry):
+            return False
+        if entry.signature_type == "ed25519":
+            pub_key = ed25519_public_key_pem
+            if pub_key is None and self._ed25519_keypair is not None:
+                pub_key = self._ed25519_keypair.public_key_pem
+            if pub_key is None:
+                return False
+            return self._verify_entry_signature(entry, pub_key)
+        hmac_key = self._resolve_hmac_key_for_verify()
+        if hmac_key is None:
+            return False
+        return self._verify_hmac_signature(entry, hmac_key)
+
+    def verify_entry_integrity(
+        self,
+        entry_id: str,
+        ed25519_public_key_pem: str | None = None,
+    ) -> bool:
+        """Verify a single entry by id (see :meth:`verify_entry`)."""
+        entry = self.find_by_id(entry_id)
+        return entry is not None and self.verify_entry(entry, ed25519_public_key_pem)
+
     def read_recent(self, n: int = 100) -> list[AuditEntry]:
         return self.read_all(max_entries=n)
 
@@ -742,11 +825,15 @@ class AuditLogger:
                             action=data["action"],
                             details=data["details"],
                             metadata=data.get("metadata", {}),
+                            parent_action_id=data.get("parent_action_id", ""),
                             previous_hash=data.get("previous_hash", ""),
                             chain_hash=data.get("chain_hash", ""),
                             hmac_signature=data.get("hmac_signature", ""),
                             ed25519_signature=data.get("ed25519_signature", ""),
                             signer_fingerprint=data.get("signer_fingerprint", ""),
+                            tenant_id=data.get("tenant_id", ""),
+                            layer=data.get("layer", "governance"),
+                            round=data.get("round", 0),
                         )
                     )
                     if max_entries and len(filtered) >= max_entries:

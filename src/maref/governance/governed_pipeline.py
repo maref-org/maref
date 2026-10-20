@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -22,7 +23,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from maref.governance.audit import AuditLogger
+from maref.governance.audit import AuditEntry, AuditLogger
+from maref.governance.commercial_policy import CommercialActionPolicy
 from maref.governance.core_pipeline import (
     GovernancePipeline,
     GovernanceRequest,
@@ -30,6 +32,8 @@ from maref.governance.core_pipeline import (
     Verdict,
 )
 from maref.governance.decorators import set_default_pipeline
+from maref.governance.interaction_evidence import InteractionRecorder
+from maref.governance.model_route import ModelRouteRecorder
 from maref.governance.org_policy import OrganizationPolicy
 from maref.recursive.permission_matrix import PermissionMatrix
 
@@ -38,6 +42,19 @@ if TYPE_CHECKING:
     from maref.integration.hitl import HITLRouter
 
 logger = logging.getLogger(__name__)
+
+
+def _canonical_hash(value: Any) -> str:
+    """Stable sha256 over a JSON-serialisable value."""
+
+    canonical = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=str,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _default_pipeline_audit_path() -> Path:
@@ -103,6 +120,7 @@ class GovernedPipeline:
         org_policy: OrganizationPolicy | None = None,
         otel_exporter: Any | None = None,
         social_content_gate: Any | None = None,
+        commercial_action_policy: CommercialActionPolicy | None = None,
     ) -> None:
         # 1. Audit logger with HMAC
         hmac_key = hmac_key or os.environ.get("MAREF_HMAC_SECRET_KEY")
@@ -131,11 +149,22 @@ class GovernedPipeline:
 
             social_content_gate = SocialContentGate()
         self.social_content_gate = social_content_gate
+        if commercial_action_policy is None:
+            policy_path = os.environ.get("MAREF_COMMERCIAL_ACTIONS_PATH", "")
+            if policy_path:
+                # Explicitly configured policy must load: a broken policy file
+                # is a governance failure, not a reason to fall back to allow.
+                commercial_action_policy = CommercialActionPolicy.from_path(policy_path)
+        self.commercial_action_policy = commercial_action_policy
+        self.route_recorder = (
+            ModelRouteRecorder(self.audit) if commercial_action_policy is not None else None
+        )
+        self.interaction_recorder = InteractionRecorder(self.audit)
         self.evidence_ttl_s = float(os.environ.get("MAREF_EVIDENCE_TTL_SECONDS", "300"))
         self.clock = time.time
         self._evidence_lock = threading.Lock()
         self._evidence_cache: dict[str, float] = {}
-        self._evidence_cache_loaded = False
+        self._evidence_entry_cache: dict[str, AuditEntry] = {}
         audit_file = getattr(self.audit, "_path", None)
         consumed_env = os.environ.get("MAREF_EVIDENCE_CONSUMED_PATH")
         self._evidence_consumed_path: Path | None = (
@@ -228,13 +257,69 @@ class GovernedPipeline:
         logger.info("GovernedPipeline set as global default")
 
     def govern(self, request: GovernanceRequest) -> GovernanceResult:
-        """Execute organization policy and the unified governance pipeline."""
+        """Execute route, organization and unified governance checks."""
+        route_result = self._enforce_route_evidence(request)
+        if route_result is not None:
+            if self.otel_exporter is not None:
+                self.otel_exporter.record_decision(request, route_result)
+            return route_result
         result = self._govern_org_policy(request)
         if result is None:
             result = self.pipeline.govern(request)
         if self.otel_exporter is not None:
             self.otel_exporter.record_decision(request, result)
         return result
+
+    def _enforce_route_evidence(self, request: GovernanceRequest) -> GovernanceResult | None:
+        """Deny L2/L3 commercial actions without valid route evidence (P0-A)."""
+        policy = self.commercial_action_policy
+        if policy is None:
+            return None
+        classification = policy.classify(request.action)
+        if classification.level not in policy.route_required_levels:
+            return None
+
+        if not request.model_route_id:
+            reason = (
+                f"商业动作 {request.action} ({classification.level.value}) "
+                "缺少模型路由证据 (model_route_decision)"
+            )
+            matched_rule = "commercial_route:missing"
+        elif not request.model_version:
+            reason = (
+                f"商业动作 {request.action} ({classification.level.value}) "
+                "缺少实际运行的 model_version，无法绑定路由证据"
+            )
+            matched_rule = "commercial_route:missing_model_version"
+        elif self.route_recorder is None or not self.route_recorder.verify(
+            request.model_route_id,
+            tenant_id=request.tenant_id,
+            model_version=request.model_version,
+        ):
+            reason = (
+                f"模型路由证据 {request.model_route_id} 无效，"
+                "或与租户/模型版本不匹配"
+            )
+            matched_rule = "commercial_route:invalid"
+        else:
+            return None
+
+        result = GovernanceResult(
+            verdict=Verdict.DENY,
+            reason=reason,
+            matched_rule=matched_rule,
+            risk_score=classification.risk_score,
+            policy_version=self.policy_version,
+            policy_epoch=self.policy_epoch,
+        )
+        self._audit_decision(request, result)
+        return result
+
+    def _purpose_id(self, request: GovernanceRequest) -> str:
+        """Purpose comes from the policy file, never from request parameters."""
+        if self.commercial_action_policy is None:
+            return ""
+        return self.commercial_action_policy.classify(request.action).purpose_id
 
     def review_social_content(self, content: Any) -> Any:
         """Review platform content and emit an auditable governance decision."""
@@ -358,14 +443,6 @@ class GovernedPipeline:
         self._audit_decision(request, result)
         return result
 
-    def _ensure_evidence_cache(self) -> None:
-        if self._evidence_cache_loaded:
-            return
-        for entry in self.audit.read_all(max_entries=10000):
-            if entry.event_type == "governance_decision":
-                self._evidence_cache.setdefault(entry.id, entry.timestamp)
-        self._evidence_cache_loaded = True
-
     def _load_consumed_evidence(self) -> None:
         """Load consumed evidence ids so one-time claims survive restarts."""
         path = self._evidence_consumed_path
@@ -424,6 +501,82 @@ class GovernedPipeline:
             self.otel_exporter.record_evidence_check(evidence_id, valid, reason=reason)
         return valid
 
+    def verify_evidence_for(
+        self,
+        evidence_id: str,
+        *,
+        action: str,
+        params_hash: str,
+        tenant_id: str,
+        org_id: str = "",
+        purpose_id: str = "",
+        route_decision_id: str = "",
+        model_version: str = "",
+        detector_set_hash: str = "",
+        consume: bool = True,
+        now: float | None = None,
+    ) -> bool:
+        """Verify evidence *and* that it was issued for this exact purpose.
+
+        ``verify_evidence`` only proves an id exists.  This method binds the
+        evidence to action, canonical params, tenant, policy purpose, route and
+        detector snapshot so an ALLOW for one action cannot vouch for another.
+        """
+        entry = self._resolve_evidence(evidence_id)
+        if entry is None or entry.event_type != "governance_decision":
+            return False
+        metadata = entry.metadata or {}
+        if entry.action != action:
+            return False
+        if str(metadata.get("params_hash", "")) != params_hash:
+            return False
+        entry_tenant = entry.tenant_id or str(metadata.get("tenant_id", ""))
+        if entry_tenant != tenant_id:
+            return False
+
+        expected = {
+            "org_id": org_id,
+            "purpose_id": purpose_id,
+            "route_decision_id": route_decision_id,
+            "model_version": model_version,
+            "detector_set_hash": detector_set_hash,
+        }
+        for key, value in expected.items():
+            if value and str(metadata.get(key, "")) != value:
+                return False
+
+        valid = self._verify_evidence(evidence_id, consume=consume, now=now)
+        if self.otel_exporter is not None:
+            reason = "" if valid else "binding mismatch or evidence already consumed"
+            self.otel_exporter.record_evidence_check(evidence_id, valid, reason=reason)
+        return valid
+
+    def _resolve_evidence(self, evidence_id: str) -> AuditEntry | None:
+        """Resolve an evidence entry, falling back to an on-disk lookup.
+
+        The in-memory cache only holds recent entries; older evidence must
+        remain verifiable after a restart instead of silently returning False.
+        """
+        if not evidence_id:
+            return None
+        with self._evidence_lock:
+            cached = self._evidence_entry_cache.get(evidence_id)
+        if cached is not None:
+            return cached
+        entry = self.audit.find_by_id(evidence_id)
+        if entry is None:
+            return None
+        if not self.audit.verify_entry(entry):
+            logger.warning("Rejecting tampered or unsigned evidence: %s", evidence_id)
+            return None
+        with self._evidence_lock:
+            self._evidence_entry_cache[evidence_id] = entry
+            self._evidence_cache.setdefault(evidence_id, entry.timestamp)
+            if len(self._evidence_entry_cache) > 5000:
+                oldest = next(iter(self._evidence_entry_cache))
+                self._evidence_entry_cache.pop(oldest, None)
+        return entry
+
     def _verify_evidence(
         self,
         evidence_id: str,
@@ -433,9 +586,10 @@ class GovernedPipeline:
     ) -> bool:
         if not evidence_id:
             return False
+        if self._resolve_evidence(evidence_id) is None:
+            return False
         current = self.clock() if now is None else now
         with self._evidence_lock:
-            self._ensure_evidence_cache()
             timestamp = self._evidence_cache.get(evidence_id)
             if timestamp is None or evidence_id in self._evidence_consumed:
                 return False
@@ -450,7 +604,7 @@ class GovernedPipeline:
                         "Refusing evidence consumption: cannot persist one-time claim: %s", exc
                     )
                     return False
-                del self._evidence_cache[evidence_id]
+                self._evidence_cache.pop(evidence_id, None)
                 self._evidence_consumed[evidence_id] = current
             return True
 
@@ -464,16 +618,38 @@ class GovernedPipeline:
             details=f"{result.verdict.value}: {result.reason}",
             metadata={
                 "tenant_id": request.tenant_id,
+                "org_id": str(request.parameters.get("org_id") or ""),
                 "matched_rule": result.matched_rule,
                 "hitl_tier": result.hitl_tier.name if result.hitl_tier else "",
                 "policy_version": result.policy_version or self.policy_version,
                 "policy_epoch": result.policy_epoch or self.policy_epoch,
                 "risk_score": result.risk_score,
+                # P0-C: bind the decision to what it authorised.
+                "params_hash": _canonical_hash(request.parameters),
+                "purpose_id": self._purpose_id(request),
+                "trace_id": request.trace_id,
+                "route_decision_id": request.model_route_id,
+                "interaction_id": request.interaction_id,
+                "model_version": request.model_version,
+                "detector_set_hash": request.detector_set_hash,
+                "commercial_policy_version": (
+                    self.commercial_action_policy.version
+                    if self.commercial_action_policy is not None
+                    else ""
+                ),
+                "commercial_policy_hash": (
+                    self.commercial_action_policy.document_hash
+                    if self.commercial_action_policy is not None
+                    else ""
+                ),
             },
+            parent_action_id=request.interaction_id or request.model_route_id,
+            tenant_id=request.tenant_id,
         )
         result.evidence_id = entry.id
         with self._evidence_lock:
             self._evidence_cache[entry.id] = entry.timestamp
+            self._evidence_entry_cache[entry.id] = entry
         # Publish to the shared audit bus so the behavior probe (subscribed
         # to the "audit" topic) receives the governance decision event.
         self.audit_bus.log(
