@@ -17,10 +17,13 @@ import json
 import os
 import urllib.request
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from maref_config import REPO_DIR, RUNTIME_DIR, report_path, sidecar_auth_headers
+
+HOOKS_CHAIN = Path.home() / ".claude" / "hooks" / "state" / "governance_audit.jsonl"
 
 
 def _resolve(path: str) -> Path:
@@ -116,6 +119,63 @@ def _read_mcp_decision_log(agent_id: str, since_hours: int = 24) -> list[dict]:
     return events
 
 
+@lru_cache(maxsize=1)
+def _hooks_24h_counts() -> dict[str, dict[str, int]]:
+    """按 agent 聚合 hooks 审计链最近 24h verdict。
+
+    hooks 链是工具调用的事实遥测（ALLOW/EXECUTED/DENY/BLOCKED），
+    当 sidecar/obs 事件缺失时作为运行时 KPI 的回退数据源。
+    """
+    counts: dict[str, dict[str, int]] = {}
+    if not HOOKS_CHAIN.exists():
+        return counts
+    cutoff = (datetime.now(UTC) - timedelta(hours=24)).timestamp()
+    try:
+        with open(HOOKS_CHAIN, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                ts = ev.get("timestamp")
+                if not isinstance(ts, (int, float)) or ts < cutoff:
+                    continue
+                agent = str(ev.get("agent_id") or "")
+                verdict = str(ev.get("verdict") or "").upper()
+                if not agent or not verdict:
+                    continue
+                bucket = counts.setdefault(agent, {})
+                bucket[verdict] = bucket.get(verdict, 0) + 1
+    except OSError:
+        pass
+    return counts
+
+
+def _hooks_runtime_kpi(agent_id: str, kpi: dict[str, Any]) -> dict[str, Any]:
+    counts = _hooks_24h_counts().get(agent_id) or {}
+    allow = counts.get("ALLOW", 0)
+    executed = counts.get("EXECUTED", 0)
+    denied = counts.get("DENY", 0)
+    blocked = counts.get("BLOCKED", 0)
+    failed = counts.get("FAILED", 0)
+    allowed = max(allow, executed)
+    total = allowed + denied + blocked + failed
+    if total == 0:
+        return kpi
+    kpi.update({
+        "tool_calls_total": total,
+        "tool_calls_allowed": allowed,
+        "tool_calls_intercepted": blocked,
+        "tool_calls_denied": denied,
+        "tool_calls_hitl": counts.get("HITL", 0),
+        "interception_rate": round((blocked + denied) / total * 100, 2),
+        "hitl_rate": round(counts.get("HITL", 0) / total * 100, 2),
+        "trust_score": round(max(0.0, 100.0 - (blocked + denied) / total * 100), 1),
+        "kpi_source": "hooks_agent_24h",
+    })
+    return kpi
+
+
 def _compute_runtime_kpi(
     agent_id: str,
     sidecar_url: str,
@@ -163,7 +223,7 @@ def _compute_runtime_kpi(
             all_tool_events.append(ev.get("metadata", {}))
 
     if not all_tool_events:
-        return kpi
+        return _hooks_runtime_kpi(agent_id, kpi)
 
     # 统计
     latencies = []
@@ -216,6 +276,9 @@ def _compute_runtime_kpi(
     trust -= kpi["hitl_rate"] * 0.3
     trust -= (kpi["tool_calls_denied"] / total_calls * 100) * 1.0
     kpi["trust_score"] = round(max(0.0, min(100.0, trust)), 1)
+    if kpi["tool_calls_total"] == 0:
+        return _hooks_runtime_kpi(agent_id, kpi)
+    kpi["kpi_source"] = "sidecar_obs"
 
     return kpi
 

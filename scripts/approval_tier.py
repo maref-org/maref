@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from collections import Counter
 from datetime import datetime, timezone
 
@@ -12,6 +13,7 @@ from maref_config import RECURSIVE_AUDIT_LOG_V2 as RECURSIVE_LOG
 from maref_config import report_path
 
 VALID_VERDICTS = ("allow", "deny", "flag", "unknown")
+WINDOW_DAYS = 30
 
 
 def load_entries(path: str) -> list[dict]:
@@ -25,6 +27,22 @@ def load_entries(path: str) -> list[dict]:
             except json.JSONDecodeError:
                 pass
     return entries
+
+
+def _timestamp_of(entry: dict) -> float | None:
+    value = entry.get("timestamp")
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            pass
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return None
+    return None
 
 
 def _verdict_of(entry: dict) -> str:
@@ -47,10 +65,16 @@ def analyze_tiers() -> None:
     audit = load_entries(AUDIT_LOG)
     recursive = load_entries(RECURSIVE_LOG)
 
-    decisions = [
+    all_decisions = [
         e for e in audit + recursive
         if e.get("event_type") == "governance_decision"
     ]
+    cutoff = time.time() - WINDOW_DAYS * 86400
+    decisions = [
+        e for e in all_decisions
+        if (ts := _timestamp_of(e)) is not None and ts >= cutoff
+    ]
+    excluded = len(all_decisions) - len(decisions)
 
     verdict_counts = Counter()
     risk_counts = Counter()
@@ -69,7 +93,7 @@ def analyze_tiers() -> None:
     print("=" * 60)
     print("审批分层分析报告 (P-03) + T2-1 裁决质量")
     print("=" * 60)
-    print(f"\n总治理决策: {len(decisions)}")
+    print(f"\n总治理决策 ({WINDOW_DAYS}d 窗口): {len(decisions)} (排除历史 {excluded})")
     print(f"  审计日志: {len(audit)}")
     print(f"  递归审计: {len(recursive)}")
 
@@ -115,6 +139,8 @@ def analyze_tiers() -> None:
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     report = {
         "audit_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "window_days": WINDOW_DAYS,
+        "excluded_outside_window": excluded,
         "total_decisions": total,
         "verdict_distribution": dict(verdict_counts),
         "risk_distribution": dict(risk_counts),
