@@ -47,12 +47,16 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
+            target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
           - platform: macos-latest
+            target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
           - platform: ubuntu-latest
+            target: ''
             args: ''
           - platform: windows-latest
+            target: ''
             args: ''
     runs-on: ${{ matrix.platform }}
     steps:
@@ -70,6 +74,25 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Rust target
+        if: matrix.target != ''
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
 
       - name: Install dependencies
         working-directory: ./gui
@@ -90,7 +113,7 @@ jobs:
 
       - name: Build Tauri
         working-directory: ./gui
-        run: pnpm tauri build ${{ matrix.args }}
+        run: pnpm dlx "@tauri-apps/cli@^2" build ${{ matrix.args }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -100,4 +123,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}${{ matrix.args }}
-          path: gui/src-tauri/target/release/bundle/**
+          path: |
+            gui/src-tauri/target/release/bundle/**
+            gui/src-tauri/target/*/release/bundle/**
