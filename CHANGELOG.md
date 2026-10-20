@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [v0.54.3] - 2026-10-20 (CI 稳定性与发布链路修复)
+
+### Fixed
+- Ruff format 基线：格式化 6 个 governance 模块，恢复 `ruff format --check` 绿。
+- OTel 可选依赖：为 `metrics` / `trace` 增加 `Any` 类型别名，修复 Python 3.11 CI 的 mypy 报错。
+- FastAPI 兼容性：约束 `fastapi>=0.111,<0.137`，避免 0.137+ 的嵌套 router 行为破坏 sidecar 路由挂载测试。
+- Release：将失效的 `dtolnay/rust-action` 替换为 `dtolnay/rust-toolchain`。
+- MAREF CI：移除 security job 中重复的 pip-audit，依赖审计统一走独立定时工作流。
+
+### Notes
+- `v0.54.2` 标签保留不动，确保与已发布 PyPI 产物可追溯；本版本承接其后的 CI 修复。
+- 无治理行为语义变更。
+
 ## [v0.54.2] - 2026-10-20 (治理证据链 P0 收口)
 
 ### Fixed
