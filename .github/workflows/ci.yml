@@ -78,12 +78,8 @@ jobs:
           # gate：只高严重度(High)使失败。Medium/Low 是噪音(如 mock/测试
           # 辅助的模式), 不阻断。当前 src 无 High(bandit --severity-level high)。
           bandit -r src/ -c pyproject.toml --severity-level high
-      - name: pip-audit
-        run: |
-          pip install pip-audit
-          # 升级环境自带 setuptools（PYSEC-2026-3447，pip 构建工具非项目依赖）
-          pip install -U "setuptools>=83"
-          pip-audit
+      # 依赖漏洞审计由独立 dependency-audit.yml 定时执行并真实失败；
+      # 不放在本 job，避免与已知传递依赖 CVE 混淆为代码安全门禁。
 
   integrity:
     needs: lint

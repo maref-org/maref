@@ -141,7 +141,9 @@ class GovernedPipeline:
                 try:
                     org_policy = OrganizationPolicy.from_path(org_policy_path)
                 except Exception as exc:
-                    logger.warning("Failed to load organization policy %s: %s", org_policy_path, exc)
+                    logger.warning(
+                        "Failed to load organization policy %s: %s", org_policy_path, exc
+                    )
         self.org_policy = org_policy
         self.otel_exporter = otel_exporter
         if social_content_gate is None:
@@ -305,10 +307,7 @@ class GovernedPipeline:
             tenant_id=request.tenant_id,
             model_version=request.model_version,
         ):
-            reason = (
-                f"模型路由证据 {request.model_route_id} 无效，"
-                "或与租户/模型版本不匹配"
-            )
+            reason = f"模型路由证据 {request.model_route_id} 无效，或与租户/模型版本不匹配"
             matched_rule = "commercial_route:invalid"
         else:
             return None
