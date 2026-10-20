@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
 from maref.governance.commercial_policy import CommercialActionPolicy
-from maref.governance.core_pipeline import GovernanceRequest
+from maref.governance.core_pipeline import GovernanceRequest, Verdict
 from maref.governance.governed_pipeline import GovernedPipeline
 from maref.governance.interaction_evidence import hash_json
 from maref.governance.model_route import ModelRouteDecision, ModelRouteRecorder
@@ -246,3 +248,106 @@ def test_binding_rejects_tampered_entry(tmp_path):
         consume=False,
     )
     assert not restarted.verify_evidence(result.evidence_id, consume=False)
+
+
+def test_new_evidence_records_canonical_hash_version(pipeline):
+    result = _allow(pipeline)
+    entry = pipeline.audit.find_by_id(result.evidence_id)
+
+    assert entry is not None
+    assert entry.metadata["params_hash"] == PARAMS_HASH
+    assert entry.metadata["params_hash_version"] == "2"
+    assert entry.metadata["params_hash_status"] == "ok"
+
+
+def test_unhashable_params_denied_for_l2(tmp_path):
+    policy = CommercialActionPolicy.from_path(POLICY_PATH)
+    pipeline = GovernedPipeline(
+        audit_path=tmp_path / "audit.jsonl",
+        hmac_key="test-key",
+        commercial_action_policy=policy,
+    )
+    result = pipeline.govern(
+        GovernanceRequest(
+            action="pricing.update",
+            agent_id="agent-1",
+            tenant_id="tenant-a",
+            trust_score=80,
+            parameters={"effective_at": dt.datetime.now()},
+        )
+    )
+    entry = pipeline.audit.find_by_id(result.evidence_id)
+
+    assert result.verdict is Verdict.DENY
+    assert result.matched_rule == "commercial_params:unhashable"
+    assert entry is not None
+    assert entry.metadata["params_hash"] == ""
+    assert entry.metadata["params_hash_status"] == "unhashable"
+    assert entry.metadata["params_hash_version"] == "2"
+
+
+def test_unhashable_params_allowed_for_l0_but_not_verifiable(tmp_path):
+    policy = CommercialActionPolicy.from_path(POLICY_PATH)
+    pipeline = GovernedPipeline(
+        audit_path=tmp_path / "audit.jsonl",
+        hmac_key="test-key",
+        commercial_action_policy=policy,
+    )
+    result = pipeline.govern(
+        GovernanceRequest(
+            action="catalog.read",
+            agent_id="agent-1",
+            tenant_id="tenant-a",
+            trust_score=80,
+            parameters={"tags": {"a", "b"}},
+        )
+    )
+    entry = pipeline.audit.find_by_id(result.evidence_id)
+
+    assert result.verdict is Verdict.ALLOW
+    assert entry is not None
+    assert entry.metadata["params_hash_status"] == "unhashable"
+    assert not pipeline.verify_evidence_for(
+        result.evidence_id,
+        action="catalog.read",
+        params_hash="",
+        tenant_id="tenant-a",
+        consume=False,
+    )
+
+
+def test_legacy_params_hash_requires_explicit_opt_in(pipeline):
+    legacy_hash = hashlib.sha256(
+        json.dumps(
+            PARAMS,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    entry = pipeline.audit.log(
+        event_type="governance_decision",
+        actor="agent-1",
+        action="file.read",
+        details="ALLOW: legacy",
+        metadata={"tenant_id": "tenant-a", "params_hash": legacy_hash},
+        tenant_id="tenant-a",
+    )
+
+    assert not pipeline.verify_evidence_for(
+        entry.id,
+        action="file.read",
+        params_hash=legacy_hash,
+        tenant_id="tenant-a",
+        consume=False,
+    )
+    assert pipeline.verify_evidence_for(
+        entry.id,
+        action="file.read",
+        params_hash=legacy_hash,
+        tenant_id="tenant-a",
+        params_hash_version="1",
+        allow_legacy=True,
+        consume=False,
+    )

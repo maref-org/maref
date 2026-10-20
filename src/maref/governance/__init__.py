@@ -432,3 +432,18 @@ __all__ += [
     "RouteEligibility",
     "RouteIngestAdapter",
 ]
+
+# Strict canonical JSON used by evidence hashing (P1)
+from maref.governance.canonical_json import (  # noqa: E402
+    CANONICAL_JSON_VERSION,
+    CanonicalJSONError,
+    canonical_bytes,
+    canonical_hash,
+)
+
+__all__ += [
+    "CANONICAL_JSON_VERSION",
+    "CanonicalJSONError",
+    "canonical_bytes",
+    "canonical_hash",
+]

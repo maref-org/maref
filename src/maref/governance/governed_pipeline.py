@@ -14,7 +14,6 @@ Usage:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -24,6 +23,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from maref.governance.audit import AuditEntry, AuditLogger
+from maref.governance.canonical_json import (
+    CANONICAL_JSON_VERSION,
+    CanonicalJSONError,
+    canonical_hash,
+)
 from maref.governance.commercial_policy import CommercialActionPolicy
 from maref.governance.core_pipeline import (
     GovernancePipeline,
@@ -44,17 +48,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _canonical_hash(value: Any) -> str:
-    """Stable sha256 over a JSON-serialisable value."""
+def _params_hash(value: Any) -> tuple[str, str]:
+    """Return ``(hash, status)``; unsupported values fail closed."""
 
-    canonical = json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        default=str,
-    )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    try:
+        return canonical_hash(value), "ok"
+    except (CanonicalJSONError, TypeError, ValueError):
+        return "", "unhashable"
 
 
 def _default_pipeline_audit_path() -> Path:
@@ -279,7 +279,16 @@ class GovernedPipeline:
         if classification.level not in policy.route_required_levels:
             return None
 
-        if not request.model_route_id:
+        reason = ""
+        matched_rule = ""
+        _, params_status = _params_hash(request.parameters)
+        if params_status != "ok":
+            reason = (
+                f"商业动作 {request.action} ({classification.level.value}) "
+                "参数无法规范化为 JSON，拒绝生成不可复算的证据"
+            )
+            matched_rule = "commercial_params:unhashable"
+        elif not request.model_route_id:
             reason = (
                 f"商业动作 {request.action} ({classification.level.value}) "
                 "缺少模型路由证据 (model_route_decision)"
@@ -508,6 +517,8 @@ class GovernedPipeline:
         action: str,
         params_hash: str,
         tenant_id: str,
+        params_hash_version: str = CANONICAL_JSON_VERSION,
+        allow_legacy: bool = False,
         org_id: str = "",
         purpose_id: str = "",
         route_decision_id: str = "",
@@ -521,12 +532,23 @@ class GovernedPipeline:
         ``verify_evidence`` only proves an id exists.  This method binds the
         evidence to action, canonical params, tenant, policy purpose, route and
         detector snapshot so an ALLOW for one action cannot vouch for another.
+
+        ``params_hash_version`` must match the recorded hashing scheme.  Entries
+        written before canonical JSON v2 require ``allow_legacy=True``; this is
+        an explicit migration window, not the default.
         """
         entry = self._resolve_evidence(evidence_id)
         if entry is None or entry.event_type != "governance_decision":
             return False
         metadata = entry.metadata or {}
         if entry.action != action:
+            return False
+        if str(metadata.get("params_hash_status", "ok")) != "ok":
+            return False
+        entry_version = str(metadata.get("params_hash_version", "1"))
+        if params_hash_version and entry_version != params_hash_version:
+            return False
+        if entry_version != CANONICAL_JSON_VERSION and not allow_legacy:
             return False
         if str(metadata.get("params_hash", "")) != params_hash:
             return False
@@ -611,6 +633,8 @@ class GovernedPipeline:
     def _audit_decision(self, request: GovernanceRequest, result: GovernanceResult) -> None:
         """Persist governance decisions to the append-only audit log AND the
         shared audit bus (W2: closes the loop to the behavior probe)."""
+        parameters = request.parameters if isinstance(request.parameters, dict) else {}
+        params_hash, params_hash_status = _params_hash(request.parameters)
         entry = self.audit.log(
             event_type="governance_decision",
             actor=request.agent_id,
@@ -618,14 +642,16 @@ class GovernedPipeline:
             details=f"{result.verdict.value}: {result.reason}",
             metadata={
                 "tenant_id": request.tenant_id,
-                "org_id": str(request.parameters.get("org_id") or ""),
+                "org_id": str(parameters.get("org_id") or ""),
                 "matched_rule": result.matched_rule,
                 "hitl_tier": result.hitl_tier.name if result.hitl_tier else "",
                 "policy_version": result.policy_version or self.policy_version,
                 "policy_epoch": result.policy_epoch or self.policy_epoch,
                 "risk_score": result.risk_score,
                 # P0-C: bind the decision to what it authorised.
-                "params_hash": _canonical_hash(request.parameters),
+                "params_hash": params_hash,
+                "params_hash_version": CANONICAL_JSON_VERSION,
+                "params_hash_status": params_hash_status,
                 "purpose_id": self._purpose_id(request),
                 "trace_id": request.trace_id,
                 "route_decision_id": request.model_route_id,

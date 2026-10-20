@@ -521,7 +521,7 @@ class AuditLogger:
         # 此处只处理纯内存模式，避免锁外读到的尾哈希过期导致分叉。
         previous_hash = self._memory_entries[-1].chain_hash if self._memory_entries else ""
         entry = AuditEntry(
-            id=uuid.uuid4().hex[:8],
+            id=uuid.uuid4().hex,
             timestamp=now,
             event_type=event_type,
             actor=actor,

@@ -12,11 +12,11 @@ and discards it.
 from __future__ import annotations
 
 import hashlib
-import json
 from dataclasses import dataclass, replace
 from typing import Any
 
 from maref.governance.audit import AuditLogger
+from maref.governance.canonical_json import canonical_hash
 
 INTERACTION_EVENT = "llm_interaction"
 INTERACTION_SCHEMA_VERSION = "1"
@@ -282,14 +282,9 @@ def hash_text(text: str) -> str:
 
 
 def hash_json(value: Any) -> str:
-    canonical = json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        default=str,
-    )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    """Strict canonical hash; raises CanonicalJSONError on unsupported types."""
+
+    return canonical_hash(value)
 
 
 def compute_detector_set_hash(findings: tuple[SafetyFinding, ...] | list[SafetyFinding]) -> str:

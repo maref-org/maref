@@ -12,13 +12,13 @@ records signed by an independent router key and rejects replayed attestations.
 from __future__ import annotations
 
 import hashlib
-import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
 from maref.crypto.ed25519_keys import Ed25519KeyPair
 from maref.governance.audit import AuditLogger
+from maref.governance.canonical_json import canonical_bytes
 
 MODEL_ROUTE_EVENT = "model_route_decision"
 MODEL_ROUTE_SCHEMA_VERSION = "1"
@@ -30,22 +30,6 @@ class RouteAttestationError(RuntimeError):
 
 class RouteEvidenceError(RuntimeError):
     """Raised when a route evidence record is malformed or missing."""
-
-
-def canonical_bytes(payload: Mapping[str, Any]) -> bytes:
-    """Canonical JSON bytes used for signing (no whitespace, sorted keys)."""
-
-    return json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        default=_reject_non_json,
-    ).encode("utf-8")
-
-
-def _reject_non_json(value: Any) -> Any:
-    raise TypeError(f"Route payload contains non-JSON value: {type(value).__name__}")
 
 
 def _require(payload: Mapping[str, Any], key: str) -> str:
