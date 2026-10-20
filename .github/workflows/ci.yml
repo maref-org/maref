@@ -26,6 +26,18 @@ jobs:
         run: ruff format --check src/maref src/maref_lite
       - name: Mypy type check
         run: mypy src/maref src/maref_lite
+      - name: Ruff lint (governance metrics scripts)
+        # scripts/ 有历史遗留 lint 债务，此处只锁定治理度量链路，
+        # 防止再次出现"度量脚本从未被 lint/测试"的盲区。
+        run: >
+          ruff check
+          scripts/approval_tier.py
+          scripts/backlog_sla.py
+          scripts/coding_agent_status.py
+          scripts/confidence_realtime.py
+          scripts/probe_sampler.py
+          scripts/probe_threshold_calibrate.py
+          tests/scripts
 
   test:
     needs: lint
