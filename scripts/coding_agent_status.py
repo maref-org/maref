@@ -15,15 +15,35 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.request
-from datetime import UTC, datetime, timedelta
-from functools import lru_cache
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from maref_config import REPO_DIR, RUNTIME_DIR, report_path, sidecar_auth_headers
 
-HOOKS_CHAIN = Path.home() / ".claude" / "hooks" / "state" / "governance_audit.jsonl"
+# 允许环境覆盖 hooks 审计链路径（CI/多机场景不要依赖 ~/.claude 布局）
+HOOKS_CHAIN = Path(
+    os.environ.get("MAREF_HOOKS_AUDIT_LOG", "")
+    or str(Path.home() / ".claude" / "hooks" / "state" / "governance_audit.jsonl")
+).expanduser()
+
+# hooks 链缓存 TTL：避免一次运行内重复扫链，同时防止常驻进程读到陈旧数据
+_HOOKS_CACHE_TTL_SECONDS = 60.0
+_hooks_cache: tuple[float, dict[str, dict[str, int]]] | None = None
+
+# verdict 词表归一：hooks 链用 ALLOW/EXECUTED，Obs 侧历史上写 ok/allow
+_ALLOW_VERDICTS = {"allow", "allowed", "ok", "executed", "success", "approved"}
+_DENY_VERDICTS = {"deny", "denied", "blocked"}
+_HITL_VERDICTS = {"ask_user", "hitl", "human_review"}
+# 参与 KPI 统计的事件类型（hitl_triggered 是独立事件，不在 tool_call_end 里）
+_TOOL_EVENT_TYPES = {
+    "tool_call_start",
+    "tool_call_end",
+    "tool_call_intercepted",
+    "hitl_triggered",
+}
 
 
 def _resolve(path: str) -> Path:
@@ -51,7 +71,7 @@ def _fetch_sidecar_telemetry(sidecar_url: str, agent_id: str, since_hours: int =
     if not sidecar_url:
         return None
     try:
-        since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
+        since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
         url = f"{sidecar_url.rstrip('/')}/api/telemetry/query"
         params = f"?source=maref-obs-{agent_id[:8]}&since={since_ts}&limit=1000"
         req = urllib.request.Request(url + params, method="GET", headers=sidecar_auth_headers())
@@ -67,7 +87,7 @@ def _read_local_obs_events(agent_id: str, since_hours: int = 24) -> list[dict]:
     """读取本地 ObsEvent 缓冲区"""
     obs_dir = Path.home() / ".maref" / "obs"
     events = []
-    since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
+    since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
 
     for f in obs_dir.glob("behavior_*.ndjson"):
         try:
@@ -97,7 +117,7 @@ def _read_mcp_decision_log(agent_id: str, since_hours: int = 24) -> list[dict]:
     if not audit_log.exists():
         audit_log = REPO_DIR / ".governance" / "governance_audit.jsonl"
     events = []
-    since_ts = (datetime.now(UTC) - timedelta(hours=since_hours)).timestamp()
+    since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
 
     if not audit_log.exists():
         return events
@@ -119,17 +139,22 @@ def _read_mcp_decision_log(agent_id: str, since_hours: int = 24) -> list[dict]:
     return events
 
 
-@lru_cache(maxsize=1)
 def _hooks_24h_counts() -> dict[str, dict[str, int]]:
     """按 agent 聚合 hooks 审计链最近 24h verdict。
 
     hooks 链是工具调用的事实遥测（ALLOW/EXECUTED/DENY/BLOCKED），
     当 sidecar/obs 事件缺失时作为运行时 KPI 的回退数据源。
     """
+    global _hooks_cache
+    now_mono = time.monotonic()
+    if _hooks_cache is not None and now_mono - _hooks_cache[0] < _HOOKS_CACHE_TTL_SECONDS:
+        return _hooks_cache[1]
+
     counts: dict[str, dict[str, int]] = {}
     if not HOOKS_CHAIN.exists():
+        _hooks_cache = (now_mono, counts)
         return counts
-    cutoff = (datetime.now(UTC) - timedelta(hours=24)).timestamp()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).timestamp()
     try:
         with open(HOOKS_CHAIN, encoding="utf-8", errors="replace") as fh:
             for line in fh:
@@ -148,29 +173,55 @@ def _hooks_24h_counts() -> dict[str, dict[str, int]]:
                 bucket[verdict] = bucket.get(verdict, 0) + 1
     except OSError:
         pass
+    _hooks_cache = (now_mono, counts)
     return counts
+
+
+def _rate(part: int, total: int) -> float:
+    """百分比，分母兜底并封顶，避免 hitl_rate 因口径差异 >100%。"""
+    if total <= 0:
+        return 0.0
+    return round(min(100.0, part / total * 100.0), 2)
+
+
+def _trust_score(
+    allowed: int, denied: int, blocked: int, hitl: int, failed: int, total: int
+) -> float:
+    """统一信任分公式（hooks 与 sidecar 两路共用，保证跨源可比）。
+
+    扣分项：拦截/拒绝 1.0x，HITL 0.3x，失败 0.5x（均按占比）。
+    """
+    if total <= 0:
+        return 50.0
+    intercepted_rate = (denied + blocked) / total * 100.0
+    denied_rate = denied / total * 100.0
+    hitl_rate = hitl / total * 100.0
+    failed_rate = failed / total * 100.0
+    score = 100.0 - intercepted_rate * 0.5 - denied_rate * 1.0 - hitl_rate * 0.3 - failed_rate * 0.5
+    return round(max(0.0, min(100.0, score)), 1)
 
 
 def _hooks_runtime_kpi(agent_id: str, kpi: dict[str, Any]) -> dict[str, Any]:
     counts = _hooks_24h_counts().get(agent_id) or {}
-    allow = counts.get("ALLOW", 0)
-    executed = counts.get("EXECUTED", 0)
+    allowed = max(counts.get("ALLOW", 0), counts.get("EXECUTED", 0))
     denied = counts.get("DENY", 0)
     blocked = counts.get("BLOCKED", 0)
     failed = counts.get("FAILED", 0)
-    allowed = max(allow, executed)
-    total = allowed + denied + blocked + failed
+    hitl = counts.get("HITL", 0)
+    # hooks 的 verdict 是互斥裁决，HITL 也算一次被观察到的调用
+    total = allowed + denied + blocked + failed + hitl
     if total == 0:
         return kpi
+    denom = total
     kpi.update({
         "tool_calls_total": total,
         "tool_calls_allowed": allowed,
         "tool_calls_intercepted": blocked,
         "tool_calls_denied": denied,
-        "tool_calls_hitl": counts.get("HITL", 0),
-        "interception_rate": round((blocked + denied) / total * 100, 2),
-        "hitl_rate": round(counts.get("HITL", 0) / total * 100, 2),
-        "trust_score": round(max(0.0, 100.0 - (blocked + denied) / total * 100), 1),
+        "tool_calls_hitl": hitl,
+        "interception_rate": _rate(blocked + denied, denom),
+        "hitl_rate": _rate(hitl, denom),
+        "trust_score": _trust_score(allowed, denied, blocked, hitl, failed, denom),
         "kpi_source": "hooks_agent_24h",
     })
     return kpi
@@ -184,7 +235,7 @@ def _compute_runtime_kpi(
     mcp_events: list[dict],
 ) -> dict[str, Any]:
     """计算运行时 KPI"""
-    kpi = {
+    kpi: dict[str, Any] = {
         "tool_calls_total": 0,
         "tool_calls_allowed": 0,
         "tool_calls_intercepted": 0,
@@ -199,28 +250,36 @@ def _compute_runtime_kpi(
         "trust_score": 50.0,
         "hitl_events": 0,
         "unique_correlations": 0,
+        # 三态：no_telemetry（无数据）/ sidecar_obs / hooks_agent_24h
+        "kpi_source": "no_telemetry",
     }
 
-    # 合并所有事件源
-    all_tool_events = []
+    # 合并所有事件源（统一携带 event_type，避免只看 metadata 时字段丢失）
+    all_tool_events: list[dict] = []
+
+    def _with_event_type(payload: dict, fallback_type: str | None = None) -> dict:
+        ev = dict(payload or {})
+        if not ev.get("event_type") and fallback_type:
+            ev["event_type"] = fallback_type
+        return ev
 
     # 1. 来自 sidecar telemetry 的 ObsEvent 批量
     if telemetry_data and telemetry_data.get("results"):
         for entry in telemetry_data["results"]:
-            data = entry.get("data", {})
-            if data.get("event_type") in ("tool_call_start", "tool_call_end", "tool_call_intercepted"):
+            data = _with_event_type(entry.get("data", {}))
+            if data.get("event_type") in _TOOL_EVENT_TYPES:
                 all_tool_events.append(data)
 
     # 2. 来自本地 ObsEvent
     for ev in local_events:
-        meta = ev.get("metadata", {})
-        if ev.get("event_type") in ("tool_call_start", "tool_call_end", "tool_call_intercepted"):
+        meta = _with_event_type(ev.get("metadata", {}), ev.get("event_type"))
+        if meta.get("event_type") in _TOOL_EVENT_TYPES:
             all_tool_events.append(meta)
 
     # 3. 来自 MCP 审计日志
     for ev in mcp_events:
         if ev.get("event_type") == "governance_decision":
-            all_tool_events.append(ev.get("metadata", {}))
+            all_tool_events.append(_with_event_type(ev.get("metadata", {}), "governance_decision"))
 
     if not all_tool_events:
         return _hooks_runtime_kpi(agent_id, kpi)
@@ -233,33 +292,46 @@ def _compute_runtime_kpi(
     cost = 0.0
 
     for ev in all_tool_events:
-        if ev.get("event_type") == "tool_call_start":
+        event_type = ev.get("event_type")
+        if event_type == "tool_call_start":
             kpi["tool_calls_total"] += 1
             corr = ev.get("correlation_id")
             if corr:
                 correlations.add(corr)
-        elif ev.get("event_type") == "tool_call_end":
-            verdict = ev.get("verdict", "").lower()
-            if verdict == "allow":
+        elif event_type == "tool_call_end":
+            verdict = str(ev.get("verdict") or "").lower()
+            if verdict in _ALLOW_VERDICTS:
                 kpi["tool_calls_allowed"] += 1
-            elif verdict == "deny":
+            elif verdict in _DENY_VERDICTS:
                 kpi["tool_calls_denied"] += 1
-            elif verdict == "ask_user":
+            elif verdict in _HITL_VERDICTS:
                 kpi["tool_calls_hitl"] += 1
             lat = ev.get("latency_ms")
-            if lat:
-                latencies.append(lat)
-            tokens_in += ev.get("tokens_input", 0)
-            tokens_out += ev.get("tokens_output", 0)
-            cost += ev.get("cost_usd", 0.0)
-        elif ev.get("event_type") == "tool_call_intercepted":
-            kpi["tool_calls_intercepted"] += 1
+            if isinstance(lat, (int, float)) and lat > 0:
+                latencies.append(float(lat))
+            tokens_in += int(ev.get("tokens_input") or 0)
+            tokens_out += int(ev.get("tokens_output") or 0)
+            cost += float(ev.get("cost_usd") or 0.0)
+        elif event_type in ("tool_call_intercepted", "hitl_triggered"):
+            if event_type == "hitl_triggered":
+                kpi["tool_calls_hitl"] += 1
+            else:
+                kpi["tool_calls_intercepted"] += 1
 
     kpi["unique_correlations"] = len(correlations)
 
-    total_calls = kpi["tool_calls_total"] or 1
-    kpi["interception_rate"] = round((kpi["tool_calls_intercepted"] + kpi["tool_calls_denied"]) / total_calls * 100, 2)
-    kpi["hitl_rate"] = round(kpi["tool_calls_hitl"] / total_calls * 100, 2)
+    # 部分数据源只有 tool_call_end（无 start）→ 用裁决事件数回填总调用，
+    # 避免出现 "total=0 但 allowed=3000" 的自相矛盾 KPI。
+    observed_calls = kpi["tool_calls_allowed"] + kpi["tool_calls_denied"]
+    kpi["tool_calls_total"] = max(
+        kpi["tool_calls_total"], observed_calls, kpi["tool_calls_intercepted"], kpi["tool_calls_hitl"]
+    )
+
+    # 分母同时覆盖 start 计数与 HITL 计数，避免 hitl_rate 因口径不同而 >100%
+    denom = max(kpi["tool_calls_total"], kpi["tool_calls_hitl"], 1)
+    kpi["interception_rate"] = _rate(kpi["tool_calls_intercepted"] + kpi["tool_calls_denied"], denom)
+    kpi["hitl_rate"] = _rate(kpi["tool_calls_hitl"], denom)
+    kpi["hitl_events"] = kpi["tool_calls_hitl"]
 
     if latencies:
         latencies.sort()
@@ -270,13 +342,16 @@ def _compute_runtime_kpi(
     kpi["total_tokens"] = tokens_in + tokens_out
     kpi["total_cost_usd"] = round(cost, 6)
 
-    # 信任分估算 (基于拦截率、HITL 率、错误率)
-    trust = 100.0
-    trust -= kpi["interception_rate"] * 0.5
-    trust -= kpi["hitl_rate"] * 0.3
-    trust -= (kpi["tool_calls_denied"] / total_calls * 100) * 1.0
-    kpi["trust_score"] = round(max(0.0, min(100.0, trust)), 1)
-    if kpi["tool_calls_total"] == 0:
+    # 统一信任分公式（与 hooks 回退路径一致）
+    kpi["trust_score"] = _trust_score(
+        kpi["tool_calls_allowed"],
+        kpi["tool_calls_denied"],
+        kpi["tool_calls_intercepted"],
+        kpi["tool_calls_hitl"],
+        0,
+        denom,
+    )
+    if kpi["tool_calls_total"] == 0 and kpi["tool_calls_allowed"] == 0 and kpi["tool_calls_hitl"] == 0:
         return _hooks_runtime_kpi(agent_id, kpi)
     kpi["kpi_source"] = "sidecar_obs"
 
@@ -369,7 +444,7 @@ def main() -> None:
 
         # 显示 KPI
         if kpi:
-            print("   📊 最近24h KPI:")
+            print(f"   📊 最近24h KPI (源: {kpi['kpi_source']}):")
             print(f"      总调用: {kpi['tool_calls_total']} | 通过: {kpi['tool_calls_allowed']} | 拦截: {kpi['tool_calls_intercepted']} | 拒绝: {kpi['tool_calls_denied']} | HITL: {kpi['tool_calls_hitl']}")
             print(f"      拦截率: {kpi['interception_rate']}% | HITL率: {kpi['hitl_rate']}%")
             print(f"      平均延迟: {kpi['avg_latency_ms']}ms | P95: {kpi['p95_latency_ms']}ms")
@@ -389,25 +464,35 @@ def main() -> None:
 
     # 聚合 KPI 总览
     total_calls = sum(r.get("runtime_kpi", {}).get("tool_calls_total", 0) for r in results)
+    total_allowed = sum(r.get("runtime_kpi", {}).get("tool_calls_allowed", 0) for r in results)
     total_intercepted = sum(r.get("runtime_kpi", {}).get("tool_calls_intercepted", 0) for r in results)
     total_denied = sum(r.get("runtime_kpi", {}).get("tool_calls_denied", 0) for r in results)
     total_hitl = sum(r.get("runtime_kpi", {}).get("tool_calls_hitl", 0) for r in results)
+    no_telemetry = [
+        r["agent_id"] for r in results
+        if r.get("runtime_kpi", {}).get("kpi_source") == "no_telemetry"
+    ]
 
     print(f"\n{'=' * 70}")
     print(f"汇总: {summary['total']} agent | "
           f"✅{summary['connected']} ⚠️{summary['degraded']} ❌{summary['missing']} ❔{summary['unknown']}")
-    print(f"全局 KPI (24h): 调用 {total_calls} | 拦截 {total_intercepted} | 拒绝 {total_denied} | HITL {total_hitl}")
+    print(f"全局 KPI (24h): 调用 {total_calls} | 通过 {total_allowed} | "
+          f"拦截 {total_intercepted} | 拒绝 {total_denied} | HITL {total_hitl}")
+    if no_telemetry:
+        print(f"⚠️ 无遥测数据 (KPI 不参与健康判定): {', '.join(no_telemetry)}")
 
     out = report_path("coding_agents_status.json")
     with open(out, "w") as f:
         json.dump({
-            "checked_at": datetime.now(UTC).isoformat(),
+            "checked_at": datetime.now(timezone.utc).isoformat(),
             "summary": summary,
             "global_kpi": {
                 "tool_calls_total": total_calls,
+                "tool_calls_allowed": total_allowed,
                 "tool_calls_intercepted": total_intercepted,
                 "tool_calls_denied": total_denied,
                 "tool_calls_hitl": total_hitl,
+                "agents_without_telemetry": no_telemetry,
             },
             "agents": results,
         }, f, indent=2, ensure_ascii=False)

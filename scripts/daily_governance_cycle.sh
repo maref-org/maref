@@ -14,12 +14,17 @@ mkdir -p "$LOG_DIR"
 export MAREF_RUNTIME_DIR="${MAREF_RUNTIME_DIR:-$REPO_ROOT}"
 export MAREF_AUDIT_PATH="${MAREF_AUDIT_PATH:-$REPO_ROOT/.governance}"
 export MAREF_PROJECT_ROOT="${MAREF_PROJECT_ROOT:-$REPO_ROOT}"
-# Overlay tick 需要完整框架 → 优先 project venv (py3.14)
+# 全链路统一解释器：优先 project venv（脚本使用 py3.11+ 语法），
+# 避免落到系统 python3（macOS 自带 3.9 会导致 ImportError）。
 PY_VENV="$REPO_ROOT/.venv/bin/python3"
 if [ -x "$PY_VENV" ]; then
     PY="$PY_VENV"
 else
     PY="python3"
+fi
+if ! "$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+    echo "❌ 需要 Python >= 3.10，当前: $("$PY" --version 2>&1)" >&2
+    exit 1
 fi
 
 TODAY=$(date +%Y-%m-%d)
@@ -44,42 +49,42 @@ log "========== MAREF 每日治理循环启动 =========="
 # Phase 1: 数据闭环
 log "Phase 1: 数据闭环"
 log "  P0-B 探针采样 (进水口)..."
-python3 "$SCRIPTS/probe_sampler.py" >> "$LOGFILE" 2>&1 || fail "P0-B-probe-sampler"
+"$PY" "$SCRIPTS/probe_sampler.py" >> "$LOGFILE" 2>&1 || fail "P0-B-probe-sampler"
 
 log "  P-02 提案对账..."
-python3 "$SCRIPTS/proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "P-02"
+"$PY" "$SCRIPTS/proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "P-02"
 
 log "  P-01 翻案抽查..."
-python3 "$SCRIPTS/approval_resample.py" >> "$LOGFILE" 2>&1 || fail "P-01"
+"$PY" "$SCRIPTS/approval_resample.py" >> "$LOGFILE" 2>&1 || fail "P-01"
 
 log "  P-06 置信度实算..."
-python3 "$SCRIPTS/confidence_realtime.py" >> "$LOGFILE" 2>&1 || fail "P-06"
+"$PY" "$SCRIPTS/confidence_realtime.py" >> "$LOGFILE" 2>&1 || fail "P-06"
 
 log "  P-09 增益口径审计..."
-python3 "$SCRIPTS/gain_audit.py" >> "$LOGFILE" 2>&1 || fail "P-09"
+"$PY" "$SCRIPTS/gain_audit.py" >> "$LOGFILE" 2>&1 || fail "P-09"
 
 # Phase 2: 分析 + 疫苗
 log "Phase 2: 分析 + 疫苗"
 log "  P-03 审批分层..."
-python3 "$SCRIPTS/approval_tier.py" >> "$LOGFILE" 2>&1 || fail "P-03"
+"$PY" "$SCRIPTS/approval_tier.py" >> "$LOGFILE" 2>&1 || fail "P-03"
 
 log "  P-05 权重分级..."
-python3 "$SCRIPTS/domain_weight.py" >> "$LOGFILE" 2>&1 || fail "P-05"
+"$PY" "$SCRIPTS/domain_weight.py" >> "$LOGFILE" 2>&1 || fail "P-05"
 
 log "  Coding Agent 治理注册状态..."
-python3 "$SCRIPTS/coding_agent_status.py" >> "$LOGFILE" 2>&1 || fail "coding-agent-status"
+"$PY" "$SCRIPTS/coding_agent_status.py" >> "$LOGFILE" 2>&1 || fail "coding-agent-status"
 
 log "  P-07 疫苗管线..."
-python3 "$SCRIPTS/vaccine_pipeline/01_extract_patterns.py" >> "$LOGFILE" 2>&1 || fail "P-07-extract"
-python3 "$SCRIPTS/vaccine_pipeline/04_compile_vaccines.py" >> "$LOGFILE" 2>&1 || fail "P-07-compile"
+"$PY" "$SCRIPTS/vaccine_pipeline/01_extract_patterns.py" >> "$LOGFILE" 2>&1 || fail "P-07-extract"
+"$PY" "$SCRIPTS/vaccine_pipeline/04_compile_vaccines.py" >> "$LOGFILE" 2>&1 || fail "P-07-compile"
 
 # Phase 3: 检测 + SLA
 log "Phase 3: 检测 + SLA"
 log "  P-04 僵死检测..."
-python3 "$SCRIPTS/zombie_agent_escalation.py" >> "$LOGFILE" 2>&1 || fail "P-04"
+"$PY" "$SCRIPTS/zombie_agent_escalation.py" >> "$LOGFILE" 2>&1 || fail "P-04"
 
 log "  P-08 SLA 治理..."
-python3 "$SCRIPTS/backlog_sla.py" >> "$LOGFILE" 2>&1 || fail "P-08"
+"$PY" "$SCRIPTS/backlog_sla.py" >> "$LOGFILE" 2>&1 || fail "P-08"
 
 # 辅助检查
 log "辅助检查"
@@ -87,26 +92,30 @@ log "  P2-1/2 RecursiveOverlay 生产 tick (真实 observation)..."
 "$PY" "$SCRIPTS/recursive_overlay_tick.py" >> "$LOGFILE" 2>&1 || fail "recursive-overlay-tick"
 
 log "  P1-C 审计生产链心跳..."
-python3 "$SCRIPTS/audit_heartbeat.py" >> "$LOGFILE" 2>&1 || fail "audit-heartbeat"
+"$PY" "$SCRIPTS/audit_heartbeat.py" >> "$LOGFILE" 2>&1 || fail "audit-heartbeat"
 
 log "  探针阈值校准..."
-python3 "$SCRIPTS/probe_threshold_calibrate.py" >> "$LOGFILE" 2>&1 || fail "probe-calibrate"
+# 只用 30d + v3 口径：全量历史混有旧语义，分位阈值会落在两套单位之间
+"$PY" "$SCRIPTS/probe_threshold_calibrate.py" --window-days 30 --source probe_sampler_v3 >> "$LOGFILE" 2>&1 || fail "probe-calibrate"
+
+log "  阈值配置与校准产物一致性..."
+"$PY" "$SCRIPTS/probe_threshold_calibrate.py" --verify >> "$LOGFILE" 2>&1 || fail "threshold-verify"
 
 log "  校准状态观察..."
-python3 "$SCRIPTS/calibration_status.py" >> "$LOGFILE" 2>&1 || fail "calibration-status"
+"$PY" "$SCRIPTS/calibration_status.py" >> "$LOGFILE" 2>&1 || fail "calibration-status"
 
 log "  校准复核 (对比基线)..."
-python3 "$SCRIPTS/calibration_review.py" >> "$LOGFILE" 2>&1 || fail "calibration-review"
+"$PY" "$SCRIPTS/calibration_review.py" >> "$LOGFILE" 2>&1 || fail "calibration-review"
 
 log "  审计健康检查..."
-python3 "$SCRIPTS/audit_health_check.py" >> "$LOGFILE" 2>&1 || fail "audit-health"
+"$PY" "$SCRIPTS/audit_health_check.py" >> "$LOGFILE" 2>&1 || fail "audit-health"
 
 log "  进化状态检查..."
-python3 "$SCRIPTS/evolution_daemon_status.py" >> "$LOGFILE" 2>&1 || fail "evolution-status"
+"$PY" "$SCRIPTS/evolution_daemon_status.py" >> "$LOGFILE" 2>&1 || fail "evolution-status"
 
 # 晨报
 log "  晨报生成..."
-python3 "$SCRIPTS/gen_morning_report.py" >> "$LOGFILE" 2>&1 || fail "morning-report"
+"$PY" "$SCRIPTS/gen_morning_report.py" >> "$LOGFILE" 2>&1 || fail "morning-report"
 
 # Agent 覆盖对账（证据报告依赖其新鲜度）
 log "  Agent 覆盖对账..."
@@ -118,15 +127,15 @@ bash "$SCRIPTS/evidence_gate.sh" --p0 >> "$LOGFILE" 2>&1 || fail "evidence-gate"
 
 # 阈值推送
 log "  阈值推送..."
-python3 "$SCRIPTS/push_thresholds.py" >> "$LOGFILE" 2>&1 || fail "threshold-push"
+"$PY" "$SCRIPTS/push_thresholds.py" >> "$LOGFILE" 2>&1 || fail "threshold-push"
 
 # 告警推送
 log "  告警推送..."
-python3 "$SCRIPTS/push_alerts.py" >> "$LOGFILE" 2>&1 || fail "alert-push"
+"$PY" "$SCRIPTS/push_alerts.py" >> "$LOGFILE" 2>&1 || fail "alert-push"
 
 # 提案对账推送
 log "  提案对账推送..."
-python3 "$SCRIPTS/push_proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "proposal-push"
+"$PY" "$SCRIPTS/push_proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "proposal-push"
 
 log "========== 治理循环完成 | 失败: $FAIL_COUNT =========="
 

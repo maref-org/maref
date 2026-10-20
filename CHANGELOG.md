@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Fixed
+- 每日治理循环：19 处调用从 `python3`（本机 3.9）改为 venv `$PY`，并前置版本守卫；修复 `coding_agent_status.py` 在 3.9 下 `datetime.UTC` 崩溃。
+- `coding_agent_status.py`：统一 KPI verdict 词表（`ok`/`allow`/`EXECUTED`），补上 `hitl_triggered` 独立事件并封顶率值；hooks 与 sidecar 两条路径共用同一 `trust_score` 公式；无遥测时标记 `no_telemetry`（不再与"健康"混淆）。
+- `coding_agent_status.py`：hooks 审计链路径支持 `MAREF_HOOKS_AUDIT_LOG` 覆盖；缓存改为 60s TTL（原 `lru_cache` 永久）。
+- `confidence_realtime.py`：窗口截止时间改用 UTC；非数值 `window_used` 不再崩溃；新增退化探针剔除、阈值尺度失配告警、无样本时显式 `prior_no_samples` 回退（不再静默返回 68）。
+- `probe_sampler.py`：`governance_health` 覆盖率封顶 100%，原始比值保留在 context 供审计；窗口内无工具调用时跳过该探针（不再用 `or 1` 把 0 调用算成 100% 健康），无 agent 样本时跳过 `agent_trust`（不再写 50.0 中性假分）。
+- `probe_sampler.py`：audit/recursive 日志改为按 `MAREF_PROBE_TIME_WINDOW_HOURS` 过滤（此前加载全量日志再取尾 1000 条，实测同一批 579 条旧事件连续 9 天被当作 24h 遥测）；窗口内无事件时整轮跳过写入，不再写入全 0 读数。
+- `approval_tier.py`：加 minimum-N 守卫（`<20` 输出 `INSUFFICIENT_DATA`）；naive ISO 时间按 UTC 解释；metadata 非 dict 不再抛异常。
+- `backlog_sla.py`：报告新增 `sla_semantics` 口径字段，明确 `sla_met` 判"是否存在 >7d 高危项"。
+
+### Added
+- `probe_threshold_calibrate.py`：校准产出 `reports/calibration_artifact.json`（样本量/分位表/DB 指纹/config hash/provenance），新增 `--verify` 检测阈值配置被手改；每日治理循环按 `--window-days 30 --source probe_sampler_v3` 校准并校验一致性。
+- `probe_threshold_calibrate.py`：新增 `--window-days` / `--source` 过滤、分位退化拒绝写入（P75≤0 或 P75=P95），以及 `--accept-seed`（显式标记现有阈值为未校准 seed，`--verify` 会持续告警）。
+- `probe_threshold_calibrate.py`：`_db_fingerprint()` 在 DB 缺失/无 schema 时不再抛异常。
+- `tests/scripts/test_governance_scripts.py`：23 个治理度量脚本回归测试。
+- CI：新增治理度量脚本的 ruff 门禁（此前 `scripts/` 118 文件完全不在 ruff 门禁内）。
+
 ## [v0.54.3] - 2026-10-20 (CI 稳定性与发布链路修复)
 
 ### Fixed

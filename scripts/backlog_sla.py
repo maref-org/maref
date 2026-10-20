@@ -185,8 +185,8 @@ def analyze_backlog():
         if float(item.get("age_hours") or 0) > 168
     ]
     print(f"当前高危积压: {len(backlog['high'])} (超 7d: {len(breached)})")
-    clearance = "✅ 达标" if not breached else f"⚠️ {len(breached)} 条待清零"
-    print(f"清零状态: {clearance}")
+    clearance = "✅ 达标" if not breached else f"⚠️ {len(breached)} 条超 SLA 待清零"
+    print(f"7d 清零状态: {clearance}")
 
     if backlog['high']:
         print("\n--- 高危积压详情 (前5条) ---")
@@ -205,6 +205,9 @@ def analyze_backlog():
             "sla_breached_count": len(breached),
             "sla_target": "高危7d清零率100%",
             "sla_met": not breached,
+            # 口径说明（v0.54.3 起）：sla_met 判"是否存在 >7d 的高危项"，
+            # 而非"高危清单是否为空"；<7d 的高危项仍保留在 high_risk_count。
+            "sla_semantics": "breached_high_risk_items_older_than_168h",
             "backlog": {k: v[:10] for k, v in backlog.items()},
             "p2_injected": [i["id"] for b in backlog.values() for i in b if i.get("source") == "audit_rootcause_backlog"],
         }, f, indent=2, ensure_ascii=False)
