@@ -7,7 +7,7 @@ internal/agents 44 文件 / coding registry 5，四处数字互不一致且无�
 
 **本脚本做法**:
 1. **唯一口径源（SSOT）**= openclaw `agent_heartbeat.db`（心跳 daemon 每日刷新），
-   实测 162 条 / 151 active_24h / 最新心跳 <1h。
+   条数与 active_24h 以每次运行输出为准，不在代码中固化。
 2. `.governance/agent_registry.json` 由 SSOT **派生刷新**（改法2：不再 70 天陈旧）。
 3. 「180+」查无源 → 降级为 unverified claim 记入 `declared_180.resolution`
    （方案 T1-5 选项3的反面处置：无清单可设源则不作口径）。

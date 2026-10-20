@@ -36,6 +36,13 @@ def _check(name: str, ok: bool, detail: str = "") -> dict:
     return {"name": name, "ok": bool(ok), "detail": detail}
 
 
+def _as_int(value: object, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def evaluate(report: dict | None, *, full: bool = False, hashes_ok: bool = False) -> list[dict]:
     checks: list[dict] = []
     if report is None:
@@ -55,6 +62,12 @@ def evaluate(report: dict | None, *, full: bool = False, hashes_ok: bool = False
     verdicts = _get(proof, "verdicts", default={})
     chain = _get(proof, "chain_verify", default={})
     chain_scope = _get(proof, "chain_scope", default={})
+    chain_scope = chain_scope if isinstance(chain_scope, dict) else {}
+    telemetry = telemetry if isinstance(telemetry, dict) else {}
+    proof = proof if isinstance(proof, dict) else {}
+    coverage = coverage if isinstance(coverage, dict) else {}
+    verdicts = verdicts if isinstance(verdicts, dict) else {}
+    chain = chain if isinstance(chain, dict) else {}
     scoped_chains = chain_scope.get("chains") if isinstance(chain_scope, dict) else None
 
     checks += [
@@ -87,7 +100,7 @@ def evaluate(report: dict | None, *, full: bool = False, hashes_ok: bool = False
         _check(
             "required chain verify",
             bool(chain.get("required_ok"))
-            and int(chain.get("required_total") or 0) > 0,
+            and _as_int(chain.get("required_total")) > 0,
             f"{chain.get('required_passed')}/{chain.get('required_total')}",
         ),
         _check(
@@ -108,6 +121,7 @@ def evaluate(report: dict | None, *, full: bool = False, hashes_ok: bool = False
             "tool_calls_total",
             default=0,
         )
+        kpi = _as_int(kpi)
         unknown_rate = verdicts.get("approval_tier_unknown_rate")
         critical_rate = verdicts.get("confidence_critical_rate")
 
@@ -122,7 +136,7 @@ def evaluate(report: dict | None, *, full: bool = False, hashes_ok: bool = False
                 isinstance(coverage_age, (int, float)) and coverage_age <= 168,
                 f"{coverage_age}h" if coverage_age is not None else "stale",
             ),
-            _check("coding kpi > 0", int(kpi or 0) > 0, str(kpi)),
+            _check("coding kpi > 0", kpi > 0, str(kpi)),
             _check(
                 "approval unknown <= 30%",
                 isinstance(unknown_rate, (int, float)) and unknown_rate <= 0.30,
@@ -144,13 +158,17 @@ def evaluate(report: dict | None, *, full: bool = False, hashes_ok: bool = False
 
 
 def _run_generator(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        [sys.executable, str(GENERATOR), *args],
-        cwd=str(REPO_DIR),
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
+    command = [sys.executable, str(GENERATOR), *args]
+    try:
+        return subprocess.run(
+            command,
+            cwd=str(REPO_DIR),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return subprocess.CompletedProcess(command, 124, "", str(exc))
 
 
 def main() -> int:

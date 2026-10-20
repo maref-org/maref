@@ -50,6 +50,13 @@ def _healthy_report() -> dict:
     }
 
 
+def test_health_ok_rejects_unhealthy_substring():
+    assert evidence._health_ok('{"status":"healthy","healthy":true}') is True
+    assert evidence._health_ok('{"status":"unhealthy","healthy":false}') is False
+    assert evidence._health_ok("healthy") is True
+    assert evidence._health_ok("unhealthy") is False
+
+
 def test_gate_p0_passes_for_healthy_report():
     checks = gate.evaluate(_healthy_report(), hashes_ok=True)
     assert all(check["ok"] for check in checks)
@@ -73,6 +80,26 @@ def test_gate_p0_fails_when_chain_scope_is_missing():
     checks = gate.evaluate(report, hashes_ok=True)
     failed = {check["name"] for check in checks if not check["ok"]}
     assert "chain scope declared" in failed
+
+
+def test_gate_p0_handles_malformed_chain_scope():
+    report = _healthy_report()
+    report["sections"]["self_proof"]["chain_scope"] = []
+
+    checks = gate.evaluate(report, hashes_ok=True)
+    failed = {check["name"] for check in checks if not check["ok"]}
+    assert "chain scope declared" in failed
+
+
+def test_gate_generator_timeout_is_reported(monkeypatch):
+    def _timeout(*args, **kwargs):
+        raise gate.subprocess.TimeoutExpired(cmd="generator", timeout=1)
+
+    monkeypatch.setattr(gate.subprocess, "run", _timeout)
+
+    result = gate._run_generator()
+
+    assert result.returncode == 124
 
 
 def test_gate_all_fails_for_stale_governance_metrics():
@@ -141,6 +168,16 @@ def test_verify_report_detects_truncation_and_tamper(tmp_path):
     chain.write_text("line-1\n", encoding="utf-8")
     issues = evidence.verify_report(report_path)
     assert any("truncated" in issue for issue in issues)
+
+
+def test_verify_report_rejects_empty_evidence(tmp_path):
+    report_path = tmp_path / "report.json"
+    report_path.write_text(
+        json.dumps({"evidence_files": [], "evidence_hash": ""}),
+        encoding="utf-8",
+    )
+
+    assert evidence.verify_report(report_path) == ["evidence_files empty"]
 
 
 def test_verify_report_detects_merkle_root_mismatch(tmp_path):

@@ -6,6 +6,10 @@
 - `audit_health_check.py` 兼容 ISO-8601 `Z` / 时区 / naive / epoch 秒与毫秒时间戳，消除每日治理循环因时间解析崩溃。
 - 每日治理循环在证据门禁前刷新 Agent 覆盖对账，避免使用过期覆盖报告。
 - `approval_tier.py` 的 `audit_date` 改为动态生成，并输出 `t2_1_acceptance` 真实口径（不再硬编码日期）。
+- sidecar 健康判定改为严格解析 JSON status，避免 `unhealthy` 子串被误判为 healthy。
+- 每日治理循环按本次运行的失败数返回非零退出码，不再无条件 `exit 0`。
+- `evidence_gate` 对生成器超时、畸形 `chain_scope`、非数值 KPI 做防御处理，避免门禁自身崩溃。
+- 探针 SQLite 读取改为只读并确保连接释放。
 
 ### Added
 - `gen_evidence_report.py`：生成单一自证明报告，含四节证据、Merkle 根与 `--check` 哈希校验。
@@ -15,7 +19,7 @@
 - 回归测试：`tests/observability/test_audit_health_check.py`、`tests/cli/test_evidence_gate.py`。
 
 ### Changed
-- Release Gate：集成测试、Bandit High、Security tests、mypy、claim integrity 转为硬门禁；pip-audit 暂为显式 advisory（2026-11-19 前完成依赖收敛）。
+- Release Gate：集成测试、Bandit High、Security tests、mypy、claim integrity 转为硬门禁；pip-audit 移入独立定时审计工作流，真实失败但不伪装成通过。
 - `STATE.yaml`：RSI 状态从 `L2 (Full Pass)` 修正为 `L2 (Conditional Pass / 待复审)`。
 
 ### Known

@@ -28,7 +28,12 @@ QUIET=false
 [ "$1" = "--quiet" ] && QUIET=true
 
 log() { echo "[$(date +%H:%M:%S)] $1" | tee -a "$LOGFILE"; }
-fail() { log "❌ $1"; echo "❌ $1" >> "$LOG_DIR/failures-$TODAY.log"; }
+FAIL_COUNT=0
+fail() {
+    log "❌ $1"
+    echo "❌ $1" >> "$LOG_DIR/failures-$TODAY.log"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+}
 
 if $QUIET; then
     exec >> "$LOGFILE" 2>&1
@@ -123,7 +128,9 @@ python3 "$SCRIPTS/push_alerts.py" >> "$LOGFILE" 2>&1 || fail "alert-push"
 log "  提案对账推送..."
 python3 "$SCRIPTS/push_proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "proposal-push"
 
-FAIL_COUNT=$(grep -c "❌" "$LOG_DIR/failures-$TODAY.log" 2>/dev/null || echo 0)
 log "========== 治理循环完成 | 失败: $FAIL_COUNT =========="
 
+if [ "$FAIL_COUNT" -gt 0 ]; then
+    exit 1
+fi
 exit 0

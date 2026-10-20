@@ -136,20 +136,35 @@ def _refresh_audit_health() -> int:
     return result.returncode
 
 
+def _health_ok(body: str) -> bool:
+    """严格判定 sidecar 健康，避免 "unhealthy" 子串误判。"""
+    text = body.strip()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return text.lower() == "healthy"
+    if not isinstance(payload, dict):
+        return False
+    return payload.get("status") == "healthy" or payload.get("healthy") is True
+
+
 def section_telemetry() -> dict:
     rows = last_ts = age_h = None
     fresh = False
     if PROBE_DB.is_file():
+        con = None
         try:
-            con = sqlite3.connect(str(PROBE_DB))
+            con = sqlite3.connect(f"file:{PROBE_DB}?mode=ro", uri=True, timeout=2.0)
             rows = con.execute("select count(*) from probe_readings").fetchone()[0]
             last_ts = con.execute("select max(timestamp) from probe_readings").fetchone()[0]
-            con.close()
             if last_ts is not None:
                 age_h = round((time.time() - float(last_ts)) / 3600, 2)
                 fresh = age_h < 26
         except (sqlite3.Error, TypeError, ValueError) as exc:
             age_h = f"error: {exc}"
+        finally:
+            if con is not None:
+                con.close()
 
     sidecar_ok = False
     health_body = ""
@@ -157,7 +172,7 @@ def section_telemetry() -> dict:
     try:
         with urllib.request.urlopen(f"{url}/api/health", timeout=3) as response:
             health_body = response.read(512).decode("utf-8", "replace")
-        sidecar_ok = "healthy" in health_body.lower()
+        sidecar_ok = _health_ok(health_body)
     except OSError as exc:
         health_body = str(exc)
 
@@ -485,7 +500,10 @@ def verify_report(path: Path = OUTPUT_JSON) -> list[str]:
 
     issues: list[str] = []
     hashes: list[str] = []
-    for item in report.get("evidence_files") or []:
+    evidence_files = report.get("evidence_files")
+    if not isinstance(evidence_files, list) or not evidence_files:
+        return ["evidence_files empty"]
+    for item in evidence_files:
         if not isinstance(item, dict):
             issues.append("invalid evidence entry")
             continue
