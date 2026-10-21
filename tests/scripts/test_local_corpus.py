@@ -633,6 +633,65 @@ def test_prelabel_run_writes_silver_and_review(
     conn.close()
 
 
+def test_prelabel_empty_evidence_is_review(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.local_corpus import prelabel
+    from scripts.local_corpus.normalize import Event
+
+    monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
+    db.ensure_dirs()
+    conn = db.connect()
+    db.init_db(conn)
+    for index, snippet in enumerate(("", "actual permission evidence")):
+        _ingest(
+            conn,
+            Event(
+                source="opencode",
+                source_event_id=f"pe{index}",
+                session_id=f"ps{index}",
+                agent_id="a",
+                model="m",
+                ts=100.0 + index,
+                kind="error",
+                tool="bash",
+                error_class="permission",
+                error_sig=f"pesig{index}",
+                snippet=snippet,
+            ),
+        )
+    conn.commit()
+    link_episodes(conn)
+    episode_ids = [str(r["id"]) for r in conn.execute("SELECT id FROM episode ORDER BY started_at")]
+    batch = tmp_path / "empty.jsonl"
+    batch.write_text(
+        "\n".join(
+            json.dumps({"id": eid, "snippet": snippet, "runtime": "opencode"})
+            for eid, snippet in zip(episode_ids, ("", "actual permission evidence"), strict=True)
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fake_ask(model: Any, prompt: str, timeout: int = 90, retries: int = 2) -> dict[str, object]:
+        return {
+            "root_cause": "environment",
+            "fix_type": "config",
+            "severity": "high",
+            "reusable": True,
+        }
+
+    monkeypatch.setattr(prelabel, "ask", fake_ask)
+    result = prelabel.run(conn, str(batch), ["deepseek", "qwen", "glm"], workers=2, write=True)
+    assert result["stats"]["accepted"] == 1
+    assert result["stats"]["needs_review"] == 1
+    statuses = {
+        str(row["id"]): row["label_status"]
+        for row in conn.execute("SELECT id, label_status FROM episode")
+    }
+    assert statuses[episode_ids[0]] == "needs_review"
+    assert statuses[episode_ids[1]] == "labeled"
+    conn.close()
+
+
 def test_classifier_prefers_informative_line() -> None:
     from scripts.local_corpus.normalize import classify_error
 
