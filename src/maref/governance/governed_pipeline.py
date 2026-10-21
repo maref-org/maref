@@ -39,6 +39,7 @@ from maref.governance.decorators import set_default_pipeline
 from maref.governance.interaction_evidence import InteractionRecorder
 from maref.governance.model_route import ModelRouteRecorder
 from maref.governance.org_policy import OrganizationPolicy
+from maref.governance.policy_pack.registry import PolicyPackRegistry
 from maref.recursive.permission_matrix import PermissionMatrix
 
 if TYPE_CHECKING:
@@ -121,6 +122,9 @@ class GovernedPipeline:
         otel_exporter: Any | None = None,
         social_content_gate: Any | None = None,
         commercial_action_policy: CommercialActionPolicy | None = None,
+        policy_packs: PolicyPackRegistry | None = None,
+        policy_pack_ids: list[str] | None = None,
+        policy_pack_paths: list[str | Path] | None = None,
     ) -> None:
         # 1. Audit logger with HMAC
         hmac_key = hmac_key or os.environ.get("MAREF_HMAC_SECRET_KEY")
@@ -229,6 +233,18 @@ class GovernedPipeline:
         from maref.governance.intent.factory import build_chain_intent_gate
 
         intent_tracker, intent_gate = build_chain_intent_gate()
+        if policy_packs is None:
+            if policy_pack_ids is None:
+                raw_ids = os.environ.get("MAREF_POLICY_PACKS", "")
+                policy_pack_ids = [item.strip() for item in raw_ids.split(",") if item.strip()]
+            if policy_pack_paths is None:
+                raw_paths = os.environ.get("MAREF_POLICY_PACK_PATH", "")
+                policy_pack_paths = [item for item in raw_paths.split(os.pathsep) if item]
+            policy_packs = PolicyPackRegistry.from_sources(
+                paths=policy_pack_paths or (),
+                pack_ids=policy_pack_ids or (),
+            )
+        self.policy_packs = policy_packs
         self.pipeline = GovernancePipeline(
             hitl=self.hitl,
             permission=self.permission,
@@ -236,6 +252,7 @@ class GovernedPipeline:
             boundary=self.boundary,
             intent_tracker=intent_tracker,
             intent_gate=intent_gate,
+            extension_rules=self.policy_packs.compile_rules(),
             policy_version=self.policy_version,
             policy_epoch=self.policy_epoch,
         )
@@ -646,6 +663,9 @@ class GovernedPipeline:
                 "hitl_tier": result.hitl_tier.name if result.hitl_tier else "",
                 "policy_version": result.policy_version or self.policy_version,
                 "policy_epoch": result.policy_epoch or self.policy_epoch,
+                "policy_pack_id": result.policy_pack_id,
+                "policy_pack_version": result.policy_pack_version,
+                "policy_pack_hash": result.policy_pack_hash,
                 "risk_score": result.risk_score,
                 # P0-C: bind the decision to what it authorised.
                 "params_hash": params_hash,
@@ -689,6 +709,8 @@ class GovernedPipeline:
                 "verdict": result.verdict.value,
                 "policy_version": result.policy_version or self.policy_version,
                 "policy_epoch": result.policy_epoch or self.policy_epoch,
+                "policy_pack_id": result.policy_pack_id,
+                "policy_pack_version": result.policy_pack_version,
                 "evidence_id": result.evidence_id,
             },
         )

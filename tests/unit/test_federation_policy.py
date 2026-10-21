@@ -35,6 +35,16 @@ class TestPolicyRule:
         assert rule.matches("anything") is True
         assert rule.matches("dispatch_task") is True
 
+    def test_policy_rule_action_glob_matches(self) -> None:
+        rule = PolicyRule(
+            rule_id="glob",
+            action="payment.*",
+            scope=PolicyScope.LOCAL,
+            decision=PolicyDecision.DENY,
+        )
+        assert rule.matches("payment.transfer")
+        assert not rule.matches("file.read")
+
     def test_matches_with_conditions(self) -> None:
         rule = PolicyRule(
             rule_id="r1",
