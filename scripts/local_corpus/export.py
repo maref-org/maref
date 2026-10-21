@@ -24,13 +24,16 @@ def _payload(row: sqlite3.Row) -> dict[str, Any]:
         "failure_sig": row["failure_sig"],
         "error_class": row["error_class"],
         "tool": row["tool"],
-        "evidence_hashes": [row["failure_event_id"]],
+        "evidence_hashes": [sha16(str(row["failure_event_id"]))],
         "snippet": row["snippet"] or "",
         "repro": {"status": "none", "steps_hash": ""},
         "fix": {"type": row["fix_type"], "ref_hash": sha16(fix_ref) if fix_ref else ""},
         "versions": json.loads(row["versions_json"] or "{}"),
         "outcome": row["outcome"],
         "severity": row["severity"],
+        "root_cause": row["root_cause"],
+        "reusable": bool(row["reusable"]),
+        "label_agreement": row["agree_with_llm"],
         "labeled_by": row["labeled_by"],
     }
 
@@ -39,7 +42,7 @@ def export_attestations(conn: sqlite3.Connection, out: Path) -> dict[str, Any]:
     rows = conn.execute(
         """
         SELECT e.*, l.root_cause, l.fix_type, l.fix_ref, l.severity AS label_severity,
-               l.reusable, l.labeled_by
+               l.reusable, l.labeled_by, l.agree_with_llm
         FROM episode e JOIN label l ON l.episode_id = e.id
         WHERE e.label_status = 'labeled'
         ORDER BY e.started_at

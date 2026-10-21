@@ -6,6 +6,7 @@ import json
 import sqlite3
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -249,6 +250,8 @@ def test_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     payload = json.loads(line)
     assert payload["schema_version"] == "attestation_v1"
     assert payload["severity"] == "high"
+    assert payload["root_cause"] == "environment"
+    assert payload["reusable"] is True
     conn.close()
 
     cross = conn_check_cross_runtime(tmp_path / "corpus" / "corpus.db")
@@ -462,4 +465,102 @@ def test_signature_clustering(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert result == {"clusters": 3, "families": 3, "signatures": 5}
     clusters = top_clusters(conn)
     assert clusters[0]["signatures"] == 2
+    conn.close()
+
+
+def test_llm_consensus_and_tie() -> None:
+    from scripts.local_corpus.prelabel import consensus, parse_vote
+
+    agree = parse_vote(
+        '```json\n{"root_cause":"logic","fix_type":"code","severity":"high","reusable":true}\n```'
+    )
+    assert agree == {
+        "root_cause": "logic",
+        "fix_type": "code",
+        "severity": "high",
+        "reusable": True,
+    }
+    result = consensus({"a": agree, "b": agree, "c": agree})
+    assert result["unanimous_fields"] == 4
+    assert result["root_cause"] == "logic"
+    tie = consensus(
+        {
+            "a": agree,
+            "b": {**agree, "root_cause": "tool"},
+            "c": {**agree, "root_cause": "environment"},
+        }
+    )
+    assert tie["root_cause"] is None
+    assert tie["unanimous_fields"] == 3
+
+
+def test_prelabel_run_writes_silver_and_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.local_corpus import prelabel
+    from scripts.local_corpus.normalize import Event
+
+    monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
+    db.ensure_dirs()
+    conn = db.connect()
+    db.init_db(conn)
+    for index, snippet in enumerate(("alpha permission denied", "beta odd failure")):
+        _ingest(
+            conn,
+            Event(
+                source="opencode",
+                source_event_id=f"p{index}",
+                session_id=f"s{index}",
+                agent_id="a",
+                model="m",
+                ts=100.0 + index,
+                kind="error",
+                tool="bash",
+                error_class="permission",
+                error_sig=f"sig{index}",
+                snippet=snippet,
+            ),
+        )
+    conn.commit()
+    link_episodes(conn)
+    episode_ids = [str(r["id"]) for r in conn.execute("SELECT id FROM episode ORDER BY started_at")]
+    batch = tmp_path / "b.jsonl"
+    batch.write_text(
+        "\n".join(
+            json.dumps({"id": eid, "snippet": snip, "runtime": "opencode"})
+            for eid, snip in zip(
+                episode_ids, ("alpha permission denied", "beta odd failure"), strict=True
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fake_ask(model: Any, prompt: str, timeout: int = 90, retries: int = 2) -> dict[str, object]:
+        if "alpha" in prompt:
+            return {
+                "root_cause": "environment",
+                "fix_type": "config",
+                "severity": "high",
+                "reusable": True,
+            }
+        return {
+            "root_cause": {"deepseek": "logic", "qwen": "tool", "glm": "environment"}[model.name],
+            "fix_type": "code",
+            "severity": "medium",
+            "reusable": False,
+        }
+
+    monkeypatch.setattr(prelabel, "ask", fake_ask)
+    result = prelabel.run(conn, str(batch), ["deepseek", "qwen", "glm"], workers=2, write=True)
+    assert result["stats"]["accepted"] == 1
+    assert result["stats"]["needs_review"] == 1
+    labeled = conn.execute("SELECT * FROM label WHERE episode_id=?", (episode_ids[0],)).fetchone()
+    assert labeled is not None
+    assert labeled["labeled_by"].startswith("llm-consensus:")
+    assert labeled["llm_suggestion_json"] != "{}"
+    review = conn.execute(
+        "SELECT label_status FROM episode WHERE id=?", (episode_ids[1],)
+    ).fetchone()
+    assert review["label_status"] == "needs_review"
     conn.close()

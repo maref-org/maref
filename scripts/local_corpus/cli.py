@@ -11,7 +11,7 @@ from typing import Any
 
 from rich.console import Console
 
-from . import analyze, batch, cluster, db
+from . import analyze, batch, cluster, db, prelabel
 from . import label as label_mod
 from .adapters.claude_code import ClaudeCodeAdapter
 from .adapters.claude_code import inventory as claude_inventory
@@ -168,6 +168,31 @@ def cmd_cluster(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_prelabel(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        db.init_db(conn)
+        names = [name.strip() for name in args.models.split(",") if name.strip()]
+        result = prelabel.run(
+            conn,
+            args.batch,
+            names,
+            workers=args.workers,
+            write=args.write,
+            limit=args.limit,
+        )
+        out = (
+            Path(args.out)
+            if args.out
+            else db.data_dir() / "exports" / f"prelabel-{time.strftime('%Y%m%d')}.jsonl"
+        )
+        prelabel.write_results(result, str(out))
+    finally:
+        conn.close()
+    Console().print(json.dumps({"stats": result["stats"], "out": str(out)}, ensure_ascii=False))
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     conn = db.connect()
     try:
@@ -235,6 +260,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--limit", type=int, default=100)
     p_batch.add_argument("--notes", default="")
     p_batch.set_defaults(func=cmd_batch)
+
+    p_prelabel = sub.add_parser("prelabel")
+    p_prelabel.add_argument("--batch", required=True, help="batch JSONL produced by `batch`")
+    p_prelabel.add_argument("--models", default="deepseek,qwen,glm")
+    p_prelabel.add_argument("--workers", type=int, default=6)
+    p_prelabel.add_argument("--limit", type=int)
+    p_prelabel.add_argument("--write", action="store_true", help="store silver labels")
+    p_prelabel.add_argument("--out")
+    p_prelabel.set_defaults(func=cmd_prelabel)
 
     p_cluster = sub.add_parser("cluster")
     p_cluster.add_argument("--threshold", type=float, default=0.55)
