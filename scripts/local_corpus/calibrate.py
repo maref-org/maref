@@ -88,7 +88,7 @@ def mismatches(rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
         error_class = str(row["error_class"] or "")
         expected = NARROW_EXPECTATIONS.get(error_class)
         cause = str(row["root_cause"] or "")
-        if expected and cause not in expected:
+        if expected and cause not in ("", "unknown") and cause not in expected:
             found.append(
                 {
                     "id": row["id"],
@@ -97,6 +97,23 @@ def mismatches(rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
                     "expected": sorted(expected),
                     "agreement": row["agree_with_llm"],
                     "snippet": str(row["snippet"] or "")[:120],
+                }
+            )
+    return found
+
+
+def abstentions(rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
+    found = []
+    for row in rows:
+        error_class = str(row["error_class"] or "")
+        expected = NARROW_EXPECTATIONS.get(error_class)
+        if expected and str(row["root_cause"] or "") == "unknown":
+            found.append(
+                {
+                    "id": row["id"],
+                    "error_class": error_class,
+                    "expected": sorted(expected),
+                    "agreement": row["agree_with_llm"],
                 }
             )
     return found
@@ -116,6 +133,7 @@ def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
         "families": family_stats(rows, top),
         "matrix": class_matrix(rows),
         "mismatches": mismatches(rows),
+        "abstentions": abstentions(rows),
         "agreement_buckets": agreement_buckets(rows),
         "root_cause_dist": dict(Counter(str(row["root_cause"]) for row in rows).most_common()),
     }
@@ -140,6 +158,8 @@ def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
         console.print(table)
         if data["mismatches"]:
             console.print(f"[yellow]class/label mismatches: {len(data['mismatches'])}[/yellow]")
+        if data["abstentions"]:
+            console.print(f"[cyan]class/label abstentions: {len(data['abstentions'])}[/cyan]")
     return data
 
 
@@ -171,6 +191,15 @@ def write_markdown(data: dict[str, Any], path: Path) -> None:
         for item in data["mismatches"]:
             lines.append(
                 f"| `{item['id']}` | {item['error_class']} | {item['root_cause']} | "
+                f"{','.join(item['expected'])} | {item['agreement']} |"
+            )
+    else:
+        lines.append("none")
+    lines += ["", "## Abstentions", "", "| id | class | expected | agree |", "|---|---|---|---:|"]
+    if data["abstentions"]:
+        for item in data["abstentions"]:
+            lines.append(
+                f"| `{item['id']}` | {item['error_class']} | "
                 f"{','.join(item['expected'])} | {item['agreement']} |"
             )
     else:

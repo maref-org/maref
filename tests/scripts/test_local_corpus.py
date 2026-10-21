@@ -50,6 +50,16 @@ def test_redact_keeps_paths() -> None:
     assert result.count == 0
 
 
+def test_redact_internal_absolute_paths() -> None:
+    volume = "/" + "Volumes" + "/" + "1TB" + "-M2"
+    temp = "/" + "private" + "/tmp/build.log"
+    text = f"hook={volume}/openclaw/scripts/git-hooks/pre-commit tmp={temp}"
+    result = redact(text)
+    assert "/Volumes/" not in result.text
+    assert "/private/" not in result.text
+    assert find_leaks(result.text) == []
+
+
 def test_redact_high_entropy_token() -> None:
     token = "".join(["Ab3dE5gH7jK9", "mN1pQ3sT5vX7", "zA9cB1dF3"])
     result = redact(f"Authorization: {token}")
@@ -330,10 +340,13 @@ def test_claude_transcript_adapter(tmp_path: Path) -> None:
     assert events[0].error_class == "user_correction"
     assert events[2].tool == "Bash"
     assert events[2].error_class == "permission"
+    assert events[2].payload_hash == events[1].payload_hash
     assert "Permission denied" in events[2].snippet
 
 
-def test_link_distinguishes_retry_from_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_link_requires_same_input_for_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from scripts.local_corpus.normalize import Event
 
     monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
@@ -341,7 +354,7 @@ def test_link_distinguishes_retry_from_fix(tmp_path: Path, monkeypatch: pytest.M
     conn = db.connect()
     db.init_db(conn)
 
-    def ev(sid: str, ts: float, kind: str, tool: str, error: str = "") -> Event:
+    def ev(sid: str, ts: float, kind: str, tool: str, error: str = "", payload: str = "") -> Event:
         return Event(
             source="opencode",
             source_event_id=f"{sid}:{ts}",
@@ -351,18 +364,27 @@ def test_link_distinguishes_retry_from_fix(tmp_path: Path, monkeypatch: pytest.M
             ts=ts,
             kind=kind,
             tool=tool,
+            payload_hash=payload,
             error_class=error,
             error_sig=f"sig-{error}" if error else "",
             snippet=error,
         )
 
-    for event in (
-        ev("fixed", 100.0, "error", "bash", "permission"),
+    events = [
+        ev("fixed", 100.0, "error", "bash", "permission", "same"),
         ev("fixed", 150.0, "edit", "Edit"),
-        ev("fixed", 200.0, "tool_call", "bash"),
-        ev("retried", 100.0, "error", "bash", "permission"),
-        ev("retried", 200.0, "tool_call", "bash"),
-    ):
+        ev("fixed", 200.0, "tool_call", "bash", payload="same"),
+        ev("retried", 100.0, "error", "bash", "permission", "retry"),
+        ev("retried", 200.0, "tool_call", "bash", payload="retry"),
+        ev("changed", 100.0, "error", "bash", "permission", "old"),
+        ev("changed", 200.0, "tool_call", "bash", payload="new"),
+        ev("changed", 300.0, "tool_call", "bash", payload="old"),
+        ev("persisted", 100.0, "error", "bash", "permission", "again"),
+        ev("persisted", 200.0, "error", "bash", "permission", "again"),
+        ev("nohash", 100.0, "error", "bash", "permission"),
+        ev("nohash", 200.0, "tool_call", "bash"),
+    ]
+    for event in events:
         _ingest(conn, event)
     conn.commit()
     link_episodes(conn)
@@ -370,8 +392,31 @@ def test_link_distinguishes_retry_from_fix(tmp_path: Path, monkeypatch: pytest.M
         r["session_id"]: r["outcome"]
         for r in conn.execute("SELECT session_id, outcome FROM episode")
     }
-    assert rows == {"fixed": "fixed", "retried": "retried"}
+    assert rows == {
+        "fixed": "fixed",
+        "retried": "retried",
+        "changed": "unknown",
+        "persisted": "unknown",
+        "nohash": "unknown",
+    }
     conn.close()
+
+
+def test_prompt_is_blind_to_class_and_outcome() -> None:
+    from scripts.local_corpus.prelabel import _prompt
+
+    prompt = _prompt(
+        {
+            "runtime": "opencode",
+            "error_class": "permission",
+            "tool": "bash",
+            "outcome": "fixed",
+            "snippet": "permission denied writing /etc/hosts",
+        }
+    )
+    assert "error_class" not in prompt
+    assert "outcome" not in prompt
+    assert "permission denied" in prompt
 
 
 def test_batch_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -589,6 +634,7 @@ def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.Mo
         ("permission denied writing /etc/hosts", "permission", "environment"),
         ("permission denied opening file", "permission", "environment"),
         ("permission denied reading socket", "permission", "tool"),
+        ("permission denied reading device", "permission", "unknown"),
     ]
     for index, (snippet, error_class, _cause) in enumerate(specs):
         _ingest(
@@ -627,9 +673,10 @@ def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.Mo
         )
     conn.commit()
     data = report(conn, top=5)
-    assert data["labeled"] == 3
+    assert data["labeled"] == 4
     assert len(data["mismatches"]) == 1
+    assert len(data["abstentions"]) == 1
     family = data["families"][0]
     assert family["family"] == "permission"
-    assert family["purity"] == 0.67
+    assert family["purity"] == 0.5
     conn.close()

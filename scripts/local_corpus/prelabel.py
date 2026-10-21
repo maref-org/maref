@@ -55,6 +55,8 @@ MODELS = {
     ),
 }
 
+PROMPT_VERSION = "blind-v1"
+
 RUBRIC = """你是软件失败事件标注器。根据错误证据，从固定枚举中选值，只输出一个 JSON 对象。
 
 root_cause（失败根因）:
@@ -115,9 +117,7 @@ def _prompt(item: dict[str, Any]) -> str:
     return (
         f"{RUBRIC}\n事件:\n"
         f"- runtime: {item.get('runtime', '')}\n"
-        f"- error_class: {item.get('error_class', '')}\n"
         f"- tool: {item.get('tool', '')}\n"
-        f"- outcome: {item.get('outcome', '')}\n"
         f"- snippet: {snippet}\n"
         '只输出: {"root_cause":"","fix_type":"","severity":"","reusable":true}'
     )
@@ -199,6 +199,8 @@ def label_item(item: dict[str, Any], models: list[Model], call: Any = None) -> d
     by_model = {model.name: vote for model, vote in zip(models, votes, strict=True)}
     result = consensus(by_model)
     result["model_votes"] = by_model
+    result["prompt_version"] = PROMPT_VERSION
+    result["model_ids"] = {model.name: model.model for model in models}
     return result
 
 
@@ -258,7 +260,10 @@ def run(
                     fix_type=str(result["fix_type"]),
                     severity=str(result["severity"]),
                     reusable=bool(result["reusable"]),
-                    notes=f"[silver] agreement={result['agreement']}",
+                    notes=(
+                        f"[silver] agreement={result['agreement']} "
+                        f"prompt={result['prompt_version']}"
+                    ),
                     labeled_by="llm-consensus:" + ",".join(m.name for m in models),
                 )
                 conn.execute(

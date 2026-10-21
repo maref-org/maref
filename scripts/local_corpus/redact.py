@@ -33,6 +33,10 @@ _SIMPLE_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
     ("email", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")),
     ("home_path", re.compile(r"/(?:Users|home)/[A-Za-z0-9._\-]+")),
+    (
+        "internal_path",
+        re.compile(r"/(?:Volumes|private|var/folders)/[^\s\"'`]+"),
+    ),
 )
 
 _MIN_ENTROPY = 3.5

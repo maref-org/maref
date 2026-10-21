@@ -52,11 +52,16 @@ def _candidates(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def _find_fix(
-    conn: sqlite3.Connection, session_id: str, start_ts: float, tool: str, window: float
+    conn: sqlite3.Connection,
+    session_id: str,
+    start_ts: float,
+    tool: str,
+    payload_hash: str,
+    window: float,
 ) -> tuple[str, float | None, dict[str, Any]]:
     rows = conn.execute(
         """
-        SELECT ts, kind, tool, error_class FROM event
+        SELECT ts, kind, tool, error_class, payload_hash FROM event
         WHERE session_id = ? AND ts > ? AND ts <= ?
         ORDER BY ts LIMIT 500
         """,
@@ -64,26 +69,24 @@ def _find_fix(
     ).fetchall()
     last_ts: float | None = None
     saw_edit = False
-    retry_at: float | None = None
+    tool_key = tool.lower()
     for row in rows:
         last_ts = float(row["ts"])
-        if not row["error_class"] and (row["kind"] == "edit" or row["tool"] in EDIT_TOOLS):
+        row_tool = str(row["tool"] or "")
+        if not row["error_class"] and (row["kind"] == "edit" or row_tool in EDIT_TOOLS):
             saw_edit = True
-        if (
-            row["tool"] == tool
-            and not row["error_class"]
-            and row["kind"]
-            in {
-                "tool_call",
-                "tool_result",
-            }
-        ):
-            if saw_edit:
-                return "fixed", last_ts, {"type": "retry_after_edit", "at": last_ts}
-            if retry_at is None:
-                retry_at = last_ts
-    if retry_at is not None:
-        return "retried", retry_at, {"type": "retry_success", "at": retry_at}
+        if row_tool.lower() != tool_key or row["kind"] not in {"tool_call", "tool_result"}:
+            continue
+        if row["error_class"]:
+            return "unknown", last_ts, {"type": "failure_persisted", "at": last_ts}
+        same_input = bool(payload_hash) and str(row["payload_hash"] or "") == payload_hash
+        if same_input and saw_edit:
+            return "fixed", last_ts, {"type": "retry_after_edit", "at": last_ts}
+        if same_input:
+            return "retried", last_ts, {"type": "retry_success", "at": last_ts}
+        if saw_edit:
+            return "patched", last_ts, {"type": "edit_then_changed_input", "at": last_ts}
+        return "unknown", last_ts, {"type": "different_input", "at": last_ts}
     if saw_edit:
         return "patched", last_ts, {"type": "edit_only", "at": last_ts}
     return "unknown", last_ts, {}
@@ -118,7 +121,7 @@ def _upsert_signature(
     )
 
 
-def link_episodes(conn: sqlite3.Connection, window: float = 7200.0) -> dict[str, int]:
+def link_episodes(conn: sqlite3.Connection, window: float = 1800.0) -> dict[str, int]:
     candidates = _candidates(conn)
     created = 0
     fixed = 0
@@ -130,7 +133,9 @@ def link_episodes(conn: sqlite3.Connection, window: float = 7200.0) -> dict[str,
         runtime = str(row["source"] or "")
         session_id = str(row["session_id"])
         ts = float(row["ts"])
-        outcome, ended_at, fix = _find_fix(conn, session_id, ts, tool, window)
+        outcome, ended_at, fix = _find_fix(
+            conn, session_id, ts, tool, str(row["payload_hash"] or ""), window
+        )
         sig = sha16(error_class, str(row["error_sig"] or "") or tool)
         episode_id = sha16(session_id, str(row["id"]))
         versions = {"runtime": runtime}

@@ -89,6 +89,7 @@ class ClaudeTranscriptAdapter:
         paths = sorted(self.root.rglob("*.jsonl"), key=lambda p: p.stat().st_mtime)
         for path in paths:
             tool_names: dict[str, str] = {}
+            tool_hashes: dict[str, str] = {}
             session = path.stem
             try:
                 handle = path.open("r", encoding="utf-8", errors="replace")
@@ -124,6 +125,8 @@ class ClaudeTranscriptAdapter:
                             tool_id = str(block.get("id") or "")
                             tool_names[tool_id] = tool
                             payload = json.dumps(block.get("input") or {}, sort_keys=True)
+                            payload_hash = sha16(payload)
+                            tool_hashes[tool_id] = payload_hash
                             kind = "edit" if tool in EDIT_TOOLS else "tool_call"
                             event = Event(
                                 source=self.source,
@@ -134,7 +137,7 @@ class ClaudeTranscriptAdapter:
                                 ts=ts,
                                 kind=kind,
                                 tool=tool,
-                                payload_hash=sha16(payload),
+                                payload_hash=payload_hash,
                             )
                         elif btype == "tool_result":
                             tool_id = str(block.get("tool_use_id") or "")
@@ -156,6 +159,7 @@ class ClaudeTranscriptAdapter:
                                 tool=tool,
                                 error_class=error_class,
                                 error_sig=error_signature(text) if error_class else "",
+                                payload_hash=tool_hashes.get(tool_id, ""),
                                 snippet=redacted.text[:600] if error_class else "",
                                 redaction_count=redacted.count,
                             )
