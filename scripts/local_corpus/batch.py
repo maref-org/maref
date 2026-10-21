@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .cluster import anchor
 from .label import FIX_TYPES, ROOT_CAUSES, SEVERITIES, record_label
 
 ROOT_CAUSE_VALUES = set(ROOT_CAUSES.values())
@@ -27,18 +28,31 @@ def _pending(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def stratified(rows: list[sqlite3.Row], limit: int) -> list[sqlite3.Row]:
-    """Prefer one episode per failure signature to maximise diversity."""
+    """Round-robin across failure families, one episode per signature first."""
+    buckets: dict[tuple[str, str], list[sqlite3.Row]] = {}
     seen: set[str] = set()
-    primary: list[sqlite3.Row] = []
-    rest: list[sqlite3.Row] = []
+    overflow: list[sqlite3.Row] = []
     for row in rows:
         sig = str(row["failure_sig"])
         if sig in seen:
-            rest.append(row)
-        else:
-            seen.add(sig)
-            primary.append(row)
-    return (primary + rest)[:limit]
+            overflow.append(row)
+            continue
+        seen.add(sig)
+        key = (
+            str(row["error_class"] or "unknown"),
+            anchor(str(row["error_class"] or "unknown"), str(row["snippet"] or "")),
+        )
+        buckets.setdefault(key, []).append(row)
+    ordered = sorted(buckets.values(), key=lambda group: -len(group))
+    picked: list[sqlite3.Row] = []
+    while ordered and len(picked) < limit:
+        for group in list(ordered):
+            if group and len(picked) < limit:
+                picked.append(group.pop(0))
+        ordered = [group for group in ordered if group]
+    if len(picked) < limit:
+        picked.extend(overflow[: limit - len(picked)])
+    return picked
 
 
 def create_batch(

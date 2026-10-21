@@ -11,7 +11,7 @@ from typing import Any
 
 from rich.console import Console
 
-from . import analyze, batch, cluster, db, prelabel
+from . import analyze, batch, calibrate, cluster, db, prelabel
 from . import label as label_mod
 from .adapters.claude_code import ClaudeCodeAdapter
 from .adapters.claude_code import inventory as claude_inventory
@@ -193,6 +193,26 @@ def cmd_prelabel(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        db.init_db(conn)
+        result = calibrate.report(conn, args.top)
+        out = (
+            Path(args.out)
+            if args.out
+            else db.data_dir() / "exports" / f"calibration-{time.strftime('%Y%m%d')}.md"
+        )
+        calibrate.write_markdown(result, out)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        Console().print(f"markdown: {out}")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     conn = db.connect()
     try:
@@ -269,6 +289,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_prelabel.add_argument("--write", action="store_true", help="store silver labels")
     p_prelabel.add_argument("--out")
     p_prelabel.set_defaults(func=cmd_prelabel)
+
+    p_calibrate = sub.add_parser("calibrate")
+    p_calibrate.add_argument("--top", type=int, default=20)
+    p_calibrate.add_argument("--json", action="store_true")
+    p_calibrate.add_argument("--out")
+    p_calibrate.set_defaults(func=cmd_calibrate)
 
     p_cluster = sub.add_parser("cluster")
     p_cluster.add_argument("--threshold", type=float, default=0.55)

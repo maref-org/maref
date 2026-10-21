@@ -170,6 +170,7 @@ def consensus(votes: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Majority per field; ties yield None. Returns values + agreement stats."""
     result: dict[str, Any] = {}
     unanimous = 0
+    support = 0.0
     for field in FIELDS:
         values = [vote.get(field) for vote in votes.values() if vote.get(field) not in (None, "")]
         counts: dict[Any, int] = {}
@@ -177,11 +178,15 @@ def consensus(votes: dict[str, dict[str, Any]]) -> dict[str, Any]:
             counts[value] = counts.get(value, 0) + 1
         best = max(counts.values()) if counts else 0
         winners = [value for value, count in counts.items() if count == best]
-        result[field] = winners[0] if len(winners) == 1 and best >= 2 else None
+        if len(winners) == 1 and best >= 2:
+            result[field] = winners[0]
+            support += best / len(votes)
+        else:
+            result[field] = None
         if len(winners) == 1 and best == len(votes):
             unanimous += 1
     result["unanimous_fields"] = unanimous
-    result["agreement"] = round(unanimous / len(FIELDS), 3)
+    result["agreement"] = round(support / len(FIELDS), 3)
     result["votes"] = len(votes)
     return result
 

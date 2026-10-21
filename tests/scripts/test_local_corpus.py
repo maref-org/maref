@@ -482,6 +482,7 @@ def test_llm_consensus_and_tie() -> None:
     }
     result = consensus({"a": agree, "b": agree, "c": agree})
     assert result["unanimous_fields"] == 4
+    assert result["agreement"] == 1.0
     assert result["root_cause"] == "logic"
     tie = consensus(
         {
@@ -563,4 +564,72 @@ def test_prelabel_run_writes_silver_and_review(
         "SELECT label_status FROM episode WHERE id=?", (episode_ids[1],)
     ).fetchone()
     assert review["label_status"] == "needs_review"
+    conn.close()
+
+
+def test_classifier_prefers_informative_line() -> None:
+    from scripts.local_corpus.normalize import classify_error
+
+    assert classify_error("from PermissionMatrix import X\nNameError: name 'os'") == "type"
+    assert (
+        classify_error("Traceback (most recent call last):\n  File 'x'\nNameError: boom") == "type"
+    )
+    assert classify_error("permission denied writing /etc/hosts") == "permission"
+
+
+def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.local_corpus.calibrate import report
+    from scripts.local_corpus.normalize import Event
+
+    monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
+    db.ensure_dirs()
+    conn = db.connect()
+    db.init_db(conn)
+    specs = [
+        ("permission denied writing /etc/hosts", "permission", "environment"),
+        ("permission denied opening file", "permission", "environment"),
+        ("permission denied reading socket", "permission", "tool"),
+    ]
+    for index, (snippet, error_class, _cause) in enumerate(specs):
+        _ingest(
+            conn,
+            Event(
+                source="opencode",
+                source_event_id=f"cal{index}",
+                session_id=f"cal{index}",
+                agent_id="a",
+                model="m",
+                ts=100.0 + index,
+                kind="error",
+                tool="bash",
+                error_class=error_class,
+                error_sig=f"calsig{index}",
+                snippet=snippet,
+            ),
+        )
+    conn.commit()
+    link_episodes(conn)
+    for index, (_, _, cause) in enumerate(specs):
+        episode = conn.execute(
+            "SELECT id FROM episode WHERE session_id=?", (f"cal{index}",)
+        ).fetchone()
+        record_label(
+            conn,
+            str(episode["id"]),
+            root_cause=cause,
+            fix_type="config",
+            severity="medium",
+            reusable=False,
+            labeled_by="llm-consensus:test",
+        )
+        conn.execute(
+            "UPDATE label SET agree_with_llm=100 WHERE episode_id=?", (str(episode["id"]),)
+        )
+    conn.commit()
+    data = report(conn, top=5)
+    assert data["labeled"] == 3
+    assert len(data["mismatches"]) == 1
+    family = data["families"][0]
+    assert family["family"] == "permission"
+    assert family["purity"] == 0.67
     conn.close()

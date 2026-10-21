@@ -7,20 +7,29 @@ import re
 from dataclasses import dataclass
 
 _ERROR_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("timeout", re.compile(r"timed?\s*out|timeout|ETIMEDOUT", re.IGNORECASE)),
-    ("permission", re.compile(r"permission denied|EACCES|operation not permitted", re.IGNORECASE)),
+    ("timeout", re.compile(r"timed?\s*out|timeout|ETIMEDOUT|TimeoutError", re.IGNORECASE)),
+    (
+        "permission",
+        re.compile(
+            r"permission denied|EACCES|operation not permitted|PermissionError", re.IGNORECASE
+        ),
+    ),
     (
         "not_found",
-        re.compile(r"no such file|command not found|ModuleNotFoundError|ImportError"),
+        re.compile(
+            r"no such file|command not found|ModuleNotFoundError|ImportError|FileNotFoundError"
+        ),
     ),
     ("syntax", re.compile(r"SyntaxError|IndentationError|unexpected token", re.IGNORECASE)),
-    ("type", re.compile(r"\bTypeError\b|\bAttributeError\b|\bValueError\b")),
+    ("type", re.compile(r"\b(?:TypeError|AttributeError|ValueError|NameError|KeyError)\b")),
     ("assertion", re.compile(r"\bAssertionError\b|\bassert\b")),
     ("test_fail", re.compile(r"\b\d+\s+failed\b|\bFAILED\b|\bFAILURES\b")),
     ("lint", re.compile(r"\bE\d{3}\b|\bruff\b|\beslint\b|\bmypy\b")),
     (
         "network",
-        re.compile(r"ConnectionError|ECONNREFUSED|name resolution|ENOTFOUND", re.IGNORECASE),
+        re.compile(
+            r"ConnectionError|URLError|ECONNREFUSED|name resolution|ENOTFOUND", re.IGNORECASE
+        ),
     ),
     ("oom", re.compile(r"OutOfMemory|OOM|Killed", re.IGNORECASE)),
 )
@@ -76,29 +85,41 @@ def detect_output_failure(text: str) -> str:
 def classify_error(text: str) -> str:
     if not text:
         return ""
-    return detect_error(text) or "tool_error"
+    line = _informative_line(text)
+    return detect_error(line) or detect_error(text) or "tool_error"
 
 
 _HEADER_LINE = re.compile(r"^(?:exit (?:code|status)\s*[:=]?\s*\d+|command)\s*$", re.IGNORECASE)
+
+
+_EXCEPTION_LINE = re.compile(r"^(?:[A-Za-z_][\w.]*\.)?[A-Z][A-Za-z]*(?:Error|Exception|Warning)\b")
+
+
+def _informative_line(text: str) -> str:
+    if not text:
+        return ""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if any("Traceback (most recent call last)" in line for line in lines):
+        for line in reversed(lines):
+            if _EXCEPTION_LINE.match(line):
+                return line
+        return lines[-1]
+    candidate = ""
+    for line in lines:
+        if _HEADER_LINE.match(line):
+            continue
+        if detect_error(line):
+            return line
+        if not candidate:
+            candidate = line
+    return candidate or (lines[0] if lines else "")
 
 
 def normalize_error_text(text: str) -> str:
     """Pick the most informative line, then strip volatile parts."""
     if not text:
         return ""
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if any("Traceback (most recent call last)" in line for line in lines):
-        lines = [lines[-1]]
-    candidate = ""
-    for line in lines:
-        if _HEADER_LINE.match(line):
-            continue
-        if detect_error(line):
-            candidate = line
-            break
-        if not candidate:
-            candidate = line
-    first = (candidate or (lines[0] if lines else ""))[:200].lower()
+    first = _informative_line(text)[:200].lower()
     first = re.sub(r"/[^\s:]+", "<path>", first)
     first = re.sub(r"\b[0-9a-f]{8,}\b", "<hex>", first)
     first = re.sub(r"\b\d+\b", "<n>", first)
