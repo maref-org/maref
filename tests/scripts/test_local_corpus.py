@@ -369,3 +369,56 @@ def test_link_distinguishes_retry_from_fix(tmp_path: Path, monkeypatch: pytest.M
     }
     assert rows == {"fixed": "fixed", "retried": "retried"}
     conn.close()
+
+
+def test_batch_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.local_corpus.batch import apply_batch, create_batch
+    from scripts.local_corpus.normalize import Event
+
+    monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
+    db.ensure_dirs()
+    conn = db.connect()
+    db.init_db(conn)
+    for index, sig in enumerate(("alpha", "beta", "gamma")):
+        _ingest(
+            conn,
+            Event(
+                source="opencode",
+                source_event_id=f"e{index}",
+                session_id=f"s{index}",
+                agent_id="a",
+                model="m",
+                ts=100.0 + index,
+                kind="error",
+                tool="bash",
+                error_class="tool_error",
+                error_sig=sig,
+                snippet=f"failure {sig}",
+            ),
+        )
+    conn.commit()
+    link_episodes(conn)
+
+    out = tmp_path / "batch.jsonl"
+    result = create_batch(conn, out, limit=5)
+    assert result["items"] == 3
+    assert out.with_suffix(".md").exists()
+
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    rows[0]["label"] = {
+        "root_cause": "logic",
+        "fix_type": "code",
+        "severity": "medium",
+        "reusable": True,
+        "notes": "checked by test",
+    }
+    out.write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n", encoding="utf-8"
+    )
+    applied = apply_batch(conn, out)
+    assert applied == {"applied": 1, "skipped": 2}
+    row = conn.execute("SELECT * FROM label").fetchone()
+    assert row is not None
+    assert row["root_cause"] == "logic"
+    assert row["labeled_by"] == "batch"
+    conn.close()

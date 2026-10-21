@@ -11,7 +11,7 @@ from typing import Any
 
 from rich.console import Console
 
-from . import analyze, db
+from . import analyze, batch, db
 from . import label as label_mod
 from .adapters.claude_code import ClaudeCodeAdapter
 from .adapters.claude_code import inventory as claude_inventory
@@ -121,9 +121,28 @@ def cmd_link(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_batch(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        out = (
+            Path(args.out)
+            if args.out
+            else db.data_dir() / "exports" / f"batch-{time.strftime('%Y%m%d')}.jsonl"
+        )
+        result = batch.create_batch(conn, out, args.limit, args.notes)
+    finally:
+        conn.close()
+    Console().print(json.dumps(result, ensure_ascii=False))
+    return 0
+
+
 def cmd_label(args: argparse.Namespace) -> int:
     conn = db.connect()
     try:
+        if args.from_file:
+            result = batch.apply_batch(conn, Path(args.from_file))
+            Console().print(json.dumps(result, ensure_ascii=False))
+            return 0
         if args.non_interactive:
             Console().print(
                 json.dumps(
@@ -197,7 +216,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_label.add_argument("--limit", type=int, default=20)
     p_label.add_argument("--severity", choices=("critical", "high", "medium", "low"))
     p_label.add_argument("--non-interactive", action="store_true")
+    p_label.add_argument("--from-file", help="apply labels filled in a batch JSONL")
     p_label.set_defaults(func=cmd_label)
+
+    p_batch = sub.add_parser("batch")
+    p_batch.add_argument("--out")
+    p_batch.add_argument("--limit", type=int, default=100)
+    p_batch.add_argument("--notes", default="")
+    p_batch.set_defaults(func=cmd_batch)
 
     p_report = sub.add_parser("report")
     p_report.add_argument("--top", type=int, default=20)
