@@ -240,6 +240,7 @@ def run(
     def annotate(item: dict[str, Any]) -> dict[str, Any]:
         result = label_item(item, models)
         result["id"] = item["id"]
+        result["snippet"] = str(item.get("snippet") or "")
         return result
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -251,7 +252,7 @@ def run(
         ok = (
             result["votes"] == len(models)
             and all(result[field] is not None for field in FIELDS)
-            and bool(str(item.get("snippet") or "").strip())
+            and bool(str(result.get("snippet") or "").strip())
         )
         episode_id = str(result["id"])
         if ok:

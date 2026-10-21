@@ -9,7 +9,7 @@ from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
 
-from ..normalize import Event, detect_error, error_signature, sha16
+from ..normalize import Event, detect_error, error_signature, evidence_snippet, sha16
 from ..redact import redact
 
 DEFAULT_LOG = Path(
@@ -102,7 +102,7 @@ class ClaudeCodeAdapter:
                     error_class=error_class,
                     error_sig=error_signature(reason) if reason else "",
                     payload_hash=args_hash,
-                    snippet=redacted.text[:200] if reason else "",
+                    snippet=evidence_snippet(redacted.text) if reason else "",
                     redaction_count=redacted.count,
                 )
                 emitted += 1

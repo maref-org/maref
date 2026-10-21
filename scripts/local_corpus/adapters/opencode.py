@@ -13,6 +13,7 @@ from ..normalize import (
     classify_error,
     detect_output_failure,
     error_signature,
+    evidence_snippet,
     is_user_correction,
     normalize_error_text,
     sha16,
@@ -114,7 +115,7 @@ class OpencodeAdapter:
                         error_class=error_class,
                         error_sig=error_signature(text) if error_class else "",
                         payload_hash=sha16(json.dumps(state.get("input") or {}, sort_keys=True)),
-                        snippet=redacted.text.splitlines()[0][:200] if redacted.text else "",
+                        snippet=evidence_snippet(redacted.text),
                         redaction_count=redacted.count,
                     )
                 elif ptype == "text" and role == "user":
@@ -132,7 +133,7 @@ class OpencodeAdapter:
                             error_class="user_correction",
                             error_sig=sha16(normalize_error_text(text)),
                             payload_hash=sha16(text),
-                            snippet=redacted.text[:600],
+                            snippet=evidence_snippet(redacted.text),
                             redaction_count=redacted.count,
                         )
                 elif ptype == "patch":

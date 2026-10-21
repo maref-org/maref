@@ -17,6 +17,7 @@ from ..normalize import (
     classify_error,
     detect_output_failure,
     error_signature,
+    evidence_snippet,
     is_user_correction,
     sha16,
 )
@@ -160,7 +161,7 @@ class ClaudeTranscriptAdapter:
                                 error_class=error_class,
                                 error_sig=error_signature(text) if error_class else "",
                                 payload_hash=tool_hashes.get(tool_id, ""),
-                                snippet=redacted.text[:600] if error_class else "",
+                                snippet=evidence_snippet(redacted.text) if error_class else "",
                                 redaction_count=redacted.count,
                             )
                         elif btype == "text":
@@ -181,7 +182,7 @@ class ClaudeTranscriptAdapter:
                                 kind="message",
                                 error_class="user_correction" if correction else "",
                                 error_sig=error_signature(text) if correction else "",
-                                snippet=redacted.text[:600] if correction else "",
+                                snippet=evidence_snippet(redacted.text) if correction else "",
                                 redaction_count=redacted.count,
                             )
                         else:

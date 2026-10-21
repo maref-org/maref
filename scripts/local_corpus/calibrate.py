@@ -15,15 +15,15 @@ from rich.table import Table
 from .cluster import anchor
 
 NARROW_EXPECTATIONS: dict[str, set[str]] = {
-    "permission": {"environment"},
-    "not_found": {"environment", "dependency"},
+    "permission": {"environment", "tool"},
+    "not_found": {"environment", "dependency", "tool", "logic"},
     "timeout": {"tool", "environment"},
     "test_fail": {"logic", "dependency", "environment"},
     "assertion": {"logic"},
     "syntax": {"type"},
     "type": {"type", "logic"},
     "lint": {"lint"},
-    "user_correction": {"prompt"},
+    "user_correction": {"prompt", "environment", "tool"},
     "governance_denial": {"tool", "prompt"},
     "hitl": {"tool", "prompt"},
     "network": {"environment", "tool"},
@@ -196,7 +196,7 @@ def report(conn: sqlite3.Connection, top: int = 20, min_family: int = 5) -> dict
         console.print(table)
         if data["low_n_families"]:
             console.print(
-                f"[yellow]families with n<{min_family}: {data['low_n_families']}[/yellow]"
+                f"[yellow]families with decided n<{min_family}: {data['low_n_families']}[/yellow]"
             )
         if data["mismatches"]:
             console.print(f"[yellow]class/label mismatches: {len(data['mismatches'])}[/yellow]")
@@ -212,6 +212,8 @@ def write_markdown(data: dict[str, Any], path: Path) -> None:
         f"- labeled episodes: {data['labeled']}",
         f"- family filter: decided n>={data['min_family']} "
         f"(low-n families: {data['low_n_families']})",
+        f"- cross-runtime families: {data['cross_runtime_families']} "
+        f"(labeled in cross families: {data['cross_runtime_labeled']})",
         f"- root causes: {json.dumps(data['root_cause_dist'], ensure_ascii=False)}",
         f"- agreement buckets: {json.dumps(data['agreement_buckets'], ensure_ascii=False)}",
         "",

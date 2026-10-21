@@ -115,6 +115,23 @@ def _informative_line(text: str) -> str:
     return candidate or (lines[0] if lines else "")
 
 
+def evidence_snippet(text: str, limit: int = 600) -> str:
+    """Keep the most informative error line plus surrounding context."""
+    if not text:
+        return ""
+    stripped = text.strip()
+    if len(stripped) <= limit:
+        return stripped
+    line = _informative_line(stripped)
+    if not line or not (detect_error(line) or _EXCEPTION_LINE.match(line)):
+        return stripped[:limit]
+    position = stripped.find(line)
+    start = max(0, position - limit // 3)
+    end = min(len(stripped), start + limit)
+    start = max(0, end - limit)
+    return stripped[start:end]
+
+
 def normalize_error_text(text: str) -> str:
     """Pick the most informative line, then strip volatile parts."""
     if not text:

@@ -204,6 +204,18 @@ def test_output_failure_is_conservative() -> None:
     assert detect_output_failure("set timeout to 30s in config") == ""
 
 
+def test_evidence_snippet_selects_error_line() -> None:
+    from scripts.local_corpus.normalize import evidence_snippet
+
+    text = "ok\n" + ("noise " * 150) + "\nPermissionError: denied"
+    snippet = evidence_snippet(text)
+    assert "PermissionError: denied" in snippet
+    assert len(snippet) <= 600
+    assert evidence_snippet("short evidence") == "short evidence"
+    prefix = "ok\n" + ("x" * 700)
+    assert evidence_snippet(prefix).startswith("ok")
+
+
 def test_opencode_adapter(tmp_path: Path) -> None:
     path = tmp_path / "opencode.db"
     _make_opencode_db(path)
@@ -211,6 +223,7 @@ def test_opencode_adapter(tmp_path: Path) -> None:
     kinds = [e.kind for e in events]
     assert kinds == ["error", "tool_call", "edit", "message"]
     assert events[0].error_class == "permission"
+    assert "Permission denied" in events[0].snippet
     assert events[0].model == "prov/model-x"
     assert events[-1].error_class == "user_correction"
     assert "还是报错" in events[-1].snippet
@@ -552,7 +565,7 @@ def test_prelabel_run_writes_silver_and_review(
     db.ensure_dirs()
     conn = db.connect()
     db.init_db(conn)
-    for index, snippet in enumerate(("alpha permission denied", "beta odd failure")):
+    for index, snippet in enumerate(("alpha permission denied", "beta odd failure", "")):
         _ingest(
             conn,
             Event(
@@ -577,7 +590,9 @@ def test_prelabel_run_writes_silver_and_review(
         "\n".join(
             json.dumps({"id": eid, "snippet": snip, "runtime": "opencode"})
             for eid, snip in zip(
-                episode_ids, ("alpha permission denied", "beta odd failure"), strict=True
+                episode_ids,
+                ("alpha permission denied", "beta odd failure", ""),
+                strict=True,
             )
         )
         + "\n",
@@ -602,7 +617,7 @@ def test_prelabel_run_writes_silver_and_review(
     monkeypatch.setattr(prelabel, "ask", fake_ask)
     result = prelabel.run(conn, str(batch), ["deepseek", "qwen", "glm"], workers=2, write=True)
     assert result["stats"]["accepted"] == 1
-    assert result["stats"]["needs_review"] == 1
+    assert result["stats"]["needs_review"] == 2
     labeled = conn.execute("SELECT * FROM label WHERE episode_id=?", (episode_ids[0],)).fetchone()
     assert labeled is not None
     assert labeled["labeled_by"].startswith("llm-consensus:")
@@ -611,6 +626,10 @@ def test_prelabel_run_writes_silver_and_review(
         "SELECT label_status FROM episode WHERE id=?", (episode_ids[1],)
     ).fetchone()
     assert review["label_status"] == "needs_review"
+    empty = conn.execute(
+        "SELECT label_status FROM episode WHERE id=?", (episode_ids[2],)
+    ).fetchone()
+    assert empty["label_status"] == "needs_review"
     conn.close()
 
 
@@ -667,7 +686,7 @@ def test_batch_family_quota_and_cross_runtime_priority() -> None:
 
 
 def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from scripts.local_corpus.calibrate import report
+    from scripts.local_corpus.calibrate import report, write_markdown
     from scripts.local_corpus.normalize import Event
 
     monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
@@ -677,7 +696,7 @@ def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.Mo
     specs = [
         ("permission denied writing /etc/hosts", "permission", "environment"),
         ("permission denied opening file", "permission", "environment"),
-        ("permission denied reading socket", "permission", "tool"),
+        ("permission denied reading socket", "permission", "other"),
         ("permission denied reading device", "permission", "unknown"),
         ("permission denied reading pipe", "permission", "environment"),
         ("permission denied reading disk", "permission", "environment"),
@@ -728,4 +747,8 @@ def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.Mo
     assert family["decided"] == 5
     assert family["purity"] == 0.8
     assert family["reliable"] is True
+    markdown = tmp_path / "calibration.md"
+    write_markdown(data, markdown)
+    text = markdown.read_text(encoding="utf-8")
+    assert "cross-runtime families: 0" in text
     conn.close()
