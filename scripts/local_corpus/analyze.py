@@ -9,6 +9,8 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
+from . import cluster
+
 
 def top_signatures(conn: sqlite3.Connection, limit: int = 20) -> list[dict[str, Any]]:
     rows = conn.execute(
@@ -72,6 +74,9 @@ def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
         "coverage": coverage(conn),
         "time_to_fix": time_to_fix(conn),
         "calibration_samples": calibration_samples(conn),
+        "top_families": cluster.top_families(conn, top),
+        "top_clusters": cluster.top_clusters(conn, top),
+        "cross_runtime_clusters": cluster.cross_runtime_clusters(conn, top),
     }
     console = Console()
     console.print("[bold]Local corpus report[/bold]")
@@ -88,6 +93,34 @@ def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
     for item in data["top_signatures"]:
         table.add_row(item["sig"], str(item["count"]), ",".join(item["runtimes"]))
     console.print(table)
+
+    if data["top_families"]:
+        table = Table(title="Top failure families")
+        for column in ("family", "class", "sigs", "episodes", "runtimes"):
+            table.add_column(column)
+        for item in data["top_families"]:
+            table.add_row(
+                item["anchor"],
+                item["error_class"],
+                str(item["signatures"]),
+                str(item["episodes"]),
+                ",".join(item["runtimes"]),
+            )
+        console.print(table)
+
+    if data["top_clusters"]:
+        table = Table(title="Top clusters")
+        for column in ("cluster", "class", "label", "episodes", "runtimes"):
+            table.add_column(column)
+        for item in data["top_clusters"]:
+            table.add_row(
+                item["id"],
+                item["error_class"],
+                item["label"],
+                str(item["episodes"]),
+                ",".join(item["runtimes"]),
+            )
+        console.print(table)
 
     if data["cross_runtime"]:
         console.print(

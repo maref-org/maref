@@ -71,6 +71,28 @@ CREATE TABLE IF NOT EXISTS signature (
     example_episode TEXT DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS family (
+    id                TEXT PRIMARY KEY,
+    error_class       TEXT NOT NULL,
+    anchor            TEXT NOT NULL,
+    episode_count     INTEGER DEFAULT 0,
+    signatures        INTEGER DEFAULT 0,
+    runtimes_json     TEXT DEFAULT '[]',
+    example_episode   TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS cluster (
+    id                TEXT PRIMARY KEY,
+    error_class       TEXT NOT NULL,
+    label             TEXT DEFAULT '',
+    signatures        INTEGER DEFAULT 0,
+    episode_count     INTEGER DEFAULT 0,
+    runtimes_json     TEXT DEFAULT '[]',
+    signatures_json   TEXT DEFAULT '[]',
+    example_episode   TEXT DEFAULT '',
+    family_id         TEXT DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS label (
     episode_id         TEXT PRIMARY KEY REFERENCES episode(id),
     root_cause         TEXT DEFAULT '',

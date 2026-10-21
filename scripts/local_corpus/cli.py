@@ -11,7 +11,7 @@ from typing import Any
 
 from rich.console import Console
 
-from . import analyze, batch, db
+from . import analyze, batch, cluster, db
 from . import label as label_mod
 from .adapters.claude_code import ClaudeCodeAdapter
 from .adapters.claude_code import inventory as claude_inventory
@@ -157,6 +157,17 @@ def cmd_label(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def cmd_cluster(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        db.init_db(conn)
+        result = cluster.build_clusters(conn, args.threshold)
+    finally:
+        conn.close()
+    Console().print(json.dumps(result, ensure_ascii=False))
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     conn = db.connect()
     try:
@@ -224,6 +235,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--limit", type=int, default=100)
     p_batch.add_argument("--notes", default="")
     p_batch.set_defaults(func=cmd_batch)
+
+    p_cluster = sub.add_parser("cluster")
+    p_cluster.add_argument("--threshold", type=float, default=0.55)
+    p_cluster.set_defaults(func=cmd_cluster)
 
     p_report = sub.add_parser("report")
     p_report.add_argument("--top", type=int, default=20)

@@ -422,3 +422,44 @@ def test_batch_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert row["root_cause"] == "logic"
     assert row["labeled_by"] == "batch"
     conn.close()
+
+
+def test_signature_clustering(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.local_corpus.cluster import build_clusters, top_clusters
+    from scripts.local_corpus.normalize import Event
+
+    monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
+    db.ensure_dirs()
+    conn = db.connect()
+    db.init_db(conn)
+    samples = [
+        ("ModuleNotFoundError: No module named 'requests'", "not_found"),
+        ("ModuleNotFoundError: No module named 'numpy'", "not_found"),
+        ("permission denied opening config", "permission"),
+        ("permission denied opening cache", "permission"),
+        ("connection timed out to db", "timeout"),
+    ]
+    for index, (snippet, error_class) in enumerate(samples):
+        _ingest(
+            conn,
+            Event(
+                source="opencode",
+                source_event_id=f"c{index}",
+                session_id=f"s{index}",
+                agent_id="a",
+                model="m",
+                ts=100.0 + index,
+                kind="error",
+                tool="bash",
+                error_class=error_class,
+                error_sig=f"sig{index}",
+                snippet=snippet,
+            ),
+        )
+    conn.commit()
+    link_episodes(conn)
+    result = build_clusters(conn, threshold=0.5)
+    assert result == {"clusters": 3, "families": 3, "signatures": 5}
+    clusters = top_clusters(conn)
+    assert clusters[0]["signatures"] == 2
+    conn.close()
