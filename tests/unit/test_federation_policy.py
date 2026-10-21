@@ -96,9 +96,7 @@ class TestPolicyEvaluationDefault:
 
     def test_no_matching_rule_defaults_to_deny(self) -> None:
         engine = FederationPolicyEngine()
-        engine.add_federation_rule(
-            "f1", "dispatch_task", PolicyDecision.DENY
-        )
+        engine.add_federation_rule("f1", "dispatch_task", PolicyDecision.DENY)
         result = engine.evaluate("unrelated_action")
         assert result.decision == PolicyDecision.DENY
         assert result.no_rule_match is True
@@ -209,17 +207,13 @@ class TestConflictResolution:
         assert result.conflict_detected is True
         assert result.winning_rule.rule_id == "conflict-deny"
 
-    def test_most_restrictive_picks_deny(
-        self, conflicting_engine: FederationPolicyEngine
-    ) -> None:
+    def test_most_restrictive_picks_deny(self, conflicting_engine: FederationPolicyEngine) -> None:
         conflicting_engine.set_conflict_strategy(ConflictStrategy.MOST_RESTRICTIVE)
         result = conflicting_engine.evaluate("x")
         assert result.decision == PolicyDecision.DENY
 
     def test_most_restrictive_deny_vs_defer(self) -> None:
-        engine = FederationPolicyEngine(
-            conflict_strategy=ConflictStrategy.MOST_RESTRICTIVE
-        )
+        engine = FederationPolicyEngine(conflict_strategy=ConflictStrategy.MOST_RESTRICTIVE)
         engine.add_federation_rule("f1", "x", PolicyDecision.DEFER)
         engine.add_local_rule("l1", "x", PolicyDecision.DENY)
         result = engine.evaluate("x")
@@ -278,9 +272,7 @@ class TestRuleManagement:
         assert len(engine.list_rules()) == 3
 
     def test_policy_summary(self) -> None:
-        engine = FederationPolicyEngine(
-            conflict_strategy=ConflictStrategy.MOST_RESTRICTIVE
-        )
+        engine = FederationPolicyEngine(conflict_strategy=ConflictStrategy.MOST_RESTRICTIVE)
         engine.add_federation_rule("f1", "x", PolicyDecision.ALLOW)
         engine.add_local_rule("l1", "y", PolicyDecision.DENY)
         summary = engine.policy_summary()

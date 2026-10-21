@@ -197,9 +197,7 @@ class GovernancePipeline:
         | None = None,
         policy_version: str = "core-pipeline-v1",
         policy_epoch: str = "",
-        extension_rules: list[
-            tuple[int, Callable[[GovernanceRequest], ExtensionRuleHit | None]]
-        ]
+        extension_rules: list[tuple[int, Callable[[GovernanceRequest], ExtensionRuleHit | None]]]
         | None = None,
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
@@ -290,9 +288,7 @@ class GovernancePipeline:
             (0, p3_default_allow),
         ]
 
-    def _evaluate_extension_rules(
-        self, req: GovernanceRequest
-    ) -> ExtensionRuleHit | None:
+    def _evaluate_extension_rules(self, req: GovernanceRequest) -> ExtensionRuleHit | None:
         best: ExtensionRuleHit | None = None
         best_priority = -1
         for priority, rule in sorted(self._extension_rules, key=lambda item: item[0], reverse=True):

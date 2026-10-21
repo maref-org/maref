@@ -82,6 +82,7 @@ def compile_registry(
     compiled: list[tuple[int, Any]] = []
     for pack in registry.list():
         for rule in pack.rules:
+
             def evaluator(
                 req: GovernanceRequest,
                 *,
@@ -99,9 +100,7 @@ def compile_registry(
                     policy_pack_version=_pack.version,
                     policy_pack_hash=_pack.content_hash(),
                     hitl_tier=(
-                        _hitl_tier(_rule.hitl_tier)
-                        if verdict is Verdict.ASK_USER
-                        else None
+                        _hitl_tier(_rule.hitl_tier) if verdict is Verdict.ASK_USER else None
                     ),
                 )
 

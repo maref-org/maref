@@ -33,7 +33,5 @@ def test_pack_allow_cannot_downgrade_core_deny():
     pipeline = GovernancePipeline(
         extension_rules=PolicyPackRegistry([_allow_pack()]).compile_rules()
     )
-    result = pipeline.govern(
-        GovernanceRequest(action="file.read", agent_id="a", trust_score=10)
-    )
+    result = pipeline.govern(GovernanceRequest(action="file.read", agent_id="a", trust_score=10))
     assert result.verdict is Verdict.DENY

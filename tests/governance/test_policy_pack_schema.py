@@ -45,9 +45,7 @@ def test_valid_pack_round_trip():
 
 def test_duplicate_rule_id_rejected():
     with pytest.raises(ValidationError):
-        PolicyPack.model_validate(
-            _pack(rules=[_rule(), _rule(description="duplicate")])
-        )
+        PolicyPack.model_validate(_pack(rules=[_rule(), _rule(description="duplicate")]))
 
 
 def test_deny_requires_regulation_ref():
