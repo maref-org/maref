@@ -213,6 +213,7 @@ def test_opencode_adapter(tmp_path: Path) -> None:
     assert events[0].error_class == "permission"
     assert events[0].model == "prov/model-x"
     assert events[-1].error_class == "user_correction"
+    assert "还是报错" in events[-1].snippet
 
 
 def _ingest(conn: sqlite3.Connection, event: object) -> None:
@@ -427,7 +428,7 @@ def test_batch_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     db.ensure_dirs()
     conn = db.connect()
     db.init_db(conn)
-    for index, sig in enumerate(("alpha", "beta", "gamma")):
+    for index, sig in enumerate(("alpha", "beta", "gamma", "empty")):
         _ingest(
             conn,
             Event(
@@ -441,7 +442,7 @@ def test_batch_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
                 tool="bash",
                 error_class="tool_error",
                 error_sig=sig,
-                snippet=f"failure {sig}",
+                snippet="" if sig == "empty" else f"failure {sig}",
             ),
         )
     conn.commit()
@@ -450,6 +451,7 @@ def test_batch_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     out = tmp_path / "batch.jsonl"
     result = create_batch(conn, out, limit=5)
     assert result["items"] == 3
+    assert result["excluded_empty"] == 1
     assert out.with_suffix(".md").exists()
 
     rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
@@ -622,6 +624,48 @@ def test_classifier_prefers_informative_line() -> None:
     assert classify_error("permission denied writing /etc/hosts") == "permission"
 
 
+def test_batch_family_quota_and_cross_runtime_priority() -> None:
+    from scripts.local_corpus.batch import stratified
+
+    snippets = {
+        "RuntimeError": "RuntimeError: alpha",
+        "KeyError": "KeyError: beta",
+        "TimeoutError": "TimeoutError: gamma",
+        "PermissionError": "PermissionError: delta",
+    }
+    rows = []
+    for name, snippet in snippets.items():
+        for index in range(6):
+            rows.append(
+                {
+                    "id": f"{name}-{index}",
+                    "failure_sig": f"{name}-{index}",
+                    "error_class": "tool_error",
+                    "snippet": snippet,
+                    "severity": "medium",
+                    "started_at": 100.0 + index,
+                }
+            )
+    items = stratified(
+        rows,
+        12,
+        per_family=3,
+        cross_families={("tool_error", "runtimeerror")},
+    )
+    assert len(items) == 12
+    assert items[0]["snippet"].startswith("RuntimeError")
+    counts: dict[str, int] = {}
+    for item in items:
+        name = item["snippet"].split(":", 1)[0]
+        counts[name] = counts.get(name, 0) + 1
+    assert counts == {
+        "RuntimeError": 3,
+        "KeyError": 3,
+        "TimeoutError": 3,
+        "PermissionError": 3,
+    }
+
+
 def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts.local_corpus.calibrate import report
     from scripts.local_corpus.normalize import Event
@@ -635,6 +679,8 @@ def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.Mo
         ("permission denied opening file", "permission", "environment"),
         ("permission denied reading socket", "permission", "tool"),
         ("permission denied reading device", "permission", "unknown"),
+        ("permission denied reading pipe", "permission", "environment"),
+        ("permission denied reading disk", "permission", "environment"),
     ]
     for index, (snippet, error_class, _cause) in enumerate(specs):
         _ingest(
@@ -673,10 +719,13 @@ def test_calibration_flags_class_mismatch(tmp_path: Path, monkeypatch: pytest.Mo
         )
     conn.commit()
     data = report(conn, top=5)
-    assert data["labeled"] == 4
+    assert data["labeled"] == 6
     assert len(data["mismatches"]) == 1
     assert len(data["abstentions"]) == 1
+    assert data["low_n_families"] == 0
     family = data["families"][0]
     assert family["family"] == "permission"
-    assert family["purity"] == 0.5
+    assert family["decided"] == 5
+    assert family["purity"] == 0.8
+    assert family["reliable"] is True
     conn.close()

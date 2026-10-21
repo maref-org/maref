@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 from collections import Counter
 from pathlib import Path
@@ -43,7 +44,17 @@ def labeled_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
-def family_stats(rows: list[sqlite3.Row], top: int = 20) -> list[dict[str, Any]]:
+def _wilson(count: int, total: int, z: float = 1.96) -> tuple[float, float]:
+    if total == 0:
+        return (0.0, 0.0)
+    p = count / total
+    denom = 1 + z * z / total
+    centre = (p + z * z / (2 * total)) / denom
+    margin = z * math.sqrt(p * (1 - p) / total + z * z / (4 * total * total)) / denom
+    return (round(max(0.0, centre - margin), 2), round(min(1.0, centre + margin), 2))
+
+
+def family_stats(rows: list[sqlite3.Row], top: int = 20, min_n: int = 1) -> list[dict[str, Any]]:
     groups: dict[tuple[str, str], list[sqlite3.Row]] = {}
     for row in rows:
         key = (
@@ -54,21 +65,30 @@ def family_stats(rows: list[sqlite3.Row], top: int = 20) -> list[dict[str, Any]]
     stats = []
     for (error_class, family), members in groups.items():
         causes = Counter(str(row["root_cause"]) for row in members)
-        dominant, count = causes.most_common(1)[0]
+        decided = [row for row in members if str(row["root_cause"] or "") not in ("", "unknown")]
+        if decided:
+            dominant, count = Counter(str(row["root_cause"]) for row in decided).most_common(1)[0]
+            purity = round(count / len(decided), 2)
+            low, high = _wilson(count, len(decided))
+        else:
+            dominant, count, purity, low, high = "unknown", 0, None, 0.0, 1.0
         stats.append(
             {
                 "error_class": error_class,
                 "family": family,
                 "episodes": len(members),
-                "purity": round(count / len(members), 2),
+                "decided": len(decided),
+                "purity": purity,
+                "purity_ci": [low, high],
                 "dominant": dominant,
                 "causes": dict(causes),
                 "mean_agreement": round(
                     sum(int(row["agree_with_llm"] or 0) for row in members) / len(members)
                 ),
+                "reliable": len(decided) >= min_n,
             }
         )
-    stats.sort(key=lambda item: (-item["episodes"], -item["purity"]))
+    stats.sort(key=lambda item: (-item["episodes"], -(item["purity"] or 0)))
     return stats[:top]
 
 
@@ -126,11 +146,28 @@ def agreement_buckets(rows: list[sqlite3.Row]) -> dict[str, int]:
     return dict(sorted(buckets.items(), key=lambda item: -int(item[0].rstrip("%"))))
 
 
-def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
+def report(conn: sqlite3.Connection, top: int = 20, min_family: int = 5) -> dict[str, Any]:
     rows = labeled_rows(conn)
+    all_families = family_stats(rows, top=10000, min_n=1)
+    cross_families = {
+        (str(row["error_class"]), str(row["anchor"]))
+        for row in conn.execute(
+            "SELECT error_class, anchor FROM family WHERE json_array_length(runtimes_json) >= 2"
+        )
+    }
+    cross_labeled = sum(
+        1
+        for row in rows
+        if (str(row["error_class"]), anchor(str(row["error_class"]), str(row["snippet"] or "")))
+        in cross_families
+    )
     data = {
         "labeled": len(rows),
-        "families": family_stats(rows, top),
+        "min_family": min_family,
+        "families": [item for item in all_families if item["decided"] >= min_family][:top],
+        "low_n_families": sum(1 for item in all_families if item["decided"] < min_family),
+        "cross_runtime_families": len(cross_families),
+        "cross_runtime_labeled": cross_labeled,
         "matrix": class_matrix(rows),
         "mismatches": mismatches(rows),
         "abstentions": abstentions(rows),
@@ -143,19 +180,24 @@ def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
         console.print(
             "root causes: " + ", ".join(f"{k}={v}" for k, v in data["root_cause_dist"].items())
         )
-        table = Table(title="Family purity")
-        for column in ("class", "family", "n", "purity", "dominant", "agree%"):
+        table = Table(title=f"Family purity (decided n>={min_family})")
+        for column in ("class", "family", "n", "decided", "purity", "dominant", "agree%"):
             table.add_column(column)
         for item in data["families"]:
             table.add_row(
                 item["error_class"],
                 item["family"],
                 str(item["episodes"]),
-                str(item["purity"]),
+                str(item["decided"]),
+                "n/a" if item["purity"] is None else str(item["purity"]),
                 item["dominant"],
                 str(item["mean_agreement"]),
             )
         console.print(table)
+        if data["low_n_families"]:
+            console.print(
+                f"[yellow]families with n<{min_family}: {data['low_n_families']}[/yellow]"
+            )
         if data["mismatches"]:
             console.print(f"[yellow]class/label mismatches: {len(data['mismatches'])}[/yellow]")
         if data["abstentions"]:
@@ -168,18 +210,23 @@ def write_markdown(data: dict[str, Any], path: Path) -> None:
         "# Label calibration",
         "",
         f"- labeled episodes: {data['labeled']}",
+        f"- family filter: decided n>={data['min_family']} "
+        f"(low-n families: {data['low_n_families']})",
         f"- root causes: {json.dumps(data['root_cause_dist'], ensure_ascii=False)}",
         f"- agreement buckets: {json.dumps(data['agreement_buckets'], ensure_ascii=False)}",
         "",
         "## Family purity",
         "",
-        "| class | family | n | purity | dominant | agree% |",
-        "|---|---|---:|---:|---|---:|",
+        "| class | family | n | decided | purity | 95% CI | dominant | agree% |",
+        "|---|---|---:|---:|---:|---|---|---:|",
     ]
     for item in data["families"]:
         lines.append(
             f"| {item['error_class']} | {item['family']} | {item['episodes']} | "
-            f"{item['purity']} | {item['dominant']} | {item['mean_agreement']} |"
+            f"{item['decided']} | "
+            f"{'n/a' if item['purity'] is None else item['purity']} | "
+            f"{item['purity_ci'][0]}-{item['purity_ci'][1]} | "
+            f"{item['dominant']} | {item['mean_agreement']} |"
         )
     lines += ["", "## Class × root cause", "", "| class | root causes |", "|---|---|"]
     for error_class, causes in data["matrix"].items():

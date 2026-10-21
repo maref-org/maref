@@ -129,7 +129,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
             if args.out
             else db.data_dir() / "exports" / f"batch-{time.strftime('%Y%m%d')}.jsonl"
         )
-        result = batch.create_batch(conn, out, args.limit, args.notes)
+        result = batch.create_batch(conn, out, args.limit, args.notes, args.per_family)
     finally:
         conn.close()
     Console().print(json.dumps(result, ensure_ascii=False))
@@ -197,7 +197,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     conn = db.connect()
     try:
         db.init_db(conn)
-        result = calibrate.report(conn, args.top)
+        result = calibrate.report(conn, args.top, args.min_family)
         out = (
             Path(args.out)
             if args.out
@@ -278,6 +278,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch = sub.add_parser("batch")
     p_batch.add_argument("--out")
     p_batch.add_argument("--limit", type=int, default=100)
+    p_batch.add_argument("--per-family", type=int, default=5)
     p_batch.add_argument("--notes", default="")
     p_batch.set_defaults(func=cmd_batch)
 
@@ -292,6 +293,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_calibrate = sub.add_parser("calibrate")
     p_calibrate.add_argument("--top", type=int, default=20)
+    p_calibrate.add_argument("--min-family", type=int, default=5)
     p_calibrate.add_argument("--json", action="store_true")
     p_calibrate.add_argument("--out")
     p_calibrate.set_defaults(func=cmd_calibrate)

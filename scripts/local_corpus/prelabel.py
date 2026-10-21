@@ -248,7 +248,11 @@ def run(
     accepted = 0
     review = 0
     for result in results:
-        ok = result["votes"] == len(models) and all(result[field] is not None for field in FIELDS)
+        ok = (
+            result["votes"] == len(models)
+            and all(result[field] is not None for field in FIELDS)
+            and bool(str(item.get("snippet") or "").strip())
+        )
         episode_id = str(result["id"])
         if ok:
             accepted += 1

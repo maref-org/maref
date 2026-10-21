@@ -42,6 +42,24 @@ def cross_runtime(conn: sqlite3.Connection, limit: int = 20) -> list[dict[str, A
     ]
 
 
+def cross_runtime_families(conn: sqlite3.Connection, limit: int = 20) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT error_class, anchor, episode_count, runtimes_json FROM family"
+        " WHERE json_array_length(runtimes_json) >= 2"
+        " ORDER BY episode_count DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return [
+        {
+            "error_class": r["error_class"],
+            "anchor": r["anchor"],
+            "episodes": int(r["episode_count"]),
+            "runtimes": json.loads(r["runtimes_json"] or "[]"),
+        }
+        for r in rows
+    ]
+
+
 def coverage(conn: sqlite3.Connection) -> dict[str, int]:
     rows = conn.execute("SELECT label_status, COUNT(*) AS n FROM episode GROUP BY 1").fetchall()
     result = {str(r["label_status"]): int(r["n"]) for r in rows}
@@ -67,16 +85,31 @@ def calibration_samples(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return [{"error_class": r["error_class"], "n": int(r["n"])} for r in rows]
 
 
+def _count_cross(conn: sqlite3.Connection, table: str) -> int:
+    if table not in {"signature", "family", "cluster"}:
+        return 0
+    row = conn.execute(
+        f"SELECT COUNT(*) AS n FROM {table} WHERE json_array_length(runtimes_json) >= 2"
+    ).fetchone()
+    return int(row["n"] or 0) if row else 0
+
+
 def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
     data: dict[str, Any] = {
         "top_signatures": top_signatures(conn, top),
         "cross_runtime": cross_runtime(conn, top),
+        "cross_runtime_counts": {
+            "signatures": _count_cross(conn, "signature"),
+            "families": _count_cross(conn, "family"),
+            "clusters": _count_cross(conn, "cluster"),
+        },
         "coverage": coverage(conn),
         "time_to_fix": time_to_fix(conn),
         "calibration_samples": calibration_samples(conn),
         "top_families": cluster.top_families(conn, top),
         "top_clusters": cluster.top_clusters(conn, top),
         "cross_runtime_clusters": cluster.cross_runtime_clusters(conn, top),
+        "cross_runtime_families": cross_runtime_families(conn, top),
     }
     console = Console()
     console.print("[bold]Local corpus report[/bold]")
@@ -124,9 +157,11 @@ def report(conn: sqlite3.Connection, top: int = 20) -> dict[str, Any]:
 
     if data["cross_runtime"]:
         console.print(
-            f"[green]cross-runtime repeats: {len(data['cross_runtime'])}[/green]  "
-            "(the core value evidence)"
+            f"[green]cross-runtime signatures: "
+            f"{data['cross_runtime_counts']['signatures']}[/green]  "
+            f"families: {data['cross_runtime_counts']['families']}  "
+            f"clusters: {data['cross_runtime_counts']['clusters']}"
         )
     else:
-        console.print("[yellow]cross-runtime repeats: 0[/yellow]")
+        console.print("[yellow]cross-runtime signatures: 0[/yellow]")
     return data

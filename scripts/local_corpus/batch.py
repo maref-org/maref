@@ -1,4 +1,4 @@
-"""Calibration batch: export pending episodes for human labeling, then apply."""
+"""Calibration batch: export pending episodes for silver labeling, then apply."""
 
 from __future__ import annotations
 
@@ -19,7 +19,8 @@ SEVERITY_VALUES = set(SEVERITIES.values())
 def _pending(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute(
         """
-        SELECT * FROM episode WHERE label_status = 'pending'
+        SELECT * FROM episode
+        WHERE label_status = 'pending' AND TRIM(snippet) != ''
         ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1
                               WHEN 'medium' THEN 2 ELSE 3 END,
                  started_at DESC
@@ -27,38 +28,132 @@ def _pending(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
-def stratified(rows: list[sqlite3.Row], limit: int) -> list[sqlite3.Row]:
-    """Round-robin across failure families, one episode per signature first."""
-    buckets: dict[tuple[str, str], list[sqlite3.Row]] = {}
+def _family_key(row: Any) -> tuple[str, str]:
+    error_class = str(row["error_class"] or "unknown")
+    return (error_class, anchor(error_class, str(row["snippet"] or "")))
+
+
+def _is_cross(row: Any, cross_sigs: set[str], cross_families: set[tuple[str, str]]) -> bool:
+    return str(row["failure_sig"]) in cross_sigs or _family_key(row) in cross_families
+
+
+def _diverse(group: list[Any], limit: int, taken: set[str]) -> list[Any]:
+    picked: list[Any] = []
     seen: set[str] = set()
-    overflow: list[sqlite3.Row] = []
-    for row in rows:
+    for row in group:
+        if len(picked) >= limit:
+            break
+        if row["id"] in taken:
+            continue
         sig = str(row["failure_sig"])
         if sig in seen:
-            overflow.append(row)
             continue
         seen.add(sig)
-        key = (
-            str(row["error_class"] or "unknown"),
-            anchor(str(row["error_class"] or "unknown"), str(row["snippet"] or "")),
-        )
-        buckets.setdefault(key, []).append(row)
-    ordered = sorted(buckets.values(), key=lambda group: -len(group))
-    picked: list[sqlite3.Row] = []
-    while ordered and len(picked) < limit:
-        for group in list(ordered):
-            if group and len(picked) < limit:
-                picked.append(group.pop(0))
-        ordered = [group for group in ordered if group]
-    if len(picked) < limit:
-        picked.extend(overflow[: limit - len(picked)])
+        picked.append(row)
+    return picked
+
+
+def stratified(
+    rows: list[Any],
+    limit: int,
+    per_family: int = 5,
+    cross_sigs: set[str] | None = None,
+    cross_families: set[tuple[str, str]] | None = None,
+) -> list[Any]:
+    """Quota sample: cross-runtime families first, then >=per_family per family."""
+    cross_sigs = cross_sigs or set()
+    cross_families = cross_families or set()
+    taken: set[str] = set()
+    picked: list[Any] = []
+
+    seen_cross: set[tuple[str, str]] = set()
+    for row in rows:
+        if len(picked) >= limit:
+            break
+        key = _family_key(row)
+        if _is_cross(row, cross_sigs, cross_families) and key not in seen_cross:
+            seen_cross.add(key)
+            picked.append(row)
+            taken.add(row["id"])
+
+    buckets: dict[tuple[str, str], list[Any]] = {}
+    for row in rows:
+        if row["id"] in taken:
+            continue
+        buckets.setdefault(_family_key(row), []).append(row)
+
+    for key, group in sorted(buckets.items(), key=lambda item: -len(item[1])):
+        if len(picked) >= limit:
+            break
+        current = sum(1 for row in picked if _family_key(row) == key)
+        need = min(per_family - current, limit - len(picked))
+        if need <= 0:
+            continue
+        added = 0
+        for row in _diverse(group, need, taken):
+            picked.append(row)
+            taken.add(row["id"])
+            added += 1
+        need = min(per_family - current - added, limit - len(picked))
+        if need <= 0:
+            continue
+        for row in group:
+            if need <= 0 or len(picked) >= limit:
+                break
+            if row["id"] in taken:
+                continue
+            picked.append(row)
+            taken.add(row["id"])
+            need -= 1
+
+    for row in rows:
+        if len(picked) >= limit:
+            break
+        if row["id"] not in taken:
+            picked.append(row)
+            taken.add(row["id"])
     return picked
 
 
 def create_batch(
-    conn: sqlite3.Connection, out: Path, limit: int = 100, notes: str = ""
+    conn: sqlite3.Connection,
+    out: Path,
+    limit: int = 100,
+    notes: str = "",
+    per_family: int = 5,
 ) -> dict[str, Any]:
-    items = stratified(_pending(conn), limit)
+    try:
+        cross_sigs = {
+            str(row["sig"])
+            for row in conn.execute(
+                "SELECT sig FROM signature WHERE json_array_length(runtimes_json) >= 2"
+            )
+        }
+    except sqlite3.OperationalError:
+        cross_sigs = set()
+    try:
+        cross_families = {
+            (str(row["error_class"]), str(row["anchor"]))
+            for row in conn.execute(
+                "SELECT error_class, anchor FROM family WHERE json_array_length(runtimes_json) >= 2"
+            )
+        }
+    except sqlite3.OperationalError:
+        cross_families = set()
+    items = stratified(
+        _pending(conn),
+        limit,
+        per_family=per_family,
+        cross_sigs=cross_sigs,
+        cross_families=cross_families,
+    )
+    cross_ids = {row["id"] for row in items if _is_cross(row, cross_sigs, cross_families)}
+    excluded_empty = int(
+        conn.execute(
+            "SELECT COUNT(*) AS n FROM episode"
+            " WHERE label_status = 'pending' AND TRIM(snippet) = ''"
+        ).fetchone()["n"]
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     created_at = time.time()
     with out.open("w", encoding="utf-8") as handle:
@@ -70,6 +165,7 @@ def create_batch(
                 "tool": row["tool"],
                 "severity": row["severity"],
                 "outcome": row["outcome"],
+                "cross_runtime": row["id"] in cross_ids,
                 "started_at": row["started_at"],
                 "failure_sig": row["failure_sig"],
                 "snippet": row["snippet"],
@@ -83,11 +179,23 @@ def create_batch(
                 },
             }
             handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
-    _write_markdown(items, out.with_suffix(".md"), created_at, notes)
-    return {"path": str(out), "markdown": str(out.with_suffix(".md")), "items": len(items)}
+    _write_markdown(items, out.with_suffix(".md"), created_at, notes, cross_ids)
+    return {
+        "path": str(out),
+        "markdown": str(out.with_suffix(".md")),
+        "items": len(items),
+        "cross_runtime": len(cross_ids),
+        "excluded_empty": excluded_empty,
+    }
 
 
-def _write_markdown(items: list[sqlite3.Row], path: Path, created_at: float, notes: str) -> None:
+def _write_markdown(
+    items: list[sqlite3.Row],
+    path: Path,
+    created_at: float,
+    notes: str,
+    cross_ids: set[str] | None = None,
+) -> None:
     lines = [
         "# Local corpus calibration batch",
         "",
@@ -102,13 +210,15 @@ def _write_markdown(items: list[sqlite3.Row], path: Path, created_at: float, not
         "`local-corpus label --from-file <batch>.jsonl`",
         "",
     ]
+    cross_ids = cross_ids or set()
     for index, row in enumerate(items, start=1):
         snippet = (row["snippet"] or "(no snippet)")[:400]
         lines += [
             f"## {index}. `{row['id']}`",
             "",
             f"- runtime: {row['runtime']} / class: {row['error_class']} / tool: {row['tool']}",
-            f"- severity: {row['severity']} / outcome: {row['outcome']}",
+            f"- severity: {row['severity']} / outcome: {row['outcome']}"
+            f" / cross_runtime: {'yes' if row['id'] in cross_ids else 'no'}",
             f"- sig: `{row['failure_sig']}`",
             "",
             "```",

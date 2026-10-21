@@ -120,6 +120,7 @@ class OpencodeAdapter:
                 elif ptype == "text" and role == "user":
                     text = str(part.get("text") or "")
                     if is_user_correction(text):
+                        redacted = redact(text)
                         event = Event(
                             source=self.source,
                             source_event_id=part_id,
@@ -131,6 +132,8 @@ class OpencodeAdapter:
                             error_class="user_correction",
                             error_sig=sha16(normalize_error_text(text)),
                             payload_hash=sha16(text),
+                            snippet=redacted.text[:600],
+                            redaction_count=redacted.count,
                         )
                 elif ptype == "patch":
                     event = Event(
