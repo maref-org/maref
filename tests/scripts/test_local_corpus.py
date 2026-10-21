@@ -27,12 +27,13 @@ from scripts.local_corpus.redact import find_leaks, redact  # noqa: E402
 def test_redact_secrets_and_paths() -> None:
     anthropic = "sk-" + "ant-" + "a" * 28
     github = "ghp" + "_" + "b" * 36
-    text = f"key={anthropic} mail=a@b.com path=/home/tester/project token={github}"
+    text = f"key={anthropic} mail=a@b.com path=/home/tester/project root=/Volumes/ token={github}"
     result = redact(text)
     assert result.count >= 3
     assert anthropic not in result.text
     assert "a@b.com" not in result.text
     assert "/home/tester" not in result.text
+    assert "/Volumes" not in result.text
     assert find_leaks(result.text) == []
 
 

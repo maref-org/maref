@@ -35,7 +35,7 @@ _SIMPLE_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("home_path", re.compile(r"/(?:Users|home)/[A-Za-z0-9._\-]+")),
     (
         "internal_path",
-        re.compile(r"/(?:Volumes|private|var/folders)/[^\s\"'`]+"),
+        re.compile(r"/(?:Volumes|private|var/folders)(?:/[^\s\"'`]+)?"),
     ),
 )
 
