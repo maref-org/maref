@@ -13,10 +13,10 @@ import sqlite3
 from collections import Counter
 from typing import Any
 
-from .normalize import sha16
+from .normalize import normalize_error_text, sha16
 
 _TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{3,}")
-_EXCEPTION = re.compile(r"\b([A-Z][A-Za-z]*(?:Error|Exception|Warning))\b")
+_EXCEPTION = re.compile(r"\b([A-Z][A-Za-z]*(?:Error|Exception|Warning))\b", re.IGNORECASE)
 _EXIT = re.compile(r"exit (?:code|status)\s*[:=]?\s*(\d+)", re.IGNORECASE)
 _CANONICAL = {
     "timeout",
@@ -66,11 +66,12 @@ def tokens(text: str) -> set[str]:
 
 
 def anchor(error_class: str, text: str) -> str:
-    """Coarse root-cause family for a signature (level 1)."""
-    match = _EXCEPTION.search(text or "")
+    """Coarse root-cause family from the normalized error line."""
+    normalized = normalize_error_text(text or "")
+    match = _EXCEPTION.search(normalized)
     if match:
         return match.group(1).lower()
-    low = (text or "").lower()
+    low = normalized.lower()
     if "command not found" in low:
         return "command_not_found"
     if "no such file" in low:
@@ -106,8 +107,8 @@ def _load(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "runtimes": json.loads(row["runtimes_json"] or "[]"),
             "example": str(row["example_episode"] or ""),
             "error_class": str(row["error_class"] or "unknown"),
-            "snippet": str(row["snippet"] or ""),
-            "tokens": tokens(str(row["snippet"] or "")),
+            "snippet": normalize_error_text(str(row["snippet"] or "")),
+            "tokens": tokens(normalize_error_text(str(row["snippet"] or ""))),
             "family": anchor(str(row["error_class"] or "unknown"), str(row["snippet"] or "")),
         }
         for row in rows

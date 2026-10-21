@@ -205,6 +205,138 @@ def test_output_failure_is_conservative() -> None:
     assert detect_output_failure("set timeout to 30s in config") == ""
 
 
+def test_classify_evidence_rejects_source_code() -> None:
+    from scripts.local_corpus.normalize import classify_evidence
+
+    assert classify_evidence("from scripts.x import y  # noqa: E402") == ""
+    assert classify_evidence("timeout-2.4.0") == ""
+    assert classify_evidence('("permission denied", "permission", "tool")') == ""
+    assert classify_evidence("ModuleNotFoundError: No module named 'yaml'") == "not_found"
+    assert classify_evidence("E   AssertionError: expected 1") == "assertion"
+    assert classify_evidence("B007 Loop control variable `cause` not used") == "lint"
+
+
+def test_refresh_snippets_is_idempotent_and_preserves_labels(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.local_corpus import refresh
+    from scripts.local_corpus.normalize import Event
+
+    monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
+    db.ensure_dirs()
+    conn = db.connect()
+    db.init_db(conn)
+    _ingest(
+        conn,
+        Event(
+            source="opencode",
+            source_event_id="refresh-1",
+            session_id="refresh-session",
+            agent_id="a",
+            model="m",
+            ts=100.0,
+            kind="error",
+            tool="bash",
+            error_class="tool_error",
+            error_sig="old",
+            snippet="old evidence",
+        ),
+    )
+    conn.commit()
+    link_episodes(conn)
+    episode_id = str(conn.execute("SELECT id FROM episode").fetchone()["id"])
+    record_label(
+        conn,
+        episode_id,
+        root_cause="environment",
+        fix_type="config",
+        severity="medium",
+        reusable=False,
+        labeled_by="test",
+    )
+
+    class FakeAdapter:
+        def iter_events(self, since: float) -> list[Event]:
+            return [
+                Event(
+                    source="opencode",
+                    source_event_id="refresh-1",
+                    session_id="refresh-session",
+                    agent_id="a",
+                    model="m",
+                    ts=100.0,
+                    kind="error",
+                    tool="bash",
+                    error_class="tool_error",
+                    error_sig="old",
+                    snippet="new evidence",
+                    redaction_count=1,
+                )
+            ]
+
+    first = refresh.refresh_snippets(conn, adapters={"opencode": FakeAdapter()}, since=0.0)
+    assert first["changed"] == 1
+    assert first["changed_labeled"] == [episode_id]
+    assert conn.execute("SELECT snippet FROM episode").fetchone()["snippet"] == "new evidence"
+    assert conn.execute("SELECT COUNT(*) AS n FROM label").fetchone()["n"] == 1
+    second = refresh.refresh_snippets(conn, adapters={"opencode": FakeAdapter()}, since=0.0)
+    assert second["changed"] == 0
+    conn.close()
+
+
+def test_reclassify_episode_updates_class_and_signature(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.local_corpus.link import reclassify_episodes
+    from scripts.local_corpus.normalize import Event
+
+    monkeypatch.setenv("MAREF_CORPUS_DIR", str(tmp_path / "corpus"))
+    db.ensure_dirs()
+    conn = db.connect()
+    db.init_db(conn)
+    _ingest(
+        conn,
+        Event(
+            source="opencode",
+            source_event_id="reclass-1",
+            session_id="reclass-session",
+            agent_id="a",
+            model="m",
+            ts=100.0,
+            kind="error",
+            tool="bash",
+            error_class="permission",
+            error_sig="old",
+            snippet="B007 Loop control variable `cause` not used",
+        ),
+    )
+    conn.commit()
+    link_episodes(conn)
+    episode_id = str(conn.execute("SELECT id FROM episode").fetchone()["id"])
+    record_label(
+        conn,
+        episode_id,
+        root_cause="lint",
+        fix_type="code",
+        severity="low",
+        reusable=True,
+        labeled_by="test",
+    )
+    result = reclassify_episodes(conn)
+    assert result["class_changed"] == 1
+    episode = conn.execute("SELECT error_class FROM episode WHERE id=?", (episode_id,)).fetchone()
+    assert episode["error_class"] == "lint"
+    assert conn.execute("SELECT COUNT(*) AS n FROM label").fetchone()["n"] == 1
+    conn.close()
+
+
+def test_anchor_uses_normalized_error_line() -> None:
+    from scripts.local_corpus.cluster import anchor
+
+    text = ("noise line\n" * 30) + "PermissionError: denied"
+    assert anchor("permission", text) == "permissionerror"
+
+
 def test_evidence_snippet_selects_error_line() -> None:
     from scripts.local_corpus.normalize import evidence_snippet
 

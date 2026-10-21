@@ -21,7 +21,7 @@ NARROW_EXPECTATIONS: dict[str, set[str]] = {
     "test_fail": {"logic", "dependency", "environment"},
     "assertion": {"logic"},
     "syntax": {"type"},
-    "type": {"type", "logic"},
+    "type": {"type", "logic", "dependency"},
     "lint": {"lint"},
     "user_correction": {"prompt", "environment", "tool"},
     "governance_denial": {"tool", "prompt"},

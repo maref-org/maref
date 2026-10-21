@@ -90,6 +90,7 @@ def classify_error(text: str) -> str:
 
 
 _HEADER_LINE = re.compile(r"^(?:exit (?:code|status)\s*[:=]?\s*\d+|command)\s*$", re.IGNORECASE)
+_LINT_LINE = re.compile(r"^\s*[A-Z]\d{3}\b")
 
 
 _EXCEPTION_LINE = re.compile(r"^(?:[A-Za-z_][\w.]*\.)?[A-Z][A-Za-z]*(?:Error|Exception|Warning)\b")
@@ -108,6 +109,8 @@ def _informative_line(text: str) -> str:
     for line in lines:
         if _HEADER_LINE.match(line):
             continue
+        if _LINT_LINE.match(line):
+            return line
         if detect_error(line):
             return line
         if not candidate:
@@ -141,6 +144,51 @@ def normalize_error_text(text: str) -> str:
     first = re.sub(r"\b[0-9a-f]{8,}\b", "<hex>", first)
     first = re.sub(r"\b\d+\b", "<n>", first)
     return first
+
+
+_CODE_LINE = re.compile(
+    r"^\s*(?:from\s+\S+\s+import|import\s+\S+|#|//|\d+\s*[\t|:]|\d+\.|"
+    r"raise\b|except\b|return\b|assert\b|self\.|[\"'(])"
+)
+_ANY_EXCEPTION = re.compile(r"\b([A-Z][A-Za-z]*(?:Error|Exception))\b")
+
+
+def classify_evidence(text: str) -> str:
+    """Classify only explicit error evidence, never arbitrary source text."""
+    if not text:
+        return ""
+    line = _informative_line(text).strip()
+    if not line or _CODE_LINE.match(line) or "# noqa" in line.lower():
+        return ""
+    normalized = re.sub(r"^E\s+", "", line)
+    match = _ANY_EXCEPTION.match(normalized)
+    if match:
+        name = match.group(1)
+        if ":" not in normalized and "(" not in normalized:
+            return ""
+        classified = detect_error(name)
+        return classified or ""
+    if re.search(r"\bFAILURES\b|\b\d+\s+failed\b|\bFAILED\b\s+\S+::", line, re.I):
+        return "test_fail"
+    if re.search(r"^\s*[A-Z]\d{3}\b|\bFound\s+\d+\s+error\b", line, re.I):
+        return "lint"
+    if re.search(r"^\s*(?:ruff|eslint|mypy)\b", line, re.I):
+        return "lint"
+    if re.search(r"\btimed\s+out\b|ETIMEDOUT|^TimeoutError\b", line, re.I):
+        return "timeout"
+    if re.search(r"\bOutOfMemory|\bOOM\b|\bKilled\b", line):
+        return "oom"
+    if re.search(r"\bNo such file|command not found", line, re.I):
+        return "not_found"
+    if re.search(r"permission denied|EACCES|operation not permitted", line, re.I):
+        return "permission"
+    if re.search(r"\bECONNREFUSED\b|\bENOTFOUND\b|could not resolve host", line, re.I):
+        return "network"
+    if re.search(r"IndentationError|unexpected token", line, re.I):
+        return "syntax"
+    if re.search(r"AssertionError|^\s*assert\b", line, re.I):
+        return "assertion"
+    return ""
 
 
 def error_signature(text: str) -> str:

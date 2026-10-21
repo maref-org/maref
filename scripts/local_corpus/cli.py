@@ -11,7 +11,7 @@ from typing import Any
 
 from rich.console import Console
 
-from . import analyze, batch, calibrate, cluster, db, prelabel
+from . import analyze, batch, calibrate, cluster, db, prelabel, refresh
 from . import label as label_mod
 from .adapters.claude_code import ClaudeCodeAdapter
 from .adapters.claude_code import inventory as claude_inventory
@@ -21,7 +21,7 @@ from .adapters.openclaw import OpenclawAdapter
 from .adapters.opencode import OpencodeAdapter
 from .adapters.opencode import inventory as opencode_inventory
 from .export import export_attestations
-from .link import link_episodes, relink_signatures
+from .link import link_episodes, reclassify_episodes, relink_signatures
 
 INSERT_EVENT = """
 INSERT OR IGNORE INTO event(
@@ -155,6 +155,28 @@ def cmd_label(args: argparse.Namespace) -> int:
         return 0
     finally:
         conn.close()
+
+
+def cmd_refresh_snippets(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        db.init_db(conn)
+        result = refresh.refresh_snippets(conn, since=args.since, dry_run=args.dry_run)
+    finally:
+        conn.close()
+    Console().print(json.dumps(result, ensure_ascii=False))
+    return 0
+
+
+def cmd_relink(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        db.init_db(conn)
+        result = reclassify_episodes(conn, window=args.window, dry_run=args.dry_run)
+    finally:
+        conn.close()
+    Console().print(json.dumps(result, ensure_ascii=False))
+    return 0
 
 
 def cmd_cluster(args: argparse.Namespace) -> int:
@@ -297,6 +319,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_calibrate.add_argument("--json", action="store_true")
     p_calibrate.add_argument("--out")
     p_calibrate.set_defaults(func=cmd_calibrate)
+
+    p_refresh = sub.add_parser("refresh-snippets")
+    p_refresh.add_argument("--since", type=float)
+    p_refresh.add_argument("--dry-run", action="store_true")
+    p_refresh.set_defaults(func=cmd_refresh_snippets)
+
+    p_relink = sub.add_parser("relink")
+    p_relink.add_argument("--window", type=float, default=1800.0)
+    p_relink.add_argument("--dry-run", action="store_true")
+    p_relink.set_defaults(func=cmd_relink)
 
     p_cluster = sub.add_parser("cluster")
     p_cluster.add_argument("--threshold", type=float, default=0.55)

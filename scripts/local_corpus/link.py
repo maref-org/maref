@@ -7,7 +7,7 @@ import sqlite3
 import time
 from typing import Any
 
-from .normalize import sha16
+from .normalize import classify_evidence, error_signature, sha16
 
 FAILURE_CLASSES = {
     "governance_denial",
@@ -179,6 +179,94 @@ def link_episodes(conn: sqlite3.Connection, window: float = 1800.0) -> dict[str,
             _upsert_signature(conn, sig, ts, runtime, episode_id)
     conn.commit()
     return {"created": created, "fixed": fixed, "candidates": len(candidates)}
+
+
+PRESERVE_CLASSES = {"governance_denial", "hitl", "user_correction"}
+
+
+def reclassify_episodes(
+    conn: sqlite3.Connection, window: float = 1800.0, dry_run: bool = False
+) -> dict[str, Any]:
+    """Recompute class, signature and outcome from the current episode snippet."""
+    rows = conn.execute(
+        """
+        SELECT ep.id, ep.session_id, ep.error_class AS old_class,
+               ep.failure_sig AS old_sig, ep.outcome AS old_outcome,
+               ep.label_status,
+               ev.id AS event_id, ev.tool, ev.verdict, ev.payload_hash,
+               ev.error_sig AS old_event_sig,
+               ev.snippet, ev.ts
+        FROM episode ep JOIN event ev ON ev.id = ep.failure_event_id
+        """
+    ).fetchall()
+    changed_class = changed_sig = changed_outcome = 0
+    affected_labeled: list[str] = []
+    affected_review: list[str] = []
+    for row in rows:
+        old_class = str(row["old_class"] or "")
+        snippet = str(row["snippet"] or "")
+        new_class = old_class
+        evidence = ""
+        if snippet and old_class not in PRESERVE_CLASSES:
+            evidence = classify_evidence(snippet)
+            if evidence in FAILURE_CLASSES:
+                new_class = evidence
+        new_sig_text = error_signature(snippet) if evidence else str(row["old_event_sig"] or "")
+        tool = str(row["tool"] or "")
+        new_failure_sig = sha16(new_class, new_sig_text or tool)
+        outcome, ended_at, fix = _find_fix(
+            conn,
+            str(row["session_id"]),
+            float(row["ts"]),
+            tool,
+            str(row["payload_hash"] or ""),
+            window,
+        )
+        class_changed = new_class != old_class
+        sig_changed = new_failure_sig != str(row["old_sig"] or "")
+        outcome_changed = outcome != str(row["old_outcome"] or "")
+        changed_class += int(class_changed)
+        changed_sig += int(sig_changed)
+        changed_outcome += int(outcome_changed)
+        if class_changed or sig_changed:
+            if row["label_status"] == "labeled":
+                affected_labeled.append(str(row["id"]))
+            elif row["label_status"] == "needs_review":
+                affected_review.append(str(row["id"]))
+        if dry_run or not (class_changed or sig_changed or outcome_changed):
+            continue
+        conn.execute(
+            "UPDATE event SET error_class=?, error_sig=? WHERE id=?",
+            (new_class, new_sig_text, int(row["event_id"])),
+        )
+        conn.execute(
+            """
+            UPDATE episode SET error_class=?, failure_sig=?, severity=?,
+                   ended_at=?, outcome=?, fix_json=?
+            WHERE id=?
+            """,
+            (
+                new_class,
+                new_failure_sig,
+                _severity(new_class, str(row["verdict"] or "")),
+                ended_at,
+                outcome,
+                json.dumps(fix, ensure_ascii=False),
+                str(row["id"]),
+            ),
+        )
+    if not dry_run:
+        conn.commit()
+        relink_signatures(conn)
+    return {
+        "episodes": len(rows),
+        "class_changed": changed_class,
+        "signature_changed": changed_sig,
+        "outcome_changed": changed_outcome,
+        "affected_labeled": affected_labeled,
+        "affected_review": affected_review,
+        "dry_run": dry_run,
+    }
 
 
 def relink_signatures(conn: sqlite3.Connection) -> int:
