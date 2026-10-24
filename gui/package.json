@@ -26,13 +26,8 @@
     "clsx": "^2.1.1",
     "electron-window-state": "^5.0.3",
     "i18next": "^26.3.4",
-<<<<<<< HEAD
     "lucide-react": "^1.58.0",
-    "react": "^19.2.5",
-=======
-    "lucide-react": "^1.17.0",
     "react": "^19.3.1",
->>>>>>> origin/main
     "react-dom": "^19.2.5",
     "react-i18next": "^17.0.8",
     "react-markdown": "^10.1.0",
