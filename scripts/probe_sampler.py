@@ -44,17 +44,17 @@ import os
 import sqlite3
 import time
 from collections import Counter, defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from maref_config import (
     AUDIT_LOG,
-    RECURSIVE_AUDIT_LOG as RECURSIVE_LOG,
     PROBE_DB,
-    config_path,
     REPO_DIR,
+    config_path,
 )
+from maref_config import RECURSIVE_AUDIT_LOG as RECURSIVE_LOG
 
 # 采样器本地阈值 (率基 滑窗 %, 可后续校准)
 DEFAULT_THRESHOLDS = {
@@ -65,7 +65,7 @@ DEFAULT_THRESHOLDS = {
 }
 
 # 语义标签定义: 探针名 -> {源事件类型集合, 权重}
-PROBE_SIGNATURES = {
+PROBE_SIGNATURES: dict[str, dict[str, Any]] = {
     "oscillation": {
         "source_events": {
             "oscillation_intervention",
@@ -112,17 +112,40 @@ PROBE_SIGNATURES = {
 DEFAULT_WINDOW = 1000  # 滑窗大小: 最近 N 条事件
 
 
-def _load_entries(path) -> list[dict]:
-    """加载 JSONL 文件"""
+def _to_ts(value) -> float:
+    """时间戳归一（epoch 秒 / ISO 字符串），无法解析返回 0.0。"""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            pass
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
+def _load_entries(path, since_ts: float | None = None) -> list[dict]:
+    """加载 JSONL 文件；since_ts 用于只保留窗口内事件。
+
+    历史实现加载全量日志，再由 `_window()` 取"最后 1000 条"——这会把
+    几个月前的事件当成 24h 遥测（实测同一批 579 条事件连续 9 天被计数）。
+    """
     if not os.path.exists(path):
         return []
     entries = []
     with open(path) as f:
         for line in f:
             try:
-                entries.append(json.loads(line.strip()))
+                entry = json.loads(line.strip())
             except json.JSONDecodeError:
-                pass
+                continue
+            if since_ts is not None and _to_ts(entry.get("timestamp")) < since_ts:
+                continue
+            entries.append(entry)
     return entries
 
 
@@ -306,9 +329,10 @@ def _normalize_event(entry: dict, source: str) -> dict | None:
 def sample() -> list[dict]:
     # 1. 加载所有数据源
     since_hours = int(os.environ.get("MAREF_PROBE_TIME_WINDOW_HOURS", "24"))
+    since_ts = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).timestamp()
 
-    audit = _load_entries(AUDIT_LOG)
-    recursive = _load_entries(RECURSIVE_LOG)
+    audit = _load_entries(AUDIT_LOG, since_ts)
+    recursive = _load_entries(RECURSIVE_LOG, since_ts)
     obs_events = _load_obs_events(since_hours)
     telemetry = _load_telemetry(since_hours)
     mcp_decisions = _load_mcp_decisions(since_hours)
@@ -335,6 +359,10 @@ def sample() -> list[dict]:
         window_size = DEFAULT_WINDOW
 
     windowed = _window(all_normalized, window_size)
+    if not windowed:
+        # 窗口内无事件时不要写入全 0 读数：那不是"健康"，而是"无数据"
+        print(f"⚠️ 最近 {since_hours}h 无可分析事件，跳过本轮探针写入")
+        return []
 
     # 4. 统计各探针
     event_counts = Counter(e["event_type"] for e in windowed)
@@ -367,7 +395,7 @@ def sample() -> list[dict]:
             "window_size": window_size,
             "window_used": total,
             "matched_events": osc_count,
-            "source_breakdown": {src: sum(1 for e in windowed if e["source"] == src) for src in set(e["source"] for e in windowed)},
+            "source_breakdown": {src: sum(1 for e in windowed if e["source"] == src) for src in {e["source"] for e in windowed}},
             "normal_max": t["normal_max"],
             "critical_min": t["critical_min"],
         }, ensure_ascii=False),
@@ -398,34 +426,43 @@ def sample() -> list[dict]:
     })
 
     # --- governance_health 探针 ---
-    health_events = PROBE_SIGNATURES["governance_health"]["source_events"]
     tool_start = event_counts.get("tool_call_start", 0)
     tool_end = event_counts.get("tool_call_end", 0)
-    tool_total = max(tool_start, tool_end, 1)
-    governed = sum(event_counts.get(ev, 0) for ev in ["tool_call_end", "rule_matched", "policy_evaluated"])
-    health_rate = governed / tool_total * 100.0
+    tool_total = max(tool_start, tool_end)
+    if tool_total == 0:
+        # 无工具调用时覆盖率没有分母。历史实现用 `or 1` 兜底，导致
+        # "0 调用 + 若干 rule_matched" 被算成 100% 健康，必须显式跳过。
+        print("⚠️ 窗口内无工具调用，跳过 governance_health 探针")
+    else:
+        governed = sum(event_counts.get(ev, 0) for ev in ["tool_call_end", "rule_matched", "policy_evaluated"])
+        # rule_matched/policy_evaluated 可多次命中同一调用 ⇒ 原始比值可能 >100%。
+        # 覆盖率封顶 100，同时保留原始比值供审计，避免"健康度 132%"这类无意义读数。
+        raw_health_rate = governed / tool_total * 100.0
+        health_rate = min(100.0, raw_health_rate)
 
-    t = thresholds["governance_health"]
-    readings.append({
-        "probe_name": "governance_health",
-        "severity": _classify("governance_health", health_rate, thresholds),
-        "value": round(health_rate, 4),
-        "threshold": t.get("critical_min", 50.0),
-        "timestamp": now,
-        "context_json": json.dumps({
-            "source": "probe_sampler_v3",
-            "semantics": "governance_coverage_rate",
-            "unit": "percent",
-            "tool_calls_total": tool_total,
-            "governed_calls": governed,
-            "normal_min": t.get("normal_min", 80.0),
-            "critical_min": t.get("critical_min", 50.0),
-        }, ensure_ascii=False),
-    })
+        t = thresholds["governance_health"]
+        readings.append({
+            "probe_name": "governance_health",
+            "severity": _classify("governance_health", health_rate, thresholds),
+            "value": round(health_rate, 4),
+            "threshold": t.get("critical_min", 50.0),
+            "timestamp": now,
+            "context_json": json.dumps({
+                "source": "probe_sampler_v3",
+                "semantics": "governance_coverage_rate",
+                "unit": "percent",
+                "tool_calls_total": tool_total,
+                "governed_calls": governed,
+                "raw_coverage_rate": round(raw_health_rate, 4),
+                "rate_capped": raw_health_rate > 100.0,
+                "normal_min": t.get("normal_min", 80.0),
+                "critical_min": t.get("critical_min", 50.0),
+            }, ensure_ascii=False),
+        })
 
     # --- agent_trust 探针 (从 coding_agent_status 或 MCP 决策推导) ---
     trust_scores = []
-    for agent_id, evs in agent_events.items():
+    for _agent_id, evs in agent_events.items():
         # 简化: 基于该 agent 的拦截率反推信任分
         agent_tool_starts = sum(1 for e in evs if e["event_type"] == "tool_call_start")
         agent_intercepted = sum(1 for e in evs if e["event_type"] == "tool_call_intercepted")
@@ -434,24 +471,27 @@ def sample() -> list[dict]:
             trust = max(0, 100 - intercept_rate * 100)
             trust_scores.append(trust)
 
-    avg_trust = sum(trust_scores) / len(trust_scores) if trust_scores else 50.0
-
-    t = thresholds["agent_trust"]
-    readings.append({
-        "probe_name": "agent_trust",
-        "severity": _classify("agent_trust", avg_trust, thresholds),
-        "value": round(avg_trust, 4),
-        "threshold": t.get("critical_min", 40.0),
-        "timestamp": now,
-        "context_json": json.dumps({
-            "source": "probe_sampler_v3",
-            "semantics": "agent_trust_aggregate",
-            "unit": "score_0_100",
-            "agents_with_data": len(trust_scores),
-            "normal_min": t.get("normal_min", 70.0),
-            "critical_min": t.get("critical_min", 40.0),
-        }, ensure_ascii=False),
-    })
+    if not trust_scores:
+        # 无 agent 工具调用样本时不要写 50.0 这种"中性假分"
+        print("⚠️ 窗口内无 agent 工具调用样本，跳过 agent_trust 探针")
+    else:
+        avg_trust = sum(trust_scores) / len(trust_scores)
+        t = thresholds["agent_trust"]
+        readings.append({
+            "probe_name": "agent_trust",
+            "severity": _classify("agent_trust", avg_trust, thresholds),
+            "value": round(avg_trust, 4),
+            "threshold": t.get("critical_min", 40.0),
+            "timestamp": now,
+            "context_json": json.dumps({
+                "source": "probe_sampler_v3",
+                "semantics": "agent_trust_aggregate",
+                "unit": "score_0_100",
+                "agents_with_data": len(trust_scores),
+                "normal_min": t.get("normal_min", 70.0),
+                "critical_min": t.get("critical_min", 40.0),
+            }, ensure_ascii=False),
+        })
 
     return readings
 
@@ -473,7 +513,7 @@ def write_readings(readings: list[dict]) -> None:
 
     # 2. 数据湖 (新版) - 写入 curated/probe_readings 分区
     try:
-        import duckdb
+        import duckdb  # type: ignore[import-not-found]
         lake_root = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
         curated_dir = lake_root / "curated" / "probe_readings"
         curated_dir.mkdir(parents=True, exist_ok=True)
@@ -505,19 +545,23 @@ def main() -> int:
     print("=" * 60)
     print(f"审计日志: {AUDIT_LOG}")
     print(f"递归日志: {RECURSIVE_LOG}")
-    print(f"ObsEvent:  ~/.maref/obs/")
-    print(f"Telemetry: data/telemetry/")
+    print("ObsEvent:  ~/.maref/obs/")
+    print("Telemetry: data/telemetry/")
     print(f"探针 DB:  {PROBE_DB}")
     print()
 
     readings = sample()
-    print(f"\n采样结果:")
+    print("\n采样结果:")
     for r in readings:
         print(f"  {r['probe_name']}: value={r['value']:.2f}, severity={r['severity']}, "
               f"threshold={r['threshold']:.0f}")
 
     if args.dry_run:
         print("\n[dry-run] 未写入")
+        return 0
+
+    if not readings:
+        print("\n⚠️ 本轮无有效探针读数（无数据 ≠ 健康），未写入")
         return 0
 
     write_readings(readings)

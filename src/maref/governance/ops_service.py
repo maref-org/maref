@@ -66,9 +66,7 @@ class GovernanceOpsService:
         self.feedback_path = Path(feedback_path) if feedback_path else root / "feedback.jsonl"
         env_policy = os.environ.get("MAREF_ORG_POLICY_PATH", "")
         self.org_policy_path: Path | None = (
-            Path(org_policy_path)
-            if org_policy_path
-            else (Path(env_policy) if env_policy else None)
+            Path(org_policy_path) if org_policy_path else (Path(env_policy) if env_policy else None)
         )
         self.hmac_key = hmac_key or os.environ.get("MAREF_HMAC_SECRET_KEY")
         self.provenance = provenance or ProvenanceLedger(self.provenance_path)
@@ -184,9 +182,7 @@ class GovernanceOpsService:
         validation_data = payload.get("validation")
         validation = None
         if isinstance(validation_data, dict):
-            validation = SimpleNamespace(
-                all_passed=bool(validation_data.get("all_passed", False))
-            )
+            validation = SimpleNamespace(all_passed=bool(validation_data.get("all_passed", False)))
         elif isinstance(validation_data, bool):
             validation = SimpleNamespace(all_passed=validation_data)
         decision: MarketplaceDecision = self.marketplace_gate.review_listing(
@@ -198,17 +194,13 @@ class GovernanceOpsService:
         )
         return decision.to_dict()
 
-    def audit_entries(
-        self, *, since: float | None = None, limit: int = 1000
-    ) -> list[AuditEntry]:
+    def audit_entries(self, *, since: float | None = None, limit: int = 1000) -> list[AuditEntry]:
         entries = self.pipeline.audit.read_all(max_entries=limit)
         if since is not None:
             entries = [entry for entry in entries if entry.timestamp >= since]
         return entries
 
-    def evidence_bundle(
-        self, *, since: float | None = None, limit: int = 5000
-    ) -> dict[str, Any]:
+    def evidence_bundle(self, *, since: float | None = None, limit: int = 5000) -> dict[str, Any]:
         entries = self.pipeline.audit.read_all(max_entries=limit)
         if since is not None:
             entries = [entry for entry in entries if entry.timestamp >= since]
