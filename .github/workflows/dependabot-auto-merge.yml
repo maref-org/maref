@@ -1,7 +1,11 @@
 name: Dependabot Auto-Merge
 
+# Dependabot PR 在 pull_request 事件下只拿到只读 token 且无 secrets，
+# 无法合并；pull_request_target 在 base 上下文运行才具备写权限。
+# 本 job 不 checkout/执行 PR 代码，仅读取 PR 元数据后开启 auto-merge。
 on:
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -10,17 +14,26 @@ permissions:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    # 以 PR 作者判定而非事件 actor：维护者对 Dependabot 分支 rebase 后
+    # 触发的 synchronize 事件 actor 是维护者，但内容仍完全来自 Dependabot。
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Auto-merge patch/minor updates
-        uses: ahmadnassri/action-dependabot-auto-merge@v2
-        with:
-          target: minor
-          branch: main
-          # GitHub Actions 无批准权限（仓库设置禁止），approve 必须显式关闭，
-          # 否则每个 Dependabot 事件都会以 "not permitted to approve" 失败。
-          approve: false
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      # 原 ahmadnassri/action-dependabot-auto-merge 只发 `@dependabot merge`
+      # 评论；Dependabot 会等全部 status 通过才合并，而 cla-assistant 的
+      # license/cla 对 bot 永远 pending（无法签署），导致合并永不发生。
+      # 改用 GitHub 原生 auto-merge：只以分支保护要求为条件
+      # （required checks 为空、已有批准），不受非必需 status 阻塞。
+      - name: Enable auto-merge for patch/minor updates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 不 checkout 仓库，gh 需显式知道目标仓库。
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # requirements 类更新的 body 不含 update-type 块，不能只认 patch/minor。
+          meta=$(gh pr view "$PR" --json title,body --jq '.title + "\n" + .body')
+          if echo "$meta" | grep -q 'version-update:semver-major'; then
+            echo "skip: major update"
+            exit 0
+          fi
+          gh pr merge "$PR" --auto --squash
