@@ -26,6 +26,8 @@ jobs:
       - name: Enable auto-merge for patch/minor updates
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 不 checkout 仓库，gh 需显式知道目标仓库。
+          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           # requirements 类更新的 body 不含 update-type 块，不能只认 patch/minor。
