@@ -20,4 +20,7 @@ jobs:
         with:
           target: minor
           branch: main
+          # GitHub Actions 无批准权限（仓库设置禁止），approve 必须显式关闭，
+          # 否则每个 Dependabot 事件都会以 "not permitted to approve" 失败。
+          approve: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
