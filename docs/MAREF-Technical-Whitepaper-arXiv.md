@@ -536,7 +536,7 @@ Gy = 0xBC3736A2_F4F6779C_59BDCEE3_6B692153_D0A9877C_C62A4740_02DF32E5_2139F0A0
 - **Repository**: https://github.com/maref-org
 - **License**: Apache-2.0
 - **Version**: v0.30.0-GA
-- **Python**: 3.10+
+- **Python**: 3.11+
 - **Documentation**: https://maref.cc
 
 ## Appendix D: Legal Disclaimer

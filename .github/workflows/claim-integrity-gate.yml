@@ -49,7 +49,7 @@ jobs:
           fetch-depth: 0  # 需要 git tag 做 C1 版本三角比对
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
