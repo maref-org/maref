@@ -1,13 +1,14 @@
-version: 16
-last_updated: '2026-08-05T13:40:00+08:00'
+version: 17
+last_updated: '2026-10-20T00:00:00+08:00'
 project:
   name: MAREF
-  current_release: 0.54.0
+  current_release: 0.54.3
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
-  rsi_level: 'L2 (Full Pass)'
+  rsi_level: 'L2 (Conditional Pass / 待复审)'
   rsi_score: 79.5
   rsi_report: docs/rsi/l2-acceptance-report-20260702.md
+  rsi_status_note: '2026-10-19 审计发现证据链/版本声称缺口，L2 Full Pass 暂停；P0 修复后按 docs/plans/2026-10-19-audit-remediation-v0.54.1.md T3.4 重跑验收。'
   stage: S0 (学术借力) -> P0 (开源启动) -> S1 (开源运营启动)
   constitution_version: v1.8
   phase_gate_enforcement:
@@ -48,20 +49,22 @@ track_b:
   remote: git@github.com:maref-org/maref.git
   pre_push_hook: present
   branch_protection: enabled
-  ci_status: fixed
-  security_scan: clean
+  ci_status: 'release-gate hardened; dependency audit red'
+  security_scan: 'bandit High=0; pip-audit known CVEs'
 governance:
   deployment_status: production_closed_loop
-  last_audit: '2026-08-04'
-  audit_score: 8.8/10
-  coverage_overall: 52.49%
+  last_audit: '2026-10-19'
+  audit_score: 'D (32/100)'
+  audit_score_previous: '8.8/10 (2026-08-04)'
+  audit_note: 'v0.54.3 CI stabilization on top of P0 remediation; see docs/plans/2026-10-19-audit-remediation-v0.54.1.md'
+  coverage_overall: '76.36% (standard domain, 15051 tests, 2026-10-24 local run @ feb31444)'
   coverage_governance: 87.70%
   coverage_federation: 67.76%
   coverage_identity: 58.46%
   coverage_security: 87.24%
   coverage_execution: 71.62%
   coverage_data_value: 95.95%
-  coverage_note: '全仓 52.49% 为 2026-08-05 实测（标准口径：排除 slow/real/chaos + tests/research 收集错误 + evolution 慢测试；unit/cli/desktop/immunity/tools/governance/federation/security/execution/identity/recursive/sidecar 等 12 标准域 8158 tests 单次跑）。已超 coverage_target 50%+。v0.50 记录的 80.31% 基于当时 4766 tests 标准套件，现已过时。'
+  coverage_note: '2026-10-24 本机按 CI 标准域重跑：pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py（addopts --cov=src）。结果 15051 passed / 14 skipped / 495 deselected / 0 failed，76.36%（71797/90641 行），耗时 6m14s，HEAD feb31444。此前 10.68%（2026-10-23，全仓 89425 行）与 52.49%（2026-08-05，8158 tests）为不同口径历史值，均已被本次替代。CI 远程复跑仍需在下次 push 后确认。下方分域覆盖率数字仍为旧口径，未随本次重算。'
   v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
   mypy_errors: 0  # 2026-08-05 修复 report_generator.py:151 arg-type 后实测清零，见 audit-reinforcement-20260805-v0.52.md H-5

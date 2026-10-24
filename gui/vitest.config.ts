@@ -12,5 +12,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     css: false,
+    // tests/e2e 为 Playwright 规格（@playwright/test 未在 devDependencies 中）。
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.git/**", "tests/e2e/**"],
   },
 });
