@@ -23,9 +23,12 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src/ src/
 COPY packaging/ packaging/
 
+# GHSA-9v8h-qqgm-4m35: 同 Dockerfile — mitmproxy 硬 pin Brotli<=1.2.0,
+# 漏洞修复在 1.2.1, 用 --no-deps 覆盖。
 RUN python -m venv /opt/venv && \
     PATH="/opt/venv/bin:$PATH" pip install --no-cache-dir --upgrade pip && \
     PATH="/opt/venv/bin:$PATH" pip install --no-cache-dir -e ".[sidecar,identity,sentinel]" && \
+    PATH="/opt/venv/bin:$PATH" pip install --no-cache-dir --no-deps --force-reinstall "brotli>=1.2.1" && \
     PATH="/opt/venv/bin:$PATH" pip install --no-cache-dir "pyinstaller>=6.21"
 
 RUN PATH="/opt/venv/bin:$PATH" PYTHONPATH="/build/src" \
