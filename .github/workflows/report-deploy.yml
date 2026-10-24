@@ -18,14 +18,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          # maref.crypto 顶层导入 gmssl（identity extra）；audit 报告链路经
+          # governance → crypto，缺少该 extra 时导入即失败。
+          pip install -e ".[dev,identity]"
 
       - name: Generate audit log
         run: |
