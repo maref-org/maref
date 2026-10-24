@@ -28,9 +28,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          if ! gh pr view "$PR" --json body --jq .body \
-              | grep -Eq 'version-update:semver-(patch|minor)'; then
-            echo "skip: major/pin update"
+          # requirements 类更新的 body 不含 update-type 块，不能只认 patch/minor。
+          meta=$(gh pr view "$PR" --json title,body --jq '.title + "\n" + .body')
+          if echo "$meta" | grep -q 'version-update:semver-major'; then
+            echo "skip: major update"
             exit 0
           fi
           gh pr merge "$PR" --auto --squash
